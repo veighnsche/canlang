@@ -3170,6 +3170,8 @@ async function runScenarioSeam(
   call: CanonicalSeamCall,
   occurrenceIds: string[],
   due?: { readonly effects: SystemStaging; readonly occurrenceId: OccurrenceId },
+  cohort?: { readonly occurrenceId: OccurrenceId; readonly eventFields: ReadonlyArray<string>;
+    readonly refInput: string; readonly bind: string | null },
 ): Promise<CanonicalExecutionEffects> {
   const actorUserId = call.context.actor?.userId ?? null;
   const teamId = call.context.team?.teamId ?? null;
@@ -3262,6 +3264,14 @@ async function runScenarioSeam(
     // Ordinary references retain admitted metadata while domain reads see
     // provisional writes; reserved post-write versions belong to staged rows.
     Object.assign(record, nativeRecordMetadata(row));
+    const ownership = loaded.containment.get(modelName);
+    if (isUnknownRecord(ownership) && typeof ownership.parent === 'string') {
+      if (row.parent != null && row.parent.model !== ownership.parent) {
+        return refuseRecordBinding('Stored parent disagrees with its declared model.');
+      }
+      record.parent = row.parent == null ? null : makeRecordRef(row.parent.model, row.parent.id);
+    }
+    bindNativeRecord(record, modelName, row.id, row.version);
     Object.freeze(record);
     views.set(key, record);
     recordBindings.set(record, { model: modelName, id: row.id, version: row.version });
@@ -3668,7 +3678,7 @@ async function runScenarioSeam(
         const boundRequest: BoundCapabilityRequest = { binding: bindingKey, from, arguments: args };
         const stagedSend = await stage({
           operationId: call.context.operationId, source, occurrenceIndex: sendIndex++,
-          request: boundRequest, originOccurrence: due?.occurrenceId ?? null,
+          request: boundRequest, originOccurrence: due?.occurrenceId ?? cohort?.occurrenceId ?? null,
         }, {
           actor: actorUserId ?? 'anonymous', now: admittedNow, operation: scope.operation,
           load: overlay.load.bind(overlay), query: overlay.query.bind(overlay),
@@ -3685,12 +3695,16 @@ async function runScenarioSeam(
     qualified: call.context,
     ...(opts.formatting === undefined ? {} : { formatting: opts.formatting }),
   });
-  const argument = due !== undefined
+  const parameters = cohort === undefined ? undefined : scenarioParameters(call, loaded, recordView, resolvedDefaults);
+  const argument = cohort !== undefined
+    ? { event: Object.fromEntries(cohort.eventFields.map(name => [name, parameters![name]])),
+      ...(cohort.bind === null ? {} : { [cohort.bind]: parameters![cohort.refInput] }) }
+    : due !== undefined
     ? { event: scenarioParameters(call, loaded, recordView, resolvedDefaults) }
     : callable?.inputStyle === "parameters"
     ? scenarioParameters(call, loaded, recordView, resolvedDefaults)
     : { operation_id: call.context.operationId, inputs: call.inputs };
-  const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx, [argument], due !== undefined);
+  const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx, [argument], due !== undefined || cohort !== undefined);
   if (!outcome.ok) {
     // Attributed engine failure first: an uncaught engine `StateError`
     // propagates verbatim, so its message matches the recorded one
@@ -3950,6 +3964,231 @@ export interface CanonicalDueScheduleOpts {
   readonly store: StoragePort;
   readonly identities: IdentityStore;
   readonly now: () => number;
+  /** Transport bounds only; retained with the source receipt for restart. */
+  readonly cohortBounds?: FanoutTriggerJoinBounds;
+}
+
+function privateSourceMember(value: unknown, key: string): unknown {
+  return isUnknownRecord(value) ? readMetadataMember(value, key, 'Private cohort source')?.value : undefined;
+}
+
+function assertDeclaredCohortVersion(artifact: CompileArtifact): void {
+  if (!artifact.requires.some(requirement => requirement.capability === 'state.cohorts' && requirement.min_version === 1) ||
+      artifact.requires.some(requirement => requirement.capability === 'state.cohorts' && requirement.min_version !== 1)) {
+    throw new Error('Declared cohorts require the exact state.cohorts v1 producer contract.');
+  }
+}
+
+async function resolveDueOwner(opts: CanonicalDueScheduleOpts, now: number): Promise<ResolvedIdentity> {
+  const producer = await loadProducerModule('@canlang/identity', 'private source identity');
+  const resolve = requireProducerFn(producer, 'resolveIdentity', 'private source identity') as
+    typeof import('@canlang/identity').resolveIdentity;
+  const identity = await resolve(opts.identities,
+    opts.due.scope.owner === 'app' ? {} : { team_id: opts.due.scope.owner }, { clock: { nowMs: () => now } });
+  if (identity.actor !== null || (identity.team?.team_id ?? 'app') !== opts.due.scope.owner) {
+    throw new Error('Private source has no current verified owner.');
+  }
+  return identity;
+}
+
+function checkedSourceEvent(definition: unknown, event: string, payload: unknown) {
+  const inputs = privateSourceMember(privateSourceMember(privateSourceMember(definition, 'events'), event), 'inputs');
+  if (!isUnknownRecord(inputs)) throw new Error('Private cohort lacks its declared event inputs.');
+  const schema = normalizeSchema({ operations: { [event]: { inputs } } } as SchemaDescriptor);
+  const captured = validateOperationInput(schema, event, payload);
+  return { inputs, captured };
+}
+
+function emittedPrivateCohort(definition: unknown, handler: string, event: string, owner: string, captured: unknown, inputs: unknown) {
+  const metadata = privateSourceMember(privateSourceMember(definition, 'operations'), handler);
+  const invocation = privateSourceMember(metadata, 'invocation');
+  const cohorts = privateSourceMember(definition, 'cohorts');
+  const descriptor = privateSourceMember(cohorts, handler);
+  if (privateSourceMember(metadata, 'event') !== event || !isUnknownRecord(invocation) ||
+      invocation.name !== handler || invocation.kind !== 'scenario' || !isUnknownRecord(descriptor) ||
+      (descriptor.bind !== null && (typeof descriptor.bind !== 'string' || descriptor.bind === ''))) {
+    throw new Error('Private cohort lacks its exact handler/event/child declaration.');
+  }
+  const cohort = resolveEmittedFanoutCohort({ cohorts, handler, owner, event: captured,
+    models: privateSourceMember(definition, 'models'), eventInputs: inputs });
+  return { invocation, cohort, bind: descriptor.bind as string | null, refInput: descriptor.bind ?? '$cohort' };
+}
+
+/** Consume one exact source head and freeze every cohort handler of that event together. */
+async function invokeDueCohortsCanonical(opts: CanonicalDueScheduleOpts, loaded: LoadedCanonicalDescriptors, definition: unknown) {
+  assertDeclaredCohortVersion(opts.artifact);
+  const now = opts.now();
+  const trustedSource = `schedule:${opts.due.event}`;
+  const context = workStageContext(opts.store, { actor: trustedSource, now, operation: opts.handler });
+  const schedule = await loadProducerModule('@canlang/work/kernel/schedule-staging', 'cohort source head');
+  const stageDue = requireProducerFn(schedule, 'stageDueSchedule', 'cohort source head') as
+    typeof import('@canlang/work/kernel/schedule-staging').stageDueSchedule;
+  // The fence precedes every source/membership read, including source staging.
+  const revision = await opts.store.readRevision();
+  const due = await stageDue(opts.due, context);
+  if (due.status !== 'ready') return due;
+  await resolveDueOwner(opts, now);
+  const { inputs, captured } = checkedSourceEvent(definition, opts.due.event, due.occurrence.payload);
+  const operations = privateSourceMember(definition, 'operations');
+  if (!isUnknownRecord(operations)) throw new Error('Cohort source has no private handler declarations.');
+  const handlers = Object.keys(operations).filter(handler =>
+    privateSourceMember(operations[handler], 'event') === opts.due.event).sort();
+  const bounds = opts.cohortBounds ?? { pageLimit: 100, chunkSize: 100 };
+  if (!Number.isSafeInteger(bounds.pageLimit) || bounds.pageLimit < 1 ||
+      !Number.isSafeInteger(bounds.chunkSize) || bounds.chunkSize < 1) {
+    throw new Error('Cohort source transport bounds must be positive integers.');
+  }
+  const producers = await loadFanoutStateProducers();
+  const writes: DomainWrite[] = [...due.effects.writes ?? []];
+  const fanouts: Array<{ handler: string; fanoutId: string }> = [];
+  for (const handler of handlers) {
+    if (!opts.artifact.callables.some(callable => callable.kind === 'handler' && callable.id === handler)) {
+      throw new Error('Cohort source names an unassembled private handler.');
+    }
+    // Mixed ordinary/cohort routes require a common source transaction too;
+    // this bounded consumer refuses them rather than consuming only one route.
+    const declared = emittedPrivateCohort(definition, handler, opts.due.event, opts.due.scope.owner, captured, inputs);
+    loaded.producers.registry.loadArtifactDescriptors({ ...opts.artifact, operations: [declared.invocation] }, { by: () => 'owner' });
+    if (!loaded.models.some(model => model.name === declared.cohort.model)) throw new Error('Cohort names an unknown owning model.');
+    if (declared.cohort.kind === 'anchored-collection' && !(await classifyFanoutAnchor(opts.store, declared.cohort.parent)).known) {
+      return { status: 'refused' as const, reason: 'unknown-cohort-anchor' };
+    }
+    const members = producers.staging.stageFanoutMembership(
+      await drainFanoutCohortIdentities(opts.store, declared.cohort, bounds.pageLimit), 'work.fanout_intent.members');
+    const cutoff = { sourceOccurrence: opts.due.occurrenceId, handler };
+    const staged = fanoutAdmissionWrites(producers, cutoff, declared.cohort.kind, members, bounds.chunkSize,
+      { actor: trustedSource, nowMs: now });
+    writes.push(...staged.writes);
+    fanouts.push({ handler, fanoutId: staged.fanoutId });
+  }
+  if (!fanouts.some(fanout => fanout.handler === opts.handler)) throw new Error('Source selected no declared cohort.');
+  const result = { fanouts, bounds: { ...bounds } };
+  const occurrence = await loadProducerModule('@canlang/work/kernel/occurrence-staging', 'cohort source receipt');
+  const receiptCommand = occurrence['workOccurrencePutReceiptCommand'];
+  if (!isUnknownRecord(receiptCommand)) throw new Error('Cohort source receipt command is unavailable.');
+  const stageReceipt = requireProducerFn(receiptCommand, 'stage', 'cohort source receipt') as
+    typeof import('@canlang/work/kernel/occurrence-staging').workOccurrencePutReceiptCommand.stage;
+  const terminal = await stageReceipt({ occurrenceId: opts.due.occurrenceId, status: 'completed', result }, context);
+  if ((terminal.outboxAck?.length ?? 0) !== 0) throw new Error('Cohort source cannot acknowledge provider work.');
+  const batch: CommitBatch = { expectedRevision: revision,
+    writes: [...writes, ...terminal.writes ?? []], history: [...due.effects.history ?? [], ...terminal.history ?? []],
+    receipt: null, outbox: [...due.effects.outbox ?? [], ...terminal.outbox ?? []],
+    schedules: [...due.effects.schedules ?? [], ...terminal.schedules ?? []],
+    uniqueClaims: [...due.effects.uniqueClaims ?? [], ...terminal.uniqueClaims ?? []],
+    uniqueReleases: [...due.effects.uniqueReleases ?? [], ...terminal.uniqueReleases ?? []] };
+  producers.join.assertFanoutChildJoin(batch);
+  await resolveDueOwner(opts, now);
+  await opts.store.commit(batch);
+  return { status: 'completed' as const, occurrenceId: opts.due.occurrenceId, result };
+}
+
+/** Rehydrate a private child only from its retained authoritative source and frozen intent. */
+export async function createCanonicalDueCohortBody(opts: CanonicalDueScheduleOpts) {
+  assertCanonicalStore(opts.store, opts.handler);
+  assertDeclaredCohortVersion(opts.artifact);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  const callable = opts.artifact.callables.find(entry => entry.kind === 'handler' && entry.id === opts.handler);
+  const moduleUrl = callable === undefined ? undefined : opts.asm.moduleUrls[callable.module];
+  if (moduleUrl === undefined) throw new Error('Private cohort has no owning assembled handler.');
+  const definition = privateSourceMember(await import(moduleUrl), 'appDefinition');
+  if (opts.due.scope.app !== opts.app || privateSourceMember(privateSourceMember(definition, 'packages'), opts.due.scope.ownerPackage) === undefined) {
+    throw new Error('Private cohort source scope disagrees with its deployment.');
+  }
+  const tables = await loadProducerModule('@canlang/work/kernel/tables', 'cohort retained source');
+  const readSchedule = requireProducerFn(tables, 'readScheduleRow', 'cohort retained source') as
+    typeof import('@canlang/work/kernel/tables').readScheduleRow;
+  const readReceipt = requireProducerFn(tables, 'readOccurrenceRow', 'cohort retained source') as
+    typeof import('@canlang/work/kernel/tables').readOccurrenceRow;
+  const row = await opts.store.load(tables['WORK_SCHEDULE_MODEL'] as ModelName, opts.due.occurrenceId as RecordId);
+  const receiptRow = await opts.store.load(tables['WORK_OCCURRENCE_MODEL'] as ModelName, opts.due.occurrenceId as RecordId);
+  if (row === null || receiptRow === null) throw new Error('Private cohort has no admitted source receipt.');
+  const source = readSchedule(row);
+  const receipt = readReceipt(receiptRow);
+  if (source.occurrenceId !== opts.due.occurrenceId || source.key !== opts.due.key || source.at !== opts.due.at ||
+      source.event !== opts.due.event || source.scopeApp !== opts.app || source.scopeOwner !== opts.due.scope.owner ||
+      source.scopeOwnerPackage !== opts.due.scope.ownerPackage || source.state !== 'admitted' || receipt.status !== 'completed' ||
+      receipt.occurrenceId !== source.occurrenceId || !isUnknownRecord(receipt.result) || !Array.isArray(receipt.result.fanouts)) {
+    throw new Error('Private cohort lacks its exact admitted Work source.');
+  }
+  const { inputs: fields, captured } = checkedSourceEvent(definition, source.event, source.payload);
+  const declared = emittedPrivateCohort(definition, opts.handler, source.event, source.scopeOwner, captured, fields);
+  const privateDescriptors = loaded.producers.registry.loadArtifactDescriptors(
+    { ...opts.artifact, operations: [declared.invocation] }, { by: () => 'owner' });
+  const def = privateDescriptors.registry.get(opts.handler) as GeneratedOperationDef | undefined;
+  if (def === undefined) throw new Error('Private cohort invocation was not checked.');
+  const reference = def.descriptor.inputs.find(field => field.name === declared.refInput);
+  if (reference?.kind !== 'ref' || reference.model !== declared.cohort.model || !reference.required || reference.versioned) {
+    throw new Error('Private cohort child must be its checked nonnullable identity-only reference.');
+  }
+  const producers = await loadFanoutStateProducers();
+  const fanoutId = producers.tables.fanoutIntentRowId(source.occurrenceId, opts.handler, declared.cohort.kind);
+  if (!receipt.result.fanouts.some((entry: unknown) => isUnknownRecord(entry) && entry.handler === opts.handler && entry.fanoutId === fanoutId)) {
+    throw new Error('Private cohort is absent from its committed source receipt.');
+  }
+  const intent = await opts.store.load(T34F7_FANOUT_INTENT_MODEL, fanoutId as RecordId);
+  if (intent === null) throw new Error('Private cohort has no frozen intent.');
+  const frozen = producers.tables.readFanoutIntentRow(intent);
+  if (frozen.handler !== opts.handler || frozen.sourceOccurrence !== source.occurrenceId || frozen.cohort !== declared.cohort.kind) {
+    throw new Error('Private cohort source and frozen intent disagree.');
+  }
+  const bounds = privateSourceMember(receipt.result, 'bounds');
+  if (!isUnknownRecord(bounds) || !Number.isSafeInteger(bounds.pageLimit) || Number(bounds.pageLimit) < 1 ||
+      !Number.isSafeInteger(bounds.chunkSize) || Number(bounds.chunkSize) < 1) throw new Error('Cohort source lost its admission bounds.');
+  const admittedInputs: Record<string, unknown> = Object.create(null);
+  for (const [name, value] of Object.entries(captured)) {
+    admittedInputs[name] = encodeValue((fields[name] as FieldDescriptor).type, value);
+  }
+  for (const field of def.descriptor.inputs) {
+    if (field.kind !== 'ref' || field.name === declared.refInput || admittedInputs[field.name] === null || admittedInputs[field.name] === undefined) continue;
+    if (Object.hasOwn(def.inputArrays, field.name)) throw new Error('Private cohort event array references are unavailable.');
+    const ref = decodeValue(field.model, admittedInputs[field.name]) as import('@canlang/contracts').RecordRef;
+    admittedInputs[field.name] = encodeValue(field.model, makeRecordRef(field.model, ref.id));
+  }
+  freezeScenarioSnapshot(admittedInputs);
+  const identity = await resolveDueOwner(opts, opts.now());
+  const trustedSource = `schedule:${source.event}`;
+  const privateLoaded = { ...loaded, registry: privateDescriptors.registry };
+  const guards = await loadProducerModule('@canlang/state/effects/guards', 'private child require');
+  const isRequireFailure = requireProducerFn(guards, 'isAuthoredRequireFailure', 'private child require') as
+    typeof import('@canlang/state/effects/guards').isAuthoredRequireFailure;
+  const body: FanoutSchedulerBodyPort = async (child, _row, attempt) => {
+    const call = attempt.call;
+    if (call === undefined || call.def !== def || attempt.occurrenceIds === undefined ||
+        call.context.operationId !== attempt.operationId || call.context.operation !== opts.handler ||
+        call.context.app !== opts.app || call.context.source !== 'schedule' ||
+        call.context.trustedSource !== trustedSource || call.context.actor !== null ||
+        (call.context.team?.teamId ?? 'app') !== source.scopeOwner ||
+        child.parentOccurrence !== source.occurrenceId || child.handler !== opts.handler ||
+        !frozen.members.includes(child.recordId) || !call.recordRefs?.some(ref => ref.param === declared.refInput && ref.row.id === child.recordId)) {
+      throw new loaded.producers.errors('forbidden', 'Private child cannot borrow another source, owner or admitted record.');
+    }
+    for (const [name, value] of Object.entries(admittedInputs)) {
+      if (JSON.stringify(call.inputs[name]) !== JSON.stringify(value)) {
+        throw new loaded.producers.errors('validation', 'Private child event arguments differ from the retained source.');
+      }
+    }
+    await resolveDueOwner(opts, call.context.now);
+    let effects: CanonicalExecutionEffects;
+    try {
+      effects = await runScenarioSeam(privateLoaded, { ...opts, operation: opts.handler, operationId: attempt.operationId,
+        inputs: call.inputs, identity, memberships: opts.identities, source: 'schedule', now: () => call.context.now },
+      call, attempt.occurrenceIds, undefined, { occurrenceId: source.occurrenceId as OccurrenceId,
+        eventFields: Object.keys(fields), refInput: declared.refInput as string, bind: declared.bind });
+    } catch (error) {
+      // Private handlers retain authored-require markers for their source
+      // driver. A child uses State's existing rejected-receipt/outcome path.
+      if (isRequireFailure(error)) throw new loaded.producers.errors('rule_failed', error.message);
+      throw error;
+    }
+    const stagedFiles = await stageFileReferences({ artifact: opts.artifact, effects, store: opts.store, identity, app: opts.app,
+      refuse: text => { throw new loaded.producers.errors('validation', text); } });
+    return { ...effects, guards: [...effects.guards ?? [], ...stagedFiles.guards,
+      { name: 'cohort.owner', evaluate: async () => { await resolveDueOwner(opts, call.context.now); return true; } }],
+      operationResult: effects.result, result: { kind: 'completed' } } as FanoutSchedulerBodyEffects;
+  };
+  return { registry: privateDescriptors.registry, body, identity, cohort: declared.cohort, fanoutId,
+    inputs: admittedInputs, refInput: declared.refInput as string, trustedSource,
+    bounds: { pageLimit: Number(bounds.pageLimit), chunkSize: Number(bounds.chunkSize) } };
 }
 
 class DueScheduleChanged extends Error {
@@ -3980,6 +4219,10 @@ export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts)
       !isUnknownRecord(invocation) || member(invocation, 'name') !== opts.handler ||
       member(invocation, 'kind') !== 'scenario' || !isUnknownRecord(inputs)) {
     throw new Error('Due handler lacks its exact private invocation/event/scope declaration.');
+  }
+  const cohorts = member(definition, 'cohorts');
+  if (isUnknownRecord(cohorts) && Object.hasOwn(cohorts, opts.handler)) {
+    return invokeDueCohortsCanonical(opts, loaded, definition);
   }
   const privateDescriptors = loaded.producers.registry.loadArtifactDescriptors(
     { ...opts.artifact, operations: [invocation] }, { by: () => 'owner' },
@@ -7085,6 +7328,8 @@ interface FanoutInvokeProducer {
     readonly app: string;
     readonly source: string;
     readonly inputs: Record<string, unknown>;
+    readonly kind?: 'trusted';
+    readonly trustedSource?: string;
     readonly execute: (call: FanoutAdmittedCall) => Promise<CanonicalExecutionEffects>;
     readonly assertJoin: (batch: CommitBatch) => void;
   }): Promise<MutationResult>;
@@ -7429,6 +7674,24 @@ export type StageFanoutTriggerJoinOutcome =
     }
   | { readonly ok: false; readonly diagnosis: FanoutCohortDiagnosis };
 
+/** Common staged admission rows for one or several handlers in a source unit. */
+function fanoutAdmissionWrites(producers: FanoutStateProducers, cutoff: FanoutCutoffSpec,
+  cohort: FanoutCohortKind, members: ReadonlyArray<string>, chunkSize: number, meta: FanoutRowMeta) {
+  const fanoutId = producers.tables.fanoutIntentRowId(cutoff.sourceOccurrence, cutoff.handler, cohort);
+  const chunksTotal = Math.max(1, Math.ceil(members.length / chunkSize));
+  const cursor = chunksTotal <= 1 ? null : fanoutAdmitCursor(1);
+  const writes: DomainWrite[] = [
+    { kind: 'insert', model: T34F7_FANOUT_INTENT_MODEL,
+      row: producers.tables.newFanoutIntentRow({ ...cutoff, cohort, members }, meta) },
+    { kind: 'insert', model: T34F7_FANOUT_CHECKPOINT_MODEL,
+      row: producers.tables.newFanoutCheckpointRow({ fanoutId, completed: [], cursor }, meta) },
+    ...members.slice(0, chunkSize).map(recordId => ({ kind: 'insert' as const, model: T34F7_FANOUT_CHILD_MODEL,
+      row: producers.tables.newFanoutChildRow({ fanoutId, parentOccurrence: cutoff.sourceOccurrence,
+        handler: cutoff.handler, recordId }, meta) })),
+  ];
+  return { fanoutId, writes, chunksTotal, cursor };
+}
+
 /** T34-F7: opaque admission cursor while chunks remain (F5-exact shape). */
 function fanoutAdmitCursor(nextChunkIndex: number): string {
   return `admit/${nextChunkIndex}`;
@@ -7608,42 +7871,11 @@ export async function stageFanoutTriggerJoin(
       ),
     };
   }
-  const chunksTotal = Math.max(1, Math.ceil(members.length / opts.bounds.chunkSize));
-  const firstChunk = members.slice(0, opts.bounds.chunkSize);
-  const singleCommit = chunksTotal <= 1;
-  const intentRow = producers.tables.newFanoutIntentRow(
-    {
-      sourceOccurrence: opts.cutoff.sourceOccurrence,
-      handler: opts.cutoff.handler,
-      cohort: cohortKind,
-      members,
-    },
-    opts.meta,
-  );
-  const checkpointRow = producers.tables.newFanoutCheckpointRow(
-    { fanoutId, completed: [], cursor: singleCommit ? null : fanoutAdmitCursor(1) },
-    opts.meta,
-  );
+  const staged = fanoutAdmissionWrites(producers, opts.cutoff, cohortKind, members, opts.bounds.chunkSize, opts.meta);
+  const { chunksTotal, cursor } = staged;
   const batch: CommitBatch = {
     expectedRevision: revision,
-    writes: [
-      ...source.writes,
-      { kind: "insert", model: T34F7_FANOUT_INTENT_MODEL, row: intentRow },
-      { kind: "insert", model: T34F7_FANOUT_CHECKPOINT_MODEL, row: checkpointRow },
-      ...firstChunk.map((recordId) => ({
-        kind: "insert" as const,
-        model: T34F7_FANOUT_CHILD_MODEL,
-        row: producers.tables.newFanoutChildRow(
-          {
-            fanoutId,
-            parentOccurrence: opts.cutoff.sourceOccurrence,
-            handler: opts.cutoff.handler,
-            recordId,
-          },
-          opts.meta,
-        ),
-      })),
-    ],
+    writes: [...source.writes, ...staged.writes],
     history: [...source.history],
     receipt: source.receipt,
     outbox: [...source.outbox],
@@ -7664,7 +7896,7 @@ export async function stageFanoutTriggerJoin(
       cutoffRevision: revision,
       commitRevision: committed.revision,
       chunksTotal,
-      cursor: singleCommit ? null : fanoutAdmitCursor(1),
+      cursor,
     };
   } catch (error) {
     if (fanoutStateErrorCode(error) !== null) throw error;
@@ -7752,6 +7984,8 @@ export interface ResolveEmittedFanoutCohortInput {
   readonly event: unknown;
   /** Entry module's emitted `appDefinition.models` member (anchored parent-model only). */
   readonly models: unknown;
+  /** Owning checked event schema for canonical anchored references. */
+  readonly eventInputs?: unknown;
 }
 
 function readEmittedCohortRecord(value: unknown, what: string, handler: string): Record<string, unknown> {
@@ -7825,6 +8059,18 @@ export function resolveEmittedFanoutCohort(input: ResolveEmittedFanoutCohortInpu
   let current: unknown = input.event;
   for (const segment of segments.slice(1)) {
     current = readEmittedCohortRecord(current, `event segment ${JSON.stringify(segment)}`, input.handler)[segment];
+  }
+  if (input.eventInputs !== undefined) {
+    const fields = readEmittedCohortRecord(input.eventInputs, 'event inputs', input.handler);
+    const field = segments.length === 2
+      ? readEmittedCohortRecord(fields[segments[1]!], 'anchor event field', input.handler) : undefined;
+    if (field?.type !== parentModel) throw new Error('Cohort anchor disagrees with its declared event reference model.');
+    const reference = isRecordRef(current) ? current : decodeValue(parentModel, current);
+    if (!isRecordRef(reference) || reference.model !== parentModel || reference.id === '') {
+      throw new Error('Cohort anchor needs its checked nonnullable event reference.');
+    }
+    return { kind: 'anchored-collection', owner: input.owner, model,
+      parent: { model: parentModel, id: reference.id } };
   }
   if (typeof current !== "string" || current === "") {
     throw new Error(
@@ -8543,6 +8789,10 @@ export interface FanoutSchedulerInvoke {
   readonly refInput: string;
   /** Fresh uuidv7 attempt identity, caller-minted per attempt. */
   readonly operationIdFor: (child: FanoutChildId) => string;
+  /** Checked private source-event arguments, excluding the admitted child. */
+  readonly inputs?: Record<string, unknown>;
+  readonly kind?: 'trusted';
+  readonly trustedSource?: string;
 }
 
 /** T34-F7: explicit scheduler-turn bounds (no defaults, no quota field). */
@@ -8872,8 +9122,10 @@ async function driveFanoutTurnChild(input: {
       identity: input.invoke.identity,
       app: input.invoke.app,
       source: input.invoke.source,
-      inputs: { [input.invoke.refInput]: { id: data.recordId,
+      inputs: { ...input.invoke.inputs, [input.invoke.refInput]: { id: data.recordId,
         ...(versioned ? { version: String(current?.version ?? domainRow.version) } : {}) } },
+      ...(input.invoke.kind === undefined ? {} : { kind: input.invoke.kind }),
+      ...(input.invoke.trustedSource === undefined ? {} : { trustedSource: input.invoke.trustedSource }),
       execute,
       assertJoin: producers.join.assertFanoutChildJoin,
     });
