@@ -6234,32 +6234,25 @@ fn b4g_team_id_lowers_through_c() {
     t31_assert_parses(js, "b4g-team");
 }
 
-/// (B4-G/O2) Hooks keep the legacy lowering for team/operation
-/// (T34-Q5 owns the hook-side contract): bare roots, while actor
-/// still reads off `$hookCtx`.
+/// (B4-G/O2) Hook contextual values require an owning contract;
+/// compilation refuses both unbound roots and incompatible carrier values.
 #[test]
-fn b4g_hook_team_operation_unchanged() {
+fn b4g_hook_context_requires_owning_contract() {
     let (catalog, path) = golden_catalog();
-    let src = "app T\nGiven\n M { t:text }\nWhen\n scenario h on=M.update\n  do\n   let a=actor\n   set event.after {t=operation.id}\n   let g=team.id\nThen\n";
+    let src = "app T\nGiven\n M { t:text }\nWhen\n scenario h on=M.update\n  do\n   let a=actor\n   let n=now\n   set event.after {t=operation.id}\n   let g=team.id\nThen\n";
     let (db, program, result) = t31_program(src, &catalog);
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
-    let (artifact, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
+    let (_, diags) = emit_test_only(&program, &db, &result, Some(&catalog));
     let _ = std::fs::remove_file(&path);
-    assert!(diags.is_empty(), "{diags:?}");
-    let js = &artifact.modules[0].js;
-    assert!(
-        js.contains("$hookCtx.actor"),
-        "hook actor still contextual:\n{js}"
-    );
-    assert!(
-        js.contains("{t:operation.id}"),
-        "hook operation stays bare:\n{js}"
-    );
-    assert!(
-        js.contains("team.id") && !js.contains("c.team"),
-        "hook team stays bare:\n{js}"
-    );
-    t31_assert_parses(js, "b4g-hook");
+    for binding in ["actor", "now", "operation", "team"] {
+        assert!(
+            diags.iter().any(|diagnostic| diagnostic.code == "E6008"
+                && diagnostic
+                    .message
+                    .contains(&format!("hook contextual binding `{binding}`"))),
+            "{binding}: {diags:?}"
+        );
+    }
 }
 
 /// (T31) Non-hook schedules lower (the payload decodes from the effect
