@@ -125,6 +125,48 @@ test('compiled flat machines compose staged transitions and integer writes with 
   } finally { await world.cleanup(); }
 });
 
+test('compiled Match arm write rolls back on later failure and commits once on replay over memory State', async () => {
+  const world = await setup();
+  try {
+    const created = committed(await world.invoker.invokeMutation(envelope('Job.create', {
+      label: 'match rollback',
+    }), world.identity)).result as { id: string; version: number };
+    const job = { id: created.id, version: String(created.version) };
+    const before = await world.store.load(MODEL, asId(created.id));
+    const beforeHistory = await world.store.historyFor(MODEL, asId(created.id));
+    const beforeRevision = await world.store.readRevision();
+    const beforeOutbox = await world.store.outboxPending();
+    const failure = envelope('matchWrite', { job, accept: false });
+    rejected(await world.invoker.invokeMutation(failure, world.identity), 'rule_failed');
+    assert.deepEqual(await world.store.load(MODEL, asId(created.id)), before);
+    assert.deepEqual(await world.store.historyFor(MODEL, asId(created.id)), beforeHistory);
+    assert.deepEqual(await world.store.outboxPending(), beforeOutbox);
+    // Canonical rejection commits only its receipt; the original record/version stays unchanged.
+    assert.equal(await world.store.readRevision(), beforeRevision + 1);
+    rejected(await world.invoker.invokeMutation(failure, world.identity), 'rule_failed');
+    assert.deepEqual(await world.store.load(MODEL, asId(created.id)), before);
+    assert.deepEqual(await world.store.historyFor(MODEL, asId(created.id)), beforeHistory);
+    assert.deepEqual(await world.store.outboxPending(), beforeOutbox);
+    assert.equal(await world.store.readRevision(), beforeRevision + 1);
+
+    // The same selected idle arm commits its real write when the later guard passes.
+    const request = envelope('matchWrite', { job, accept: true });
+    assert.equal(committed(await world.invoker.invokeMutation(request, world.identity)).result, '1');
+    const after = await world.store.load(MODEL, asId(created.id));
+    assert.deepEqual(after?.data, { label: 'match rollback', attempts: '1', status: 'idle' });
+    assert.equal(after?.version, created.version + 1);
+    const history = await world.store.historyFor(MODEL, asId(created.id));
+    assert.equal(history.length, beforeHistory.length + 1);
+    assert.deepEqual(history.at(-1)?.after, after?.data);
+    const revision = await world.store.readRevision();
+    assert.equal(committed(await world.invoker.invokeMutation(request, world.identity), 'replayed').result, '1');
+    assert.deepEqual(await world.store.load(MODEL, asId(created.id)), after);
+    assert.deepEqual(await world.store.historyFor(MODEL, asId(created.id)), history);
+    assert.deepEqual(await world.store.outboxPending(), beforeOutbox);
+    assert.equal(await world.store.readRevision(), revision);
+  } finally { await world.cleanup(); }
+});
+
 test('synthetic handler bypass cannot set a managed machine field through canonical State', async () => {
   const world = await setup(true);
   try {
