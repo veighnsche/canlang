@@ -252,7 +252,7 @@ export type {
 // Stored lifecycle effects are produced by the canonical state engine.
 export { transition } from '@canlang/state/effects/transition';
 
-// Filed runtime-export-join request: synchronous handler guards, verbatim.
+// Shared synchronous handler guards retain State producer identity.
 export { require, hasRole } from '@canlang/state/effects/guards';
 
 // Selected receipt observation is produced by the canonical state scope.

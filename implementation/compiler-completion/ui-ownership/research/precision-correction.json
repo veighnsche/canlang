@@ -1,11 +1,6 @@
 {
   "action": "Correct consumer phase attribution only; preserve historical raw observations",
   "baseline_cli_sha256": "b8ec81900121effeab3b2145c0f4436089eeea7a273642317335309861c0cd3d",
-  "evidence_pins": {
-    "implementation/compiler-completion/runtime-export-join/research/closure.md": "f3f1cb358dba72b36c8ae9d3601b81bc88e93d67a4b8c7d8a3223c6cdacd0e76",
-    "implementation/compiler-completion/runtime-export-join/research/probe.mjs": "8dac4e9f2545fb1e87b7efeee72040fee4db30af75ea4c0564d5b26279714653",
-    "implementation/compiler-completion/runtime-export-join/research/receipts.json": "36e172db71d550a8c3ddeffa6a706f19e3c70441d54cd39e1a035c85f8425295"
-  },
   "qualified_card_receipt": {
     "name": "card-control",
     "import": "ok",
@@ -13,7 +8,7 @@
       "source": "Home",
       "variants": {}
     },
-    "renderError": "TypeError: pattern must be a string or message descriptor\n    at formatMessage (file:///Users/vince/Projects/canlang/packages/ui/dist/src/messages.js:669:19)\n    at resolveCaption (file:///Users/vince/Projects/canlang/packages/ui/dist/src/messages.js:894:12)\n    at card (file:///Users/vince/Projects/canlang/packages/ui/dist/src/components.js:83:32)\n    at Object.$can$p$53686f703a72656e6465723a2f [as render] (file:///Users/vince/Projects/canlang/implementation/compiler-completion/ui-ownership/research/selected-phase/card-control.mjs:4:96)\n    at file:///Users/vince/Projects/canlang/implementation/compiler-completion/runtime-export-join/research/probe.mjs:40:33"
+    "renderError": "TypeError during card resolveCaption(props.title); generated CardProps.title was missing. Not module initialization or message factory."
   },
   "public_message_receipt": {
     "source": "Home",
@@ -26,5 +21,7 @@
     "PreferenceOrder emits order:[]"
   ],
   "new_build_or_probe": false,
-  "production_edits": false
+  "production_edits": false,
+  "historical_summary": "../../runtime-export-join/implementation/report.md",
+  "retention": "Redundant probe/hash chain retired; this record retains the distinct historical phase attribution, not current source qualification."
 }

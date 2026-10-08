@@ -2998,6 +2998,13 @@
       "verified": "closure1/1 817ms; page3/3 24.072s; current CF emission0",
       "failed_attempt": "stale Work expected10 vs actual11 handler-occurrence corrected",
       "limits": "no provider tree/generic walk/policy/asset expansion; full parent and held22 open"
+    },
+    "guard_export_evidence_cleanup": {
+      "state": "historical redundant scaffolding removed",
+      "removed_files": 112,
+      "retained_files": 8,
+      "verification": "reference/pointer scan; no production/test behavior changed or rerun",
+      "limits": "advice uncertainty retained; no source acceptance/count/checkpoint advance"
     }
   },
   "live_finite_packets": [
