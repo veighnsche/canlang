@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T21:49:09.166971+00:00",
+  "updated_utc": "2026-10-08T21:53:13.782873+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2849,7 +2849,8 @@
     "choose_public_facade": {
       "status": "Existing Values choose directly reexported; facade source/output released to Compiler consumer",
       "verification": "Normal owning Stdlib TypeScript emission exit0; no duplicate algorithm/wrapper/source-contract change. Compiler same selected_calls actual emitted import case pending.",
-      "counts_unchanged": true
+      "counts_unchanged": true,
+      "commit": "8b932718096eae96c962220fd20feb555b21f1ae"
     },
     "replay_result_contract_dependency": {
       "status": "Existing prepared CRUD/replay contract consultation requires specific human approval; no retransmission attempted",
@@ -2857,6 +2858,13 @@
       "scope": "~20.8KB factual architecture/security alternatives; new result provenance, old/missing carrier posture and current disclosure authorization. Prior metadata choice does not authorize guessed object projection or blanket null.",
       "source_check": "Existing durable receipt recordVersions contains only insert/update writes, not result dependency provenance; singular scenario model results retain real admitted view binding only before receipt. No supported current-source release resolves the legacy origin policy.",
       "permission_question": "Re-presented existing pending specific-payload approval asynchronously; unrelated work continues.",
+      "counts_unchanged": true
+    },
+    "choose_selected_overload_consumer": {
+      "status": "Released actual facade consumer and finite overload trial leak correction captured",
+      "verification": "Owner same selected_calls case1/1 .10s after actual emitted installed choose returns both USD results. Generic winner retains Bool/Text/Text facts/IR; winning currency arm retains Bool/Currency/Currency. Root exact released source/test review reuses result.",
+      "contract": "Trial-local literal retypes flush only for selected overload, alongside existing enum claims; no scoring/ties/slots/evaluation/API change.",
+      "limits": "Finite chosen/accepted actual consumer, not all SEM-R08/original13 or root48 credit.",
       "counts_unchanged": true
     }
   },
