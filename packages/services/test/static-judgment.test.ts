@@ -148,3 +148,82 @@ it('reuses the controlled HTTP harness for canonical provider status classificat
     } finally { await server.close(); }
   }
 });
+
+it('freezes runtime choices through the shared inventory and validates the actual provider union', async () => {
+  const declaration = 'sample.Review';
+  const inventory = {
+    contracts: [
+      { name: `${declaration}.pick.option`, fields: [
+        { name: 'id', type: `${declaration}.pick.choice` },
+        { name: 'description', type: 'text', min: 1, max: 2000 },
+      ] },
+      { name: `${declaration}.options`, fields: [
+        { name: 'pick', type: `${declaration}.pick.option[]!`, min: 1, max: 25,
+          distinctBy: 'id' as const, excludedIds: ['none'] },
+      ] },
+    ],
+    aliases: [{ name: `${declaration}.pick.choice`, type: 'text' as const, min: 1, max: 80, format: 'name' as const }],
+  };
+  const descriptor = { version: 1n, valueTypes: inventory, questions: [
+    { name: 'pick', kind: 'choice' as const, runtime: true as const, instructions: 'Choose a candidate',
+      options: [{ id: 'none', description: 'No selection' }] },
+  ] };
+  const candidates = { pick: [{ id: 'alpha', description: 'First candidate' }] };
+  const frozen = freezeJudgmentSource(declaration, descriptor, 'en', candidates);
+  candidates.pick[0].description = 'Changed after freezing';
+  assert.deepEqual(frozen.specification.choice[0].options, [
+    { id: 'none', description: 'No selection' }, { id: 'alpha', description: 'First candidate' },
+  ]);
+  assert.notEqual(freezeJudgmentSource(declaration, descriptor, 'en', candidates).specification.revision,
+    frozen.specification.revision);
+  for (const options of [undefined, { extra: [] }, { pick: [] },
+    { pick: [{ id: 'none', description: 'Collision' }] },
+    { pick: [{ id: 'alpha', description: 'One' }, { id: 'alpha', description: 'Two' }] },
+    { pick: [{ id: 'not-a-name', description: 'Invalid' }] },
+    { pick: [{ id: 'a'.repeat(81), description: 'Invalid' }] },
+    { pick: [{ id: 'valid', description: 'a'.repeat(2001) }] }]) {
+    assert.throws(() => freezeJudgmentSource(declaration, descriptor, 'en', options));
+  }
+  const withFixedCount = (count: number) => ({ ...inventory, contracts: inventory.contracts.map(contract =>
+    contract.name === `${declaration}.options` ? { ...contract, fields: [{ ...contract.fields[0],
+      min: Math.max(0, 2 - count), max: 26 - count, excludedIds: count === 0 ? [] : ['none', 'later'] }] } : contract) });
+  const noFixed = { ...descriptor, valueTypes: withFixedCount(0), questions: [{
+    name: 'pick', kind: 'choice' as const, runtime: true as const, instructions: 'Choose',
+  }] };
+  assert.equal(freezeJudgmentSource(declaration, noFixed, 'en', { pick: [
+    { id: 'alpha', description: 'A' }, { id: 'beta', description: 'B' },
+  ] }).specification.choice[0].options.length, 2);
+  assert.throws(() => freezeJudgmentSource(declaration, { ...noFixed,
+    questions: [{ ...noFixed.questions[0], options: [] }] }, 'en', candidates));
+  const fixedOnly = { ...descriptor, valueTypes: withFixedCount(2), questions: [{ ...descriptor.questions[0],
+    options: [{ id: 'none', description: 'No choice' }, { id: 'later', description: 'Later' }] }] };
+  assert.equal(freezeJudgmentSource(declaration, fixedOnly, 'en', { pick: [] }).specification.choice[0].options.length, 2);
+  let getterCalls = 0;
+  const executable = { get pick() { getterCalls += 1; return candidates.pick; } };
+  assert.throws(() => freezeJudgmentSource(declaration, descriptor, 'en', executable));
+  assert.equal(getterCalls, 0);
+  const staticDescriptor = { version: 1n, questions: [{ name: 'pick', kind: 'choice' as const,
+    instructions: 'Pick one', options: [{ id: 'a', description: 'A' }, { id: 'b', description: 'B' }] }] };
+  assert.equal(freezeJudgmentSource(declaration, staticDescriptor, 'en').specification.revision,
+    'sha256:27b3651a6dfb51f4bf7706b60533e72bee91a2d15700744b9d0ed6f429d99996');
+  assert.throws(() => freezeJudgmentSource(declaration, staticDescriptor, 'en', { pick: [] }));
+  const answer = { model: 'actual-model-1', answers: { pick: { type: 'choice', choice: 'alpha',
+    probabilities: { alpha: 0.9, none: 0.1 }, confidence: 0.9 } }, usage: { input_tokens: 1, output_tokens: 1 } };
+  const server = await startControlledSystemOneServer({ kind: 'accept', body: answer });
+  try {
+    const provider = createInstalledSystemOneJudgment(config(server.url), {
+      judgment: declaration, version: 1n, deployment: 'production.Review', account: 'production.JudgmentAccount',
+    }, { model: 'model-exact', maxInputTokens: 50, countInputTokens: () => 1 });
+    const accepted = await provider.judgment.evaluate({ source: frozen, state: 'Untrusted candidate evidence' }, { deliveryId: 'runtime-1' });
+    assert.equal(accepted.status, 'succeeded');
+    assert.equal(accepted.result?.specification_revision, frozen.specification.revision);
+    assert.deepEqual((accepted.result?.pick as JudgmentChoiceAnswer).probabilities.map(entry => entry.option), ['none', 'alpha']);
+    const sent = JSON.parse(server.requests[0].bodyText);
+    assert.deepEqual(Object.keys(sent.questions.pick.criteria), ['none', 'alpha']);
+    answer.answers.pick.choice = 'unknown';
+    const rejected = await provider.judgment.evaluate({ source: frozen, state: 'Same evidence' }, { deliveryId: 'runtime-2' });
+    assert.equal(rejected.status, 'failed');
+    assert.equal(rejected.result, null);
+    assert.equal(rejected.error?.code, 'invalid_response');
+  } finally { await server.close(); }
+});
