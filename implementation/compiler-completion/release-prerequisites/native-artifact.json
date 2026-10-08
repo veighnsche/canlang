@@ -1,0 +1,8 @@
+{
+  "path": "/private/tmp/canlang-dep03-release-20261008/native-target/release/can",
+  "sha256": "29df2009918112444eeb9fd5ef6628ada0f9fa26da62aa4bf5916b53c4f1b1d6",
+  "bytes": 2317552,
+  "toolchain": "1.99.0",
+  "host": "aarch64-apple-darwin",
+  "source_pins": "source-pins.json"
+}

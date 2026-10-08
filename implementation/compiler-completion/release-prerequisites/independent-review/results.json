@@ -1,0 +1,264 @@
+{
+  "private_root": "/private/tmp/dep03-independent-6aef8s1f",
+  "actual_build_input_count": 48,
+  "actual_build_input_pins": {
+    "compiler/Cargo.lock": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64",
+    "compiler/Cargo.toml": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
+    "compiler/build.rs": "2a6fbba3681c67ad5804430a8439e3db53965f665017cf7c8e2ff8c1566bb965",
+    "compiler/can-completions.bash": "cff5fd9090a72077da49f6cd6e2f68a68ae7c01dd0ff7c4e4962d2fc89300982",
+    "compiler/can-completions.fish": "31cd7cd411d8c3954afe22ea598c1fd2d8278a21379a60c010ff01ecb386a3ef",
+    "compiler/can-completions.zsh": "84cc050e46fd0d0de14d42f37ed2da3010da6a77110ce4d3b3f13bbb62ba650e",
+    "compiler/src/analysis/catalog.rs": "46322f60ef964fd25cfe5d7d6c55812b812ff61d4388526943446ce5aa44df65",
+    "compiler/src/analysis/check.rs": "9b1461d48ef4a35f0b43c205db029f4300f9cfb833c2d8a75027ca80c42a0491",
+    "compiler/src/analysis/cohort.rs": "aad351ef70dc46118e51832705ffd84063ddf641a42cf2645c94dac2154f23e0",
+    "compiler/src/analysis/effects.rs": "3d5ae54a89c189ab907146ed702a10e3d22e91cb8400653e2029421f29054c07",
+    "compiler/src/analysis/examples.rs": "43389ebb83b37e1bf6942761a82197e109d10e151258d9c37ef3a9d71b093120",
+    "compiler/src/analysis/migrate_check.rs": "e62b9bee64033ec0071687fe0014b60ff8f1124d00538ad4ace09af3da053ebb",
+    "compiler/src/analysis/mod.rs": "4bedf6bafa36bac0f0c01cdccae42ea3baabecdb0e5304a0cb8f419eee7bf7bf",
+    "compiler/src/analysis/resolve.rs": "55844929ce0032d3ad1a46e7c250bf44b318d138651364d67551ce172afca899",
+    "compiler/src/analysis/types.rs": "491427991255514a919ac8ea5fae3f799be98e8294987054428dd2ad25daa97c",
+    "compiler/src/cli.rs": "0e9eb7cfd2ee3e20ac9238c67872800cbe99911b3b799fa2616526f9be5a1f94",
+    "compiler/src/codegen/artifact.rs": "5c2c3831d0bed1cea7ae0bfb8339e351996299b0481a70b2dac42b6aca36c73c",
+    "compiler/src/codegen/bdd.rs": "13f465b553276046198bda84db340dc1bfbfeef4327ae273698cc200093f68a4",
+    "compiler/src/codegen/ir.rs": "2a8df2950eb2bf10ec2c81e7af556a2802791961e6a87693eafb1d5709c590f7",
+    "compiler/src/codegen/js.rs": "ce804121e2ff1bbb1158eb0953ec86ca5fcf0aba873b7c3be21eeb351c12c970",
+    "compiler/src/codegen/mod.rs": "2ba20c0dcc1c29f821f3dff62da8cba0414aa77ae3194ef9db9197eed6206e7d",
+    "compiler/src/codegen/sourcemap.rs": "93bb7708447b30ba5cb40c41bd1400c41407a4d1d5665343faf697320e07459a",
+    "compiler/src/diagnostic.rs": "2a27b52767a5f99af4b69853c5f924be5edd32b2b082abad68a65f1e6b37bc2d",
+    "compiler/src/docs.rs": "75a2467fc392b1186ae751f866705c2d5bff33aed5dd68ec0fb7998a23e4ea70",
+    "compiler/src/explain.rs": "3087a58934c2ccf13c9b458694b31faf0bed27d3d59dcca3cf056f8b7220741f",
+    "compiler/src/format.rs": "13897d9c121f7f4941d5ce5af65b0f23f3b56aca30460fe134613e580b900c03",
+    "compiler/src/ide/fixes.rs": "dec86317bd2bd2bc22f66c27643d5afc70d4997abacd174058031fd35402399d",
+    "compiler/src/ide/mod.rs": "cadad2e06e0c21495f96fddaa04c3ec898e16779e4055e7092fc77a916a8a542",
+    "compiler/src/ide/queries.rs": "af6efb8eba9bfb55cbfeec6e9f8a303991746c96fa8e08c1fe84db7ee19a5fd5",
+    "compiler/src/ide/tokens.rs": "bb2102209718b24f5dffc08f0a52ad08902a0e453d5cff1589782954d73f369b",
+    "compiler/src/json.rs": "6f6b067e3a57c4cb50596712cab981eea199c1774150b1b946042492685f4244",
+    "compiler/src/lib.rs": "36ed081a75985d1e406f6f30c9daaa7cc492725f2b594f68a867547e246b5971",
+    "compiler/src/lint/driver.rs": "567a6a43ade59d553e7ebe1634c7a436a0ad1c9a9ed44cbda442951d9de79d96",
+    "compiler/src/lint/mod.rs": "fd8590276ed4362722b252398936d519e4964a70fee4cef30faa854d1cd4dc0d",
+    "compiler/src/lint/rules.rs": "b66419673896e7204320e2f9e85cc268b9f75f7c11c5ce4c2367ca90463cd492",
+    "compiler/src/lsp/mod.rs": "722f436d11ac0cfdbf0a04ed958f7c75c86e31d98118adcdb6b0fba6fe11421e",
+    "compiler/src/lsp/output.rs": "0cc3f8bd43ec4c24b429c2c63f9b9c5359ccd23c294d110131bbc90b9968721c",
+    "compiler/src/lsp/server.rs": "d67e86139e279df070588553f9f0a0fc419f05bab7e35cd049111c9033eefa16",
+    "compiler/src/lsp/transport.rs": "519dab281392b9030df82aff2b1cb8818785034b190060913a28f61fbcaab987",
+    "compiler/src/lsp/uri.rs": "3e7cf29690c1a257085d35f04b6dc50d0fb3255911ac6c5fdaf37e471245a08f",
+    "compiler/src/main.rs": "0ffc541bd55a96f5d3779eb59b0e7ef3e0ef119956ec8363af13942c1c46f610",
+    "compiler/src/policy.rs": "7cf5e8ee4a882bf0e8b9a5a807cf71b32c9ac5dd0ee5ae175afa576d28dc9205",
+    "compiler/src/source.rs": "7188ed986a95ca47696f0286eccba5ecc5198cea0b596a7412472999fe4bbda9",
+    "compiler/src/syntax/cst.rs": "265fb3def13e9ed8e8421bb604724e8848149b5a34b683d35622ef1ea0ee6ecc",
+    "compiler/src/syntax/layout.rs": "2f0bf7a120109f3221bf52852ca8a7e0bae4723461b9ce3ffafa1975d23c8a4d",
+    "compiler/src/syntax/lexer.rs": "abede67114dfbdb74e9d9db9d96281f4dfcaab1e426cfb0c359c1fb0b9d21cef",
+    "compiler/src/syntax/mod.rs": "0f6988f6262e470359e47ae28cd80aa8f7eac03723d59bcdb16722ad1dbd9d0e",
+    "compiler/src/syntax/parser.rs": "87aa962dd5de5aec9ee73f82e25cf1d2cbc0553ec2c6ffc0f64cdd6e5f65b806"
+  },
+  "snapshot_mismatches": [
+    "compiler/tests/fixtures/temporal-presentation/execute.mjs",
+    "compiler/tests/fixtures/temporal-presentation/source.can",
+    "compiler/tests/temporal_presentation.rs",
+    ".github/workflows/release.yml"
+  ],
+  "integration_pins": {
+    ".github/workflows/release.yml": "a5fef5e221f32cf703a5ee1d65e9a80aff484f335f536dda4f6a56d46584a03b",
+    "scripts/check-compiler-release-notices.py": "9890442cd3fd503887a76e6808a1ca4fcf66b67c8264af677bedb1ef2c3d062f",
+    "compiler/third-party-notices/manifest.json": "3e5eeccdf41bb37cd7372d610700d439609fef89c767a086dff5224a4b3bb040",
+    "compiler/third-party-notices/THIRD-PARTY-NOTICES-aarch64-apple-darwin.txt": "0a564c52d731ea3d89e63dc3be0ff85392575782c8b76643e30d8b08a8ef2ba6",
+    "compiler/third-party-notices/THIRD-PARTY-NOTICES-x86_64-unknown-linux-gnu.txt": "a6967ea3370acea393101ebff90faa640491e9e82973b3b2192f44517e026f91",
+    "compiler/Cargo.toml": "92f8582ecbe4b7f7cb0e29b85643a4c1e03f479f729371c0c0f67696f35aec48",
+    "compiler/Cargo.lock": "384be2a089bd9ef4c6ccb1714e3ad0bade9870a35f48932ef1a4e8fb3ee7cd64"
+  },
+  "archive_checksums_verified": 93,
+  "exact_archive_notice_files_verified": 152,
+  "simd_archive_commits": {
+    "base64-simd": "d74c030d9dc4f3cae02146d1f497ff62726ef09a",
+    "vsimd": "d74c030d9dc4f3cae02146d1f497ff62726ef09a"
+  },
+  "simd_supplemental_source": {
+    "url": "https://raw.githubusercontent.com/Nugine/simd/d74c030d9dc4f3cae02146d1f497ff62726ef09a/LICENSE",
+    "path": "supplemental-notices/simd-LICENSE",
+    "bytes": 1062,
+    "sha256": "71674605ec4c087fe9eb534e3e4f9e26eb2e4aabcd76a29fd156c6a844d44b3d",
+    "status": "retrieved"
+  },
+  "target_checks": [
+    {
+      "target": "aarch64-apple-darwin",
+      "packages": 77,
+      "notice_sha256": "0a564c52d731ea3d89e63dc3be0ff85392575782c8b76643e30d8b08a8ef2ba6",
+      "every_supplied_text_exact": true
+    },
+    {
+      "target": "x86_64-unknown-linux-gnu",
+      "packages": 77,
+      "notice_sha256": "a6967ea3370acea393101ebff90faa640491e9e82973b3b2192f44517e026f91",
+      "every_supplied_text_exact": true
+    }
+  ],
+  "provenance_hashes_verified": {
+    "implementation/compiler-completion/release-prerequisites/archives.json": "5b5498124cd98cf6ad8c6379f299e59fb882409eae5b1bb4282d5bc79ced1c05",
+    "implementation/compiler-completion/release-prerequisites/target-closures.json": "139dd858215ff6dd6916059cfc3a65ff32f786d2f5fd8d4ed14e9696b7fa209f",
+    "implementation/compiler-completion/release-prerequisites/supplemental-notices.json": "f94c48fd913868ba307842a400a33e97f09efe763af1fb60dbc39241a594f1d4"
+  },
+  "reused_native_build_evidence": {
+    "native": {
+      "path": "/private/tmp/canlang-dep03-release-20261008/native-target/release/can",
+      "sha256": "29df2009918112444eeb9fd5ef6628ada0f9fa26da62aa4bf5916b53c4f1b1d6",
+      "bytes": 2317552,
+      "toolchain": "1.99.0",
+      "host": "aarch64-apple-darwin",
+      "source_pins": "source-pins.json"
+    },
+    "linux": {
+      "artifact": "/tmp/canlang-dep03-release-20261008/target/release/can",
+      "sha256": "f03b40fec041e0ce412913aeaa0d7634dfdfed2a36727474cdfca3209b832ef4",
+      "bytes": 3192192,
+      "host": "x86_64-unknown-linux-gnu",
+      "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: x86_64-unknown-linux-gnu\nrelease: 1.99.0\nLLVM version: 23.1.1\n",
+      "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)\n",
+      "probes": {
+        "--version": {
+          "exit": 0,
+          "stdout": "can 0.1.0 (commit unknown; language 1.0; schema 1)\n",
+          "stderr": ""
+        },
+        "--help": {
+          "exit": 0,
+          "stdout": "can 0.1.0 \u2014 CanLang compiler and authoring tools\n\nUsage: can <COMMAND> [OPTIONS] [ARGS...]\n       can --help\n       can --version\n\nCommands:\n  compile   Analyze sources and emit the compile artifact\n  check     Analyze sources and report diagnostics\n  lint      Run lint rules over sources (warnings only, never blocks)\n  fmt       Format sources in place (or check with --check)\n  explain   Print a diagnostic catalog entry: can explain E1001\n  lsp       Run the language server over stdio (Content-Length JSON-RPC)\n  policy    Dump the declared policy surface (roles, policies, operation gates)\n  docs      Generate the localized internal declaration reference (Markdown)\n  run       Thin lane-7 entry: exec can-platform run (passthrough)\n  test      Thin lane-7 entry: exec can-platform test (passthrough)\n  build     Thin lane-7 entry: exec can-platform build (passthrough)\n  deploy    Thin lane-7 entry: exec can-platform deploy (passthrough)\n  activate  Thin lane-7 entry: exec can-platform activate (passthrough)\n  completions  Print a shell completion script: can completions bash|zsh|fish\n  help      Show help (global or `can help <COMMAND>`)\n\nOptions:\n  --format=json|text   Machine or human output (check, compile, lint, explain, policy; docs diagnostics only)\n  --catalog=PATH       Producer catalog (check, compile, lint, policy, docs; else CAN_CATALOG,\n                       ./can-catalog.json, ./packages/values/dist/catalog.json)\n  --locale=TAG         Reference locale (docs only; default is the app default + source fallback)\n  --out=PATH           Write the reference to PATH instead of stdout (docs only; never a .can source)\n  -h, --help           Show help (global or `can <COMMAND> --help`)\n  -V, --version        Show version\n\nEnvironment:\n  CAN_CATALOG       Producer catalog path (below --catalog, above ./can-catalog.json)\n  CAN_PLATFORM_BIN  Override path to the can-platform binary (run|test|build|deploy|activate|docs)\n\nExit codes: 0 clean, 10 errors reported, 2 tool failure.\n",
+          "stderr": ""
+        }
+      }
+    },
+    "commands_sha256": "e700c792e18215c32b731f75ac25e835cb2422eb055d63e7837e50b0c08d717c",
+    "linux_raw_sha256": "fe5bbb94db96d5e86d1e15852eaa1ac1b820272d1a5861b03149d4e2adf64797"
+  },
+  "guard_cases": [
+    {
+      "case": "positive-aarch64-apple-darwin",
+      "exit": 0,
+      "stdout": "aarch64-apple-darwin: 0a564c52d731ea3d89e63dc3be0ff85392575782c8b76643e30d8b08a8ef2ba6  /private/tmp/dep03-independent-6aef8s1f/positive-aarch64-apple-darwin/output/THIRD-PARTY-NOTICES.txt\n",
+      "stderr": "",
+      "copied": true
+    },
+    {
+      "case": "positive-x86_64-unknown-linux-gnu",
+      "exit": 0,
+      "stdout": "x86_64-unknown-linux-gnu: a6967ea3370acea393101ebff90faa640491e9e82973b3b2192f44517e026f91  /private/tmp/dep03-independent-6aef8s1f/positive-x86_64-unknown-linux-gnu/output/THIRD-PARTY-NOTICES.txt\n",
+      "stderr": "",
+      "copied": true
+    },
+    {
+      "case": "stale-lock",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "compiler release notices rejected: stale notice inputs: compiler/Cargo.lock\n",
+      "copied": false
+    },
+    {
+      "case": "stale-manifest",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "compiler release notices rejected: stale notice inputs: compiler/Cargo.toml\n",
+      "copied": false
+    },
+    {
+      "case": "corrupt-selected",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "compiler release notices rejected: changed notice content: aarch64-apple-darwin\n",
+      "copied": false
+    },
+    {
+      "case": "corrupt-other",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "compiler release notices rejected: changed notice content: x86_64-unknown-linux-gnu\n",
+      "copied": false
+    },
+    {
+      "case": "missing-lock",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "compiler release notices rejected: [Errno 2] No such file or directory: '/private/tmp/dep03-independent-6aef8s1f/missing-lock/compiler/Cargo.lock'\n",
+      "copied": false
+    },
+    {
+      "case": "missing-manifest",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "compiler release notices rejected: [Errno 2] No such file or directory: '/private/tmp/dep03-independent-6aef8s1f/missing-manifest/compiler/third-party-notices/manifest.json'\n",
+      "copied": false
+    },
+    {
+      "case": "missing-selected",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "compiler release notices rejected: [Errno 2] No such file or directory: '/private/tmp/dep03-independent-6aef8s1f/missing-selected/compiler/third-party-notices/THIRD-PARTY-NOTICES-aarch64-apple-darwin.txt'\n",
+      "copied": false
+    },
+    {
+      "case": "missing-other",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "compiler release notices rejected: [Errno 2] No such file or directory: '/private/tmp/dep03-independent-6aef8s1f/missing-other/compiler/third-party-notices/THIRD-PARTY-NOTICES-x86_64-unknown-linux-gnu.txt'\n",
+      "copied": false
+    },
+    {
+      "case": "schema-bool",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "compiler release notices rejected: unsupported notice manifest schema or targets\n",
+      "copied": false
+    },
+    {
+      "case": "wrong-target-set",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "compiler release notices rejected: unsupported notice manifest schema or targets\n",
+      "copied": false
+    },
+    {
+      "case": "path-traversal",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "compiler release notices rejected: invalid notice entry: aarch64-apple-darwin\n",
+      "copied": false
+    },
+    {
+      "case": "extra-input",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "compiler release notices rejected: notice manifest must pin compiler manifest and lock\n",
+      "copied": false
+    },
+    {
+      "case": "unsupported-target",
+      "exit": 2,
+      "stdout": "",
+      "stderr": "usage: check-compiler-release-notices.py [-h]\n                                         --target {aarch64-apple-darwin,x86_64-unknown-linux-gnu}\n                                         --output-dir OUTPUT_DIR\ncheck-compiler-release-notices.py: error: argument --target: invalid choice: 'aarch64-pc-windows-msvc' (choose from 'aarch64-apple-darwin', 'x86_64-unknown-linux-gnu')\n",
+      "copied": false
+    },
+    {
+      "case": "build-rs-unbound",
+      "exit": 0,
+      "stdout": "aarch64-apple-darwin: 0a564c52d731ea3d89e63dc3be0ff85392575782c8b76643e30d8b08a8ef2ba6  /private/tmp/dep03-independent-6aef8s1f/build-rs-unbound/output/THIRD-PARTY-NOTICES.txt\n",
+      "stderr": "",
+      "copied": true
+    }
+  ],
+  "unrelated_workflow_jobs_identical": true,
+  "workflow_sha256": "a5fef5e221f32cf703a5ee1d65e9a80aff484f335f536dda4f6a56d46584a03b",
+  "independent_artifact_checksum_checks": [
+    {
+      "target": "aarch64-apple-darwin",
+      "checksums": "29df2009918112444eeb9fd5ef6628ada0f9fa26da62aa4bf5916b53c4f1b1d6  can\n0a564c52d731ea3d89e63dc3be0ff85392575782c8b76643e30d8b08a8ef2ba6  THIRD-PARTY-NOTICES.txt\n",
+      "verify_stdout": "can: OK\nTHIRD-PARTY-NOTICES.txt: OK\n",
+      "exit": 0
+    },
+    {
+      "target": "x86_64-unknown-linux-gnu",
+      "checksums": "f03b40fec041e0ce412913aeaa0d7634dfdfed2a36727474cdfca3209b832ef4  can\na6967ea3370acea393101ebff90faa640491e9e82973b3b2192f44517e026f91  THIRD-PARTY-NOTICES.txt\n",
+      "verify_stdout": "can: OK\nTHIRD-PARTY-NOTICES.txt: OK\n",
+      "exit": 0
+    }
+  ],
+  "yaml_parser": "unavailable; matrix inspected textually"
+}

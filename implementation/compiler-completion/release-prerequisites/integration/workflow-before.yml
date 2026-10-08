@@ -1,0 +1,108 @@
+# Lane 07 release assembly: one coherent CLI/library/editor bundle.
+# Builds every shippable artifact and uploads them to the workflow run.
+# Deliberately NO registry publishing (npm/crates/vsix marketplace) and no
+# GitHub Release creation: those need explicit B5 authorization.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  rust-binary:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            name: can-linux-x86_64
+          - runner: macos-latest
+            name: can-macos-aarch64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      # Pinned 2026-10-01 (was @stable, as in lane-01.yml); release jobs pin.
+      - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
+        with:
+          toolchain: "1.99.0"
+      - name: Build can (release, locked)
+        run: cargo build --release --locked
+        working-directory: compiler
+      - name: Size report
+        run: |
+          ls -l target/release/can
+          printf 'bytes=%s\n' "$(wc -c < target/release/can | tr -d ' ')"
+        working-directory: compiler
+      - name: Checksums (sha256)
+        run: |
+          cd compiler/target/release
+          shasum -a 256 can > "SHA256SUMS-${{ matrix.name }}.txt"
+          cat "SHA256SUMS-${{ matrix.name }}.txt"
+          shasum -a 256 -c "SHA256SUMS-${{ matrix.name }}.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: |
+            compiler/target/release/can
+            compiler/target/release/SHA256SUMS-${{ matrix.name }}.txt
+
+  node-libraries:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.2"
+      - name: Install from lock
+        run: bun install --frozen-lockfile
+      - name: Build, verify and pack complete workspace artifacts
+        # Private runtime dependencies travel with the artifact set.
+        # Producer restoration precedes uncached validation and packing.
+        run: bun run release:pack
+      - uses: actions/upload-artifact@v4
+        with:
+          name: node-libraries
+          path: output/release-artifacts/*
+
+  editor-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.2"
+      - name: Compile the LSP client (L1 slice 2a sources)
+        # Pinned tsc, zero project deps: deterministic emit. The empty type
+        # root reproduces L1's own check isolation (their ambient require
+        # shim collides with workspace @types/node); revisit at slice 2b
+        # when they switch to real imports.
+        run: |
+          mkdir -p /tmp/empty-typeroot
+          cd editors/vscode
+          bunx -p typescript@5.9.3 tsc --strict --target es2022 --module commonjs --lib es2022 --typeRoots /tmp/empty-typeroot --outDir out --rootDir src src/extension.ts src/client.ts
+      - name: Archive the VSCode/Cursor extension payload
+        # Explicit payload, not the whole directory: audit evidence stays
+        # out. `out/` is the compiled client `main` points at; `src/` rides
+        # along for transparency.
+        run: |
+          mkdir -p release-artifacts
+          cd editors/vscode
+          zip -r ../../release-artifacts/canlang-vscode.zip package.json README.md token-colors.json syntaxes out src
+      - name: Package VS Code extension (vsix)
+        # After the pinned-tsc emit above (deterministic out/ first).
+        # No marketplace publish: artifact only (see header).
+        run: |
+          cd editors/vscode
+          npx -y @vscode/vsce package --out ../../release-artifacts/canlang-vscode.vsix
+      - uses: actions/upload-artifact@v4
+        with:
+          name: editor-bundle
+          path: |
+            release-artifacts/canlang-vscode.zip
+            release-artifacts/canlang-vscode.vsix

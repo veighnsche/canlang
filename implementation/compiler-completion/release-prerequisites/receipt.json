@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "scope": "DEP-03 existing two release targets and selected declared Rust floor 1.99; no lower MSRV claim or release authorization",
+  "archive_packages": 93,
+  "archive_checksums_matched": 93,
+  "notice_files_verified": 152,
+  "supplemental_notice": "pinned upstream SIMD MIT license for base64-simd and vsimd",
+  "whole_lock_unresolved_notice_sources": [],
+  "current_source_pins_matched": 144,
+  "source_pin_count": 147,
+  "current_source_mismatches": [
+    "compiler/tests/fixtures/temporal-presentation/execute.mjs",
+    "compiler/tests/fixtures/temporal-presentation/source.can",
+    "compiler/tests/temporal_presentation.rs"
+  ],
+  "production_input_pins": 48,
+  "production_input_matches": 48,
+  "production_input_mismatches": [],
+  "native_release_exit": 0,
+  "linux_release_exit": 0,
+  "native_artifact": {
+    "path": "/private/tmp/canlang-dep03-release-20261008/native-target/release/can",
+    "sha256": "29df2009918112444eeb9fd5ef6628ada0f9fa26da62aa4bf5916b53c4f1b1d6",
+    "bytes": 2317552,
+    "toolchain": "1.99.0",
+    "host": "aarch64-apple-darwin",
+    "source_pins": "source-pins.json"
+  },
+  "linux_artifact": {
+    "artifact": "/tmp/canlang-dep03-release-20261008/target/release/can",
+    "sha256": "f03b40fec041e0ce412913aeaa0d7634dfdfed2a36727474cdfca3209b832ef4",
+    "bytes": 3192192,
+    "host": "x86_64-unknown-linux-gnu",
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: x86_64-unknown-linux-gnu\nrelease: 1.99.0\nLLVM version: 23.1.1\n",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)\n"
+  },
+  "linux_probe_exits": {
+    "--version": 0,
+    "--help": 0
+  },
+  "linux_build_command": [
+    "cargo",
+    "build",
+    "--release",
+    "--locked",
+    "--offline",
+    "--target-dir",
+    "/tmp/canlang-dep03-release-20261008/target"
+  ],
+  "linux_environment": {
+    "CARGO_HOME": "/tmp/canlang-dep03-release-20261008/cargo-home",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_INCREMENTAL": "0"
+  },
+  "linux_input_tar_sha256": "e16591e3567d9a20b7489a146e499c7f2890db792cf25d185989e810b09c40f0",
+  "remaining": "Original finite DEP-03 accepted by single independent review; workflow/notices integration implemented and locally qualified. GitHub-hosted execution/publication remains unrun and unclaimed.",
+  "accounting_correction": {
+    "qualified_build_inputs": 48,
+    "qualified_build_input_pins": "independent-review/results.json::actual_build_input_pins",
+    "replaced_summary_entry": ".github/workflows/release.yml",
+    "included_build_input": "compiler/build.rs",
+    "reason": "Full frozen inventory already pins build.rs; original48-input summary selected workflow instead. No rebuild required because all actual build inputs match."
+  }
+}

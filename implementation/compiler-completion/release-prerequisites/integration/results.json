@@ -1,0 +1,94 @@
+{
+  "fixture_root": "/private/tmp/canlang-dep03-notice-join-sp9m6f04",
+  "results": [
+    {
+      "case": "positive-aarch64-apple-darwin",
+      "guard_exit": 0,
+      "checksum_exit": 0,
+      "guard_stdout": "aarch64-apple-darwin: 0a564c52d731ea3d89e63dc3be0ff85392575782c8b76643e30d8b08a8ef2ba6  /private/tmp/canlang-dep03-notice-join-sp9m6f04/positive-aarch64-apple-darwin/artifact/THIRD-PARTY-NOTICES.txt\n",
+      "checksums": "29df2009918112444eeb9fd5ef6628ada0f9fa26da62aa4bf5916b53c4f1b1d6  can\n0a564c52d731ea3d89e63dc3be0ff85392575782c8b76643e30d8b08a8ef2ba6  THIRD-PARTY-NOTICES.txt\n",
+      "verify_stdout": "can: OK\nTHIRD-PARTY-NOTICES.txt: OK\n"
+    },
+    {
+      "case": "positive-x86_64-unknown-linux-gnu",
+      "guard_exit": 0,
+      "checksum_exit": 0,
+      "guard_stdout": "x86_64-unknown-linux-gnu: a6967ea3370acea393101ebff90faa640491e9e82973b3b2192f44517e026f91  /private/tmp/canlang-dep03-notice-join-sp9m6f04/positive-x86_64-unknown-linux-gnu/artifact/THIRD-PARTY-NOTICES.txt\n",
+      "checksums": "f03b40fec041e0ce412913aeaa0d7634dfdfed2a36727474cdfca3209b832ef4  can\na6967ea3370acea393101ebff90faa640491e9e82973b3b2192f44517e026f91  THIRD-PARTY-NOTICES.txt\n",
+      "verify_stdout": "can: OK\nTHIRD-PARTY-NOTICES.txt: OK\n"
+    },
+    {
+      "case": "stale-lock",
+      "exit": 1,
+      "stderr": "compiler release notices rejected: stale notice inputs: compiler/Cargo.lock\n",
+      "no_output": true
+    },
+    {
+      "case": "stale-package",
+      "exit": 1,
+      "stderr": "compiler release notices rejected: stale notice inputs: compiler/Cargo.toml\n",
+      "no_output": true
+    },
+    {
+      "case": "corrupt-manifest",
+      "exit": 1,
+      "stderr": "compiler release notices rejected: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)\n",
+      "no_output": true
+    },
+    {
+      "case": "stale-manifest",
+      "exit": 1,
+      "stderr": "compiler release notices rejected: stale notice inputs: compiler/Cargo.lock\n",
+      "no_output": true
+    },
+    {
+      "case": "wrong-schema",
+      "exit": 1,
+      "stderr": "compiler release notices rejected: unsupported notice manifest schema or targets\n",
+      "no_output": true
+    },
+    {
+      "case": "wrong-notice-path",
+      "exit": 1,
+      "stderr": "compiler release notices rejected: invalid notice entry: aarch64-apple-darwin\n",
+      "no_output": true
+    },
+    {
+      "case": "corrupt-notice",
+      "exit": 1,
+      "stderr": "compiler release notices rejected: changed notice content: aarch64-apple-darwin\n",
+      "no_output": true
+    },
+    {
+      "case": "missing-notice",
+      "exit": 1,
+      "stderr": "compiler release notices rejected: [Errno 2] No such file or directory: '/private/tmp/canlang-dep03-notice-join-sp9m6f04/missing-notice/compiler/third-party-notices/THIRD-PARTY-NOTICES-aarch64-apple-darwin.txt'\n",
+      "no_output": true
+    },
+    {
+      "case": "missing-other-target",
+      "exit": 1,
+      "stderr": "compiler release notices rejected: [Errno 2] No such file or directory: '/private/tmp/canlang-dep03-notice-join-sp9m6f04/missing-other-target/compiler/third-party-notices/THIRD-PARTY-NOTICES-x86_64-unknown-linux-gnu.txt'\n",
+      "no_output": true
+    },
+    {
+      "case": "unsupported-target",
+      "exit": 2,
+      "stderr": "usage: check-compiler-release-notices.py [-h]\n                                         --target {aarch64-apple-darwin,x86_64-unknown-linux-gnu}\n                                         --output-dir OUTPUT_DIR\ncheck-compiler-release-notices.py: error: argument --target: invalid choice: 'unknown-target' (choose from 'aarch64-apple-darwin', 'x86_64-unknown-linux-gnu')\n",
+      "no_output": true
+    },
+    {
+      "case": "actual-host-guard-aarch64-apple-darwin",
+      "exit": 0,
+      "expected": 0
+    },
+    {
+      "case": "actual-host-guard-x86_64-unknown-linux-gnu",
+      "exit": 1,
+      "expected": 1
+    }
+  ],
+  "unrelated_workflow_jobs_identical": true,
+  "original_release_command_preserved": true,
+  "toolchain_pin_preserved": true
+}
