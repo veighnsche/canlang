@@ -49,7 +49,7 @@ function incompatible(run: () => unknown) {
     error.reason === 'malformed_descriptor');
 }
 
-test('only own singular nonnullable integer tags establish a scalar association', () => {
+test('only exact own supported tags establish an association', () => {
   const raw = artifact();
   const field = raw.models![0]!.fields[0]!;
   const loaded = loadArtifactDescriptors(raw, opts);
@@ -59,8 +59,6 @@ test('only own singular nonnullable integer tags establish a scalar association'
   for (const replacement of [
     { ...field, field: { kind: 'string' } },
     { ...field, field: { kind: 'other', type: 'int' } },
-    { ...field, array: { required: false } },
-    { ...field, nullable: true },
     { ...field, field: Object.create({ kind: 'integer' }) },
     Object.assign(Object.create({ field: { kind: 'integer' } }),
       { name: 'count', required: false, serverOnly: false }),
@@ -88,8 +86,8 @@ test('canonical loading checks its own finite scalar profile without inferring d
   assert.equal(Object.hasOwn(loadExecutionDescriptorSet(changed, opts).models[0]!.fields.count!, 'valueType'), false);
 });
 
-test('declared int and void results are copied and frozen in both loading paths', () => {
-  for (const type of ['int', 'void']) {
+test('declared typed and void results are copied and frozen in both loading paths', () => {
+  for (const type of ['int', 'int?', 'int[]', 'int[]?', 'datetime', 'datetime?', 'datetime[]', 'datetime[]?', 'void']) {
     const result = { type };
     const raw = artifact();
     raw.operations![0]!.result = result;
@@ -113,6 +111,7 @@ test('missing and inherited result claims stay unknown; explicit malformed claim
   assert.equal(Object.hasOwn(descriptor(loadArtifactDescriptors(artifact(), opts)), 'result'), false);
   assert.equal(Object.hasOwn(descriptor(loadExecutionDescriptorSet(intake(), opts)), 'result'), false);
   for (const result of [undefined, null, [], {}, { type: 'string' }, { type: 'integer' },
+    { type: 'void?' }, { type: 'void[]' }, { type: 'int?[]' }, { type: 'datetime[][]' },
     { type: 1 }, Object.create({ type: 'int' })]) {
     const raw = artifact();
     const changed = { ...raw, operations: [{ ...raw.operations![0]!, result }] } as unknown as ArtifactDescriptorSlice;
@@ -182,4 +181,144 @@ test('released NumericControl artifact retains integer metadata and unknown lega
   assert.equal(table.get(numericModel)!.fields.count!.valueType, 'int');
   assert.equal(table.get(numericModel)!.fields.count!.default, '1');
   assert.deepEqual(loaded.sources, raw.sources);
+});
+
+
+test('artifact model tags and scenario input tags preserve arrays and nullable containers', () => {
+  for (const kind of ['integer', 'datetime'] as const) {
+    for (const array of [undefined, { required: false }, { required: true }]) {
+      for (const nullable of [false, true]) {
+        const type = `${kind === 'integer' ? 'int' : kind}${array ? '[]' : ''}${nullable ? '?' : ''}`;
+        const raw = artifact();
+        const field = { name: 'count', field: { kind }, required: false, serverOnly: false,
+          nullable, ...(array ? { array } : {}) };
+        raw.models![0]!.fields = [field];
+        raw.operations![0]!.inputs.fields = [{ name: 'value', field: { kind }, required: false,
+          nullable, ...(array ? { array } : {}), default: { kind: 'literal', value: '1' } }];
+        const loaded = loadArtifactDescriptors(raw, opts);
+        const scalar = descriptor(loaded).inputs[0]!;
+        assert.ok(scalar.kind !== 'ref' && scalar.kind !== 'delivery');
+        assert.equal(scalar.valueType, type);
+        assert.ok(Object.isFrozen(scalar));
+        assert.deepEqual(scalar.default, { kind: 'literal', value: '1' });
+        assert.equal(loaded.models[0]!.fields.count!.valueType, type);
+        assert.equal(loaded.models[0]!.fields.count!.nullable, nullable);
+        const table = buildModelTableFromCanonical(loaded.models, { nullableFields: loaded.nullableFields });
+        assert.equal(table.get(model)!.fields.count!.valueType, type);
+        assert.equal(table.get(model)!.fields.count!.nullable === true, nullable);
+      }
+    }
+  }
+});
+
+test('direct scalar input claims agree with kind and engine array markers', () => {
+  for (const kind of ['integer', 'datetime'] as const) {
+    for (const array of [false, true]) {
+      for (const nullable of [false, true]) {
+        const type = `${kind === 'integer' ? 'int' : kind}${array ? '[]' : ''}${nullable ? '?' : ''}`;
+        const set = intake();
+        const typed = { ...set, operations: [{ ...set.operations[0]!, inputs: [
+          { name: 'value', kind, required: false, valueType: type },
+        ] }] };
+        const markers = array ? { inputArrays: { [operation]: { value: { required: false } } } } : {};
+        const loaded = descriptor(loadExecutionDescriptorSet(typed, { ...opts, ...markers }));
+        const scalar = loaded.inputs[0]!;
+        assert.ok(scalar.kind !== 'ref' && scalar.kind !== 'delivery');
+        assert.equal(scalar.valueType, type);
+        assert.ok(Object.isFrozen(scalar));
+        incompatible(() => loadExecutionDescriptorSet(typed, { ...opts,
+          ...(array ? {} : { inputArrays: { [operation]: { value: { required: true } } } }) }));
+      }
+    }
+  }
+  for (const valueType of [undefined, 'integer', 'datetime[][]', 'int?[]', 'string', 'void', 'datetime']) {
+    const set = intake();
+    const changed = { ...set, operations: [{ ...set.operations[0]!, inputs: [
+      { name: 'value', kind: 'integer', required: false, valueType },
+    ] }] } as unknown as ExecutionDescriptorSet;
+    incompatible(() => loadExecutionDescriptorSet(changed, opts));
+  }
+  const set = intake();
+  const untyped = { ...set, operations: [{ ...set.operations[0]!, inputs: [
+    Object.assign(Object.create({ valueType: 'int' }),
+      { name: 'value', kind: 'integer', required: false, default: { kind: 'literal', value: '1' } }),
+  ] }] };
+  const scalar = descriptor(loadExecutionDescriptorSet(untyped, opts)).inputs[0]!;
+  assert.equal(Object.hasOwn(scalar, 'valueType'), false);
+});
+
+test('canonical model nullable claims are checked without adding omission fills', () => {
+  const set = intake();
+  const typed = { ...set, models: [{ ...set.models[0]!, fields: {
+    count: { required: false, serverOnly: false, valueType: 'datetime[]?',
+      array: { required: true }, nullable: true },
+  } }] };
+  const loaded = loadExecutionDescriptorSet(typed, opts);
+  assert.ok(Object.isFrozen(loaded.models[0]!.fields.count));
+  assert.equal(buildModelTableFromCanonical(loaded.models).get(model)!.fields.count!.nullable, undefined);
+  for (const nullable of [false, undefined, 'true']) {
+    const changed = { ...typed, models: [{ ...typed.models[0]!, fields: {
+      count: { ...typed.models[0]!.fields.count, nullable },
+    } }] } as unknown as ExecutionDescriptorSet;
+    incompatible(() => loadExecutionDescriptorSet(changed, opts));
+    assert.throws(() => buildModelTableFromCanonical(changed.models), /Invalid valueType/);
+  }
+  const raw = artifact();
+  const bad = { ...raw, models: [{ ...raw.models![0]!, fields: [
+    { ...raw.models![0]!.fields[0]!, nullable: 'true' },
+  ] }] } as unknown as ArtifactDescriptorSlice;
+  incompatible(() => loadArtifactDescriptors(bad, opts));
+});
+
+
+test('legacy input carriers/defaults and inherited tags do not invent associations', () => {
+  for (const field of [{ kind: 'string' }, Object.create({ kind: 'integer' })]) {
+    const raw = artifact();
+    raw.operations![0]!.inputs.fields = [{ name: 'value', field, required: false,
+      default: { kind: 'literal', value: '1' } }];
+    const scalar = descriptor(loadArtifactDescriptors(raw, opts)).inputs[0]!;
+    assert.equal(Object.hasOwn(scalar, 'valueType'), false);
+  }
+  for (const valueType of [undefined, 'string', 'datetime']) {
+    const raw = artifact();
+    const bad = { ...raw, models: [{ ...raw.models![0]!, fields: [
+      { ...raw.models![0]!.fields[0]!, valueType },
+    ] }] } as unknown as ArtifactDescriptorSlice;
+    incompatible(() => artifactToDescriptorSet(bad));
+  }
+});
+
+
+test('own artifact associations require an exact owning supported tag for models and inputs', () => {
+  const tagVariants = [
+    { field: { kind: 'string' } },
+    { field: { kind: 'ref', model, requireVersion: false } },
+    {},
+    { field: Object.create({ kind: 'integer' }) },
+  ];
+  for (const tag of tagVariants) {
+    const raw = artifact();
+    const claimedModelField = { name: 'count', required: false, serverOnly: false,
+      ...tag, valueType: 'int' };
+    const claimedInput = { name: 'value', required: false, ...tag, valueType: 'int' };
+    for (const changed of [
+      { ...raw, models: [{ ...raw.models![0]!, fields: [claimedModelField] }] },
+      { ...raw, operations: [{ ...raw.operations![0]!, inputs: { fields: [claimedInput] } }] },
+    ]) {
+      incompatible(() => artifactToDescriptorSet(changed as unknown as ArtifactDescriptorSlice));
+      incompatible(() => loadArtifactDescriptors(changed as unknown as ArtifactDescriptorSlice, opts));
+    }
+  }
+  const raw = artifact();
+  const inheritedField = Object.assign(Object.create({ field: { kind: 'integer' } }),
+    { name: 'count', required: false, serverOnly: false, valueType: 'int' });
+  const inheritedInput = Object.assign(Object.create({ field: { kind: 'integer' } }),
+    { name: 'value', required: false, valueType: 'int' });
+  for (const changed of [
+    { ...raw, models: [{ ...raw.models![0]!, fields: [inheritedField] }] },
+    { ...raw, operations: [{ ...raw.operations![0]!, inputs: { fields: [inheritedInput] } }] },
+  ]) {
+    incompatible(() => artifactToDescriptorSet(changed));
+    incompatible(() => loadArtifactDescriptors(changed, opts));
+  }
 });
