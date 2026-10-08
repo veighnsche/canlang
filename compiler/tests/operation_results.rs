@@ -59,6 +59,14 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
         ("Client.defaultInstant", "datetime"),
         ("Client.optionalDefaultInstant", "datetime?"),
         ("Client.defaultInstants", "datetime[]"),
+        ("Client.number", "text"),
+        ("Client.textArray", "text[]"),
+        ("Client.optionalText", "text?"),
+        ("Client.optionalTexts", "text[]?"),
+        ("Client.boolean", "bool"),
+        ("Client.nullableBoolean", "bool?"),
+        ("Client.booleans", "bool[]"),
+        ("Client.optionalBooleans", "bool[]?"),
     ] {
         assert_eq!(
             operation(&artifact, name)["result"],
@@ -123,16 +131,70 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
         );
     }
     for name in [
-        "Client.number",
-        "Client.textArray",
-        "Client.optionalText",
-        "Client.boolean",
+        "Client.specialized",
         "Client.Item.read",
         "Client.Item.create",
         "Client.Item.update",
         "Client.Item.delete",
     ] {
         assert!(operation(&artifact, name).get("result").is_none(), "{name}");
+    }
+    for (name, ty) in [
+        ("Client.number", "text"),
+        ("Client.textArray", "text[]"),
+        ("Client.optionalText", "text?"),
+        ("Client.optionalTexts", "text[]?"),
+    ] {
+        let input = &operation(&artifact, name)["inputs"]["fields"][0];
+        assert_eq!(input["field"]["kind"], "string", "{name}: {input}");
+        assert_eq!(input["valueType"], ty, "{name}: {input}");
+        assert_eq!(input["nullable"] == true, ty.ends_with('?'));
+        assert_eq!(input.get("array").is_some(), ty.contains("[]"));
+    }
+    for input in operation(&artifact, "Client.specialized")["inputs"]["fields"]
+        .as_array()
+        .unwrap()
+    {
+        assert!(input.get("valueType").is_none(), "{input}");
+    }
+    for input in operation(&artifact, "Client.booleans")["inputs"]["fields"]
+        .as_array()
+        .unwrap()
+    {
+        assert_eq!(input["field"]["kind"], "boolean");
+        assert!(input.get("valueType").is_none(), "{input}");
+    }
+    for (name, ty) in [
+        ("title", "text"),
+        ("optional", "text?"),
+        ("titles", "text[]"),
+        ("maybeTitles", "text[]?"),
+    ] {
+        let field = model["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|field| field["name"] == name)
+            .unwrap();
+        assert_eq!(field["valueType"], ty, "{field}");
+        assert_eq!(field["nullable"] == true, ty.ends_with('?'));
+        assert_eq!(field.get("array").is_some(), ty.contains("[]"));
+        for operation_name in ["Client.Item.create", "Client.Item.update"] {
+            let input = operation(&artifact, operation_name)["inputs"]["fields"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|field| field["name"] == name)
+                .unwrap();
+            assert_eq!(input["valueType"], ty, "{operation_name}: {input}");
+        }
+    }
+    for field in model["fields"].as_array().unwrap().iter().filter(|field| {
+        !["title", "optional", "titles", "maybeTitles"]
+            .iter()
+            .any(|name| field["name"] == *name)
+    }) {
+        assert!(field.get("valueType").is_none(), "{field}");
     }
     let names: Vec<_> = artifact["operations"]
         .as_array()
