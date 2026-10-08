@@ -10,7 +10,7 @@
  * test-only — the worker boundary still forbids them from `src/`).
  */
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -32,6 +32,7 @@ import {
   assembleWorker,
   buildInvoker,
   type AssembledModules,
+  type HttpPageHandlerFactory,
   type AssemblyDeps,
   type InterimFilesBinding,
   type MutationOutcome,
@@ -43,7 +44,7 @@ import {
   createFileJourneyKernel,
   type FileJourneyBindings,
 } from "@canlang/interfaces/uploads/kernel";
-import { receiverFromIdentity } from "@canlang/interfaces";
+import { handlePageRequest, receiverFromIdentity } from "@canlang/interfaces";
 import { handleUploadRequest } from "@canlang/interfaces";
 import { createTestUploadDeps, testRequest } from "@canlang/interfaces/testing";
 import {
@@ -73,6 +74,15 @@ import {
 
 const FIXED_NOW = 1767225600000;
 
+// Hand-written app declaration, independent of the source filename.
+const APP_MODULE = "fixture-app.mjs";
+const APP_SOURCE = 'export const appDefinition = { id: "TeamTasks" };\n';
+// Synthetic, hand-written source bytes: this digest is not compiler provenance.
+const FIXTURE_SOURCE = "## Hand-written assembly fixture; NOT compiler input.\n";
+const FIXTURE_SOURCE_SHA = createHash("sha256").update(FIXTURE_SOURCE).digest("hex");
+const pageFactory: HttpPageHandlerFactory = deps => request =>
+  handlePageRequest(deps as Parameters<typeof handlePageRequest>[0], request);
+
 const tempDirs: string[] = [];
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) {
@@ -99,11 +109,13 @@ function stubStore(): StoragePort {
 }
 
 function stubDeps(): AssemblyDeps {
-  return { store: stubStore(), identityStore: {}, now: () => FIXED_NOW };
+  return { store: stubStore(), identityStore: {}, now: () => FIXED_NOW, http: { createPageHandler: pageFactory } };
 }
 
 function stubAsm(dir: string, moduleUrls: Record<string, string>): AssembledModules {
-  return { dir, entryUrl: "fixture-entry", moduleUrls };
+  const entryUrl = writeModule(dir, APP_MODULE, APP_SOURCE);
+  writeFileSync(join(dir, "UnrelatedFixture.can"), FIXTURE_SOURCE);
+  return { dir, entryUrl, moduleUrls: { [APP_MODULE]: entryUrl, ...moduleUrls } };
 }
 
 function fixtureArtifact(
@@ -114,8 +126,9 @@ function fixtureArtifact(
     artifact_version: 1,
     language_version: "assembly-fixture/0 (hand-written; NOT compiler output)",
     tool_version: "assembly-fixture/0",
-    sources: [{ path: "examples/TeamTasks.can", sha256: "fixture-not-a-digest" }],
-    modules: [],
+    sources: [{ path: "UnrelatedFixture.can", sha256: FIXTURE_SOURCE_SHA }],
+    modules: [{ path: APP_MODULE, js: APP_SOURCE,
+      map: { version: 3, file: APP_MODULE, sources: [], sourcesContent: [], names: [], mappings: "" } }],
     callables,
     pages,
     requires: [],
@@ -360,8 +373,9 @@ function scenarioArtifact(
     artifact_version: 1,
     language_version: "t17c-fixture/0 (hand-written T15a shape; NOT compiler output)",
     tool_version: "t17c-fixture/0",
-    sources: [{ path: "examples/TeamTasks.can", sha256: "fixture-not-a-digest" }],
-    modules: [],
+    sources: [{ path: "UnrelatedFixture.can", sha256: FIXTURE_SOURCE_SHA }],
+    modules: [{ path: APP_MODULE, js: APP_SOURCE,
+      map: { version: 3, file: APP_MODULE, sources: [], sourcesContent: [], names: [], mappings: "" } }],
     callables: scenarios.map((s) => ({
       id: s.op,
       kind: "operation",
@@ -666,8 +680,8 @@ describe("interim files dispatch", () => {
   });
 });
 
-describe("interim presentation mirror", () => {
-  it("derives isPartial from HX-Request and mirrors context semantics", async () => {
+describe("defining presentation context", () => {
+  it("derives isPartial from HX-Request and preserves context semantics", async () => {
     const dir = tempDir();
     const url = writeModule(
       dir,
@@ -677,7 +691,7 @@ describe("interim presentation mirror", () => {
         path: "/cap",
         title: "cap",
         admit: async () => ({}),
-        render: async (ctx) => JSON.stringify({
+        render: async (ctx) => '<pre id="fixture-context">' + JSON.stringify({
           partial: ctx.isPartial,
           csrf: ctx.csrfToken,
           path: ctx.path,
@@ -685,7 +699,7 @@ describe("interim presentation mirror", () => {
           theme: ctx.theme.mode,
           anon: ctx.principal.actor === null,
           same: ctx.principal === ctx.invocation,
-        }),
+        }) + '</pre>',
       };\n`,
     );
     const artifact = fixtureArtifact(
@@ -703,7 +717,11 @@ describe("interim presentation mirror", () => {
       new Request("http://localhost/cap", { headers: { "accept-language": "fr-CA, fr;q=0.8" } }),
     );
     expect(full.status).toBe(200);
-    expect(await full.json()).toEqual({
+    const fullHtml = await full.text();
+    expect(fullHtml).toContain("<!DOCTYPE html>");
+    const fullContext = fullHtml.match(/<pre id="fixture-context">([^<]*)<\/pre>/)?.[1];
+    if (fullContext === undefined) throw new Error("Full shell must contain the fixture context.");
+    expect(JSON.parse(fullContext)).toEqual({
       partial: false,
       csrf: "",
       path: "/cap",
@@ -717,7 +735,11 @@ describe("interim presentation mirror", () => {
       new Request("http://localhost/cap", { headers: { "HX-Request": "true" } }),
     );
     expect(partial.status).toBe(200);
-    expect(((await partial.json()) as { partial: boolean }).partial).toBe(true);
+    const partialHtml = await partial.text();
+    expect(partialHtml).not.toContain("<!DOCTYPE html>");
+    const partialContext = partialHtml.match(/<pre id="fixture-context">([^<]*)<\/pre>/)?.[1];
+    if (partialContext === undefined) throw new Error("Partial shell must contain the fixture context.");
+    expect((JSON.parse(partialContext) as { partial: boolean }).partial).toBe(true);
   });
 });
 

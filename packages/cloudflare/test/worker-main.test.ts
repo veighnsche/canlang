@@ -31,6 +31,7 @@ import type {
   CompileArtifact,
   StoragePort,
 } from "@canlang/contracts";
+import { handlePageRequest } from "@canlang/interfaces";
 import workerMain, {
   createMainFetch,
   REQUIRED_BINDINGS,
@@ -41,8 +42,15 @@ import workerMain, {
 import {
   assembleWorker,
   type AssembledModules,
+  type HttpPageHandlerFactory,
   type McpHandlerFactory,
 } from "../src/worker/assembly.js";
+
+// Hand-written app declaration, independent of the source filename.
+const APP_MODULE = "fixture-app.mjs";
+const APP_SOURCE = 'export const appDefinition = { id: "TeamTasks" };\n';
+const pageFactory: HttpPageHandlerFactory = deps => request =>
+  handlePageRequest(deps as Parameters<typeof handlePageRequest>[0], request);
 
 const tempDirs: string[] = [];
 afterEach(() => {
@@ -68,7 +76,8 @@ function stubStore(): StoragePort {
 }
 
 function stubAsm(dir: string, moduleUrls: Record<string, string>): AssembledModules {
-  return { dir, entryUrl: "fixture-entry", moduleUrls };
+  const entryUrl = writeModule(dir, APP_MODULE, APP_SOURCE);
+  return { dir, entryUrl, moduleUrls: { [APP_MODULE]: entryUrl, ...moduleUrls } };
 }
 
 function fixtureArtifact(
@@ -79,8 +88,9 @@ function fixtureArtifact(
     artifact_version: 1,
     language_version: "worker-main-fixture/0 (hand-written; NOT compiler output)",
     tool_version: "worker-main-fixture/0",
-    sources: [{ path: "examples/TeamTasks.can", sha256: "fixture-not-a-digest" }],
-    modules: [],
+    sources: [{ path: "examples/UnrelatedFixture.can", sha256: "fixture-not-a-digest" }],
+    modules: [{ path: APP_MODULE, js: APP_SOURCE,
+      map: { version: 3, file: APP_MODULE, sources: [], sourcesContent: [], names: [], mappings: "" } }],
     callables,
     pages,
     requires: [],
@@ -124,6 +134,7 @@ function testLoaders(overrides: MainLoaders = {}): MainLoaders {
   return {
     loadStagedDeployment: async () => staged,
     loadProductionDeps: async () => productionDeps(identityStore),
+    loadHttpPageFactory: async () => pageFactory,
     ...overrides,
   };
 }
@@ -168,6 +179,7 @@ describe("deploy worker main", () => {
     const fetch = createMainFetch({
       loadStagedDeployment: async () => staged,
       loadProductionDeps: async () => deps,
+      loadHttpPageFactory: async () => pageFactory,
     });
     const res = await fetch(new Request("http://localhost/mcp", { method: "POST" }), fullEnv());
     expect(res.status).toBe(501);
@@ -176,7 +188,7 @@ describe("deploy worker main", () => {
     expect(body.message).toContain("AssemblyDeps.mcp.createHandler");
 
     // Byte-parity with calling assembleWorker directly (no factory).
-    const direct = await assembleWorker(staged.artifact, staged.modules, deps, ACTIVE_VERDICT);
+    const direct = await assembleWorker(staged.artifact, staged.modules, { ...deps, http: { createPageHandler: pageFactory } }, ACTIVE_VERDICT);
     const expected = await direct.fetch(new Request("http://localhost/mcp", { method: "POST" }));
     expect(expected.status).toBe(res.status);
     expect(await expected.json()).toEqual(body);
@@ -304,6 +316,7 @@ describe("deploy worker main", () => {
     const staged = await base.loadStagedDeployment?.();
     const deps = await base.loadProductionDeps?.(fullEnv());
     const fetch = createMainFetch({
+      loadHttpPageFactory: async () => pageFactory,
       loadStagedDeployment: async () => {
         stagedCalls += 1;
         return staged as StagedDeployment;
