@@ -1,0 +1,15 @@
+app TypedDurableSend
+use std {EmailV1 as Mail} from=deployment.mail
+Given
+ Entry { count:int=0 }
+ policy Entry read=public
+When
+ crud Entry by=owner fields=count
+ ## The request and row update share one commit; a later refusal drops both.
+ scenario deliver(entry:Entry,to:email,accept:bool) -> int by=owner
+  do
+   set entry {count=entry.count+1}
+   send Mail.send {to=to,subject="Actual send",body="Durable request"} as attempt
+   require accept
+   return entry.count
+Then

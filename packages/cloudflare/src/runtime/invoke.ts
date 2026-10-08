@@ -45,6 +45,7 @@
  */
 import type {
   ArtifactCohortDescriptor,
+  BoundCapabilityRequest,
   CanTypeId,
   CanValue,
   CanonicalModelDescriptor,
@@ -94,7 +95,9 @@ import type {
   UniqueRelease,
 } from "@canlang/contracts";
 import { COLLECTION_DEFAULT_LIMIT, COLLECTION_MAX_LIMIT } from "@canlang/contracts";
-import { decodeValue, encodeValue } from "@canlang/values";
+import { decodeValue, encodeValue, normalizeSchema, validateOperationInput } from "@canlang/values";
+import type { FieldDescriptor, SchemaDescriptor } from "@canlang/values";
+import type { SystemStaging } from "@canlang/state";
 import type { GeneratedOperationDef } from "@canlang/state/invocation/registry";
 import type {
   CanonicalEffectsScope,
@@ -3036,6 +3039,8 @@ async function runScenarioSeam(
   const reservedVersions = new Map<string, RecordVersion>();
   const stagedHistory: unknown[] = [];
   const stagedTouches: CanonicalStagedUniqueTouch[] = [];
+  const sendEffects: SystemStaging[] = [];
+  let sendIndex = 0;
   const resolvedDefaults: Record<string, unknown> = Object.create(null);
   let callIndex = 0;
   let createIndex = 0;
@@ -3210,6 +3215,77 @@ async function runScenarioSeam(
     clock: () => admittedNow,
     memberships: grants,
     canonical: scope,
+    sendDeferred: async (source, request, bindingKey) => {
+      try {
+        const moduleUrl = callable === undefined ? undefined : opts.asm.moduleUrls[callable.module];
+        if (moduleUrl === undefined) throw new Error('Bound send has no owning compiled module.');
+        const module: unknown = await import(moduleUrl);
+        const where = `Bound send ${JSON.stringify(source)}`;
+        const member = (value: unknown, key: string): unknown =>
+          isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
+        const definition = member(module, 'appDefinition');
+        const binding = member(member(definition, 'bindings'), bindingKey);
+        const capability = member(binding, 'capability');
+        const from = member(binding, 'from');
+        if (typeof capability !== 'string' || typeof from !== 'string' || from === '') {
+          throw new Error(`${where} has no exact checked binding ${JSON.stringify(bindingKey)}.`);
+        }
+        const prefix = `${capability}.`;
+        if (!source.startsWith(prefix) || source.slice(prefix.length).includes('.')) {
+          throw new Error(`${where} does not belong to binding ${JSON.stringify(bindingKey)}.`);
+        }
+        const declaration = member(member(definition, 'capabilities'), capability);
+        const operation = member(member(declaration, 'operations'), source.slice(prefix.length));
+        const inputs = member(operation, 'inputs');
+        if (!isUnknownRecord(inputs) || !isUnknownRecord(request)) {
+          throw new Error(`${where} requires its checked operation inputs and an argument object.`);
+        }
+        // Values owns schema admission, omission/default semantics and each
+        // native/wire codec. The adapter supplies the exact owning declaration.
+        const schema = normalizeSchema({
+          contracts: member(definition, 'contracts') ?? {},
+          enums: member(definition, 'enums') ?? {},
+          operations: { [source]: { inputs } },
+        } as SchemaDescriptor);
+        const wire: Record<string, unknown> = Object.create(null);
+        for (const [name, value] of Object.entries(request)) {
+          const field = member(inputs, name) as FieldDescriptor | undefined;
+          wire[name] = field === undefined || value === undefined ? value : encodeValue(field.type, value as CanValue);
+        }
+        const checked = validateOperationInput(schema, source, wire);
+        const args: Record<string, unknown> = Object.create(null);
+        for (const [name, value] of Object.entries(checked)) {
+          const field = member(inputs, name) as FieldDescriptor;
+          args[name] = encodeValue(field.type, value);
+        }
+        const producer = await loadProducerModule('@canlang/work/kernel/dispatch-staging', 'work canonical send producer');
+        const stage = requireProducerFn(producer, 'stageCanonicalSend', 'work canonical send producer') as
+          typeof import('@canlang/work/kernel/dispatch-staging').stageCanonicalSend;
+        const boundRequest: BoundCapabilityRequest = { binding: bindingKey, from, arguments: args };
+        const stagedSend = await stage({
+          operationId: scope.operationId, source, occurrenceIndex: sendIndex++,
+          request: boundRequest, originOccurrence: null,
+        }, {
+          actor: actorUserId ?? 'anonymous', now: admittedNow, operation: scope.operation,
+          load: overlay.load.bind(overlay), query: overlay.query.bind(overlay),
+        });
+        // The current canonical invocation contract has no acknowledgement
+        // channel. This producer stages writes/outbox, never acknowledgements.
+        if ((stagedSend.effects.outboxAck?.length ?? 0) !== 0) {
+          throw new Error('Canonical send cannot stage outbox acknowledgements.');
+        }
+        for (const write of stagedSend.effects.writes ?? []) {
+          stagedWrites.push(write);
+          applyStagedWrite(write);
+        }
+        sendEffects.push(stagedSend.effects);
+        return stagedSend.delivery;
+      } catch (error) {
+        const failure = error instanceof StateError ? error : new StateError('validation', message(error));
+        recordEngineFailure(failure);
+        throw failure;
+      }
+    },
     qualified: call.context,
     ...(opts.formatting === undefined ? {} : { formatting: opts.formatting }),
   });
@@ -3255,17 +3331,17 @@ async function runScenarioSeam(
   }
   return {
     writes: collapseStagedWrites(stagedWrites),
-    history: stagedHistory.map((entry) => {
+    history: [...stagedHistory, ...sendEffects.flatMap((effects) => effects.history ?? [])].map((entry) => {
       if (!isUnknownRecord(entry)) return entry;
       const first = stagedWrites.find((write) => write.model === entry["model"] &&
         (write.kind === "insert" ? write.row?.id : write.id) === entry["recordId"]);
       const version = first?.kind === "insert" ? 1 : typeof first?.expectedVersion !== "number" ? undefined : first.expectedVersion + (first.kind === "remove" ? 0 : 1);
       return version === undefined ? entry : { ...entry, version };
     }),
-    outbox: [],
-    schedules: [],
-    uniqueClaims: uniques.claims,
-    uniqueReleases: uniques.releases,
+    outbox: sendEffects.flatMap((effects) => effects.outbox ?? []),
+    schedules: sendEffects.flatMap((effects) => effects.schedules ?? []),
+    uniqueClaims: [...uniques.claims, ...sendEffects.flatMap((effects) => effects.uniqueClaims ?? [])],
+    uniqueReleases: [...uniques.releases, ...sendEffects.flatMap((effects) => effects.uniqueReleases ?? [])],
     resolvedDefaults,
     result,
     // T32b: the seam's commit-time evidence — the caller-roles guard
