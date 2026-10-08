@@ -42,3 +42,15 @@ export function argRecord(
   }
   return value as Record<string, unknown>;
 }
+
+export function argInstant(
+  args: Readonly<Record<string, unknown>>,
+  field: string,
+  what: string,
+): number {
+  const value = args[field];
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new KernelTableError(`${what}: ${field} must be finite epoch ms >= 0.`);
+  }
+  return value;
+}
