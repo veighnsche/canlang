@@ -1,0 +1,185 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { test } from 'node:test';
+import type { CanonicalModelDescriptor, ExecutionDescriptorSet, ModelName, OperationName } from '@canlang/contracts';
+import {
+  artifactToDescriptorSet,
+  IncompatibleArtifactError,
+  isGeneratedOperationDef,
+  loadArtifactDescriptors,
+  loadExecutionDescriptorSet,
+  type ArtifactDescriptorSlice,
+} from '../src/invocation/registry.js';
+import { buildModelTableFromCanonical } from '../src/mutation/models.js';
+
+const model = 'Example.Job' as ModelName;
+const operation = 'Example.inspect' as OperationName;
+const opts = { by: 'public' as const };
+const sha256 = 'a'.repeat(64);
+
+function artifact(): ArtifactDescriptorSlice {
+  return {
+    artifact_version: 1,
+    models: [{ name: model, deleteMode: 'archive', fields: [
+      { name: 'count', field: { kind: 'integer' }, required: false, serverOnly: false,
+        default: { kind: 'literal', value: '1' } },
+    ] }],
+    operations: [{ name: operation, kind: 'scenario', description: '', inputs: { fields: [] } }],
+  };
+}
+
+function intake(): ExecutionDescriptorSet {
+  return {
+    contractVersion: 1,
+    models: [{ name: model, deleteMode: 'archive', fields: {
+      count: { required: false, serverOnly: false, valueType: 'int' },
+    } }],
+    operations: [{ name: operation, kind: 'scenario', inputs: [] }],
+  };
+}
+
+function descriptor(loaded: ReturnType<typeof loadExecutionDescriptorSet>) {
+  const def = loaded.registry.get(operation);
+  assert.ok(def !== undefined && isGeneratedOperationDef(def));
+  return def.descriptor;
+}
+
+function incompatible(run: () => unknown) {
+  assert.throws(run, (error: unknown) => error instanceof IncompatibleArtifactError &&
+    error.reason === 'malformed_descriptor');
+}
+
+test('only own singular nonnullable integer tags establish a scalar association', () => {
+  const raw = artifact();
+  const field = raw.models![0]!.fields[0]!;
+  const loaded = loadArtifactDescriptors(raw, opts);
+  assert.equal(loaded.models[0]!.fields.count!.valueType, 'int');
+  assert.deepEqual(loaded.models[0]!.fields.count!.default, { kind: 'literal', value: '1' });
+  assert.ok(Object.isFrozen(loaded.models[0]!.fields.count));
+  for (const replacement of [
+    { ...field, field: { kind: 'string' } },
+    { ...field, field: { kind: 'other', type: 'int' } },
+    { ...field, array: { required: false } },
+    { ...field, nullable: true },
+    { ...field, field: Object.create({ kind: 'integer' }) },
+    Object.assign(Object.create({ field: { kind: 'integer' } }),
+      { name: 'count', required: false, serverOnly: false }),
+    { name: 'count', required: false, serverOnly: false },
+  ]) {
+    const changed = { ...raw, models: [{ ...raw.models![0]!, fields: [replacement] }] } as ArtifactDescriptorSlice;
+    assert.equal(Object.hasOwn(loadArtifactDescriptors(changed, opts).models[0]!.fields.count!, 'valueType'), false);
+  }
+});
+
+test('canonical loading checks its own finite scalar profile without inferring defaults', () => {
+  const set = intake();
+  const loaded = loadExecutionDescriptorSet(set, opts);
+  assert.equal(loaded.models[0]!.fields.count!.valueType, 'int');
+  assert.equal(Object.hasOwn(loaded.models[0]!.fields.count!, 'default'), false);
+  for (const extra of [{ valueType: 'string' }, { valueType: undefined },
+    { valueType: 'int', array: { required: false } }, { valueType: 'int', nullable: true }]) {
+    const changed = { ...set, models: [{ ...set.models[0]!, fields: {
+      count: { required: false, serverOnly: false, ...extra },
+    } }] } as unknown as ExecutionDescriptorSet;
+    incompatible(() => loadExecutionDescriptorSet(changed, opts));
+  }
+  const inherited = Object.assign(Object.create({ valueType: 'int' }), { required: false, serverOnly: false });
+  const changed = { ...set, models: [{ ...set.models[0]!, fields: { count: inherited } }] };
+  assert.equal(Object.hasOwn(loadExecutionDescriptorSet(changed, opts).models[0]!.fields.count!, 'valueType'), false);
+});
+
+test('declared int and void results are copied and frozen in both loading paths', () => {
+  for (const type of ['int', 'void']) {
+    const result = { type };
+    const raw = artifact();
+    raw.operations![0]!.result = result;
+    const converted = artifactToDescriptorSet(raw);
+    const loaded = loadArtifactDescriptors(raw, opts);
+    const set = intake();
+    const directResult = { type };
+    const direct = loadExecutionDescriptorSet({ ...set, operations: [{ ...set.operations[0]!, result: directResult }] }, opts);
+    result.type = 'string';
+    directResult.type = 'string';
+    assert.deepEqual(converted.set.operations[0]!.result, { type });
+    assert.deepEqual(descriptor(loaded).result, { type });
+    assert.deepEqual(descriptor(direct).result, { type });
+    assert.ok(Object.isFrozen(converted.set.operations[0]!.result));
+    assert.ok(Object.isFrozen(descriptor(loaded).result));
+    assert.ok(Object.isFrozen(descriptor(direct).result));
+  }
+});
+
+test('missing and inherited result claims stay unknown; explicit malformed claims reject', () => {
+  assert.equal(Object.hasOwn(descriptor(loadArtifactDescriptors(artifact(), opts)), 'result'), false);
+  assert.equal(Object.hasOwn(descriptor(loadExecutionDescriptorSet(intake(), opts)), 'result'), false);
+  for (const result of [undefined, null, [], {}, { type: 'string' }, { type: 'integer' },
+    { type: 1 }, Object.create({ type: 'int' })]) {
+    const raw = artifact();
+    const changed = { ...raw, operations: [{ ...raw.operations![0]!, result }] } as unknown as ArtifactDescriptorSlice;
+    incompatible(() => artifactToDescriptorSet(changed));
+    incompatible(() => loadArtifactDescriptors(changed, opts));
+    const set = intake();
+    const direct = { ...set, operations: [{ ...set.operations[0]!, result }] } as unknown as ExecutionDescriptorSet;
+    incompatible(() => loadExecutionDescriptorSet(direct, opts));
+  }
+  const raw = artifact();
+  const inheritedOperation = Object.assign(Object.create({ result: { type: 'int' } }), raw.operations![0]);
+  assert.equal(Object.hasOwn(descriptor(loadArtifactDescriptors({ ...raw, operations: [inheritedOperation] }, opts)), 'result'), false);
+  const set = intake();
+  const inheritedDirect = Object.assign(Object.create({ result: { type: 'int' } }), set.operations[0]);
+  assert.equal(Object.hasOwn(descriptor(loadExecutionDescriptorSet({ ...set, operations: [inheritedDirect] }, opts)), 'result'), false);
+});
+
+test('own source revisions are validated, copied and frozen without inventing load authority', () => {
+  const raw = artifact();
+  const source = { path: 'Example.can', sha256 };
+  raw.sources = [source];
+  const converted = artifactToDescriptorSet(raw);
+  const loaded = loadArtifactDescriptors(raw, opts);
+  source.path = 'changed.can';
+  raw.sources.push({ path: 'extra.can', sha256 });
+  assert.deepEqual(converted.sources, [{ path: 'Example.can', sha256 }]);
+  assert.deepEqual(loaded.sources, [{ path: 'Example.can', sha256 }]);
+  assert.ok(Object.isFrozen(loaded.sources));
+  assert.ok(Object.isFrozen(loaded.sources![0]));
+  assert.equal(Object.hasOwn(loadArtifactDescriptors(artifact(), opts), 'sources'), false);
+  const inherited = Object.assign(Object.create({ sources: [{ path: 'inherited.can', sha256 }] }), artifact());
+  assert.equal(Object.hasOwn(loadArtifactDescriptors(inherited, opts), 'sources'), false);
+  for (const sources of [undefined, null, {}, [null], new Array(1), [{ path: '', sha256 }],
+    [{ path: 'Example.can', sha256: 'A'.repeat(64) }], [Object.create({ path: 'Example.can', sha256 })]]) {
+    const changed = { ...artifact(), sources } as unknown as ArtifactDescriptorSlice;
+    incompatible(() => artifactToDescriptorSet(changed));
+    incompatible(() => loadArtifactDescriptors(changed, opts));
+  }
+});
+
+test('model table retains the checked association and the existing wire default', () => {
+  const loaded = loadArtifactDescriptors(artifact(), opts);
+  const table = buildModelTableFromCanonical(loaded.models);
+  const field = table.get(model)!.fields.count!;
+  assert.equal(field.valueType, 'int');
+  assert.equal(field.default, '1');
+  assert.ok(Object.isFrozen(field));
+  const invalid = [{ ...loaded.models[0]!, fields: {
+    count: { required: false, serverOnly: false, valueType: 'string' },
+  } }] as CanonicalModelDescriptor[];
+  assert.throws(() => buildModelTableFromCanonical(invalid), /Invalid valueType/);
+});
+
+test('released NumericControl artifact retains integer metadata and unknown legacy result', () => {
+  const raw = JSON.parse(readFileSync(new URL(
+    '../../../../implementation/compiler-completion/numeric-control-producer/artifact.json', import.meta.url,
+  ), 'utf8')) as ArtifactDescriptorSlice;
+  const loaded = loadArtifactDescriptors(raw, opts);
+  const numericModel = 'NumericControl.Job' as ModelName;
+  const count = loaded.models.find((entry) => entry.name === numericModel)!.fields.count!;
+  assert.equal(count.valueType, 'int');
+  assert.deepEqual(count.default, { kind: 'literal', value: '1' });
+  const def = loaded.registry.get('NumericControl.increment');
+  assert.ok(def !== undefined && isGeneratedOperationDef(def));
+  assert.equal(Object.hasOwn(def.descriptor, 'result'), false);
+  const table = buildModelTableFromCanonical(loaded.models);
+  assert.equal(table.get(numericModel)!.fields.count!.valueType, 'int');
+  assert.equal(table.get(numericModel)!.fields.count!.default, '1');
+  assert.deepEqual(loaded.sources, raw.sources);
+});
