@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T12:32:10.112106+00:00",
+  "updated_utc": "2026-10-08T12:44:10.166168+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1974,7 +1974,7 @@
       ],
       "required_outcome": "Find exact original pending or ACKed/dispatched bound generate request by target, checked binding, from and frozen business source/revision; return unique, absent or ambiguous. No latest selection, arbitrary cutoff or new lifecycle table. Locator never grants authority; current account is not historical account continuity.",
       "ownership": "Coordinator says proceed now; Roadmap page read-scope observer occupies separate invoke.ts hunks. No shared output/index reservation held.",
-      "consultation": "/private/tmp/canlang-repair-go-20261007/retained-outbox-placement/request-{1,2,3}.json; 9721 bytes architecture facts only; no calls executed",
+      "consultation": "/private/tmp/canlang-repair-go-20261007/retained-outbox-placement/request-{1,2,3}.json; approximately10KB architecture facts only, corrected bare-field SQLite predicate fact; no calls executed, specific approval pending",
       "models": "Sol low factual inventory; implementation selection waits finite contract. No new goals/timers or recursive proof packets.",
       "counts_unchanged": true
     },
@@ -1987,7 +1987,7 @@
       "counts_unchanged": true
     },
     "source_progress_page_consumer": {
-      "status": "Root directly reviewed released Task25 page observer/source consumer; scoped commit ready",
+      "status": "Root directly reviewed and committed7af0efed selected source page observer/native consumer",
       "sources": [
         "packages/contracts/src/presentation.ts",
         "packages/interfaces/src/ports.ts",
@@ -2004,7 +2004,8 @@
       "limits": "Controlled localhost Ollama protocol/local tokenizer, nativeD1 and explicit memory identity; no browser DOM/polling session, actual GPU/account, Images/gallery/fullTask25/Task21/root48 or installed/native preparation/release acceptance. Capability addition, not replacement production reduction.",
       "models": "Owning Roadmap consumer; root finite direct source/Git review reuses actual evidence",
       "sources_outputs_handles_released": true,
-      "counts_unchanged": true
+      "counts_unchanged": true,
+      "commit": "7af0efed601ff5f40f14cfb2996abf5f74fd3f05"
     }
   },
   "live_finite_packets": [
@@ -2796,6 +2797,26 @@
         "next_retained_correlation": "Roadmap requested exact retained original outbox lookup by checked target/binding/deployment/business source/revision across pending+acknowledged, explicit absent/ambiguous; current API lacks it. Readiness/source ownership refresh required before dispatch; account continuity remains separate.",
         "commit": "b2e7d419"
       }
+    },
+    "images_installed_profile": {
+      "status": "Root directly reviewed released Services installed Images component; scoped commit ready",
+      "sources": [
+        "packages/services/src/ports.ts",
+        "packages/services/src/media/comfyui.ts",
+        "packages/services/test/media-comfyui.test.ts"
+      ],
+      "contract": "One immutable std.ImagesV1 deployment/account installation uses the actual pinned ComfyUI graph/map and explicit fixed seed policy. Full source ImageRequest, original delivery/canonical UUID job and original absolute deadline reach each lifecycle method. Existing transport/mapper and error observation are reused; unsupported fields/identity/workflow/budgets refuse before bytes.",
+      "lifecycle": "Shared absolute and monotonic remaining budget spans JSON, cancellation observation and sequential bounded downloads. Requested output cap refuses rather than truncates; partial completed bytes survive honest unknown. A different returned job never replaces the original identity. No lifecycle store or fabricated cancellation.",
+      "verification": "Normal Services TypeScript emit0; changed installed adapter7/7 and3 existing generic lifecycle regression cases3/3. Initial local listener sandbox refusal was retried with authorized local listener access; all command/listener/source/output handles released. Root direct source review reuses unchanged results.",
+      "model": "gpt-6.1-sol high for finite full request/installed transport/lifecycle seam; root direct source review without repeated tests",
+      "limits": [
+        "Controlled localhost ComfyUI protocol only; no actual deployed GPU/account or full Images consumer acceptance",
+        "Caller must durably retain original request/identities/deadline and never renew; adapter cannot prove caller history or GPU cessation",
+        "Arbitrary workflow inspection/validation and generated File finalization/gallery/current grants remain separate",
+        "Capability addition, not replacement production reduction; root48 counts/native preparation HOLD unchanged"
+      ],
+      "sources_outputs_handles_released": true,
+      "counts_unchanged": true
     }
   }
 }

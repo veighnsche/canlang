@@ -30,8 +30,11 @@ import type {
   GeneratedImage,
   ImageAccepted,
   ImageGenerateInput,
+  ImageRequest,
   ImageRun,
   ImageRunState,
+  ProviderBinding,
+  WorkflowDefinition,
   WorkflowNodeMapping,
 } from '@canlang/contracts';
 import {
@@ -50,9 +53,10 @@ import {
 import { assertValidCompletion } from '../mail/adapter.js';
 import { deliveryError, specificOrGeneric } from '../mail/redact.js';
 import { uniqueIds } from '../ports.js';
-import type { DeliveryIds, MediaPort } from '../ports.js';
+import type { DeliveryIds, InstalledImages, InstalledImageOptions, MediaPort } from '../ports.js';
 import {
   MappingValidationError,
+  stableStringify,
   substituteAndValidate,
 } from './mapping.js';
 
@@ -78,6 +82,52 @@ export interface ComfyUINativeConfig {
   /** Prompt id mint; defaults to random UUIDs. */
   readonly jobIds?: DeliveryIds;
 }
+
+export interface ComfyUIImagesInstallation {
+  readonly binding: ProviderBinding;
+  /** Finalized artifact id and four destinations must match the actual adapter map. */
+  readonly workflow: WorkflowDefinition;
+  /** Explicit deployment policy: std source has no seed field. */
+  readonly seed: { readonly kind: 'fixed'; readonly value: number };
+}
+
+interface ImageBudget {
+  readonly deadlineMs: number;
+  readonly monotonicDeadline: number;
+  readonly maxOutputs: number;
+}
+
+function budgetHttp(http: HttpClientConfig, budget?: ImageBudget): HttpClientConfig {
+  if (budget === undefined) return http;
+  const remaining = Math.floor(Math.min(
+    budget.deadlineMs - Date.now(),
+    budget.monotonicDeadline - performance.now(),
+    http.timeoutMs,
+  ));
+  if (remaining <= 0) throw new HttpTransportError('timeout');
+  return { ...http, timeoutMs: remaining };
+}
+
+function frozenCopy<T>(value: T): T {
+  const copied = JSON.parse(JSON.stringify(value)) as T;
+  const freeze = (entry: unknown): void => {
+    if (typeof entry !== 'object' || entry === null) return;
+    for (const child of Object.values(entry)) freeze(child);
+    Object.freeze(entry);
+  };
+  freeze(copied);
+  return copied;
+}
+
+function exactFields(value: unknown, fields: readonly string[]): boolean {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const keys = Object.keys(value).sort();
+  const expected = [...fields].sort();
+  return keys.length === expected.length && keys.every((key, index) => key === expected[index]);
+}
+
+const WORKFLOW_FIELDS = ['graph', 'prompt', 'negative', 'width', 'height'] as const;
+const REQUEST_FIELDS = ['source', 'revision', 'workflow', 'validation', 'prompt', 'negative', 'width', 'height', 'max_outputs', 'max_duration'] as const;
 
 const PROMPT_PATH = '/prompt';
 const HISTORY_PREFIX = '/history/';
@@ -442,6 +492,133 @@ export class ComfyUINativeAdapter implements MediaPort {
   }
 
   /**
+   * Thin full-request installation over this actual graph/map and transport.
+   * Caller persistence of the original request, IDs and deadline is required;
+   * this adapter has no lifecycle store and cannot detect caller renewal.
+   * Expiry bounds observation/transport, never proves that GPU work stopped.
+   */
+  installImages(config: ComfyUIImagesInstallation): InstalledImages {
+    const binding = config.binding;
+    if (
+      typeof binding !== 'object' || binding === null ||
+      binding.capability !== 'std.ImagesV1' || binding.capabilityVersion !== 1 ||
+      typeof binding.deployment !== 'string' || binding.deployment.length === 0 ||
+      typeof binding.account !== 'string' || binding.account.length === 0
+    ) {
+      throw new MappingValidationError('Installation must bind exact std.ImagesV1 version 1');
+    }
+    if (
+      !exactFields(config.seed, ['kind', 'value']) || config.seed.kind !== 'fixed' ||
+      !Number.isSafeInteger(config.seed.value) || config.seed.value < 0
+    ) {
+      throw new MappingValidationError('Installation requires an explicit safe fixed seed policy');
+    }
+    if (
+      !Number.isSafeInteger(this.http.timeoutMs) || this.http.timeoutMs > 2_147_483_647 ||
+      !Number.isSafeInteger(this.maxOutputs) ||
+      !Number.isSafeInteger(this.downloadHttp.maxBodyBytes)
+    ) {
+      throw new MappingValidationError('Installation requires supported finite adapter ceilings');
+    }
+    const graph = frozenCopy(this.graph);
+    const mapping = frozenCopy(this.mapping);
+    // Validate the exact pinned map/digest once; this is not arbitrary graph inspection.
+    substituteAndValidate(graph, mapping, { prompt: '', negative: '', width: 1, height: 1, seed: config.seed.value });
+    const definitionMatches = (definition: WorkflowDefinition): boolean =>
+      exactFields(definition, WORKFLOW_FIELDS) && definition.graph === mapping.workflow &&
+      (['prompt', 'negative', 'width', 'height'] as const).every((field) =>
+        exactFields(definition[field], ['node', 'key']) &&
+        definition[field].node === mapping.inputs[field].node &&
+        definition[field].key === mapping.inputs[field].key);
+    if (!definitionMatches(config.workflow)) {
+      throw new MappingValidationError('Installed workflow must match the actual graph artifact and four mapped destinations');
+    }
+    const workflow = frozenCopy(config.workflow);
+    const seed = frozenCopy(config.seed);
+    const lower = new ComfyUINativeAdapter({
+      ...this.http,
+      graph,
+      mapping,
+      clientId: this.clientId,
+      maxDownloadBytes: this.downloadHttp.maxBodyBytes,
+      maxOutputs: this.maxOutputs,
+    });
+    const prepare = (input: ImageRequest, options: InstalledImageOptions) => {
+      const startedAt = performance.now();
+      const now = Date.now();
+      if (!exactFields(input, REQUEST_FIELDS)) {
+        throw new MappingValidationError('Image request must contain exactly the full std fields, without a source seed');
+      }
+      if (
+        typeof input.source !== 'string' || input.source.length === 0 ||
+        !Number.isSafeInteger(input.revision) || input.revision < 0
+      ) {
+        throw new MappingValidationError('Image request requires source and a safe non-negative revision');
+      }
+      if (!definitionMatches(input.workflow) || stableStringify(input.workflow) !== stableStringify(workflow) || input.validation !== mapping.graphDigest) {
+        throw new MappingValidationError('Image request workflow and validation must match the immutable installation');
+      }
+      if (
+        typeof input.prompt !== 'string' || typeof input.negative !== 'string' ||
+        !Number.isSafeInteger(input.width) || input.width <= 0 ||
+        !Number.isSafeInteger(input.height) || input.height <= 0
+      ) {
+        throw new MappingValidationError('Image request requires string prompts and safe positive dimensions');
+      }
+      if (
+        !Number.isSafeInteger(input.max_outputs) || input.max_outputs <= 0 || input.max_outputs > lower.maxOutputs ||
+        typeof input.max_duration !== 'bigint' || input.max_duration <= 0n || input.max_duration > BigInt(lower.http.timeoutMs)
+      ) {
+        throw new MappingValidationError('Image request budgets exceed or do not fit the installation');
+      }
+      if (
+        !exactFields(options, ['deliveryId', 'jobId', 'deadlineMs']) ||
+        typeof options.deliveryId !== 'string' || options.deliveryId.length === 0 ||
+        typeof options.jobId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(options.jobId) ||
+        !Number.isSafeInteger(options.deadlineMs) || options.deadlineMs <= now ||
+        options.deadlineMs - now > Number(input.max_duration)
+      ) {
+        throw new MappingValidationError('Image lifecycle requires original delivery/UUID job identities and a supported unexpired deadline');
+      }
+      const budget: ImageBudget = {
+        deadlineMs: options.deadlineMs,
+        monotonicDeadline: startedAt + (options.deadlineMs - now),
+        maxOutputs: input.max_outputs,
+      };
+      const original = { deliveryId: options.deliveryId, jobId: options.jobId };
+      const projected = {
+        prompt: input.prompt, negative: input.negative, width: input.width, height: input.height, seed: seed.value,
+      };
+      return { budget, original, projected };
+    };
+    return Object.freeze({
+      binding: frozenCopy(binding),
+      workflow,
+      validation: mapping.graphDigest,
+      policy: Object.freeze({ seed, maxOutputs: lower.maxOutputs, maxDurationMs: lower.http.timeoutMs, maxOutputBytes: lower.downloadHttp.maxBodyBytes }),
+      images: Object.freeze({
+        submit: async (input: ImageRequest, options: InstalledImageOptions) => {
+          const { budget, original, projected } = prepare(input, options);
+          const completion = await lower.submitWithBudget(projected, original, budget);
+          if (completion.status === 'succeeded' && completion.result?.job !== original.jobId) {
+            // A different provider id cannot become this original caller-owned job.
+            return unknownImageCompletion<ImageAccepted>(original.deliveryId, deliveryError('invalid_response', GENERIC.invalidResponse));
+          }
+          return completion;
+        },
+        reconcile: (input: ImageRequest, options: InstalledImageOptions) => {
+          const { budget, original } = prepare(input, options);
+          return lower.reconcileWithBudget(original.jobId, original, budget);
+        },
+        cancel: (input: ImageRequest, options: InstalledImageOptions) => {
+          const { budget, original } = prepare(input, options);
+          return lower.cancelWithBudget(original.jobId, original, budget);
+        },
+      }),
+    });
+  }
+
+  /**
    * Submit a generation. The caller may supply its own job id for
    * crash recovery (an unknown submit with a known id is pollable);
    * otherwise the adapter mints one. Mapping failures throw before
@@ -450,6 +627,14 @@ export class ComfyUINativeAdapter implements MediaPort {
   async submit(
     input: ImageGenerateInput,
     options: { readonly deliveryId: string; readonly jobId?: string },
+  ): Promise<CapabilityCompletion<ImageAccepted>> {
+    return this.submitWithBudget(input, options);
+  }
+
+  private async submitWithBudget(
+    input: ImageGenerateInput,
+    options: { readonly deliveryId: string; readonly jobId?: string },
+    budget?: ImageBudget,
   ): Promise<CapabilityCompletion<ImageAccepted>> {
     const deliveryId = options.deliveryId;
     if (typeof deliveryId !== 'string' || deliveryId.length === 0) {
@@ -470,7 +655,7 @@ export class ComfyUINativeAdapter implements MediaPort {
     });
     let completion: CapabilityCompletion<ImageAccepted>;
     try {
-      const response = await httpRequest(this.http, {
+      const response = await httpRequest(budgetHttp(this.http, budget), {
         method: 'POST',
         path: PROMPT_PATH,
         body: wireBody,
@@ -497,6 +682,14 @@ export class ComfyUINativeAdapter implements MediaPort {
     job: string,
     options: { readonly deliveryId: string },
   ): Promise<CapabilityCompletion<ImageRun>> {
+    return this.reconcileWithBudget(job, options);
+  }
+
+  private async reconcileWithBudget(
+    job: string,
+    options: { readonly deliveryId: string },
+    budget?: ImageBudget,
+  ): Promise<CapabilityCompletion<ImageRun>> {
     const deliveryId = options.deliveryId;
     if (typeof deliveryId !== 'string' || deliveryId.length === 0) {
       throw new MappingValidationError('deliveryId must be a non-empty string');
@@ -506,7 +699,7 @@ export class ComfyUINativeAdapter implements MediaPort {
     }
     let bodyText: string;
     try {
-      const response = await httpRequest(this.http, {
+      const response = await httpRequest(budgetHttp(this.http, budget), {
         method: 'GET',
         path: `${HISTORY_PREFIX}${encodeURIComponent(job)}`,
       });
@@ -553,7 +746,7 @@ export class ComfyUINativeAdapter implements MediaPort {
         detail: null,
       });
     }
-    if (evidence.images.length > this.maxOutputs) {
+    if (evidence.images.length > (budget?.maxOutputs ?? this.maxOutputs)) {
       return succeededImageCompletion(deliveryId, {
         job,
         state: 'failed',
@@ -561,7 +754,7 @@ export class ComfyUINativeAdapter implements MediaPort {
         detail: OUTPUT_CAP_DETAIL,
       });
     }
-    const downloaded = await this.downloadImages(evidence.images);
+    const downloaded = await this.downloadImages(evidence.images, budget);
     if (evidence.statusStr === 'error') {
       return succeededImageCompletion(deliveryId, {
         job,
@@ -598,6 +791,14 @@ export class ComfyUINativeAdapter implements MediaPort {
     job: string,
     options: { readonly deliveryId: string },
   ): Promise<CapabilityCompletion<ImageRun>> {
+    return this.cancelWithBudget(job, options);
+  }
+
+  private async cancelWithBudget(
+    job: string,
+    options: { readonly deliveryId: string },
+    budget?: ImageBudget,
+  ): Promise<CapabilityCompletion<ImageRun>> {
     if (typeof job !== 'string' || job.length === 0) {
       throw new MappingValidationError('job must be a non-empty string');
     }
@@ -607,7 +808,7 @@ export class ComfyUINativeAdapter implements MediaPort {
     }
     let attempt: 'requested' | 'unsupported' | 'uncertain';
     try {
-      await httpRequest(this.http, {
+      await httpRequest(budgetHttp(this.http, budget), {
         method: 'POST',
         path: `${CANCEL_PREFIX}${encodeURIComponent(job)}${CANCEL_SUFFIX}`,
       });
@@ -619,7 +820,7 @@ export class ComfyUINativeAdapter implements MediaPort {
         attempt = 'uncertain';
       }
     }
-    const observed = await this.reconcile(job, options);
+    const observed = await this.reconcileWithBudget(job, options, budget);
     if (observed.status !== 'succeeded' || observed.result === null) {
       return observed;
     }
@@ -641,6 +842,7 @@ export class ComfyUINativeAdapter implements MediaPort {
 
   private async downloadImages(
     images: readonly HistoryImageDescriptor[],
+    budget?: ImageBudget,
   ): Promise<{ images: GeneratedImage[]; complete: boolean }> {
     const collected: GeneratedImage[] = [];
     const positions = new Map<string, number>();
@@ -655,7 +857,7 @@ export class ComfyUINativeAdapter implements MediaPort {
       let bytes: Uint8Array;
       let contentType: string | null;
       try {
-        const response = await httpRequestBinary(this.downloadHttp, {
+        const response = await httpRequestBinary(budgetHttp(this.downloadHttp, budget), {
           method: 'GET',
           path: `${VIEW_PATH}?${params.toString()}`,
         });
