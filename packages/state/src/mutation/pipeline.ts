@@ -13,6 +13,7 @@
 
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
 import type {
+  CanTypeId,
   DomainWrite,
   HistoryEntry,
   InvocationContext,
@@ -66,6 +67,13 @@ export interface MutationWritesInput {
   readonly writes: ReadonlyArray<MutationWrite>;
   readonly context: InvocationContext;
   readonly store: StoragePort;
+  /**
+   * Optional language-to-wire conversion supplied by the runtime/Values
+   * owner. Only present fields with a checked valueType use this checkpoint,
+   * after defaults, hooks and required checks, before JSON validation.
+   * Missing metadata or an absent codec preserves the existing wire path.
+   */
+  readonly encodeField?: (type: CanTypeId, value: unknown) => unknown;
   /**
    * T32b-wire: the triggering checkpoint POINT (revision + owner only).
    * Hook bodies read it as `transitive.triggerRevision` (the
@@ -399,15 +407,23 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
   };
 
   /**
-   * Post-hook JSON-safety probe: bigints and circular refs survive cloning
-   * but crash commit-time JSON encoding with a raw TypeError. Reject them as
-   * caller validation instead (bigint money minors stay rejected interim
-   * until the L2 codec join, matching the S4 read stance).
+   * The runtime converts checked fields at this post-hook checkpoint;
+   * State still owns every earlier structural/presence verdict. Untyped
+   * bigints and circular refs keep the existing JSON-safety rejection.
    */
   const checkJsonSafe = (
-    candidate: Readonly<Record<string, unknown>>,
+    candidate: Record<string, unknown>,
     def: InterimModelDef,
+    defaultWriter?: string,
   ): void => {
+    if (input.encodeField !== undefined) {
+      for (const [field, value] of Object.entries(candidate)) {
+        const type = def.fields[field]?.valueType;
+        if (type !== undefined && value !== undefined) {
+          safeSet(candidate, field, jsonClone(input.encodeField(type, value), `Field ${JSON.stringify(field)}`));
+        }
+      }
+    }
     try {
       JSON.stringify(candidate);
     } catch {
@@ -415,6 +431,20 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
         'validation',
         `Candidate for model ${JSON.stringify(def.model as string)} holds non-JSON values.`,
       );
+    }
+    if (input.encodeField !== undefined && defaultWriter !== undefined) {
+      // Receipts retain the original resolved default, which may differ
+      // from the post-hook field. Reuse its existing write attribution.
+      for (const [field, fieldDef] of Object.entries(def.fields)) {
+        if (defaultWriters.get(field) !== defaultWriter) continue;
+        const value = resolvedDefaults[field];
+        if (fieldDef.valueType !== undefined && value !== undefined) {
+          safeSet(resolvedDefaults, field, jsonClone(
+            input.encodeField(fieldDef.valueType, value), `Resolved default ${JSON.stringify(field)}`,
+          ));
+        }
+        checkJsonEncoding(resolvedDefaults[field], `Resolved default ${JSON.stringify(field)}`);
+      }
     }
   };
 
@@ -1087,7 +1117,7 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
       // required present, JSON-safe values.
       checkKnownFields(hooked, def);
       checkRequired(hooked, def);
-      checkJsonSafe(hooked, def);
+      checkJsonSafe(hooked, def, writeTag);
       checkWhen(write.when, {
         id,
         version: 1 as RecordVersion,
