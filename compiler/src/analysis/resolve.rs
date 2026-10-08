@@ -5,7 +5,8 @@
 //! helper misuse (`E2006`), composition cycles (`E2007`), ownership
 //! (`E2008`), composed-app imports (`E2009`), empty `uses` (`E2010`),
 //! contextual shadowing (`E2012`), unknown members (`E2013`), derive
-//! targets (`E2014`) and reference cycles (`E2017`–`E2018`). See
+//! targets (`E2014`), reference cycles (`E2017`–`E2018`) and semantic
+//! identity capacity (`E2019`). See
 //! `can explain` for the per-code allocation.
 //!
 //! Two passes: [`resolve_program`] builds modules, symbols, imports,
@@ -493,19 +494,50 @@ pub fn is_builtin_type(name: &str) -> bool {
 /// Resolve declarations, imports, ownership, type paths and lexical
 /// scopes. Expression names resolve lexically; unbound ones are recorded
 /// for [`emit_unresolved`].
+/// On semantic-ID capacity failure, append `E2019` and return empty tables.
+/// Use [`try_resolve_program`] to handle that failure explicitly.
 pub fn resolve_program(
     db: &SourceDb,
     trees: &[(SourceId, SyntaxNode)],
     catalog: Option<&Catalog>,
     diags: &mut Vec<Diagnostic>,
 ) -> ResolveTables {
+    match try_resolve_program(db, trees, catalog, diags) {
+        Ok(tables) => tables,
+        Err(diagnostic) => {
+            diags.push(diagnostic);
+            ResolveTables::default()
+        }
+    }
+}
+
+/// Resolve a complete program, refusing an allocation whose semantic ID
+/// cannot be represented. Recoverable source errors still accumulate in
+/// `diags`; a capacity error returns no partial semantic tables.
+pub fn try_resolve_program(
+    db: &SourceDb,
+    trees: &[(SourceId, SyntaxNode)],
+    catalog: Option<&Catalog>,
+    diags: &mut Vec<Diagnostic>,
+) -> Result<ResolveTables, Diagnostic> {
     let mut resolver = Resolver::new(db, catalog);
-    resolver.index_modules(trees, diags);
-    resolver.index_declarations(trees, diags);
+    resolver.index_modules(trees, diags)?;
+    resolver.index_declarations(trees, diags)?;
     resolver.resolve_imports(diags);
     resolver.resolve_ownership(diags);
-    resolver.resolve_declarations(trees, diags);
-    resolver.finish(trees, diags)
+    resolver.resolve_declarations(trees, diags)?;
+    Ok(resolver.finish(trees, diags))
+}
+
+/// The last representable ID is valid; only its successor is refused.
+fn semantic_index(len: usize, kind: &str, span: Span) -> Result<u32, Diagnostic> {
+    u32::try_from(len).map_err(|_| {
+        Diagnostic::error(
+            "E2019",
+            format!("cannot allocate {kind}: semantic IDs are limited to 0..=u32::MAX"),
+            span,
+        )
+    })
 }
 
 /// Emit `E2001` for unbound names the types pass did not claim as enum
@@ -629,19 +661,24 @@ impl<'a> Resolver<'a> {
     // --- Pass 1: modules ------------------------------------------------
 
     /// Index every `app`/`package` across files; duplicates are `E2002`.
-    fn index_modules(&mut self, trees: &[(SourceId, SyntaxNode)], diags: &mut Vec<Diagnostic>) {
+    fn index_modules(
+        &mut self,
+        trees: &[(SourceId, SyntaxNode)],
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
         for (file, tree) in trees {
             let text = self.text(*file);
             for child in kids(tree) {
                 match child.kind {
                     SyntaxKind::App | SyntaxKind::Package => {
-                        self.index_module(*file, text, child, diags);
+                        self.index_module(*file, text, child, diags)?;
                     }
                     SyntaxKind::Migration | SyntaxKind::Error => {}
                     _ => {}
                 }
             }
         }
+        Ok(())
     }
 
     fn index_module(
@@ -650,7 +687,7 @@ impl<'a> Resolver<'a> {
         text: &str,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         // Invalid headers are wrapped in Error nodes by the parser and
         // have no direct identity name. Body recovery nodes must not
         // prevent indexing valid sibling declarations.
@@ -663,7 +700,7 @@ impl<'a> Resolver<'a> {
                 )
         });
         let Some(name_node) = name_node else {
-            return;
+            return Ok(());
         };
         let name = name_node
             .token()
@@ -691,9 +728,13 @@ impl<'a> Resolver<'a> {
                 message: "first declared here".to_string(),
             });
             diags.push(diagnostic);
-            return;
+            return Ok(());
         }
-        let id = ModuleId(self.tables.modules.len() as u32);
+        let id = ModuleId(semantic_index(
+            self.tables.modules.len(),
+            "module",
+            name_span,
+        )?);
         let mut module = Module {
             id,
             name: name.clone(),
@@ -742,6 +783,7 @@ impl<'a> Resolver<'a> {
         self.tables.module_by_name.insert(name, id);
         self.tables.modules.push(module);
         self.tables.module_scopes.push(ModuleScopes::default());
+        Ok(())
     }
 
     /// Read one `Import` node (shape errors are already `E1xxx`).
@@ -856,7 +898,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         trees: &[(SourceId, SyntaxNode)],
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         for (file, tree) in trees {
             let text = self.text(*file);
             for child in kids(tree) {
@@ -877,8 +919,8 @@ impl<'a> Resolver<'a> {
                         .unwrap_or("");
                     for item in kids(section) {
                         match marker {
-                            "Given" => self.index_given(*file, text, module, item, diags),
-                            "When" => self.index_when(*file, text, module, item, diags),
+                            "Given" => self.index_given(*file, text, module, item, diags)?,
+                            "When" => self.index_when(*file, text, module, item, diags)?,
                             _ => {}
                         }
                     }
@@ -886,6 +928,7 @@ impl<'a> Resolver<'a> {
             }
         }
         self.current_module = None;
+        Ok(())
     }
 
     fn module_of(&self, text: &str, node: &SyntaxNode) -> Option<ModuleId> {
@@ -903,13 +946,13 @@ impl<'a> Resolver<'a> {
         module: ModuleId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         if has_error(node) {
-            return;
+            return Ok(());
         }
         match node.kind {
-            SyntaxKind::Preferences => self.index_preferences(text, module, node, diags),
-            SyntaxKind::Model => self.index_model(text, module, node, diags),
+            SyntaxKind::Preferences => self.index_preferences(text, module, node, diags)?,
+            SyntaxKind::Model => self.index_model(text, module, node, diags)?,
             SyntaxKind::Contract => self.index_schema_symbol(
                 text,
                 module,
@@ -917,7 +960,7 @@ impl<'a> Resolver<'a> {
                 SymbolKind::Contract { fields: Vec::new() },
                 "contract",
                 diags,
-            ),
+            )?,
             SyntaxKind::Event => self.index_schema_symbol(
                 text,
                 module,
@@ -925,13 +968,13 @@ impl<'a> Resolver<'a> {
                 SymbolKind::Event { fields: Vec::new() },
                 "event",
                 diags,
-            ),
+            )?,
             SyntaxKind::Role => {
-                self.index_named(text, module, node, "role", SymbolKind::Role, diags);
+                self.index_named(text, module, node, "role", SymbolKind::Role, diags)?;
             }
-            SyntaxKind::Derive => self.index_derive(text, module, node, diags),
-            SyntaxKind::Fixture => self.index_fixture(text, module, node, diags),
-            SyntaxKind::Capability => self.index_capability(text, module, node, diags),
+            SyntaxKind::Derive => self.index_derive(text, module, node, diags)?,
+            SyntaxKind::Fixture => self.index_fixture(text, module, node, diags)?,
+            SyntaxKind::Capability => self.index_capability(text, module, node, diags)?,
             SyntaxKind::Judgment => {
                 if let Some(id) = self.index_named(
                     text,
@@ -940,11 +983,11 @@ impl<'a> Resolver<'a> {
                     "judgment",
                     SymbolKind::Contract { fields: Vec::new() },
                     diags,
-                ) {
+                )? {
                     self.tables.judgments.insert(id);
                 }
             }
-            SyntaxKind::Message => self.index_message(text, module, node, diags),
+            SyntaxKind::Message => self.index_message(text, module, node, diags)?,
             SyntaxKind::Policy
             | SyntaxKind::Invariant
             | SyntaxKind::Unique
@@ -952,6 +995,7 @@ impl<'a> Resolver<'a> {
             | SyntaxKind::Retain => {}
             _ => {}
         }
+        Ok(())
     }
 
     fn index_when(
@@ -961,15 +1005,16 @@ impl<'a> Resolver<'a> {
         module: ModuleId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         if has_error(node) {
-            return;
+            return Ok(());
         }
         match node.kind {
-            SyntaxKind::Crud => self.index_crud(text, module, node, diags),
-            SyntaxKind::Scenario => self.index_scenario(text, module, node, diags),
+            SyntaxKind::Crud => self.index_crud(text, module, node, diags)?,
+            SyntaxKind::Scenario => self.index_scenario(text, module, node, diags)?,
             _ => {}
         }
+        Ok(())
     }
 
     /// Declare a package-scope name; duplicates (including closed builtin
@@ -984,14 +1029,14 @@ impl<'a> Resolver<'a> {
         exported: bool,
         what: &str,
         diags: &mut Vec<Diagnostic>,
-    ) -> Option<SymbolId> {
+    ) -> Result<Option<SymbolId>, Diagnostic> {
         if self.is_closed_source_name(name) {
             diags.push(Diagnostic::error(
                 "E2002",
                 format!("{what} '{name}' redeclares the closed builtin name '{name}'"),
                 span,
             ));
-            return None;
+            return Ok(None);
         }
         let scopes = &self.tables.module_scopes[module.0 as usize];
         if scopes.prod.contains_key(name) || scopes.test.contains_key(name) {
@@ -1007,9 +1052,9 @@ impl<'a> Resolver<'a> {
                 });
             }
             diags.push(diagnostic);
-            return None;
+            return Ok(None);
         }
-        let id = SymbolId(self.tables.symbols.len() as u32);
+        let id = SymbolId(semantic_index(self.tables.symbols.len(), "symbol", span)?);
         let module_name = self.tables.modules[module.0 as usize].name.clone();
         let symbol = Symbol {
             id,
@@ -1027,7 +1072,7 @@ impl<'a> Resolver<'a> {
         self.tables.module_scopes[module.0 as usize]
             .prod
             .insert(name.to_string(), ScopedName::Local(id));
-        Some(id)
+        Ok(Some(id))
     }
 
     /// Whether a package-scope declaration may not take this name.
@@ -1067,8 +1112,10 @@ impl<'a> Resolver<'a> {
         head: &'static str,
         kind: SymbolKind,
         diags: &mut Vec<Diagnostic>,
-    ) -> Option<SymbolId> {
-        let (name, span) = Self::decl_name(text, node, &["export", head])?;
+    ) -> Result<Option<SymbolId>, Diagnostic> {
+        let Some((name, span)) = Self::decl_name(text, node, &["export", head]) else {
+            return Ok(None);
+        };
         let exported = Self::is_exported(text, node);
         self.declare(module, &name, span, kind, exported, head, diags)
     }
@@ -1079,7 +1126,7 @@ impl<'a> Resolver<'a> {
         module: ModuleId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         if self
             .tables
             .symbols
@@ -1091,9 +1138,13 @@ impl<'a> Resolver<'a> {
                 "duplicate preferences schema in one owner".to_string(),
                 node.span,
             ));
-            return;
+            return Ok(());
         }
-        let id = SymbolId(self.tables.symbols.len() as u32);
+        let id = SymbolId(semantic_index(
+            self.tables.symbols.len(),
+            "symbol",
+            node.span,
+        )?);
         let module_name = self.tables.modules[module.0 as usize].name.clone();
         self.tables
             .by_canonical
@@ -1107,12 +1158,13 @@ impl<'a> Resolver<'a> {
             span: node.span,
             exported: false,
         });
-        let fields = self.index_fields(text, id, node, "preferences", "preference", diags);
+        let fields = self.index_fields(text, id, node, "preferences", "preference", diags)?;
         if let SymbolKind::Preferences { fields: slot } =
             &mut self.tables.symbols[id.0 as usize].kind
         {
             *slot = fields;
         }
+        Ok(())
     }
 
     fn index_model(
@@ -1121,9 +1173,9 @@ impl<'a> Resolver<'a> {
         module: ModuleId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         let Some((name, span)) = Self::decl_name(text, node, &["export"]) else {
-            return;
+            return Ok(());
         };
         let exported = Self::is_exported(text, node);
         let Some(id) = self.declare(
@@ -1138,10 +1190,11 @@ impl<'a> Resolver<'a> {
             exported,
             "model",
             diags,
-        ) else {
-            return;
+        )?
+        else {
+            return Ok(());
         };
-        let fields = self.index_fields(text, id, node, &name, "field", diags);
+        let fields = self.index_fields(text, id, node, &name, "field", diags)?;
         if let SymbolKind::Model { fields: slot, .. } = &mut self.tables.symbols[id.0 as usize].kind
         {
             *slot = fields;
@@ -1166,6 +1219,7 @@ impl<'a> Resolver<'a> {
             }
             i += 1;
         }
+        Ok(())
     }
 
     fn index_schema_symbol(
@@ -1176,21 +1230,22 @@ impl<'a> Resolver<'a> {
         kind: SymbolKind,
         what: &'static str,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         let Some((name, span)) = Self::decl_name(text, node, &["export", what]) else {
-            return;
+            return Ok(());
         };
         let exported = Self::is_exported(text, node);
-        let Some(id) = self.declare(module, &name, span, kind, exported, what, diags) else {
-            return;
+        let Some(id) = self.declare(module, &name, span, kind, exported, what, diags)? else {
+            return Ok(());
         };
-        let fields = self.index_fields(text, id, node, &name, "field", diags);
+        let fields = self.index_fields(text, id, node, &name, "field", diags)?;
         match &mut self.tables.symbols[id.0 as usize].kind {
             SymbolKind::Contract { fields: slot } | SymbolKind::Event { fields: slot } => {
                 *slot = fields;
             }
             _ => {}
         }
+        Ok(())
     }
 
     /// Index `Field` children; duplicates in one schema are `E2002`.
@@ -1202,7 +1257,7 @@ impl<'a> Resolver<'a> {
         owner_name: &str,
         what: &str,
         diags: &mut Vec<Diagnostic>,
-    ) -> Vec<SymbolId> {
+    ) -> Result<Vec<SymbolId>, Diagnostic> {
         let mut fields = Vec::new();
         let mut seen: HashMap<String, Span> = HashMap::new();
         for child in node.children.iter().filter(|c| c.kind == SyntaxKind::Field) {
@@ -1236,7 +1291,11 @@ impl<'a> Resolver<'a> {
                 .find(|n| is_type_node(n.kind))
                 .map(|n| NodeKey::of(n))
                 .unwrap_or_else(|| NodeKey::of(child));
-            let id = SymbolId(self.tables.symbols.len() as u32);
+            let id = SymbolId(semantic_index(
+                self.tables.symbols.len(),
+                "symbol",
+                name_node.span,
+            )?);
             let module = self.tables.symbols[owner.0 as usize].module;
             let module_name = self.tables.modules[module.0 as usize].name.clone();
             self.tables
@@ -1253,7 +1312,7 @@ impl<'a> Resolver<'a> {
             });
             fields.push(id);
         }
-        fields
+        Ok(fields)
     }
 
     fn index_derive(
@@ -1262,11 +1321,11 @@ impl<'a> Resolver<'a> {
         module: ModuleId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         let parts = kids(node);
         let path = parts.iter().find(|n| n.kind == SyntaxKind::Path);
         let Some(path) = path else {
-            return;
+            return Ok(());
         };
         let segments = path_segments(path, text);
         let is_function = parts.iter().any(|n| is_punct(n, text, "("));
@@ -1280,7 +1339,7 @@ impl<'a> Resolver<'a> {
                     ),
                     path.span,
                 ));
-                return;
+                return Ok(());
             }
             let name = segments[0].to_string();
             let Some(id) = self.declare(
@@ -1294,10 +1353,11 @@ impl<'a> Resolver<'a> {
                 Self::is_exported(text, node),
                 "derived function",
                 diags,
-            ) else {
-                return;
+            )?
+            else {
+                return Ok(());
             };
-            let (params, _) = self.index_params(text, id, node, diags);
+            let (params, _) = self.index_params(text, id, node, diags)?;
             let result_node = result_annotation(node).map(NodeKey::of);
             if let SymbolKind::DeriveFn {
                 params: slot,
@@ -1319,7 +1379,7 @@ impl<'a> Resolver<'a> {
                     ),
                     path.span,
                 ));
-                return;
+                return Ok(());
             }
             let model_name = segments[0].to_string();
             let field_name = segments[1].to_string();
@@ -1339,7 +1399,7 @@ impl<'a> Resolver<'a> {
                         format!("derived field target '{model_name}' is not a stored model"),
                         path.span,
                     ));
-                    return;
+                    return Ok(());
                 }
                 Some(ScopedName::Imported { .. }) | Some(ScopedName::External { .. }) => {
                     diags.push(Diagnostic::error(
@@ -1349,7 +1409,7 @@ impl<'a> Resolver<'a> {
                         ),
                         path.span,
                     ));
-                    return;
+                    return Ok(());
                 }
                 None => {
                     diags.push(Diagnostic::error(
@@ -1357,7 +1417,7 @@ impl<'a> Resolver<'a> {
                         format!("unresolved name '{model_name}'"),
                         path.span,
                     ));
-                    return;
+                    return Ok(());
                 }
             };
             if self.tables.symbols[model_id.0 as usize]
@@ -1370,14 +1430,18 @@ impl<'a> Resolver<'a> {
                     format!("duplicate definition of '{model_name}.{field_name}' in one scope"),
                     path.span,
                 ));
-                return;
+                return Ok(());
             }
             let type_node = parts
                 .iter()
                 .find(|n| is_type_node(n.kind))
                 .map(|n| NodeKey::of(n))
                 .unwrap_or_else(|| NodeKey::of(node));
-            let id = SymbolId(self.tables.symbols.len() as u32);
+            let id = SymbolId(semantic_index(
+                self.tables.symbols.len(),
+                "symbol",
+                path.span,
+            )?);
             let module_name = self.tables.modules[module.0 as usize].name.clone();
             self.tables
                 .by_canonical
@@ -1400,6 +1464,7 @@ impl<'a> Resolver<'a> {
                 fields.push(id);
             }
         }
+        Ok(())
     }
 
     /// Index `Parameter` children; duplicates in one signature are `E2002`.
@@ -1409,7 +1474,7 @@ impl<'a> Resolver<'a> {
         owner: SymbolId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) -> (Vec<SymbolId>, Vec<Span>) {
+    ) -> Result<(Vec<SymbolId>, Vec<Span>), Diagnostic> {
         let mut params = Vec::new();
         let mut spans = Vec::new();
         let mut seen: HashMap<String, Span> = HashMap::new();
@@ -1448,7 +1513,11 @@ impl<'a> Resolver<'a> {
                 .find(|n| is_type_node(n.kind))
                 .map(|n| NodeKey::of(n))
                 .unwrap_or_else(|| NodeKey::of(child));
-            let id = SymbolId(self.tables.symbols.len() as u32);
+            let id = SymbolId(semantic_index(
+                self.tables.symbols.len(),
+                "symbol",
+                name_node.span,
+            )?);
             let module = self.tables.symbols[owner.0 as usize].module;
             self.tables.symbols.push(Symbol {
                 id,
@@ -1471,7 +1540,7 @@ impl<'a> Resolver<'a> {
             spans.push(name_node.span);
             params.push(id);
         }
-        (params, spans)
+        Ok((params, spans))
     }
 
     fn index_fixture(
@@ -1480,9 +1549,9 @@ impl<'a> Resolver<'a> {
         module: ModuleId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         let Some((name, span)) = Self::decl_name(text, node, &["export", "fixture"]) else {
-            return;
+            return Ok(());
         };
         if self.is_closed_source_name(&name) {
             diags.push(Diagnostic::error(
@@ -1490,7 +1559,7 @@ impl<'a> Resolver<'a> {
                 format!("fixture '{name}' redeclares the closed builtin name '{name}'"),
                 span,
             ));
-            return;
+            return Ok(());
         }
         let scopes = &self.tables.module_scopes[module.0 as usize];
         if scopes.prod.contains_key(&name) || scopes.test.contains_key(&name) {
@@ -1499,9 +1568,9 @@ impl<'a> Resolver<'a> {
                 format!("duplicate definition of '{name}' in one scope"),
                 span,
             ));
-            return;
+            return Ok(());
         }
-        let id = SymbolId(self.tables.symbols.len() as u32);
+        let id = SymbolId(semantic_index(self.tables.symbols.len(), "symbol", span)?);
         let module_name = self.tables.modules[module.0 as usize].name.clone();
         self.tables
             .by_canonical
@@ -1520,6 +1589,7 @@ impl<'a> Resolver<'a> {
         self.tables.module_scopes[module.0 as usize]
             .test
             .insert(name, ScopedName::Local(id));
+        Ok(())
     }
 
     fn index_capability(
@@ -1528,9 +1598,9 @@ impl<'a> Resolver<'a> {
         module: ModuleId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         let Some((name, span)) = Self::decl_name(text, node, &["export", "capability"]) else {
-            return;
+            return Ok(());
         };
         let exported = Self::is_exported(text, node);
         let Some(id) = self.declare(
@@ -1544,8 +1614,9 @@ impl<'a> Resolver<'a> {
             exported,
             "capability",
             diags,
-        ) else {
-            return;
+        )?
+        else {
+            return Ok(());
         };
         let mut ops = Vec::new();
         let mut events = Vec::new();
@@ -1574,7 +1645,11 @@ impl<'a> Resolver<'a> {
                 continue;
             }
             seen.insert(op_name.clone(), op_span);
-            let member_id = SymbolId(self.tables.symbols.len() as u32);
+            let member_id = SymbolId(semantic_index(
+                self.tables.symbols.len(),
+                "symbol",
+                op_span,
+            )?);
             let module_name = self.tables.modules[module.0 as usize].name.clone();
             self.tables
                 .by_canonical
@@ -1595,7 +1670,7 @@ impl<'a> Resolver<'a> {
                     span: op_span,
                     exported: false,
                 });
-                let (params, _) = self.index_params(text, member_id, child, diags);
+                let (params, _) = self.index_params(text, member_id, child, diags)?;
                 if let SymbolKind::CapabilityOp { params: slot, .. } =
                     &mut self.tables.symbols[member_id.0 as usize].kind
                 {
@@ -1612,7 +1687,7 @@ impl<'a> Resolver<'a> {
                     span: op_span,
                     exported: false,
                 });
-                let fields = self.index_fields(text, member_id, child, &name, "field", diags);
+                let fields = self.index_fields(text, member_id, child, &name, "field", diags)?;
                 if let SymbolKind::Event { fields: slot } =
                     &mut self.tables.symbols[member_id.0 as usize].kind
                 {
@@ -1629,6 +1704,7 @@ impl<'a> Resolver<'a> {
             *oslot = ops;
             *eslot = events;
         }
+        Ok(())
     }
 
     fn index_message(
@@ -1637,9 +1713,9 @@ impl<'a> Resolver<'a> {
         module: ModuleId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         let Some((name, span)) = Self::decl_name(text, node, &["export", "message"]) else {
-            return;
+            return Ok(());
         };
         let exported = Self::is_exported(text, node);
         let Some(id) = self.declare(
@@ -1650,13 +1726,15 @@ impl<'a> Resolver<'a> {
             exported,
             "message",
             diags,
-        ) else {
-            return;
+        )?
+        else {
+            return Ok(());
         };
-        let (params, _) = self.index_params(text, id, node, diags);
+        let (params, _) = self.index_params(text, id, node, diags)?;
         if let SymbolKind::Message { params: slot } = &mut self.tables.symbols[id.0 as usize].kind {
             *slot = params;
         }
+        Ok(())
     }
 
     fn index_crud(
@@ -1665,14 +1743,14 @@ impl<'a> Resolver<'a> {
         module: ModuleId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         let parts = kids(node);
         let target = parts.iter().find(|n| n.kind == SyntaxKind::Path);
         let model_name = target
             .map(|p| path_segments(p, text).join("."))
             .unwrap_or_default();
         if model_name.contains('.') || model_name.is_empty() {
-            return;
+            return Ok(());
         }
         let model_id = match self.lookup_prod(module, &model_name) {
             Some(ScopedName::Local(id))
@@ -1683,7 +1761,7 @@ impl<'a> Resolver<'a> {
             {
                 id
             }
-            _ => return,
+            _ => return Ok(()),
         };
         if let Some(first) = self.tables.crud_of_model.get(&model_id) {
             let mut diagnostic = Diagnostic::error(
@@ -1699,7 +1777,7 @@ impl<'a> Resolver<'a> {
                 message: "first declared here".to_string(),
             });
             diags.push(diagnostic);
-            return;
+            return Ok(());
         }
         let enabled = |attr: &str| {
             attribute_value(node, attr, text).is_none_or(|v| {
@@ -1713,7 +1791,11 @@ impl<'a> Resolver<'a> {
         let create = enabled("create");
         let update = enabled("update");
         let delete = enabled("delete");
-        let id = SymbolId(self.tables.symbols.len() as u32);
+        let id = SymbolId(semantic_index(
+            self.tables.symbols.len(),
+            "symbol",
+            node.span,
+        )?);
         let module_name = self.tables.modules[module.0 as usize].name.clone();
         let model_name = self.tables.symbols[model_id.0 as usize].name.clone();
         self.tables
@@ -1745,7 +1827,11 @@ impl<'a> Resolver<'a> {
             if !is_enabled {
                 continue;
             }
-            let op_id = SymbolId(self.tables.symbols.len() as u32);
+            let op_id = SymbolId(semantic_index(
+                self.tables.symbols.len(),
+                "symbol",
+                node.span,
+            )?);
             self.tables
                 .by_canonical
                 .insert(format!("{module_name}.{model_name}.{}", op.as_str()), op_id);
@@ -1762,6 +1848,7 @@ impl<'a> Resolver<'a> {
                 exported: false,
             });
         }
+        Ok(())
     }
 
     fn index_scenario(
@@ -1770,9 +1857,9 @@ impl<'a> Resolver<'a> {
         module: ModuleId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         let Some((name, span)) = Self::decl_name(text, node, &["export", "scenario"]) else {
-            return;
+            return Ok(());
         };
         let trusted = node.children.iter().any(|c| {
             c.kind == SyntaxKind::Attribute
@@ -1790,10 +1877,11 @@ impl<'a> Resolver<'a> {
             Self::is_exported(text, node),
             "scenario",
             diags,
-        ) else {
-            return;
+        )?
+        else {
+            return Ok(());
         };
-        let (params, _) = self.index_params(text, id, node, diags);
+        let (params, _) = self.index_params(text, id, node, diags)?;
         let result_node = result_annotation(node).map(NodeKey::of);
         if let SymbolKind::Scenario {
             params: slot,
@@ -1804,6 +1892,7 @@ impl<'a> Resolver<'a> {
             *slot = params;
             *rslot = result_node;
         }
+        Ok(())
     }
 
     /// Whether this symbol is a `judgment` declaration (registered as
@@ -2312,13 +2401,13 @@ impl<'a> Resolver<'a> {
     // --- Pass 5: scopes and paths -----------------------------------------
 
     /// Create a fresh scope with an optional parent.
-    fn new_scope(&mut self, parent: Option<ScopeId>) -> ScopeId {
-        let id = ScopeId(self.tables.scopes.len() as u32);
+    fn new_scope(&mut self, parent: Option<ScopeId>, span: Span) -> Result<ScopeId, Diagnostic> {
+        let id = ScopeId(semantic_index(self.tables.scopes.len(), "scope", span)?);
         self.tables.scopes.push(Scope {
             parent,
             bindings: HashMap::new(),
         });
-        id
+        Ok(id)
     }
 
     /// Introduce an authored binding; same-scope authored duplicates are
@@ -2370,8 +2459,8 @@ impl<'a> Resolver<'a> {
     }
 
     /// Module root scope: production names as symbol/external bindings.
-    fn module_root(&mut self, module: ModuleId) -> ScopeId {
-        let scope = self.new_scope(None);
+    fn module_root(&mut self, module: ModuleId, span: Span) -> Result<ScopeId, Diagnostic> {
+        let scope = self.new_scope(None, span)?;
         let names: Vec<(String, ScopedName)> = self.tables.module_scopes[module.0 as usize]
             .prod
             .iter()
@@ -2396,12 +2485,17 @@ impl<'a> Resolver<'a> {
                 .bindings
                 .insert(name, binding);
         }
-        scope
+        Ok(scope)
     }
 
     /// Test root scope: module root plus fixture names and test accounts.
-    fn test_root(&mut self, module: ModuleId, prod_root: ScopeId) -> ScopeId {
-        let scope = self.new_scope(Some(prod_root));
+    fn test_root(
+        &mut self,
+        module: ModuleId,
+        prod_root: ScopeId,
+        span: Span,
+    ) -> Result<ScopeId, Diagnostic> {
+        let scope = self.new_scope(Some(prod_root), span)?;
         let names: Vec<(String, ScopedName)> = self.tables.module_scopes[module.0 as usize]
             .test
             .iter()
@@ -2428,7 +2522,7 @@ impl<'a> Resolver<'a> {
                 Binding::Context(ContextVar::TestAccount(account)),
             );
         }
-        scope
+        Ok(scope)
     }
 
     /// Child scope with fixed facts (actor mode, team, now, operation).
@@ -2438,8 +2532,9 @@ impl<'a> Resolver<'a> {
         actor: ActorKind,
         team: bool,
         operation: bool,
-    ) -> ScopeId {
-        let scope = self.new_scope(Some(parent));
+        span: Span,
+    ) -> Result<ScopeId, Diagnostic> {
+        let scope = self.new_scope(Some(parent), span)?;
         let bindings = &mut self.tables.scopes[scope.0 as usize].bindings;
         bindings.insert(
             "actor".to_string(),
@@ -2455,7 +2550,7 @@ impl<'a> Resolver<'a> {
                 Binding::Context(ContextVar::Operation),
             );
         }
-        scope
+        Ok(scope)
     }
 
     /// Walk every declaration: resolve type paths, target paths, label
@@ -2464,7 +2559,7 @@ impl<'a> Resolver<'a> {
         &mut self,
         trees: &[(SourceId, SyntaxNode)],
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         for (file, tree) in trees {
             let text = self.text(*file);
             for child in kids(tree) {
@@ -2474,9 +2569,10 @@ impl<'a> Resolver<'a> {
                 let Some(module) = self.module_of(text, child) else {
                     continue;
                 };
-                self.resolve_module(*file, text, module, child, diags);
+                self.resolve_module(*file, text, module, child, diags)?;
             }
         }
+        Ok(())
     }
 
     fn resolve_module(
@@ -2486,8 +2582,8 @@ impl<'a> Resolver<'a> {
         module: ModuleId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
-        let root = self.module_root(module);
+    ) -> Result<(), Diagnostic> {
+        let root = self.module_root(module, node.span)?;
         self.resolve_description_refs(text, module, node, diags);
         for child in kids(node) {
             match child.kind {
@@ -2498,7 +2594,9 @@ impl<'a> Resolver<'a> {
                         self.resolve_caption(text, module, value, diags);
                     }
                 }
-                SyntaxKind::Context => self.resolve_context(file, text, module, root, child, diags),
+                SyntaxKind::Context => {
+                    self.resolve_context(file, text, module, root, child, diags)?
+                }
                 SyntaxKind::Section => {
                     let marker = kids(child)
                         .iter()
@@ -2506,9 +2604,9 @@ impl<'a> Resolver<'a> {
                         .unwrap_or("");
                     for item in kids(child) {
                         match marker {
-                            "Given" => self.resolve_given(file, text, module, root, item, diags),
-                            "When" => self.resolve_when(file, text, module, root, item, diags),
-                            "Then" => self.resolve_then(file, text, module, root, item, diags),
+                            "Given" => self.resolve_given(file, text, module, root, item, diags)?,
+                            "When" => self.resolve_when(file, text, module, root, item, diags)?,
+                            "Then" => self.resolve_then(file, text, module, root, item, diags)?,
                             _ => {}
                         }
                     }
@@ -2516,6 +2614,7 @@ impl<'a> Resolver<'a> {
                 _ => {}
             }
         }
+        Ok(())
     }
 
     /// Resolve `#= path` description references to messages.
@@ -2754,7 +2853,7 @@ impl<'a> Resolver<'a> {
         root: ScopeId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         for child in kids(node) {
             if child.kind != SyntaxKind::ContextDecl || has_error(child) {
                 continue;
@@ -2778,12 +2877,12 @@ impl<'a> Resolver<'a> {
                 }
                 "cache" => {
                     if let Some(ttl) = attribute_value(child, "ttl", text) {
-                        self.walk_expr(module, root, ttl, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, root, ttl, text, ExprCtx::bare(), diags)?;
                     }
                 }
                 "files" => {
                     if let Some(max) = attribute_value(child, "max", text) {
-                        self.walk_expr(module, root, max, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, root, max, text, ExprCtx::bare(), diags)?;
                     }
                 }
                 "analytics" => {
@@ -2792,12 +2891,13 @@ impl<'a> Resolver<'a> {
                         .iter()
                         .filter(|c| c.kind == SyntaxKind::Field)
                     {
-                        self.resolve_field_parts(text, module, root, None, field, true, diags);
+                        self.resolve_field_parts(text, module, root, None, field, true, diags)?;
                     }
                 }
                 _ => {}
             }
         }
+        Ok(())
     }
 
     /// Resolve a binding `key=` path: fully qualified package model names
@@ -2843,14 +2943,14 @@ impl<'a> Resolver<'a> {
         root: ScopeId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         if has_error(node) {
-            return;
+            return Ok(());
         }
         match node.kind {
             SyntaxKind::Preferences => {
                 for field in node.children.iter().filter(|c| c.kind == SyntaxKind::Field) {
-                    self.resolve_field_parts(text, module, root, None, field, true, diags);
+                    self.resolve_field_parts(text, module, root, None, field, true, diags)?;
                 }
                 if let Some(label) = attribute_value(node, "label", text) {
                     self.resolve_caption(text, module, label, diags);
@@ -2871,26 +2971,27 @@ impl<'a> Resolver<'a> {
                 };
                 let scope = match parent {
                     Some(model) => {
-                        let scope = self.with_facts(root, ActorKind::NonNull, true, true);
+                        let scope =
+                            self.with_facts(root, ActorKind::NonNull, true, true, node.span)?;
                         self.tables.scopes[scope.0 as usize].bindings.insert(
                             "parent".to_string(),
                             Binding::Context(ContextVar::Parent { model }),
                         );
                         scope
                     }
-                    None => self.with_facts(root, ActorKind::NonNull, true, true),
+                    None => self.with_facts(root, ActorKind::NonNull, true, true, node.span)?,
                 };
                 for field in node.children.iter().filter(|c| c.kind == SyntaxKind::Field) {
-                    self.resolve_field_parts(text, module, scope, None, field, false, diags);
+                    self.resolve_field_parts(text, module, scope, None, field, false, diags)?;
                 }
                 if let Some(label) = attribute_value(node, "label", text) {
                     self.resolve_caption(text, module, label, diags);
                 }
             }
             SyntaxKind::Contract | SyntaxKind::Event => {
-                let scope = self.with_facts(root, ActorKind::NonNull, true, true);
+                let scope = self.with_facts(root, ActorKind::NonNull, true, true, node.span)?;
                 for field in node.children.iter().filter(|c| c.kind == SyntaxKind::Field) {
-                    self.resolve_field_parts(text, module, scope, None, field, false, diags);
+                    self.resolve_field_parts(text, module, scope, None, field, false, diags)?;
                 }
                 if let Some(label) = attribute_value(node, "label", text) {
                     self.resolve_caption(text, module, label, diags);
@@ -2901,17 +3002,20 @@ impl<'a> Resolver<'a> {
                     self.resolve_caption(text, module, label, diags);
                 }
             }
-            SyntaxKind::Derive => self.resolve_derive_body(file, text, module, root, node, diags),
-            SyntaxKind::Fixture => self.resolve_fixture(text, module, root, node, diags),
-            SyntaxKind::Capability => self.resolve_capability(text, module, root, node, diags),
-            SyntaxKind::Message => self.resolve_message(text, module, root, node, diags),
+            SyntaxKind::Derive => {
+                self.resolve_derive_body(file, text, module, root, node, diags)?
+            }
+            SyntaxKind::Fixture => self.resolve_fixture(text, module, root, node, diags)?,
+            SyntaxKind::Capability => self.resolve_capability(text, module, root, node, diags)?,
+            SyntaxKind::Message => self.resolve_message(text, module, root, node, diags)?,
             SyntaxKind::Policy | SyntaxKind::Unique | SyntaxKind::Lock | SyntaxKind::Retain => {
-                self.resolve_rule(text, module, root, node, diags);
+                self.resolve_rule(text, module, root, node, diags)?;
             }
             SyntaxKind::Invariant => {
                 let inv_parts = kids(node);
                 let target = inv_parts.iter().find(|n| n.kind == SyntaxKind::Path);
-                let mut row_scope = self.with_facts(root, ActorKind::Nullable, true, true);
+                let mut row_scope =
+                    self.with_facts(root, ActorKind::Nullable, true, true, node.span)?;
                 if let Some(target) = target {
                     let segments = path_segments(target, text);
                     // `invariant preferences:` validates the owner's
@@ -2931,31 +3035,37 @@ impl<'a> Resolver<'a> {
                     };
                     if let Some(prefs) = prefs {
                         self.tables.node_symbol.insert(NodeKey::of(target), prefs);
-                        row_scope = self.with_row(row_scope, prefs);
+                        row_scope = self.with_row(row_scope, prefs, node.span)?;
                     } else if let Some(model) =
                         self.resolve_model_path(module, &segments, target, text, diags)
                     {
-                        row_scope = self.with_row(row_scope, model);
+                        row_scope = self.with_row(row_scope, model, node.span)?;
                     }
                 }
                 for child in kids(node) {
                     if is_expression(child.kind) {
-                        self.walk_expr(module, row_scope, child, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, row_scope, child, text, ExprCtx::bare(), diags)?;
                     }
                 }
             }
             _ => {}
         }
+        Ok(())
     }
 
     /// Scope with a `row: Model` binding.
-    fn with_row(&mut self, parent: ScopeId, model: SymbolId) -> ScopeId {
-        let scope = self.new_scope(Some(parent));
+    fn with_row(
+        &mut self,
+        parent: ScopeId,
+        model: SymbolId,
+        span: Span,
+    ) -> Result<ScopeId, Diagnostic> {
+        let scope = self.new_scope(Some(parent), span)?;
         self.tables.scopes[scope.0 as usize].bindings.insert(
             "row".to_string(),
             Binding::Context(ContextVar::RowModel(model)),
         );
-        scope
+        Ok(scope)
     }
 
     /// Resolve a field/parameter type, label and value expressions.
@@ -2969,7 +3079,7 @@ impl<'a> Resolver<'a> {
         field: &SyntaxNode,
         _constant: bool,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         let parts = kids(field);
         let mut i = 0;
         while i < parts.len() {
@@ -2989,10 +3099,11 @@ impl<'a> Resolver<'a> {
                     "label",
                 )
             {
-                self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
             }
             i += 1;
         }
+        Ok(())
     }
 
     fn resolve_derive_body(
@@ -3003,7 +3114,7 @@ impl<'a> Resolver<'a> {
         root: ScopeId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         let parts = kids(node);
         let is_function = parts.iter().any(|n| is_punct(n, text, "("));
         for part in &parts {
@@ -3024,8 +3135,8 @@ impl<'a> Resolver<'a> {
                 },
                 _ => Vec::new(),
             };
-            self.resolve_param_defaults(text, module, root, node, &params, diags);
-            let mut scope = self.with_facts(root, ActorKind::Nullable, true, true);
+            self.resolve_param_defaults(text, module, root, node, &params, diags)?;
+            let mut scope = self.with_facts(root, ActorKind::Nullable, true, true, node.span)?;
             for param in &params {
                 let name = self.tables.symbols[param.0 as usize].name.clone();
                 let span = self.tables.symbols[param.0 as usize].span;
@@ -3044,7 +3155,7 @@ impl<'a> Resolver<'a> {
             }
             for part in parts {
                 if is_expression(part.kind) {
-                    self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                    self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
                 }
             }
         } else {
@@ -3060,16 +3171,16 @@ impl<'a> Resolver<'a> {
                     None
                 }
             });
-            let mut scope = self.with_facts(root, ActorKind::Nullable, true, true);
+            let mut scope = self.with_facts(root, ActorKind::Nullable, true, true, node.span)?;
             if let Some(model) = model {
-                scope = self.with_row(scope, model);
+                scope = self.with_row(scope, model, node.span)?;
             }
             for part in parts {
                 if is_type_node(part.kind) {
                     continue;
                 }
                 if is_expression(part.kind) {
-                    self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                    self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
                 } else if is_name(part, text, "label") {
                     continue;
                 }
@@ -3082,6 +3193,7 @@ impl<'a> Resolver<'a> {
                 }
             }
         }
+        Ok(())
     }
 
     /// Whether a parameter name collides with a contextual fact in `scope`.
@@ -3106,7 +3218,7 @@ impl<'a> Resolver<'a> {
         node: &SyntaxNode,
         params: &[SymbolId],
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         let param_nodes: Vec<&SyntaxNode> = node
             .children
             .iter()
@@ -3119,7 +3231,8 @@ impl<'a> Resolver<'a> {
                     self.resolve_type(text, module, part, diags);
                 }
             }
-            let mut scope = self.with_facts(root, ActorKind::Nullable, false, true);
+            let mut scope =
+                self.with_facts(root, ActorKind::Nullable, false, true, param_node.span)?;
             for param in params.iter().take(i) {
                 let name = self.tables.symbols[param.0 as usize].name.clone();
                 self.tables.scopes[scope.0 as usize]
@@ -3134,7 +3247,7 @@ impl<'a> Resolver<'a> {
                     continue;
                 }
                 if seen_eq && is_expression(part.kind) {
-                    self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                    self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
                 } else if part.kind == SyntaxKind::DescriptionValue {
                     self.resolve_description_value(text, module, part, diags);
                 } else if is_name(part, text, "label") {
@@ -3149,6 +3262,7 @@ impl<'a> Resolver<'a> {
                 }
             }
         }
+        Ok(())
     }
 
     fn resolve_fixture(
@@ -3158,13 +3272,13 @@ impl<'a> Resolver<'a> {
         root: ScopeId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         let parts = kids(node);
         let name = Self::decl_name(text, node, &["export", "fixture"]).map(|(n, _)| n);
         let head = parts.iter().find(|n| n.kind == SyntaxKind::Path);
         let object = parts.iter().find(|n| n.kind == SyntaxKind::Object);
-        let test_root = self.test_root(module, root);
-        let scope = self.with_facts(test_root, ActorKind::NonNull, true, false);
+        let test_root = self.test_root(module, root, node.span)?;
+        let scope = self.with_facts(test_root, ActorKind::NonNull, true, false, node.span)?;
         if let (Some(name), Some(head)) = (&name, head) {
             let segments = path_segments(head, text);
             let target = self.resolve_fixture_head(module, &segments, head, text, diags);
@@ -3181,8 +3295,9 @@ impl<'a> Resolver<'a> {
             let _ = &segments;
         }
         if let Some(object) = object {
-            self.walk_object_values(module, scope, object, text, diags);
+            self.walk_object_values(module, scope, object, text, diags)?;
         }
+        Ok(())
     }
 
     /// Resolve a fixture recipe head: `user`/`file` keywords, a model, or
@@ -3240,9 +3355,9 @@ impl<'a> Resolver<'a> {
         root: ScopeId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         if let Some(version) = attribute_value(node, "version", text) {
-            self.walk_expr(module, root, version, text, ExprCtx::bare(), diags);
+            self.walk_expr(module, root, version, text, ExprCtx::bare(), diags)?;
         }
         if let Some(label) = attribute_value(node, "label", text) {
             self.resolve_caption(text, module, label, diags);
@@ -3272,7 +3387,7 @@ impl<'a> Resolver<'a> {
                         _ => None,
                     })
                     .unwrap_or_default();
-                self.resolve_param_defaults(text, module, root, child, &params, diags);
+                self.resolve_param_defaults(text, module, root, child, &params, diags)?;
                 for part in kids(child) {
                     if is_type_node(part.kind) {
                         self.resolve_type(text, module, part, diags);
@@ -3280,16 +3395,17 @@ impl<'a> Resolver<'a> {
                 }
             } else {
                 let _ = &events;
-                let scope = self.with_facts(root, ActorKind::NonNull, true, true);
+                let scope = self.with_facts(root, ActorKind::NonNull, true, true, child.span)?;
                 for field in child
                     .children
                     .iter()
                     .filter(|c| c.kind == SyntaxKind::Field)
                 {
-                    self.resolve_field_parts(text, module, scope, None, field, false, diags);
+                    self.resolve_field_parts(text, module, scope, None, field, false, diags)?;
                 }
             }
         }
+        Ok(())
     }
 
     fn resolve_message(
@@ -3299,7 +3415,7 @@ impl<'a> Resolver<'a> {
         root: ScopeId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         let name = Self::decl_name(text, node, &["export", "message"]).map(|(n, _)| n);
         let params = match name.as_deref().and_then(|n| self.lookup_prod(module, n)) {
             Some(ScopedName::Local(id)) => match &self.tables.symbols[id.0 as usize].kind {
@@ -3308,7 +3424,8 @@ impl<'a> Resolver<'a> {
             },
             _ => Vec::new(),
         };
-        self.resolve_param_defaults(text, module, root, node, &params, diags);
+        self.resolve_param_defaults(text, module, root, node, &params, diags)?;
+        Ok(())
     }
 
     fn resolve_rule(
@@ -3318,14 +3435,14 @@ impl<'a> Resolver<'a> {
         root: ScopeId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         let parts = kids(node);
         let target = parts.iter().find(|n| n.kind == SyntaxKind::Path);
-        let mut scope = self.with_facts(root, ActorKind::Nullable, true, true);
+        let mut scope = self.with_facts(root, ActorKind::Nullable, true, true, node.span)?;
         if let Some(target) = target {
             let segments = path_segments(target, text);
             if let Some(model) = self.resolve_model_path(module, &segments, target, text, diags) {
-                scope = self.with_row(scope, model);
+                scope = self.with_row(scope, model, node.span)?;
             }
         }
         for child in kids(node) {
@@ -3337,9 +3454,10 @@ impl<'a> Resolver<'a> {
             };
             let word = name_text(key, text).unwrap_or("");
             if matches!(word, "read" | "where" | "when" | "until") {
-                self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags);
+                self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
             }
         }
+        Ok(())
     }
 
     /// Resolve a single-segment model path in module scope.
@@ -3859,15 +3977,16 @@ impl<'a> Resolver<'a> {
         root: ScopeId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         if has_error(node) {
-            return;
+            return Ok(());
         }
         match node.kind {
-            SyntaxKind::Crud => self.resolve_crud_body(text, module, root, node, diags),
-            SyntaxKind::Scenario => self.resolve_scenario(text, module, root, node, diags),
+            SyntaxKind::Crud => self.resolve_crud_body(text, module, root, node, diags)?,
+            SyntaxKind::Scenario => self.resolve_scenario(text, module, root, node, diags)?,
             _ => {}
         }
+        Ok(())
     }
 
     fn resolve_crud_body(
@@ -3877,31 +3996,32 @@ impl<'a> Resolver<'a> {
         root: ScopeId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         let parts = kids(node);
         let target = parts.iter().find(|n| n.kind == SyntaxKind::Path);
-        let mut row_scope = self.with_facts(root, ActorKind::Nullable, true, true);
+        let mut row_scope = self.with_facts(root, ActorKind::Nullable, true, true, node.span)?;
         if let Some(target) = target {
             let segments = path_segments(target, text);
             if let Some(model) = self.resolve_model_path(module, &segments, target, text, diags) {
-                row_scope = self.with_row(row_scope, model);
+                row_scope = self.with_row(row_scope, model, node.span)?;
             }
         }
         if let Some(by) = attribute_value(node, "by", text) {
-            let scope = self.with_facts(root, ActorKind::Nullable, false, true);
-            self.walk_expr(module, scope, by, text, ExprCtx::bare(), diags);
+            let scope = self.with_facts(root, ActorKind::Nullable, false, true, node.span)?;
+            self.walk_expr(module, scope, by, text, ExprCtx::bare(), diags)?;
         }
         if let Some(when) = attribute_value(node, "when", text) {
-            self.walk_expr(module, row_scope, when, text, ExprCtx::bare(), diags);
+            self.walk_expr(module, row_scope, when, text, ExprCtx::bare(), diags)?;
         }
         if let Some(label) = attribute_value(node, "label", text) {
             self.resolve_caption(text, module, label, diags);
         }
         for child in kids(node) {
             if child.kind == SyntaxKind::Examples {
-                self.resolve_example_headers(text, module, root, root, child, diags);
+                self.resolve_example_headers(text, module, root, root, child, diags)?;
             }
         }
+        Ok(())
     }
 
     fn resolve_scenario(
@@ -3911,7 +4031,7 @@ impl<'a> Resolver<'a> {
         root: ScopeId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         let name = Self::decl_name(text, node, &["export", "scenario"]).map(|(n, _)| n);
         // A handler whose declaration failed (duplicate or closed
         // builtin name, `E2002`) has no symbol; its body still
@@ -3931,7 +4051,7 @@ impl<'a> Resolver<'a> {
             },
             _ => (Vec::new(), cst_trusted),
         };
-        self.resolve_param_defaults(text, module, root, node, &params, diags);
+        self.resolve_param_defaults(text, module, root, node, &params, diags)?;
         if let Some(result) = result_annotation(node) {
             self.resolve_type(text, module, result, diags);
         }
@@ -3947,12 +4067,12 @@ impl<'a> Resolver<'a> {
             }
         }
         if trusted {
-            let mut scope = self.with_facts(root, ActorKind::Null, true, true);
+            let mut scope = self.with_facts(root, ActorKind::Null, true, true, node.span)?;
             self.tables.scopes[scope.0 as usize]
                 .bindings
                 .insert("event".to_string(), Binding::Context(ContextVar::Event));
             let _ = &mut scope;
-            self.resolve_execution(text, module, scope, node, diags);
+            self.resolve_execution(text, module, scope, node, diags)?;
         } else {
             if let Some(by) = node.children.iter().find_map(|c| {
                 if c.kind == SyntaxKind::Attribute {
@@ -3961,7 +4081,8 @@ impl<'a> Resolver<'a> {
                     None
                 }
             }) {
-                let mut scope = self.with_facts(root, ActorKind::Nullable, false, true);
+                let mut scope =
+                    self.with_facts(root, ActorKind::Nullable, false, true, node.span)?;
                 for param in &params {
                     let name = self.tables.symbols[param.0 as usize].name.clone();
                     self.tables.scopes[scope.0 as usize]
@@ -3969,7 +4090,7 @@ impl<'a> Resolver<'a> {
                         .insert(name, Binding::Symbol(*param));
                 }
                 let _ = &mut scope;
-                self.walk_expr(module, scope, by, text, ExprCtx::bare(), diags);
+                self.walk_expr(module, scope, by, text, ExprCtx::bare(), diags)?;
             }
             let actor = if node.children.iter().any(|c| {
                 c.kind == SyntaxKind::Attribute
@@ -3980,7 +4101,7 @@ impl<'a> Resolver<'a> {
             } else {
                 ActorKind::Nullable
             };
-            let mut scope = self.with_facts(root, actor, true, true);
+            let mut scope = self.with_facts(root, actor, true, true, node.span)?;
             for param in &params {
                 let name = self.tables.symbols[param.0 as usize].name.clone();
                 let span = self.tables.symbols[param.0 as usize].span;
@@ -3997,9 +4118,9 @@ impl<'a> Resolver<'a> {
                 }
             }
             let _ = &mut scope;
-            self.resolve_execution(text, module, scope, node, diags);
+            self.resolve_execution(text, module, scope, node, diags)?;
         }
-        let example_root = self.new_scope(Some(root));
+        let example_root = self.new_scope(Some(root), node.span)?;
         if let Some(ScopedName::Local(id)) =
             name.as_deref().and_then(|n| self.lookup_prod(module, n))
         {
@@ -4024,9 +4145,10 @@ impl<'a> Resolver<'a> {
         }
         for child in kids(node) {
             if child.kind == SyntaxKind::Examples {
-                self.resolve_example_headers(text, module, example_root, root, child, diags);
+                self.resolve_example_headers(text, module, example_root, root, child, diags)?;
             }
         }
+        Ok(())
     }
 
     /// Resolve the lexical expression scopes of examples. E5 retains
@@ -4039,21 +4161,22 @@ impl<'a> Resolver<'a> {
         header_root: ScopeId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         if has_error(node) {
-            return;
+            return Ok(());
         }
-        let test_root = self.test_root(module, root);
-        let scope = self.with_facts(test_root, ActorKind::NonNull, true, false);
+        let test_root = self.test_root(module, root, node.span)?;
+        let scope = self.with_facts(test_root, ActorKind::NonNull, true, false, node.span)?;
         // Common values resolve in the fixture/production namespace before
         // action input bindings become available to selectors/observations.
-        let header_test_root = self.test_root(module, header_root);
-        let header_scope = self.with_facts(header_test_root, ActorKind::NonNull, true, false);
+        let header_test_root = self.test_root(module, header_root, node.span)?;
+        let header_scope =
+            self.with_facts(header_test_root, ActorKind::NonNull, true, false, node.span)?;
         for child in kids(node) {
             if child.kind == SyntaxKind::Attribute
                 && let Some((key, value)) = attribute_parts(child)
             {
-                self.walk_expr(module, header_scope, value, text, ExprCtx::bare(), diags);
+                self.walk_expr(module, header_scope, value, text, ExprCtx::bare(), diags)?;
                 if let Some(name) = name_text(key, text)
                     && name != "seed"
                     && self
@@ -4104,7 +4227,7 @@ impl<'a> Resolver<'a> {
                             .resolve_name(scope, word, self.catalog)
                             .is_some()
                     {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
                     }
                 }
                 if is_expression(part.kind) && (index != 0 || expected) {
@@ -4131,7 +4254,7 @@ impl<'a> Resolver<'a> {
                                 })
                         });
                     if !caller_column {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
                     }
                 }
             }
@@ -4140,14 +4263,14 @@ impl<'a> Resolver<'a> {
             .into_iter()
             .find(|n| n.kind == SyntaxKind::DoBlock)
         {
-            let mut active = self.new_scope(Some(scope));
+            let mut active = self.new_scope(Some(scope), body.span)?;
             for step in kids(body) {
                 match step.kind {
-                    SyntaxKind::Let => self.walk_statement(text, module, active, step, diags),
+                    SyntaxKind::Let => self.walk_statement(text, module, active, step, diags)?,
                     SyntaxKind::ExampleAssert => {
                         for part in kids(step) {
                             if is_expression(part.kind) {
-                                self.walk_expr(module, active, part, text, ExprCtx::bare(), diags);
+                                self.walk_expr(module, active, part, text, ExprCtx::bare(), diags)?;
                             }
                         }
                     }
@@ -4155,14 +4278,14 @@ impl<'a> Resolver<'a> {
                         let parts = kids(step);
                         let target = parts.iter().find(|n| is_expression(n.kind)).copied();
                         if let Some(target) = target {
-                            self.walk_expr(module, active, target, text, ExprCtx::bare(), diags);
+                            self.walk_expr(module, active, target, text, ExprCtx::bare(), diags)?;
                         }
                         for part in &parts {
                             if part.kind == SyntaxKind::Object {
-                                self.walk_expr(module, active, part, text, ExprCtx::bare(), diags);
+                                self.walk_expr(module, active, part, text, ExprCtx::bare(), diags)?;
                             }
                         }
-                        let next = self.new_scope(Some(active));
+                        let next = self.new_scope(Some(active), step.span)?;
                         if let Some(target) = target {
                             self.bind_result(module, text, next, target);
                             if parts.iter().any(|n| n.kind == SyntaxKind::ExpectedError) {
@@ -4187,6 +4310,7 @@ impl<'a> Resolver<'a> {
             }
         }
         self.tables.unresolved_names.truncate(unresolved_before);
+        Ok(())
     }
 
     /// Walk leading guards and the `do` body with `scope`.
@@ -4197,19 +4321,20 @@ impl<'a> Resolver<'a> {
         scope: ScopeId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         for child in kids(node) {
             match child.kind {
-                SyntaxKind::Require => self.walk_guard(text, module, scope, child, diags),
+                SyntaxKind::Require => self.walk_guard(text, module, scope, child, diags)?,
                 SyntaxKind::DoBlock => {
-                    let block = self.new_scope(Some(scope));
+                    let block = self.new_scope(Some(scope), child.span)?;
                     for stmt in kids(child) {
-                        self.walk_statement(text, module, block, stmt, diags);
+                        self.walk_statement(text, module, block, stmt, diags)?;
                     }
                 }
                 _ => {}
             }
         }
+        Ok(())
     }
 
     /// Walk one `require` guard (predicate plus optional message).
@@ -4220,15 +4345,16 @@ impl<'a> Resolver<'a> {
         scope: ScopeId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         if has_error(node) {
-            return;
+            return Ok(());
         }
         for part in kids(node) {
             if is_expression(part.kind) {
-                self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
             }
         }
+        Ok(())
     }
 
     /// Capture the target head before later statements can add shadowing
@@ -4251,12 +4377,12 @@ impl<'a> Resolver<'a> {
         scope: ScopeId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         if has_error(node) {
-            return;
+            return Ok(());
         }
         match node.kind {
-            SyntaxKind::Require => self.walk_guard(text, module, scope, node, diags),
+            SyntaxKind::Require => self.walk_guard(text, module, scope, node, diags)?,
             SyntaxKind::Let => {
                 let parts = kids(node);
                 let name = parts.iter().find_map(|n| {
@@ -4265,7 +4391,7 @@ impl<'a> Resolver<'a> {
                 });
                 for part in &parts {
                     if is_expression(part.kind) {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
                     }
                 }
                 if let Some((name, span)) = name {
@@ -4288,7 +4414,7 @@ impl<'a> Resolver<'a> {
                     self.resolve_model_path(module, &segments, path, text, diags);
                 }
                 if let Some(object) = parts.iter().find(|n| n.kind == SyntaxKind::Object) {
-                    self.walk_object_values(module, scope, object, text, diags);
+                    self.walk_object_values(module, scope, object, text, diags)?;
                 }
                 if let Some(binding) = as_binding(node, text) {
                     self.bind_authored(
@@ -4309,7 +4435,7 @@ impl<'a> Resolver<'a> {
                     self.resolve_mutation_head(scope, target, text);
                 }
                 if let Some(object) = parts.iter().find(|n| n.kind == SyntaxKind::Object) {
-                    self.walk_object_values(module, scope, object, text, diags);
+                    self.walk_object_values(module, scope, object, text, diags)?;
                 }
             }
             SyntaxKind::Transition | SyntaxKind::Delete => {
@@ -4322,9 +4448,9 @@ impl<'a> Resolver<'a> {
                 let parts = kids(node);
                 for part in &parts {
                     if is_expression(part.kind) {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
                     } else if part.kind == SyntaxKind::Object {
-                        self.walk_object_values(module, scope, part, text, diags);
+                        self.walk_object_values(module, scope, part, text, diags)?;
                     }
                 }
                 if let Some(binding) = as_binding(node, text) {
@@ -4347,15 +4473,15 @@ impl<'a> Resolver<'a> {
                     self.resolve_model_path(module, &segments, path, text, diags);
                 }
                 if let Some(object) = parts.iter().find(|n| n.kind == SyntaxKind::Object) {
-                    self.walk_object_values(module, scope, object, text, diags);
+                    self.walk_object_values(module, scope, object, text, diags)?;
                 }
             }
             SyntaxKind::Send => {
                 for part in kids(node) {
                     if is_expression(part.kind) {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
                     } else if part.kind == SyntaxKind::Object {
-                        self.walk_object_values(module, scope, part, text, diags);
+                        self.walk_object_values(module, scope, part, text, diags)?;
                     }
                 }
                 if let Some(binding) = as_binding(node, text) {
@@ -4381,21 +4507,21 @@ impl<'a> Resolver<'a> {
                 }
                 for part in &parts {
                     if is_expression(part.kind) {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
                     } else if part.kind == SyntaxKind::Path
                         && event_path.is_some_and(|e| std::ptr::eq(*part, e))
                     {
                         let segments = path_segments(part, text);
                         self.resolve_model_path(module, &segments, part, text, diags);
                     } else if part.kind == SyntaxKind::Object {
-                        self.walk_object_values(module, scope, part, text, diags);
+                        self.walk_object_values(module, scope, part, text, diags)?;
                     }
                 }
             }
             SyntaxKind::Cancel | SyntaxKind::Return => {
                 for part in kids(node) {
                     if is_expression(part.kind) {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
                     }
                 }
             }
@@ -4408,14 +4534,14 @@ impl<'a> Resolver<'a> {
                     }
                 }
                 let mut cond_done = false;
-                let then_scope = self.new_scope(Some(scope));
-                let else_scope = self.new_scope(Some(scope));
+                let then_scope = self.new_scope(Some(scope), node.span)?;
+                let else_scope = self.new_scope(Some(scope), node.span)?;
                 for (i, part) in parts.iter().enumerate() {
                     if is_name(part, text, "if") || is_name(part, text, "else") {
                         continue;
                     }
                     if !cond_done && is_expression(part.kind) {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
                         cond_done = true;
                     } else if cond_done
                         && !matches!(part.kind, SyntaxKind::Punct | SyntaxKind::Name)
@@ -4428,7 +4554,7 @@ impl<'a> Resolver<'a> {
                         } else {
                             then_scope
                         };
-                        self.walk_statement(text, module, target, part, diags);
+                        self.walk_statement(text, module, target, part, diags)?;
                     }
                 }
             }
@@ -4463,11 +4589,11 @@ impl<'a> Resolver<'a> {
                         limit_at.is_some_and(|at| i == at + 2)
                     };
                     if is_header {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
                         header_end = i;
                     }
                 }
-                let body = self.new_scope(Some(scope));
+                let body = self.new_scope(Some(scope), node.span)?;
                 if let Some((name, span)) = item {
                     self.bind_authored(
                         body,
@@ -4481,11 +4607,12 @@ impl<'a> Resolver<'a> {
                     );
                 }
                 for part in parts.iter().skip(header_end + 1) {
-                    self.walk_statement(text, module, body, part, diags);
+                    self.walk_statement(text, module, body, part, diags)?;
                 }
             }
             _ => {}
         }
+        Ok(())
     }
 }
 
@@ -4664,11 +4791,11 @@ impl<'a> Resolver<'a> {
         root: ScopeId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         if has_error(node) || node.kind != SyntaxKind::Page {
-            return;
+            return Ok(());
         }
-        let mut scope = self.with_facts(root, ActorKind::Nullable, true, true);
+        let mut scope = self.with_facts(root, ActorKind::Nullable, true, true, node.span)?;
         if self
             .tables
             .symbols
@@ -4682,7 +4809,7 @@ impl<'a> Resolver<'a> {
         }
         for child in kids(node) {
             if child.kind == SyntaxKind::Route {
-                self.resolve_route(text, module, &mut scope, child, diags);
+                self.resolve_route(text, module, &mut scope, child, diags)?;
             }
         }
         for child in kids(node) {
@@ -4694,7 +4821,7 @@ impl<'a> Resolver<'a> {
             };
             let word = name_text(key, text).unwrap_or("");
             if matches!(word, "title" | "data" | "order" | "group" | "poll") {
-                self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags);
+                self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
             } else if word == "refresh" && value.kind == SyntaxKind::Path {
                 let segments = path_segments(value, text);
                 if let Some(op) = self.resolve_op_path(module, &segments, value, text, diags) {
@@ -4707,9 +4834,10 @@ impl<'a> Resolver<'a> {
         }
         for child in kids(node) {
             if !matches!(child.kind, SyntaxKind::Route | SyntaxKind::Attribute) {
-                self.walk_ui(text, module, scope, child, diags);
+                self.walk_ui(text, module, scope, child, diags)?;
             }
         }
+        Ok(())
     }
 
     /// Resolve a page route: record routes bind `row`, scalar routes bind
@@ -4721,7 +4849,7 @@ impl<'a> Resolver<'a> {
         scope: &mut ScopeId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         for child in kids(node) {
             match child.kind {
                 SyntaxKind::RouteRecord => {
@@ -4737,7 +4865,7 @@ impl<'a> Resolver<'a> {
                         if let Some(model) =
                             self.resolve_model_path(module, &model_segments, path, text, diags)
                         {
-                            let row_scope = self.with_row(*scope, model);
+                            let row_scope = self.with_row(*scope, model, node.span)?;
                             *scope = row_scope;
                         }
                     }
@@ -4770,6 +4898,7 @@ impl<'a> Resolver<'a> {
                 _ => {}
             }
         }
+        Ok(())
     }
 
     /// Bind `result` for a form/data operation target (declared scenario
@@ -4883,49 +5012,49 @@ impl<'a> Resolver<'a> {
         scope: ScopeId,
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         if has_error(node) {
-            return;
+            return Ok(());
         }
         match node.kind {
             SyntaxKind::Card | SyntaxKind::Details => {
                 for child in kids(node) {
                     if is_expression(child.kind) {
-                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
                     } else if child.kind == SyntaxKind::Attribute {
                         if let Some((key, value)) = attribute_parts(child)
                             && is_name(key, text, "open")
                         {
-                            self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags);
+                            self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
                         }
                     } else if is_ui_child(child.kind) {
-                        self.walk_ui(text, module, scope, child, diags);
+                        self.walk_ui(text, module, scope, child, diags)?;
                     }
                 }
             }
             SyntaxKind::Tabs => {
                 for child in kids(node) {
                     if is_expression(child.kind) {
-                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
                     } else if child.kind == SyntaxKind::Tab {
-                        self.walk_ui(text, module, scope, child, diags);
+                        self.walk_ui(text, module, scope, child, diags)?;
                     }
                 }
             }
             SyntaxKind::Tab => {
                 for child in kids(node) {
                     if is_expression(child.kind) {
-                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
                     } else if is_ui_child(child.kind) {
-                        self.walk_ui(text, module, scope, child, diags);
+                        self.walk_ui(text, module, scope, child, diags)?;
                     }
                 }
             }
             SyntaxKind::Collection => {
-                let mut child_scope = self.new_scope(Some(scope));
+                let mut child_scope = self.new_scope(Some(scope), node.span)?;
                 for child in kids(node) {
                     if is_expression(child.kind) {
-                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
                         if let Some((alias, clause)) = top_alias(child, text) {
                             self.bind_authored(
                                 child_scope,
@@ -4948,13 +5077,13 @@ impl<'a> Resolver<'a> {
                         if let Some((key, value)) = attribute_parts(child) {
                             let word = name_text(key, text).unwrap_or("");
                             if word == "empty" {
-                                self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags);
+                                self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
                             } else if word == "defaults" && value.kind == SyntaxKind::Object {
-                                self.walk_object_values(module, scope, value, text, diags);
+                                self.walk_object_values(module, scope, value, text, diags)?;
                             }
                         }
                     } else if is_ui_child(child.kind) {
-                        self.walk_ui(text, module, child_scope, child, diags);
+                        self.walk_ui(text, module, child_scope, child, diags)?;
                     }
                 }
                 let _ = &mut child_scope;
@@ -4962,10 +5091,10 @@ impl<'a> Resolver<'a> {
             SyntaxKind::Form => {
                 for child in kids(node) {
                     if is_expression(child.kind) {
-                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
                     }
                 }
-                let mut form_scope = self.new_scope(Some(scope));
+                let mut form_scope = self.new_scope(Some(scope), node.span)?;
                 let target = kids(node).into_iter().find(|n| is_expression(n.kind));
                 if let Some(target) = target {
                     self.bind_result(module, text, form_scope, target);
@@ -4976,9 +5105,9 @@ impl<'a> Resolver<'a> {
                         if let Some((key, value)) = attribute_parts(child) {
                             let word = name_text(key, text).unwrap_or("");
                             if word == "submit" {
-                                self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags);
+                                self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
                             } else if word == "arguments" && value.kind == SyntaxKind::Object {
-                                self.walk_object_values(module, scope, value, text, diags);
+                                self.walk_object_values(module, scope, value, text, diags)?;
                             } else if word == "review" && value.kind == SyntaxKind::Path {
                                 let segments = path_segments(value, text);
                                 if let Some(op) =
@@ -4989,14 +5118,14 @@ impl<'a> Resolver<'a> {
                             }
                         }
                     } else if is_ui_child(child.kind) {
-                        self.walk_ui(text, module, form_scope, child, diags);
+                        self.walk_ui(text, module, form_scope, child, diags)?;
                     }
                 }
             }
             SyntaxKind::Edit | SyntaxKind::UiLeaf => {
                 for child in kids(node) {
                     if is_expression(child.kind) {
-                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
                     }
                 }
             }
@@ -5005,7 +5134,7 @@ impl<'a> Resolver<'a> {
             SyntaxKind::Slot | SyntaxKind::PreferencePanel => {
                 for child in kids(node) {
                     if is_ui_child(child.kind) {
-                        self.walk_ui(text, module, scope, child, diags);
+                        self.walk_ui(text, module, scope, child, diags)?;
                     }
                 }
             }
@@ -5024,9 +5153,9 @@ impl<'a> Resolver<'a> {
                         if child.kind == SyntaxKind::NameRef {
                             continue;
                         }
-                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, scope, child, text, ExprCtx::bare(), diags)?;
                     } else if is_ui_child(child.kind) {
-                        self.walk_ui(text, module, scope, child, diags);
+                        self.walk_ui(text, module, scope, child, diags)?;
                     }
                     // `NAME=word` options are catalog vocabulary, not
                     // name references; membership is PR5 (M6 record).
@@ -5034,6 +5163,7 @@ impl<'a> Resolver<'a> {
             }
             _ => {}
         }
+        Ok(())
     }
 
     // --- Pass 5e: expressions -----------------------------------------------
@@ -5049,9 +5179,9 @@ impl<'a> Resolver<'a> {
         text: &'a str,
         _ctx: ExprCtx,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         if has_error(node) {
-            return;
+            return Ok(());
         }
         self.tables.expr_scope.insert(NodeKey::of(node), scope);
         match node.kind {
@@ -5062,7 +5192,7 @@ impl<'a> Resolver<'a> {
                     .find_map(|n| name_text(n, text))
                     .unwrap_or("");
                 if name.is_empty() {
-                    return;
+                    return Ok(());
                 }
                 match self.tables.resolve_name(scope, name, self.catalog) {
                     Some(binding) => {
@@ -5094,14 +5224,14 @@ impl<'a> Resolver<'a> {
             SyntaxKind::Member => {
                 let parts = kids(node);
                 if let Some(receiver) = parts.first() {
-                    self.walk_expr(module, scope, receiver, text, ExprCtx::bare(), diags);
+                    self.walk_expr(module, scope, receiver, text, ExprCtx::bare(), diags)?;
                 }
             }
             SyntaxKind::Call => {
                 let parts = kids(node);
                 let callee = parts.iter().find(|n| is_expression(n.kind));
                 if let Some(callee) = callee {
-                    self.walk_expr(module, scope, callee, text, ExprCtx::bare(), diags);
+                    self.walk_expr(module, scope, callee, text, ExprCtx::bare(), diags)?;
                 }
                 let args: Vec<&SyntaxNode> = parts
                     .iter()
@@ -5114,7 +5244,7 @@ impl<'a> Resolver<'a> {
                     && let Some(value) = kids(first).iter().find(|n| is_expression(n.kind))
                     && let Some((alias, clause)) = top_alias(value, text)
                 {
-                    let extended = self.new_scope(Some(scope));
+                    let extended = self.new_scope(Some(scope), clause.span)?;
                     self.bind_authored(
                         extended,
                         &alias,
@@ -5131,7 +5261,7 @@ impl<'a> Resolver<'a> {
                     for value in kids(arg) {
                         if is_expression(value.kind) {
                             let scope = if i == 0 { scope } else { arg_scope };
-                            self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags);
+                            self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
                         }
                     }
                 }
@@ -5148,7 +5278,7 @@ impl<'a> Resolver<'a> {
                             .unwrap_or("");
                         if head == "as" {
                             if let Some((alias, _)) = clause_alias(part, text) {
-                                let scope = self.new_scope(Some(extended));
+                                let scope = self.new_scope(Some(extended), part.span)?;
                                 self.bind_authored(
                                     scope,
                                     &alias,
@@ -5173,12 +5303,12 @@ impl<'a> Resolver<'a> {
                                         text,
                                         ExprCtx::bare(),
                                         diags,
-                                    );
+                                    )?;
                                 }
                             }
                         }
                     } else if is_expression(part.kind) && first {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
                         first = false;
                     }
                 }
@@ -5191,7 +5321,7 @@ impl<'a> Resolver<'a> {
                     if is_target {
                         self.resolve_is_target(module, current, text, diags);
                     } else if current.kind != SyntaxKind::Binary {
-                        self.walk_expr(module, scope, current, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, scope, current, text, ExprCtx::bare(), diags)?;
                     } else if !has_error(current) {
                         self.tables.expr_scope.insert(NodeKey::of(current), scope);
                         let parts = kids(current);
@@ -5205,19 +5335,19 @@ impl<'a> Resolver<'a> {
             SyntaxKind::Unary | SyntaxKind::Group => {
                 for part in kids(node) {
                     if is_expression(part.kind) {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
                     }
                 }
             }
             SyntaxKind::Array => {
                 for part in kids(node) {
                     if is_expression(part.kind) {
-                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                        self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
                     }
                 }
             }
             SyntaxKind::Object => {
-                self.walk_object_values(module, scope, node, text, diags);
+                self.walk_object_values(module, scope, node, text, diags)?;
             }
             SyntaxKind::Construct => {
                 let parts = kids(node);
@@ -5226,11 +5356,12 @@ impl<'a> Resolver<'a> {
                     self.tables.expr_scope.insert(NodeKey::of(head), scope);
                 }
                 if let Some(object) = parts.iter().find(|n| n.kind == SyntaxKind::Object) {
-                    self.walk_object_values(module, scope, object, text, diags);
+                    self.walk_object_values(module, scope, object, text, diags)?;
                 }
             }
             _ => {}
         }
+        Ok(())
     }
 
     /// Whether a call callee is the `any`/`all`/`group` builtin (whose
@@ -5299,7 +5430,7 @@ impl<'a> Resolver<'a> {
         node: &SyntaxNode,
         text: &'a str,
         diags: &mut Vec<Diagnostic>,
-    ) {
+    ) -> Result<(), Diagnostic> {
         self.tables.expr_scope.insert(NodeKey::of(node), scope);
         for entry in node
             .children
@@ -5311,7 +5442,7 @@ impl<'a> Resolver<'a> {
             let mut value_walked = false;
             for part in &parts {
                 if is_expression(part.kind) {
-                    self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags);
+                    self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
                     value_walked = true;
                 }
             }
@@ -5344,6 +5475,7 @@ impl<'a> Resolver<'a> {
                 }
             }
         }
+        Ok(())
     }
 
     // --- Pass 6: reference cycles -------------------------------------------
