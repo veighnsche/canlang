@@ -18,7 +18,8 @@
  * are positive integers of at most 15 digits (`/^[1-9][0-9]{0,14}$/`,
  * safe-number conversion); record refs tolerate extra members;
  * operation defaults are NEVER filled (defaults stay host-owned);
- * omitted optional ordinary-array inputs fill a FRESH `[]` per call;
+ * omitted optional ordinary-array inputs without defaults fill a FRESH `[]`
+ * outside updates;
  * the normalized output is a fresh unfrozen shallow copy.
  *
  * Provenance: plans build ONLY from loader-produced generated defs
@@ -66,7 +67,7 @@ export interface PreparedInputRule {
   readonly name: string;
   readonly ref: { readonly model: ModelName; readonly versioned: boolean; readonly nullable?: true } | null;
   readonly required: boolean;
-  /** Fill `[]` when an optional input is omitted (non-required marker). */
+  /** Fill eligible ordinary-array omissions; defaults and update omissions stay host-owned. */
   readonly arrayFill: boolean;
   /** Present non-null values must be arrays (any marker). */
   readonly arrayCheck: boolean;
@@ -109,7 +110,8 @@ export function prepareDescriptorInputs(
                 !Object.hasOwn(inputArrays, input.name) ? { nullable: true as const } : {}) }
           : null,
       required: input.required,
-      arrayFill: marker !== undefined && !marker.required,
+      arrayFill: marker !== undefined && !marker.required && descriptor.kind !== 'update' &&
+        input.default === undefined,
       arrayCheck: marker !== undefined,
     };
   });
@@ -148,9 +150,9 @@ export function prepareOperationInputs(
  * canonical generated validator: unknown members (JS enumeration
  * order), missing required inputs, malformed record refs, and
  * non-canonical versions aggregate into one `validation` rejection in
- * current order; omitted optional ordinary arrays fill a fresh `[]`;
+ * current order; eligible ordinary-array omissions fill a fresh `[]`;
  * the returned `normalized` object is a fresh unfrozen shallow copy.
- * Operation defaults are ignored (host-owned, never filled here).
+ * Operation defaults remain absent for host evaluation; update omissions remain absent.
  */
 export function validatePreparedInputs(
   plan: PreparedOperationPlan,

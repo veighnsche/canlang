@@ -764,6 +764,8 @@ export type CanonicalInputDef =
   | {
       readonly name: string;
       readonly kind: CanonicalScalarKind;
+      /** Checked int/datetime association; absence carries no type claim. */
+      readonly valueType?: CanTypeId;
       readonly required: boolean;
       readonly enumValues?: ReadonlyArray<string>;
       readonly default?: CanonicalFieldDefault;
@@ -813,8 +815,10 @@ export interface FieldMachine {
 }
 
 export interface CanonicalFieldDef {
-  /** Checked scalar association; the initial supported profile is singular int. */
+  /** Checked int/datetime association, with optional array and nullable container suffixes. */
   readonly valueType?: CanTypeId;
+  /** Type-association metadata; engine-local nullableFields still owns omission fills. */
+  readonly nullable?: boolean;
   readonly machine?: FieldMachine;
   readonly required: boolean;
   readonly serverOnly: boolean;

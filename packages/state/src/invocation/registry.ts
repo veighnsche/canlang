@@ -290,26 +290,60 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** Additive claims are own-only; the finite result profile is int or void. */
+/** Additive claims are own-only; nullable suffix applies to the container. */
 function checkResult(holder: Record<string, unknown>, what: string): CanonicalOperationDescriptor['result'] {
   if (!Object.hasOwn(holder, 'result')) return undefined;
   const result = holder['result'];
   if (!isRecord(result) || !Object.hasOwn(result, 'type')) {
-    fail('malformed_descriptor', `Invalid ${what}: result must declare type int or void.`);
+    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime profile or bare void.`);
   }
   const type = result['type'];
-  if (type !== 'int' && type !== 'void') {
-    fail('malformed_descriptor', `Invalid ${what}: result must declare type int or void.`);
+  if (type !== 'void' && (typeof type !== 'string' || !/^(int|datetime)(\[\])?\??$/.test(type))) {
+    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime profile or bare void.`);
   }
   return Object.freeze({ type });
 }
 
 function checkValueType(field: Record<string, unknown>, what: string): CanTypeId | undefined {
   if (!Object.hasOwn(field, 'valueType')) return undefined;
-  if (field['valueType'] !== 'int' || field['array'] !== undefined || field['nullable'] === true) {
-    fail('malformed_descriptor', `Invalid ${what}: valueType supports singular nonnullable int only.`);
+  const type = field['valueType'];
+  if (typeof type !== 'string' || !/^(int|datetime)(\[\])?\??$/.test(type)) {
+    fail('malformed_descriptor', `Invalid ${what}: valueType must declare an int/datetime profile.`);
   }
-  return 'int';
+  if (Object.hasOwn(field, 'nullable') &&
+      (typeof field['nullable'] !== 'boolean' || type.endsWith('?') !== field['nullable'])) {
+    fail('malformed_descriptor', `Invalid ${what}: valueType disagrees with nullable marker.`);
+  }
+  return type;
+}
+
+function checkTypeArray(type: CanTypeId | undefined, array: boolean, what: string): void {
+  if (type !== undefined && type.includes('[]') !== array) {
+    fail('malformed_descriptor', `Invalid ${what}: valueType disagrees with array marker.`);
+  }
+}
+
+/** Hydrate only exact own compiler tags; legacy unknown/inherited tags stay unknown. */
+function artifactValueType(field: Record<string, unknown>, what: string): CanTypeId | undefined {
+  if (Object.hasOwn(field, 'valueType')) {
+    checkTypeArray(checkValueType(field, what), field['array'] !== undefined, what);
+  }
+  const tag = field['field'];
+  if (!Object.hasOwn(field, 'field') || !isRecord(tag) || !Object.hasOwn(tag, 'kind') ||
+      (tag['kind'] !== 'integer' && tag['kind'] !== 'datetime')) {
+    if (Object.hasOwn(field, 'valueType')) {
+      fail('malformed_descriptor', `Invalid ${what}: valueType requires an own integer/datetime compiler tag.`);
+    }
+    return undefined;
+  }
+  if (Object.hasOwn(field, 'nullable') && typeof field['nullable'] !== 'boolean') {
+    fail('malformed_descriptor', `Invalid ${what}: nullable must be a boolean.`);
+  }
+  const type = `${tag['kind'] === 'integer' ? 'int' : 'datetime'}${field['array'] !== undefined ? '[]' : ''}${Object.hasOwn(field, 'nullable') && field['nullable'] === true ? '?' : ''}`;
+  if (Object.hasOwn(field, 'valueType') && field['valueType'] !== type) {
+    fail('malformed_descriptor', `Invalid ${what}: valueType disagrees with compiler tag.`);
+  }
+  return type;
 }
 
 function checkSources(artifact: Record<string, unknown>): ReadonlyArray<Readonly<ArtifactSource>> | undefined {
@@ -427,6 +461,11 @@ function checkCanonicalInput(
   }
   const required = value['required'] as boolean;
   const fallback = checkDefault(value['default'], what);
+  const valueType = checkValueType(value, what);
+  if (valueType !== undefined && (kind !== 'integer' && kind !== 'datetime' ||
+      valueType.replace(/\[\]|\?/g, '') !== (kind === 'integer' ? 'int' : kind))) {
+    fail('malformed_descriptor', `Invalid ${what}: valueType disagrees with input kind.`);
+  }
   if (kind === 'ref') {
     if (typeof value['model'] !== 'string' || value['model'] === '') {
       fail('malformed_descriptor', `Invalid ${what}: ref inputs name a non-empty model.`);
@@ -475,6 +514,7 @@ function checkCanonicalInput(
   return {
     name,
     kind: kind as CanonicalScalarKind,
+    ...(valueType !== undefined ? { valueType } : {}),
     required,
     ...(fallback !== undefined ? { default: fallback } : {}),
   };
@@ -526,8 +566,10 @@ function checkCanonicalModel(value: unknown): CanonicalModelDescriptor {
       }
     }
     const valueType = checkValueType(fieldValue, what);
+    checkTypeArray(valueType, array !== undefined, what);
     fields[fieldName] = {
       ...(valueType !== undefined ? { valueType } : {}),
+      ...(valueType !== undefined && Object.hasOwn(fieldValue, 'nullable') ? { nullable: fieldValue['nullable'] as boolean } : {}),
       required: fieldValue['required'] as boolean,
       serverOnly: fieldValue['serverOnly'] as boolean,
       ...(array !== undefined ? { array } : {}),
@@ -784,6 +826,11 @@ export function loadExecutionDescriptorSet(
         arrayMarkers[inputName] = { required: marker['required'] as boolean };
       }
     }
+    for (const input of inputs) {
+      if (input.kind !== 'ref' && input.kind !== 'delivery') {
+        checkTypeArray(input.valueType, Object.hasOwn(arrayMarkers, input.name), `input ${JSON.stringify(input.name)} on operation ${JSON.stringify(opName)}`);
+      }
+    }
     // Null proof belongs to this exact checked singular-ref input. Use own
     // keys throughout: prototype slots are neither array markers nor proof.
     const nullableRefs: Record<string, true> = Object.create(null) as Record<string, true>;
@@ -954,11 +1001,10 @@ export function artifactToDescriptorSet(
         }
       }
       const tag: unknown = field.field;
-      const valueType = Object.hasOwn(field, 'field') && isRecord(tag) &&
-        Object.hasOwn(tag, 'kind') && tag['kind'] === 'integer' &&
-        array === undefined && field.nullable !== true ? 'int' : undefined;
+      const valueType = artifactValueType(field as unknown as Record<string, unknown>, what);
       fields[field.name] = {
         ...(valueType !== undefined ? { valueType } : {}),
+        ...(valueType !== undefined && Object.hasOwn(field, 'nullable') ? { nullable: field.nullable! } : {}),
         required: field.required,
         serverOnly: field.serverOnly,
         ...(array !== undefined ? { array } : {}),
@@ -1009,7 +1055,7 @@ export function artifactToDescriptorSet(
       }
       // Engine-local ref derivation: singular top-level `ref` tags become
       // pipeline ref paths (archived-target + disposal enforcement). Every
-      // other tag is ignored by ref derivation; the singular integer
+      // other tag is ignored by ref derivation; the exact typed
       // association above is independent of this channel.
       if (Object.hasOwn(field, 'field') && isRecord(tag) && Object.hasOwn(tag, 'kind') && tag.kind === 'secret') {
         modelSecrets.add(field.name);
@@ -1174,6 +1220,7 @@ export function artifactToDescriptorSet(
         fail('malformed_descriptor', `Invalid ${what}: required must be a boolean.`);
       }
       const fallback = checkDefault(input.default, what);
+      const valueType = artifactValueType(input as unknown as Record<string, unknown>, what);
       if (inputKind === 'ref') {
         const refTag = input.field as { model?: unknown; requireVersion?: unknown };
         if (typeof refTag['model'] !== 'string' || refTag['model'] === '') {
@@ -1221,6 +1268,7 @@ export function artifactToDescriptorSet(
         inputs.push({
           name: input.name,
           kind: inputKind as CanonicalScalarKind,
+          ...(valueType !== undefined ? { valueType } : {}),
           required: input.required,
           ...(fallback !== undefined ? { default: fallback } : {}),
         });
