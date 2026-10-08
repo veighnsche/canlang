@@ -796,6 +796,8 @@ export interface FormProps {
   readonly sourceBinding?: string;
   /** Stable occurrence comparison only; never authorization or a proof. */
   readonly sourceBindingIdentity?: string;
+  /** Same logical binding across version refreshes; draft comparison only. */
+  readonly sourceBindingDraftIdentity?: string;
   /** Bound record for updates (hidden id/version); required in update mode. */
   readonly record?: MutationRef;
   /** Resolved rendering timezone (team adapter or explicit UTC fallback). */

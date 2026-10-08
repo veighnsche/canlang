@@ -93,6 +93,8 @@ export interface SourceFormBindingProof {
   readonly token: string;
   /** Stable for the same binding and current context, independent of nonce/expiry. */
   readonly identity: string;
+  /** Comparison-only draft compatibility; versions may change, protected tokens must refresh. */
+  readonly draftIdentity: string;
 }
 
 export interface SourceFormBindings {

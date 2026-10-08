@@ -85,7 +85,9 @@ export async function createSourceFormBindings(key: Uint8Array | string, revisio
       const { nonce: _nonce, ...bindingContext } = currentClaims;
       void _nonce;
       const identity = await sha256HexText(JSON.stringify({ ...bindingContext, bound: refs, editable: selectedEditable }));
-      return { token, identity };
+      const boundIds = Object.fromEntries(Object.entries(refs).map(([name, ref]) => [name, { id: ref.id }]));
+      const draftIdentity = await sha256HexText(JSON.stringify({ ...bindingContext, bound: boundIds, editable: selectedEditable }));
+      return { token, identity, draftIdentity };
     },
     async restore(context, token, inputs) {
       if (!validContext(context) || typeof token !== 'string' || token.length > MAX_TOKEN_CHARS || !record(inputs)) return null;

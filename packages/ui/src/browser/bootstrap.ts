@@ -200,6 +200,7 @@ interface DomNode {
   querySelector?(selector: string): DomNode | null;
   querySelectorAll?(selector: string): Iterable<DomNode>;
   contains?(other: unknown): boolean;
+  focus?(): void;
   cloneNode(deep: boolean): DomNode;
   insertBefore(node: DomNode, before: DomNode | null): DomNode;
   removeChild(node: DomNode): DomNode;
@@ -212,17 +213,59 @@ interface DomNode {
   readonly files?: { readonly length: number } | null;
 }
 
-function formIdentity(node: DomNode): string {
+function formIdentity(node: DomNode, generatedOverride?: string): string {
   const id = node.getAttribute?.('id') ?? '';
   const fields = [...node.querySelectorAll?.('input[type="hidden"]') ?? []];
   const field = (name: string) => fields.find((input) => input.getAttribute?.('name') === name)?.getAttribute?.('value') ?? '';
   const refs = fields.filter((input) => input.getAttribute?.('name') !== 'operation_id' && /(?:\[id\]|_id)$/.test(input.getAttribute?.('name') ?? ''))
     .map((input) => [input.getAttribute?.('name'), input.getAttribute?.('value')]).sort();
   const handle = refs.length === 0 && id === '' ? field('action_handle') : '';
-  const generated = node.getAttribute?.('data-can-generated-form') ?? null;
+  const generated = generatedOverride ?? node.getAttribute?.('data-can-generated-form') ?? null;
   const controls = generated === null ? [] : [...node.querySelectorAll?.('input[id], textarea[id], select[id], button[id]') ?? []]
     .map((control) => [control.getAttribute?.('id'), control.getAttribute?.('name'), control.getAttribute?.('type')]);
   return JSON.stringify([id, node.getAttribute?.('action'), field('operation'), refs, handle, generated, controls]);
+}
+
+/** A version refresh may reuse drafts, while its exact authority must be replaced. */
+function draftFormIdentity(node: DomNode): string | null {
+  if (node.tagName?.toLowerCase() !== 'form') return null;
+  try {
+    const parsed: unknown = JSON.parse(node.getAttribute?.('data-can-generated-form') ?? '');
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null;
+    const metadata = parsed as Record<string, unknown>;
+    if (typeof metadata['draftIdentity'] !== 'string' || metadata['draftIdentity'] === '' ||
+        typeof metadata['bindingIdentity'] !== 'string' || metadata['bindingIdentity'] === '') return null;
+    const { bindingIdentity: _bindingIdentity, ...draftMetadata } = metadata;
+    return formIdentity(node, JSON.stringify(draftMetadata));
+  } catch { return null; }
+}
+
+function dirtyControl(node: DomNode): boolean {
+  return (node.defaultValue !== undefined && node.value !== node.defaultValue) ||
+    (node.defaultChecked !== undefined && node.checked !== node.defaultChecked) ||
+    [...node.querySelectorAll?.('option') ?? []].some((option) => option.selected !== option.defaultSelected);
+}
+
+function transferFormDraft(current: DomNode, next: DomNode, document: DocumentLike): DomNode | null {
+  const editable = (node: DomNode) => node.tagName?.toLowerCase() !== 'input' ||
+    !['hidden', 'file', 'button', 'reset', 'submit', 'image'].includes(node.getAttribute?.('type')?.toLowerCase() ?? 'text');
+  const before = [...current.querySelectorAll?.('input, textarea, select') ?? []].filter(editable);
+  const after = [...next.querySelectorAll?.('input, textarea, select') ?? []].filter(editable);
+  let focus: DomNode | null = null;
+  for (const [index, control] of before.entries()) {
+    const replacement = after[index];
+    if (replacement === undefined || !compatibleNode(control, replacement)) continue;
+    if (document.activeElement === control as unknown as ElementLike) focus = replacement;
+    if (!dirtyControl(control)) continue;
+    if (control.tagName?.toLowerCase() === 'select') {
+      const selected = [...control.querySelectorAll?.('option') ?? []].filter(option => option.selected).map(option => option.value);
+      for (const option of replacement.querySelectorAll?.('option') ?? []) option.selected = selected.includes(option.value);
+    } else {
+      if (control.value !== undefined) replacement.value = control.value;
+      if (control.checked !== undefined) replacement.checked = control.checked;
+    }
+  }
+  return focus;
 }
 
 function compatibleNode(current: DomNode, next: DomNode): boolean {
@@ -244,10 +287,7 @@ function morphNode(current: DomNode, next: DomNode, document: DocumentLike, gene
   if (keepForm && current.getAttribute?.('data-can-form-feedback') != null) return;
   const editable = (tag === 'input' && current.getAttribute?.('type') !== 'hidden') || tag === 'textarea' || tag === 'select';
   const keepInput = editable && (document.activeElement === current as unknown as ElementLike ||
-    (current.files?.length ?? 0) > 0 ||
-    (current.defaultValue !== undefined && current.value !== current.defaultValue) ||
-    (current.defaultChecked !== undefined && current.checked !== current.defaultChecked) ||
-    [...current.querySelectorAll?.('option') ?? []].some((option) => option.selected !== option.defaultSelected));
+    (current.files?.length ?? 0) > 0 || dirtyControl(current));
   const value = current.value;
   const checked = current.checked;
   const selected = tag === 'select'
@@ -273,7 +313,17 @@ function morphNode(current: DomNode, next: DomNode, document: DocumentLike, gene
     if (id !== undefined && id !== null) {
       matched = Array.from(current.childNodes).find((node) => compatibleNode(node, child)) ?? null;
     } else if (anchor !== null && compatibleNode(anchor, child)) matched = anchor;
-    if (matched === null) current.insertBefore(child.cloneNode(true), anchor);
+    if (matched === null) {
+      const draftIdentity = draftFormIdentity(child);
+      const previous = draftIdentity === null ? null : (id != null
+        ? Array.from(current.childNodes).find(node => draftFormIdentity(node) === draftIdentity) ?? null
+        : anchor !== null && draftFormIdentity(anchor) === draftIdentity ? anchor : null);
+      const replacement = child.cloneNode(true);
+      const focus = previous === null ? null : transferFormDraft(previous, replacement, document);
+      current.insertBefore(replacement, anchor);
+      if (previous !== null) current.removeChild(previous);
+      focus?.focus?.();
+    }
     else {
       if (matched !== anchor) current.insertBefore(matched, anchor);
       morphNode(matched, child, document, keepForm);

@@ -112,7 +112,8 @@ export function createOperationFormPreparer(
     return protection.service.seal({ appId: protection.appId, sessionToken: protection.sessionToken,
       identity: protection.identity, derived, operationId: prepared.props.operationId, nowMs: clock.nowMs() },
       bound, [...renderedNames]).then(proof => ({
-        ...prepared, props: { ...prepared.props, sourceBinding: proof.token, sourceBindingIdentity: proof.identity },
+        ...prepared, props: { ...prepared.props, sourceBinding: proof.token, sourceBindingIdentity: proof.identity,
+          sourceBindingDraftIdentity: proof.draftIdentity },
       }));
   };
 }
