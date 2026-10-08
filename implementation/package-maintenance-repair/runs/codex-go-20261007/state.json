@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T07:33:04.643604+00:00",
+  "updated_utc": "2026-10-08T07:51:49.066948+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1619,7 +1619,7 @@
     ],
     "restrictions": "No staging/commit; preserve all bytes, root retains Git/state/filetree and source leases",
     "package_decision_notes_pending": [],
-    "heading": "2026-10-07 \u2014 Assign proposed worker profiles to the capability roadmap (PROPOSED)",
+    "heading": "2026-10-07 — Assign proposed worker profiles to the capability roadmap (PROPOSED)",
     "foreign_append_staging": "All foreign proposals preserved unstaged",
     "end_sha256": "c0eedd9b5459716abfb439a685d601fe934c13ee1bc8f7d0890fd0852486f403"
   },
@@ -1937,7 +1937,7 @@
         "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts",
         "packages/cloudflare/src/runtime/t17b-durable.test.ts"
       ],
-      "validation": "Private focused owning emit, original memory62/62 and D1other2/2 pass. First D1case required3obsolete create+set version2\u21921 assertions perDESIGN:103; only affected case rerun1/1 passed including fresh-handle/receipt/history/read/revision assertions.",
+      "validation": "Private focused owning emit, original memory62/62 and D1other2/2 pass. First D1case required3obsolete create+set version2→1 assertions perDESIGN:103; only affected case rerun1/1 passed including fresh-handle/receipt/history/read/revision assertions.",
       "commands_live": false,
       "limits": "Explicitly handwritten synthetic artifacts, not compiler provenance; original authority/error behavior retained, no product runtime fallback."
     }
@@ -2153,7 +2153,7 @@
         "scope": "comparison-only draftIdentity holds current context/schema/revision/op/reference IDs/editable set across expected-version changes; exact binding identity and signed token still fence version",
         "behavior": "replace authority epoch with fresh nonce/proof/CSRF/version; carry only compatible dirty editable values/focus; no hidden/files, old pending state/feedback or outcome transfer; different IDs/schema/context refuse transfer",
         "validation": "Contracts/UI/Interfaces emit0 and browserasset0; affected proof identity case1/1 and versionrefresh/negative DOM2/2 once; unchanged protection/lifecycle results reused",
-        "native_witness": "Original stale409\u2192v3 poll erased Recovered draft retained; after861edef5, the same genuine compiled source/Chrome/Worker/D1 case passed1/1 (~7.7s), including fresh-authority draft retry and explicit CRUD update."
+        "native_witness": "Original stale409→v3 poll erased Recovered draft retained; after861edef5, the same genuine compiled source/Chrome/Worker/D1 case passed1/1 (~7.7s), including fresh-authority draft retry and explicit CRUD update."
       },
       "actual_consumer": {
         "validation": "Genuine forms/update source compile0; sole affected protected case1/1 (~7.7s) after861edef5; earlier unbound/readonly/MCP outcomes reused without reruns. Root direct source/test review.",
@@ -2175,7 +2175,7 @@
     }
   },
   "canonical_send_stage_release": {
-    "status": "portable defining no-commit Work port checked; actual compiled bound send/D1 consumer pending",
+    "status": "portable Work no-commit port and actual compiled unconditional bound send/D1 consumer accepted narrowly",
     "api": "@canlang/work/kernel/dispatch-staging stageCanonicalSend(StageOutboxIntentInput,SystemCommandContext) -> {effects:SystemStaging,delivery:DeliveryRef}",
     "ownership": "CF resolves exact compiler binding/capability operation schema and wire encoding; admitted business origin and dynamic zero-based occurrence index come from canonical execution; Work shares existing staging command and v1 identity recipe; State commits domain+dispatch+outbox together once",
     "validation": "Work emit0 and34/34 owning intent/staging/recovery/memory-fence checks; shared unchanged argument helper extraction rechecked only2affectedcases; no second review/test chain",
@@ -2192,7 +2192,20 @@
       "type": "Contracts BoundCapabilityRequest {binding,from,arguments}, nested in the existing outbox record; canonical source/target and v1 identity unchanged",
       "owners": "Runtime assembly derives exact logical binding/from and validates/encodes only authored arguments; Work captures once and stages unchanged; State persists in its existing JSON arguments slot. Services installed routing/current authority remain dispatch responsibilities.",
       "validation": "Contracts emit0; Work emit0; only the affected canonical staging witness rerun1/1. Two same-capability aliases retain their distinct binding/from, authored binding input stays nested, records clone/freeze and no commit occurs.",
-      "limits": "Actual compiled-source/D1 persistence consumer in progress; provider availability-before-guard, installed/version compatibility/current authority, replay-content mismatch and adapter forwarding are not claimed."
+      "limits": "Actual compiled source/D1 routing-envelope persistence accepted narrowly; provider availability-before-guard, installed/version/current authority, replay-content mismatch and adapter forwarding remain separate."
+    },
+    "consumer": {
+      "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+      "root_review": "canonical-send-consumer-root-review.json",
+      "validation": "Roadmap one actual compiler/D1 rollback/replay/reopen1/1 and portable deployment-map closure1/1 reused; root source review, final CF emit0 and sole changed unsupported-guard helper1/1.",
+      "status": "root accepted; scoped commit pending",
+      "scope": "Compiled bound unconditional std.EmailV1.send stages exact checked binding/from/nested wire arguments, Work dispatch and outbox in the existing single canonical State fence.",
+      "limits": [
+        "No installed provider transport or completion association",
+        "Optional when explicitly refuses before callback/current context; no current-state guard qualification",
+        "Original whole-parent, native preparation, release and backend adoption gates remain separate"
+      ],
+      "commands_released": true
     }
   }
 }

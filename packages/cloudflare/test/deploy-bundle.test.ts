@@ -129,6 +129,17 @@ describe("deploy bundle (P-B)", () => {
     const key = "vendor/sourcemap-codec/sourcemap-codec.js";
     expect(bundle.modules["runtime/sourcemap.js"]).toContain(`"../${key}"`);
     expect(bundle.modules[key]).toContain("export {");
+    expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/values/index.js");
+    expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/work/kernel/dispatch-staging.js");
+    expect(bundle.modules["vendor/values/schema.js"]).toContain("normalizeSchema");
+    expect(bundle.modules["vendor/values/schema.js"]).toContain("validateOperationInput");
+    expect(Object.keys(bundle.modules).filter(name => name.startsWith("vendor/work/"))).toEqual([
+      "vendor/work/intent/staging.js",
+      "vendor/work/kernel/arguments.js",
+      "vendor/work/kernel/dispatch-staging.js",
+      "vendor/work/kernel/tables.js",
+    ]);
+    expect(bundle.modules["vendor/work/kernel/dispatch-staging.js"]).toContain("stageCanonicalSend");
     expect(() => assertWorkerdLoadable(bundle.modules)).not.toThrow();
     expect(() => assertLinksResolve(bundle.modules)).not.toThrow();
     expect(Object.keys(bundle.modules).some((name) => /(?:es-module-lexer|magic-string|trace-mapping|resolve-uri)/.test(name))).toBe(false);

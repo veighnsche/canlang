@@ -1,0 +1,26 @@
+{
+  "scope": "SEQ017 actual compiled unconditional no-commit bound send",
+  "root": "originating Codex",
+  "review": "Direct exact released source/caller/test inspection; one defining refusal fix, no second verification chain",
+  "source_sha256": {
+    "packages/cloudflare/src/runtime/context.ts": "2a5d83276bc185918a77b3fa73e4595caf377e9a8de9029b666dd3a16441862c",
+    "packages/cloudflare/src/runtime/invoke.ts": "d9e2f312e74d97a3e00135ab3375d8fc25df85aec5fce90a5dd73bea5c3e2703",
+    "packages/cloudflare/src/runtime/stdlib.ts": "9a90b3790d4dda6521b37c71856f874ce6ed6cc074bfc6fdb87e93f5c6850851",
+    "packages/cloudflare/src/runtime/typed-durable-admission.test.ts": "da7a21f2fc08be41bdb4eb28e61654fd40ee3b9d589786d0199377434da056a6",
+    "packages/cloudflare/test/fixtures/typed-durable-send.can": "bba02643628ec135f062ed77a49d0f3188c737bee936053f1147e41dfae527d5",
+    "packages/cloudflare/test/fixtures/typed-durable-send.json": "88501bed3ff4eeca222b39d05395d1fa6f0b3cd24987e6e06a3745c518caa73c",
+    "packages/cloudflare/src/deploy/bundle.ts": "561c09b8c2c71aaa660616ea2a96b5c27b9715014ca099672ce23480c4ee7316",
+    "packages/cloudflare/test/deploy-bundle.test.ts": "bae3fef2a9c7aea943dba140ab0c6a1bbb4d187f1461a7d70d9c1b5c4e8d4869"
+  },
+  "outcomes": {
+    "owning_cf_emit": 0,
+    "changed_guard_helper": "1/1; callback and execution context not evaluated",
+    "unchanged_consumer_reused": "Actual owning compiled source + D1 rollback, one durable dispatch/outbox, replay and reopening1/1; changed portable bundle closure1/1"
+  },
+  "limits": [
+    "No provider transport/installed binding/reconciliation/completion association",
+    "Optional dispatch guards explicitly unsupported; no eager predicate or silent skip",
+    "Membership remains explicit memory fixture, effects/receipts use actual D1",
+    "No parent packet completion or native preparation/release/default backend switch"
+  ]
+}
