@@ -56,6 +56,11 @@ Implemented modules:
   Recurring scope analysis follows executed create-field server initializers
   and omitted ordinary defaults through their checked declarations. An explicit
   ordinary-default override and unused model defaults add no dependencies.
+  Selected anonymous localized-format descriptors use their checked empty
+  parameter schema: undeclared variables fail with E5007 at the source or
+  translated literal, including declaration defaults and grouped operands.
+  Named-message parameter checking and other descriptor profiles retain their
+  existing contracts.
 - `src/syntax/`: lossless recoverable CST parser for the full GRAMMAR.md
   (lexer, layout/descriptions, CST, parser, E1xxx diagnostics). Parses the
   whole `examples/` + `draft/` corpus cleanly; see `tests/syntax.rs`.
