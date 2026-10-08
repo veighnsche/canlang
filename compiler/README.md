@@ -154,6 +154,13 @@ Implemented modules:
   admits the emitted TextRequest/TextMessage closure, including inline role
   cases and the existing canonical duration representation. This qualifies the
   demonstrated request path; unrelated standard shapes retain their scope.
+  Declared rich standard delivery `.progress` reads alias the existing typed
+  `.result`. Checked policy/column selectors retain canonical result paths;
+  whole and child-only grants stay distinct. `tests/delivery_progress_runtime.rs`
+  exercises one native observation, child/null projection, inline enum equality
+  through real Values, and no upward expansion through real State grants.
+  The defining runtime delivery facade and exact child-only selected serving
+  remain package-owned joins; this witness uses a strict observation host.
 - Public native compile/runtime facades have permanent execution witnesses for
   value equality and membership, nullable and mixed numeric equality, text
   scalar ordering and mixed numeric relations (including values above 2^53 and

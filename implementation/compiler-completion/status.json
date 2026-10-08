@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-08T09:57:04Z",
+  "updated_utc": "2026-10-08T10:19:04Z",
   "total": 67,
   "finished_at_recorded_scope": 53,
   "remaining_including_partial": 14,
@@ -101,9 +101,9 @@
     }
   },
   "latest_component": {
-    "commit": "8aa1bc3333a57af006218568aef65d895f173c42",
-    "previous_component": "121688d7d8bbdd4c2e2770a82cf080cdf5a9ceb7",
-    "outcome": "Reachable standard nominal contracts derive from checked imported capability input/result schemas. The genuine TextRequest source now admits through real Values normalizeSchema and validateOperationInput using emitted TextRequest/TextMessage/TextRun definitions; native encode preserves exact integer/duration wire strings and nested invalid enum refusal. CanDuration uses the existing owning Values duration domain. Focused affected native case and strict library Clippy pass; broader standard shapes, provider serving and progress-source aliases remain separate."
+    "commit": "74cb4cb8890b4fe3a03df97d2846ba8bb7f59f43",
+    "previous_component": "8aa1bc3333a57af006218568aef65d895f173c42",
+    "outcome": "Declared rich standard progress aliases existing typed result in checking, canonical policy/column selectors and IR. One native whole-result observation and typed nullable child projections preserve evaluation/null behavior; inline enum comparisons use real Values. Real State grants retain child-only paths without upward expansion. Focused affected native case and strict library Clippy pass. Defining runtime delivery facade and exact child-only selected serving remain separate package joins."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -124,9 +124,10 @@
     "../../compiler/tests/message_width.rs",
     "../../compiler/tests/graph_width.rs",
     "../../compiler/tests/file_profile_runtime.rs",
-    "../../compiler/tests/std_nominal_construct.rs"
+    "../../compiler/tests/std_nominal_construct.rs",
+    "../../compiler/tests/delivery_progress_runtime.rs"
   ],
-  "current_source_work": "Private trusted handler invocation metadata86a8be55, standard delivery owning-schema joinbdab3576 and reserved Receipt.read producerf1d63d0a retain their accepted bounded outcomes. Ordered nonnullable scalar scenario defaults and File native profiles121688d7 pass source/native/State-omission/Values-codec controls; nullable/array/ref computed defaults, read-scenario runtime, resolved-default receipt/replay and File authority/byte transfer remain open owning joins. Executed default/server scope closured2fb9024 repairs actual E4051 omission while supplied overrides stay inactive. Known standard nominal construct join6dd7bf96 passes genuine TextRequest nested enum/native execution without guessed schemas. Standalone decoder endpoint repairc0a633b2 and finite source/message/diagnostic/graph widths remain bounded; extreme source/count/generated-output admission is unresolved. Anonymous format coveragee71b37cf, earlier selected-call controls and held BDD/timezone/model-rule profiles remain bounded. No broader reference or whole-suite closure is claimed. Reachable standard nominal contract emission8aa1bc33 resolves the demonstrated real Values TextRequest admission blocker using existing producer schemas; generated/native request validation passes at its declared scope.",
+  "current_source_work": "Private trusted handler invocation metadata86a8be55, standard delivery owning-schema joinbdab3576 and reserved Receipt.read producerf1d63d0a retain their accepted bounded outcomes. Ordered nonnullable scalar scenario defaults and File native profiles121688d7 pass source/native/State-omission/Values-codec controls; nullable/array/ref computed defaults, read-scenario runtime, resolved-default receipt/replay and File authority/byte transfer remain open owning joins. Executed default/server scope closured2fb9024 repairs actual E4051 omission while supplied overrides stay inactive. Known standard nominal construct join6dd7bf96 passes genuine TextRequest nested enum/native execution without guessed schemas. Standalone decoder endpoint repairc0a633b2 and finite source/message/diagnostic/graph widths remain bounded; extreme source/count/generated-output admission is unresolved. Anonymous format coveragee71b37cf, earlier selected-call controls and held BDD/timezone/model-rule profiles remain bounded. No broader reference or whole-suite closure is claimed. Reachable standard nominal contract emission8aa1bc33 resolves the demonstrated real Values TextRequest admission blocker using existing producer schemas; generated/native request validation passes at its declared scope. Declared progress alias74cb4cb8 qualifies checked/canonical paths and native whole-result child/null projection at its host ABI; defining delivery facade and exact child-only runtime selection remain open. Additive computedDefault:true producer/profile work is prepared for owning State/CF nullable/array admission; its direct consumer check is pending those outputs.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
