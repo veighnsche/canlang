@@ -1,4 +1,4 @@
-# Localized formatting context: selected design, implementation pending
+# Localized formatting context: selected design and implemented boundary
 
 Root selects an immutable formatting scope on the actual executable HandlerContext, populated from checked selected-app metadata and admitted team timezone. Reuse the existing two-argument public formatter, preserve exact numeric/temporal carriers and text/locale provenance. Nested shared derives already forward this context; a shared package cannot supply its invoking app default. UTC applies to a null team. Missing qualified formatter context or unsupported generated requirements fail explicitly.
 
@@ -6,4 +6,11 @@ The concrete [owner trace](../research/locale-owner/report.md) establishes that 
 
 Three independently worded equivalent minimal abstract JEV requests select handler_scope at probabilities .95/.92/.95 and confidences .93/.88/.92. They contain no repository excerpts, paths or secrets and no explanatory rationale was returned. Advice supports boundary selection but does not qualify implementation. Complete requests/replies and uncertainty remain here.
 
-This freezes the boundary, not an available runtime protocol. Compiler/context metadata, real canonical/direct/occurrence constructors, generated adapter and capability admission still need a complete producer/export/consumer/test closure. Active foreign runtime/invoke.ts is not leased by this artifact. The missing installed require export and canonical read-serving gaps remain explicit workflow prerequisites. Selected-call binding/plain formatting can complete independently without receiving full localized-format credit.
+The checked metadata producer is implemented at 94c2ae16, the selected-app
+HandlerContext handoff at package commit b8399f5e, and the compiler adapter at
+ad195c83. The [direct outcome](../../localized-format/outcome.md) qualifies
+the actual two-argument formatter and canonical bridge while preserving the
+full text/locale result. Source-level business and unclassified sink uses
+refuse with E6008. Public presentation source-language carriage, exact human
+outbound sink admission, frozen delivery/retry consumption and wider serving
+profiles remain open. This decision grants no foreign runtime writer.
