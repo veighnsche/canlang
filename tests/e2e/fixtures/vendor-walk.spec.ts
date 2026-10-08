@@ -14,13 +14,22 @@ import { readVendorTree } from "./vendor-trees.js";
 
 async function makeTree(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "vendor-walk-"));
-  await mkdir(join(root, "dist", "fanout"), { recursive: true });
-  await mkdir(join(root, "dist", "receipt"), { recursive: true });
-  await writeFile(join(root, "dist", "keep.js"), "export const keep = 1;\n");
-  await writeFile(join(root, "dist", "fanout", "work-loader.js"), "import 'node:url';\n");
-  await writeFile(join(root, "dist", "receipt", "work-loader.js"), "import 'node:path';\n");
-  await writeFile(join(root, "dist", "note.txt"), "ignored\n");
-  return root;
+  try {
+    await mkdir(join(root, "dist", "fanout"), { recursive: true });
+    await mkdir(join(root, "dist", "receipt"), { recursive: true });
+    await writeFile(join(root, "dist", "keep.js"), "export const keep = 1;\n");
+    await writeFile(join(root, "dist", "fanout", "work-loader.js"), "import 'node:url';\n");
+    await writeFile(join(root, "dist", "receipt", "work-loader.js"), "import 'node:path';\n");
+    await writeFile(join(root, "dist", "note.txt"), "ignored\n");
+    return root;
+  } catch (thrown) {
+    try {
+      await rm(root, { recursive: true, force: true });
+    } catch {
+      // Preserve the setup failure even if cleanup also fails.
+    }
+    throw thrown;
+  }
 }
 
 test("stages .js recursively with prefixed keys", async () => {
