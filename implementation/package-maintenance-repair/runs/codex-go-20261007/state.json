@@ -2034,6 +2034,19 @@
       "scope": "Existing public Values field encoder shared by canonical CRUD/scenario; direct join export; typed text/bool scalar/array/null/default/result, branch/join, invalid writes, rollback/history, partial update and replay",
       "limits": "Text/bool persistence, other scalar/hook/provider/deployed/installed/native and whole packet acceptance open. Synthetic invalid-result control labeled. No task count advancement.",
       "recorded_utc": "2026-10-08T03:29:06.767491+00:00"
+    },
+    "exact_number_state": {
+      "status": "Root direct-reviewed accepted finite State decimal/money association; four-file writer released",
+      "files": [
+        "packages/contracts/src/state.ts",
+        "packages/state/src/invocation/registry.ts",
+        "packages/state/src/mutation/models.ts",
+        "packages/state/test/typed-artifact-metadata.test.ts"
+      ],
+      "scope": "Exact own decimal/money kinds identify scalar/array/nullable field/input associations; own declared result shapes; explicit mismatch/malformed refusal, inherited/missing owning tags unknown",
+      "validation": "Owning Contracts tsc-b and State tsc pass; affected metadata15/15 once; unchanged admission28/28 reused. Root direct diff review only.",
+      "limits": "Compiler money parameter-default and CF consumer ongoing; persistence/installed/native and whole workflow remain separate; no packet count advancement.",
+      "recorded_utc": "2026-10-08T03:32:50.980502+00:00"
     }
   }
 }
