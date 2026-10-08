@@ -85,6 +85,7 @@ fn populated_artifact_preserves_order_omissions_and_embedded_json() {
                 array_required: Some(false),
                 default: Some(JsFieldDefault::Literal("null".into())),
                 description: Some("".into()),
+                choices: None,
             },
             JsOperationField {
                 name: "a".into(),
@@ -96,6 +97,7 @@ fn populated_artifact_preserves_order_omissions_and_embedded_json() {
                 array_required: None,
                 default: None,
                 description: None,
+                choices: None,
             },
         ],
     }];

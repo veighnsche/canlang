@@ -282,6 +282,8 @@ pub enum IrItemKind {
         /// slot inline/attached/shared/legacy spellings feed; MCP
         /// renders this source string, variants stay in analysis).
         description: Option<String>,
+        /// Optional checked assistance, derived from owning read/input symbols.
+        choices: Option<IrInputChoiceBinding>,
     },
     DeriveField {
         model: SymbolId,
@@ -1266,6 +1268,27 @@ impl IrCohortKind {
     }
 }
 
+/// Static choice assistance; no annotation expression executes at runtime.
+#[derive(Debug, Clone)]
+pub struct IrInputChoiceBinding {
+    pub read_operation: String,
+    pub arguments: Vec<(String, IrChoiceArgument)>,
+    pub value: IrChoiceValue,
+    pub labels: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct IrChoiceArgument {
+    pub input: String,
+    pub path: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub enum IrChoiceValue {
+    Record,
+    Field(String),
+}
+
 /// One arm of a checked exhaustive enum statement.
 #[derive(Debug, Clone)]
 pub struct IrMatchArm {
@@ -2007,6 +2030,40 @@ impl<'a> Cx<'a> {
             }
             SymbolKind::Param { owner, index, .. } => {
                 let (default, label, description) = self.decode_param(symbol, *owner);
+                let choices = self
+                    .program
+                    .types
+                    .input_choices
+                    .get(&symbol.id)
+                    .map(|choice| IrInputChoiceBinding {
+                        read_operation: self.canonical(choice.read_operation),
+                        arguments: choice
+                            .arguments
+                            .iter()
+                            .map(|argument| {
+                                (
+                                    self.program.symbols[argument.parameter.0 as usize]
+                                        .name
+                                        .clone(),
+                                    IrChoiceArgument {
+                                        input: self.program.symbols[argument.input.0 as usize]
+                                            .name
+                                            .clone(),
+                                        path: argument.path.clone(),
+                                    },
+                                )
+                            })
+                            .collect(),
+                        value: match &choice.value {
+                            crate::analysis::types::CheckedChoiceValue::Record => {
+                                IrChoiceValue::Record
+                            }
+                            crate::analysis::types::CheckedChoiceValue::Field(field) => {
+                                IrChoiceValue::Field(field.clone())
+                            }
+                        },
+                        labels: choice.labels.clone(),
+                    });
                 IrItemKind::Param {
                     owner: *owner,
                     index: *index,
@@ -2014,6 +2071,7 @@ impl<'a> Cx<'a> {
                     default,
                     label,
                     description,
+                    choices,
                 }
             }
             SymbolKind::DeriveField { model, .. } => {

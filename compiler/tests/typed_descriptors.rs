@@ -49,6 +49,7 @@ fn operation_order_omissions_and_present_empty_metadata() {
         array_required: None,
         default: None,
         description: None,
+        choices: None,
     };
     assert_eq!(
         input.to_json(),

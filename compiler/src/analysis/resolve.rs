@@ -3241,7 +3241,18 @@ impl<'a> Resolver<'a> {
             }
             let _ = &mut scope;
             let mut seen_eq = false;
-            for part in parts {
+            let mut parts = parts.into_iter().peekable();
+            while let Some(part) = parts.next() {
+                if is_name(part, text, "choices")
+                    && parts.peek().is_some_and(|next| is_punct(next, text, "="))
+                {
+                    // Choice assistance is checked declaration metadata, not
+                    // a default or an executable read in parameter scope.
+                    parts.next(); // `=`
+                    parts.next(); // metadata object
+                    seen_eq = false;
+                    continue;
+                }
                 if part.kind == SyntaxKind::Punct {
                     seen_eq = true;
                     continue;
