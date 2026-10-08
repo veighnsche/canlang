@@ -463,7 +463,9 @@ fn golden_teamtasks_structure() {
     );
     assert!(entry.contains("disabled:[]"), "nothing disabled");
     assert!(
-        entry.contains("description:$can$h$636865636b65645f6d657373616765(\"Manage tasks and notes together.\""),
+        entry.contains(
+            "description:$can$h$636865636b65645f6d657373616765(\"Manage tasks and notes together.\""
+        ),
         "app description"
     );
     assert!(
@@ -979,7 +981,9 @@ fn golden_expenseflow_structure() {
     );
     // G4 contracts and preferences.
     assert!(
-        entry.contains("\"reporting.Summary\":{label:$can$h$636865636b65645f6d657373616765(\"Expense totals\""),
+        entry.contains(
+            "\"reporting.Summary\":{label:$can$h$636865636b65645f6d657373616765(\"Expense totals\""
+        ),
         "contract label"
     );
     assert!(
@@ -2573,6 +2577,7 @@ fn construct_ui_factories() {
     let mut emitter = Emitter::new(&ir);
     let text_ty = ResolvedType::Scalar(Scalar::Text);
     let table = IrUi {
+        view: None,
         factory: "table".to_string(),
         props: vec![
             ("model".to_string(), text_lit("demo.Widget")),
@@ -2598,6 +2603,7 @@ fn construct_ui_factories() {
         "$can$u$7461626c65({context:c,model:\"demo.Widget\",columns:[\"title\",\"count\"]})"
     );
     let card = IrUi {
+        view: None,
         factory: "card".to_string(),
         props: vec![("title".to_string(), text_lit("Work"))],
         children: vec![table],
@@ -2611,6 +2617,7 @@ fn construct_ui_factories() {
     );
     // Unknown factories (h, native elements) are loud E6008.
     let bad = IrUi {
+        view: None,
         factory: "h".to_string(),
         props: vec![],
         children: vec![],
@@ -2653,6 +2660,7 @@ fn construct_pages_admit_render() {
         refresh: None,
         admit: vec![IrGuard::Role("expense.reviewer".to_string())],
         render: vec![IrUi {
+            view: None,
             factory: "table".to_string(),
             props: vec![("model".to_string(), text_lit("expense.Expense"))],
             children: vec![],
@@ -2750,6 +2758,7 @@ fn construct_page_preferences_preamble_reads_bindings() {
         refresh: None,
         admit: vec![],
         render: vec![IrUi {
+            view: None,
             factory: "text".to_string(),
             props: vec![(
                 "value".to_string(),
@@ -3609,6 +3618,7 @@ fn construct_ui_gate_ternary() {
         bool_ty,
     );
     let alert = IrUi {
+        view: None,
         factory: "alert".to_string(),
         props: vec![],
         children: vec![],
@@ -3632,6 +3642,7 @@ fn construct_ui_gate_ternary() {
         ResolvedType::Scalar(Scalar::Int),
     );
     let gated = IrUi {
+        view: None,
         factory: "text".to_string(),
         props: vec![],
         children: vec![],
@@ -3640,6 +3651,7 @@ fn construct_ui_gate_ternary() {
         span: sp(0, 1),
     };
     let list = IrUi {
+        view: None,
         factory: "list".to_string(),
         props: vec![
             ("model".to_string(), text_lit("demo.Widget")),

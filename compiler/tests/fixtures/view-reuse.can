@@ -1,0 +1,25 @@
+app ViewReuse source="FR"
+context
+ locale default="es"
+Given
+ Card {title:text}
+ Detail in Card {label:text}
+ policy Card read=public
+ policy Detail read=public
+ derive chosen(value:Card):Card = value
+When
+Then
+ page /views title="Views"
+  list Card empty="No cards"
+   show card_body {row=chosen(row)}
+   show card_body {row=chosen(row)}
+ view card_body(row:Card)
+  text row.title
+  tabs
+   tab "Coordination"@{nl="Afstemming"}
+    text row.title
+    list row.Detail empty="No details"
+     text row.label
+    text row.title
+   tab "History"@{nl="Geschiedenis"}
+    text row.title
