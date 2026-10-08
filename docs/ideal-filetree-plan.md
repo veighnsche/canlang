@@ -312,3 +312,6 @@ Root bounded typed-association reconciliation: Contracts vocabulary and State wh
 
 
 Root nullable-array correction: State ordinary/prepared admission preserves checked nullable omissions for existing default/null-fill owners; legacy unknown-array behavior remains. Owner compilation and28affected admission checks pass, with12metadata checks reused. Runtime/compiler/D1 consumers remain separately active; no default-evaluation owner, merge or complete checkpoint advancement.
+
+
+Root datetime-default producer reconciliation: compiler checked literal/default ownership now emits existing-parser canonical wire instants while preserving native constructor execution; Values remains the wire codec owner. Released2/2producer and Clippy results qualify this finite source prerequisite. Runtime/default/persistence and accumulated complete coverage remain separate; no new parser/normalizer owner, merge or checkpoint advancement.
