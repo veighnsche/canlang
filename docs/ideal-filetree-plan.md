@@ -381,3 +381,6 @@ Mutation query ordering now forwards existing checked model metadata to State’
 
 
 Compiler direct current-model field ordering lowers once to existing IrOrder/native selectors, with computed and foreign-root expressions still refused. Its owning production case and the already captured D1 consumer qualify the finite int order join. Contextual label parameters now use existing declaration ownership to distinguish label: bindings from label= caption metadata, preserving defaults and parameterized-caption refusal in the same installed formatter case. No new parser, carrier or formatter facade; wider S9/SEM and full checkpoint review remain open.
+
+
+State generated CRUD now owns narrow receipt-result provenance derived from its actual first staged write. Existing outcome JSON persists it; an optional synchronous invocation observer exposes the exact committed/replayed receipt after durability outside retry handling. Public MutationResult and scenario behavior remain unchanged. Memory/JSON and affected CRUD9/9 qualify this prerequisite; State typecheck passes after the existing enum-test narrowing matches its fixture. Current-access public mapping, original secret metadata forwarding, D1 and full replay disclosure remain open; no parent/checkpoint advancement.
