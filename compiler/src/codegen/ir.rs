@@ -2860,6 +2860,64 @@ impl<'a> Cx<'a> {
             // Nested member: is the inner member delivery-typed?
             let inner_ty = self.node_type(base);
             if is_delivery_ty(&inner_ty) {
+                if crate::analysis::types::delivery_progress_alias(&inner_ty)
+                    && fields.last().is_some_and(|field| field == "progress")
+                {
+                    fields.reverse();
+                    let ResolvedType::StdDelivery { op, .. } =
+                        inner_ty.nullable_inner().unwrap_or(&inner_ty)
+                    else {
+                        unreachable!("checked std delivery alias");
+                    };
+                    let mut observed = TypedExpr::new(
+                        self.decode_delivery_read(
+                            scope,
+                            base,
+                            vec!["result".to_string()],
+                            node.span,
+                        ),
+                        crate::analysis::types::std_delivery_result_type(op),
+                        node.span,
+                    );
+                    let children = &fields[1..];
+                    for (index, field) in children.iter().enumerate() {
+                        let inferred = self.member_ty(&observed.ty, field);
+                        let field_ty = if index + 1 == children.len() {
+                            ty.clone()
+                        } else if observed.ty.nullable_inner().is_some()
+                            && inferred.nullable_inner().is_none()
+                        {
+                            ResolvedType::Nullable(Box::new(inferred))
+                        } else {
+                            inferred
+                        };
+                        observed = TypedExpr::new(
+                            IrExpr::Member {
+                                base: Box::new(observed),
+                                field: field.clone(),
+                            },
+                            field_ty,
+                            node.span,
+                        );
+                        if observed.ty.nullable_inner().is_some() {
+                            let nullable_ty = observed.ty.clone();
+                            observed = TypedExpr::new(
+                                IrExpr::Binary {
+                                    op: IrBinOp::Coalesce,
+                                    left: Box::new(observed),
+                                    right: Box::new(TypedExpr::new(
+                                        IrExpr::Null,
+                                        ResolvedType::Null,
+                                        node.span,
+                                    )),
+                                },
+                                nullable_ty,
+                                node.span,
+                            );
+                        }
+                    }
+                    return observed;
+                }
                 return TypedExpr::new(
                     self.decode_delivery_read(scope, base, fields, node.span),
                     ty.clone(),
@@ -2895,6 +2953,13 @@ impl<'a> Cx<'a> {
                 TypedExpr::new(IrExpr::Name("row".to_string()), ResolvedType::Unknown, span)
             });
         outer_fields.reverse();
+        if super::super::analysis::types::delivery_progress_alias(&self.node_type(base))
+            && outer_fields
+                .first()
+                .is_some_and(|field| field == "progress")
+        {
+            outer_fields[0] = "result".to_string();
+        }
         IrExpr::DeliveryRead {
             record: Box::new(record),
             field,
@@ -7663,7 +7728,21 @@ impl<'a> Cx<'a> {
             }
             match name.as_str() {
                 "search" | "filter" | "columns" => {
-                    let strings = selector_strings(self.db, value);
+                    let strings = if value.kind == SyntaxKind::Selectors {
+                        kids(value)
+                            .iter()
+                            .flat_map(|path| {
+                                self.program
+                                    .types
+                                    .delivery_selectors
+                                    .get(&NodeKey::of(path))
+                                    .map(|canonical| vec![canonical.clone()])
+                                    .unwrap_or_else(|| selector_strings(self.db, path))
+                            })
+                            .collect()
+                    } else {
+                        selector_strings(self.db, value)
+                    };
                     let span = value.span;
                     props.push((
                         name,
