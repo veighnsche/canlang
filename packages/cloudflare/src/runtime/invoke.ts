@@ -7062,7 +7062,7 @@ interface FanoutJoinProducer {
 }
 
 /** Defining State admission supplies these refs anew on every execution/retry. */
-interface FanoutAdmittedCall {
+interface FanoutAdmittedCall extends CanonicalSeamCall {
   readonly recordRefs: ReadonlyArray<{
     readonly param: string;
     readonly model: ModelName;
@@ -7085,16 +7085,7 @@ interface FanoutInvokeProducer {
     readonly app: string;
     readonly source: string;
     readonly inputs: Record<string, unknown>;
-    readonly execute: (call: FanoutAdmittedCall) => Promise<{
-      readonly writes: ReadonlyArray<DomainWrite>;
-      readonly history: ReadonlyArray<HistoryEntry>;
-      readonly outbox: ReadonlyArray<OutboxIntent>;
-      readonly schedules: ReadonlyArray<ScheduleOp>;
-      readonly uniqueClaims: ReadonlyArray<UniqueClaim>;
-      readonly uniqueReleases: ReadonlyArray<UniqueRelease>;
-      readonly resolvedDefaults: Record<string, unknown>;
-      readonly result: unknown;
-    }>;
+    readonly execute: (call: FanoutAdmittedCall) => Promise<CanonicalExecutionEffects>;
     readonly assertJoin: (batch: CommitBatch) => void;
   }): Promise<MutationResult>;
 }
@@ -8459,6 +8450,13 @@ export interface FanoutSchedulerBodyEffects {
   readonly outbox: ReadonlyArray<OutboxIntent>;
   readonly schedules: ReadonlyArray<ScheduleOp>;
   readonly result: FanoutChildAttemptResult;
+  readonly uniqueClaims?: ReadonlyArray<UniqueClaim>;
+  readonly uniqueReleases?: ReadonlyArray<UniqueRelease>;
+  readonly resolvedDefaults?: Record<string, unknown>;
+  readonly guards?: ReadonlyArray<CanonicalGuardRevalidation>;
+  readonly readings?: ReadonlyArray<unknown>;
+  /** The generated operation's encoded result, retained in its own receipt. */
+  readonly operationResult?: unknown;
 }
 
 /**
@@ -8473,6 +8471,10 @@ export interface FanoutSchedulerBodyAttempt {
    * attribution.
    */
   readonly operationId: string;
+  /** Supplied by the existing canonical child admission on every execution. */
+  readonly call?: CanonicalSeamCall;
+  /** Opaque schedule identities retained across this attempt's fence retries. */
+  readonly occurrenceIds?: string[];
 }
 
 /**
@@ -8488,6 +8490,45 @@ export type FanoutSchedulerBodyPort = (
   domainRow: StoredRow,
   attempt: FanoutSchedulerBodyAttempt,
 ) => FanoutSchedulerBodyEffects | Promise<FanoutSchedulerBodyEffects>;
+
+/** Execute the owning compiled scenario within the scheduler's admitted child unit. */
+export async function createCanonicalFanoutBody(
+  opts: Omit<CanonicalMutationOpts, 'operationId' | 'inputs' | 'now' | 'files'>,
+): Promise<{ readonly registry: ReadonlyMap<string, unknown>; readonly body: FanoutSchedulerBodyPort }> {
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  const definition = loaded.registry.get(opts.operation);
+  if (definition === undefined || seamDefKind(definition, opts.operation) !== 'scenario') {
+    throw new loaded.producers.errors('validation', 'A cohort child needs its owning generated scenario.');
+  }
+  return {
+    registry: loaded.registry,
+    body: async (_child, _row, attempt) => {
+      const call = attempt.call;
+      if (call === undefined || attempt.occurrenceIds === undefined || call.def !== definition ||
+          call.context.operation !== opts.operation || call.context.operationId !== attempt.operationId) {
+        throw new loaded.producers.errors('validation', 'A generated cohort body needs the actual admitted child call.');
+      }
+      if (call.context.app !== opts.app || call.context.source !== opts.source ||
+          (call.context.actor?.userId ?? null) !== (opts.identity.actor?.user_id ?? null) ||
+          (call.context.team?.teamId ?? null) !== (opts.identity.team?.team_id ?? null)) {
+        throw new loaded.producers.errors('forbidden', 'A generated cohort body must retain its admitted caller and deployment scope.');
+      }
+      const effects = await runScenarioSeam(loaded, {
+        ...opts, operationId: attempt.operationId, inputs: call.inputs, now: () => call.context.now,
+      }, call, attempt.occurrenceIds);
+      // File attachments require their separate postcommit host lifecycle; this
+      // internal child profile refuses them through the owning canonical stager.
+      const stagedFiles = await stageFileReferences({
+        artifact: opts.artifact, effects, store: opts.store, identity: opts.identity, app: opts.app,
+        refuse: text => { throw new loaded.producers.errors('validation', text); },
+      });
+      return {
+        ...effects, guards: [...effects.guards ?? [], ...stagedFiles.guards],
+        operationResult: effects.result, result: { kind: 'completed' },
+      } as FanoutSchedulerBodyEffects;
+    },
+  };
+}
 
 /** T34-F7: canonical-invoke inputs for executed children (all pass-through). */
 export interface FanoutSchedulerInvoke {
@@ -8749,16 +8790,8 @@ async function driveFanoutTurnChild(input: {
   }
   const claimedRow = claim.row;
   void claimedRow;
-  const execute = async (call: FanoutAdmittedCall): Promise<{
-    readonly writes: ReadonlyArray<DomainWrite>;
-    readonly history: ReadonlyArray<HistoryEntry>;
-    readonly outbox: ReadonlyArray<OutboxIntent>;
-    readonly schedules: ReadonlyArray<ScheduleOp>;
-    readonly uniqueClaims: ReadonlyArray<UniqueClaim>;
-    readonly uniqueReleases: ReadonlyArray<UniqueRelease>;
-    readonly resolvedDefaults: Record<string, unknown>;
-    readonly result: unknown;
-  }> => {
+  const occurrenceIds: string[] = [];
+  const execute = async (call: FanoutAdmittedCall): Promise<CanonicalExecutionEffects> => {
     if (!isUnknownRecord(call) || !Array.isArray(call.recordRefs)) {
       throw new Error("t34-f7: turn: execution needs admitted record refs.");
     }
@@ -8768,7 +8801,7 @@ async function driveFanoutTurnChild(input: {
     if (refs.length !== 1) {
       throw new Error("t34-f7: turn: execution needs exactly one admitted child record ref.");
     }
-    const effects = await input.body(child, refs[0]!.row, { operationId });
+    const effects = await input.body(child, refs[0]!.row, { operationId, call, occurrenceIds });
     checkFanoutAttemptResult(effects.result);
     // Fresh fanout rows per execution (invoke retries re-execute, so
     // versions re-read — never carried across attempts).
@@ -8806,13 +8839,28 @@ async function driveFanoutTurnChild(input: {
       history: [...effects.history],
       outbox: [...effects.outbox],
       schedules: [...effects.schedules],
-      uniqueClaims: [],
-      uniqueReleases: [],
-      resolvedDefaults: {},
-      result: { child: data.recordId },
+      uniqueClaims: effects.uniqueClaims ?? [],
+      uniqueReleases: effects.uniqueReleases ?? [],
+      resolvedDefaults: effects.resolvedDefaults ?? {},
+      result: Object.hasOwn(effects, 'operationResult') ? effects.operationResult : { child: data.recordId },
+      ...(effects.guards === undefined ? {} : { guards: effects.guards }),
+      ...(effects.readings === undefined ? {} : { readings: effects.readings }),
     };
   };
   try {
+    // Derive required reference versions from the owning operation. Legacy
+    // unversioned children keep their fresh-admission retry behavior.
+    const childDefinition: unknown = input.invoke.registry instanceof Map
+      ? input.invoke.registry.get(input.invoke.childOperation) : undefined;
+    const descriptor = isUnknownRecord(childDefinition) ? childDefinition.descriptor : undefined;
+    const reference: unknown = isUnknownRecord(descriptor) && Array.isArray(descriptor.inputs)
+      ? descriptor.inputs.find((field: unknown) => isUnknownRecord(field) && field.name === input.invoke.refInput)
+      : isUnknownRecord(childDefinition) && isUnknownRecord(childDefinition.inputs)
+        ? childDefinition.inputs[input.invoke.refInput] : undefined;
+    const versioned = isUnknownRecord(reference) &&
+      (reference.kind === 'ref' || reference.type === 'record') && reference.versioned === true;
+    const current = versioned
+      ? await store.load(cohort.model as ModelName, data.recordId as RecordId) : null;
     await producers.invoke.invokeFanoutChild({
       registry: input.invoke.registry,
       store,
@@ -8824,7 +8872,8 @@ async function driveFanoutTurnChild(input: {
       identity: input.invoke.identity,
       app: input.invoke.app,
       source: input.invoke.source,
-      inputs: { [input.invoke.refInput]: { id: data.recordId } },
+      inputs: { [input.invoke.refInput]: { id: data.recordId,
+        ...(versioned ? { version: String(current?.version ?? domainRow.version) } : {}) } },
       execute,
       assertJoin: producers.join.assertFanoutChildJoin,
     });

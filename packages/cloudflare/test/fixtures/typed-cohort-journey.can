@@ -1,0 +1,14 @@
+app TypedCohortJourney
+Given
+ Entry { label:text, applicable:bool=true, consent:bool=true, count:int=0, who:text="", scope:text="", invocation:text="", origin:text="" }
+ policy Entry read=members
+When
+ crud Entry by=owner fields=label,applicable,consent
+ ## The cohort executor must admit each child afresh and commit these authored effects with its durable outcome.
+ scenario process(entry:Entry) -> int by=owner
+  do
+   require entry.applicable
+   set entry {count=entry.count+1,who=actor.id,scope=team.id,invocation=operation.id,origin=operation.source}
+   require entry.consent
+   return entry.count
+Then
