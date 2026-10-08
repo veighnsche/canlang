@@ -81,6 +81,10 @@
       "types": "./dist/runtime/bound-text-generation.d.ts",
       "default": "./dist/runtime/bound-text-generation.js"
     },
+    "./runtime/bound-images": {
+      "types": "./dist/runtime/bound-images.d.ts",
+      "default": "./dist/runtime/bound-images.js"
+    },
     "./runtime/bound-dispatch": {
       "types": "./dist/runtime/bound-dispatch.d.ts",
       "default": "./dist/runtime/bound-dispatch.js"
