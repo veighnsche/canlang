@@ -11,7 +11,7 @@ package work
 app Client
 use work {number as selected, finish as complete}
 Given
- Item { title:text }
+ Item { title:text, at:datetime=datetime("2030-01-01T00:00:00Z"), instants:datetime[]=[datetime("2030-01-01T01:00:00.125+01:00"),datetime("1969-12-31t23:59:59.1z"),datetime("2000-03-01T00:15:00+01:00"),datetime("0001-01-01T00:00:00Z"),datetime("9999-12-31T23:59:59.999000Z")] }
  policy Item read=members
 When
  scenario number(value:text) read=true -> text by=members
@@ -31,6 +31,12 @@ When
  scenario optionalIntegers(value:int[]?) read=true -> int[]? by=members
   do return value
  scenario optionalInstants(value:datetime[]?) read=true -> datetime[]? by=members
+  do return value
+ scenario defaultInstant(value:datetime=datetime("2030-01-01T00:00:00Z")) read=true -> datetime by=members
+  do return value
+ scenario optionalDefaultInstant(value:datetime?=datetime("2030-01-01T00:00:00Z")) read=true -> datetime? by=members
+  do return value
+ scenario defaultInstants(value:datetime[]=[datetime("2030-01-01T00:00:00Z")]) read=true -> datetime[] by=members
   do return value
  scenario textArray(value:text[]) read=true -> text[] by=members
   do return value
