@@ -11,6 +11,36 @@ use std::sync::Arc;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct SourceId(pub u32);
 
+/// A source cannot be represented by the compiler's byte offsets or ids.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SourceAdmissionError {
+    /// The source's byte length exceeds the largest representable offset.
+    TextTooLong { bytes: u64 },
+    /// Every representable source id has already been issued.
+    NextIdExhausted,
+}
+
+impl std::fmt::Display for SourceAdmissionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::TextTooLong { bytes } => write!(
+                f,
+                "source has {bytes} bytes; byte offsets support at most {} bytes",
+                u32::MAX
+            ),
+            Self::NextIdExhausted => write!(f, "no source ids remain in the u32 range"),
+        }
+    }
+}
+
+impl std::error::Error for SourceAdmissionError {}
+
+/// Admit a source byte length into the intrinsic byte-offset range.
+/// A length equal to `u32::MAX` is representable and accepted.
+pub fn admit_source_len(bytes: u64) -> Result<u32, SourceAdmissionError> {
+    u32::try_from(bytes).map_err(|_| SourceAdmissionError::TextTooLong { bytes })
+}
+
 /// One immutable source text with its canonical content hash.
 #[derive(Debug, Clone)]
 pub struct Source {
@@ -47,12 +77,31 @@ impl SourceDb {
     ///
     /// Adding the same path twice replaces the entry and returns a fresh id;
     /// previously issued ids keep denoting their original bytes.
+    ///
+    /// # Panics
+    /// Panics when the text length or next id exceeds the intrinsic u32 range.
+    /// Use [`SourceDb::try_add`] for fallible source intake.
     pub fn add(&mut self, path: String, text: String) -> SourceId {
+        self.try_add(path, text)
+            .unwrap_or_else(|error| panic!("cannot add source: {error}"))
+    }
+
+    /// Add a representable source, preserving prior immutable snapshots.
+    /// Rejects an excessive byte length or exhausted id range before hashing
+    /// or changing source storage and the latest-path lookup.
+    pub fn try_add(
+        &mut self,
+        path: String,
+        text: String,
+    ) -> Result<SourceId, SourceAdmissionError> {
+        admit_source_len(text.len() as u64)?;
+        let id = SourceId(
+            u32::try_from(self.sources.len()).map_err(|_| SourceAdmissionError::NextIdExhausted)?,
+        );
         let sha256 = sha256_hex(text.as_bytes());
-        let id = SourceId(self.sources.len() as u32);
         self.by_path.insert(path.clone(), id);
         self.sources.push(Source { path, text, sha256 });
-        id
+        Ok(id)
     }
 
     /// Look up a source by id.
@@ -117,6 +166,7 @@ impl Span {
 /// Maps byte offsets to line/column positions for one source text.
 ///
 /// Built once per source; queries are `O(log n)` in line count.
+/// Position queries must receive the same text used to build the index.
 #[derive(Debug, Clone)]
 pub struct LineIndex {
     /// Byte offset where each 0-based line starts. Always starts with 0.
@@ -126,14 +176,24 @@ pub struct LineIndex {
 impl LineIndex {
     /// Build the index. Lines end at `\n`; a preceding `\r` belongs to the
     /// line break for column purposes (CRLF counts as one break).
+    ///
+    /// # Panics
+    /// Panics when the text length exceeds the intrinsic u32 offset range.
+    /// Use [`LineIndex::try_new`] for fallible standalone construction.
     pub fn new(text: &str) -> Self {
+        Self::try_new(text).unwrap_or_else(|error| panic!("cannot build line index: {error}"))
+    }
+
+    /// Build an index after admitting its text into the byte-offset range.
+    pub fn try_new(text: &str) -> Result<Self, SourceAdmissionError> {
+        admit_source_len(text.len() as u64)?;
         let mut starts = vec![0u32];
         for (i, b) in text.bytes().enumerate() {
             if b == b'\n' {
                 starts.push((i + 1) as u32);
             }
         }
-        Self { starts }
+        Ok(Self { starts })
     }
 
     /// Convert a byte offset to 1-based `(line, column)`.

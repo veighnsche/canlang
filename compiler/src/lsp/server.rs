@@ -842,7 +842,11 @@ impl<A: LanguageAnalysis> Server<A> {
         ordered.sort_by(|(a_uri, a), (b_uri, b)| (a.id, a_uri).cmp(&(b.id, b_uri)));
         let mut live = SourceDb::new();
         for (uri, doc) in ordered {
-            doc.id = live.add(uri_to_path(uri), doc.text.clone());
+            // Each text was admitted already, and this fresh owner contains
+            // no more sources than the previous admitted owner.
+            doc.id = live
+                .try_add(uri_to_path(uri), doc.text.clone())
+                .expect("live sources retain their admitted text and ID capacity");
         }
         for (uri, _, id) in &mut self.pending {
             *id = self.docs[uri].id;
@@ -888,7 +892,18 @@ impl<A: LanguageAnalysis> Server<A> {
                 let changed = self.docs.get(uri).is_none_or(|open| open.text != text);
                 let id = match self.docs.get(uri) {
                     Some(open) if open.text == text => open.id,
-                    _ => self.db.add(uri_to_path(uri), text.to_string()),
+                    _ => match self.db.try_add(uri_to_path(uri), text.to_string()) {
+                        Ok(id) => id,
+                        Err(error) => {
+                            return vec![output::notification(
+                                "window/logMessage",
+                                lsp::LogMessageParams {
+                                    typ: lsp::MessageType::ERROR,
+                                    message: error.to_string(),
+                                },
+                            )];
+                        }
+                    },
                 };
                 self.docs.insert(
                     uri.to_string(),
@@ -942,7 +957,18 @@ impl<A: LanguageAnalysis> Server<A> {
                 let id = if !changed {
                     open.id
                 } else {
-                    self.db.add(uri_to_path(uri), full.to_string())
+                    match self.db.try_add(uri_to_path(uri), full.to_string()) {
+                        Ok(id) => id,
+                        Err(error) => {
+                            return vec![output::notification(
+                                "window/logMessage",
+                                lsp::LogMessageParams {
+                                    typ: lsp::MessageType::ERROR,
+                                    message: error.to_string(),
+                                },
+                            )];
+                        }
+                    }
                 };
                 self.docs.insert(
                     uri.to_string(),
