@@ -294,3 +294,6 @@ Root bounded typed-consumer reconciliation: Cloudflare context/invoke/stdlib ret
 
 
 Root typed metadata correction: the existing bound-record view owns stable admitted metadata/version and staged domain-field reads; State rows/hooks own reserved post-write metadata. The actual compiled admitted4/stored5 D1 control passes. This restores DESIGN§2 without a new responsibility or checkpoint advancement.
+
+
+Root formatting-scope reconciliation: existing AppInfo owns selected app locale; Cloudflare host invoker/context carries one frozen appDefault scope, separate from admitted team timezone. One actual bridge1/1 and private owning emit qualify source wiring; unchanged reader11controls reused. Compiler format lowering/source-language/installed and complete checkpoint review remain open. No new metadata reader, inferred viewer default or responsibility move.

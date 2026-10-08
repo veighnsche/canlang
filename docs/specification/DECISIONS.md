@@ -2277,3 +2277,10 @@ The compiler owner qualifies actual emitted remainder failures through its produ
 ## 2026-10-08 — Preserve admitted metadata on ordinary record references (corrected)
 
 The initial typed getter incorrectly exposed the reserved post-write metadata version on an ordinary bound record. DESIGN§2 requires its admitted version and metadata to remain stable throughout the transaction while domain fields observe provisional writes; staged rows/hooks retain the reserved version. The focused correction restores that existing contract, with an actual compiled scenario returning admitted4 while the committed row advances to5. Final owning Cloudflare emit and the affected real D1 profile1/1 pass, including reopen/replay; unchanged controls are reused. This is a correction to the bounded typed release, not new version semantics or wider qualification.
+
+
+## 2026-10-08 — Thread trusted selected-app formatting facts (accepted prerequisite)
+
+The defining Cloudflare AppInfo reader remains the sole selected-app metadata reader. Actual HTTP/MCP invokers pass that checked AppInfo through canonical host options; context installs a copied frozen c.formatting={appDefault} only when supplied. Viewer preferences and business inputs cannot choose its source. The admitted team timezone stays separate, and source language is not guessed. Existing explicit low-level appId fixtures retain no formatting scope instead of fabricating app metadata.
+
+One private owning Cloudflare emit and direct canonical bridge check1/1 passed: authored fr-CA survives unrelated filename/viewer settings, legacy omission uses the existing reader en, scope is copied/frozen and admitted Europe/Brussels remains separate. The reader is unchanged, so prior11metadata checks are reused. The observing handler is explicitly handwritten over a compiler artifact; actual compiler format lowering, source-language, durable/installed and whole locale duties remain separate.

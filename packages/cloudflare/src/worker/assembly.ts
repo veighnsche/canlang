@@ -872,6 +872,8 @@ export interface CanonicalInvokerOpts {
   /** Admission clock; defaults to `Date.now`. */
   readonly now?: () => number;
   readonly appId?: string;
+  /** Host-owned checked selected-app metadata, shared with page serving. */
+  readonly appInfo?: AppInfo;
 }
 
 /**
@@ -930,6 +932,7 @@ export function buildInvoker(
           "runtime/invoke.ts",
           "invokeMutationCanonical",
         );
+        const selectedApp = opts.appInfo ?? (opts.appId === undefined ? await loadAppInfo(artifact, asm) : undefined);
         const result = await invokeCanonical({
           asm,
           artifact,
@@ -937,7 +940,8 @@ export function buildInvoker(
           operationId: envelope.operation_id,
           inputs: envelope.inputs,
           identity,
-          app: opts.appId ?? (await loadAppInfo(artifact, asm)).appId,
+          app: selectedApp?.appId ?? opts.appId!,
+          ...(selectedApp === undefined ? {} : { formatting: { appDefault: selectedApp.appDefaultLocale } }),
           source: opts.source ?? "worker",
           store,
           memberships: opts.memberships as CanonicalMembershipReader,
@@ -1201,6 +1205,7 @@ async function handleMcpRequest(req: Request, ctx: InterimDispatchContext): Prom
     invoker: buildInvoker(ctx.artifact, ctx.asm, ctx.store, {
       memberships: ctx.identityStore as CanonicalMembershipReader,
       source: "mcp",
+      appInfo: ctx.app,
       now,
     }),
     catalog,
@@ -1301,6 +1306,7 @@ async function handleHttpOperationRequest(
     invoker: buildInvoker(ctx.artifact, ctx.asm, ctx.store, {
       memberships: ctx.identityStore as CanonicalMembershipReader,
       source: "http",
+      appInfo: ctx.app,
       now,
     }),
     catalog,
