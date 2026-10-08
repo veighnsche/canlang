@@ -130,11 +130,14 @@ Implemented modules:
   this does not qualify every Decimal expression, backend, transport or host.
 - Scenario handlers fill checked literal and supported computed signature
   defaults in source order after admission and before guards/effects. Native
-  parameter-style execution covers nonnullable scalar defaults, selected async
-  calls, supplied empty/false/zero overrides and first-failure order. Real State
-  admission preserves their omitted inputs; computed values make no fabricated
-  wire-default claim. Nullable, array and reference computed defaults retain
-  E6008 until an owning omission/hydration seam is qualified. Read-scenario
+  parameter-style execution covers joined native scalar defaults, nullable and
+  ordinary-array containers, selected async calls, supplied empty/false/zero/null
+  overrides and first-failure order. The source-derived `computedDefault:true`
+  property pairs artifact and canonical input metadata; real State admission
+  preserves omission without a fabricated wire-default value. Text, Date, Int,
+  Bool, Decimal, Money, Datetime and Duration carry this profile. Reference,
+  identity, enum and collapsed string-alias computed defaults retain E6008 until
+  their owning association/hydration seam is qualified. Read-scenario
   runtime joins and resolved-default receipt/replay remain separate.
   Scope analysis follows only executed omitted parameter/create defaults and
   server initializers through selected calls; supplied ordinary overrides stay
@@ -157,10 +160,12 @@ Implemented modules:
   Declared rich standard delivery `.progress` reads alias the existing typed
   `.result`. Checked policy/column selectors retain canonical result paths;
   whole and child-only grants stay distinct. `tests/delivery_progress_runtime.rs`
-  exercises one native observation, child/null projection, inline enum equality
-  through real Values, and no upward expansion through real State grants.
-  The defining runtime delivery facade and exact child-only selected serving
-  remain package-owned joins; this witness uses a strict observation host.
+  exercises one exact flat-key observation for `.progress.content` and
+  `.result.content`, Can null and inline enum equality through real Values.
+  Real State grant facts retain child paths without upward expansion. The
+  package-owned facade is released; the genuine Cloudflare async/absence/error
+  consumer remains its runtime owner's qualification. This compiler witness
+  uses a strict observation host.
 - Public native compile/runtime facades have permanent execution witnesses for
   value equality and membership, nullable and mixed numeric equality, text
   scalar ordering and mixed numeric relations (including values above 2^53 and
