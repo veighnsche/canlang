@@ -95,3 +95,25 @@ null, and inline enum equality uses real Values. Real State grants retain exact
 child paths without granting their parent. The affected native case and strict
 library Clippy pass; the defining runtime facade and exact child-only serving
 remain owning package work. This component does not advance the task count.
+
+`0da68bec` publishes `computedDefault:true` on matching artifact/canonical
+parameter profiles derived from actual computed signature defaults. Real State
+admission preserves omission for joined native nullable/ordinary-array
+containers; native handler execution honors earlier defaults and supplied
+`null`/`[]`. Those direct consumer controls passed. The run later stopped at an
+incorrect expected diagnostic for invalid `text?[]` syntax; its expectation is
+corrected to the observed E1213, and successful native work is reused without
+rerunning it. No overall passing Cargo count is claimed for that run.
+Literal/defaultless inputs omit the marker, model default vocabulary is
+unchanged, and ref/identity/enum/collapsed-alias/read/receipt/replay joins retain
+their existing limits. The genuine Cloudflare omission consumer remains its
+runtime owner's qualification. Canonical completion stays **53/67**.
+
+`f0cb18be` lowers both progress aliases and ordinary delivery result children
+through exact flat selected keys: `['result.content']` reads the returned
+`'result.content'` member once. The same affected native case passes **1/1**,
+including child-only access without whole-result permission, Can null, typed
+inline enum equality and evaluation order. The defining facade and Work
+selected-child sources are released at `8c61fc5b` and `25302017`; their genuine
+Cloudflare consumer remains runtime-owned. This component leaves **53/67**
+finished and **14** remaining.
