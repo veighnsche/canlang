@@ -232,7 +232,7 @@ export interface ReceiptError {
  * selectors of the Oct-04 status-only receipt-permissions decision. Leaf
  * selectors cannot traverse other records or expose siblings.
  */
-export type ReceiptProperty = 'id' | 'status' | 'result' | 'error';
+export type ReceiptProperty = 'id' | 'status' | 'result' | 'error' | 'result.content';
 
 /**
  * Pending-work inventory for lane-7 status/recovery hooks. Counts only;
@@ -388,6 +388,8 @@ export interface SelectedReceiptProjection {
   id?: string;
   status?: ReceiptStatus;
   result?: unknown;
+  /** Exact selected TextRun leaf; never implies disclosure of `result`. */
+  'result.content'?: string | null;
   error?: ReceiptError | null;
 }
 

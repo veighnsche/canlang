@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T10:21:08.418082+00:00",
+  "updated_utc": "2026-10-08T10:34:08.273500+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2465,6 +2465,23 @@
       "identity_limit": "Explicit memory identity; direct actual canonical invoker, not HTTP/MCP or installed generation provider",
       "remaining": "Real provider/progress/notifications, narrow selected-result-subfield disclosure and original host/lifecycle/authority gates stay open",
       "source_commands_released": true,
+      "counts_unchanged": true
+    },
+    "generation_result_content": {
+      "status": "Defining selected projection source directly reviewed; commit ready, actual compiler/runtime consumer pending",
+      "sources": [
+        "packages/contracts/src/work.ts",
+        "packages/state/src/receipt/join.ts",
+        "packages/work/src/observation/observation.ts",
+        "packages/work/test/state-receipt/t25-receipt-join.test.ts",
+        "packages/work/src/observation/t25a-selected.test.ts"
+      ],
+      "contract": "Literal result.content selector yields exact flat key string|null. Same checked owning field supplies declaredResult:{name,fields}, limited to TextRun content:text. Exact child grant never authorizes whole result/id/status/siblings; existing result-parent grant unexpanded. Same result retention and mutable receipt fence, deny-before-protected-presence/corruption.",
+      "caller_input": "Original loader-validated artifact declaration.field.result, paired with its declaredSource; converted State model currently retains delivery membership only.",
+      "verification": "Owning Contracts/State/Work emits0, original59 unaffected checks reused; new2blocks8/8 after correcting fixtures to honest succeeded TextRun. Root reviewed exact5-file source diff; no repeated verification.",
+      "limits": "Pure/memory repository selected-join qualification only. Direct storage update witnesses fence invalidation, not rich TextRun lifecycle. Actual generated compiler/runtime/HTTP/MCP/provider/native/installed Generation consumer and terminal late usage remain open.",
+      "model": "gpt-6.1-sol high: exact authority/projection/retention seam",
+      "source_outputs_handles_released": true,
       "counts_unchanged": true
     }
   }
