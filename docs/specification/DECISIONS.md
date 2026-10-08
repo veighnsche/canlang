@@ -2653,3 +2653,12 @@ Accepted: the private compiled event invocation uses the existing Work due-head 
 Rationale/evidence: direct review of the released six-path Cloudflare consumer; reuse the owning normal emit (exit 0), actual compiled Node/native D1 due case (1/1 within the shared 3/3 changed-case run), and seven-module bundle link case (1/1). The source case covers current-row updates, provisional-write rollback, same-message transient storage failure, future/wrong-owner refusal, replacement/cancellation, real arm-fence retry identity and terminal replay after D1 reopening.
 
 Limits: this qualifies the selected single-handler Node/native D1 profile with a memory identity fixture. Default deployed scheduling/cron/consent, initiating-user revocation/owner expiry, multiple-handler fanout, reference arrays and full original/installed parent acceptance remain open. No native preparation, backend adoption or release is authorized by this gate.
+
+
+### 2026-10-08 — Qualify actual authenticated HTTP/MCP context consumers
+
+Accepted finite evidence: the original compiled context fixture now runs through the real Interfaces HTTP/MCP factories and worker assembly with both State and Identity on reopened D1. Verified actor, team, timezone, clock, source, operation identity and user email reach authored source and recorded history. Caller-forged context inputs and wrong-team credentials refuse without State writes; original calls replay after reopening without new effects.
+
+Rationale/evidence: direct review of the released owning source test and reuse of its one actual native case (1/1 within the shared 3/3 changed-case run) and normal Cloudflare emit (exit 0). The existing defining context/identity implementation is unchanged.
+
+Limits: selected authenticated session/grant contexts only, with explicit permissive discovery/call fixture. Native mutation transports require credentials even for public authored operations: the anonymous checks prove refusal, not actor-null public execution. Complete hooks/all contexts, installed/default-deployed/native qualification and original parent acceptance remain separate.

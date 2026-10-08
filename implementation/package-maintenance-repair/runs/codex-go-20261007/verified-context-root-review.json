@@ -82,5 +82,27 @@
     "held": 1,
     "total": 48
   },
-  "raw_provenance_whitespace": "Preserved raw logs/diffs may contain trailing whitespace; source and authored decision/filetree notes checked separately."
+  "raw_provenance_whitespace": "Preserved raw logs/diffs may contain trailing whitespace; source and authored decision/filetree notes checked separately.",
+  "selected_transport_consumer": {
+    "status": "Root direct-reviewed released actual HTTP/MCP context case; source-only test commit pending",
+    "path": "packages/cloudflare/src/runtime/typed-context-serving.test.ts",
+    "owning_release": {
+      "thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+      "source_commands_released": true,
+      "normal_cloudflare_emit": 0,
+      "selected_native_case": "1/1 within shared3/3 changed cases"
+    },
+    "checks": [
+      "Actual Interfaces HTTP and MCP factories through worker assembly over persisted State+D1IdentityStore",
+      "Checked compiled actor/team/timezone/fixed-now/source/operation-id and email fields match actual stored user/session/grant; history matches actor and operation identity",
+      "Forged context inputs and wrong-team credentials refuse without State writes; native anonymous mutation transports refuse as their actual credential policy",
+      "Same D1 directory reopened with actual session/grant; both original source calls replay exact IDs without new rows/revision"
+    ],
+    "limits": [
+      "Selected authenticated user/session/grant HTTP/MCP contexts; permissions use explicit allow fixture",
+      "No complete hooks/all contexts, actor-null public mutation host or whole installed/deployed/native release qualification"
+    ],
+    "counts_unchanged": true,
+    "verification_policy": "Reuse unchanged owning pass; direct source/caller review only"
+  }
 }
