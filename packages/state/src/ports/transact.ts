@@ -11,6 +11,7 @@
 import type {
   AdmissionKind,
   AuthorizedRecordsResult,
+  CanonicalModelDescriptor,
   CommitBatch,
   CommitResult,
   DomainWrite,
@@ -110,6 +111,8 @@ export function createInvoker(input: InvokerInput): BoundInvoker {
 /** Engine dependencies bound once at read-invoker creation. */
 export interface ReadInvokerInput {
   readonly registry: OperationRegistry;
+  /** Checked model declarations supplied by the owning host, outside per-call selection. */
+  readonly models?: ReadonlyArray<CanonicalModelDescriptor>;
   readonly policy: PolicyTable;
   readonly store: StoragePort;
   readonly memberships: MembershipReader;
@@ -136,9 +139,11 @@ export type BoundReadInvoker = (args: ReadInvokeArgs) => Promise<AuthorizedRecor
  * they commit nothing and receipt nothing.
  */
 export function createReadInvoker(input: ReadInvokerInput): BoundReadInvoker {
+  const models = input.models === undefined ? undefined : structuredClone(input.models);
   return (args) =>
     invokeRead({
       registry: input.registry,
+      ...(models !== undefined ? { models } : {}),
       policy: input.policy,
       store: input.store,
       memberships: input.memberships,
