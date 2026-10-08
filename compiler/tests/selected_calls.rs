@@ -234,6 +234,181 @@ fn missing_checked_binding_has_no_catalog_reconstruction_fallback() {
 }
 
 #[test]
+fn rejected_currency_overload_preserves_winning_text_argument_facts() {
+    use canlang_compiler::analysis::types::{ResolvedType, Scalar, SelectedCallTarget};
+    use canlang_compiler::codegen::ir::{IrCallTarget, IrExpr, IrItemKind};
+
+    let scratch = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(
+        root().join("node_modules"),
+        scratch.path().join("node_modules"),
+    )
+    .unwrap();
+    let installed_catalog = root().join("packages/values/dist/catalog.json");
+    let mut custom: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(installed_catalog).unwrap()).unwrap();
+    let builtin = custom["entries"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|entry| entry["id"] == "choose")
+        .unwrap();
+    assert_eq!(builtin["signature"], "choose(condition:bool,yes:T,no:T)->T");
+    assert_eq!(builtin["availability"], "implemented");
+    // Both signatures are sound subsets of the same installed generic
+    // native choose. Only the signature changes; all owner facts survive.
+    builtin["signature"] = "choose(condition:bool,yes:currency,no:currency)->currency; choose(condition:bool,yes:T,no:T)->T".into();
+    let catalog_path = scratch.path().join("catalog.json");
+    std::fs::write(&catalog_path, serde_json::to_vec(&custom).unwrap()).unwrap();
+    let source = "app T\nGiven\n derive chosen():text = choose(true,\"USD\",\"not a currency\")\n derive accepted():currency = choose(true,\"USD\",\"GBP\")\nWhen\nThen\n";
+    let mut db = SourceDb::new();
+    let id = db.add("choice.can".into(), source.into());
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&catalog_path),
+        env: None,
+        cwd: scratch.path(),
+        primary: Span::new(id, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let catalog = catalog.unwrap();
+    assert_eq!(catalog.overloads("choose").unwrap().len(), 2);
+    let (checked, diagnostics) = check_program(&db, &[id], Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert_eq!(checked.types.selected_calls.len(), 2);
+    let (call_key, selected) = checked.types.selected_calls.iter().find(|(_, selected)| matches!(&selected.target, SelectedCallTarget::Builtin { id, overload: 1 } if id == "choose")).unwrap();
+    assert!(
+        matches!(&selected.target, SelectedCallTarget::Builtin { id, overload: 1 } if id == "choose")
+    );
+    assert_eq!(selected.slots, [Some(0), Some(1), Some(2)]);
+    assert_eq!(
+        checked.types.node_types[call_key],
+        ResolvedType::Scalar(Scalar::Text)
+    );
+    let argument_types = selected
+        .arguments
+        .iter()
+        .map(|key| checked.types.node_types[key].clone())
+        .collect::<Vec<_>>();
+    let (accepted_key, accepted) = checked.types.selected_calls.iter().find(|(_, selected)| matches!(&selected.target, SelectedCallTarget::Builtin { id, overload: 0 } if id == "choose")).unwrap();
+    assert_eq!(
+        checked.types.node_types[accepted_key],
+        ResolvedType::Scalar(Scalar::Currency)
+    );
+    let accepted_argument_types = accepted
+        .arguments
+        .iter()
+        .map(|key| checked.types.node_types[key].clone())
+        .collect::<Vec<_>>();
+    let (ir, diagnostics) = ir::build(&checked, &db, Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let item = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "T.chosen")
+        .unwrap();
+    let IrItemKind::DeriveFn {
+        expr: Some(value), ..
+    } = &item.kind
+    else {
+        panic!("owning source derive expression")
+    };
+    let IrExpr::Call { target, args } = &value.expr else {
+        panic!("checked winning builtin: {:?}", value.expr)
+    };
+    assert!(matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "choose"));
+    let ir_argument_types = args.iter().map(|arg| arg.ty.clone()).collect::<Vec<_>>();
+    let accepted_item = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "T.accepted")
+        .unwrap();
+    let IrItemKind::DeriveFn {
+        expr: Some(accepted_value),
+        ..
+    } = &accepted_item.kind
+    else {
+        panic!("owning narrowed derive expression")
+    };
+    assert_eq!(accepted_value.ty, ResolvedType::Scalar(Scalar::Currency));
+    let IrExpr::Call {
+        target: accepted_target,
+        args: accepted_args,
+    } = &accepted_value.expr
+    else {
+        panic!("checked winning narrowed builtin")
+    };
+    assert!(
+        matches!(accepted_target, IrCallTarget::Builtin { id, awaited: false } if id == "choose")
+    );
+    let accepted_ir_argument_types = accepted_args
+        .iter()
+        .map(|arg| arg.ty.clone())
+        .collect::<Vec<_>>();
+    let emitted = canlang_compiler::codegen::js::emit_program(&ir);
+    assert!(emitted.diagnostics.is_empty(), "{:?}", emitted.diagnostics);
+    assert!(emitted.stdlib_imports.contains("choose"));
+    assert!(
+        std::iter::once(&emitted.entry)
+            .chain(&emitted.packages)
+            .any(|module| module.js.contains("@canlang/stdlib")),
+        "actual public stdlib import required"
+    );
+    for module in std::iter::once(&emitted.entry).chain(&emitted.packages) {
+        let path = scratch.path().join(&module.path);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, &module.js).unwrap();
+    }
+    let script = scratch.path().join("probe.mjs");
+    std::fs::write(
+        &script,
+        r#"import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+const registry = (await import(pathToFileURL(process.argv[2]))).canApp();
+const value = await registry['T.chosen']({});
+assert.equal(value, 'USD');
+const accepted = await registry['T.accepted']({});
+assert.equal(accepted, 'USD');
+console.log(JSON.stringify({consumer:'generated canApp → installed stdlib choose', value, accepted}));
+"#,
+    )
+    .unwrap();
+    let output = Command::new("node")
+        .arg(script)
+        .arg(scratch.path().join(&emitted.entry.path))
+        .output()
+        .expect("Node required for actual installed choose execution");
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    eprintln!("{}", String::from_utf8_lossy(&output.stdout));
+    eprintln!(
+        "selected written argument types: {argument_types:?}; typed IR argument types: {ir_argument_types:?}"
+    );
+    eprintln!(
+        "accepted narrowed argument types: {accepted_argument_types:?}; typed IR argument types: {accepted_ir_argument_types:?}"
+    );
+    // Native execution precedes these fact checks: a rejected trial must
+    // leave no contextual Currency fact in the successful generic program.
+    let expected = [
+        ResolvedType::Scalar(Scalar::Bool),
+        ResolvedType::Scalar(Scalar::Text),
+        ResolvedType::Scalar(Scalar::Text),
+    ];
+    assert_eq!(argument_types, expected);
+    assert_eq!(ir_argument_types, expected);
+    let narrowed_expected = [
+        ResolvedType::Scalar(Scalar::Bool),
+        ResolvedType::Scalar(Scalar::Currency),
+        ResolvedType::Scalar(Scalar::Currency),
+    ];
+    assert_eq!(accepted_argument_types, narrowed_expected);
+    assert_eq!(accepted_ir_argument_types, narrowed_expected);
+}
+
+#[test]
 fn disjoint_same_arity_names_require_one_owning_overload() {
     let scratch = tempfile::tempdir().unwrap();
     let catalog_path = scratch.path().join("catalog.json");
