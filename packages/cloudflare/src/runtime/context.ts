@@ -89,6 +89,8 @@ export interface CanonicalEffectsScope {
   setRecord?(record: Record<string, unknown>, data: Record<string, unknown>): Promise<Record<string, unknown>>;
   deleteRecord?(record: Record<string, unknown>, mode: 'archive' | 'remove'): Promise<void>;
   readModel(model: string, query: CanonicalReadQuery): Promise<ReadonlyArray<ProjectedRecord>>;
+  /** Checked source handlers receive native fields from the authorized projection only. */
+  readRecords?(model: string, query: CanonicalReadQuery): Promise<ReadonlyArray<Record<string, unknown>>>;
 }
 
 /** Formatting facts installed from the checked selected app. */
