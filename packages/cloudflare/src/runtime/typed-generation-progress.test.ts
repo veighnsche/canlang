@@ -25,8 +25,8 @@ import { WORK_DISPATCH_MODEL, WORK_SCHEDULE_MODEL, readScheduleRow } from '@canl
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { assembleWorker, buildInvoker, type MutationOutcome } from '@canlang/cloudflare/worker/assembly';
 import { OllamaChatAdapter } from '@canlang/services/models/ollama';
-import { createBoundTextGenerationAdapter } from '@canlang/cloudflare/runtime/bound-text-generation';
-import { createBoundTextGenerationDispatcher } from '@canlang/cloudflare/runtime/bound-dispatch';
+import { createBoundTextGenerationAdapter } from './bound-text-generation.js';
+import { createBoundTextGenerationDispatcher } from './bound-dispatch.js';
 import type { FenceAttemptDispatchFn } from './invoke.js';
 import { createCheckedDeliveryProgressProducer, invokeDueScheduleCanonical } from './invoke.js';
 import { stageTextGenerationProgress } from './text-generation-progress.js';
