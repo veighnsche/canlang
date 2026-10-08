@@ -21,14 +21,15 @@ import type {
   ArtifactOperationInput,
 } from '@canlang/contracts';
 import type { ReadEnvelope } from '@canlang/contracts';
-import type { StoragePort, StoredRow } from '@canlang/contracts';
+import type { Receipt, StoragePort, StoredRow } from '@canlang/contracts';
 import {
   loadArtifactDescriptors,
   type ArtifactDescriptorSlice,
 } from './registry.js';
 import { buildModelTableFromCanonical, type ModelTable } from '../mutation/models.js';
 import { generatedCrudExecute } from '../mutation/crud.js';
-import { invoke, invokeRead, invokeReadScenario, type AdmittedReadScenarioCall } from './invoke.js';
+import { invoke, invokeRead, invokeReadScenario, projectGeneratedCrudReceipt,
+  type AdmittedReadScenarioCall, type CommittedReceiptOutcome } from './invoke.js';
 import { createReadInvoker, createReadScenarioInvoker } from '../ports/transact.js';
 import { createTestMemoryStorage } from '../storage/memory.js';
 import { buildPolicyTable, type PolicyTable } from '../policy/grants.js';
@@ -43,6 +44,7 @@ import {
   makeIdentity,
   seedMember,
   uuidv7,
+  updateRow,
   type SeededMember,
   type TestMembershipStore,
 } from '../../test/invocation/fixtures.js';
@@ -298,6 +300,162 @@ describe('T17a invokeRead: projected serving', () => {
     });
     assert.deepEqual(served.records, []);
     assert.equal(served.revision, 2);
+  });
+});
+
+describe('saved generated CRUD disclosure', () => {
+  async function savedWorld() {
+    const { store } = createTestMemoryStorage();
+    const memberships = createMemoryIdentityStore();
+    const alice = await seedMember(memberships, { isOwner: false, roles: ['Shop.reader'] });
+    const slice = readSlice();
+    // The creating declaration owns this typed secret; a later public grant
+    // over the same field name cannot declassify its saved content.
+    const code = slice.models![0]!.fields.find(field => field.name === 'code')!;
+    code.field = { kind: 'secret' }; code.required = false; code.serverOnly = true;
+    code.default = { kind: 'server', init: 'random_secret' };
+    for (const op of slice.operations!) {
+      if (op.name === `${GADGET}.create` || op.name === `${GADGET}.update`) {
+        op.inputs.fields = op.inputs.fields.filter(field => field.name !== 'code');
+      }
+    }
+    const loaded = loadArtifactDescriptors(slice, { by: 'members' });
+    const table = buildModelTableFromCanonical(loaded.models, { refs: loaded.refs,
+      serverInits: loaded.serverInits, nullableFields: loaded.nullableFields });
+    let observed: Receipt | undefined;
+    const result = await invoke({ registry: loaded.registry,
+      envelope: makeEnvelope(`${GADGET}.create`, uuidv7(FIXED_NOW, ++readSeq), { title: 'saved', stock: '5' }),
+      identity: identityFor(alice), app: APP, source: 'test', store, memberships,
+      clock: { nowMs: () => FIXED_NOW },
+      execute: generatedCrudExecute({ table, store,
+        secretFields: new Map([...loaded.secretFields].map(([model, fields]) => [model, [...fields]])) }),
+      observeCommittedReceipt: receipt => { observed = receipt; },
+    });
+    assert.ok(observed);
+    const saved = result.result as StoredRow;
+    const current = await updateRow(store, asModel(GADGET), saved, {
+      updated: FIXED_NOW + 1000, data: { ...saved.data, title: 'current', stock: '9' },
+    });
+    const policy = buildPolicyTable([{ model: asModel(GADGET), secretFields: ['stock'], grants: [{
+      by: { role: 'Shop.reader' }, fields: ['title', 'code'],
+      when: { op: 'eq', field: 'title', value: 'current' },
+    }] }]);
+    return { store, memberships, alice, registry: loaded.registry, receipt: observed,
+      policy, saved, current, app: APP, identity: identityFor(alice) };
+  }
+
+  it('uses live grant conditions but preserves saved values, versions and secret exclusions', async () => {
+    const world = await savedWorld();
+    const before = structuredClone(world.receipt);
+    const revision = await world.store.readRevision();
+    const projected = await projectGeneratedCrudReceipt(world);
+    assert.equal(projected.result, null);
+    assert.deepEqual(projected.records[0]?.data, { title: 'saved' });
+    assert.equal(projected.records[0]?.version, world.saved.version);
+    assert.equal(projected.records[0]?.updated, world.saved.updated);
+    assert.notEqual(projected.records[0]?.updated, world.current.updated);
+    assert.deepEqual(world.receipt, before);
+    assert.equal(await world.store.readRevision(), revision);
+    assert.ok(typeof world.saved.data.code === 'string');
+    const deniedWhen = buildPolicyTable([{ model: asModel(GADGET), secretFields: [], grants: [{
+      by: 'members', fields: ['title'], when: { op: 'eq', field: 'title', value: 'saved' },
+    }] }]);
+    assert.deepEqual(await projectGeneratedCrudReceipt({ ...world, policy: deniedWhen }), { result: null, records: [] });
+  });
+
+  it('withholds content when a read role or mutation gate is revoked while membership survives', async () => {
+    const world = await savedWorld();
+    const live = { ...world.memberships, findMembership: async (team: string, user: string) => {
+      const membership = await world.memberships.findMembership(team, user);
+      return membership === null ? null : { ...membership, roles: [] };
+    } };
+    assert.equal((await live.findMembership(world.alice.team.team_id, world.alice.user.user_id))?.status, 'active');
+    assert.deepEqual(await projectGeneratedCrudReceipt({ ...world, memberships: live }), { result: null, records: [] });
+    const denied = loadArtifactDescriptors(readSlice(), { by: 'owner' }).registry;
+    assert.deepEqual(await projectGeneratedCrudReceipt({ ...world, registry: denied }), { result: null, records: [] });
+    const withoutMembership = { ...world.memberships, findMembership: async () => null };
+    assert.deepEqual(await projectGeneratedCrudReceipt({ ...world, memberships: withoutMembership }), { result: null, records: [] });
+  });
+
+  it('refuses missing, unknown or inconsistent execution metadata without classifying old results', async () => {
+    const world = await savedWorld();
+    assert.equal(world.receipt.outcome.status, 'committed');
+    const outcome = world.receipt.outcome as CommittedReceiptOutcome;
+    const association = outcome.generatedCrud!;
+    const variants: CommittedReceiptOutcome[] = [
+      { status: 'committed', result: outcome.result, recordVersions: outcome.recordVersions },
+      { ...outcome, generatedCrud: { ...association, kind: 'unknown' } } as unknown as CommittedReceiptOutcome,
+      { ...outcome, generatedCrud: { kind: association.kind, model: association.model, record: association.record } },
+      { ...outcome, generatedCrud: { ...association, model: asModel(PUB) } },
+      { ...outcome, generatedCrud: { ...association, record: { id: world.saved.id, version: world.current.version } } },
+      { ...outcome, recordVersions: [] },
+      { ...outcome, result: { echoed: 'ordinary value' } },
+      { ...outcome, generatedCrud: { ...association, record: null } },
+      { ...outcome, generatedCrud: { ...association, secretFields: ['code..token'] } },
+      { ...outcome, generatedCrud: { ...association, secretFields: new Array<string>(1) } },
+    ];
+    for (const changed of variants) {
+      const error = await captureStateError(() => projectGeneratedCrudReceipt({ ...world,
+        receipt: { ...world.receipt, outcome: changed } }));
+      assert.equal(error.code, 'validation');
+    }
+    let accessorRan = false;
+    const hostile: CommittedReceiptOutcome = { ...outcome };
+    Object.defineProperty(hostile, 'generatedCrud', { get: () => { accessorRan = true; return association; } });
+    const secretSlots: string[] = [];
+    Object.defineProperty(secretSlots, '0', { get: () => { accessorRan = true; return 'code'; } });
+    const nested: CommittedReceiptOutcome = { ...outcome, generatedCrud: { ...association, secretFields: secretSlots } };
+    for (const changed of [hostile, nested]) {
+      const error = await captureStateError(() => projectGeneratedCrudReceipt({ ...world,
+        receipt: { ...world.receipt, outcome: changed } }));
+      assert.equal(error.code, 'validation');
+    }
+    assert.equal(accessorRan, false);
+    const error = await captureStateError(() => projectGeneratedCrudReceipt({ ...world, app: 'foreign-app' }));
+    assert.equal(error.code, 'forbidden');
+  });
+
+  it('withholds missing, archived or reparented live rows and authority changing during disclosure', async () => {
+    const world = await savedWorld();
+    for (const row of [null, { ...world.current, archivedAt: FIXED_NOW },
+      { ...world.current, parent: { model: asModel(PUB), id: world.current.id } }]) {
+      const store = { ...world.store, load: async () => row };
+      assert.deepEqual(await projectGeneratedCrudReceipt({ ...world, store }), { result: null, records: [] });
+    }
+    let reads = 0;
+    const memberships = { ...world.memberships, findMembership: async (team: string, user: string) => {
+      const member = await world.memberships.findMembership(team, user);
+      return member === null || ++reads < 3 ? member : { ...member, roles: [] };
+    } };
+    assert.deepEqual(await projectGeneratedCrudReceipt({ ...world, memberships }), { result: null, records: [] });
+    let revisions = 0;
+    const store = { ...world.store, readRevision: async () => {
+      const revision = await world.store.readRevision();
+      return ++revisions < 2 ? revision : (revision + 1) as typeof revision;
+    } };
+    assert.deepEqual(await projectGeneratedCrudReceipt({ ...world, store }), { result: null, records: [] });
+  });
+
+  it('keeps an actual hard-removal outcome empty without another execution or commit', async () => {
+    const world = await savedWorld();
+    const slice = readSlice(); slice.models![0]!.deleteMode = 'remove';
+    const loaded = loadArtifactDescriptors(slice, { by: 'members' });
+    const table = buildModelTableFromCanonical(loaded.models, { refs: loaded.refs });
+    let observed: Receipt | undefined;
+    await invoke({ ...world, registry: loaded.registry,
+      envelope: makeEnvelope(`${GADGET}.delete`, uuidv7(FIXED_NOW, ++readSeq), {
+        record: { id: world.current.id, version: String(world.current.version) },
+      }), source: 'test', clock: { nowMs: () => FIXED_NOW },
+      execute: generatedCrudExecute({ table, store: world.store,
+        secretFields: new Map([[asModel(GADGET), []]]) }),
+      observeCommittedReceipt: receipt => { observed = receipt; },
+    });
+    assert.ok(observed);
+    const revision = await world.store.readRevision();
+    assert.deepEqual(await projectGeneratedCrudReceipt({ ...world, registry: loaded.registry, receipt: observed }),
+      { result: null, records: [] });
+    assert.equal(await world.store.load(asModel(GADGET), world.current.id), null);
+    assert.equal(await world.store.readRevision(), revision);
   });
 });
 

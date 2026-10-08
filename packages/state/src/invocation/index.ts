@@ -24,10 +24,12 @@ export {
   MAX_ADMISSION_ATTEMPTS,
   invoke,
   readGeneratedCrudAssociation,
+  projectGeneratedCrudReceipt,
   type ExecuteHandler,
   type ExecutionEffects,
   type CommittedReceiptOutcome,
   type GeneratedCrudReceiptAssociation,
+  type ProjectGeneratedCrudReceiptInput,
 } from './invoke.js';
 export {
   type InterimInputDef,
