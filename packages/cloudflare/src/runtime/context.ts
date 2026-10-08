@@ -16,7 +16,7 @@
  * removed every serving path outside canonical execution, so a missing scope
  * fails loud instead of committing directly.
  */
-import type { DatetimeValue, DeliveryRef, InvocationContext, ProjectedRecord, RecordParent, StoragePort, StoredRow, UserRef } from '@canlang/contracts';
+import type { DatetimeValue, DeliveryRef, InvocationContext, ProjectedRecord, ReceiptProperty, RecordParent, SelectedReceiptProjection, StoragePort, StoredRow, UserRef } from '@canlang/contracts';
 import { makeDatetime, makeUserRef } from '@canlang/values';
 
 /** Authenticated caller identity: stable user id plus granted role names. */
@@ -91,6 +91,10 @@ export interface CanonicalEffectsScope {
   readModel(model: string, query: CanonicalReadQuery): Promise<ReadonlyArray<ProjectedRecord>>;
   /** Checked source handlers receive native fields from the authorized projection only. */
   readRecords?(model: string, query: CanonicalReadQuery): Promise<ReadonlyArray<Record<string, unknown>>>;
+  observeDelivery?(
+    locator: { readonly record: unknown; readonly field: string },
+    selected: readonly ReceiptProperty[],
+  ): Promise<SelectedReceiptProjection | null>;
 }
 
 /** Formatting facts installed from the checked selected app. */

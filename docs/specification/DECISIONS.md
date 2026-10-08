@@ -2750,3 +2750,10 @@ The selected nativeD1 State and SQLite Files case and existing bundle link pass;
 Accepted: the runtime pairs the own-data `computedDefault:true` claim in the original artifact with the owning generated module's appDefinition before invoking a scenario. State retains omission and the generated handler evaluates the default in source order; absent nullable/ordinary-array inputs must not be filled with null/empty before that handler. Explicit null, empty array and supplied values still override the default. Inherited metadata cannot establish the claim.
 
 The genuine nativeD1 scenario case passes after the own-marker repair, including refusal without revision/row change, omission versus explicit input identity, original receipt replay and reopen. Root directly reviewed the released change and reused the owning emit/case. This selected scalar-default consumer does not close prepared/ref/all-host/installed H1 or root parent gates. Compiler's five ARCH-02 public-support families remain supported with no API retirement or deletion credit; their existing acceptance is reused.
+
+
+## 2026-10-08 — Generated source uses the defining selected-delivery facade
+
+Accepted: Cloudflare's stdlib reexports State's `delivery` binding. The real source callback delegates its original host-bound record/model, checked result declaration and exact selection to the existing State/Work join and receipt observer. It does not fabricate identity, expand a child grant into a parent grant or introduce another observation mechanism. Nullable generated progress access preserves null through the compiler's corrected lowering.
+
+The actual generated-source/nativeD1 case passes for missing association, pending result, exact content grant, outsiders and current membership revocation; root reviewed the released source and reused the owner result. Positive provider progress, terminal/late-usage lifecycle, notifications, durable restart and staged/installed acceptance remain separate. These prerequisites receive no whole-parent or replacement reduction credit.
