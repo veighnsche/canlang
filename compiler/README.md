@@ -58,6 +58,20 @@ Implemented modules:
   whole `examples/` + `draft/` corpus cleanly; see `tests/syntax.rs`.
 - `src/codegen/`: lexer-decoded IR strings, JS/BDD emitters and `sourcemap`
   codec behind `can compile`; original Can map columns retain byte units.
+- Decimal literals and contextual integral values lower through the existing
+  `parseDecimal` path. Decimal arithmetic and value comparisons use the owning
+  `Values` helpers. Permanent native runtime witnesses cover these supported
+  paths in `tests/decimal_runtime.rs` and `tests/fixtures/decimal-runtime/`;
+  this does not qualify every Decimal expression, backend, transport or host.
+- Public native compile/runtime facades have permanent execution witnesses for
+  value equality and membership, nullable and mixed numeric equality, text
+  scalar ordering and mixed numeric relations (including values above 2^53 and
+  astral codepoints), selected calls and binding/default/order behavior, finite
+  BDD fixture callbacks, and string payloads. See `tests/flat_expression_runtime.rs`,
+  `tests/selected_calls.rs`, `tests/bdd_binding_runtime.rs`, and
+  `tests/string_payload_runtime.rs`. These qualify the named paths and recorded
+  profiles only; they do not establish full backend, transport, UI or host
+  workflows.
 - `src/policy.rs`, `src/lint/`, `src/format.rs`, `src/ide/`: policy dumps,
   lint rules, the formatter, and editor services.
 

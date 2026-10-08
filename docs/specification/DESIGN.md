@@ -1,6 +1,6 @@
 # canlang v1 design
 
-Status: chosen language design, October 3, 2026, with an initial syntax parser. The compiler and runtime remain unimplemented. [REQUIREMENTS.md](REQUIREMENTS.md) owns the product goals, this document owns semantics, and [GRAMMAR.md](GRAMMAR.md) defines exact source syntax. [DECISIONS.md](DECISIONS.md) retains the history and identifies superseded draft choices.
+Status: chosen language design, October 3, 2026. A Rust compiler now implements source parsing, analysis, selected code generation and native runtime paths; permanent witnesses qualify named Decimal, expression, call, BDD-fixture and string behaviors, not complete application workflows or every backend/host. See the [compiler implementation and qualification summary](../../compiler/README.md) and current [compiler completion status](../../implementation/compiler-completion/status.json). [REQUIREMENTS.md](REQUIREMENTS.md) owns the product goals, this document owns semantics, and [GRAMMAR.md](GRAMMAR.md) defines exact source syntax. [DECISIONS.md](DECISIONS.md) retains the history and identifies superseded draft choices.
 
 The target is a company business application: records, permissions, rules, workflows, and a standard browser/MCP interface. An app does not implement authentication, retries, HTML widgets, or database coordination itself. Unknown words never install imagined business behavior. Adoption and dependable generation take precedence over preserving ambiguous draft shorthand.
 
