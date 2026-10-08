@@ -1619,7 +1619,7 @@
     ],
     "restrictions": "No staging/commit; preserve all bytes, root retains Git/state/filetree and source leases",
     "package_decision_notes_pending": [],
-    "heading": "2026-10-07 — Assign proposed worker profiles to the capability roadmap (PROPOSED)",
+    "heading": "2026-10-07 \u2014 Assign proposed worker profiles to the capability roadmap (PROPOSED)",
     "foreign_append_staging": "All foreign proposals preserved unstaged",
     "end_sha256": "c0eedd9b5459716abfb439a685d601fe934c13ee1bc8f7d0890fd0852486f403"
   },
@@ -1937,7 +1937,7 @@
         "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts",
         "packages/cloudflare/src/runtime/t17b-durable.test.ts"
       ],
-      "validation": "Private focused owning emit, original memory62/62 and D1other2/2 pass. First D1case required3obsolete create+set version2→1 assertions perDESIGN:103; only affected case rerun1/1 passed including fresh-handle/receipt/history/read/revision assertions.",
+      "validation": "Private focused owning emit, original memory62/62 and D1other2/2 pass. First D1case required3obsolete create+set version2\u21921 assertions perDESIGN:103; only affected case rerun1/1 passed including fresh-handle/receipt/history/read/revision assertions.",
       "commands_live": false,
       "limits": "Explicitly handwritten synthetic artifacts, not compiler provenance; original authority/error behavior retained, no product runtime fallback."
     }
@@ -2100,7 +2100,7 @@
     }
   },
   "source_form_binding_release": {
-    "status": "package-api-accepted; actual compiler/assembled consumer pending",
+    "status": "source API, canonical default-Worker form consumer and browser binder accepted narrowly; actual assembled browser consumer pending",
     "scope": "request-local typed field preparation and authored UI body; verified page source role context",
     "verification": {
       "normal_emits": [
@@ -2111,18 +2111,28 @@
       "interfaces_typecheck": 0,
       "ui_forms": "94/94",
       "interfaces_pages_presentation": "40/40",
-      "scoped_factory_case": "1/1"
+      "scoped_factory_case": "1/1",
+      "compiler_owner_checks": "eight affected checks, source compile and Clippy reused",
+      "canonical_worker_d1": "1/1 owner consumer; source compile 0, Cloudflare tsc 0",
+      "browser_dom": "6/6 existing polling/form DOM suite",
+      "browser_factory_case": "1/1 existing scoped prep case",
+      "browser_asset_build": "exit 0; pinned esbuild0.28.2 browser ESM closure; four binder IDs; no runtime external imports"
     },
     "advice": "/private/tmp/canlang-repair-go-20261007/form-binding-contract",
     "remaining": [
-      "compiler guard business attribution",
-      "compiler owning caption extraction",
-      "actual compiled page/canonical POST",
+      "actual assembled browser submission",
       "protected bound/update forms",
       "authored companion controls",
+      "file-upload intents join",
       "occurrence-aware errors/drafts",
-      "browser/installed/parent qualification"
+      "installed/parent qualification"
     ],
-    "ledger_counts_unchanged": true
+    "ledger_counts_unchanged": true,
+    "compiler_producer": "cd832a4ce978122fe4108d620dbad5f3c9a21353",
+    "source_consumer_commit": "2c71eb77e6cdd23aa72e707c4a220e59b68d7584",
+    "metadata_commits": [
+      "a9ff3f342b5863e6ecdd5d924d3064d54ad632d6",
+      "a9569c25f126bbcbc967edea758e1ea238612533"
+    ]
   }
 }

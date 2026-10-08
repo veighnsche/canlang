@@ -167,6 +167,7 @@
       "devDependencies": {
         "@types/node": "26.6.4",
         "daisyui": "5.7.47",
+        "esbuild": "0.28.2",
         "happy-dom": "20.14.5",
         "typescript": "5.9.3",
       },

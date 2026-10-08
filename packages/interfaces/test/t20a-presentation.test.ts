@@ -342,6 +342,7 @@ test('source form preparation scopes typed controls and refuses unavailable bind
   assert.equal(first.status, 'ready');
   if (first.status !== 'ready') throw new Error('expected the admitted unbound form');
   assert.deepEqual(first.derived, deriveOperationInputs(STORE_CREATE_OP));
+  assert.equal(first.props.derived, first.derived);
   assert.equal(first.field('title').field.type, 'text');
   assert.equal(first.field('title').field.label, 'Gadget title');
   assert.equal(first.field('title').context.principal, principal);

@@ -6,8 +6,8 @@
  * `ui/src/browser/style.css`, and the tsc-compiled browser client
  * (`dist/src/browser/*.js`). Writes `dist/browser/`:
  *
- * - `bootstrap.js`, `polling.js` — installed client modules, copied
- *   verbatim; the page loads `bootstrap.js` as a module.
+ * - `bootstrap.js`, `polling.js` — bundled browser ESM entrypoints;
+ *   the page loads `bootstrap.js` as a module.
  * - `can-style.css` — assembled stylesheet: daisyUI + themes +
  *   browser source layer, in that order (source layer wins ties).
  * - `manifest.json` — installed files with sha256, pinned daisyUI +
@@ -17,12 +17,10 @@
  *
  * - daisyUI version MUST equal the pinned version (bump
  *   deliberately, never blindly — see themes.css header).
- * - Installed client modules MUST NOT import outside the browser
- *   directory: every `from` specifier must be a `./` sibling that
- *   resolves inside `dist/browser/`. A new runtime import beyond
- *   the browser dir fails the build — bundle it or keep the client
- *   import-free (type-only imports are erased by tsc and never
- *   appear here).
+ * - esbuild resolves and bundles the actual compiled client closure
+ *   for the browser, including shared form projection. Unresolved
+ *   imports, Node-only dependencies, and runtime external imports
+ *   fail the build before installing assets.
  * - The catalog join is informational: the manifest records the
  *   catalog version bound against plus the registered binder ids
  *   scanned from browser sources. Full 68-word binder coverage
@@ -49,7 +47,7 @@ const outDir = join(packageRoot, "dist", "browser");
 /** Pinned daisyUI version (mirrors package.json devDependency + themes.css). */
 const PINNED_DAISYUI_VERSION = "5.7.47";
 
-/** Client modules this slice installs (verbatim copy, relative imports intact). */
+/** Public browser entrypoint URLs retained by the installed asset contract. */
 const INSTALLED_CLIENT_MODULES = ["bootstrap.js", "polling.js"];
 
 function fail(message) {
@@ -85,23 +83,43 @@ for (const module of INSTALLED_CLIENT_MODULES) {
   }
 }
 
-// 3. Client import closure: no runtime import may escape the browser dir.
-const INSTALLED = new Set(INSTALLED_CLIENT_MODULES);
-for (const module of INSTALLED_CLIENT_MODULES) {
-  const source = readFileSync(join(distBrowserSrc, module), "utf8");
-  for (const match of source.matchAll(/from\s*["']([^"']+)["']/g)) {
-    const specifier = match[1];
-    if (!specifier.startsWith("./")) {
-      fail(`${module} imports ${JSON.stringify(specifier)} — client modules must be browser-local`);
-    }
-    const target = specifier.slice(2);
-    if (target.includes("/") || !INSTALLED.has(target)) {
-      fail(`${module} imports ${JSON.stringify(specifier)} — not an installed browser sibling`);
+// 3. Bundle the compiled owner modules, then check esbuild's resolved closure.
+let browserBuild;
+try {
+  const { build } = pkgRequire("esbuild");
+  browserBuild = await build({
+    absWorkingDir: packageRoot,
+    entryPoints: INSTALLED_CLIENT_MODULES.map((module) => join(distBrowserSrc, module)),
+    outdir: outDir,
+    bundle: true,
+    platform: "browser",
+    format: "esm",
+    packages: "bundle",
+    treeShaking: true,
+    metafile: true,
+    write: false,
+    logOverride: {
+      "unsupported-dynamic-import": "error",
+      "unsupported-require-call": "error",
+      "require-resolve-not-external": "error",
+    },
+  });
+} catch (error) {
+  fail(`cannot bundle browser client — ${error.message}`);
+}
+for (const [output, metadata] of Object.entries(browserBuild.metafile.outputs)) {
+  for (const dependency of metadata.imports) {
+    if (dependency.external) {
+      fail(`${output} retains runtime import ${JSON.stringify(dependency.path)} — bundle the browser closure`);
     }
   }
-  for (const match of source.matchAll(/import\s*\(\s*["']([^"']+)["']\s*\)/g)) {
-    fail(`${module} uses dynamic import(${JSON.stringify(match[1])}) — static siblings only`);
-  }
+}
+const clientOutputs = new Map(browserBuild.outputFiles.map((file) => [file.path, file.contents]));
+if (
+  clientOutputs.size !== INSTALLED_CLIENT_MODULES.length ||
+  INSTALLED_CLIENT_MODULES.some((module) => !clientOutputs.has(join(outDir, module)))
+) {
+  fail("browser bundle must emit exactly bootstrap.js and polling.js");
 }
 
 // 4. Catalog version bound against (informational join).
@@ -143,7 +161,7 @@ writeFileSync(join(outDir, "can-style.css"), styleCss);
 
 const files = {};
 for (const module of INSTALLED_CLIENT_MODULES) {
-  const bytes = readFileSync(join(distBrowserSrc, module));
+  const bytes = clientOutputs.get(join(outDir, module));
   writeFileSync(join(outDir, module), bytes);
   files[module] = { sha256: sha256Hex(bytes), bytes: bytes.length };
 }
