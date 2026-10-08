@@ -45,11 +45,11 @@ invocation or extreme cardinality guarantee follows from checked source.
 
 ## Remaining original obligations
 
-- Source-owner counts/whole-source bytes, standalone line-index/lexer/parser intake and semantic IDs now have explicit representability admission as recorded below. Generated/source-map widths remain separate; no giant allocation or arbitrary resource guarantee follows from finite controls.
+- Source-owner counts/whole-source bytes, standalone line-index/lexer/parser intake, semantic IDs and generated/source-map numeric domains now have explicit representability admission as recorded below. Giant allocation and broader resource qualification remain separate.
 - The new permanent `width_boundaries` test qualifies actual loaded builtin matching through 0/16/32/64/128 nullable postfix wrappers: clean int input produces exactly one selected builtin call, and bool input produces E3005. The original loaded Catalog and owning SourceDb remain intact. This does not qualify arbitrary collection/object signature shapes or an extreme supported depth.
 - Direct inspection corrected the original field-depth lead: current `decl_type` only reads cached types, and phase1 resolves forward declarations by fixpoint rounds rather than recursive declaration traversal. The permanent valid forward-chain test passed 0/16/32/64/128 reuse links and verified each canonical field resolves to int plus an explicitly typed derive use. The original two-field cycle returned no diagnostics despite the existing E3008 contract. The checker now records canonical field dependencies in the final fixpoint round and uses deterministic iterative strongly connected components to report cyclic reference spans. The ineffective stack guard is retired. Self and mutual cycles refuse; acyclic upstream references and unrelated int fields retain their behavior.
 - The new graph, message and diagnostic width controls cover the finite cases above; extreme numeric/output growth remains a separate support obligation. Existing semantic outcomes are reused at their declared scope.
-- Generated/source map numeric widths and per-module repeated source contents/output growth remain distinct from the corrected name scan. No supported extreme count, memory bound, timing threshold or public forged-carrier guarantee is established here.
+- Per-module repeated source contents/output growth remain distinct from numeric map admission and the corrected name scan. No memory bound, timing threshold, executed extreme count or public forged-carrier guarantee is established here.
 
 Direct validation used one locked/offline jobs2 `width_boundaries` target: catalog matching passed; the added cycle control failed after the zero-link acyclic case succeeded. After separating that unrelated control, the exact acyclic test passed every finite link count; catalog matching was not repeated. After the source correction, the two affected field-reuse tests passed, including all five forward-chain depths and exact self/mutual cycle messages and spans. The existing `analysis::suffix_bang_and_default_order` test also passed. The unchanged catalog ladder was reused; no full suite was repeated. Numeric refusal or resource/support policy requires a separately selected contract; this change adds no cap or suppression.
 
@@ -113,3 +113,40 @@ including duplicate, trusted-handler, ownership and operation-alias paths.
 Compilation exposed the explanation catalog's array count; it was corrected
 before these passing checks. No billion-entry exhaustion, full-suite repeat or
 full FAIL-R06 closure is claimed.
+
+## Generated output and map admission
+
+`e38474fd` admits writer push/append before output mutation. Its 1-based u32
+line numbers include MAX; append checks the combined count and propagates
+another writer's first failure. `try_finish` refuses incomplete prefixes;
+`finish` retains its signature as a documented panic convenience. All shipped
+entry/package/BDD/fixture-shell finishers handle E6012, and the compile driver
+returns an artifact without executable output after a capacity failure.
+
+`sourcemap::try_build` independently admits zero-based rows through MAX.
+Pinned sourcemap 9.3.2 preserves raw u32 coordinates with widened VLQ deltas,
+but reserves MAX for absent source/name IDs. Real map IDs therefore end at
+MAX-1. This differs from the source owner's valid final SourceId MAX; map
+construction explicitly refuses that sentinel conflict. Names remain interned
+by the library, with a reuse lookup only at its intrinsic table boundary.
+The existing `build` signature delegates as a documented panic convenience.
+All production/test module map assembly uses the fallible path and returns
+an empty artifact on capacity failure. Supplied unmapped spans remain valid
+public input; capacity diagnostics preserve their supplied span.
+
+The [three saved consultations](../output-admission/jev-response-1.json)
+favor checked writer status and fallible finalization with confidence
+.76/.76/.82 and probabilities .84/.84/.88. They provide no rationale.
+The chosen contract closes existing finishers without propagating a Result
+through every emission call or changing line carrier types. Exact-capacity
+execution and general allocation/resource guarantees remain unverified.
+
+Existing map producer cases pass **6/6**, preserving names, snapshots, missing
+sources, mappings and serialization. Existing generated BDD suite/shell cases
+pass **2/2**. The unchanged actual map consumer case failed **0/1** after its
+map/raw/independent-decoder assertions: Node 24.21 strip-only import rejects
+the package's new `DueScheduleChanged` parameter-property constructor in
+`packages/cloudflare/src/runtime/invoke.ts`. This concrete source-owner
+prerequisite is routed; the consumer is not declared passed or replaced.
+No new test, proof packet, giant probe, global byte cap or full FAIL-R06 closure
+is added.
