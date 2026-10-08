@@ -125,6 +125,9 @@ export interface HandlerContext {
   readonly canonical?: CanonicalEffectsScope;
   /** Checked bound send staging; installed by the canonical seam, never commits. */
   readonly sendDeferred?: (operation: string, request: unknown, binding: string) => Promise<DeliveryRef>;
+  /** Lexical package is checked producer metadata; the seam owns app/owner identity. */
+  readonly scheduleDeferred?: (key: string, at: DatetimeValue, event: string, payload: unknown, ownerPackage: string) => Promise<void>;
+  readonly cancelDeferred?: (key: string, ownerPackage: string) => Promise<void>;
 }
 
 /**
@@ -144,6 +147,8 @@ export interface CreateContextDeps {
   preferences?: Record<string, Record<string, unknown>>;
   canonical?: CanonicalEffectsScope;
   sendDeferred?: HandlerContext['sendDeferred'];
+  scheduleDeferred?: HandlerContext['scheduleDeferred'];
+  cancelDeferred?: HandlerContext['cancelDeferred'];
   /** Internal admitted facts; business inputs and caller labels cannot supply these. */
   qualified?: InvocationContext;
   /** Internal checked selected-app formatting facts. No context-level defaults. */
@@ -168,6 +173,8 @@ export function createContext(deps: CreateContextDeps): HandlerContext {
     }),
     ...(deps.canonical === undefined ? {} : { canonical: deps.canonical }),
     ...(deps.sendDeferred === undefined ? {} : { sendDeferred: deps.sendDeferred }),
+    ...(deps.scheduleDeferred === undefined ? {} : { scheduleDeferred: deps.scheduleDeferred }),
+    ...(deps.cancelDeferred === undefined ? {} : { cancelDeferred: deps.cancelDeferred }),
     ...(deps.qualified === undefined ? {} : {
       actor: deps.qualified.actor === null ? null : makeUserRef(deps.qualified.actor.userId),
       actorFacts: deps.qualified.actor === null ? null : Object.freeze({

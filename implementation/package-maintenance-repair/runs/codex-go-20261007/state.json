@@ -1619,7 +1619,7 @@
     ],
     "restrictions": "No staging/commit; preserve all bytes, root retains Git/state/filetree and source leases",
     "package_decision_notes_pending": [],
-    "heading": "2026-10-07 — Assign proposed worker profiles to the capability roadmap (PROPOSED)",
+    "heading": "2026-10-07 \u2014 Assign proposed worker profiles to the capability roadmap (PROPOSED)",
     "foreign_append_staging": "All foreign proposals preserved unstaged",
     "end_sha256": "c0eedd9b5459716abfb439a685d601fe934c13ee1bc8f7d0890fd0852486f403"
   },
@@ -1937,7 +1937,7 @@
         "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts",
         "packages/cloudflare/src/runtime/t17b-durable.test.ts"
       ],
-      "validation": "Private focused owning emit, original memory62/62 and D1other2/2 pass. First D1case required3obsolete create+set version2→1 assertions perDESIGN:103; only affected case rerun1/1 passed including fresh-handle/receipt/history/read/revision assertions.",
+      "validation": "Private focused owning emit, original memory62/62 and D1other2/2 pass. First D1case required3obsolete create+set version2\u21921 assertions perDESIGN:103; only affected case rerun1/1 passed including fresh-handle/receipt/history/read/revision assertions.",
       "commands_live": false,
       "limits": "Explicitly handwritten synthetic artifacts, not compiler provenance; original authority/error behavior retained, no product runtime fallback."
     }
@@ -2153,7 +2153,7 @@
         "scope": "comparison-only draftIdentity holds current context/schema/revision/op/reference IDs/editable set across expected-version changes; exact binding identity and signed token still fence version",
         "behavior": "replace authority epoch with fresh nonce/proof/CSRF/version; carry only compatible dirty editable values/focus; no hidden/files, old pending state/feedback or outcome transfer; different IDs/schema/context refuse transfer",
         "validation": "Contracts/UI/Interfaces emit0 and browserasset0; affected proof identity case1/1 and versionrefresh/negative DOM2/2 once; unchanged protection/lifecycle results reused",
-        "native_witness": "Original stale409→v3 poll erased Recovered draft retained; after861edef5, the same genuine compiled source/Chrome/Worker/D1 case passed1/1 (~7.7s), including fresh-authority draft retry and explicit CRUD update."
+        "native_witness": "Original stale409\u2192v3 poll erased Recovered draft retained; after861edef5, the same genuine compiled source/Chrome/Worker/D1 case passed1/1 (~7.7s), including fresh-authority draft retry and explicit CRUD update."
       },
       "actual_consumer": {
         "validation": "Genuine forms/update source compile0; sole affected protected case1/1 (~7.7s) after861edef5; earlier unbound/readonly/MCP outcomes reused without reruns. Root direct source/test review.",
@@ -2253,9 +2253,17 @@
     "occurrence_mint_policy": "Existing opaque runtime OccurrenceIdPort through native crypto.randomUUID once per invocation/actual schedule ordinal; invocation-local memo retained through fence retries, replay uses receipt, replacement fresh and due uses stored original. No new hash recipe/every-ID reuse/source-input mint.",
     "consumer_handoff": {
       "target": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
-      "state": "Exact built API8addb074 sent through supported app channel; producer/mint/ref contracts actually ACKed; actual put/cancel D1 case encountered existing filtered query/whole-model overlay mismatch, owner repairing with public State predicate matcher. No due/current handler acceptance yet.",
+      "state": "Root direct-reviewed released actual put/replace/cancel compiled CF/D1 slice; owning emit0/D1case1/1/portable map1/1 reused. Reviewed eight paths ready for scoped commit. Trusted due/current typed handler/terminal receipt qualification remains separate and pending.",
       "producer_input": "Coordinator exact checked event.inputs/operation.event and lexical ownerPackage release; versioned/versionless owning codec probes passed and reused",
       "due_reference_contract": "Persist supplied observed version with canonical model/id; current qualified due frame hydrates current row/version without altering capture or broad public-version bypass."
+    },
+    "consumer": {
+      "status": "direct reviewed narrow keyed put/cancel consumer; scoped commit pending",
+      "review": "keyed-schedule-consumer-root-review.json",
+      "owning_check_results": "CF emit0; actual native D1case1/1; changed portable six-module mapping1/1",
+      "affected_writers_released": true,
+      "counts_unchanged": true,
+      "due_handler_pending": true
     }
   },
   "installed_bound_provider_release": {
