@@ -1,6 +1,6 @@
 import { encode } from "@jridgewell/sourcemap-codec";
 import { lookup } from "../src/runtime/sourcemap.js";
-import { mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -469,6 +469,29 @@ describe("deploy bundle (P-B)", () => {
         verdict: ACTIVE_VERDICT,
       }),
     ).toThrow(/no such artifact module/);
+  });
+
+  it("refuses artifact namespace collisions before platform staging or producer builds", () => {
+    const emptyDist = mkdtempSync(join(tmpdir(), "can-deploy-bundle-collision-"));
+    try {
+      const options = { repoRoot, workerDistDir: emptyDist, runtimeDistDir: emptyDist, verdict: ACTIVE_VERDICT };
+      for (const path of [
+        "worker/main.js", "app/../worker/./main.js", "runtime/context.js",
+        "app/../vendor/ui/index.js", "bundle.json", "app/../bundle.mixed.json",
+        "bundle.resources.json", "bundle.json/child.js",
+      ]) {
+        const artifact = testArtifact();
+        artifact.modules.push({ path, js: "export const collision = true;\n", map: { ...EMPTY_MAP } });
+        expect(() => buildDeployBundle(artifact, options)).toThrow(/artifact module .* reserves (platform directory|writer manifest path)/);
+      }
+      for (const path of ["app/util.js", "app/./util.js"]) {
+        const artifact = testArtifact();
+        artifact.modules.push({ path, js: "export const collision = true;\n", map: { ...EMPTY_MAP } });
+        expect(() => buildDeployBundle(artifact, options)).toThrow(/artifact module .* aliases "app\/util.js" after normalization/);
+      }
+    } finally {
+      rmSync(emptyDist, { recursive: true, force: true });
+    }
   });
 
   it("writeDeployBundle writes deterministic files; main path is the deploy main", () => {
