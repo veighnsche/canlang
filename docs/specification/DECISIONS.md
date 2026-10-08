@@ -3111,3 +3111,7 @@ The owning enum_default_shapes consumer passed 1/1 (0.44s) across nine actual ca
 ### Values indexing in generated read defaults (accepted, 2026-10-08)
 
 Cloudflare's existing generated pure-helper facade directly reexports Values at; no wrapper or second indexing mechanism is added. The actual generated read-default consumer passed 1/1 (.48s), including real projected-record seeds, nullable/ordinary-array copies, helper once/order, explicit overrides, live caller refusal and unchanged revision/history. Acceptance is canonical Memory with the existing int[] result, not enum results, D1, installed/full applications or parent task closure.
+
+## 2026-10-08 — reconcile published namespace-fix history
+
+Accepted: retain remote 9693b00c history through tree-preserving merge 8f0cc8da. Its production source is identical to the already accepted local amended e1fa3aa5; local decisions and acceptance bookkeeping are newer, so retain them and all later committed source. The merge preserves active worker edits, uses no reset/stash/force push and reuses unchanged namespace qualification. Refresh the living file-tree registry across all 927 commits since the complete checkpoint, retaining 9025 unresolved inherited target allocations and the open semantic/control-flow review. The human authorized publishing committed main to origin; unfinished installed-tick and enum-result sources remain outside this bookkeeping commit. No complete checkpoint advance or whole-programme acceptance is inferred.
