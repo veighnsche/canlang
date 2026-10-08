@@ -539,15 +539,44 @@ test('compiled private due handlers use current refs and atomically consume term
     assert.equal((await nativeStore.load(model, asId(retried.id)))?.version, 2);
     assert.equal((await nativeStore.historyFor(model, asId(retried.id))).length, 2);
     assert.equal((await nativeStore.query(scheduleByKeyQuery(scope, retried.id))).length, 1);
+
+    // The handler has no provider effect. Lose the response only after its
+    // real owner fence commits, then recover from the retained occurrence.
+    const interrupted = await create('post-fence response loss');
+    const interruptedDue = await arm(interrupted.id, 1);
+    const responseLost = new Error('due response lost after committed owner fence');
+    let interruptedCommits = 0;
+    const responseLossStore = { ...nativeStore, commit: async (...args: Parameters<typeof nativeStore.commit>) => {
+      const [batch] = args;
+      const terminal = batch.writes.some((write) => write.kind === 'insert' && write.model === WORK_OCCURRENCE_MODEL &&
+        write.row.id === interruptedDue.occurrenceId && write.row.data['status'] === 'completed');
+      const business = batch.writes.some((write) => write.kind === 'update' && write.model === model && write.id === interrupted.id);
+      const committedBatch = await nativeStore.commit(...args);
+      if (terminal && business && ++interruptedCommits === 1) throw responseLost;
+      return committedBatch;
+    } };
+    await assert.rejects(due(interruptedDue, at, responseLossStore));
+    assert.equal(interruptedCommits, 1);
+    const interruptedRow = await nativeStore.load(model, asId(interrupted.id));
+    assert.equal(interruptedRow?.version, 3);
+    assert.deepEqual(interruptedRow?.data, { label: 'post-fence response loss', eligible: true, fired: '1', observedVersion: '2' });
+    const interruptedHistory = await nativeStore.historyFor(model, asId(interrupted.id));
+    assert.equal(interruptedHistory.length, 3);
+    assert.equal(interruptedHistory.at(-1)?.operation, `${app}.fire`);
+    const interruptedSchedule = await nativeStore.load(WORK_SCHEDULE_MODEL, asId(interruptedDue.occurrenceId));
+    assert.equal(interruptedSchedule?.data['state'], 'admitted');
+    const interruptedReceipt = await nativeStore.load(WORK_OCCURRENCE_MODEL, asId(interruptedDue.occurrenceId));
+    assert.equal(interruptedReceipt?.data['status'], 'completed');
+    assert.equal(interruptedReceipt?.data['occurrenceId'], interruptedDue.occurrenceId);
     const finalRevision = await d1.store.readRevision();
     const finalSuccess = await d1.store.load(model, asId(success.id));
     const finalHistory = await d1.store.historyFor(model, asId(success.id));
-    const receipts = await Promise.all([successfulDue, failedDue, transientDue]
+    const receipts = await Promise.all([successfulDue, failedDue, transientDue, interruptedDue]
       .map((input) => d1!.store.load(WORK_OCCURRENCE_MODEL, asId(input.occurrenceId))));
     await d1.worker.dispose();
     d1 = undefined;
     d1 = await openD1(join(dir, 'd1'));
-    for (const input of [successfulDue, failedDue, transientDue]) {
+    for (const input of [successfulDue, failedDue, transientDue, interruptedDue]) {
       const replay = await due(input);
       assert.ok(replay && typeof replay === 'object' && 'status' in replay);
       assert.equal(replay.status, 'replayed');
@@ -558,7 +587,10 @@ test('compiled private due handlers use current refs and atomically consume term
     assert.deepEqual(await d1.store.historyFor(model, asId(success.id)), finalHistory);
     assert.deepEqual(await d1.store.load(model, asId(ineligible.id)), failedBefore);
     assert.deepEqual(await d1.store.historyFor(model, asId(ineligible.id)), failedHistory);
-    assert.deepEqual(await Promise.all([successfulDue, failedDue, transientDue]
+    assert.deepEqual(await d1.store.load(model, asId(interrupted.id)), interruptedRow);
+    assert.deepEqual(await d1.store.historyFor(model, asId(interrupted.id)), interruptedHistory);
+    assert.deepEqual(await d1.store.load(WORK_SCHEDULE_MODEL, asId(interruptedDue.occurrenceId)), interruptedSchedule);
+    assert.deepEqual(await Promise.all([successfulDue, failedDue, transientDue, interruptedDue]
       .map((input) => d1!.store.load(WORK_OCCURRENCE_MODEL, asId(input.occurrenceId)))), receipts);
     assert.deepEqual(await d1.store.schedulesDue(at, 10), []);
     assert.equal(await d1.store.readRevision(), finalRevision);
