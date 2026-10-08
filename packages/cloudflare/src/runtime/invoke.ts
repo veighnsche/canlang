@@ -1277,7 +1277,7 @@ interface StateModelsProducer {
  * the same dist copy receipts handler failures as rejected outcomes.
  */
 interface StateErrorsProducer {
-  new (code: string, message: string): Error & { readonly code: string };
+  new (code: string, message: string, details?: unknown): Error & { readonly code: string };
 }
 
 /** T17b: structural view of the state transaction-port module (bound read port). */
@@ -3981,18 +3981,22 @@ async function runScenarioSeam(
       const recorded = engineFailures.get(outcome.error);
       if (recorded !== undefined) throw recorded;
     }
+    // The runtime mapper owns this live attribution. State's existing
+    // internal details slot survives rejection wrapping without adding
+    // source paths to the public error or persisted receipt.
+    const details = outcome.mapped === undefined ? undefined : { mapped: outcome.mapped };
     // BusinessError-shaped values keep code+message — defensive only:
     // `invokeWith` stringifies handler failures today, so this branch
     // cannot fire for direct handler throws (attribution above covers
     // them); it stays for a future object-preserving invoke entry.
     if (isSeamBusinessErrorLike(outcome.error)) {
-      throw new StateError(outcome.error.code, outcome.error.message);
+      throw new StateError(outcome.error.code, outcome.error.message, details);
     }
     const message =
       typeof outcome.error === "string" && outcome.error !== ""
         ? outcome.error
         : "The operation was rejected.";
-    throw new StateError("rule_failed", message);
+    throw new StateError("rule_failed", message, details);
   }
   if (observesDefaults && observedDefaults.size !== computedSlots.size) {
     throw new StateError('validation', 'Generated handler omitted a required computed-default report.');
