@@ -102,6 +102,7 @@ import type {
   VerifiedIngressEnvelope,
 } from "@canlang/contracts";
 import type { AssembledModules } from "../runtime/modules.js";
+import type { InputChoiceLookup } from '@canlang/interfaces';
 import type { HandlerContext } from "../runtime/context.js";
 import type { CanonicalFileBinding } from '../runtime/file-staging.js';
 import type {
@@ -356,6 +357,7 @@ export interface SourceFormBindings {
 
 export interface HttpDeps {
   readonly formBindings?: SourceFormBindings;
+  readonly inputChoices?: InputChoiceLookup;
   readonly app: AppInfo;
   readonly pages: PageRegistry;
   readonly invoker: OperationInvoker;
@@ -388,6 +390,7 @@ export interface HttpDeps {
 export type HttpOperationHandlerFactory = (
   deps: HttpDeps,
 ) => (req: Request, op: string) => Promise<Response>;
+export type VersionedHttpOperationHandlerFactory = HttpOperationHandlerFactory & { readonly inputChoicesVersion?: number };
 
 /**
  * HTTP op-route join inputs. `createOperationHandler` absent ->
@@ -415,7 +418,7 @@ export type HttpPageHandlerFactory = (deps: PageHttpDeps) => (request: Request) 
 export interface HttpJoin {
   readonly formBindings?: SourceFormBindings;
   readonly createPageHandler?: HttpPageHandlerFactory;
-  readonly createOperationHandler?: HttpOperationHandlerFactory;
+  readonly createOperationHandler?: VersionedHttpOperationHandlerFactory;
   /** C1 deploy-baked E1 channel, shared verbatim with the MCP path. */
   readonly derivedInputs?: BakedDerivedInputs;
   /** Selected static resources load only after the existing serving gates. */
@@ -653,6 +656,7 @@ const T16B_KNOWN_REQUIRES_IDS: ReadonlySet<string> = new Set([
   "state",
   "state.machines",
   "state.parameters",
+  "interfaces.input-choices",
   "values.decimal",
   "values.int64",
   "values.money",
@@ -674,7 +678,8 @@ function assertArtifactCompatible(artifact: CompileArtifact): void {
     if (callable.inputStyle !== undefined &&
         (callable.inputStyle !== "parameters" || callable.kind !== "operation" ||
          !artifact.requires.some((requirement) => requirement.capability === "state.parameters" && requirement.min_version >= 1) ||
-         !artifact.operations?.some((operation) => operation.name === callable.id && operation.kind === "scenario"))) {
+         !artifact.operations?.some((operation) => operation.name === callable.id &&
+           (operation.kind === "scenario" || operation.kind === "read")))) {
       throw new Error(`assembly: invalid inputStyle for callable ${JSON.stringify(callable.id)}`);
     }
     const member: unknown = callable.member;
@@ -1350,6 +1355,14 @@ async function handleHttpOperationRequest(
   };
   const deps: HttpDeps = {
     ...(ctx.http?.formBindings === undefined ? {} : { formBindings: ctx.http.formBindings }),
+    inputChoices: async ({ identity, ...draft }) => {
+      const lookup = await loadSiblingFn<typeof import('../runtime/input-choices.js').lookupInputChoicesCanonical>(
+        '../runtime/input-choices.js', 'runtime/input-choices.ts', 'lookupInputChoicesCanonical',
+      );
+      return lookup({ ...draft, identity, artifact: ctx.artifact, asm: ctx.asm, store: ctx.store,
+        memberships: ctx.identityStore as CanonicalMembershipReader, source: 'http', now,
+        formatting: { appDefault: ctx.app.appDefaultLocale } });
+    },
     app: ctx.app,
     pages: { descriptors: (): readonly PageDescriptor[] => [] },
     invoker: buildInvoker(ctx.artifact, ctx.asm, ctx.store, {
@@ -1582,7 +1595,7 @@ export function assembleFanoutServingSurface<TSegments extends FanoutServingSegm
  * artifact-universal); fixtures with empty `requires[]` pass
  * trivially.
  */
-async function assertServingContracts(artifact: CompileArtifact): Promise<void> {
+async function assertServingContracts(artifact: CompileArtifact, http?: HttpJoin): Promise<void> {
   const loadVersions = await loadSiblingFn<LoadContractVersions>(
     "../runtime/invoke.js",
     "runtime/invoke.ts",
@@ -1600,7 +1613,9 @@ async function assertServingContracts(artifact: CompileArtifact): Promise<void> 
   );
   const versions = await loadVersions();
   assertPins(versions);
-  assertRequires(artifact.requires, { state: versions.state, values: versions.values });
+  assertRequires(artifact.requires, { state: versions.state, values: versions.values,
+    ...(http?.createOperationHandler?.inputChoicesVersion === undefined ? {} :
+      { inputChoices: http.createOperationHandler.inputChoicesVersion }) });
 }
 
 /**
@@ -1661,7 +1676,7 @@ export async function assembleWorker(
     return buildRefusalFetch(verdict);
   }
   assertArtifactCompatible(artifact);
-  await assertServingContracts(artifact);
+  await assertServingContracts(artifact, deps.http);
   const generatedArtifact = await loadSiblingFn<IsGeneratedArtifact>(
     "../runtime/invoke.js",
     "runtime/invoke.ts",

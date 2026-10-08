@@ -128,6 +128,20 @@ export interface OperationInvoker {
   invokeRead(envelope: ReadEnvelope, identity: ResolvedIdentity): Promise<ReadOutcome>;
 }
 
+/** Candidate values use the owning input's wire type; labels are granted text only. */
+export interface InputChoiceResult {
+  readonly state: 'ready' | 'absent';
+  readonly choices: readonly { readonly value: unknown; readonly labels: readonly string[] }[];
+}
+
+/** Canonical owner resolves mapped paths and the declared read under current authority. */
+export type InputChoiceLookup = (request: {
+  readonly derived: DerivedOperationInputs;
+  readonly input: string;
+  readonly inputs: ClosedInputs;
+  readonly identity: ResolvedIdentity;
+}) => Promise<InputChoiceResult>;
+
 /** Fixed-window rate check for unauthenticated auth endpoints. */
 export interface RateLimitDecision {
   readonly allowed: boolean;
@@ -173,6 +187,7 @@ export interface PageHttpDeps {
 
 export interface HttpDeps extends PageHttpDeps {
   readonly invoker: OperationInvoker;
+  readonly inputChoices?: InputChoiceLookup;
   readonly catalog: SchemaCatalog;
   readonly limiter: RateLimiter;
   readonly logger: Logger;

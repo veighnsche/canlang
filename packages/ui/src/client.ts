@@ -117,6 +117,7 @@ export interface SubmitFetchInit {
   readonly method: string;
   readonly headers: Record<string, string>;
   readonly body?: string | Uint8Array;
+  readonly signal?: AbortSignal;
 }
 
 export type SubmitFetch = (

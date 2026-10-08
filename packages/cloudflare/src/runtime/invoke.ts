@@ -79,6 +79,7 @@ import type {
   OutboxIntent,
   OutboxItem,
   OutboxItemState,
+  OrderTerm,
   QuerySpec,
   Receipt,
   ReceiptProperty,
@@ -99,11 +100,12 @@ import type {
   UniqueRelease,
 } from "@canlang/contracts";
 import { COLLECTION_DEFAULT_LIMIT, COLLECTION_MAX_LIMIT, DELIVERY_RESULT_LEAVES } from "@canlang/contracts";
-import { decodeValue, encodeValue, makeRecordRef, normalizeSchema, validateOperationInput } from "@canlang/values";
+import { decodeValue, encodeValue, isRecordRef, makeRecordRef, normalizeSchema, validateOperationInput } from "@canlang/values";
 import type { FieldDescriptor, SchemaDescriptor } from "@canlang/values";
 import type { SystemCommandContext, SystemStaging } from "@canlang/state";
 import { assertReceiptJoin } from "@canlang/state/receipt/tables";
 import { retainCommittedFiles, stageFileReferences } from './file-staging.js';
+import { bindNativeRecord } from './native-records.js';
 import type { CanonicalFileBinding, FileAttachment } from './file-staging.js';
 import type { IdentityStore } from "@canlang/identity";
 import type { GeneratedOperationDef } from "@canlang/state/invocation/registry";
@@ -1169,6 +1171,8 @@ export function seamTriggerPoint(
 export interface CanonicalReadSelection {
   readonly where?: QueryPredicate;
   readonly limit?: number;
+  readonly order?: readonly OrderTerm[];
+  readonly predicate?: (record: Readonly<ProjectedRecord>) => boolean | Promise<boolean>;
 }
 
 /** T17b: structural view of one `invokeRead` served record set. */
@@ -1270,6 +1274,7 @@ interface StateTransactProducer {
   }) => Promise<ReadScenarioResult>;
   createReadInvoker(input: {
     readonly registry: ReadonlyMap<string, unknown>;
+    readonly models?: ReadonlyArray<CanonicalModelDescriptor>;
     readonly policy: unknown;
     readonly store: StoragePort;
     readonly memberships: CanonicalMembershipReader;
@@ -1618,6 +1623,7 @@ const REQUIRES_UNVERSIONED: ReadonlySet<string> = new Set(["canlang.builtins"]);
 export interface RequiresProvidedVersions {
   readonly state: number;
   readonly values: number;
+  readonly inputChoices?: number;
 }
 
 /**
@@ -1634,6 +1640,12 @@ export function assertRequiresFulfilled(
 ): void {
   for (const requirement of requires) {
     const capability = requirement.capability;
+    if (capability === 'interfaces.input-choices') {
+      if (provided.inputChoices !== requirement.min_version) {
+        throw new Error(`Artifact requires interfaces.input-choices v${requirement.min_version}; its installed consumer is unavailable or incompatible.`);
+      }
+      continue;
+    }
     if (REQUIRES_UNVERSIONED.has(capability)) continue;
     const contract: "state" | "values" | undefined =
       REQUIRES_CONTRACT_FOR_CAPABILITY[capability];
@@ -1909,6 +1921,9 @@ async function assertReadScenarioPair(
 export interface LoadedCanonicalDescriptors {
   readonly registry: ReadonlyMap<string, unknown>;
   readonly models: ReadonlyArray<CanonicalModelDescriptor>;
+  /** Defining State attachments retain reference/containment identity without field tags. */
+  readonly refs: ReadonlyMap<string, readonly { readonly field: string; readonly model: string }[]>;
+  readonly containment: ReadonlyMap<string, unknown>;
   readonly table: unknown;
   readonly policy: unknown;
   readonly ruledModels: ReadonlySet<string>;
@@ -2475,6 +2490,8 @@ export async function loadCanonicalDescriptors(
   const canonical: LoadedCanonicalDescriptors = {
     registry: loaded.registry,
     models: loaded.models,
+    refs: loaded.refs,
+    containment: loaded.containment,
     table,
     policy,
     ruledModels,
@@ -2881,6 +2898,9 @@ function assertServableReadQuery(
   StateError: StateErrorsProducer,
   query: CanonicalReadQuery,
 ): void {
+  if (query.parent !== undefined) {
+    throw new StateError('validation', 'This record read seam does not support containment filters.');
+  }
   if (query.where !== undefined) {
     throw new StateError(
       "validation",
@@ -3025,7 +3045,8 @@ function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 're
 }
 
 /** Generated reads and mutations share the declared native-to-wire result codec. */
-function scenarioResult(call: Pick<CanonicalSeamCall, 'def'>, loaded: LoadedCanonicalDescriptors, value: unknown): unknown {
+function scenarioResult(call: Pick<CanonicalSeamCall, 'def'>, loaded: LoadedCanonicalDescriptors, value: unknown,
+  modelReference?: ReturnType<typeof makeRecordRef>): unknown {
   const resultType = generatedScenarioDef(call)?.descriptor.result?.type;
   if (resultType === undefined) return value;
   try {
@@ -3033,10 +3054,52 @@ function scenarioResult(call: Pick<CanonicalSeamCall, 'def'>, loaded: LoadedCano
       if (value !== undefined) throw new Error('A void operation cannot return a value.');
       return null;
     }
+    const model = loaded.models.find(candidate => candidate.name === resultType);
+    if (model !== undefined) {
+      if (modelReference === undefined || modelReference.model !== model.name) {
+        throw new Error('Model results require an admitted native record of the declared model.');
+      }
+      return encodeValue(resultType, modelReference);
+    }
     return encodeValue(resultType, value as CanValue);
   } catch (error) {
     throw new loaded.producers.errors('validation', message(error));
   }
+}
+
+/** Model results retain the identity of actually admitted native views. */
+async function readScenarioResult(
+  call: Pick<CanonicalSeamCall, 'def'>,
+  loaded: LoadedCanonicalDescriptors,
+  value: unknown,
+  views: WeakMap<object, { readonly model: string; readonly id: string; readonly version: number }>,
+  decodedRefs: WeakSet<object>,
+  authorizeReference: (reference: ReturnType<typeof makeRecordRef>) => Promise<ReturnType<typeof makeRecordRef>>,
+): Promise<unknown> {
+  const type = generatedScenarioDef(call)?.descriptor.result?.type;
+  const array = type?.endsWith('[]') === true;
+  const model = loaded.models.find(candidate => (array ? `${candidate.name}[]` : candidate.name) === type);
+  if (model === undefined) return scenarioResult(call, loaded, value);
+  const refuse = (): never => {
+    throw new loaded.producers.errors('validation', 'Read model results require authorized records of the declared model.');
+  };
+  if (array && !Array.isArray(value)) return refuse();
+  const references = [];
+  for (const record of array ? value as unknown[] : [value]) {
+    if (typeof record !== 'object' || record === null) return refuse();
+    const binding = views.get(record);
+    if (binding !== undefined) {
+      if (binding.model !== model.name || !Number.isSafeInteger(binding.version) || binding.version < 1) return refuse();
+      references.push(makeRecordRef(binding.model, binding.id, BigInt(binding.version)));
+      continue;
+    }
+    if (decodedRefs.has(record) && isRecordRef(record) && record.model === model.name) {
+      references.push(await authorizeReference(record));
+      continue;
+    }
+    return refuse();
+  }
+  return array ? scenarioResult(call, loaded, references) : scenarioResult(call, loaded, value, references[0]);
 }
 function freezeScenarioSnapshot(value: unknown): unknown {
   if (value !== null && typeof value === "object") {
@@ -3063,9 +3126,19 @@ function nativeProjectedRecord(loaded: LoadedCanonicalDescriptors, modelName: st
   const record: Record<string, unknown> = Object.create(null);
   for (const [field, wire] of Object.entries(row.data)) {
     const type = model?.fields[field]?.valueType;
-    record[field] = type === undefined ? wire : decodeValue(type, wire);
+    const target = loaded.refs.get(modelName)?.find(reference => reference.field === field)?.model;
+    record[field] = type !== undefined ? decodeValue(type, wire)
+      : target === undefined || wire === null ? wire : decodeValue(target, wire);
   }
   Object.assign(record, nativeRecordMetadata(row));
+  const ownership = loaded.containment.get(modelName);
+  if (isUnknownRecord(ownership) && typeof ownership.parent === 'string') {
+    if (row.parent != null && row.parent.model !== ownership.parent) {
+      throw new loaded.producers.errors('validation', 'Stored parent disagrees with its declared model.');
+    }
+    record.parent = row.parent == null ? null : makeRecordRef(row.parent.model, row.parent.id);
+  }
+  bindNativeRecord(record, modelName, row.id, row.version);
   return freezeScenarioSnapshot(record) as Record<string, unknown>;
 }
 
@@ -3169,7 +3242,7 @@ async function runScenarioSeam(
   };
   const staged: Map<string, StoredRow | null> = new Map();
   const views = new Map<string, Record<string, unknown>>();
-  const recordBindings = new Map<Record<string, unknown>, { model: string; id: string }>();
+  const recordBindings = new Map<Record<string, unknown>, { model: string; id: string; version: number }>();
   const callable = opts.artifact.callables.find((entry) => entry.id === opts.operation);
   const recordView = (modelName: string, row: StoredRow): Record<string, unknown> => {
     const key = stagedKey(modelName, row.id);
@@ -3191,7 +3264,7 @@ async function runScenarioSeam(
     Object.assign(record, nativeRecordMetadata(row));
     Object.freeze(record);
     views.set(key, record);
-    recordBindings.set(record, { model: modelName, id: row.id });
+    recordBindings.set(record, { model: modelName, id: row.id, version: row.version });
     return record;
   };
   const projectedRecordView = (modelName: string, row: ProjectedRecord): Record<string, unknown> => {
@@ -3205,7 +3278,7 @@ async function runScenarioSeam(
     }
     Object.assign(record, nativeRecordMetadata(row));
     Object.freeze(record);
-    recordBindings.set(record, { model: modelName, id: row.id });
+    recordBindings.set(record, { model: modelName, id: row.id, version: row.version });
     return record;
   };
   const overlay = withStagedOverlay(opts.store, staged);
@@ -3640,7 +3713,12 @@ async function runScenarioSeam(
     throw new StateError("rule_failed", message);
   }
   const uniques = netStagedUniques(stagedTouches);
-  const result = scenarioResult(call, loaded, outcome.value);
+  const returnedBinding = typeof outcome.value === 'object' && outcome.value !== null
+    ? recordBindings.get(outcome.value as Record<string, unknown>) : undefined;
+  const modelReference = returnedBinding === undefined ? undefined
+    : makeRecordRef(returnedBinding.model, returnedBinding.id,
+      BigInt(reservedVersions.get(stagedKey(returnedBinding.model, returnedBinding.id)) ?? returnedBinding.version));
+  const result = scenarioResult(call, loaded, outcome.value, modelReference);
   return {
     writes: collapseStagedWrites(stagedWrites),
     history: [...stagedHistory, ...deferredEffects.flatMap((effects) => effects.history ?? [])].map((entry) => {
@@ -4578,14 +4656,91 @@ async function runReadScenarioSeam(
     readMigrationFailure: refuse,
   };
   const reader = loaded.producers.transact.createReadInvoker({
-    registry: loaded.registry, policy: loaded.policy, store: opts.store, memberships: opts.memberships,
+    registry: loaded.registry, models: loaded.models, policy: loaded.policy, store: opts.store, memberships: opts.memberships,
   });
-  const readModel = async (model: string, query: CanonicalReadQuery): Promise<CanonicalReadServed> => {
-    assertServableReadQuery(StateError, query);
-    if (loaded.ruledModels.has(model)) throw ruledReadRefusal(StateError, model);
-    return reader({ envelope: { operation: `${model}.read`, inputs: {} }, identity: opts.identity });
-  };
   const readings: Array<{ model: string; query: CanonicalReadQuery; projection: string }> = [];
+  const views = new WeakMap<object, { readonly model: string; readonly id: string; readonly version: number }>();
+  const decodedRefs = new WeakSet<object>();
+  let activeViews = views;
+  let activeDecodedRefs = decodedRefs;
+  let rechecking = false;
+  const recordView = (model: string, row: StoredRow | ProjectedRecord): Record<string, unknown> => {
+    const view = nativeProjectedRecord(loaded, model, row);
+    activeViews.set(view, { model, id: row.id, version: row.version });
+    for (const declared of loaded.refs.get(model) ?? []) {
+      const reference = view[declared.field];
+      if (isRecordRef(reference) && reference.model === declared.model) activeDecodedRefs.add(reference);
+    }
+    if (isRecordRef(view.parent) && row.parent?.model === view.parent.model) activeDecodedRefs.add(view.parent);
+    for (const [field, descriptor] of Object.entries(loaded.models.find(candidate => candidate.name === model)?.fields ?? {})) {
+      const type = descriptor.valueType?.replace(/\?$/, '');
+      const target = loaded.models.find(candidate => type === candidate.name || type === `${candidate.name}[]`);
+      if (target === undefined) continue;
+      const native = view[field];
+      const values = type?.endsWith('[]') ? (Array.isArray(native) ? native : []) : [native];
+      for (const reference of values) {
+        if (isRecordRef(reference) && reference.model === target.name) activeDecodedRefs.add(reference);
+      }
+    }
+    return view;
+  };
+  const readModel = async (model: string, query: CanonicalReadQuery): Promise<CanonicalReadServed> => {
+    if (loaded.ruledModels.has(model)) throw ruledReadRefusal(StateError, model);
+    if (Object.keys(query).some(key => !['parent', 'where', 'order', 'limit', 'archived', 'authority'].includes(key)) ||
+        (query.authority !== undefined && query.authority !== 'viewer') ||
+        (query.archived !== undefined && query.archived !== 'exclude')) {
+      throw new StateError('validation', 'Read scenarios require finite viewer queries over current records.');
+    }
+    const parent = query.parent;
+    const parentBinding = typeof parent === 'object' && parent !== null
+      ? views.get(parent) ?? activeViews.get(parent) : undefined;
+    if (parent !== undefined && (parentBinding === undefined ||
+        opts.artifact.models?.find(candidate => candidate.name === model)?.parent !== parentBinding.model)) {
+      throw new StateError('validation', 'Containment queries require the authorized declared parent record.');
+    }
+    const where = query.where;
+    let order: OrderTerm[] | undefined;
+    if (query.order !== undefined) {
+      // The owning compiler emits field spellings, with a leading minus for descending.
+      if (!Array.isArray(query.order) || !query.order.every(term => typeof term === 'string' && term !== '' && term !== '-')) {
+        throw new StateError('validation', 'Read scenario order requires compiler field spellings.');
+      }
+      order = query.order.map((term: string) => ({ field: term.startsWith('-') ? term.slice(1) : term,
+        direction: term.startsWith('-') ? 'desc' : 'asc' }));
+      // Only profiles served by the owning State comparator enter source order.
+      const metadataOrder = new Set(['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt']);
+      const fields = loaded.models.find(candidate => candidate.name === model)?.fields;
+      for (const term of order) {
+        const type = fields?.[term.field]?.valueType?.replace(/\?$/, '');
+        if (!metadataOrder.has(term.field) && !['text', 'bool', 'int', 'decimal', 'money'].includes(type ?? '')) {
+          throw new StateError('validation', 'Read scenario order currently supports metadata, text, bool, int, decimal, and money fields.');
+        }
+      }
+    }
+    const nativeLimit: unknown = query.limit;
+    const limit = typeof nativeLimit === 'bigint' && nativeLimit >= 0n && nativeLimit <= BigInt(Number.MAX_SAFE_INTEGER)
+      ? Number(nativeLimit) : nativeLimit;
+    if (limit !== undefined && (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 0)) {
+      throw new StateError('validation', 'Read scenario limit requires a non-negative safe integer.');
+    }
+    const selection: CanonicalReadSelection = {
+      ...(typeof where === 'function' || parentBinding !== undefined ? { predicate: async (row: Readonly<ProjectedRecord>) => {
+        if (parentBinding !== undefined && (row.parent?.model !== parentBinding.model || row.parent.id !== parentBinding.id)) return false;
+        if (typeof where !== 'function') return true;
+        const matched = await where(recordView(model, row));
+        if (typeof matched !== 'boolean') throw new StateError('validation', 'Read scenario predicates must return bool.');
+        return matched;
+      } } : {}),
+      ...(where === undefined || typeof where === 'function' ? {} : { where: where as QueryPredicate }),
+      ...(order === undefined ? {} : { order }),
+      ...(limit === undefined ? {} : { limit: limit as number }),
+    };
+    const served = await reader({ envelope: { operation: `${model}.read`, inputs: {} }, identity: opts.identity, selection });
+    if (served.revision !== call.revision || await opts.store.readRevision() !== call.revision) {
+      throw new StateError('conflict', 'State changed during the read scenario query.');
+    }
+    return served;
+  };
   const membership = call.membership?.status === 'active' ? call.membership : null;
   const roles = membership?.roles.map(grant => grant.role) ?? [];
   const builtinRoles = ['public', ...(call.actorUserId === null ? [] : ['authenticated']),
@@ -4597,13 +4752,16 @@ async function runReadScenarioSeam(
     readModel: async (model, query) => {
       // Snapshot the same selector State actually serves; no caller getter is
       // re-evaluated during the final authorization evidence check.
-      const selected = structuredClone(query);
+      const selected: CanonicalReadQuery = { ...query,
+        ...(query.where === undefined || typeof query.where === 'function' ? {} : { where: structuredClone(query.where) }),
+        ...(query.order === undefined ? {} : { order: structuredClone(query.order) }),
+      };
       const served = await readModel(model, selected);
-      readings.push({ model, query: selected, projection: JSON.stringify(served.records) });
+      if (!rechecking) readings.push({ model, query: selected, projection: JSON.stringify(served.records) });
       return served.records;
     },
     readRecords: async (model, query) =>
-      (await scope.readModel(model, query)).map(row => nativeProjectedRecord(loaded, model, row)),
+      (await scope.readModel(model, query)).map(row => recordView(model, row)),
   };
   const actor = call.actorUserId === null ? null : opts.identity.actor;
   const team = call.teamId === null ? null : opts.identity.team;
@@ -4621,14 +4779,33 @@ async function runReadScenarioSeam(
     ...(opts.formatting === undefined ? {} : { formatting: opts.formatting }),
   });
   const parameters = scenarioParameters(call, loaded,
-    (model, row) => nativeProjectedRecord(loaded, model, row), Object.create(null) as Record<string, unknown>);
+    recordView, Object.create(null) as Record<string, unknown>);
   const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx, [parameters], true);
   if (!outcome.ok) throw new StateError('rule_failed', outcome.error ?? 'The read operation was rejected.');
-  const result = scenarioResult(call, loaded, outcome.value);
-  for (const reading of readings) {
-    if (JSON.stringify((await readModel(reading.model, reading.query)).records) !== reading.projection) {
-      throw new StateError('forbidden', 'Record read authority changed during the read scenario.');
+  const result = await readScenarioResult(call, loaded, outcome.value, views, decodedRefs, async reference => {
+    // A granted link permits identity comparison; returning its target as a
+    // model-array member additionally requires that target's current viewer read.
+    const rows = await scope.readModel(reference.model, { where: { op: 'eq', field: 'id', value: reference.id }, limit: 1 });
+    const row = rows.find(candidate => candidate.id === reference.id);
+    if (row === undefined) throw new StateError('not_found', 'Returned reference record not found.');
+    if (reference.version !== undefined && reference.version !== BigInt(row.version)) {
+      throw new StateError('conflict', 'Returned reference record version changed.');
     }
+    return makeRecordRef(reference.model, row.id, BigInt(row.version));
+  });
+  // Rechecks use fresh native provenance and a fixed evidence list. Nested
+  // source queries remain readonly and cannot append another recheck round.
+  const capturedReadings = [...readings];
+  rechecking = true;
+  try {
+    for (const reading of capturedReadings) {
+      activeViews = new WeakMap(); activeDecodedRefs = new WeakSet();
+      if (JSON.stringify((await readModel(reading.model, reading.query)).records) !== reading.projection) {
+        throw new StateError('forbidden', 'Record read authority changed during the read scenario.');
+      }
+    }
+  } finally {
+    rechecking = false; activeViews = views; activeDecodedRefs = decodedRefs;
   }
   return result;
 }
@@ -4667,6 +4844,7 @@ export async function invokeReadCanonical(
   // binding costs nothing and pins nothing across workers.
   const reader = loaded.producers.transact.createReadInvoker({
     registry: loaded.registry,
+    models: loaded.models,
     policy: loaded.policy,
     store: opts.store,
     memberships: opts.memberships,

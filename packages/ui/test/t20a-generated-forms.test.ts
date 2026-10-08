@@ -302,7 +302,7 @@ describe("generated fields", () => {
     assert.equal(fieldByPath(fields, "owner__version").label, "owner__version");
   });
 
-  it("prefills literal defaults verbatim and defers parent defaults", () => {
+  it("prefills literal defaults verbatim and defers parent defaults", async () => {
     const create = generatedFields(GADGET_CREATE, "create");
     assert.equal(fieldByPath(create, "stock").value, "0");
     assert.equal(fieldByPath(create, "state").value, "draft");
@@ -314,6 +314,14 @@ describe("generated fields", () => {
     assert.ok(!("value" in fieldByPath(review, "nick")));
     const member = generatedFields(MEMBER_CREATE, "create");
     assert.ok(!("value" in fieldByPath(member, "buddy")));
+    const withUser: DerivedOperationInputs = { ...STORE_CREATE, inputs: [...STORE_CREATE.inputs,
+      { name: "assignee", kind: "user", required: false, default: { kind: "literal", value: { id: "user-1" } } },
+    ] };
+    assert.equal(fieldByPath(generatedFields(withUser, "create"), "assignee").value, "user-1");
+    const html = await generatedForm({ context: makeContext(), derived: withUser, mode: "create",
+      action: "/api/operations/Store.Gadget.create", operationId: "op-user-default", timeZone: "UTC",
+      submit: "Create", idPrefix: "user-default" });
+    assert.match(html, /name="inputs\[assignee\]"[^>]*value="user-1"/);
   });
 
   it("marks the required version companion on a tampered required versioned ref", () => {
@@ -512,6 +520,17 @@ describe("submission projection", () => {
       projectGeneratedInputs(STORE_CREATE, "create", { "inputs[title]": "" }),
       { title: "" },
     );
+    const withUsers: DerivedOperationInputs = { ...STORE_CREATE, inputs: [...STORE_CREATE.inputs,
+      { name: "assignee", kind: "user", required: false, default: { kind: "literal", value: { id: "user-1" } } },
+      { name: "requiredUser", kind: "user", required: true },
+      { name: "nullableUser", kind: "user", required: false, nullable: true },
+      { name: "users", kind: "user", required: false, array: { required: false } },
+    ] };
+    assert.deepEqual(projectGeneratedInputs(withUsers, "create", { "inputs[assignee]": "" }), {});
+    assert.deepEqual(projectGeneratedInputs(withUsers, "create", {
+      "inputs[requiredUser]": "", "inputs[nullableUser__null]": "true",
+      "inputs[users]": '[{"id":"user-2"}]',
+    }), { requiredUser: { id: "" }, nullableUser: null, users: [{ id: "user-2" }] });
   });
 
   it("composes refs and the bound record; optional empty refs omit", () => {
@@ -658,6 +677,7 @@ describe("fragment wrap", () => {
       "money",
       "ref",
       "string",
+      "user",
     ]);
   });
 });

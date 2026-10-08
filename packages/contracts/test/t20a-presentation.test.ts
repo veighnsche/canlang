@@ -43,7 +43,7 @@ describe("T20a contract version stays pinned (additive slice)", () => {
 });
 
 describe("T20a pinned widget selection", () => {
-  it("covers exactly the nine committed pilot kinds", () => {
+  it("covers the supported generated input kinds", () => {
     expect(Object.keys(GENERATED_FORM_TYPE_FOR_KIND).sort()).toEqual([
       "boolean",
       "datetime",
@@ -54,12 +54,14 @@ describe("T20a pinned widget selection", () => {
       "money",
       "ref",
       "string",
+      "user",
     ]);
   });
 
   it("maps each kind to its canonical field type", () => {
     expect(GENERATED_FORM_TYPE_FOR_KIND).toEqual({
       ref: "text",
+      user: "text",
       string: "text",
       integer: "int",
       decimal: "decimal",

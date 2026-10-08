@@ -61,6 +61,7 @@ import { formBindingFor, renderFormError, wantsHtmlRerender } from './formErrors
 import { isPartialRequest } from './fragments.js';
 import { parseFormBody, parseJsonBody } from './limits.js';
 import { buildPresentationContext } from './presentation.js';
+import { handleInputChoiceRequest } from './input-choices.js';
 
 /**
  * Operation-name shape: 2-3 dot-separated segments (e.g. `shop.Order.create`,
@@ -72,6 +73,8 @@ export const OPERATION_NAME_PATTERN =
 
 const JSON_CONTENT_TYPE = 'application/json';
 const FORM_CONTENT_TYPE = 'application/x-www-form-urlencoded';
+/** Installed consumer version for the checked route and generated control contract. */
+export const INPUT_CHOICES_VERSION = 1;
 
 function deny(deps: HttpDeps, error: BusinessError, operation: string): Response {
   logBusinessError(deps.logger, error, { route: 'operation', operation });
@@ -174,6 +177,10 @@ export async function handleOperationRequest(
   request: Request,
   operation: string,
 ): Promise<Response> {
+  const choiceRoute = /^(.+)\/choices\/([A-Za-z_][A-Za-z0-9_]*)$/.exec(operation);
+  if (choiceRoute !== null) {
+    return handleInputChoiceRequest(deps, request, choiceRoute[1]!, choiceRoute[2]!);
+  }
   if (request.method !== 'POST') {
     return deny(deps, buildBusinessError('not_found', 'Unknown operation.'), operation);
   }
@@ -371,6 +378,7 @@ function toDerivedInput(field: CheckedArtifactInput): DerivedWritableInput {
   if (isDeliveryField(field)) return toDerivedDeliveryInput(field);
   const common = {
     name: field.name,
+    ...(field.choices === undefined ? {} : { choices: field.choices }),
     required: field.required,
     ...(field.nullable === undefined ? {} : { nullable: field.nullable }),
     ...(field.array === undefined ? {} : { array: field.array }),

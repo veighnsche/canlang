@@ -27,6 +27,7 @@ import type {
   DerivedInputDefault,
   DerivedOperationInputs,
   DerivedWritableInput,
+  InputChoiceBinding,
 } from '@canlang/contracts';
 import { INT64_MAX, INT64_MIN, SchemaError, ValueError, decodeValue, parseDecimal, parseTypeId } from '@canlang/values';
 import type {
@@ -268,6 +269,7 @@ function failDescriptor(reason: IncompatibleDescriptorReason, message: string): 
 
 /** One checked caller-suppliable input: element vocabulary plus the T15a/T18 channels. */
 export interface CheckedArtifactField {
+  readonly choices?: InputChoiceBinding;
   readonly name: string;
   readonly field: McpSchemaField;
   /** Owning compiler claim, retained only after kind/container consistency checks. */
@@ -330,6 +332,8 @@ export interface CheckedArtifactOperation {
 export interface ArtifactOperationSlice {
   readonly artifact_version?: unknown;
   readonly operations?: unknown;
+  /** Required only for full-context choices intake; otherwise left to owning model consumers. */
+  readonly models?: unknown;
 }
 
 /**
@@ -844,7 +848,7 @@ function checkArtifactInput(value: unknown, opName: string): CheckedArtifactInpu
  * unknown kind, server-owned input, duplicate input, or malformed member
  * rejects the WHOLE descriptor — nothing derives partially.
  */
-export function checkArtifactOperation(raw: unknown): CheckedArtifactOperation {
+function checkArtifactOperationBase(raw: unknown): CheckedArtifactOperation {
   if (!isDescriptorRecord(raw) || typeof raw['name'] !== 'string' || raw['name'] === '') {
     failDescriptor('malformed_descriptor', 'Invalid operation descriptor: operations need non-empty names.');
   }
@@ -891,6 +895,251 @@ export function checkArtifactOperation(raw: unknown): CheckedArtifactOperation {
   };
 }
 
+/** A choices claim needs its owning operation/read/model slice, never a single descriptor. */
+export function checkArtifactOperation(raw: unknown): CheckedArtifactOperation {
+  const checked = checkArtifactOperationBase(raw);
+  if (rawChoiceFields(raw).length !== 0) {
+    failDescriptor('malformed_descriptor', `Choices on ${JSON.stringify(checked.name)} require a full artifact operation/model slice.`);
+  }
+  return checked;
+}
+
+function choiceMember(value: unknown, key: string, what: string): unknown {
+  if (typeof value !== 'object' || value === null) failDescriptor('malformed_descriptor', `Invalid ${what}: expected metadata object.`);
+  const property = Object.getOwnPropertyDescriptor(value, key);
+  if (property === undefined) {
+    if (key in value) failDescriptor('malformed_descriptor', `Invalid ${what}: inherited ${JSON.stringify(key)}.`);
+    return undefined;
+  }
+  if (!Object.hasOwn(property, 'value')) failDescriptor('malformed_descriptor', `Invalid ${what}: accessor ${JSON.stringify(key)}.`);
+  return property.value as unknown;
+}
+
+function choiceObject(value: unknown, keys: readonly string[], what: string): Record<string, unknown> {
+  if (!isDescriptorRecord(value) || Reflect.ownKeys(value).length !== keys.length ||
+      keys.some(key => !Object.hasOwn(value, key)) ||
+      (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: expected exactly ${keys.join(', ')}.`);
+  }
+  for (const key of keys) choiceMember(value, key, what);
+  return value;
+}
+
+function choiceName(value: unknown, what: string): string {
+  if (typeof value !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(value)) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: expected a declared field name.`);
+  }
+  return value;
+}
+
+function choiceArray(value: unknown, what: string): readonly unknown[] {
+  if (!Array.isArray(value)) failDescriptor('malformed_descriptor', `Invalid ${what}: expected an array.`);
+  for (let index = 0; index < value.length; index += 1) {
+    if (!Object.hasOwn(value, String(index))) failDescriptor('malformed_descriptor', `Invalid ${what}: expected own array entries.`);
+    choiceMember(value, String(index), what);
+  }
+  if (Reflect.ownKeys(value).length !== value.length + 1) failDescriptor('malformed_descriptor', `Invalid ${what}: expected a dense metadata array.`);
+  return value;
+}
+
+function rawChoiceFields(raw: unknown): Record<string, unknown>[] {
+  if (!isDescriptorRecord(raw) || !isDescriptorRecord(raw['inputs']) || !Array.isArray(raw['inputs']['fields'])) return [];
+  return raw['inputs']['fields'].filter((field: unknown): field is Record<string, unknown> =>
+    isDescriptorRecord(field) && 'choices' in field);
+}
+
+interface ChoiceType {
+  readonly kind: string;
+  readonly model?: string;
+  readonly scalar?: string;
+  readonly enumValues?: readonly string[];
+  readonly array: boolean;
+  readonly nullable: boolean;
+}
+interface ChoiceModel {
+  readonly fields: ReadonlyMap<string, Record<string, unknown>>;
+  readonly parent?: string;
+}
+
+function inputChoiceType(field: CheckedArtifactInput, what: string): ChoiceType {
+  if (isDeliveryField(field)) failDescriptor('malformed_descriptor', `Invalid ${what}: delivery inputs cannot supply choices.`);
+  const tag = field.field;
+  return { kind: tag.kind, ...(tag.kind === 'ref' ? { model: tag.model } : {}),
+    ...(tag.kind === 'enum' ? { enumValues: tag.values } : {}),
+    ...(field.valueType === undefined ? {} : { scalar: field.valueType.replace(/\[\]\??$|\?$/, '') }),
+    array: field.array !== undefined, nullable: field.nullable === true };
+}
+
+function modelChoiceType(field: Record<string, unknown>, what: string): ChoiceType {
+  const tag = choiceMember(field, 'field', what);
+  const kind = choiceMember(tag, 'kind', what);
+  if (typeof kind !== 'string') failDescriptor('malformed_descriptor', `Invalid ${what}: expected a field kind.`);
+  const normalized = kind === 'date' ? 'string' : kind;
+  if (!CHECKED_INPUT_KINDS.has(normalized) || normalized === 'delivery') {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: unsupported candidate field kind ${JSON.stringify(kind)}.`);
+  }
+  const model = kind === 'ref' ? choiceMember(tag, 'model', what) : undefined;
+  if (kind === 'ref' && (typeof model !== 'string' || model === '')) failDescriptor('malformed_descriptor', `Invalid ${what}: expected a referenced model.`);
+  const enumValues = kind === 'enum' ? choiceArray(choiceMember(tag, 'values', what), what).map(value => {
+    if (typeof value !== 'string' || value === '') failDescriptor('malformed_descriptor', `Invalid ${what}: expected an enum case.`);
+    return value;
+  }) : undefined;
+  const claimed = choiceMember(field, 'valueType', what);
+  const array = choiceMember(field, 'array', what);
+  const nullable = choiceMember(field, 'nullable', what);
+  if (nullable !== undefined && typeof nullable !== 'boolean') failDescriptor('malformed_descriptor', `Invalid ${what}: invalid nullable marker.`);
+  if (array !== undefined) {
+    const marker = choiceObject(array, ['required'], what);
+    if (typeof marker['required'] !== 'boolean') failDescriptor('malformed_descriptor', `Invalid ${what}: invalid array marker.`);
+  }
+  if (claimed !== undefined) {
+    if (typeof claimed !== 'string') failDescriptor('malformed_descriptor', `Invalid ${what}: invalid checked type.`);
+    let type: ReturnType<typeof parseTypeId>;
+    try { type = parseTypeId(claimed); }
+    catch { failDescriptor('malformed_descriptor', `Invalid ${what}: invalid checked type.`); }
+    const base = type.base.kind === 'scalar' ? type.base.name : type.base.kind;
+    const expected = base === 'int' ? 'integer' : base === 'bool' ? 'boolean' : base === 'text' || base === 'date' ? 'string' : base;
+    if (expected !== normalized || type.array !== (array !== undefined) || type.nullable !== (nullable === true) || type.requiredArray) {
+      failDescriptor('malformed_descriptor', `Invalid ${what}: checked type disagrees with owning field.`);
+    }
+  }
+  return { kind: normalized, ...(typeof model === 'string' ? { model } : {}), ...(enumValues === undefined ? {} : { enumValues }),
+    ...(typeof claimed === 'string' ? { scalar: claimed.replace(/\[\]\??$|\?$/, '') } : kind === 'date' ? { scalar: 'date' } : {}),
+    array: array !== undefined, nullable: nullable === true };
+}
+
+function compatibleChoiceType(from: ChoiceType, to: ChoiceType, what: string, prerequisite = false): void {
+  if (from.array || to.array || from.kind !== to.kind || from.model !== to.model ||
+      (from.scalar !== undefined && to.scalar !== undefined && from.scalar !== to.scalar) ||
+      (from.kind === 'string' && (from.scalar === undefined || to.scalar === undefined || from.scalar !== to.scalar)) ||
+      (!prerequisite && from.nullable && !to.nullable) ||
+      (from.kind === 'enum' && JSON.stringify(from.enumValues) !== JSON.stringify(to.enumValues))) {
+    failDescriptor('malformed_descriptor', `Invalid ${what}: incompatible scalar/reference choice value.`);
+  }
+}
+
+function attachInputChoices(raw: readonly unknown[], checked: CheckedArtifactOperation[], rawModels: unknown): CheckedArtifactOperation[] {
+  const models = new Map<string, ChoiceModel>();
+  for (const model of choiceArray(rawModels, 'choices model slice')) {
+    const name = choiceMember(model, 'name', 'choices model');
+    if (typeof name !== 'string' || name === '' || models.has(name)) failDescriptor('malformed_descriptor', 'Invalid or duplicate choices model name.');
+    const fields = new Map<string, Record<string, unknown>>();
+    for (const field of choiceArray(choiceMember(model, 'fields', name), name)) {
+      const fieldName = choiceName(choiceMember(field, 'name', name), name);
+      if (!isDescriptorRecord(field) || fields.has(fieldName)) failDescriptor('duplicate_name', `Duplicate candidate field ${fieldName}.`);
+      fields.set(fieldName, field);
+    }
+    const parent = choiceMember(model, 'parent', name);
+    if (parent !== undefined && (typeof parent !== 'string' || parent === '')) failDescriptor('malformed_descriptor', `Invalid parent model for ${name}.`);
+    models.set(name, { fields, ...(typeof parent === 'string' ? { parent } : {}) });
+  }
+  const operations = new Map(checked.map((operation, index) => [operation.name, { checked: operation, raw: raw[index] }]));
+  const edges = new Map<string, Set<string>>();
+  const result = checked.map(operation => {
+    const claims = rawChoiceFields(operations.get(operation.name)!.raw);
+    const fields = operation.fields.map(field => {
+      const claim = claims.find(candidate => choiceMember(candidate, 'name', operation.name) === field.name);
+      if (claim === undefined) return field;
+      const what = `choices for ${operation.name}.${field.name}`;
+      const assisted = inputChoiceType(field, what);
+      if (assisted.array) failDescriptor('malformed_descriptor', `Invalid ${what}: assisted input must be singular.`);
+      if (assisted.model !== undefined && !models.has(assisted.model)) failDescriptor('malformed_descriptor', `Invalid ${what}: unknown assisted model.`);
+      const binding = choiceObject(choiceMember(claim, 'choices', what), ['version', 'readOperation', 'arguments', 'value', 'labels'], what);
+      if (binding['version'] !== 1) failDescriptor('version_mismatch', `Invalid ${what}: unsupported choices version.`);
+      const target = typeof binding['readOperation'] === 'string' ? operations.get(binding['readOperation']) : undefined;
+      if (target === undefined || target.checked.kind !== 'read' || target.checked.name.startsWith('std.')) {
+        failDescriptor('malformed_descriptor', `Invalid ${what}: choices require a declared readonly business operation.`);
+      }
+      const resultType = choiceMember(choiceMember(target.raw, 'result', what), 'type', what);
+      if (typeof resultType !== 'string' || !resultType.endsWith('[]') || !models.has(resultType.slice(0, -2))) {
+        failDescriptor('undeclared_result', `Invalid ${what}: read result must be a declared singular model array.`);
+      }
+      const candidateName = resultType.slice(0, -2);
+      const candidate = models.get(candidateName)!;
+      const argumentsRaw = binding['arguments'];
+      if (!isDescriptorRecord(argumentsRaw) || (Object.getPrototypeOf(argumentsRaw) !== Object.prototype && Object.getPrototypeOf(argumentsRaw) !== null)) {
+        failDescriptor('malformed_descriptor', `Invalid ${what}: expected own argument mappings.`);
+      }
+      const argumentsChecked: Record<string, { readonly input: string; readonly path: readonly string[] }> = Object.create(null);
+      const dependencies = new Set<string>();
+      for (const param of Reflect.ownKeys(argumentsRaw)) {
+        if (typeof param !== 'string') failDescriptor('malformed_descriptor', `Invalid ${what}: invalid argument name.`);
+        const readParam = target.checked.fields.find(entry => entry.name === param);
+        if (readParam === undefined) failDescriptor('malformed_descriptor', `Invalid ${what}: unknown read parameter ${param}.`);
+        const mapping = choiceObject(choiceMember(argumentsRaw, param, what), ['input', 'path'], what);
+        const input = choiceName(mapping['input'], what);
+        const sourceField = operation.fields.find(entry => entry.name === input);
+        if (sourceField === undefined) failDescriptor('malformed_descriptor', `Invalid ${what}: unknown owning input ${input}.`);
+        let sourceType = inputChoiceType(sourceField, what);
+        const path = choiceArray(mapping['path'], what).map(value => choiceName(value, what));
+        for (const segment of path) {
+          if (sourceType.array || sourceType.kind !== 'ref' || sourceType.model === undefined) failDescriptor('malformed_descriptor', `Invalid ${what}: unsupported non-record path.`);
+          const owner = models.get(sourceType.model);
+          const leaf = owner?.fields.get(segment);
+          if (leaf !== undefined) sourceType = modelChoiceType(leaf, what);
+          else if (segment === 'parent' && owner?.parent !== undefined && models.has(owner.parent)) sourceType = { kind: 'ref', model: owner.parent, array: false, nullable: false };
+          else failDescriptor('malformed_descriptor', `Invalid ${what}: unknown model path ${segment}.`);
+        }
+        const readType = inputChoiceType(readParam, what);
+        if ((sourceType.model !== undefined && !models.has(sourceType.model)) ||
+            (readType.model !== undefined && !models.has(readType.model))) failDescriptor('malformed_descriptor', `Invalid ${what}: unknown argument model.`);
+        // Absent/null prerequisites suppress lookup; the mapped value is
+        // checked against the required read parameter only when present.
+        compatibleChoiceType(sourceType, readType, what, true);
+        argumentsChecked[param] = Object.freeze({ input, path: Object.freeze(path) });
+        dependencies.add(`${operation.name}:${input}`);
+      }
+      for (const param of target.checked.fields) {
+        if (isDeliveryField(param) || (param.required && !Object.hasOwn(argumentsChecked, param.name))) {
+          failDescriptor('malformed_descriptor', `Invalid ${what}: required read parameter ${param.name} has no mapping.`);
+        }
+      }
+      const value = binding['value'];
+      const valueKind = choiceMember(value, 'kind', what);
+      let checkedValue: InputChoiceBinding['value'];
+      if (valueKind === 'record') {
+        choiceObject(value, ['kind'], what);
+        compatibleChoiceType({ kind: 'ref', model: candidateName, array: false, nullable: false }, assisted, what);
+        checkedValue = Object.freeze({ kind: 'record' });
+      } else if (valueKind === 'field') {
+        const valueObject = choiceObject(value, ['kind', 'field'], what);
+        const name = choiceName(valueObject['field'], what);
+        const leaf = candidate.fields.get(name);
+        if (leaf === undefined) failDescriptor('undeclared_leaf', `Invalid ${what}: unknown value field ${name}.`);
+        compatibleChoiceType(modelChoiceType(leaf, what), assisted, what);
+        checkedValue = Object.freeze({ kind: 'field', field: name });
+      } else failDescriptor('malformed_descriptor', `Invalid ${what}: unsupported value selector.`);
+      const labels = choiceArray(binding['labels'], what).map(value => choiceName(value, what));
+      if (new Set(labels).size !== labels.length) failDescriptor('duplicate_name', `Invalid ${what}: duplicate label fields.`);
+      for (const label of labels) {
+        const leaf = candidate.fields.get(label);
+        if (leaf === undefined) failDescriptor('undeclared_leaf', `Invalid ${what}: unknown label field ${label}.`);
+        const type = modelChoiceType(leaf, what);
+        if (type.array || ['file', 'delivery'].includes(type.kind)) {
+          failDescriptor('malformed_descriptor', `Invalid ${what}: labels require singular scalar/reference/user leaves.`);
+        }
+      }
+      edges.set(`${operation.name}:${field.name}`, dependencies);
+      const choices: InputChoiceBinding = Object.freeze({ version: 1, readOperation: target.checked.name,
+        arguments: Object.freeze(argumentsChecked), value: checkedValue, labels: Object.freeze(labels) });
+      return { ...field, choices };
+    });
+    return { ...operation, fields: Object.freeze(fields) };
+  });
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const visit = (name: string): void => {
+    if (visiting.has(name)) failDescriptor('malformed_descriptor', `Choices dependency cycle at ${name}.`);
+    if (visited.has(name)) return;
+    visiting.add(name);
+    for (const dependency of edges.get(name) ?? []) visit(dependency);
+    visiting.delete(name);
+    visited.add(name);
+  };
+  for (const name of edges.keys()) visit(name);
+  return result;
+}
+
 /**
  * Fence one derivation slice on the artifact contract version: exact
  * match, never a silent fallback. A version mismatch is the precise
@@ -919,14 +1168,15 @@ export function checkArtifactOperations(slice: ArtifactOperationSlice): CheckedA
     failDescriptor('malformed_descriptor', 'Invalid descriptor slice: operations must be an array.');
   }
   const seen = new Set<string>();
-  const checked = raw.map((entry) => checkArtifactOperation(entry));
+  const checked = raw.map((entry) => checkArtifactOperationBase(entry));
   for (const operation of checked) {
     if (seen.has(operation.name)) {
       failDescriptor('duplicate_name', `Duplicate operation descriptor: ${JSON.stringify(operation.name)}.`);
     }
     seen.add(operation.name);
   }
-  return checked;
+  return raw.some(entry => rawChoiceFields(entry).length !== 0)
+    ? attachInputChoices(raw, checked, slice.models) : checked;
 }
 
 /**
