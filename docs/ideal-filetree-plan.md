@@ -384,3 +384,6 @@ Compiler direct current-model field ordering lowers once to existing IrOrder/nat
 
 
 State generated CRUD now owns narrow receipt-result provenance derived from its actual first staged write. Existing outcome JSON persists it; an optional synchronous invocation observer exposes the exact committed/replayed receipt after durability outside retry handling. Public MutationResult and scenario behavior remain unchanged. Memory/JSON and affected CRUD9/9 qualify this prerequisite; State typecheck passes after the existing enum-test narrowing matches its fixture. Current-access public mapping, original secret metadata forwarding, D1 and full replay disclosure remain open; no parent/checkpoint advancement.
+
+
+The shared transient presentation contract now separates source-pattern MessageDescriptor.sourceLocale from already-formatted ResolvedMessage text/locale in TextValue. Its optional fourth factory argument preserves legacy three-argument typing. Contracts typecheck/emit qualify only the defining types; UI locale canonicalization, conflicting override refusal, literal escaped/bidi rendering, Compiler text.values admission and owning-constructor old-runtime postcondition remain consumer gates. No Values formatter replacement, stored protocol migration or full presentation acceptance; complete checkpoint unchanged.
