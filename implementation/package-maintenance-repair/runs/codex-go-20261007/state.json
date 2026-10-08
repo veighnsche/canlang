@@ -1620,7 +1620,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T17:33:22.385548+00:00",
+  "updated_utc": "2026-10-08T17:35:53.693722+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2459,7 +2459,8 @@
       "limits": "Defining source only; no installed routing/whole TECH-W02/48 or replacement reduction credit.",
       "counts_unchanged": true,
       "commands_released": true,
-      "private_output": "/private/tmp/canlang-repair-go-20261007/handler-occurrence-producer/emit"
+      "private_output": "/private/tmp/canlang-repair-go-20261007/handler-occurrence-producer/emit",
+      "commit": "305baa06c5a5fab57b5801a87f3d274663d6e0a1"
     },
     "fanout_navigation_producer": {
       "state": "Root directly reviewed and captured defining navigation source; actual bounded runtime join remains owning Roadmap work",
@@ -2470,7 +2471,16 @@
       "limits": "Trusted actual owner-local StoragePort prerequisite, bounded retained admission/drive, terminal co-staging and durable installed restart remain consumer gates; text owner alone grants no isolation.",
       "counts_unchanged": true,
       "commands_released": true,
-      "private_output": "/private/tmp/canlang-fanout-navigation-producer-20261008/emit"
+      "private_output": "/private/tmp/canlang-fanout-navigation-producer-20261008/emit",
+      "commit": "5ffa33a48e7b83b185b706a038ca5ce246df0c87"
+    },
+    "due_sibling_refusal": {
+      "state": "Root directly reviewed released exact all-matching-handler intake gate and captured source/current genuine fixture/owning case",
+      "verification": "Actual Compiler fixture compile0 and CFnoEmit/selective emissions0; one changed native D1 case1/1 (12.026s). Prior ordinary/claim controls reused, no root rerun.",
+      "contract": "Mixed ordinary/cohort and multiple ordinary siblings refuse before Work source consumption from either selected sibling. Exact pending source, absent receipt and unchanged revision/domain/history preserved. Cross-module source handlers remain unsupported.",
+      "limits": "Fail-closed integrity prerequisite; actual retained all-handler atomic routing/independent execution remains open, not whole TECH-W02/root48 closure.",
+      "commands_released": true,
+      "counts_unchanged": true
     }
   },
   "live_finite_packets": [
