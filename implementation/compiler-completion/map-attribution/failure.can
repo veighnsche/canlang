@@ -1,0 +1,6 @@
+app Attribution
+Given
+ ## An ordinary int remainder fails at the authored callable expression.
+ derive remainder(numerator:int,denominator:int):int = numerator % denominator
+When
+Then

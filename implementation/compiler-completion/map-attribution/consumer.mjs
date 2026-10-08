@@ -1,0 +1,63 @@
+import assert from 'node:assert/strict';
+import {existsSync, readFileSync} from 'node:fs';
+import {registerHooks, SourceMap} from 'node:module';
+import {join} from 'node:path';
+import {fileURLToPath, pathToFileURL} from 'node:url';
+import {createHash} from 'node:crypto';
+const [root, artifactPath, sourcePath, workDir] = process.argv.slice(2);
+assert.ok(Number(process.versions.node.split('.')[0]) >= 24, 'requires actual Node >=24 native TS stripping');
+assert.ok(process.execArgv.includes('--enable-source-maps'));
+// Resolve source-owned .js imports to their existing TypeScript owners. This
+// changes no emitted module, producer import or source-map coordinate.
+registerHooks({resolve(specifier, context, next) {
+  if (specifier.startsWith('.') && specifier.endsWith('.js') && context.parentURL?.endsWith('.ts')) {
+    const candidate = new URL(specifier.slice(0, -3) + '.ts', context.parentURL);
+    if (existsSync(candidate)) return {url:candidate.href, shortCircuit:true};
+  }
+  return next(specifier, context);
+}});
+const runtime = join(root, 'packages/cloudflare/src/runtime');
+const {loadArtifactFile} = await import(pathToFileURL(join(runtime, 'artifact.ts')));
+const {assembleModules} = await import(pathToFileURL(join(runtime, 'modules.ts')));
+const loaded = loadArtifactFile(artifactPath);
+const before = JSON.stringify(loaded.artifact);
+const sourceText = readFileSync(sourcePath, 'utf8');
+const artifact = loaded.artifact;
+assert.equal(artifact.modules.length, 1);
+assert.equal(artifact.sources[0].path, sourcePath);
+assert.equal(artifact.sources[0].sha256, createHash('sha256').update(sourceText).digest('hex'));
+// Real installed producer exports; no test runtime or injection facade.
+const stdlibUrl = import.meta.resolve('@canlang/stdlib');
+const assembly = await assembleModules(loaded, {workDir, stdlibUrl});
+assert.equal(JSON.stringify(artifact), before, 'assembler preserves compiler artifact bytes/values');
+const descriptor = artifact.callables.find(item => item.id === 'Attribution.remainder');
+assert.ok(descriptor);
+const entry = await import(assembly.moduleUrls[descriptor.module]);
+let callable = entry.canApp();
+for (const member of descriptor.member) callable = callable[member];
+assert.equal(typeof callable, 'function');
+assert.equal(await callable({}, 9n, 4n), 1n, 'ordinary positive control uses emitted call semantics');
+let failure;
+try { await callable({}, 9n, 0n); } catch (error) { failure = error; }
+assert.ok(failure instanceof RangeError);
+assert.equal(failure.message, 'Division by zero');
+// Independently fixed original anchor: the derive expression is on source line
+// four. Existing Can point maps choose its owning declaration at its name (byte column seven).
+assert.ok(failure.stack.includes(`${sourcePath}:4:8`), failure.stack);
+const sourceIdentity = value => value.startsWith('file:') ? fileURLToPath(value) : value;
+const stagedPath = fileURLToPath(assembly.moduleUrls[descriptor.module]);
+const stagedJs = readFileSync(stagedPath, 'utf8');
+const generatedLine = stagedJs.split('\n').findIndex(line => line.includes(' % '));
+assert.ok(generatedLine >= 0);
+// Node's SourceMap is an independent engine, not the Rust or package decoder.
+// Both the raw compiler map and the actual staged map must identify authored
+// source text and the same fixed source location.
+for (const map of [artifact.modules[0].map, JSON.parse(readFileSync(fileURLToPath(assembly.mapUrls[descriptor.module]), 'utf8'))]) {
+  assert.deepEqual(map.sources, [sourcePath]);
+  assert.deepEqual(map.sourcesContent, [sourceText]);
+  const decoded = new SourceMap(map).findEntry(generatedLine, 0);
+  assert.equal(sourceIdentity(decoded.originalSource), sourcePath);
+  assert.equal(decoded.originalLine, 3);
+  assert.equal(decoded.originalColumn, 7);
+}
+console.log(JSON.stringify({node:process.versions.node, consumer:'real CLI → public artifact loader/assembler → installed producers → emitted pure callable → Node source-map engine', positive:'9 % 4 = 1', failure:failure.message, location:`${sourcePath}:4:8`, rawAndStagedMap:true, unchangedArtifact:true}));

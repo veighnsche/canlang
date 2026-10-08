@@ -1,0 +1,1 @@
+{"node":"24.21.0","consumer":"real CLI → public artifact loader/assembler → installed producers → emitted pure callable → Node source-map engine","positive":"9 % 4 = 1","failure":"Division by zero","location":"/Users/vince/Projects/canlang/implementation/compiler-completion/map-attribution/failure.can:4:8","rawAndStagedMap":true,"unchangedArtifact":true}
