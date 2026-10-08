@@ -8162,18 +8162,23 @@ fn scenario_default_omission_supported(ty: &IrType) -> bool {
     let IrType::Known(base) = ty else {
         return false;
     };
-    if matches!(base, ResolvedType::Enum { .. }) {
-        return true;
-    }
     let mut base = base;
     if let ResolvedType::Nullable(inner) = base {
         base = inner.as_ref();
     }
-    if let ResolvedType::Array { element, .. } = base {
+    let mut ordinary_array = true;
+    if let ResolvedType::Array {
+        element, nonempty, ..
+    } = base
+    {
+        ordinary_array = !nonempty;
         base = element.as_ref();
     }
     // Only joined native input domains carry the checked omission claim.
     // Element nullability, nested arrays and collapsed aliases remain unqualified.
+    if matches!(base, ResolvedType::Enum { .. }) {
+        return ordinary_array;
+    }
     matches!(
         base,
         ResolvedType::Scalar(
