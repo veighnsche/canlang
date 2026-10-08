@@ -371,3 +371,16 @@ admission. Only the direct user type is added to omission admission;
 nullable/array user, actor-context defaults and stored-model references retain
 their separate requirements. Existing user D1/wire controls are reused.
 Canonical completion remains **57/67**, with **10** remaining.
+
+The [nullable/array user-default case](../../compiler/tests/user_default_shapes.rs)
+passes **1/1**, covering nine canonical Memory calls across `user?`, `user[]`
+and `user[]?`. Loaded owning value types retain their complete shape; null,
+empty arrays and ordered users serialize correctly into results/default
+receipts, and explicit overrides remain absent from the default map. The first
+run stopped at missing assembler URLs in the new fixture; after correcting
+only that setup, only the failed case ran again. Existing authority, failure,
+replay and user D1/wire outcomes are reused. Contextual actor execution and
+stored-model defaults remain separate; the prepared
+[source witness](../../compiler/tests/fixtures/model_reference_default.can)
+has not run and retains E6008 pending its current-binding consumer contract.
+Canonical completion remains **57/67**, with **10** remaining.

@@ -350,7 +350,11 @@ A singular nonnullable `user` default copied from an earlier typed parameter
 also preserves omission and native UserRef identity. The
 [user-copy receipt check](../../compiler/tests/user_default_replay.rs) qualifies
 closed `{id}` result/default wires, overrides, failure discard and replay through
-canonical CF/State Memory.
+canonical CF/State Memory. The
+[nullable/array user-default check](../../compiler/tests/user_default_shapes.rs)
+also qualifies earlier-parameter copies through `user?`, `user[]` and `user[]?`,
+including null, empty arrays, ordered users and supplied overrides, using the
+existing complete owning codec profiles.
 For ordinary mutation calls with admitted computed parameter defaults, generated
 handlers accept an optional invocation-local synchronous observer. They report
 an actually omitted value immediately after assigning it and before subsequent
@@ -365,8 +369,7 @@ defaults, raw-input conflicts, replay without re-execution, and a newly revoked
 member being denied. Supplied-input hashing and receipt-first replay policy are
 unchanged; replay does not reauthorize current membership. The receipt witness
 qualifies finite enums through canonical CF/State Memory. Nullable enum,
-enum-array, stored-model references, nullable/array user and other contextual
-identity defaults, hostile supplied-enum/null wire validation, D1 and
+enum-array, stored-model references and contextual actor/identity defaults, hostile supplied-enum/null wire validation, D1 and
 full-application paths remain open.
 
 Optional operation-owned input assistance is authored on the parameter, for example `assignee:user choices={read=reviewer_choices(document=submission.parent),value="user",labels=["name","role","home"]}` or `region:Region choices={read=region_choices(country=country),labels=["name"]}`. The compiler derives the canonical owning read, checked input paths, candidate value and labels from declarations, and publishes version 1 metadata on the existing input descriptor. A checked read returning a nonnullable one-dimensional stored-model collection publishes its canonical model-array result, such as `approve.Employee[]`; each value keeps the existing model-reference wire representation. Choices grant no authority, execute no read themselves and change no final input, default or server guard. Artifacts carrying choices require `interfaces.input-choices@1`; a consumer must support that feature before admitting the artifact. Viewer-authorized read execution, current draft binding, cancellation, stale-response fencing and form controls retain their owning consumer scopes. Labels preserve declared reference identities; they introduce no directory or file enrichment.

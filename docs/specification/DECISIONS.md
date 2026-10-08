@@ -2985,3 +2985,9 @@ The owning genuine-source canonical CF/State Memory case passed 1/1 in 5.16s wit
 Accepted a finite driver correction: body execution and final owner commit retain the actual winning running child row/version. An older attempt cannot borrow a rival released/reclaimed generation or mutate it during refusal cleanup. The existing claim authority and the owning trusted host's offered guards are checked again before commit; State row/revision fences remain the final transaction controls.
 
 The owner genuine private native D1 case passed 1/1 in 10.14s, the affected ordinary native case passed 1/1 in 4.20s, and Cloudflare noEmit passed. Root reviewed the released source and reused these outcomes. The tests cover a real rival claim and actual Identity revocation without a State revision change. Durable tick navigation, independent handler routing, default installed Worker and whole package-task acceptance remain open. No second engine, new schema or replacement reduction is claimed.
+
+## 2026-10-08: retain User copy defaults across supported shapes
+
+Accepted finite Compiler omission support through the existing nullable and ordinary-array scalar predicate. Earlier User parameter copies retain their complete user?, user[] and user[]? owning codec profiles; null, empty arrays and ordered closed {id} wires reach canonical results and default receipts, while explicit overrides suppress reporting. Actor context, permissions, codecs and receipt-first replay are unchanged.
+
+The owner genuine canonical CF/State Memory shape case passed 1/1 across nine calls after correcting required assembler URLs in its fixture. Only the failed setup case was repeated; previous singular-user authority, failure, replay and wire checks are reused. Root reviewed source directly. Stored-model default admission and broader D1/full-application/package-task qualification remain separate, with no replacement reduction claim.
