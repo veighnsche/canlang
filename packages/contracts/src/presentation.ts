@@ -83,6 +83,8 @@ export type MessageParams = Record<string, MessageParamValue>;
  * Descriptors are not stored fields, client-supplied keys, callbacks or tools.
  */
 export interface MessageDescriptor {
+  /** Checked owning source locale; omitted legacy descriptors retain explicit resolver options. */
+  readonly sourceLocale?: string;
   readonly source: string;
   readonly variants: MessageVariantMap;
   readonly params?: MessageParams;
@@ -93,12 +95,13 @@ export type MessageFactory = (
   source: string,
   variants?: MessageVariantMap,
   params?: MessageParams,
+  sourceLocale?: string,
 ) => MessageDescriptor;
 
 /** Any caption slot: literal source text or a full descriptor. */
 export type MessageValue = string | MessageDescriptor;
 
-/** Result of locale resolution: selected text plus the variant locale used. */
+/** Final display text and its effective locale. Never parse or resolve this text as a message pattern. */
 export interface ResolvedMessage {
   readonly text: string;
   readonly locale: string;
@@ -456,6 +459,7 @@ export type TextValue =
   | bigint
   | boolean
   | MessageDescriptor
+  | ResolvedMessage
   | MessageParamValue
   | null
   | undefined;
