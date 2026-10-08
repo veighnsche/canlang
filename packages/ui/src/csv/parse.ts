@@ -23,6 +23,9 @@
  */
 
 import type {
+  BusinessError,
+  ClosedInputs,
+  DerivedOperationInputs,
   MessageValue,
   PresentationContext,
 } from "@canlang/contracts";
@@ -91,6 +94,85 @@ export function parseCsvText(text: string): CsvClientParse {
     if (!(error instanceof CsvGrammarError)) throw error;
     return { ok: false, error: { kind: error.kind, message: error.message } };
   }
+}
+
+/** Exact writable root names only; dotted names never expand into objects. */
+export function checkCsvHeader(
+  header: readonly string[],
+  derived: DerivedOperationInputs,
+  allowed?: readonly string[],
+): BusinessError | null {
+  if (header.some((name) => name === "")) {
+    return { code: "validation", message: "CSV header has an empty column name.", retryable: false };
+  }
+  const seen = new Set<string>();
+  for (const name of header) {
+    if (seen.has(name)) {
+      return { code: "validation", message: `CSV header repeats column ${JSON.stringify(name)}.`, retryable: false };
+    }
+    seen.add(name);
+  }
+  seen.clear();
+  const writable = new Set(derived.inputs.filter((input) => input.kind !== "delivery").map((input) => input.name));
+  const permitted = allowed === undefined ? writable : new Set(allowed.filter((name) => writable.has(name)));
+  const prefixes = new Set<string>();
+  for (const name of header) {
+    let message: string | undefined;
+    const ancestors: string[] = [];
+    if (!permitted.has(name)) message = `CSV header has no writable input ${JSON.stringify(name)}.`;
+    else {
+      let overlap = prefixes.has(name);
+      for (let dot = name.indexOf("."); !overlap && dot !== -1; dot = name.indexOf(".", dot + 1)) {
+        const ancestor = name.slice(0, dot);
+        overlap = seen.has(ancestor);
+        ancestors.push(ancestor);
+      }
+      if (overlap) message = `CSV header has overlapping input paths at ${JSON.stringify(name)}.`;
+    }
+    if (message !== undefined) return { code: "validation", message, retryable: false };
+    seen.add(name);
+    for (const ancestor of ancestors) prefixes.add(ancestor);
+  }
+  return null;
+}
+
+/**
+ * Shared finite cell mapping for advisory and server use after header admission.
+ * Mapped nullable blanks are null; required singular wire strings retain empty
+ * text. Other nonnullable blanks omit, and unmapped defaults stay absent.
+ * This wire-string profile makes no source type/constraint claims. Compound
+ * cells remain raw strings for the existing owning binding check to refuse.
+ */
+export function mapCsvCells(
+  header: readonly string[],
+  cells: readonly string[],
+  derived: DerivedOperationInputs,
+): { inputs: ClosedInputs; error: BusinessError | null } {
+  const inputs: ClosedInputs = {};
+  const byName = new Map(derived.inputs.map((input) => [input.name, input]));
+  for (let i = 0; i < header.length; i += 1) {
+    const name = header[i]!;
+    const declared = byName.get(name);
+    if (declared === undefined || declared.kind === "delivery") {
+      return { inputs, error: { code: "validation", message: `CSV header has no writable input ${JSON.stringify(name)}.`, retryable: false } };
+    }
+    const cell = cells[i] ?? "";
+    let value: string | boolean | null = cell;
+    if (cell === "") {
+      if (declared.nullable === true) value = null;
+      else if (!(declared.kind === "string" && declared.required && declared.array === undefined)) continue;
+    } else if (declared.kind === "boolean") {
+      if (cell === "true") value = true;
+      else if (cell === "false") value = false;
+      else {
+        const message = `Invalid value for input ${JSON.stringify(name)}: boolean columns take true/false text (got ${JSON.stringify(cell)}).`;
+        return { inputs, error: { code: "validation", message, retryable: false,
+          fields: [{ path: `/${name}`, code: "binding_mismatch", message }] } };
+      }
+    }
+    Object.defineProperty(inputs, name, { value, enumerable: true, writable: true, configurable: true });
+  }
+  return { inputs, error: null };
 }
 
 const REVIEW_HEADING = message("Review CSV intake", { nl: "CSV-intake beoordelen" });
