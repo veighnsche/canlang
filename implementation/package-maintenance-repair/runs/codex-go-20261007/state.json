@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T10:34:11.247730+00:00",
+  "updated_utc": "2026-10-08T10:52:10.221361+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1619,7 +1619,7 @@
     ],
     "restrictions": "No staging/commit; preserve all bytes, root retains Git/state/filetree and source leases",
     "package_decision_notes_pending": [],
-    "heading": "2026-10-07 \u2014 Assign proposed worker profiles to the capability roadmap (PROPOSED)",
+    "heading": "2026-10-07 — Assign proposed worker profiles to the capability roadmap (PROPOSED)",
     "foreign_append_staging": "All foreign proposals preserved unstaged",
     "end_sha256": "c0eedd9b5459716abfb439a685d601fe934c13ee1bc8f7d0890fd0852486f403"
   },
@@ -1859,7 +1859,7 @@
       "counts_unchanged": true
     },
     "file_mcp_transport": {
-      "status": "Defining Interfaces source directly reviewed; commit ready, actual Files MCP consumer rerun pending",
+      "status": "Defining Interfaces51d10222 committed; actual native Files23 MCP consumer passed1/1, selected File release accepted by root direct review",
       "source_paths": [
         "packages/interfaces/src/mcp/schemas.ts",
         "packages/interfaces/test/t19b-depth.test.ts"
@@ -2037,7 +2037,7 @@
         "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts",
         "packages/cloudflare/src/runtime/t17b-durable.test.ts"
       ],
-      "validation": "Private focused owning emit, original memory62/62 and D1other2/2 pass. First D1case required3obsolete create+set version2\u21921 assertions perDESIGN:103; only affected case rerun1/1 passed including fresh-handle/receipt/history/read/revision assertions.",
+      "validation": "Private focused owning emit, original memory62/62 and D1other2/2 pass. First D1case required3obsolete create+set version2→1 assertions perDESIGN:103; only affected case rerun1/1 passed including fresh-handle/receipt/history/read/revision assertions.",
       "commands_live": false,
       "limits": "Explicitly handwritten synthetic artifacts, not compiler provenance; original authority/error behavior retained, no product runtime fallback."
     }
@@ -2253,7 +2253,7 @@
         "scope": "comparison-only draftIdentity holds current context/schema/revision/op/reference IDs/editable set across expected-version changes; exact binding identity and signed token still fence version",
         "behavior": "replace authority epoch with fresh nonce/proof/CSRF/version; carry only compatible dirty editable values/focus; no hidden/files, old pending state/feedback or outcome transfer; different IDs/schema/context refuse transfer",
         "validation": "Contracts/UI/Interfaces emit0 and browserasset0; affected proof identity case1/1 and versionrefresh/negative DOM2/2 once; unchanged protection/lifecycle results reused",
-        "native_witness": "Original stale409\u2192v3 poll erased Recovered draft retained; after861edef5, the same genuine compiled source/Chrome/Worker/D1 case passed1/1 (~7.7s), including fresh-authority draft retry and explicit CRUD update."
+        "native_witness": "Original stale409→v3 poll erased Recovered draft retained; after861edef5, the same genuine compiled source/Chrome/Worker/D1 case passed1/1 (~7.7s), including fresh-authority draft retry and explicit CRUD update."
       },
       "actual_consumer": {
         "validation": "Genuine forms/update source compile0; sole affected protected case1/1 (~7.7s) after861edef5; earlier unbound/readonly/MCP outcomes reused without reruns. Root direct source/test review.",
@@ -2498,6 +2498,33 @@
       "limits": "Pure/memory repository selected-join qualification only. Direct storage update witnesses fence invalidation, not rich TextRun lifecycle. Actual generated compiler/runtime/HTTP/MCP/provider/native/installed Generation consumer and terminal late usage remain open.",
       "model": "gpt-6.1-sol high: exact authority/projection/retention seam",
       "source_outputs_handles_released": true,
+      "counts_unchanged": true
+    },
+    "file_durable_consumer": {
+      "status": "Root directly reviewed frozen12-path Files release; selected Node24 SQLite/nativeD1 authenticated upload/attachment/field read accepted; commit ready",
+      "sources": [
+        "bun.lock",
+        "packages/files/package.json",
+        "packages/files/src/host/sqlite.ts",
+        "packages/cloudflare/package.json",
+        "packages/cloudflare/src/runtime/bound-files.ts",
+        "packages/cloudflare/src/runtime/file-staging.ts",
+        "packages/cloudflare/src/runtime/typed-file-journey.test.ts",
+        "packages/cloudflare/src/worker/assembly.ts",
+        "packages/cloudflare/src/deploy/bundle.ts",
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/test/fixtures/typed-file-journey.can",
+        "packages/cloudflare/test/fixtures/typed-file-journey.json"
+      ],
+      "contract": "Existing Files kernel over explicit Node SQLite metadata+bytes transaction; real authenticated Interfaces upload, current canonical finalized File attachment and declared record-field byte read. Existing Values codec owns closed File{id}; no raw-ID read or alternate File decoder. Current owner/membership+field/value/version recheck before response.",
+      "verification": "Owner normal CF emit0; same genuine native Files23 case1/1 with actual SQLite finalize rollback, State/Files reopen, same-envelope lost postcommit attachment response repair, hostile refs and live revocation; existing portable module link1/1. Root exact source review reuses passing results.",
+      "integration": "Owner regenerated complete frozen partial patch; git apply check passed. Only File hunks of invoke/bundle/assembly staged; ongoing Generation/H1/UI excluded.",
+      "limits": [
+        "Node24 SQLite Files and nativeD1 State; identity remains explicit memory fixture",
+        "Files metadata+bytes atomic within SQLite; attachment after State commit is separate durable step repaired on same envelope, not cross-database atomicity",
+        "Selected singular checked File workflow; array/ref/all-host/browser/installed/native-preparation/default Worker/R2/shared-principal and broad parent acceptance remain open"
+      ],
+      "sources_outputs_handles_released": true,
       "counts_unchanged": true
     }
   }

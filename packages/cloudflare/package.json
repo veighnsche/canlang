@@ -80,6 +80,10 @@
     "./runtime/bound-dispatch": {
       "types": "./dist/runtime/bound-dispatch.d.ts",
       "default": "./dist/runtime/bound-dispatch.js"
+    },
+    "./runtime/bound-files": {
+      "types": "./dist/runtime/bound-files.d.ts",
+      "default": "./dist/runtime/bound-files.js"
     }
   },
   "scripts": {
