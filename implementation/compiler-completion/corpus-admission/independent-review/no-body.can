@@ -1,0 +1,6 @@
+app NoBody
+Given
+ corpus Handbook model=Missing scope=parent title=title content=body where=true from=deployment.knowledge
+  Item { title:text }
+When
+Then

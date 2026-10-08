@@ -1,0 +1,5 @@
+app MissingOwner
+Given
+ corpus Broken model=Missing scope=parent title=title content=body where=true from=deployment.knowledge
+When
+Then

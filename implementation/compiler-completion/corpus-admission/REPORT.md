@@ -1,0 +1,26 @@
+# Corpus unsupported admission
+
+Bounded implemented outcome: parser-admitted Corpus declarations now produce one error E6008 per declaration at compile admission, instead of disappearing from a successfully shipped artifact. The diagnostic names the canonical owning app/package and authored Corpus name, spans the keyword through the final attribute, and states that generated interfaces and runtime ownership are not implemented. The CLI's existing diagnostics-only exit 10 blocks artifact shipping. Public `emit` continues its established artifact-plus-diagnostics API; callers must refuse errors.
+
+This is an existing unsupported-owner refusal correction authorized by the coordinator, not new language, resolver, type, effect, backend, or runtime support. `check` remains complete and clean for syntactically valid Corpus attributes, including `model=Missing`; these attributes have not become semantically validated. Missing required attributes still fail parser admission. Judgment remains separately check-clean and compile-refused with E6006. Full supported Corpus/Judgment descriptors and generated interfaces remain proposed/unimplemented and require the verified-context design decision before consequential support work. This report does not independently declare the original SYN-R05/S9-Q04 packet fully closed.
+
+Verified owners before mutation:
+
+- `syntax/parser.rs::parse_corpus` admits unexported Given leaves, requires the six header attributes, and does not allow a nested Corpus body.
+- `analysis/resolve.rs::index_given` registers Judgment as a fieldless Contract and does not register Corpus. SymbolKind has no Corpus owner. Corpus has no type/effect/IR descriptor.
+- `analysis/catalog.rs` and `packages/contracts/src/services.ts` explicitly scope out Corpus-generated answer/cancel/reconcile/refresh/status/available and Run/Answer interfaces pending a Corpus-interface decision. Existing KnowledgeRequest/IndexState value schemas do not implement those interfaces.
+- DESIGN §13.1/13.5 specifies desired descriptors; actual IR/app artifacts have no supported Corpus descriptor owner.
+- `cli.rs::run_compile` already refuses emission errors and prints a diagnostic envelope without an artifact; public `codegen::emit` intentionally returns artifacts plus errors and leaves shipping to callers.
+
+Implementation is confined to `compiler/src/codegen/ir.rs`. Within each checked, real-owned module's exact reparsed CST anchor it inspects direct section Corpus leaves and emits the refusal without interpreting attributes. Existing module, item, example, and migration lowering remains intact. `compiler/tests/corpus_admission.rs` contains three permanent tests and six fixtures cover local bodyless Corpus, foreign model alias in a package, unchecked Missing model, parser-invalid bare Corpus, Judgment, and supported sibling outputs. Public emission compares the entire sibling artifact envelope after removing only source hashes and source maps, which necessarily change with inserted source text. This verifies artifact retention, not generated JavaScript execution.
+
+Evidence:
+
+- `before/` retains the immutable pre-edit IR, IR/binary hashes, actual CLI stdout/stderr/exit codes, and the baseline failing admission oracle records. Local and unknown-model Corpus compiled with exit 0 and no Corpus descriptor. Legal foreign alias Corpus likewise compiled with exit 0. Initial malformed package-indentation and unowned migration control attempts are retained under their original names; `.legal`, `.owned`, and `.final-fixture` records identify corrected legal source checks.
+- `after/` retains actual CLI check/compile stdout/stderr/exit codes and final IR/binary hashes. Local/foreign/Missing checks return 0; compiles return 10, exact E6008, and no artifact. Bare Corpus remains E1204. Judgment remains E6006. Sibling control check/compile return 0.
+- `source.patch` is the exact IR change. `before/source-pins.json` and `after/source-pins.json` cover the 42 Rust implementation files under compiler/src; this is a bounded snapshot and is not the coordinator's broader 127-source fingerprint.
+- `replay.py` executes the actual current CLI against all fixtures and independently checks the frozen pre-repair unsupported-admission oracle failures. Run after building the current compiler binary.
+- `focused-tests.log`: `b4_resolve` 11/0, `checked_cohort` 8/0, `corpus_admission` 3/0, `typed_descriptors` 6/0, total 28/0. All use current source; the permanent Corpus test uses production `EmitOptions::new`, genuine complete owned analysis, and the real bundled values catalog, without manually setting completion.
+- `first-refusal-run.log` records the focused successful run after fixing attribution of leading lossless CST trivia. The initial run found start-span differences (local 36 versus authored 38; package 22 versus authored 25), corrected by using significant child bounds rather than enclosing CST trivia. This attribution repair did not broaden admission.
+
+No full suite was run. The previous 1162/0 historical full-source result is not a claim about this changed source. No network/JEV call, new catalog/runtime owner, Git change, or out-of-lease documentation/status update was made. Independent coordinator review remains required.

@@ -31,9 +31,7 @@
 //! sequence-step value-type rules (literals, comparisons, `b`/`s`
 //! slots, member chains, `first`/`count`) that assertion type ids need.
 //! Positions no table serves stay loud `E6006` and are omitted
-//! fail-closed. Parser-admitted Corpus declarations have no semantic or
-//! runtime owner; module admission reports `E6008` at the authored declaration
-//! instead of silently dropping them. This does not check their attributes.
+//! fail-closed.
 //!
 //! Index parity: `items[i]` corresponds to `CheckedProgram.symbols[i]` and
 //! `modules[i]` to `CheckedProgram.modules[i]`, so [`SymbolId`] and
@@ -1629,46 +1627,6 @@ impl<'a> Cx<'a> {
     fn build_modules(&mut self) -> Vec<IrModule> {
         let mut out = Vec::with_capacity(self.program.modules.len());
         for m in self.program.modules.clone() {
-            // Corpus has no checked symbol or descriptor to lower. Inspect only
-            // the owning module's Given leaves, without interpreting attributes
-            // or inventing a generated interface from the source spelling.
-            if let Some((_, tree)) = self.trees.iter().find(|(file, _)| *file == m.file)
-                && let Some(module) = tree.children.iter().find(|node| {
-                    matches!(node.kind, SyntaxKind::App | SyntaxKind::Package)
-                        && node.span == m.span
-                })
-            {
-                for corpus in module
-                    .children
-                    .iter()
-                    .filter(|node| node.kind == SyntaxKind::Section)
-                    .flat_map(|section| section.children.iter())
-                    .filter(|node| node.kind == SyntaxKind::Corpus)
-                {
-                    let parts = kids(corpus);
-                    let span = Span::new(
-                        corpus.span.file,
-                        parts
-                            .first()
-                            .map_or(corpus.span.start, |node| node.span.start),
-                        parts.last().map_or(corpus.span.end, |node| node.span.end),
-                    );
-                    let name = parts
-                        .iter()
-                        .filter(|node| node.kind == SyntaxKind::Name)
-                        .nth(1)
-                        .map(|node| self.text(node.span))
-                        .unwrap_or("?");
-                    self.diags.push(Diagnostic::error(
-                        "E6008",
-                        format!(
-                            "corpus {}.{name}: corpus declarations have no supported emission; generated interfaces and runtime ownership are not implemented",
-                            m.name,
-                        ),
-                        span,
-                    ));
-                }
-            }
             let module_data = self.program.effects.modules.get(&m.id).cloned();
             if module_data.is_none() && !matches!(m.kind, ModuleKind::ComposedApp) {
                 self.gap(

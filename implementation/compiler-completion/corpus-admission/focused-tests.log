@@ -1,0 +1,54 @@
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.30s
+     Running tests/b4_resolve.rs (compiler/target/debug/deps/b4_resolve-6a0f6f63d06da789)
+
+running 11 tests
+test t35r23_alias_targets_owner_operation ... ok
+test t35r23_disabled_operation_has_no_alias ... ok
+test t35r23_self_import_leaves_canonical_untouched ... ok
+test failed_trusted_handler_builtin_name_keeps_event ... ok
+test judgment_import_undeclared_still_e2004 ... ok
+test judgment_duplicate_is_e2002 ... ok
+test failed_plain_scenario_stays_untrusted ... ok
+test failed_trusted_handler_keeps_event ... ok
+test set_parent_target_parity ... ok
+test judgment_registers_and_self_import_resolves ... ok
+test t35r23_ambiguous_model_names_have_no_alias ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/checked_cohort.rs (compiler/target/debug/deps/checked_cohort-71a015d860e3fdcb)
+
+running 8 tests
+test originally_nonexistent_selected_id_cannot_become_checked_by_append ... ok
+test catalog_absence_is_part_of_the_checked_owner_contract ... ok
+test complete_gate_and_test_only_acknowledgment_are_separate_from_cohort ... ok
+test owned_control_and_foreign_equal_ids_spans_or_hashes ... ok
+test swapped_source_numbering_refuses_and_rechecking_restores_ownership ... ok
+test owner_moves_catalog_clone_and_immutable_append_preserve_old_semantics_and_inventory ... ok
+test selected_nonzero_sources_and_caller_order_are_preserved ... ok
+test changed_or_independently_reloaded_catalog_requires_rechecking ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/corpus_admission.rs (compiler/target/debug/deps/corpus_admission-04ed3c10d3500130)
+
+running 3 tests
+test public_owned_emit_reports_refusal_and_preserves_sibling_outputs ... ok
+test grammar_and_judgment_refusals_remain_separate ... ok
+test local_foreign_alias_and_unchecked_model_refuse_shipping ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+
+     Running tests/typed_descriptors.rs (compiler/target/debug/deps/typed_descriptors-1db4f47615a291e7)
+
+running 6 tests
+test exact_literal_scalars_nested_order_and_controls ... ok
+test model_order_optional_members_and_array_false ... ok
+test operation_order_omissions_and_present_empty_metadata ... ok
+test nested_delivery_and_nominal_order ... ok
+test unary_overflow_and_nonliteral_rejection_and_constructor_calls ... ok
+test all_tags_and_defaults_are_closed ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

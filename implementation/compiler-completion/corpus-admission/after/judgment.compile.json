@@ -1,0 +1,5 @@
+{
+  "exit": 10,
+  "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/Users/vince/Projects/canlang/compiler/tests/fixtures/corpus-admission/judgment.can\",\"sha256\":\"802dcfd105712b8d06b66c25a36a18981731d0efeac7e01dff28727d871a5834\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E6006\",\"severity\":\"error\",\"message\":\"contract Decisions.Verdict: label and field modifiers/defaults are not in the analysis tables (PR5 labels); emitting the typed schema without them\",\"primary\":{\"file\":0,\"start\":30,\"end\":37},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+  "stderr": ""
+}

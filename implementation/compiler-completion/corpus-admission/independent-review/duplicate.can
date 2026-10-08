@@ -1,0 +1,6 @@
+app Duplicate
+Given
+ corpus Handbook model=Missing scope=parent title=title content=body where=true from=deployment.knowledge
+ corpus Handbook model=Missing scope=parent title=title content=body where=true from=deployment.knowledge
+When
+Then

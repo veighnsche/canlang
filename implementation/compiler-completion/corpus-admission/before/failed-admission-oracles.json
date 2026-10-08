@@ -1,0 +1,23 @@
+[
+  {
+    "fixture": "local",
+    "oracle": "compile refuses unsupported Corpus",
+    "failure": "compile must refuse unsupported Corpus with exit 10",
+    "actual_exit": 0,
+    "raw_record": "before/local.final-fixture.compile.json"
+  },
+  {
+    "fixture": "foreign",
+    "oracle": "compile refuses unsupported Corpus",
+    "failure": "compile must refuse unsupported Corpus with exit 10",
+    "actual_exit": 0,
+    "raw_record": "before/foreign.legal.compile.json"
+  },
+  {
+    "fixture": "missing",
+    "oracle": "compile refuses unsupported Corpus",
+    "failure": "compile must refuse unsupported Corpus with exit 10",
+    "actual_exit": 0,
+    "raw_record": "before/missing.compile.json"
+  }
+]

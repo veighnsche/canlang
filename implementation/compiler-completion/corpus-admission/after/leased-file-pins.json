@@ -1,0 +1,10 @@
+{
+  "compiler/src/codegen/ir.rs": "2a8df2950eb2bf10ec2c81e7af556a2802791961e6a87693eafb1d5709c590f7",
+  "compiler/tests/corpus_admission.rs": "f3e84176cd52bdb5985002f3885e1b1e1dd3bca1461d5fce4eb91fa16e66a408",
+  "compiler/tests/fixtures/corpus-admission/bare.can": "b161ce8d0c31a428773d7a775fab29aa2a2e9b8045acf3f1aced3e200521f2cc",
+  "compiler/tests/fixtures/corpus-admission/foreign.can": "317d97fa8fc8b6edd001007d2026f7aadadd63e3698e0c9e5d10963489405643",
+  "compiler/tests/fixtures/corpus-admission/judgment.can": "802dcfd105712b8d06b66c25a36a18981731d0efeac7e01dff28727d871a5834",
+  "compiler/tests/fixtures/corpus-admission/local.can": "20ece89e26edc5426a42521b00a9150a1ff59137b839d3b7daa03c40bc8239e3",
+  "compiler/tests/fixtures/corpus-admission/missing.can": "4f2e1f5280c40f8a53702e1ea71670a7583ddadd1d167cc020e71a0e8d405439",
+  "compiler/tests/fixtures/corpus-admission/siblings.can": "3071c1ebc4ea7d5281186fadc9b532a6dab4613d3a42a0249338dab49107011c"
+}

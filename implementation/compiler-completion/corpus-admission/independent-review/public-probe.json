@@ -1,0 +1,19 @@
+{
+  "build_command": [
+    "rustc",
+    "--edition=2024",
+    "/Users/vince/Projects/canlang/implementation/compiler-completion/corpus-admission/independent-review/probe.rs",
+    "--extern",
+    "canlang_compiler=/Users/vince/Projects/canlang/compiler/target/debug/libcanlang_compiler.rlib",
+    "-L",
+    "dependency=/Users/vince/Projects/canlang/compiler/target/debug/deps",
+    "-o",
+    "/Users/vince/Projects/canlang/implementation/compiler-completion/corpus-admission/independent-review/probe"
+  ],
+  "build_exit": 0,
+  "build_stdout": "",
+  "build_stderr": "",
+  "run_exit": 0,
+  "run_stdout": "PASS clean static strings/comments and nonzero selected source; unselected and appended Corpus do not emit refusal\nPASS duplicate authored occurrences each retain selected owning canonical name and exact significant span; public artifact plus errors contract preserved\n",
+  "run_stderr": ""
+}

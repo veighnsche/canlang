@@ -1,0 +1,12 @@
+    Blocking waiting for file lock on build directory
+   Compiling canlang-compiler v0.1.0 (/Users/vince/Projects/canlang/compiler)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.26s
+     Running tests/corpus_admission.rs (compiler/target/debug/deps/corpus_admission-04ed3c10d3500130)
+
+running 3 tests
+test public_owned_emit_reports_refusal_and_preserves_sibling_outputs ... ok
+test grammar_and_judgment_refusals_remain_separate ... ok
+test local_foreign_alias_and_unchecked_model_refuse_shipping ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+

@@ -1,0 +1,5 @@
+{
+  "exit": 0,
+  "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"/Users/vince/Projects/canlang/compiler/tests/fixtures/corpus-admission/local.can\",\"sha256\":\"20ece89e26edc5426a42521b00a9150a1ff59137b839d3b7daa03c40bc8239e3\"}],\"complete\":true,\"diagnostics\":[],\"omitted\":0}\n",
+  "stderr": ""
+}

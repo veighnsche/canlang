@@ -1,0 +1,5 @@
+{
+  "exit": 10,
+  "stdout": "{\"tool\":\"can\",\"tool_version\":\"0.1.0\",\"language_version\":\"1.0\",\"schema_version\":1,\"sources\":[{\"id\":0,\"path\":\"compiler/tests/fixtures/corpus-admission/siblings.can\",\"sha256\":\"c23662a24a7c085ba434e31800ee022d93b403cb487b28ae862d09c39b008757\"}],\"complete\":true,\"diagnostics\":[{\"code\":\"E6010\",\"severity\":\"error\",\"message\":\"migration owner V2 names no app or package module\",\"primary\":{\"file\":0,\"start\":170,\"end\":193},\"related\":[],\"tags\":[]}],\"omitted\":0}\n",
+  "stderr": ""
+}
