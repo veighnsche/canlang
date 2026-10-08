@@ -1,3 +1,4 @@
+import { delivery as stateDelivery } from '@canlang/state/effects/delivery';
 import { transition as stateTransition } from '@canlang/state/effects/transition';
 import { require as stateRequire, hasRole as stateHasRole } from '@canlang/state/effects/guards';
 /**
@@ -308,7 +309,7 @@ describe('stdlib assembly', () => {
     assert.equal(EXPECTED_RUNTIME.length, 140);
     assert.equal(TYPE_PINS.length, 66);
     const actual = Object.keys(stdlib).sort();
-    const expected = [...EXPECTED_RUNTIME, 'transition', 'require', 'hasRole', 'STDLIB_CONTRACT_VERSION'].sort();
+    const expected = [...EXPECTED_RUNTIME, 'transition', 'delivery', 'require', 'hasRole', 'STDLIB_CONTRACT_VERSION'].sort();
     assert.deepEqual(actual, expected);
   });
 
@@ -319,6 +320,7 @@ describe('stdlib assembly', () => {
       assert.strictEqual(facade[name], producer[name], `binding ${name} differs`);
     }
     assert.strictEqual(stdlib.transition, stateTransition);
+    assert.strictEqual(stdlib.delivery, stateDelivery);
     assert.strictEqual(stdlib.require, stateRequire);
     assert.strictEqual(stdlib.hasRole, stateHasRole);
     assert.equal(stdlib.STDLIB_CONTRACT_VERSION, 1);

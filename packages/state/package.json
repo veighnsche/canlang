@@ -258,6 +258,10 @@
       "types": "./dist/src/effects/guards.d.ts",
       "default": "./dist/src/effects/guards.js"
     },
+    "./effects/delivery": {
+      "types": "./dist/src/effects/delivery.d.ts",
+      "default": "./dist/src/effects/delivery.js"
+    },
     "./effects/transition": {
       "types": "./dist/src/effects/transition.d.ts",
       "default": "./dist/src/effects/transition.js"
