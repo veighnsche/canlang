@@ -20,6 +20,7 @@ import type {
   EmailSendInput,
   ImageAccepted,
   ImageGenerateInput,
+  ImageRequest,
   ImageRun,
   JudgmentBatchInput,
   JudgmentBatchResult,
@@ -28,6 +29,7 @@ import type {
   ModelRunSnapshot,
   ProviderBinding,
   TextRequest,
+  WorkflowDefinition,
 } from '@canlang/contracts';
 import { randomUUID } from 'node:crypto';
 import http from 'node:http';
@@ -202,6 +204,44 @@ export interface MediaPort {
     options: { readonly deliveryId: string },
   ): Promise<CapabilityCompletion<ImageRun>>;
 }
+
+/** Caller persists these original identities and deadline alongside the full request. */
+export interface InstalledImageOptions {
+  readonly deliveryId: string;
+  /** Canonical lowercase UUID accepted by native ComfyUI; never reminted. */
+  readonly jobId: string;
+  /** Original finite Unix millisecond deadline; callers must never renew it. */
+  readonly deadlineMs: number;
+}
+
+/** Full std request survives every lifecycle call, including source/revision correlation. */
+export interface ImagesPort {
+  submit(input: ImageRequest, options: InstalledImageOptions): Promise<CapabilityCompletion<ImageAccepted>>;
+  reconcile(input: ImageRequest, options: InstalledImageOptions): Promise<CapabilityCompletion<ImageRun>>;
+  cancel(input: ImageRequest, options: InstalledImageOptions): Promise<CapabilityCompletion<ImageRun>>;
+}
+
+/** One installed graph/map only; this supplies no arbitrary inspection or publish validation. */
+export interface InstalledImages {
+  readonly binding: Readonly<ProviderBinding>;
+  readonly workflow: {
+    readonly graph: WorkflowDefinition['graph'];
+    readonly prompt: Readonly<WorkflowDefinition['prompt']>;
+    readonly negative: Readonly<WorkflowDefinition['negative']>;
+    readonly width: Readonly<WorkflowDefinition['width']>;
+    readonly height: Readonly<WorkflowDefinition['height']>;
+  };
+  readonly validation: string;
+  readonly policy: {
+    readonly seed: { readonly kind: 'fixed'; readonly value: number };
+    readonly maxOutputs: number;
+    readonly maxDurationMs: number;
+    readonly maxOutputBytes: number;
+  };
+  readonly images: ImagesPort;
+}
+
+export type ResolveInstalledImages = (exactDeployment: string) => InstalledImages | null;
 
 export function systemClock(): Clock {
   return { now: () => Date.now() };
