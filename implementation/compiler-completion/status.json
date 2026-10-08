@@ -1,9 +1,9 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-08T06:51:48.171499+00:00",
+  "updated_utc": "2026-10-08T07:17:58.700568+00:00",
   "total": 67,
-  "finished_at_recorded_scope": 52,
-  "remaining_including_partial": 15,
+  "finished_at_recorded_scope": 53,
+  "remaining_including_partial": 14,
   "finished_references": [
     "COST-01",
     "DEP-01",
@@ -43,6 +43,7 @@
     "SYN-R01",
     "SYN-R02",
     "SYN-R03",
+    "SYN-R04",
     "SYN-R05",
     "SYN-R06",
     "SYN-R07",
@@ -72,16 +73,14 @@
     "S9-Q07",
     "S9-Q08",
     "SEM-R05",
-    "SEM-R08",
-    "SYN-R04"
+    "SEM-R08"
   ],
   "bounded_components_with_broader_reference_still_open": [
     "ARCH-01",
     "ARCH-02",
     "S9-Q01",
     "S9-Q03",
-    "S9-Q06",
-    "SYN-R04"
+    "S9-Q06"
   ],
   "counting_policy": "Count canonical reference once. Reuse17previously accepted bounded references; add only full recorded finding/retention outcomes. Partial joins/components do not close their broader reference. Wider host/application and future-source requirements remain separately explicit. These references overlap and are not67independent implementations.",
   "suite": {
@@ -99,9 +98,9 @@
     }
   },
   "latest_component": {
-    "commit": "65199fa6",
-    "previous_component": "869461c8",
-    "outcome": "SYN-R07 original finite UI source/factory availability duty complete: consumed headers/options/children preserved; unavailable profiles explicitly refused. Existing actual-factory and refusal adapter cases pass, with final translated-header refusal and strict library Clippy; wider host/protected-form/backend workflows remain open."
+    "commit": "fdd44c2b",
+    "previous_component": "a0195386",
+    "outcome": "Checked send deployment-alias provenance and owning capability operation schemas released; existing native binding witness, direct effects control and strict library Clippy pass. Actual Work/Cloudflare staging consumer join remains in progress. Async preparation passed the actual built UI consumer at a0195386."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -112,7 +111,7 @@
     "../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md",
     "../../docs/research/compiler-library-audit-20261006/resumption/audit-costs-and-oracles.md"
   ],
-  "current_source_work": "SYN-R03 original Tab caption/child retention and OR-02 bounded production-witness adoption are complete using accepted actual CLI/native consumers. Bound preference save/lifecycle, structured ordering and broader Step9/application profiles remain open. Async form preparation source checks pass; its native consumer exposed awaitable collection-row rendering as a defining UI owner gap. Package owns that ABI and protection mechanism/API; no protected workflow closure claimed.",
+  "current_source_work": "SYN-R04 original empty-order semantic-loss duty is complete by explicit E6008/no-module refusal at 65199fa6, using accepted permanent simple/structured-order controls. Real structured ordering, S9-Q03 preference save/lifecycle and future runtime policy remain unfinished. Async form preparation and awaitable row rendering are qualified at the affected native UI producer/consumer boundary (a0195386). Active work joins fdd44c2b checked send bindings/capability schemas to the owner-native no-commit Work port and actual configured Cloudflare/D1 staging consumer; predicates remain gated and no staging/dispatch/protected workflow closure is claimed.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
