@@ -2035,14 +2035,15 @@
         "next_source_owner": "Roadmap explicitly received invoke.ts source-clear handoff after5c34a2e0 for existing CF fanout bridge. State full ExecuteHandler/guards/readings/unique/default effects already support canonical child unit; source unchanged. Root Git lease retained; index empty.",
         "commit": "5c34a2e03b99ce3cc39ad4796aa97919e087344c",
         "installed_delivery_followup": {
-          "status": "Root directly reviewed released two-path installed bundle/browser correction; focused capture prepared",
+          "status": "Root directly reviewed and committed finite staged bundle/browser correction",
           "files": [
             "packages/cloudflare/src/deploy/bundle.ts",
             "packages/cloudflare/test/page-query-serving.test.ts"
           ],
           "change": "Pin native-records/input-choices runtime; map Interfaces http/operations and full checker/catalog/bound-argument exports. Existing readonly native case uses real Chrome visibility and polling pause/resume.",
           "verification": "Owner actual changed CF emit0 and same focused native Worker/browser case1/1 (~11s); prior unchanged cases reused. Dedicated Chrome process/profile cleaned by owner.",
-          "limits": "Actual installed staged bundle and Mac native Chrome case only; no all-host/native-preparation/full DEL-D04/DEL-R01/root48 acceptance. No production reduction claim."
+          "limits": "Actual installed staged bundle and Mac native Chrome case only; no all-host/native-preparation/full DEL-D04/DEL-R01/root48 acceptance. No production reduction claim.",
+          "commit": "3798f9b1972bcb08aa44c7d0d0fbbd873addae0d"
         }
       }
     },
@@ -2199,7 +2200,7 @@
       ]
     },
     "retained_membership_resume": {
-      "status": "Root directly reviewed and accepted finite source/memory repair; ready for focused capture",
+      "status": "Root accepted finite source/memory repair; focused commit prepared",
       "owner": "/root/fix_retained_membership_resume",
       "model": "gpt-6.1-sol",
       "effort": "medium",
