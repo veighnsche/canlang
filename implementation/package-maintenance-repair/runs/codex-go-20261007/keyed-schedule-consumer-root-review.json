@@ -33,5 +33,45 @@
     "Selected membership is a memory fixture; actual effects and receipts use native D1",
     "No trusted due-handler/current eligibility/revocation/terminal occurrence receipt qualification",
     "No installed scheduler/consent/default backend/native preparation/release or full parent completion"
-  ]
+  ],
+  "due_handler": {
+    "status": "Root direct-reviewed selected compiled private due handler; coherent six-path source release ready for commit",
+    "paths": [
+      "packages/cloudflare/src/runtime/invoke.ts",
+      "packages/cloudflare/src/runtime/typed-durable-admission.test.ts",
+      "packages/cloudflare/test/fixtures/typed-keyed-schedule.can",
+      "packages/cloudflare/test/fixtures/typed-keyed-schedule.json",
+      "packages/cloudflare/src/deploy/bundle.ts",
+      "packages/cloudflare/test/deploy-bundle.test.ts"
+    ],
+    "source_sha256": {
+      "packages/cloudflare/src/runtime/invoke.ts": "c3e12981cf06233bb2d9d23a8cc3c7f5c119c94e93d961f2ce73082bfc3f0e01",
+      "packages/cloudflare/src/runtime/typed-durable-admission.test.ts": "735f2205df6cb54cac934db98600844cac107969f98a6582ee28e190fb32cd0e",
+      "packages/cloudflare/test/fixtures/typed-keyed-schedule.can": "aebede661d2b8e86afaf29717d62f13854364648943375907ea4da1d1cccfcce",
+      "packages/cloudflare/test/fixtures/typed-keyed-schedule.json": "53a3f4cb58903ca4539188c5cbf85e57c514f83aab36e245bca8aff1727fd5c3",
+      "packages/cloudflare/src/deploy/bundle.ts": "5d2868b0b1c1cd95b635dff7942952f880bd574f4a4c8e11432250a0d72acb39",
+      "packages/cloudflare/test/deploy-bundle.test.ts": "53ec886aae1df879d5982d1ad6a88c79ec84a0e6f5030b43e186630dd4862be3"
+    },
+    "owning_release": {
+      "thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+      "source_commands_released": true,
+      "normal_cloudflare_emit": 0,
+      "changed_native_cases": "3/3 shared mail/context/due run; due1/1",
+      "portable_seven_module_bundle_link": "1/1 (28 unrelated skipped)"
+    },
+    "direct_review": [
+      "Private compiled invocation stays absent from public operation catalog; trusted schedule context and verified owner are explicit",
+      "Captured reference versions stay persisted; private admission hydrates current rows through existing State descriptor and Values codecs",
+      "Original Work due gate, current source handler, business writes and terminal occurrence receipt share existing owner fence",
+      "Typed authored require failure retains only due consumption/failed receipt; same-message plain storage failure drops every effect and remains retryable",
+      "Actual D1 replacement/cancellation, future/wrong-owner refusal, real arm fence retry identity and dispose/reopen terminal replay qualified"
+    ],
+    "limits": [
+      "Selected single declared source handler Node/nativeD1 profile; identity is an explicit memory fixture",
+      "No default deployed Worker scheduler/cron/consent, initiating-user revocation/owner-expiry, multi-handler fanout, reference arrays or full original SEQ019 parent claim",
+      "Bundle mapping/link evidence does not qualify default deployed execution"
+    ],
+    "counts_unchanged": true,
+    "verification_policy": "Reuse unchanged owning emit/cases; direct source review only, no duplicate test run or extra proof packet"
+  }
 }
