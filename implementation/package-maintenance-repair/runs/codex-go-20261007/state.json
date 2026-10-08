@@ -1620,7 +1620,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T17:59:28.899075+00:00",
+  "updated_utc": "2026-10-08T18:00:57.946395+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1651,7 +1651,7 @@
     "handback": "7f92c05f77841fe724bd804c2d7b83666c775b1f",
     "foreign_scope": "Human-authorized state-machine/refresh feature; its verification retained as external source-current input, not root package acceptance",
     "checkpoint": "824934 unchanged; foreign integrator explicitly leaves accumulated allocation review open",
-    "current_index_owner": "All four authorized focused captures complete; index empty/root mutator released to Coordinator."
+    "current_index_owner": "Root short released-source capture slot; owner-router is the final ready capture, then explicit empty-index handback to Coordinator. Pending enum/installed consumer sources remain foreign-owned."
   },
   "shared_doc_handoff": {
     "target": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
@@ -2315,15 +2315,15 @@
       "limits": "No broad21/all-provider/account/routing or root48 credit"
     },
     "fanout_defining_contract": {
-      "state": "Defining retained Work handler/navigation/one-chunk admission and winning-claim repair captured; actual complete routing/bounded drive/installed owner consumer joins remain underway.",
+      "state": "Defining retained Work handler/navigation/one-chunk admission and winning-claim repair captured; actual bounded durable child-turn consumer captured; complete atomic routing and installed owner consumers remain underway.",
       "source_agent": "/root/fanout_durable_resume_contract",
       "model": "gpt-6.1-sol",
       "effort": "high",
       "constraints": "Existing independent ordinary handler identities/outcomes; committed source cannot be rejected. Atomic source routing/cohort intent cut before independent bodies. No shared provisional overlay; admission cursor and terminal coverage unchanged.",
       "concrete_gaps": [
         "Actual source-to-all-handler atomic routing/cohort cutoff and independent canonical bodies",
-        "Actual durable bounded internal runtime step/terminal-navigation join",
-        "Verified trusted owner-routed D1 producer plus same user/trusted consumer integration; unknown legacy held",
+        "Installed host joins for retained admission, bounded drive and empty-member owner verification",
+        "Same user/trusted owner-routed D1 consumer integration; unknown legacy stores held",
         "Retained membership row total-byte/CPU resource qualification"
       ],
       "jev_evidence": "/private/tmp/canlang-repair-go-20261007/fanout-session-contract/request-{1,2,3}.json and response-{1,2,3}.json",
@@ -2513,13 +2513,17 @@
       "commit": "1c6cecd86cad1fbb8f7c89b935618649c493c983"
     },
     "owner_storage_defining_choice": {
-      "state": "Source implemented by same defining owner; private emit0, actual selected D1 check startup blocked by sandbox then same reviewed local-host check recovery underway; not yet accepted.",
+      "state": "Root directly reviewed and captured released trusted D1 owner-router producer and its actual owning D1 case.",
       "model": "gpt-6.1-sol",
       "effort": "high",
-      "consultation": "Three equivalent facts-only questions exit0; real owner-routed database unanimous confidence .92/.94/.94. Advice only; no actual router existed, complete StoragePort plane inspected.",
-      "contract": "Trusted app+concrete owner route selects exact fresh D1 binding; persisted pin before use defeats aliases. Missing/mismatched route refuses with no shared-global fallback. Default legacy/global port is not scoped. No automatic repinning/provision/DO swap; unknown legacy databases remain unassigned and unchanged.",
-      "limits": "Producer/check and shared normal/trusted consumer join pending; no installed task5/global-data migration/native preparation/default adoption/parent closure claim.",
-      "counts_unchanged": true
+      "consultation": "Three new equivalent facts-only JEV requests exit0; physical owner-routed database preferred .92/.94/.94. Advice only, defining StoragePort footprint verified before implementation.",
+      "contract": "Trusted app+resolved-owner route names a physically isolated exact D1 binding. Immutable persisted pin precedes use; unknown legacy, missing/mismatched route and physical aliases refuse. Explicit verified empty assignment uses existing database-wide fence and atomic pin batch. Existing global adapter remains unscoped, with no fallback, provisioning, repinning or provider switch. Bound port retains existing methods and checks receipt app/owner.",
+      "provider_correction": "Actual fresh Miniflare D1 schema writes create only reserved _cf_METADATA; exact table exclusion verified against primary workerd sqlite-metadata.h. No wildcard provider exclusion or relaxation of user/state/sequence/fence checks.",
+      "verification": "Private State TypeScript emit0 and same selected actual Miniflare D1 case1/1 (1.840s,2.002s total) after exact provider metadata correction. Actual distinct physical stores retain identical canonical keys independently; persisted alias/legacy/receipt scope refusal, async scope capture, race rollback, existing revision/version rollback and reopen covered. All owning handles ended. Root direct source review; no broad or duplicate checks.",
+      "limits": "Same actual trusted route must be consumed before first read by normal and trusted host flows. Host withholds privileged raw/global binding access. Unknown legacy databases stay unassigned. Empty schema bootstrap may remain after a post-inspection race refusal, while pin/fence/data changes roll back. No installed task5/full48 acceptance, native preparation, provider deployment or replacement reduction claim.",
+      "sources_outputs_handles_released": true,
+      "counts_unchanged": true,
+      "evidence": "/private/tmp/canlang-repair-go-20261007/owner-storage-implementation/{emit,test}.log"
     },
     "supplied_enum_metadata": {
       "state": "Root directly reviewed and captured explicit checked enum codec metadata; actual compiler/host consumer join underway",
@@ -2549,7 +2553,8 @@
       "verification": "Owning Cloudflare noEmit0, selective emission0, and one changed actual private-cohort D1 case1/1 (15.399s) after single-file module format correction. Genuine commit response loss, D1 reopen, held-child fairness, explicit wrap and stale lease release; unchanged State/Work producer results reused. Root direct source review, no additional check or reviewer.",
       "limits": "Trusted actual owner-local StoragePort remains a precondition. Zero-member wrap refuses until actual owner verifier exists; full frozen member-array load/validation is not constant CPU/bytes. No source-to-all-handler atomic routing, installed factory, broad TECH-W02 or full48 closure from this component.",
       "sources_outputs_handles_released": true,
-      "counts_unchanged": true
+      "counts_unchanged": true,
+      "commit": "125514cd91cce056cdefff4ff7a1d4eb1238118b"
     }
   },
   "live_finite_packets": [

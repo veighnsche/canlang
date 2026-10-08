@@ -186,6 +186,10 @@
       "types": "./dist/src/receipt/tables.d.ts",
       "default": "./dist/src/receipt/tables.js"
     },
+    "./storage/owner-router": {
+      "types": "./dist/src/storage/owner-router.d.ts",
+      "default": "./dist/src/storage/owner-router.js"
+    },
     "./storage/d1": {
       "types": "./dist/src/storage/d1.d.ts",
       "default": "./dist/src/storage/d1.js"
