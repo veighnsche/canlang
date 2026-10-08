@@ -16,6 +16,7 @@ import type {
   DomainWrite,
   HistoryEntry,
   ModelName,
+  Membership,
   OperationName,
   OutboxIntent,
   Receipt,
@@ -24,6 +25,7 @@ import type {
   Revision,
   ScheduleOp,
   StoragePort,
+  StoredRow,
   UniqueClaim,
   UniqueRelease,
 } from '@canlang/contracts';
@@ -36,7 +38,7 @@ import type {
 import type { ResolvedIdentity } from '@canlang/contracts';
 import type { FanoutChildId } from '@canlang/contracts';
 import type { ClosedInputs } from '@canlang/contracts';
-import type { OperationRegistry } from './registry.js';
+import type { GeneratedOperationDef, OperationRegistry } from './registry.js';
 import { isGeneratedOperationDef } from './registry.js';
 import type { MembershipReader } from '../policy/roles.js';
 import { evaluateBy } from '../policy/roles.js';
@@ -46,6 +48,8 @@ import {
   receiptIdentityFor,
   revalidateCommitForFence,
   validateCallInputs,
+  loadCallRecordRefs,
+  openFenceScope,
   type AdmittedCall,
   type ConflictServerOnly,
   type GuardRevalidation,
@@ -500,6 +504,114 @@ export async function invokeRead(input: InvokeReadInput): Promise<AuthorizedReco
     ...(where !== undefined ? { where } : {}),
     ...(limit !== undefined ? { limit } : {}),
   });
+}
+
+/** Read-only source call: no mutation identity, receipt, or effect staging. */
+export interface AdmittedReadScenarioCall {
+  readonly def: GeneratedOperationDef;
+  readonly inputs: Record<string, unknown>;
+  /** Rows contain only the caller's currently granted fields. */
+  readonly recordRefs: AdmittedCall['recordRefs'];
+  readonly revision: Revision;
+  readonly actorUserId: string | null;
+  readonly teamId: string | null;
+  /** Live identity-store facts; caller-supplied membership claims never enter here. */
+  readonly membership: Membership | null;
+}
+
+export type ReadScenarioHandler = (call: AdmittedReadScenarioCall) => Promise<unknown>;
+
+export interface InvokeReadScenarioInput extends Omit<InvokeReadInput, 'selection'> {
+  readonly execute: ReadScenarioHandler;
+}
+
+export interface ReadScenarioResult {
+  readonly result: unknown;
+  readonly revision: Revision;
+}
+
+/**
+ * Execute a generated ordinary read scenario at one revision. The source
+ * host owns scalar decoding/default evaluation and its declared result codec.
+ * State owns closed-shape/ref admission, live authority and viewer projection.
+ * Authority reports require a separate source/host contract and do not serve here.
+ */
+export async function invokeReadScenario(input: InvokeReadScenarioInput): Promise<ReadScenarioResult> {
+  const def = input.registry.get(input.envelope.operation);
+  if (def === undefined) {
+    throw new StateError('validation', `Unknown operation "${input.envelope.operation}".`);
+  }
+  if (!isGeneratedOperationDef(def) || def.descriptor.kind !== 'read') {
+    throw new StateError('validation', 'invokeReadScenario requires a generated read operation.');
+  }
+  const kind = input.kind ?? 'user';
+  if (kind === 'trusted' && (input.trustedSource === undefined || input.trustedSource === '')) {
+    throw new StateError('validation', 'Trusted invocations require a verified trusted source.');
+  }
+  const actorUserId = kind === 'trusted' || input.identity.actor === null
+    ? null : input.identity.actor.user_id;
+  const teamId = input.identity.team?.team_id ?? null;
+  // Enclose every live membership/ref read and the source's query reads.
+  const revision = await input.store.readRevision();
+  const fence = openFenceScope(revision, teamId ?? 'app');
+  const readMembership = () => actorUserId !== null && teamId !== null
+    ? input.memberships.findMembership(teamId, actorUserId) : Promise.resolve(null);
+  const authorize = async (membership: Membership | null): Promise<void> => {
+    if (kind !== 'trusted' && !(await evaluateBy(def.by, {
+      actorUserId, teamId, membership, memberships: input.memberships,
+    }))) {
+      throw new StateError('forbidden', 'This operation is not permitted for the caller.');
+    }
+  };
+  const membership = structuredClone(await readMembership());
+  await authorize(membership);
+  const validated = validateCallInputs(def, input.envelope.inputs);
+  const projectRef = async (
+    ref: Pick<AdmittedCall['recordRefs'][number], 'model' | 'id'>,
+    row: StoredRow,
+  ): Promise<StoredRow> => {
+    const visible = await queryRecords({
+      policy: input.policy, model: ref.model, authority: 'viewer',
+      context: { actorUserId, teamId }, memberships: input.memberships,
+      store: input.store, archived: 'include', fence,
+      where: { op: 'eq', field: 'id', value: ref.id },
+    });
+    const record = visible.records.find((candidate) => candidate.id === ref.id);
+    if (record === undefined) throw new StateError('not_found', 'Record not found.');
+    return { ...row, data: record.data };
+  };
+  // Visibility precedes stale/archive facts; visible refs keep canonical order.
+  const loadedRefs = await loadCallRecordRefs({
+    pending: validated.refs, inputs: validated.normalized, store: input.store,
+    scope: fence, projectRow: projectRef,
+  });
+  const recordRefs = loadedRefs.map((ref) => ({ ...ref, row: structuredClone(ref.row) }));
+  const projections = loadedRefs.map((ref) => JSON.stringify(ref.row.data));
+  // Capture authority/projection evidence separately from mutable host inputs.
+  const membershipSnapshot = JSON.stringify(membership);
+  const result = await input.execute({
+    def, inputs: validated.normalized, recordRefs, revision,
+    actorUserId, teamId, membership,
+  });
+  const assertRevision = async (): Promise<void> => {
+    if (await input.store.readRevision() !== revision) {
+      throw new StateError('conflict', 'State changed during the read scenario.');
+    }
+  };
+  await assertRevision();
+  const live = await readMembership();
+  await authorize(live);
+  if (JSON.stringify(live) !== membershipSnapshot) {
+    throw new StateError('forbidden', 'Caller authority changed during the read scenario.');
+  }
+  for (const [index, ref] of loadedRefs.entries()) {
+    const current = await projectRef(ref, ref.row);
+    if (JSON.stringify(current.data) !== projections[index]) {
+      throw new StateError('forbidden', 'Record read authority changed during the read scenario.');
+    }
+  }
+  await assertRevision();
+  return { result, revision };
 }
 
 /* -- T34-F5 fanout child admission (ADDITIVE; `invoke`/`invokeRead` untouched). -- */

@@ -33,7 +33,11 @@ import {
   readFanoutChildRow,
   readFanoutIntentRow,
 } from '../fanout/tables.js';
-import { invoke, invokeRead, type ExecuteHandler, type ReadSelection } from '../invocation/invoke.js';
+import {
+  invoke, invokeRead, invokeReadScenario,
+  type ExecuteHandler, type ReadSelection,
+  type ReadScenarioHandler, type ReadScenarioResult,
+} from '../invocation/invoke.js';
 import type { OperationRegistry } from '../invocation/registry.js';
 import type { ClockPort } from '../invocation/context.js';
 import type { MembershipReader } from '../policy/roles.js';
@@ -144,6 +148,17 @@ export function createReadInvoker(input: ReadInvokerInput): BoundReadInvoker {
       ...(args.trustedSource !== undefined ? { trustedSource: args.trustedSource } : {}),
       ...(args.selection !== undefined ? { selection: args.selection } : {}),
     });
+}
+
+/** Per-call read source handler over the bound viewer dependencies. */
+export interface ReadScenarioInvokeArgs extends Omit<ReadInvokeArgs, 'selection'> {
+  readonly execute: ReadScenarioHandler;
+}
+
+export type BoundReadScenarioInvoker = (args: ReadScenarioInvokeArgs) => Promise<ReadScenarioResult>;
+
+export function createReadScenarioInvoker(input: ReadInvokerInput): BoundReadScenarioInvoker {
+  return (args) => invokeReadScenario({ ...args, ...input });
 }
 
 /* -- T24a dispatch-join port (ADDITIVE; existing ports untouched). -- */

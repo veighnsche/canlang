@@ -269,14 +269,14 @@ describe('V02.4 owned admission: prepared-inputs leaf', () => {
     }
   });
 
-  it('preserves checked computed scenario default omission through loader admission', () => {
+  it('preserves checked computed scenario/read default omission through loader admission', () => {
     const operation = asOperation('Acme.computed');
     const malformed = (run: () => unknown) => assert.throws(run, (error: unknown) =>
       error instanceof IncompatibleArtifactError && error.reason === 'malformed_descriptor');
-    for (const nullable of [false, true]) {
+    for (const kind of ['scenario', 'read'] as const) for (const nullable of [false, true]) {
       const valueType = `int[]${nullable ? '?' : ''}`;
       const raw: ArtifactDescriptorSlice = { artifact_version: 1, models: [], operations: [{
-        name: operation, kind: 'scenario', description: '', inputs: { fields: [
+        name: operation, kind, description: '', inputs: { fields: [
           { name: 'values', field: { kind: 'integer' }, required: false, nullable,
             array: { required: false }, computedDefault: true },
           { name: 'flag', field: { kind: 'boolean' }, required: false, computedDefault: true },
@@ -284,7 +284,7 @@ describe('V02.4 owned admission: prepared-inputs leaf', () => {
         ] },
       }] };
       const set: ExecutionDescriptorSet = { contractVersion: 1, models: [], operations: [{
-        name: operation, kind: 'scenario', inputs: [
+        name: operation, kind, inputs: [
           { name: 'values', kind: 'integer', required: false, valueType, computedDefault: true },
           { name: 'flag', kind: 'boolean', required: false, valueType: 'bool', computedDefault: true },
           { name: 'zero', kind: 'integer', required: false, valueType: 'int', computedDefault: true },
@@ -326,12 +326,14 @@ describe('V02.4 owned admission: prepared-inputs leaf', () => {
       }
       malformed(() => loadExecutionDescriptorSet(set, { ...options,
         inputArrays: { [operation]: { values: { required: true } } } }));
-      malformed(() => loadExecutionDescriptorSet({ ...set, operations: [
-        { ...set.operations[0]!, kind: 'read' },
-      ] }, options));
-      malformed(() => loadArtifactDescriptors({ ...raw, operations: [
-        { ...raw.operations![0]!, kind: 'read' },
-      ] }, { by: 'public' }));
+      for (const mutationKind of ['create', 'update'] as const) {
+        malformed(() => loadExecutionDescriptorSet({ ...set, operations: [
+          { ...set.operations[0]!, kind: mutationKind },
+        ] }, options));
+        malformed(() => loadArtifactDescriptors({ ...raw, operations: [
+          { ...raw.operations![0]!, kind: mutationKind },
+        ] }, { by: 'public' }));
+      }
     }
     const inherited = Object.assign(Object.create({ computedDefault: true }),
       { name: 'values', kind: 'integer', required: false, valueType: 'int[]' });
