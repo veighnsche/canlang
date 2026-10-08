@@ -102,8 +102,14 @@ Implemented modules:
   Values input descriptors at `appDefinition.events[event].inputs`. Ordinary
   declared-event handlers without `each` publish their checked event identity
   at `appDefinition.operations[handler].event`, using the existing trusted
-  callable and `c,{event}` signature. Other triggers retain their explicit
-  refusal. The pre-commit hook ABI is unchanged.
+  callable and `c,{event}` signature. Their private `invocation` member uses
+  the existing flat operation descriptor, derived from the owning event's
+  fields, and stays outside public `artifact.operations`. Model references
+  request current admission without making a captured version authoritative.
+  The runtime must verify the Work occurrence, admit those current fields and
+  bind them into `{event}`. Unsupported compound inputs omit the entire
+  private descriptor. Other triggers retain their explicit refusal. The
+  pre-commit hook ABI is unchanged.
 - Decimal literals and contextual integral values lower through the existing
   `parseDecimal` path. Decimal arithmetic and value comparisons use the owning
   `Values` helpers. Permanent native runtime witnesses cover these supported
