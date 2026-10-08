@@ -1,3 +1,5 @@
+import type { CanTypeId } from './values.js';
+
 /**
  * Lane 03 producer contract: authoritative state boundary (types only).
  *
@@ -784,6 +786,8 @@ export interface CanonicalOperationDescriptor {
   readonly name: OperationName;
   readonly kind: CanonicalOperationKind;
   readonly inputs: ReadonlyArray<CanonicalInputDef>;
+  /** Checked declared result; absence carries no result-type claim. */
+  readonly result?: { readonly type: CanTypeId };
 }
 
 /**
@@ -809,6 +813,8 @@ export interface FieldMachine {
 }
 
 export interface CanonicalFieldDef {
+  /** Checked scalar association; the initial supported profile is singular int. */
+  readonly valueType?: CanTypeId;
   readonly machine?: FieldMachine;
   readonly required: boolean;
   readonly serverOnly: boolean;

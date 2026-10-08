@@ -10,6 +10,7 @@
 
 import { deepFreeze } from '../internal/own-data.js';
 import type {
+  CanTypeId,
   CanonicalModelDescriptor,
   FieldMachine,
   DeleteMode,
@@ -90,6 +91,8 @@ export type InterimServerInit = 'actor' | 'now' | 'random_secret';
  * fixtures omit it).
  */
 export interface InterimFieldDef {
+  /** Retained checked association only; the pipeline does not convert values. */
+  readonly valueType?: CanTypeId;
   readonly machine?: FieldMachine;
   readonly required: boolean;
   readonly serverOnly: boolean;
@@ -349,6 +352,10 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>): ModelTa
           `Invalid field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: ` +
             'required and serverOnly must be booleans.',
         );
+      }
+      if (Object.hasOwn(field, 'valueType') &&
+          (field.valueType !== 'int' || field.array !== undefined || field.nullable === true)) {
+        throw new Error(`Invalid valueType for field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: singular nonnullable int only.`);
       }
       if (field.array !== undefined) {
         const marker = field.array;
@@ -758,6 +765,7 @@ export function buildModelTableFromCanonical(
       const serverInit = opts.serverInits?.get(model.name)?.get(name);
       const knownNullable = opts.nullableFields?.get(model.name)?.has(name) === true;
       fields[name] = {
+        ...(Object.hasOwn(field, 'valueType') ? { valueType: field.valueType! } : {}),
         required: field.required,
         serverOnly: field.serverOnly,
         ...(hasFallback ? { default: fallback } : {}),

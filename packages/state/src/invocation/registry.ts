@@ -20,7 +20,8 @@ import { checkFieldMachine } from '../internal/machine.js';
  * or any malformed/dangling descriptor below — rejects the WHOLE set with a
  * precise `IncompatibleArtifactError`. Additive members L3 ignores (op/input
  * descriptions, nullability, model ownership, T04b-preview model field tags,
- * unknown model field tags) never reject.
+ * unknown model field tags) never reject. Own result/valueType claims use
+ * the finite typed profile; optional source revisions identify the load only.
  *
  * Engine-local attachments (T04a §3: authorization predicates stay
  * engine-local until T04b carries generated policy): the loader maps a `by`
@@ -49,6 +50,8 @@ import {
 import type {
   ArtifactModel,
   ArtifactOperation,
+  ArtifactSource,
+  CanTypeId,
   CompileArtifact,
 } from '@canlang/contracts';
 import { validateByPredicate, type ByPredicate } from '../policy/roles.js';
@@ -199,7 +202,7 @@ export interface LoadedDescriptorSet {
 export type ArtifactDescriptorSlice = Pick<
   CompileArtifact,
   'artifact_version' | 'operations' | 'models'
->;
+> & Partial<Pick<CompileArtifact, 'sources'>>;
 
 /**
  * T18 engine-resolvable server initializer (closed subset of L1
@@ -223,6 +226,7 @@ export type ServerInitKind = 'actor' | 'now' | 'random_secret';
  * `delivery` field tags; the receipt join's schema source).
  */
 export interface ConvertedArtifactDescriptors {
+  readonly sources?: ReadonlyArray<Readonly<ArtifactSource>>;
   readonly set: ExecutionDescriptorSet;
   readonly refs: ReadonlyMap<ModelName, ReadonlyArray<InterimRefDef>>;
   readonly inputArrays: Readonly<
@@ -239,6 +243,8 @@ export interface ConvertedArtifactDescriptors {
 
 /** Fully loaded artifact: registry + models + engine-local model attachments. */
 export interface LoadedArtifactDescriptors extends LoadedDescriptorSet {
+  /** Copied compilation inputs identify this load; they confer no authority. */
+  readonly sources?: ReadonlyArray<Readonly<ArtifactSource>>;
   readonly refs: ReadonlyMap<ModelName, ReadonlyArray<InterimRefDef>>;
   readonly serverInits: ReadonlyMap<ModelName, ReadonlyMap<string, ServerInitKind>>;
   readonly nullableFields: ReadonlyMap<ModelName, ReadonlySet<string>>;
@@ -282,6 +288,47 @@ const KNOWN_DELETE_MODES: ReadonlySet<string> = new Set(['archive', 'remove', 'n
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Additive claims are own-only; the finite result profile is int or void. */
+function checkResult(holder: Record<string, unknown>, what: string): CanonicalOperationDescriptor['result'] {
+  if (!Object.hasOwn(holder, 'result')) return undefined;
+  const result = holder['result'];
+  if (!isRecord(result) || !Object.hasOwn(result, 'type')) {
+    fail('malformed_descriptor', `Invalid ${what}: result must declare type int or void.`);
+  }
+  const type = result['type'];
+  if (type !== 'int' && type !== 'void') {
+    fail('malformed_descriptor', `Invalid ${what}: result must declare type int or void.`);
+  }
+  return Object.freeze({ type });
+}
+
+function checkValueType(field: Record<string, unknown>, what: string): CanTypeId | undefined {
+  if (!Object.hasOwn(field, 'valueType')) return undefined;
+  if (field['valueType'] !== 'int' || field['array'] !== undefined || field['nullable'] === true) {
+    fail('malformed_descriptor', `Invalid ${what}: valueType supports singular nonnullable int only.`);
+  }
+  return 'int';
+}
+
+function checkSources(artifact: Record<string, unknown>): ReadonlyArray<Readonly<ArtifactSource>> | undefined {
+  if (!Object.hasOwn(artifact, 'sources')) return undefined;
+  const sources = artifact['sources'];
+  if (!Array.isArray(sources)) {
+    fail('malformed_descriptor', 'Invalid artifact sources: sources must be an array.');
+  }
+  return Object.freeze(Array.from(sources, (source: unknown) => {
+    if (!isRecord(source) || !Object.hasOwn(source, 'path') || !Object.hasOwn(source, 'sha256')) {
+      fail('malformed_descriptor', 'Invalid artifact source: own nonempty path and lowercase SHA-256 are required.');
+    }
+    const path = source['path'];
+    const sha256 = source['sha256'];
+    if (typeof path !== 'string' || path === '' || typeof sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(sha256)) {
+      fail('malformed_descriptor', 'Invalid artifact source: own nonempty path and lowercase SHA-256 are required.');
+    }
+    return Object.freeze({ path, sha256 });
+  }));
 }
 
 /** Load-time dot-path check: non-empty with no empty segments. */
@@ -478,7 +525,9 @@ function checkCanonicalModel(value: unknown): CanonicalModelDescriptor {
         fail('malformed_descriptor', `Invalid ${what}: machine requires a singular omitted-only literal initial default.`);
       }
     }
+    const valueType = checkValueType(fieldValue, what);
     fields[fieldName] = {
+      ...(valueType !== undefined ? { valueType } : {}),
       required: fieldValue['required'] as boolean,
       serverOnly: fieldValue['serverOnly'] as boolean,
       ...(array !== undefined ? { array } : {}),
@@ -662,10 +711,12 @@ export function loadExecutionDescriptorSet(
       seenInputs.add(checked.name);
       inputs.push(checked);
     }
+    const result = checkResult(operation, `operation ${JSON.stringify(opName)}`);
     const descriptor: CanonicalOperationDescriptor = {
       name: opName as OperationName,
       kind: kind as CanonicalOperationDescriptor['kind'],
       inputs,
+      ...(result !== undefined ? { result } : {}),
     };
     checkCrudExecutable(descriptor, modelNames);
     // Engine-local policy mapping (T04a §3): the artifact carries no `by`,
@@ -814,6 +865,7 @@ export function artifactToDescriptorSet(
         `does not match the required artifact contract ${T04A_PINNED_VERSIONS.artifact}.`,
     );
   }
+  const sources = checkSources(artifact);
   const rawOperations: unknown[] =
     artifact['operations'] === undefined ? [] : (artifact['operations'] as unknown[]);
   const rawModels: unknown[] =
@@ -901,7 +953,12 @@ export function artifactToDescriptorSet(
           fail('malformed_descriptor', `Invalid ${what}: machine requires a nonnullable enum with matching states and literal initial default.`);
         }
       }
+      const tag: unknown = field.field;
+      const valueType = Object.hasOwn(field, 'field') && isRecord(tag) &&
+        Object.hasOwn(tag, 'kind') && tag['kind'] === 'integer' &&
+        array === undefined && field.nullable !== true ? 'int' : undefined;
       fields[field.name] = {
+        ...(valueType !== undefined ? { valueType } : {}),
         required: field.required,
         serverOnly: field.serverOnly,
         ...(array !== undefined ? { array } : {}),
@@ -952,9 +1009,8 @@ export function artifactToDescriptorSet(
       }
       // Engine-local ref derivation: singular top-level `ref` tags become
       // pipeline ref paths (archived-target + disposal enforcement). Every
-      // other tag — scalars, enum, T04b previews, unknown futures — is
-      // ignored per the T04a intake contract.
-      const tag: unknown = field.field;
+      // other tag is ignored by ref derivation; the singular integer
+      // association above is independent of this channel.
       if (Object.hasOwn(field, 'field') && isRecord(tag) && Object.hasOwn(tag, 'kind') && tag.kind === 'secret') {
         modelSecrets.add(field.name);
       }
@@ -1181,10 +1237,12 @@ export function artifactToDescriptorSet(
         opArrays[input.name] = { required: input.array.required };
       }
     }
+    const result = checkResult(operation as unknown as Record<string, unknown>, `operation ${JSON.stringify(operation.name)}`);
     operations.push({
       name: operation.name as OperationName,
       kind: operation.kind as CanonicalOperationDescriptor['kind'],
       inputs,
+      ...(result !== undefined ? { result } : {}),
     });
     if (Object.keys(opNullableRefs).length > 0) {
       inputNullableRefs[operation.name] = opNullableRefs;
@@ -1206,7 +1264,10 @@ export function artifactToDescriptorSet(
   // them). `createDeliverySchema` is the shared builder: its
   // validation doubles as this conversion's whole-set guard.
   const deliveryFields = createDeliverySchema(deliveryEntries);
-  return { set, refs, inputArrays, inputNullableRefs, serverInits, nullableFields, secretFields, containment, deliveryFields };
+  return {
+    set, refs, inputArrays, inputNullableRefs, serverInits, nullableFields, secretFields, containment, deliveryFields,
+    ...(sources !== undefined ? { sources } : {}),
+  };
 }
 
 /**
@@ -1250,6 +1311,7 @@ export function loadArtifactDescriptors(
   return {
     registry: loaded.registry,
     models: loaded.models,
+    ...(converted.sources !== undefined ? { sources: converted.sources } : {}),
     refs,
     serverInits,
     nullableFields,
