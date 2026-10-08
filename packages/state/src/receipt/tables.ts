@@ -178,9 +178,14 @@ export function isTextRunReceiptPayload(status: unknown, result: unknown, error:
 }
 
 /** Detach own data before schema/codec reads; accessors and inherited/extended arrays have no authority. */
-function snapshotJudgmentData(value: unknown, native = false, ancestors = new Set<object>(), depth = 0): unknown {
+function snapshotJudgmentData(value: unknown, native = false, ancestors = new Set<object>(), depth = 0, path: readonly string[] = []): unknown {
   if (value === null || typeof value === 'string' || typeof value === 'boolean' ||
       (typeof value === 'bigint' && native)) return value;
+  // Descriptor length bounds are JSON integers; runtime value scalars remain exact wire text/native bigint.
+  if (native && typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 &&
+      (path.at(-1) === 'min' || path.at(-1) === 'max') &&
+      (path[0] === 'valueTypes' || path[0] === 'declaredResult' ||
+        (path[0] === 'judgment' && path[1] === 'valueTypes') || (path[0] === 'delivery' && path[1] === 'result'))) return value;
   if (typeof value !== 'object' || depth > 64 || ancestors.has(value)) throw new Error('invalid judgment data');
   const array = Array.isArray(value);
   const prototype = Object.getPrototypeOf(value);
@@ -200,7 +205,7 @@ function snapshotJudgmentData(value: unknown, native = false, ancestors = new Se
     if (descriptor === undefined || !Object.hasOwn(descriptor, 'value') || !descriptor.enumerable) {
       throw new Error('invalid judgment accessor');
     }
-    (out as Record<string, unknown>)[key] = snapshotJudgmentData(descriptor.value, native, ancestors, depth + 1);
+    (out as Record<string, unknown>)[key] = snapshotJudgmentData(descriptor.value, native, ancestors, depth + 1, [...path, key]);
   }
   ancestors.delete(value);
   return Object.freeze(out);
@@ -226,17 +231,19 @@ function checkedJudgmentContext(context: ReceiptResultContext | undefined) {
         detached.source !== `${spec.declaration}.evaluate` || detached.declaredResult?.name !== spec.declaration ||
         !Array.isArray(spec.noul) || !Array.isArray(spec.choice) || !Array.isArray(spec.score) ||
         !Array.isArray(inventory.contracts) || (inventory.enums !== undefined && !Array.isArray(inventory.enums)) ||
-        !exactJudgmentKeys(inventory, inventory.enums === undefined ? ['contracts'] : ['contracts', 'enums'])) return null;
+        (inventory.aliases !== undefined && !Array.isArray(inventory.aliases)) ||
+        !exactJudgmentKeys(inventory, ['contracts', ...(Object.hasOwn(inventory, 'enums') ? ['enums'] : []),
+          ...(Object.hasOwn(inventory, 'aliases') ? ['aliases'] : [])])) return null;
     const normalized = normalizeValueTypes(inventory);
     const contracts = new Map(normalized.valueTypes.contracts.map(declaration => [declaration.name, declaration]));
     const enums = new Map((normalized.valueTypes.enums ?? []).map(declaration => [declaration.name, declaration.cases]));
+    const aliases = new Map((normalized.valueTypes.aliases ?? []).map(declaration => [declaration.name, declaration]));
+    const runtimeChoices: JudgmentSpec['choice'][number][] = [];
     const schema = normalized.valueSchema;
     const root = contracts.get(spec.declaration);
     if (!root || !exactJudgmentKeys(detached.declaredResult, ['name', 'fields']) ||
         !Array.isArray(detached.declaredResult.fields) || root.fields.length !== detached.declaredResult.fields.length ||
-        !root.fields.every((field: { name: string; type: string }, index: number) => field.name === detached.declaredResult.fields[index]?.name &&
-          field.type === detached.declaredResult.fields[index]?.type &&
-          exactJudgmentKeys(detached.declaredResult.fields[index]!, ['name', 'type']))) return null;
+        !root.fields.every((field, index) => sameJudgmentWire(field, detached.declaredResult.fields[index]))) return null;
     const fields = new Map(root.fields.map(field => [field.name, field.type]));
     const fieldType = (name: string, field: string): string | undefined =>
       contracts.get(name)?.fields.find(leaf => leaf.name === field)?.type;
@@ -250,12 +257,17 @@ function checkedJudgmentContext(context: ReceiptResultContext | undefined) {
       return actual !== undefined && actual.length === Object.keys(expected).length &&
         Object.entries(expected).every(([name, kind]) => fieldType(declaration, name) === kind);
     };
-    const enumMatches = (type: string, ids: readonly string[]): boolean => {
+    const enumMatches = (type: string, ids: readonly string[], runtimeName?: string): boolean => {
       const parsed = parseTypeId(type);
       const cases = parsed.base.kind === 'enum' ? parsed.base.cases :
         parsed.base.kind === 'nominal' ? enums.get(parsed.base.path) : undefined;
-      return !parsed.array && !parsed.nullable && cases !== undefined && cases.length === ids.length &&
-        cases.every((id, index) => id === ids[index]);
+      if (parsed.array || parsed.nullable) return false;
+      if (cases !== undefined) return cases.length === ids.length && cases.every((id, index) => id === ids[index]);
+      if (parsed.base.kind !== 'nominal' || parsed.base.path !== runtimeName) return false;
+      const alias = aliases.get(parsed.base.path);
+      return alias !== undefined && exactJudgmentKeys(alias, ['name', 'type', 'min', 'max', 'format']) &&
+        alias.type === 'text' && alias.min === 1 && alias.max === 80 && alias.format === 'name' &&
+        ids.every(id => id.length >= 1 && id.length <= 80 && /^[A-Za-z_][A-Za-z0-9_]*$/.test(id));
     };
     for (const [kind, entries] of [['noul', spec.noul], ['choice', spec.choice], ['score', spec.score]] as const) {
       for (const question of entries) {
@@ -286,18 +298,19 @@ function checkedJudgmentContext(context: ReceiptResultContext | undefined) {
         const array = parseTypeId(distribution);
         if (!array.array || array.nullable || array.base.kind !== 'nominal') return null;
         const identity = fieldType(array.base.path, kind === 'choice' ? 'option' : 'level');
-        if (!identity || !enumMatches(identity, entries.map(entry => entry.id)) ||
+        if (!identity || !enumMatches(identity, entries.map(entry => entry.id), kind === 'choice' ? `${spec.declaration}.${question.id}.choice` : undefined) ||
             !sameFields(array.base.path, kind === 'choice' ? { option: identity, probability: 'decimal' } :
               { level: identity, index: 'int', description: 'text', probability: 'decimal' }) ||
             !sameFields(type, kind === 'choice' ? { choice: identity, probabilities: distribution, confidence: 'decimal' } :
               { score: 'decimal', levels: distribution, confidence: 'decimal' })) return null;
+        if (kind === 'choice' && aliases.has(identity)) runtimeChoices.push(question as JudgmentSpec['choice'][number]);
       }
     }
     if (questions.size < 1 || questions.size > 32 ||
         fields.size !== questions.size + 4 ||
         fields.get('specification_revision') !== 'text' || fields.get('model') !== 'text' ||
         fields.get('input_tokens') !== 'int' || fields.get('output_tokens') !== 'int') return null;
-    return { context: detached, schema };
+    return { context: detached, schema, runtimeChoices };
   } catch { return null; }
 }
 
@@ -348,6 +361,14 @@ export function readJudgmentResult(result: unknown, context: ReceiptResultContex
         typeof resultValue['input_tokens'] !== 'bigint' || resultValue['input_tokens'] < 0n ||
         typeof resultValue['output_tokens'] !== 'bigint' || resultValue['output_tokens'] < 0n ||
         !sameJudgmentWire(wire, encodeValue(checked.context.declaredResult.name, value))) return null;
+    // Runtime aliases bound representation; the original frozen specification alone grants candidate membership.
+    for (const question of checked.runtimeChoices) {
+      const answer = resultValue[question.id] as Readonly<Record<string, CanValue>>;
+      const probabilities = answer['probabilities'];
+      if (!question.options.some(option => option.id === answer['choice']) || !Array.isArray(probabilities) ||
+          probabilities.length !== question.options.length || probabilities.some((entry, index) =>
+            (entry as Readonly<Record<string, CanValue>>)['option'] !== question.options[index]!.id)) return null;
+    }
     return resultValue;
   } catch { return null; }
 }
