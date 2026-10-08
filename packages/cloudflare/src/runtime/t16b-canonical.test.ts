@@ -826,7 +826,7 @@ describe("T16b canonical scenario (handler as the execute seam)", () => {
     const snapshot = registry.canApp().calls[0]!.input.todo;
     assert.equal(snapshot.id, id);
     assert.equal(snapshot.version, 1n);
-    assert.equal(snapshot.created_by, seed.memberId);
+    assert.deepEqual(snapshot.created_by, { kind: "user", id: seed.memberId });
     assert.deepEqual(snapshot.created, { kind: "datetime", ms: BigInt(seed.now) });
     assert.ok(Object.isFrozen(snapshot));
     assert.throws(() => { snapshot.title = "bypass"; }, TypeError);

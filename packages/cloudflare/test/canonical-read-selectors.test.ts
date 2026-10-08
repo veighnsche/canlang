@@ -99,7 +99,7 @@ test('actual canonical create stores plain generated hex; read/query omit it but
     const time = at.toString(16).padStart(12, '0');
     const id = `${time.slice(0, 8)}-${time.slice(8)}-7${random.slice(0, 3)}-8${random.slice(4, 7)}-${random.slice(7, 19)}`;
     const created = await invoker.invokeMutation({ operation: 'Shop.Team.create', operation_id: id,
-      inputs: { name: 'visible label', owner: 'user-a', flags: [] } }, identity);
+      inputs: { name: 'visible label', owner: { id: 'user-a' }, flags: [] } }, identity);
     assert.ok('result' in created, JSON.stringify(created));
     assert.equal(created.result.result, null);
     const publicRow = created.result.records![0] as { data: Record<string, unknown> };
@@ -161,7 +161,7 @@ async function populatedReadStore() {
     const id = `${time.slice(0, 8)}-${time.slice(8)}-7${random.slice(0, 3)}-8${random.slice(4, 7)}-${random.slice(7, 19)}`;
     const created = await buildInvoker(valid.artifact, valid.asm, store, { memberships, now: () => at })
       .invokeMutation({ operation: 'Shop.Team.create', operation_id: id,
-        inputs: { name: 'visible', owner: 'user-a', flags: [] } }, identity);
+        inputs: { name: 'visible', owner: { id: 'user-a' }, flags: [] } }, identity);
     assert.ok('result' in created, JSON.stringify(created));
     return store;
   } finally { valid.cleanup(); }
