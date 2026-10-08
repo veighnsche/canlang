@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T10:09:59.766484+00:00",
+  "updated_utc": "2026-10-08T10:11:05.931044+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2421,6 +2421,21 @@
       "sources_commands_released": true,
       "counts_unchanged": true,
       "commit": "81dbe2e9"
+    },
+    "generation_request_prefix": {
+      "status": "Root directly reviewed released genuine compiler/nativeD1 generation request prefix; component commit ready",
+      "files": [
+        "packages/cloudflare/src/runtime/typed-generation-progress.test.ts",
+        "packages/cloudflare/test/fixtures/typed-generation-progress.can",
+        "packages/cloudflare/test/fixtures/typed-generation-progress.json"
+      ],
+      "producer_commit": "8aa1bc333",
+      "scope": "Genuine compiled TextRequest/TextMessage user role; original operation source/ref revision/budgets and typed request frozen into pending outbox+owning field association+receipt in native D1",
+      "owning_results": "Current producer regenerated source artifact exit0; owning existing nativeD1 prefix1/1; no root duplicate check",
+      "identity_limit": "Explicit memory identity; direct actual canonical invoker, not HTTP/MCP or installed generation provider",
+      "remaining": "Real provider/progress/notifications, narrow selected-result-subfield disclosure and original host/lifecycle/authority gates stay open",
+      "source_commands_released": true,
+      "counts_unchanged": true
     }
   }
 }

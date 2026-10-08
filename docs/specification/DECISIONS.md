@@ -2711,3 +2711,8 @@ Accepted at the explicit Node/nativeD1/D1Identity/localhost Email consumer scope
 ### 2026-10-08 — selected due replay survives a lost committed response
 
 Accepted qualification at the existing single-handler Node/nativeD1 scope: the selected due batch may commit successfully and then lose its response. Reopening the actual store and replaying its original occurrence returns the retained terminal receipt without repeating domain, history or schedule effects. One extension of the existing owning due workflow verifies this production boundary; unchanged checks are reused. No provider side-effect guarantee, default scheduler, initiating-user revocation, owner expiry or broader parent closure follows from this case.
+
+
+### 2026-10-08 — generation admission is a separate completed prefix
+
+Accepted component: genuine compiled `TextRequest` and `TextMessage` construction captures the original operation correlation, admitted record revision, message role and resource budgets. The existing canonical nativeD1 invocation stages the pending generation outbox, owning delivery-field association and receipt together. Compiler `8aa1bc333` releases the reachable owning nominal schemas; one direct source/native request-admission case passes with explicit memory identity. This prefix does not qualify a generation provider, progress stream, notifications, narrow result-subfield disclosure, HTTP/MCP transport or complete installed host; those remain the next consumer work.
