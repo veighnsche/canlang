@@ -131,7 +131,7 @@ test('selection cannot override viewer authority, bound dependencies, archive mo
     context: { actorUserId: null, teamId: null }, memberships: null,
     store: { query() { throw new Error('forged store used'); } },
     fence: { join() { throw new Error('forged fence used'); } },
-    order: [{ field: 'note', direction: 'desc' }],
+    order: [{ field: 'score', direction: 'desc' }],
   } as unknown as ReadSelection;
   const served = await world.reader({ ...world.args, selection });
   assert.deepEqual(served.records.map((record) => record.data), [{ title: 'Second', score: 20 }]);
@@ -139,4 +139,81 @@ test('selection cannot override viewer authority, bound dependencies, archive mo
   assert.equal(world.scans[0]!.model, model);
   assert.equal(world.scans[0]!.authority, 'viewer');
   assert.equal(world.scans[0]!.archived, 'exclude');
+});
+
+
+test('trusted sync and async source predicates run on visible AST matches before limit', async () => {
+  const world = await setup();
+  for (const asynchronous of [false, true]) {
+    const visited: string[] = [];
+    const accept = (record: Parameters<NonNullable<ReadSelection['predicate']>>[0]) => {
+      visited.push(record.id);
+      assert.equal(Object.hasOwn(record.data, 'note'), false);
+      return record.data['score'] === 20;
+    };
+    const served = await world.reader({ ...world.args, selection: {
+      where: { op: 'gte', field: 'score', value: 20 }, limit: 1,
+      predicate: asynchronous ? async (record) => accept(record) : accept,
+    } });
+    assert.deepEqual(visited, ['b']);
+    assert.deepEqual(served.records.map((record) => record.id), ['b']);
+    assert.equal(served.revision, 1);
+  }
+  const overflow = await captureStateError(world.reader({ ...world.args,
+    selection: { predicate: () => true, limit: 1 },
+  }));
+  assert.match(overflow.message, /over the limit/);
+  assert.equal(world.scans.length, 3);
+  for (const scan of world.scans) {
+    assert.equal(Object.hasOwn(scan, 'predicate'), false);
+    assert.equal(Object.hasOwn(scan, 'limit'), false);
+  }
+});
+
+test('trusted source predicate shape and boolean results fail closed', async () => {
+  const world = await setup();
+  for (const predicate of [null, {}, 'function']) {
+    const error = await captureStateError(world.reader({ ...world.args,
+      selection: { predicate } as unknown as ReadSelection,
+    }));
+    assert.equal(error.code, 'validation');
+    assert.match(error.message, /trusted host function/);
+  }
+  assert.equal(world.scans.length, 0);
+  for (const predicate of [() => 1, async () => 'true', () => undefined]) {
+    const error = await captureStateError(world.reader({ ...world.args,
+      selection: { predicate } as unknown as ReadSelection,
+    }));
+    assert.equal(error.code, 'validation');
+    assert.match(error.message, /return a boolean/);
+  }
+});
+
+
+test('bound read forwards exact authorized ordering and fails rather than truncating at the limit', async () => {
+  const world = await setup();
+  const order: NonNullable<ReadSelection['order']> = [{ field: 'score', direction: 'desc' }];
+  const served = await world.reader({ ...world.args, selection: { order, limit: 2 } });
+  assert.deepEqual(served.records.map((record) => record.id), ['b', 'a']);
+  assert.deepEqual(world.scans[0]!.order, order);
+  const overflow = await captureStateError(world.reader({ ...world.args, selection: { order, limit: 1 } }));
+  assert.match(overflow.message, /over the limit/);
+  assert.equal(world.scans.length, 2);
+  assert.equal(Object.hasOwn(world.scans[1]!, 'limit'), false);
+  const denied = await captureStateError(world.reader({ ...world.args,
+    selection: { order: [{ field: 'note', direction: 'desc' }] },
+  }));
+  assert.equal(denied.code, 'validation');
+  assert.match(denied.message, /not granted/);
+  const malformed = await captureStateError(world.reader({ ...world.args,
+    selection: { order: ['score'] } as unknown as ReadSelection,
+  }));
+  assert.equal(malformed.code, 'validation');
+  assert.match(malformed.message, /Invalid order direction/);
+  assert.equal(world.scans.length, 2);
+  const selection: ReadSelection = { get order(): never { throw new Error('order evaluated before admission'); } };
+  const closed = await captureStateError(world.reader({ ...world.args,
+    envelope: { operation, inputs: { bogus: true } }, selection,
+  }));
+  assert.deepEqual(fieldPaths(closed), ['/bogus']);
 });

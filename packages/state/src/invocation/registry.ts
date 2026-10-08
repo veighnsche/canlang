@@ -1,4 +1,5 @@
 import { checkFieldMachine } from '../internal/machine.js';
+import { parseTypeId } from '@canlang/values';
 /**
  * Lane 03 T16a: operation registry — INTERIM engine-local defs plus the
  * generated-descriptor join.
@@ -293,17 +294,36 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** Additive claims are own-only; nullable suffix applies to the container. */
-function checkResult(holder: Record<string, unknown>, what: string): CanonicalOperationDescriptor['result'] {
+function checkResult(
+  holder: Record<string, unknown>,
+  what: string,
+  kind: string,
+  modelNames: ReadonlySet<string>,
+): CanonicalOperationDescriptor['result'] {
   if (!Object.hasOwn(holder, 'result')) return undefined;
   const result = holder['result'];
   if (!isRecord(result) || !Object.hasOwn(result, 'type')) {
     fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration/user/file profile or bare void.`);
   }
   const type = result['type'];
-  if (type !== 'void' && (typeof type !== 'string' || !/^(int|datetime|text|bool|decimal|money|date|duration|user|file)(\[\])?\??$/.test(type))) {
-    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration/user/file profile or bare void.`);
+  const scalarOrVoid = type === 'void' || (typeof type === 'string' &&
+    /^(int|datetime|text|bool|decimal|money|date|duration|user|file)(\[\])?\??$/.test(type));
+  let knownModelArray = false;
+  // Generated reads alone may declare a nonnullable ordinary array of a
+  // model in this set. Nominal spelling never establishes model identity.
+  if (!scalarOrVoid && kind === 'read' && typeof type === 'string') {
+    try {
+      const parsed = parseTypeId(type);
+      knownModelArray = parsed.base.kind === 'nominal' && parsed.base.path.includes('.') &&
+        modelNames.has(parsed.base.path) && parsed.array && !parsed.nullable && !parsed.requiredArray;
+    } catch {
+      // The shared artifact error below covers malformed canonical spellings.
+    }
   }
-  return Object.freeze({ type });
+  if (!scalarOrVoid && !knownModelArray) {
+    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration/user/file profile or bare void; reads may also declare a known qualified model[].`);
+  }
+  return Object.freeze({ type: type as CanTypeId });
 }
 
 function checkValueType(field: Record<string, unknown>, what: string): CanTypeId | undefined {
@@ -794,7 +814,7 @@ export function loadExecutionDescriptorSet(
       seenInputs.add(checked.name);
       inputs.push(checked);
     }
-    const result = checkResult(operation, `operation ${JSON.stringify(opName)}`);
+    const result = checkResult(operation, `operation ${JSON.stringify(opName)}`, kind, modelNames);
     const descriptor: CanonicalOperationDescriptor = {
       name: opName as OperationName,
       kind: kind as CanonicalOperationDescriptor['kind'],
@@ -1335,7 +1355,7 @@ export function artifactToDescriptorSet(
         opArrays[input.name] = { required: input.array.required };
       }
     }
-    const result = checkResult(operation as unknown as Record<string, unknown>, `operation ${JSON.stringify(operation.name)}`);
+    const result = checkResult(operation as unknown as Record<string, unknown>, `operation ${JSON.stringify(operation.name)}`, operation.kind, modelNames);
     operations.push({
       name: operation.name as OperationName,
       kind: operation.kind as CanonicalOperationDescriptor['kind'],
