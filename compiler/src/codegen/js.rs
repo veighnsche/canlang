@@ -553,7 +553,7 @@ impl JsOperationField {
 }
 
 /// One user-invocable operation descriptor (JSON shape of
-/// `OperationDescriptor`: `{name, kind, description, inputs}`).
+/// `OperationDescriptor`: `{name, kind, description, inputs, result?}`).
 #[derive(Debug, Clone)]
 pub struct JsOperation {
     /// Canonical operation identity (`Shop.approve`, `Shop.Gadget.create`).
@@ -564,6 +564,9 @@ pub struct JsOperation {
     pub description: String,
     /// Closed typed inputs in signature order.
     pub inputs: Vec<JsOperationField>,
+    /// Checked scenario result type in the bounded publication profile.
+    /// Absent means unknown; generated reads and CRUD do not claim void.
+    pub result: Option<&'static str>,
 }
 
 impl JsOperation {
@@ -921,7 +924,12 @@ impl Serialize for JsOperation {
         struct Inputs<'a> {
             fields: &'a [JsOperationField],
         }
-        let mut state = serializer.serialize_struct("Operation", 4)?;
+        #[derive(Serialize)]
+        struct ResultType {
+            r#type: &'static str,
+        }
+        let mut state =
+            serializer.serialize_struct("Operation", 4 + usize::from(self.result.is_some()))?;
         state.serialize_field("name", &self.name)?;
         state.serialize_field("kind", self.kind.as_str())?;
         state.serialize_field("description", &self.description)?;
@@ -931,6 +939,9 @@ impl Serialize for JsOperation {
                 fields: &self.inputs,
             },
         )?;
+        if let Some(result) = self.result {
+            state.serialize_field("result", &ResultType { r#type: result })?;
+        }
         state.end()
     }
 }
@@ -4947,6 +4958,7 @@ impl<'a> Emitter<'a> {
                         kind: JsOperationKind::Read,
                         description: String::new(),
                         inputs: Vec::new(),
+                        result: None,
                     });
                 }
                 IrItemKind::Scenario {
@@ -4955,6 +4967,7 @@ impl<'a> Emitter<'a> {
                     trusted,
                     description,
                     expose_excluded,
+                    result,
                     ..
                 } => {
                     if *trusted {
@@ -5020,6 +5033,12 @@ impl<'a> Emitter<'a> {
                             .map(|message| message.source.clone())
                             .unwrap_or_default(),
                         inputs,
+                        result: match result {
+                            Some(ResolvedType::Scalar(Scalar::Int)) => Some("int"),
+                            // The checked Scenario signature establishes no result.
+                            None => Some("void"),
+                            _ => None,
+                        },
                     });
                 }
                 IrItemKind::CrudOp {
@@ -5213,6 +5232,7 @@ impl<'a> Emitter<'a> {
                             .map(|message| message.source.clone())
                             .unwrap_or_default(),
                         inputs,
+                        result: None,
                     });
                 }
                 _ => {}

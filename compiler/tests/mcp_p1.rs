@@ -260,11 +260,13 @@ fn operations_descriptors_golden() {
             other => panic!("operation entry is an object: {other:?}"),
         };
         keys.sort_unstable();
-        assert_eq!(
-            keys,
-            ["description", "inputs", "kind", "name"],
-            "contract keys for {op:?}"
-        );
+        let name = op.get("name").and_then(Json::as_str).unwrap();
+        let expected_keys: &[&str] = if ["Shop.approve", "Shop.restock"].contains(&name) {
+            &["description", "inputs", "kind", "name", "result"]
+        } else {
+            &["description", "inputs", "kind", "name"]
+        };
+        assert_eq!(keys, expected_keys, "contract keys for {op:?}");
     }
 
     // CRUD create: allowlisted fields flattened, required from
