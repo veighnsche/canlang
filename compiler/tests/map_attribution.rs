@@ -83,3 +83,47 @@ fn production_failure_reaches_node_source_maps() {
     );
     eprint!("{}", String::from_utf8_lossy(&consumed.stdout));
 }
+
+#[test]
+fn production_failure_reaches_native_registry_mapped_outcome() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .canonicalize()
+        .unwrap();
+    let fixture = root.join("implementation/compiler-completion/map-attribution");
+    let scratch = tempfile::tempdir().unwrap();
+    let source = fixture.join("failure.can");
+    let mut command = Command::new(env!("CARGO_BIN_EXE_can"));
+    command
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(&source)
+        .current_dir(&root);
+    let compiled = bounded(command);
+    assert!(
+        compiled.status.success(),
+        "CLI: {}",
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    let artifact = scratch.path().join("artifact.json");
+    std::fs::write(&artifact, compiled.stdout).unwrap();
+    // Keep generated V8 frame coordinates for the installed runtime mapper.
+    // The original DEP-02 case separately owns Node's source-map engine.
+    let mut command = Command::new("node");
+    command
+        .arg(fixture.join("consumer.mjs"))
+        .arg(&root)
+        .arg(&artifact)
+        .arg(&source)
+        .arg(scratch.path().join("staged"))
+        .arg("--registry-mapped-outcome")
+        .current_dir(&root);
+    let consumed = bounded(command);
+    assert!(
+        consumed.status.success(),
+        "Node: {}\n{}",
+        String::from_utf8_lossy(&consumed.stdout),
+        String::from_utf8_lossy(&consumed.stderr)
+    );
+    eprint!("{}", String::from_utf8_lossy(&consumed.stdout));
+}

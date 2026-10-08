@@ -6,7 +6,8 @@ import {fileURLToPath, pathToFileURL} from 'node:url';
 import {createHash} from 'node:crypto';
 const [root, artifactPath, sourcePath, workDir] = process.argv.slice(2);
 assert.ok(Number(process.versions.node.split('.')[0]) >= 24, 'requires actual Node >=24 native TS stripping');
-assert.ok(process.execArgv.includes('--enable-source-maps'));
+const registryMappedOutcome = process.argv.includes('--registry-mapped-outcome');
+if (!registryMappedOutcome) assert.ok(process.execArgv.includes('--enable-source-maps'));
 // Resolve source-owned .js imports to their existing TypeScript owners. This
 // changes no emitted module, producer import or source-map coordinate.
 registerHooks({resolve(specifier, context, next) {
@@ -20,6 +21,15 @@ const runtime = join(root, 'packages/cloudflare/src/runtime');
 const {loadArtifactFile} = await import(pathToFileURL(join(runtime, 'artifact.ts')));
 const {assembleModules} = await import(pathToFileURL(join(runtime, 'modules.ts')));
 const loaded = loadArtifactFile(artifactPath);
+if (registryMappedOutcome) {
+  assert.ok(!process.execArgv.includes('--enable-source-maps'), 'runtime mapper consumes actual generated frames');
+  const assembly = await assembleModules(loaded, {workDir, stdlibUrl:import.meta.resolve('@canlang/stdlib')});
+  const {invokeCallable} = await import(import.meta.resolve('@canlang/cloudflare/runtime/invoke'));
+  const outcome = await invokeCallable(assembly, loaded.artifact, 'Attribution.remainder', {}, [9n, 0n]);
+  assert.deepEqual(outcome, {ok:false, error:'Division by zero', mapped:{source:sourcePath, line:4, column:8, name:'Attribution.remainder'}});
+  console.log(JSON.stringify({consumer:'real CLI → public artifact loader/assembler → installed runtime invokeCallable registry → mapped failure outcome', outcome}));
+  process.exit(0);
+}
 const before = JSON.stringify(loaded.artifact);
 const sourceText = readFileSync(sourcePath, 'utf8');
 const artifact = loaded.artifact;

@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T21:35:39.216121+00:00",
+  "updated_utc": "2026-10-08T21:36:49.592385+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2819,6 +2819,13 @@
       "contract": "Deferred sends retain actorUserId or original admitted trustedSource, matching adjacent effect attribution; anonymous remains last fallback.",
       "verification": "Owner actual CLI0, CF selective emit0/8 outputs and one changed native due-handler case1/1 in4.343s. Root exact4-file review reuses results.",
       "limits": "Queued dispatch attribution/operation/team/occurrence, rollback, response-loss/reopen only; no provider delivery/full10/hook/held scope acceptance.",
+      "counts_unchanged": true,
+      "commit": "99d306ac3e205f9674c59d04fddd3137bd310846"
+    },
+    "native_registry_failure_attribution": {
+      "status": "Released qualification-only consumer captured",
+      "verification": "Same actual CLI/installed callable registry case1/1 .22s with Node source maps disabled; original .can source4:8/name and Division by zero preserved. Root direct released test/consumer review; unchanged DEP-02 results reused.",
+      "limits": "No production/API replacement or reduction, full canonical State error conversion mapping, disclosure/installed-application or whole S9-Q08 acceptance.",
       "counts_unchanged": true
     }
   },

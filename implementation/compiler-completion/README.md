@@ -621,3 +621,15 @@ revocations. Two preparation failures corrected unsupported returned-query
 `limit=` and bare `order=` in the fixture; no production query feature was
 added. Mutation-filter refusal, structured expression ordering, D1 and full
 S9-Q02 remain separate. Completion remains **58/67**.
+
+The [existing map consumer](map-attribution/consumer.mjs) now also qualifies
+the installed public callable-registry mapper through
+[`production_failure_reaches_native_registry_mapped_outcome`](../../compiler/tests/map_attribution.rs):
+**1/1** (0.22s). One actual emitted division failure returns its unchanged
+error text and original absolute `.can` identity at line 4, column 8, with
+the owning callable name. Node source-map support is disabled in this mode;
+the current runtime decodes the generated frame. The first observer omitted
+the existing optional mapped name and was corrected; only that affected case
+repeated. Accepted DEP-02 emission/Node/decoder evidence is reused. Full State
+operation conversion still discards the mapped location and needs its defining
+wire/disclosure release; no production/API change or full S9-Q08 credit follows.
