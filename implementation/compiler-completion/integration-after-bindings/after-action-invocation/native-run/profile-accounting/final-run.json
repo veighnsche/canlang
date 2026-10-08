@@ -1,0 +1,172 @@
+{
+  "source_commit": "83d40be0",
+  "start_head": "83d40be0e9a50f19bd72e721e489a5f3bc7cf690",
+  "end_head": "83d40be0e9a50f19bd72e721e489a5f3bc7cf690",
+  "command": [
+    "cargo",
+    "test",
+    "--manifest-path",
+    "compiler/Cargo.toml",
+    "--locked",
+    "--offline",
+    "--",
+    "--nocapture"
+  ],
+  "start_utc": "2026-10-08T00:14:29.295748+00:00",
+  "end_utc": "2026-10-08T00:21:27.108050+00:00",
+  "exit_code": 0,
+  "log": "../full-suite.log",
+  "log_sha256_expected": "f005c4bdd9a0d6236e32dd40fc454666c668cf7fa551664d8c91ba4afb1c2338",
+  "log_sha256_actual": "f005c4bdd9a0d6236e32dd40fc454666c668cf7fa551664d8c91ba4afb1c2338",
+  "result_summaries": {
+    "total": 69,
+    "parsed": 69,
+    "nonzero": 67,
+    "empty": 2,
+    "passed": 1162,
+    "failed": 0,
+    "ignored": 0,
+    "measured": 0,
+    "filtered_out": 0,
+    "running_lines": 68,
+    "running_line_examples": [
+      "unittests src/lib.rs (compiler/target/debug/deps/canlang_compiler-8bc9585627feb9a7)",
+      "unittests src/main.rs (compiler/target/debug/deps/can-7fdba0986254811e)",
+      "tests/action_references.rs (compiler/target/debug/deps/action_references-105e80e2fb4db9a5)"
+    ],
+    "skip_lines": [
+      {
+        "line": 1083,
+        "text": "SKIP mode 4750: this host did not retain the requested fixture bits"
+      }
+    ],
+    "other_body_refusal_lines": []
+  },
+  "historical_and_current_scope": {
+    "inputs_at_run": {
+      "compiler-inputs": 127,
+      "package-producers": 1770,
+      "external-can-fixtures": 5
+    },
+    "manifest_comparison": {
+      "compiler-inputs": {
+        "before_count": 127,
+        "after_count": 127,
+        "before_equals_after": true,
+        "current_files_missing": 0,
+        "current_hash_mismatches": 0,
+        "missing_examples": [],
+        "mismatch_examples": []
+      },
+      "package-producers": {
+        "before_count": 1770,
+        "after_count": 1770,
+        "before_equals_after": true,
+        "current_files_missing": 0,
+        "current_hash_mismatches": 0,
+        "missing_examples": [],
+        "mismatch_examples": []
+      },
+      "external-can-fixtures": {
+        "before_count": 5,
+        "after_count": 5,
+        "before_equals_after": true,
+        "current_files_missing": 0,
+        "current_hash_mismatches": 0,
+        "missing_examples": [],
+        "mismatch_examples": []
+      }
+    },
+    "completion_reported_no_changes": {
+      "compiler-inputs": {
+        "added": [],
+        "removed": [],
+        "changed": []
+      },
+      "package-producers": {
+        "added": [],
+        "removed": [],
+        "changed": []
+      },
+      "external-can-fixtures": {
+        "added": [],
+        "removed": [],
+        "changed": []
+      }
+    },
+    "current_package_producer_hash_mismatches": 0,
+    "current_package_producer_mismatch_examples": [],
+    "current_package_worktree_status_lines": [
+      " M packages/cloudflare/src/deploy/bundle.ts",
+      " M packages/cloudflare/src/runtime/context.ts",
+      " M packages/cloudflare/src/runtime/invoke.ts",
+      " M packages/cloudflare/src/worker/assembly.ts",
+      " M packages/cloudflare/src/worker/main.ts",
+      " M packages/interfaces/src/http/pages.ts",
+      " M packages/interfaces/src/index.ts",
+      " M packages/state/test/storage/do-test-worker.js",
+      " M packages/state/test/storage/do.test.ts",
+      "?? packages/cloudflare/src/runtime/verified-context.test.ts",
+      "?? packages/cloudflare/test/browser-assets-bundle.test.ts",
+      "?? packages/cloudflare/test/browser-assets-serving.test.ts"
+    ],
+    "current_package_source_changes_are_not_tested_by_completed_run": true
+  },
+  "root_checks": {
+    "stable": true,
+    "scope": "FiveownedRustfilesformatting and current strict all-target Clippy. Initial globalformatdiff flags two unchanged historicalfixtures plus correctedIRwrap; no unrelated source mutation.",
+    "checks": [
+      {
+        "name": "owned-format",
+        "exit": 0,
+        "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "command": [
+          "rustfmt",
+          "--edition",
+          "2024",
+          "--config",
+          "skip_children=true",
+          "--check",
+          "compiler/src/codegen/ir.rs",
+          "compiler/src/codegen/js.rs",
+          "compiler/tests/action_references.rs",
+          "compiler/tests/invocation_references.rs",
+          "compiler/tests/decimal_runtime.rs"
+        ]
+      },
+      {
+        "name": "strict-clippy",
+        "exit": 0,
+        "log_sha256": "a9172cb02b9300a59c950fbcf17ef8d627bc556080ebaf4a4c1c9228f38e029a",
+        "command": [
+          "cargo",
+          "clippy",
+          "--manifest-path",
+          "compiler/Cargo.toml",
+          "--locked",
+          "--offline",
+          "--all-targets",
+          "--",
+          "-D",
+          "warnings"
+        ]
+      }
+    ],
+    "interpretation": "Owned Rust format and strict Clippy pass only for the listed five Rust files and all-target Clippy command. The initial global format attempt noted two historical unchanged files; do not describe this as a whole-workspace formatter pass."
+  },
+  "mode_4750": {
+    "full_suite_log_skip": "SKIP mode 4750: this host did not retain the requested fixture bits",
+    "separate_native_qualification": {
+      "receipt": "../../../../session-history/native-mode-qualification/receipt.json",
+      "exit_code": 0,
+      "mode_4750_body_skipped": false,
+      "log_sha256": "cfb2598eace6b716c55e626c19decb2a96c1cb5f7e446b9484153a8e86b2192e",
+      "source_sha256": {
+        "compiler/tests/file_ownership.rs": "809b5e18239440cd12870bbede492947bb0bec96a15619c52c1b83a1a63fc5a7",
+        "compiler/src/cli.rs": "0e9eb7cfd2ee3e20ac9238c67872800cbe99911b3b799fa2616526f9be5a1f94"
+      }
+    },
+    "interpretation": "The full suite declined that body on this host. The exact mode-retention body has a separate successful native qualification against unchanged source; do not count it as an additional full-suite test."
+  },
+  "scope_limit": "This is accounting for the finite recorded compiler cargo test run and its captured input scope. It does not establish completion of the broader compiler goal."
+}

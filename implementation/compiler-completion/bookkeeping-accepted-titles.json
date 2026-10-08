@@ -26,5 +26,10 @@
   "2026-10-08 — Bound overload-trial conclusions to actual consumers (accepted qualification)",
   "2026-10-08 — Refresh native compiler qualification after Decimal lowering (accepted profile)",
   "2026-10-08 — Qualify the original finite renderer failure packet (accepted bounded)",
-  "2026-10-08 — Retain the supported policy formatter byte contract (accepted retention)"
+  "2026-10-08 — Retain the supported policy formatter byte contract (accepted retention)",
+  "2026-10-08 — Lower checked static action targets as canonical data (accepted bounded)",
+  "2026-10-08 — Join invocation generation to the implemented Values owner (accepted bounded)",
+  "2026-10-08 — Qualify the native compiler after action and invocation joins (accepted profile)",
+  "2026-10-08 — Retain qualified bounded JSON and framing state oracles (accepted qualification)",
+  "2026-10-08 — Refuse Corpus emission rather than silently lose it (accepted bounded)"
 ]

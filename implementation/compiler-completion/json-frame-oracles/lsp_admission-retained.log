@@ -1,0 +1,49 @@
+Running tests/lsp_admission.rs (compiler/target/debug/deps/lsp_admission-77cfc5af8bcd8d76)
+
+running 32 tests
+test eof_keeps_the_existing_clean_disconnect_exit ... ok
+test exit_before_shutdown_has_exit_code_one ... ok
+test framing_failure_before_initialize_is_a_silent_transport_failure ... ok
+test framing_failure_after_shutdown_is_still_a_transport_failure ... ok
+test empty_complete_body_is_a_parse_error_then_the_connection_remains_usable ... ok
+test exact_header_budget_is_accepted_by_the_shipped_process ... ok
+test initialize_admits_unknown_capabilities_and_extensions ... ok
+test legal_headers_equal_lengths_and_unicode_keep_the_real_stdio_peer_compatible ... ok
+test lifecycle_precedence_is_envelope_then_lifecycle_then_method_then_params ... ok
+test invalid_shutdown_and_exit_params_do_not_change_lifecycle ... ok
+test known_method_field_errors_reply_to_requests_and_leave_notifications_silent ... ok
+test malformed_did_open_is_silent_and_does_not_create_a_document ... ok
+test ignored_capabilities_keep_the_value_entry_depth_budget ... ok
+test notifications_outside_ready_cannot_open_documents_or_publish ... ok
+test framing_refusal_closes_stdio_before_eof_and_never_dispatches_following_bytes ... ok
+test malformed_did_change_does_not_mutate_or_publish_a_new_version ... ok
+test decoded_reserved_duplicate_keys_are_rejected_before_dispatch ... ok
+test malformed_json_is_a_null_parse_error_and_consumes_the_frame ... ok
+strict JSON process case: leading zero
+test shutdown_then_exit_is_clean ... ok
+test primitive_shutdown_and_exit_params_are_envelope_errors ... ok
+test valid_notification_envelopes_are_silent_without_initializing ... ok
+strict JSON process case: missing integer
+test torn_headers_and_body_keep_the_existing_clean_disconnect_exit ... ok
+test shutdown_and_exit_accept_absent_null_and_empty_object_params ... ok
+test ordinary_private_marker_keys_remain_objects_in_initialize_params ... ok
+test valid_required_contexts_and_maximum_position_are_admitted ... ok
+test invalid_initialize_fields_do_not_initialize ... ok
+strict JSON process case: missing fraction
+strict JSON process case: missing exponent
+test valid_unicode_string_id_keeps_its_semantic_value ... ok
+test illegal_ids_are_null_correlated_and_never_initialize ... ok
+test malformed_utf8_is_one_parse_error_and_does_not_initialize ... ok
+strict JSON process case: leading plus
+strict JSON process case: lone high surrogate value
+test accepted_integral_ids_preserve_the_original_number_lexeme ... ok
+strict JSON process case: lone low surrogate value
+strict JSON process case: lone high surrogate key
+strict JSON process case: lone low surrogate key
+test malformed_envelopes_correlate_only_a_unique_legal_id ... ok
+strict JSON process case: invalid Unicode escape
+strict JSON process case: unescaped control value
+strict JSON process case: unescaped control key
+test strict_json_grammar_and_unknown_unicode_recover_through_shutdown_exit ... ok
+
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s

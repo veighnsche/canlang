@@ -1,0 +1,113 @@
+{
+  "models": [
+    {
+      "name": "NumericControl.Job",
+      "fields": [
+        {
+          "name": "count",
+          "field": {
+            "kind": "integer"
+          },
+          "required": false,
+          "serverOnly": false,
+          "default": {
+            "kind": "literal",
+            "value": "1"
+          }
+        }
+      ],
+      "deleteMode": "archive"
+    }
+  ],
+  "operations": [
+    {
+      "name": "NumericControl.Job.read",
+      "kind": "read",
+      "description": "",
+      "inputs": {
+        "fields": []
+      }
+    },
+    {
+      "name": "NumericControl.Job.create",
+      "kind": "create",
+      "description": "",
+      "inputs": {
+        "fields": [
+          {
+            "name": "count",
+            "field": {
+              "kind": "integer"
+            },
+            "required": false,
+            "default": {
+              "kind": "literal",
+              "value": "1"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "NumericControl.Job.update",
+      "kind": "update",
+      "description": "",
+      "inputs": {
+        "fields": [
+          {
+            "name": "record",
+            "field": {
+              "kind": "ref",
+              "model": "NumericControl.Job",
+              "requireVersion": true
+            },
+            "required": true
+          },
+          {
+            "name": "count",
+            "field": {
+              "kind": "integer"
+            },
+            "required": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "NumericControl.Job.delete",
+      "kind": "delete",
+      "description": "",
+      "inputs": {
+        "fields": [
+          {
+            "name": "record",
+            "field": {
+              "kind": "ref",
+              "model": "NumericControl.Job",
+              "requireVersion": true
+            },
+            "required": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "NumericControl.increment",
+      "kind": "scenario",
+      "description": "",
+      "inputs": {
+        "fields": [
+          {
+            "name": "job",
+            "field": {
+              "kind": "ref",
+              "model": "NumericControl.Job",
+              "requireVersion": true
+            },
+            "required": true
+          }
+        ]
+      }
+    }
+  ]
+}

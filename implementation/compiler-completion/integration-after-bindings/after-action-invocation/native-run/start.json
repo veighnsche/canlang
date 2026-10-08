@@ -1,0 +1,20 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--manifest-path",
+    "compiler/Cargo.toml",
+    "--locked",
+    "--offline",
+    "--",
+    "--nocapture"
+  ],
+  "source_commit": "83d40be0",
+  "start_head": "83d40be0e9a50f19bd72e721e489a5f3bc7cf690",
+  "start_utc": "2026-10-08T00:14:29.295748+00:00",
+  "inputs": {
+    "compiler-inputs": 127,
+    "package-producers": 1770,
+    "external-can-fixtures": 5
+  }
+}

@@ -2,38 +2,18 @@
   "updated": "2026-10-08",
   "owner": "compiler completion root",
   "current_source_leases": {
-    "action_operation_targets": {
-      "agent": "compiler_action_target_lowering",
+    "compiler_temporal_presentation_join": {
       "model": "gpt-6.1-sol",
-      "reasoning_effort": "medium",
-      "files": [
-        "compiler/src/codegen/ir.rs",
-        "compiler/tests/action_references.rs",
-        "compiler/tests/fixtures/action-references/source.can",
-        "compiler/tests/fixtures/action-references/execute.mjs"
+      "reasoning_effort": "high",
+      "paths": [
+        "compiler/src/codegen/js.rs::lower_message (reserved; write held pending native/wire contract)",
+        "packages/ui/src/messages.ts::isValidDate",
+        "packages/ui/test/messages.test.ts",
+        "compiler/tests/temporal_presentation.rs",
+        "compiler/tests/fixtures/temporal-presentation/"
       ],
-      "scope": "Existing checked canonical action/invocation target data into existing public owner constructors; exact IR/formal-slot/type facts, no general first-class operation or package/API policy. Qualify actual generated construction and canonical admission boundaries.",
-      "status": "Independent High review found computed target evaluation omission; exact static-reference correction/test writer reopened, no generic first-class operation release."
-    },
-    "invocation_existing_owner_join": {
-      "agent": "compiler_invocation_join",
-      "model": "gpt-6.1-sol",
-      "reasoning_effort": "medium",
-      "files": [
-        "compiler/src/codegen/js.rs",
-        "packages/stdlib/src/index.ts",
-        "packages/stdlib/test/assembly.test.ts",
-        "compiler/tests/invocation_references.rs",
-        "compiler/tests/fixtures/invocation-references/"
-      ],
-      "scope": "Existing Values invocation constructor/canonical type vocabulary and verbatim facade export; exact assembly oracle updated only for added export; no new API/backend/authority."
-    },
-    "decimal_oracle_correction": {
-      "agent": "root",
-      "files": [
-        "compiler/tests/decimal_runtime.rs"
-      ],
-      "scope": "Exact former action E6008 assertion -> clean compile after constructor static-target lowering, all Decimal refusal cases and raw baseline preserved."
+      "evidence": "implementation/compiler-completion/temporal-presentation-join/",
+      "limits": "No IR/analysis/Values/stdlib/State/Cloudflare/Git ownership. Preserve existing wire-backed model/query workflow; no selective provenance or coercion workaround."
     }
   },
   "integrated_releases": {
@@ -50,7 +30,10 @@
     "named_ICU_date_time_partition": "9a84d6f7; declared message date/time requirements independently accepted bounded, all other temporal joins remain open.",
     "public_descriptor_fix_support": "a590a1ea; stable interfaces retained, zero retirement/deletion credit.",
     "named_message_slot_coverage": "bc2b7d05; empty named signatures check source/variant placeholders; structural callers preserved. Independent29focusedchecks and current1152-test integrated suite pass.",
-    "decimal_materialization": "0134ebb0; exact dotted/contextualintegral publicconstructor bounded leaf, independent acceptance;119worker+10relocatedcurrent+1formattedgolden checks and strictClippy0. Broader value/default consumers open."
+    "decimal_materialization": "0134ebb0; exact dotted/contextualintegral publicconstructor bounded leaf, independent acceptance;119worker+10relocatedcurrent+1formattedgolden checks and strictClippy0. Broader value/default consumers open.",
+    "checked_static_action_targets": "83d40be0; independentHighaccepted correctedstatic paths; compositeerasure regression refused.",
+    "invocation_existing_producer": "83d40be0; independentHighaccepted existingpurefacade/canonicalschema join; admission/execution remainsopen.",
+    "corpus_explicit_refusal": "0611db21; independentHighaccepted originalSYN05/S9Q04 no-loss viaexplicitE6008/retainedJudgmentE6006, no supportedworkflow release."
   },
   "pending_releases": {
     "UI_static": "Releasedc718517a; furtherlegalcaption/genericprofiles needexactownerqualification",
@@ -64,20 +47,25 @@
     "Subject-scoped synchronousguard remains unsupported exactoriginalbehavior",
     "GenericUI profile admission/capability/image app actualconsumerworkflow notcovered by staticleaf"
   ],
-  "next_enum_dependent_input_source_slot": "IR exclusively leased to action target lowerer; analysis/types.rs/resolve.rs and codegen/js.rs have no root compiler writer, require exact coordinated lease.",
+  "next_enum_dependent_input_source_slot": "No active IR/analysis writer. js.rs lower_message reserved to temporal owner; all further writers require exact coordinated lease.",
   "coordination": "Package/Git coordinator foreign ownership preserved. Root makes only scoped reviewed compiler packet commits; no merge/checkpoint advance. Future compiler writers require an exact coordinated lease.",
   "pending_consumer_policy": {
     "compiler_paths": "analysis/types.rs,codegen/ir.rs,codegen/bdd.rs,codegen/js.rs",
     "status": "Future BDD consumer join held for specific consultation approval; no active writer or blanket file lease."
   },
   "integrated_run_freeze": {
-    "compiler_inputs": 121,
+    "compiler_inputs": 127,
     "package_dist_inputs": 1770,
     "external_can_fixtures": 5,
-    "source_writers": "Invocation js.rs/facade/assembly worker, action IR correction worker and exact Decimal test oracle root.",
-    "status": "Historical1154nativeprofile remains pinned; active source work requires new current qualification.",
+    "source_writers": "Temporal UI validator writer active; compiler message encoding remains held for exact native/wire contract. Foreign package owners retain their leases.",
+    "status": "Historical native1162 at83d40be0 accepted. Corpus0611 focused independently accepted. No current whole-source freeze.",
     "start_head": "0134ebb01b978831e07e6428bd15512de75e610a",
-    "receipt": "integration-after-bindings/after-decimal-materialization/profile-accounting/final-run.json"
+    "receipt": "integration-after-bindings/after-action-invocation/native-run/profile-accounting/final-run.json"
   },
-  "selected_page_private_cli_handoff": "selected-page-cli-handoff.json; verified frozenCLI/exactImages compile from0134source snapshot; subsequent native1154run passed with matching inputs. Finite poll/render test-context scope only. Additional privateVerifiedContext evidence use/actual canonical carrier limits recorded in handoff; no source or context/default policy release."
+  "selected_page_private_cli_handoff": "selected-page-cli-handoff.json; verified frozenCLI/exactImages compile from0134source snapshot; subsequent native1154run passed with matching inputs. Finite poll/render test-context scope only. Additional privateVerifiedContext evidence use/actual canonical carrier limits recorded in handoff; no source or context/default policy release.",
+  "source_review_state": {
+    "action_static_targets": "IndependentHighaccepted; initial computed-target erasure rejected and corrected to checked static reference only, currentformataddendum accepted.",
+    "invocation_existing_producer": "IndependentHighaccepted actualowner join; no active writer.",
+    "decimal_oracle": "Exactformerlyunsupportedactionassertion now clean compile, originalfailure preserved; allDecimalrefusalcases retained."
+  }
 }
