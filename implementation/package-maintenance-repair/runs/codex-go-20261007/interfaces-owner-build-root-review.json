@@ -1,60 +1,14 @@
 {
-  "status": "root_independently_accepted_finite_test_and_frozen_real_owner_snapshot_metadata_corrected",
-  "captured_utc": "2026-10-08T00:12:22.833599+00:00",
+  "status": "accepted_finite_maintained_test_typing_correction",
   "task_ids": [
     "DEL-R01",
     "DEL-B02"
   ],
-  "source_snapshot": "Frozen96owner inputs before separate assetmatcher/index writer; no claim current new owner source already qualified",
-  "candidate": {
-    "file": "packages/interfaces/test/asset-byte-ownership.test.ts",
-    "before_sha256": "a0a9e3b5334e8074ceda7d0e9203ae08ade144cf3b6318a6ee9b0eafeeaa436d",
-    "after_sha256": "67c8201177f547a06f6a97885430833ceffafc800976432982eacd975bcc1cad",
-    "change": "Native ArrayBuffer assertion retains exact transferred lookup buffer, detachment and subsequent owned byte assertions",
-    "production_bytes_delta": 0,
-    "production_lines_delta": 0,
-    "maintained_test_bytes_delta": 78,
-    "maintained_test_lines_delta": 4
-  },
-  "actual_owner_recipe": "unmodified bun run build→scripts/build-package.mjs/taskEnvironment→original strict noEmitOnError tsc and fixtures; actualbeforeexit1 TS2322, afterexit0",
-  "independent_review": {
-    "author": "/root/interfaces_owner_build_review",
-    "model": "gpt-6.1-sol",
-    "reasoning_effort": "medium",
-    "own_compiled_replay_tests": 15,
-    "node24_consumer": {
-      "declared_exports": 7,
-      "distribution_preloads": 43,
-      "real_root_error_consumer": true
-    },
-    "node26_consumer": {
-      "declared_exports": 7,
-      "distribution_preloads": 43,
-      "real_root_error_consumer": true
-    }
-  },
-  "verified_pins": {
-    "owner_inputs": 96,
-    "owner_outputs": 352,
-    "owner_output_bytes": 2093687,
-    "dependency_outputs": 4068,
-    "installed_snapshot_files": 353,
-    "peer_optional_resolutions": 6,
-    "accepted_source_closure_JS_dts": 10,
-    "unchanged_public_types": 7
-  },
-  "metadata_defect_disposition": "Preserve original raw packet. Failing actual recipe raw log proves Node24.21.0; standalone recipe-host Node26 does not establish real recipe runtime. Successful invocation runtime unproven; do NOT claim Node26 ownerbuild. Different-author Node24/26 consumers have separate pinned execution identities. New changedpages/index ownerbuild must observe actual recipe executable/argv/hash/host, not ambient label.",
-  "private_original_owner": "/private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current",
-  "limits": [
-    "No real static mount/browser/polling/exportPrint/Worker qualification",
-    "No wholeDEL-R01 or originalparent/native/Wasm/default/retirement credit",
-    "Private installedcopy is not published/npm-installed release",
-    "Existing dependency outputs remain prebuiltexact-source-scope inputs; optionalcfworker/jsonschema absent",
-    "Public deep asset entry still refuses; defining distribution inventory remains owner route",
-    "Production matcher/rootindex changes are separate activeleased owner source and need new build/review"
-  ],
+  "commit": "9f63a132bdffd8d850fdf3c54205fea416ddd232",
+  "source": "packages/interfaces/test/asset-byte-ownership.test.ts",
+  "verified": "Owning original strict build failed TS2322 before correction and passed after;15 owning replay cases passed; separate Node24/26 public-export/distribution consumers at their frozen inputs.",
+  "host_limit": "Failing recipe raw observation was Node24.21.0; success recipe runtime was unproven. Standalone Node26 label did not certify actual build runtime. No new owner-source/full installed/current-host acceptance.",
+  "limits": "No real mount/browser/Worker/full release/native/default/backend retirement; public deep asset entry refused. Production delta0; maintained test +78bytes/4lines.",
   "readers_writers_commands_released_for_this_snapshot": true,
-  "commit_pending": false,
-  "whole_attributable_cost": "Required owning regression typing correction only; proof separate, no library reduction claim",
-  "commit": "9f63a132bdffd8d850fdf3c54205fea416ddd232"
+  "retired_outputs": "Removed remaining obsolete nested recipe/consumer/runtime snapshots from original58-file packet; required source/test and concise outcome retained, raw history remains in Git."
 }

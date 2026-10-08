@@ -1,127 +1,13 @@
 {
-  "schema": 1,
-  "captured_utc": "2026-10-08T00:51:44.262402+00:00",
-  "root_disposition": "independently_accepted_finite_selected_static_serving_and_existing_runtime_owner_mapping",
+  "status": "accepted_finite_static_serving_and_existing_runtime_mapping",
   "task_ids": [
     "DEL-B02",
     "DEL-R01"
   ],
-  "parent_complete": false,
-  "source_pins_and_accounting": {
-    "packages/cloudflare/src/deploy/bundle.ts": {
-      "before_sha256": "8ccf7b1178df87cdb02c1312bf4e2314680697034b5391fdad6a062ed80a7f85",
-      "after_sha256": "3b18b2ad9ace66b53c3dd46a2f5f698ec18cf20481eeaf9c0d3f92bcfd7d58c7",
-      "before_bytes": 64100,
-      "after_bytes": 69320,
-      "byte_delta": 5220,
-      "newline_delta": 73,
-      "test": false
-    },
-    "packages/cloudflare/src/worker/main.ts": {
-      "before_sha256": "4a701c54ffa724e047a12407a19068223e571213a0c874e96e5dd32ce8f944a1",
-      "after_sha256": "386873b51c7675904776ea6a2f4db5f18533f14905bf252bf7ee59d8ad6cedc5",
-      "before_bytes": 25304,
-      "after_bytes": 28569,
-      "byte_delta": 3265,
-      "newline_delta": 61,
-      "test": false
-    },
-    "packages/cloudflare/src/worker/assembly.ts": {
-      "before_sha256": "31239a80e12c6db7c51c744e22fd5e20dc69567b11781b71ce2485accb99be11",
-      "after_sha256": "8a450a67484dbce787f10b9186e10c6cedb18e663a733df5df63c15aa17218a8",
-      "before_bytes": 68447,
-      "after_bytes": 69128,
-      "byte_delta": 681,
-      "newline_delta": 16,
-      "test": false
-    },
-    "packages/cloudflare/test/browser-assets-serving.test.ts": {
-      "before_sha256": null,
-      "after_sha256": "f9d7eafa033d34cc5b072e0093b2fd70e18eb6b9e891b85b1ac4ede648c699f8",
-      "before_bytes": 0,
-      "after_bytes": 7779,
-      "byte_delta": 7779,
-      "newline_delta": 117,
-      "test": true
-    },
-    "packages/cloudflare/test/browser-assets-bundle.test.ts": {
-      "before_sha256": null,
-      "after_sha256": "6a0acb4ab84c552f16a540ec3d7dc2f6838fd55194dbd3fc6a5b370b76ae01b6",
-      "before_bytes": 0,
-      "after_bytes": 3697,
-      "byte_delta": 3697,
-      "newline_delta": 55,
-      "test": true
-    },
-    "packages/interfaces/src/http/pages.ts": {
-      "before_sha256": "f0c29777fd6be3be69561e1c309f3feb1ef49a04a1943b983512ad4bdca26238",
-      "after_sha256": "e7e4bd23e5e9bd3f43e831058248ed5d2bf5342be5b05f7eda63f74b52836f3c",
-      "before_bytes": 13736,
-      "after_bytes": 13743,
-      "byte_delta": 7,
-      "newline_delta": 0,
-      "test": false
-    },
-    "packages/interfaces/src/index.ts": {
-      "before_sha256": "afa4236f123cfc58cc612dace8e94b3605769c27d0ad924a16b16d6a3cf63ef9",
-      "after_sha256": "f342676874f69561ec6234a06b1a6a9e15e36d80a4b5e2709c2cf89174e0b521",
-      "before_bytes": 1140,
-      "after_bytes": 1160,
-      "byte_delta": 20,
-      "newline_delta": 0,
-      "test": false
-    }
-  },
-  "verified": [
-    "Actual original UI/Interfaces/Work/Cloudflare selected owner recipes at named frozen source/input scope, no native HOLD command",
-    "Different-author seam review and own actual Images defaultworkerd17 resource/refusal requests",
-    "Current focused15/15 tests; previous14 controls reused at unchanged seam scope",
-    "Actual source Images defaultNode/workerd resources GET/HEAD/conditional200 with pinned bytes; source now clears canonical descriptor preload",
-    "Runtime stdlib mapping matches existing CLI, publicvendorstdlib selection unchanged, no stub/signature/newfactory/preload bypass"
-  ],
-  "actual_page_residual": {
-    "observed_envelope": {
-      "code": "rule_failed",
-      "message": "The operation was rejected.",
-      "retryable": false
-    },
-    "generated_render": "Images / generated render calls list({context:c,model:\"Images.Job\",renderRow:...}); stage/$can$m$496d61676573.mjs",
-    "query_caller": "stage/vendor/ui/collections.js:83 calls props.context.query(props.context.invocation, props.model, queryArgs(props,\"list\"))",
-    "assembly_caller": "packages/cloudflare/src/worker/assembly.ts:1410 anonymousIdentity(ctx.now()), :1437 invocation:identity, :1438 query:interimQuery; render called with that context and admitted bindings.",
-    "throw": "assembly.ts:1107 interimQuery throws Error(\"assembly interim: in-render reads need the interfaces join (bound RowQueryRunner); rows are supplied, never queried\"); generic render catch maps unexpected throw to rule_failed422.",
-    "classification": "Existing required actual-page/query/caller join obligation, outside finite static seam. Inference from source plus actual observed envelope; no instrumented exception trace."
-  },
-  "limits": [
-    "Actual selected / returns422 rule_failed under selected/unselected; real page query/caller, shell CSS/hydration/polling and completebrowserworkflow not accepted",
-    "Production caller still does not derive browserselection from owning source pages; explicit package API option only",
-    "No installed/fullclosure/durable/current-auth/upload/export/print/native backend or heldrelease acceptance",
-    "Dormant emittedCRUDwrite signature skew remains separate; canonical execution routes generatedCRUDthroughState",
-    "JEVcache confidence mixed; retained existing maxAge0/immutablefalse, no new304/validator/positivefreshness"
-  ],
-  "maintenance": {
-    "production_byte_growth": 9193,
-    "production_newline_delta": 150,
-    "test_byte_growth": 11476,
-    "generated_resource_transport_bytes": 1643204,
-    "raw_ui_resource_bytes": 1186167,
-    "new_dependencies": 0,
-    "new_package_entries": 0,
-    "replacement_savings": 0,
-    "budget": "required serving capability, charged separately; no source compression/move/test saving credit"
-  },
+  "commit": "7c8dbe2e751b7a9cbe6e4af7944c87017a9ed520",
+  "verified": "Changed static-serving/bundle15/15 and actual Node/workerd selected resource/refusal controls; existing runtime stdlib mapping retained. No duplicate check.",
+  "historical_limit": "At this earlier component the actual Images page returned rule_failed422 from missing in-render query binding. Later owning page joins are recorded separately in state.json, not retroactively certified by this receipt.",
+  "limits": "No complete browser/upload/export/print/installed/native/backend or parent closure. Required serving capability grew production by9193 bytes/150 lines; no replacement reduction.",
   "all_commands_and_writers_released": true,
-  "git": {
-    "before": "29f9d7b7eb74146569b9b370ff0b01d1a772548a",
-    "commit_pending": false,
-    "no_merge": true,
-    "no_push": true,
-    "commit": "7c8dbe2e751b7a9cbe6e4af7944c87017a9ed520"
-  },
-  "task_counts_unchanged": {
-    "finished": 20,
-    "partial": 14,
-    "open_or_blocked": 13,
-    "held": 1,
-    "total": 48
-  }
+  "retired_outputs": "Removed released nested author/independent/mapping metadata and duplicate probe snapshots; maintained source/tests preserved, raw history remains in Git."
 }

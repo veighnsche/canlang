@@ -1611,7 +1611,7 @@
     "handback": "7f92c05f77841fe724bd804c2d7b83666c775b1f",
     "foreign_scope": "Human-authorized state-machine/refresh feature; its verification retained as external source-current input, not root package acceptance",
     "checkpoint": "824934 unchanged; foreign integrator explicitly leaves accumulated allocation review open",
-    "current_index_owner": "Compiler temporary five-path enum-default handoff; root staging waits exact empty-index return."
+    "current_index_owner": "Root after independently read Compiler exact a05e6c76/1eadd4c4 empty-index return; e4d838b0 source capture complete. Cleanup-only capture next; no other source or shared-output hold."
   },
   "shared_doc_handoff": {
     "target": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
@@ -2185,7 +2185,7 @@
       "git_handoff": "Exactly ten owned paths inspected/committed under coordinator exclusive index ACK; index returned empty. CF invoke and active UI/form sources remain other writer leases."
     },
     "fanout_generated_body_followup": {
-      "status": "Renewed owner freeze directly reviewed by root; ordinary compiled-child component ready for focused capture",
+      "status": "Root directly reviewed and committed released ordinary compiled-child component",
       "contract": "Existing canonical child call/full effects forwarded; generated ordinary scenario body uses actual admitted context/inputs/current version, pins factory actor/team/app/source and keeps guard/readings/unique/default/result effects in the same child unit. Existing legacy body profile retained.",
       "outcome": "Latest changed CF emit0 and same owning actual native D1 case1/1 (~4.7sec) after actual-call identity/source correction. Unchanged legacy4/4 reused. Root direct exact source review; no extra consumer check/review packet.",
       "held_sources": [],
@@ -2201,7 +2201,9 @@
       "scope": "Genuine ordinary compiled scenario, real D1 domain/history/result receipt + child outcome/checkpoint, admitted-version intake, post-staging caller-role fence, consent rollback, frozen late exclusion and bounded2+1 turns, successful commit response loss with D1 reopen/no repeat, between-child owner revocation and wrong-source no-write refusal.",
       "limits": "Private declared-event each/trigger source admission remains open. No full original48, whole TECH-W02 compiled/durable/installed/T26, multi-host, native preparation or replacement reduction claim.",
       "sources_outputs_handles_released": true,
-      "counts_unchanged": true
+      "counts_unchanged": true,
+      "commit": "e4d838b0043d7232ce322cd158ee9389c13422a1",
+      "next_source_owner": "Roadmap explicit invoke.ts SOURCE LEASE CLEAR for genuine declared-event private cohort join; Compiler resolved-default consumer seam must coordinate with that exact owner."
     },
     "retained_membership_resume": {
       "status": "Root directly reviewed and committed finite retained admission-resume correction",
