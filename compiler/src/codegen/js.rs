@@ -3494,6 +3494,17 @@ impl<'a> Emitter<'a> {
             );
             return self.throw_expr(&format!("unknown UI factory {}", node.factory));
         }
+        // The actual list factory requires an owning empty-state message.
+        // Bare lists remain a language-default gap; do not invent copy or
+        // publish a factory payload that fails on an authorized empty query.
+        if node.factory == "list" && !node.props.iter().any(|(key, _)| key == "empty") {
+            self.unsupported(
+                "list UI profile",
+                "ListProps.empty requires an authored empty= message; the bare-list shared default is not implemented",
+                node.span,
+            );
+            return self.throw_expr("unsupported list UI profile: missing empty message");
+        }
         // Gated containers omit the whole node when unavailable; the
         // gate reads the same scope the node renders in.
         let gate = node.gate.as_ref().map(|g| self.lower_expr(g));
