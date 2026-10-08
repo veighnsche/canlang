@@ -631,8 +631,19 @@ the owning callable name. Node source-map support is disabled in this mode;
 the current runtime decodes the generated frame. The first observer omitted
 the existing optional mapped name and was corrected; only that affected case
 repeated. Accepted DEP-02 emission/Node/decoder evidence is reused. Full State
-operation conversion still discards the mapped location and needs its defining
-wire/disclosure release; no production/API change or full S9-Q08 credit follows.
+operation conversion is now qualified at the internal existing-details hop by
+[`production_failure_retains_internal_attribution_through_canonical_state`](../../compiler/tests/map_attribution.rs),
+**1/1** (0.21s). Actual production CLI/artifact/installed Cloudflare assembly
+and State Memory preserve mapped attribution only in fresh internal
+`StateError.details`; public error code/message/opid/retryable fields stay
+unchanged, rejected create rolls back, receipt and same-ID replay do not leak
+the mapping, and map-free fresh artifacts return `details:null`. One
+source-level `invoke.ts` edit wraps the existing `outcome.mapped` in the
+existing error details while preserving engine failures. Two fixture/setup
+failures (0.36s, 0.52s) were corrected before the installed consumer; focused
+TypeScript no-emit/Rust build receipts are reused. This closes only the finite
+internal handoff, not held BDD3 returned/as/live/context disclosure, full
+replay/public source policy or full S9-Q08/OUT-R05.
 
 The finite SEM-R08 rejected-trial literal-fact defect is now qualified and
 repaired in the [owning overload seam](overload-owner-seam/README.md). The same

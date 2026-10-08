@@ -26,9 +26,31 @@ the existing public `MappedPosition.name` contract determined that observer
 correction. Only this affected new case repeated, using the same executable.
 The accepted DEP-02 Node/decoder outcomes remain reused.
 
-Full State operation attribution remains a defining prerequisite: canonical
-`runScenarioSeam` converts `InvokeResult.error` to a State error and discards
-`mapped`; the read path preserves the throw before State converts it. The
-current BusinessError wire carrier has no mapped-location member. This
-callable profile supplies no new carrier/disclosure policy, original error
-object guarantee, State operation, deployment or full S9-Q08 credit.
+At the time of the callable-registry result above, canonical
+`runScenarioSeam` converted `InvokeResult.error` to a State error and discarded
+`mapped`; the read path preserved the throw before State conversion. The
+following bounded consumer qualifies the later internal-details hop. It does
+not qualify a mapped-location public wire carrier, broader disclosure policy,
+original error-object guarantee, deployment or full S9-Q08.
+
+## Canonical State internal attribution hop
+
+`compiler/tests/map_attribution.rs::production_failure_retains_internal_attribution_through_canonical_state`
+now passes **1/1 (0.21s)** through the actual production CLI, installed
+catalog, refreshed Cloudflare invoke/stdlib assembly and real State Memory.
+`invoke.ts` places the existing `outcome.mapped` value into the existing
+`StateError.details` for fresh canonical `rule_failed` errors; existing
+`engineFailures` are retained. Public code, message, operation ID and
+`retryable:false` stay unchanged. A real `Attempt.create` rolls back; its
+receipt has no mapped field. Same-ID rejected replay exposes no attribution.
+A fresh artifact with raw maps removed, `sourceMaps`/`mapUrls` empty, returns
+`details:null`.
+
+The original 0/1 (0.36s) fixture had a missing required `as` binding; the next
+0/1 (0.52s) exposed test source-loader setup for a TypeScript parameter
+property. Only the fixture was corrected before the installed compiled
+consumer. Focused TypeScript no-emit and Rust build results passed and are
+reused; no tests/builds are repeated here. This completes only the finite
+internal wrapping hop. Held BDD3 returned/as/live/context disclosure and full
+replay/public source policy remain separate; no full S9-Q08/OUT-R05 credit is
+claimed.
