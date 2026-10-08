@@ -1,0 +1,57 @@
+app TemporalPresentation source="en"
+context
+ locale default="en"
+Given
+ contract Inputs { first:date, later:text, instant:datetime, amount:decimal }
+ message calendar(x:date) = "{x,date}"@{}
+ message clock(x:datetime) = "{x,time}"@{}
+ message number(x:decimal) = "{x,number}"@{}
+ message integer(x:int) = "{x,number,integer}"@{}
+ message ordinal(x:int) = "{x,selectordinal,one {one} two {two} few {few} other {other}}"@{}
+ message styled(x:date) = "{x,date,short}|{x,date,medium}|{x,date,long}|{x,date,full}"@{}
+ message pair(x:date,later:text) = "{x,date}|{later}"@{}
+ message defaults(x:date=date("0001-01-01"),at:datetime=now,later:text="D") = "{x,date}|{at,time,short}|{later}"@{}
+ message inherited(x:date=date("0001-01-01"),second:date=x) = "{x,date}|{second,date}"@{}
+ message hygiene(c:date,class:text,await:datetime) = "{c,date}|{class}|{await,time,short}"@{}
+ derive direct(v:Inputs):pair = pair(x=v.first,later=v.later)
+ derive named(v:Inputs):pair = pair(later=v.later,x=v.first)
+ derive defaulted():defaults = defaults()
+ derive supplied_before_default(v:Inputs):defaults = defaults(x=v.first,later=v.later)
+ derive supplied_defaults(v:Inputs):defaults = defaults(at=v.instant,later=v.later,x=v.first)
+ derive dependent_default():inherited = inherited()
+ derive override_default(v:Inputs):inherited = inherited(x=v.first)
+ derive native_identity(x:date):date = x
+ derive nested(v:Inputs):pair = pair(later=v.later,x=native_identity(v.first))
+ derive reserved(v:Inputs):hygiene = hygiene(await=v.instant,class=v.later,c=v.first)
+ derive decimal_operand(v:Inputs):number = number(v.amount)
+ derive datetime_operand(v:Inputs):clock = clock(v.instant)
+ derive construction(v:Inputs,raw:text):pair = pair(x=date(raw),later=v.later)
+ derive instant_construction(raw:text):clock = clock(datetime(raw))
+When
+Then
+ page /date0001 title="Temporal"
+  text calendar(x=date("0001-01-01"))
+ page /date0099 title="Temporal"
+  text calendar(x=date("0099-01-01"))
+ page /date2001 title="Temporal"
+  text calendar(x=date("2001-01-01"))
+ page /date2024 title="Temporal"
+  text calendar(x=date("2024-02-29"))
+ page /instant title="Temporal"
+  text clock(x=datetime("2024-03-31T22:30:00Z"))
+ page /offset title="Temporal"
+  text clock(x=datetime("2024-03-31T22:30:00+02:00"))
+ page /instant0001 title="Temporal"
+  text clock(x=datetime("0001-01-01T00:00:00Z"))
+ page /instant0099 title="Temporal"
+  text clock(x=datetime("0099-01-01T00:00:00Z"))
+ page /decimal title="Temporal"
+  text number(x=1.50)
+ page /decimalexact title="Temporal"
+  text number(x=12345678901234567890.123456789012345678)
+ page /integer title="Temporal"
+  text integer(x=2)
+ page /ordinal title="Temporal"
+  text ordinal(x=2)
+ page /styles title="Temporal"
+  text styled(x=date("0004-02-29"))
