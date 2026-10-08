@@ -91,3 +91,14 @@ serialization pass the affected **2/2** operation_results checks; strict library
 Clippy passes. Unchanged text/bool and earlier serializer outcomes are reused.
 Consumer execution/default qualification remains with its owner. This additive
 producer slice does not close broader references; completion stays **48/67**.
+
+Money-default refusal: computed money scalar/array model defaults without an
+artifact wire lowering now block compilation with E6008 instead of silently
+omitting the declared default. Existing representable parent defaults and literal
+null/empty-array defaults retain their routes. Money constructor parameter
+defaults continue to refuse with E6008. Fresh source witnesses cover both model
+and parameter scalar/array cases; **2/2** operation_results and strict library
+Clippy pass. Constructor folding remains an explicit dependency-boundary gap:
+source has no alternate money literal syntax, and this change introduces neither
+a native Values dependency nor duplicate currency/rounding rules. Completion
+remains **48/67**.
