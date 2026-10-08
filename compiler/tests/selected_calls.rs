@@ -1,6 +1,7 @@
 //! Selected checked bindings through actual public compilation and installed
 //! facades. Direct getter inputs qualify expression order, not canonical input
-//! admission. Localized formatting/scenario serving gaps remain explicit.
+//! admission. Localized formatting requires a qualified handler scope;
+//! broader presentation sinks and serving remain separately scoped.
 #![cfg(unix)]
 
 use canlang_compiler::analysis::catalog::{CatalogRequest, load_catalog};
@@ -26,13 +27,7 @@ fn production_selected_calls_execute_actual_facades() {
     )
     .unwrap();
     let script = scratch.path().join("probe.mjs");
-    std::fs::write(
-        &script,
-        include_str!(
-            "fixtures/selected-call-consumer.mjs"
-        ),
-    )
-    .unwrap();
+    std::fs::write(&script, include_str!("fixtures/selected-call-consumer.mjs")).unwrap();
     let output = Command::new("node")
         .arg(script)
         .arg(root())

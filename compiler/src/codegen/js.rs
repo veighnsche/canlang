@@ -1056,6 +1056,9 @@ pub fn emit_program(ir: &IrProgram) -> JsOutput {
     for line in emitter.import_lines() {
         out.push(entry_span, None, &line);
     }
+    for line in emitter.support_lines() {
+        out.push(entry_span, None, &line);
+    }
     out.append(&body);
     let entry = out.finish(module_path(&entry_name));
     let stdlib_imports = emitter.stdlib.clone();
@@ -1304,6 +1307,9 @@ pub struct Emitter<'a> {
     /// Lexical declaration owners; references resolve inward, like Can scopes.
     bindings: Vec<HashMap<String, String>>,
     binding_seq: usize,
+    localized_format: bool,
+    formatted_bindings: Vec<HashMap<String, bool>>,
+    formatted_derives: BTreeSet<String>,
 }
 
 /// Hook lowering state: the trigger model. (The staged-id counter lives
@@ -1323,7 +1329,7 @@ impl<'a> Emitter<'a> {
             .enumerate()
             .map(|(i, item)| (item.canonical.clone(), i))
             .collect();
-        Self {
+        let mut emitter = Self {
             ir,
             by_canonical,
             stdlib: BTreeSet::new(),
@@ -1337,18 +1343,47 @@ impl<'a> Emitter<'a> {
             loop_seq: 0,
             bindings: vec![HashMap::new()],
             binding_seq: 0,
+            localized_format: false,
+            formatted_bindings: vec![HashMap::new()],
+            formatted_derives: BTreeSet::new(),
+        };
+        // Derive outputs retain presentation provenance across shared calls,
+        // including wrappers declared before the formatting owner.
+        loop {
+            let owners: Vec<_> = ir
+                .items
+                .iter()
+                .filter_map(|item| match &item.kind {
+                    IrItemKind::DeriveFn {
+                        expr: Some(expr), ..
+                    } if emitter.expr_formatted(expr) => Some(item.canonical.clone()),
+                    _ => None,
+                })
+                .collect();
+            let before = emitter.formatted_derives.len();
+            emitter.formatted_derives.extend(owners);
+            if emitter.formatted_derives.len() == before {
+                break;
+            }
         }
+        emitter
     }
 
     fn enter_scope(&mut self) {
         self.bindings.push(HashMap::new());
+        self.formatted_bindings.push(HashMap::new());
     }
 
     fn exit_scope(&mut self) {
         self.bindings.pop().expect("lexical scope");
+        self.formatted_bindings.pop().expect("lexical scope");
     }
 
     fn bind(&mut self, name: &str) -> String {
+        self.formatted_bindings
+            .last_mut()
+            .expect("lexical scope")
+            .insert(name.to_string(), false);
         let emitted = binding_ident("l", &format!("{}:{name}", self.binding_seq));
         self.binding_seq += 1;
         self.bindings
@@ -1366,6 +1401,143 @@ impl<'a> Emitter<'a> {
             .cloned()
             // Ambient IR names (c, row, s, b) belong to the calling closure.
             .unwrap_or_else(|| name.to_string())
+    }
+
+    /// Conservative presentation provenance, separate from the current
+    /// scalar result type. No consumer may erase it through a shared derive,
+    /// aggregate, or local alias before presentation sink contracts exist.
+    fn expr_formatted(&self, expr: &TypedExpr) -> bool {
+        enum Work<'e> {
+            Visit(&'e TypedExpr),
+            Bind(&'e str),
+            Restore(&'e str),
+        }
+        use Work::{Bind, Restore, Visit};
+        let mut pending = vec![Visit(expr)];
+        let mut hidden: HashMap<&str, usize> = HashMap::new();
+        while let Some(work) = pending.pop() {
+            let expr = match work {
+                Bind(name) => {
+                    *hidden.entry(name).or_default() += 1;
+                    continue;
+                }
+                Restore(name) => {
+                    let count = hidden.get_mut(name).expect("presentation binder scope");
+                    *count -= 1;
+                    if *count == 0 {
+                        hidden.remove(name);
+                    }
+                    continue;
+                }
+                Visit(expr) => expr,
+            };
+            match &expr.expr {
+                IrExpr::Format { .. } => return true,
+                IrExpr::Name(name) => {
+                    if !hidden.contains_key(name.as_str())
+                        && self
+                            .formatted_bindings
+                            .iter()
+                            .rev()
+                            .find_map(|scope| scope.get(name))
+                            .copied()
+                            .unwrap_or(false)
+                    {
+                        return true;
+                    }
+                }
+                IrExpr::Member { base, .. } => pending.push(Visit(base)),
+                IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                    if matches!(target, IrCallTarget::DeriveFn(id) if self.formatted_derives.contains(id))
+                    {
+                        return true;
+                    }
+                    pending.extend(args.iter().map(Visit));
+                }
+                IrExpr::Binary { left, right, .. } => {
+                    pending.push(Visit(left));
+                    pending.push(Visit(right));
+                }
+                IrExpr::Unary { operand, .. } => pending.push(Visit(operand)),
+                IrExpr::Array(items) => pending.extend(items.iter().map(Visit)),
+                IrExpr::Object(entries) => {
+                    pending.extend(entries.iter().map(|(_, value)| Visit(value)))
+                }
+                IrExpr::Query(query) => {
+                    let alias = match &query.domain {
+                        crate::codegen::ir::IrQueryDomain::Value { base, alias } => {
+                            pending.push(Visit(base));
+                            alias.as_str()
+                        }
+                        crate::codegen::ir::IrQueryDomain::Model(_) => "row",
+                    };
+                    for value in [&query.parent, &query.limit, &query.archived] {
+                        if let Some(value) = value {
+                            pending.push(Visit(value));
+                        }
+                    }
+                    if let Some(value) = &query.where_pred {
+                        pending.push(Restore(alias));
+                        pending.push(Visit(value));
+                        pending.push(Bind(alias));
+                    }
+                    if let Some(value) = &query.select {
+                        if let Some(param) = &query.select_param {
+                            pending.push(Restore(param));
+                            pending.push(Visit(value));
+                            pending.push(Bind(param));
+                        } else {
+                            pending.push(Visit(value));
+                        }
+                    }
+                }
+                IrExpr::DeliveryRead { record, .. } => pending.push(Visit(record)),
+                IrExpr::Message(message) => {
+                    pending.extend(message.params.iter().map(|param| Visit(&param.value)))
+                }
+                IrExpr::MessageCall {
+                    descriptor,
+                    args,
+                    params,
+                } => {
+                    pending.extend(descriptor.params.iter().map(|param| Visit(&param.value)));
+                    pending.extend(args.iter().map(Visit));
+                    pending.extend(
+                        params
+                            .iter()
+                            .filter_map(|param| param.default.as_ref())
+                            .map(Visit),
+                    );
+                }
+                IrExpr::HasRole { person, .. } => {
+                    if let Some(person) = person {
+                        pending.push(Visit(person));
+                    }
+                }
+                IrExpr::Lambda { param, body } => {
+                    pending.push(Restore(param));
+                    pending.push(Visit(body));
+                    pending.push(Bind(param));
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+
+    fn formatted_refusal(&mut self, sink: &str, span: Span) -> String {
+        self.unsupported(sink,
+            "localized formatting is presentation-only; this consumer has no admitted presentation sink contract",
+            span);
+        self.throw_expr("localized formatting has no lowering at this consumer")
+    }
+
+    fn lower_business_expr(&mut self, expr: &TypedExpr, sink: &str) -> String {
+        if self.expr_formatted(expr) {
+            self.formatted_refusal(sink, expr.span)
+        } else {
+            self.lower_expr(expr)
+        }
     }
 
     /// Enter hook lowering for one trigger model: statements stage through
@@ -1462,6 +1634,27 @@ impl<'a> Emitter<'a> {
             ));
         }
         lines
+    }
+
+    /// Shared generated adapters for owning runtime contracts. Keep this
+    /// separate from imports so test-only modules use the same adapter.
+    pub fn support_lines(&self) -> Vec<String> {
+        if !self.localized_format {
+            return Vec::new();
+        }
+        vec![format!(
+            "function {}(c,d,locale,sourceLang,signature){{\n\
+             if(typeof c?.formatting?.appDefault!==\"string\")throw new ValueError(\"invalid-construction\",\"message formatting requires checked selected-app scope\");\n\
+             const timeZone=c.team===null?\"UTC\":c.team?.timezone;\n\
+             if(typeof timeZone!==\"string\")throw new ValueError(\"invalid-construction\",\"message formatting requires admitted team timezone\");\n\
+             if(typeof d!==\"object\"||d===null)throw new ValueError(\"invalid-construction\",\"message formatting requires a descriptor\");\n\
+             const params=Object.create(null);\n\
+             for(const [name,canonical,type] of signature){{const p=d.params?.[name];if(p?.type!==canonical)throw new ValueError(\"invalid-construction\",\"message parameter differs from checked signature: \"+name);params[name]={{type,value:p.value}};}}\n\
+             if(Object.keys(d.params??{{}}).length!==signature.length)throw new ValueError(\"invalid-construction\",\"message parameters differ from checked signature\");\n\
+             return format(makeMessageDescriptor(d.source,d.variants,signature.length?params:undefined),{{locale,appDefault:c.formatting.appDefault,sourceLang,timeZone}});\n\
+             }}",
+            binding_ident("h", "localized_format")
+        )]
     }
 
     /// Canonical type id for a resolved type (`int`, `user?`, `text[]`,
@@ -1703,6 +1896,25 @@ impl<'a> Emitter<'a> {
     /// placeholder.
     pub fn lower_expr(&mut self, expr: &TypedExpr) -> String {
         let span = expr.span;
+        let forbidden = match &expr.expr {
+            IrExpr::Member { .. } => Some("formatted member access"),
+            IrExpr::Binary { .. } | IrExpr::Unary { .. } => Some("formatted scalar operation"),
+            IrExpr::Query(_) => Some("formatted business query"),
+            IrExpr::DeliveryRead { .. } | IrExpr::HasRole { .. } => Some("formatted identity"),
+            IrExpr::Lambda { .. } => Some("formatted predicate"),
+            IrExpr::Message(_) | IrExpr::MessageCall { .. } => Some("formatted message parameter"),
+            _ => None,
+        };
+        if let Some(sink) = forbidden {
+            if self.expr_formatted(expr) {
+                return self.formatted_refusal(sink, span);
+            }
+        }
+        if let IrExpr::Format { args, .. } = &expr.expr {
+            if args.iter().any(|arg| self.expr_formatted(arg)) {
+                return self.formatted_refusal("formatted formatting argument", span);
+            }
+        }
         match &expr.expr {
             IrExpr::Int(value) if scalar_family(&expr.ty) == Some(ScalarFamily::Decimal) => {
                 self.stdlib.insert("parseDecimal".to_string());
@@ -1823,7 +2035,13 @@ impl<'a> Emitter<'a> {
                 args,
                 params,
             } => self.lower_message_call(descriptor, args, params),
-            IrExpr::Format { descriptor, locale } => {
+            IrExpr::Format {
+                args,
+                descriptor_index,
+                locale_index,
+                source_lang,
+                param_types,
+            } => {
                 if self.in_hook() {
                     return self.hook_gap(
                         "hook message format",
@@ -1832,12 +2050,30 @@ impl<'a> Emitter<'a> {
                     );
                 }
                 self.stdlib.insert("format".to_string());
-                let descriptor_text = self.lower_expr(descriptor);
-                let locale_text = match locale {
-                    Some(tag) => js_string(tag),
-                    None => "null".to_string(),
-                };
-                format!("format(c,{descriptor_text},{{locale:{locale_text}}})")
+                self.stdlib.insert("makeMessageDescriptor".to_string());
+                self.stdlib.insert("ValueError".to_string());
+                self.localized_format = true;
+                let values: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
+                let capture = binding_ident("a", &self.binding_seq.to_string());
+                self.binding_seq += 1;
+                let schema = param_types
+                    .iter()
+                    .map(|(name, canonical, presentation)| {
+                        format!(
+                            "[{},{},{}]",
+                            js_string(name),
+                            js_string(canonical),
+                            js_string(presentation)
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(",");
+                format!(
+                    "(({capture})=>{}(c,{capture}[{descriptor_index}],{capture}[{locale_index}],{},[{schema}]))([{}])",
+                    binding_ident("h", "localized_format"),
+                    js_string(source_lang),
+                    values.join(",")
+                )
             }
             IrExpr::HasRole { role, person } => {
                 if self.in_hook() {
@@ -1879,6 +2115,9 @@ impl<'a> Emitter<'a> {
     /// from their owning package module as `await op(c, ...)`. `trim/1`
     /// lowers to the `<arg>.trim()` method per the oracle corpus.
     fn lower_call(&mut self, target: &IrCallTarget, args: &[TypedExpr], span: Span) -> String {
+        if args.iter().any(|arg| self.expr_formatted(arg)) {
+            return self.formatted_refusal("formatted call argument", span);
+        }
         if matches!(target, IrCallTarget::Builtin { id, .. } if id == "trim") && args.len() == 1 {
             let arg = self.lower_expr(&args[0]);
             return format!("{}.trim()", parenthesize_operand(&arg, &args[0].expr));
@@ -1896,6 +2135,9 @@ impl<'a> Emitter<'a> {
         slots: &[Option<usize>],
         span: Span,
     ) -> String {
+        if args.iter().any(|arg| self.expr_formatted(arg)) {
+            return self.formatted_refusal("formatted call argument", span);
+        }
         let values: Vec<_> = args.iter().map(|arg| self.lower_expr(arg)).collect();
         let capture = binding_ident("a", &self.binding_seq.to_string());
         self.binding_seq += 1;
@@ -2732,9 +2974,9 @@ impl<'a> Emitter<'a> {
     /// a typed callable over creation context.
     fn lower_default(&mut self, default: &IrDefault) -> String {
         match default {
-            IrDefault::Literal(value) => self.lower_expr(value),
+            IrDefault::Literal(value) => self.lower_business_expr(value, "formatted field default"),
             IrDefault::Computed { expr, has_parent } => {
-                let body = self.lower_expr(expr);
+                let body = self.lower_business_expr(expr, "formatted field default");
                 let prefix = if expr_uses_async(expr) { "async" } else { "" };
                 if *has_parent {
                     format!("{prefix}(c,{{parent}})=>{body}")
@@ -2758,7 +3000,7 @@ impl<'a> Emitter<'a> {
                 "\"random_secret\"".to_string()
             }
             IrServer::Computed(expr) => {
-                let body = self.lower_expr(expr);
+                let body = self.lower_business_expr(expr, "formatted server initializer");
                 let prefix = if expr_uses_async(expr) { "async" } else { "" };
                 format!("{prefix}(c)=>{body}")
             }
@@ -2815,6 +3057,13 @@ impl<'a> Emitter<'a> {
     /// Lower a display message: `message(source, {locales})`, or the
     /// three-argument parameterized form preserving typed parameters.
     pub fn lower_message(&mut self, message: &IrMessage) -> String {
+        if let Some(param) = message
+            .params
+            .iter()
+            .find(|param| self.expr_formatted(&param.value))
+        {
+            return self.formatted_refusal("formatted message parameter", param.value.span);
+        }
         self.ui.insert("message".to_string());
         let mut out = format!(
             "{}({}",
@@ -2865,13 +3114,40 @@ impl<'a> Emitter<'a> {
     /// statement span via the returned `(text, span)` pairs.
     pub fn lower_stmt(&mut self, stmt: &IrStmt, indent: usize) -> Vec<(String, Span)> {
         let pad = "  ".repeat(indent);
+        let consumers: Vec<&TypedExpr> = match stmt {
+            IrStmt::Let { .. } | IrStmt::Unsupported { .. } => Vec::new(),
+            IrStmt::Create { input, .. } => vec![input],
+            IrStmt::Set {
+                record, changes, ..
+            } => vec![record, changes],
+            IrStmt::Transition { record, .. } | IrStmt::Delete { record, .. } => vec![record],
+            IrStmt::Call { inputs, .. } => vec![inputs],
+            IrStmt::Emit { payload, .. } => vec![payload],
+            IrStmt::Send { args, when, .. } => std::iter::once(args).chain(when.iter()).collect(),
+            IrStmt::Schedule {
+                key, at, payload, ..
+            } => vec![key, at, payload],
+            IrStmt::Cancel { key, .. } => vec![key],
+            IrStmt::Return { value, .. } => value.iter().collect(),
+            IrStmt::Require { cond, .. } | IrStmt::If { cond, .. } => vec![cond],
+            IrStmt::For { domain, limit, .. } => {
+                std::iter::once(domain).chain(limit.iter()).collect()
+            }
+        };
+        if let Some(value) = consumers.iter().find(|value| self.expr_formatted(value)) {
+            let refused = self.formatted_refusal("formatted business statement", value.span);
+            return vec![(format!("{pad}{refused};"), value.span)];
+        }
         match stmt {
             IrStmt::Let { name, value, span } => {
+                let formatted = self.expr_formatted(value);
                 let value_text = self.lower_expr(value);
-                vec![(
-                    format!("{pad}const {} = {value_text};", self.bind(name)),
-                    *span,
-                )]
+                let emitted = self.bind(name);
+                self.formatted_bindings
+                    .last_mut()
+                    .expect("lexical scope")
+                    .insert(name.clone(), formatted);
+                vec![(format!("{pad}const {emitted} = {value_text};"), *span)]
             }
             IrStmt::Create {
                 model,
@@ -3431,11 +3707,11 @@ impl<'a> Emitter<'a> {
             }
             IrGuard::Subject { role, person } => {
                 self.stdlib.insert("hasRole".to_string());
-                let person_text = self.lower_expr(person);
+                let person_text = self.lower_business_expr(person, "formatted guard identity");
                 format!("hasRole(c,{},{person_text})", js_string(role))
             }
             IrGuard::Expr(expr) => {
-                let text = self.lower_expr(expr);
+                let text = self.lower_business_expr(expr, "formatted admission guard");
                 parenthesize_operand(&text, &expr.expr)
             }
             IrGuard::And(guards) => guards
@@ -3507,14 +3783,17 @@ impl<'a> Emitter<'a> {
         }
         // Gated containers omit the whole node when unavailable; the
         // gate reads the same scope the node renders in.
-        let gate = node.gate.as_ref().map(|g| self.lower_expr(g));
+        let gate = node
+            .gate
+            .as_ref()
+            .map(|g| self.lower_business_expr(g, "formatted UI gate"));
         self.ui.insert(node.factory.clone());
         let transient_tabs = node.factory == "tabs"
             && node.props.iter().any(|(key, _)| key == "id")
             && node.children.iter().all(|child| child.factory == "tabItem");
         let mut props = vec![format!("context:{ctx}")];
         for (key, value) in &node.props {
-            let value = self.lower_expr(value);
+            let value = self.lower_business_expr(value, "unclassified formatted UI prop");
             let value = if transient_tabs && key == "id" && !occurrences.is_empty() {
                 format!(
                     r#"{value}+"-"+encodeURIComponent(JSON.stringify([{}]))"#,
@@ -3554,36 +3833,41 @@ impl<'a> Emitter<'a> {
                 // never `children` (their F props have no children
                 // slot; shapes validated at decode).
                 if transient_tabs {
-                    let items = node
-                        .children
-                        .iter()
-                        .map(|item| {
-                            let gate = item.gate.as_ref().map(|gate| self.lower_expr(gate));
-                            let mut fields = Vec::new();
-                            for (key, value) in &item.props {
-                                fields.push(format!(
-                                    "{}:{}",
-                                    object_key(key),
-                                    self.lower_expr(value)
-                                ));
-                            }
-                            // Eager arrays preserve authored depth-first evaluation:
-                            // each caption then its descendants, exactly once.
-                            let children = item
-                                .children
-                                .iter()
-                                .map(|child| self.lower_ui_occurrence(child, ctx, occurrences))
-                                .collect::<Vec<_>>()
-                                .join(",");
-                            fields.push(format!("children:[{children}]"));
-                            let item = format!("({{{}}})", fields.join(","));
-                            match gate {
-                                Some(gate) => format!("{gate}?{item}:null"),
-                                None => item,
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                        .join(",");
+                    let items =
+                        node.children
+                            .iter()
+                            .map(|item| {
+                                let gate = item.gate.as_ref().map(|gate| {
+                                    self.lower_business_expr(gate, "formatted UI gate")
+                                });
+                                let mut fields = Vec::new();
+                                for (key, value) in &item.props {
+                                    fields.push(format!(
+                                        "{}:{}",
+                                        object_key(key),
+                                        self.lower_business_expr(
+                                            value,
+                                            "unclassified formatted UI prop"
+                                        )
+                                    ));
+                                }
+                                // Eager arrays preserve authored depth-first evaluation:
+                                // each caption then its descendants, exactly once.
+                                let children = item
+                                    .children
+                                    .iter()
+                                    .map(|child| self.lower_ui_occurrence(child, ctx, occurrences))
+                                    .collect::<Vec<_>>()
+                                    .join(",");
+                                fields.push(format!("children:[{children}]"));
+                                let item = format!("({{{}}})", fields.join(","));
+                                match gate {
+                                    Some(gate) => format!("{gate}?{item}:null"),
+                                    None => item,
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join(",");
                     props.push(format!("items:[{items}].filter(item=>item!=null)"));
                 } else if node.factory == "fab" {
                     let mut kids = node.children.iter();
@@ -3679,7 +3963,11 @@ impl<'a> Emitter<'a> {
         }
         let mut entries = Vec::new();
         for (name, expr) in &defaults {
-            entries.push(format!("{}:{}", object_key(name), self.lower_expr(expr)));
+            entries.push(format!(
+                "{}:{}",
+                object_key(name),
+                self.lower_business_expr(expr, "formatted preference default")
+            ));
         }
         format!(
             "preferences:{{{app}:{{{entries}}}}},",
@@ -3807,7 +4095,7 @@ fn page_uses_preferences(page: &IrPage) -> bool {
                 .iter()
                 .chain(params.iter().filter_map(|p| p.default.as_ref()))
                 .any(expr_uses),
-            IrExpr::Format { descriptor, .. } => expr_uses(descriptor),
+            IrExpr::Format { args, .. } => args.iter().any(expr_uses),
             IrExpr::HasRole { person, .. } => person.as_ref().is_some_and(|p| expr_uses(p)),
             IrExpr::Lambda { body, .. } => expr_uses(body),
             IrExpr::Int(_)
@@ -4505,10 +4793,16 @@ impl<'a> Emitter<'a> {
                 members.push_str(",unique:true");
             }
             if let Some(min) = &modifiers.min {
-                members.push_str(&format!(",min:{}", self.lower_expr(min)));
+                members.push_str(&format!(
+                    ",min:{}",
+                    self.lower_business_expr(min, "formatted field bound")
+                ));
             }
             if let Some(max) = &modifiers.max {
-                members.push_str(&format!(",max:{}", self.lower_expr(max)));
+                members.push_str(&format!(
+                    ",max:{}",
+                    self.lower_business_expr(max, "formatted field bound")
+                ));
             }
         }
         if let Some(default) = &default {
@@ -5827,7 +6121,7 @@ impl<'a> Emitter<'a> {
     /// Lower one `(c, row)` rule function, `async` exactly when the body
     /// awaits.
     fn lower_rule_fn(&mut self, body: &TypedExpr) -> String {
-        let body_text = self.lower_expr(body);
+        let body_text = self.lower_business_expr(body, "formatted business rule");
         if expr_uses_async(body) {
             format!("async(c,row)=>{body_text}")
         } else {
@@ -5947,7 +6241,8 @@ impl<'a> Emitter<'a> {
             });
             match expr {
                 Some(expr) => {
-                    let body_text = self.lower_expr(expr);
+                    let body_text =
+                        self.lower_business_expr(expr, "formatted ordinary derived field");
                     derives.push(format!("{}:async(c,row)=>{body_text}", js_string(&key)));
                 }
                 None => {
@@ -6078,9 +6373,11 @@ impl<'a> Emitter<'a> {
                         } = &self.ir.items[id.0 as usize].kind.clone()
                         {
                             let value = match default {
-                                IrDefault::Literal(expr) | IrDefault::Computed { expr, .. } => {
-                                    self.lower_expr(expr)
-                                }
+                                IrDefault::Literal(expr) | IrDefault::Computed { expr, .. } => self
+                                    .lower_business_expr(
+                                        expr,
+                                        "formatted derive parameter default",
+                                    ),
                             };
                             defaults
                                 .push_str(&format!("if({name}===undefined){{{name}={value};}}"));
@@ -6360,6 +6657,9 @@ impl<'a> Emitter<'a> {
             ),
         );
         for line in emitter.import_lines() {
+            out.push(module_data.span, None, &line);
+        }
+        for line in emitter.support_lines() {
             out.push(module_data.span, None, &line);
         }
         out.append(&body);

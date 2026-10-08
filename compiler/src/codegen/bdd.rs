@@ -135,6 +135,9 @@ pub fn emit_suite(
     for line in emitter.import_lines() {
         out.push(suite.span, None, &line);
     }
+    for line in emitter.support_lines() {
+        out.push(suite.span, None, &line);
+    }
     out.append(&body);
     let (diags, builtins, _, _) = emitter.finish();
     let fixtures = suite.fixtures.iter().map(|f| f.canonical.clone()).collect();

@@ -69,6 +69,18 @@ fn recursive_fold_coalesces_explicit_values_before_applying_defaults() {
     assert!(emitted.contains("\"Right\":{uses:[\"Tasks\"],appDefaultLocale:\"nl\"}"));
     assert!(emitted.contains("\"Tasks\":{uses:[],appDefaultLocale:\"nl\"}"));
     assert!(emitted.contains("\"Plain\":{uses:[],appDefaultLocale:\"en\"}"));
+
+    // Case-equivalent declarations coalesce while retaining the first
+    // authored spelling selected by product traversal.
+    for (members, expected) in [("Upper,Lower", "NL"), ("Lower,Upper", "nl")] {
+        let source = format!(
+            "app Office uses=[{members}]\napp Upper\ncontext\n locale default=\"NL\"\nGiven\nWhen\nThen\napp Lower\ncontext\n locale default=\"nl\"\nGiven\nWhen\nThen\n"
+        );
+        let (program, _) = emit_clean(&source);
+        assert_eq!(locale(&program, "Office").as_deref(), Some(expected));
+        assert_eq!(locale(&program, "Upper").as_deref(), Some("NL"));
+        assert_eq!(locale(&program, "Lower").as_deref(), Some("nl"));
+    }
 }
 
 #[test]
