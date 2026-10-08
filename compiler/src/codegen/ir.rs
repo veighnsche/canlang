@@ -5960,56 +5960,35 @@ impl<'a> Cx<'a> {
             SyntaxKind::Form => self.decode_form(scope, node, row_ctx),
             SyntaxKind::Collection => self.decode_collection(scope, node, &word),
             SyntaxKind::Tabs => {
-                let target = kids(node).iter().find(|n| is_expression(n.kind)).copied();
-                let mut props = Vec::new();
-                if let Some(target) = target {
-                    // `tabs preferences.view` carries the selector plus
-                    // the live value.
-                    let module_name = self
-                        .program
-                        .modules
-                        .get(scope.module.0 as usize)
-                        .map(|m| m.name.clone())
-                        .unwrap_or_default();
-                    if let Some(selector) = tabs_selector(self.db, &module_name, target) {
-                        props.push((
-                            "selector".to_string(),
-                            TypedExpr::new(
-                                IrExpr::Text(selector),
-                                ResolvedType::Scalar(Scalar::Text),
-                                target.span,
-                            ),
-                        ));
-                    }
-                    props.push(("value".to_string(), self.decode_expr(scope, target)));
-                }
-                let children = if target.is_none() {
-                    // Transient panel identity is independent of its localized
-                    // caption. These children are structural items, not factories.
-                    props.push((
-                        "id".to_string(),
-                        TypedExpr::new(
-                            IrExpr::Text(format!(
-                                "can-tabs-m{}-f{}-s{}",
-                                scope.module.0, node.span.file.0, node.span.start
-                            )),
-                            ResolvedType::Scalar(Scalar::Text),
-                            node.span,
-                        ),
+                if let Some(target) = kids(node).iter().find(|n| is_expression(n.kind)) {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        "cannot lower bound tabs: canonical owned preference binding and save lifecycle are not implemented".to_string(),
+                        target.span,
                     ));
-                    kids(node)
-                        .iter()
-                        .filter(|child| child.kind == SyntaxKind::Tab)
-                        .enumerate()
-                        .map(|(ordinal, child)| {
-                            self.decode_transient_tab(scope, child, ordinal, row_ctx.clone())
-                        })
-                        .collect()
-                } else {
-                    // Bound enum panels retain their existing diagnostic path
-                    // until the canonical preference binding is supplied.
-                    self.decode_ui_children(scope, node, row_ctx)
-                };
+                    return None;
+                }
+                // Transient panel identity is independent of its localized
+                // caption. These children are structural items, not factories.
+                let props = vec![(
+                    "id".to_string(),
+                    TypedExpr::new(
+                        IrExpr::Text(format!(
+                            "can-tabs-m{}-f{}-s{}",
+                            scope.module.0, node.span.file.0, node.span.start
+                        )),
+                        ResolvedType::Scalar(Scalar::Text),
+                        node.span,
+                    ),
+                )];
+                let children = kids(node)
+                    .iter()
+                    .filter(|child| child.kind == SyntaxKind::Tab)
+                    .enumerate()
+                    .map(|(ordinal, child)| {
+                        self.decode_transient_tab(scope, child, ordinal, row_ctx.clone())
+                    })
+                    .collect();
                 let gate = self.decode_gate(scope, node);
                 Some(IrUi {
                     factory: "tabs".to_string(),
@@ -7370,8 +7349,16 @@ impl<'a> Cx<'a> {
         }
         for (name, value) in ui_attributes(self.db, node) {
             let Some(value) = value else { continue };
+            if name == "order" {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower collection order: the owning query profile does not forward authored ordering".to_string(),
+                    value.span,
+                ));
+                continue;
+            }
             match name.as_str() {
-                "order" | "search" | "filter" | "columns" => {
+                "search" | "filter" | "columns" => {
                     let strings = selector_strings(self.db, value);
                     let span = value.span;
                     props.push((
@@ -9241,24 +9228,6 @@ fn collect_s_refs(expr: &IrExpr, out: &mut Vec<String>) {
         | IrExpr::Name(_)
         | IrExpr::Unsupported { .. } => {}
     }
-}
-
-/// `tabs` selector identity for a `preferences.field` target.
-fn tabs_selector(db: &SourceDb, module_name: &str, target: &SyntaxNode) -> Option<String> {
-    if target.kind != SyntaxKind::Member {
-        return None;
-    }
-    let parts = kids(target);
-    let base = parts.iter().find(|n| is_expression(n.kind)).copied()?;
-    if base.kind != SyntaxKind::NameRef {
-        return None;
-    }
-    let base_name = kids(base).iter().find_map(|n| name_text(db, n))?;
-    if base_name != "preferences" {
-        return None;
-    }
-    let field = parts.iter().rev().find_map(|n| name_text(db, n))?;
-    Some(format!("{module_name}.{field}"))
 }
 
 #[cfg(test)]
