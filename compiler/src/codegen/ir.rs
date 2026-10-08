@@ -5932,67 +5932,102 @@ impl<'a> Cx<'a> {
         let word = ui_word(self.db, node);
         match node.kind {
             SyntaxKind::Card => {
-                let caption = self.decode_caption_header(scope.module, node);
+                self.check_ui_attributes(node, "card", &["layout"]);
                 let mut props = Vec::new();
-                if let Some(caption) = caption {
-                    props.push((
-                        "title".to_string(),
-                        TypedExpr::new(
-                            IrExpr::Message(caption),
-                            ResolvedType::Scalar(Scalar::Text),
-                            node.span,
-                        ),
-                    ));
+                if let Some(caption) = self.decode_single_ui_caption(scope, node, "card") {
+                    props.push(("title".to_string(), caption));
                 }
-                let children = self.decode_ui_children(scope, node, row_ctx);
-                let gate = self.decode_gate(scope, node);
+                for (name, value) in ui_attributes(self.db, node) {
+                    if name == "layout"
+                        && let Some(value) = value
+                    {
+                        match opens_spelling(self.db, value) {
+                            Some(layout) if matches!(layout.as_str(), "stack" | "columns") => props
+                                .push((
+                                    name,
+                                    TypedExpr::new(
+                                        IrExpr::Text(layout),
+                                        ResolvedType::Scalar(Scalar::Text),
+                                        value.span,
+                                    ),
+                                )),
+                            _ => self.diags.push(Diagnostic::error(
+                                "E6008",
+                                "cannot lower card: layout must be stack or columns".to_string(),
+                                value.span,
+                            )),
+                        }
+                    }
+                }
                 Some(IrUi {
                     factory: "card".to_string(),
                     props,
-                    children,
+                    children: self.decode_ui_children(scope, node, row_ctx),
                     row_scope: None,
-                    gate,
+                    gate: self.decode_gate(scope, node),
                     span: node.span,
                 })
             }
             SyntaxKind::Details => {
-                let caption = kids(node)
-                    .iter()
-                    .find(|n| n.kind == SyntaxKind::MessageValue)
-                    .and_then(|n| self.decode_message_node(scope.module, n));
+                self.check_ui_attributes(node, "details", &["open", "id"]);
                 let mut props = Vec::new();
-                if let Some(caption) = caption {
-                    props.push((
-                        "caption".to_string(),
-                        TypedExpr::new(
-                            IrExpr::Message(caption),
-                            ResolvedType::Scalar(Scalar::Text),
-                            node.span,
-                        ),
-                    ));
+                if let Some(caption) = self.decode_single_ui_caption(scope, node, "details") {
+                    props.push(("caption".to_string(), caption));
                 }
                 for (name, value) in ui_attributes(self.db, node) {
-                    if name == "open"
+                    if matches!(name.as_str(), "open" | "id")
                         && let Some(value) = value
                     {
-                        props.push(("open".to_string(), self.decode_expr(scope, value)));
+                        props.push((
+                            name.clone(),
+                            if name == "id" {
+                                match opens_spelling(self.db, value) {
+                                    Some(id) => TypedExpr::new(
+                                        IrExpr::Text(id),
+                                        ResolvedType::Scalar(Scalar::Text),
+                                        value.span,
+                                    ),
+                                    None => self.decode_expr(scope, value),
+                                }
+                            } else {
+                                self.decode_expr(scope, value)
+                            },
+                        ));
                     }
                 }
                 let children = self.decode_ui_children(scope, node, row_ctx);
-                let gate = self.decode_gate(scope, node);
+                if children.is_empty() {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        "cannot lower details: collapse needs a nonempty content suite".to_string(),
+                        node.span,
+                    ));
+                }
                 Some(IrUi {
-                    factory: "details".to_string(),
+                    factory: "collapse".to_string(),
                     props,
                     children,
                     row_scope: None,
-                    gate,
+                    gate: self.decode_gate(scope, node),
                     span: node.span,
                 })
             }
             SyntaxKind::Form => self.decode_form(scope, node, row_ctx),
             SyntaxKind::Collection => self.decode_collection(scope, node, &word),
             SyntaxKind::Tabs => {
-                if let Some(target) = kids(node).iter().find(|n| is_expression(n.kind)) {
+                self.check_ui_attributes(node, "tabs", &["size", "variant"]);
+                for child in kids(node)
+                    .into_iter()
+                    .filter(|child| is_ui_node(child.kind) && !is_gate_leaf(self.db, child))
+                {
+                    if child.kind != SyntaxKind::Tab {
+                        self.diags.push(Diagnostic::error("E6008", "cannot lower tabs: only tab item children have an owning factory profile".to_string(), child.span));
+                    }
+                }
+                if let Some(target) = kids(node)
+                    .iter()
+                    .find(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
+                {
                     self.diags.push(Diagnostic::error(
                         "E6008",
                         "cannot lower bound tabs: canonical owned preference binding and save lifecycle are not implemented".to_string(),
@@ -6002,7 +6037,7 @@ impl<'a> Cx<'a> {
                 }
                 // Transient panel identity is independent of its localized
                 // caption. These children are structural items, not factories.
-                let props = vec![(
+                let mut props = vec![(
                     "id".to_string(),
                     TypedExpr::new(
                         IrExpr::Text(format!(
@@ -6013,6 +6048,13 @@ impl<'a> Cx<'a> {
                         node.span,
                     ),
                 )];
+                for (name, value) in ui_attributes(self.db, node) {
+                    if matches!(name.as_str(), "size" | "variant")
+                        && let Some(value) = value
+                    {
+                        props.push((name.clone(), self.decode_word_attr(scope, &name, value)));
+                    }
+                }
                 let children = kids(node)
                     .iter()
                     .filter(|child| child.kind == SyntaxKind::Tab)
@@ -6031,24 +6073,110 @@ impl<'a> Cx<'a> {
                     span: node.span,
                 })
             }
-            SyntaxKind::Edit => Some(self.decode_edit(scope, node, row_ctx)),
+            SyntaxKind::Edit => {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower edit: the bound edit profile has no complete owning form props"
+                        .to_string(),
+                    node.span,
+                ));
+                None
+            }
             SyntaxKind::UiLeaf => self.decode_leaf(scope, node, &word, row_ctx),
             SyntaxKind::Slot => Some(self.decode_slot(scope, node, row_ctx)),
             SyntaxKind::CatalogItem => self.decode_catalog(scope, node, &word, row_ctx),
             _ => {
-                // `PreferencePanel`, ordering nodes and anything else
-                // lower by factory word and stay loud `E6008` when the
-                // factory is unknown.
-                Some(IrUi {
-                    factory: word,
-                    props: Vec::new(),
-                    children: Vec::new(),
-                    row_scope: None,
-                    gate: self.decode_gate(scope, node),
-                    span: node.span,
-                })
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    format!(
+                        "cannot lower {word}: component has no supported source-to-factory profile"
+                    ),
+                    node.span,
+                ));
+                None
             }
         }
+    }
+
+    /// Every option must reach its owning factory or fail at the authored option.
+    fn check_ui_attributes(&mut self, node: &SyntaxNode, word: &str, admitted: &[&str]) {
+        for attr in kids(node)
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::Attribute)
+        {
+            let name = kids(attr)
+                .first()
+                .and_then(|part| name_text(self.db, part))
+                .unwrap_or_default();
+            let value = ui_attributes(self.db, node)
+                .into_iter()
+                .find(|(key, _)| key == &name)
+                .and_then(|(_, value)| value);
+            if !admitted.contains(&name.as_str()) {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    format!("cannot lower {word}: option {name} has no consumed factory profile"),
+                    attr.span,
+                ));
+            } else if value.is_none() {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    format!("cannot lower {word}: option {name} needs an explicit value"),
+                    attr.span,
+                ));
+            }
+        }
+    }
+
+    fn decode_ui_header_value(&mut self, scope: &Scope, node: &SyntaxNode) -> TypedExpr {
+        if node.kind == SyntaxKind::MessageValue
+            && let Some(message) = self.decode_message_node(scope.module, node)
+        {
+            return TypedExpr::new(
+                IrExpr::Message(message),
+                ResolvedType::Scalar(Scalar::Text),
+                node.span,
+            );
+        }
+        self.decode_expr(scope, node)
+    }
+
+    /// Captioned factories consume exactly one checked text/message header.
+    fn decode_single_ui_caption(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        word: &str,
+    ) -> Option<TypedExpr> {
+        let headers: Vec<&SyntaxNode> = kids(node)
+            .into_iter()
+            .filter(|child| is_expression(child.kind) || child.kind == SyntaxKind::MessageValue)
+            .collect();
+        let [header] = headers.as_slice() else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot lower {word}: component needs exactly one text caption"),
+                node.span,
+            ));
+            return None;
+        };
+        if let Some(message) = self.decode_message_node(scope.module, header) {
+            return Some(TypedExpr::new(
+                IrExpr::Message(message),
+                ResolvedType::Scalar(Scalar::Text),
+                header.span,
+            ));
+        }
+        let value = self.decode_expr(scope, header);
+        if !matches!(value.ty, ResolvedType::Scalar(Scalar::Text)) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot lower {word}: caption has no checked text profile"),
+                header.span,
+            ));
+            return None;
+        }
+        Some(value)
     }
 
     /// One transient panel payload consumed only by its owning `tabs`.
@@ -6059,30 +6187,19 @@ impl<'a> Cx<'a> {
         ordinal: usize,
         row_ctx: Option<(SymbolId, String)>,
     ) -> IrUi {
-        let caption = match self.decode_caption_header(scope.module, node) {
-            Some(message) => TypedExpr::new(
-                IrExpr::Message(message),
-                ResolvedType::Scalar(Scalar::Text),
-                node.span,
-            ),
-            None => match kids(node).iter().find(|n| is_expression(n.kind)) {
-                Some(header) => self.decode_expr(scope, header),
-                None => {
-                    self.gap(
-                        "tab caption has no checked expression".to_string(),
-                        node.span,
-                    );
-                    TypedExpr::new(
-                        IrExpr::Unsupported {
-                            what: "tab caption".to_string(),
-                            why: "missing checked expression".to_string(),
-                        },
-                        ResolvedType::Unknown,
-                        node.span,
-                    )
-                }
-            },
-        };
+        self.check_ui_attributes(node, "tab", &[]);
+        let caption = self
+            .decode_single_ui_caption(scope, node, "tab")
+            .unwrap_or_else(|| {
+                TypedExpr::new(
+                    IrExpr::Unsupported {
+                        what: "tab caption".to_string(),
+                        why: "missing checked text caption".to_string(),
+                    },
+                    ResolvedType::Unknown,
+                    node.span,
+                )
+            });
         IrUi {
             factory: "tabItem".to_string(),
             props: vec![
@@ -6181,25 +6298,14 @@ impl<'a> Cx<'a> {
             "alert" => Some(self.decode_alert(scope, node, row_ctx)),
             "join" => Some(self.decode_join(scope, node, row_ctx)),
             _ => {
-                let mut props = Vec::new();
-                if let Some(value) = kids(node).iter().find(|n| is_expression(n.kind)).copied() {
-                    props.push(("value".to_string(), self.decode_expr(scope, value)));
-                }
-                for (name, value) in ui_attributes(self.db, node) {
-                    if let Some(value) = value {
-                        props.push((name, self.decode_expr(scope, value)));
-                    }
-                }
-                let children = self.decode_ui_children(scope, node, row_ctx);
-                let gate = self.decode_gate(scope, node);
-                Some(IrUi {
-                    factory: word.to_string(),
-                    props,
-                    children,
-                    row_scope: None,
-                    gate,
-                    span: node.span,
-                })
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    format!(
+                        "cannot lower {word}: component has no supported source-to-factory profile"
+                    ),
+                    node.span,
+                ));
+                None
             }
         }
     }
@@ -6303,22 +6409,12 @@ impl<'a> Cx<'a> {
         row_ctx: Option<(SymbolId, String)>,
     ) -> IrUi {
         let mut props = Vec::new();
-        match self.decode_caption_header(scope.module, node) {
-            Some(caption) => props.push((
-                "caption".to_string(),
-                TypedExpr::new(
-                    IrExpr::Message(caption),
-                    ResolvedType::Scalar(Scalar::Text),
-                    node.span,
-                ),
-            )),
-            None => {
-                self.diags.push(Diagnostic::error(
-                    "E6008",
-                    "cannot lower fieldset: fieldset needs a caption".to_string(),
-                    node.span,
-                ));
-            }
+        if kids(node)
+            .iter()
+            .any(|child| is_expression(child.kind) || child.kind == SyntaxKind::MessageValue)
+            && let Some(caption) = self.decode_single_ui_caption(scope, node, "fieldset")
+        {
+            props.push(("caption".to_string(), caption));
         }
         for (name, value) in ui_attributes(self.db, node) {
             if let Some(value) = value {
@@ -6445,6 +6541,7 @@ impl<'a> Cx<'a> {
             }
         }
         let mut children = Vec::new();
+        let mut seen_slots = HashSet::new();
         for child in kids(node) {
             if !is_ui_node(child.kind) || is_gate_leaf(self.db, child) {
                 continue;
@@ -6459,6 +6556,15 @@ impl<'a> Cx<'a> {
             }
             match slot_name(self.db, child).as_deref() {
                 Some("content" | "header" | "avatar" | "footer") => {
+                    let name = slot_name(self.db, child).unwrap();
+                    if !seen_slots.insert(name.clone()) {
+                        self.diags.push(Diagnostic::error(
+                            "E6008",
+                            format!("cannot lower chat_bubble: duplicate slot {name}"),
+                            child.span,
+                        ));
+                        continue;
+                    }
                     if let Some(ui) = self.decode_ui(scope, child, row_ctx.clone()) {
                         children.push(ui);
                     }
@@ -6567,20 +6673,8 @@ impl<'a> Cx<'a> {
         row_ctx: Option<(SymbolId, String)>,
     ) -> IrUi {
         let mut props = Vec::new();
-        match self.decode_caption_header(scope.module, node) {
-            Some(caption) => props.push((
-                "caption".to_string(),
-                TypedExpr::new(
-                    IrExpr::Message(caption),
-                    ResolvedType::Scalar(Scalar::Text),
-                    node.span,
-                ),
-            )),
-            None => self.diags.push(Diagnostic::error(
-                "E6008",
-                format!("cannot lower {word}: activated panels need a caption"),
-                node.span,
-            )),
+        if let Some(caption) = self.decode_single_ui_caption(scope, node, word) {
+            props.push(("caption".to_string(), caption));
         }
         for (name, value) in ui_attributes(self.db, node) {
             let Some(value) = value else { continue };
@@ -6671,6 +6765,14 @@ impl<'a> Cx<'a> {
         row_ctx: Option<(SymbolId, String)>,
     ) -> IrUi {
         let mut props = Vec::new();
+        self.check_ui_attributes(node, "slot", &[]);
+        if kids(node).iter().any(|child| is_expression(child.kind)) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower slot: extra headers have no consumed slot profile".to_string(),
+                node.span,
+            ));
+        }
         match slot_name(self.db, node) {
             Some(name) => props.push((
                 "name".to_string(),
@@ -6705,24 +6807,12 @@ impl<'a> Cx<'a> {
         row_ctx: Option<(SymbolId, String)>,
     ) -> IrUi {
         let mut props = Vec::new();
-        match self.decode_caption_header(scope.module, node) {
-            Some(caption) => props.push((
-                "caption".to_string(),
-                TypedExpr::new(
-                    IrExpr::Message(caption),
-                    ResolvedType::Scalar(Scalar::Text),
-                    node.span,
-                ),
-            )),
-            None => {
-                if kids(node).iter().any(|n| is_expression(n.kind)) {
-                    self.diags.push(Diagnostic::error(
-                        "E6008",
-                        "cannot lower divider: dividers take a text caption".to_string(),
-                        node.span,
-                    ));
-                }
-            }
+        if kids(node)
+            .iter()
+            .any(|child| is_expression(child.kind) || child.kind == SyntaxKind::MessageValue)
+            && let Some(caption) = self.decode_single_ui_caption(scope, node, "divider")
+        {
+            props.push(("caption".to_string(), caption));
         }
         for (name, value) in ui_attributes(self.db, node) {
             if let Some(value) = value {
@@ -6757,11 +6847,14 @@ impl<'a> Cx<'a> {
         let mut props = Vec::new();
         let headers: Vec<&SyntaxNode> = kids(node)
             .iter()
-            .filter(|n| is_expression(n.kind))
+            .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
             .copied()
             .collect();
         match headers.as_slice() {
-            [header] => props.push(("value".to_string(), self.decode_expr(scope, header))),
+            [header] => props.push((
+                "value".to_string(),
+                self.decode_ui_header_value(scope, header),
+            )),
             _ => self.diags.push(Diagnostic::error(
                 "E6008",
                 "cannot lower badge: badges take one readable value".to_string(),
@@ -6801,6 +6894,11 @@ impl<'a> Cx<'a> {
         node: &SyntaxNode,
         row_ctx: Option<(SymbolId, String)>,
     ) -> IrUi {
+        self.diags.push(Diagnostic::error(
+            "E6008",
+            "cannot lower breadcrumbs: ancestry and label carriers are not implemented".to_string(),
+            node.span,
+        ));
         let mut props = Vec::new();
         if kids(node).iter().any(|n| is_expression(n.kind)) {
             self.diags.push(Diagnostic::error(
@@ -6842,7 +6940,13 @@ impl<'a> Cx<'a> {
         node: &SyntaxNode,
         row_ctx: Option<(SymbolId, String)>,
     ) -> IrUi {
+        self.diags.push(Diagnostic::error(
+            "E6008",
+            "cannot lower pagination: cursor and label carriers are not implemented".to_string(),
+            node.span,
+        ));
         let props = Vec::new();
+        self.check_ui_attributes(node, "pagination", &[]);
         if kids(node).iter().any(|n| is_expression(n.kind)) {
             self.diags.push(Diagnostic::error(
                 "E6008",
@@ -6886,30 +6990,13 @@ impl<'a> Cx<'a> {
         let mut props = Vec::new();
         let headers: Vec<&SyntaxNode> = kids(node)
             .iter()
-            .filter(|n| is_expression(n.kind))
+            .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
             .copied()
             .collect();
         let children = self.decode_ui_children(scope, node, row_ctx);
-        if headers.is_empty() {
-            self.diags.push(Diagnostic::error(
-                "E6008",
-                "cannot lower stat: stat needs observations or a value slot".to_string(),
-                node.span,
-            ));
-        } else {
-            let values: Vec<TypedExpr> =
-                headers.iter().map(|n| self.decode_expr(scope, n)).collect();
-            props.push((
-                "values".to_string(),
-                TypedExpr::new(IrExpr::Array(values), ResolvedType::Unknown, node.span),
-            ));
-            if !children.is_empty() {
-                self.diags.push(Diagnostic::error(
-                    "E6008",
-                    "cannot lower stat: stat suites take slot children only".to_string(),
-                    node.span,
-                ));
-            }
+        match headers.as_slice() {
+            [header] if children.is_empty() => props.push(("value".to_string(), self.decode_ui_header_value(scope, header))),
+            _ => self.diags.push(Diagnostic::error("E6008", "cannot lower stat: only one value header without a slotted suite has an owning factory profile".to_string(), node.span)),
         }
         for (name, value) in ui_attributes(self.db, node) {
             if let Some(value) = value {
@@ -6937,12 +7024,15 @@ impl<'a> Cx<'a> {
         let mut props = Vec::new();
         let headers: Vec<&SyntaxNode> = kids(node)
             .iter()
-            .filter(|n| is_expression(n.kind))
+            .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
             .copied()
             .collect();
         let children = self.decode_ui_children(scope, node, row_ctx);
         match (headers.as_slice(), children.is_empty()) {
-            ([header], true) => props.push(("value".to_string(), self.decode_expr(scope, header))),
+            ([header], true) => props.push((
+                "value".to_string(),
+                self.decode_ui_header_value(scope, header),
+            )),
             ([], true) => self.diags.push(Diagnostic::error(
                 "E6008",
                 "cannot lower alert: alerts need a notice value or a content suite".to_string(),
@@ -6951,6 +7041,11 @@ impl<'a> Cx<'a> {
             (_, false) if !headers.is_empty() => self.diags.push(Diagnostic::error(
                 "E6008",
                 "cannot lower alert: alerts take a notice value or a suite, not both".to_string(),
+                node.span,
+            )),
+            (_, true) => self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower alert: alerts take exactly one notice value".to_string(),
                 node.span,
             )),
             _ => {}
@@ -6979,6 +7074,7 @@ impl<'a> Cx<'a> {
         row_ctx: Option<(SymbolId, String)>,
     ) -> IrUi {
         let props = Vec::new();
+        self.check_ui_attributes(node, "join", &[]);
         if kids(node).iter().any(|n| is_expression(n.kind)) {
             self.diags.push(Diagnostic::error(
                 "E6008",
@@ -7002,37 +7098,6 @@ impl<'a> Cx<'a> {
             gate: self.decode_gate(scope, node),
             span: node.span,
         }
-    }
-
-    /// Decode a caption header (`MessageValue` or string literal) shared
-    /// by captioned leaves/panels. `None` when no caption-shaped header
-    /// is present.
-    fn decode_caption_header(&mut self, module: ModuleId, node: &SyntaxNode) -> Option<IrMessage> {
-        for child in kids(node) {
-            match child.kind {
-                SyntaxKind::MessageValue => {
-                    let caption = self
-                        .decode_message_node(module, child)
-                        .unwrap_or(IrMessage {
-                            source: String::new(),
-                            variants: Vec::new(),
-                            params: Vec::new(),
-                        });
-                    return Some(caption);
-                }
-                SyntaxKind::Literal => {
-                    if let Some(source) = literal_string(self.db, child) {
-                        return Some(IrMessage {
-                            source,
-                            variants: Vec::new(),
-                            params: Vec::new(),
-                        });
-                    }
-                }
-                _ => {}
-            }
-        }
-        None
     }
 
     /// Decode one catalog attribute value: finite word options
@@ -7317,6 +7382,36 @@ impl<'a> Cx<'a> {
     /// props, presentation props, and row children under `renderRow`.
     fn decode_collection(&mut self, scope: &Scope, node: &SyntaxNode, word: &str) -> Option<IrUi> {
         let mut props = Vec::new();
+        if !matches!(word, "list" | "table") {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!(
+                    "cannot lower {word}: collection has no supported source-to-factory profile"
+                ),
+                node.span,
+            ));
+            return None;
+        }
+        let admitted: &[&str] = if word == "table" {
+            &["parent", "empty", "limit", "cursor", "columns", "order"]
+        } else {
+            &["parent", "empty", "limit", "cursor", "order"]
+        };
+        self.check_ui_attributes(node, word, admitted);
+        if kids(node)
+            .iter()
+            .filter(|child| is_expression(child.kind))
+            .count()
+            > 1
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!(
+                    "cannot lower {word}: extra collection headers have no consumed factory profile"
+                ),
+                node.span,
+            ));
+        }
         let query = kids(node)
             .iter()
             .find(|n| n.kind == SyntaxKind::Query)
@@ -7384,12 +7479,15 @@ impl<'a> Cx<'a> {
                             ));
                         }
                     }
-                    _ => {}
+                    _ => self.diags.push(Diagnostic::error("E6008", format!("cannot lower collection: query clause {keyword} has no consumed factory profile"), clause.span)),
                 }
             }
         }
         for (name, value) in ui_attributes(self.db, node) {
             let Some(value) = value else { continue };
+            if !admitted.contains(&name.as_str()) {
+                continue;
+            }
             if name == "order" {
                 self.diags.push(Diagnostic::error(
                     "E6008",
@@ -7444,7 +7542,7 @@ impl<'a> Cx<'a> {
                         ),
                     ));
                 }
-                "defaults" | "parent" => {
+                "parent" | "limit" | "cursor" => {
                     props.push((name, self.decode_expr(scope, value)));
                 }
                 "image" => {
@@ -7475,6 +7573,14 @@ impl<'a> Cx<'a> {
             .filter(|n| is_ui_node(n.kind))
             .copied()
             .collect();
+        if word == "table" && !child_nodes.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower table: authored row children have no owning renderRow profile"
+                    .to_string(),
+                child_nodes[0].span,
+            ));
+        }
         let mut uses_as = false;
         let mut uses_row = false;
         for child in &child_nodes {
@@ -7510,50 +7616,10 @@ impl<'a> Cx<'a> {
             factory: word.to_string(),
             props,
             children,
-            row_scope: Some((row_name, "rowView".to_string())),
+            row_scope: (word == "list").then_some((row_name, "rowView".to_string())),
             gate,
             span: node.span,
         })
-    }
-
-    /// Decode a bare `edit`: operation plus record inferred from the
-    /// enclosing collection row scope.
-    fn decode_edit(
-        &mut self,
-        scope: &Scope,
-        node: &SyntaxNode,
-        row_ctx: Option<(SymbolId, String)>,
-    ) -> IrUi {
-        let mut props = Vec::new();
-        if let Some((model, row)) = row_ctx
-            && let Some(id) = self.program.symbols.iter().find_map(|s| match &s.kind {
-                SymbolKind::CrudOp { model: m, op } if *m == model && *op == CrudOp::Update => {
-                    Some(s.id)
-                }
-                _ => None,
-            })
-        {
-            props.push((
-                "operation".to_string(),
-                TypedExpr::new(
-                    IrExpr::Text(self.canonical(id)),
-                    ResolvedType::Scalar(Scalar::Text),
-                    node.span,
-                ),
-            ));
-            props.push((
-                "record".to_string(),
-                TypedExpr::new(IrExpr::Name(row), ResolvedType::Unknown, node.span),
-            ));
-        }
-        IrUi {
-            factory: "edit".to_string(),
-            props,
-            children: Vec::new(),
-            row_scope: None,
-            gate: self.decode_gate(scope, node),
-            span: node.span,
-        }
     }
 
     /// Decode a bare `delete` leaf to the `deleteRecord`
@@ -7675,6 +7741,16 @@ impl<'a> Cx<'a> {
         word: &str,
         row_ctx: Option<(SymbolId, String)>,
     ) -> Option<IrUi> {
+        if matches!(word, "metrics" | "copy" | "action" | "actions" | "history") {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!(
+                    "cannot lower {word}: the source profile has no complete owning factory payload"
+                ),
+                node.span,
+            ));
+            return None;
+        }
         // A2b: `delete` maps to the `deleteRecord` js name with
         // inferred props; every other leaf keeps its word.
         if word == "delete" {
@@ -7685,8 +7761,8 @@ impl<'a> Cx<'a> {
             "text" => {
                 let values: Vec<TypedExpr> = kids(node)
                     .iter()
-                    .filter(|n| is_expression(n.kind))
-                    .map(|n| self.decode_expr(scope, n))
+                    .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
+                    .map(|n| self.decode_ui_header_value(scope, n))
                     .collect();
                 props.push((
                     "values".to_string(),
@@ -7706,8 +7782,8 @@ impl<'a> Cx<'a> {
                 // select the rendered record.
                 let exprs: Vec<TypedExpr> = kids(node)
                     .iter()
-                    .filter(|n| is_expression(n.kind))
-                    .map(|n| self.decode_expr(scope, n))
+                    .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
+                    .map(|n| self.decode_ui_header_value(scope, n))
                     .collect();
                 props.push((
                     "values".to_string(),
@@ -7765,16 +7841,21 @@ impl<'a> Cx<'a> {
                     ));
                 }
             }
-            "content" | "copy" | "title" => {
-                if let Some(value) = kids(node).iter().find(|n| is_expression(n.kind)).copied() {
-                    let key = if word == "title" { "title" } else { "value" };
-                    props.push((key.to_string(), self.decode_expr(scope, value)));
+            "content" | "title" => {
+                let key = if word == "title" { "text" } else { "value" };
+                if let Some(value) = self.decode_single_ui_caption(scope, node, word) {
+                    props.push((key.to_string(), value));
                 }
             }
             _ => {
-                for value in kids(node).iter().filter(|n| is_expression(n.kind)) {
-                    props.push(("value".to_string(), self.decode_expr(scope, value)));
-                }
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    format!(
+                        "cannot lower {word}: component has no supported source-to-factory profile"
+                    ),
+                    node.span,
+                ));
+                return None;
             }
         }
         for (name, value) in ui_attributes(self.db, node) {

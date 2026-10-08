@@ -87,16 +87,14 @@ fn literal_card_and_transient_tabs_reach_actual_factory() {
             let _ = std::fs::remove_dir_all(&self.0);
         }
     }
-    let scratch = Scratch(
-        std::env::temp_dir().join(format!(
+    let scratch = Scratch(std::env::temp_dir().join(format!(
             "can-ui-adapter-{}-{}",
             std::process::id(),
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_nanos()
-        )),
-    );
+        )));
     std::fs::create_dir_all(&scratch.0).unwrap();
     #[cfg(unix)]
     std::os::unix::fs::symlink(root.join("node_modules"), scratch.0.join("node_modules")).unwrap();
@@ -112,8 +110,41 @@ Given
 When
 Then
  page / title="Home"
-  card "Card <&>"
+  card "Card <&>" layout=columns
    text "Card body"
+  card caption()
+   text "Dynamic card body"
+  details "Collapse <&>" open=true
+   text "Collapse body"
+  title "Heading <&>"
+  stat "Metric value"
+  card "Empty card"
+   require true
+  modal "Modal caption" id=dialog
+   slot content
+    text "Modal content"
+   slot trigger
+    text "Modal trigger"
+   slot actions
+    text "Modal actions"
+  drawer "Drawer caption" id=drawer_panel
+   slot trigger
+    text "Drawer trigger"
+   slot content
+    text "Drawer content"
+   slot actions
+    text "Drawer actions"
+  modal "Hidden modal" id=hidden_dialog
+   require false
+   slot content
+    text "Hidden modal body"
+  fieldset caption()
+   text "Dynamic fieldset body"
+  divider caption()
+  text "Translated text"@{nl="Vertaalde tekst"}
+  badge "Translated badge"@{nl="Vertaalde badge"}
+  stat "Translated stat"@{nl="Vertaalde statistiek"}
+  alert "Translated alert"@{nl="Vertaalde melding"}
   tabs
    tab "Repeat"@{nl="Zelfde"}
     text "First panel"
@@ -165,10 +196,21 @@ assert.equal(page.title.source,'Home');
 const bindings=await page.admit({});
 const html=await page.render({appDefaultLocale:'en',preferredLocales:['nl']},bindings);
 assert.ok(html.includes('Card &lt;&amp;&gt;'),'literal card title reaches real escaping sink');
-for(const sentinel of ['Card body','First panel','Second panel','Third panel','Visible panel']) {
+assert.ok(html.includes('sm:grid-cols-2'),'card layout reaches the owning factory');
+assert.ok(html.includes('Collapse &lt;&amp;&gt;'),'details maps to the real collapse caption sink');
+assert.ok(/<details[^>]* open/.test(html),'collapse open option reaches the owning factory');
+assert.ok(html.includes('Heading &lt;&amp;&gt;'),'title uses the actual text prop');
+assert.ok(html.includes('Metric value'),'stat uses the singular value prop');
+assert.ok(html.includes('Empty card'),'empty Card receives its owning children array');
+for(const sentinel of ['Card body','Dynamic card body','Collapse body','Modal content','Modal trigger','Modal actions','Drawer trigger','Drawer content','Drawer actions','Dynamic fieldset body','First panel','Second panel','Third panel','Visible panel']) {
  assert.equal(html.split(sentinel).length-1,1,`${sentinel} renders once`);
 }
 assert.ok(!html.includes('Hidden panel'),'panel gate omits the entire item');
+assert.ok(!html.includes('Hidden modal'),'modal gate omits its caption and slots');
+for(const caption of ['Vertaalde tekst','Vertaalde badge','Vertaalde statistiek','Vertaalde melding']) {
+ assert.ok(html.includes(caption),`${caption} retains its owning message descriptor`);
+}
+assert.ok(!module.js.includes('slot as '),'named slots dissolve into the owning modal/drawer props');
 assert.ok(html.indexOf('First panel')<html.indexOf('Second panel'),'authored panel order');
 const radios=[...html.matchAll(/<input type="radio"[^>]*>/g)].map(match=>match[0]);
 assert.equal(radios.length,4);
@@ -199,4 +241,73 @@ console.log('actual static UI adapter: card title, caption transport, ordered ch
         String::from_utf8_lossy(&consumed.stdout),
         String::from_utf8_lossy(&consumed.stderr)
     );
+}
+
+#[test]
+fn unsupported_ui_payloads_refuse_instead_of_losing_authored_meaning() {
+    use std::path::PathBuf;
+    use std::process::Command;
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    for (body, profile) in [
+        ("  card\n   text \"Body\"\n", "card"),
+        (
+            "  details \"Caption\" display=drawer\n   text \"Body\"\n",
+            "details",
+        ),
+        (
+            "  details \"Caption\" open=1\n   text \"Body\"\n",
+            "collapse",
+        ),
+        (
+            "  tabs \"Unused\"@{nl=\"Ongebruikt\"}\n   tab \"One\"\n    text \"Body\"\n",
+            "tabs",
+        ),
+        ("  stat 1,2\n", "stat"),
+        ("  metrics 1\n", "metrics"),
+        ("  copy \"Value\"\n", "copy"),
+        ("  tooltip \"Notice\"\n", "tooltip"),
+        (
+            "  chat_bubble\n   slot content\n    text \"First\"\n   slot content\n    text \"Second\"\n",
+            "chat_bubble",
+        ),
+        ("  alert \"Notice\" tone=neutral\n", "alert"),
+        ("  badge \"Value\" unknown=true\n", "badge"),
+        ("  details \"Caption\"\n   require false\n", "details"),
+        ("  fieldset \"Caption\"\n   require false\n", "fieldset"),
+        ("  join\n   require false\n", "join"),
+        (
+            "  divider \"First\"@{nl=\"Eerste\"},\"Second\"@{nl=\"Tweede\"}\n",
+            "divider",
+        ),
+    ] {
+        let scratch = tempfile::tempdir().unwrap();
+        let path = scratch.path().join("profile.can");
+        let source =
+            format!("app UnsupportedUi\nGiven\nWhen\nThen\n page / title=\"Page\"\n{body}");
+        std::fs::write(&path, &source).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["compile", "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(path)
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap();
+        assert!(!output.status.success(), "{profile} unexpectedly published");
+        let diagnostic: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert!(
+            diagnostic["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|error| {
+                    error["code"] == "E6008" && error["message"].as_str().unwrap().contains(profile)
+                }),
+            "{profile}: {}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        assert!(
+            diagnostic.get("modules").is_none(),
+            "{profile} published modules"
+        );
+    }
 }
