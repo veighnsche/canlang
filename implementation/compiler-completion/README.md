@@ -178,5 +178,11 @@ checked scalar/nullable/ordinary-array omission markers for public read=true
 scenarios, retaining computed-ref refusal. The current real native CLI emits
 the owning `typed-scenario-values.json` from its readBound source with exit 0;
 both fixture paths are released to the package owner for its paired commit
-and existing genuine viewer/default/result case. Runtime qualification remains
-with that owner. Completion stays **54/67**, with **13** remaining.
+and existing genuine viewer/default/result case. That owner reports actual
+fixture compile **0**, Cloudflare emit **0** and the affected test file
+**3/3** passing, with State component `e1204fdb` committed and the scoped
+Cloudflare commit following. ReadBound serves omitted bound defaults,
+supplied empty/large-integer arrays and live read authority through the real
+handler. Nullable mutation controls keep their existing scope; wider
+ref/identity/enum/host and parent-reference claims stay separate. No producer
+check was repeated. Completion stays **54/67**, with **13** remaining.
