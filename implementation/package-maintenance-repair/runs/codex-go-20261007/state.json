@@ -2159,5 +2159,20 @@
       "validation": "UI emit/browser asset build0;14/14 effective owning DOM cases: prior12 passes reused, region-scoped403 assertion fixed and only failed/unreached2cases rerun2/2",
       "limits": "synthetic owning DOM lifecycle checks, not independent actual source/Worker/D1/Chrome qualification; broad Task16 and48packet counts unchanged"
     }
+  },
+  "canonical_send_stage_release": {
+    "status": "portable defining no-commit Work port checked; actual compiled bound send/D1 consumer pending",
+    "api": "@canlang/work/kernel/dispatch-staging stageCanonicalSend(StageOutboxIntentInput,SystemCommandContext) -> {effects:SystemStaging,delivery:DeliveryRef}",
+    "ownership": "CF resolves exact compiler binding/capability operation schema and wire encoding; admitted business origin and dynamic zero-based occurrence index come from canonical execution; Work shares existing staging command and v1 identity recipe; State commits domain+dispatch+outbox together once",
+    "validation": "Work emit0 and34/34 owning intent/staging/recovery/memory-fence checks; shared unchanged argument helper extraction rechecked only2affectedcases; no second review/test chain",
+    "mechanics": "native WebCrypto SHA-256 preserves Node sync identity bytes; async capture clones/freezes once; Values makeDeliveryRef is sole native constructor; shared parsers have one internal owner, no Node imports in portable stage graph",
+    "limits": [
+      "actual compiler metadata and CF consumer qualification pending",
+      "unconditional selected sends only; no persisted closures or second committing stageDispatchBatch",
+      "installed/package release, provider delivery, durable restart/retry-unknown and parent original receipt/notification gates remain separate"
+    ],
+    "boundary_guard": "global checker exit1 with52 other-owner source-resolution/crosspackage-fixture violations; no selected Work violation observed; retained for owning follow-up",
+    "counts_unchanged": true,
+    "models": "Sol high finite crosspackage stage/identity seam; Sol low unchanged shared-helper consolidation; root direct review/checks and Git"
   }
 }

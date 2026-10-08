@@ -2574,3 +2574,10 @@ Source preparation may now be awaitable. List rendering awaits each row callback
 A same-context poll retains an existing generated form only when its checked metadata, control identity and comparison-only protected binding identity agree. Retain its nonce/proof/CSRF/version as a pair, user drafts and focus, feedback, and in-flight submission state. A changed binding or schema replaces the occurrence and detached outcomes are suppressed. A current-context forbidden poll withdraws controls only inside its polled region, never reads or paints the denial body, and ends that poll controller. This is client lifecycle handling; every submitted action still requires current server admission.
 
 Owning DOM checks qualify this repair. Actual source/Worker/D1/browser renewal remains the consumer owner's next check; no broad workflow or parent completion is implied.
+
+
+### 2026-10-08 — Portable compiled-send staging producer
+
+Work exposes a portable no-commit stageCanonicalSend port for an already checked, wire-encoded capability request. The caller supplies the exact resolved compiler binding, canonical capability operation, admitted business operation/UUID and runtime-allocated send occurrence index; Work does not infer aliases, schemas or authority from authored payloads. It returns the existing dispatch/outbox effects and the defining Values delivery reference. Canonical execution collects those effects with its domain writes/history/unique changes for one State fence; failed evaluation drops the entire effects set.
+
+The existing stage command and identity preimage now have portable owners, with shared command argument parsers consolidated once. Native WebCrypto hashes the unchanged v1 UTF-8 recipe for Workers; the existing synchronous Node API remains intact. Async request capture clones/freezes once before yielding. This selects no new cryptographic algorithm, persisted closure, transport or independently committing batch. The defining checks pass; actual compiler/Cloudflare/D1 send consumer, durable restart and wider receipt/notification qualifications remain separate.

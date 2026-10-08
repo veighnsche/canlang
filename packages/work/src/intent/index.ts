@@ -15,6 +15,10 @@ import type {
   OutboxItem,
 } from '@canlang/contracts';
 import type { GuardEvaluator } from '../dispatch/index.js';
+import { buildStagedOutboxIntent, freezeRequest, outboxIdentityPreimage } from './staging.js';
+import type { StagedOutboxIntent, StageOutboxIntentInput } from './staging.js';
+export { freezeRequest } from './staging.js';
+export type { StagedOutboxIntent, StageOutboxIntentInput } from './staging.js';
 
 /**
  * Stable outbox identity derived from the originating operation id, the
@@ -27,59 +31,10 @@ export function deriveOutboxId(
   source: string,
   occurrenceIndex: number,
 ): OutboxId {
-  if (typeof operationId !== 'string' || operationId.length === 0) {
-    throw new RangeError('deriveOutboxId: operationId must be a non-empty string');
-  }
-  if (typeof source !== 'string' || source.length === 0) {
-    throw new RangeError('deriveOutboxId: source must be a non-empty string');
-  }
-  if (!Number.isInteger(occurrenceIndex) || occurrenceIndex < 0) {
-    throw new RangeError('deriveOutboxId: occurrenceIndex must be a non-negative integer');
-  }
   const digest = createHash('sha256')
-    .update(
-      `can-work/outbox-id/v1\0${operationId}\0${source}\0${occurrenceIndex}`,
-      'utf8',
-    )
+    .update(outboxIdentityPreimage(operationId, source, occurrenceIndex), 'utf8')
     .digest('hex');
   return `obx_${digest}`;
-}
-
-/**
- * Build the frozen provider request captured at commit: versions and inputs
- * are cloned (so later caller mutation cannot leak in) and deep-frozen (so
- * later dispatch-time reads cannot mutate them either). Cycle-safe.
- *
- * Only plain JSON records are accepted: the staged request is the lane-3
- * `OutboxIntent.arguments` shape, so arrays, primitives, null and
- * uncloneable inputs (functions, symbols) throw instead of staging a row
- * the fence cannot carry.
- */
-export function freezeRequest(
-  request: unknown,
-): Readonly<Record<string, unknown>> {
-  const clone: unknown = structuredClone(request);
-  if (typeof clone !== 'object' || clone === null || Array.isArray(clone)) {
-    throw new TypeError('freezeRequest: request must be a plain JSON record');
-  }
-  const record = clone as Record<string, unknown>;
-  deepFreezeInPlace(record, new Set());
-  return record;
-}
-
-function deepFreezeInPlace(value: unknown, seen: Set<object>): void {
-  if (value === null || (typeof value !== 'object' && typeof value !== 'function')) {
-    return;
-  }
-  const target = value as object;
-  if (seen.has(target)) {
-    return;
-  }
-  seen.add(target);
-  for (const key of Reflect.ownKeys(target)) {
-    deepFreezeInPlace((target as Record<PropertyKey, unknown>)[key], seen);
-  }
-  Object.freeze(target);
 }
 
 /**
@@ -92,12 +47,6 @@ export interface OutboxCommitMarker {
   committedAtMs: number;
 }
 
-/** An intent staged during evaluation; not yet dispatchable. */
-export interface StagedOutboxIntent {
-  item: OutboxItem;
-  commit: null;
-}
-
 /** An intent committed with its originating state; dispatchable. */
 export interface CommittedOutboxIntent {
   item: OutboxItem;
@@ -106,33 +55,10 @@ export interface CommittedOutboxIntent {
 
 export type AnyOutboxIntent = StagedOutboxIntent | CommittedOutboxIntent;
 
-export interface StageOutboxIntentInput {
-  operationId: string;
-  source: string;
-  occurrenceIndex: number;
-  /** Provider inputs; must be a plain JSON record (non-records rejected). */
-  request: unknown;
-  /**
-   * Originating occurrence stamped by the runtime when staging during an
-   * occurrence execution; null for direct business-operation sends.
-   */
-  originOccurrence: OccurrenceId | null;
-}
-
 /** Stage one intent during evaluation. The result is never dispatchable. */
 export function stageOutboxIntent(input: StageOutboxIntentInput): StagedOutboxIntent {
   const id = deriveOutboxId(input.operationId, input.source, input.occurrenceIndex);
-  const item: OutboxItem = {
-    id,
-    operationId: input.operationId,
-    source: input.source,
-    occurrenceIndex: input.occurrenceIndex,
-    request: freezeRequest(input.request),
-    originOccurrence: input.originOccurrence,
-    attempts: 0,
-    state: 'pending',
-  };
-  return { item, commit: null };
+  return buildStagedOutboxIntent(input, id);
 }
 
 /**
