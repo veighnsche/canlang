@@ -65,7 +65,11 @@ for (const kind of ['element', 'subarray', 'DataView', 'transfer'] as const) {
     assert.equal(Object.isFrozen(lookup.cache), true);
     assert.equal(Reflect.set(lookup, 'mime', 'text/css'), false);
     assert.equal(Reflect.set(lookup.cache, 'maxAgeSeconds', 1), false);
-    if (kind === 'transfer') structuredClone(lookup.bytes.buffer, { transfer: [lookup.bytes.buffer] });
+    if (kind === 'transfer') {
+      const buffer = lookup.bytes.buffer;
+      assert.ok(buffer instanceof ArrayBuffer);
+      structuredClone(buffer, { transfer: [buffer] });
+    }
     else if (kind === 'DataView') new DataView(lookup.bytes.buffer).setUint8(0, 90);
     else if (kind === 'subarray') lookup.bytes.subarray(0, 1).fill(90);
     else lookup.bytes[0] = 90;

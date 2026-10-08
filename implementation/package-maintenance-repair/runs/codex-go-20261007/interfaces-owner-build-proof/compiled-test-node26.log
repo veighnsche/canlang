@@ -1,0 +1,23 @@
+✔ registered bytes survive retained Uint8Array mutation (25.214042ms)
+✔ registered bytes survive retained subarray mutation (0.283625ms)
+✔ registered bytes survive retained Buffer mutation (0.333584ms)
+✔ registered bytes survive retained DataView mutation (0.221583ms)
+✔ registered bytes survive retained transfer mutation (0.525417ms)
+✔ registered Uint8Array subclass bytes are owned even when slice returns an alias (0.175125ms)
+✔ registration snapshots rows, cache, input list and getter-produced bytes (0.218667ms)
+✔ lookup element mutation cannot alter subsequent rows or served bytes (0.169542ms)
+✔ lookup subarray mutation cannot alter subsequent rows or served bytes (0.124209ms)
+✔ lookup DataView mutation cannot alter subsequent rows or served bytes (0.136875ms)
+✔ lookup transfer mutation cannot alter subsequent rows or served bytes (0.11425ms)
+✔ the constructor lookup refuses replacement while missing keys stay absent (0.069625ms)
+✔ GET/HEAD preserve JS/CSS and hostile exact keys across consumed body mutation (0.664375ms)
+✔ unknown paths, traversal and methods retain the same not_found response (0.622041ms)
+✔ the handler still reads a dynamic injected provider on every GET/HEAD (0.125791ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 183.320958

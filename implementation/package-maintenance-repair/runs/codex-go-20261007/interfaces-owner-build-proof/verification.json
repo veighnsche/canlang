@@ -1,0 +1,68 @@
+{
+  "source-pins.json": {
+    "count": 96,
+    "mismatches": []
+  },
+  "owner-output-pins.json": {
+    "count": 352,
+    "mismatches": []
+  },
+  "dependency-output-pins.json": {
+    "count": 4068,
+    "mismatches": []
+  },
+  "installed-output-pins.json": {
+    "count": 353,
+    "mismatches": []
+  },
+  "tool-pins.json": {
+    "count": 3,
+    "mismatches": []
+  },
+  "beforeAfterInputDeltas": [
+    "packages/interfaces/test/asset-byte-ownership.test.ts"
+  ],
+  "beforeTestSHA": "a0a9e3b5334e8074ceda7d0e9203ae08ade144cf3b6318a6ee9b0eafeeaa436d",
+  "candidateSHA": "67c8201177f547a06f6a97885430833ceffafc800976432982eacd975bcc1cad",
+  "pagesBaseline": {
+    "frozen": "f0c29777fd6be3be69561e1c309f3feb1ef49a04a1943b983512ad4bdca26238",
+    "actual": "f0c29777fd6be3be69561e1c309f3feb1ef49a04a1943b983512ad4bdca26238",
+    "same": true
+  },
+  "packetPins": {
+    "count": 38,
+    "mismatches": []
+  },
+  "symlinkMismatches": [],
+  "nonPrivateSymlinkTargets": [],
+  "publicTypeComparison": {
+    ".": {
+      "owner": "9058d7a3d00eb76b3846e0f1578235243f034945c7c417cb6ec2a89471a79c02",
+      "checkout": "9058d7a3d00eb76b3846e0f1578235243f034945c7c417cb6ec2a89471a79c02"
+    },
+    "./distribution": {
+      "owner": "62bf7f9b71f7f27491ff020391b320bc4909d78e138e8ace43a4612f99b035c3",
+      "checkout": "62bf7f9b71f7f27491ff020391b320bc4909d78e138e8ace43a4612f99b035c3"
+    },
+    "./testing": {
+      "owner": "ce76a73b887929f07a6566c5fa87eb015a7cd52b6d4de17f1dad7faf1744b186",
+      "checkout": "ce76a73b887929f07a6566c5fa87eb015a7cd52b6d4de17f1dad7faf1744b186"
+    },
+    "./http/form-errors": {
+      "owner": "d9d3e4ae3fa4647eb51b3eca095bd82e3d413cb6000001f24aebc5919d95ca18",
+      "checkout": "d9d3e4ae3fa4647eb51b3eca095bd82e3d413cb6000001f24aebc5919d95ca18"
+    },
+    "./uploads/kernel": {
+      "owner": "c164386d0023540552192c0a7afb363c7b311ecd29374e4bfa9276f7f9cc501c",
+      "checkout": "c164386d0023540552192c0a7afb363c7b311ecd29374e4bfa9276f7f9cc501c"
+    },
+    "./mcp/server": {
+      "owner": "f35c4a69d08414985415200407e0b1d487dcc2f2ccbce795244c93dad4103a02",
+      "checkout": "f35c4a69d08414985415200407e0b1d487dcc2f2ccbce795244c93dad4103a02"
+    },
+    "./http/operations": {
+      "owner": "9272d5f9edb7fe830aeb7c2b04d750ae0786a480fac6f648b93eff94785854a2",
+      "checkout": "9272d5f9edb7fe830aeb7c2b04d750ae0786a480fac6f648b93eff94785854a2"
+    }
+  }
+}

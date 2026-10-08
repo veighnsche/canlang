@@ -1,0 +1,61 @@
+{
+  "count": 4068,
+  "mismatches": [],
+  "peers": [
+    {
+      "package": "@modelcontextprotocol/sdk",
+      "peer": "@cfworker/json-schema",
+      "originalResolved": null,
+      "recordedResolved": null,
+      "sameOriginal": true,
+      "privateResolved": null,
+      "expectedPrivate": null
+    },
+    {
+      "package": "@modelcontextprotocol/sdk",
+      "peer": "zod",
+      "originalResolved": "/Users/vince/Projects/canlang/node_modules/.bun/zod@4.6.5/node_modules/zod",
+      "recordedResolved": "/Users/vince/Projects/canlang/node_modules/.bun/zod@4.6.5/node_modules/zod",
+      "sameOriginal": true,
+      "privateResolved": "/private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/dependencies/5",
+      "expectedPrivate": "/private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/dependencies/5"
+    },
+    {
+      "package": "zod-to-json-schema",
+      "peer": "zod",
+      "originalResolved": "/Users/vince/Projects/canlang/node_modules/.bun/zod@4.6.5/node_modules/zod",
+      "recordedResolved": "/Users/vince/Projects/canlang/node_modules/.bun/zod@4.6.5/node_modules/zod",
+      "sameOriginal": true,
+      "privateResolved": "/private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/dependencies/5",
+      "expectedPrivate": "/private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/dependencies/5"
+    },
+    {
+      "package": "express-rate-limit",
+      "peer": "express",
+      "originalResolved": "/Users/vince/Projects/canlang/node_modules/.bun/express@5.2.1+2b91fc17bf64bdfd/node_modules/express",
+      "recordedResolved": "/Users/vince/Projects/canlang/node_modules/.bun/express@5.2.1+2b91fc17bf64bdfd/node_modules/express",
+      "sameOriginal": true,
+      "privateResolved": "/private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/dependencies/25",
+      "expectedPrivate": "/private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/dependencies/25"
+    },
+    {
+      "package": "ajv-formats",
+      "peer": "ajv",
+      "originalResolved": "/Users/vince/Projects/canlang/node_modules/.bun/ajv@8.20.0/node_modules/ajv",
+      "recordedResolved": "/Users/vince/Projects/canlang/node_modules/.bun/ajv@8.20.0/node_modules/ajv",
+      "sameOriginal": true,
+      "privateResolved": "/private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/dependencies/89",
+      "expectedPrivate": "/private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/dependencies/89"
+    },
+    {
+      "package": "@hono/node-server",
+      "peer": "hono",
+      "originalResolved": "/Users/vince/Projects/canlang/node_modules/.bun/hono@4.13.13/node_modules/hono",
+      "recordedResolved": "/Users/vince/Projects/canlang/node_modules/.bun/hono@4.13.13/node_modules/hono",
+      "sameOriginal": true,
+      "privateResolved": "/private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/dependencies/20",
+      "expectedPrivate": "/private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/dependencies/20",
+      "resolutionMethod": "Bun installed parent node_modules sibling; hono package.json subpath is not exported"
+    }
+  ]
+}
