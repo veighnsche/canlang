@@ -10,7 +10,9 @@ import {
   loadExecutionDescriptorSet,
   type ArtifactDescriptorSlice,
 } from '../src/invocation/registry.js';
-import { buildModelTableFromCanonical } from '../src/mutation/models.js';
+import { validateCallInputs } from '../src/invocation/admission.js';
+import { prepareOperationInputs, validatePreparedInputs } from '../src/invocation/prepared-inputs.js';
+import { buildModelTable, buildModelTableFromCanonical } from '../src/mutation/models.js';
 
 const model = 'Example.Job' as ModelName;
 const operation = 'Example.inspect' as OperationName;
@@ -559,4 +561,95 @@ test('user metadata requires an exact own user kind and never infers id-shaped c
   const direct = intake();
   incompatible(() => loadExecutionDescriptorSet({ ...direct, operations: [{ ...direct.operations[0]!,
     inputs: [{ name: 'value', kind: 'user', required: false, valueType: 'text' }] }] }, opts));
+});
+
+
+test('checked File profiles preserve metadata and owning admission without inferring legacy claims', () => {
+  for (const array of [undefined, { required: false }, { required: true }]) {
+    for (const nullable of [false, true]) {
+      const valueType = `file${array ? '[]' : ''}${nullable ? '?' : ''}`;
+      const raw = artifact();
+      const shape = { field: { kind: 'file' as const }, required: false, nullable, ...(array ? { array } : {}) };
+      raw.models![0]!.fields = [{ name: 'count', serverOnly: false, ...shape }];
+      raw.operations![0]!.inputs.fields = [{ name: 'value', ...shape }];
+      raw.operations![0]!.result = { type: valueType };
+      const loaded = loadArtifactDescriptors(raw, opts);
+      const input = descriptor(loaded).inputs[0]!;
+      assert.ok(input.kind === 'file');
+      assert.equal(input.valueType, valueType);
+      assert.equal(loaded.models[0]!.fields.count!.valueType, valueType);
+      assert.deepEqual(descriptor(loaded).result, { type: valueType });
+      assert.ok(Object.isFrozen(input));
+      assert.ok(Object.isFrozen(descriptor(loaded).result));
+      const table = buildModelTableFromCanonical(loaded.models, { nullableFields: loaded.nullableFields });
+      assert.equal(table.get(model)!.fields.count!.valueType, valueType);
+      assert.equal(table.get(model)!.fields.count!.nullable === true, nullable);
+      const direct = intake();
+      const canonical = loadExecutionDescriptorSet({ ...direct, models: loaded.models,
+        operations: [{ ...direct.operations[0]!, inputs: [{ name: 'value', kind: 'file',
+          required: false, valueType }], result: { type: valueType } }] }, { ...opts,
+        ...(array ? { inputArrays: { [operation]: { value: array } } } : {}) });
+      assert.deepEqual(descriptor(canonical).inputs[0], input);
+      assert.deepEqual(descriptor(canonical).result, { type: valueType });
+      const def = canonical.registry.get(operation)!;
+      assert.ok(isGeneratedOperationDef(def));
+      for (const value of [array ? [{ id: 'file-id' }] : { id: 'file-id' }, null]) {
+        const supplied = { value };
+        assert.deepEqual(validateCallInputs(def, supplied).normalized, supplied);
+        assert.deepEqual(validatePreparedInputs(prepareOperationInputs(def), supplied),
+          validateCallInputs(def, supplied));
+      }
+      assert.deepEqual(validatePreparedInputs(prepareOperationInputs(def), {}), validateCallInputs(def, {}));
+    }
+  }
+  const direct = intake();
+  const legacy = loadExecutionDescriptorSet({ ...direct, operations: [{ ...direct.operations[0]!,
+    inputs: [{ name: 'value', kind: 'file', required: false }] }] }, opts);
+  const def = legacy.registry.get(operation)!;
+  assert.ok(isGeneratedOperationDef(def));
+  assert.equal(Object.hasOwn(def.descriptor.inputs[0]!, 'valueType'), false);
+  assert.deepEqual(validateCallInputs(def, { value: 'legacy-presence-only' }).normalized,
+    { value: 'legacy-presence-only' });
+});
+
+test('checked File claims reject mismatched kinds and malformed scalar containers', () => {
+  for (const valueType of [undefined, 'File', 'user', 'file[][]', 'file?[]', 'file[]', 'file?']) {
+    const raw = artifact();
+    for (const changed of [
+      { ...raw, models: [{ ...raw.models![0]!, fields: [{ name: 'count', field: { kind: 'file' },
+        required: false, serverOnly: false, valueType }] }] },
+      { ...raw, operations: [{ ...raw.operations![0]!, inputs: { fields: [{ name: 'value',
+        field: { kind: 'file' }, required: false, valueType }] } }] },
+    ]) incompatible(() => loadArtifactDescriptors(changed as unknown as ArtifactDescriptorSlice, opts));
+  }
+  for (const field of [{ kind: 'user' }, Object.create({ kind: 'file' }), undefined]) {
+    const raw = artifact();
+    for (const changed of [
+      { ...raw, models: [{ ...raw.models![0]!, fields: [{ name: 'count', field,
+        required: false, serverOnly: false, valueType: 'file' }] }] },
+      { ...raw, operations: [{ ...raw.operations![0]!, inputs: { fields: [{ name: 'value', field,
+        required: false, valueType: 'file' }] } }] },
+    ]) incompatible(() => loadArtifactDescriptors(changed as unknown as ArtifactDescriptorSlice, opts));
+  }
+  for (const extra of [{ array: { required: false } }, { nullable: true }, { valueType: 'file[][]' }]) {
+    const direct = intake();
+    const field = { required: false, serverOnly: false, valueType: 'file', ...extra };
+    const changed = { ...direct, models: [{ ...direct.models[0]!, fields: { count: field } }] };
+    incompatible(() => loadExecutionDescriptorSet(changed, opts));
+    assert.throws(() => buildModelTableFromCanonical(changed.models), /Invalid valueType/);
+    assert.throws(() => buildModelTable([{ ...buildModelTableFromCanonical(direct.models).get(model)!, fields: { count: field } }]), /Invalid valueType/);
+  }
+  for (const kind of ['user', 'file'] as const) {
+    const direct = intake();
+    incompatible(() => loadExecutionDescriptorSet({ ...direct, operations: [{ ...direct.operations[0]!,
+      inputs: [{ name: 'value', kind, required: false, valueType: kind === 'file' ? 'user' : 'file' }] }] }, opts));
+  }
+  for (const type of ['File', 'file[][]', 'file?[]']) {
+    const raw = artifact();
+    raw.operations![0]!.result = { type };
+    incompatible(() => loadArtifactDescriptors(raw, opts));
+    const direct = intake();
+    incompatible(() => loadExecutionDescriptorSet({ ...direct,
+      operations: [{ ...direct.operations[0]!, result: { type } }] }, opts));
+  }
 });

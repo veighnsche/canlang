@@ -2686,3 +2686,8 @@ Privacy order: current record leaf authorization precedes protected association/
 Evidence: normal State/Work emits passed; the original receipt memory suite passed 29/29, real D1 2/2, workerd DO 2/2, and the affected existing mirror group 4/4. Old valid fixtures now publish/clear the canonical owner value in the same fence as the protected pair; decoy/clear/replacement/source-drift/missing-pair and denied-corruption cases remain explicit negative witnesses. Earlier sandbox durable startup was cancelled; the final actual local durable checks passed with process permission.
 
 Limits: this is a correctness/privacy repair, not a replacement-only code-reduction claim. The genuine generated Cloudflare provider/association/MCP observation journey remains a separate consumer gate, as do wider CRUD confidentiality/replay, installed/default deployment and native preparation. Root task counts remain unchanged.
+
+
+### 2026-10-08 — checked File metadata follows the existing scalar intake
+
+Accepted: admit `file`, nullable File and File arrays through State's existing checked model/input/result profiles, matching the owning artifact `kind: file`. Reuse Values' File codec at the existing host conversion checkpoint; do not add a State codec or dependency. Untyped legacy input admission remains presence-only. This fixes the missing metadata prerequisite for the selected Files consumer without introducing File authority or a new public interface. The State emit and two focused metadata/refusal/admission checks pass; actual generated/native Files upload, durable finalization and authorized reads remain separate owning-consumer gates.
