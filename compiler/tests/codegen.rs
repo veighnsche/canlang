@@ -472,7 +472,7 @@ fn golden_teamtasks_structure() {
         "refused tabs selector is absent"
     );
     assert!(
-        entry.contains("$can$u$666f726d({context:c,operation:\"TeamTasks.Todo.create\",fields:[\"title\",\"assignee\"],display:\"inline\""),
+        entry.contains("c.prepareForm({operation:\"TeamTasks.Todo.create\",fields:[\"title\",\"assignee\"],display:\"inline\",labels:{title:$can$u$6d657373616765(\"Title\",{nl:\"Titel\"}),assignee:$can$u$6d657373616765(\"Assignee\",{nl:\"Toegewezen aan\"})},authoredFields:[\"title\"]})"),
         "form operation"
     );
     // Field-placement controls lower to `field` selector strings;
@@ -485,12 +485,12 @@ fn golden_teamtasks_structure() {
         "breadcrumbs"
     );
     assert!(
-        entry.contains("children:[$can$u$696e707574({context:c,field:\"title\"})]"),
+        entry.contains("$can$u$666f726d({...$can$f$666f726d.props,children:()=>[$can$u$696e707574({...$can$f$666f726d.field(\"title\")})]})"),
         "form children"
     );
     assert!(
         entry.contains(
-            "children:[$can$u$696e707574({context:c,field:\"title\"}),$can$u$7465787461726561({context:c,field:\"content\"})]"
+            "children:()=>[$can$u$696e707574({...$can$f$666f726d.field(\"title\")}),$can$u$7465787461726561({...$can$f$666f726d.field(\"content\")})]"
         ),
         "textarea child"
     );
@@ -1071,7 +1071,7 @@ fn golden_expenseflow_structure() {
     );
     assert!(
         entry.contains(
-            "children:[$can$u$696e707574({context:c,field:\"purpose\"}),$can$u$696e707574({context:c,field:\"amount\"})]"
+            "children:()=>[$can$u$696e707574({...$can$f$666f726d.field(\"purpose\")}),$can$u$696e707574({...$can$f$666f726d.field(\"amount\")})]"
         ),
         "create-form field controls"
     );
@@ -1094,7 +1094,7 @@ fn golden_expenseflow_structure() {
         "join with opener buttons"
     );
     assert!(
-        entry.contains("$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$u$6d657373616765(\"Approve expense\",{nl:\"Onkost goedkeuren\"}),id:\"approve_expense\",children:[$can$u$736c6f74({context:$can$l$313a726f7756696577,name:\"content\",children:[$can$u$666f726d({context:$can$l$313a726f7756696577,operation:\"expenses.approve\",arguments:{expense:$can$l$303a726f77},display:\"inline\",fields:[\"expense\",\"note\"],children:[$can$u$7465787461726561({context:$can$l$313a726f7756696577,field:\"note\"})]})]})]})"),
+        entry.contains("$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$u$6d657373616765(\"Approve expense\",{nl:\"Onkost goedkeuren\"}),id:\"approve_expense\",children:[$can$u$736c6f74({context:$can$l$313a726f7756696577,name:\"content\",children:[(($can$f$666f726d)=>{if($can$f$666f726d.status!==\"ready\")return $can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$f$666f726d.message]});return $can$u$666f726d({...$can$f$666f726d.props,children:()=>[$can$u$7465787461726561({...$can$f$666f726d.field(\"note\")})]});})($can$l$313a726f7756696577.prepareForm({operation:\"expenses.approve\",arguments:{expense:$can$l$303a726f77},display:\"inline\",fields:[\"expense\",\"note\"],labels:{note:$can$u$6d657373616765(\"Decision note\",{nl:\"Toelichting op het besluit\"})},authoredFields:[\"note\"]}))]})]})"),
         "approve modal with content slot"
     );
     assert!(
@@ -2622,7 +2622,7 @@ fn construct_pages_admit_render() {
     assert!(
         // Descriptors are exported: artifact.pages[].export names an
         // importable binding (B1 loadability).
-        module.js.contains("export const $can$p$657870656e73653a64657363726970746f723a2f657870656e7365732f726576696577={owner:\"expense\",path:\"/expenses/review\",title:$can$u$6d657373616765(\"Expense review\",{nl:\"Onkostenbeoordeling\"}),admit:async(c,routeBindings={})=>{check(hasRole(c,\"expense.reviewer\"),\"forbidden\");return {};},render:$can$p$657870656e73653a72656e6465723a2f657870656e7365732f726576696577};"),
+        module.js.contains("export const $can$p$657870656e73653a64657363726970746f723a2f657870656e7365732f726576696577={owner:\"expense\",path:\"/expenses/review\",title:$can$u$6d657373616765(\"Expense review\",{nl:\"Onkostenbeoordeling\"}),admit:async(c,routeBindings={})=>{if(!(hasRole(c,\"expense.reviewer\")))throw {code:\"forbidden\",message:\"forbidden\"};return {};},render:$can$p$657870656e73653a72656e6465723a2f657870656e7365732f726576696577};"),
         "review descriptor:\n{}",
         module.js
     );
@@ -3363,9 +3363,9 @@ fn form_fields_unknown_op_stays_loud() {
     let (artifact, _diags) = emit_test_only(&program, &db, &result, None);
     let entry = &artifact.modules[0].js;
     // No operation prop (unresolvable) and crucially no `fields` prop:
-    // ui fails loudly on the missing required prop, as before.
+    // Preparation receives the unresolved request without a silent field default.
     assert!(
-        entry.contains("$can$u$666f726d({context:c,display:\"inline\"})"),
+        entry.contains("(($can$f$666f726d)=>{if($can$f$666f726d.status!==\"ready\")return $can$u$74657874({context:c,values:[$can$f$666f726d.message]});return $can$u$666f726d($can$f$666f726d.props);})(c.prepareForm({display:\"inline\"}))"),
         "loud form without fields:\n{entry}"
     );
 }
@@ -3394,7 +3394,7 @@ fn catalog_factories_lower_from_source() {
     let entry = &artifact.modules[0].js;
     for marker in [
         "$can$u$62726561646372756d6273({context:c})",
-        "$can$u$696e707574({context:c,field:\"name\"})",
+        "$can$u$666f726d({...$can$f$666f726d.props,children:()=>[$can$u$696e707574({...$can$f$666f726d.field(\"name\")})]})",
         "$can$u$6261646765({context:$can$l$313a726f7756696577,value:$can$l$303a726f77.name})",
         "$can$l$303a726f77.name !== \"\" ? $can$u$616c657274({context:$can$l$313a726f7756696577,children:[$can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$l$303a726f77.name]})]}) : null",
         "$can$u$64697669646572({context:$can$l$313a726f7756696577,caption:$can$u$6d657373616765(\"More\",{nl:\"Meer\"})})",
@@ -7573,7 +7573,7 @@ fn a2b_ui_profiles_lower_to_factories() {
     );
     let js = &artifact.modules[0].js;
     assert!(
-        js.contains("$can$u$6669656c64736574({context:c,caption:$can$u$6d657373616765(\"Details\"),children:[$can$u$696e707574({context:c,field:\"name\"}),$can$u$726164696f({context:c,field:\"name\"}),$can$u$73656c656374({context:c,field:\"name\"})]})"),
+        js.contains("$can$u$6669656c64736574({context:c,caption:$can$u$6d657373616765(\"Details\"),children:[$can$u$696e707574({...$can$f$666f726d.field(\"name\")}),$can$u$726164696f({...$can$f$666f726d.field(\"name\")}),$can$u$73656c656374({...$can$f$666f726d.field(\"name\")})]})"),
         "fieldset group + field controls:\n{js}"
     );
     assert!(
@@ -7602,7 +7602,7 @@ fn a2b_require_desugars_to_admit_and_gate() {
     );
     let js = &artifact.modules[0].js;
     assert!(
-        js.contains("check(hasRole(c,\"members\"),\"forbidden\")"),
+        js.contains("if(!(hasRole(c,\"members\")))throw {code:\"forbidden\",message:\"forbidden\"}"),
         "page require gates admission:\n{js}"
     );
     assert!(!js.contains("require({"), "require never renders:\n{js}");
