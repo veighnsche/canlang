@@ -1,0 +1,34 @@
+{
+  "request": {
+    "state": "A typed source language produces native exact decimal, civil date and instant objects through an existing scalar library. Its message descriptor preserves canonical type id and the actual argument value. The server presentation library accepts that descriptor, but its scalar sink supports valid serialized decimal/date/instant strings, not those native objects. Existing storage/query-to-page scopes legitimately carry those serialized strings and render correctly. The public message parameter value is unknown; the presentation library currently has no scalar-library dependency. The scalar library already supplies public native type guards and strict type-directed native-to-wire codecs. The instant shape guard alone does not prove supported range; the codec does. Preserve every existing valid wire-backed page, legal native source arguments, exact precision/calendar values, once/order/default/exception behavior and existing sink-stage validation. Do not guess types or source provenance, serialize descriptors prematurely, invent permissive codecs, rewrite emitted modules, or infer trusted context. Context/locale/timezone provenance is a separate required join, not solved by this choice.",
+    "questions": {
+      "message_boundary": {
+        "type": "choice",
+        "instructions": "Which complete boundary best satisfies all stated outcomes with the smallest reliable ownership and maintenance burden? Compare prerequisite costs fairly; advice is not acceptance.",
+        "criteria": {
+          "uniform_upstream": "Establish uniform native values at every source evaluation scope first, including model/query/result adapters using declaration-owned type metadata. Keep public wire storage/query APIs through typed adapters. Then capture/evaluate source arguments in existing order and encode known-native scalar message parameters to the existing UI wire representation. This reuses current UI contracts, but requires complete hydration/adapters and evaluation/error-stage qualification across producers before shipping.",
+          "presentation_join": "At the existing UI scalar sink, accept native Date/instant/Decimal only through public native guards followed by strict owner codecs, alongside unchanged existing supported wire inputs. Keep emitted descriptor values intact and validation at its current sink stage. Add a direct UI-to-native-values dependency and qualify range/malformed inputs and exact formatting; do not infer provenance or extend unrelated codecs/contexts."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "message_boundary": {
+        "type": "choice",
+        "choice": "presentation_join",
+        "confidence": 0.98,
+        "probabilities": {
+          "presentation_join": 0.99,
+          "uniform_upstream": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 696,
+      "output_tokens": 37
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "scope": "Real unchanged generated model-member page, public UI list/query/formatters and public State viewer query with test memory storage. Supplied actor/membership/context proves public contracts only, not canonical dispatcher authority.",
+  "queries": [
+    {
+      "model": "TemporalWire.Item",
+      "args": {},
+      "data": {
+        "day": "2001-01-01",
+        "instant": "2024-03-31T22:30:00.000Z",
+        "amount": "1.50"
+      },
+      "revision": 1
+    }
+  ],
+  "rendered": "<ul class=\"list\"><li class=\"list-row\"><p>⁨Jan 1, 2001⁩ ⁨10:30:00 PM⁩ ⁨1.5⁩</p></li></ul>",
+  "strictNativePrerequisite": [
+    {
+      "type": "date",
+      "wire": "2001-01-01",
+      "refusal": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "expected a date value at $"
+      }
+    },
+    {
+      "type": "datetime",
+      "wire": "2024-03-31T22:30:00.000Z",
+      "refusal": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "expected a datetime value at $"
+      }
+    },
+    {
+      "type": "decimal",
+      "wire": "1.50",
+      "refusal": {
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "expected a decimal value at $"
+      }
+    }
+  ],
+  "prerequisite": "State wire strings remain unchanged and supported by the UI join; strict encodeValue still refuses wire strings as native values."
+}

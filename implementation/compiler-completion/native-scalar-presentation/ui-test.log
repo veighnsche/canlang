@@ -1,0 +1,53 @@
+▶ native scalar presentation join
+  ✔ formats native operands like supported wire operands without changing descriptors (11.716334ms)
+  ✔ requires int for integer and ordinal formatting, including exact ordinal cases (0.566916ms)
+  ✔ retains strict native refusal and owning codec range errors at the sink (0.286458ms)
+✔ native scalar presentation join (12.956166ms)
+▶ normalizeTag
+  ✔ canonicalizes tags (0.059208ms)
+  ✔ rejects invalid tags (0.048708ms)
+✔ normalizeTag (0.17525ms)
+▶ message factory
+  ✔ builds descriptors with variants (0.218833ms)
+  ✔ rejects duplicate canonical tags and bad values (0.086791ms)
+  ✔ accepts explicit null for absent translations (0.041416ms)
+✔ message factory (0.755917ms)
+▶ resolveMessage
+  ✔ applies RFC 4647 lookup over preferences (0.093416ms)
+  ✔ prefers longer compatible matches and falls back to app default (0.10575ms)
+  ✔ skips null variants and ends at the source locale (0.048542ms)
+✔ resolveMessage (0.30425ms)
+▶ formatMessage plurals
+  ✔ formats the TeamTasks task count in en and nl (0.171042ms)
+  ✔ matches exact numeric cases before CLDR categories (0.056084ms)
+  ✔ keeps 64-bit ints exact, including French 0/1 and large magnitudes (0.185834ms)
+  ✔ formats Arabic categories via Intl rules (0.065125ms)
+  ✔ rejects offsets, duplicate branches and missing other (0.069625ms)
+✔ formatMessage plurals (0.605875ms)
+▶ formatMessage select/number/date/money
+  ✔ selects text/bool/enum cases with other fallback (0.085666ms)
+  ✔ accepts canonical qualified enum identities and rejects mistyped values (0.070792ms)
+  ✔ formats numbers with locale grouping and integer style (0.052209ms)
+  ✔ formats dates without day shifts and datetimes in the team zone (0.150917ms)
+  ✔ rejects rolled-over datetimes and out-of-range times (0.103709ms)
+  ✔ preserves full civil years for date and datetime operands (1.090708ms)
+  ✔ rejects zero years and calendar rollover at the existing operand boundary (0.328209ms)
+  ✔ keeps quoted '#' literal inside plurals (0.279917ms)
+  ✔ uses locale grouping and digits for exact values (3.533375ms)
+  ✔ formats money exactly with explicit scales and fails closed without them (1.195917ms)
+  ✔ rejects lossy and mistyped arguments (0.274375ms)
+  ✔ handles quoting and nested selects (0.076084ms)
+✔ formatMessage select/number/date/money (7.533375ms)
+▶ renderer helpers
+  ✔ resolveCaption keeps strings verbatim and formats descriptors with scales (0.189583ms)
+  ✔ formatScalar renders typed scalars with locale and scales (0.085333ms)
+  ✔ isEnumTypeId accepts enum spellings and rejects scalars (0.037209ms)
+✔ renderer helpers (0.373ms)
+ℹ tests 31
+ℹ suites 7
+ℹ pass 31
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 86.698166

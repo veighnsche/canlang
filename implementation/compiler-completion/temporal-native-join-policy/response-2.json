@@ -1,0 +1,34 @@
+{
+  "request": {
+    "state": "Consider a compiler emitting typed message arguments as their real native values. A separate exact-value library owns native Date/instant/Decimal constructors, public guards and strict serialization, including instant range checks beyond its shape guard. Current UI formatting uses canonical wire strings; existing query-record page bindings expose valid wire values and already work. The descriptor contract retains a type id with unknown-valued arguments, while UI has no dependency on the exact-value library yet. Required complete behavior is both native-source and existing stored-wire presentation, preserving precision, calendar limits, source evaluation and default order, exceptions, and the time at which rendering validates operands. Runtime source-origin guesses or a blanket native codec over current wire bindings are insufficient. Preserve underlying storage/query wire contracts if adapters are chosen. Current trusted locale/timezone context requirements remain independent.",
+    "questions": {
+      "message_boundary": {
+        "type": "choice",
+        "instructions": "Recommend the least complex complete implementation under the same required workflows and failure/evaluation constraints. Neither route gets missing joins for free.",
+        "criteria": {
+          "uniform_upstream": "Migrate all language-facing query/model/result scopes to declaration-directed native hydration while retaining public storage wire interfaces. Only after every affected scope is uniform, encode native message arguments after preserving supplied/default evaluation order into current UI string operands. No mixed carrier inference, but broader producer/admission/hydration joins and error timing must be completed.",
+          "presentation_join": "Extend the current rendering operand boundary with explicit native guarded inputs serialized by the existing strict scalar codecs, retaining all legal wire inputs verbatim under current validation. The compiler still forwards typed actual values. Introduce the UI dependency on native-values and verify invalid shapes/ranges, source evaluation and render failure staging; no new scalar representation or provenance guess."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "message_boundary": {
+        "type": "choice",
+        "choice": "presentation_join",
+        "confidence": 0.92,
+        "probabilities": {
+          "uniform_upstream": 0.04,
+          "presentation_join": 0.96
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 633,
+      "output_tokens": 37
+    }
+  }
+}

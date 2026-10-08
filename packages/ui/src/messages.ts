@@ -27,6 +27,7 @@ import {
   type ResolvedMessage,
   type ThemeTokens,
 } from "@canlang/contracts";
+import { encodeValue, isDateValue, isDatetime, isDecimal } from "@canlang/values";
 
 export { DEFAULT_THEME, PRESENTATION_CONTRACT_VERSION };
 export type { Bcp47Tag, MessageParams, ResolvedMessage, ThemeTokens };
@@ -252,9 +253,10 @@ function toOperand(name: string, param: MessageParamValue): ScalarOperand {
       return fail(name, "type int needs a bigint, safe number or canonical int string");
     }
     case "decimal": {
-      if (typeof value === "bigint") return { kind: "decimal", text: value.toString(10) };
-      if (typeof value === "string" && DECIMAL_RE.test(value)) {
-        return { kind: "decimal", text: decimalKey(value) };
+      const operand = isDecimal(value) ? encodeValue(type, value) : value;
+      if (typeof operand === "bigint") return { kind: "decimal", text: operand.toString(10) };
+      if (typeof operand === "string" && DECIMAL_RE.test(operand)) {
+        return { kind: "decimal", text: decimalKey(operand) };
       }
       // Plain numbers are rejected: binary floating point cannot carry exact decimals.
       return fail(name, "type decimal needs a bigint or canonical decimal string");
@@ -271,16 +273,22 @@ function toOperand(name: string, param: MessageParamValue): ScalarOperand {
       }
       return { kind: "money", minor: minor as bigint, currency: money.currency as string };
     }
-    case "date":
-      if (typeof value !== "string" || !DATE_RE.test(value) || !isValidDate(value)) {
+    case "date": {
+      const operand = isDateValue(value) ? encodeValue(type, value) : value;
+      if (typeof operand !== "string" || !DATE_RE.test(operand) || !isValidDate(operand)) {
         fail(name, "type date needs a valid YYYY-MM-DD civil date");
       }
-      return { kind: "date", iso: value as string };
-    case "datetime":
-      if (typeof value !== "string" || !DATETIME_RE.test(value) || !isValidInstant(value)) {
+      return { kind: "date", iso: operand as string };
+    }
+    case "datetime": {
+      // The public guard checks the native shape; the owning codec also
+      // validates its supported range. Conversion stays at the display sink.
+      const operand = isDatetime(value) ? encodeValue(type, value) : value;
+      if (typeof operand !== "string" || !DATETIME_RE.test(operand) || !isValidInstant(operand)) {
         fail(name, "type datetime needs a canonical RFC3339 UTC instant");
       }
-      return { kind: "datetime", iso: value as string };
+      return { kind: "datetime", iso: operand as string };
+    }
     default:
       // Qualified nominal enum identities (DESIGN §13, e.g.
       // "expense.Expense.status") arrive as dotted type ids. Non-string
@@ -661,29 +669,6 @@ export function formatDecimalExact(text: string, locale: string): string {
   return fracPart === "" ? head : `${head}${system.decimal}${localizeDigits(fracPart, system)}`;
 }
 
-/** Round a canonical decimal to an integer (half-even, ICU integer style). */
-function roundDecimalToInt(text: string): bigint {
-  const key = decimalKey(text);
-  const negative = key.startsWith("-");
-  const rest = negative ? key.slice(1) : key;
-  const dot = rest.indexOf(".");
-  if (dot === -1) {
-    const value = BigInt(rest);
-    return negative ? -value : value;
-  }
-  const intPart = BigInt(rest.slice(0, dot));
-  const frac = rest.slice(dot + 1);
-  const first = frac.slice(0, 1);
-  const remainder = frac.slice(1);
-  let roundUp = false;
-  if ((first as string) > "5") roundUp = true;
-  else if ((first as string) < "5") roundUp = false;
-  else if (/[1-9]/.test(remainder)) roundUp = true;
-  else roundUp = intPart % 2n !== 0n;
-  const rounded = roundUp ? intPart + 1n : intPart;
-  return negative ? -rounded : rounded;
-}
-
 /**
  * CLDR category selection preserving 64-bit ints. Exact =N cases are matched
  * on canonical decimal strings before this runs. Safe-range values go to
@@ -881,9 +866,10 @@ function renderArgument(node: Extract<PatternNode, { kind: "arg" }>, state: Form
         throw new Error(`message argument "${node.name}": number needs int or decimal`);
       }
       if (node.style === "integer") {
-        const rounded =
-          operand.kind === "int" ? operand.value : roundDecimalToInt(operand.text);
-        return formatIntExact(rounded, state.locale);
+        if (operand.kind !== "int") {
+          throw new Error(`message argument "${node.name}": number,integer needs int`);
+        }
+        return formatIntExact(operand.value, state.locale);
       }
       return operand.kind === "int"
         ? formatIntExact(operand.value, state.locale)
@@ -922,6 +908,9 @@ function renderArgument(node: Extract<PatternNode, { kind: "arg" }>, state: Form
     }
     case "plural":
     case "selectordinal": {
+      if (node.format === "selectordinal" && operand.kind !== "int") {
+        throw new Error(`message argument "${node.name}": selectordinal needs int`);
+      }
       if (operand.kind !== "int" && operand.kind !== "decimal") {
         throw new Error(`message argument "${node.name}": plural needs int or decimal`);
       }

@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { date, datetime, encodeValue, parseDecimal, ValueError } from "@canlang/values";
 import {
   formatMessage,
   formatScalar,
@@ -10,6 +11,90 @@ import {
   resolveMessage,
 } from "../src/messages.js";
 import { TEAMTASKS_MESSAGES } from "./fixtures/descriptors.js";
+
+describe("native scalar presentation join", () => {
+  it("formats native operands like supported wire operands without changing descriptors", () => {
+    const cases = [
+      ["date", date("0001-01-01"), "{x,date}", "Jan 1, 1"],
+      ["date", date("0004-02-29"), "{x,date,full}", "Sunday, February 29, 4"],
+      ["datetime", datetime("0099-01-01T00:00:00Z"), "{x,date}", "Jan 1, 99"],
+      ["datetime", datetime("2024-03-31T22:30:00Z"), "{x,time,short}", "12:30 AM"],
+      ["decimal", parseDecimal("12345678901234567890.123456789012345678"), "{x,number}",
+        "12,345,678,901,234,567,890.123456789012345678"],
+      ["decimal", parseDecimal("1.50"), "{x}", "1.5"],
+      ["int", 2n, "{x,number,integer}", "2"],
+      ["decimal", parseDecimal("1.00"), "{x,plural,=1 {exact} other {#}}", "exact"],
+      ["decimal", parseDecimal("2.50"), "{x,plural,other {#}}", "2.5"],
+      ["decimal", parseDecimal("12345678901234567890.123456789012345678"),
+        "{x,plural,=12345678901234567890.123456789012345678 {exact} other {other}}", "exact"],
+    ] as const;
+    for (const [type, value, pattern, expected] of cases) {
+      const params = { x: { type, value } };
+      const descriptor = message(pattern, {}, params);
+      const options = { locale: "en", appDefaultLocale: "en", timeZone: "Europe/Brussels" };
+      assert.equal(formatMessage(descriptor, options), expected);
+      assert.equal(formatMessage(pattern, { ...options, args: { x: { type, value: encodeValue(type, value) } } }), expected);
+      assert.equal(descriptor.params?.x, params.x);
+      assert.equal(descriptor.params?.x?.value, value);
+    }
+    assert.equal(formatScalar({ type: "decimal", value: parseDecimal("1.50") }, { locale: "nl" }), "1,5");
+  });
+
+  it("requires int for integer and ordinal formatting, including exact ordinal cases", () => {
+    for (const raw of ["2.50", "2.00"]) {
+      for (const value of [raw, parseDecimal(raw)]) {
+        const args = { n: { type: "decimal", value } };
+        assert.throws(() => formatMessage("{n,number,integer}", { locale: "en", args }),
+          { message: 'message argument "n": number,integer needs int' });
+        for (const pattern of [
+          "{n,selectordinal,one {one} two {two} other {other}}",
+          "{n,selectordinal,=2 {exact} =2.5 {exact} other {other}}",
+        ]) {
+          assert.throws(() => formatMessage(pattern, { locale: "en", args }),
+            { message: 'message argument "n": selectordinal needs int' });
+        }
+        assert.equal(formatMessage("{n,number}", { locale: "en", args }), raw === "2.50" ? "2.5" : "2");
+        assert.equal(formatMessage("{n,plural,=2 {exact} other {#}}", { locale: "en", args }),
+          raw === "2.50" ? "2.5" : "exact");
+      }
+    }
+    for (const value of [2n, "2"]) {
+      const args = { n: { type: "int", value } };
+      assert.equal(formatMessage("{n,number,integer}", { locale: "en", args }), "2");
+      assert.equal(formatMessage("{n,selectordinal,two {two} other {other}}", { locale: "en", args }), "two");
+      assert.equal(formatMessage("{n,selectordinal,=2 {exact} other {other}}", { locale: "en", args }), "exact");
+    }
+  });
+
+  it("retains strict native refusal and owning codec range errors at the sink", () => {
+    const malformed = [
+      ["date", { kind: "date", year: 99, month: 2, day: 29 }],
+      ["datetime", { kind: "datetime", ms: 0 }],
+      ["decimal", { kind: "decimal", coef: 1n, scale: 19 }],
+      ["decimal", { kind: "decimal", coef: 10n ** 38n, scale: 0 }],
+      ["date", datetime("2024-01-01T00:00:00Z")],
+      ["datetime", date("2024-01-01")],
+      ["decimal", 1.5],
+      ["date", null], ["datetime", null], ["decimal", null],
+      ["duration", 1n],
+    ] as const;
+    for (const [type, value] of malformed) {
+      const descriptor = message("{x}", {}, { x: { type, value } });
+      assert.equal(descriptor.params?.x?.value, value);
+      assert.throws(() => formatMessage(descriptor, { appDefaultLocale: "en" }), TypeError);
+    }
+    const outOfRange = { kind: "datetime", ms: 253402300800000n };
+    const descriptor = message("{x}", {}, { x: { type: "datetime", value: outOfRange } });
+    assert.equal(descriptor.params?.x?.value, outOfRange);
+    assert.throws(() => formatMessage(descriptor, { appDefaultLocale: "en" }),
+      { name: "ValueError", code: "invalid-construction", message: "datetime outside the supported 0001-9999 range at $" });
+    assert.throws(() => date("0099-02-29"), ValueError);
+    assert.throws(() => datetime("0000-01-01T00:00:00Z"), ValueError);
+    assert.throws(() => formatMessage("{x,plural,other {#}}", {
+      locale: "en", args: { x: { type: "decimal", value: parseDecimal("1234567890123456.5") } },
+    }), { name: "RangeError", message: "plural category selection for decimals beyond 15 significant digits needs lane 2 exact adapters" });
+  });
+});
 
 describe("normalizeTag", () => {
   it("canonicalizes tags", () => {
@@ -205,8 +290,12 @@ describe("formatMessage select/number/date/money", () => {
       formatMessage("{n,number}", { locale: "nl", args: { n: { type: "decimal", value: "1234.5" } } }),
       "1.234,5",
     );
-    assert.equal(
+    assert.throws(() =>
       formatMessage("{n,number,integer}", { locale: "en", args: { n: { type: "decimal", value: "2.5" } } }),
+      { message: 'message argument "n": number,integer needs int' },
+    );
+    assert.equal(
+      formatMessage("{n,number,integer}", { locale: "en", args: { n: { type: "int", value: 2n } } }),
       "2",
     );
   });
