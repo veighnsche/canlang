@@ -442,6 +442,8 @@ pub enum CheckedChoiceValue {
 /// Types and selected bindings per symbol and typed CST node.
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
+    /// Exact typed cohort-child reads, consumed without spelling rebinding.
+    pub cohort_child_references: HashMap<NodeKey, SymbolId>,
     /// Exact checked bare-role value references, preserving lexical collisions.
     pub role_references: HashMap<NodeKey, SymbolId>,
     /// Optional checked assistance; final input typing/defaults/grants are unchanged.
@@ -8906,6 +8908,7 @@ enum DeclKey {
     Let(NodeKey),
     QueryAlias(NodeKey),
     ForItem(NodeKey),
+    CohortChild(NodeKey),
     CreateAs(NodeKey),
     CallAs(NodeKey),
     SendAs(NodeKey),
@@ -8935,6 +8938,7 @@ fn decl_key_of_binding(binding: &Binding, spelling: &str) -> DeclKey {
         Binding::Let { node } => DeclKey::Let(*node),
         Binding::QueryAlias { node } => DeclKey::QueryAlias(*node),
         Binding::ForItem { node } => DeclKey::ForItem(*node),
+        Binding::CohortChild { node, .. } => DeclKey::CohortChild(*node),
         Binding::CreateAs { node } => DeclKey::CreateAs(*node),
         Binding::CallAs { node } => DeclKey::CallAs(*node),
         Binding::SendAs { node } => DeclKey::SendAs(*node),
@@ -10787,6 +10791,9 @@ impl<'a> Typer<'a> {
         expect: Option<&ResolvedType>,
     ) -> ResolvedType {
         let key = NodeKey::of(node);
+        if let Some(Binding::CohortChild { model, .. }) = self.tables.node_binding.get(&key) {
+            self.types.cohort_child_references.insert(key, *model);
+        }
         if let Some(Binding::Symbol(id)) = self.tables.node_binding.get(&key)
             && matches!(self.tables.symbols[id.0 as usize].kind, SymbolKind::Role)
         {
@@ -10875,6 +10882,15 @@ impl<'a> Typer<'a> {
                 ResolvedType::Error
             }
             Binding::Symbol(id) => self.symbol_value_type(cx, node, *id),
+            Binding::CohortChild { model, .. } => {
+                self.types
+                    .cohort_child_references
+                    .insert(NodeKey::of(node), *model);
+                ResolvedType::Record {
+                    symbol: *model,
+                    stored: true,
+                }
+            }
             Binding::Let { node: key } => {
                 self.lets.get(key).cloned().unwrap_or(ResolvedType::Error)
             }

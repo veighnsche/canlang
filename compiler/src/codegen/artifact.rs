@@ -325,6 +325,21 @@ pub fn assemble(
         });
         requires.sort_by(|a, b| a.capability.cmp(&b.capability));
     }
+    if ir.items.iter().any(|item| {
+        matches!(
+            item.kind,
+            IrItemKind::Scenario {
+                cohort: Some(_),
+                ..
+            }
+        )
+    }) {
+        requires.push(ArtifactRequirement {
+            capability: "state.cohorts".to_string(),
+            min_version: 1,
+        });
+        requires.sort_by(|a, b| a.capability.cmp(&b.capability));
+    }
     diags.append(&mut require_diags);
     let mut referenced: Vec<ReferencedBuiltin> = ir.referenced_builtins.clone();
     referenced.extend(js.referenced_builtins.iter().cloned());
