@@ -303,26 +303,28 @@ function checkResult(
   if (!Object.hasOwn(holder, 'result')) return undefined;
   const result = holder['result'];
   if (!isRecord(result) || !Object.hasOwn(result, 'type')) {
-    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration/user/file profile or bare void.`);
+    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration/user/file profile, canonical inline enum profile or bare void.`);
   }
   const type = result['type'];
   const scalarOrVoid = type === 'void' || (typeof type === 'string' &&
     /^(int|datetime|text|bool|decimal|money|date|duration|user|file)(\[\])?\??$/.test(type));
+  let inlineEnumResult = false;
   let knownModelResult = false;
   // Ordinary operations may return a nonnullable singular loaded model;
   // reads alone may return an ordinary array. Spelling alone proves no model.
-  if (!scalarOrVoid && (kind === 'scenario' || kind === 'read') && typeof type === 'string') {
+  if (!scalarOrVoid && typeof type === 'string') {
     try {
       const parsed = parseTypeId(type);
-      knownModelResult = parsed.base.kind === 'nominal' && parsed.base.path.includes('.') &&
+      inlineEnumResult = parsed.base.kind === 'enum' && !parsed.requiredArray && printTypeId(parsed) === type;
+      knownModelResult = (kind === 'scenario' || kind === 'read') && parsed.base.kind === 'nominal' && parsed.base.path.includes('.') &&
         modelNames.has(parsed.base.path) && !parsed.nullable && !parsed.requiredArray &&
         (!parsed.array || kind === 'read');
     } catch {
       // The shared artifact error below covers malformed canonical spellings.
     }
   }
-  if (!scalarOrVoid && !knownModelResult) {
-    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration/user/file profile or bare void; scenarios and reads may also declare a known qualified model, and reads a model[].`);
+  if (!scalarOrVoid && !inlineEnumResult && !knownModelResult) {
+    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration/user/file profile, canonical inline enum profile or bare void; scenarios and reads may also declare a known qualified model, and reads a model[].`);
   }
   return Object.freeze({ type: type as CanTypeId });
 }

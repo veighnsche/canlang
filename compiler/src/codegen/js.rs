@@ -6640,6 +6640,19 @@ impl<'a> Emitter<'a> {
         {
             return Some(Cow::Owned(format!("{}[]", model.canonical)));
         }
+        if let Some(result) = result {
+            let outer = match result {
+                ResolvedType::Nullable(inner) => inner.as_ref(),
+                result => result,
+            };
+            // Public scenario/read enum results share their checked input
+            // case identity; only the released ordinary-array profile joins.
+            if !matches!(outer, ResolvedType::Array { nonempty: true, .. })
+                && let Some(value_type) = checked_enum_value_type(result)
+            {
+                return Some(Cow::Owned(value_type));
+            }
+        }
         checked_scenario_result(result)
     }
 
@@ -8210,6 +8223,11 @@ fn checked_operation_input_value_type(ty: &IrType) -> Option<String> {
     let IrType::Known(resolved) = ty else {
         return None;
     };
+    checked_enum_value_type(resolved).or_else(|| checked_string_value_type(ty).map(str::to_string))
+}
+
+/// Shared enum identity for public checked inputs and admitted enum results.
+fn checked_enum_value_type(resolved: &ResolvedType) -> Option<String> {
     let (base, nullable) = match resolved {
         ResolvedType::Nullable(inner) => (inner.as_ref(), true),
         base => (base, false),
@@ -8226,7 +8244,7 @@ fn checked_operation_input_value_type(ty: &IrType) -> Option<String> {
             if nullable { "?" } else { "" },
         ));
     }
-    checked_string_value_type(ty).map(str::to_string)
+    None
 }
 
 fn checked_string_value_type(ty: &IrType) -> Option<&'static str> {
