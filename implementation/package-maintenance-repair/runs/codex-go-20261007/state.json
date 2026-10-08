@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T23:02:50.412240+00:00",
+  "updated_utc": "2026-10-08T23:06:15.256031+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -3005,6 +3005,17 @@
       "retained_files": 8,
       "verification": "reference/pointer scan; no production/test behavior changed or rerun",
       "limits": "advice uncertainty retained; no source acceptance/count/checkpoint advance"
+    },
+    "generation_consumer_identity": {
+      "state": "same CF graph consumer passes",
+      "verified": "clean native1/1 case28144.749292ms total28480.057ms; selectedtypecheck/emit0",
+      "diagnosis": "private and installed CF module singleton identities mixed; foreign progress producer correctly refused",
+      "failed_attempts": [
+        "recorded original preHTTP uncertain",
+        "diagnostic samegraph1/1",
+        "unsupported unexported text-generation-progress subpath attempted then reverted; no production export added"
+      ],
+      "limits": "consumer-only imports; authority unchanged; MCP/cohort/full parent separate"
     }
   },
   "live_finite_packets": [
