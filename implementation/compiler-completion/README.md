@@ -87,3 +87,11 @@ schemas; exact integer/duration wire values and invalid nested role rejection
 pass in the affected native case. Strict library Clippy passes. This is a
 bounded producer join; standard shapes outside this path and provider/progress
 workflows remain separate, with no canonical count change.
+
+`74cb4cb8` joins the declared rich standard `.progress` alias to its existing
+typed `.result` in checking, canonical policy/column paths and IR. A native
+whole-result observation evaluates once, typed child projections preserve Can
+null, and inline enum equality uses real Values. Real State grants retain exact
+child paths without granting their parent. The affected native case and strict
+library Clippy pass; the defining runtime facade and exact child-only serving
+remain owning package work. This component does not advance the task count.
