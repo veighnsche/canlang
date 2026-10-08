@@ -7,7 +7,7 @@
 //! | # | Witness | Construct | Status |
 //! |---|---------|-----------|--------|
 //! | 1 | CanInbox | Given `judgment` | TESTED elsewhere (`b4_resolve`, `analysis`, `format`, `syntax`) |
-//! | 2 | CanChat/CanCreative | `delivery().progress`, `Target.progressed` | GAP: no checker support; pinned by `progress_*_gap` (flip when fixed). DESIGN L678-682 + `design/complex-apps/chat-media.md#associated-progress-contract` are unimplemented and producerless — archived, not normative-working. (`Cap.op.completed` IS validated today; only `progressed` and `.progress` lack support.) |
+//! | 2 | CanChat/CanCreative | `delivery().progress`, `Target.progressed` | Known standard delivery progress and original TextGenerationV1.generate/ImagesV1.submit handlers are qualified by `delivery_progress_runtime` and `schedule_binding_runtime`. The local Mail controls below retain refusal without an owning observable manifest; wider application producers remain separately owned. |
 //! | 3 | CanWorkbench | `invocation(Op,...)` values | TESTED elsewhere (`b4_parse`, `format`, `@canlang/values`) |
 //! | 4 | CanKnowledge | Given `corpus` | PARTIAL: declaration accepted (pinned); query members (`answer`/`cancel`/`reconcile`) unvalidated, pinned by `corpus_query_members_unvalidated_gap`. DESIGN §8.3 beyond declaration unimplemented — archived. |
 //! | 5 | CanCreative/CanGallery | `gallery Query image=field` | PARTIAL: `image=` requiredness enforced (pinned); target unvalidated, pinned by `gallery_image_target_unvalidated_gap`. GRAMMAR:109 + DESIGN:1104 semantic checks unimplemented — archived. |
@@ -106,15 +106,15 @@ fn corpus_declaration_checks_clean() {
     assert!(diags.is_empty(), "corpus declaration: {diags:?}");
 }
 
-// --- Gap: delivery progress ------------------------------------------------
+// --- Local capability progress refusal ------------------------------------
 
-/// `.progress` on a bound-typed delivery is E2013, exactly like `.bogus`;
+/// `.progress` on this local capability delivery is E2013, like `.bogus`;
 /// `.status` resolves (E3001 is the derive's type mismatch, proving the
 /// member itself checked). The bound self-import idiom (`use p {Mail as
 /// Box} from=deployment.mail` over an in-package `export capability`)
-/// reaches the `Delivery{op}` member arm, so this flips exactly when the
-/// specified `progress` arm lands per DESIGN L678-682 (nullable typed
-/// `.progress` on observable originals); until then that claim is archived.
+/// reaches the `Delivery{op}` member arm. Mail has no accepted observable
+/// original-operation manifest; known standard progress support does not
+/// grant a local capability this property.
 #[test]
 fn progress_member_unimplemented_gap() {
     fn derive(member: &str) -> Vec<Diagnostic> {
@@ -135,14 +135,14 @@ fn progress_member_unimplemented_gap() {
     assert_eq!(
         codes(&progress),
         codes(&bogus),
-        "progress must behave like a bogus member while unimplemented: {progress:?} vs {bogus:?}"
+        "local capability without an observable manifest: {progress:?} vs {bogus:?}"
     );
 }
 
 /// `on=Mail.notify.completed` checks clean (the event IS validated), while
-/// `progressed` is E3010 exactly like `bogus`. Trusted (`on=`) scenarios
-/// take no authored parameters, so the snippet drops `()`. Flip when the
-/// finite event registry (GRAMMAR:365) accepts `progressed`.
+/// `progressed` is E3010 exactly like `bogus` for this local Mail operation
+/// without an accepted observable manifest. Trusted (`on=`) scenarios take
+/// no authored parameters, so the snippet drops `()`.
 #[test]
 fn progressed_event_unvalidated_gap() {
     fn trigger(event: &str) -> Vec<Diagnostic> {
