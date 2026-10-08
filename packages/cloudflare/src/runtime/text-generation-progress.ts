@@ -11,13 +11,16 @@ import {
 import { applyRelatedProgress, applyRetainedRelatedProgress } from '@canlang/work/observation/association';
 import { decodeValue, encodeValue, isDeliveryRef } from '@canlang/values';
 import type { TextRunWire } from './bound-text-generation.js';
-import type { DispatchReconcileEvidence } from './invoke.js';
+import { stageCheckedDeliveryProgress } from './invoke.js';
+import type { CheckedDeliveryProgressProducer, DispatchReconcileEvidence } from './invoke.js';
 
 interface TextGenerationProgressBase {
   readonly intent: OutboxIntent;
   /** Owning result declaration and frozen business request, verified by the bound adapter. */
   readonly context: ReceiptResultContext;
   readonly revision: number;
+  /** Concrete assembly and the admitted original drive fence, never receipt payload metadata. */
+  readonly progressed?: { readonly producer: CheckedDeliveryProgressProducer; readonly owner: string };
 }
 
 export type TextGenerationProgressInput = TextGenerationProgressBase & (
@@ -41,6 +44,12 @@ function record(value: unknown): value is Record<string, unknown> {
 export async function stageTextGenerationProgress(input: TextGenerationProgressInput,
   ctx: SystemCommandContext): Promise<TextGenerationProgressStaging> {
   const { intent, context, revision } = input;
+  const withOccurrences = async (staged: TextGenerationProgressStaging): Promise<TextGenerationProgressStaging> => {
+    if ((staged.writes?.length ?? 0) === 0 || input.progressed === undefined) return staged;
+    const events = await stageCheckedDeliveryProgress(input.progressed.producer, intent, input.progressed.owner, ctx);
+    return { ...staged, writes: [...staged.writes ?? [], ...events.writes ?? []],
+      schedules: [...staged.schedules ?? [], ...events.schedules ?? []] };
+  };
   const target = 'std.TextGenerationV1.generate';
   if (intent.target !== target || intent.intentId === '' || context.source !== target ||
       !isTextRunReceiptContext(context) || context.request === undefined ||
@@ -71,10 +80,10 @@ export async function stageTextGenerationProgress(input: TextGenerationProgressI
     const applied = applyRetainedRelatedProgress(target, retained.receipt, envelope, context);
     if (!applied.applied) refuse();
     if (applied.replay) return { writes: [], result: { notification: null } };
-    return { writes: [{ kind: 'update', model: RECEIPT_MODEL as ModelName, id: receiptRow.id,
+    return withOccurrences({ writes: [{ kind: 'update', model: RECEIPT_MODEL as ModelName, id: receiptRow.id,
       expectedVersion: receiptRow.version, row: withReceiptRowData(receiptRow, { ...applied.receipt,
         contentRef: retained.contentRef, resultExpiresAtMs: retained.resultExpiresAtMs }, meta, context) }],
-      result: { notification: applied.notification } };
+      result: { notification: applied.notification } });
   }
   const writes: DomainWrite[] = [];
   let notification: ProgressTerminalNotification | null = null;
@@ -101,7 +110,7 @@ export async function stageTextGenerationProgress(input: TextGenerationProgressI
   if (writes.length !== 0) writes.push({ kind: 'update', model: RECEIPT_MODEL as ModelName, id: receiptRow.id,
     expectedVersion: receiptRow.version, row: withReceiptRowData(receiptRow, { ...nextReceipt,
       contentRef: retained.contentRef, resultExpiresAtMs: retained.resultExpiresAtMs }, meta, context) });
-  return { writes, result: { notification } };
+  return withOccurrences({ writes, result: { notification } });
 }
 
 /** Read the original checked receipt without requiring a terminal outcome. */

@@ -3742,6 +3742,127 @@ export async function invokeMutationCanonical(
 }
 
 /** Private host entry: source handlers remain absent from public operations. */
+export interface CheckedDeliveryProgressProducer {
+  readonly app: string;
+}
+
+const checkedProgressProducers = new WeakMap<CheckedDeliveryProgressProducer, {
+  readonly asm: AssembledModules; readonly artifact: CompileArtifact;
+}>();
+
+/** A concrete installed assembly, admitted through the existing canonical loader. */
+export async function createCheckedDeliveryProgressProducer(input: {
+  readonly asm: AssembledModules; readonly artifact: CompileArtifact; readonly app: string;
+}): Promise<CheckedDeliveryProgressProducer> {
+  await loadCanonicalDescriptors(input.asm, input.artifact);
+  const module: unknown = await import(input.asm.entryUrl);
+  const definition = isUnknownRecord(module) ? readMetadataMember(module, 'appDefinition', 'Progress producer')?.value : undefined;
+  if (!isUnknownRecord(definition) || readMetadataMember(definition, 'id', 'Progress producer')?.value !== input.app) {
+    throw new Error('Progress producer needs its actual installed app declaration.');
+  }
+  // Work's existing row records event/package, without a handler selector.
+  // Reject an ambiguous route before transport rather than stage occurrences
+  // that could be consumed by a different handler in that same package.
+  const routes = new Set<string>();
+  for (const callable of input.artifact.callables.filter(entry => entry.kind === 'handler')) {
+    const url = input.asm.moduleUrls[callable.module];
+    if (url === undefined) throw new Error('Progress handler lacks its assembled module.');
+    const module: unknown = await import(url);
+    const own = (value: unknown, key: string): unknown =>
+      isUnknownRecord(value) ? readMetadataMember(value, key, 'Progress route')?.value : undefined;
+    const event = own(own(own(own(module, 'appDefinition'), 'operations'), callable.id), 'event');
+    if (typeof event !== 'string' || !/\.(generate|submit)\.progressed$/.test(event)) continue;
+    const route = `${callable.id.slice(0, callable.id.lastIndexOf('.'))}\0${event}`;
+    if (routes.has(route)) throw new Error('Progress event/package has multiple handlers but no stored handler selector.');
+    routes.add(route);
+  }
+  const producer = Object.freeze({ app: input.app });
+  checkedProgressProducers.set(producer, { asm: input.asm, artifact: input.artifact });
+  return producer;
+}
+
+/** Stage one immutable occurrence for each actual checked source handler. No commit. */
+export async function stageCheckedDeliveryProgress(producer: CheckedDeliveryProgressProducer,
+  intent: OutboxIntent, owner: string, ctx: SystemCommandContext): Promise<SystemStaging> {
+  const installed = checkedProgressProducers.get(producer);
+  if (installed === undefined || typeof owner !== 'string' || owner === '' ||
+      !['std.TextGenerationV1.generate', 'std.ImagesV1.submit'].includes(intent.target)) {
+    throw new Error('Progress producer needs its checked assembly and admitted owner.');
+  }
+  const { asm, artifact } = installed;
+  const loaded = await loadCanonicalDescriptors(asm, artifact);
+  const carrier = intent.arguments;
+  if (!isUnknownRecord(carrier) || Object.keys(carrier).length !== 3 ||
+      typeof carrier['binding'] !== 'string' || typeof carrier['from'] !== 'string' ||
+      !isUnknownRecord(carrier['arguments'])) throw new Error('Progress needs its original bound carrier.');
+  const origin = artifact.callables.find(entry => entry.id === intent.operation);
+  const originUrl = origin === undefined ? undefined : asm.moduleUrls[origin.module];
+  if (originUrl === undefined) throw new Error('Progress needs its original checked operation.');
+  const originModule: unknown = await import(originUrl);
+  const own = (value: unknown, key: string): unknown =>
+    isUnknownRecord(value) ? readMetadataMember(value, key, 'Progress origin')?.value : undefined;
+  const originDefinition = own(originModule, 'appDefinition');
+  const originalBinding = own(own(originDefinition, 'bindings'), carrier['binding']);
+  if (own(originDefinition, 'id') !== producer.app ||
+      own(originalBinding, 'capability') !== intent.target.slice(0, intent.target.lastIndexOf('.')) ||
+      own(originalBinding, 'from') !== carrier['from']) {
+    throw new Error('Progress needs its exact original checked binding/from.');
+  }
+  const event = `${carrier['binding']}.${intent.target.slice(intent.target.lastIndexOf('.') + 1)}.progressed`;
+  const effects: SystemStaging[] = [];
+  for (const callable of artifact.callables.filter(entry => entry.kind === 'handler')) {
+    const moduleUrl = asm.moduleUrls[callable.module];
+    if (moduleUrl === undefined) throw new Error('Progress handler lacks its assembled module.');
+    const module: unknown = await import(moduleUrl);
+    const member = (value: unknown, key: string): unknown =>
+      isUnknownRecord(value) ? readMetadataMember(value, key, 'Progress handler')?.value : undefined;
+    const definition = member(module, 'appDefinition');
+    const handler = member(member(definition, 'operations'), callable.id);
+    if (member(handler, 'event') !== event) continue;
+    const ownerPackage = callable.id.slice(0, callable.id.lastIndexOf('.'));
+    const binding = member(member(definition, 'bindings'), carrier['binding']);
+    const capability = intent.target.slice(0, intent.target.lastIndexOf('.'));
+    if (member(definition, 'id') !== producer.app ||
+        !carrier['binding'].startsWith(`${ownerPackage}.`) ||
+        member(member(definition, 'packages'), ownerPackage) === undefined ||
+        member(binding, 'capability') !== capability || member(binding, 'from') !== carrier['from']) {
+      throw new Error('Progress handler disagrees with its actual app/package/binding.');
+    }
+    const invocation = member(handler, 'invocation');
+    const inputs = member(member(member(definition, 'events'), event), 'inputs');
+    if (member(handler, 'handler') !== callable.id || !isUnknownRecord(invocation) ||
+        member(invocation, 'name') !== callable.id || member(invocation, 'kind') !== 'scenario' ||
+        !isUnknownRecord(inputs) || Object.keys(inputs).length !== 1 ||
+        member(member(inputs, 'delivery_id'), 'type') !== 'text' ||
+        !Array.isArray(callable.member) || callable.member.length !== 1 || callable.member[0] !== callable.id) {
+      throw new Error('Progress handler lacks its exact checked private event invocation.');
+    }
+    const privateDescriptors = loaded.producers.registry.loadArtifactDescriptors(
+      { ...artifact, operations: [invocation] }, { by: () => 'owner' });
+    const privateDef = privateDescriptors.registry.get(callable.id) as GeneratedOperationDef | undefined;
+    if (privateDef === undefined || privateDef.descriptor.inputs.length !== 1 ||
+        privateDef.descriptor.inputs[0]?.name !== 'delivery_id' || privateDef.descriptor.inputs[0]?.kind !== 'string' ||
+        privateDef.descriptor.inputs[0]?.required !== true || privateDef.descriptor.inputs[0]?.valueType !== 'text') {
+      throw new Error('Progress handler has no checked delivery-id admission.');
+    }
+    const registry = await importPolicyRegistry(asm, callable.module, callable.id);
+    if (typeof member(registry, callable.id) !== 'function') throw new Error('Progress handler has no genuine callable.');
+    const schema = normalizeSchema({ operations: { [event]: { inputs } } } as SchemaDescriptor);
+    validateOperationInput(schema, event, { delivery_id: intent.intentId });
+    const work = await loadProducerModule('@canlang/work/kernel/schedule-staging', 'work progress schedule producer');
+    const command = work['workSchedulePutCommand'];
+    if (!isUnknownRecord(command)) throw new Error('Progress needs the existing Work schedule command.');
+    const stage = requireProducerFn(command, 'stage', 'work progress schedule producer') as
+      typeof import('@canlang/work/kernel/schedule-staging').workSchedulePutCommand.stage;
+    const occurrenceId = crypto.randomUUID();
+    effects.push(await stage({ key: occurrenceId, occurrenceId,
+      scope: { app: producer.app, owner, ownerPackage }, at: ctx.now, event,
+      payload: { delivery_id: intent.intentId } }, ctx));
+  }
+  return { writes: effects.flatMap(effect => effect.writes ?? []),
+    schedules: effects.flatMap(effect => effect.schedules ?? []) };
+}
+
 export interface CanonicalDueScheduleOpts {
   readonly asm: AssembledModules;
   readonly artifact: CompileArtifact;

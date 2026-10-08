@@ -21,13 +21,15 @@ import { WORK_SYSTEM_COMMANDS, WORK_DISPATCH_STAGE_COMMANDS, createWorkDispatchC
 import { attemptDispatch } from '@canlang/work/dispatch';
 import { classifyFailure } from '@canlang/work/receipt';
 import { planRecoveryScan } from '@canlang/work/recovery';
-import { WORK_DISPATCH_MODEL } from '@canlang/work/kernel/tables';
+import { WORK_DISPATCH_MODEL, WORK_SCHEDULE_MODEL, readScheduleRow } from '@canlang/work/kernel/tables';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { assembleWorker, buildInvoker, type MutationOutcome } from '@canlang/cloudflare/worker/assembly';
 import { OllamaChatAdapter } from '@canlang/services/models/ollama';
 import { createBoundTextGenerationAdapter } from '@canlang/cloudflare/runtime/bound-text-generation';
 import { createBoundTextGenerationDispatcher } from '@canlang/cloudflare/runtime/bound-dispatch';
 import type { FenceAttemptDispatchFn } from './invoke.js';
+import { createCheckedDeliveryProgressProducer, invokeDueScheduleCanonical } from './invoke.js';
+import { stageTextGenerationProgress } from './text-generation-progress.js';
 
 // This owned local model has exactly 256 byte token IDs. Its chat template is
 // explicit, including role markers; this is not an estimate for any Ollama model.
@@ -130,6 +132,7 @@ test('compiled generation streams controlled provider bytes into granted native 
       workDir: join(dir, 'modules'), stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
       uiUrl: import.meta.resolve('@canlang/ui'),
     });
+    const progressed = await createCheckedDeliveryProgressProducer({ asm, artifact, app: APP });
     const invokerFor = () => buildInvoker(artifact, asm, store, { memberships: identities, now: () => FIXED_NOW,
       selectedReceiptObserver: { observeSelectedReceipt: (input: unknown) =>
         observeSelectedReceipt(input as Parameters<typeof observeSelectedReceipt>[0]) } });
@@ -304,7 +307,7 @@ test('compiled generation streams controlled provider bytes into granted native 
         }
         return committedSet;
       },
-    }, adapter, workCommands: WORK_SYSTEM_COMMANDS, stageCommands: WORK_DISPATCH_STAGE_COMMANDS,
+    }, adapter, progressed, workCommands: WORK_SYSTEM_COMMANDS, stageCommands: WORK_DISPATCH_STAGE_COMMANDS,
       createClaimCommand: createWorkDispatchClaimCommand });
     let dispatcher = await dispatcherFor();
     let dispatchNow = FIXED_NOW;
@@ -364,12 +367,35 @@ test('compiled generation streams controlled provider bytes into granted native 
     assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), originalHistory);
     assert.equal((await store.outboxPending()).length, 0);
     const receiptBeforeReplay = await store.load(asModel(RECEIPT_MODEL), asId(intent.intentId));
+    const originalOccurrences = await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' });
+    assert.equal(originalOccurrences.length, snapshots.length);
+    assert.equal(new Set(originalOccurrences.map(row => row.data['key'])).size, snapshots.length);
+    assert.ok(snapshots.some(run => run['state'] === 'succeeded' && run['used_tokens'] === null));
+    assert.ok(snapshots.some(run => run['state'] === 'succeeded' && run['used_tokens'] !== null));
+    for (const row of originalOccurrences) {
+      const occurrence = readScheduleRow(row);
+      assert.equal(occurrence.state, 'pending');
+      assert.equal(occurrence.key, occurrence.occurrenceId);
+      assert.equal(occurrence.event, `${APP}.LLM.generate.progressed`);
+      assert.deepEqual(occurrence.payload, { delivery_id: intent.intentId });
+    }
+    // The defining receipt stage detects replay before invoking the UUID producer.
+    assert.ok(receiptBeforeReplay);
+    const duplicate = await stageTextGenerationProgress({ intent, context: resultContext,
+      revision: readReceiptRow(receiptBeforeReplay, resultContext).receipt.revision,
+      progress: final as unknown as import('./bound-text-generation.js').TextRunWire,
+      progressed: { producer: progressed, owner: team.team_id } },
+    { actor: user.user_id, now: FIXED_NOW, operation: 'test.generation.duplicate',
+      load: store.load.bind(store), query: store.query.bind(store) });
+    assert.deepEqual(duplicate, { writes: [], result: { notification: null } });
     const replayed = await invoker.invokeMutation(original, identity);
     assert.ok('result' in replayed, JSON.stringify(replayed));
     assert.equal(replayed.result.status, 'replayed');
     assert.equal((await drive(intent.intentId)).status, 'not-pending');
     assert.equal(await adapter.cancel(intent), null);
     assert.equal(provider.requests.length, 1);
+    assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), originalOccurrences);
+
     assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(intent.intentId)), receiptBeforeReplay);
 
     await worker.dispose(); worker = openWorker();
@@ -380,6 +406,35 @@ test('compiled generation streams controlled provider bytes into granted native 
     assert.equal(committed(await visible(2)).result, 'Local answer.');
     assert.equal((await drive(intent.intentId)).status, 'not-pending');
     assert.equal(provider.requests.length, 1);
+
+    assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), originalOccurrences);
+    // Native due entries and their immutable payloads survive reopening. The
+    // measured terminal snapshot remains separately deliverable after terminal.
+    const dueEntries = await store.schedulesDue(FIXED_NOW, 100);
+    assert.equal(dueEntries.length, snapshots.length);
+    const dueInputs = originalOccurrences.map(row => {
+      const occurrence = readScheduleRow(row);
+      assert.ok(dueEntries.some(entry => entry.key.endsWith(`/${occurrence.key}`)));
+      return { key: occurrence.key,
+        scope: { app: APP, owner: team.team_id, ownerPackage: APP }, occurrenceId: occurrence.occurrenceId,
+        event: occurrence.event, at: occurrence.at };
+    });
+    const fire = async (due: typeof dueInputs[number]) => {
+      const answer = await invokeDueScheduleCanonical({ asm, artifact, app: APP,
+        handler: `${APP}.progressed`, due, store, identities, now: () => FIXED_NOW });
+      assert.ok(typeof answer === 'object' && answer !== null && 'status' in answer);
+      return answer as { status: string };
+    };
+    assert.deepEqual(await fire({ ...dueInputs[0]!, scope: { ...dueInputs[0]!.scope, owner: 'wrong-owner' } }),
+      { status: 'refused', reason: 'mismatched' });
+    await assert.rejects(fire({ ...dueInputs[0]!, event: `${APP}.Wrong.generate.progressed` }), /exact private invocation/);
+    for (const due of dueInputs) assert.equal((await fire(due)).status, 'completed');
+    const notices = await store.query({ model: asModel(`${APP}.ProgressNotice`), authority: 'owner' });
+    assert.equal(notices.length, snapshots.length);
+    assert.ok(notices.every(row => row.data['delivery'] === intent.intentId));
+    assert.equal((await fire(dueInputs[0]!)).status, 'replayed');
+    assert.deepEqual(await store.query({ model: asModel(`${APP}.ProgressNotice`), authority: 'owner' }), notices);
+    assert.equal((await store.schedulesDue(FIXED_NOW, 100)).length, 0);
 
     const generate = async (prompt: string, accept = true) => {
       const current = await store.load(MODEL, asId(created.id)); assert.ok(current);

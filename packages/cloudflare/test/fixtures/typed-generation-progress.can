@@ -3,10 +3,14 @@ use std {TextMessage,TextRequest}
 use std {TextGenerationV1 as LLM} from=deployment.llm
 Given
  Job { label:text="Generation", request:delivery(LLM.generate)? }
+ ProgressNotice { delivery:text }
  ## Progress is visible only through the current member grant.
  policy Job read=members fields=label,request.progress.content,request.progress.state,request.progress.sequence,request.progress.used_tokens
  policy Job read=owner fields=request.result
 When
+ ## Every admitted original progress occurrence records its actual delivery id.
+ scenario progressed on=LLM.generate.progressed
+  do create ProgressNotice {delivery=event.delivery_id} as notice
  crud Job by=members fields=label
  scenario visible(job:Job) -> text? by=members
   do return job.request?.progress?.content

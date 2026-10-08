@@ -15,6 +15,7 @@ import {
   loadFenceAdmissionProducer,
   readDispatchExecutionRow,
   runRecoverySweep,
+  type CheckedDeliveryProgressProducer,
   withDispatchJoinPort,
 } from './invoke.js';
 import type {
@@ -62,6 +63,7 @@ export interface BoundMailDispatcher {
 
 export interface BoundTextGenerationDispatcherOptions extends Omit<BoundMailDispatcherOptions, 'adapter'> {
   readonly adapter: BoundTextGenerationAdapter;
+  readonly progressed?: CheckedDeliveryProgressProducer;
 }
 
 /** Both installations use the same defining claim, record, recovery and fence. */
@@ -90,7 +92,8 @@ function sameRetainedTextEvidence(expected: DispatchReconcileEvidence,
 }
 
 async function createInstalledDispatcher(
-  options: BoundMailDispatcherOptions & { readonly textAdapter?: BoundTextGenerationAdapter },
+  options: BoundMailDispatcherOptions & { readonly textAdapter?: BoundTextGenerationAdapter;
+    readonly progressed?: CheckedDeliveryProgressProducer },
 ): Promise<BoundMailDispatcher> {
   const producers = await loadDispatchSystemProducers();
   const pending = new Map<string, OutboxIntent>();
@@ -111,6 +114,7 @@ async function createInstalledDispatcher(
   // The actual call result remains local to its held claim. Work owns all
   // lifecycle admission; this wrapper adds only the receipt writes after it.
   const completions = new Map<string, { intent: OutboxIntent; outcome: DispatchProviderOutcome;
+    owner: string;
     progressCommitted?: boolean; retainedEvidence?: DispatchReconcileEvidence }>();
   const record: SystemCommandDef = {
     name: originalRecord.name,
@@ -145,8 +149,10 @@ async function createInstalledDispatcher(
         ? await stageReceiptProgress({ intent: completion.intent, outcome: selected, revision }, ctx)
         : await stageTextGenerationProgress({ intent: completion.intent,
           context: requireResultContext(completion.intent.intentId), revision,
+          ...(options.progressed === undefined ? {} : { progressed: { producer: options.progressed, owner: completion.owner } }),
           ...(selected.kind === 'delivered' ? { progress: selected.result as TextRunWire } : { outcome: selected }) }, ctx);
-      return { ...staged, writes: [...(staged.writes ?? []), ...(receipt.writes ?? [])] };
+      return { ...staged, writes: [...(staged.writes ?? []), ...(receipt.writes ?? [])],
+        schedules: [...staged.schedules ?? [], ...receipt.schedules ?? []] };
     },
   };
   const requireResultContext = (id: string): ReceiptResultContext => {
@@ -163,10 +169,14 @@ async function createInstalledDispatcher(
       if (claimRow === null) throw new Error('Text progress lost its held claim.');
       const held = readDispatchExecutionRow(claimRow);
       if (held.state !== 'claimed' || held.claimId !== args['claimId']) throw new Error('Text progress needs its current held claim.');
+      const owner = progressOwners.get(`${intent.intentId}\0${held.claimId}`);
+      if (owner === undefined) throw new Error('Text progress lost its admitted owner fence.');
       return stageTextGenerationProgress({ intent, context: requireResultContext(intent.intentId),
+        ...(options.progressed === undefined ? {} : { progressed: { producer: options.progressed, owner } }),
         progress: args['progress'] as TextRunWire, revision: (await options.store.readRevision()) + 1 }, ctx);
     },
   };
+  const progressOwners = new Map<string, string>();
   const registry = producers.createSystemRegistry(assembleDispatchCommands({
     l3Commands: producers.l3Commands,
     workCommands: [...options.workCommands.map(command => command.name === claim.name ? claim
@@ -216,6 +226,9 @@ async function createInstalledDispatcher(
       try {
         const outcome = await driveDispatchIntent({ ...input, registry, store, intent,
           callProvider: async (selected, held) => {
+            const heldKey = `${selected.intentId}\0${held.claimId}`;
+            progressOwners.set(heldKey, input.fence.owner);
+            heldKeys.push(heldKey);
             let committedProgress: TextRunWire | undefined;
             let retainedCommitted = false;
             let retainedEvidence: DispatchReconcileEvidence | undefined;
@@ -247,8 +260,7 @@ async function createInstalledDispatcher(
                 committedProgress = progress;
               } });
             const key = `${selected.intentId}\0${held.claimId}`;
-            heldKeys.push(key);
-            completions.set(key, { intent: selected, outcome: answer,
+            completions.set(key, { intent: selected, outcome: answer, owner: input.fence.owner,
               ...(retainedEvidence === undefined ? {} : { retainedEvidence }),
               progressCommitted: retainedCommitted || answer.kind === 'delivered' &&
                 committedProgress !== undefined && answer.result === committedProgress });
@@ -259,7 +271,7 @@ async function createInstalledDispatcher(
           ? { status: 'unavailable', intentId: intent.intentId, target: intent.target }
           : outcome;
       } finally {
-        for (const key of heldKeys) completions.delete(key);
+        for (const key of heldKeys) { completions.delete(key); progressOwners.delete(key); }
       }
     },
     async recover(input) {
@@ -310,6 +322,9 @@ async function createInstalledDispatcher(
           const outcome = answer.kind === 'delivered'
             ? { kind: 'delivered' as const, result: answer.result }
             : { kind: 'failed' as const, error: { code: answer.code, message: answer.message } };
+          if (options.progressed !== undefined) {
+            throw new Error('New recovered progress needs the original admitted owner fence before occurrence staging.');
+          }
           return (options.textAdapter === undefined
             ? await stageReceiptProgress({ intent, outcome, revision }, context)
             : await stageTextGenerationProgress({ intent, context: requireResultContext(intent.intentId), revision,
