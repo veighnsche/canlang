@@ -4977,13 +4977,35 @@ impl<'a> Emitter<'a> {
                     let IrItemKind::CapabilityOp { params, result } = &op.kind else {
                         continue;
                     };
-                    let inputs = self.emit_params_schema(params);
+                    let inputs = self.emit_params_schema_profile(params, true);
                     let result = match result {
-                        IrType::Known(ty) => self.field_schema(ty, op.span),
+                        IrType::Known(ty) => self.canonical_field_schema(ty, op.span),
                         IrType::Unknown => "{type:\"unknown\"}".to_string(),
                     };
+                    let labels = params
+                        .iter()
+                        .filter_map(|id| {
+                            let param = self.ir.items.get(id.0 as usize)?.clone();
+                            let IrItemKind::Param {
+                                label: Some(label), ..
+                            } = &param.kind
+                            else {
+                                return None;
+                            };
+                            Some(format!(
+                                "{}:{}",
+                                object_key(&param.name),
+                                self.lower_message(label)
+                            ))
+                        })
+                        .collect::<Vec<_>>();
+                    let labels = if labels.is_empty() {
+                        String::new()
+                    } else {
+                        format!(",labels:{{{}}}", labels.join(","))
+                    };
                     entries.push(format!(
-                        "{}:{{inputs:{{{inputs}}},result:{result}}}",
+                        "{}:{{inputs:{{{inputs}}},result:{result}{labels}}}",
                         object_key(&op.name)
                     ));
                 }
@@ -5038,12 +5060,12 @@ impl<'a> Emitter<'a> {
                                     format!(
                                         "{}:{}",
                                         object_key(name),
-                                        self.std_field_schema(ty, *span)
+                                        self.std_capability_field_schema(ty, *span)
                                     )
                                 })
                                 .collect::<Vec<_>>()
                                 .join(",");
-                            let result = self.std_field_schema(op.result, *span);
+                            let result = self.std_capability_field_schema(op.result, *span);
                             format!(
                                 "{}:{{inputs:{{{inputs}}},result:{result}}}",
                                 object_key(op.name)
@@ -5092,6 +5114,19 @@ impl<'a> Emitter<'a> {
     fn std_field_schema(&mut self, declared: &str, span: Span) -> String {
         match std_schema_type(declared) {
             Some(ty) => self.field_schema(&ty, span),
+            None => format!("{{type:{}}}", js_string(declared)),
+        }
+    }
+
+    /// Capability input descriptors enter the owning Values schema facade.
+    /// Shape is carried by its canonical type ID, not legacy metadata flags.
+    fn canonical_field_schema(&mut self, ty: &ResolvedType, span: Span) -> String {
+        format!("{{type:{}}}", js_string(&self.canonical_type_id(ty, span)))
+    }
+
+    fn std_capability_field_schema(&mut self, declared: &str, span: Span) -> String {
+        match std_schema_type(declared) {
+            Some(ty) => self.canonical_field_schema(&ty, span),
             None => format!("{{type:{}}}", js_string(declared)),
         }
     }
@@ -5767,6 +5802,10 @@ impl<'a> Emitter<'a> {
     /// Emit `name:{schema}` entries for scenario/capability parameters,
     /// with labels and literal defaults.
     fn emit_params_schema(&mut self, params: &[crate::analysis::resolve::SymbolId]) -> String {
+        self.emit_params_schema_profile(params, false)
+    }
+
+    fn emit_params_schema_profile(&mut self, params: &[SymbolId], wire: bool) -> String {
         let mut parts = Vec::new();
         for param_id in params {
             // Never direct-index: a dangling row (unreachable from the
@@ -5783,6 +5822,12 @@ impl<'a> Emitter<'a> {
                 // never carry the field-only `!` (GRAMMAR L183), so
                 // their arrays are ordinary (T09).
                 let mut members = match ty {
+                    IrType::Known(resolved) if wire => {
+                        format!(
+                            "type:{}",
+                            js_string(&self.canonical_type_id(resolved, param.span))
+                        )
+                    }
                     IrType::Known(resolved) => {
                         self.field_schema_object(resolved, false, param.span)
                     }
@@ -5790,6 +5835,17 @@ impl<'a> Emitter<'a> {
                 };
                 if let Some(default) = default {
                     match default {
+                        IrDefault::Literal(value) if wire => {
+                            if let Some(value) = wire_literal(value) {
+                                members.push_str(&format!(",default:{}", descriptor_json(&value)));
+                            } else {
+                                self.unsupported(
+                                    "capability parameter default",
+                                    "literal has no owning wire representation",
+                                    param.span,
+                                );
+                            }
+                        }
                         IrDefault::Literal(_) => {
                             members.push_str(&format!(",default:{}", self.lower_default(default)));
                         }
@@ -5802,7 +5858,7 @@ impl<'a> Emitter<'a> {
                         }
                     }
                 }
-                if let Some(label) = label {
+                if !wire && let Some(label) = label {
                     members.push_str(&format!(",label:{}", self.lower_message(label)));
                 }
                 parts.push(format!("{}:{{{members}}}", object_key(&param.name)));
