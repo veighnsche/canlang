@@ -980,6 +980,7 @@ export function buildInvoker(
           store,
           memberships: opts.memberships as CanonicalMembershipReader,
           now: opts.now ?? Date.now,
+          ...(opts.selectedReceiptObserver === undefined ? {} : { observer: opts.selectedReceiptObserver }),
           ...(opts.files === undefined ? {} : { files: opts.files }),
         });
         return { result };
