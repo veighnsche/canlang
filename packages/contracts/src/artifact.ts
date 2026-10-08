@@ -1,5 +1,6 @@
 import type { FieldMachine } from "./state.js";
 import type { CanTypeId } from "./values.js";
+import type { InputChoiceBinding } from "./wire.js";
 
 /**
  * Lane 01-owned compiled-artifact boundary.
@@ -166,6 +167,8 @@ export type ArtifactOperationField =
 
 /** One named operation input (JSON shape of `McpNamedField`). */
 export interface ArtifactOperationInput {
+  /** Checked operation-owned candidate assistance; the referenced read owns result/schema. */
+  choices?: InputChoiceBinding;
   /** Checked computed scenario parameter default; evaluation stays with the generated handler. */
   computedDefault?: true;
   /** Checked source type association; text requires this claim beside the collapsed string tag. */
