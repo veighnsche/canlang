@@ -247,6 +247,8 @@ export interface CanonicalSendStaging {
  * checks and wire-encodes its request, and allocates the occurrence index in
  * evaluation order. `input.source` is the checked capability operation;
  * `ctx.operation` and `input.operationId` are the admitted business origin.
+ * Bound sends carry the Contracts `BoundCapabilityRequest` in `input.request`
+ * so the exact logical binding and deployment route survive persistence.
  *
  * Only readers are accepted. The caller collects these writes/outbox effects
  * alongside domain writes, history and uniques for ONE fenced State commit;

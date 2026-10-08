@@ -13,6 +13,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type {
+  BoundCapabilityRequest,
   ClaimId,
   DispatchClaim,
   OutboxId,
@@ -509,11 +510,16 @@ describe('t24a work.dispatch.stage command', () => {
   it('joins a canonical checked send without committing and returns its native delivery identity', async () => {
     const stored = seed([]);
     const ctx = { ...fakeCtx(stored), operation: 'Acme.notify' };
+    const request: BoundCapabilityRequest = {
+      binding: 'Acme.Mail',
+      from: 'deployment.primaryMail',
+      arguments: { to: 'a@example.com', subject: 'Ready', binding: 'authored input' },
+    };
     const input = {
       operationId: '0193f2c0-0000-7000-8000-000000000001',
       source: 'std.EmailV1.send',
       occurrenceIndex: 2,
-      request: { to: 'a@example.com', subject: 'Ready' },
+      request,
       originOccurrence: null,
     };
     const { effects, delivery } = await stageCanonicalSend(input, ctx);
@@ -521,6 +527,22 @@ describe('t24a work.dispatch.stage command', () => {
     assert.deepEqual(delivery, { kind: 'delivery', id: intent.item.id, operation: input.source });
     assert.ok(Object.isFrozen(delivery));
     assert.equal(stored.size, 0);
+    const firstOutbox = effects.outbox?.[0];
+    assert.ok(firstOutbox);
+    assert.notEqual(firstOutbox.arguments, request);
+    assert.ok(Object.isFrozen(firstOutbox.arguments));
+    assert.ok(Object.isFrozen(firstOutbox.arguments['arguments']));
+    const secondRequest: BoundCapabilityRequest = {
+      ...request, binding: 'Acme.BackupMail', from: 'deployment.backupMail',
+    };
+    const second = await stageCanonicalSend({
+      ...input, occurrenceIndex: 3, request: secondRequest,
+    }, ctx);
+    const secondOutbox = second.effects.outbox?.[0];
+    assert.ok(secondOutbox);
+    assert.equal(secondOutbox.target, input.source);
+    assert.deepEqual(secondOutbox.arguments, secondRequest);
+    assert.notEqual(second.delivery.id, delivery.id);
     assert.deepEqual(effects.outbox, [{
       intentId: delivery.id,
       operation: ctx.operation,

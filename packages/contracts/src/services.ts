@@ -113,6 +113,22 @@ export interface ProviderBinding {
 }
 
 /**
+ * Frozen request for a checked bound send, carried in the existing outbox
+ * record. The outbox source/target supplies the canonical operation identity.
+ * Routing comes from the selected source binding, never authored inputs or
+ * credentials. Dispatch must still verify the installed binding and current
+ * authority; this snapshot grants neither and must not select an alias fallback.
+ */
+export interface BoundCapabilityRequest {
+  /** Exact package-qualified key in the owning appDefinition.bindings. */
+  readonly binding: string;
+  /** Checked deployment route of that binding, e.g. `deployment.mail`. */
+  readonly from: string;
+  /** Only checked, wire-encoded inputs reach the provider operation. */
+  readonly arguments: Readonly<Record<string, unknown>>;
+}
+
+/**
  * Adapter-supported operations, events and transport features. The compiler
  * checks the small declared contract; vendor API breadth stays here.
  */
