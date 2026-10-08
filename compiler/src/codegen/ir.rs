@@ -43,7 +43,8 @@ use crate::analysis::catalog::{Availability, Catalog, Effects, SigType, std_capa
 use crate::analysis::effects::{EffectVerb, PolicyRule};
 use crate::analysis::migrate_check::{self, OwnerModelView};
 use crate::analysis::resolve::{
-    CrudOp, FixtureTarget, ModelOwner, ModuleId, ModuleKind, SymbolId, SymbolKind,
+    CheckedJudgmentKind, CrudOp, FixtureTarget, ModelOwner, ModuleId, ModuleKind, SymbolId,
+    SymbolKind,
 };
 use crate::analysis::types::{ResolvedType, Scalar, SelectedCallTarget};
 use crate::analysis::{CheckedProgram, NodeKey};
@@ -145,6 +146,15 @@ pub struct IrItem {
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub enum IrItemKind {
+    /// One checked static declaration owns all derived Judgment shapes.
+    Judgment {
+        source_language: String,
+        version: i64,
+        questions: Vec<IrJudgmentQuestion>,
+        result_fields: Vec<SymbolId>,
+    },
+    /// Preserve symbol index identity without emitting derived authored schemas.
+    JudgmentGenerated(IrJudgmentGenerated),
     Model {
         fields: Vec<SymbolId>,
         owner: IrOwner,
@@ -982,6 +992,8 @@ impl TypedExpr {
 /// Checked expression shapes with a §13 lowering.
 #[derive(Debug, Clone)]
 pub enum IrExpr {
+    /// Checked static specification asset, resolved by owning declaration.
+    JudgmentSpecification { judgment: String },
     /// Exact integer literal → BigInt (`5n`).
     Int(i128),
     /// Exact decimal literal, canonical source spelling (`"1.50"`).
@@ -1436,6 +1448,55 @@ pub struct IrMessage {
     pub params: Vec<IrMessageParam>,
 }
 
+/// Static Judgment captions retain the ordinary localized message descriptor.
+#[derive(Debug, Clone)]
+pub struct IrJudgmentQuestion {
+    pub name: String,
+    pub kind: IrJudgmentKind,
+    pub instructions: IrMessage,
+    pub yes: Option<IrMessage>,
+    pub no: Option<IrMessage>,
+    pub options: Vec<IrJudgmentOption>,
+    pub levels: Vec<IrJudgmentOption>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IrJudgmentKind {
+    Noul,
+    Choice,
+    Score,
+}
+
+#[derive(Debug, Clone)]
+pub struct IrJudgmentOption {
+    pub id: String,
+    pub description: IrMessage,
+}
+
+/// Checked derived schemas remain distinct from authored emission items.
+#[derive(Debug, Clone)]
+pub enum IrJudgmentGenerated {
+    Contract {
+        fields: Vec<SymbolId>,
+    },
+    Field {
+        owner: SymbolId,
+        ty: IrType,
+        required_array: bool,
+    },
+    CapabilityOp {
+        params: Vec<SymbolId>,
+        result: IrType,
+    },
+    Param {
+        owner: SymbolId,
+        index: usize,
+        ty: IrType,
+    },
+    /// Failing shell after an explicit missing-carrier diagnostic.
+    Unsupported,
+}
+
 #[derive(Debug, Clone)]
 pub struct IrMessageCallParam {
     pub name: String,
@@ -1815,8 +1876,178 @@ impl<'a> Cx<'a> {
     }
 
     /// Decode one symbol's item kind plus its PR5 payload.
+    fn decode_judgment_generated(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+    ) -> IrJudgmentGenerated {
+        match &symbol.kind {
+            SymbolKind::Contract { fields } => IrJudgmentGenerated::Contract {
+                fields: fields.clone(),
+            },
+            SymbolKind::Field { owner, .. } => IrJudgmentGenerated::Field {
+                owner: *owner,
+                ty: lookup_symbol_type(
+                    self.program,
+                    symbol,
+                    "generated field type",
+                    &mut self.diags,
+                ),
+                required_array: self
+                    .program
+                    .types
+                    .judgment_required_arrays
+                    .contains(&symbol.id),
+            },
+            SymbolKind::CapabilityOp { params, .. } => {
+                let result = match self.program.types.symbol_results.get(&symbol.id) {
+                    Some(Some(ty)) => IrType::Known(ty.clone()),
+                    _ => {
+                        self.gap(
+                            format!(
+                                "judgment operation {}: checked generated result type is missing",
+                                symbol.canonical
+                            ),
+                            symbol.span,
+                        );
+                        IrType::Unknown
+                    }
+                };
+                IrJudgmentGenerated::CapabilityOp {
+                    params: params.clone(),
+                    result,
+                }
+            }
+            SymbolKind::Param { owner, index, .. } => IrJudgmentGenerated::Param {
+                owner: *owner,
+                index: *index,
+                ty: lookup_symbol_type(
+                    self.program,
+                    symbol,
+                    "generated parameter type",
+                    &mut self.diags,
+                ),
+            },
+            _ => {
+                self.gap(
+                    format!(
+                        "judgment generated symbol {}: checked kind has no derived schema carrier",
+                        symbol.canonical
+                    ),
+                    symbol.span,
+                );
+                IrJudgmentGenerated::Unsupported
+            }
+        }
+    }
+
+    /// Decode one symbol's item kind plus its PR5 payload.
     #[allow(clippy::too_many_lines)]
     fn build_item_kind(&mut self, symbol: &crate::analysis::resolve::Symbol) -> IrItemKind {
+        if let Some(judgment) = self.program.types.judgments.get(&symbol.id).cloned() {
+            let Some(source_language) = self
+                .program
+                .effects
+                .modules
+                .get(&symbol.module)
+                .map(|module| module.source_lang.clone())
+            else {
+                self.gap(
+                    format!(
+                        "judgment {}: checked owning module source language is missing",
+                        symbol.canonical
+                    ),
+                    symbol.span,
+                );
+                return IrItemKind::JudgmentGenerated(self.decode_judgment_generated(symbol));
+            };
+            let mut questions = Vec::with_capacity(judgment.questions.len());
+            for question in judgment.questions {
+                let Some(instructions) =
+                    self.decode_message_value(symbol.module, &question.instructions)
+                else {
+                    self.gap(
+                        format!(
+                            "judgment {}: checked instructions have no static message descriptor",
+                            symbol.canonical
+                        ),
+                        symbol.span,
+                    );
+                    continue;
+                };
+                let yes = question
+                    .yes
+                    .as_ref()
+                    .and_then(|key| self.decode_message_value(symbol.module, key));
+                let no = question
+                    .no
+                    .as_ref()
+                    .and_then(|key| self.decode_message_value(symbol.module, key));
+                if yes.is_some() != question.yes.is_some() || no.is_some() != question.no.is_some()
+                {
+                    self.gap(
+                        format!(
+                            "judgment {}: checked NOUL criterion has no static message descriptor",
+                            symbol.canonical
+                        ),
+                        symbol.span,
+                    );
+                }
+                let mut decode_options = |options: Vec<
+                    crate::analysis::resolve::CheckedJudgmentOption,
+                >| {
+                    options.into_iter().filter_map(|option| {
+                        match self.decode_message_value(symbol.module, &option.description) {
+                            Some(description) => Some(IrJudgmentOption { id: option.id, description }),
+                            None => {
+                                self.gap(format!("judgment {}: checked option has no static message descriptor", symbol.canonical), symbol.span);
+                                None
+                            }
+                        }
+                    }).collect()
+                };
+                let options = decode_options(question.options);
+                let levels = decode_options(question.levels);
+                questions.push(IrJudgmentQuestion {
+                    name: question.name,
+                    kind: match question.kind {
+                        CheckedJudgmentKind::Noul => IrJudgmentKind::Noul,
+                        CheckedJudgmentKind::Choice => IrJudgmentKind::Choice,
+                        CheckedJudgmentKind::Score => IrJudgmentKind::Score,
+                    },
+                    instructions,
+                    yes,
+                    no,
+                    options,
+                    levels,
+                });
+            }
+            return IrItemKind::Judgment {
+                source_language,
+                version: judgment.version,
+                questions,
+                result_fields: match &symbol.kind {
+                    SymbolKind::Contract { fields } => fields.clone(),
+                    _ => {
+                        self.gap(
+                            format!(
+                                "judgment {}: checked result owner is not a contract",
+                                symbol.canonical
+                            ),
+                            symbol.span,
+                        );
+                        Vec::new()
+                    }
+                },
+            };
+        }
+        if self
+            .program
+            .types
+            .judgment_generated_symbols
+            .contains(&symbol.id)
+        {
+            return IrItemKind::JudgmentGenerated(self.decode_judgment_generated(symbol));
+        }
         match &symbol.kind {
             SymbolKind::Model {
                 fields,
@@ -2352,6 +2583,20 @@ impl<'a> Cx<'a> {
     fn decode_expr(&mut self, scope: &Scope, node: &SyntaxNode) -> TypedExpr {
         let span = node.span;
         let mut ty = self.node_type(node);
+        if let Some(judgment) = self
+            .program
+            .types
+            .judgment_specifications
+            .get(&NodeKey::of(node))
+        {
+            return TypedExpr::new(
+                IrExpr::JudgmentSpecification {
+                    judgment: self.canonical(*judgment),
+                },
+                ty,
+                span,
+            );
+        }
         // Scope-bound names (query aliases, sequence bindings, test
         // accounts) carry their type when no table anchors the node.
         // The lookup follows the alias rewrite, so a rewritten alias
@@ -3967,6 +4212,7 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
             | IrExpr::Date(_)
             | IrExpr::Datetime(_)
             | IrExpr::Name(_)
+            | IrExpr::JudgmentSpecification { .. }
             | IrExpr::Unsupported { .. } => {}
         }
     }
@@ -9834,6 +10080,7 @@ fn collect_s_refs(expr: &IrExpr, out: &mut Vec<String>) {
         | IrExpr::Date(_)
         | IrExpr::Datetime(_)
         | IrExpr::Name(_)
+        | IrExpr::JudgmentSpecification { .. }
         | IrExpr::Unsupported { .. } => {}
     }
 }

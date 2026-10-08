@@ -331,6 +331,7 @@ fn artifact_carries_migration_registry() {
         callables: Vec::new(),
         pages: Vec::new(),
         operations: Vec::new(),
+        value_types: None,
         stdlib_imports: BTreeSet::new(),
         ui_imports: BTreeSet::new(),
     };
