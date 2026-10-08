@@ -16,6 +16,10 @@ Then
   form Entry.create display=inline submit="Add entry"
    input label
    input count
+  ## Same-operation occurrences keep independent field identities, drafts and nonces.
+  form Entry.create display=inline submit="Add another entry"
+   input label
+   input count
   list Entry empty="No entries"
    text row.label
    form rename arguments={entry=row} fields=newLabel,delta display=inline submit="Save changes"
