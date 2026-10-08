@@ -21,7 +21,7 @@ When
    let normalized=trim(value)
    set profile {name=normalized}
    require [profile.name]==[normalized]
-   require profile.name!=""
+   require profile.name>""
    return profile.name
  scenario active(profile:Profile) -> bool by=members
   do return profile.enabled
