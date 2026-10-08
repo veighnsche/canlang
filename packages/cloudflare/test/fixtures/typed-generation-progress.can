@@ -26,3 +26,30 @@ When
    set job {request=attempt}
    require accept
 Then
+ page / title="Generation progress" poll=1s
+  require members
+  ## Each leaf is observed through the current member grant and association.
+  list Job empty="No generation jobs"
+   text row.label
+   alert
+    require row.request?.progress?.state==null
+    text "Awaiting generation"
+   alert
+    require row.request?.progress?.state==queued
+    text "Queued"
+   alert
+    require row.request?.progress?.state==running
+    text "Running"
+   alert
+    require row.request?.progress?.state==succeeded
+    text "Succeeded"
+   alert
+    require row.request?.progress?.state==failed
+    text "Failed"
+   alert
+    require row.request?.progress?.state==unknown
+    text "Unknown"
+   alert
+    require row.request?.progress?.state==cancelled
+    text "Cancelled"
+   text (row.request?.progress?.content ?? "")

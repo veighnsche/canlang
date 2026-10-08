@@ -28,6 +28,7 @@ import type {
   NavigationResult,
   PageDescriptor,
   PageSourceContext,
+  PageReadScope,
   ResolvedIdentity,
   RowQueryRunner,
   ShellData,
@@ -71,16 +72,16 @@ function renderThrowResponse(deps: PageHttpDeps, err: unknown, path: string): Re
 }
 
 /** Keep the resolved request identity authoritative over renderer-supplied values. */
-function bindRowQueryRunner(deps: PageHttpDeps, identity: ResolvedIdentity): RowQueryRunner {
+function bindRowQueryRunner(deps: PageHttpDeps, identity: ResolvedIdentity, query = deps.query): RowQueryRunner {
   return async (_invocation: unknown, model: string, args: ListQueryArgs) => {
     const limit = args.limit ?? COLLECTION_DEFAULT_LIMIT;
     if (!Number.isInteger(limit) || limit < 1 || limit > COLLECTION_MAX_LIMIT) {
       throw buildBusinessError('validation', 'Invalid collection limit.');
     }
-    if (deps.query === undefined) {
+    if (query === undefined) {
       throw buildBusinessError('validation', 'Authorized page queries are not configured.');
     }
-    return deps.query(identity, model, { ...args, limit });
+    return query(identity, model, { ...args, limit });
   };
 }
 
@@ -264,7 +265,13 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
   }
 
   const partial = isPartialRequest(request);
-  const query = bindRowQueryRunner(deps, identity);
+  let scope: PageReadScope | undefined;
+  try {
+    scope = await deps.createReadScope?.(identity);
+  } catch (err) {
+    return internalResponse(deps, err, pathname);
+  }
+  const query = bindRowQueryRunner(deps, identity, scope?.query ?? deps.query);
   if (partial) {
     const context = buildPresentationContext({
       request,
@@ -275,6 +282,7 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
       principal: identity,
       source,
       query,
+      ...(scope?.observeDelivery === undefined ? {} : { observeDelivery: scope.observeDelivery }),
       ...(deps.catalog === undefined ? {} : { catalog: deps.catalog }),
       ...(deps.formBindings === undefined ? {} : { formBindings: deps.formBindings }),
       appId: deps.app.appId, sessionToken,
@@ -335,6 +343,7 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
     principal: identity,
     source,
     query,
+    ...(scope?.observeDelivery === undefined ? {} : { observeDelivery: scope.observeDelivery }),
     ...(deps.catalog === undefined ? {} : { catalog: deps.catalog }),
     ...(deps.formBindings === undefined ? {} : { formBindings: deps.formBindings }),
     appId: deps.app.appId, sessionToken,

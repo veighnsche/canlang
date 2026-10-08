@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T11:58:20.116243+00:00",
+  "updated_utc": "2026-10-08T12:32:10.112106+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1846,6 +1846,14 @@
         "owner_status": "Compiler54/67; separate from root48",
         "credit": "No API retirement/deletion or replacement reduction",
         "checks": "Existing accepted family coverage reused; no new checks/review layer"
+      },
+      "queued_finite_dispositions": {
+        "FAIL-R06": "960f0665 original finite qualification complete; actual used-result1/1 and unchanged accepted width/field controls reused",
+        "S9-Q06": "Original coherent source/catalog preconditions complete at owning accepted checked-cohort scope",
+        "ARCH-01": "Original defer-architecture disposition satisfied by existing repetition/cohort/session outcomes; broader cache/API/cross-file/reclamation remains proposed",
+        "progress_manifest_null_precedence": "4c72cc6d real checked TextGeneration/Images progressed private event admission+nullable comparison precedence; source/Node1/1 and original preserved controls. Work runtime consumer remains separate",
+        "membership_leaf": "COMPILER-JOIN-MEMBERSHIP-ORDER673 superseded by resolved676/DECISIONS1748, per owning Coordinator",
+        "owner_count": "Compiler57/67 distinct from root20/48; no repeated review/tests or broadened parent credit"
       }
     },
     "computed_default_omission": {
@@ -1953,6 +1961,50 @@
         "counts_unchanged": true,
         "commit": "be09f524"
       }
+    },
+    "retained_original_delivery_lookup": {
+      "status": "Selected Task22 original correlation; current source inventory complete, Coordinator ACKed exact lease; finite storage placement advice awaits scoped human egress approval after automatic approval review rejection",
+      "source_base": "b2e7d419",
+      "source_scope": [
+        "packages/contracts/src/state.ts",
+        "packages/state/src/storage/memory.ts",
+        "packages/state/src/storage/d1.ts",
+        "packages/state/src/storage/durable-object.ts",
+        "needed host parity tests and minimal Cloudflare StoragePort forwarding hunks"
+      ],
+      "required_outcome": "Find exact original pending or ACKed/dispatched bound generate request by target, checked binding, from and frozen business source/revision; return unique, absent or ambiguous. No latest selection, arbitrary cutoff or new lifecycle table. Locator never grants authority; current account is not historical account continuity.",
+      "ownership": "Coordinator says proceed now; Roadmap page read-scope observer occupies separate invoke.ts hunks. No shared output/index reservation held.",
+      "consultation": "/private/tmp/canlang-repair-go-20261007/retained-outbox-placement/request-{1,2,3}.json; 9721 bytes architecture facts only; no calls executed",
+      "models": "Sol low factual inventory; implementation selection waits finite contract. No new goals/timers or recursive proof packets.",
+      "counts_unchanged": true
+    },
+    "durable_progress_notification": {
+      "status": "Selected Task21 producer investigation; owning Compiler dependency handed via Coordinator before Work source writes",
+      "facts": "Existing schedule put stages immutable payload+lineage+ScheduleOp inside owner fence; invokeDueScheduleCanonical supplies current checked handler/private event admission/owner/terminal receipt. No generic event producer exists. Current completed-only compiler lifecycle check rejects progressed E3010; saved draft mjs are projections, not compiled evidence.",
+      "required_outcome": "Per-new-progress data-minimized delivery_id event in same receipt fence; exact snapshot replay no event, terminal-once distinct, late new measurement deliverable. Actual checked source handler and trusted concrete WorkScope must be released before producer integration.",
+      "consumer": "Roadmap Task21 private compiled handler runner; Task25 source view preparation independent",
+      "models": "Sol low read-only primitive/emitted-metadata inventories; eventual authority/fence join requires Sol high",
+      "counts_unchanged": true
+    },
+    "source_progress_page_consumer": {
+      "status": "Root directly reviewed released Task25 page observer/source consumer; scoped commit ready",
+      "sources": [
+        "packages/contracts/src/presentation.ts",
+        "packages/interfaces/src/ports.ts",
+        "packages/interfaces/src/http/presentation.ts",
+        "packages/interfaces/src/http/pages.ts",
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/src/worker/assembly.ts",
+        "packages/cloudflare/src/runtime/typed-generation-progress.test.ts",
+        "packages/cloudflare/test/fixtures/typed-generation-progress.can",
+        "packages/cloudflare/test/fixtures/typed-generation-progress.json"
+      ],
+      "contract": "One request scope uses the actual admitted query id/version/model and current defining Receipt.read grants; selected source values decode native through checked declaration. Shared readonly checkpoint refuses mixed receipt snapshots; full and HX render contexts reuse original identity and observer. No arbitrary locator discovery or second authorization engine.",
+      "verification": "Real fixture compile0 with Compiler4c72cc6d; unchanged final Contracts/Interfaces/CF emits0 reused. Changed existing native Generation case1/1 in23.18s: actual source page/session/D1 absent, queued/running/succeeded, failed/unknown/cancel, old/current replacement, reopen, outsider/revoked403 and private-content absence. Root exact source diff review; no repeated check or proof packet.",
+      "limits": "Controlled localhost Ollama protocol/local tokenizer, nativeD1 and explicit memory identity; no browser DOM/polling session, actual GPU/account, Images/gallery/fullTask25/Task21/root48 or installed/native preparation/release acceptance. Capability addition, not replacement production reduction.",
+      "models": "Owning Roadmap consumer; root finite direct source/Git review reuses actual evidence",
+      "sources_outputs_handles_released": true,
+      "counts_unchanged": true
     }
   },
   "live_finite_packets": [
@@ -2702,7 +2754,7 @@
       "counts_unchanged": true,
       "commit": "3a46ee0eba7b0f5943b5f38433b5be32e6a6d0d3",
       "actual_runtime_consumer": {
-        "status": "Root source-reviewed and accepted selected generated/local-protocol/nativeD1 consumer after concrete lifecycle repairs; commit pending",
+        "status": "Root reviewed and committedb2e7d419 selected generated/local-protocol/nativeD1 consumer",
         "owner": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
         "sources": [
           "packages/cloudflare/src/runtime/bound-text-generation.ts",
@@ -2741,7 +2793,8 @@
           "packages/cloudflare/test/fixtures/typed-generation-progress.can",
           "packages/cloudflare/test/fixtures/typed-generation-progress.json"
         ],
-        "next_retained_correlation": "Roadmap requested exact retained original outbox lookup by checked target/binding/deployment/business source/revision across pending+acknowledged, explicit absent/ambiguous; current API lacks it. Readiness/source ownership refresh required before dispatch; account continuity remains separate."
+        "next_retained_correlation": "Roadmap requested exact retained original outbox lookup by checked target/binding/deployment/business source/revision across pending+acknowledged, explicit absent/ambiguous; current API lacks it. Readiness/source ownership refresh required before dispatch; account continuity remains separate.",
+        "commit": "b2e7d419"
       }
     }
   }

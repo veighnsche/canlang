@@ -49,11 +49,14 @@ import type {
   CanTypeId,
   CanValue,
   CanonicalModelDescriptor,
+  CanonicalNominalResult,
   ClaimId,
   CompileArtifact,
   ColumnMeta,
   ListQueryArgs,
   ListQueryResult,
+  PageDeliveryObserver,
+  PageReadScope,
   QueryPredicate,
   DispatchClaim,
   DomainWrite,
@@ -3306,23 +3309,10 @@ async function runScenarioSeam(
           throw new StateError('forbidden', 'Delivery observation is not authorized.');
         }
         if (observed.outcome !== 'observed') return null;
-        const projection: Partial<Record<ReceiptProperty, unknown>> = { ...observed.projection };
         const declaration = opts.artifact.models?.find(model => model.name === binding.model)?.fields
           .find(field => field.name === locator.field)?.field;
-        if (declaration?.kind === 'delivery' && declaration.result !== undefined) {
-          const whole = projection['result'];
-          if (declaration.result.name === 'TextRun' && isUnknownRecord(whole)) {
-            const native: Record<string, unknown> = {};
-            for (const leaf of declaration.result.fields) native[leaf.name] = decodeValue(leaf.type, whole[leaf.name]);
-            projection['result'] = native;
-          }
-          for (const property of selected) {
-            if (!property.startsWith('result.') || projection[property] === null) continue;
-            const leaf = declaration.result.fields.find(field => `result.${field.name}` === property);
-            if (leaf !== undefined) projection[property] = decodeValue(leaf.type, projection[property]);
-          }
-        }
-        return projection;
+        return sourceReceiptProjection(observed.projection, selected,
+          declaration?.kind === 'delivery' ? declaration.result : undefined);
       } catch (error) {
         recordEngineFailure(error);
         throw error;
@@ -4603,6 +4593,97 @@ export async function queryPageRowsCanonical(
     rows: served.records.map(record => ({ id: record.id, version: String(record.version), fields: record.data })),
     columns: (loaded.collectionColumns.get(opts.model) ?? []).filter(column => visible.has(column.field)),
   };
+}
+
+/** Decode only the selected, authorized receipt values for generated Can expressions. */
+function sourceReceiptProjection(
+  served: SelectedReceiptProjection,
+  selected: readonly ReceiptProperty[],
+  result: CanonicalNominalResult | undefined,
+): Partial<Record<ReceiptProperty, unknown>> {
+  const projection: Partial<Record<ReceiptProperty, unknown>> = { ...served };
+  if (result === undefined) return projection;
+  const whole = projection['result'];
+  if (result.name === 'TextRun' && isUnknownRecord(whole)) {
+    const native: Record<string, unknown> = {};
+    for (const leaf of result.fields) native[leaf.name] = decodeValue(leaf.type, whole[leaf.name]);
+    projection['result'] = native;
+  }
+  for (const property of selected) {
+    if (!property.startsWith('result.') || projection[property] === null) continue;
+    const leaf = result.fields.find(field => `result.${field.name}` === property);
+    if (leaf !== undefined) projection[property] = decodeValue(leaf.type, projection[property]);
+  }
+  return projection;
+}
+
+/** One page render observes only its admitted rows at one readonly checkpoint. */
+export function createPageReadScopeCanonical(
+  opts: Omit<CanonicalReadOpts, 'operation' | 'inputs' | 'selection'>,
+): PageReadScope {
+  const bindings = new Map<string, Set<string>>();
+  let revision: number | undefined;
+  const key = (id: string, version: string): string => JSON.stringify([id, version]);
+  const checkpoint = async (): Promise<number> => {
+    const current = await opts.store.readRevision();
+    if (revision === undefined) revision = current;
+    if (current !== revision) {
+      const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+      throw new loaded.producers.errors('conflict', 'Page data changed during rendering; refresh the page.');
+    }
+    return current;
+  };
+  return Object.freeze({
+    query: async (_invocation: unknown, model: string, args: ListQueryArgs): Promise<ListQueryResult> => {
+      await checkpoint();
+      const result = await queryPageRowsCanonical({ ...opts, model, args });
+      await checkpoint();
+      for (const row of result.rows) {
+        const locator = key(row.id, String(row.version));
+        const models = bindings.get(locator) ?? new Set<string>();
+        models.add(model);
+        bindings.set(locator, models);
+      }
+      return result;
+    },
+    observeDelivery: async (locator: Parameters<PageDeliveryObserver>[0], selected: Parameters<PageDeliveryObserver>[1]) => {
+      const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+      const StateError = loaded.producers.errors;
+      if (!isUnknownRecord(locator.record)) {
+        throw new StateError('validation', 'Delivery observation needs a page query record.');
+      }
+      const id = readMetadataMember(locator.record, 'id', 'Page delivery locator')?.value;
+      const version = readMetadataMember(locator.record, 'version', 'Page delivery locator')?.value;
+      const models = typeof id === 'string' && (typeof version === 'string' || typeof version === 'bigint')
+        ? bindings.get(key(id, String(version))) : undefined;
+      if (models?.size !== 1 || typeof id !== 'string') {
+        throw new StateError('validation', 'Delivery observation needs an unambiguous page query record.');
+      }
+      const model = [...models][0]!;
+      const fence: SelectedReceiptFence = {
+        revision: await checkpoint(),
+        enroll: dependency => {
+          if (dependency.model === model && dependency.id === id && String(dependency.version) !== String(version)) {
+            throw new StateError('conflict', 'Page record changed during rendering; refresh the page.');
+          }
+        },
+      };
+      const observed = await invokeSelectedReceiptRead({
+        ...opts, operation: RECEIPT_READ_OPERATION,
+        inputs: { recordId: id, field: locator.field, selected: [...selected] },
+        boundModel: model, fence,
+      });
+      await checkpoint();
+      if (observed.outcome === 'denied') {
+        throw new StateError('forbidden', 'Delivery observation is not authorized.');
+      }
+      if (observed.outcome !== 'observed') return null;
+      const declaration = opts.artifact.models?.find(entry => entry.name === model)?.fields
+        .find(field => field.name === locator.field)?.field;
+      return sourceReceiptProjection(observed.projection, selected,
+        declaration?.kind === 'delivery' ? declaration.result : undefined);
+    },
+  });
 }
 
 /* ------------------------------------------------------------------ */

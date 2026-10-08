@@ -91,6 +91,7 @@ import type {
   MutationEnvelope,
   MutationResult,
   PageDescriptor,
+  PageReadScope,
   ReadEnvelope,
   ReadResult,
   ResolvedIdentity,
@@ -407,6 +408,7 @@ export interface PageHttpDeps {
   readonly clock: InterfacesClock;
   readonly identity: { readonly store: unknown };
   readonly query: RowQueryRunner;
+  readonly createReadScope?: (identity: ResolvedIdentity) => PageReadScope | Promise<PageReadScope>;
 }
 export type HttpPageHandlerFactory = (deps: PageHttpDeps) => (request: Request) => Promise<Response>;
 
@@ -1694,12 +1696,20 @@ export async function assembleWorker(
     const queryRows = await loadSiblingFn<
       typeof import("../runtime/invoke.js").queryPageRowsCanonical
     >("../runtime/invoke.js", "runtime/invoke.ts", "queryPageRowsCanonical");
+    const createReadScope = await loadSiblingFn<
+      typeof import("../runtime/invoke.js").createPageReadScopeCanonical
+    >("../runtime/invoke.js", "runtime/invoke.ts", "createPageReadScopeCanonical");
     pageHandler = deps.http.createPageHandler({
       ...(deps.http.formBindings === undefined ? {} : { formBindings: deps.http.formBindings }),
       app: appInfo, pages: { descriptors: () => descriptors },
       catalog: createArtifactCatalog(artifact, deps.http.derivedInputs),
       logger: httpLogger,
       clock: { nowMs: now }, identity: { store: deps.identityStore },
+      createReadScope: identity => createReadScope({
+        asm, artifact, identity, store: deps.store,
+        memberships: deps.identityStore as CanonicalMembershipReader, now,
+        ...(deps.selectedReceiptObserver === undefined ? {} : { observer: deps.selectedReceiptObserver }),
+      }),
       query: async (invocation, model, args) => {
         return queryRows({ asm, artifact, model, args, identity: invocation as ResolvedIdentity,
           store: deps.store, memberships: deps.identityStore as CanonicalMembershipReader });
