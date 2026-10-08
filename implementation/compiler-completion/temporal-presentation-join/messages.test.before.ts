@@ -245,42 +245,6 @@ describe("formatMessage select/number/date/money", () => {
     );
   });
 
-  it("preserves full civil years for date and datetime operands", () => {
-    for (const [day, expected] of [
-      ["0001-01-01", "Jan 1, 1"],
-      ["0099-01-01", "Jan 1, 99"],
-      ["0100-01-01", "Jan 1, 100"],
-      ["2001-01-01", "Jan 1, 2001"],
-      ["0004-02-29", "Feb 29, 4"],
-      ["2000-02-29", "Feb 29, 2000"],
-      ["9999-12-31", "Dec 31, 9999"],
-    ]) {
-      for (const type of ["date", "datetime"]) {
-        const value = type === "date" ? day : `${day}T00:00:00.000Z`;
-        assert.equal(formatMessage("{x,date}", {
-          locale: "en", timeZone: "UTC", args: { x: { type, value } },
-        }), expected);
-      }
-    }
-  });
-
-  it("rejects zero years and calendar rollover at the existing operand boundary", () => {
-    for (const day of [
-      "0000-01-01", "0099-02-29", "1900-02-29", "0004-02-30",
-      "2000-02-30", "2024-04-31", "2024-00-01", "2024-13-01",
-      "2024-01-00", "2024-01-32", "10000-01-01", "001-01-01",
-    ]) {
-      for (const type of ["date", "datetime"]) {
-        const value = type === "date" ? day : `${day}T00:00:00.000Z`;
-        assert.throws(() => formatMessage("{x,date}", {
-          locale: "en", timeZone: "UTC", args: { x: { type, value } },
-        }), { name: "TypeError", message: type === "date"
-          ? 'message argument "x": type date needs a valid YYYY-MM-DD civil date'
-          : 'message argument "x": type datetime needs a canonical RFC3339 UTC instant' });
-      }
-    }
-  });
-
   it("keeps quoted '#' literal inside plurals", () => {
     assert.equal(
       formatMessage("{n, plural, other {'#'}}", { locale: "en", args: { n: { type: "int", value: 5 } } }),

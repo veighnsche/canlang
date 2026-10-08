@@ -1,0 +1,1 @@
+Existing 26 UI test bodies and all 66 original assertion call sites preserved byte-for-byte; two new tests add two static assertion sites and execute 38 cases (14 valid + 24 invalid).

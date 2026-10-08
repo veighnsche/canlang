@@ -1,0 +1,38 @@
+{
+  "/Users/vince/Projects/canlang/compiler/src/codegen/js.rs": {
+    "sha256": "ce804121e2ff1bbb1158eb0953ec86ca5fcf0aba873b7c3be21eeb351c12c970",
+    "matches_page_run_pin": true
+  },
+  "/Users/vince/Projects/canlang/packages/ui/src/messages.ts": {
+    "sha256": "d731b8a2b2cd57d03be0a8f3b12c55e48cdcac498eb167b5f2a0707e360eeac5",
+    "matches_page_run_pin": true
+  },
+  "/Users/vince/Projects/canlang/packages/ui/test/messages.test.ts": {
+    "sha256": "faba4a5a1749c2553bd0608a88ec275284f37fd66151ecac0cce5bea995c89f1",
+    "matches_page_run_pin": false
+  },
+  "/Users/vince/Projects/canlang/packages/stdlib/src/index.ts": {
+    "sha256": "0e64d8717b37680fb8fa02c432e7146d793ec90a47d788e3aa8393637171761a",
+    "matches_page_run_pin": true
+  },
+  "/Users/vince/Projects/canlang/packages/values/src/wire.ts": {
+    "sha256": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+    "matches_page_run_pin": true
+  },
+  "/Users/vince/Projects/canlang/packages/values/src/internal/wire-core.ts": {
+    "sha256": "9b0a8abc935d43f657246897128ae163ab895ac456c8f9efb8d18b322c4dc9ea",
+    "matches_page_run_pin": true
+  },
+  "/Users/vince/Projects/canlang/packages/values/src/icu.ts": {
+    "sha256": "07a1cfc94cf0a0a338cf1a7307648db211479a9da0a3b4cae7d5d99030a9b70e",
+    "matches_page_run_pin": true
+  },
+  "/Users/vince/Projects/canlang/packages/contracts/src/presentation.ts": {
+    "sha256": "8c0a790f53f463e0097443f941994a0a0b3fa450e7393fd7fa4e344e5258a507",
+    "matches_page_run_pin": true
+  },
+  "/Users/vince/Projects/canlang/packages/ui/package.json": {
+    "sha256": "5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4",
+    "matches_page_run_pin": true
+  }
+}

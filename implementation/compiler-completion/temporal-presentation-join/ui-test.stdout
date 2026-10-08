@@ -1,0 +1,48 @@
+▶ normalizeTag
+  ✔ canonicalizes tags (0.253583ms)
+  ✔ rejects invalid tags (0.159042ms)
+✔ normalizeTag (0.798084ms)
+▶ message factory
+  ✔ builds descriptors with variants (0.304208ms)
+  ✔ rejects duplicate canonical tags and bad values (0.0755ms)
+  ✔ accepts explicit null for absent translations (0.039292ms)
+✔ message factory (0.503417ms)
+▶ resolveMessage
+  ✔ applies RFC 4647 lookup over preferences (0.331583ms)
+  ✔ prefers longer compatible matches and falls back to app default (0.083833ms)
+  ✔ skips null variants and ends at the source locale (0.054792ms)
+✔ resolveMessage (0.561375ms)
+▶ formatMessage plurals
+  ✔ formats the TeamTasks task count in en and nl (8.261458ms)
+  ✔ matches exact numeric cases before CLDR categories (0.244792ms)
+  ✔ keeps 64-bit ints exact, including French 0/1 and large magnitudes (0.447458ms)
+  ✔ formats Arabic categories via Intl rules (0.275ms)
+  ✔ rejects offsets, duplicate branches and missing other (0.092834ms)
+✔ formatMessage plurals (9.416042ms)
+▶ formatMessage select/number/date/money
+  ✔ selects text/bool/enum cases with other fallback (0.093084ms)
+  ✔ accepts canonical qualified enum identities and rejects mistyped values (0.1015ms)
+  ✔ formats numbers with locale grouping and integer style (0.096ms)
+  ✔ formats dates without day shifts and datetimes in the team zone (2.296375ms)
+  ✔ rejects rolled-over datetimes and out-of-range times (0.1785ms)
+  ✔ preserves full civil years for date and datetime operands (0.489375ms)
+  ✔ rejects zero years and calendar rollover at the existing operand boundary (0.294666ms)
+  ✔ keeps quoted '#' literal inside plurals (0.070084ms)
+  ✔ uses locale grouping and digits for exact values (1.345167ms)
+  ✔ formats money exactly with explicit scales and fails closed without them (0.210791ms)
+  ✔ rejects lossy and mistyped arguments (0.075833ms)
+  ✔ handles quoting and nested selects (0.045417ms)
+✔ formatMessage select/number/date/money (5.43525ms)
+▶ renderer helpers
+  ✔ resolveCaption keeps strings verbatim and formats descriptors with scales (0.123125ms)
+  ✔ formatScalar renders typed scalars with locale and scales (0.083541ms)
+  ✔ isEnumTypeId accepts enum spellings and rejects scalars (0.03075ms)
+✔ renderer helpers (0.278709ms)
+ℹ tests 28
+ℹ suites 6
+ℹ pass 28
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 65.66175

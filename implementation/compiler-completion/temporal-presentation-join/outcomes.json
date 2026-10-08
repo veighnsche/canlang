@@ -1,0 +1,370 @@
+{
+  "scope": "unchanged emitted page export -> public UI factory with supported CaptionContext only; no canonical request/context, browser or timezone propagation claim",
+  "captionContext": {
+    "preferredLocales": [],
+    "appDefaultLocale": "en"
+  },
+  "observations": [
+    {
+      "id": "date0001",
+      "type": "date",
+      "sourcePath": "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-presentation-join/date0001.can",
+      "sourceHash": "6bea465bbaed7e69712d4c75125fa92139c245e89b5899a12ab356848b1d71df",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-presentation-join/date0001.can"
+      ],
+      "exit": 0,
+      "expected": "Jan 1, 1",
+      "artifactHash": "13e40bce10fac9233f6e4eb2aa4ef4ce69360218df28f16e5fc8e4a753fe93c9",
+      "actualExport": {
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f",
+        "exactIdentity": true
+      },
+      "admit": {},
+      "generatedRender": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "date0099",
+      "type": "date",
+      "sourcePath": "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-presentation-join/date0099.can",
+      "sourceHash": "b251d261f7a38e39e8cad27f149002bc6bd4a26567a5ecb2bf5339f391f74ddb",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-presentation-join/date0099.can"
+      ],
+      "exit": 0,
+      "expected": "Jan 1, 99",
+      "artifactHash": "07212ce21be11f9e5b618691b963f6cdce9699bb6269752ee3fd7d991f77e1a4",
+      "actualExport": {
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f",
+        "exactIdentity": true
+      },
+      "admit": {},
+      "generatedRender": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "date2001",
+      "type": "date",
+      "sourcePath": "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-presentation-join/date2001.can",
+      "sourceHash": "27cb955b8a365db04d6cb99cd41a7cffe9b07a8db3fe5d02a27af9e3ce430147",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-presentation-join/date2001.can"
+      ],
+      "exit": 0,
+      "expected": "Jan 1, 2001",
+      "artifactHash": "6a95a688dca48e86c5a82e9b4e71930dd09eee2de0f64c097b862209b562b8c5",
+      "actualExport": {
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f",
+        "exactIdentity": true
+      },
+      "admit": {},
+      "generatedRender": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "date2024",
+      "type": "date",
+      "sourcePath": "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-presentation-join/date2024.can",
+      "sourceHash": "a59cbef8b4f25a994bccdddde1f495e05d7914dbf3fa993d81ece56df898ffdc",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-presentation-join/date2024.can"
+      ],
+      "exit": 0,
+      "expected": "Feb 29, 2024",
+      "artifactHash": "b608031e57f6e3d871fd6e206be5f8f88457297f7a25bbdc86df8d7599f85bb2",
+      "actualExport": {
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f",
+        "exactIdentity": true
+      },
+      "admit": {},
+      "generatedRender": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "instant",
+      "type": "datetime",
+      "sourcePath": "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-presentation-join/instant.can",
+      "sourceHash": "3ac5e3d97a8e58d3b1b6e7d03eee37f3873a3c90b91bb5372b99ea969c2372e4",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-presentation-join/instant.can"
+      ],
+      "exit": 0,
+      "expected": null,
+      "artifactHash": "787a59cd46933d73e95106199588667fd9b19d47c4b15c88894eea507e41f0ad",
+      "actualExport": {
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f",
+        "exactIdentity": true
+      },
+      "admit": {},
+      "generatedRender": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "id": "decimal",
+      "type": "decimal",
+      "sourcePath": "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-presentation-join/decimal.can",
+      "sourceHash": "c17186757484948ae8568df156e321f139b1ecf5c9d282dbe9d47d0398aed324",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-presentation-join/decimal.can"
+      ],
+      "exit": 0,
+      "expected": "1.5",
+      "artifactHash": "e8da84c4d27cec16d4f8add0fd40900a3514c3ac67335f82bc5d2206abcd821e",
+      "actualExport": {
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f",
+        "exactIdentity": true
+      },
+      "admit": {},
+      "generatedRender": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type decimal needs a bigint or canonical decimal string"
+      }
+    },
+    {
+      "id": "integer",
+      "type": "int",
+      "sourcePath": "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-presentation-join/integer.can",
+      "sourceHash": "9d17a40c0cb1f8dea7a8702ca82471f4248782033d67ee2f8480aac6508bb843",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-presentation-join/integer.can"
+      ],
+      "exit": 0,
+      "expected": "2",
+      "artifactHash": "55fba903c31b40576a0751a3a783dffe9f105728b497a53b84f7ccdb363f1c31",
+      "actualExport": {
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f",
+        "exactIdentity": true
+      },
+      "admit": {},
+      "generatedRender": {
+        "ok": true,
+        "value": "<p>⁨2⁩</p>"
+      }
+    },
+    {
+      "id": "ordinal",
+      "type": "int",
+      "sourcePath": "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-presentation-join/ordinal.can",
+      "sourceHash": "e1988d62debb17e61217d36a648d62c176c6a0da780d95753624472c00f7044e",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/temporal-presentation-join/ordinal.can"
+      ],
+      "exit": 0,
+      "expected": "two",
+      "artifactHash": "16d1e17afa2cfe798114fb4e5732e99ead4513db9f981d12d5b5237216d547ab",
+      "actualExport": {
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f",
+        "exactIdentity": true
+      },
+      "admit": {},
+      "generatedRender": {
+        "ok": true,
+        "value": "<p>⁨two⁩</p>"
+      }
+    }
+  ],
+  "controls": [
+    {
+      "id": "constructor-and-supported-presentation-0001-01-01",
+      "tagged": {
+        "kind": "date",
+        "year": 1,
+        "month": 1,
+        "day": 1
+      },
+      "expected": "Jan 1, 1",
+      "values": {
+        "ok": true,
+        "value": "Jan 1, 1"
+      },
+      "uiSupportedString": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "constructor-and-supported-presentation-0099-01-01",
+      "tagged": {
+        "kind": "date",
+        "year": 99,
+        "month": 1,
+        "day": 1
+      },
+      "expected": "Jan 1, 99",
+      "values": {
+        "ok": true,
+        "value": "Jan 1, 99"
+      },
+      "uiSupportedString": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "constructor-and-supported-presentation-2001-01-01",
+      "tagged": {
+        "kind": "date",
+        "year": 2001,
+        "month": 1,
+        "day": 1
+      },
+      "expected": "Jan 1, 2001",
+      "values": {
+        "ok": true,
+        "value": "Jan 1, 2001"
+      },
+      "uiSupportedString": {
+        "ok": true,
+        "value": "Jan 1, 2001"
+      }
+    },
+    {
+      "id": "constructor-and-supported-presentation-2024-02-29",
+      "tagged": {
+        "kind": "date",
+        "year": 2024,
+        "month": 2,
+        "day": 29
+      },
+      "expected": "Feb 29, 2024",
+      "values": {
+        "ok": true,
+        "value": "Feb 29, 2024"
+      },
+      "uiSupportedString": {
+        "ok": true,
+        "value": "Feb 29, 2024"
+      }
+    },
+    {
+      "id": "real-host-zone-UTC",
+      "assert": {
+        "ok": true,
+        "value": "UTC"
+      },
+      "localDate": {
+        "ok": true,
+        "value": {
+          "kind": "date",
+          "year": 2024,
+          "month": 3,
+          "day": 31
+        }
+      },
+      "expected": {
+        "kind": "date",
+        "year": 2024,
+        "month": 3,
+        "day": 31
+      }
+    },
+    {
+      "id": "real-host-zone-Europe/Brussels",
+      "assert": {
+        "ok": true,
+        "value": "Europe/Brussels"
+      },
+      "localDate": {
+        "ok": true,
+        "value": {
+          "kind": "date",
+          "year": 2024,
+          "month": 4,
+          "day": 1
+        }
+      },
+      "expected": {
+        "kind": "date",
+        "year": 2024,
+        "month": 4,
+        "day": 1
+      }
+    },
+    {
+      "id": "real-host-zone-Mars/Olympus",
+      "assert": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid IANA timezone: Mars/Olympus"
+      },
+      "localDate": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid IANA timezone: Mars/Olympus"
+      },
+      "expected": {
+        "error": "invalid-construction"
+      }
+    }
+  ],
+  "changes": []
+}

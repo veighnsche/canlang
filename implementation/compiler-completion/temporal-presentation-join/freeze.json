@@ -1,0 +1,66 @@
+{
+  "status": "frozen production UI fix + intended compiler regression proposal, ready for root independent review",
+  "productionSourceChanged": [
+    "packages/ui/src/messages.ts",
+    "packages/ui/test/messages.test.ts"
+  ],
+  "noAdditionalProductionWrites": true,
+  "pendingCompilerProposal": {
+    "status": "Unimplemented/red intended regression; excluded from active compiler test targets. No adapter implementation or passing result claimed.",
+    "files": [
+      {
+        "intendedCompilerPath": "compiler/tests/temporal_presentation.rs",
+        "evidencePath": "implementation/compiler-completion/temporal-presentation-join/intended-regression/compiler/tests/temporal_presentation.rs",
+        "sha256": "f06eeaa7c4bb9698ab34a8d0d66ab672a7f89e191c74a84db61a44632bf244ba",
+        "byteIdentityVerified": true
+      },
+      {
+        "intendedCompilerPath": "compiler/tests/fixtures/temporal-presentation/source.can",
+        "evidencePath": "implementation/compiler-completion/temporal-presentation-join/intended-regression/compiler/tests/fixtures/temporal-presentation/source.can",
+        "sha256": "0d5b29a8365db4e0aeeec2c0769f4f212ae817a5a858613f17b700e2fd0b268c",
+        "byteIdentityVerified": true
+      },
+      {
+        "intendedCompilerPath": "compiler/tests/fixtures/temporal-presentation/execute.mjs",
+        "evidencePath": "implementation/compiler-completion/temporal-presentation-join/intended-regression/compiler/tests/fixtures/temporal-presentation/execute.mjs",
+        "sha256": "fb3f28213dbc55eb512eb7a08014555952820d7539a344953312236e61dde963",
+        "byteIdentityVerified": true
+      }
+    ],
+    "relativeFixtureReferences": "Preserved exact original compiler/tests/temporal_presentation.rs include_str!(fixtures/temporal-presentation/...) paths inside evidence tree."
+  },
+  "uiTestBefore": {
+    "gitObject": "HEAD:packages/ui/test/messages.test.ts",
+    "savedPath": "implementation/compiler-completion/temporal-presentation-join/messages.test.before.ts",
+    "sha256": "faba4a5a1749c2553bd0608a88ec275284f37fd66151ecac0cce5bea995c89f1"
+  },
+  "uiFreeze": [
+    {
+      "sourcePath": "packages/ui/src/messages.ts",
+      "snapshotPath": "implementation/compiler-completion/temporal-presentation-join/ui-freeze/packages/ui/src/messages.ts",
+      "sha256": "473c3a986d7dc75d7939c3e20cb9a52be94f96759d246a6ed06417ea94826908",
+      "snapshotByteIdentityVerified": true
+    },
+    {
+      "sourcePath": "packages/ui/test/messages.test.ts",
+      "snapshotPath": "implementation/compiler-completion/temporal-presentation-join/ui-freeze/packages/ui/test/messages.test.ts",
+      "sha256": "aafbc42dff2ccbe173f493d8c51e4af4d4bc582c5d65eb88c0aa35e03ed13aca",
+      "snapshotByteIdentityVerified": true
+    }
+  ],
+  "testCounts": {
+    "existingItCases": 26,
+    "newItCases": 2,
+    "passingItCases": 28,
+    "existingStaticAssertionCallSites": 66,
+    "newStaticAssertionCallSites": 2,
+    "newValidExecutedAssertionCases": 14,
+    "newInvalidExecutedAssertionCases": 24,
+    "newTotalExecutedAssertionCases": 38,
+    "originalTextPreservedByteForByte": true
+  },
+  "assessmentQualification": {
+    "historicalHypothesis": "Existing receipt/model-wire.outcomes.json describes native State hydration as prerequisite to universal generated message encoding; raw outcomes retain that historical hypothesis.",
+    "currentQualification": "Public State projection preserves wire strings under its established interface. Native hydration is conditional to the uniform compiler encodeValue alternative. Root is assessing a presentation-owner native-carrier join against compiler/uniform-hydration alternatives; this packet selects no final carrier policy."
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "scope": "Full-year UI validation repaired and frozen. Universal compiler adapter held while root compares presentation-owner native-carrier join and compiler/hydration alternatives. No compiler production write, runtime string fallback or static provenance workaround.",
+  "compilerWritten": false,
+  "pins": {
+    "packages/ui/src/messages.ts": {
+      "before": "d731b8a2b2cd57d03be0a8f3b12c55e48cdcac498eb167b5f2a0707e360eeac5",
+      "after": "473c3a986d7dc75d7939c3e20cb9a52be94f96759d246a6ed06417ea94826908"
+    },
+    "packages/ui/test/messages.test.ts": {
+      "before": null,
+      "after": "aafbc42dff2ccbe173f493d8c51e4af4d4bc582c5d65eb88c0aa35e03ed13aca"
+    },
+    "packages/ui/dist/src/messages.js": {
+      "before": "f4f5b553a1462a4993c7471cda392d944e7b306c87542f83c62f9ad3bba9e5d8",
+      "after": "01970d5d006068552bd8d6aa2dbb43c114e179176fd84108817094fbb6ae4f47"
+    },
+    "packages/ui/dist/test/messages.test.js": {
+      "before": "532d4753f85c62d07fa55dbd74f6eb96b2f39f787d3e7d46c32347823a1e2b92",
+      "after": "07b992fba01eb8ee57ac4a38fd683a2656cc9533e35819c9e2375bd4d1a6a033"
+    },
+    "compiler/src/codegen/js.rs": {
+      "before": "ce804121e2ff1bbb1158eb0953ec86ca5fcf0aba873b7c3be21eeb351c12c970",
+      "after": "ce804121e2ff1bbb1158eb0953ec86ca5fcf0aba873b7c3be21eeb351c12c970"
+    },
+    "compiler/tests/temporal_presentation.rs": {
+      "before": null,
+      "after": "f06eeaa7c4bb9698ab34a8d0d66ab672a7f89e191c74a84db61a44632bf244ba",
+      "preservedEvidencePath": "implementation/compiler-completion/temporal-presentation-join/intended-regression/compiler/tests/temporal_presentation.rs"
+    },
+    "compiler/tests/fixtures/temporal-presentation/source.can": {
+      "before": null,
+      "after": "0d5b29a8365db4e0aeeec2c0769f4f212ae817a5a858613f17b700e2fd0b268c",
+      "preservedEvidencePath": "implementation/compiler-completion/temporal-presentation-join/intended-regression/compiler/tests/fixtures/temporal-presentation/source.can"
+    },
+    "compiler/tests/fixtures/temporal-presentation/execute.mjs": {
+      "before": null,
+      "after": "fb3f28213dbc55eb512eb7a08014555952820d7539a344953312236e61dde963",
+      "preservedEvidencePath": "implementation/compiler-completion/temporal-presentation-join/intended-regression/compiler/tests/fixtures/temporal-presentation/execute.mjs"
+    },
+    "packages/values/dist/catalog.json": {
+      "before": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+      "after": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62"
+    },
+    "packages/values/dist/src/index.js": {
+      "before": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c",
+      "after": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c"
+    },
+    "packages/stdlib/dist/src/index.js": {
+      "before": "1de219672fe05c82b09b4e6cdbb23223be43ef2b1d68b67544811dcaefb26735",
+      "after": "1de219672fe05c82b09b4e6cdbb23223be43ef2b1d68b67544811dcaefb26735"
+    },
+    "packages/state/dist/src/query/engine.js": {
+      "before": "9f5d510dfdcd221b7805f6e19346b870e7e525ad3270f7e59698ec44dbd82a5a",
+      "after": "9f5d510dfdcd221b7805f6e19346b870e7e525ad3270f7e59698ec44dbd82a5a"
+    }
+  },
+  "baseline": {
+    "command": "node before.mjs",
+    "exit": 0,
+    "result": "six native temporal/Decimal sink refusals; integer and ordinal success"
+  },
+  "ui": {
+    "build": "node node_modules/typescript/bin/tsc -p packages/ui/tsconfig.json",
+    "buildExit": 0,
+    "test": "node --test packages/ui/dist/test/messages.test.js",
+    "testExit": 0,
+    "passed": 28,
+    "beforeTestSource": "HEAD:packages/ui/test/messages.test.ts",
+    "beforeTestSha256": "faba4a5a1749c2553bd0608a88ec275284f37fd66151ecac0cce5bea995c89f1",
+    "existingTests": 26,
+    "newTests": 2,
+    "existingStaticAssertionCalls": 66,
+    "newStaticAssertionCalls": 2,
+    "newExecutedAssertionCases": {
+      "valid": 14,
+      "invalid": 24,
+      "total": 38
+    },
+    "originalTestTextPreserved": "Removing only the two added it() expression statements from current source reproduces HEAD source byte-for-byte; all original 26 test bodies and 66 assertion call sites are unchanged."
+  },
+  "modelWireWitness": {
+    "command": "node model-wire.mjs",
+    "exit": 0,
+    "outcomes": "model-wire.outcomes.json"
+  },
+  "nativeFixture": {
+    "compileExit": 0,
+    "runtimeBeforeExit": 1,
+    "runtimeBeforeError": "TypeError: message argument \"x\": type date needs a valid YYYY-MM-DD civil date",
+    "afterNotRun": true,
+    "testStatus": "Clearly marked intended-regression proposal moved from active compiler test tree into owned evidence, preserving all bytes and original relative fixture references."
+  },
+  "remaining": [
+    "State typed native field hydration is a conditional prerequisite of uniform compiler-side encodeValue, not the sole selected final design. Existing public State wire projection is established; root is comparing the presentation-owner native-carrier alternative.",
+    "Canonical selected app/trusted CaptionContext/default ownership and timezone application remain outside this bounded producer qualification.",
+    "Localized format existing context/arity mismatch S9-Q01 remains independent."
+  ]
+}

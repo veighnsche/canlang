@@ -1,0 +1,226 @@
+{
+  "originalTestsPreserved": true,
+  "calendarCases": 42,
+  "inheritanceCases": 8,
+  "nativeGenerated": [
+    {
+      "id": "date0001",
+      "ref": {
+        "owner": "TemporalPage",
+        "path": "/",
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f"
+      },
+      "bindings": {},
+      "render": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "date0099",
+      "ref": {
+        "owner": "TemporalPage",
+        "path": "/",
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f"
+      },
+      "bindings": {},
+      "render": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "date2001",
+      "ref": {
+        "owner": "TemporalPage",
+        "path": "/",
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f"
+      },
+      "bindings": {},
+      "render": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "date2024",
+      "ref": {
+        "owner": "TemporalPage",
+        "path": "/",
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f"
+      },
+      "bindings": {},
+      "render": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "instant",
+      "ref": {
+        "owner": "TemporalPage",
+        "path": "/",
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f"
+      },
+      "bindings": {},
+      "render": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "id": "decimal",
+      "ref": {
+        "owner": "TemporalPage",
+        "path": "/",
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f"
+      },
+      "bindings": {},
+      "render": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type decimal needs a bigint or canonical decimal string"
+      }
+    },
+    {
+      "id": "integer",
+      "ref": {
+        "owner": "TemporalPage",
+        "path": "/",
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f"
+      },
+      "bindings": {},
+      "render": {
+        "ok": true,
+        "value": "<p>⁨2⁩</p>"
+      }
+    },
+    {
+      "id": "ordinal",
+      "ref": {
+        "owner": "TemporalPage",
+        "path": "/",
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f"
+      },
+      "bindings": {},
+      "render": {
+        "ok": true,
+        "value": "<p>⁨two⁩</p>"
+      }
+    }
+  ],
+  "wireQuery": [
+    {
+      "ref": {
+        "owner": "TemporalWire",
+        "path": "/",
+        "module": "$can$m$54656d706f72616c57697265.mjs",
+        "export": "$can$p$54656d706f72616c576972653a64657363726970746f723a2f"
+      },
+      "queries": [
+        {
+          "actualModel": "TemporalWire.Item",
+          "args": {},
+          "data": {
+            "day": "2001-01-01",
+            "instant": "2024-03-31T22:30:00.000Z",
+            "amount": "1.50"
+          }
+        }
+      ],
+      "rendered": "<ul class=\"list\"><li class=\"list-row\"><p>⁨Jan 1, 2001⁩ ⁨10:30:00 PM⁩ ⁨1.5⁩</p></li></ul>",
+      "universalEncoding": [
+        {
+          "type": "date",
+          "result": {
+            "ok": false,
+            "name": "ValueError",
+            "code": "invalid-construction",
+            "message": "expected a date value at $"
+          }
+        },
+        {
+          "type": "datetime",
+          "result": {
+            "ok": false,
+            "name": "ValueError",
+            "code": "invalid-construction",
+            "message": "expected a datetime value at $"
+          }
+        },
+        {
+          "type": "decimal",
+          "result": {
+            "ok": false,
+            "name": "ValueError",
+            "code": "invalid-construction",
+            "message": "expected a decimal value at $"
+          }
+        }
+      ]
+    },
+    {
+      "ref": {
+        "owner": "TemporalWire",
+        "path": "/",
+        "module": "$can$m$54656d706f72616c57697265.mjs",
+        "export": "$can$p$54656d706f72616c576972653a64657363726970746f723a2f"
+      },
+      "queries": [
+        {
+          "actualModel": "TemporalWire.Item",
+          "args": {},
+          "data": {
+            "day": "0004-02-29",
+            "instant": "0099-01-01T23:59:59.999Z",
+            "amount": "12345678901234567890.123456789012345678"
+          }
+        }
+      ],
+      "rendered": "<ul class=\"list\"><li class=\"list-row\"><p>⁨Feb 29, 4⁩ ⁨11:59:59 PM⁩ ⁨12,345,678,901,234,567,890.123456789012345678⁩</p></li></ul>",
+      "universalEncoding": [
+        {
+          "type": "date",
+          "result": {
+            "ok": false,
+            "name": "ValueError",
+            "code": "invalid-construction",
+            "message": "expected a date value at $"
+          }
+        },
+        {
+          "type": "datetime",
+          "result": {
+            "ok": false,
+            "name": "ValueError",
+            "code": "invalid-construction",
+            "message": "expected a datetime value at $"
+          }
+        },
+        {
+          "type": "decimal",
+          "result": {
+            "ok": false,
+            "name": "ValueError",
+            "code": "invalid-construction",
+            "message": "expected a decimal value at $"
+          }
+        }
+      ]
+    }
+  ],
+  "changes": []
+}

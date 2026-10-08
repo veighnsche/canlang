@@ -1,0 +1,17 @@
+file:///Users/vince/Projects/canlang/packages/ui/dist/src/messages.js:122
+    throw new TypeError(`message argument "${name}": ${why}`);
+          ^
+
+TypeError: message argument "x": type date needs a valid YYYY-MM-DD civil date
+    at fail (file:///Users/vince/Projects/canlang/packages/ui/dist/src/messages.js:122:11)
+    at toOperand (file:///Users/vince/Projects/canlang/packages/ui/dist/src/messages.js:223:17)
+    at formatMessage (file:///Users/vince/Projects/canlang/packages/ui/dist/src/messages.js:692:28)
+    at resolveCaption (file:///Users/vince/Projects/canlang/packages/ui/dist/src/messages.js:897:12)
+    at renderTextValue (file:///Users/vince/Projects/canlang/packages/ui/dist/src/components.js:53:35)
+    at file:///Users/vince/Projects/canlang/packages/ui/dist/src/components.js:102:47
+    at Array.map (<anonymous>)
+    at text (file:///Users/vince/Projects/canlang/packages/ui/dist/src/components.js:102:32)
+    at Object.$can$p$54656d706f72616c50726573656e746174696f6e3a72656e6465723a2f6461746530303031 [as render] (file:///Users/vince/Projects/canlang/implementation/compiler-completion/temporal-presentation-join/generated/$can$m$54656d706f72616c50726573656e746174696f6e.mjs:5:144)
+    at file:///Users/vince/Projects/canlang/compiler/tests/fixtures/temporal-presentation/execute.mjs:35:35
+
+Node.js v24.21.0
