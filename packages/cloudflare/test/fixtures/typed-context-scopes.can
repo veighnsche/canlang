@@ -1,0 +1,20 @@
+app TypedContextScopes
+Given
+ Trace { who:text, scope:text, zone:timezone, origin:text, invocation:text, instant:datetime }
+ policy Trace read=public
+When
+ ## These facts come from the admitted invocation, not operation input fields.
+ scenario capture() -> text by=members
+  do
+   create Trace {who=actor.id,scope=team.id,zone=team.timezone,origin=operation.source,invocation=operation.id,instant=now} as trace
+   require trace.instant==trace.created
+   return trace.invocation
+ scenario identify() -> text by=authenticated
+  do return actor.id
+ scenario anonymous() -> bool by=public
+  do return actor==null
+ scenario source() -> text by=public
+  do return operation.source
+ scenario clock() -> datetime by=public
+  do return now
+Then
