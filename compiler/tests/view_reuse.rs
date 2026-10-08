@@ -40,7 +40,32 @@ fn local_views_bind_rows_once_and_keep_native_occurrences_distinct() {
             IrExpr::Call { .. } | IrExpr::BoundCall { .. }
         ));
         assert_eq!(view.children[0].span, uses[0].children[0].span);
+        assert_eq!(view.children[0].factory, "actions");
+        assert!(view.children.iter().any(|child| child.factory == "status"));
         assert_ne!(view.children[0].span, view.span);
+        assert!(view.children.iter().any(|child| child.factory == "form"));
+        let mut pending = vec![view];
+        let mut protected_forms = Vec::new();
+        while let Some(child) = pending.pop() {
+            pending.extend(&child.children);
+            if child.factory == "form" && child.props.iter().any(|(key, _)| key == "arguments") {
+                protected_forms.push(child);
+            }
+        }
+        assert_eq!(protected_forms.len(), 2);
+        for form in protected_forms {
+            assert_eq!(form.span.file, id);
+            let authored = &source[form.span.start as usize..form.span.end as usize];
+            assert!(authored.contains("bind_card") || authored.contains("recover_detail"));
+            assert_ne!(form.span, view.span);
+            assert!(form.children.is_empty());
+            assert!(
+                !form
+                    .props
+                    .iter()
+                    .any(|(key, _)| key == "fields" || key == "display")
+            );
+        }
     }
     let input = scratch.path().join("view-reuse.can");
     std::fs::write(&input, source).unwrap();
@@ -105,8 +130,35 @@ fn local_views_bind_rows_once_and_keep_native_occurrences_distinct() {
             ),
         ),
         (
+            "status-record",
+            source.replace("status row.flag", "status row"),
+        ),
+        (
+            "status-variant",
+            source.replace("tone=success size=sm", "tone=success size=sm variant=soft"),
+        ),
+        (
             "exported-view",
             source.replace(" view card_body", " export view card_body"),
+        ),
+        (
+            "implicit-action-no-host",
+            source.replace("actions bind_card", "actions save"),
+        ),
+        (
+            "duplicate-action",
+            source.replace("actions bind_card", "actions bind_card,bind_card"),
+        ),
+        (
+            "action-content",
+            source.replace(
+                "  actions bind_card",
+                "  actions bind_card\n   text row.title",
+            ),
+        ),
+        (
+            "explicit-action-scalar",
+            source.replace("arguments={attempt=row}", "arguments={attempt=\"scalar\"}"),
         ),
         (
             "executable-view",
@@ -131,6 +183,16 @@ fn local_views_bind_rows_once_and_keep_native_occurrences_distinct() {
             !artifact["diagnostics"].as_array().unwrap().is_empty(),
             "{name}"
         );
+        if matches!(name, "implicit-action-no-host" | "duplicate-action") {
+            assert!(
+                artifact["diagnostics"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|diagnostic| diagnostic["code"] == "E6008"),
+                "{name}"
+            );
+        }
         assert!(
             artifact.get("modules").is_none(),
             "{name}: refused source cannot publish"

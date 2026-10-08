@@ -1448,6 +1448,7 @@ fn is_ui_factory(factory: &str) -> bool {
             | "radio"
             | "select"
             | "stat"
+            | "status"
             | "table"
             | "tabs"
             | "text"
@@ -1484,6 +1485,7 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
         "fieldset" => matches!(key, "caption" | "id" | "variant"),
         "join" => matches!(key, "id" | "orientation" | "variant"),
         "badge" => matches!(key, "value" | "caption" | "tone" | "size" | "variant"),
+        "status" => matches!(key, "value" | "caption" | "tone" | "size"),
         "divider" => matches!(key, "caption" | "tone" | "orientation" | "variant"),
         "stat" => matches!(
             key,
@@ -1530,7 +1532,14 @@ fn ui_option_words(factory: &str, key: &str) -> Option<&'static [&'static str]> 
         "tone"
             if matches!(
                 factory,
-                "badge" | "divider" | "chatBubble" | "input" | "textarea" | "radio" | "select"
+                "badge"
+                    | "status"
+                    | "divider"
+                    | "chatBubble"
+                    | "input"
+                    | "textarea"
+                    | "radio"
+                    | "select"
             ) =>
         {
             Some(TONES)
@@ -1538,7 +1547,7 @@ fn ui_option_words(factory: &str, key: &str) -> Option<&'static [&'static str]> 
         "size"
             if matches!(
                 factory,
-                "badge" | "tabs" | "input" | "textarea" | "radio" | "select"
+                "badge" | "status" | "tabs" | "input" | "textarea" | "radio" | "select"
             ) =>
         {
             Some(SIZES)
@@ -4709,6 +4718,28 @@ impl<'a> Emitter<'a> {
                 "await (async({row})=>{{{guard}return (await Promise.all([{children}])).filter(value=>value!=null).join('');}})({argument})"
             );
         }
+        // Checked source action groups contain ordinary protected forms.
+        // Their grouping adds no native container or presentation choice.
+        if node.factory == "actions" {
+            let gate = node
+                .gate
+                .as_ref()
+                .map(|gate| self.lower_business_expr(gate, "action group gate"));
+            let children = node
+                .children
+                .iter()
+                .map(|child| {
+                    self.lower_ui_occurrence(child, ctx, occurrences, prepared_form, view_scope)
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+            let call =
+                format!("(await Promise.all([{children}])).filter(value=>value!=null).join('')");
+            return match gate {
+                Some(gate) => format!("{gate} ? {call} : null"),
+                None => call,
+            };
+        }
         if !is_ui_factory(&node.factory) {
             self.unsupported(
                 "UI node",
@@ -4763,17 +4794,7 @@ impl<'a> Emitter<'a> {
                 return self.throw_expr("unsupported UI option value");
             }
         }
-        // The actual list factory requires an owning empty-state message.
-        // Bare lists remain a language-default gap; do not invent copy or
-        // publish a factory payload that fails on an authorized empty query.
-        if node.factory == "list" && !node.props.iter().any(|(key, _)| key == "empty") {
-            self.unsupported(
-                "list UI profile",
-                "ListProps.empty requires an authored empty= message; the bare-list shared default is not implemented",
-                node.span,
-            );
-            return self.throw_expr("unsupported list UI profile: missing empty message");
-        }
+        // Omitted collection empty captions use the owning shared UI default.
         // Gated containers omit the whole node when unavailable; the
         // gate reads the same scope the node renders in.
         let gate = node
@@ -4793,6 +4814,20 @@ impl<'a> Emitter<'a> {
                     self.lower_business_expr(value, "unclassified formatted UI prop")
                 ));
             }
+            // The declaration, page, action target and enclosing use/row
+            // identities name this presentation occurrence. The preparer
+            // owns DOM and draft identity; this conveys no mutation grant.
+            let operation = form_prop_text(node, "operation").unwrap_or_default();
+            request.push(format!(
+                "occurrence:{}+encodeURIComponent(JSON.stringify([{}.path,{},{}]))",
+                js_string(&format!(
+                    "can-form-f{}-s{}-",
+                    node.span.file.0, node.span.start
+                )),
+                ctx,
+                js_string(&operation),
+                occurrences.join(",")
+            ));
             if let Some(labels) = self.form_labels_request(node) {
                 request.push(labels);
             }
