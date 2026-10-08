@@ -2482,3 +2482,10 @@ Compiler producer and interface mirrors are committed at 66c3b567. Contracts and
 Checked User scalar/array/nullable source inputs, fields and results use the defining Values codecs. Scenario writes may carry native UserRefs; incoming generated CRUD fields require the declared closed wire form `{id}`, including array elements, and reject caller-supplied native kind/contact/version members. Native record views decode created/updated attribution from stored strings into owning UserRefs, while StoredRow/history attribution stays unchanged. The stdlib reexports the defining `same` helper rather than implementing another equality rule.
 
 The actual source-generated User fixture passed compile/typecheck and its Miniflare D1 workflow, together with the directly affected existing typed CRUD profiles (7/7). It observes actor/managed-owner/attribution equality and ids, null/array omission and overrides, partial updates, malformed wire refusal after authority admission, saved defaults/receipts and same-directory reopen/replay without extra effects. Membership/identity remain fixtures. User-directory/assignment validity, physical tenant partition, trusted-service attribution and installed/deployed workflows remain separate acceptance; no whole H1 or package-parent completion is implied.
+
+
+### Accepted: production artifact loading admits published User and duration kinds (2026-10-08)
+
+The Cloudflare production artifact loader now admits the already-published owning `user` and `duration` operation field tags. Other unknown kinds retain refusal. The existing source-generated User and calendar/duration consumer tests use `loadArtifactFile` instead of bypassing this boundary with JSON parsing, closing the discovered loader gap for these profiles.
+
+Cloudflare typecheck passed, and only the three affected existing cases were rerun (User D1 plus date/duration memory and D1, 3/3), including same-directory replay. Unchanged metadata/other typed-consumer results were reused. This is the finite production-loader join; complete SEQ008, installed/deployed execution and broader original/package parents remain separately unclosed.
