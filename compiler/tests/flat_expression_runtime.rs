@@ -347,6 +347,8 @@ fn enum_claims_and_membership_execute_with_binding_and_order_controls() {
     for (name, left, right) in [
         ("intDecimal", "int", "decimal"),
         ("decimalInt", "decimal", "int"),
+        ("nullableIntDecimal", "int?", "decimal"),
+        ("decimalNullableInt", "decimal", "int?"),
     ] {
         source.push_str(&format!(
             " derive {name}Equal(a:{left},b:{right}):bool = a==b\n derive {name}NotEqual(a:{left},b:{right}):bool = a!=b\n"
@@ -446,6 +448,17 @@ for(const [integer,decimal,expected]of [
   assert.equal(equalValue('decimal',a,b),expected,name+' owning exact equality');
   assert.equal(await call(name+'Equal')(context,a,b),expected,name+' exact equality');
   assert.equal(await call(name+'NotEqual')(context,a,b),!expected,name+' exact inequality');
+ }
+}
+for(const [integer,decimal,expected]of [
+ [null,parseDecimal('2.00'),false],
+ [9007199254740993n,parseDecimal('9007199254740993.00'),true],
+ [9007199254740993n,parseDecimal('9007199254740992.00'),false],
+]){
+ for(const [name,a,b]of [['nullableIntDecimal',integer,decimal],['decimalNullableInt',decimal,integer]]){
+  assert.equal(equalValue('int?',a,b),expected,name+' owning nullable promotion');
+  assert.equal(await call(name+'Equal')(context,a,b),expected,name+' nullable exact equality');
+  assert.equal(await call(name+'NotEqual')(context,a,b),!expected,name+' nullable exact inequality');
  }
 }
 async function checkRelations(family,a,b,order,compare){
