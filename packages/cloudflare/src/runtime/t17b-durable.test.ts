@@ -21,7 +21,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { Miniflare } from "miniflare";
 import type { D1Database } from "@cloudflare/workers-types";
 import type {
@@ -45,6 +45,8 @@ import type { AssembledModules } from "../worker/assembly.js";
 /* Compact fixtures (self-contained: no cross-test imports).            */
 /* ------------------------------------------------------------------ */
 
+// Synthetic source metadata for this hand-written fixture, not compiler output.
+const FIXTURE_SOURCE_SHA256 = createHash("sha256").update("t17b-durable hand-written fixture").digest("hex");
 const tempDirs: string[] = [];
 async function cleanupTempDirs(): Promise<void> {
   for (const dir of tempDirs.splice(0)) {
@@ -61,7 +63,21 @@ function tempDir(): string {
 
 function writeModule(dir: string, name: string, source: string): string {
   const path = join(dir, name);
-  writeFileSync(path, source);
+  // Authored fixture declarations mirror the original full-field public read rules.
+  const declarations = `const fixtureReadRules = {"Todo.read.1": () => true,"Todo.read.2": () => true,"Memo.read.1": () => true,"Sku.read.1": () => true,"Sealed.read.1": () => true};\n`;
+  const registrySource = source.replace(
+    "export function canApp() {\n  return {",
+    "export function canApp() {\n  return {\n    read: fixtureReadRules,",
+  );
+  const definition = `\nconst fixturePolicy = typeof canApp === "function" ? canApp().policy : undefined;
+const fixtureFields = {"acme.Todo":{"title":{"type":"text"},"done":{"type":"bool"}},"acme.Sealed":{"title":{"type":"text"}}};
+export const appDefinition = {
+  id: "TeamTasks", policy: fixturePolicy,
+  models: Object.fromEntries(Object.entries(fixtureFields).map(([model, fields]) => [model, {
+    fields, readGrants: (fixturePolicy?.models?.[model]?.read instanceof Array ? fixturePolicy.models[model].read : []).map((rule) => ({ rule }))
+  }]))
+};\n`;
+  writeFileSync(path, declarations + registrySource + definition);
   return pathToFileURL(path).href;
 }
 
@@ -104,8 +120,8 @@ function durableArtifact(module: string): CompileArtifact {
     artifact_version: 1,
     language_version: "t17b-fixture/0 (hand-written T15a shape; NOT compiler output)",
     tool_version: "t17b-fixture/0",
-    sources: [{ path: "examples/TeamTasks.can", sha256: "fixture-not-a-digest" }],
-    modules: [],
+    sources: [{ path: "examples/TeamTasks.can", sha256: FIXTURE_SOURCE_SHA256 }],
+    modules: [{ path: module, js: "" }],
     callables: [
       { id: "acme.Todo.create", kind: "operation", module, export: "Todo_create", member: ["Todo", "create"] },
       { id: "acme.Shop.place", kind: "operation", module, export: "Shop_place", member: ["Shop", "place"] },
@@ -265,9 +281,10 @@ describe("T17b durable L7 (scenario staging + reads on real D1)", () => {
     const outcome = await invoker.invokeMutation(envelope, identity);
     assert.ok("result" in outcome, `want result, got ${JSON.stringify(outcome)}`);
     assert.equal((outcome.result as MutationResult).status, "committed");
+    // DESIGN: a created row stays at version 1 throughout its creating transaction.
     assert.deepEqual((outcome.result as MutationResult).result, {
       id: "t-d1",
-      version: 2,
+      version: 1,
       count: 1,
     });
     // Cross-handle read-back: a FRESH storage handle over the same D1
@@ -275,7 +292,7 @@ describe("T17b durable L7 (scenario staging + reads on real D1)", () => {
     // read — the persist-channel proof (not the writer's cache).
     const fresh: StoragePort = createD1Storage(d1db);
     const row = await fresh.load("acme.Todo" as ModelName, "t-d1" as RecordId);
-    assert.equal(row?.version, 2);
+    assert.equal(row?.version, 1);
     assert.deepEqual(row?.data, { title: "durable", done: true });
     const receipt = await fresh.readReceipt({
       app: "TeamTasks",
@@ -291,7 +308,7 @@ describe("T17b durable L7 (scenario staging + reads on real D1)", () => {
       trail.map((entry) => [entry.change, entry.version, entry.operationId]),
       [
         ["create", 1, operationId],
-        ["update", 2, operationId],
+        ["update", 1, operationId],
       ],
     );
     const freshInvoker = buildInvoker(artifact, asm, fresh, {
