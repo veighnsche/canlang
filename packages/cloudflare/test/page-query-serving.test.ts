@@ -43,7 +43,7 @@ describe("authored operation forms through defining default Worker", () => {
     const user = await deps.identityStore.createUser({ email: "form-owner@example.test",
       password_hash: await hashPassword(password), email_verified: true });
     const team = await deps.identityStore.createTeam({ timezone: "Europe/Brussels" });
-    await deps.identityStore.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: true, roles: [] });
+    const membership = await deps.identityStore.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: true, roles: [] });
     const { token } = await loginWithPassword(deps.identityStore, { email: user.email, password });
     const session = await deps.identityStore.findSessionByTokenHash(await sha256HexText(token));
     expect(session).not.toBeNull();
@@ -133,7 +133,7 @@ describe("authored operation forms through defining default Worker", () => {
     const after = await fetch("/", { headers: { cookie } });
     expect(after.status, await after.clone().text()).toBe(200);
     const afterHtml = await after.text();
-    expect(afterHtml).toContain("Bound forms are not available yet.");
+    expect(afterHtml).toContain("Protected forms are unavailable.");
     expect((afterHtml.match(/<form\b[^>]*>[\s\S]*?<\/form>/g) ?? [])
       .filter(form => form.includes('action="/api/operations/'))).toHaveLength(2);
     expect(afterHtml).not.toContain('name="inputs[entry]');
@@ -200,6 +200,47 @@ describe("authored operation forms through defining default Worker", () => {
         expect(await deps.store.readReceipt({ app: "TypedOperationForms", owner: team.team_id,
           principal: user.user_id, operation: operation.name, operationId: nonce })).toBeNull();
 
+        // A separate canonical mutation changes the authorized source rows.
+        // Its real HX poll must preserve both compatible form occurrences.
+        const ownFeedback = await feedback.textContent();
+        const focusedCount = browserForm.getByLabel("Count", { exact: true });
+        await focusedCount.focus();
+        const refreshed = browserPage.waitForResponse(async response =>
+          new URL(response.url()).pathname === "/" && response.request().headers()["hx-request"] === "true" &&
+          response.status() === 200 && (await response.text()).includes("Poll created entry"));
+        const externalCreate = await fetch(action, { method: "POST",
+          headers: { cookie, "content-type": "application/json", "x-csrf-token": csrf },
+          body: JSON.stringify({ operation: operation.name, operation_id: nextId, inputs: { label: "Poll created entry" } }) });
+        expect(externalCreate.status).toBe(200);
+        expect((await externalCreate.json()).status).toBe("committed");
+        await refreshed;
+        await browserExpect(browserPage.locator("#can-main")).toContainText("Poll created entry");
+        await browserExpect(browserForms).toHaveCount(2);
+        await browserExpect(browserForm.getByLabel("Entry label")).toHaveValue("Browser created entry");
+        await browserExpect(focusedCount).toHaveValue("1.5");
+        await browserExpect(focusedCount).toBeFocused();
+        expect(await browserForm.locator('input[name="operation_id"]').inputValue()).toBe(nonce);
+        await browserExpect(browserForm).toHaveAttribute("data-can-submit-state", "denied");
+        await browserExpect(feedback).toBeVisible();
+        await browserExpect(feedback).toHaveAttribute("data-can-form-feedback-code", "validation");
+        expect(await feedback.textContent()).toBe(ownFeedback);
+        await browserExpect(neighbor.getByLabel("Entry label")).toHaveValue("Neighbor draft");
+        await browserExpect(neighbor.getByLabel("Count", { exact: true })).toHaveValue("12");
+        expect(await neighbor.locator('input[name="operation_id"]').inputValue()).toBe(neighborNonce);
+        expect(await neighbor.getAttribute("data-can-submit-state")).toBeNull();
+        await browserExpect(neighborFeedback).toBeHidden();
+        expect(await neighborFeedback.textContent()).toBe("");
+        expect(await neighborFeedback.getAttribute("data-can-form-feedback-code")).toBeNull();
+        expect(await browserForm.getAttribute("action")).toBe(action);
+        expect(await browserForm.locator(`input[name="${CSRF_FIELD}"]`).inputValue()).toBe(csrf);
+        const polledRows = await deps.store.query({ model, authority: "owner" });
+        expect(polledRows).toHaveLength(2);
+        const polledRevision = await deps.store.readRevision();
+        let browserCreateRequests = 0;
+        browserPage.on("request", request => {
+          if (new URL(request.url()).pathname === action && request.method() === "POST") browserCreateRequests += 1;
+        });
+
         // Correct this same occurrence without minting a replacement nonce.
         await browserForm.getByLabel("Count", { exact: true }).fill("");
         const browserPost = browserPage.waitForResponse(isCreatePost);
@@ -216,7 +257,9 @@ describe("authored operation forms through defining default Worker", () => {
         await browserExpect(browserForm).toHaveAttribute("data-can-submit-state", "committed");
         await browserExpect(feedback).toBeHidden();
         const browserRows = await deps.store.query({ model, authority: "owner" });
-        expect(browserRows).toHaveLength(2);
+        expect(browserRows).toHaveLength(3);
+        expect(browserCreateRequests).toBe(1);
+        expect(await deps.store.readRevision()).toBe(polledRevision + 1);
         const browserRow = browserRows.find((entry: { data: Record<string, unknown> }) => entry.data["label"] === "Browser created entry");
         expect(browserRow.data).toEqual({ label: "Browser created entry", count: "1", owner: { id: user.user_id } });
         const browserReceipt = await deps.store.readReceipt({ app: "TypedOperationForms", owner: team.team_id,
@@ -233,6 +276,7 @@ describe("authored operation forms through defining default Worker", () => {
         expect(replayResponse.request().postDataJSON().operation_id).toBe(nonce);
         const replayResult = await replayResponse.json();
         expect(replayResult.status).toBe("replayed");
+        expect(browserCreateRequests).toBe(2);
         expect(replayResult.result).toEqual(createdResult.result);
         await browserExpect(browserForm).toHaveAttribute("data-can-submit-state", "committed");
         expect(await deps.store.readRevision()).toBe(browserRevision);
@@ -248,6 +292,28 @@ describe("authored operation forms through defining default Worker", () => {
         expect(deniedResponse.status()).toBe(403);
         expect(deniedResponse.request().headers()["x-csrf-token"]).toBe("wrong");
         await browserExpect(browserForm).toHaveAttribute("data-can-submit-state", "denied");
+        expect(await deps.store.readRevision()).toBe(browserRevision);
+        expect(await deps.store.query({ model, authority: "owner" })).toEqual(browserRows);
+        expect(await deps.store.historyFor(model, browserRow.id)).toEqual(browserHistory);
+        expect(await deps.store.readReceipt({ app: "TypedOperationForms", owner: team.team_id,
+          principal: user.user_id, operation: operation.name, operationId: nonce })).toEqual(browserReceipt);
+        // Membership is resolved again by the native poll and operation route.
+        // Revocation must also withdraw the old editing/submission affordances.
+        const refusedPoll = browserPage.waitForResponse(response =>
+          new URL(response.url()).pathname === "/" && response.request().headers()["hx-request"] === "true" && response.status() === 403);
+        await deps.identityStore.removeMembership(membership.membership_id);
+        expect((await refusedPoll).status()).toBe(403);
+        // Assert the public browser outcome, allowing removal, hiding, native
+        // disabled controls or an inert subtree without fixing a private marker.
+        await browserExpect.poll(() => browserPage.locator(
+          'form[data-can-generated-form] input:not([type="hidden"]), form[data-can-generated-form] textarea, form[data-can-generated-form] select, form[data-can-generated-form] button',
+        ).evaluateAll(controls => controls.every(control =>
+          !control.checkVisibility() || control.matches(":disabled") || control.closest("[inert]") !== null,
+        ))).toBe(true);
+        const revokedPost = await fetch(action, { method: "POST",
+          headers: { cookie, "content-type": "application/json", "x-csrf-token": csrf },
+          body: JSON.stringify({ operation: operation.name, operation_id: neighborNonce, inputs: { label: "After revocation" } }) });
+        expect(revokedPost.status).toBe(403);
         expect(await deps.store.readRevision()).toBe(browserRevision);
         expect(await deps.store.query({ model, authority: "owner" })).toEqual(browserRows);
         expect(await deps.store.historyFor(model, browserRow.id)).toEqual(browserHistory);
@@ -329,10 +395,15 @@ describe("authored readonly state page through native Worker polling", () => {
     const bundle = buildDeployBundleWithAssets(artifact, { verdict: { active: true }, assets: { browser: true } });
     const dir = mkdtempSync(join(realpathSync(tmpdir()), "can-state-page-")); dirs.push(dir);
     writeDeployBundleWithAssets(bundle, dir);
-    const worker = new Miniflare({ compatibilityDate: "2026-07-15", modulesRoot: "/",
-      modules: [DEPLOY_MAIN_MODULE, ...Object.keys(bundle.modules).filter(path => path !== DEPLOY_MAIN_MODULE)].map(path => ({
-        type: "ESModule" as const, path: `/${path}`, contents: bundle.modules[path]!,
-      })), d1Databases: { DB: "actual-state-page" } }); workers.push(worker);
+    const openWorker = () => {
+      const opened = new Miniflare({ compatibilityDate: "2026-07-15", modulesRoot: "/",
+        modules: [DEPLOY_MAIN_MODULE, ...Object.keys(bundle.modules).filter(path => path !== DEPLOY_MAIN_MODULE)].map(path => ({
+          type: "ESModule" as const, path: `/${path}`, contents: bundle.modules[path]!,
+        })), d1Databases: { DB: "actual-state-page" }, d1Persist: join(dir, "d1") });
+      workers.push(opened);
+      return opened;
+    };
+    let worker = openWorker();
     const DB = await worker.getD1Database("DB");
     const { buildProductionDeps } = await loadStagedModule(pathToFileURL(join(dir, "runtime/env-assembly.js")).href);
     const deps = await buildProductionDeps({ DB });
@@ -357,23 +428,6 @@ describe("authored readonly state page through native Worker polling", () => {
       const body = await response.json() as { status?: string; result?: { id: string; version: number } };
       return { response, body };
     };
-    const created = await post("Images.Job.create", {});
-    expect(created.response.status, JSON.stringify(created.body)).toBe(200);
-    expect(created.body.status).toBe("committed");
-    const job = created.body.result!;
-    expect(job.version).toBe(1);
-    const advanced = await post("Images.advance", { job: { id: job.id, version: "1" } });
-    expect(advanced.response.status, JSON.stringify(advanced.body)).toBe(200);
-    expect(advanced.body.status).toBe("committed");
-    const generating = await deps.store.load("Images.Job", job.id);
-    expect(generating.version).toBe(2);
-    expect(generating.data).toEqual({ title: "test", status: "generating" });
-    const beforeHistory = await deps.store.historyFor("Images.Job", job.id);
-    const denied = await post("Images.finish", { job: { id: job.id, version: "2" } }, false);
-    expect(denied.response.status).toBe(403);
-    expect(await deps.store.load("Images.Job", job.id)).toEqual(generating);
-    expect(await deps.store.historyFor("Images.Job", job.id)).toEqual(beforeHistory);
-
     const origin = (await worker.ready).origin;
     const browser = await chromium.launch({ channel: "chrome", headless: true });
     try {
@@ -382,14 +436,38 @@ describe("authored readonly state page through native Worker polling", () => {
       try {
         const page = await context.newPage();
         const bootstrap = page.waitForResponse(response => new URL(response.url()).pathname === "/assets/browser/bootstrap.js");
-        const initialPage = await page.goto(`${origin}/`);
-        expect(initialPage?.status()).toBe(200);
-        const initialHtml = await initialPage!.text();
-        expect(initialHtml).toContain("Generating");
+        expect((await page.goto(`${origin}/`))?.status()).toBe(200);
         expect((await bootstrap).status()).toBe(200);
+        await browserExpect(page.getByText("No images", { exact: true })).toBeVisible();
+        const created = await post("Images.Job.create", {});
+        expect(created.response.status, JSON.stringify(created.body)).toBe(200);
+        expect(created.body.status).toBe("committed");
+        const job = created.body.result!;
+        expect(job.version).toBe(1);
+        await page.reload();
+        await browserExpect(page.locator("#can-main .list-row")).toHaveCount(1);
+        await browserExpect(page.locator("#can-main [role=alert]")).toHaveCount(0);
+        const advanced = await post("Images.advance", { job: { id: job.id, version: "1" } });
+        expect(advanced.response.status, JSON.stringify(advanced.body)).toBe(200);
+        expect(advanced.body.status).toBe("committed");
+        const generating = await deps.store.load("Images.Job", job.id);
+        expect(generating.version).toBe(2);
+        expect(generating.data).toEqual({ title: "test", status: "generating" });
+        const beforeHistory = await deps.store.historyFor("Images.Job", job.id);
+        const denied = await post("Images.finish", { job: { id: job.id, version: "2" } }, false);
+        expect(denied.response.status).toBe(403);
+        expect(await deps.store.load("Images.Job", job.id)).toEqual(generating);
+        expect(await deps.store.historyFor("Images.Job", job.id)).toEqual(beforeHistory);
+        const initialPage = await page.reload();
+        expect(initialPage?.status()).toBe(200);
+        expect(await initialPage!.text()).toContain("Generating");
         await browserExpect(page.getByText(isolate("Generating"), { exact: true })).toBeVisible();
         await browserExpect(page.locator("form[data-can-generated-form]")).toHaveCount(0);
         await browserExpect(page.locator('form[action^="/api/operations/"]')).toHaveCount(0);
+        let pollRequests = 0;
+        page.on("request", request => {
+          if (request.headers()["hx-request"] === "true") pollRequests += 1;
+        });
         const readyPoll = page.waitForResponse(async response =>
           new URL(response.url()).pathname === "/" &&
           response.request().headers()["hx-request"] === "true" &&
@@ -409,6 +487,254 @@ describe("authored readonly state page through native Worker polling", () => {
           "idle", "queued", "generating", "ready",
         ]);
         expect(history.map((entry: { version: number }) => entry.version)).toEqual([1, 2, 2, 3]);
+        // Hold an actual native Worker HX response, then navigate its owner away.
+        let releaseResponse!: () => void;
+        const released = new Promise<void>(resolve => { releaseResponse = resolve; });
+        let responseHeld!: (body: string) => void;
+        const held = new Promise<string>(resolve => { responseHeld = resolve; });
+        let responseSettled!: () => void;
+        const settled = new Promise<void>(resolve => { responseSettled = resolve; });
+        await page.route(`${origin}/`, async route => {
+          if (route.request().headers()["hx-request"] !== "true") { await route.continue(); return; }
+          const response = await route.fetch();
+          responseHeld(await response.text());
+          await released;
+          try { await route.fulfill({ response }); }
+          catch (error) { if (page.url() !== "about:blank") throw error; }
+          finally { responseSettled(); }
+        });
+        expect(await held).toContain("Image ready");
+        await page.goto("about:blank");
+        releaseResponse();
+        await settled;
+        await page.unroute(`${origin}/`);
+        expect(await page.locator("body").innerText()).toBe("");
+        const stoppedRequests = pollRequests;
+        await page.waitForTimeout(2_500);
+        expect(pollRequests).toBe(stoppedRequests);
+        // Reopen the same persisted D1 directory; the readonly view must query it again.
+        workers.splice(workers.indexOf(worker), 1);
+        await worker.dispose();
+        worker = openWorker();
+        const reopenedDB = await worker.getD1Database("DB");
+        const reopenedDeps = await buildProductionDeps({ DB: reopenedDB });
+        const reopenedOrigin = (await worker.ready).origin;
+        expect((await page.goto(`${reopenedOrigin}/`))?.status()).toBe(200);
+        await browserExpect(page.getByText(isolate("Image ready"), { exact: true })).toBeVisible();
+        await browserExpect(page.getByText(isolate("Generating"), { exact: true })).toHaveCount(0);
+        await browserExpect(page.locator("form[data-can-generated-form]")).toHaveCount(0);
+        expect(await reopenedDeps.store.load("Images.Job", job.id)).toEqual(persisted);
+        expect(await reopenedDeps.store.historyFor("Images.Job", job.id)).toEqual(history);
+        // Native tab switching and window minimization leave visibilityState visible
+        // on this host; real visibility pause/resume remains unqualified here.
+      } finally { await context.close(); }
+    } finally { await browser.close(); }
+  }, 60_000);
+});
+
+describe("configured authored protected forms through native Worker", () => {
+  it("restores sealed row bindings and recovers a stale draft with a fresh poll proof", async () => {
+    const { SOURCE_FORM_BINDING_FIELD } = await import("@canlang/contracts");
+    const { mintOperationId } = await import("@canlang/ui");
+    const artifact = JSON.parse(readFileSync(resolve("packages/cloudflare/test/fixtures/typed-operation-forms.json"), "utf8")) as CompileArtifact;
+    const bundle = buildDeployBundleWithAssets(artifact, { verdict: { active: true }, assets: { browser: true } });
+    const dir = mkdtempSync(join(realpathSync(tmpdir()), "can-protected-forms-")); dirs.push(dir);
+    writeDeployBundleWithAssets(bundle, dir);
+    const worker = new Miniflare({ compatibilityDate: "2026-07-15", modulesRoot: "/",
+      modules: [DEPLOY_MAIN_MODULE, ...Object.keys(bundle.modules).filter(path => path !== DEPLOY_MAIN_MODULE)].map(path => ({
+        type: "ESModule" as const, path: `/${path}`, contents: bundle.modules[path]!,
+      })), d1Databases: { DB: "actual-protected-forms" },
+      // Explicit stable 32-byte fixture key, in the owning canonical base64url spelling.
+      bindings: { CAN_FORM_BINDING_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" } }); workers.push(worker);
+    const DB = await worker.getD1Database("DB");
+    const { buildProductionDeps } = await loadStagedModule(pathToFileURL(join(dir, "runtime/env-assembly.js")).href);
+    const deps = await buildProductionDeps({ DB });
+    const password = "protected-form-owner-password";
+    const user = await deps.identityStore.createUser({ email: "protected-form-owner@example.test",
+      password_hash: await hashPassword(password), email_verified: true });
+    const team = await deps.identityStore.createTeam({ timezone: "Europe/Brussels" });
+    await deps.identityStore.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: true, roles: [] });
+    const { token } = await loginWithPassword(deps.identityStore, { email: user.email, password });
+    const session = await deps.identityStore.findSessionByTokenHash(await sha256HexText(token));
+    expect(session).not.toBeNull();
+    await deps.identityStore.setSessionTeam(session.session_id, team.team_id);
+    const cookie = buildSessionCookie(token, { maxAgeSeconds: 3600, secure: false });
+    const csrf = await deriveCsrfToken(token);
+    const model = "TypedOperationForms.Entry", create = `${model}.create`, rename = "TypedOperationForms.rename";
+    const action = `/api/operations/${rename}`;
+    const post = (operation: string, envelope: Record<string, unknown>) => worker.dispatchFetch(
+      `https://example.test/api/operations/${operation}`, { method: "POST",
+        headers: { cookie, "content-type": "application/json", "x-csrf-token": csrf }, body: JSON.stringify(envelope) });
+    const invoke = (operation: string, inputs: Record<string, unknown>) =>
+      post(operation, { operation, operation_id: mintOperationId(), inputs });
+    const created = await invoke(create, { label: "Protected target" });
+    expect(created.status).toBe(200);
+    const target = (await created.json() as { result: { id: string; version: number } }).result;
+    expect(target.version).toBe(1);
+    const origin = (await worker.ready).origin;
+    const browser = await chromium.launch({ channel: "chrome", headless: true });
+    try {
+      const context = await browser.newContext();
+      try {
+        await context.addCookies([{ name: SESSION_COOKIE_NAME, value: token, url: `${origin}/`,
+          httpOnly: true, secure: false, sameSite: "Lax" }]);
+        const page = await context.newPage();
+        expect((await page.goto(`${origin}/`))?.status()).toBe(200);
+        const form = page.locator(`form[action="${action}"]`).first();
+        await browserExpect(form).toBeVisible();
+        await browserExpect(form.getByLabel("New label")).toHaveCount(1);
+        await browserExpect(form.getByLabel("Increment")).toHaveValue("1");
+        await browserExpect(form.locator('[name^="inputs[entry]"]')).toHaveCount(0);
+        const nonceInput = form.locator('input[name="operation_id"]');
+        const proofInput = form.locator(`input[name="${SOURCE_FORM_BINDING_FIELD}"]`);
+        const nonce = await nonceInput.inputValue(), proof = await proofInput.inputValue();
+        expect(proof).not.toBe("");
+        await form.getByLabel("New label").fill("Protected rename");
+        await form.getByLabel("Increment").fill("");
+        await form.getByLabel("New label").focus();
+        const unrelatedPoll = page.waitForResponse(async response =>
+          response.request().headers()["hx-request"] === "true" && response.status() === 200 &&
+          (await response.text()).includes("Unrelated entry"));
+        const unrelated = await invoke(create, { label: "Unrelated entry" });
+        expect(unrelated.status).toBe(200);
+        await unrelatedPoll;
+        await browserExpect(page.locator("#can-main")).toContainText("Unrelated entry");
+        expect(await nonceInput.inputValue()).toBe(nonce);
+        expect(await proofInput.inputValue()).toBe(proof);
+        await browserExpect(form.getByLabel("New label")).toHaveValue("Protected rename");
+        await browserExpect(form.getByLabel("New label")).toBeFocused();
+        const isRenamePost = (response: import("@playwright/test").Response) =>
+          new URL(response.url()).pathname === action && response.request().method() === "POST";
+        const button = form.getByRole("button", { name: "Save changes", exact: true });
+        const submitted = page.waitForResponse(isRenamePost);
+        await button.click();
+        const committed = await submitted;
+        expect(committed.status()).toBe(200);
+        const envelope = committed.request().postDataJSON() as Record<string, unknown>;
+        expect(envelope).toEqual({ operation: rename, operation_id: nonce,
+          [SOURCE_FORM_BINDING_FIELD]: proof, inputs: { newLabel: "Protected rename" } });
+        const result = await committed.json();
+        expect(result.status).toBe("committed"); expect(result.result).toBe("2");
+        const row = await deps.store.load(model, target.id);
+        expect(row.version).toBe(2);
+        expect(row.data).toEqual({ label: "Protected rename", count: "2", owner: { id: user.user_id } });
+        const receiptIdentity = { app: "TypedOperationForms", owner: team.team_id,
+          principal: user.user_id, operation: rename, operationId: nonce };
+        const receipt = await deps.store.readReceipt(receiptIdentity);
+        expect(receipt.resolvedDefaults).toEqual({ delta: "1" });
+        const history = await deps.store.historyFor(model, target.id), revision = await deps.store.readRevision();
+        const replay = await post(rename, envelope);
+        expect(replay.status).toBe(200);
+        const replayResult = await replay.json() as { status: string; result: unknown };
+        expect(replayResult.status).toBe("replayed"); expect(replayResult.result).toEqual(result.result);
+        // A sealed field cannot be replaced by submitted JSON; an invalid seal
+        // also refuses before an already committed nonce can replay.
+        expect((await post(rename, { ...envelope, inputs: { newLabel: "Override", entry: { id: target.id, version: "2" } } })).status).toBe(403);
+        expect((await post(rename, { ...envelope, [SOURCE_FORM_BINDING_FIELD]: "invalid" })).status).toBe(403);
+        expect(await deps.store.load(model, target.id)).toEqual(row);
+        expect(await deps.store.historyFor(model, target.id)).toEqual(history);
+        expect(await deps.store.readRevision()).toBe(revision);
+        expect(await deps.store.readReceipt(receiptIdentity)).toEqual(receipt);
+
+        // The changed row requires a fresh server nonce/proof pair before the
+        // next attempt. Compatible drafts survive that binding replacement.
+        await browserExpect.poll(() => proofInput.inputValue()).not.toBe(proof);
+        const staleNonce = await nonceInput.inputValue(), staleProof = await proofInput.inputValue();
+        expect(staleNonce).not.toBe(nonce);
+        let releasePoll!: () => void, heldPoll!: () => void, settledPoll!: () => void;
+        const release = new Promise<void>(resolve => { releasePoll = resolve; });
+        const held = new Promise<void>(resolve => { heldPoll = resolve; });
+        const settled = new Promise<void>(resolve => { settledPoll = resolve; });
+        await page.route(`${origin}/`, async route => {
+          if (route.request().headers()["hx-request"] !== "true") { await route.continue(); return; }
+          const response = await route.fetch();
+          heldPoll();
+          await release;
+          try { await route.fulfill({ response }); } finally { settledPoll(); }
+        });
+        try {
+          await held;
+          await form.getByLabel("New label").fill("Recovered draft");
+          await form.getByLabel("Increment").fill("");
+          const external = await invoke(rename, { entry: { id: target.id, version: "2" }, newLabel: "External rename" });
+          expect(external.status).toBe(200);
+          expect((await external.json() as { result: unknown }).result).toBe("3");
+          const current = await deps.store.load(model, target.id);
+          const currentHistory = await deps.store.historyFor(model, target.id), currentRevision = await deps.store.readRevision();
+          const stale = page.waitForResponse(isRenamePost);
+          await button.click();
+          expect((await stale).status()).toBe(409);
+          const feedback = form.locator("[data-can-form-feedback]");
+          await browserExpect(feedback).toBeVisible();
+          await browserExpect(feedback).toHaveAttribute("data-can-form-feedback-code", "conflict");
+          await browserExpect(form.getByLabel("New label")).toHaveValue("Recovered draft");
+          expect(await nonceInput.inputValue()).toBe(staleNonce);
+          expect(await proofInput.inputValue()).toBe(staleProof);
+          expect(await deps.store.load(model, target.id)).toEqual(current);
+          expect(await deps.store.historyFor(model, target.id)).toEqual(currentHistory);
+          expect(await deps.store.readRevision()).toBe(currentRevision);
+        } finally { releasePoll(); await settled; await page.unroute(`${origin}/`); }
+        await browserExpect.poll(() => proofInput.inputValue()).not.toBe(staleProof);
+        const freshNonce = await nonceInput.inputValue(), freshProof = await proofInput.inputValue();
+        expect(freshNonce).not.toBe(staleNonce);
+        await browserExpect(form.getByLabel("New label")).toHaveValue("Recovered draft");
+        await browserExpect(form.getByLabel("Increment")).toHaveValue("");
+        const retried = page.waitForResponse(isRenamePost);
+        await button.click();
+        const recovered = await retried;
+        expect(recovered.status()).toBe(200);
+        expect(recovered.request().postDataJSON()).toEqual({ operation: rename, operation_id: freshNonce,
+          [SOURCE_FORM_BINDING_FIELD]: freshProof, inputs: { newLabel: "Recovered draft" } });
+        expect((await recovered.json()).result).toBe("4");
+        await browserExpect(form).toHaveAttribute("data-can-submit-state", "committed");
+        await browserExpect(form.locator("[data-can-form-feedback]")).toBeHidden();
+        const recoveredRow = await deps.store.load(model, target.id);
+        expect(recoveredRow.version).toBe(4); expect(recoveredRow.data.count).toBe("4");
+        expect(recoveredRow.data.label).toBe("Recovered draft");
+        expect((await deps.store.readReceipt({ ...receiptIdentity, operationId: freshNonce })).resolvedDefaults).toEqual({ delta: "1" });
+
+        // The authored CRUD update carries a sealed current record and exposes
+        // only changes. Clearing count omits that patch rather than defaulting.
+        const updateOperation = `${model}.update`, updateAction = `/api/operations/${updateOperation}`;
+        const updateForm = page.locator(`form[action="${updateAction}"]`).first();
+        await browserExpect(updateForm.getByLabel("Entry label")).toHaveValue("Recovered draft");
+        await browserExpect(updateForm.getByLabel("Count", { exact: true })).toHaveValue("4");
+        await browserExpect(updateForm.locator('[name^="inputs[record]"]')).toHaveCount(0);
+        const updateNonce = await updateForm.locator('input[name="operation_id"]').inputValue();
+        const updateProof = await updateForm.locator(`input[name="${SOURCE_FORM_BINDING_FIELD}"]`).inputValue();
+        expect(updateProof).not.toBe("");
+        await updateForm.getByLabel("Entry label").fill("Updated through source form");
+        await updateForm.getByLabel("Count", { exact: true }).fill("");
+        const beforeUpdateHistory = await deps.store.historyFor(model, target.id);
+        const beforeUpdateRevision = await deps.store.readRevision();
+        const updating = page.waitForResponse(response =>
+          new URL(response.url()).pathname === updateAction && response.request().method() === "POST");
+        await updateForm.getByRole("button", { name: "Update entry", exact: true }).click();
+        const updatedResponse = await updating;
+        expect(updatedResponse.status()).toBe(200);
+        const updateEnvelope = updatedResponse.request().postDataJSON();
+        expect(updateEnvelope).toEqual({ operation: updateOperation, operation_id: updateNonce,
+          [SOURCE_FORM_BINDING_FIELD]: updateProof, inputs: { label: "Updated through source form" } });
+        const updateResult = await updatedResponse.json();
+        expect(updateResult.status).toBe("committed");
+        await browserExpect(updateForm).toHaveAttribute("data-can-submit-state", "committed");
+        const updatedRow = await deps.store.load(model, target.id);
+        expect(updatedRow.version).toBe(5);
+        expect(updatedRow.data).toEqual({ label: "Updated through source form", count: "4", owner: { id: user.user_id } });
+        const updateReceiptIdentity = { ...receiptIdentity, operation: updateOperation, operationId: updateNonce };
+        const updateReceipt = await deps.store.readReceipt(updateReceiptIdentity);
+        expect(updateReceipt.resolvedDefaults).toEqual({});
+        const updateHistory = await deps.store.historyFor(model, target.id);
+        expect(updateHistory).toHaveLength(beforeUpdateHistory.length + 1);
+        expect(await deps.store.readRevision()).toBe(beforeUpdateRevision + 1);
+        const updateRevision = await deps.store.readRevision();
+        const updateReplay = await post(updateOperation, updateEnvelope);
+        expect(updateReplay.status).toBe(200);
+        expect((await updateReplay.json() as { status: string }).status).toBe("replayed");
+        expect(await deps.store.load(model, target.id)).toEqual(updatedRow);
+        expect(await deps.store.historyFor(model, target.id)).toEqual(updateHistory);
+        expect(await deps.store.readRevision()).toBe(updateRevision);
+        expect(await deps.store.readReceipt(updateReceiptIdentity)).toEqual(updateReceipt);
       } finally { await context.close(); }
     } finally { await browser.close(); }
   }, 60_000);

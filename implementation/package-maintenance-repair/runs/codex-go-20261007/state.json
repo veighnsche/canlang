@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T05:43:15.617819+00:00",
+  "updated_utc": "2026-10-08T07:31:15.306383+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2126,10 +2126,8 @@
     },
     "advice": "/private/tmp/canlang-repair-go-20261007/form-binding-contract",
     "remaining": [
-      "protected bound/update forms",
       "authored companion controls",
       "file-upload intents join",
-      "protected/server-rerender occurrence and draft restoration",
       "wider installed/parent qualification"
     ],
     "ledger_counts_unchanged": true,
@@ -2141,13 +2139,12 @@
     ],
     "rendered_projection": "Root direct-reviewed exact rendered-input projection; private UI emit0; affected29/29 effective passes (28 original run, obsolete create-tag assertion corrected and only that case rerun1/1). Optional legacy behavior retained; selected unchecked bool false, unrendered boolean/ref/datetime/unknown/delivery omitted; no protected-binding authority claim.",
     "protected_producer": {
-      "status": "defining source/API checked; actual protected compiled Worker/browser consumer pending",
+      "status": "defining source/API and actual configured Chrome/default-Worker/D1 protected and explicit CRUD update consumer accepted narrowly",
       "scope": "host-key native HMAC seal/restore for exact normalized singular versioned refs and selected edits; awaitable source prepareForm and list row rendering",
       "validation": "Contracts/UI/Interfaces emit0; signing5/5 effective (4 original+failed normalization case1/1 after fix); source preparation/HTTP2/2 effective; proof transport1/1; async row ordering/evaluate-once1/1; browser asset build0",
       "contract": "explicit canonical32-byte CAN_FORM_BINDING_KEY; artifact revision/schema/app/session/actor/team/op+nonce/refs/edits and15min expiry; no permission grant; unchanged canonical admission/live credential/version fence",
       "advice": "/private/tmp/canlang-repair-go-20261007/protected-source-form-contract; native host-private signature .67/.28, reconstruct-source .21; mixed low-confidence advice retained",
       "limits": [
-        "actual CF composition and compiled source/browser consumer pending",
         "bound arrays/non-ref arguments, remote handles and upload intents unsupported",
         "no installed release/native preparation/default-adoption or parent-count claim"
       ],
@@ -2156,14 +2153,25 @@
         "scope": "comparison-only draftIdentity holds current context/schema/revision/op/reference IDs/editable set across expected-version changes; exact binding identity and signed token still fence version",
         "behavior": "replace authority epoch with fresh nonce/proof/CSRF/version; carry only compatible dirty editable values/focus; no hidden/files, old pending state/feedback or outcome transfer; different IDs/schema/context refuse transfer",
         "validation": "Contracts/UI/Interfaces emit0 and browserasset0; affected proof identity case1/1 and versionrefresh/negative DOM2/2 once; unchanged protection/lifecycle results reused",
-        "native_witness": "Roadmap current actual Chrome/Worker/D1 stale409 thenv3 poll erased Recovered draft at page-query-serving.test.ts:680; renewed actual consumer remains pending"
+        "native_witness": "Original stale409\u2192v3 poll erased Recovered draft retained; after861edef5, the same genuine compiled source/Chrome/Worker/D1 case passed1/1 (~7.7s), including fresh-authority draft retry and explicit CRUD update."
+      },
+      "actual_consumer": {
+        "validation": "Genuine forms/update source compile0; sole affected protected case1/1 (~7.7s) after861edef5; earlier unbound/readonly/MCP outcomes reused without reruns. Root direct source/test review.",
+        "covers": [
+          "paired nonce/proof and dirt/focus through unrelated poll",
+          "sealed editable-only restoration, normal defaults and atomic receipt",
+          "replay and bound override/invalid seal403 with no effects",
+          "stale409 no effects, freshv3 proof carries pending draft, retryv4",
+          "explicit source CRUD update prefill/omitted count/managed owner, v5 history/receipt and replay"
+        ],
+        "limits": "Bound singular versioned refs only; file intents, remote actions, full installed release, native preparation and wider parent qualification remain open."
       }
     },
     "polling_lifecycle": {
-      "status": "defining UI repair checked; actual source browser Task16 renewed consumer pending",
+      "status": "defining UI repair and actual source Chrome/default-Worker/D1 editable/protected polling consumers accepted narrowly",
       "scope": "same generated occurrence retains paired nonce/proof/CSRF/version, drafts/focus/feedback and pending state; changed binding/schema replaces; current-context403 withdraws region controls without reading body and stops",
       "validation": "UI emit/browser asset build0;14/14 effective owning DOM cases: prior12 passes reused, region-scoped403 assertion fixed and only failed/unreached2cases rerun2/2",
-      "limits": "synthetic owning DOM lifecycle checks, not independent actual source/Worker/D1/Chrome qualification; broad Task16 and48packet counts unchanged"
+      "limits": "Actual source/Chrome/Worker/D1 paths accepted; native tab/window visibilityState remains visible on this host, so visibility pause/resume is not qualified. Wider installed/parent gates remain open."
     }
   },
   "canonical_send_stage_release": {
