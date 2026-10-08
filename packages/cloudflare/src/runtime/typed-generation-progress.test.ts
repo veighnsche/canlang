@@ -163,7 +163,7 @@ test('compiled generation streams controlled provider bytes into granted native 
     const envelope = (operation: string, inputs: MutationEnvelope['inputs']): MutationEnvelope => ({
       operation: `${APP}.${operation}`, operation_id: asOperationId(uuidv7(FIXED_NOW, ++sequence)), inputs,
     });
-    const created = committed(await invoker.invokeMutation(envelope('Job.create', {}), identity)).result as { id: string; version: number };
+    const created = committed(await invoker.invokeMutation(envelope('Job.create', {}), identity)).records![0] as { id: string; version: number };
     const visible = (version: number, caller = identity) => invoker.invokeMutation(envelope('visible', {
       job: { id: created.id, version: String(version) },
     }), caller);

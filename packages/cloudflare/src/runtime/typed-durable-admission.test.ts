@@ -97,8 +97,13 @@ test('compiled owner admission, managed defaults and positive/negative receipts 
     // The carried owner snapshot says false; current membership is authoritative.
     const create = envelope('Entry.create', { label: 'durable' });
     const born = committed(await invoker.invokeMutation(create, staleOwnerSnapshot));
-    const row = born.result as { id: string; version: number; created: number; updated: number;
-      createdBy: string; updatedBy: string; archivedAt: number | null; data: Record<string, unknown> };
+    assert.equal(born.result, null);
+    const publicRow = born.records![0] as { id: string; version: number; data: Record<string, unknown> };
+    const row = await d1.store.load(MODEL, asId(create.operation_id));
+    assert.ok(row);
+    assert.equal(publicRow.id, row.id);
+    assert.equal(publicRow.version, row.version);
+    assert.deepEqual(publicRow.data, row.data);
     assert.equal(row.id, create.operation_id);
     assert.equal(row.version, 1);
     assert.equal(row.created, FIXED_NOW);
@@ -160,7 +165,9 @@ test('compiled owner admission, managed defaults and positive/negative receipts 
     assert.deepEqual(await d1.store.historyFor(MODEL, asId(row.id)), history);
     assert.equal(await d1.store.readRevision(), revision);
     assert.deepEqual(await Promise.all([create, change, rollback].map((request) => d1!.store.readReceipt(receiptIdentity(request)))), receipts);
-    assert.deepEqual(committed(await reopened.invokeMutation(create, identity), 'replayed').result, born.result);
+    const replayedCreate = committed(await reopened.invokeMutation(create, identity), 'replayed');
+    assert.equal(replayedCreate.result, null);
+    assert.deepEqual(replayedCreate.records, born.records);
     assert.equal(committed(await reopened.invokeMutation(change, identity), 'replayed').result, '3');
     const replayedFailure = rejected(await reopened.invokeMutation(rollback, identity), 'rule_failed');
     assert.equal(replayedFailure.message, failed.message);
@@ -218,7 +225,7 @@ test('compiled bound send joins D1 mutation rollback and replays one durable req
     const invoker = buildInvoker(artifact, asm, d1.store, { memberships, now: () => FIXED_NOW });
     const create = request('Entry.create', {});
     const born = committed(await invoker.invokeMutation(create, identity));
-    const row = born.result as { id: string; version: number; data: Record<string, unknown> };
+    const row = born.records![0] as { id: string; version: number; data: Record<string, unknown> };
     assert.deepEqual(row.data, { count: '0' });
     const inputs = { entry: { id: row.id, version: '1' }, to: 'recipient@example.com' };
     const rollback = request('deliver', { ...inputs, accept: false });
@@ -308,7 +315,7 @@ test('compiled record-key schedules replace and cancel atomically and survive D1
     d1 = await openD1(join(dir, 'd1'));
     const invoker = buildInvoker(artifact, asm, d1.store, { memberships, now: () => FIXED_NOW });
     const born = committed(await invoker.invokeMutation(request('Entry.create', { label: 'timer' }), identity));
-    const row = born.result as { id: string; version: number; data: Record<string, unknown> };
+    const row = born.records![0] as { id: string; version: number; data: Record<string, unknown> };
     const ref = (version: number) => ({ id: row.id, version: String(version) });
     const firstAt = FIXED_NOW + 60_000;
     const secondAt = firstAt + 60_000;
@@ -436,7 +443,7 @@ test('compiled private due handlers use current refs and atomically consume term
     const invoker = buildInvoker(artifact, asm, d1.store, { memberships: identities, now: () => FIXED_NOW });
     const ref = (id: string, version: number) => ({ id, version: String(version) });
     const create = async (label: string) => committed(await invoker.invokeMutation(request('Entry.create', { label }), identity))
-      .result as { id: string; version: number };
+      .records![0] as { id: string; version: number };
     const arm = async (id: string, version: number) => {
       committed(await invoker.invokeMutation(request('arm', { entry: ref(id, version), at: new Date(at).toISOString(), accept: true }), identity));
       const rows = await d1!.store.query(scheduleByKeyQuery(scope, id));

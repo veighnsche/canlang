@@ -1482,7 +1482,7 @@ describe("T17b stale revisions conflict (CRUD path, row untouched)", () => {
       memberIdentity,
     );
     assert.ok("result" in created, `want result, got ${JSON.stringify(created)}`);
-    const id = ((created.result as MutationResult).result as { id: string }).id;
+    const id = ((created.result as MutationResult).records![0] as { id: string }).id;
     const updated = await invoker.invokeMutation(
       mutationEnvelope("acme.Todo.update", freshOperationId(seed.now), {
         record: { id, version: "1" },

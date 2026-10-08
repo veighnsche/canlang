@@ -379,12 +379,13 @@ describe("production grant through the assembled worker", () => {
     const committed = JSON.parse(payload.content[0]?.text ?? "null") as {
       status: string;
       operation_id: string;
-      result: { id: string; data: Record<string, unknown> };
+      result: null; records: Array<{ id: string; data: Record<string, unknown> }>;
     };
     expect(committed.status).toBe("committed");
+    expect(committed.result).toBeNull();
     expect(committed.operation_id).toBe(operationId);
-    expect(committed.result.id).toBe(operationId);
-    expect(committed.result.data).toEqual({ title: "via-grant" });
+    expect(committed.records[0]!.id).toBe(operationId);
+    expect(committed.records[0]!.data).toEqual({ title: "via-grant" });
   });
 
   it("401s unknown and revoked grants with the safe error shape", async () => {
