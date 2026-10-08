@@ -2567,3 +2567,10 @@ A bound source form seals only declared singular versioned record references and
 The three balanced JEV requests selected host-private signing twice (.67/.28) and source reconstruction once (.21), without textual rationale. We retain that uncertainty: there is no existing stable source-occurrence reconstruction owner, and adding one would require a different binding contract. The explicit host key uses the existing native cryptographic primitive without a new token store. Missing configuration leaves bound forms unavailable; invalid explicit configuration must fail loudly at the host owner. Arrays, non-record fixed arguments, remote handles and file intents remain unsupported in this first contract.
 
 Source preparation may now be awaitable. List rendering awaits each row callback once and resolves its children in row order. Direct defining checks pass; actual compiled Worker/browser qualification remains with its consumer owner. This is a selected new capability with a separate scope, not production-reduction credit for a library replacement or completion of a broad repair parent.
+
+
+### 2026-10-08 — Generated form occurrence lifecycle during polling
+
+A same-context poll retains an existing generated form only when its checked metadata, control identity and comparison-only protected binding identity agree. Retain its nonce/proof/CSRF/version as a pair, user drafts and focus, feedback, and in-flight submission state. A changed binding or schema replaces the occurrence and detached outcomes are suppressed. A current-context forbidden poll withdraws controls only inside its polled region, never reads or paints the denial body, and ends that poll controller. This is client lifecycle handling; every submitted action still requires current server admission.
+
+Owning DOM checks qualify this repair. Actual source/Worker/D1/browser renewal remains the consumer owner's next check; no broad workflow or parent completion is implied.
