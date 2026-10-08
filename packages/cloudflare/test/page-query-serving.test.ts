@@ -3,6 +3,7 @@ import { readFileSync, mkdtempSync, rmSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { spawn } from "node:child_process";
 import { Miniflare } from "miniflare";
 import { chromium, expect as browserExpect } from "@playwright/test";
 import type { CompileArtifact } from "@canlang/contracts";
@@ -429,10 +430,30 @@ describe("authored readonly state page through native Worker polling", () => {
       return { response, body };
     };
     const origin = (await worker.ready).origin;
-    const browser = await chromium.launch({ channel: "chrome", headless: true });
+    // Attach without Playwright's main-session focus/active emulation. The
+    // public noDefaults option applies only to this real default Chrome context.
+    const profile = join(dir, "chrome-profile");
+    const chrome = spawn("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", [
+      `--user-data-dir=${profile}`, "--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1",
+      "--no-first-run", "--no-default-browser-check", "about:blank",
+    ], { stdio: "ignore" });
+    let launchError: Error | undefined;
+    const chromeStopped = new Promise<void>(resolve => {
+      chrome.once("exit", () => resolve());
+      chrome.once("error", error => { launchError = error; resolve(); });
+    });
+    let browser: Awaited<ReturnType<typeof chromium.connectOverCDP>> | undefined;
     try {
+      await browserExpect.poll(() => {
+        if (launchError) throw launchError;
+        try { return readFileSync(join(profile, "DevToolsActivePort"), "utf8").split("\n")[0]; }
+        catch { return ""; }
+      }, { timeout: 15_000 }).toMatch(/^\d+$/);
+      const port = readFileSync(join(profile, "DevToolsActivePort"), "utf8").split("\n")[0]!;
+      browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { noDefaults: true, isLocal: true });
       // The readonly browser is anonymous; only backend mutations use the issued session.
-      const context = await browser.newContext();
+      const context = browser.contexts()[0]!;
+      expect(context).toBeDefined();
       try {
         const page = await context.newPage();
         const bootstrap = page.waitForResponse(response => new URL(response.url()).pathname === "/assets/browser/bootstrap.js");
@@ -468,6 +489,20 @@ describe("authored readonly state page through native Worker polling", () => {
         page.on("request", request => {
           if (request.headers()["hx-request"] === "true") pollRequests += 1;
         });
+        // Both tabs belong to the native default context, so no main inspector
+        // session has enabled Playwright's focus/active emulation.
+        const siblingTab = await context.newPage();
+        await siblingTab.goto("about:blank");
+        await page.bringToFront();
+        await browserExpect.poll(() => page.evaluate(() => document.visibilityState)).toBe("visible");
+        await siblingTab.bringToFront();
+        await browserExpect.poll(() => page.evaluate(() => document.visibilityState)).toBe("hidden");
+        // Let any request already started before the native transition settle,
+        // then observe longer than the actual source's two-second poll cadence.
+        await page.waitForTimeout(300);
+        const hiddenRequests = pollRequests;
+        await page.waitForTimeout(2_500);
+        expect(pollRequests).toBe(hiddenRequests);
         const readyPoll = page.waitForResponse(async response =>
           new URL(response.url()).pathname === "/" &&
           response.request().headers()["hx-request"] === "true" &&
@@ -475,7 +510,13 @@ describe("authored readonly state page through native Worker polling", () => {
         const finished = await post("Images.finish", { job: { id: job.id, version: "2" } });
         expect(finished.response.status, JSON.stringify(finished.body)).toBe(200);
         expect(finished.body.status).toBe("committed");
+        expect(await page.evaluate(() => document.visibilityState)).toBe("hidden");
+        expect(pollRequests).toBe(hiddenRequests);
+        await page.bringToFront();
+        await browserExpect.poll(() => page.evaluate(() => document.visibilityState)).toBe("visible");
         await readyPoll;
+        expect(pollRequests).toBeGreaterThan(hiddenRequests);
+        await siblingTab.close();
         await browserExpect(page.getByText(isolate("Image ready"), { exact: true })).toBeVisible();
         await browserExpect(page.getByText(isolate("Generating"), { exact: true })).toHaveCount(0);
         await browserExpect(page.locator("form[data-can-generated-form]")).toHaveCount(0);
@@ -525,10 +566,12 @@ describe("authored readonly state page through native Worker polling", () => {
         await browserExpect(page.locator("form[data-can-generated-form]")).toHaveCount(0);
         expect(await reopenedDeps.store.load("Images.Job", job.id)).toEqual(persisted);
         expect(await reopenedDeps.store.historyFor("Images.Job", job.id)).toEqual(history);
-        // Native tab switching and window minimization leave visibilityState visible
-        // on this host; real visibility pause/resume remains unqualified here.
       } finally { await context.close(); }
-    } finally { await browser.close(); }
+    } finally {
+      await browser?.close();
+      if (chrome.exitCode === null && chrome.signalCode === null) chrome.kill("SIGTERM");
+      await chromeStopped;
+    }
   }, 60_000);
 });
 

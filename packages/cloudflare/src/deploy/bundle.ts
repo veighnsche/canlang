@@ -128,7 +128,9 @@ const ASSEMBLY_MODULE_KEY = "worker/assembly.js";
 const PINNED_RUNTIME_FILES: readonly string[] = [
   "context.js",
   "stdlib.js",
+  "native-records.js",
   "invoke.js",
+  "input-choices.js",
   "receipt-staging.js",
   "file-staging.js",
   "sourcemap.js",
@@ -492,7 +494,9 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     if (spec === WORK_OCCURRENCE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_OCCURRENCE_VENDOR_ENTRY);
     if (spec === WORK_RECEIPT_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_RECEIPT_VENDOR_ENTRY);
     if (spec === WORK_ASSOCIATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_ASSOCIATION_VENDOR_ENTRY);
-    if (spec === "@canlang/interfaces") return relativeSpecifier(moduleKey, HTTP_OPERATIONS_MODULE);
+    if (spec === "@canlang/interfaces" || spec === "@canlang/interfaces/http/operations") {
+      return relativeSpecifier(moduleKey, HTTP_OPERATIONS_MODULE);
+    }
     if (spec.startsWith("@canlang/state/")) return relativeSpecifier(moduleKey, `vendor/state/${spec.slice("@canlang/state/".length)}.js`);
     return spec;
   };
@@ -748,9 +752,9 @@ export function buildHttpOperationsBundle(_repoRoot?: string): string {
   try {
     writeFileSync(
       entryFile,
-      `export { handleOperationRequest, createSourceFormBindings, INPUT_CHOICES_VERSION } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n` +
+      `export { handleOperationRequest, createSourceFormBindings, catalogFromArtifactOperations, INPUT_CHOICES_VERSION } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n` +
       `export { handlePageRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "pages.js")))};\n` +
-      `export { checkArtifactOperation, checkedToMcpInputSchema } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "mcp", "schemas.js")))};\n`,
+      `export { checkArtifactOperation, checkArtifactOperations, checkBoundArgument, checkBoundArguments, checkedToMcpInputSchema } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "mcp", "schemas.js")))};\n`,
       "utf8",
     );
     entryWritten = true;
