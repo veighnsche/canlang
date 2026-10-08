@@ -2258,12 +2258,21 @@
       "due_reference_contract": "Persist supplied observed version with canonical model/id; current qualified due frame hydrates current row/version without altering capture or broad public-version bypass."
     },
     "consumer": {
-      "status": "direct reviewed narrow keyed put/cancel consumer; scoped commit pending",
+      "status": "Root direct-reviewed and committed1586af1e selected keyed put/cancel consumer; actual trusted due join pending",
       "review": "keyed-schedule-consumer-root-review.json",
       "owning_check_results": "CF emit0; actual native D1case1/1; changed portable six-module mapping1/1",
       "affected_writers_released": true,
       "counts_unchanged": true,
-      "due_handler_pending": true
+      "due_handler_pending": true,
+      "commit": "1586af1e"
+    },
+    "occurrence_receipt_gate": {
+      "status": "same defining command extracted and directly reviewed; emit0/existing3/3; scoped commit pending",
+      "api": "@canlang/work/kernel/occurrence-staging workOccurrencePutReceiptCommand.stage(args,SystemCommandContext)",
+      "review": "portable-occurrence-receipt-root-review.json",
+      "source_and_output_leases_released": true,
+      "actual_due_consumer_pending": true,
+      "counts_unchanged": true
     }
   },
   "installed_bound_provider_release": {
