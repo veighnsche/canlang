@@ -379,6 +379,8 @@ function toDerivedInput(field: CheckedArtifactInput): DerivedWritableInput {
       return { ...common, kind: 'money' };
     case 'datetime':
       return { ...common, kind: 'datetime' };
+    case 'duration':
+      return { ...common, kind: 'duration' };
     case 'boolean':
       return { ...common, kind: 'boolean' };
     case 'file':

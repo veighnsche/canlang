@@ -401,6 +401,7 @@ export type DerivedInputKind =
   | 'decimal'
   | 'money'
   | 'datetime'
+  | 'duration'
   | 'boolean'
   | 'file'
   | 'enum'

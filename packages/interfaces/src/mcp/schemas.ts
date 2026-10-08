@@ -91,6 +91,8 @@ function fieldSchema(field: McpSchemaField): Record<string, unknown> {
       // wire DecimalString): never a JSON number, no magnitude-dependent
       // wire type.
       return { type: 'string' };
+    case 'duration':
+      return { type: 'string' };
     case 'boolean':
       return { type: 'boolean' };
     case 'decimal':
@@ -345,6 +347,7 @@ const CHECKED_INPUT_KINDS: ReadonlySet<string> = new Set([
   'decimal',
   'money',
   'datetime',
+  'duration',
   'boolean',
   'file',
   'enum',
@@ -609,7 +612,7 @@ function checkDescriptorDotPath(path: string, what: string): void {
  * never derivable as input); unknown kinds reject precisely. Extra
  * members are ignored (additive tolerance — only kinds reject).
  *
- * T19b exactness: `literal` defaults on `integer`/`decimal`/`money`
+ * T19b exactness: `literal` defaults on `integer`/`decimal`/`money`/`duration`
  * inputs validate against the canonical wire shapes (int64 digit
  * strings, T11 exact decimals, exact-keys money) — JSON numbers,
  * malformed spellings, and out-of-range values reject the descriptor
@@ -619,6 +622,7 @@ function checkArtifactDefault(
   value: unknown,
   what: string,
   fieldKind: string,
+  durationType: string = 'duration',
 ): DerivedInputDefault | undefined {
   if (value === undefined) return undefined;
   if (!isDescriptorRecord(value) || typeof value['kind'] !== 'string') {
@@ -627,6 +631,14 @@ function checkArtifactDefault(
   const kind = value['kind'];
   if (kind === 'literal') {
     const literal = value['value'];
+    if (fieldKind === 'duration') {
+      try {
+        decodeValue(durationType, literal);
+      } catch (err) {
+        if (!(err instanceof SchemaError)) throw err;
+        failDescriptor('malformed_descriptor', `Invalid literal default for ${what}: ${err.message}.`);
+      }
+    }
     if (fieldKind === 'integer' || fieldKind === 'decimal' || fieldKind === 'money') {
       const detail =
         fieldKind === 'integer'
@@ -670,7 +682,7 @@ function checkArtifactFieldTag(value: unknown, what: string): McpSchemaField {
     failDescriptor(
       'unknown_input_kind',
       `Unknown input kind ${JSON.stringify(kind)} for ${what}; ` +
-        'supported: ref, string, integer, decimal, money, datetime, boolean, file, enum, delivery.',
+        'supported: ref, string, integer, decimal, money, datetime, duration, boolean, file, enum, delivery.',
     );
   }
   if (kind === 'ref') {
@@ -703,12 +715,14 @@ function checkArtifactFieldTag(value: unknown, what: string): McpSchemaField {
       return { kind: 'money' };
     case 'datetime':
       return { kind: 'datetime' };
+    case 'duration':
+      return { kind: 'duration' };
     case 'boolean':
       return { kind: 'boolean' };
     case 'file':
       return { kind: 'file' };
     default:
-      // Unreachable: the closed-kind screen above admits only these seven
+      // Unreachable: the closed-kind screen above admits only these eight
       // past the `ref`/`enum` arms. Fail loud if that ever drifts.
       failDescriptor('unknown_input_kind', `Unknown input kind ${JSON.stringify(kind)} for ${what}.`);
   }
@@ -732,7 +746,8 @@ function checkArtifactInputChannels(
   if (typeof value['required'] !== 'boolean') {
     failDescriptor('malformed_descriptor', `Invalid ${what}: required must be a boolean.`);
   }
-  const fallback = checkArtifactDefault(value['default'], what, fieldKind);
+  const durationType = `duration${value['array'] === undefined ? '' : '[]'}${value['nullable'] === true ? '?' : ''}`;
+  const fallback = checkArtifactDefault(value['default'], what, fieldKind, durationType);
   let array: { readonly required: boolean } | undefined;
   if (value['array'] !== undefined) {
     if (!isDescriptorRecord(value['array']) || typeof value['array']['required'] !== 'boolean') {
@@ -1061,6 +1076,16 @@ function checkBoundElement(
       return detail === null
         ? null
         : bindingError(path, `Invalid value for input ${JSON.stringify(input.name)}: ${detail}.`);
+    }
+    case 'duration': {
+      // The values codec owns canonical millisecond spelling and int64 bounds.
+      try {
+        decodeValue('duration', value);
+      } catch (err) {
+        if (!(err instanceof SchemaError)) throw err;
+        return bindingError(path, `Invalid value for input ${JSON.stringify(input.name)}: ${err.message}.`);
+      }
+      return null;
     }
     case 'datetime': {
       // E2b/F-R4 join: the dispatcher applies the canonical values-wire

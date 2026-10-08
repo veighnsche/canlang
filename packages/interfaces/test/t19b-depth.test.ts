@@ -681,6 +681,69 @@ test('exact decimal defaults derive: canonical strings, R16, T15a spellings', ()
   }
 });
 
+test('duration descriptors preserve defaults and array/null metadata through canonical wire adapters', () => {
+  // The owning Values decoder supplies integer-millisecond admission/normalization.
+  const op: ArtifactOperation = {
+    name: 'Timer.wait',
+    kind: 'scenario',
+    description: '',
+    inputs: { fields: [
+      { name: 'delay', field: { kind: 'duration' }, required: false, default: { kind: 'literal', value: '0' } },
+      { name: 'intervals', field: { kind: 'duration' }, required: false, nullable: true, array: { required: false }, default: { kind: 'literal', value: ['1', '1000'] } },
+    ] },
+  };
+  const derived = deriveOperationInputs(op);
+  const delay = derivedInput(derived, 'delay');
+  const intervals = derivedInput(derived, 'intervals');
+  assert.deepEqual(delay, { name: 'delay', kind: 'duration', required: false, default: { kind: 'literal', value: '0' } });
+  assert.deepEqual(intervals, {
+    name: 'intervals', kind: 'duration', required: false, nullable: true, array: { required: false }, default: { kind: 'literal', value: ['1', '1000'] },
+  });
+  assert.deepEqual(toMcpInputSchema(op).fields.map((field) => field.field), [
+    { kind: 'duration' }, { kind: 'duration' },
+  ]);
+  const properties = propertiesOf(anyOfBranch(toToolInputSchemaFromArtifact(op), 0));
+  assert.deepEqual(properties['delay'], { type: 'string' });
+  assert.deepEqual(properties['intervals'], { type: 'array', items: { type: 'string' } });
+  for (const edge of ['0', '9223372036854775807', '-9223372036854775808', '01', '-0']) {
+    assert.equal(checkBoundArgument(delay, edge), null, edge);
+    assert.equal(checkBoundArgument(intervals, [edge]), null, edge);
+    assert.deepEqual(derivedInput(deriveOperationInputs(withLiteral(op, 'delay', edge)), 'delay').default, {
+      kind: 'literal', value: edge,
+    });
+  }
+  assert.equal(checkBoundArgument(intervals, null), null);
+  assert.equal(checkBoundArgument(intervals, []), null);
+  for (const value of [null, [], ['01', '-0']]) {
+    assert.deepEqual(derivedInput(deriveOperationInputs(withLiteral(op, 'intervals', value)), 'intervals').default, {
+      kind: 'literal', value,
+    });
+  }
+  assert.ok(checkBoundArgument(delay, null) !== null);
+  for (const bad of [1, '+1', '1.5', '1ms', '9223372036854775808', '-9223372036854775809']) {
+    assert.ok(checkBoundArgument(delay, bad) !== null, String(bad));
+    assert.equal(checkBoundArgument(intervals, [bad])?.fields?.[0]?.path, '/intervals/0');
+    assert.equal(rejectionReason(() => deriveOperationInputs(withLiteral(op, 'delay', bad))), 'malformed_descriptor');
+    assert.equal(rejectionReason(() => toToolInputSchemaFromArtifact(withLiteral(op, 'delay', bad))), 'malformed_descriptor');
+    assert.equal(rejectionReason(() => deriveOperationInputs(withLiteral(op, 'intervals', [bad]))), 'malformed_descriptor');
+  }
+});
+
+test('invalid integer default precedes invalid array marker', () => {
+  const op: ArtifactOperation = {
+    name: 'Ledger.invalid',
+    kind: 'scenario',
+    description: '',
+    inputs: { fields: [
+      { name: 'count', field: { kind: 'integer' }, required: false, array: { required: 'invalid' as unknown as boolean }, default: { kind: 'literal', value: 1 } },
+    ] },
+  };
+  assert.equal(
+    rejectionMessage(() => deriveOperationInputs(op)),
+    'Invalid literal default for input "count" on operation "Ledger.invalid": integer values are canonical digit strings (got 1).',
+  );
+});
+
 test('inexact numeric defaults reject: no Number, malformed, out-of-range', () => {
   // JSON numbers are never exact (the T11 ambiguity negative).
   for (const [op, name, value] of [

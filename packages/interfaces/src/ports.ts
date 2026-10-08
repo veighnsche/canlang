@@ -179,6 +179,7 @@ export type McpSchemaField =
   | { readonly kind: 'decimal' }
   | { readonly kind: 'money' }
   | { readonly kind: 'datetime' }
+  | { readonly kind: 'duration' }
   | { readonly kind: 'boolean' }
   | { readonly kind: 'file' }
   | { readonly kind: 'enum'; readonly values: readonly string[] };

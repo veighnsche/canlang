@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-08T02:44:25.022433+00:00",
+  "updated_utc": "2026-10-08T03:50:19.769596+00:00",
   "total": 67,
   "finished_at_recorded_scope": 48,
   "remaining_including_partial": 19,
@@ -101,17 +101,18 @@
     }
   },
   "latest_component": {
-    "commit": "ad195c83",
-    "previous_component": "ff28ba52",
-    "outcome": "Original finite SEM-R03 checked binding/two-argument formatter owner join completed; S9-Q01 presentation and outbound consumer duties remain open."
+    "commit": "693c7611",
+    "previous_component": "e33dbe00",
+    "outcome": "Checked Date/Duration result/input/model identity and literal Date defaults published; unsupported computed Money model defaults refuse E6008. Broader canonical references and Money constructor folding remain open."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
     "map-attribution/outcome.md",
     "editor-project-scope/outcome.md",
-    "native-scalar-presentation/README.md"
+    "native-scalar-presentation/README.md",
+    "operation-result-producer/facts.md"
   ],
-  "current_source_work": "No active compiler production writer. Localized formatter and source-level business refusals integrated; actual overload-owner inspection completed without a new proven defect. BDD consumer and wider presentation/outbound/host workflows remain open.",
+  "current_source_work": "Checked primitive producer and Duration TypeScript mirrors qualified with focused compiler/adapter checks. Actual calendar/duration execution is with its State/Cloudflare consumer owner. BDD consultation and wider presentation/outbound/host workflows remain open; no broad reference is closed by these producer slices.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
