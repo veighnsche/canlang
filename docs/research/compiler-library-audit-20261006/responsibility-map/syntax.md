@@ -93,6 +93,32 @@ timezone policy, and DEL-D05 native application/release profiles. The original
 finding and execution receipts below are retained as historical evidence for
 their pinned source and runtime.
 
+### SYN-R07 maintenance update — 2026-10-08
+
+Current Rust UI lowering exposes a finite set of source-to-factory profiles:
+Card caption/layout; `details` to `collapse` with caption/open; title text;
+`text` values, single-value `content`/`badge`/`stat` and optional `divider`
+captions; transient tabs;
+`fieldset` and `join`; named slots for modal, drawer and `chat_bubble`; named
+main/action children for FAB; forms through the existing `prepareForm` runtime
+path; and `list`/`table` under a named model and query scope. Structural `slot`
+and tab-item nodes are internal carriers, not standalone imported factories.
+The generic catalog fallback and incomplete legacy `action`, `actions`,
+`edit`, `history`, `copy`, `metrics`, `breadcrumbs` and `pagination` profiles
+now fail explicitly with E6008. Source options the owning factory does not
+consume, along with unavailable header and child forms, are diagnosed rather
+than silently discarded. Catalog `availability` describes a producer factory;
+it does not establish a supported Can source profile. This bounded mapping
+does not establish whole-app or every-backend/browser execution, protected
+form behavior, or BDD3 returned/live payload behavior; those gaps remain open.
+
+The existing [UI adapter tests](../../../../compiler/tests/ui_adapter.rs) execute
+the generated module through real public factories and exercise the changed
+admission refusals. The three affected cases passed; the refusal case also
+passed after the final translated-header correction. Strict library Clippy
+passed. Accepted form/Tabs/order outcomes retain their original profile limits;
+no repeat suite or new evidence packet is required for this availability duty.
+
 ## Executed witnesses
 
 [Execution receipt](syntax-evidence/execution.json) captures a fresh

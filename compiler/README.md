@@ -58,6 +58,21 @@ Implemented modules:
   whole `examples/` + `draft/` corpus cleanly; see `tests/syntax.rs`.
 - `src/codegen/`: lexer-decoded IR strings, JS/BDD emitters and `sourcemap`
   codec behind `can compile`; original Can map columns retain byte units.
+- UI lowering has a finite source-to-factory surface. It carries Card captions
+  and stack/columns layout, `details` captions/open state into `collapse`,
+  `title` text, `text` values, single-value `content`/`badge`/`stat` and optional
+  `divider` captions, transient tabs, `fieldset`/`join` children, named slots for modal/drawer/chat bubbles,
+  and main/action children for FAB. Forms go through the runtime's
+  `prepareForm`; `list`/`table` carry named model and query scope. Catalog
+  availability alone does not make a word or profile authorable: unsupported
+  source-to-factory shapes fail with E6008. The generic catalog fallback and
+  incomplete legacy `action`, `actions`, `edit`, `history`, `copy`, `metrics`,
+  `breadcrumbs`, and `pagination` profiles are rejected explicitly; structural
+  `slot` and tab-item carriers are not imported as standalone factories.
+  Unsupported attributes, header shapes and child forms are diagnosed instead
+  of being dropped. This bounded surface does not qualify whole-app generation,
+  every backend/browser workflow, protected forms or BDD3 returned/live
+  payloads.
 - Decimal literals and contextual integral values lower through the existing
   `parseDecimal` path. Decimal arithmetic and value comparisons use the owning
   `Values` helpers. Permanent native runtime witnesses cover these supported

@@ -1152,7 +1152,8 @@ pub(super) fn js_string(value: &str) -> String {
     crate::json::to_compact_string(value).expect("JS string JSON serialization invariant")
 }
 
-/// Lowercase server factories allowed in UI positions (oracle corpus).
+/// Public server factories used by the finite source profiles below.
+/// `slot` and tab items are structural IR, never standalone imports.
 fn is_ui_factory(factory: &str) -> bool {
     matches!(
         factory,
@@ -1164,11 +1165,12 @@ fn is_ui_factory(factory: &str) -> bool {
             | "button"
             | "card"
             | "chatBubble"
+            | "collapse"
             | "content"
             | "copy"
             | "deleteRecord"
-            | "details"
             | "divider"
+            | "drawer"
             | "edit"
             | "fab"
             | "fieldset"
@@ -1177,20 +1179,118 @@ fn is_ui_factory(factory: &str) -> bool {
             | "input"
             | "join"
             | "list"
-            | "metrics"
             | "modal"
             | "pagination"
             | "radio"
             | "select"
-            | "slot"
             | "stat"
-            | "tab"
             | "table"
             | "tabs"
             | "text"
             | "textarea"
             | "title"
     )
+}
+
+/// Props consumed by the actual public factory (or the form preparer).
+/// Unavailable runtime-carrier profiles are rejected during IR decoding.
+fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
+    match factory {
+        "card" => matches!(key, "title" | "layout"),
+        "collapse" => matches!(key, "caption" | "open" | "id" | "variant"),
+        "tabs" => matches!(key, "id" | "size" | "variant"),
+        "title" => matches!(key, "text" | "level"),
+        "text" => key == "values",
+        "content" => key == "value",
+        "list" => matches!(
+            key,
+            "model" | "parent" | "where" | "limit" | "cursor" | "empty"
+        ),
+        "table" => matches!(
+            key,
+            "model" | "parent" | "where" | "limit" | "cursor" | "empty" | "columns"
+        ),
+        "form" => matches!(
+            key,
+            "operation" | "fields" | "arguments" | "submit" | "display"
+        ),
+        "input" | "textarea" | "radio" | "select" => {
+            matches!(key, "field" | "tone" | "size" | "variant")
+        }
+        "fieldset" => matches!(key, "caption" | "id" | "variant"),
+        "join" => matches!(key, "id" | "orientation" | "variant"),
+        "badge" => matches!(key, "value" | "caption" | "tone" | "size" | "variant"),
+        "divider" => matches!(key, "caption" | "tone" | "orientation" | "variant"),
+        "stat" => matches!(
+            key,
+            "value" | "title" | "description" | "icon" | "orientation" | "id" | "variant"
+        ),
+        "alert" => matches!(
+            key,
+            "value" | "tone" | "variant" | "orientation" | "regionId"
+        ),
+        "button" => matches!(key, "caption" | "target" | "opens" | "submit"),
+        "modal" | "drawer" => matches!(key, "caption" | "id" | "variant"),
+        "chatBubble" => matches!(key, "side" | "tone" | "variant"),
+        "fab" => key == "label",
+        "deleteRecord" => matches!(
+            key,
+            "operation"
+                | "record"
+                | "mode"
+                | "action"
+                | "operationId"
+                | "itemLabel"
+                | "confirm"
+                | "idPrefix"
+        ),
+        _ => false,
+    }
+}
+
+/// Finite options consumed by the current owning UI appearance contracts.
+fn ui_option_words(factory: &str, key: &str) -> Option<&'static [&'static str]> {
+    const TONES: &[&str] = &[
+        "neutral",
+        "primary",
+        "secondary",
+        "accent",
+        "info",
+        "success",
+        "warning",
+        "error",
+    ];
+    const SIZES: &[&str] = &["xs", "sm", "md", "lg", "xl"];
+    match key {
+        "tone" if factory == "alert" => Some(&["info", "success", "warning", "error"]),
+        "tone"
+            if matches!(
+                factory,
+                "badge" | "divider" | "chatBubble" | "input" | "textarea" | "radio" | "select"
+            ) =>
+        {
+            Some(TONES)
+        }
+        "size"
+            if matches!(
+                factory,
+                "badge" | "tabs" | "input" | "textarea" | "radio" | "select"
+            ) =>
+        {
+            Some(SIZES)
+        }
+        "variant" => Some(match factory {
+            "badge" => &["solid", "outline", "soft", "ghost"],
+            "alert" => &["solid", "outline", "soft"],
+            "input" | "textarea" | "select" => &["solid", "ghost"],
+            _ => &["solid"],
+        }),
+        "orientation" => Some(&["horizontal", "vertical"]),
+        "side" => Some(&["start", "end"]),
+        "layout" => Some(&["stack", "columns"]),
+        "display" if factory == "form" => Some(&["inline", "drawer"]),
+        _ => None,
+    }
 }
 
 /// One page `form` usage collected for the `forms` member.
@@ -3969,6 +4069,49 @@ impl<'a> Emitter<'a> {
             );
             return self.throw_expr(&format!("unknown UI factory {}", node.factory));
         }
+        for (key, value) in &node.props {
+            if !ui_prop_is_admitted(&node.factory, key) {
+                self.unsupported(
+                    &format!("{} UI option `{key}`", node.factory),
+                    "the owning factory profile does not consume this property",
+                    value.span,
+                );
+                return self.throw_expr("unsupported UI option");
+            }
+            let typed = match key.as_str() {
+                "open" => matches!(value.ty, ResolvedType::Scalar(Scalar::Bool)),
+                "caption" | "title" | "text" | "label" | "regionId" | "target" | "opens" => {
+                    matches!(value.ty, ResolvedType::Scalar(Scalar::Text))
+                        || matches!(value.expr, IrExpr::Message(_))
+                }
+                "submit" if node.factory == "button" => {
+                    matches!(value.expr, IrExpr::Bool(true))
+                }
+                "submit" => {
+                    matches!(value.ty, ResolvedType::Scalar(Scalar::Text))
+                        || matches!(value.expr, IrExpr::Message(_))
+                }
+                _ => true,
+            };
+            if !typed {
+                self.unsupported(
+                    &format!("{} UI option `{key}`", node.factory),
+                    "value has no checked type for the owning factory property",
+                    value.span,
+                );
+                return self.throw_expr("unsupported UI property type");
+            }
+            if let Some(words) = ui_option_words(&node.factory, key)
+                && !matches!(&value.expr, IrExpr::Text(word) if words.contains(&word.as_str()))
+            {
+                self.unsupported(
+                    &format!("{} UI option `{key}`", node.factory),
+                    &format!("only the owning finite words {} lower", words.join(", ")),
+                    value.span,
+                );
+                return self.throw_expr("unsupported UI option value");
+            }
+        }
         // The actual list factory requires an owning empty-state message.
         // Bare lists remain a language-default gap; do not invent copy or
         // publish a factory payload that fails on an authorized empty query.
@@ -4177,12 +4320,20 @@ impl<'a> Emitter<'a> {
                         .map(|c| self.lower_ui_occurrence(c, ctx, occurrences, prepared_form))
                         .collect();
                     props.push(format!("actions:[{}]", rest.join(",")));
-                } else if node.factory == "chatBubble" {
-                    // Slot children group by slot name in
-                    // first-seen order; non-slot children were
-                    // rejected at decode and are skipped (total).
+                } else if matches!(node.factory.as_str(), "chatBubble" | "modal" | "drawer") {
+                    // The actual factories consume named slot props, not
+                    // children or a standalone slot factory. Keep authored
+                    // slot order and evaluate each descendant exactly once.
                     let mut names: Vec<&str> = Vec::new();
                     for child in &node.children {
+                        if child.gate.is_some() {
+                            self.unsupported(
+                                "UI slot gate",
+                                "required/optional slot availability has no owning source profile",
+                                child.span,
+                            );
+                            return self.throw_expr("unsupported UI slot gate");
+                        }
                         if let Some(name) = crate::codegen::ir::ui_slot_name(child)
                             && !names.contains(&name)
                         {
@@ -4209,7 +4360,7 @@ impl<'a> Emitter<'a> {
                         }
                         props.push(format!("{}:[{}]", object_key(name), group.join(",")));
                     }
-                } else if !node.children.is_empty() {
+                } else if !node.children.is_empty() || node.factory == "card" {
                     let children = node
                         .children
                         .iter()
