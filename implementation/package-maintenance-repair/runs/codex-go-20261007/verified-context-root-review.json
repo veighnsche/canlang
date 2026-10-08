@@ -84,7 +84,7 @@
   },
   "raw_provenance_whitespace": "Preserved raw logs/diffs may contain trailing whitespace; source and authored decision/filetree notes checked separately.",
   "selected_transport_consumer": {
-    "status": "Root direct-reviewed released actual HTTP/MCP context case; source-only test commit pending",
+    "status": "Root direct-reviewed and committed actual HTTP/MCP context case; broader context/installed parent open",
     "path": "packages/cloudflare/src/runtime/typed-context-serving.test.ts",
     "owning_release": {
       "thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
@@ -103,6 +103,7 @@
       "No complete hooks/all contexts, actor-null public mutation host or whole installed/deployed/native release qualification"
     ],
     "counts_unchanged": true,
-    "verification_policy": "Reuse unchanged owning pass; direct source/caller review only"
+    "verification_policy": "Reuse unchanged owning pass; direct source/caller review only",
+    "commit": "a3864762188c009ca1c071dc103908083ff6e9bd"
   }
 }
