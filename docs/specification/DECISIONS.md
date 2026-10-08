@@ -2721,3 +2721,8 @@ Accepted component: genuine compiled `TextRequest` and `TextMessage` constructio
 ### 2026-10-08 — Preserve checked computed-default omission in State (accepted finite prerequisite)
 
 Use an own `computedDefault: true` marker on optional checked scalar scenario inputs, including ordinary arrays, to preserve omitted values until the generated handler evaluates the authored default. Contracts owns the additive artifact/canonical metadata; State validates and retains it without evaluating defaults or adding a wire default kind. Required, reference, non-scenario and conflicting wire-default claims refuse. Explicit caller values and current admission/error order remain. The owning Contracts/State emits and one existing loader-driven admission case passed; root reviewed the released source directly. Compiler/runtime source pairing and nullable argument-fill suppression remain separate consumer work; no complete H1 or installed/replay acceptance is claimed.
+
+
+### 2026-10-08 — Use the owning File wire shape in MCP (accepted transport repair)
+
+File inputs in MCP use the existing Values closed `{id}` wire shape, matching State and genuine compiled File metadata. Interfaces advertises that object schema and calls the existing File decoder for bound checks instead of accepting primitive text IDs. Empty/nonstring IDs, extra fields and primitive strings refuse; array/null admission is unchanged. The actual Files workflow found this mismatch before invoke. The owning Interfaces emit and two affected existing cases passed; root reused them after direct source review. Actual authenticated File attachment/download and durable host qualification remain with the workflow owner.
