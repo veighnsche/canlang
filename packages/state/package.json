@@ -30,7 +30,8 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@canlang/contracts": "workspace:*"
+    "@canlang/contracts": "workspace:*",
+    "@canlang/values": "workspace:*"
   },
   "exports": {
     ".": {
