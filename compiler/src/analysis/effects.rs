@@ -81,11 +81,11 @@
 use crate::analysis::NodeKey;
 use crate::analysis::catalog::{Availability, Catalog};
 use crate::analysis::resolve::{
-    Binding, ContextVar, CrudOp, ModelOwner, ModuleId, ResolveTables, ScopedName, SymbolId,
-    SymbolKind,
+    Binding, ContextVar, CrudOp, ModelOwner, ModuleId, ModuleKind, ResolveTables, ScopedName,
+    SymbolId, SymbolKind,
 };
 use crate::analysis::types::{ResolvedType, Scalar, TypeTable};
-use crate::diagnostic::Diagnostic;
+use crate::diagnostic::{Diagnostic, Related};
 use crate::source::{SourceDb, SourceId, Span};
 use crate::syntax::{SyntaxKind, SyntaxNode, decode_json_string};
 use std::collections::{HashMap, HashSet};
@@ -771,6 +771,11 @@ pub struct ModuleData {
     /// (`types.rs` BCP 47 validation); this publishes the located value,
     /// mirroring `source_lang`.
     pub locale_default: Option<String>,
+    /// Explicit locale declaration span, retained for composition conflicts.
+    pub locale_default_span: Option<Span>,
+    /// App-only explicit composition fold, followed by the pinned `"en"`
+    /// default. Absent for packages or an incompatible composition.
+    pub app_default_locale: Option<String>,
     /// Pages in source order.
     pub pages: Vec<PageData>,
     /// Policies declared in this module, in source order.
@@ -1036,6 +1041,7 @@ impl<'a> Cx<'a> {
     }
 
     fn finish(&mut self) {
+        self.check_app_locales();
         self.check_app_policies();
         self.check_every_scopes();
         self.out.referenced_builtins = self.builtins.iter().cloned().collect();
@@ -1053,6 +1059,61 @@ impl<'a> Cx<'a> {
                     }
                 }
                 DescCtx::Orphan => {}
+            }
+        }
+    }
+
+    /// Fold explicit app contexts along resolved product membership only.
+    /// Child defaults and symbol imports never participate in this fold.
+    fn check_app_locales(&mut self) {
+        for app in &self.tables.modules {
+            if app.kind == ModuleKind::Package {
+                continue;
+            }
+            let mut pending = vec![app.id];
+            let mut seen = HashSet::new();
+            let mut explicit: Option<(String, Span)> = None;
+            let mut conflict = false;
+            while let Some(id) = pending.pop() {
+                if !seen.insert(id) {
+                    continue;
+                }
+                let module = &self.tables.modules[id.0 as usize];
+                if module.kind == ModuleKind::Package {
+                    continue;
+                }
+                pending.extend(module.uses_resolved.iter().rev().copied());
+                let Some(data) = self.out.modules.get(&id) else {
+                    continue;
+                };
+                let Some(tag) = &data.locale_default else {
+                    continue;
+                };
+                let span = data.locale_default_span.unwrap_or(module.name_span);
+                if let Some((first, first_span)) = &explicit {
+                    if first != tag {
+                        conflict = true;
+                        let mut diagnostic = Diagnostic::error(
+                            "E2002",
+                            format!(
+                                "app '{}' has incompatible explicit locale defaults '{first}' and '{tag}'",
+                                app.name,
+                            ),
+                            span,
+                        );
+                        diagnostic.related.push(Related {
+                            span: *first_span,
+                            message: format!("first explicit locale default '{first}'"),
+                        });
+                        self.diags.push(diagnostic);
+                    }
+                } else {
+                    explicit = Some((tag.clone(), span));
+                }
+            }
+            if !conflict && let Some(data) = self.out.modules.get_mut(&app.id) {
+                data.app_default_locale =
+                    Some(explicit.map_or_else(|| "en".into(), |(tag, _)| tag));
             }
         }
     }
@@ -1120,6 +1181,8 @@ impl<'a> Cx<'a> {
                 module,
                 source_lang,
                 locale_default: None,
+                locale_default_span: None,
+                app_default_locale: None,
                 pages: Vec::new(),
                 policies: Vec::new(),
                 invariants: Vec::new(),
@@ -1175,6 +1238,7 @@ impl<'a> Cx<'a> {
                     };
                     if let Some(data) = self.out.modules.get_mut(&module) {
                         data.locale_default = Some(tag);
+                        data.locale_default_span = Some(decl.span);
                     }
                 }
                 _ => {}

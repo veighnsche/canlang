@@ -87,6 +87,9 @@ pub struct IrModule {
     pub uses: Vec<String>,
     /// Resolved `uses` member names in source order.
     pub uses_resolved: Vec<String>,
+    /// Checked app context locale, including the pinned fallback after
+    /// composition. Packages have no app default.
+    pub app_default_locale: Option<String>,
     /// Pages in source order (G9; empty when the module has none or its
     /// analysis row is absent).
     pub pages: Vec<IrPage>,
@@ -1719,6 +1722,7 @@ impl<'a> Cx<'a> {
                             .map_or_else(|| format!("module{}", id.0), |target| target.name.clone())
                     })
                     .collect(),
+                app_default_locale: module_data.and_then(|data| data.app_default_locale),
                 pages,
                 description,
             });
