@@ -2948,3 +2948,17 @@ The owner changed-source emission and one genuine compiled-source native D1 case
 Removed the remaining 54 tracked files under the released root-owned asset-mount, Interfaces owner-build and DO-reset verification directories (182604 bytes). The original maintained product sources and direct tests remain; three existing records now retain concise actual outcomes and qualification limits, including the unproven owner-build runtime and test-only DO scope. Raw historical artifacts remain recoverable in Git.
 
 No cleanup verification packet, new snapshots, repeated tests or recursive checkpoint update is created. This removes obsolete evidence scaffolding, with no production-code reduction or task completion credit. Foreign work, shared outputs, caches, original fixtures and unresolved contract/JEV material are preserved.
+
+## 2026-10-08: execute retained declared-event private cohorts
+
+Accepted the finite internal declared-event cohort consumer. It checks the owning emitted handler, captured Work payload and exact source principal, stages all matching cohort intents/checkpoints/first child chunks with source admission and its occurrence-wide receipt in one existing owner transaction, and rehydrates private child calls from that retained source. Anchored record identity, authored-require rollback, frozen membership and bounded child turns use the existing canonical State/Work mechanisms.
+
+The genuine compiled-source native D1 case passed after the exact trusted-source pin, including sibling handlers, persisted reopen, late exclusion, scoped parent identity, replay and wrong-principal refusal; Cloudflare emission passed and two unchanged cases are reused. Root reviewed source directly. Default installed Worker cohort fulfillment, mixed ordinary/cohort events, broader lifecycle/security/resource profiles and whole TECH-W02 remain open. This is required capability work, with no replacement reduction credit.
+
+
+## 2026-10-08: accept the conditional ten-client browser measurement
+
+Coordinator accepted original Roadmap task55 at its conditional measurement/no-pilot stage using installed Chrome unified-headless, ten actual native-visible/HX clients, two-second polling, a 20.176-second steady window and fifty canonical mutation-start-to-render samples. Observed p95 was 1659ms against 3000ms; maximum HTTP page reads per client per second was 0.496 against 1, with ten reads per client. The local installed Worker/D1/Identity/CSRF path used one owned Chrome process, cleaned after completion, and no visibility or focus overrides.
+
+This qualifies that named headless profile; headed ten-window visibility and SQL read counts remain unclaimed. Earlier native desktop arrangement attempts failed visibility before valid metrics. No added runner, verification packet, publication or package-repair completion credit follows.
+
