@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T08:22:27.480153+00:00",
+  "updated_utc": "2026-10-08T09:10:48.341134+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2247,8 +2247,9 @@
       "contract": "Runtime qualifies key/scope/original occurrence/event/at/context/schema. Match authoritative row id/scope/event/time; original receipt replays without consuming replacement. First pending due selected head/version produces frozen stored payload and expected-version admitted-row update + scoped L3 cancel, with no commit/handler/actor invention. Caller must join handler and terminal occurrence receipt in existing same owner fence; transient exception drops all; false authored require retains only terminal consumption/failed receipt.",
       "review": "work-runtime-gates-root-review.json",
       "writers_commands_released": true,
-      "actual_consumer_pending": true,
-      "commit": "8addb074bfceea3ec15e49b6bb050f2065f26fca"
+      "actual_consumer_pending": false,
+      "commit": "8addb074bfceea3ec15e49b6bb050f2065f26fca",
+      "selected_consumer": "Selected current-ref/typed-refusal/transient-drop/terminal-replay actual due source accepted; broad host/authority/multi-handler limits remain"
     },
     "occurrence_mint_policy": "Existing opaque runtime OccurrenceIdPort through native crypto.randomUUID once per invocation/actual schedule ordinal; invocation-local memo retained through fence retries, replay uses receipt, replacement fresh and due uses stored original. No new hash recipe/every-ID reuse/source-input mint.",
     "consumer_handoff": {
@@ -2263,15 +2264,22 @@
       "owning_check_results": "CF emit0; actual native D1case1/1; changed portable six-module mapping1/1",
       "affected_writers_released": true,
       "counts_unchanged": true,
-      "due_handler_pending": true,
-      "commit": "1586af1e"
+      "due_handler_pending": false,
+      "commit": "1586af1e",
+      "due_handler": {
+        "status": "Selected compiled private due Node/nativeD1 source reviewed; six-path commit pending",
+        "review": "keyed-schedule-consumer-root-review.json due_handler",
+        "source_commands_released": true,
+        "counts_unchanged": true,
+        "broader_parent_open": true
+      }
     },
     "occurrence_receipt_gate": {
       "status": "Root direct-reviewed and committed65acd49e; Work emit0/existing3/3; actual due consumer pending",
       "api": "@canlang/work/kernel/occurrence-staging workOccurrencePutReceiptCommand.stage(args,SystemCommandContext)",
       "review": "portable-occurrence-receipt-root-review.json",
       "source_and_output_leases_released": true,
-      "actual_due_consumer_pending": true,
+      "actual_due_consumer_pending": false,
       "counts_unchanged": true,
       "commit": "65acd49e"
     },
@@ -2279,14 +2287,14 @@
       "status": "Root direct-reviewed and committeda4027f21; State emit0/existing5/5; actual raw-failure due consumer pending",
       "api": "@canlang/state/effects/guards AuthoredRequireFailure,isAuthoredRequireFailure",
       "review": "work-runtime-gates-root-review.json authored_require_gate",
-      "raw_failure_consumer_pending": true,
+      "raw_failure_consumer_pending": false,
       "source_outputs_released": true,
       "counts_unchanged": true,
       "commit": "a4027f21"
     }
   },
   "installed_bound_provider_release": {
-    "status": "Root direct-reviewed selected explicit Node/nativeD1/Services localhost installed-mail component; source commit pending; original result-association/whole-release gates open",
+    "status": "Root direct-reviewed and committed selected Node/nativeD1/Services localhost installed-mail component60db9b13; original result-association/whole-release gates open",
     "task": "SEQ018 std.EmailV1.send selected installed provider join",
     "handoff": "installed-bound-provider-handoff.json",
     "counts_unchanged": true,
@@ -2329,6 +2337,7 @@
       "repair_result": "Explicit id ASC; newer lexical intent then older next limit1 page, confirmed via genuine compiled source/Services/nativeD1, no extra POST or starvation",
       "review": "installed-bound-provider-handoff.json consumer_review",
       "sources_commands_released": true
-    }
+    },
+    "consumer_commit": "60db9b13"
   }
 }

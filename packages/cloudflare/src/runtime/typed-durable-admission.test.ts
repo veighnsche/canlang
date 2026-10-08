@@ -402,3 +402,168 @@ test('compiled record-key schedules replace and cancel atomically and survive D1
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('compiled private due handlers use current refs and atomically consume terminal outcomes across D1 reopening', async () => {
+  const app = 'TypedKeyedSchedule';
+  const model = asModel(`${app}.Entry`);
+  const path = resolve('packages/cloudflare/test/fixtures/typed-keyed-schedule.json');
+  const artifact = JSON.parse(await readFile(path, 'utf8')) as CompileArtifact;
+  assert.equal(artifact.operations!.some((entry) => entry.name === `${app}.fire`), false);
+  const { invokeDueScheduleCanonical } = await import('@canlang/cloudflare/runtime/invoke');
+  const { WORK_SCHEDULE_MODEL, WORK_OCCURRENCE_MODEL, scheduleByKeyQuery } = await import('@canlang/work/kernel/tables');
+  const { createMemoryIdentityStore: createFullIdentityStore } = await import('@canlang/identity/testing');
+  const identities = createFullIdentityStore({ clock: { nowMs: () => FIXED_NOW } });
+  const user = await identities.createUser({ email: 'due-owner@example.test', email_verified: true, password_hash: 'unused' });
+  const team = await identities.createTeam({ timezone: 'UTC' });
+  const membership = await identities.createMembership({ team_id: team.team_id, user_id: user.user_id,
+    is_owner: true, roles: [] });
+  const otherTeam = await identities.createTeam({ timezone: 'UTC' });
+  const identity = makeIdentity({ membership, team, email: user.email });
+  const scope = { app, owner: team.team_id, ownerPackage: app };
+  const request = (operation: string, inputs: MutationEnvelope['inputs']): MutationEnvelope => ({
+    operation: `${app}.${operation}`, inputs,
+    operation_id: asOperationId(uuidv7(FIXED_NOW, ++sequence)),
+  });
+  const at = FIXED_NOW + 60_000;
+  const dir = await mkdtemp(join(tmpdir(), 'can-private-due-'));
+  let d1: Awaited<ReturnType<typeof openD1>> | undefined;
+  try {
+    const asm = await assembleModules({ artifact, sourcePath: path }, {
+      workDir: join(dir, 'modules'), stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+      uiUrl: import.meta.resolve('@canlang/ui'),
+    });
+    d1 = await openD1(join(dir, 'd1'));
+    const invoker = buildInvoker(artifact, asm, d1.store, { memberships: identities, now: () => FIXED_NOW });
+    const ref = (id: string, version: number) => ({ id, version: String(version) });
+    const create = async (label: string) => committed(await invoker.invokeMutation(request('Entry.create', { label }), identity))
+      .result as { id: string; version: number };
+    const arm = async (id: string, version: number) => {
+      committed(await invoker.invokeMutation(request('arm', { entry: ref(id, version), at: new Date(at).toISOString(), accept: true }), identity));
+      const rows = await d1!.store.query(scheduleByKeyQuery(scope, id));
+      const row = rows.find((entry) => entry.data['state'] === 'pending')!;
+      assert.ok(row);
+      return { key: id, scope, occurrenceId: row.id, event: `${app}.Due`, at };
+    };
+    const due = (input: Awaited<ReturnType<typeof arm>>, now = at, store = d1!.store) =>
+      invokeDueScheduleCanonical({ asm, artifact, app, handler: `${app}.fire`, due: input,
+        store, identities, now: () => now });
+    const success = await create('current');
+    const successfulDue = await arm(success.id, 1);
+    committed(await invoker.invokeMutation(request('Entry.update', { record: ref(success.id, 2), label: 'updated before due' }), identity));
+    const beforeEarly = await d1.store.readRevision();
+    assert.deepEqual(await due(successfulDue, at - 1), { status: 'refused', reason: 'future' });
+    assert.deepEqual(await due({ ...successfulDue, scope: { ...scope, owner: otherTeam.team_id } }),
+      { status: 'refused', reason: 'mismatched' });
+    assert.equal(await d1.store.readRevision(), beforeEarly);
+    const completed = await due(successfulDue);
+    assert.deepEqual(completed, { status: 'completed', occurrenceId: successfulDue.occurrenceId, result: null });
+    const live = await d1.store.load(model, asId(success.id));
+    assert.equal(live?.version, 4);
+    assert.deepEqual(live?.data, { label: 'updated before due', eligible: true, fired: '1', observedVersion: '3' });
+    const successHistory = await d1.store.historyFor(model, asId(success.id));
+    const fired = successHistory.at(-1)!;
+    assert.equal(fired.operation, `${app}.fire`);
+    assert.equal(fired.actor, `schedule:${app}.Due`);
+    assert.equal(fired.at, at);
+    assert.equal((await d1.store.load(WORK_SCHEDULE_MODEL, asId(successfulDue.occurrenceId)))?.data['state'], 'admitted');
+    assert.equal((await d1.store.load(WORK_OCCURRENCE_MODEL, asId(successfulDue.occurrenceId)))?.data['status'], 'completed');
+
+    const ineligible = await create('became ineligible');
+    const failedDue = await arm(ineligible.id, 1);
+    committed(await invoker.invokeMutation(request('Entry.update', { record: ref(ineligible.id, 2), eligible: false }), identity));
+    const failedBefore = await d1.store.load(model, asId(ineligible.id));
+    const failedHistory = await d1.store.historyFor(model, asId(ineligible.id));
+    assert.deepEqual(await due(failedDue), { status: 'failed', occurrenceId: failedDue.occurrenceId, result: null });
+    assert.deepEqual(await d1.store.load(model, asId(ineligible.id)), failedBefore);
+    assert.deepEqual(await d1.store.historyFor(model, asId(ineligible.id)), failedHistory);
+    const failedReceipt = await d1.store.load(WORK_OCCURRENCE_MODEL, asId(failedDue.occurrenceId));
+    assert.equal(failedReceipt?.data['status'], 'failed');
+    assert.equal(failedReceipt?.data['code'], 'require-false');
+    assert.equal((await d1.store.load(WORK_SCHEDULE_MODEL, asId(failedDue.occurrenceId)))?.data['state'], 'admitted');
+
+    // A real D1 read boundary fails after State ref admission. Its plain Error
+    // deliberately shares the guard's message, proving classification is typed.
+    const transient = await create('transient');
+    const transientDue = await arm(transient.id, 1);
+    const transientBefore = await d1.store.load(model, asId(transient.id));
+    const transientSchedule = await d1.store.load(WORK_SCHEDULE_MODEL, asId(transientDue.occurrenceId));
+    const transientRevision = await d1.store.readRevision();
+    let reads = 0;
+    const nativeStore = d1.store;
+    const failingStore = { ...nativeStore, load: async (...args: Parameters<typeof nativeStore.load>) => {
+      if (args[0] === model && args[1] === transient.id && ++reads === 2) throw new Error('forbidden');
+      return nativeStore.load(...args);
+    } };
+    await assert.rejects(due(transientDue, at, failingStore), /Due handler execution failed/);
+    assert.deepEqual(await d1.store.load(model, asId(transient.id)), transientBefore);
+    assert.deepEqual(await d1.store.load(WORK_SCHEDULE_MODEL, asId(transientDue.occurrenceId)), transientSchedule);
+    assert.equal(await d1.store.load(WORK_OCCURRENCE_MODEL, asId(transientDue.occurrenceId)), null);
+    assert.equal(await d1.store.readRevision(), transientRevision);
+    assert.deepEqual(await due(transientDue), { status: 'completed', occurrenceId: transientDue.occurrenceId, result: null });
+
+    const obsolete = await arm(success.id, 4);
+    const cancelled = await arm(success.id, 5);
+    committed(await invoker.invokeMutation(request('stop', { entry: ref(success.id, 6), accept: true }), identity));
+    const terminalRevision = await d1.store.readRevision();
+    assert.deepEqual(await due(obsolete), { status: 'refused', reason: 'superseded' });
+    assert.deepEqual(await due(cancelled), { status: 'refused', reason: 'cancelled' });
+    const replayed = await due(successfulDue);
+    assert.ok(replayed && typeof replayed === 'object' && 'status' in replayed);
+    assert.equal(replayed.status, 'replayed');
+    assert.equal(await d1.store.readRevision(), terminalRevision);
+
+    // A real competing D1 fence forces source execution to retry. The opaque
+    // schedule occurrence is retained outside that execution and commits once.
+    const retried = await create('schedule fence retry');
+    const scheduleIds: string[][] = [];
+    const retryStore = { ...nativeStore, commit: async (...args: Parameters<typeof nativeStore.commit>) => {
+      const [batch] = args;
+      const ids = batch.writes.flatMap((write) => write.kind === 'insert' && write.model === WORK_SCHEDULE_MODEL
+        ? [write.row.id] : []);
+      if (ids.length > 0) {
+        scheduleIds.push(ids);
+        if (scheduleIds.length === 1) {
+          await nativeStore.commit({ expectedRevision: await nativeStore.readRevision(), writes: [], history: [],
+            receipt: null, outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [] });
+        }
+      }
+      return nativeStore.commit(...args);
+    } };
+    const retryInvoker = buildInvoker(artifact, asm, retryStore, { memberships: identities, now: () => FIXED_NOW });
+    committed(await retryInvoker.invokeMutation(request('arm', {
+      entry: ref(retried.id, 1), at: new Date(at + 60_000).toISOString(), accept: true,
+    }), identity));
+    assert.equal(scheduleIds.length, 2);
+    assert.equal(scheduleIds[0]!.length, 1);
+    assert.deepEqual(scheduleIds[1], scheduleIds[0]);
+    assert.equal((await nativeStore.load(model, asId(retried.id)))?.version, 2);
+    assert.equal((await nativeStore.historyFor(model, asId(retried.id))).length, 2);
+    assert.equal((await nativeStore.query(scheduleByKeyQuery(scope, retried.id))).length, 1);
+    const finalRevision = await d1.store.readRevision();
+    const finalSuccess = await d1.store.load(model, asId(success.id));
+    const finalHistory = await d1.store.historyFor(model, asId(success.id));
+    const receipts = await Promise.all([successfulDue, failedDue, transientDue]
+      .map((input) => d1!.store.load(WORK_OCCURRENCE_MODEL, asId(input.occurrenceId))));
+    await d1.worker.dispose();
+    d1 = undefined;
+    d1 = await openD1(join(dir, 'd1'));
+    for (const input of [successfulDue, failedDue, transientDue]) {
+      const replay = await due(input);
+      assert.ok(replay && typeof replay === 'object' && 'status' in replay);
+      assert.equal(replay.status, 'replayed');
+    }
+    assert.deepEqual(await due(obsolete), { status: 'refused', reason: 'superseded' });
+    assert.deepEqual(await due(cancelled), { status: 'refused', reason: 'cancelled' });
+    assert.deepEqual(await d1.store.load(model, asId(success.id)), finalSuccess);
+    assert.deepEqual(await d1.store.historyFor(model, asId(success.id)), finalHistory);
+    assert.deepEqual(await d1.store.load(model, asId(ineligible.id)), failedBefore);
+    assert.deepEqual(await d1.store.historyFor(model, asId(ineligible.id)), failedHistory);
+    assert.deepEqual(await Promise.all([successfulDue, failedDue, transientDue]
+      .map((input) => d1!.store.load(WORK_OCCURRENCE_MODEL, asId(input.occurrenceId)))), receipts);
+    assert.deepEqual(await d1.store.schedulesDue(at, 10), []);
+    assert.equal(await d1.store.readRevision(), finalRevision);
+  } finally {
+    await d1?.worker.dispose();
+    await rm(dir, { recursive: true, force: true });
+  }
+});

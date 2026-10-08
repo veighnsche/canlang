@@ -97,7 +97,8 @@ import type {
 import { COLLECTION_DEFAULT_LIMIT, COLLECTION_MAX_LIMIT } from "@canlang/contracts";
 import { decodeValue, encodeValue, makeRecordRef, normalizeSchema, validateOperationInput } from "@canlang/values";
 import type { FieldDescriptor, SchemaDescriptor } from "@canlang/values";
-import type { SystemStaging } from "@canlang/state";
+import type { SystemCommandContext, SystemStaging } from "@canlang/state";
+import type { IdentityStore } from "@canlang/identity";
 import type { GeneratedOperationDef } from "@canlang/state/invocation/registry";
 import type {
   CanonicalEffectsScope,
@@ -315,6 +316,7 @@ async function invokeWith(
   id: string,
   ctx: HandlerContext,
   args?: unknown[],
+  preserveThrown = false,
 ): Promise<InvokeResult> {
   const callable = artifact.callables.find((entry) => entry.id === id);
   if (callable === undefined) {
@@ -420,6 +422,7 @@ async function invokeWith(
     const value = await fn(ctx, ...(args ?? []));
     return { ok: true, value };
   } catch (error) {
+    if (preserveThrown) throw error;
     const mapped = mapThrownError(error, artifact, asm);
     return mapped === undefined
       ? { ok: false, error: message(error) }
@@ -1180,6 +1183,8 @@ interface StateInvokeProducer {
     readonly store: StoragePort;
     readonly memberships: CanonicalMembershipReader;
     readonly clock: { nowMs(): number };
+    readonly kind?: 'user' | 'trusted';
+    readonly trustedSource?: string;
     readonly execute: (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
     /**
      * C2/B2 (Q3): serverOnly exclusions for denial currents (mirror of
@@ -2914,11 +2919,34 @@ function freezeScenarioSnapshot(value: unknown): unknown {
   return value;
 }
 
+/** Work stages read the merged overlay through the defining State matcher. */
+function workStageContext(
+  store: StoragePort,
+  facts: Pick<SystemCommandContext, 'actor' | 'now' | 'operation'>,
+): SystemCommandContext {
+  return {
+    ...facts, load: store.load.bind(store),
+    query: async (spec) => {
+      if (spec.limit !== undefined) throw new Error('Work staged queries do not support limit.');
+      const { where, ...wholeModel } = spec;
+      if (where === undefined) return store.query(wholeModel);
+      const grants = await loadProducerModule(STATE_GRANTS_SPECIFIER, 'state query predicate producer');
+      const validate = requireProducerFn(grants, 'validatePredicateShape', 'state query predicate producer') as
+        typeof import('@canlang/state/policy/grants').validatePredicateShape;
+      const evaluate = requireProducerFn(grants, 'evalPredicateForRow', 'state query predicate producer') as
+        typeof import('@canlang/state/policy/grants').evalPredicateForRow;
+      validate(where);
+      return (await store.query(wholeModel)).filter((row) => evaluate(where, row));
+    },
+  };
+}
+
 async function runScenarioSeam(
   loaded: LoadedCanonicalDescriptors,
   opts: CanonicalMutationOpts,
   call: CanonicalSeamCall,
   occurrenceIds: string[],
+  due?: { readonly effects: SystemStaging; readonly occurrenceId: OccurrenceId },
 ): Promise<CanonicalExecutionEffects> {
   const actorUserId = call.context.actor?.userId ?? null;
   const teamId = call.context.team?.teamId ?? null;
@@ -3082,6 +3110,7 @@ async function runScenarioSeam(
     }
     deferredEffects.push(effects);
   };
+  if (due !== undefined) appendDeferredEffects(due.effects);
   const scope: CanonicalEffectsScope = {
     builtinRoles: Object.freeze(builtinRoles),
     operation: opts.operation,
@@ -3235,23 +3264,10 @@ async function runScenarioSeam(
     return {
       definition, member,
       scope: { app: call.context.app, owner: call.checkpoint.owner, ownerPackage },
-      context: {
+      context: workStageContext(overlay, {
         actor: actorUserId ?? call.context.trustedSource ?? 'anonymous', now: admittedNow,
-        operation: call.context.operation, load: overlay.load.bind(overlay),
-        query: async (spec: Parameters<StoragePort['query']>[0]) => {
-          if (spec.limit !== undefined) throw new Error('Work staged queries do not support limit.');
-          const { where, ...wholeModel } = spec;
-          if (where === undefined) return overlay.query(wholeModel);
-          const grants = await loadProducerModule(STATE_GRANTS_SPECIFIER, 'state query predicate producer');
-          const validate = requireProducerFn(grants, 'validatePredicateShape', 'state query predicate producer') as
-            typeof import('@canlang/state/policy/grants').validatePredicateShape;
-          const evaluate = requireProducerFn(grants, 'evalPredicateForRow', 'state query predicate producer') as
-            typeof import('@canlang/state/policy/grants').evalPredicateForRow;
-          validate(where);
-          const rows = await overlay.query(wholeModel);
-          return rows.filter((row) => evaluate(where, row));
-        },
-      },
+        operation: call.context.operation,
+      }),
     };
   };
   const deferredFailure = (error: unknown): never => {
@@ -3369,7 +3385,7 @@ async function runScenarioSeam(
         const boundRequest: BoundCapabilityRequest = { binding: bindingKey, from, arguments: args };
         const stagedSend = await stage({
           operationId: scope.operationId, source, occurrenceIndex: sendIndex++,
-          request: boundRequest, originOccurrence: null,
+          request: boundRequest, originOccurrence: due?.occurrenceId ?? null,
         }, {
           actor: actorUserId ?? 'anonymous', now: admittedNow, operation: scope.operation,
           load: overlay.load.bind(overlay), query: overlay.query.bind(overlay),
@@ -3385,10 +3401,12 @@ async function runScenarioSeam(
     qualified: call.context,
     ...(opts.formatting === undefined ? {} : { formatting: opts.formatting }),
   });
-  const argument = callable?.inputStyle === "parameters"
+  const argument = due !== undefined
+    ? { event: scenarioParameters(call, loaded, recordView, resolvedDefaults) }
+    : callable?.inputStyle === "parameters"
     ? scenarioParameters(call, loaded, recordView, resolvedDefaults)
     : { operation_id: call.context.operationId, inputs: call.inputs };
-  const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx, [argument]);
+  const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx, [argument], due !== undefined);
   if (!outcome.ok) {
     // Attributed engine failure first: an uncaught engine `StateError`
     // propagates verbatim, so its message matches the recorded one
@@ -3501,6 +3519,149 @@ export async function invokeMutationCanonical(
       );
     },
   });
+}
+
+/** Private host entry: source handlers remain absent from public operations. */
+export interface CanonicalDueScheduleOpts {
+  readonly asm: AssembledModules;
+  readonly artifact: CompileArtifact;
+  readonly app: string;
+  readonly handler: string;
+  readonly due: import('@canlang/work/kernel/schedule-staging').DueScheduleInput;
+  readonly store: StoragePort;
+  readonly identities: IdentityStore;
+  readonly now: () => number;
+}
+
+class DueScheduleChanged extends Error {
+  constructor(readonly outcome: Exclude<import('@canlang/work/kernel/schedule-staging').DueScheduleResult, { status: 'ready' }>) {
+    super('Due schedule changed before execution.');
+  }
+}
+
+/** Exact Work head + current trusted source handler + terminal receipt, one fence. */
+export async function invokeDueScheduleCanonical(opts: CanonicalDueScheduleOpts) {
+  assertCanonicalStore(opts.store, opts.handler);
+  const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  const callable = opts.artifact.callables.find((entry) => entry.id === opts.handler && entry.kind === 'handler');
+  if (callable === undefined) throw new Error('Due schedule names no checked source handler.');
+  const moduleUrl = opts.asm.moduleUrls[callable.module];
+  if (moduleUrl === undefined) throw new Error('Due handler has no owning assembled module.');
+  const module: unknown = await import(moduleUrl);
+  const member = (value: unknown, key: string): unknown =>
+    isUnknownRecord(value) ? readMetadataMember(value, key, 'Due handler')?.value : undefined;
+  const definition = member(module, 'appDefinition');
+  const handler = member(member(definition, 'operations'), opts.handler);
+  const invocation = member(handler, 'invocation');
+  const inputs = member(member(member(definition, 'events'), opts.due.event), 'inputs');
+  if (opts.due.scope.app !== opts.app || member(handler, 'event') !== opts.due.event ||
+      member(member(definition, 'packages'), opts.due.scope.ownerPackage) === undefined ||
+      !isUnknownRecord(invocation) || member(invocation, 'name') !== opts.handler ||
+      member(invocation, 'kind') !== 'scenario' || !isUnknownRecord(inputs)) {
+    throw new Error('Due handler lacks its exact private invocation/event/scope declaration.');
+  }
+  const privateDescriptors = loaded.producers.registry.loadArtifactDescriptors(
+    { ...opts.artifact, operations: [invocation] }, { by: () => 'owner' },
+  );
+  const privateDef = privateDescriptors.registry.get(opts.handler) as GeneratedOperationDef | undefined;
+  if (privateDef === undefined) throw new Error('Due handler private descriptor was not loaded.');
+  const privateLoaded = { ...loaded, registry: privateDescriptors.registry };
+  const now = opts.now();
+  const trustedSource = `schedule:${opts.due.event}`;
+  const stageContext = workStageContext(opts.store, { actor: trustedSource, now, operation: opts.handler });
+  const scheduleProducer = await loadProducerModule('@canlang/work/kernel/schedule-staging', 'work due schedule producer');
+  const stageDue = requireProducerFn(scheduleProducer, 'stageDueSchedule', 'work due schedule producer') as
+    typeof import('@canlang/work/kernel/schedule-staging').stageDueSchedule;
+  const preflight = await stageDue(opts.due, stageContext);
+  if (preflight.status !== 'ready') return preflight;
+
+  // Payload stays captured, including observed versions. Only the private
+  // admission arguments project reference identity for CURRENT row hydration.
+  const schema = normalizeSchema({ operations: { [opts.due.event]: { inputs } } } as SchemaDescriptor);
+  const captured = validateOperationInput(schema, opts.due.event, preflight.occurrence.payload);
+  const admittedInputs: Record<string, unknown> = Object.create(null);
+  for (const [name, value] of Object.entries(captured)) {
+    const field = member(inputs, name) as FieldDescriptor;
+    admittedInputs[name] = encodeValue(field.type, value);
+  }
+  for (const field of privateDef.descriptor.inputs) {
+    if (field.kind !== 'ref' || admittedInputs[field.name] === null || admittedInputs[field.name] === undefined) continue;
+    if (Object.hasOwn(privateDef.inputArrays, field.name)) {
+      throw new Error('Private due admission does not support array reference hydration.');
+    }
+    const ref = decodeValue(field.model, admittedInputs[field.name]) as import('@canlang/contracts').RecordRef;
+    admittedInputs[field.name] = encodeValue(field.model, makeRecordRef(field.model, ref.id));
+  }
+  const identityProducer = await loadProducerModule('@canlang/identity', 'identity constructor');
+  const resolveIdentity = requireProducerFn(identityProducer, 'resolveIdentity', 'identity constructor') as
+    typeof import('@canlang/identity').resolveIdentity;
+  const identity = await resolveIdentity(opts.identities,
+    opts.due.scope.owner === 'app' ? {} : { team_id: opts.due.scope.owner }, { clock: { nowMs: () => now } });
+  if (identity.actor !== null || (identity.team?.team_id ?? 'app') !== opts.due.scope.owner) {
+    throw new Error('Due identity does not match its verified owner.');
+  }
+  const ui = await loadProducerModule('@canlang/ui', 'operation identity producer');
+  const mintOperationId = requireProducerFn(ui, 'mintOperationId', 'operation identity producer') as
+    typeof import('@canlang/ui').mintOperationId;
+  const operationId = mintOperationId(() => now);
+  const guards = await loadProducerModule('@canlang/state/effects/guards', 'authored require producer');
+  const isAuthoredRequireFailure = requireProducerFn(guards, 'isAuthoredRequireFailure', 'authored require producer') as
+    typeof import('@canlang/state/effects/guards').isAuthoredRequireFailure;
+  const receiptProducer = await loadProducerModule('@canlang/work/kernel/occurrence-staging', 'work terminal occurrence producer');
+  const receiptCommand = receiptProducer['workOccurrencePutReceiptCommand'];
+  if (!isUnknownRecord(receiptCommand)) throw new Error('Work terminal occurrence command is not assembled.');
+  const stageReceipt = requireProducerFn(receiptCommand, 'stage', 'work terminal occurrence producer') as
+    typeof import('@canlang/work/kernel/occurrence-staging').workOccurrencePutReceiptCommand.stage;
+  const occurrenceIds: string[] = [];
+  const mutationOpts: CanonicalMutationOpts = { ...opts, operation: opts.handler, operationId,
+    identity, inputs: admittedInputs, source: 'schedule', memberships: opts.identities, now: () => now };
+  try {
+    const outcome = await loaded.producers.invoke.invoke({
+      registry: privateDescriptors.registry,
+      envelope: { operation: opts.handler, operation_id: operationId, inputs: admittedInputs },
+      identity, app: opts.app, source: 'schedule', kind: 'trusted', trustedSource,
+      store: opts.store, memberships: opts.identities, clock: { nowMs: () => now },
+      conflictServerOnly: loaded.conflictServerOnly,
+      execute: async (call) => {
+        const due = await stageDue(opts.due, stageContext);
+        if (due.status !== 'ready') throw new DueScheduleChanged(due);
+        let business: CanonicalExecutionEffects;
+        let refusal: { code: string; message: string } | undefined;
+        try {
+          business = await runScenarioSeam(privateLoaded, mutationOpts, call, occurrenceIds,
+            { effects: due.effects, occurrenceId: due.occurrence.occurrenceId as OccurrenceId });
+        } catch (error) {
+          if (!isAuthoredRequireFailure(error)) {
+            // State receipts business errors. A transient private handler
+            // failure must instead drop the due gate and every staged effect.
+            throw new Error('Due handler execution failed.', { cause: error });
+          }
+          refusal = closedDispatchErrorForCause({ kind: 'handler-require-false', require: error.message });
+          business = { writes: due.effects.writes ?? [], history: due.effects.history ?? [],
+            outbox: due.effects.outbox ?? [], schedules: due.effects.schedules ?? [],
+            uniqueClaims: due.effects.uniqueClaims ?? [], uniqueReleases: due.effects.uniqueReleases ?? [],
+            resolvedDefaults: {}, result: null };
+        }
+        const status = refusal === undefined ? 'completed' : 'failed';
+        const terminal = await stageReceipt({ occurrenceId: opts.due.occurrenceId, status,
+          result: business.result ?? null, code: refusal?.code ?? null, message: refusal?.message ?? null }, stageContext);
+        if ((terminal.outboxAck?.length ?? 0) !== 0) throw new Error('Due receipt cannot acknowledge outbox work.');
+        return { ...business,
+          writes: [...business.writes, ...(terminal.writes ?? [])],
+          history: [...business.history, ...(terminal.history ?? [])],
+          outbox: [...business.outbox, ...(terminal.outbox ?? [])],
+          schedules: [...business.schedules, ...(terminal.schedules ?? [])],
+          uniqueClaims: [...business.uniqueClaims, ...(terminal.uniqueClaims ?? [])],
+          uniqueReleases: [...business.uniqueReleases, ...(terminal.uniqueReleases ?? [])],
+          result: { status, occurrenceId: opts.due.occurrenceId, result: business.result ?? null },
+        };
+      },
+    });
+    return outcome.result;
+  } catch (error) {
+    if (error instanceof DueScheduleChanged) return error.outcome;
+    throw error;
+  }
 }
 
 /* ------------------------------------------------------------------ */

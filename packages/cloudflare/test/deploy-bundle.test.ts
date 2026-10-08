@@ -132,12 +132,15 @@ describe("deploy bundle (P-B)", () => {
     expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/values/index.js");
     expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/work/kernel/dispatch-staging.js");
     expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/work/kernel/schedule-staging.js");
+    expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/work/kernel/occurrence-staging.js");
+    expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/ui/index.js");
     expect(bundle.modules["vendor/values/schema.js"]).toContain("normalizeSchema");
     expect(bundle.modules["vendor/values/schema.js"]).toContain("validateOperationInput");
     expect(Object.keys(bundle.modules).filter(name => name.startsWith("vendor/work/"))).toEqual([
       "vendor/work/intent/staging.js",
       "vendor/work/kernel/arguments.js",
       "vendor/work/kernel/dispatch-staging.js",
+      "vendor/work/kernel/occurrence-staging.js",
       "vendor/work/kernel/schedule-staging.js",
       "vendor/work/kernel/staging-support.js",
       "vendor/work/kernel/tables.js",
@@ -145,6 +148,8 @@ describe("deploy bundle (P-B)", () => {
     expect(bundle.modules["vendor/work/kernel/dispatch-staging.js"]).toContain("stageCanonicalSend");
     expect(bundle.modules["vendor/work/kernel/schedule-staging.js"]).toContain("workSchedulePutCommand");
     expect(bundle.modules["vendor/work/kernel/schedule-staging.js"]).toContain("workScheduleCancelCommand");
+    expect(bundle.modules["vendor/work/kernel/schedule-staging.js"]).toContain("stageDueSchedule");
+    expect(bundle.modules["vendor/work/kernel/occurrence-staging.js"]).toContain("workOccurrencePutReceiptCommand");
     expect(() => assertWorkerdLoadable(bundle.modules)).not.toThrow();
     expect(() => assertLinksResolve(bundle.modules)).not.toThrow();
     expect(Object.keys(bundle.modules).some((name) => /(?:es-module-lexer|magic-string|trace-mapping|resolve-uri)/.test(name))).toBe(false);

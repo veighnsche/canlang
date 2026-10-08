@@ -24,6 +24,9 @@ When
  ## Eligibility and observedVersion must come from that row, not enqueue time.
  scenario fire on=Due
   do
-   require event.entry.eligible
+   require actor==null
+   require operation.source=="schedule"
+   ## Progress stays provisional until current eligibility succeeds.
    set event.entry {fired=event.entry.fired+1,observedVersion=event.entry.version}
+   require event.entry.eligible
 Then
