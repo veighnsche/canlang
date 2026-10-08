@@ -27,7 +27,13 @@ import type {
   ReceiptAssociation,
   ReceiptError,
   ReceiptStatus,
+  ReceiptResultContext,
+  CanonicalNominalResult,
+  TextRunResultLeaf,
+  TextRunReceiptProperty,
 } from '@canlang/contracts';
+import { DELIVERY_RESULT_LEAVES } from '@canlang/contracts';
+import { decodeValue, encodeValue } from '@canlang/values';
 import type {
   CommitBatch,
   CommitResult,
@@ -96,6 +102,76 @@ const RECEIPT_STATUSES: ReadonlySet<string> = new Set([
   'unknown',
   'skipped',
 ]);
+
+/** Closed selectors derived from the one owning nominal declaration. */
+export const TEXT_RUN_RECEIPT_PROPERTIES: readonly TextRunReceiptProperty[] = Object.freeze(
+  DELIVERY_RESULT_LEAVES['TextRun']!.map(leaf => `result.${leaf.name}` as TextRunReceiptProperty),
+);
+
+export function isCanonicalTextRunDeclaration(declaration: CanonicalNominalResult | undefined): boolean {
+  const leaves = DELIVERY_RESULT_LEAVES['TextRun']!;
+  return declaration?.name === 'TextRun' && Array.isArray(declaration.fields) &&
+    declaration.fields.length === leaves.length && leaves.every(expected =>
+      declaration.fields.filter(leaf => leaf?.name === expected.name && leaf.type === expected.type).length === 1);
+}
+
+export function isTextRunReceiptContext(context: ReceiptResultContext | undefined): boolean {
+  return context !== undefined &&
+    ['std.TextGenerationV1.generate', 'std.TextGenerationV1.cancel', 'std.TextGenerationV1.reconcile'].includes(context.source) &&
+    isCanonicalTextRunDeclaration(context.declaredResult);
+}
+
+export interface CheckedTextRunResult {
+  readonly fields: Readonly<Record<TextRunResultLeaf, string | null>>;
+  readonly revision: bigint;
+  readonly sequence: bigint;
+  readonly usedTokens: bigint | null;
+}
+
+/** Exact own data fields and the existing Values scalar codec; never invokes payload accessors. */
+export function readTextRunResult(result: unknown, declaration: CanonicalNominalResult | undefined): CheckedTextRunResult | null {
+  if (!isCanonicalTextRunDeclaration(declaration) || typeof result !== 'object' || result === null ||
+      Array.isArray(result) || (Object.getPrototypeOf(result) !== Object.prototype && Object.getPrototypeOf(result) !== null)) return null;
+  const leaves = DELIVERY_RESULT_LEAVES['TextRun']!;
+  if (Reflect.ownKeys(result).length !== leaves.length) return null;
+  const fields = {} as Record<TextRunResultLeaf, string | null>;
+  const decoded = new Map<string, unknown>();
+  try {
+    for (const leaf of leaves) {
+      const property = Object.getOwnPropertyDescriptor(result, leaf.name);
+      if (property === undefined || !Object.hasOwn(property, 'value') || !property.enumerable) return null;
+      const value: unknown = property.value;
+      if (value !== null && typeof value !== 'string') return null;
+      const scalar = decodeValue(leaf.type, value);
+      if ((leaf.type === 'int' || leaf.type === 'int?') && encodeValue(leaf.type, scalar) !== value) return null;
+      decoded.set(leaf.name, scalar);
+      fields[leaf.name as TextRunResultLeaf] = value as string | null;
+    }
+  } catch { return null; }
+  const revision = decoded.get('revision');
+  const sequence = decoded.get('sequence');
+  const usedTokens = decoded.get('used_tokens');
+  if (typeof revision !== 'bigint' || typeof sequence !== 'bigint' || sequence < 0n ||
+      (usedTokens !== null && (typeof usedTokens !== 'bigint' || usedTokens < 0n))) return null;
+  return { fields, revision, sequence, usedTokens };
+}
+
+/** Rich state describes the run; receipt status describes the delivered observation. */
+export function isTextRunReceiptPayload(status: unknown, result: unknown, error: unknown, context: ReceiptResultContext | undefined): boolean {
+  if (!isTextRunReceiptContext(context)) return false;
+  const run = readTextRunResult(result, context!.declaredResult);
+  if (run === null) return false;
+  if (context!.request !== undefined) {
+    try {
+      if (run.fields.source !== context!.request.source || run.revision !== decodeValue('int', context!.request.revision)) return false;
+    } catch { return false; }
+  }
+  const state = run.fields.state;
+  const failure = error === undefined ? null : error;
+  if (state === 'queued' || state === 'running') return status === 'pending' && failure === null;
+  if (state === 'unknown') return status === 'unknown' && (failure === null || isClosedErrorShape(failure));
+  return status === 'succeeded' && failure === null;
+}
 
 /**
  * Deterministic association row id under owner model + record + field.
@@ -226,9 +302,9 @@ function isClosedErrorShape(error: unknown): boolean {
 
 /**
  * Stored receipt-payload consistency (DESIGN section 8.0): a structural
- * mirror of the work-side completion check, EXTENDED with the pending
- * receipt rule (`pending` is a stored receipt, never progress): pending
- * carries no payload; succeeded carries no error; failed carries a
+ * mirror of the work-side completion check. Context-free pending carries
+ * no payload; checked TextRun context additionally admits pending/unknown
+ * run snapshots. Succeeded carries no error; failed carries a
  * closed error and no result; unknown carries no result and at most a
  * closed diagnostic; skipped carries nothing. Never throws: predicate
  * over stored/caller input. Agreement with the work-side check over
@@ -239,9 +315,15 @@ export function isStoredReceiptPayload(
   status: unknown,
   result: unknown,
   error: unknown,
+  context?: ReceiptResultContext,
 ): boolean {
   const payload = result === undefined ? null : result;
   const failure = error === undefined ? null : error;
+  // Explicit TextGeneration declaration context never falls through to an
+  // untyped succeeded payload after a malformed rich result.
+  if (payload !== null && context !== undefined && context.source.startsWith('std.TextGenerationV1.')) {
+    return isTextRunReceiptPayload(status, payload, failure, context);
+  }
   if (status === 'pending') {
     return payload === null && failure === null;
   }
@@ -285,14 +367,14 @@ export interface StoredReceiptRow {
 }
 
 /** Read one receipt row's data, failing closed on any shape drift. */
-export function readReceiptRow(row: StoredRow): StoredReceiptRow {
+export function readReceiptRow(row: StoredRow, context?: ReceiptResultContext): StoredReceiptRow {
   const data = checkRecord(row.data, 'work.receipt data');
   const deliveryId = checkString(data, 'deliveryId', 'work.receipt');
   const revision = checkRevision(data, 'revision', 'work.receipt');
   const status = checkStatus(data);
   const result = data['result'] === undefined ? null : data['result'];
   const error = data['error'] === undefined ? null : data['error'];
-  if (!isStoredReceiptPayload(status, result, error)) {
+  if (!isStoredReceiptPayload(status, result, error, context)) {
     throw new ReceiptTableError(
       `work.receipt payload is inconsistent for status ${JSON.stringify(status)}.`,
     );
@@ -399,14 +481,18 @@ export function newAssociationRow(input: AssociationRowData, meta: NewRowMeta): 
 }
 
 /** Producer-side insert: the retained receipt row for one delivery attempt. */
-export function newReceiptRow(input: ReceiptRowData, meta: NewRowMeta): StoredRow {
+export function newReceiptRow(input: ReceiptRowData, meta: NewRowMeta, context?: ReceiptResultContext): StoredRow {
+  if (input.result != null && context?.source.startsWith('std.TextGenerationV1.') &&
+      !isStoredReceiptPayload(input.status, input.result, input.error, context)) {
+    throw new ReceiptTableError('work.receipt payload is inconsistent for its declared context.');
+  }
   const row = newRow(
     input.deliveryId,
     input as unknown as Readonly<Record<string, unknown>>,
     meta,
     'work.receipt',
   );
-  readReceiptRow(row);
+  readReceiptRow(row, context);
   return row;
 }
 
@@ -432,7 +518,12 @@ export function withReceiptRowData(
   row: StoredRow,
   data: ReceiptRowData,
   meta: NewRowMeta,
+  context?: ReceiptResultContext,
 ): StoredRow {
+  if (data.result != null && context?.source.startsWith('std.TextGenerationV1.') &&
+      !isStoredReceiptPayload(data.status, data.result, data.error, context)) {
+    throw new ReceiptTableError('work.receipt payload is inconsistent for its declared context.');
+  }
   const next = withRowData(
     row,
     data as unknown as Readonly<Record<string, unknown>>,
@@ -440,7 +531,7 @@ export function withReceiptRowData(
     meta,
     'work.receipt',
   );
-  readReceiptRow(next);
+  readReceiptRow(next, context);
   return next;
 }
 
@@ -455,6 +546,7 @@ function readJoinWrite(
   model: string,
   row: StoredRow,
   updateId: string | null,
+  contexts?: ReadonlyMap<string, ReceiptResultContext>,
 ): JoinWrite {
   if (updateId !== null && updateId !== row.id) {
     throw new StateError(
@@ -473,7 +565,8 @@ function readJoinWrite(
         revision: association.revision,
       };
     }
-    const stored = readReceiptRow(row);
+    const deliveryId = checkString(checkRecord(row.data, 'work.receipt data'), 'deliveryId', 'work.receipt');
+    const stored = readReceiptRow(row, contexts?.get(deliveryId));
     return {
       model,
       id: row.id as string,
@@ -507,7 +600,7 @@ function readJoinWrite(
  * callers are unaffected. Claim-style conditional updates on other
  * models pass trivially too.
  */
-export function assertReceiptJoin(batch: CommitBatch): void {
+export function assertReceiptJoin(batch: CommitBatch, contexts?: ReadonlyMap<string, ReceiptResultContext>): void {
   const associations = new Map<string, JoinWrite>();
   const receipts = new Map<string, JoinWrite>();
   const seen = new Set<string>();
@@ -530,9 +623,13 @@ export function assertReceiptJoin(batch: CommitBatch): void {
     seen.add(key);
     const join =
       write.kind === 'insert'
-        ? readJoinWrite(model, write.row, null)
-        : readJoinWrite(model, write.row, write.id as string);
+        ? readJoinWrite(model, write.row, null, contexts)
+        : readJoinWrite(model, write.row, write.id as string, contexts);
     if (model === RECEIPT_ASSOCIATION_MODEL) {
+      const context = contexts?.get(join.deliveryId);
+      if (context !== undefined && readAssociationRow(write.row).source !== context.source) {
+        throw new StateError('validation', 'Receipt join: declaration context disagrees with association source.');
+      }
       associations.set(join.deliveryId, join);
     } else {
       receipts.set(join.deliveryId, join);
@@ -569,10 +666,11 @@ export interface ReceiptJoinPort {
  * `storageToStateError` (fence conflicts surface as retryable `busy`),
  * mirroring `createTransactionPort`.
  */
-export function createReceiptJoinPort(input: { readonly store: StoragePort }): ReceiptJoinPort {
+export function createReceiptJoinPort(input: { readonly store: StoragePort;
+  readonly resultContexts?: (batch: CommitBatch) => ReadonlyMap<string, ReceiptResultContext> }): ReceiptJoinPort {
   return {
     commitJoin: async (batch) => {
-      assertReceiptJoin(batch);
+      assertReceiptJoin(batch, input.resultContexts?.(batch));
       try {
         return await input.store.commit(batch);
       } catch (error) {

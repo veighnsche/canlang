@@ -45,6 +45,7 @@ import {
   associationRowId,
   readAssociationRow,
   readReceiptRow,
+  TEXT_RUN_RECEIPT_PROPERTIES,
 } from './tables.js';
 import {
   assertDeliveryField,
@@ -169,7 +170,7 @@ export function resolveJoinLocator(locator: unknown): JoinLocator {
   return { recordId, field };
 }
 
-const KNOWN_PROPERTIES: ReadonlySet<string> = new Set(['id', 'status', 'result', 'error', 'result.content']);
+const KNOWN_PROPERTIES: ReadonlySet<string> = new Set(['id', 'status', 'result', 'error', ...TEXT_RUN_RECEIPT_PROPERTIES]);
 
 /**
  * Validate the selected-leaf shape up front (mirror of the mechanism's
@@ -352,7 +353,9 @@ export async function observeSelectedReceiptJoin(
     if (row === null) {
       throw new Error('receipt join: missing receipt row for the stored association');
     }
-    const retained = readReceiptRow(row);
+    const retained = readReceiptRow(row, input.declaredResult === undefined ? undefined : {
+      source: input.declaredSource, declaredResult: input.declaredResult,
+    });
     association = stored;
     receipt = { ...retained.receipt, contentRef: retained.contentRef };
     receiptRow = row;

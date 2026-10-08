@@ -31,8 +31,10 @@ import type {
   ReceiptError,
   ReceiptStatus,
   TerminalReceiptStatus,
+  ReceiptResultContext,
 } from '@canlang/contracts';
 import { isConsistentCompletion, isTerminalReceiptStatus } from '../receipt/index.js';
+import { isTextRunReceiptContext, isTextRunReceiptPayload, readTextRunResult } from '@canlang/state/receipt/tables';
 
 /**
  * Minimal completion envelope shape needed for association matching. The
@@ -206,9 +208,9 @@ export interface ReceiptProgress {
   source: string;
   /** Monotone progress revision. */
   revision: number;
-  /** Completion status; `pending` is a receipt, never progress. */
+  /** Completion status; pending snapshots require checked rich-result context. */
   status: ReceiptStatus;
-  /** Declared typed result, or null when failed/unknown/skipped. */
+  /** Declared typed result; checked TextRun snapshots may be pending/unknown. */
   result: unknown;
   /** Safe closed error, or null when not failed. */
   error: ReceiptError | null;
@@ -233,6 +235,7 @@ export type ReceiptProgressOutcome =
         | 'id-mismatch'
         | 'source-mismatch'
         | 'stale-revision'
+        | 'stale-sequence'
         | 'inconsistent-envelope';
     };
 
@@ -272,6 +275,7 @@ export function applyReceiptProgress(
   association: ReceiptAssociation,
   receipt: AssociatedReceipt,
   progress: unknown,
+  context?: ReceiptResultContext,
 ): ReceiptProgressOutcome {
   const caller = 'applyReceiptProgress';
   assertAssociation(association, caller);
@@ -288,11 +292,29 @@ export function applyReceiptProgress(
         `${receipt.revision}`,
     );
   }
+  const inner = applyCorrelatedReceiptProgress(association.source, receipt, progress, context, caller);
+  if (!inner.applied) return inner;
+  return { applied: true, receipt: inner.receipt,
+    association: inner.receipt === receipt ? association : { ...association, revision: inner.receipt.revision } };
+}
+
+type ReceiptOnlyProgressOutcome =
+  | { applied: true; receipt: AssociatedReceipt }
+  | Extract<ReceiptProgressOutcome, { applied: false }>;
+
+/** One receipt gate for both actual current pairs and retained original attempts. */
+function applyCorrelatedReceiptProgress(
+  source: string,
+  receipt: AssociatedReceipt,
+  progress: unknown,
+  context: ReceiptResultContext | undefined,
+  caller: string,
+): ReceiptOnlyProgressOutcome {
   const match = matchAssociatedCompletion(
-    association.deliveryId,
+    receipt.deliveryId,
     progress,
-    association.source,
-    association.revision,
+    source,
+    receipt.revision,
   );
   if (!match.matched) {
     const reason = match.reason;
@@ -305,21 +327,56 @@ export function applyReceiptProgress(
   const status: unknown = envelope['status'];
   const result: unknown = envelope['result'];
   const error: unknown = envelope['error'];
-  if (!isConsistentCompletion(status, result, error)) {
+  const rich = context !== undefined && context.source.startsWith('std.TextGenerationV1.') && result != null;
+  if (context !== undefined && context.source !== source) {
+    throw new Error(`${caller}: declaration context disagrees with the trusted receipt source`);
+  }
+  if (rich ? context?.request === undefined || !isTextRunReceiptPayload(status, result, error, context)
+    : !isConsistentCompletion(status, result, error)) {
     return { applied: false, reason: 'inconsistent-envelope' };
   }
   const revision = (progress as AssociatedCompletion).revision;
+  if (rich && receipt.result !== null) {
+    const previous = readTextRunResult(receipt.result, context!.declaredResult);
+    const next = readTextRunResult(result, context!.declaredResult)!;
+    if (previous === null || !isTextRunReceiptPayload(receipt.status, receipt.result, receipt.error, context)) {
+      throw new Error(`${caller}: stored TextRun is malformed or disagrees with its request`);
+    }
+    // Terminal equal-checkpoint replays retain the original rows below;
+    // they never apply the incoming snapshot, even if its sequence differs.
+    if (!(isTerminalReceiptStatus(receipt.status) && revision === receipt.revision)) {
+      if (previous.usedTokens !== null && next.usedTokens !== previous.usedTokens) {
+        return { applied: false, reason: 'inconsistent-envelope' };
+      }
+      if (next.sequence < previous.sequence || (revision > receipt.revision && next.sequence === previous.sequence)) {
+        return { applied: false, reason: 'stale-sequence' };
+      }
+      if (revision === receipt.revision) {
+        if (next.sequence !== previous.sequence || status !== receipt.status || !sameReceiptError(receipt.error, error) ||
+            Object.keys(previous.fields).some(key => previous.fields[key as keyof typeof previous.fields] !== next.fields[key as keyof typeof next.fields])) {
+          return { applied: false, reason: 'inconsistent-envelope' };
+        }
+        return { applied: true, receipt };
+      }
+    }
+  }
   return {
     applied: true,
-    association: { ...association, revision },
     receipt: {
-      deliveryId: association.deliveryId,
+      deliveryId: receipt.deliveryId,
       revision,
       status: status as ReceiptStatus,
       result: result === undefined ? null : result,
       error: (error === undefined ? null : error) as ReceiptError | null,
     },
   };
+}
+
+function sameReceiptError(retained: ReceiptError | null, incoming: unknown): boolean {
+  const error = incoming === undefined ? null : incoming;
+  if (retained === null || error === null) return retained === error;
+  const candidate = error as ReceiptError;
+  return retained.code === candidate.code && retained.message === candidate.message;
 }
 
 /* -- T26 associated observable progress: one relation at a time. -- */
@@ -402,6 +459,7 @@ export type RelatedProgressRefusal =
   | 'id-mismatch'
   | 'source-mismatch'
   | 'stale-revision'
+  | 'stale-sequence'
   | 'inconsistent-envelope'
   | 'terminal-immutable';
 
@@ -410,9 +468,9 @@ export type RelatedProgressOutcome =
    * Progress applied. `notification` is non-null exactly when this
    * application newly transitions the receipt from non-terminal to
    * terminal: duplicate replays emit nothing. `replay` is true exactly
-   * when the stored receipt was already terminal and the returned
-   * records are the retained rows verbatim — the envelope payload is
-   * ignored, so hostile same-revision re-drives cannot rewrite them.
+   * for a terminal equal-checkpoint replay or an exact typed nonterminal
+   * snapshot replay. Returned records are the retained rows verbatim;
+   * terminal replays ignore payload changes rather than rewriting outcomes.
    */
   | {
       applied: true;
@@ -440,7 +498,9 @@ export type RelatedProgressOutcome =
  *
  * Terminal gating: a stored terminal receipt replays equal-revision
  * progress identically (stored rows verbatim, no notification) and
- * refuses anything newer as `terminal-immutable`. One relation per
+ * refuses newer progress as `terminal-immutable`, except a checked TextRun
+ * snapshot may measure previously null usage at a strictly newer sequence
+ * without changing any terminal outcome/content/correlation. One relation per
  * call: the envelope claim must equal the trusted binding, so two
  * relations can never correlate through one application.
  */
@@ -449,25 +509,70 @@ export function applyRelatedProgress(
   association: ReceiptAssociation,
   receipt: AssociatedReceipt,
   progress: unknown,
+  context?: ReceiptResultContext,
 ): RelatedProgressOutcome {
   const caller = 'applyRelatedProgress';
   const bound = assertKnownProgressRelation(relation, caller);
+  const routed = routeRelatedProgress(bound, progress);
+  if (routed !== undefined) return { applied: false, reason: routed };
+  if (context !== undefined && context.source !== bound) {
+    throw new Error(`${caller}: original intent context disagrees with relation`);
+  }
+  const inner = applyReceiptProgress(association, receipt, progress, context);
+  if (!inner.applied) return inner;
+  const outcome = finishRelatedReceiptProgress(bound, receipt, inner, context);
+  if (!outcome.applied) return outcome;
+  return { ...outcome, association: outcome.receipt === receipt ? association : inner.association };
+}
+
+/** Retained original attempts have no current owner association or locator. */
+export type RetainedRelatedProgressOutcome =
+  | { applied: true; receipt: AssociatedReceipt; notification: ProgressTerminalNotification | null; replay: boolean }
+  | { applied: false; reason: RelatedProgressRefusal };
+
+export function applyRetainedRelatedProgress(
+  relation: string,
+  receipt: AssociatedReceipt,
+  progress: unknown,
+  context: ReceiptResultContext,
+): RetainedRelatedProgressOutcome {
+  const caller = 'applyRetainedRelatedProgress';
+  const bound = assertKnownProgressRelation(relation, caller);
+  const routed = routeRelatedProgress(bound, progress);
+  if (routed !== undefined) return { applied: false, reason: routed };
+  assertAssociatedReceipt(receipt, caller);
+  if (context?.source !== bound) throw new Error(`${caller}: original intent context disagrees with relation`);
+  const inner = applyCorrelatedReceiptProgress(context.source, receipt, progress, context, caller);
+  return finishRelatedReceiptProgress(bound, receipt, inner, context);
+}
+
+function routeRelatedProgress(bound: string, progress: unknown): RelatedProgressRefusal | undefined {
   const envelopeIsObject = typeof progress === 'object' && progress !== null;
   if (envelopeIsObject) {
     const claimed: unknown = (progress as Record<string, unknown>)['relation'];
     if (typeof claimed !== 'string' || claimed.length === 0) {
-      return { applied: false, reason: 'malformed-completion' };
+      return 'malformed-completion';
     }
     if (!KNOWN_PROGRESS_RELATIONS.has(claimed)) {
-      return { applied: false, reason: 'unknown-relation' };
+      return 'unknown-relation';
     }
     if (claimed !== bound) {
-      return { applied: false, reason: 'cross-relation' };
+      return 'cross-relation';
     }
   }
-  const inner = applyReceiptProgress(association, receipt, progress);
+}
+
+function finishRelatedReceiptProgress(
+  bound: string,
+  receipt: AssociatedReceipt,
+  inner: ReceiptOnlyProgressOutcome,
+  context: ReceiptResultContext | undefined,
+): RetainedRelatedProgressOutcome {
   if (!inner.applied) {
     return { applied: false, reason: inner.reason };
+  }
+  if (inner.receipt === receipt) {
+    return { applied: true, receipt, notification: null, replay: true };
   }
   if (!isTerminalReceiptStatus(receipt.status)) {
     const status = inner.receipt.status;
@@ -481,14 +586,23 @@ export function applyRelatedProgress(
       : null;
     return {
       applied: true,
-      association: inner.association,
       receipt: inner.receipt,
       notification,
       replay: false,
     };
   }
-  if (inner.association.revision === receipt.revision) {
-    return { applied: true, association, receipt, notification: null, replay: true };
+  if (inner.receipt.revision === receipt.revision) {
+    return { applied: true, receipt, notification: null, replay: true };
+  }
+  if (context?.request !== undefined && isTextRunReceiptContext(context) && receipt.status === inner.receipt.status &&
+      receipt.error === inner.receipt.error) {
+    const previous = readTextRunResult(receipt.result, context.declaredResult);
+    const next = readTextRunResult(inner.receipt.result, context.declaredResult);
+    if (previous !== null && next !== null && next.sequence > previous.sequence && previous.usedTokens === null &&
+        next.usedTokens !== null && ['source', 'revision', 'state', 'content', 'detail'].every(key =>
+          previous.fields[key as keyof typeof previous.fields] === next.fields[key as keyof typeof next.fields])) {
+      return { applied: true, receipt: inner.receipt, notification: null, replay: false };
+    }
   }
   return { applied: false, reason: 'terminal-immutable' };
 }

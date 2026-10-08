@@ -644,7 +644,7 @@ describe('t25a pins: fence and dispatch shapes (no execution join)', () => {
 
 
 describe('t25a result.content: checked exact disclosure', () => {
-  const textRun = { source: 'text_1', revision: 1, sequence: 3, state: 'succeeded',
+  const textRun = { source: 'text_1', revision: '1', sequence: '3', state: 'succeeded',
     content: 'Partial text', used_tokens: null, detail: 'private sibling' };
   function input() {
     return { locator: { record: { id: 'rec_1' }, field: 'notification' },
@@ -652,6 +652,30 @@ describe('t25a result.content: checked exact disclosure', () => {
       association: association(), receipt: receipt({ result: textRun }),
       grants: new TestOnlyGrantSet(['result.content']), content: new RecordingAvailability(true), nowMs: NOW };
   }
+
+  it('projects each closed scalar leaf with only its exact child grant and preserves nullable values', () => {
+    const expected = { 'result.source': 'text_1', 'result.revision': '1', 'result.sequence': '3',
+      'result.state': 'succeeded', 'result.content': 'Partial text', 'result.used_tokens': null,
+      'result.detail': 'private sibling' };
+    for (const [property, value] of Object.entries(expected)) {
+      const leaf = property as ReceiptProperty;
+      const grants = new RecordingSelectedGrants(new Set([leaf]));
+      const content = new RecordingAvailability(true);
+      const outcome = observeSelectedReceipt({ ...input(), selected: [leaf, leaf], grants, content });
+      assert.deepEqual(outcome, { outcome: 'observed', projection: { [property]: value }, fenceRevision: 7 });
+      assert.deepEqual(grants.calls.map(call => call.property), [leaf]);
+      assert.equal(content.calls.length, 1);
+      assert.equal(selectedRequiresFence([leaf]), true);
+      assert.deepEqual(observeSelectedReceipt({ ...input(), selected: [leaf],
+        grants: new TestOnlyGrantSet(['result']) }), { outcome: 'denied', denied: [leaf] });
+      assert.deepEqual(observeSelectedReceipt({ ...input(), selected: [leaf], grants,
+        content: new RecordingAvailability(false) }),
+        { outcome: 'observed', projection: { [property]: null }, fenceRevision: 7 });
+    }
+    for (const property of ['result.sequence.value', 'result.anything', 'result.content.length']) {
+      assert.throws(() => observeSelectedReceipt({ ...input(), selected: [property as ReceiptProperty] }), /unknown selected property/);
+    }
+  });
 
   it('projects flat exact keys, authorizes once in first-selected order and fences content', () => {
     const grants = new RecordingSelectedGrants(new Set(['result.content', 'status']));
@@ -673,7 +697,7 @@ describe('t25a result.content: checked exact disclosure', () => {
       { name: 'TextRun', fields: [{ name: 'content', type: 'text' }, { name: 'content', type: 'text' }] }]) {
       assert.throws(() => observeSelectedReceipt({ ...input(), declaredResult }), /canonical TextRun/);
     }
-    assert.throws(() => observeSelectedReceipt({ ...input(), selected: ['result.detail' as ReceiptProperty] }),
+    assert.throws(() => observeSelectedReceipt({ ...input(), selected: ['result.missing' as ReceiptProperty] }),
       /unknown selected property/);
   });
 

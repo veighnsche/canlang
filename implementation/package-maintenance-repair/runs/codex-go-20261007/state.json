@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T11:00:07.212692+00:00",
+  "updated_utc": "2026-10-08T11:12:48.711959+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1619,7 +1619,7 @@
     ],
     "restrictions": "No staging/commit; preserve all bytes, root retains Git/state/filetree and source leases",
     "package_decision_notes_pending": [],
-    "heading": "2026-10-07 — Assign proposed worker profiles to the capability roadmap (PROPOSED)",
+    "heading": "2026-10-07 \u2014 Assign proposed worker profiles to the capability roadmap (PROPOSED)",
     "foreign_append_staging": "All foreign proposals preserved unstaged",
     "end_sha256": "c0eedd9b5459716abfb439a685d601fe934c13ee1bc8f7d0890fd0852486f403"
   },
@@ -2059,7 +2059,7 @@
         "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts",
         "packages/cloudflare/src/runtime/t17b-durable.test.ts"
       ],
-      "validation": "Private focused owning emit, original memory62/62 and D1other2/2 pass. First D1case required3obsolete create+set version2→1 assertions perDESIGN:103; only affected case rerun1/1 passed including fresh-handle/receipt/history/read/revision assertions.",
+      "validation": "Private focused owning emit, original memory62/62 and D1other2/2 pass. First D1case required3obsolete create+set version2\u21921 assertions perDESIGN:103; only affected case rerun1/1 passed including fresh-handle/receipt/history/read/revision assertions.",
       "commands_live": false,
       "limits": "Explicitly handwritten synthetic artifacts, not compiler provenance; original authority/error behavior retained, no product runtime fallback."
     }
@@ -2275,7 +2275,7 @@
         "scope": "comparison-only draftIdentity holds current context/schema/revision/op/reference IDs/editable set across expected-version changes; exact binding identity and signed token still fence version",
         "behavior": "replace authority epoch with fresh nonce/proof/CSRF/version; carry only compatible dirty editable values/focus; no hidden/files, old pending state/feedback or outcome transfer; different IDs/schema/context refuse transfer",
         "validation": "Contracts/UI/Interfaces emit0 and browserasset0; affected proof identity case1/1 and versionrefresh/negative DOM2/2 once; unchanged protection/lifecycle results reused",
-        "native_witness": "Original stale409→v3 poll erased Recovered draft retained; after861edef5, the same genuine compiled source/Chrome/Worker/D1 case passed1/1 (~7.7s), including fresh-authority draft retry and explicit CRUD update."
+        "native_witness": "Original stale409\u2192v3 poll erased Recovered draft retained; after861edef5, the same genuine compiled source/Chrome/Worker/D1 case passed1/1 (~7.7s), including fresh-authority draft retry and explicit CRUD update."
       },
       "actual_consumer": {
         "validation": "Genuine forms/update source compile0; sole affected protected case1/1 (~7.7s) after861edef5; earlier unbound/readonly/MCP outcomes reused without reruns. Root direct source/test review.",
@@ -2588,7 +2588,7 @@
       }
     },
     "generation_installed_profile": {
-      "status": "Defining installed Services TextGeneration profile directly reviewed after deadline repair; source component accepted, commit ready",
+      "status": "Defining Services source reviewed and committed2928194c after absolute-deadline repair; actual runtime and provider qualification remain separate",
       "sources": [
         "packages/services/src/ports.ts",
         "packages/services/src/models/ollama.ts",
@@ -2604,6 +2604,56 @@
         "No installed/host/default backend/native preparation/whole Generation or parent acceptance"
       ],
       "sources_outputs_handles_released": true,
+      "counts_unchanged": true,
+      "commit": "2928194ccfff837c8cfefa7636e7f60c7824b5d1"
+    },
+    "generation_rich_progress_core": {
+      "status": "Root directly reviewed released State/Work rich TextRun core after accessor-order and trusted-relation corrections; source component accepted, commit ready",
+      "sources": [
+        "bun.lock",
+        "packages/contracts/src/work.ts",
+        "packages/state/package.json",
+        "packages/state/src/receipt/tables.ts",
+        "packages/state/src/receipt/join.ts",
+        "packages/work/src/observation/association.ts",
+        "packages/work/src/observation/observation.ts",
+        "packages/work/src/observation/t26-progress.test.ts",
+        "packages/work/src/observation/t25a-selected.test.ts",
+        "packages/work/test/state-receipt/t25-receipt-join.test.ts"
+      ],
+      "contract": "Only exact checked TextGeneration operation/result context admits the closed seven-field canonical TextRun wire DTO; rich progress additionally requires original business source/revision. Values owns scalar decoding and int64 canonicalization. Exact flat selected leaves preserve original current grants, retention and fence; no parent or sibling grant expansion. Unknown stays reconcilable; typed failed/cancelled are delivered results, not provider success.",
+      "lifecycle": "Exact nonterminal replay retains original rows with no effects; sequence is canonical int64 and monotone. One measured usage value cannot be changed or removed. Terminal new snapshots may fill previously absent usage once while preserving source/revision/state/content/detail and emitting no second terminal notification. Retained original attempts share the same gates without constructing a current association/locator. Explicit original context must agree with trusted relation; context-free generic behavior unchanged.",
+      "verification": "Owning Contracts/State/Work emits0. Initial three existing suites365 passed/1 actual accessor-order failure; corrected failed case passes and unchanged365 reused. Work-only replay/retained amendment emit0/affected TextRun block8/8. Root then found explicit context versus relation mismatch; repaired Work emit0 and only affected existing case1/1. Root direct source review; no repeated unchanged verification.",
+      "advice": {
+        "path": "/private/tmp/canlang-repair-go-20261007/rich-progress-consultation",
+        "requests": 3,
+        "exit_codes": [
+          0,
+          0,
+          0
+        ],
+        "type_admission": [
+          "context .92",
+          "context .89",
+          "context .97"
+        ],
+        "late_usage": [
+          "enrich .43",
+          "usage_record .34",
+          "usage_record .34"
+        ],
+        "uncertainty": "No rationale; late-usage advice low-confidence and mixed. Investigation found no existing authoritative usage record: business Run.used is charging state, not provider measurement. A separate record would add lookup/authorization/lifetime/fence/event ownership and would not satisfy the current source progress consumer. Preserve authored late-cancelled usage in the existing row at the finite original-context gate; do not generalize terminal rewrites."
+      },
+      "model": "gpt-6.1-sol high for original declaration/authority/lifecycle seam; final correction in same bounded owner",
+      "limits": [
+        "Pure/repository State/Work component; actual generated Cloudflare provider lifecycle and notifications remain consumer work",
+        "Context is provided from checked declaration and frozen original intent; no new persisted type stamp or global permission",
+        "Current storage pending outbox excludes acknowledged original intents; durable post-ack/restart request authority is not established",
+        "Ollama first terminal ends stream and no durable run lookup is documented; no real tokenizer/provider/host/installed whole-release qualification",
+        "Required capability addition, not replacement production-reduction credit; original root parents/counts and native-preparation HOLD unchanged"
+      ],
+      "source_outputs_handles_released": true,
+      "consumer_owner": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
       "counts_unchanged": true
     }
   }

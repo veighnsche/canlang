@@ -207,7 +207,7 @@ export interface ReceiptObservation {
   /** Owner checkpoint revision enrolling this observation in the read fence. */
   revision: number;
   status: ReceiptStatus;
-  /** Declared typed result, or null when failed/unknown/skipped/withheld. */
+  /** Declared typed result; checked TextRun snapshots may be pending/unknown. */
   result: unknown;
   /** Safe closed error, or null when not failed. */
   error: ReceiptError | null;
@@ -232,7 +232,17 @@ export interface ReceiptError {
  * selectors of the Oct-04 status-only receipt-permissions decision. Leaf
  * selectors cannot traverse other records or expose siblings.
  */
-export type ReceiptProperty = 'id' | 'status' | 'result' | 'error' | 'result.content';
+export type TextRunResultLeaf = 'source' | 'revision' | 'sequence' | 'state' | 'content' | 'used_tokens' | 'detail';
+export type TextRunReceiptProperty = `result.${TextRunResultLeaf}`;
+export type ReceiptProperty = 'id' | 'status' | 'result' | 'error' | TextRunReceiptProperty;
+
+/** Trusted declaration context; request correlation is required when applying rich progress. */
+export interface ReceiptResultContext {
+  readonly source: string;
+  readonly declaredResult: import('./state.js').CanonicalNominalResult;
+  /** Frozen business request identity, distinct from the receipt owner checkpoint. */
+  readonly request?: { readonly source: string; readonly revision: string };
+}
 
 /**
  * Pending-work inventory for lane-7 status/recovery hooks. Counts only;
@@ -370,7 +380,7 @@ export interface AssociatedReceipt {
   /** Owner checkpoint revision of the latest applied progress. */
   revision: number;
   status: ReceiptStatus;
-  /** Declared typed result, or null when failed/unknown/skipped/withheld. */
+  /** Declared typed result; checked TextRun snapshots may be pending/unknown. */
   result: unknown;
   /** Safe closed error, or null when not failed. */
   error: ReceiptError | null;
@@ -384,12 +394,10 @@ export interface AssociatedReceipt {
  * placeholders; a granted selected result/error withheld by
  * content/lifetime checks reads null under its present key.
  */
-export interface SelectedReceiptProjection {
+export interface SelectedReceiptProjection extends Partial<Record<TextRunReceiptProperty, string | null>> {
   id?: string;
   status?: ReceiptStatus;
   result?: unknown;
-  /** Exact selected TextRun leaf; never implies disclosure of `result`. */
-  'result.content'?: string | null;
   error?: ReceiptError | null;
 }
 
@@ -605,7 +613,9 @@ export interface FanoutCohortDiagnosis {
 /**
  * Terminal receipt states: a retained outcome in one of these states is
  * never rewritten by later progress, cancellation or re-drive (T26
- * terminal immutability). `pending` has no outcome yet; `unknown` stays
+ * terminal immutability), except checked TextRun progress may measure
+ * previously absent usage while retaining the terminal outcome. `pending`
+ * has no completed outcome yet; `unknown` stays
  * uncertain until reconciling progress arrives.
  */
 export type TerminalReceiptStatus = 'succeeded' | 'failed' | 'skipped';

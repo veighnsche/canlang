@@ -1298,7 +1298,7 @@ describe('t25 join: result retention', () => {
 
 describe('t25 join: checked result.content disclosure', () => {
   const textSource = 'std.TextGenerationV1.generate';
-  const textRun = { source: 'generation_1', revision: 1, sequence: 1, state: 'succeeded',
+  const textRun = { source: 'generation_1', revision: '1', sequence: '1', state: 'succeeded',
     content: 'Cumulative text', used_tokens: null, detail: 'undisclosed sibling' };
 
   async function textWorld() {
@@ -1313,6 +1313,27 @@ describe('t25 join: checked result.content disclosure', () => {
     // retains delivery membership, while the owner supplies its result schema.
     return { world: { ...world, schema: loaded.deliveryFields }, declaredResult: delivery.result };
   }
+
+  it('serves every closed TextRun scalar under its own grant without implicit parent or sibling disclosure', async () => {
+    const { world, declaredResult } = await textWorld();
+    await seedOwner(world.store);
+    await associate(world.store, { source: textSource, status: 'succeeded', result: textRun });
+    for (const [name, value] of Object.entries(textRun)) {
+      const leaf = `result.${name}` as ReceiptProperty;
+      const input = joinInput(world, recipientPolicy([`notification.${leaf}`]), world.alice,
+        { selected: [leaf], declaredResult, declaredSource: textSource });
+      const observed = await observeSelectedReceiptJoin(input);
+      assertObserved(observed);
+      assert.deepEqual(observed.projection, { [leaf]: value });
+      const denied = await observeSelectedReceiptJoin({ ...input, selected: ['result', 'id', 'status', 'result.content'],
+        policy: recipientPolicy([`notification.${leaf}`]) });
+      assertDenied(denied);
+      assert.deepEqual(denied.denied, ['result', 'id', 'status', ...(leaf === 'result.content' ? [] : ['result.content'])]);
+      const parent = await observeSelectedReceiptJoin({ ...input, policy: recipientPolicy(['notification.result']) });
+      assertDenied(parent);
+      assert.deepEqual(parent.denied, [leaf]);
+    }
+  });
 
   it('uses the owning checked result, exact grants, retention and the mutable receipt fence', async () => {
     const { world, declaredResult } = await textWorld();
@@ -1334,7 +1355,7 @@ describe('t25 join: checked result.content disclosure', () => {
     // This direct store-helper update witnesses mutable fence invalidation;
     // it does not qualify terminal TextRun progression or a rich-progress producer.
     await progress(world.store, { source: textSource, revision: 2, status: 'succeeded',
-      result: { ...textRun, sequence: 2, content: 'Later text' } });
+      result: { ...textRun, sequence: '2', content: 'Later text' } });
     await assert.rejects(revalidateCommitForFence({ kind: 'user', store: world.store, checkpoint: scope.snapshot(),
       by: 'members', guards: [], actorUserId: world.alice.user.user_id, teamId: world.teamId,
       memberships: world.memberships }), (error: unknown) =>

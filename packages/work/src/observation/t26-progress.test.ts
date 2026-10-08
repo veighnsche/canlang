@@ -14,7 +14,11 @@ import type {
   ProgressTerminalNotification,
   ReceiptAssociation,
   ReceiptStatus,
+  ReceiptResultContext,
+  CommitBatch,
 } from '@canlang/contracts';
+import { DELIVERY_RESULT_LEAVES } from '@canlang/contracts';
+import { assertReceiptJoin, newReceiptRow, readReceiptRow, withReceiptRowData, RECEIPT_MODEL } from '@canlang/state/receipt/tables';
 import { isTerminalReceiptStatus } from '../receipt/index.js';
 import {
   TestOnlyAllowAllGrants,
@@ -23,6 +27,7 @@ import {
 import {
   T26_KNOWN_RELATION_TARGETS,
   applyRelatedProgress,
+  applyRetainedRelatedProgress,
   assertKnownProgressRelation,
   cancelRelatedProgress,
   isKnownProgressRelation,
@@ -607,5 +612,210 @@ describe('t26 memory lifecycle (MEMORY-ONLY)', () => {
       projection: { status: 'succeeded', result: { relation, marker: 'ok' } },
       fenceRevision: 9,
     });
+  });
+});
+
+// The original request revision and run sequence are exact int64 wire values,
+// intentionally distinct from the owner checkpoints 7, 8, 9, ... .
+describe('context-qualified TextRun snapshots and late measured usage', () => {
+  const relation = 'std.TextGenerationV1.generate';
+  const context: ReceiptResultContext = { source: relation,
+    declaredResult: { name: 'TextRun', fields: DELIVERY_RESULT_LEAVES['TextRun'] },
+    request: { source: 'request_1', revision: '9223372036854775807' } };
+  const run = { source: 'request_1', revision: '9223372036854775807', sequence: '9007199254740993',
+    state: 'running', content: 'Partial', used_tokens: null, detail: null };
+  const held = () => association({ source: relation });
+  const envelope = (result: unknown, status: ReceiptStatus = 'pending', revision = 8) =>
+    progress(relation, { source: relation, revision, status, result });
+
+  it('returns the actual unchanged objects for an exact typed nonterminal replay', () => {
+    for (const [state, status] of [['running', 'pending'], ['unknown', 'unknown']] as const) {
+      const snapshot = { ...run, state };
+      const first = applyRelatedProgress(relation, held(), receiptRow(), envelope(snapshot, status), context);
+      assert.equal(first.applied, true);
+      if (!first.applied) continue;
+      const replay = applyRelatedProgress(relation, first.association, first.receipt,
+        envelope({ ...snapshot }, status), context);
+      assert.equal(replay.applied, true);
+      if (replay.applied) {
+        assert.strictEqual(replay.receipt, first.receipt);
+        assert.strictEqual(replay.association, first.association);
+        assert.equal(replay.replay, true);
+        assert.equal(replay.notification, null);
+      }
+      const retained = applyRetainedRelatedProgress(relation, first.receipt, envelope({ ...snapshot }, status), context);
+      assert.equal(retained.applied, true);
+      if (retained.applied) {
+        assert.strictEqual(retained.receipt, first.receipt);
+        assert.equal(retained.replay, true);
+        assert.equal(retained.notification, null);
+        assert.equal(Object.hasOwn(retained, 'association'), false);
+      }
+      assert.deepEqual(applyRetainedRelatedProgress(relation, first.receipt,
+        envelope({ ...snapshot, content: 'changed at the same checkpoint' }, status), context),
+        { applied: false, reason: 'inconsistent-envelope' });
+    }
+  });
+
+  it('preserves an already measured usage value across nonterminal and terminal snapshots', () => {
+    const first = applyRelatedProgress(relation, held(), receiptRow(), envelope({ ...run, used_tokens: '7' }), context);
+    assert.equal(first.applied, true);
+    if (!first.applied) return;
+    for (const state of ['running', 'succeeded']) {
+      for (const used_tokens of [null, '8']) {
+        assert.deepEqual(applyRelatedProgress(relation, first.association, first.receipt,
+          envelope({ ...run, sequence: '9007199254740994', state, used_tokens },
+            state === 'running' ? 'pending' : 'succeeded', 9), context),
+          { applied: false, reason: 'inconsistent-envelope' });
+      }
+    }
+    const terminal = applyRelatedProgress(relation, first.association, first.receipt,
+      envelope({ ...run, sequence: '9007199254740994', state: 'succeeded', used_tokens: '7' }, 'succeeded', 9), context);
+    assert.equal(terminal.applied, true);
+    if (terminal.applied) assert.deepEqual(terminal.notification,
+      { relation, deliveryId: 'del_1', revision: 9, status: 'succeeded' });
+  });
+
+  it('updates a retained superseded attempt without inventing a current association and preserves all fences', () => {
+    const replacement = association({ source: relation, deliveryId: 'replacement', revision: 20 });
+    const replacementReceipt = receiptRow({ deliveryId: 'replacement', revision: 20 });
+    assert.deepEqual(applyRelatedProgress(relation, replacement, replacementReceipt, envelope(run), context),
+      { applied: false, reason: 'id-mismatch' });
+    const pending = applyRetainedRelatedProgress(relation, receiptRow(), envelope(run), context);
+    assert.equal(pending.applied, true);
+    if (!pending.applied) return;
+    for (const [overrides, reason] of [
+      [{ delivery_id: 'replacement' }, 'id-mismatch'], [{ source: 'different' }, 'source-mismatch'],
+      [{ revision: 7 }, 'stale-revision'], [{ relation: 'std.EmailV1.send' }, 'cross-relation'],
+      [{ result: { ...run, revision: '7' } }, 'inconsistent-envelope'],
+    ] as const) {
+      assert.deepEqual(applyRetainedRelatedProgress(relation, pending.receipt,
+        { ...envelope(run, 'pending', 9), ...overrides }, context), { applied: false, reason });
+    }
+    const snapshot = { ...run, sequence: '9007199254740994', state: 'cancelled' };
+    const terminal = applyRetainedRelatedProgress(relation, pending.receipt, envelope(snapshot, 'succeeded', 9), context);
+    assert.equal(terminal.applied, true);
+    if (!terminal.applied) return;
+    assert.deepEqual(terminal.notification, { relation, deliveryId: 'del_1', revision: 9, status: 'succeeded' });
+    const measured = { ...snapshot, sequence: '9007199254740995', used_tokens: '7' };
+    const late = applyRetainedRelatedProgress(relation, terminal.receipt, envelope(measured, 'succeeded', 10), context);
+    assert.equal(late.applied, true);
+    if (!late.applied) return;
+    assert.deepEqual(late.receipt.result, measured);
+    assert.equal(late.notification, null);
+    assert.equal(late.replay, false);
+    assert.equal(Object.hasOwn(late, 'association'), false);
+    const replay = applyRetainedRelatedProgress(relation, late.receipt, envelope(measured, 'succeeded', 10), context);
+    assert.equal(replay.applied, true);
+    if (replay.applied) { assert.strictEqual(replay.receipt, late.receipt); assert.equal(replay.replay, true); }
+    assert.deepEqual(applyRetainedRelatedProgress(relation, late.receipt,
+      envelope({ ...measured, sequence: '9007199254740996', used_tokens: '8' }, 'succeeded', 11), context),
+      { applied: false, reason: 'inconsistent-envelope' });
+    assert.deepEqual(applyRetainedRelatedProgress(relation, terminal.receipt,
+      envelope({ ...measured, content: 'rewritten' }, 'succeeded', 10), context),
+      { applied: false, reason: 'terminal-immutable' });
+  });
+
+  it('admits real running/unknown snapshots only with checked declaration and original request context', () => {
+    const originalAssociation = held();
+    const originalReceipt = receiptRow();
+    assert.throws(() => applyRelatedProgress('std.EmailV1.send', originalAssociation, originalReceipt,
+      { ...envelope(run), relation: 'std.EmailV1.send' }, context), /context disagrees with relation/);
+    assert.deepEqual(originalAssociation, held());
+    assert.deepEqual(originalReceipt, receiptRow());
+    for (const [state, status] of [['queued', 'pending'], ['running', 'pending'], ['unknown', 'unknown']] as const) {
+      const outcome = applyRelatedProgress(relation, held(), receiptRow(), envelope({ ...run, state }, status), context);
+      assert.equal(outcome.applied, true);
+      if (outcome.applied) {
+        assert.equal(outcome.receipt.status, status);
+        assert.deepEqual(outcome.receipt.result, { ...run, state });
+        assert.equal(outcome.notification, null);
+      }
+    }
+    for (const invalid of [undefined, { source: relation, declaredResult: context.declaredResult },
+      { ...context, declaredResult: { name: 'TextRun', fields: [] } },
+      { ...context, request: { source: 'different', revision: context.request!.revision } }]) {
+      assert.deepEqual(applyRelatedProgress(relation, held(), receiptRow(), envelope(run), invalid),
+        { applied: false, reason: 'inconsistent-envelope' });
+    }
+    assert.deepEqual(applyRelatedProgress(relation, held(), receiptRow(), envelope(run, 'succeeded'), context),
+      { applied: false, reason: 'inconsistent-envelope' });
+  });
+
+  it('retains exact canonical DTOs through the actual State constructor/read/update/batch guard', () => {
+    const data = { deliveryId: 'del_1', revision: 8, status: 'pending' as const, result: run, error: null,
+      contentRef: null, resultExpiresAtMs: null };
+    const meta = { nowMs: NOW, actor: 'worker' };
+    assert.throws(() => newReceiptRow(data, meta), /inconsistent/);
+    const row = newReceiptRow(data, meta, context);
+    assert.throws(() => readReceiptRow(row), /inconsistent/);
+    assert.deepEqual(readReceiptRow(row, context).receipt.result, run);
+    const batch: CommitBatch = { expectedRevision: 7 as CommitBatch['expectedRevision'],
+      writes: [{ kind: 'insert', model: RECEIPT_MODEL as CommitBatch['writes'][number]['model'], row }],
+      history: [], receipt: null, outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [] };
+    assert.throws(() => assertReceiptJoin(batch), /inconsistent/);
+    assert.doesNotThrow(() => assertReceiptJoin(batch, new Map([['del_1', context]])));
+    const later = withReceiptRowData(row, { ...data, revision: 9, result: { ...run, sequence: '9007199254740994' } }, meta, context);
+    assert.equal(readReceiptRow(later, context).receipt.revision, 9);
+    for (const result of [{ ...run, sequence: 1 }, { ...run, sequence: '01' }, { ...run, used_tokens: '-1' },
+      { ...run, extra: 'private' }, { ...run, revision: '9223372036854775808' },
+      { ...run, get content() { throw new Error('must not invoke accessor'); } }]) {
+      assert.throws(() => newReceiptRow({ ...data, status: 'succeeded', result }, meta, context), /inconsistent/);
+    }
+  });
+
+  it('orders exact snapshot sequences and rejects changed request correlation', () => {
+    const first = applyRelatedProgress(relation, held(), receiptRow(), envelope(run), context);
+    assert.equal(first.applied, true);
+    if (!first.applied) return;
+    for (const sequence of ['9007199254740992', '9007199254740993']) {
+      assert.deepEqual(applyRelatedProgress(relation, first.association, first.receipt,
+        envelope({ ...run, sequence }, 'pending', 9), context), { applied: false, reason: 'stale-sequence' });
+    }
+    assert.deepEqual(applyRelatedProgress(relation, first.association, first.receipt,
+      envelope({ ...run, sequence: '9007199254740994', revision: '7' }, 'pending', 9), context),
+      { applied: false, reason: 'inconsistent-envelope' });
+  });
+
+  it('delivers typed terminal business states once and enriches only previously absent usage', () => {
+    for (const state of ['succeeded', 'failed', 'cancelled']) {
+      const terminal = { ...run, state };
+      const first = applyRelatedProgress(relation, held(), receiptRow(), envelope(terminal, 'succeeded'), context);
+      assert.equal(first.applied, true);
+      if (!first.applied) continue;
+      assert.deepEqual(first.notification, { relation, deliveryId: 'del_1', revision: 8, status: 'succeeded' });
+      const measured = { ...terminal, sequence: '9007199254740994', used_tokens: '9007199254740993' };
+      const late = applyRelatedProgress(relation, first.association, first.receipt, envelope(measured, 'succeeded', 9), context);
+      assert.equal(late.applied, true);
+      if (!late.applied) continue;
+      assert.deepEqual(late.receipt.result, measured);
+      assert.equal(late.notification, null);
+      assert.equal(late.replay, false);
+      const replay = applyRelatedProgress(relation, late.association, late.receipt, envelope(measured, 'succeeded', 9), context);
+      assert.equal(replay.applied, true);
+      if (replay.applied) { assert.equal(replay.replay, true); assert.equal(replay.notification, null); }
+      for (const change of [{ content: 'rewritten' }, { state: 'running' }, { detail: 'changed' },
+        { used_tokens: '42' }, { used_tokens: null }]) {
+        const rejected = applyRelatedProgress(relation, late.association, late.receipt,
+          envelope({ ...measured, sequence: '9007199254740995', ...change }, 'succeeded', 10), context);
+        assert.equal(rejected.applied, false);
+      }
+      assert.deepEqual(applyRelatedProgress(relation, first.association, first.receipt,
+        envelope({ ...measured, content: 'changed' }, 'succeeded', 9), context),
+        { applied: false, reason: 'terminal-immutable' });
+    }
+  });
+
+  it('keeps transport failures closed and never turns cancellation into fabricated rich progress', () => {
+    const failed = applyRelatedProgress(relation, held(), receiptRow(),
+      envelope(null, 'failed'), context);
+    assert.deepEqual(failed, { applied: false, reason: 'inconsistent-envelope' });
+    const closed = applyRelatedProgress(relation, held(), receiptRow(),
+      { ...envelope(null, 'failed'), error: { code: 'provider_failure', message: 'Unavailable' } }, context);
+    assert.equal(closed.applied, true);
+    const cancelled = cancelRelatedProgress({ relation, association: held(), receipt: receiptRow(), revision: 8 });
+    assert.equal(cancelled.cancelled, true);
+    if (cancelled.cancelled) assert.deepEqual(cancelled.receipt, { deliveryId: 'del_1', revision: 8,
+      status: 'skipped', result: null, error: null });
   });
 });
