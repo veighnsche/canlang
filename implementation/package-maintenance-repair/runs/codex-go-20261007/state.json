@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T22:21:03.811935+00:00",
+  "updated_utc": "2026-10-08T22:30:12.228919+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2903,6 +2903,15 @@
       "evidence": "/private/tmp/can-presentation-carrier-20261009/consultations.json",
       "scope": "Optional sourceLocale on message descriptor/factory fourth argument; TextValue admits existing final ResolvedMessage pair, never ICU/re-resolution",
       "limits": "UI/source-language/skew/escaped-bidi/Compiler sink consumers remain pending; Values formatter unchanged, no stored migrations/full S9-Q01 credit"
+    },
+    "crud_saved_row_projection": {
+      "status": "Released State-only finite projector directly reviewed and captured",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "reason": "Current authority versus saved bytes is an actual security-sensitive semantic join",
+      "validation": "Owner State typecheck/private emit0; existing focused invoke-read22/22; no unchanged matrix rerun",
+      "scope": "Current by/read masks over original saved row; shared existing grants matcher/projectRow; no raw receipt mutation/reexecution; absent original metadata explicitly refuses",
+      "limits": "CF D1/HTTP/CSV actual consumer pending; logical lifetime/global physical owner/scalar scenario disclosure remain open; TECH-S02/REPLAY-IP07 not complete"
     }
   },
   "live_finite_packets": [
