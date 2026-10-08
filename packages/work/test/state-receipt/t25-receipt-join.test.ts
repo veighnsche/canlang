@@ -1400,3 +1400,62 @@ describe('t25 join: checked result.content disclosure', () => {
     assert.equal(absent.outcome, 'null-association');
   });
 });
+
+describe('t25 join: canonical ImageRun through the existing granted result', () => {
+  const imageSource = 'std.ImagesV1.submit';
+  const imageRun = { source: 'image_request', revision: '9223372036854775807', sequence: '9007199254740993',
+    state: 'succeeded', outputs: [{ position: '0', image: { id: 'file_a' } }, { position: '1', image: { id: 'file_b' } }],
+    charged_jobs: null, detail: null };
+
+  async function imageWorld() {
+    const world = await setupWorld();
+    const delivery = { kind: 'delivery' as const, capability: 'std.ImagesV1', operation: 'submit', version: 1,
+      result: { name: 'ImageRun', fields: [...DELIVERY_RESULT_LEAVES['ImageRun']] } };
+    const loaded = loadArtifactDescriptors({ ...DELIVERY_SLICE, models: [{ name: ITEM, deleteMode: 'none',
+      fields: [{ name: 'notification', required: false, serverOnly: false, field: delivery }],
+    }] }, { by: 'members' });
+    return { world: { ...world, schema: loaded.deliveryFields }, declaredResult: delivery.result };
+  }
+
+  it('reads ordered canonical nested files only under the existing result grant and records its fence', async () => {
+    const { world, declaredResult } = await imageWorld();
+    await seedOwner(world.store);
+    await associate(world.store, { source: imageSource, status: 'succeeded', result: imageRun });
+    const scope = openFenceScope(await world.store.readRevision(), world.teamId);
+    const input = joinInput(world, recipientPolicy(['notification.result']), world.alice,
+      { selected: ['result'], declaredResult, declaredSource: imageSource, fence: scope });
+    const outcome = await observeSelectedReceiptJoin(input);
+    assertObserved(outcome);
+    assert.deepEqual(outcome.projection, { result: imageRun });
+    assert.equal(outcome.fenceRevision, 0);
+    assert.deepEqual(scope.dependencies.map(dep => dep.kind === 'record' ? dep.model : dep.kind), [RECEIPT_MODEL]);
+    const denied = await observeSelectedReceiptJoin({ ...input,
+      policy: recipientPolicy(['notification.status']), fence: undefined });
+    assertDenied(denied);
+    assert.deepEqual(denied.denied, ['result']);
+    for (const selector of ['result.outputs', 'result.outputs.image', 'result.outputs.image.id']) {
+      await assert.rejects(observeSelectedReceiptJoin({ ...input, selected: [selector as ReceiptProperty] }),
+        /unknown selected property/);
+    }
+    // Direct store update checks the existing read fence, not a provider/finalized-file consumer.
+    await progress(world.store, { source: imageSource, revision: 1, status: 'succeeded',
+      result: { ...imageRun, sequence: '9007199254740994', charged_jobs: '1' } });
+    await assert.rejects(revalidateCommitForFence({ kind: 'user', store: world.store, checkpoint: scope.snapshot(),
+      by: 'members', guards: [], actorUserId: world.alice.user.user_id, teamId: world.teamId,
+      memberships: world.memberships }), (error: unknown) => error instanceof StateError && error.code === 'conflict');
+  });
+
+  it('refuses malformed nested stored results once the authorized join reads their declared context', async () => {
+    const { world, declaredResult } = await imageWorld();
+    await seedOwner(world.store);
+    // Context-free legacy staging accepts JSON; the declared read must still fail closed.
+    await associate(world.store, { source: imageSource, status: 'succeeded',
+      result: { ...imageRun, outputs: [{ position: '01', image: { id: 'file_a' } }] } });
+    const input = joinInput(world, recipientPolicy([]), world.alice,
+      { selected: ['result'], declaredResult, declaredSource: imageSource });
+    const denied = await observeSelectedReceiptJoin(input);
+    assertDenied(denied);
+    await assert.rejects(observeSelectedReceiptJoin({ ...input, policy: recipientPolicy(['notification.result']) }),
+      /inconsistent/);
+  });
+});
