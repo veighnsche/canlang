@@ -1718,6 +1718,8 @@ pub struct Emitter<'a> {
     stdlib: BTreeSet<String>,
     ui: BTreeSet<String>,
     relative: BTreeMap<String, BTreeSet<String>>,
+    /// Checked derive calls used by this emitter; example modules link them to their real owner.
+    derive_calls: BTreeSet<String>,
     diags: Vec<Diagnostic>,
     builtins: Vec<ReferencedBuiltin>,
     callables: Vec<JsCallable>,
@@ -1771,6 +1773,7 @@ impl<'a> Emitter<'a> {
             stdlib: BTreeSet::new(),
             ui: BTreeSet::new(),
             relative: BTreeMap::new(),
+            derive_calls: BTreeSet::new(),
             diags: Vec::new(),
             builtins: Vec::new(),
             callables: Vec::new(),
@@ -2208,6 +2211,35 @@ impl<'a> Emitter<'a> {
     fn hook_gap(&mut self, what: &str, why: &str, span: Span) -> String {
         self.unsupported(what, why, span);
         self.throw_expr(&format!("{what} has no lowering"))
+    }
+
+    /// Test-only callers reuse the exact production registry functions, whose
+    /// defaults and transitive helper references already close in the entry.
+    pub(super) fn example_helper_lines(&self) -> Vec<String> {
+        if self.derive_calls.is_empty() {
+            return Vec::new();
+        }
+        let Some(entry) = pick_entrypoint(self.ir) else {
+            return Vec::new();
+        };
+        let factory = binding_ident("t", "helperFactory");
+        let registry = binding_ident("t", "helperRegistry");
+        let path = format!("../{}", module_path(&self.ir.module(entry).name));
+        let mut lines = vec![
+            format!(
+                "import {{ canApp as {factory} }} from {};",
+                js_string(&path)
+            ),
+            format!("const {registry}={factory}();"),
+        ];
+        for canonical in &self.derive_calls {
+            lines.push(format!(
+                "const {}={registry}[{}];",
+                binding_ident("s", canonical),
+                js_string(canonical),
+            ));
+        }
+        lines
     }
 
     /// Import lines in deterministic order: stdlib, UI, then relative
@@ -2931,6 +2963,7 @@ impl<'a> Emitter<'a> {
                         return self.throw_expr(&format!("unknown derive {canonical}"));
                     }
                 };
+                self.derive_calls.insert(canonical.clone());
                 let parts = parts.to_vec();
                 let mut all = vec!["c".to_string()];
                 all.extend(parts);

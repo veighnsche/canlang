@@ -796,3 +796,15 @@ model; the producer now reuses its checked child/parent domain classification.
 Only that affected case was repeated. The actual CanBook action-bearing table
 contract and per-use prepared forms still need their owning payload/identity
 profiles, so original52 and full CanBook remain open. Completion stays **58/67**.
+
+The finite S9-Q07 imported-helper link now passes
+[`imported_example_helpers_use_actual_production_registry`](../../compiler/tests/bdd_binding_runtime.rs)
+**1/1** (0.90s) through actual CLI/catalog output, generated production and
+test modules, and installed testkit setup/invoke/observe. The unchanged
+`sequence-alias.can` selects the real `Provider.take` registry entry; its
+preceding echo dispatch and assertions succeed. The emitter links only checked
+canonical helpers already exported by production `canApp`, when required; it
+does not clone helper bodies or add exports/APIs. Focused codegen and
+BDD-binding `--no-run` build passed (13.37s), with no broad suite or old-case
+rerun. BDD3 result/payload/`as`, live/context/disclosure and input-slot policy
+remain held, and full S9-Q07 remains open; completion stays **58/67**.
