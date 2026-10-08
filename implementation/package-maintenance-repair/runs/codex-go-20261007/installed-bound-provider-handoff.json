@@ -28,8 +28,8 @@
   },
   "allowed_consumer": "Real adapter fetch against owned bounded localhost provider server only; no external email or paid calls; exact compiler envelope and actual D1 retry/reopen paths where claimed.",
   "gaps": [
-    "Validated provider result is not yet retained with the owning record declared delivery-field association and authorized result observation",
-    "Whole installed/deployed Worker/native preparation/release and broader provider profiles remain unqualified"
+    "Whole installed/deployed Worker/native preparation/release and broader provider/generation profiles remain unqualified",
+    "Selected current-grant Email result/association observation is now proved; wider original receipt/protocol/authority/replay gates remain separate"
   ],
   "model": "Sol low frozen type-only definition; Sol medium read-only existing API inventory; root direct source review/emit/Git",
   "consumer_review": {
@@ -56,7 +56,7 @@
     "state": "Root direct-reviewed repaired five-path source release and committed60db9b13; original result-association/whole-release gates remain open"
   },
   "current_owner_read_guard": {
-    "status": "Defining State source directly reviewed and committed; real CF generated observer integration remains pending",
+    "status": "Defining State guard committedab8cf1d3 and genuine selected CF MCP/nativeD1 observer directly accepted after storage-error repair",
     "paths": [
       "packages/state/src/receipt/join.ts",
       "packages/work/test/state-receipt/t25-receipt-join.test.ts",
@@ -88,5 +88,30 @@
       "No whole CRUD confidentiality/replay, installed/default deployed/native preparation or parent closure"
     ],
     "commit": "ab8cf1d363a0f62b67bd169d3fcd5962484ba335"
+  },
+  "selected_receipt_consumer": {
+    "status": "Root direct-reviewed same-owner repaired 11-path frozen source release; accepted only selected genuine native MCP/D1 installed localhost Email association/observer join",
+    "files": [
+      "packages/cloudflare/src/runtime/invoke.ts",
+      "packages/cloudflare/src/runtime/bound-dispatch.ts",
+      "packages/cloudflare/src/runtime/receipt-staging.ts",
+      "packages/cloudflare/src/runtime/receipt-progress.ts",
+      "packages/cloudflare/src/runtime/typed-delivery-observer.test.ts",
+      "packages/cloudflare/src/runtime/d3b-selected-receipt.test.ts",
+      "packages/cloudflare/src/worker/assembly.ts",
+      "packages/cloudflare/src/deploy/bundle.ts",
+      "packages/cloudflare/test/deploy-bundle.test.ts",
+      "packages/cloudflare/test/fixtures/typed-delivery-observer.can",
+      "packages/cloudflare/test/fixtures/typed-delivery-observer.json"
+    ],
+    "accepted_scope": "Authored send/set/association/pending receipt in one canonical fence; latest owner field and protected source agreement; provider result plus Work record/ack same commit; original intent conclusive reconcile; exact selected leaves/current grants; durable reopened State and Identity",
+    "root_defect_repaired": "Plain protected ctx.load errors previously became replayable validation rejection. Blanket catch removed, original engine Error retained across string seam, assertReceiptJoin wraps raw commit without remapping native FenceConflictError",
+    "owning_results": "Final CF emit0; changed native delivery and due cases2/2 including same-envelope no-effects/no-receipt retry and original contention/reopen gates; unchanged D3b17/17 and portable bundlelink1/1 reused",
+    "source_commands_released": true,
+    "limits": [
+      "Selected explicit Node/nativeD1/D1Identity/localhost configured Email consumer only",
+      "Generation provider/progress, every capability/terminal failure, default Worker/remote provider/installed release/native preparation and original parent qualification remain separate"
+    ],
+    "counts_unchanged": true
   }
 }

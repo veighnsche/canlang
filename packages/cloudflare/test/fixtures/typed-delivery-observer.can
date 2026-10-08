@@ -1,0 +1,15 @@
+app TypedDeliveryObserver
+use std {EmailV1 as Mail} from=deployment.mail
+Given
+ Entry { label:text="Notification", notification:delivery(Mail.send)? }
+ ## Members can inspect the selected receipt leaves, without its opaque identity.
+ policy Entry read=members fields=label,notification.status,notification.result
+When
+ crud Entry by=members fields=label
+ ## The new association and send share a commit; refusal keeps the prior attempt.
+ scenario notify(entry:Entry,to:email,accept:bool) by=members
+  do
+   send Mail.send {to=to,subject="Actual notification",body="Associated delivery"} as attempt
+   set entry {notification=attempt}
+   require accept
+Then
