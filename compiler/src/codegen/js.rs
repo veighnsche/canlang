@@ -8110,10 +8110,7 @@ fn scenario_default_omission_supported(ty: &IrType) -> bool {
     let IrType::Known(base) = ty else {
         return false;
     };
-    if matches!(
-        base,
-        ResolvedType::Enum { .. } | ResolvedType::Scalar(Scalar::User)
-    ) {
+    if matches!(base, ResolvedType::Enum { .. }) {
         return true;
     }
     let mut base = base;
@@ -8136,6 +8133,7 @@ fn scenario_default_omission_supported(ty: &IrType) -> bool {
                 | Scalar::Datetime
                 | Scalar::Duration
                 | Scalar::Money
+                | Scalar::User
         )
     )
 }
