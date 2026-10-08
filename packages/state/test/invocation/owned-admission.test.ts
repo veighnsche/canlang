@@ -99,56 +99,94 @@ describe('V02.4 owned admission: prepared-inputs leaf', () => {
   });
 
   it('forwards only explicit checked enum wire claims without widening State admission', () => {
-    for (const suffix of ['', '?', '[]', '[]?']) {
-      const valueType = `enum(one,two)${suffix}`;
-      const array = suffix.includes('[]');
-      const nullable = suffix.endsWith('?');
-      const raw: ArtifactDescriptorSlice = { artifact_version: 1, models: [], operations: [{
-        name: OP, kind: 'scenario', description: '', inputs: { fields: [{
-          name: 'choice', field: { kind: 'enum', values: ['one', 'two'] }, required: false,
-          valueType, nullable, ...(array ? { array: { required: false } } : {}),
-        }] },
-      }] };
-      const set: ExecutionDescriptorSet = { contractVersion: 1, models: [], operations: [{
-        name: OP, kind: 'scenario', inputs: [{ name: 'choice', kind: 'enum',
-          enumValues: ['one', 'two'], required: false, valueType }],
-      }] };
-      const opts = { by: 'public' as const,
-        ...(array ? { inputArrays: { [OP]: { choice: { required: false } } } } : {}) };
-      for (const loaded of [loadArtifactDescriptors(raw, { by: 'public' }), loadExecutionDescriptorSet(set, opts)]) {
-        const def = loaded.registry.get(OP)!;
-        assert.ok(isGeneratedOperationDef(def));
-        const input = def.descriptor.inputs[0]!;
-        assert.ok(input.kind !== 'ref' && input.kind !== 'delivery');
-        assert.equal(input.valueType, valueType);
-        assert.ok(Object.isFrozen(input));
-        const supplied = { choice: 'outside' };
-        if (!array) {
-          assert.deepEqual(validateCallInputs(def, supplied).normalized, supplied);
-          assert.deepEqual(validatePreparedInputs(def.preparedInputs!, supplied).normalized, supplied);
+    for (const kind of ['scenario', 'read'] as const) {
+      for (const suffix of ['', '?', '[]', '[]?']) {
+        const valueType = `enum(one,two)${suffix}`;
+        const array = suffix.includes('[]');
+        const nullable = suffix.endsWith('?');
+        const raw: ArtifactDescriptorSlice = { artifact_version: 1, models: [], operations: [{
+          name: OP, kind, description: '', inputs: { fields: [{
+            name: 'choice', field: { kind: 'enum', values: ['one', 'two'] }, required: false,
+            valueType, computedDefault: true, nullable, ...(array ? { array: { required: false } } : {}),
+          }] },
+        }] };
+        const set: ExecutionDescriptorSet = { contractVersion: 1, models: [], operations: [{
+          name: OP, kind, inputs: [{ name: 'choice', kind: 'enum',
+            enumValues: ['one', 'two'], required: false, valueType, computedDefault: true }],
+        }] };
+        const opts = { by: 'public' as const,
+          ...(array ? { inputArrays: { [OP]: { choice: { required: false } } } } : {}) };
+        for (const loaded of [loadArtifactDescriptors(raw, { by: 'public' }), loadExecutionDescriptorSet(set, opts)]) {
+          const def = loaded.registry.get(OP)!;
+          assert.ok(isGeneratedOperationDef(def));
+          const input = def.descriptor.inputs[0]!;
+          assert.ok(input.kind !== 'ref' && input.kind !== 'delivery');
+          assert.equal(input.valueType, valueType);
+          assert.ok(Object.isFrozen(input));
+          assert.equal(input.computedDefault, true);
+          assert.equal(def.preparedInputs!.rules[0]!.arrayFill, false);
+          assert.deepEqual(validateCallInputs(def, {}).normalized, {});
+          assert.deepEqual(validatePreparedInputs(def.preparedInputs!, {}).normalized, {});
+          const supplied = { choice: 'outside' };
+          if (!array) {
+            assert.deepEqual(validateCallInputs(def, supplied).normalized, supplied);
+            assert.deepEqual(validatePreparedInputs(def.preparedInputs!, supplied).normalized, supplied);
+          }
+          assert.deepEqual(decodeValue(valueType, array ? ['two'] : 'two'), array ? ['two'] : 'two');
+          assert.throws(() => decodeValue(valueType, array ? ['outside'] : 'outside'));
+          assert.throws(() => decodeValue(valueType, undefined));
+          assert.throws(() => decodeValue(valueType, array ? [1] : 1));
+          if (nullable) assert.equal(decodeValue(valueType, null), null);
+          else assert.throws(() => decodeValue(valueType, null));
         }
-        assert.deepEqual(decodeValue(valueType, array ? ['two'] : 'two'), array ? ['two'] : 'two');
-        assert.throws(() => decodeValue(valueType, array ? ['outside'] : 'outside'));
-        assert.throws(() => decodeValue(valueType, undefined));
-        assert.throws(() => decodeValue(valueType, array ? [1] : 1));
-        if (nullable) assert.equal(decodeValue(valueType, null), null);
-        else assert.throws(() => decodeValue(valueType, null));
-      }
-      const reject = (change: Record<string, unknown>) => {
+        const reject = (change: Record<string, unknown>) => {
+          assert.throws(() => loadArtifactDescriptors({ ...raw, operations: [{ ...raw.operations![0]!,
+            inputs: { fields: [{ ...raw.operations![0]!.inputs.fields[0]!, ...change }] },
+          }] }, { by: 'public' }), IncompatibleArtifactError);
+        };
+        reject({ valueType: `enum(two,one)${suffix}` });
+        reject({ valueType: `enum(one,other)${suffix}` });
+        reject({ valueType: `enum(one,two,)${suffix}` });
+        reject({ nullable: !nullable });
+        reject({ required: true });
+        reject({ default: undefined });
+        reject({ default: { kind: 'literal', value: 'one' } });
+        const inheritedDefault = Object.assign(Object.create({ default: { kind: 'literal', value: 'one' } }),
+          raw.operations![0]!.inputs.fields[0]!);
         assert.throws(() => loadArtifactDescriptors({ ...raw, operations: [{ ...raw.operations![0]!,
-          inputs: { fields: [{ ...raw.operations![0]!.inputs.fields[0]!, ...change }] },
+          inputs: { fields: [inheritedDefault] },
         }] }, { by: 'public' }), IncompatibleArtifactError);
-      };
-      reject({ valueType: `enum(two,one)${suffix}` });
-      reject({ valueType: `enum(one,other)${suffix}` });
-      reject({ valueType: `enum(one,two,)${suffix}` });
-      reject({ nullable: !nullable });
-      reject({ array: array ? undefined : { required: false } });
-      assert.throws(() => loadExecutionDescriptorSet({ ...set, operations: [{ ...set.operations[0]!,
-        inputs: [{ name: 'choice', kind: 'enum', enumValues: ['one', 'two'], required: false,
-          valueType: `enum(two,one)${suffix}` }],
-      }] }, opts), IncompatibleArtifactError);
+        reject({ valueType: undefined });
+        if (array) reject({ array: { required: true } });
+        if (array || nullable) {
+          const { valueType: _claim, ...unclaimed } = raw.operations![0]!.inputs.fields[0]!;
+          assert.throws(() => loadArtifactDescriptors({ ...raw, operations: [{ ...raw.operations![0]!,
+            inputs: { fields: [unclaimed] },
+          }] }, { by: 'public' }), IncompatibleArtifactError);
+        }
+        reject({ array: array ? undefined : { required: false } });
+        assert.throws(() => loadExecutionDescriptorSet({ ...set, operations: [{ ...set.operations[0]!,
+          inputs: [{ name: 'choice', kind: 'enum', enumValues: ['one', 'two'], required: false,
+            valueType: `enum(two,one)${suffix}` }],
+        }] }, opts), IncompatibleArtifactError);
+        if (array) {
+          assert.throws(() => loadExecutionDescriptorSet(set, { by: 'public',
+            inputArrays: { [OP]: { choice: { required: true } } } }), IncompatibleArtifactError);
+          const canonical = set.operations[0]!.inputs[0]!;
+          assert.ok(canonical.kind !== 'ref' && canonical.kind !== 'delivery');
+          const { valueType: _claim, ...unclaimed } = canonical;
+          assert.throws(() => loadExecutionDescriptorSet({ ...set, operations: [{ ...set.operations[0]!,
+            inputs: [unclaimed],
+          }] }, opts), IncompatibleArtifactError);
+        }
+      }
     }
+    const refSet: ExecutionDescriptorSet = { contractVersion: 1, models: [{ name: MODEL, fields: {}, uniqueKeys: [], deleteMode: 'none' }],
+      operations: [{ name: OP, kind: 'scenario', inputs: [{ name: 'record', kind: 'ref', model: MODEL, versioned: true, required: false, computedDefault: true }] }] };
+    assert.throws(() => loadExecutionDescriptorSet(refSet, { by: 'public',
+      inputArrays: { [OP]: { record: { required: false } } } }), IncompatibleArtifactError);
+    assert.throws(() => loadExecutionDescriptorSet(refSet, { by: 'public',
+      inputNullableRefs: { [OP]: { record: true } } }), IncompatibleArtifactError);
     const legacy = loadArtifactDescriptors({ artifact_version: 1, models: [], operations: [{
       name: OP, kind: 'scenario', description: '', inputs: { fields: [{ name: 'choice',
         field: { kind: 'enum', values: ['arbitrary label'] }, required: false, nullable: true } ] },
@@ -157,6 +195,7 @@ describe('V02.4 owned admission: prepared-inputs leaf', () => {
     assert.equal(Object.hasOwn(legacy.descriptor.inputs[0]!, 'valueType'), false);
     assert.deepEqual(validateCallInputs(legacy, { choice: null }).normalized, { choice: null });
   });
+
 
   it('accepts presence-only scalars of every kind without value checks', () => {
     const kinds = [
