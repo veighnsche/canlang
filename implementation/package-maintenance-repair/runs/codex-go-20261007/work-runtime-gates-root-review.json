@@ -1,0 +1,31 @@
+{
+  "scope": "SEQ018 existing claim availability and SEQ019 first due-head staging defining ports only",
+  "source_sha256": {
+    "packages/work/src/kernel/commands.ts": "a1b09109b13e12d919feed4be1b46ba52e4134307734370ac6ee9a3d1e131e08",
+    "packages/work/src/kernel/schedule-staging.ts": "60f96afcdf731c41977e7a3c432e6ecc6e1f89ab25344ed6b3c171e94ca79dd1",
+    "packages/work/test/kernel-commands.test.ts": "00b286662c4be90b4b78f585288d8916148a1d348f3f3e94563264e02fb43693"
+  },
+  "root_review": "Direct exact source/diff/caller gate inspection; existing single claim body now shared, no duplicate state machine/preview/registry. Due stage reuses scoped lineage/head readers and existing expected-version effect construction. One owning verification layer only.",
+  "apis": {
+    "claim": "@canlang/work/kernel/commands createWorkDispatchClaimCommand(availability?:(intentId:OutboxId,target:string)=>boolean):SystemCommandDef",
+    "due": "@canlang/work/kernel/schedule-staging stageDueSchedule(DueScheduleInput,SystemCommandContext):Promise<DueScheduleResult>"
+  },
+  "claim_contract": "Existing superseded/pinned/deferred/held/settled refusal precedes availability; only pending/stale-reclaim candidates invoke exact installed-config callback once before returned claim writes. Nontrue is closed unavailable with id/target and no effects; default command preserves prior unknown-availability behavior. Runtime still owns current transitive scope/authority/provider flow.",
+  "due_contract": "Runtime qualifies key/scope/original occurrence/event/at/context/schema. Match authoritative row id/scope/event/time; original receipt replays without consuming replacement. First pending due selected head/version produces frozen stored payload and expected-version admitted-row update + scoped L3 cancel, with no commit/handler/actor invention. Caller must join handler and terminal occurrence receipt in existing same owner fence; transient exception drops all; false authored require retains only terminal consumption/failed receipt.",
+  "verification": {
+    "work_emit": 0,
+    "affected_kernel_suite": {
+      "tests": 22,
+      "pass": 22,
+      "fail": 0
+    },
+    "initial_fixture_issue": "Two branded fixture types corrected; first emit failure retained, source had no reported compile errors",
+    "private_evidence": "/private/tmp/canlang-repair-go-20261007/portable-schedule-stages/due-claim-outcome.txt"
+  },
+  "limits": [
+    "Unit fake readers only; actual compiled CF/current-owner/D1 provider/due consumers pending",
+    "Already-admitted without receipt, broad in-flight/retention/periodic scheduler/actor/trusted admission profiles not qualified",
+    "No external transport/native Cloudflare preparation/installed release/default adoption or parent completion"
+  ],
+  "maintenance": "No copied claim lifecycle or new registry; one shared claim/reclaim write body. Due admission is a selected added capability, not counted as a replacement-only reduction."
+}

@@ -98,94 +98,71 @@ async function loadDispatchRow(
   return { row, data: readDispatchRow(row) };
 }
 
+/** Deployment-static, exact-intent availability; never transport or authority. */
+export type DispatchClaimAvailability = (intentId: OutboxId, target: string) => boolean;
+
 /**
- * `work.dispatch.claim {intentId, claimId, claimedAtMs, maxClaimAgeMs}`:
- * conditional claim issuance. Mirrors `attemptDispatch` ordering
- * (supersession -> settled -> guard pin -> claim) with `expectedVersion`
- * fencing so concurrent claimants serialize and exactly one wins.
+ * Build the existing claim stage with an optional installed-target gate.
+ * Existing lifecycle refusals precede availability. The callback sees the
+ * authoritative row identity/target exactly once before any claim writes;
+ * a missing target refuses without consuming a provider attempt.
  */
-export const workDispatchClaimCommand: SystemCommandDef = {
-  name: 'work.dispatch.claim',
-  stage: async (args, ctx) => {
-    const what = 'work.dispatch.claim';
-    checkArgs(args, what);
-    const intentId = argString(args, 'intentId', what);
-    const claimId = argString(args, 'claimId', what) as ClaimId;
-    const claimedAtMs = argInstant(args, 'claimedAtMs', what);
-    const maxClaimAgeMs = argInstant(args, 'maxClaimAgeMs', what);
-    const { row, data } = await loadDispatchRow(ctx, intentId, what);
-    const superseded = await ctx.load(
-      WORK_SUPERSESSION_MODEL,
-      intentId as RecordId,
-    );
-    if (superseded !== null) {
-      return { result: { claimed: false, reason: 'superseded', intentId } };
-    }
-    if (data.state === 'pending') {
-      // Guard pins are pending-row business: settled rows report
-      // `settled` below even when they recorded a false verdict.
-      if (data.guardVerdict === false) {
-        return { result: { claimed: false, reason: 'guard-false', intentId } };
+export function createWorkDispatchClaimCommand(
+  availability?: DispatchClaimAvailability,
+): SystemCommandDef {
+  return {
+    name: 'work.dispatch.claim',
+    stage: async (args, ctx) => {
+      const what = 'work.dispatch.claim';
+      checkArgs(args, what);
+      const intentId = argString(args, 'intentId', what);
+      const claimId = argString(args, 'claimId', what) as ClaimId;
+      const claimedAtMs = argInstant(args, 'claimedAtMs', what);
+      const maxClaimAgeMs = argInstant(args, 'maxClaimAgeMs', what);
+      const { row, data } = await loadDispatchRow(ctx, intentId, what);
+      const superseded = await ctx.load(WORK_SUPERSESSION_MODEL, intentId as RecordId);
+      if (superseded !== null) {
+        return { result: { claimed: false, reason: 'superseded', intentId } };
       }
-      // Defensive: pending rows normally carry no deferral (requeue
-      // clears it), but a future path must never jump the backoff.
-      if (data.availableAtMs !== null && data.availableAtMs > ctx.now) {
-        return {
-          result: {
-            claimed: false,
-            reason: 'deferred',
-            intentId,
-            availableAtMs: data.availableAtMs,
-          },
-        };
+      let reclaimed = false;
+      if (data.state === 'pending') {
+        if (data.guardVerdict === false) {
+          return { result: { claimed: false, reason: 'guard-false', intentId } };
+        }
+        if (data.availableAtMs !== null && data.availableAtMs > ctx.now) {
+          return {
+            result: { claimed: false, reason: 'deferred', intentId, availableAtMs: data.availableAtMs },
+          };
+        }
+      } else if (data.state === 'claimed') {
+        if (data.claimId === null || data.claimedAtMs === null || !isClaimStale(
+          { outboxId: intentId as OutboxId, claimId: data.claimId, claimedAt: data.claimedAtMs },
+          ctx.now,
+          maxClaimAgeMs,
+        )) {
+          return { result: { claimed: false, reason: 'claimed', intentId, claimId: data.claimId } };
+        }
+        reclaimed = true;
+      } else {
+        return { result: { claimed: false, reason: 'settled', intentId, state: data.state } };
       }
-      const writes = [
-        updateWrite(
-          row,
-          { ...data, state: 'claimed', claimId, claimedAtMs },
-          ctx,
-          WORK_DISPATCH_MODEL,
-          what,
-        ),
-      ];
-      return { writes, result: { claimed: true, intentId, claimId } };
-    }
-    if (
-      data.state === 'claimed' &&
-      data.claimId !== null &&
-      data.claimedAtMs !== null &&
-      isClaimStale(
-        { outboxId: intentId as OutboxId, claimId: data.claimId, claimedAt: data.claimedAtMs },
-        ctx.now,
-        maxClaimAgeMs,
-      )
-    ) {
-      const writes = [
-        updateWrite(
-          row,
-          { ...data, claimId, claimedAtMs },
-          ctx,
-          WORK_DISPATCH_MODEL,
-          what,
-        ),
-      ];
-      return { writes, result: { claimed: true, reclaimed: true, intentId, claimId } };
-    }
-    if (data.state === 'claimed') {
-      return {
-        result: {
-          claimed: false,
-          reason: 'claimed',
-          intentId,
-          claimId: data.claimId,
-        },
-      };
-    }
-    return {
-      result: { claimed: false, reason: 'settled', intentId, state: data.state },
-    };
-  },
-};
+      if (availability !== undefined && availability(intentId as OutboxId, data.source) !== true) {
+        return { result: { claimed: false, reason: 'unavailable', intentId, target: data.source } };
+      }
+      const writes = [updateWrite(
+        row,
+        { ...data, state: 'claimed', claimId, claimedAtMs },
+        ctx,
+        WORK_DISPATCH_MODEL,
+        what,
+      )];
+      return { writes, result: { claimed: true, ...(reclaimed ? { reclaimed: true } : {}), intentId, claimId } };
+    },
+  };
+}
+
+/** Default claim command preserves the existing registry's unknown-availability profile. */
+export const workDispatchClaimCommand: SystemCommandDef = createWorkDispatchClaimCommand();
 
 const TERMINAL_ATTEMPT_STATES: ReadonlySet<string> = new Set([
   'delivered',
