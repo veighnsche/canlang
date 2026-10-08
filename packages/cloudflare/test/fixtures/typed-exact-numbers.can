@@ -1,7 +1,7 @@
 app TypedExactNumbers
 Given
- ## Money constructor defaults remain outside this fixture; callers supply canonical money values.
- Ledger { amount:decimal=1.50, cash:money, amounts:decimal[], coins:money[], seedAmounts:decimal[]=[0.10,0.20], seedCoins:money[], maybeAmount:decimal?, maybeCash:money?, maybeAmounts:decimal[]?, maybeCoins:money[]? }
+ ## Constructor defaults retain canonical minor units, including half-even rounding.
+ Ledger { amount:decimal=1.50, cash:money=money(2.505,"EUR"), amounts:decimal[], coins:money[], seedAmounts:decimal[]=[0.10,0.20], seedCoins:money[]=[money(0.10,"EUR"),money(0.20,"EUR")], maybeAmount:decimal?, maybeCash:money?, maybeAmounts:decimal[]?, maybeCoins:money[]? }
  policy Ledger read=public
 When
  crud Ledger by=members fields=amount,cash,amounts,coins,seedAmounts,seedCoins,maybeAmount,maybeCash,maybeAmounts,maybeCoins
@@ -33,10 +33,13 @@ When
    set ledger {maybeAmount=amount,maybeCash=cash,maybeAmounts=amounts,maybeCoins=coins}
    return ledger.maybeAmount
  ## Original parameter literals retain their wire values in replay receipts.
- scenario defaults(delta:decimal=0.10,cash:money,amounts:decimal[]=[0.10,0.20],coins:money[]) -> money by=members
+ scenario defaults(delta:decimal=0.10,cash:money=money(0.20,"EUR"),amounts:decimal[]=[0.10,0.20],coins:money[]=[money(0.10,"EUR")]) -> money by=members
   do
    require delta+sum(amounts)==0.40
    return cash+sum(coins,"EUR")
+ ## Omitted nullable parameters use constructors; explicit null bypasses those defaults.
+ scenario nullableDefaults(value:money?=money(2.505,"EUR"),values:money[]?=[money(0.10,"EUR"),money(0.20,"EUR")]) -> money? by=members
+  do return value
  ## Checked construction converts major units and rounds ties to the even minor unit.
  scenario construct(value:decimal) -> money by=members
   do return money(value,"EUR")
