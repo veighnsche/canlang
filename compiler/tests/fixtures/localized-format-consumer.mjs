@@ -21,6 +21,81 @@ const load = path => import(pathToFileURL(resolve(root, path)));
 const {loadArtifactFile} = await load('packages/cloudflare/src/runtime/artifact.ts');
 const {assembleModules} = await load('packages/cloudflare/src/runtime/modules.ts');
 
+if (process.argv.includes('--presentation')) {
+  const source=`app Presented uses=[Shared]
+context
+ locale default="es"
+package Shared source="FR"
+ Given
+  export message zero(n:int,word:text) = "{n,plural,one {un {word}} other {autres {word}}}"@{nl="{n,plural,one {een {word}} other {andere {word}}}"}
+  export derive presented():text = format(zero(0,"<em>{literal}مرحبا &</em>"),locale="es")
+ When
+ Then
+  page /localized title="Localized"
+   text zero(0,"<em>{literal}مرحبا &</em>")
+   text presented()
+`;
+  const compileSource=(name,text)=>{
+    const file=resolve(scratch,name+'.can');
+    writeFileSync(file,text);
+    return spawnSync(can,['compile','--format=json','--catalog',resolve(root,'packages/values/dist/catalog.json'),file],{encoding:'utf8',timeout:15000});
+  };
+  const compiled=compileSource('Presented',source);
+  assert.equal(compiled.status,0,compiled.stdout+'\n'+compiled.stderr);
+  const artifactPath=resolve(scratch,'Presented.json');
+  writeFileSync(artifactPath,compiled.stdout);
+  const loaded=loadArtifactFile(artifactPath);
+  const uiUrl=import.meta.resolve('@canlang/ui');
+  const asm=await assembleModules(loaded,{workDir:resolve(scratch,'Presented'),stdlibUrl:import.meta.resolve('@canlang/stdlib'),uiUrl});
+  const generated=await import(asm.entryUrl);
+  const registry=generated.canApp();
+  const context={formatting:{appDefault:'es'},team:null,appDefaultLocale:'es',preferredLocales:['es']};
+  const formatted=await registry['Shared.presented'](context);
+  assert.deepEqual(formatted,{text:'un <em>{literal}مرحبا &</em>',locale:'fr'});
+  assert.equal(Object.isFrozen(formatted),true);
+  const page=generated.appDefinition.pages[0];
+  const bindings=await page.admit(context);
+  const french='<span lang="fr" dir="auto">\u2068un &lt;em&gt;{literal}مرحبا &amp;&lt;/em&gt;\u2069</span>';
+  const html=await page.render(context,bindings);
+  assert.equal(html.split(french).length-1,2,'direct message and formatted derive retain French zero grammar and safe language markup');
+  assert.ok(!html.includes('<em>'),'message parameters remain escaped text');
+  const dutch={...context,preferredLocales:['nl']};
+  const changed=await page.render(dutch,await page.admit(dutch));
+  assert.ok(changed.includes('<span lang="nl" dir="auto">\u2068andere &lt;em&gt;{literal}مرحبا &amp;&lt;/em&gt;\u2069</span>'));
+  assert.equal(changed.split(french).length-1,1,'explicit formatted output is not re-resolved for another viewer');
+
+  const ui=await import(uiUrl);
+  assert.equal(ui.renderTextValue(formatted,dutch),french,'complete formatter carrier reaches the public display boundary unchanged');
+  for(const invalid of [{text:formatted.text},{...formatted,extra:true},{...formatted,locale:'FR'},{...formatted,locale:'bad tag'}]) {
+    assert.throws(()=>ui.renderTextValue(invalid,dutch),'malformed final pairs cannot enter display');
+  }
+  const legacy=ui.message('{n,plural,one {un} other {autres}}',{}, {n:{type:'int',value:0n}});
+  assert.equal(Object.hasOwn(legacy,'sourceLocale'),false);
+  assert.equal(ui.formatMessage(legacy,{preferredLocales:[],appDefaultLocale:'es',sourceLocale:'fr'}),'un','legacy explicit source-locale option remains supported');
+  const carried=ui.message('Source',{},undefined,'FR');
+  assert.equal(carried.sourceLocale,'fr');
+  assert.equal(Object.isFrozen(carried),true);
+  assert.throws(()=>ui.resolveMessage(carried,{preferredLocales:[],appDefaultLocale:'es',sourceLocale:'de'}),/disagrees/);
+
+  // An older three-argument UI constructor is simulated at its public module
+  // boundary; the compiled module and all positive runtime bodies are intact.
+  const oldUi=resolve(scratch,'old-ui.mjs');
+  writeFileSync(oldUi,`export * from ${JSON.stringify(uiUrl)};\nimport {message as current} from ${JSON.stringify(uiUrl)};\nexport const message=(source,variants,params)=>current(source,variants,params);\n`);
+  await assert.rejects(async()=>{
+    const old=await assembleModules(loaded,{workDir:resolve(scratch,'OldPresented'),stdlibUrl:import.meta.resolve('@canlang/stdlib'),uiUrl:pathToFileURL(oldUi).href});
+    const module=await import(old.entryUrl);
+    const descriptor=module.appDefinition.pages[0];
+    await descriptor.render(context,await descriptor.admit(context));
+  },error=>error.code==='invalid-construction' && /message constructor must preserve checked source locale/.test(error.message));
+  const refused=compileSource('UnclassifiedPresented',source.replace('text presented()','badge presented()'));
+  assert.equal(refused.status,10,refused.stdout+'\n'+refused.stderr);
+  const response=JSON.parse(refused.stdout);
+  assert.ok(response.diagnostics.some(diagnostic=>diagnostic.code==='E6008'));
+  assert.equal(response.modules,undefined,'unclassified formatted UI sink stays refused');
+  console.log('localized presentation: genuine imported source language, French zero grammar, final literal carrier, escaping/bidi/lang, changed viewer, legacy call and incompatible constructor refusal passed');
+  process.exit(0);
+}
+
 if (process.argv.includes('--label-parameter')) {
   const source=`app LabelParameter uses=[Labels]
 context

@@ -401,7 +401,7 @@ fn golden_teamtasks_structure() {
     //
     // G3 models: labels, read grants, field modifiers/defaults/captions.
     assert!(
-        entry.contains("\"TeamTasks.Todo\":{label:$can$u$6d657373616765(\"Task\",{nl:\"Taak\"})"),
+        entry.contains("\"TeamTasks.Todo\":{label:$can$h$636865636b65645f6d657373616765(\"Task\",{nl:\"Taak\"},undefined,\"en\")"),
         "Todo label"
     );
     assert!(
@@ -421,7 +421,7 @@ fn golden_teamtasks_structure() {
         "Todo.done default"
     );
     assert!(
-        entry.contains("values:{true:$can$u$6d657373616765(\"Done\""),
+        entry.contains("values:{true:$can$h$636865636b65645f6d657373616765(\"Done\""),
         "Todo.done case captions"
     );
     assert!(entry.contains("\"TeamNotes.Note\":{"), "Note model");
@@ -435,7 +435,7 @@ fn golden_teamtasks_structure() {
         "view enum"
     );
     assert!(
-        entry.contains("values:{all:$can$u$6d657373616765(\"All tasks\""),
+        entry.contains("values:{all:$can$h$636865636b65645f6d657373616765(\"All tasks\""),
         "view case captions"
     );
     assert!(!entry.contains("validate:"), "no preferences validator");
@@ -451,7 +451,7 @@ fn golden_teamtasks_structure() {
     );
     assert!(entry.contains("by:\"members\""), "crud gate");
     assert!(
-        entry.contains("label:$can$u$6d657373616765(\"Add\",{nl:\"Toevoegen\"})"),
+        entry.contains("label:$can$h$636865636b65645f6d657373616765(\"Add\",{nl:\"Toevoegen\"},undefined,\"en\")"),
         "crud create label"
     );
     assert!(!entry.contains("when:"), "no crud admission");
@@ -463,7 +463,7 @@ fn golden_teamtasks_structure() {
     );
     assert!(entry.contains("disabled:[]"), "nothing disabled");
     assert!(
-        entry.contains("description:$can$u$6d657373616765(\"Manage tasks and notes together.\""),
+        entry.contains("description:$can$h$636865636b65645f6d657373616765(\"Manage tasks and notes together.\""),
         "app description"
     );
     assert!(
@@ -471,7 +471,7 @@ fn golden_teamtasks_structure() {
         "refused tabs selector is absent"
     );
     assert!(
-        entry.contains("c.prepareForm({operation:\"TeamTasks.Todo.create\",fields:[\"title\",\"assignee\"],display:\"inline\",labels:{title:$can$u$6d657373616765(\"Title\",{nl:\"Titel\"}),assignee:$can$u$6d657373616765(\"Assignee\",{nl:\"Toegewezen aan\"})},authoredFields:[\"title\"]})"),
+        entry.contains("c.prepareForm({operation:\"TeamTasks.Todo.create\",fields:[\"title\",\"assignee\"],display:\"inline\",labels:{title:$can$h$636865636b65645f6d657373616765(\"Title\",{nl:\"Titel\"},undefined,\"en\"),assignee:$can$h$636865636b65645f6d657373616765(\"Assignee\",{nl:\"Toegewezen aan\"},undefined,\"en\")},authoredFields:[\"title\"]})"),
         "form operation"
     );
     // Field controls consume prepared props. Breadcrumbs and pagination
@@ -926,7 +926,7 @@ fn golden_expenseflow_structure() {
     // G5 roles carry canonical ids plus labels.
     assert!(
         entry.contains(
-            "reviewer:{id:\"expenses.reviewer\",label:$can$u$6d657373616765(\"Reviewer\",{nl:\"Beoordelaar\"})}"
+            "reviewer:{id:\"expenses.reviewer\",label:$can$h$636865636b65645f6d657373616765(\"Reviewer\",{nl:\"Beoordelaar\"},undefined,\"en\")}"
         ),
         "role label"
     );
@@ -941,7 +941,7 @@ fn golden_expenseflow_structure() {
     );
     assert!(
         entry
-            .contains("decision_note:{type:\"text\",nullable:true,label:$can$u$6d657373616765(\"Decision note\""),
+            .contains("decision_note:{type:\"text\",nullable:true,label:$can$h$636865636b65645f6d657373616765(\"Decision note\""),
         "referenced caption"
     );
     assert!(
@@ -979,7 +979,7 @@ fn golden_expenseflow_structure() {
     );
     // G4 contracts and preferences.
     assert!(
-        entry.contains("\"reporting.Summary\":{label:$can$u$6d657373616765(\"Expense totals\""),
+        entry.contains("\"reporting.Summary\":{label:$can$h$636865636b65645f6d657373616765(\"Expense totals\""),
         "contract label"
     );
     assert!(
@@ -1000,7 +1000,7 @@ fn golden_expenseflow_structure() {
     assert!(entry.contains("\"expenses.approve\":"), "approve op");
     assert!(
         entry.contains(
-            "note:{type:\"text\",nullable:true,label:$can$u$6d657373616765(\"Decision note\""
+            "note:{type:\"text\",nullable:true,label:$can$h$636865636b65645f6d657373616765(\"Decision note\""
         ),
         "approve input"
     );
@@ -1116,7 +1116,7 @@ fn golden_expenseflow_structure() {
         "gated alert"
     );
     assert!(
-        entry.contains("$can$u$64697669646572({context:$can$l$313a726f7756696577,caption:$can$u$6d657373616765(\"Review decision\",{nl:\"Beoordelingsbesluit\"})})"),
+        entry.contains("$can$u$64697669646572({context:$can$l$313a726f7756696577,caption:$can$h$636865636b65645f6d657373616765(\"Review decision\",{nl:\"Beoordelingsbesluit\"},undefined,\"en\")})"),
         "divider caption"
     );
     assert!(
@@ -1124,11 +1124,11 @@ fn golden_expenseflow_structure() {
         "join with opener buttons"
     );
     assert!(
-        entry.contains("$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$u$6d657373616765(\"Approve expense\",{nl:\"Onkost goedkeuren\"}),id:\"approve_expense\",content:[(($can$f$666f726d)=>{if($can$f$666f726d.status!==\"ready\")return $can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$f$666f726d.message]});return $can$u$666f726d({...$can$f$666f726d.props,children:()=>[$can$u$7465787461726561({...$can$f$666f726d.field(\"note\")})]});})(await $can$l$313a726f7756696577.prepareForm({operation:\"expenses.approve\",arguments:{expense:$can$l$303a726f77},display:\"inline\",fields:[\"expense\",\"note\"],labels:{note:$can$u$6d657373616765(\"Decision note\",{nl:\"Toelichting op het besluit\"})},authoredFields:[\"note\"]}))]})"),
+        entry.contains("$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$h$636865636b65645f6d657373616765(\"Approve expense\",{nl:\"Onkost goedkeuren\"},undefined,\"en\"),id:\"approve_expense\",content:[(($can$f$666f726d)=>{if($can$f$666f726d.status!==\"ready\")return $can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$f$666f726d.message]});return $can$u$666f726d({...$can$f$666f726d.props,children:()=>[$can$u$7465787461726561({...$can$f$666f726d.field(\"note\")})]});})(await $can$l$313a726f7756696577.prepareForm({operation:\"expenses.approve\",arguments:{expense:$can$l$303a726f77},display:\"inline\",fields:[\"expense\",\"note\"],labels:{note:$can$h$636865636b65645f6d657373616765(\"Decision note\",{nl:\"Toelichting op het besluit\"},undefined,\"en\")},authoredFields:[\"note\"]}))]})"),
         "approve modal with content slot"
     );
     assert!(
-        entry.contains("$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$u$6d657373616765(\"Reject expense\""),
+        entry.contains("$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$h$636865636b65645f6d657373616765(\"Reject expense\""),
         "reject modal"
     );
     assert!(
@@ -2509,23 +2509,24 @@ fn construct_effects() {
     assert!(diags[0].message.contains("demo.other"));
 }
 
-/// Messages: static `message(source,{locales})` and parameterized
-/// three-argument UI forms and the localized adapter over the public
-/// two-argument values formatter.
+/// Messages retain checked source language through the owning UI factory
+/// for static and parameterized captions and the localized formatter.
 #[test]
 fn construct_messages_and_format() {
     let ir = fixture_ir();
     let mut emitter = Emitter::new(&ir);
     let static_message = IrMessage {
+        source_lang: "en".to_string(),
         source: "Expense review".to_string(),
         variants: vec![("nl".to_string(), Some("Onkostenbeoordeling".to_string()))],
         params: vec![],
     };
     assert_eq!(
         emitter.lower_message(&static_message),
-        "$can$u$6d657373616765(\"Expense review\",{nl:\"Onkostenbeoordeling\"})"
+        "$can$h$636865636b65645f6d657373616765(\"Expense review\",{nl:\"Onkostenbeoordeling\"},undefined,\"en\")"
     );
     let count_param = IrMessage {
+        source_lang: "en".to_string(),
         source: "{n} tasks".to_string(),
         variants: vec![],
         params: vec![IrMessageParam {
@@ -2536,7 +2537,7 @@ fn construct_messages_and_format() {
     };
     assert_eq!(
         emitter.lower_message(&count_param),
-        "$can$u$6d657373616765(\"{n} tasks\",{},{n:{type:\"int\",value:3n}})"
+        "$can$h$636865636b65645f6d657373616765(\"{n} tasks\",{},{n:{type:\"int\",value:3n}},\"en\")"
     );
     let formatted = typed(
         IrExpr::Format {
@@ -2557,7 +2558,7 @@ fn construct_messages_and_format() {
     let emitted = emitter.lower_expr(&formatted);
     assert!(emitted.contains("$can$h$6c6f63616c697a65645f666f726d6174(c,"));
     assert!(emitted.ends_with(
-        "([$can$u$6d657373616765(\"Expense review\",{nl:\"Onkostenbeoordeling\"}),null])"
+        "([$can$h$636865636b65645f6d657373616765(\"Expense review\",{nl:\"Onkostenbeoordeling\"},undefined,\"en\"),null])"
     ));
     let (diags, _, _, _) = emitter.finish();
     assert!(diags.is_empty());
@@ -2639,6 +2640,7 @@ fn construct_pages_admit_render() {
         owner: "expense".to_string(),
         path: "/expenses/review".to_string(),
         title: IrMessage {
+            source_lang: "en".to_string(),
             source: "Expense review".to_string(),
             variants: vec![("nl".to_string(), Some("Onkostenbeoordeling".to_string()))],
             params: vec![],
@@ -2666,6 +2668,7 @@ fn construct_pages_admit_render() {
         owner: "expense".to_string(),
         path: "/expenses/mine".to_string(),
         title: IrMessage {
+            source_lang: "en".to_string(),
             source: "Mine".to_string(),
             variants: vec![],
             params: vec![],
@@ -2689,7 +2692,7 @@ fn construct_pages_admit_render() {
     assert!(
         // Descriptors are exported: artifact.pages[].export names an
         // importable binding (B1 loadability).
-        module.js.contains("export const $can$p$657870656e73653a64657363726970746f723a2f657870656e7365732f726576696577={owner:\"expense\",path:\"/expenses/review\",title:$can$u$6d657373616765(\"Expense review\",{nl:\"Onkostenbeoordeling\"}),admit:async(c,routeBindings={})=>{if(!(hasRole(c,\"expense.reviewer\")))throw {code:\"forbidden\",message:\"forbidden\"};return {};},render:$can$p$657870656e73653a72656e6465723a2f657870656e7365732f726576696577};"),
+        module.js.contains("export const $can$p$657870656e73653a64657363726970746f723a2f657870656e7365732f726576696577={owner:\"expense\",path:\"/expenses/review\",title:$can$h$636865636b65645f6d657373616765(\"Expense review\",{nl:\"Onkostenbeoordeling\"},undefined,\"en\"),admit:async(c,routeBindings={})=>{if(!(hasRole(c,\"expense.reviewer\")))throw {code:\"forbidden\",message:\"forbidden\"};return {};},render:$can$p$657870656e73653a72656e6465723a2f657870656e7365732f726576696577};"),
         "review descriptor:\n{}",
         module.js
     );
@@ -2734,6 +2737,7 @@ fn construct_page_preferences_preamble_reads_bindings() {
         owner: "expense".to_string(),
         path: "/expenses/prefs".to_string(),
         title: IrMessage {
+            source_lang: "en".to_string(),
             source: "Prefs".to_string(),
             variants: vec![],
             params: vec![],
@@ -2829,6 +2833,7 @@ fn construct_page_admit_returns_preference_defaults() {
         owner: "demo".to_string(),
         path: "/prefs".to_string(),
         title: IrMessage {
+            source_lang: "en".to_string(),
             source: "Prefs".to_string(),
             variants: vec![],
             params: vec![],
@@ -3463,9 +3468,9 @@ fn catalog_factories_lower_from_source() {
         "$can$u$666f726d({...$can$f$666f726d.props,children:()=>[$can$u$696e707574({...$can$f$666f726d.field(\"name\")})]})",
         "$can$u$6261646765({context:$can$l$313a726f7756696577,value:$can$l$303a726f77.name})",
         "$can$l$303a726f77.name !== \"\" ? $can$u$616c657274({context:$can$l$313a726f7756696577,children:[$can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$l$303a726f77.name]})]}) : null",
-        "$can$u$64697669646572({context:$can$l$313a726f7756696577,caption:$can$u$6d657373616765(\"More\",{nl:\"Meer\"})})",
+        "$can$u$64697669646572({context:$can$l$313a726f7756696577,caption:$can$h$636865636b65645f6d657373616765(\"More\",{nl:\"Meer\"},undefined,\"en\")})",
         "$can$u$6a6f696e({context:$can$l$313a726f7756696577,children:[$can$u$627574746f6e({context:$can$l$313a726f7756696577,opens:\"dlg\"})]})",
-        "$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$u$6d657373616765(\"Dialog\",{nl:\"Dialoog\"}),id:\"dlg\",content:[$can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$l$303a726f77.name]})]})",
+        "$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$h$636865636b65645f6d657373616765(\"Dialog\",{nl:\"Dialoog\"},undefined,\"en\"),id:\"dlg\",content:[$can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$l$303a726f77.name]})]})",
         "$can$u$73746174({context:c,value:1n})",
     ] {
         assert!(entry.contains(marker), "missing {marker}:\n{entry}");
@@ -3485,7 +3490,7 @@ fn catalog_factories_lower_from_source() {
     );
     assert!(
         entry.contains("$can$l$303a726f77.name !== \"\" ? (($can$f$666f726d)=>")
-            && entry.contains("await $can$l$313a726f7756696577.prepareForm({operation:\"shop.Item.update\",arguments:{record:$can$l$303a726f77},display:\"inline\",fields:[\"name\"],labels:{name:$can$u$6d657373616765(\"Item\",{nl:\"Artikel\"})},authoredFields:[\"name\"]})"),
+            && entry.contains("await $can$l$313a726f7756696577.prepareForm({operation:\"shop.Item.update\",arguments:{record:$can$l$303a726f77},display:\"inline\",fields:[\"name\"],labels:{name:$can$h$636865636b65645f6d657373616765(\"Item\",{nl:\"Artikel\"},undefined,\"en\")},authoredFields:[\"name\"]})"),
         "row gate encloses preparation with source request properties in order:\n{entry}"
     );
     assert!(
@@ -4056,7 +4061,7 @@ fn c01_lexer_strings_reach_literal_metadata_and_message_lowering() {
                 .contains(&format!("default:{emitted}"))
         );
         assert!(artifact.modules[0].js.contains(&format!(
-            "label:$can$u$6d657373616765({emitted},{{nl:{emitted},fr:null}})"
+            "label:$can$h$636865636b65645f6d657373616765({emitted},{{nl:{emitted},fr:null}},undefined,\"en\")"
         )));
         assert_eq!(
             d03_input(d03_operation(&artifact, "Shop.Gadget.create"), "title")
@@ -7655,7 +7660,7 @@ fn a2b_ui_profiles_lower_to_factories() {
     );
     let js = &artifact.modules[0].js;
     assert!(
-        js.contains("$can$u$6669656c64736574({context:c,caption:$can$u$6d657373616765(\"Details\"),children:[$can$u$696e707574({...$can$f$666f726d.field(\"name\")}),$can$u$726164696f({...$can$f$666f726d.field(\"name\")}),$can$u$73656c656374({...$can$f$666f726d.field(\"name\")})]})"),
+        js.contains("$can$u$6669656c64736574({context:c,caption:$can$h$636865636b65645f6d657373616765(\"Details\",{},undefined,\"en\"),children:[$can$u$696e707574({...$can$f$666f726d.field(\"name\")}),$can$u$726164696f({...$can$f$666f726d.field(\"name\")}),$can$u$73656c656374({...$can$f$666f726d.field(\"name\")})]})"),
         "fieldset group + field controls:\n{js}"
     );
     assert!(
