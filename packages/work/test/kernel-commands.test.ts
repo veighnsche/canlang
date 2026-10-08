@@ -10,6 +10,7 @@ import type {
   ModelName,
   QuerySpec,
   RecordId,
+  RecordVersion,
   StoredRow,
 } from '@canlang/contracts';
 import type {
@@ -33,6 +34,7 @@ import {
 import { KernelTableError } from '../src/kernel/tables.js';
 import {
   WORK_DISPATCH_STAGE_COMMANDS,
+  createWorkDispatchClaimCommand,
   WORK_SYSTEM_COMMANDS,
   workDispatchClaimCommand,
   workDispatchRecordAttemptCommand,
@@ -45,6 +47,7 @@ import {
   workSchedulePutCommand,
 } from '../src/kernel/commands.js';
 import {
+  stageDueSchedule,
   workScheduleCancelCommand as portableScheduleCancelCommand,
   workSchedulePutCommand as portableSchedulePutCommand,
 } from '@canlang/work/kernel/schedule-staging';
@@ -141,7 +144,12 @@ describe('kernel commands: dispatch.claim', () => {
   it('claims pending rows with a fenced conditional update', async () => {
     const row = dispatchRow('op_1#0');
     const ctx = fakeCtx(seed([{ model: WORK_DISPATCH_MODEL, row }]));
-    const staged = await workDispatchClaimCommand.stage(
+    const availabilityCalls: string[][] = [];
+    const command = createWorkDispatchClaimCommand((intentId, target) => {
+      availabilityCalls.push([intentId, target]);
+      return true;
+    });
+    const staged = await command.stage(
       {
         intentId: 'op_1#0',
         claimId: 'claim_1',
@@ -169,6 +177,32 @@ describe('kernel commands: dispatch.claim', () => {
       intentId: 'op_1#0',
       claimId: 'claim_1',
     });
+    assert.deepEqual(availabilityCalls, [['op_1#0', 'std.EmailV1.send']]);
+  });
+
+  it('refuses unavailable pending and stale claims without writes', async () => {
+    const rows = [
+      dispatchRow('op_1#0'),
+      dispatchRow('op_1#1', {
+        state: 'claimed', claimId: 'old', claimedAtMs: NOW - MAX_AGE,
+      }),
+    ];
+    const ctx = fakeCtx(seed(rows.map((row) => ({ model: WORK_DISPATCH_MODEL, row }))));
+    const availabilityCalls: string[][] = [];
+    const command = createWorkDispatchClaimCommand((intentId, target) => {
+      availabilityCalls.push([intentId, target]);
+      return false;
+    });
+    for (const intentId of ['op_1#0', 'op_1#1']) {
+      assert.deepEqual(await command.stage(
+        { intentId, claimId: 'claim_1', claimedAtMs: NOW, maxClaimAgeMs: MAX_AGE }, ctx,
+      ), {
+        result: { claimed: false, reason: 'unavailable', intentId, target: 'std.EmailV1.send' },
+      });
+    }
+    assert.deepEqual(availabilityCalls, [
+      ['op_1#0', 'std.EmailV1.send'], ['op_1#1', 'std.EmailV1.send'],
+    ]);
   });
 
   it('refuses superseded, guard-pinned, held and settled rows without writes', async () => {
@@ -201,8 +235,13 @@ describe('kernel commands: dispatch.claim', () => {
         },
       ]),
     );
+    const availabilityCalls: string[][] = [];
+    const command = createWorkDispatchClaimCommand((intentId, target) => {
+      availabilityCalls.push([intentId, target]);
+      return true;
+    });
     const drive = (intentId: string) =>
-      workDispatchClaimCommand.stage(
+      command.stage(
         { intentId, claimId: 'claim_9', claimedAtMs: NOW, maxClaimAgeMs: MAX_AGE },
         ctx,
       );
@@ -242,12 +281,17 @@ describe('kernel commands: dispatch.claim', () => {
       intentId: 'op_1#4',
       state: 'delivered',
     });
+    // Only the eligible stale claim reaches actual installation availability.
+    assert.deepEqual(availabilityCalls, [['op_1#2', 'std.EmailV1.send']]);
   });
 
   it('defers pending rows with a future availability', async () => {
     const row = dispatchRow('op_1#0', { availableAtMs: NOW + 5000 });
     const ctx = fakeCtx(seed([{ model: WORK_DISPATCH_MODEL, row }]));
-    const staged = await workDispatchClaimCommand.stage(
+    const command = createWorkDispatchClaimCommand(() => {
+      throw new Error('deferred claims must not check availability');
+    });
+    const staged = await command.stage(
       {
         intentId: 'op_1#0',
         claimId: 'claim_1',
@@ -899,6 +943,131 @@ function scheduleRow(
     { nowMs: NOW, actor: ACTOR },
   );
 }
+
+describe('kernel commands: schedule.due', () => {
+  const input = {
+    key: 'reminder',
+    scope: SCOPE,
+    at: NOW - 1,
+    event: 'expense.remind',
+    occurrenceId: 'occ_1',
+  };
+
+  it('captures the stored due head and stages its fenced admission and consumption', async () => {
+    const payload = { reminder: { recipients: ['original'] } };
+    const row = { ...scheduleRow('occ_1', { at: input.at, payload }), version: 7 as RecordVersion };
+    const store = seed([{ model: WORK_SCHEDULE_MODEL, row }]);
+    const ctx = fakeCtx(store);
+    let commits = 0;
+    const readers = {
+      ...ctx,
+      commit: () => { commits += 1; },
+      query: async (spec: QuerySpec) => {
+        await Promise.resolve();
+        payload.reminder.recipients[0] = 'changed';
+        return ctx.query(spec);
+      },
+    };
+    const result = await stageDueSchedule(input, readers);
+    assert.equal(result.status, 'ready');
+    if (result.status !== 'ready') throw new Error('unreachable');
+    assert.deepEqual(result.occurrence.payload, { reminder: { recipients: ['original'] } });
+    assert.ok(Object.isFrozen(result.occurrence));
+    assert.ok(Object.isFrozen(result.occurrence.payload));
+    assert.ok(Object.isFrozen(result.occurrence.payload['reminder']));
+    const write = result.effects.writes?.[0];
+    assert.equal(result.effects.writes?.length, 1);
+    assert.equal(write?.kind, 'update');
+    if (write?.kind !== 'update') throw new Error('unreachable');
+    assert.equal(write.model, WORK_SCHEDULE_MODEL);
+    assert.equal(write.id, 'occ_1');
+    assert.equal(write.expectedVersion, 7);
+    assert.equal(write.row.data['state'], 'admitted');
+    assert.deepEqual(write.row.data['payload'], { reminder: { recipients: ['original'] } });
+    assert.deepEqual(result.effects.schedules, [
+      { op: 'cancel', key: 'CanExpense/expense/team_1/reminder' },
+    ]);
+    assert.equal(commits, 0);
+    assert.equal(store.get(`${WORK_SCHEDULE_MODEL}\0occ_1`)?.data['state'], 'pending');
+    assert.equal(row.version, 7);
+  });
+
+  it('refuses future, obsolete, mismatched and already-admitted deliveries without effects', async () => {
+    const cases = [
+      {
+        request: { ...input, at: NOW + 1 },
+        rows: [scheduleRow('occ_1', { at: NOW + 1 })],
+        reason: 'future',
+      },
+      {
+        request: input,
+        rows: [
+          scheduleRow('occ_1', { at: input.at }),
+          scheduleRow('occ_2', { at: input.at, replaces: 'occ_1' }),
+        ],
+        reason: 'stale',
+      },
+      {
+        request: { ...input, scope: { ...SCOPE, ownerPackage: 'other-package' } },
+        rows: [scheduleRow('occ_1', { at: input.at })],
+        reason: 'mismatched',
+      },
+      {
+        request: { ...input, event: 'expense.other' },
+        rows: [scheduleRow('occ_1', { at: input.at })],
+        reason: 'mismatched',
+      },
+      {
+        request: input,
+        rows: [{ ...scheduleRow('occ_1', { at: input.at }), id: 'different-row' as RecordId }],
+        reason: 'mismatched',
+      },
+      {
+        request: input,
+        rows: [scheduleRow('occ_1', { at: input.at, state: 'admitted' })],
+        reason: 'admitted',
+      },
+    ];
+    for (const entry of cases) {
+      const store = seed(entry.rows.map((row) => ({ model: WORK_SCHEDULE_MODEL, row })));
+      const ctx = fakeCtx(store);
+      // The corrupted-identity case supplies the requested slot with a wrong row id.
+      const readers = entry.rows[0]?.id === 'different-row'
+        ? { ...ctx, load: async () => entry.rows[0]! }
+        : ctx;
+      assert.deepEqual(await stageDueSchedule(entry.request, readers), {
+        status: 'refused', reason: entry.reason,
+      });
+    }
+  });
+
+  it('replays the original receipt without consuming its replacement', async () => {
+    const original = scheduleRow('occ_1', { at: input.at, state: 'superseded' });
+    const replacement = scheduleRow('occ_2', { at: NOW, replaces: 'occ_1' });
+    const receiptData = {
+      occurrenceId: 'occ_1', status: 'completed' as const,
+      result: { done: true }, code: null, message: null, recordedAtMs: NOW,
+    };
+    const store = seed([
+      { model: WORK_SCHEDULE_MODEL, row: original },
+      { model: WORK_SCHEDULE_MODEL, row: replacement },
+      {
+        model: WORK_OCCURRENCE_MODEL,
+        row: newOccurrenceRow(receiptData, { nowMs: NOW, actor: ACTOR }),
+      },
+    ]);
+    const ctx = fakeCtx(store);
+    let queried = false;
+    const result = await stageDueSchedule(input, {
+      ...ctx,
+      query: async (spec) => { queried = true; return ctx.query(spec); },
+    });
+    assert.deepEqual(result, { status: 'replayed', receipt: receiptData });
+    assert.equal(queried, false);
+    assert.equal(store.get(`${WORK_SCHEDULE_MODEL}\0occ_2`), replacement);
+    assert.equal(replacement.data['state'], 'pending');
+  });
+});
 
 describe('kernel commands: schedule.put', () => {
   it('inserts with the L3 replace op when the key is fresh', async () => {
