@@ -541,7 +541,7 @@
     },
     "TECH-W02": {
       "planning_status": "ready",
-      "state": "Independently accepted GAP-L01/L03 finite correction; committedc7c98b71",
+      "state": "Partial: retained membership resume, ordinary compiled-child bridge and genuine declared-event private cohort component accepted; default installed Worker, mixed-handler and broader durable/installed/T26 gates open.",
       "files": [
         "packages/cloudflare/src/runtime/invoke.ts",
         "packages/state/src/fanout/lifecycle.ts",
@@ -592,7 +592,20 @@
       },
       "commit_pending": false,
       "parent_limit": "Original compiled/mounted/durable/startup/installed/T26 qualification remains open; structural view is not admission authority",
-      "commit": "c7c98b71"
+      "commit": "c7c98b71",
+      "private_cohort_component": {
+        "state": "Root directly reviewed and accepted finite released component; captured in this focused source commit; broader parent remains partial",
+        "files": [
+          "packages/cloudflare/src/runtime/invoke.ts",
+          "packages/cloudflare/src/worker/assembly.ts",
+          "packages/cloudflare/src/runtime/typed-private-cohort.test.ts",
+          "packages/cloudflare/test/fixtures/typed-private-cohort.can",
+          "packages/cloudflare/test/fixtures/typed-private-cohort.json"
+        ],
+        "validation": "Owner genuine compiler CLI0, Cloudflare emit0 and changed native D1 case1/1 after exact trustedSource pin; two unchanged affected cases reused; no duplicate root gate",
+        "owner_contract": "Existing Work stageDueSchedule and occurrence receipt stage produce effects without commit; one revision-fenced owner batch admits every matching pure-cohort handler and its occurrence-wide source receipt",
+        "limits": "Internal constructor only; default installed Worker fulfillment, mixed ordinary/cohort events and broader lifecycle/security/resource/installed parent gates remain open; no replacement reduction or root48 count credit"
+      }
     },
     "TECH-W03": {
       "planning_status": "blocked",
@@ -1014,7 +1027,7 @@
     },
     "DEL-B01": {
       "planning_status": "blocked",
-      "state": "Independently accepted synchronous owned cleanup committed8a34b582; separate browser profiles open",
+      "state": "Partial: accepted synchronous cleanup and actual staged readonly Chrome page visibility/polling consumer3798f9b1; wider initializer/async disposal/browser/installed profiles remain open.",
       "files": [
         "packages/ui/src/browser/polling.ts",
         "packages/ui/src/browser/bootstrap.ts",
@@ -1039,7 +1052,7 @@
       },
       "review_read_released": true,
       "commit_pending": false,
-      "parent_limit": "No Chromium/full installed browser/visibility/HTMX/can:settled or async disposal/physical fetch cancellation acceptance",
+      "parent_limit": "Actual Mac Chrome native visibility/poll pause/resume and original readonly page consumer accepted at its changed case scope. No whole browser lifecycle, physical cancellation, all-host/installed or parent task closure.",
       "commit": "8a34b582",
       "document_visibility_join": {
         "state": "Accepted bounded correction committed a3c0a9bd; broader browser/installed gates open",
@@ -1231,7 +1244,7 @@
     },
     "DEL-R01": {
       "planning_status": "blocked",
-      "state": "Installed asset acceptance refused: actual dist owner equals pre-correction, public deep export refuses and genuine mount/caller remains missing",
+      "state": "Finite staged runtime/asset/public consumer prerequisites accepted, latest input-choice module/bundle correction3798f9b1; complete release/dependency/supported-host/installed/native qualification remains open.",
       "files": [
         "packages/cloudflare/package.json",
         "packages/cloudflare/src/cli/platform.ts",
@@ -1580,7 +1593,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T14:49:58.040857Z",
+  "updated_utc": "2026-10-08T15:52:12.660315+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1611,7 +1624,7 @@
     "handback": "7f92c05f77841fe724bd804c2d7b83666c775b1f",
     "foreign_scope": "Human-authorized state-machine/refresh feature; its verification retained as external source-current input, not root package acceptance",
     "checkpoint": "824934 unchanged; foreign integrator explicitly leaves accumulated allocation review open",
-    "current_index_owner": "Root after independently read Compiler exact a05e6c76/1eadd4c4 empty-index return; e4d838b0 source capture complete. Cleanup-only capture next; no other source or shared-output hold."
+    "current_index_owner": "Root short exclusive capture granted by Coordinator at HEAD10d0ae0e, no other Git mutator, empty index/no lock; exact five source paths plus own DECISIONS and existing ledger only."
   },
   "shared_doc_handoff": {
     "target": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
@@ -2237,6 +2250,14 @@
       "sources_outputs_handles_released": true,
       "commit": "a67050375e48e6f80554e9ba19c25c70f130c8fd",
       "compiler_consumer": "Coordinator reports Compiler sole shared State emit0 and pending original enum native case1/1 passed; output/Cargo writers released. No runtime enum membership/null or full S9-Q02 credit."
+    },
+    "private_cohort_capture": "Direct root source review; owner genuine compiler0/Cloudflare emit0/changed native D1 case1/1 after exact trustedSource pin; two unchanged affected cases reused. Atomic all matching pure-cohort handlers use existing single owner batch, no new Work/State API. Broad parent and package48 counts unchanged.",
+    "foreign_browser_measurement": {
+      "owner": "Roadmap/Coordinator",
+      "stage": "Original55 accepted conditional measurement/no-pilot; Roadmap29/63, separate from root20/48",
+      "profile": "Installed Chrome unified-headless10 native-visible/HX clients;2s poll;20.176s steady;50 canonical mutation-start→render samples",
+      "result": "p95=1659ms≤3000; maxHTTPpageReads/client/s=0.496≤1; each10reads; no SQL count/headed ten-window claim",
+      "cleanup": "One owned Chrome process cleaned; no visibility/focus override; no additional verification packet"
     }
   },
   "live_finite_packets": [
@@ -3079,6 +3100,7 @@
     "files_removed": 54,
     "bytes_removed": 182604,
     "retained": "Original maintained product sources/tests, concise three existing outcomes, unresolved contracts/JEV advice/negative witnesses and raw Git history. Foreign files, shared caches and mutable outputs untouched.",
-    "scope": "Documentation/evidence cleanup only; zero production reduction or parent task completion."
+    "scope": "Documentation/evidence cleanup only; zero production reduction or parent task completion.",
+    "commit": "10d0ae0e02bfcb0a03626e082ab02f259147e1ab"
   }
 }

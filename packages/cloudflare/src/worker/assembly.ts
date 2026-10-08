@@ -656,6 +656,7 @@ const T16B_KNOWN_REQUIRES_IDS: ReadonlySet<string> = new Set([
   "state",
   "state.machines",
   "state.parameters",
+  "state.cohorts",
   "interfaces.input-choices",
   "values.decimal",
   "values.int64",
