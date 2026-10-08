@@ -576,6 +576,8 @@ pub struct JsOperationField {
     /// Source-declared default, when representable (T15a additive;
     /// never present on update changes, which are partial).
     pub default: Option<JsFieldDefault>,
+    /// Scenario handler owns this computed default; preserve omission.
+    pub computed_default: bool,
     /// Checked description source text, when authored (D03: the one
     /// slot inline/attached/shared/legacy spellings feed; variants
     /// never leave the source — localized MCP is deferred).
@@ -906,6 +908,7 @@ impl Serialize for JsOperationField {
                 + usize::from(self.value_type.is_some())
                 + usize::from(self.array_required.is_some())
                 + usize::from(self.default.is_some())
+                + usize::from(self.computed_default)
                 + usize::from(self.description.is_some()),
         )?;
         state.serialize_field("name", &self.name)?;
@@ -922,6 +925,9 @@ impl Serialize for JsOperationField {
         }
         if let Some(default) = &self.default {
             state.serialize_field("default", default)?;
+        }
+        if self.computed_default {
+            state.serialize_field("computedDefault", &true)?;
         }
         if let Some(description) = &self.description {
             state.serialize_field("description", description)?;
@@ -5175,7 +5181,7 @@ impl<'a> Emitter<'a> {
                     let IrItemKind::CapabilityOp { params, result } = &op.kind else {
                         continue;
                     };
-                    let inputs = self.emit_params_schema_profile(params, true);
+                    let inputs = self.emit_params_schema_profile(params, true, false);
                     let result = match result {
                         IrType::Known(ty) => self.canonical_field_schema(ty, op.span),
                         IrType::Unknown => "{type:\"unknown\"}".to_string(),
@@ -5688,12 +5694,13 @@ impl<'a> Emitter<'a> {
                     event_source,
                     result,
                     read,
+                    trusted,
                     by,
                     label,
                     description,
                     ..
                 } => {
-                    let inputs = self.emit_params_schema(params);
+                    let inputs = self.emit_params_schema(params, !*read && !*trusted);
                     let mut members = vec![
                         format!("handler:{}", js_string(&item.canonical)),
                         format!("inputs:{{{inputs}}}"),
@@ -6009,11 +6016,16 @@ impl<'a> Emitter<'a> {
 
     /// Emit `name:{schema}` entries for scenario/capability parameters,
     /// with labels and literal defaults.
-    fn emit_params_schema(&mut self, params: &[crate::analysis::resolve::SymbolId]) -> String {
-        self.emit_params_schema_profile(params, false)
+    fn emit_params_schema(&mut self, params: &[SymbolId], computed_defaults: bool) -> String {
+        self.emit_params_schema_profile(params, false, computed_defaults)
     }
 
-    fn emit_params_schema_profile(&mut self, params: &[SymbolId], wire: bool) -> String {
+    fn emit_params_schema_profile(
+        &mut self,
+        params: &[SymbolId],
+        wire: bool,
+        computed_defaults: bool,
+    ) -> String {
         let mut parts = Vec::new();
         for param_id in params {
             // Never direct-index: a dangling row (unreachable from the
@@ -6058,7 +6070,10 @@ impl<'a> Emitter<'a> {
                             members.push_str(&format!(",default:{}", self.lower_default(default)));
                         }
                         IrDefault::Computed { .. }
-                            if !wire && scenario_default_omission_supported(ty) => {}
+                            if computed_defaults && scenario_default_omission_supported(ty) =>
+                        {
+                            members.push_str(",computedDefault:true");
+                        }
                         IrDefault::Computed { .. } => {
                             self.unsupported(
                                 "parameter default",
@@ -6152,6 +6167,7 @@ impl<'a> Emitter<'a> {
                 required: default.is_none() && !nullable && (!is_array || *required_array),
                 nullable,
                 array_required: is_array.then_some(*required_array),
+                computed_default: false,
                 default: js_field_default(default.as_ref(), None),
                 description: description.clone(),
             });
@@ -6223,6 +6239,7 @@ impl<'a> Emitter<'a> {
                     required: true,
                     nullable: false,
                     array_required: (name == "selected").then_some(false),
+                    computed_default: false,
                     default: None,
                     description: None,
                 })
@@ -6301,6 +6318,7 @@ impl<'a> Emitter<'a> {
                     params,
                     read,
                     trusted,
+                    hook,
                     description,
                     expose_excluded,
                     result,
@@ -6346,7 +6364,14 @@ impl<'a> Emitter<'a> {
                                 required: default.is_none() && !nullable && !is_array,
                                 nullable,
                                 array_required: is_array.then_some(false),
-                                default: js_field_default(default.as_ref(), None),
+                                computed_default: !*read
+                                    && hook.is_none()
+                                    && matches!(default, Some(IrDefault::Computed { .. }))
+                                    && scenario_default_omission_supported(ty),
+                                default: match default {
+                                    Some(IrDefault::Computed { .. }) => None,
+                                    _ => js_field_default(default.as_ref(), None),
+                                },
                                 description: description.clone(),
                             }),
                             None => {
@@ -6476,6 +6501,7 @@ impl<'a> Emitter<'a> {
                                     required,
                                     nullable,
                                     array_required,
+                                    computed_default: false,
                                     default: js_field_default(default.as_ref(), None),
                                     description: description.clone(),
                                 });
@@ -6499,6 +6525,7 @@ impl<'a> Emitter<'a> {
                         required: true,
                         nullable: false,
                         array_required: None,
+                        computed_default: false,
                         default: None,
                         description: None,
                     };
@@ -6526,6 +6553,7 @@ impl<'a> Emitter<'a> {
                                     required: true,
                                     nullable: false,
                                     array_required: None,
+                                    computed_default: false,
                                     default: None,
                                     description: None,
                                 });
@@ -7721,26 +7749,29 @@ impl<'a> Emitter<'a> {
 
 /// Omission must survive native admission before a handler can fill a default.
 fn scenario_default_omission_supported(ty: &IrType) -> bool {
-    // Admission preserves absent optional nonnullable scalar inputs. Nullable,
-    // array and reference inputs need an owning omission/hydration seam first.
+    let IrType::Known(base) = ty else {
+        return false;
+    };
+    let mut base = base;
+    if let ResolvedType::Nullable(inner) = base {
+        base = inner.as_ref();
+    }
+    if let ResolvedType::Array { element, .. } = base {
+        base = element.as_ref();
+    }
+    // Only joined native input domains carry the checked omission claim.
+    // Element nullability, nested arrays and collapsed aliases remain unqualified.
     matches!(
-        ty,
-        IrType::Known(
-            ResolvedType::Scalar(
-                Scalar::Bool
-                    | Scalar::Int
-                    | Scalar::Decimal
-                    | Scalar::Text
-                    | Scalar::Email
-                    | Scalar::Url
-                    | Scalar::Locale
-                    | Scalar::Date
-                    | Scalar::Datetime
-                    | Scalar::Duration
-                    | Scalar::Timezone
-                    | Scalar::Currency
-                    | Scalar::Money
-            ) | ResolvedType::Enum { .. }
+        base,
+        ResolvedType::Scalar(
+            Scalar::Bool
+                | Scalar::Int
+                | Scalar::Decimal
+                | Scalar::Text
+                | Scalar::Date
+                | Scalar::Datetime
+                | Scalar::Duration
+                | Scalar::Money
         )
     )
 }
