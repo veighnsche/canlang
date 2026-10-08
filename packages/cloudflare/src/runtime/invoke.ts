@@ -1789,6 +1789,16 @@ export interface LoadedCanonicalDescriptors {
  */
 const canonicalCache = new WeakMap<CompileArtifact, LoadedCanonicalDescriptors>();
 
+function assertServableModelRules(where: string, metadata: unknown): void {
+  if (!isUnknownRecord(metadata)) return;
+  for (const kind of ["invariants", "locks"] as const) {
+    const rules = readMetadataMember(metadata, kind, where)?.value;
+    if (readMetadataStrings(rules ?? [], where, kind).length > 0) {
+      throw new Error(`${where} cannot activate: canonical model ${kind} execution is not supported yet.`);
+    }
+  }
+}
+
 /**
  * T17b: scan every assembled module for `canApp().policy.models` and
  * merge per model (first occurrence wins; a CONTRADICTORY entry for
@@ -1833,6 +1843,14 @@ async function collectModelPolicyManifests(
       );
     }
     const moduleWhere = `t17b: module ${JSON.stringify(module)}`;
+    const definition = mod["appDefinition"];
+    const declaredModels = isUnknownRecord(definition) ? readMetadataMember(definition, "models", moduleWhere)?.value : undefined;
+    if (isUnknownRecord(declaredModels)) {
+      for (const model of modelFields.keys()) {
+        const declaration = readMetadataMember(declaredModels, model, moduleWhere)?.value;
+        assertServableModelRules(`t17b: model ${JSON.stringify(model)}`, declaration);
+      }
+    }
     const policy = readMetadataMember(registry, "policy", moduleWhere)?.value;
     if (policy === undefined || policy === null) continue;
     if (!isUnknownRecord(policy)) {
@@ -1851,9 +1869,10 @@ async function collectModelPolicyManifests(
       const where = `t17b: model ${JSON.stringify(model)}`;
       const entry = readMetadataMember(models, model, where)?.value;
       const facts = readPolicyFacts(entry, where);
-      const definition = mod["appDefinition"];
-      const declaredModels = isUnknownRecord(definition) ? readMetadataMember(definition, "models", where)?.value : undefined;
       const declaration = isUnknownRecord(declaredModels) ? readMetadataMember(declaredModels, model, where)?.value : undefined;
+      // Policy and owning declarations both retain their constraints even
+      // if the other representation is omitted.
+      assertServableModelRules(where, facts);
       const readRules = readMetadataMember(registry, "read", where)?.value;
       if ((facts.public?.length ?? 0) > 0) {
         const definitionPolicy = isUnknownRecord(definition) ? readMetadataMember(definition, "policy", where)?.value : undefined;
