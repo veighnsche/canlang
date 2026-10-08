@@ -348,3 +348,6 @@ Static Judgment Compiler ownership is reconciled against the released source pro
 
 
 Static Judgment consumer ownership is reconciled through the existing Cloudflare canonical invoker/outbox, Work dispatcher and State receipt/read fence. The same genuine compiled source passes one Node-handler/native local D1/controlled HTTP provider workflow, including rollback, replay, typed read, reopen and unknown reconciliation without resend. Immutable source/value inventory remains defining; there is no parallel lifecycle or app-local schema engine. Runtime choices, acknowledged-original clear/replacement, remote/deployed/installed backend and wider original duties remain separate; no full Task46/root repair or accumulated complete checkpoint advancement.
+
+
+Static nominal Interfaces responsibility remains one MCP/HTTP renderer and argument boundary over Compiler inventory/public Values normalization. Public definitions are only the transitive requested-type closure and resolve at the actual tool root; required-array and Judgment version claims retain exact source representation. Actual same-artifact catalog/frame checks qualify this finite consumer. Generic form/opaque JSON, wider host/backend/application and full Task46/repair acceptance remain separate; complete checkpoint unchanged.
