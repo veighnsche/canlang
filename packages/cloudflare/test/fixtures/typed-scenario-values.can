@@ -31,6 +31,9 @@ When
   do return value
  scenario boundArray(counter:Counter,values:int[]=[counter.count]) -> int[] by=members
   do return values
+ ## Ordinary reads run source omission defaults over viewer-projected native records.
+ scenario readBound(counter:Counter,values:int[]=[counter.count]) -> int[] by=members read=true
+  do return values
  ## Newly created bindings read native values and observe their staged update.
  scenario born() -> int by=members
   do

@@ -98,6 +98,85 @@ test('actual compiled scenarios preserve typed staging, receipts and persisted D
     const defaultCounter = committed(await invoker.invokeMutation(envelope('Counter.create', { count: '7' }), world.identity))
       .result as { id: string; version: number };
     const boundRef = { id: defaultCounter.id, version: String(defaultCounter.version) };
+    // Genuine compiler-emitted read handler: native projected refs/defaults,
+    // closed wire arrays and live by admission, without mutation identity.
+    const readDescriptor = compiled.operations!.find(op => op.name === `${APP}.readBound`)!;
+    assert.equal(readDescriptor.kind, 'read');
+    assert.deepEqual(readDescriptor.result, { type: 'int[]' });
+    assert.equal(readDescriptor.inputs.fields.find(field => field.name === 'values')?.computedDefault, true);
+    const readRequest = { operation: `${APP}.readBound`, inputs: { counter: boundRef } };
+    const beforeRead = await d1.store.readRevision();
+    const beforeReadHistory = await d1.store.historyFor(MODEL, asId(defaultCounter.id));
+    const readResult = async (inputs: Record<string, unknown> = readRequest.inputs) => {
+      const outcome = await invoker.invokeRead({ ...readRequest, inputs }, world.identity);
+      assert.ok('result' in outcome, JSON.stringify(outcome));
+      return outcome.result;
+    };
+    assert.deepEqual(await readResult(), { result: ['7'], revision: beforeRead });
+    assert.deepEqual(await readResult({ counter: boundRef, values: [] }), { result: [], revision: beforeRead });
+    assert.deepEqual(await readResult({ counter: boundRef, values: ['9007199254740993'] }),
+      { result: ['9007199254740993'], revision: beforeRead });
+    assert.equal(Object.hasOwn(readRequest.inputs, 'values'), false);
+    for (const inputs of [{ counter: boundRef, values: [9] }, { counter: boundRef, values: null },
+      { counter: boundRef, extra: true }]) {
+      const refusal = await invoker.invokeRead({ ...readRequest, inputs }, world.identity);
+      assert.ok('error' in refusal);
+      assert.equal(refusal.error.code, 'validation');
+      assert.equal(Object.hasOwn(refusal.error, 'operation_id'), false);
+    }
+    const outsiderRead = await invoker.invokeRead(readRequest, world.outsider);
+    assert.ok('error' in outsiderRead);
+    assert.equal(outsiderRead.error.code, 'forbidden');
+    assert.deepEqual(await invoker.invokeRead(readRequest, world.identity),
+      { result: { result: ['7'], revision: beforeRead } });
+    assert.deepEqual(await d1.store.historyFor(MODEL, asId(defaultCounter.id)), beforeReadHistory);
+    assert.equal(await d1.store.readRevision(), beforeRead);
+    const modelRead = await invoker.invokeRead({ operation: `${MODEL}.read`, inputs: {} }, world.identity);
+    assert.ok('result' in modelRead);
+    const modelRecords = modelRead.result as { records: Array<{ id: string; data: { count: string } }>; revision: number };
+    assert.equal(modelRecords.revision, beforeRead);
+    assert.equal(modelRecords.records.find(item => item.id === defaultCounter.id)?.data.count, '7');
+    // Synthetic adversarial wrapper around the real emitted read handler:
+    // inspect the actual context and attempt each effect before delegating.
+    const guardedRead = structuredClone(compiled);
+    guardedRead.modules[0]!.js += `
+const admittedReadCanApp = canApp;
+canApp = function() {
+  const registry = admittedReadCanApp();
+  const read = registry["${APP}.readBound"];
+  registry["${APP}.readBound"] = async function(c, inputs) {
+    if (Object.hasOwn(c.operation, "id") || Object.hasOwn(c.canonical, "operationId"))
+      throw new Error("read invented an operation identity");
+    if (c.operation.source !== "test" || c.now.ms !== ${FIXED_NOW}n || c.clock() !== ${FIXED_NOW} ||
+        c.actor.id !== "${world.identity.actor!.user_id}" || c.team.id !== "${world.identity.team!.team_id}")
+      throw new Error("read context lost its admitted source facts");
+    for (const effect of [
+      () => c.store.commit({}), () => c.store.stageMigrationRows({}),
+      () => c.store.query({}), () => c.store.load("${MODEL}", "private"),
+      () => c.canonical.stageWrite({}), () => c.canonical.createRecord("${MODEL}", {}),
+      () => c.canonical.setRecord(inputs.counter, {}), () => c.canonical.deleteRecord(inputs.counter, "remove"),
+      () => c.sendDeferred("unbound.send", {}, "unbound"),
+      () => c.scheduleDeferred("read", c.now, "unbound", {}, "${APP}"),
+      () => c.cancelDeferred("read", "${APP}"), () => c.canonical.observeDelivery({}, []),
+    ]) {
+      let refused = false;
+      try { await effect(); } catch (error) {
+        refused = error.code === "validation" && error.message.includes("Read scenarios cannot");
+      }
+      if (!refused) throw new Error("read effect or bypass reached its provider");
+    }
+    return read(c, inputs);
+  };
+  return registry;
+};
+`;
+    const guardedAsm = await assemble(guardedRead, join(dir, 'guarded-read'));
+    const guardedInvoker = buildInvoker(guardedRead, guardedAsm, d1.store, {
+      memberships: world.memberships, now: () => FIXED_NOW, source: 'test',
+    });
+    assert.deepEqual(await guardedInvoker.invokeRead(readRequest, world.identity),
+      { result: { result: ['7'], revision: beforeRead } });
+    assert.equal(await d1.store.readRevision(), beforeRead);
     // Genuine source still owns its default; inherited artifact metadata cannot pair with it.
     const inheritedClaim = structuredClone(compiled);
     const inheritedField = inheritedClaim.operations!.find((op) => op.name === `${APP}.boundNullable`)!

@@ -82,7 +82,7 @@ export interface CanonicalEffectsScope {
   /** Builtin by predicates derived from the live admitted caller/membership. */
   readonly builtinRoles?: readonly string[];
   readonly operation: string;
-  readonly operationId: string;
+  readonly operationId?: string;
   stageWrite(write: CanonicalStagedWrite): Promise<StoredRow | null>;
   /** Generated language helpers use native record bindings; storage stays wire-valued. */
   createRecord?(model: string, data: Record<string, unknown>): Promise<Record<string, unknown>>;
@@ -120,7 +120,7 @@ export interface HandlerContext {
   } | null;
   readonly team?: { readonly id: string; readonly timezone: string } | null;
   readonly now?: DatetimeValue;
-  readonly operation?: { readonly id: string; readonly source: string };
+  readonly operation?: { readonly id?: string; readonly source: string };
   /**
    * Canonical execution scope (T17b). Present inside canonical scenario
    * execution only; the migrated stdlib data plane requires it and fails
@@ -154,7 +154,7 @@ export interface CreateContextDeps {
   scheduleDeferred?: HandlerContext['scheduleDeferred'];
   cancelDeferred?: HandlerContext['cancelDeferred'];
   /** Internal admitted facts; business inputs and caller labels cannot supply these. */
-  qualified?: InvocationContext;
+  qualified?: Pick<InvocationContext, 'actor' | 'team' | 'now' | 'source'> & { readonly operationId?: string };
   /** Internal checked selected-app formatting facts. No context-level defaults. */
   formatting?: HandlerFormattingScope;
 }
@@ -187,7 +187,10 @@ export function createContext(deps: CreateContextDeps): HandlerContext {
       }),
       team: deps.qualified.team === null ? null : Object.freeze({ id: deps.qualified.team.teamId, timezone: deps.qualified.team.timezone }),
       now: makeDatetime(BigInt(deps.qualified.now)),
-      operation: Object.freeze({ id: deps.qualified.operationId, source: deps.qualified.source }),
+      operation: Object.freeze({
+        ...(deps.qualified.operationId === undefined ? {} : { id: deps.qualified.operationId }),
+        source: deps.qualified.source,
+      }),
     }),
   };
 }
