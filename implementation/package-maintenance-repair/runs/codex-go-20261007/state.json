@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T21:45:02.507156+00:00",
+  "updated_utc": "2026-10-08T21:49:09.166971+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2843,6 +2843,20 @@
       "scope": "Chat token allowance and Knowledge two unfinished questions per account within actual selected app/team State owner; separate unit/release/late-usage/debt/provider limits retained.",
       "advice": "One consolidated JEV record, three equivalent independently worded choices same_owner .99/1/1 probability and .98/1/1 confidence. Advice only; no new tests or audit layer.",
       "limits": "No source implementation/runtime acceptance/global pool/provider money cap, positive hooks, held11/22 or native release; tasks42\u201343 remain open.",
+      "counts_unchanged": true,
+      "commit": "4139a89866d3504d9ab9ce9bf5deccea0bb2a6e3"
+    },
+    "choose_public_facade": {
+      "status": "Existing Values choose directly reexported; facade source/output released to Compiler consumer",
+      "verification": "Normal owning Stdlib TypeScript emission exit0; no duplicate algorithm/wrapper/source-contract change. Compiler same selected_calls actual emitted import case pending.",
+      "counts_unchanged": true
+    },
+    "replay_result_contract_dependency": {
+      "status": "Existing prepared CRUD/replay contract consultation requires specific human approval; no retransmission attempted",
+      "requests": "/private/tmp/canlang-repair-go-20261007/crud-public-contract/request-{1,2,3}.json",
+      "scope": "~20.8KB factual architecture/security alternatives; new result provenance, old/missing carrier posture and current disclosure authorization. Prior metadata choice does not authorize guessed object projection or blanket null.",
+      "source_check": "Existing durable receipt recordVersions contains only insert/update writes, not result dependency provenance; singular scenario model results retain real admitted view binding only before receipt. No supported current-source release resolves the legacy origin policy.",
+      "permission_question": "Re-presented existing pending specific-payload approval asynchronously; unrelated work continues.",
       "counts_unchanged": true
     }
   },
