@@ -34,7 +34,9 @@ import type {
   ReceiptResultContext,
 } from '@canlang/contracts';
 import { isConsistentCompletion, isTerminalReceiptStatus } from '../receipt/index.js';
-import { isTextRunReceiptContext, isTextRunReceiptPayload, readTextRunResult } from '@canlang/state/receipt/tables';
+import { isTextRunReceiptContext, isTextRunReceiptPayload, readTextRunResult,
+  isImageRunReceiptContext, isImageRunReceiptPayload, readImageRunResult } from '@canlang/state/receipt/tables';
+import { equalValue } from '@canlang/values';
 
 /**
  * Minimal completion envelope shape needed for association matching. The
@@ -302,6 +304,28 @@ type ReceiptOnlyProgressOutcome =
   | { applied: true; receipt: AssociatedReceipt }
   | Extract<ReceiptProgressOutcome, { applied: false }>;
 
+/** The two selected canonical run policies share sequence and one immutable measurement. */
+function readSelectedRun(result: unknown, context: ReceiptResultContext) {
+  if (isImageRunReceiptContext(context)) {
+    const run = readImageRunResult(result, context.declaredResult);
+    return run === null ? null : { ...run, measurement: run.chargedJobs };
+  }
+  const run = readTextRunResult(result, context.declaredResult);
+  return run === null ? null : { ...run, measurement: run.usedTokens };
+}
+
+function isSelectedRunPayload(status: unknown, result: unknown, error: unknown, context: ReceiptResultContext): boolean {
+  return isImageRunReceiptContext(context) ? isImageRunReceiptPayload(status, result, error, context)
+    : isTextRunReceiptPayload(status, result, error, context);
+}
+
+type CheckedSelectedRun = NonNullable<ReturnType<typeof readSelectedRun>>;
+function sameRunFields(previous: CheckedSelectedRun, next: CheckedSelectedRun, keys: readonly string[]): boolean {
+  return keys.every(key => key === 'outputs' && 'outputs' in previous && 'outputs' in next
+    ? equalValue('GeneratedImage[]', previous.outputs, next.outputs)
+    : (previous.fields as Readonly<Record<string, unknown>>)[key] === (next.fields as Readonly<Record<string, unknown>>)[key]);
+}
+
 /** One receipt gate for both actual current pairs and retained original attempts. */
 function applyCorrelatedReceiptProgress(
   source: string,
@@ -327,25 +351,29 @@ function applyCorrelatedReceiptProgress(
   const status: unknown = envelope['status'];
   const result: unknown = envelope['result'];
   const error: unknown = envelope['error'];
-  const rich = context !== undefined && context.source.startsWith('std.TextGenerationV1.') && result != null;
+  const rich = context !== undefined && (context.source.startsWith('std.TextGenerationV1.') ||
+    ['std.ImagesV1.submit', 'std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(context.source)) && result != null;
   if (context !== undefined && context.source !== source) {
     throw new Error(`${caller}: declaration context disagrees with the trusted receipt source`);
   }
-  if (rich ? context?.request === undefined || !isTextRunReceiptPayload(status, result, error, context)
+  if (isImageRunReceiptContext(context) && receipt.result !== null && result == null) {
+    return { applied: false, reason: 'inconsistent-envelope' };
+  }
+  if (rich ? context?.request === undefined || !isSelectedRunPayload(status, result, error, context)
     : !isConsistentCompletion(status, result, error)) {
     return { applied: false, reason: 'inconsistent-envelope' };
   }
   const revision = (progress as AssociatedCompletion).revision;
   if (rich && receipt.result !== null) {
-    const previous = readTextRunResult(receipt.result, context!.declaredResult);
-    const next = readTextRunResult(result, context!.declaredResult)!;
-    if (previous === null || !isTextRunReceiptPayload(receipt.status, receipt.result, receipt.error, context)) {
-      throw new Error(`${caller}: stored TextRun is malformed or disagrees with its request`);
+    const previous = readSelectedRun(receipt.result, context!);
+    const next = readSelectedRun(result, context!)!;
+    if (previous === null || !isSelectedRunPayload(receipt.status, receipt.result, receipt.error, context!)) {
+      throw new Error(`${caller}: stored ${context!.declaredResult.name} is malformed or disagrees with its request`);
     }
     // Terminal equal-checkpoint replays retain the original rows below;
     // they never apply the incoming snapshot, even if its sequence differs.
     if (!(isTerminalReceiptStatus(receipt.status) && revision === receipt.revision)) {
-      if (previous.usedTokens !== null && next.usedTokens !== previous.usedTokens) {
+      if (previous.measurement !== null && next.measurement !== previous.measurement) {
         return { applied: false, reason: 'inconsistent-envelope' };
       }
       if (next.sequence < previous.sequence || (revision > receipt.revision && next.sequence === previous.sequence)) {
@@ -353,7 +381,7 @@ function applyCorrelatedReceiptProgress(
       }
       if (revision === receipt.revision) {
         if (next.sequence !== previous.sequence || status !== receipt.status || !sameReceiptError(receipt.error, error) ||
-            Object.keys(previous.fields).some(key => previous.fields[key as keyof typeof previous.fields] !== next.fields[key as keyof typeof next.fields])) {
+            !sameRunFields(previous, next, Object.keys(previous.fields))) {
           return { applied: false, reason: 'inconsistent-envelope' };
         }
         return { applied: true, receipt };
@@ -594,13 +622,14 @@ function finishRelatedReceiptProgress(
   if (inner.receipt.revision === receipt.revision) {
     return { applied: true, receipt, notification: null, replay: true };
   }
-  if (context?.request !== undefined && isTextRunReceiptContext(context) && receipt.status === inner.receipt.status &&
+  if (context?.request !== undefined && (isTextRunReceiptContext(context) || isImageRunReceiptContext(context)) && receipt.status === inner.receipt.status &&
       receipt.error === inner.receipt.error) {
-    const previous = readTextRunResult(receipt.result, context.declaredResult);
-    const next = readTextRunResult(inner.receipt.result, context.declaredResult);
-    if (previous !== null && next !== null && next.sequence > previous.sequence && previous.usedTokens === null &&
-        next.usedTokens !== null && ['source', 'revision', 'state', 'content', 'detail'].every(key =>
-          previous.fields[key as keyof typeof previous.fields] === next.fields[key as keyof typeof next.fields])) {
+    const previous = readSelectedRun(receipt.result, context);
+    const next = readSelectedRun(inner.receipt.result, context);
+    const contentKeys = isImageRunReceiptContext(context) ? ['source', 'revision', 'state', 'outputs', 'detail']
+      : ['source', 'revision', 'state', 'content', 'detail'];
+    if (previous !== null && next !== null && next.sequence > previous.sequence && previous.measurement === null &&
+        next.measurement !== null && sameRunFields(previous, next, contentKeys)) {
       return { applied: true, receipt: inner.receipt, notification: null, replay: false };
     }
   }

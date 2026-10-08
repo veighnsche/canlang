@@ -32,8 +32,9 @@ import type {
   TextRunResultLeaf,
   TextRunReceiptProperty,
 } from '@canlang/contracts';
-import { DELIVERY_RESULT_LEAVES } from '@canlang/contracts';
-import { decodeValue, encodeValue } from '@canlang/values';
+import { DELIVERY_RESULT_LEAVES, GENERATED_IMAGE_FIELDS } from '@canlang/contracts';
+import { decodeValue, encodeValue, normalizeSchema, validateValue } from '@canlang/values';
+import type { CanValue } from '@canlang/values';
 import type {
   CommitBatch,
   CommitResult,
@@ -170,6 +171,112 @@ export function isTextRunReceiptPayload(status: unknown, result: unknown, error:
   const failure = error === undefined ? null : error;
   if (state === 'queued' || state === 'running') return status === 'pending' && failure === null;
   if (state === 'unknown') return status === 'unknown' && (failure === null || isClosedErrorShape(failure));
+  return status === 'succeeded' && failure === null;
+}
+
+const GENERATED_IMAGE_SCHEMA = normalizeSchema({ contracts: { GeneratedImage: {
+  fields: Object.fromEntries(GENERATED_IMAGE_FIELDS.map(field => [field.name, { type: field.type }])),
+} } });
+
+export function isCanonicalImageRunDeclaration(declaration: CanonicalNominalResult | undefined): boolean {
+  const leaves = DELIVERY_RESULT_LEAVES['ImageRun']!;
+  return declaration?.name === 'ImageRun' && Array.isArray(declaration.fields) &&
+    declaration.fields.length === leaves.length && leaves.every(expected =>
+      declaration.fields.filter(leaf => leaf?.name === expected.name && leaf.type === expected.type).length === 1);
+}
+
+export function isImageRunReceiptContext(context: ReceiptResultContext | undefined): boolean {
+  return context !== undefined &&
+    ['std.ImagesV1.submit', 'std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(context.source) &&
+    isCanonicalImageRunDeclaration(context.declaredResult);
+}
+
+export interface CheckedImageRunResult {
+  readonly fields: Readonly<Record<string, unknown>>;
+  readonly outputs: CanValue;
+  readonly revision: bigint;
+  readonly sequence: bigint;
+  readonly chargedJobs: bigint | null;
+}
+
+/** Bounded own-data snapshot before Values reads nested data; no getters, inherited data or omissions. */
+function snapshotImageOutputData(value: unknown, depth = 0): unknown {
+  if (value === null || typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value;
+  if (typeof value !== 'object' || depth > 2) throw new Error('invalid nested output data');
+  const array = Array.isArray(value);
+  const prototype = Object.getPrototypeOf(value);
+  if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) {
+    throw new Error('invalid nested output prototype');
+  }
+  const keys = Reflect.ownKeys(value);
+  const out: Record<string, unknown> | unknown[] = array ? [] : Object.create(null) as Record<string, unknown>;
+  if (array && keys.length !== value.length + 1) throw new Error('sparse or extended output array');
+  for (const key of keys) {
+    if (array && key === 'length') continue;
+    if (typeof key !== 'string' || (array && (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= value.length))) {
+      throw new Error('invalid output key');
+    }
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (descriptor === undefined || !Object.hasOwn(descriptor, 'value') || !descriptor.enumerable) {
+      throw new Error('invalid output accessor');
+    }
+    (out as Record<string, unknown>)[key] = snapshotImageOutputData(descriptor.value, depth + 1);
+  }
+  return out;
+}
+
+/** Canonical source ImageRun, never the provider byte-result shape. File shape alone adds no authority. */
+export function readImageRunResult(result: unknown, declaration: CanonicalNominalResult | undefined): CheckedImageRunResult | null {
+  if (!isCanonicalImageRunDeclaration(declaration) || typeof result !== 'object' || result === null ||
+      Array.isArray(result) || (Object.getPrototypeOf(result) !== Object.prototype && Object.getPrototypeOf(result) !== null)) return null;
+  const leaves = DELIVERY_RESULT_LEAVES['ImageRun']!;
+  if (Reflect.ownKeys(result).length !== leaves.length) return null;
+  const fields: Record<string, unknown> = {};
+  const decoded = new Map<string, CanValue>();
+  try {
+    for (const leaf of leaves) {
+      const property = Object.getOwnPropertyDescriptor(result, leaf.name);
+      if (property === undefined || !Object.hasOwn(property, 'value') || !property.enumerable) return null;
+      const value: unknown = property.value;
+      if (leaf.name === 'outputs') {
+        const snapshot = snapshotImageOutputData(value);
+        const outputs = validateValue(GENERATED_IMAGE_SCHEMA, leaf.type, snapshot, 'create');
+        // Values decodes exact integers; require their canonical wire spelling too.
+        if (!Array.isArray(outputs) || !Array.isArray(snapshot) || outputs.some((output, index) =>
+          encodeValue('int', (output as Record<string, CanValue>)['position']!) !==
+            (snapshot[index] as Record<string, unknown>)['position'])) return null;
+        decoded.set(leaf.name, outputs);
+      } else {
+        if (value !== null && typeof value !== 'string') return null;
+        const scalar = decodeValue(leaf.type, value);
+        if ((leaf.type === 'int' || leaf.type === 'int?') && encodeValue(leaf.type, scalar) !== value) return null;
+        decoded.set(leaf.name, scalar);
+      }
+      fields[leaf.name] = value;
+    }
+  } catch { return null; }
+  const revision = decoded.get('revision');
+  const sequence = decoded.get('sequence');
+  const chargedJobs = decoded.get('charged_jobs');
+  if (typeof revision !== 'bigint' || typeof sequence !== 'bigint' || sequence < 0n ||
+      (chargedJobs !== null && (typeof chargedJobs !== 'bigint' || chargedJobs < 0n))) return null;
+  return { fields, outputs: decoded.get('outputs')!, revision, sequence, chargedJobs };
+}
+
+export function isImageRunReceiptPayload(status: unknown, result: unknown, error: unknown, context: ReceiptResultContext | undefined): boolean {
+  if (!isImageRunReceiptContext(context)) return false;
+  const run = readImageRunResult(result, context!.declaredResult);
+  if (run === null) return false;
+  if (context!.request !== undefined) {
+    try {
+      const revision = decodeValue('int', context!.request.revision);
+      if (encodeValue('int', revision) !== context!.request.revision ||
+          run.fields.source !== context!.request.source || run.revision !== revision) return false;
+    } catch { return false; }
+  }
+  const failure = error === undefined ? null : error;
+  if (run.fields.state === 'queued' || run.fields.state === 'running') return status === 'pending' && failure === null;
+  if (run.fields.state === 'unknown') return status === 'unknown' && (failure === null || isClosedErrorShape(failure));
   return status === 'succeeded' && failure === null;
 }
 
@@ -323,6 +430,10 @@ export function isStoredReceiptPayload(
   // untyped succeeded payload after a malformed rich result.
   if (payload !== null && context !== undefined && context.source.startsWith('std.TextGenerationV1.')) {
     return isTextRunReceiptPayload(status, payload, failure, context);
+  }
+  if (payload !== null && context !== undefined &&
+      ['std.ImagesV1.submit', 'std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(context.source)) {
+    return isImageRunReceiptPayload(status, payload, failure, context);
   }
   if (status === 'pending') {
     return payload === null && failure === null;
@@ -482,7 +593,8 @@ export function newAssociationRow(input: AssociationRowData, meta: NewRowMeta): 
 
 /** Producer-side insert: the retained receipt row for one delivery attempt. */
 export function newReceiptRow(input: ReceiptRowData, meta: NewRowMeta, context?: ReceiptResultContext): StoredRow {
-  if (input.result != null && context?.source.startsWith('std.TextGenerationV1.') &&
+  if (input.result != null && context !== undefined && (context.source.startsWith('std.TextGenerationV1.') ||
+      ['std.ImagesV1.submit', 'std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(context.source)) &&
       !isStoredReceiptPayload(input.status, input.result, input.error, context)) {
     throw new ReceiptTableError('work.receipt payload is inconsistent for its declared context.');
   }
@@ -520,7 +632,8 @@ export function withReceiptRowData(
   meta: NewRowMeta,
   context?: ReceiptResultContext,
 ): StoredRow {
-  if (data.result != null && context?.source.startsWith('std.TextGenerationV1.') &&
+  if (data.result != null && context !== undefined && (context.source.startsWith('std.TextGenerationV1.') ||
+      ['std.ImagesV1.submit', 'std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(context.source)) &&
       !isStoredReceiptPayload(data.status, data.result, data.error, context)) {
     throw new ReceiptTableError('work.receipt payload is inconsistent for its declared context.');
   }

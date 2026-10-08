@@ -920,6 +920,12 @@ export interface ImageFileOutput {
   image: FinalizedFileRef;
 }
 
+/** Canonical source GeneratedImage fields; file wire shape grants no provenance or authority. */
+export const GENERATED_IMAGE_FIELDS = Object.freeze([
+  Object.freeze({ name: 'position', type: 'int' }),
+  Object.freeze({ name: 'image', type: 'file' }),
+]);
+
 /**
  * `std` image run progress relation (source name `ImageRun`): the
  * typed result/progress of a `delivery(Images.submit)` association

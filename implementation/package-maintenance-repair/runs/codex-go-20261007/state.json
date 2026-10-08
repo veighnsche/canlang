@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T12:45:55.034230+00:00",
+  "updated_utc": "2026-10-08T13:03:31.214527+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2008,7 +2008,7 @@
       "commit": "7af0efed601ff5f40f14cfb2996abf5f74fd3f05"
     },
     "input_choice_binding": {
-      "status": "Root directly reviewed released SEQ033 type-only owning contract; scoped commit ready",
+      "status": "Root directly reviewed and committedded8103f type-only owning input-choice contract",
       "sources": [
         "packages/contracts/src/wire.ts",
         "packages/contracts/src/artifact.ts"
@@ -2019,7 +2019,8 @@
       "limits": "Grammar/checking/intake and source candidate consumers remain owning SEQ034+ work. Current runtime refuses model[] read/checked predicate shapes; readable labels/current-grant projection, same checkpoint and installed host consumers remain unimplemented. No wholeSEQ033 or root48 acceptance.",
       "model": "Owning Roadmap technical contract; root finite direct review reuses changed type emit",
       "sources_outputs_handles_released": true,
-      "counts_unchanged": true
+      "counts_unchanged": true,
+      "commit": "ded8103fb90756f6be9f3eb07743ba9a8f050009"
     }
   },
   "live_finite_packets": [
@@ -2832,6 +2833,23 @@
       "sources_outputs_handles_released": true,
       "counts_unchanged": true,
       "commit": "c35fc990f121565a7ed8bdb2176c39296bc78e7e"
+    },
+    "images_rich_progress_core": {
+      "status": "Root directly reviewed released canonical ImageRun State/Work component; scoped commit ready",
+      "sources": [
+        "packages/contracts/src/services.ts",
+        "packages/state/src/receipt/tables.ts",
+        "packages/work/src/observation/association.ts",
+        "packages/work/src/observation/t26-progress.test.ts",
+        "packages/work/test/state-receipt/t25-receipt-join.test.ts"
+      ],
+      "contract": "Exact known std.ImagesV1 submit/cancel/reconcile and original request context admit only canonical source ImageRun. One defining GeneratedImage field list derives nested Values validation. Own enumerable data/accessor boundary precedes codecs, exact canonical integers preserve precision; File shape conveys no receiving-app finalization/authority. Inspect/validate and generic/TextRun behavior remain at prior scope.",
+      "lifecycle": "Shared current/retained gate preserves source/request/outer checkpoint/inner sequence, semantic ordered outputs and immutable charged_jobs. Exact nonterminal replay preserves rows/effects. Terminal equal-checkpoint replay retains original; only later null-to-measured charge may enrich with all correlation/state/output/detail fixed, no second terminal notification. Retained rich ImageRun cannot disappear into null.",
+      "verification": "Normal Contracts/State/Work TypeScript emits0; two changed existing receipt/progress suites339/339 with nested/accessor/canonical wire refusal, current+retained replay/measurement and real State selected-result grant/read-fence controls. Root direct source review reuses outcomes; all source/output/command handles released.",
+      "model": "gpt-6.1-sol high for nested Values/receipt authority/lifecycle seam; finite direct root review",
+      "limits": "Repository core only, existing result parent grant/no nested File selector. No actual Images generated dispatcher/File finalization/gallery/deployed GPU/account/installed/allhost/wholeTask24/root48 acceptance. This capability addition receives no replacement reduction credit; native preparation HOLD unchanged.",
+      "sources_outputs_handles_released": true,
+      "counts_unchanged": true
     }
   }
 }
