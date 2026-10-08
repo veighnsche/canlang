@@ -119,22 +119,34 @@ function requireModelId(model: unknown, id: unknown, name: string): { model: str
  * missing required, bad parent; `validation` on duplicate id) surface as
  * the engine's `StateError`s (see the file header for the catch contract).
  */
+export function create(c: HandlerContext, model: string, input: CreateInput): Promise<StoredRow>;
+export function create(c: HandlerContext, model: string, data: Record<string, unknown>, options?: unknown): Promise<Record<string, unknown>>;
 export async function create(
   c: HandlerContext,
   model: string,
-  input: CreateInput,
-): Promise<StoredRow> {
+  input: CreateInput | Record<string, unknown>,
+  options?: unknown,
+): Promise<StoredRow | Record<string, unknown>> {
   const scope = requireScope(c, 'create');
-  const target = requireModelId(model, input.id, 'create');
-  if (typeof input.data !== 'object' || input.data === null || Array.isArray(input.data)) {
+  if (options !== undefined) throw new Error('unsupported(create): candidate predicates are not wired to generated helpers.');
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+    throw new Error('create() needs a data object.');
+  }
+  if (!Object.hasOwn(input, 'id')) {
+    if (scope.createRecord === undefined) throw new Error('create() needs generated record bindings.');
+    return scope.createRecord(model, input as Record<string, unknown>);
+  }
+  const legacy = input as CreateInput;
+  const target = requireModelId(model, legacy.id, 'create');
+  if (typeof legacy.data !== 'object' || legacy.data === null || Array.isArray(legacy.data)) {
     throw new Error('t17: stdlib create() needs a data object.');
   }
   const staged = await scope.stageWrite({
     op: 'create',
     model: target.model,
     id: target.id,
-    ...(input.parent === undefined ? {} : { parent: input.parent }),
-    data: input.data,
+    ...(legacy.parent === undefined ? {} : { parent: legacy.parent }),
+    data: legacy.data,
   });
   if (staged === null) {
     throw new Error('t17: stdlib create() staged no row (seam wiring bug).');
@@ -150,19 +162,27 @@ export async function create(
  * loser re-executes against the winner's rows); nothing is silently
  * overwritten.
  */
+export function set(c: HandlerContext, model: string, id: string, patch: Record<string, unknown>): Promise<StoredRow>;
+export function set(c: HandlerContext, record: Record<string, unknown>, patch: Record<string, unknown>, options?: unknown): Promise<Record<string, unknown>>;
 export async function set(
   c: HandlerContext,
-  model: string,
-  id: string,
-  patch: Record<string, unknown>,
-): Promise<StoredRow> {
+  model: string | Record<string, unknown>,
+  id: string | Record<string, unknown>,
+  patch?: unknown,
+): Promise<StoredRow | Record<string, unknown>> {
   const scope = requireScope(c, 'set');
+  if (typeof model === 'object' && model !== null && !Array.isArray(model)) {
+    if (patch !== undefined) throw new Error('unsupported(set): candidate predicates are not wired to generated helpers.');
+    if (typeof id !== 'object' || id === null || Array.isArray(id)) throw new Error('set() needs a changes object.');
+    if (scope.setRecord === undefined) throw new Error('set() needs generated record bindings.');
+    return scope.setRecord(model, id);
+  }
   const target = requireModelId(model, id, 'set');
   const staged = await scope.stageWrite({
     op: 'update',
     model: target.model,
     id: target.id,
-    data: patch,
+    data: patch as Record<string, unknown>,
   });
   if (staged === null) {
     throw new Error('t17: stdlib set() staged no row (seam wiring bug).');
@@ -176,12 +196,21 @@ export async function set(
  * row; `remove` hard-removes it; `none` refuses). Throws the engine's
  * `not_found` when the record does not exist.
  */
+export function deleteRecord(c: HandlerContext, model: string, id: string): Promise<void>;
+export function deleteRecord(c: HandlerContext, record: Record<string, unknown>, options: { mode: 'archive' | 'remove' }): Promise<void>;
 export async function deleteRecord(
   c: HandlerContext,
-  model: string,
-  id: string,
+  model: string | Record<string, unknown>,
+  id: string | { mode: 'archive' | 'remove' },
 ): Promise<void> {
   const scope = requireScope(c, 'deleteRecord');
+  if (typeof model === 'object' && model !== null && !Array.isArray(model)) {
+    if (typeof id !== 'object' || id === null || (id.mode !== 'archive' && id.mode !== 'remove')) {
+      throw new Error('deleteRecord() needs the declared delete mode.');
+    }
+    if (scope.deleteRecord === undefined) throw new Error('deleteRecord() needs generated record bindings.');
+    return scope.deleteRecord(model, id.mode);
+  }
   const target = requireModelId(model, id, 'deleteRecord');
   await scope.stageWrite({ op: 'remove', model: target.model, id: target.id });
 }

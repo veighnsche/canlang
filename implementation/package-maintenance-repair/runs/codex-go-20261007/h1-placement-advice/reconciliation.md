@@ -44,3 +44,9 @@ Additional immutable compiler witness pins (not current-source release):
 - `/private/tmp/canlang-runtime-pure-after-db57c379/compiler/src/codegen/js.rs` — `dd4a84f977a0ecdeb1e03685936042fcf47706de3757feda5f89c7987d99e8d4`
 - `/private/tmp/canlang-runtime-pure-after-db57c379/compiler/src/codegen/artifact.rs` — `5c2c3831d0bed1cea7ae0bfb8339e351996299b0481a70b2dac42b6aca36c73c`
 - `/private/tmp/canlang-runtime-pure-after-db57c379/compiler/src/codegen/ir.rs` — `c354936b8b67f23b4d0e159dd75ce67df085b9d5509c1fa35061eeb744b36f0d`
+
+## Accepted first typed consumer release (2026-10-08)
+
+The defining shared metadata and ordered State conversion checkpoint are now consumed by canonical Cloudflare scenarios. Checked singular integer parameters/record fields become native bigint through Values; native writes and declared results return to wire through the same codecs before the existing atomic commit. Bound provisional/admitted records retain staged reads and reserved versions, while forged ID objects do not acquire record authority. Generated record identifiers are opaque stable operation-ID/create-index strings; explicit-ID legacy helpers retain their signatures. Declared void persists null, and absent legacy result metadata still refuses unknown BigInt JSON.
+
+One owning dependency build22/22 and final Cloudflare emit passed. Direct actual compiler-artifact D1 scenarios cover large integers, defaults, updates, rollback, archive, immediate/replayed receipts and close/reopen persistence; narrow synthetic unknown-result and explicit-ID/binding controls also pass. Root directly reviewed the released source and reused those results. This closes the first singular-int consumer prerequisite only: complete scalar/array/default/hook/catalogue/native/installed/backend and original parent gates remain open. Historical t16b/t17b handwritten fixture intake failures are retained for focused fixture maintenance, not treated as passing baselines.
