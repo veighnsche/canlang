@@ -2764,3 +2764,10 @@ The actual generated-source/nativeD1 case passes for missing association, pendin
 Accepted: the public generated client finalizes the original upload with its retry ID and WebCrypto SHA-256 digest, projects the defining File `{id}` wire shape and uses the real flat operation-input pointer. Form rendering uses the existing Values File codec; draft control IDs stay text. The public function now runs through actual Interfaces HTTP/upload handlers, session/CSRF checks, compiled source, SQLite Files and nativeD1 State.
 
 The changed owning source controls and same native File workflow pass, including invalid CSRF without effects, attachment, byte read, reopen and current revocation. Root reviewed the released slice and reused those results. This closes Roadmap's selected generic native browser/MCP File transfer only; Chrome DOM, R2/default Worker, shared-principal, generated-provider finalization and whole-F7/hosted qualification stay separate. Root48 counts remain unchanged.
+
+
+## 2026-10-08 — Installed generation budgets use the actual adapter
+
+Accepted: a selected Services TextGeneration installation binds the exact deployment/profile/policy/model and accepts the complete nominal TextRequest. Output and duration ceilings come from the same actual Ollama adapter. A deployment-owned actual tokenizer counts the frozen model transcript, including its chat template and special tokens; that same frozen request reaches transport. Missing tokenization and unsupported attachments refuse before bytes. Generic ModelChatPort callers keep their existing API.
+
+One absolute monotonic deadline spans preparation, encoding and the first synchronous progress observer, with remaining time checked immediately before HTTP. Root found and reviewed the repaired deadline gap; the owning adapter suite and two affected post-repair cases pass, unchanged results reused. The fixture count callback proves hook enforcement only. No real deployment tokenizer, installed/provider lifecycle, durable run lookup, backend default or parent completion is claimed. This is required capability work with no replacement reduction credit.

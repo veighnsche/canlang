@@ -32,6 +32,8 @@ import type {
   ModelMessage,
   ModelRunSnapshot,
   ModelRunState,
+  ProviderBinding,
+  TextRequest,
 } from '@canlang/contracts';
 import {
   assertValidHttpConfig,
@@ -49,7 +51,12 @@ import {
 import { assertValidCompletion } from '../mail/adapter.js';
 import { deliveryError, specificOrGeneric } from '../mail/redact.js';
 import { systemClock } from '../ports.js';
-import type { Clock, ModelChatPort, ModelRunHandle } from '../ports.js';
+import type {
+  Clock,
+  InstalledTextGeneration,
+  ModelChatPort,
+  ModelRunHandle,
+} from '../ports.js';
 
 export interface OllamaChatConfig {
   /** Fixed provider endpoint origin. */
@@ -81,6 +88,21 @@ export interface FrozenChatRequestContext {
   readonly createdAt: number;
   readonly models: readonly string[];
   readonly maxOutputTokens: number;
+}
+
+export interface OllamaTextGenerationInstallation {
+  readonly binding: ProviderBinding;
+  readonly profile: string;
+  readonly policyRevision: string;
+  readonly model: string;
+  readonly maxInputTokens: number;
+  /**
+   * Deployment-owned actual tokenizer/count for this exact model, including
+   * its provider chat template and special tokens. It receives the same frozen
+   * request used for transport. Estimates are not supported; absence refuses
+   * installed generation. Supplying a callback alone does not qualify a model.
+   */
+  readonly countInputTokens?: (request: FrozenChatRequest) => number;
 }
 
 export class ModelValidationError extends Error {
@@ -403,10 +425,23 @@ function isAbortError(err: unknown): boolean {
   );
 }
 
+/** Installed calls retain one monotonic deadline through encoding and observers. */
+function httpBeforeTransport(
+  http: HttpClientConfig,
+  deadline: number | undefined,
+): HttpClientConfig | null {
+  if (deadline === undefined) {
+    return http;
+  }
+  const timeoutMs = deadline - performance.now();
+  return timeoutMs > 0 ? { ...http, timeoutMs } : null;
+}
+
 class OllamaRunHandle implements ModelRunHandle {
   readonly deliveryId: string;
   private readonly http: HttpClientConfig;
   private readonly request: FrozenChatRequest;
+  private readonly deadline: number | undefined;
   private readonly onSnapshot:
     | ((snapshot: ModelRunSnapshot) => void)
     | undefined;
@@ -421,10 +456,12 @@ class OllamaRunHandle implements ModelRunHandle {
     http: HttpClientConfig,
     request: FrozenChatRequest,
     onSnapshot: ((snapshot: ModelRunSnapshot) => void) | undefined,
+    deadline?: number,
   ) {
     this.deliveryId = request.deliveryId;
     this.http = http;
     this.request = request;
+    this.deadline = deadline;
     this.onSnapshot = onSnapshot;
     this.emit('running', '');
     this.settled = this.run();
@@ -555,7 +592,18 @@ class OllamaRunHandle implements ModelRunHandle {
       }
     };
     try {
-      const stream = httpStreamText(this.http, {
+      const http = httpBeforeTransport(this.http, this.deadline);
+      if (http === null) {
+        return this.settle(
+          failedChatCompletion(
+            this.deliveryId,
+            deliveryError('transport_timeout', 'Text duration expired before provider transport.'),
+          ),
+          'failed',
+          '',
+        );
+      }
+      const stream = httpStreamText(http, {
         method: 'POST',
         path: CHAT_PATH,
         body: wireBody,
@@ -679,6 +727,14 @@ export class OllamaChatAdapter implements ModelChatPort {
     options: { readonly deliveryId: string },
   ): Promise<CapabilityCompletion<ModelChatReply>> {
     const request = this.frozen(input, options.deliveryId);
+    return this.generateFrozen(request, this.http);
+  }
+
+  private async generateFrozen(
+    request: FrozenChatRequest,
+    http: HttpClientConfig,
+    deadline?: number,
+  ): Promise<CapabilityCompletion<ModelChatReply>> {
     const wireBody = JSON.stringify({
       model: request.model,
       messages: request.messages.map((message) => ({
@@ -690,7 +746,11 @@ export class OllamaChatAdapter implements ModelChatPort {
     });
     let completion: CapabilityCompletion<ModelChatReply>;
     try {
-      const response = await httpRequest(this.http, {
+      const transportHttp = httpBeforeTransport(http, deadline);
+      if (transportHttp === null) {
+        throw new ModelValidationError('Text duration expired before provider transport');
+      }
+      const response = await httpRequest(transportHttp, {
         method: 'POST',
         path: CHAT_PATH,
         body: wireBody,
@@ -705,6 +765,141 @@ export class OllamaChatAdapter implements ModelChatPort {
     }
     assertValidCompletion(completion);
     return completion;
+  }
+
+  /**
+   * Install an exact std profile using this adapter's actual output ceiling
+   * and deadline. Unsupported attachment mapping or tokenizer support refuses
+   * before transport; generic ai.ChatV1 callers retain their existing API.
+   */
+  installTextGeneration(
+    config: OllamaTextGenerationInstallation,
+  ): InstalledTextGeneration {
+    const { binding, profile, policyRevision, model, maxInputTokens, countInputTokens } = config;
+    if (
+      binding.capability !== 'std.TextGenerationV1' ||
+      binding.capabilityVersion !== 1 ||
+      typeof binding.deployment !== 'string' || binding.deployment.length === 0 ||
+      typeof binding.account !== 'string' || binding.account.length === 0
+    ) {
+      throw new ModelValidationError('Installation must bind exact std.TextGenerationV1 version 1');
+    }
+    if (
+      typeof profile !== 'string' || profile.length === 0 ||
+      typeof policyRevision !== 'string' || policyRevision.length === 0 ||
+      typeof model !== 'string' || !this.models.includes(model)
+    ) {
+      throw new ModelValidationError('Installation requires an exact profile, policy revision and bound model');
+    }
+    if (!Number.isSafeInteger(maxInputTokens) || maxInputTokens <= 0) {
+      throw new ModelValidationError('Installation maxInputTokens must be a positive safe integer');
+    }
+    if (
+      !Number.isSafeInteger(this.http.timeoutMs) || this.http.timeoutMs > 2_147_483_647 ||
+      !Number.isSafeInteger(this.maxOutputTokens)
+    ) {
+      throw new ModelValidationError('Installation requires supported exact output and Node deadline ceilings');
+    }
+    if (countInputTokens !== undefined && typeof countInputTokens !== 'function') {
+      throw new ModelValidationError('Installation tokenizer must be a deployment-owned function');
+    }
+    const prepare = (input: TextRequest, deliveryId: string): {
+      request: FrozenChatRequest;
+      deadline: number;
+    } => {
+      const startedAt = performance.now();
+      if (typeof input !== 'object' || input === null) {
+        throw new ModelValidationError('Text request must be an object');
+      }
+      const maxInput = input.max_input_tokens;
+      const maxDuration = input.max_duration;
+      if (
+        typeof input.source !== 'string' || input.source.length === 0 ||
+        !Number.isSafeInteger(input.revision) || input.revision < 0
+      ) {
+        throw new ModelValidationError('Text request requires a non-empty source and safe non-negative revision');
+      }
+      if (input.profile !== profile || input.policy_revision !== policyRevision) {
+        throw new ModelValidationError('Text request profile and policy revision must match the installation');
+      }
+      if (
+        !Number.isSafeInteger(maxInput) || maxInput <= 0 ||
+        maxInput > maxInputTokens
+      ) {
+        throw new ModelValidationError('Text input budget exceeds or does not fit the installation');
+      }
+      if (
+        typeof maxDuration !== 'bigint' || maxDuration <= 0n ||
+        maxDuration > BigInt(this.http.timeoutMs)
+      ) {
+        throw new ModelValidationError('Text duration exceeds or does not fit the installation');
+      }
+      if (!Array.isArray(input.messages) || input.messages.length === 0) {
+        throw new ModelValidationError('Text messages must be a non-empty array');
+      }
+      for (const message of input.messages) {
+        if (
+          typeof message !== 'object' || message === null ||
+          !['system', 'user', 'assistant'].includes(message.role) ||
+          !Array.isArray(message.attachments) || message.attachments.length !== 0
+        ) {
+          throw new ModelValidationError('Text messages require supported roles and no attachments');
+        }
+      }
+      if (countInputTokens === undefined) {
+        throw new ModelValidationError('Installed text generation requires a deployment-owned actual tokenizer');
+      }
+      const request = this.frozen({
+        model,
+        messages: input.messages,
+        maxTokens: input.max_output_tokens,
+      }, deliveryId);
+      let inputTokens: number;
+      try {
+        inputTokens = countInputTokens(request);
+      } catch {
+        throw new ModelValidationError('Installed tokenizer could not count the frozen request');
+      }
+      if (!Number.isSafeInteger(inputTokens) || inputTokens < 0) {
+        throw new ModelValidationError('Installed tokenizer must return an actual non-negative safe token count');
+      }
+      if (inputTokens > maxInput) {
+        throw new ModelValidationError('Frozen text transcript exceeds the requested input budget');
+      }
+      const deadline = startedAt + Number(maxDuration);
+      if (deadline <= performance.now()) {
+        throw new ModelValidationError('Text duration expired before provider transport');
+      }
+      return { request, deadline };
+    };
+    return Object.freeze({
+      binding: Object.freeze({ ...binding }),
+      profile: Object.freeze({
+        name: profile,
+        policyRevision,
+        provider: 'ollama',
+        model,
+        maxInputTokens,
+        maxOutputTokens: this.maxOutputTokens,
+        maxDurationMs: this.http.timeoutMs,
+        inputTokenization: countInputTokens === undefined ? 'unsupported' : 'deployment',
+        attachments: 'unsupported',
+      } as const),
+      text: Object.freeze({
+        generate: async (input: TextRequest, options: { readonly deliveryId: string }) => {
+          const prepared = prepare(input, options.deliveryId);
+          return this.generateFrozen(prepared.request, this.http, prepared.deadline);
+        },
+        generateStream: (input: TextRequest, options: {
+          readonly deliveryId: string;
+          readonly onSnapshot?: (snapshot: ModelRunSnapshot) => void;
+        }) => {
+          const prepared = prepare(input, options.deliveryId);
+          return new OllamaRunHandle(this.http, prepared.request, options.onSnapshot, prepared.deadline);
+        },
+        reconcile: (deliveryId: string) => this.reconcile(deliveryId),
+      }),
+    });
   }
 
   /**
