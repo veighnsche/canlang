@@ -16,7 +16,7 @@
  * removed every serving path outside canonical execution, so a missing scope
  * fails loud instead of committing directly.
  */
-import type { DatetimeValue, InvocationContext, ProjectedRecord, RecordParent, StoragePort, StoredRow, UserRef } from '@canlang/contracts';
+import type { DatetimeValue, DeliveryRef, InvocationContext, ProjectedRecord, RecordParent, StoragePort, StoredRow, UserRef } from '@canlang/contracts';
 import { makeDatetime, makeUserRef } from '@canlang/values';
 
 /** Authenticated caller identity: stable user id plus granted role names. */
@@ -123,6 +123,8 @@ export interface HandlerContext {
    * loud without it (the direct-commit paths were retired in T17).
    */
   readonly canonical?: CanonicalEffectsScope;
+  /** Checked bound send staging; installed by the canonical seam, never commits. */
+  readonly sendDeferred?: (operation: string, request: unknown, binding: string) => Promise<DeliveryRef>;
 }
 
 /**
@@ -141,6 +143,7 @@ export interface CreateContextDeps {
   memberships?: string[];
   preferences?: Record<string, Record<string, unknown>>;
   canonical?: CanonicalEffectsScope;
+  sendDeferred?: HandlerContext['sendDeferred'];
   /** Internal admitted facts; business inputs and caller labels cannot supply these. */
   qualified?: InvocationContext;
   /** Internal checked selected-app formatting facts. No context-level defaults. */
@@ -164,6 +167,7 @@ export function createContext(deps: CreateContextDeps): HandlerContext {
       formatting: Object.freeze({ appDefault: deps.formatting.appDefault }),
     }),
     ...(deps.canonical === undefined ? {} : { canonical: deps.canonical }),
+    ...(deps.sendDeferred === undefined ? {} : { sendDeferred: deps.sendDeferred }),
     ...(deps.qualified === undefined ? {} : {
       actor: deps.qualified.actor === null ? null : makeUserRef(deps.qualified.actor.userId),
       actorFacts: deps.qualified.actor === null ? null : Object.freeze({

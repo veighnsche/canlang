@@ -267,10 +267,23 @@ function unsupported(name: string, reason: string): never {
   throw new Error(`unsupported(${name}): ${reason}`);
 }
 
-/** Not in B1: message dispatch needs the L3 outbox/effects pipeline. */
-export function send(c: HandlerContext, ..._args: unknown[]): never {
-  void c;
-  return unsupported('send', 'message dispatch needs the L3 outbox/effects pipeline.');
+/** Bound sends stage in the admitted scenario's single canonical commit. */
+export async function send(
+  c: HandlerContext,
+  operation: string,
+  request: unknown,
+  options: { readonly binding?: string; readonly when?: () => boolean | Promise<boolean> } = {},
+) {
+  if (options.when !== undefined) {
+    return unsupported('send', 'dispatch guards require current-state dispatch qualification.');
+  }
+  if (c.canonical === undefined || c.sendDeferred === undefined) {
+    return unsupported('send', 'bound send staging requires canonical execution.');
+  }
+  if (typeof options.binding !== 'string' || options.binding === '') {
+    throw new Error('send requires its checked logical capability binding.');
+  }
+  return c.sendDeferred(operation, request, options.binding);
 }
 
 /** Not in B1: domain-event emission needs the L3 effects pipeline. */

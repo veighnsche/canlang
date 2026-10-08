@@ -12,6 +12,8 @@ import {
   makeIdentity, seedMember, uuidv7,
 } from '@canlang/state/testing/invocation/fixtures';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
+import type { HandlerContext } from './context.js';
+import { send } from '@canlang/cloudflare/runtime/stdlib';
 import { buildInvoker, type MutationOutcome } from '@canlang/cloudflare/worker/assembly';
 
 const APP = 'TypedDurableAdmission';
@@ -169,5 +171,111 @@ test('compiled owner admission, managed defaults and positive/negative receipts 
   } finally {
     try { await d1?.worker.dispose(); }
     finally { await rm(dir, { recursive: true, force: true }); }
+  }
+});
+
+test('bound send refuses an unsupported dispatch guard without evaluating it', async () => {
+  let evaluations = 0;
+  // Refusal must precede any context/transaction access: this is a direct
+  // helper refusal witness, not qualification of a dispatched predicate.
+  const context = new Proxy({} as HandlerContext, {
+    get() { throw new Error('unsupported guard accessed the execution context'); },
+  });
+  await assert.rejects(send(context, 'std.EmailV1.send', {}, {
+    binding: 'TypedDurableSend.Mail',
+    when: () => { evaluations++; return false; },
+  }), /unsupported\(send\): dispatch guards require current-state dispatch qualification/);
+  assert.equal(evaluations, 0);
+});
+
+test('compiled bound send joins D1 mutation rollback and replays one durable request after reopening', async () => {
+  const app = 'TypedDurableSend';
+  const model = asModel(`${app}.Entry`);
+  const path = resolve('packages/cloudflare/test/fixtures/typed-durable-send.json');
+  const artifact = JSON.parse(await readFile(path, 'utf8')) as CompileArtifact;
+  const { WORK_DISPATCH_MODEL, dispatchByStateQuery } = await import('@canlang/work/kernel/tables');
+  // These identities reuse the explicit memory membership seam; effects and
+  // positive/negative receipts below use the actual canonical D1 store.
+  const memberships = createMemoryIdentityStore();
+  const owner = await seedMember(memberships, { isOwner: true });
+  const identity = makeIdentity({ membership: owner.membership, email: owner.user.email });
+  const request = (operation: string, inputs: MutationEnvelope['inputs']): MutationEnvelope => ({
+    operation: `${app}.${operation}`, inputs,
+    operation_id: asOperationId(uuidv7(FIXED_NOW, ++sequence)),
+  });
+  const receiptIdentity = (input: MutationEnvelope) => ({ app,
+    owner: owner.team.team_id, principal: owner.user.user_id,
+    operation: asOperation(input.operation), operationId: asOperationId(input.operation_id),
+  });
+  const dir = await mkdtemp(join(tmpdir(), 'can-durable-send-'));
+  let d1: Awaited<ReturnType<typeof openD1>> | undefined;
+  try {
+    const asm = await assembleModules({ artifact, sourcePath: path }, {
+      workDir: join(dir, 'modules'), stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+      uiUrl: import.meta.resolve('@canlang/ui'),
+    });
+    d1 = await openD1(join(dir, 'd1'));
+    const invoker = buildInvoker(artifact, asm, d1.store, { memberships, now: () => FIXED_NOW });
+    const create = request('Entry.create', {});
+    const born = committed(await invoker.invokeMutation(create, identity));
+    const row = born.result as { id: string; version: number; data: Record<string, unknown> };
+    assert.deepEqual(row.data, { count: '0' });
+    const inputs = { entry: { id: row.id, version: '1' }, to: 'recipient@example.com' };
+    const rollback = request('deliver', { ...inputs, accept: false });
+    const original = await d1.store.load(model, asId(row.id));
+    const originalHistory = await d1.store.historyFor(model, asId(row.id));
+    const rollbackOutcome = await invoker.invokeMutation(rollback, identity);
+    assert.ok('error' in rollbackOutcome && rollbackOutcome.error.code === 'rule_failed', JSON.stringify(rollbackOutcome));
+    const failure = rejected(rollbackOutcome, 'rule_failed');
+    assert.deepEqual(await d1.store.load(model, asId(row.id)), original);
+    assert.deepEqual(await d1.store.historyFor(model, asId(row.id)), originalHistory);
+    assert.deepEqual(await d1.store.outboxPending(), []);
+    assert.deepEqual(await d1.store.query(dispatchByStateQuery('pending')), []);
+    assert.equal((await d1.store.readReceipt(receiptIdentity(rollback)))?.outcome.status, 'rejected');
+
+    const deliver = request('deliver', { ...inputs, accept: true });
+    assert.equal(committed(await invoker.invokeMutation(deliver, identity)).result, '1');
+    const pending = await d1.store.outboxPending();
+    assert.equal(pending.length, 1);
+    const intent = pending[0]!;
+    assert.equal(intent.operation, deliver.operation);
+    assert.equal(intent.operationId, deliver.operation_id);
+    assert.equal(intent.target, 'std.EmailV1.send');
+    assert.equal(intent.occurrenceIndex, 0);
+    assert.deepEqual(intent.arguments, {
+      binding: 'TypedDurableSend.Mail', from: 'deployment.mail',
+      arguments: { to: 'recipient@example.com', subject: 'Actual send', body: 'Durable request', attachments: [] },
+    });
+    const dispatch = await d1.store.load(WORK_DISPATCH_MODEL, asId(intent.intentId));
+    assert.ok(dispatch);
+    assert.equal(dispatch.data['operationId'], deliver.operation_id);
+    assert.equal(dispatch.data['source'], 'std.EmailV1.send');
+    assert.equal(dispatch.data['occurrenceIndex'], 0);
+    assert.deepEqual(await d1.store.query(dispatchByStateQuery('pending')), [dispatch]);
+    const live = await d1.store.load(model, asId(row.id));
+    assert.equal(live?.version, 2);
+    assert.deepEqual(live?.data, { count: '1' });
+    const history = await d1.store.historyFor(model, asId(row.id));
+    const revision = await d1.store.readRevision();
+    const receipts = await Promise.all([deliver, rollback].map((input) => d1!.store.readReceipt(receiptIdentity(input))));
+    assert.equal(committed(await invoker.invokeMutation(deliver, identity), 'replayed').result, '1');
+    assert.deepEqual(await d1.store.outboxPending(), pending);
+    assert.equal(await d1.store.readRevision(), revision);
+
+    await d1.worker.dispose();
+    d1 = undefined;
+    d1 = await openD1(join(dir, 'd1'));
+    const reopened = buildInvoker(artifact, asm, d1.store, { memberships, now: () => FIXED_NOW });
+    assert.equal(committed(await reopened.invokeMutation(deliver, identity), 'replayed').result, '1');
+    assert.equal(rejected(await reopened.invokeMutation(rollback, identity), 'rule_failed').message, failure.message);
+    assert.deepEqual(await d1.store.load(model, asId(row.id)), live);
+    assert.deepEqual(await d1.store.historyFor(model, asId(row.id)), history);
+    assert.deepEqual(await d1.store.outboxPending(), pending);
+    assert.deepEqual(await d1.store.load(WORK_DISPATCH_MODEL, asId(intent.intentId)), dispatch);
+    assert.deepEqual(await Promise.all([deliver, rollback].map((input) => d1!.store.readReceipt(receiptIdentity(input)))), receipts);
+    assert.equal(await d1.store.readRevision(), revision);
+  } finally {
+    await d1?.worker.dispose();
+    await rm(dir, { recursive: true, force: true });
   }
 });
