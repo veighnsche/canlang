@@ -57,6 +57,7 @@ import type {
   QueryPredicate,
   DispatchClaim,
   DomainWrite,
+  DeliveryRef,
   FanoutChildId,
   FanoutChildOutcome,
   FanoutCohortDiagnosis,
@@ -98,6 +99,7 @@ import { COLLECTION_DEFAULT_LIMIT, COLLECTION_MAX_LIMIT } from "@canlang/contrac
 import { decodeValue, encodeValue, makeRecordRef, normalizeSchema, validateOperationInput } from "@canlang/values";
 import type { FieldDescriptor, SchemaDescriptor } from "@canlang/values";
 import type { SystemCommandContext, SystemStaging } from "@canlang/state";
+import { assertReceiptJoin } from "@canlang/state/receipt/tables";
 import type { IdentityStore } from "@canlang/identity";
 import type { GeneratedOperationDef } from "@canlang/state/invocation/registry";
 import type {
@@ -111,6 +113,7 @@ import { createContext } from "./context.js";
 import type { AssembledModules } from "./modules.js";
 import type { MappedPosition } from "./sourcemap.js";
 import { lookup } from "./sourcemap.js";
+import { stageAuthoredDelivery } from "./receipt-staging.js";
 
 export type { AssembledModules } from "./modules.js";
 export type { HandlerContext } from "./context.js";
@@ -3003,9 +3006,12 @@ async function runScenarioSeam(
   // error with the byte-identical message receipts with the engine's
   // code (indistinguishable from propagation — the receipt then says
   // exactly what propagation would have said).
-  const engineFailures = new Map<string, Error & { readonly code: string }>();
+  const engineFailures = new Map<string, Error>();
   const recordEngineFailure = (error: unknown): void => {
-    if (error instanceof StateError) {
+    // Preserve failures from engine callbacks across the handler's string
+    // seam. A plain storage exception must reach State unchanged, so it is
+    // retriable rather than saved as an authored rejected receipt.
+    if (error instanceof Error) {
       engineFailures.set(error.message, error);
     }
   };
@@ -3069,6 +3075,7 @@ async function runScenarioSeam(
   const stagedHistory: unknown[] = [];
   const stagedTouches: CanonicalStagedUniqueTouch[] = [];
   const deferredEffects: SystemStaging[] = [];
+  const queuedDeliveries = new Map<string, OutboxIntent>();
   let sendIndex = 0;
   let scheduleIndex = 0;
   const resolvedDefaults: Record<string, unknown> = Object.create(null);
@@ -3111,6 +3118,32 @@ async function runScenarioSeam(
     deferredEffects.push(effects);
   };
   if (due !== undefined) appendDeferredEffects(due.effects);
+  const stageDeliveryAssignments = async (modelName: string, row: StoredRow, data: Record<string, unknown>): Promise<void> => {
+    const model = opts.artifact.models?.find((candidate) => candidate.name === modelName);
+    if (model === undefined) return;
+    try {
+      for (const field of model.fields) {
+        if (field.field.kind !== "delivery" || !Object.hasOwn(data, field.name)) continue;
+        if (call.checkpoint === undefined) {
+          throw new StateError("validation", "Delivery association needs an admitted owner checkpoint.");
+        }
+        appendDeferredEffects(await stageAuthoredDelivery({
+          model, recordId: row.id, field: field.name,
+          value: decodeValue(`delivery(${field.field.capability}.${field.field.operation})${field.nullable === true ? '?' : ''}`,
+            row.data[field.name]) as DeliveryRef | null,
+          queued: queuedDeliveries, operationId: call.context.operationId,
+          revision: call.checkpoint.revision + 1,
+        }, {
+          actor: actorUserId ?? call.context.trustedSource ?? "anonymous",
+          now: call.context.now, operation: call.context.operation,
+          load: overlay.load.bind(overlay), query: overlay.query.bind(overlay),
+        }));
+      }
+    } catch (error) {
+      recordEngineFailure(error);
+      throw error;
+    }
+  };
   const scope: CanonicalEffectsScope = {
     builtinRoles: Object.freeze(builtinRoles),
     operation: opts.operation,
@@ -3123,6 +3156,7 @@ async function runScenarioSeam(
       const id = `${call.context.operationId}#create:${createIndex++}`;
       const row = await scope.stageWrite({ op: "create", model, id, data });
       if (row === null) throw new StateError("validation", "Create staged no record.");
+      await stageDeliveryAssignments(model, row, data);
       return recordView(model, row);
     },
     setRecord: async (record, data) => {
@@ -3130,6 +3164,7 @@ async function runScenarioSeam(
       if (binding === undefined) return refuseRecordBinding("Set needs a record bound in this operation.");
       const row = await scope.stageWrite({ op: "update", ...binding, data });
       if (row === null) throw new StateError("validation", "Set staged no record.");
+      await stageDeliveryAssignments(binding.model, row, data);
       return recordView(binding.model, row);
     },
     deleteRecord: async (record, mode) => {
@@ -3151,6 +3186,15 @@ async function runScenarioSeam(
         if (typeof write.id !== "string" || write.id === "") {
           throw new Error(`t17b: stageWrite needs a non-empty string record id (wiring bug).`);
         }
+        // Delivery tags predate the scalar valueType checkpoint. Their owning
+        // artifact declaration still selects Values' exact native/wire codec.
+        const data = write.data === undefined ? undefined : { ...write.data };
+        for (const field of opts.artifact.models?.find(model => model.name === write.model)?.fields ?? []) {
+          if (field.field.kind !== 'delivery' || data === undefined || !Object.hasOwn(data, field.name)) continue;
+          data[field.name] = encodeCanonicalField(StateError,
+            `delivery(${field.field.capability}.${field.field.operation})${field.nullable === true ? '?' : ''}`,
+            data[field.name]);
+        }
         const result = await loaded.producers.pipeline.runMutationWrites({
           table: loaded.table,
           writes: [
@@ -3159,7 +3203,7 @@ async function runScenarioSeam(
               model: write.model,
               id: write.id,
               ...(write.parent === undefined ? {} : { parent: write.parent }),
-              ...(write.data === undefined ? {} : { data: write.data }),
+              ...(data === undefined ? {} : { data }),
               ...(write.transition === undefined ? {} : { transition: write.transition }),
             },
           ],
@@ -3390,6 +3434,7 @@ async function runScenarioSeam(
           actor: actorUserId ?? 'anonymous', now: admittedNow, operation: scope.operation,
           load: overlay.load.bind(overlay), query: overlay.query.bind(overlay),
         });
+        for (const intent of stagedSend.effects.outbox ?? []) queuedDeliveries.set(intent.intentId, intent);
         appendDeferredEffects(stagedSend.effects);
         return stagedSend.delivery;
       } catch (error) {
@@ -3475,9 +3520,16 @@ export async function invokeMutationCanonical(
   assertCanonicalMemberships(opts.memberships, opts.operation);
   const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
   const StateError = loaded.producers.errors;
+  // Validate protected association/receipt pairs on the original final
+  // canonical commit, after scenario writes have been coalesced.
+  const receiptStore = withDispatchJoinPort(opts.store, { commitJoin: batch => {
+    assertReceiptJoin(batch);
+    // State invoke owns fence retries; retain the native storage exception.
+    return opts.store.commit(batch);
+  } });
   const crudExecute = loaded.producers.crud.generatedCrudExecute({
     table: loaded.table,
-    store: opts.store,
+    store: receiptStore,
     encodeField: (type, value) => encodeCanonicalWireField(StateError, type, value),
   });
   // One opaque ID per actual schedule ordinal, retained across State retries.
@@ -3492,7 +3544,7 @@ export async function invokeMutationCanonical(
     identity: opts.identity,
     app: opts.app,
     source: opts.source,
-    store: opts.store,
+    store: receiptStore,
     memberships: opts.memberships,
     clock: { nowMs: opts.now },
     // C2/B2 (Q3): holder-built exclusions — stale-ref denials carry
@@ -3758,6 +3810,7 @@ export interface SelectedReceiptReadOpts {
 /** D3b: structural view of the state receipt-join module (input/output mirrors only what serving touches). */
 interface StateReceiptJoinProducer {
   observeSelectedReceiptJoin(input: {
+    readonly declaredSource: string;
     readonly locator: { readonly record: { readonly id: string }; readonly field: string };
     readonly selected: ReadonlyArray<string>;
     readonly model: string;
@@ -4084,6 +4137,13 @@ export async function invokeSelectedReceiptRead(
   assertReceiptReadDef(StateError, loaded.registry);
   const { recordId, field, selected } = assertReceiptReadInputs(StateError, opts.inputs);
   const model = bindReceiptModel(StateError, loaded.deliveryFields, field);
+  const declarations = opts.artifact.models?.find(entry => entry.name === model)?.fields
+    .filter(entry => entry.name === field);
+  const declaration = declarations?.length === 1 ? declarations[0] : undefined;
+  if (declaration?.field.kind !== 'delivery' || declaration.array !== undefined) {
+    throw new StateError('validation', 'Receipt read needs its owning singular delivery declaration.');
+  }
+  const declaredSource = `${declaration.field.capability}.${declaration.field.operation}`;
   // Fence-join revision FIRST (C4): no grant or observation runs
   // before this read; a moved nested checkpoint conflicts here, and
   // the join re-checks against its own read below.
@@ -4142,6 +4202,7 @@ export async function invokeSelectedReceiptRead(
   ) as unknown as StateReceiptJoinProducer["observeSelectedReceiptJoin"];
   const observeSelectedReceipt = await resolveReceiptObserver(opts.observer);
   const outcome = await observeSelectedReceiptJoin({
+    declaredSource,
     locator: { record: { id: recordId }, field },
     selected,
     model,
@@ -5670,6 +5731,13 @@ export interface RecoverySweepOpts {
   readonly planRecoveryScan: DispatchRecoveryPlanner;
   /** Injected reconcile-evidence reader (provider-evidence plumbing). */
   readonly readEvidence: DispatchEvidenceReader;
+  /** Installed provider receipt writes share the original reconcile fence. */
+  readonly stageReconciledReceipt?: (input: {
+    readonly intentId: string;
+    readonly evidence: Exclude<DispatchReconcileEvidence, { readonly kind: 'not-found' }>;
+    readonly revision: number;
+    readonly context: SystemCommandContext;
+  }) => Promise<readonly import('@canlang/contracts').DomainWrite[]>;
 }
 
 /** T24b: one requeue act outcome (retry and dead lists alike). */
@@ -5773,9 +5841,12 @@ async function commitReconcile(input: {
   readonly joinPort: DispatchJoinPort;
   readonly actor: string;
   readonly now: number;
+  readonly operation: string;
   readonly intentId: string;
   readonly evidence: DispatchReconcileEvidence;
+  readonly stageReconciledReceipt?: RecoverySweepOpts['stageReconciledReceipt'];
 }): Promise<{ readonly reconciled: true; readonly state: string } | { readonly reconciled: false; readonly reason: string }> {
+  const revision = await input.store.readRevision();
   const row = await input.store.load(T24B_WORK_DISPATCH_MODEL, input.intentId as RecordId);
   if (row === null) {
     return { reconciled: false, reason: "row-missing" };
@@ -5796,12 +5867,17 @@ async function commitReconcile(input: {
           errorCode: input.evidence.code,
           errorMessage: input.evidence.message,
         };
+  const receiptWrites = await input.stageReconciledReceipt?.({
+    intentId: input.intentId, evidence: input.evidence, revision: revision + 1,
+    context: { actor: input.actor, now: input.now, operation: input.operation,
+      load: input.store.load.bind(input.store), query: input.store.query.bind(input.store) },
+  }) ?? [];
   // Attempts UNCHANGED (reconcile parity with `reconcileUncertain` —
   // reconcile resolves ambiguity, it is not an attempt); failed
   // evidence carries no classification, so `retryClass` stays null
   // (unclassified failed rows are terminal per the requeue rule).
   const batch: CommitBatch = {
-    expectedRevision: await input.store.readRevision(),
+    expectedRevision: revision,
     writes: [
       {
         kind: "update",
@@ -5816,6 +5892,7 @@ async function commitReconcile(input: {
           data: { ...nextData },
         },
       },
+      ...receiptWrites,
     ],
     history: [],
     receipt: null,
@@ -5996,8 +6073,10 @@ export async function runRecoverySweep(opts: RecoverySweepOpts): Promise<Recover
       joinPort: opts.joinPort,
       actor: opts.actor,
       now,
+      operation: opts.operation,
       intentId,
       evidence: current,
+      ...(opts.stageReconciledReceipt === undefined ? {} : { stageReconciledReceipt: opts.stageReconciledReceipt }),
     });
     if (outcome.reconciled) {
       reconciled.push({ intentId, state: outcome.state });

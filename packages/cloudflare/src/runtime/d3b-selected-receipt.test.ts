@@ -22,7 +22,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type {
   CompileArtifact,
   ModelName,
@@ -73,14 +73,27 @@ function stubAsm(dir: string, moduleUrls: Record<string, string>): AssembledModu
   return { dir, entryUrl: "fixture-entry", moduleUrls };
 }
 
-const OPS_MODULE = `export function canApp() {
-  return {
-    policy: {
-      operations: {},
-      models: {
-        "acme.Item": { read: ["Item.read.1"], public: ["Item.read.1"] },
-      },
+const OPS_DECLARATIONS = `const modelPolicy = {
+  "acme.Item": { read: ["Item.read.1"], public: ["Item.read.1"] },
+};
+export const appDefinition = {
+  id: "ReceiptUnit",
+  models: {
+    "acme.Item": {
+      readGrants: [{ rule: "Item.read.1", by: ["public"] }],
+      fields: { title: { type: "text" }, notification: { type: "delivery", operation: "std.EmailV1.send", nullable: true } },
     },
+  },
+  policy: { operations: {}, models: modelPolicy },
+};
+const readRules = { "Item.read.1": () => true };
+`;
+
+const OPS_MODULE = `${OPS_DECLARATIONS}
+export function canApp() {
+  return {
+    policy: appDefinition.policy,
+    read: readRules,
   };
 }
 `;
@@ -149,12 +162,13 @@ function receiptArtifact(opts: {
   models?: unknown[];
   operations?: unknown[];
   callables?: unknown[];
+  source?: string;
 } = {}): CompileArtifact {
   return {
     artifact_version: 1,
     language_version: "d3b-fixture/0 (hand-written T15a shape; NOT compiler output)",
     tool_version: "d3b-fixture/0",
-    sources: [{ path: "examples/TeamTasks.can", sha256: "fixture-not-a-digest" }],
+    sources: [{ path: "ops.mjs", sha256: createHash("sha256").update(opts.source ?? OPS_MODULE, "utf8").digest("hex") }],
     modules: [],
     callables: opts.callables ?? [],
     pages: [],
@@ -256,9 +270,7 @@ function ownerRow(id: string, now: number): StoredRow {
     updatedBy: "member@d3b.test",
     archivedAt: null,
     parent: null,
-    // Decoy: row data carries a WRONG notification id — the join
-    // must resolve from the stored association, never this.
-    data: { title: id, notification: "decoy-id" },
+    data: { title: id, notification: null },
   } as StoredRow;
 }
 
@@ -280,6 +292,8 @@ async function seedAssociationAndReceipt(
   input: { model: string; recordId: string; field: string },
   now: number,
 ): Promise<void> {
+  const owner = await store.load(input.model as ModelName, input.recordId as RecordId);
+  assert.ok(owner);
   const meta = { nowMs: now, actor: "member@d3b.test" };
   const association = newAssociationRow(
     {
@@ -287,7 +301,7 @@ async function seedAssociationAndReceipt(
       recordId: input.recordId,
       field: input.field,
       deliveryId: "del_1",
-      source: "mailroom.Mail.send",
+      source: "std.EmailV1.send",
       revision: 3,
     },
     meta,
@@ -297,7 +311,7 @@ async function seedAssociationAndReceipt(
       deliveryId: "del_1",
       revision: 3,
       status: "succeeded",
-      result: { ok: 1 },
+      result: { reference: "accepted-1" },
       error: null,
       contentRef: null,
       resultExpiresAtMs: null,
@@ -307,6 +321,9 @@ async function seedAssociationAndReceipt(
   await store.commit({
     expectedRevision: await store.readRevision(),
     writes: [
+      { kind: "update", model: input.model as ModelName, id: owner.id, expectedVersion: owner.version,
+        row: { ...owner, version: (owner.version + 1) as RecordVersion, updated: now,
+          data: { ...owner.data, [input.field]: { id: "del_1", operation: "std.EmailV1.send" } } } },
       { kind: "insert", model: RECEIPT_ASSOCIATION_MODEL as ModelName, row: association },
       { kind: "insert", model: RECEIPT_MODEL as ModelName, row: receipt },
     ],
@@ -396,21 +413,21 @@ describe("D3b receipt routing (read-def anchors routing + admission)", () => {
 
   it("refuses a non-read Receipt.read def loud (loader skew, never mis-served)", async () => {
     const dir = tempDir();
-    const url = writeModule(
-      dir,
-      "ops.mjs",
-      `export function canApp() {
+    const source = `${OPS_DECLARATIONS}
+      export function canApp() {
         return {
+          read: readRules,
           policy: {
             operations: { "Receipt.read": { by: ["members"] } },
-            models: { "acme.Item": { read: ["Item.read.1"], public: ["Item.read.1"] } },
+            models: modelPolicy,
           },
           Shop: { probe: async () => ({ never: true }) },
         };
-      }`,
-    );
+      }`;
+    const url = writeModule(dir, "ops.mjs", source);
     const asm = stubAsm(dir, { "ops.mjs": url });
     const artifact = receiptArtifact({
+      source,
       operations: [{ name: "Receipt.read", kind: "scenario", description: "", inputs: { fields: [] } }],
       callables: [
         { id: "Receipt.read", kind: "operation", module: "ops.mjs", export: "Shop_probe", member: ["Shop", "probe"] },
@@ -542,6 +559,28 @@ describe("D3b receipt existence-hiding (denied-vs-missing never leaks)", () => {
 });
 
 describe("D3b receipt join contract (real join + real observer)", () => {
+  it("refuses a decoy owner field even when its protected association exists", async () => {
+    const s = await receiptSetup(receiptArtifact());
+    await seedOwnerRow(s.store, "acme.Item", "item-1", s.seed.now);
+    await seedAssociationAndReceipt(s.store,
+      { model: "acme.Item", recordId: "item-1", field: "notification" }, s.seed.now);
+    const owner = await s.store.load("acme.Item" as ModelName, "item-1" as RecordId);
+    assert.ok(owner);
+    await s.store.commit({ expectedRevision: await s.store.readRevision(),
+      writes: [{ kind: "update", model: "acme.Item" as ModelName, id: owner.id,
+        expectedVersion: owner.version, row: { ...owner,
+          version: (owner.version + 1) as RecordVersion,
+          data: { ...owner.data, notification: "decoy-id" } } }],
+      history: [], receipt: null, outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [],
+    });
+    await assert.rejects(invokeSelectedReceiptRead({
+      asm: s.asm, artifact: s.artifact, operation: RECEIPT_READ_OPERATION,
+      inputs: { recordId: "item-1", field: "notification", selected: ["status", "result"] },
+      identity: await identityFor(s.seed, s.seed.memberToken), store: s.store,
+      memberships: s.seed.store, now: () => s.seed.now,
+    }), /current owner delivery/);
+  });
+
   it("observes exact selected leaves with fence + read revisions as numbers", async () => {
     const s = await receiptSetup(receiptArtifact());
     await seedOwnerRow(s.store, "acme.Item", "item-1", s.seed.now);
@@ -560,11 +599,9 @@ describe("D3b receipt join contract (real join + real observer)", () => {
       memberships: s.seed.store,
       now: () => s.seed.now,
     });
-    // Decoy-proof: the row's data.notification ("decoy-id") never
-    // feeds the association — the stored delivery serves.
     assert.deepEqual(served, {
       outcome: "observed",
-      projection: { status: "succeeded", result: { ok: 1 } },
+      projection: { status: "succeeded", result: { reference: "accepted-1" } },
       fenceRevision: 3,
       readRevision: 2,
     });
@@ -719,7 +756,7 @@ describe("D3b receipt fence (conflict-before-rows + enrollment)", () => {
     });
     assert.equal(served.outcome, "observed");
     assert.deepEqual(fence.enrollments, [
-      { kind: "record", model: "acme.Item", id: "item-1", version: 1 },
+      { kind: "record", model: "acme.Item", id: "item-1", version: 2 },
       { kind: "record", model: "work.receipt", id: "del_1", version: 1 },
     ]);
   });
@@ -746,7 +783,7 @@ describe("D3b receipt fence (conflict-before-rows + enrollment)", () => {
     });
     assert.equal(idOnly.outcome, "observed");
     assert.deepEqual(idFence.enrollments, [
-      { kind: "record", model: "acme.Item", id: "item-1", version: 1 },
+      { kind: "record", model: "acme.Item", id: "item-1", version: 2 },
     ]);
     await seedOwnerRow(s.store, "acme.Item", "item-2", s.seed.now);
     const nullFence = recordingFence(3);
@@ -792,7 +829,7 @@ describe("D3b receipt public consumer (observed through the invoker bridge)", ()
     assert.ok("result" in outcome, `want result, got ${JSON.stringify(outcome)}`);
     assert.deepEqual(outcome.result, {
       outcome: "observed",
-      projection: { status: "succeeded", result: { ok: 1 } },
+      projection: { status: "succeeded", result: { reference: "accepted-1" } },
       fenceRevision: 3,
       readRevision: 2,
     } satisfies SelectedReceiptServed);

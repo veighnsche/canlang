@@ -129,6 +129,7 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
   "context.js",
   "stdlib.js",
   "invoke.js",
+  "receipt-staging.js",
   "sourcemap.js",
   "mcp-registry.js",
   "env-assembly.js",
@@ -244,6 +245,10 @@ const WORK_SCHEDULE_SOURCE_SPECIFIER = "@canlang/work/kernel/schedule-staging";
 const WORK_SCHEDULE_VENDOR_ENTRY = "vendor/work/kernel/schedule-staging.js";
 const WORK_OCCURRENCE_SOURCE_SPECIFIER = "@canlang/work/kernel/occurrence-staging";
 const WORK_OCCURRENCE_VENDOR_ENTRY = "vendor/work/kernel/occurrence-staging.js";
+const WORK_RECEIPT_SOURCE_SPECIFIER = "@canlang/work/receipt";
+const WORK_RECEIPT_VENDOR_ENTRY = "vendor/work/receipt/index.js";
+const WORK_ASSOCIATION_SOURCE_SPECIFIER = "@canlang/work/observation/association";
+const WORK_ASSOCIATION_VENDOR_ENTRY = "vendor/work/observation/association.js";
 /** The runtime mapper's only external dependency; host import tooling stays out. */
 const SOURCEMAP_CODEC_SPECIFIER = "@jridgewell/sourcemap-codec";
 const SOURCEMAP_CODEC_VENDOR_ENTRY = "vendor/sourcemap-codec/sourcemap-codec.js";
@@ -484,6 +489,8 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     if (spec === WORK_DISPATCH_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_DISPATCH_VENDOR_ENTRY);
     if (spec === WORK_SCHEDULE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_SCHEDULE_VENDOR_ENTRY);
     if (spec === WORK_OCCURRENCE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_OCCURRENCE_VENDOR_ENTRY);
+    if (spec === WORK_RECEIPT_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_RECEIPT_VENDOR_ENTRY);
+    if (spec === WORK_ASSOCIATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_ASSOCIATION_VENDOR_ENTRY);
     if (spec === "@canlang/interfaces") return relativeSpecifier(moduleKey, HTTP_OPERATIONS_MODULE);
     if (spec.startsWith("@canlang/state/")) return relativeSpecifier(moduleKey, `vendor/state/${spec.slice("@canlang/state/".length)}.js`);
     return spec;
@@ -502,6 +509,8 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     [WORK_DISPATCH_SOURCE_SPECIFIER, WORK_DISPATCH_VENDOR_ENTRY],
     [WORK_SCHEDULE_SOURCE_SPECIFIER, WORK_SCHEDULE_VENDOR_ENTRY],
     [WORK_OCCURRENCE_SOURCE_SPECIFIER, WORK_OCCURRENCE_VENDOR_ENTRY],
+    [WORK_RECEIPT_SOURCE_SPECIFIER, WORK_RECEIPT_VENDOR_ENTRY],
+    [WORK_ASSOCIATION_SOURCE_SPECIFIER, WORK_ASSOCIATION_VENDOR_ENTRY],
     ["@canlang/ui", UI_VENDOR_ENTRY],
   ] as const) {
     out = out.split(source).join(relativeSpecifier(moduleKey, entry));
@@ -512,7 +521,8 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
 
 /** Stage the public portable Work producers and deduplicate their relative closures. */
 function stageWorkStagingProducers(): Record<string, string> {
-  const entries = [WORK_DISPATCH_SOURCE_SPECIFIER, WORK_SCHEDULE_SOURCE_SPECIFIER, WORK_OCCURRENCE_SOURCE_SPECIFIER]
+  const entries = [WORK_DISPATCH_SOURCE_SPECIFIER, WORK_SCHEDULE_SOURCE_SPECIFIER, WORK_OCCURRENCE_SOURCE_SPECIFIER,
+    WORK_RECEIPT_SOURCE_SPECIFIER, WORK_ASSOCIATION_SOURCE_SPECIFIER]
     .map(specifier => resolveProducerFile(specifier, "bun run --filter @canlang/work build"));
   const base = dirname(dirname(entries[0]!));
   const modules: Record<string, string> = {};
