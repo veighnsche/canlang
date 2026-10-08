@@ -378,12 +378,40 @@ export async function admit(input: {
   const pending = validated.refs;
   const admittedInputs = validated.normalized;
 
+  const recordRefs = await loadCallRecordRefs({
+    pending, inputs: admittedInputs, store, scope,
+    ...(input.conflictServerOnly !== undefined ? { conflictServerOnly: input.conflictServerOnly } : {}),
+  });
+
+  return {
+    context,
+    def,
+    inputs: admittedInputs,
+    recordRefs,
+    inputHash,
+    revision,
+    replay: null,
+    checkpoint: scope.snapshot(),
+  };
+}
+
+/** Resolve refs in descriptor order with the shared stale-before-archive rule. */
+export async function loadCallRecordRefs(input: {
+  readonly pending: ReadonlyArray<PendingRef>;
+  readonly inputs: Readonly<Record<string, unknown>>;
+  readonly store: StoragePort;
+  readonly scope?: FenceScope;
+  readonly conflictServerOnly?: ConflictServerOnly;
+  /** Reads hide ungranted rows before exposing version/lifetime eligibility. */
+  readonly projectRow?: (ref: PendingRef, row: StoredRow) => Promise<StoredRow>;
+}): Promise<Array<PendingRef & { row: StoredRow }>> {
   const recordRefs: Array<PendingRef & { row: StoredRow }> = [];
-  for (const ref of pending) {
-    const row = await store.load(ref.model, ref.id);
-    if (row === null) {
+  for (const ref of input.pending) {
+    const stored = await input.store.load(ref.model, ref.id);
+    if (stored === null) {
       throw new StateError('not_found', 'Record not found.');
     }
+    const row = input.projectRow === undefined ? stored : await input.projectRow(ref, stored);
     if (ref.expectedVersion !== null && row.version !== ref.expectedVersion) {
       // B2 (Q3): the row is in hand — carry full per-binding currents
       // (zero extra reads). `values` = submitted-input names intersect
@@ -394,7 +422,7 @@ export async function admit(input: {
       const excluded = input.conflictServerOnly?.get(ref.model as string);
       const values: Record<string, unknown> = {};
       if (excluded !== undefined) {
-        for (const name of Object.keys(admittedInputs)) {
+        for (const name of Object.keys(input.inputs)) {
           if (!Object.hasOwn(row.data, name) || excluded.has(name)) {
             continue;
           }
@@ -430,23 +458,14 @@ export async function admit(input: {
     if (row.archivedAt !== null) {
       throw new StateError('validation', 'Archived records cannot be used here.');
     }
-    scope.enroll({ kind: 'record', model: ref.model, id: ref.id, version: row.version });
-    if (row.parent !== undefined && row.parent !== null) {
-      enrollImportedParentRead(scope, { model: row.parent.model, id: row.parent.id });
+    input.scope?.enroll({ kind: 'record', model: ref.model, id: ref.id, version: row.version });
+    if (input.scope !== undefined && row.parent !== undefined && row.parent !== null) {
+      enrollImportedParentRead(input.scope, { model: row.parent.model, id: row.parent.id });
     }
     recordRefs.push({ ...ref, row });
   }
 
-  return {
-    context,
-    def,
-    inputs: admittedInputs,
-    recordRefs,
-    inputHash,
-    revision,
-    replay: null,
-    checkpoint: scope.snapshot(),
-  };
+  return recordRefs;
 }
 
 /* -- T32b checkpoint fence (adopted Alternative A). -- */

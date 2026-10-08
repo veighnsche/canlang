@@ -2787,3 +2787,22 @@ Owning emits and changed checks pass after correcting accessor admission order a
 ## 2026-10-08 — Source delivery projection uses native scalar typing
 
 Accepted correction: the source-facing State delivery facade returns a readonly partial map of receipt properties to native values, allowing the actual canonical source callback to decode wire int64 leaves into Can bigint values. Contracts SelectedReceiptProjection remains the transport wire type. The facade still forwards exactly the original locator and selection; no new runtime converter or observation layer is added. Normal State emit passes and the unchanged facade identity results are reused. The actual generated-source numeric consumer remains with its current runtime owner; no parent completion is credited.
+
+
+## 2026-10-08 — Source reads use State admission without mutation identities
+
+Accepted finite State component: ordinary generated read scenarios admit their closed checked inputs through the existing loader and re-evaluate live by authority. References expose only viewer-projected fields; visibility precedes stale/archive facts for denied rows, while visible references retain canonical error order. The source callback gets admitted actor/team/membership, projected refs and the original revision, with no mutation context, identity hash, receipt or effect stage. Final revision, live membership and reference-projection checks refuse stale or revoked results. The shared mutation reference loader retains its prior behavior when no read projection hook is present.
+
+Checked optional scalar/ordinary-array computed-default omission now admits read descriptors at the same source-owning gate as scenarios; required/ref/conflicting wire defaults remain invalid. State emission and the changed read/admission cases pass; root reviewed source and reused those results. Actual generated Cloudflare read execution and source-default qualification remain with the runtime owner. Authority reports, prepared/ref defaults, installed/all-host and complete H1 remain open; no parent or replacement reduction credit.
+
+## 2026-10-08 — Compiler semantic identities fail at their defining allocation
+
+Accepted owning compiler choice: checked module/symbol/scope allocation has an additive fallible owner. The existing compatibility entry returns empty tables plus a fatal capacity diagnostic on exhaustion; main checking skips dependent passes. Exact u32::MAX remains admitted; ordinary recoverable and duplicate diagnostics retain their previous behavior. IDE consumers discard duplicate resolver diagnostics but still consume the tables, so a partial prefix must not appear complete.
+
+Three equivalent resolver-admission consultations gave weak split advice: fallible-abort .23/.36 and partial-abort .55, with corresponding choice probabilities .49/.49, .57/.43 and .70. Preserve that uncertainty and the saved implementation/compiler-completion/resolver-admission responses. No sentinel, widened identity, invented lower cap or full representability closure is credited.
+
+## 2026-10-08 — Compiler output admission follows actual writer and map capacity
+
+Accepted owning choice: guard intrinsic writer/map capacity at the actual mutation sites, expose fallible writer finish and public try_build, and propagate appended-writer failure through entry/package/BDD/map assembly. Shipped compile reports E6012 with an empty artifact; existing finish/build remain documented panic conveniences, while normal output bytes and APIs retain their behavior. Pinned map source/name MAX is a sentinel, so usable IDs end at MAX-1; writer lines are one-based and map rows zero-based.
+
+Three equivalent output-admission consultations returned confidence .76/.76/.82 and choice probabilities .84/.84/.88 without rationale. Preserve saved implementation/compiler-completion/output-admission responses and exact-capacity/resource uncertainty. This choice adds no arbitrary byte cap, out-of-memory policy, giant probe, test-only capacity or full FAIL-R06 acceptance. Compiler retains source/check ownership.
