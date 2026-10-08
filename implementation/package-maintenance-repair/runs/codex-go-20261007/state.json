@@ -1707,12 +1707,14 @@
         "packages/cloudflare/test/fixtures/typed-scenario-values.can",
         "packages/cloudflare/test/fixtures/typed-scenario-values.json"
       ],
-      "status": "Committed61baff85; owner found bound-reference metadata drift immediately afterward, corrected existing admitted-version rule; focused follow-up ready for commit.",
+      "status": "Committed61baff85 with admitted-reference metadata fix342f225a; released actual D1/legacy/explicit-ID profiles accepted at bounded scope.",
       "root_git_owner": true,
       "limits": "Singular nonnullable checked int input/field/result and explicit void; lazy staged record/version, canonical ordered writes/default receipts and stable opaque operation-ID/create-index record IDs. Hooks/all scalar-array profiles/collection hydration/provider/installed/native backend adoption remain open.",
       "validation": "Canonical filtered owning dependency build22/22 and final CF emit pass. Actual compiler artifact + persisted D1 scenario profile, synthetic absent-result BigInt refusal, explicit-ID compatibility and forged binding refusal pass. State81 unchanged results reused, no new validation chain.",
       "commands_live": false,
-      "correction": "DESIGN:103 ordinary bound refs keep admitted metadata/version v while fields read staged rows. Actual observedVersion returns4 while committed row5. Same compiler fixture regenerated; final owning CF emit and affected D1 profile1/1 passed; other direct results reused."
+      "correction": "DESIGN:103 ordinary bound refs keep admitted metadata/version v while fields read staged rows. Actual observedVersion returns4 while committed row5. Same compiler fixture regenerated; final owning CF emit and affected D1 profile1/1 passed; other direct results reused.",
+      "commit": "61baff85",
+      "correction_commit": "342f225a"
     }
   },
   "previous_goal_turn_classification": {
@@ -1899,5 +1901,23 @@
     "release": "Compiler owner explicitly released existing @canlang/values workspace edge; manifest writer inactive",
     "validation": "Reuse unchanged actual31/31 UI checks from compiler Values guard/codec correction; no rerun",
     "limits": "Workspace dependency ownership only; installed/complete backend gates open"
+  },
+  "generated_machine_consumer": {
+    "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+    "files": [
+      "packages/cloudflare/src/runtime/generated-machines.test.ts",
+      "packages/cloudflare/test/fixtures/generated-machines.can",
+      "packages/cloudflare/test/fixtures/generated-machines.json"
+    ],
+    "status": "Released and root source reviewed; direct compiled memory machine + actual canonical pageRows checks2/2 pass. Scoped test commit pending.",
+    "validation": "One direct canonical generated-machine invocation,2/2 in159ms; owning emit passed. No repeated review.",
+    "covers": [
+      "ordered transitions/native integer staging",
+      "rollback/replay/reserved stored commit version",
+      "actor/stale/managedCRUD denial",
+      "synthetic bound-set machine bypass refusal",
+      "actual viewer pageRows current status"
+    ],
+    "limits": "Memory State + actual canonical query only; no DOM/provider/durable/installed/whole-app claim. Model-rule evaluation remains separate."
   }
 }

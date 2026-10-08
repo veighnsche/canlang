@@ -1,0 +1,25 @@
+app GeneratedMachines
+Given
+ Job { label:text, attempts:int=0, status:enum(idle,queued,ready)=idle machine }
+ policy Job read=public
+When
+ crud Job by=members fields=label,attempts
+ ## Machine transitions and ordinary writes share one reserved record version.
+ scenario start(job:Job,accept:bool) -> int by=members
+  do
+   transition job.status idle -> queued
+   require job.status==queued
+   set job {attempts=job.attempts+1}
+   require accept
+   transition job.status queued -> ready
+   return job.attempts
+ ## This declared edge fails on idle and rolls back the preceding ordinary write.
+ scenario mismatch(job:Job) -> int by=members
+  do
+   set job {attempts=job.attempts+1}
+   transition job.status queued -> ready
+   return job.attempts
+Then
+ page / title="Machine runtime"
+  list Job empty="No jobs"
+   text row.label,row.status
