@@ -1261,6 +1261,17 @@ fn guard_spellings(by: &[IrGuard]) -> (Vec<String>, bool) {
     (spellings, gated)
 }
 
+/// A read grant may expose the same actor role identity as operation
+/// admission only when its entire checked predicate is that role gate.
+/// Row filters, subject gates and expression rules retain registry-only
+/// metadata, so consumers cannot silently drop part of the predicate.
+fn actor_read_role(predicate: &TypedExpr) -> Option<&str> {
+    match &predicate.expr {
+        IrExpr::HasRole { role, person: None } => Some(role),
+        _ => None,
+    }
+}
+
 /// One `policy.operations` entry: role-gate spellings, `require` count,
 /// crud `when` presence, and the `gated` marker. `None` when the
 /// operation carries no admission content at all.
@@ -4632,20 +4643,33 @@ impl<'a> Emitter<'a> {
             let entries: Vec<String> = grants
                 .iter()
                 .map(|grant| {
-                    if grant.fields.is_empty() {
-                        format!("{{rule:{}}}", js_string(&grant.rule))
-                    } else {
-                        format!(
-                            "{{rule:{},fields:[{}]}}",
-                            js_string(&grant.rule),
+                    let mut grant_members = vec![format!("rule:{}", js_string(&grant.rule))];
+                    if !grant.fields.is_empty() {
+                        grant_members.push(format!(
+                            "fields:[{}]",
                             grant
                                 .fields
                                 .iter()
                                 .map(|f| js_string(f))
                                 .collect::<Vec<_>>()
                                 .join(",")
-                        )
+                        ));
                     }
+                    let mut rules = self
+                        .ir
+                        .read_rules
+                        .iter()
+                        .filter(|rule| rule.id == grant.rule);
+                    // Legacy rule ids use the bare model name. Ambiguous
+                    // ids cannot establish which checked predicate owns
+                    // this grant, so keep them registry-only as well.
+                    if let Some(rule) = rules.next()
+                        && rules.next().is_none()
+                        && let Some(role) = actor_read_role(&rule.pred)
+                    {
+                        grant_members.push(format!("by:[{}]", js_string(role)));
+                    }
+                    format!("{{{}}}", grant_members.join(","))
                 })
                 .collect();
             members.push(format!("readGrants:[{}]", entries.join(",")));
