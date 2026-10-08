@@ -428,6 +428,75 @@ describe('V02.4 owned admission: prepared-inputs leaf', () => {
     assert.deepEqual(validatePreparedInputs(def.preparedInputs!, {}).normalized, { values: [] });
   });
 
+  it('retains computed singular nonnullable ref omission through both descriptor intakes', () => {
+    const malformed = (run: () => unknown) => assert.throws(run, (error: unknown) =>
+      error instanceof IncompatibleArtifactError && error.reason === 'malformed_descriptor');
+    for (const kind of ['scenario', 'read'] as const) for (const versioned of [false, true]) {
+      const models = [{ name: MODEL, fields: [], deleteMode: 'archive' as const }];
+      const input = { name: 'expense', kind: 'ref' as const, model: MODEL, versioned,
+        required: false, computedDefault: true as const };
+      const artifactInput = { name: 'expense', field: { kind: 'ref' as const, model: MODEL,
+        requireVersion: versioned }, required: false, computedDefault: true as const };
+      const set: ExecutionDescriptorSet = { contractVersion: 1,
+        models: [{ name: MODEL, fields: {}, deleteMode: 'archive' }],
+        operations: [{ name: OP, kind, inputs: [input] }] };
+      const artifact: ArtifactDescriptorSlice = { artifact_version: 1, models, operations: [{
+        name: OP, kind, description: '', inputs: { fields: [artifactInput] },
+      }] };
+      const options = { by: 'members' as const };
+      for (const loaded of [loadExecutionDescriptorSet(set, options), loadArtifactDescriptors(artifact, options)]) {
+        const def = loaded.registry.get(OP)!;
+        assert.ok(isGeneratedOperationDef(def));
+        assert.deepEqual(def.descriptor.inputs[0], input);
+        assert.ok(Object.isFrozen(def.descriptor.inputs[0]));
+        const supplied = { expense: { id: 'earlier-expense', version: '7' } };
+        for (const inputs of [{}, supplied]) {
+          const admitted = validateCallInputs(def, inputs);
+          assert.deepEqual(admitted, validatePreparedInputs(def.preparedInputs!, inputs));
+          assert.deepEqual(admitted.normalized, inputs);
+        }
+        assert.deepEqual(validateCallInputs(def, supplied).refs, [{ param: 'expense', model: MODEL,
+          id: 'earlier-expense', expectedVersion: 7 }]);
+        assert.deepEqual(captureFields(() => validateCallInputs(def, { expense: null })),
+          captureFields(() => validatePreparedInputs(def.preparedInputs!, { expense: null })));
+      }
+      for (const change of [{ computedDefault: false }, { computedDefault: undefined },
+        { computedDefault: 'true' }, { required: true }, { default: undefined },
+        { default: { kind: 'literal', value: null } }, { nullable: true }, { nullable: 'true' },
+        { array: undefined }, { array: { required: false } }, { array: { required: true } }]) {
+        malformed(() => loadExecutionDescriptorSet({ ...set, operations: [{ ...set.operations[0]!,
+          inputs: [{ ...input, ...change }],
+        }] } as unknown as ExecutionDescriptorSet, options));
+        malformed(() => loadArtifactDescriptors({ ...artifact, operations: [{ ...artifact.operations![0]!,
+          inputs: { fields: [{ ...artifactInput, ...change }] },
+        }] } as unknown as ArtifactDescriptorSlice, options));
+      }
+      for (const required of [false, true]) {
+        malformed(() => loadExecutionDescriptorSet(set, { ...options,
+          inputArrays: { [OP]: { expense: { required } } } }));
+      }
+      malformed(() => loadExecutionDescriptorSet(set, { ...options,
+        inputNullableRefs: { [OP]: { expense: true } } }));
+      for (const mutationKind of ['create', 'update'] as const) {
+        malformed(() => loadExecutionDescriptorSet({ ...set, operations: [{ ...set.operations[0]!, kind: mutationKind }] }, options));
+        malformed(() => loadArtifactDescriptors({ ...artifact, operations: [{ ...artifact.operations![0]!, kind: mutationKind }] }, options));
+      }
+      const { computedDefault: _canonicalMarker, ...unmarkedInput } = input;
+      const { computedDefault: _artifactMarker, ...unmarkedArtifactInput } = artifactInput;
+      for (const loaded of [
+        loadExecutionDescriptorSet({ ...set, operations: [{ ...set.operations[0]!,
+          inputs: [Object.assign(Object.create({ computedDefault: true }), unmarkedInput)] }] }, options),
+        loadArtifactDescriptors({ ...artifact, operations: [{ ...artifact.operations![0]!, inputs: {
+          fields: [Object.assign(Object.create({ computedDefault: true }), unmarkedArtifactInput)],
+        } }] }, options),
+      ]) {
+        const def = loaded.registry.get(OP)!;
+        assert.ok(isGeneratedOperationDef(def));
+        assert.equal(Object.hasOwn(def.descriptor.inputs[0]!, 'computedDefault'), false);
+      }
+    }
+  });
+
   it('preserves checked nullable array omissions for the owning default stage', () => {
     for (const kind of ['integer', 'datetime'] as const) {
       for (const nullable of [false, true]) {
