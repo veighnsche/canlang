@@ -1,10 +1,14 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { readFileSync, mkdtempSync, rmSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { Miniflare } from "miniflare";
 import type { CompileArtifact } from "@canlang/contracts";
+import { CSRF_FIELD } from "@canlang/contracts";
+import { buildSessionCookie, deriveCsrfToken, hashPassword, loginWithPassword, sha256HexText } from "@canlang/identity";
+import { deriveOperationInputs } from "@canlang/interfaces/http/operations";
+import { projectGeneratedInputs, submitGeneratedForm } from "@canlang/ui";
 import { buildDeployBundleWithAssets, writeDeployBundleWithAssets, DEPLOY_MAIN_MODULE } from "../src/deploy/bundle.js";
 
 // The released authored producer is supplied by the focused integration run.
@@ -15,6 +19,116 @@ const dirs: string[] = [];
 afterEach(async () => {
   await Promise.all(workers.splice(0).map(worker => worker.dispose()));
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+
+describe("authored operation forms through defining default Worker", () => {
+  it("renders checked create controls and submits the canonical envelope while bound forms stay unavailable", async () => {
+    const artifact = JSON.parse(readFileSync(resolve("packages/cloudflare/test/fixtures/typed-operation-forms.json"), "utf8")) as CompileArtifact;
+    const bundle = buildDeployBundleWithAssets(artifact, { verdict: { active: true }, assets: { browser: true } });
+    const dir = mkdtempSync(join(realpathSync(tmpdir()), "can-operation-forms-")); dirs.push(dir);
+    writeDeployBundleWithAssets(bundle, dir);
+    const worker = new Miniflare({ compatibilityDate: "2026-07-15", modulesRoot: "/",
+      modules: [DEPLOY_MAIN_MODULE, ...Object.keys(bundle.modules).filter(path => path !== DEPLOY_MAIN_MODULE)].map(path => ({
+        type: "ESModule" as const, path: `/${path}`, contents: bundle.modules[path]!,
+      })), d1Databases: { DB: "actual-operation-forms" } }); workers.push(worker);
+    const DB = await worker.getD1Database("DB");
+    const fetch = (path: string, init?: RequestInit) =>
+      worker.dispatchFetch(new URL(path, "https://example.test").href, init);
+    const { buildProductionDeps } = await loadStagedModule(pathToFileURL(join(dir, "runtime/env-assembly.js")).href);
+    const deps = await buildProductionDeps({ DB });
+    // This case issues a real session against the production D1 identity store.
+    // The selected-team owner is explicit setup, not a fabricated page context.
+    const password = "form-owner-password";
+    const user = await deps.identityStore.createUser({ email: "form-owner@example.test",
+      password_hash: await hashPassword(password), email_verified: true });
+    const team = await deps.identityStore.createTeam({ timezone: "Europe/Brussels" });
+    await deps.identityStore.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: true, roles: [] });
+    const { token } = await loginWithPassword(deps.identityStore, { email: user.email, password });
+    const session = await deps.identityStore.findSessionByTokenHash(await sha256HexText(token));
+    expect(session).not.toBeNull();
+    await deps.identityStore.setSessionTeam(session.session_id, team.team_id);
+    const cookie = buildSessionCookie(token, { maxAgeSeconds: 3600, secure: false });
+    const csrf = await deriveCsrfToken(token);
+    expect((await fetch("/")).status).toBe(403);
+    const page = await fetch("/", { headers: { cookie } });
+    expect(page.status, await page.clone().text()).toBe(200);
+    const html = await page.text();
+    const forms = (html.match(/<form\b[^>]*>[\s\S]*?<\/form>/g) ?? [])
+      .filter(form => form.includes('action="/api/operations/'));
+    expect(forms).toHaveLength(1);
+    const form = forms[0]!;
+    // Inspect actual emitted controls; no handwritten field definitions or HTML.
+    const attributes = (tag: string) => Object.fromEntries(
+      [...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map(match => [match[1]!, match[2]!]),
+    );
+    const controls = [...form.matchAll(/<input\b[^>]*>/g)].map(match => attributes(match[0]));
+    expect(controls.filter(control => control["name"] === "inputs[label]")).toHaveLength(1);
+    expect(controls.filter(control => control["name"] === "inputs[count]")).toHaveLength(1);
+    expect(controls.find(control => control["name"] === "inputs[count]")?.["value"]).toBe("1");
+    expect(controls.find(control => control["name"] === "inputs[label]")?.["aria-required"]).toBe("true");
+    expect(form).toContain("Entry label"); expect(form).toContain("Count"); expect(form).toContain("Add entry");
+    expect(html).not.toContain('name="inputs[owner]"');
+    const ids = controls.map(control => control["id"]).filter(id => id !== undefined);
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const id of ids) expect(form).toContain(`for="${id}"`);
+    const action = attributes(form.slice(0, form.indexOf(">") + 1))["action"]!;
+    expect(action).toBe("/api/operations/TypedOperationForms.Entry.create");
+    const flat = Object.fromEntries(controls.filter(control => control["name"] !== undefined)
+      .map(control => [control["name"]!, control["value"] ?? ""]));
+    expect(flat[CSRF_FIELD]).toBe(csrf);
+    expect(flat["operation_id"]).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    const operation = artifact.operations!.find(operation => operation.name === "TypedOperationForms.Entry.create")!;
+    const derived = deriveOperationInputs(operation);
+    flat["inputs[label]"] = "Actual created entry";
+    // Clearing the optional prefill delegates the original source default to State.
+    flat["inputs[count]"] = "";
+    expect(projectGeneratedInputs(derived, "create", flat)).toEqual({ label: "Actual created entry" });
+    const submit = () => submitGeneratedForm({ derived, mode: "create", flat, action, fragment: false,
+      fetchImpl: (url, init) => {
+        if (typeof init.body !== "string") throw new Error("generated create submit must carry its JSON envelope");
+        return fetch(url, { method: init.method, headers: { ...init.headers, cookie }, body: init.body });
+      },
+    });
+    const committed = await submit();
+    expect(committed.kind).toBe("committed");
+    if (committed.kind !== "committed") throw new Error("actual generated form did not commit");
+    expect(committed.result.status).toBe("committed");
+    const model = "TypedOperationForms.Entry";
+    const rows = await deps.store.query({ model, authority: "owner" });
+    expect(rows).toHaveLength(1);
+    const row = rows[0];
+    expect(row.data).toEqual({ label: "Actual created entry", count: "1", owner: { id: user.user_id } });
+    const receipt = await deps.store.readReceipt({ app: "TypedOperationForms", owner: team.team_id,
+      principal: user.user_id, operation: operation.name, operationId: flat["operation_id"] });
+    expect(receipt.resolvedDefaults).toEqual({ count: "1", owner: { id: user.user_id } });
+    const history = await deps.store.historyFor(model, row.id);
+    const revision = await deps.store.readRevision();
+    const replayed = await submit();
+    expect(replayed.kind).toBe("committed");
+    if (replayed.kind !== "committed") throw new Error("actual generated form did not replay");
+    expect(replayed.result.status).toBe("replayed");
+    expect(replayed.result.result).toEqual(committed.result.result);
+    const body = JSON.stringify({ operation: operation.name, operation_id: flat["operation_id"],
+      inputs: projectGeneratedInputs(derived, "create", flat) });
+    expect((await fetch(action, { method: "POST", headers: { cookie, "content-type": "application/json", "x-csrf-token": "wrong" }, body })).status).toBe(403);
+    expect((await fetch(action, { method: "POST", headers: { "content-type": "application/json", "x-csrf-token": csrf }, body })).status).toBe(403);
+    expect(await deps.store.readRevision()).toBe(revision);
+    expect(await deps.store.query({ model, authority: "owner" })).toEqual(rows);
+    expect(await deps.store.historyFor(model, row.id)).toEqual(history);
+    const after = await fetch("/", { headers: { cookie } });
+    expect(after.status, await after.clone().text()).toBe(200);
+    const afterHtml = await after.text();
+    expect(afterHtml).toContain("Bound forms are not available yet.");
+    expect((afterHtml.match(/<form\b[^>]*>[\s\S]*?<\/form>/g) ?? [])
+      .filter(form => form.includes('action="/api/operations/'))).toHaveLength(1);
+    expect(afterHtml).not.toContain('name="inputs[entry]');
+    expect(afterHtml).not.toContain('name="inputs[newLabel]"');
+    expect(afterHtml).not.toContain('name="inputs[delta]"');
+    expect(afterHtml).not.toContain("Save changes");
+    const nextId = attributes(afterHtml.match(/<input\b[^>]*name="operation_id"[^>]*>/)![0])["value"];
+    expect(nextId).not.toBe(flat["operation_id"]);
+  }, 60_000);
 });
 const loadStagedModule = (url: string): Promise<any> => import(/* @vite-ignore */ url);
 

@@ -377,6 +377,7 @@ export type HttpOperationHandlerFactory = (
 export interface PageHttpDeps {
   readonly app: AppInfo;
   readonly pages: PageRegistry;
+  readonly catalog?: SchemaCatalog;
   readonly logger: Logger;
   readonly clock: InterfacesClock;
   readonly identity: { readonly store: unknown };
@@ -1638,11 +1639,15 @@ export async function assembleWorker(
   const appInfo = await loadAppInfo(artifact, asm);
   let pageHandler: ((request: Request) => Promise<Response>) | undefined;
   if (deps.http?.createPageHandler !== undefined) {
+    const createArtifactCatalog = await loadSiblingFn<CreateArtifactCatalog>(
+      "../runtime/mcp-registry.js", "runtime/mcp-registry.ts", "createArtifactCatalog",
+    );
     const queryRows = await loadSiblingFn<
       typeof import("../runtime/invoke.js").queryPageRowsCanonical
     >("../runtime/invoke.js", "runtime/invoke.ts", "queryPageRowsCanonical");
     pageHandler = deps.http.createPageHandler({
       app: appInfo, pages: { descriptors: () => descriptors },
+      catalog: createArtifactCatalog(artifact, deps.http.derivedInputs),
       logger: httpLogger,
       clock: { nowMs: now }, identity: { store: deps.identityStore },
       query: async (invocation, model, args) => {
