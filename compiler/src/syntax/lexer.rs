@@ -706,7 +706,20 @@ fn describe_char(ch: char) -> String {
 ///
 /// Rejects unescaped control characters (including tabs), unknown escapes
 /// and malformed `\u` escapes including lone surrogates.
+/// The token's UTF-8 byte length and absolute endpoint must fit in `u32`.
+/// An exact endpoint at `u32::MAX` is valid; an unrepresentable token
+/// returns a range error at `(file, abs, abs)` before decoding.
 pub fn decode_json_string(raw: &str, abs: u32, file: SourceId) -> Result<String, (String, Span)> {
+    if u32::try_from(raw.len())
+        .ok()
+        .and_then(|length| abs.checked_add(length))
+        .is_none()
+    {
+        return Err((
+            "string token extends beyond the u32 source-offset range".to_string(),
+            Span::new(file, abs, abs),
+        ));
+    }
     let bytes = raw.as_bytes();
     debug_assert!(bytes.first() == Some(&b'"') && bytes.last() == Some(&b'"'));
     let mut out = String::new();

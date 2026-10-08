@@ -1,4 +1,4 @@
-# FAIL-R06: source-map name width
+# FAIL-R06: finite width boundaries
 
 The original finite duties are [admission.json](../../../docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/admission.json) AR-09/11/17 and the `offset-u32`, `semantic-ids-u32`, `cycle-width`, `icu-wide`, `diagnostic-joining`, and `source-map-growth` entries in [algorithms.json](../../../docs/research/compiler-library-audit-20261006/responsibility-map/failure-evidence/algorithms.json). They are separate responsibilities, not a shared size policy.
 
@@ -7,6 +7,22 @@ The original finite duties are [admission.json](../../../docs/research/compiler-
 The product regression builds 512 generated rows using 256 distinct names, including the empty name, followed by their reverse-order reuse. It verifies every decoded name/source/line/byte-column coordinate and serialized names, exact Unicode/CRLF source content, and mappings. Existing small map, missing-source, duplicate-path and numeric envelope controls remain unchanged.
 
 Validation: `CARGO_BUILD_JOBS=2 cargo test --manifest-path compiler/Cargo.toml --locked --offline --lib codegen::sourcemap::tests` passed all six checks, including the new wide-name regression.
+
+The standalone JSON-string decoder's tiny `"\q"` input at absolute base
+`u32::MAX` reproduced a native debug overflow panic in error-span addition.
+It now checks the token's byte length and absolute endpoint before decoding,
+using the existing error return with a point span at the supplied base.
+Exact-fitting valid and malformed tokens preserve their values, messages and
+translated spans. The focused syntax case covers Unicode, unknown escapes,
+lone surrogates, malformed Unicode escapes and a tab without large allocation.
+This bounded admission keeps the decoder's existing quoted-token precondition.
+
+The new finite source control places checked declarations at byte offsets
+255/256 and 65,535/65,536 in genuine UTF-8/CRLF sources, checks lossless parse
+coverage and LSP positions, and preserves 257 real immutable source snapshots
+across path replacement. It also verifies unknown source-ID refusal. These
+controls exercise existing production APIs; they do not execute a source or
+source count beyond `u32::MAX` or select a whole-source support limit.
 
 ## Remaining original obligations
 

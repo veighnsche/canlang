@@ -2,7 +2,7 @@
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::types::SelectedCallTarget;
 use canlang_compiler::analysis::{ResolvedType, Scalar, check_program};
-use canlang_compiler::source::{SourceDb, Span};
+use canlang_compiler::source::{LineIndex, SourceDb, SourceId, Span};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -196,4 +196,71 @@ fn cyclic_field_reuse_reports_e3008() {
             }
         }
     });
+}
+
+#[test]
+fn source_offsets_and_ids_reach_owned_compiler_inputs() {
+    // Place a valid declaration at offsets on both sides of the small-width
+    // boundaries. The comment includes a multibyte scalar and CRLF so offsets
+    // are checked as UTF-8 bytes while LSP columns remain UTF-16 units.
+    for target in [255usize, 256, 65_535, 65_536] {
+        let head = "app Width\r\nGiven\r\n## ";
+        let marker = "é";
+        let tail = "\r\n derive observed(): int = 7\r\nWhen\r\nThen\r\n";
+        let padding = target - head.len() - marker.len() - "\r\n".len();
+        let text = format!("{head}{marker}{}{tail}", "x".repeat(padding));
+        let declaration = text.find(" derive observed").unwrap();
+        assert_eq!(declaration, target, "target {target}");
+
+        let mut db = SourceDb::new();
+        let source = db.add("offset.can".into(), text.clone());
+        let (tree, parse_diagnostics) = canlang_compiler::syntax::parse(&db, source);
+        assert!(parse_diagnostics.is_empty(), "{parse_diagnostics:?}");
+        assert_eq!(tree.span, Span::new(source, 0, text.len() as u32));
+        assert!(tree.verify_coverage(text.len() as u32).is_ok());
+        let (program, diagnostics) = check_program(&db, &[source], None);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert_eq!(program.checked_files(), &[source]);
+
+        let index = LineIndex::new(&text);
+        assert_eq!(index.to_lsp(&text, declaration as u32, true), (3, 0));
+        let end = text.len();
+        let last_line = text[..end].matches('\n').count() as u32;
+        let final_line_start = text.rfind('\n').unwrap() + 1;
+        let final_column = text[final_line_start..].encode_utf16().count() as u32;
+        assert_eq!(
+            index.to_lsp(&text, u32::MAX, true),
+            (last_line, final_column)
+        );
+    }
+
+    // Exercise the real append-only database with a modest source count and
+    // a replacement path. Previously issued ids must still own their bytes.
+    let mut db = SourceDb::new();
+    let mut ids = Vec::new();
+    for i in 0..257 {
+        let path = if i == 256 {
+            "source-0.can".to_string()
+        } else {
+            format!("source-{i}.can")
+        };
+        let id = db.add(path, format!("app A{i}\nGiven\nWhen\nThen\n"));
+        ids.push(id);
+    }
+    assert_eq!(db.len(), 257);
+    assert_eq!(db.lookup("source-0.can"), Some(ids[256]));
+    for (i, id) in ids.iter().copied().enumerate() {
+        let original = format!("app A{i}\nGiven\nWhen\nThen\n");
+        let stored = db.get(id).unwrap();
+        assert_eq!(stored.text, original);
+        assert_eq!(
+            stored.sha256,
+            canlang_compiler::source::sha256_hex(original.as_bytes())
+        );
+    }
+    assert_eq!(db.iter().map(|(id, _)| id).collect::<Vec<_>>(), ids);
+    let (unknown, diagnostics) = canlang_compiler::syntax::parse(&db, SourceId(u32::MAX));
+    assert_eq!(unknown.span, Span::new(SourceId(u32::MAX), 0, 0));
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(diagnostics[0].code, "E1200");
 }

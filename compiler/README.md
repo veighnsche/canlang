@@ -64,6 +64,10 @@ Implemented modules:
 - `src/syntax/`: lossless recoverable CST parser for the full GRAMMAR.md
   (lexer, layout/descriptions, CST, parser, E1xxx diagnostics). Parses the
   whole `examples/` + `draft/` corpus cleanly; see `tests/syntax.rs`.
+  Standalone JSON-string decoding checks its absolute byte endpoint before
+  decoding: exact `u32::MAX` endpoints fit, and overflow returns a point-span
+  range error. Finite source controls cover byte offsets through 65,536 and
+  257 immutable snapshots; larger whole-source/count admission remains open.
 - `src/codegen/`: lexer-decoded IR strings, JS/BDD emitters and `sourcemap`
   codec behind `can compile`; original Can map columns retain byte units.
 - UI lowering has a finite source-to-factory surface. It carries Card captions
@@ -92,6 +96,11 @@ Implemented modules:
   omitted-array defaults and unknown-input refusal, along with alias selection,
   request schemas, context identity, input reads and lazy guard order. Canonical
   Work staging and dispatch are qualified by their owning runtime consumers.
+  Checked standard delivery values use the owning operation's canonical Values
+  type ID and delivery field schema, including nullability. Their public
+  capability/operation/version/result descriptor keeps its existing owner.
+  The native Email fixture qualifies metadata, codec and send/association
+  order; persistence and provider observation remain runtime duties.
 - Ordinary checked schedules emit
   `schedule(c,key,at,event,payload,{ownerPackage})`; cancellation emits
   `cancel(c,key,{ownerPackage})`. The compiler supplies the declaring package
