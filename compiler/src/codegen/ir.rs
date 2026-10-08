@@ -2931,6 +2931,57 @@ impl<'a> Cx<'a> {
                     .iter()
                     .enumerate()
                     .map(|(source, key)| {
+                        if matches!(id.as_str(), "any" | "all")
+                            && let Some(marker) = signature
+                                .params
+                                .iter()
+                                .zip(&selected.slots)
+                                .find(|(_, slot)| **slot == Some(source))
+                                .and_then(|(param, _)| param.in_scope.as_ref())
+                        {
+                            let Some(domain) = signature
+                                .params
+                                .iter()
+                                .zip(&selected.slots)
+                                .find(|(param, _)| param.alias.as_ref() == Some(marker))
+                                .and_then(|(_, slot)| *slot)
+                                .and_then(|slot| self.node(&selected.arguments[slot]))
+                            else {
+                                return TypedExpr::new(
+                                    IrExpr::Unsupported {
+                                        what: "scoped predicate".to_string(),
+                                        why: "checked predicate domain is missing".to_string(),
+                                    },
+                                    ResolvedType::Unknown,
+                                    Span::new(key.file, key.start, key.end),
+                                );
+                            };
+                            let alias = call_domain_alias(self.db, domain);
+                            let param = alias.clone().unwrap_or_else(|| "row".to_string());
+                            let mut inner = scope.clone();
+                            if let Some(alias) = alias {
+                                inner.row_rewrite.insert(alias.clone(), alias.clone());
+                                inner
+                                    .name_types
+                                    .insert(alias, query_element_ty(&self.node_type(domain)));
+                            }
+                            let body = self.decode_anchored(&inner, key, "scoped predicate");
+                            let ty = body.ty.clone();
+                            let span = body.span;
+                            let expr = if expr_uses_async(&body) {
+                                IrExpr::Unsupported {
+                                    what: "scoped predicate".to_string(),
+                                    why: "Values any/all require a synchronous predicate"
+                                        .to_string(),
+                                }
+                            } else {
+                                IrExpr::Lambda {
+                                    param,
+                                    body: Box::new(body),
+                                }
+                            };
+                            return TypedExpr::new(expr, ty, span);
+                        }
                         // Operation identities are constructor data only at the
                         // checked action/invocation target formal. Keep source
                         // order and the checker's named-argument slot mapping;
@@ -3597,6 +3648,37 @@ fn query_element_ty(ty: &ResolvedType) -> ResolvedType {
     match ty {
         ResolvedType::Array { element, .. } => (**element).clone(),
         _ => ResolvedType::Unknown,
+    }
+}
+
+/// The same top-level domain alias whose declaration scopes a checked predicate.
+fn call_domain_alias(db: &SourceDb, node: &SyntaxNode) -> Option<String> {
+    let mut current = node;
+    loop {
+        match current.kind {
+            SyntaxKind::Group => {
+                current = kids(current).iter().find(|node| is_expression(node.kind))?;
+            }
+            SyntaxKind::Query => {
+                return kids(current)
+                    .into_iter()
+                    .filter(|node| node.kind == SyntaxKind::QueryClause)
+                    .find_map(|clause| {
+                        let parts = kids(clause);
+                        if parts
+                            .first()
+                            .and_then(|node| name_text(db, node))
+                            .as_deref()
+                            == Some("as")
+                        {
+                            parts.get(1).and_then(|node| name_text(db, node))
+                        } else {
+                            None
+                        }
+                    });
+            }
+            _ => return None,
+        }
     }
 }
 
