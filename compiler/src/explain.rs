@@ -101,7 +101,7 @@ pub fn entry_to_text(info: &CodeInfo) -> String {
     out
 }
 
-const CATALOG: [CodeInfo; 118] = [
+const CATALOG: [CodeInfo; 119] = [
     CodeInfo {
         code: "E1001",
         title: "bare-carriage-return",
@@ -933,6 +933,14 @@ const CATALOG: [CodeInfo; 118] = [
         explanation: "A checked position has no DESIGN §13 lowering: an unknown UI factory, named builtin arguments, a value-domain query, or another unlowered shape. The message names the position and the missing lowering. The emitter reports it and emits a throwing placeholder (or a best-effort id); it never invents semantics. Rewrite to a lowered form — `text` renders where `badge` has no lowering.",
         example_valid: "app T\nGiven\n Todo { title:text, done:bool=false }\n policy Todo read=members\nWhen\nThen\n page / title=\"T\"\n  card \"C\"\n   list Todo as task\n    text row.title\n",
         example_invalid: "app T\nGiven\n Todo { title:text, done:bool=false }\n policy Todo read=members\nWhen\nThen\n page / title=\"T\"\n  card \"C\"\n   list Todo as task\n    badge row.done\n",
+    },
+    CodeInfo {
+        code: "E6012",
+        title: "emission-capacity",
+        severity: Severity::Error,
+        explanation: "Generated JavaScript uses 1-based u32 line numbers, while source maps use 0-based u32 coordinates and reserve u32::MAX for missing source/name IDs. Emission refuses a line, row or table entry outside its owning range without truncation. Full compilation returns no executable artifact; fallible writer/map APIs report the diagnostic. Existing convenience finish/build APIs panic deterministically for unrepresentable input. Reduce the emitted line or source/name count. This numeric contract does not promise memory or timing bounds.",
+        example_valid: "Generated line numbers through u32::MAX, map coordinates through u32::MAX and real map source/name IDs below u32::MAX.",
+        example_invalid: "A generated line or source-map row outside u32, or a real source/name ID equal to the map library's missing-value sentinel.",
     },
     CodeInfo {
         code: "E7001",

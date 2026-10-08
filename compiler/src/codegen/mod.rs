@@ -106,7 +106,8 @@ pub struct EmitSources<'a> {
 /// passes the explicit test-only acknowledgment. Otherwise builds the
 /// checked IR, lowers production and test modules, maps source spans
 /// and assembles the artifact, returning every `E6006`/`E6007`/
-/// `E6008` alongside it in canonical order. Diagnostics with severity
+/// `E6008` alongside it in canonical order. Numeric emission capacity
+/// failures return `E6012` with no executable artifact. Diagnostics with severity
 /// error always block shipping; the caller decides that from the returned
 /// list.
 ///
@@ -141,8 +142,16 @@ pub fn emit(
     let (ir, mut diags) = ir::build(program, sources.db, sources.catalog);
     let js_out = js::emit_program(&ir);
     diags.extend(js_out.diagnostics.iter().cloned());
+    if diags.iter().any(|diagnostic| diagnostic.code == "E6012") {
+        diags.sort_by(Diagnostic::canonical_cmp);
+        return (empty_artifact(sources.db), diags);
+    }
     let (test_modules, test_builtins, suite_diags) = emit_suites(&ir);
     diags.extend(suite_diags);
+    if diags.iter().any(|diagnostic| diagnostic.code == "E6012") {
+        diags.sort_by(Diagnostic::canonical_cmp);
+        return (empty_artifact(sources.db), diags);
+    }
     let (artifact, mut artifact_diags) = artifact::assemble(
         &ir,
         &js_out,
@@ -211,7 +220,10 @@ fn emit_suites(ir: &IrProgram) -> (Vec<BddModule>, Vec<ReferencedBuiltin>, Vec<D
         .collect();
     for item in &ir.items {
         if matches!(item.kind, IrItemKind::Fixture { .. }) && !claimed.contains(&item.id) {
-            modules.push(bdd::emit_fixture_shell(ir, item));
+            match bdd::try_emit_fixture_shell(ir, item) {
+                Ok(module) => modules.push(module),
+                Err(diagnostic) => diags.push(diagnostic),
+            }
         }
     }
     (modules, builtins, diags)
