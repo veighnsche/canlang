@@ -264,3 +264,61 @@ fn source_offsets_and_ids_reach_owned_compiler_inputs() {
     assert_eq!(diagnostics.len(), 1);
     assert_eq!(diagnostics[0].code, "E1200");
 }
+
+#[test]
+fn diagnostic_width_preserves_every_authored_error_in_output() {
+    bounded_cases(
+        "diagnostic_width_preserves_every_authored_error_in_output",
+        &[100, 1000, 3000],
+        |width| {
+            let mut text = String::from("app DiagnosticWidth\nGiven\n");
+            let mut expected = Vec::new();
+            for index in 0..width {
+                let name = if index % 2 == 0 {
+                    "absent".to_string()
+                } else {
+                    format!("missing{index}")
+                };
+                let declaration = format!(" derive probe{index}(value:int): int = {name}(value)\n");
+                let start = text.len() + declaration.find(&name).unwrap();
+                expected.push((name, start));
+                text.push_str(&declaration);
+            }
+            text.push_str("When\nThen\n");
+            let mut db = SourceDb::new();
+            let file = db.add("diagnostic-width.can".into(), text);
+            let (_, diagnostics) = check_program(&db, &[file], None);
+            assert_eq!(
+                diagnostics.len(),
+                width,
+                "width {width}: first diagnostics {:?}",
+                diagnostics.iter().take(4).collect::<Vec<_>>(),
+            );
+            let mut result = canlang_compiler::diagnostic::DiagnosticResult::new(
+                env!("CARGO_PKG_VERSION"),
+                canlang_compiler::LANGUAGE_VERSION,
+                canlang_compiler::SCHEMA_VERSION,
+            );
+            result.add_sources(&db);
+            for diagnostic in diagnostics {
+                result.push(diagnostic);
+            }
+            result.finish();
+            let wire: serde_json::Value = serde_json::from_str(&result.to_json()).unwrap();
+            assert_eq!(wire["complete"], true);
+            assert_eq!(wire["omitted"], 0);
+            assert_eq!(wire["sources"].as_array().unwrap().len(), 1);
+            let emitted = wire["diagnostics"].as_array().unwrap();
+            assert_eq!(emitted.len(), width);
+            for (diagnostic, (name, start)) in emitted.iter().zip(expected) {
+                assert_eq!(diagnostic["code"], "E2001");
+                assert_eq!(diagnostic["severity"], "error");
+                assert_eq!(diagnostic["message"], format!("unresolved name '{name}'"));
+                assert_eq!(
+                    diagnostic["primary"],
+                    serde_json::json!({"file":file.0,"start":start,"end":start+name.len()}),
+                );
+            }
+        },
+    );
+}

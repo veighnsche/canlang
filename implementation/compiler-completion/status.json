@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-08T08:08:00.128032+00:00",
+  "updated_utc": "2026-10-08T09:11:50Z",
   "total": 67,
   "finished_at_recorded_scope": 53,
   "remaining_including_partial": 14,
@@ -81,7 +81,8 @@
     "S9-Q01",
     "S9-Q03",
     "S9-Q06",
-    "SEM-R08"
+    "SEM-R08",
+    "FAIL-R06"
   ],
   "counting_policy": "Count canonical reference once. Reuse17previously accepted bounded references; add only full recorded finding/retention outcomes. Partial joins/components do not close their broader reference. Wider host/application and future-source requirements remain separately explicit. These references overlap and are not67independent implementations.",
   "suite": {
@@ -99,9 +100,9 @@
     }
   },
   "latest_component": {
-    "commit": "01dc06512a79e9709629beb25f03c582405a3ee9",
-    "previous_component": "ab25b5c76eb2b9e88440f13a9028fe7ba90971c6",
-    "outcome": "Checked schedule/cancel declaring-package options and closed canonical event inputs released. Simple declared-event handler linkage and c,{event} execution pass the focused native producer case; actual Values ref/default/bound/trim/refusal controls, plain schedule golden and strict library Clippy pass. CF/D1 scheduling, replacement, cancellation and due-time admission remain owning consumer work."
+    "commit": "f1d63d0a31a4906bcc368aa4e8c7cb0ef2f51161",
+    "previous_component": "bdab357663c446d4ce0e88577cc4d935b0e6a7fc",
+    "outcome": "Checked standard delivery canonical types/nullable field schemas and reserved Receipt.read metadata reach the unchanged native Email fixture and real State descriptor loader. Exact closed required inputs, generated public read gate and genuine source collision refusal pass. Native case, eight affected T15b cases, strict library Clippy and can build pass. Actual current-grant/provider serving remains owning runtime qualification."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -114,9 +115,15 @@
     "../../compiler/tests/selected_calls.rs",
     "../../compiler/tests/effects.rs",
     "../../compiler/tests/default_parameter_runtime.rs",
-    "../../compiler/tests/schedule_binding_runtime.rs"
+    "../../compiler/tests/schedule_binding_runtime.rs",
+    "../../compiler/tests/anonymous_message_coverage.rs",
+    "../../compiler/tests/delivery_field_runtime.rs",
+    "../../compiler/tests/syntax.rs",
+    "../../compiler/tests/width_boundaries.rs",
+    "../../compiler/tests/message_width.rs",
+    "../../compiler/tests/graph_width.rs"
   ],
-  "current_source_work": "SEQ019 producer01dc0651 publishes declaring ownerPackage with schedule/cancel, canonical event.inputs descriptors and checked non-cohort declared-event handler identity. CF/D1 owns verified scope, occurrence allocation, payload persistence, atomic replacement/cancellation, current record hydration and due-time eligibility. Selected compiled atomic send staging already passed its owning consumer at the recorded primitive unconditional scope; broader dispatch/provider/predicate gates remain. SEM-R08 bounded selected overload/nominal controls6f40ab67, executed direct-create field initializer dependency fixeab267ba and earlier-parameter derive/default-refusal control9f05fa5e pass; bytes owner and full handoffs keep the broader reference open. No new source omission policy, scenario computed-default availability or whole-application closure is claimed.",
+  "current_source_work": "Private trusted handler invocation metadata86a8be55 preserves the existing handler/c,{event} boundary while the owning Work/CF/State path validates occurrences and admits current fields. Standard delivery owning-schema joinbdab3576 and reserved Receipt.read producerf1d63d0a pass genuine compiler/native/State-loader cases without fabricated consumer metadata. Standalone decoder endpoint repairc0a633b2 and finite source/message/diagnostic/graph width controls qualify their declared inputs; extreme source/count/generated-output admission remains unresolved. Anonymous format coveragee71b37cf and earlier SEM-R08 overload/nominal/default/executed-initializer controls stay bounded; scenario computed defaults, bytes owner, held BDD/timezone and wider application/provider workflows remain open. Existing matching checks are reused, not a full-suite or whole-reference closure.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
