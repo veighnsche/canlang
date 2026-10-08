@@ -73,6 +73,7 @@ fn populated_artifact_preserves_order_omissions_and_embedded_json() {
         name: "Z.go".into(),
         kind: JsOperationKind::Scenario,
         description: "".into(),
+        result: None,
         inputs: vec![
             JsOperationField {
                 name: "z".into(),

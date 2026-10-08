@@ -1,0 +1,27 @@
+package work
+ Given
+ When
+  export scenario number(value:int) read=true -> int by=members
+   do
+    return value
+  export scenario finish(value:int) by=members
+   do
+    let copy = value
+ Then
+app Client
+use work {number as selected, finish as complete}
+Given
+ Item { title:text }
+ policy Item read=members
+When
+ scenario number(value:text) read=true -> text by=members
+  do
+   return value
+ scenario nullable(value:int?) read=true -> int? by=members
+  do
+   return value
+ scenario hidden(value:int) read=true -> int by=members expose=none
+  do
+   return value
+ crud Item by=members fields=title
+Then
