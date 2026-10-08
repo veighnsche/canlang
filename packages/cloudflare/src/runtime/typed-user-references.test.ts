@@ -75,7 +75,9 @@ test('compiled UserRefs preserve actor equality and closed wire shapes through D
     const invoker = buildInvoker(artifact, asm, d1.store, options);
     const create = envelope('Entry.create');
     const born = committed(await invoker.invokeMutation(create, identity));
-    const row = born.result as { id: string; data: Record<string, unknown> };
+    assert.equal(born.result, null);
+    assert.equal(born.records?.length, 1);
+    const row = born.records![0] as { id: string; data: Record<string, unknown> };
     assert.deepEqual(row.data, { owner: actor, assignee: null, users: [], maybeUsers: null });
     const createReceipt = await d1.store.readReceipt(receiptIdentity(create));
     assert.deepEqual(createReceipt?.resolvedDefaults['owner'], actor);
