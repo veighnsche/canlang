@@ -69,6 +69,11 @@ export {check as require};
 export async function send(context,operation,request,options){
  const probe=globalThis.probe;assert.equal(context,probe.context);assert.equal(operation,'std.TextGenerationV1.generate');assert.deepEqual(options,{binding:'TypedGenerationProgress.LLM'});
  assert.deepEqual(request,{value:{source:'origin-1',revision:3n,profile:'local-chat',policy_revision:'policy-1',messages:[{role:'user',content:probe.prompt,attachments:[]}],max_input_tokens:1024n,max_output_tokens:128n,max_duration:30000n}});
+ const wire={value:probe.values.encodeValue(probe.inputs.value.type,request.value)};
+ const checked=probe.values.validateOperationInput(probe.schema,operation,wire);
+ assert.deepEqual(checked.value,request.value);
+ assert.deepEqual(wire.value,{source:'origin-1',revision:'3',profile:'local-chat',policy_revision:'policy-1',messages:[{role:'user',content:probe.prompt,attachments:[]}],max_input_tokens:'1024',max_output_tokens:'128',max_duration:'30000'});
+ assert.throws(()=>probe.values.validateOperationInput(probe.schema,operation,{value:{...wire.value,messages:[{role:'visitor',content:probe.prompt,attachments:[]}]}}));
  probe.trace.push(['send']);return probe.attempt;
 }
 export async function set(context,record,changes){const probe=globalThis.probe;assert.equal(context,probe.context);assert.equal(record,probe.record);assert.equal(changes.request,probe.attempt);probe.trace.push(['set']);}
@@ -84,20 +89,28 @@ import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
 import {dirname,resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 const base=dirname(new URL(import.meta.url).pathname);
+const values=await import(pathToFileURL(resolve(process.argv[2],'packages/values/dist/src/index.js')));
 const artifact=JSON.parse(readFileSync(resolve(base,'artifact.json'),'utf8'));
 for(const module of artifact.modules){const path=resolve(base,module.path);mkdirSync(dirname(path),{recursive:true});writeFileSync(path,module.js);}
 const descriptor=artifact.callables.find(item=>item.id==='TypedGenerationProgress.generate');assert(descriptor);
 const module=await import(pathToFileURL(resolve(base,descriptor.module)));let callable=module.canApp();for(const part of descriptor.member)callable=callable[part];
 assert.deepEqual(module.appDefinition.bindings['TypedGenerationProgress.LLM'],{capability:'std.TextGenerationV1',from:'deployment.llm'});
+const contracts=module.appDefinition.contracts;
+assert.deepEqual(Object.keys(contracts),['TextRequest','TextMessage','TextRun']);
+assert.deepEqual(Object.keys(contracts.TextRequest.fields),['source','revision','profile','policy_revision','messages','max_input_tokens','max_output_tokens','max_duration']);
+assert.equal(contracts.TextRequest.fields.max_duration.type,'duration');
+assert.deepEqual(contracts.TextMessage,{fields:{role:{type:'enum(system,user,assistant)'},content:{type:'text'},attachments:{type:'file[]'}}});
+const inputs=module.appDefinition.capabilities['std.TextGenerationV1'].operations.generate.inputs;
+const schema=values.normalizeSchema({contracts,operations:{'std.TextGenerationV1.generate':{inputs}}});
 const context={operation:{id:'origin-1'},memberships:['members']},record={id:'job-1',version:3n},attempt={id:'attempt-1',operation:'std.TextGenerationV1.generate'},trace=[];
 for(const prompt of ['Authored prompt','']){
- globalThis.probe={context,record,attempt,trace,prompt};
+ globalThis.probe={context,record,attempt,trace,prompt,values,schema,inputs};
  trace.length=0;await callable(context,{job:record,prompt,accept:true});assert.deepEqual(trace,[['check',true],['send'],['set'],['check',true]]);
  trace.length=0;await assert.rejects(callable(context,{job:record,prompt,accept:false}),{message:'authored refusal'});assert.deepEqual(trace,[['check',true],['send'],['set'],['check',false]]);
 }
 
 "#).unwrap();
-    let native = Command::new("node").arg(runner).output().unwrap();
+    let native = Command::new("node").arg(runner).arg(root).output().unwrap();
     assert!(
         native.status.success(),
         "{}\n{}",

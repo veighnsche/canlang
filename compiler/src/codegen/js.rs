@@ -37,6 +37,25 @@ use serde::ser::{SerializeMap, SerializeStruct};
 use serde::{Serialize, Serializer};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
+/// Follow nominal field references using the consumed owner schema only.
+fn collect_std_nominal_contracts(
+    declared: &str,
+    published: &mut BTreeSet<String>,
+    schemas: &mut Vec<&'static crate::analysis::catalog::StdNominal>,
+) {
+    let base = declared.trim_end_matches('?').trim_end_matches("[]");
+    let Some(schema) = nominal_schema(base) else {
+        return;
+    };
+    if !published.insert(schema.name.to_string()) {
+        return;
+    }
+    schemas.push(schema);
+    for (_, declared) in schema.fields {
+        collect_std_nominal_contracts(declared, published, schemas);
+    }
+}
+
 fn invocation_base(ty: &ResolvedType) -> bool {
     match ty {
         ResolvedType::Invocation { .. } => true,
@@ -4949,6 +4968,7 @@ impl<'a> Emitter<'a> {
     /// schemas.
     fn emit_records_member(&mut self, member: &str, kinds: &[&str]) -> String {
         let mut records = Vec::new();
+        let mut published = BTreeSet::new();
         for item in &self.ir.items.clone() {
             let (fields, label) = match &item.kind {
                 IrItemKind::Contract { fields, label } if kinds.contains(&"Contract") => {
@@ -4973,6 +4993,58 @@ impl<'a> Emitter<'a> {
                 js_string(&item.canonical),
                 members.join(",")
             ));
+            published.insert(item.canonical.clone());
+        }
+        if kinds.contains(&"Contract") {
+            // Reach only schemas owned by checked imported capabilities.
+            // Keep source contracts first and never overwrite their identity.
+            let mut schemas = Vec::new();
+            for module in &self.ir.modules {
+                for import in &module.imports {
+                    if import.provider != "std" {
+                        continue;
+                    }
+                    for (name, _, _) in &import.members {
+                        if let Some(capability) = std_capability(name) {
+                            for op in capability.operations {
+                                for (_, declared) in op.inputs {
+                                    collect_std_nominal_contracts(
+                                        declared,
+                                        &mut published,
+                                        &mut schemas,
+                                    );
+                                }
+                                collect_std_nominal_contracts(
+                                    op.result,
+                                    &mut published,
+                                    &mut schemas,
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            for schema in schemas {
+                let fields = schema
+                    .fields
+                    .iter()
+                    .map(|(name, declared)| {
+                        // Contracts' CanDuration is bigint milliseconds; Values'
+                        // owning canonical type domain calls that leaf duration.
+                        let declared = if *declared == "CanDuration" {
+                            "duration"
+                        } else {
+                            declared
+                        };
+                        format!("{}:{{type:{}}}", object_key(name), js_string(declared))
+                    })
+                    .collect::<Vec<_>>()
+                    .join(",");
+                records.push(format!(
+                    "{}:{{fields:{{{fields}}}}}",
+                    js_string(schema.name)
+                ));
+            }
         }
         format!("{member}:{{{}}}", records.join(","))
     }
