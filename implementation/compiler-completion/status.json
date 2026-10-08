@@ -1,12 +1,13 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-08T01:47:03.475814+00:00",
+  "updated_utc": "2026-10-08T02:18:40.686282+00:00",
   "total": 67,
-  "finished_at_recorded_scope": 46,
-  "remaining_including_partial": 21,
+  "finished_at_recorded_scope": 47,
+  "remaining_including_partial": 20,
   "finished_references": [
     "COST-01",
     "DEP-01",
+    "DEP-02",
     "DEP-03",
     "ED-R01",
     "ED-R02",
@@ -55,7 +56,6 @@
   "remaining_references": [
     "ARCH-01",
     "ARCH-02",
-    "DEP-02",
     "FAIL-R06",
     "OR-02",
     "OR-06",
@@ -78,7 +78,6 @@
   "bounded_components_with_broader_reference_still_open": [
     "ARCH-01",
     "ARCH-02",
-    "DEP-02",
     "S9-Q01",
     "S9-Q03",
     "S9-Q06",
@@ -103,9 +102,9 @@
     }
   },
   "latest_component": {
-    "commit": "5a0006ec",
-    "previous_component": "94c2ae16",
-    "outcome": "Editor supported document/catalog closure qualified; checked app locale producer integrated as a bounded formatting component."
+    "commit": "ff28ba52",
+    "previous_component": "d400ef09",
+    "outcome": "DEP-02 actual map attribution qualifies retained support; field-reuse and explicit-empty producer corrections integrated as bounded components."
   },
   "latest_accepted_outcomes": [
     "renderer-failure-qualification/README.md",
@@ -113,7 +112,7 @@
     "json-frame-oracles/README.md",
     "corpus-admission/independent-review/REVIEW.md"
   ],
-  "current_source_work": "Cyclic field-type reuse currently emits no E3008 despite existing refusal contract; focused types.rs correction underway. Actual used-catalog and forward-reuse ladders pass at depths0/16/32/64/128. Broader widths, runtime formatting and BDD consumer work remain open.",
+  "current_source_work": "No active compiler production writer. SEM-R08 actual nominal/overload owner seam inspection proceeds; runtime formatting and BDD consumer work remain open. Shared empty-state default remains proposed; explicit caption path is verified.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"

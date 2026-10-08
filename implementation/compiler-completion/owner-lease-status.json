@@ -1,17 +1,7 @@
 {
   "updated": "2026-10-08",
   "owner": "compiler completion root",
-  "current_source_leases": {
-    "compiler_width_boundaries": {
-      "model": "gpt-6.1-sol",
-      "reasoning_effort": "medium",
-      "paths": [
-        "compiler/src/analysis/types.rs::cyclic field-type reuse",
-        "compiler/tests/width_boundaries.rs"
-      ],
-      "status": "Fix existing E3008 refusal after direct cycle control exposed missing diagnostic; no new support policy."
-    }
-  },
+  "current_source_leases": {},
   "integrated_releases": {
     "selected_call_bindings": "3403dc71; actual overload/named/default/alias/plain2arg format independently accepted bounded",
     "checked_owners": "4e89b117; exact source/catalog cohort beforelower",
@@ -36,7 +26,10 @@
     "UI_native_scalar_presentation": "56b06e68;31 focused messages plus generated native/wire and State query outcomes; original SEM-R06 defects complete.",
     "source_map_names": "3d304dc7;6 focused checks pass; broader widths remain open.",
     "selected_app_locale": "94c2ae16;6 locale/117 codegen tests pass; runtime formatting join remains open.",
-    "editor_project_scope": "5a0006ec;declared document/catalog lifetime and actual client/CLI comparison accepted bounded."
+    "editor_project_scope": "5a0006ec;declared document/catalog lifetime and actual client/CLI comparison accepted bounded.",
+    "field_type_reuse_cycles": "13ec4873;existing E3008 cycle contract corrected, focused reuse/cycle controls pass.",
+    "list_explicit_empty": "d400ef09;absent required caption refuses, actual explicit-caption empty query/UI path and owning regressions pass.",
+    "map_actual_attribution": "ff28ba52;independent actual Node mapped failure, original DEP-02 retained-support scope complete."
   },
   "pending_releases": {
     "UI_static": "Releasedc718517a; furtherlegalcaption/genericprofiles needexactownerqualification",
@@ -60,7 +53,7 @@
     "compiler_inputs": 127,
     "package_dist_inputs": 1770,
     "external_can_fixtures": 5,
-    "source_writers": "Type-reuse cycle writer only; no current whole-source freeze. Foreign package ownership retained.",
+    "source_writers": "None; no current whole-source freeze. Foreign package ownership retained.",
     "status": "Historical native1162 at83d40be0 accepted. Corpus0611 focused independently accepted. No current whole-source freeze.",
     "start_head": "0134ebb01b978831e07e6428bd15512de75e610a",
     "receipt": "integration-after-bindings/after-action-invocation/native-run/profile-accounting/final-run.json"
