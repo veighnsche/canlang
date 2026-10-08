@@ -2497,6 +2497,8 @@ export interface CanonicalMutationOpts {
   readonly store: StoragePort;
   readonly memberships: CanonicalMembershipReader;
   readonly now: () => number;
+  /** Same real receipt observer used by read serving in this selected host. */
+  readonly observer?: SelectedReceiptObserverBinding;
   /** Real finalized-file authority, bound by the selected host. */
   readonly files?: CanonicalFileBinding;
 }
@@ -3185,6 +3187,29 @@ async function runScenarioSeam(
       readRecords: async (model: string, query: CanonicalReadQuery) =>
         (await scope.readModel(model, query)).map((row) => projectedRecordView(model, row)),
     }),
+    observeDelivery: async (locator, selected) => {
+      try {
+        if (!isUnknownRecord(locator.record)) {
+          throw new StateError('validation', 'Delivery observation needs a bound record.');
+        }
+        const binding = recordBindings.get(locator.record);
+        if (binding === undefined) throw new StateError('validation', 'Delivery observation needs a bound record.');
+        const observed = await invokeSelectedReceiptRead({
+          asm: opts.asm, artifact: opts.artifact, operation: RECEIPT_READ_OPERATION,
+          inputs: { recordId: binding.id, field: locator.field, selected: [...selected] },
+          boundModel: binding.model, identity: opts.identity, store: overlay,
+          memberships: opts.memberships, now: () => call.context.now,
+          ...(opts.observer === undefined ? {} : { observer: opts.observer }),
+        });
+        if (observed.outcome === 'denied') {
+          throw new StateError('forbidden', 'Delivery observation is not authorized.');
+        }
+        return observed.outcome === 'observed' ? observed.projection : null;
+      } catch (error) {
+        recordEngineFailure(error);
+        throw error;
+      }
+    },
     createRecord: async (model, data) => {
       const id = `${call.context.operationId}#create:${createIndex++}`;
       const row = await scope.stageWrite({ op: "create", model, id, data });
@@ -3842,6 +3867,8 @@ export interface SelectedReceiptObserverBinding {
 export interface SelectedReceiptReadOpts {
   readonly asm: AssembledModules;
   readonly artifact: CompileArtifact;
+  /** Source-only bound record model; never part of the client envelope. */
+  readonly boundModel?: string;
   /** Q2: injected observer wins over module resolution (production leg). */
   readonly observer?: SelectedReceiptObserverBinding;
   /** Must be `Receipt.read` (routing assert — skew tripwire otherwise). */
@@ -3859,6 +3886,7 @@ export interface SelectedReceiptReadOpts {
 interface StateReceiptJoinProducer {
   observeSelectedReceiptJoin(input: {
     readonly declaredSource: string;
+    readonly declaredResult?: import('@canlang/contracts').CanonicalNominalResult;
     readonly locator: { readonly record: { readonly id: string }; readonly field: string };
     readonly selected: ReadonlyArray<string>;
     readonly model: string;
@@ -3894,9 +3922,9 @@ export interface StateReceiptObserverProducer {
 
 const RECEIPT_READ_INPUT_KEYS: ReadonlyArray<string> = ["recordId", "field", "selected"];
 
-const RECEIPT_LEAVES: ReadonlySet<string> = new Set(["id", "status", "result", "error"]);
+const RECEIPT_LEAVES: ReadonlySet<string> = new Set(["id", "status", "result", "result.content", "error"]);
 
-const RECEIPT_PROJECTION_KEYS: ReadonlySet<string> = new Set(["id", "status", "result", "error"]);
+const RECEIPT_PROJECTION_KEYS: ReadonlySet<string> = new Set(["id", "status", "result", "result.content", "error"]);
 
 /**
  * D3b: validate the closed serving envelope (C1 + C7). Exactly
@@ -4184,7 +4212,10 @@ export async function invokeSelectedReceiptRead(
   const StateError = loaded.producers.errors;
   assertReceiptReadDef(StateError, loaded.registry);
   const { recordId, field, selected } = assertReceiptReadInputs(StateError, opts.inputs);
-  const model = bindReceiptModel(StateError, loaded.deliveryFields, field);
+  const model = opts.boundModel ?? bindReceiptModel(StateError, loaded.deliveryFields, field);
+  if (!loaded.deliveryFields.get(model)?.has(field)) {
+    throw new StateError('validation', 'Receipt read needs its owning declared delivery field.');
+  }
   const declarations = opts.artifact.models?.find(entry => entry.name === model)?.fields
     .filter(entry => entry.name === field);
   const declaration = declarations?.length === 1 ? declarations[0] : undefined;
@@ -4192,6 +4223,7 @@ export async function invokeSelectedReceiptRead(
     throw new StateError('validation', 'Receipt read needs its owning singular delivery declaration.');
   }
   const declaredSource = `${declaration.field.capability}.${declaration.field.operation}`;
+  const declaredResult = declaration.field.result;
   // Fence-join revision FIRST (C4): no grant or observation runs
   // before this read; a moved nested checkpoint conflicts here, and
   // the join re-checks against its own read below.
@@ -4251,6 +4283,7 @@ export async function invokeSelectedReceiptRead(
   const observeSelectedReceipt = await resolveReceiptObserver(opts.observer);
   const outcome = await observeSelectedReceiptJoin({
     declaredSource,
+    ...(declaredResult === undefined ? {} : { declaredResult }),
     locator: { record: { id: recordId }, field },
     selected,
     model,

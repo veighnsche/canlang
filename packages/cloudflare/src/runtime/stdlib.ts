@@ -66,6 +66,7 @@ export {
   parseDecimal, addDecimal, compareDecimal, money, addMoney, compareMoney,
   date, add_days, compareDate,
 } from '@canlang/values';
+export { delivery } from '@canlang/state/effects/delivery';
 
 /** Pure checked equality, with compatibility for earlier c-first artifacts. */
 export function equalValue(typeId: string, a: CanValue, b: CanValue): boolean;
@@ -323,12 +324,6 @@ export async function cancel(
 export function check(c: HandlerContext, ..._args: unknown[]): never {
   void c;
   return unsupported('check', 'receipt/idempotency checks need the L3 invocation context.');
-}
-
-/** Not in B1: delivery status needs the L3 outbox dispatcher. */
-export function delivery(c: HandlerContext, ..._args: unknown[]): never {
-  void c;
-  return unsupported('delivery', 'delivery status needs the L3 outbox dispatcher.');
 }
 
 // Compatibility bindings share the state-owned synchronous handler guards.

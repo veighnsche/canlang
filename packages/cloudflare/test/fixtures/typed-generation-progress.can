@@ -4,9 +4,11 @@ use std {TextGenerationV1 as LLM} from=deployment.llm
 Given
  Job { label:text="Generation", request:delivery(LLM.generate)? }
  ## Progress is visible only through the current member grant.
- policy Job read=members fields=label,request.status,request.result
+ policy Job read=members fields=label,request.progress.content
 When
  crud Job by=members fields=label
+ scenario visible(job:Job) -> text? by=members
+  do return job.request?.progress?.content
  ## Freeze correlation and budgets in the source-owned request before staging.
  scenario generate(job:Job,prompt:text,accept:bool) by=members
   do

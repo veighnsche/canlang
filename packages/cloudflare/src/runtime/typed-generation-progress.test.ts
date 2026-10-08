@@ -13,6 +13,7 @@ import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { associationRowId, readAssociationRow, readReceiptRow, RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL } from '@canlang/state/receipt/tables';
 import { FIXED_NOW, asId, asModel, asOperationId, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
 import { decodeValue } from '@canlang/values';
+import { observeSelectedReceipt } from '@canlang/work/observation/observation';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { buildInvoker, type MutationOutcome } from '@canlang/cloudflare/worker/assembly';
 
@@ -31,11 +32,17 @@ test('compiled generation freezes the source request and pending association in 
   const identities = createMemoryIdentityStore({ clock: { nowMs: () => FIXED_NOW } });
   const user = await identities.createUser({ email: 'generation@example.test', password_hash: 'unused', email_verified: true });
   const team = await identities.createTeam({ timezone: 'UTC' });
-  await identities.createMembership({ user_id: user.user_id, team_id: team.team_id, is_owner: true, roles: [] });
+  const membership = await identities.createMembership({ user_id: user.user_id, team_id: team.team_id, is_owner: true, roles: [] });
   const token = 'generation-prefix-session';
   await identities.createSession({ user_id: user.user_id, token_sha256: createHash('sha256').update(token).digest('hex'),
     expires_at: new Date(FIXED_NOW + 3_600_000).toISOString(), last_team_id: team.team_id });
   const identity = await resolveIdentity(identities, { session_token: token, team_id: team.team_id },
+    { clock: { nowMs: () => FIXED_NOW } });
+  const outsider = await identities.createUser({ email: 'generation-outsider@example.test', password_hash: 'unused', email_verified: true });
+  const outsiderToken = 'generation-outsider-session';
+  await identities.createSession({ user_id: outsider.user_id, token_sha256: createHash('sha256').update(outsiderToken).digest('hex'),
+    expires_at: new Date(FIXED_NOW + 3_600_000).toISOString(), last_team_id: team.team_id });
+  const outsiderIdentity = await resolveIdentity(identities, { session_token: outsiderToken, team_id: team.team_id },
     { clock: { nowMs: () => FIXED_NOW } });
   const dir = await mkdtemp(join(tmpdir(), 'can-generation-prefix-'));
   const worker = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
@@ -50,12 +57,27 @@ test('compiled generation freezes the source request and pending association in 
       workDir: join(dir, 'modules'), stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
       uiUrl: import.meta.resolve('@canlang/ui'),
     });
-    const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => FIXED_NOW });
+    const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => FIXED_NOW,
+      selectedReceiptObserver: { observeSelectedReceipt: (input: unknown) =>
+        observeSelectedReceipt(input as Parameters<typeof observeSelectedReceipt>[0]) } });
     let sequence = 0;
     const envelope = (operation: string, inputs: MutationEnvelope['inputs']): MutationEnvelope => ({
       operation: `${APP}.${operation}`, operation_id: asOperationId(uuidv7(FIXED_NOW, ++sequence)), inputs,
     });
     const created = committed(await invoker.invokeMutation(envelope('Job.create', {}), identity)).result as { id: string; version: number };
+    const visible = (version: number, caller = identity) => invoker.invokeMutation(envelope('visible', {
+      job: { id: created.id, version: String(version) },
+    }), caller);
+    const readReceipt = (selected: string[], caller = identity) => invoker.invokeRead({ operation: 'Receipt.read',
+      inputs: { recordId: created.id, field: 'request', selected } }, caller);
+    const readBody = (response: Awaited<ReturnType<typeof readReceipt>>) => {
+      assert.ok('result' in response, JSON.stringify(response));
+      assert.ok(typeof response.result === 'object' && response.result !== null && !Array.isArray(response.result));
+      return response.result as Record<string, unknown>;
+    };
+    assert.equal(committed(await visible(1)).result, null);
+    const unassociated = await readReceipt(['result.content']);
+    assert.equal(readBody(unassociated)['outcome'], 'null-association');
     const original = envelope('generate', { job: { id: created.id, version: String(created.version) },
       prompt: 'Actual compiled request', accept: true });
     committed(await invoker.invokeMutation(original, identity));
@@ -89,6 +111,21 @@ test('compiled generation freezes the source request and pending association in 
     assert.ok(receiptRow);
     assert.deepEqual(readReceiptRow(receiptRow).receipt, { deliveryId: intent.intentId, revision: association.revision,
       status: 'pending', result: null, error: null });
+    assert.equal(committed(await visible(2)).result, null);
+    const observed = await readReceipt(['result.content']);
+    assert.equal(readBody(observed)['outcome'], 'observed');
+    assert.deepEqual(readBody(observed)['projection'], { 'result.content': null });
+    for (const selected of ['result', 'status', 'id']) {
+      const denied = await readReceipt([selected]);
+      assert.equal(readBody(denied)['outcome'], 'denied');
+    }
+    const outsiderRead = await readReceipt(['result.content'], outsiderIdentity);
+    assert.ok('error' in outsiderRead || readBody(outsiderRead)['outcome'] === 'denied', JSON.stringify(outsiderRead));
+    assert.ok('error' in await visible(2, outsiderIdentity));
+    await identities.removeMembership(membership.membership_id);
+    const revokedRead = await readReceipt(['result.content']);
+    assert.ok('error' in revokedRead || readBody(revokedRead)['outcome'] === 'denied', JSON.stringify(revokedRead));
+    assert.ok('error' in await visible(2));
   } finally {
     await worker.dispose();
     await rm(dir, { recursive: true, force: true });
