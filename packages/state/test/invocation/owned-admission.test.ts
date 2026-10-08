@@ -266,6 +266,33 @@ describe('V02.4 owned admission: prepared-inputs leaf', () => {
     }
   });
 
+  it('preserves checked nullable array omissions for the owning default stage', () => {
+    for (const kind of ['integer', 'datetime'] as const) {
+      for (const nullable of [false, true]) {
+        const valueType = `${kind === 'integer' ? 'int' : kind}[]${nullable ? '?' : ''}`;
+        const operation = asOperation('Acme.inspect');
+        const loaded = loadExecutionDescriptorSet({
+          contractVersion: 1,
+          models: [],
+          operations: [{ name: operation, kind: 'scenario', inputs: [
+            { name: 'values', kind, required: false, valueType },
+          ] }],
+        }, { by: 'public', inputArrays: { [operation]: { values: { required: false } } } });
+        const def = loaded.registry.get(operation)!;
+        assert.ok(isGeneratedOperationDef(def));
+        const plan = def.preparedInputs!;
+        assert.equal(plan.rules[0]!.arrayFill, !nullable);
+        const expected = nullable ? {} : { values: [] };
+        assert.deepEqual(validateCallInputs(def, {}).normalized, expected);
+        assert.deepEqual(validatePreparedInputs(plan, {}).normalized, expected);
+        for (const supplied of [{ values: null }, { values: [] }]) {
+          assert.deepEqual(validateCallInputs(def, supplied).normalized, supplied);
+          assert.deepEqual(validatePreparedInputs(plan, supplied).normalized, supplied);
+        }
+      }
+    }
+  });
+
   it('returns a fresh unfrozen shallow copy and never mutates the caller inputs', () => {
     const withTags = makeGenerated([scalar('note', false), scalar('tags', false)], {
       tags: { required: false },

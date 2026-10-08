@@ -18,7 +18,7 @@
  * are positive integers of at most 15 digits (`/^[1-9][0-9]{0,14}$/`,
  * safe-number conversion); record refs tolerate extra members;
  * operation defaults are NEVER filled (defaults stay host-owned);
- * omitted optional ordinary-array inputs without defaults fill a FRESH `[]`
+ * omitted optional nonnullable ordinary-array inputs without defaults fill a FRESH `[]`
  * outside updates;
  * the normalized output is a fresh unfrozen shallow copy.
  *
@@ -67,7 +67,7 @@ export interface PreparedInputRule {
   readonly name: string;
   readonly ref: { readonly model: ModelName; readonly versioned: boolean; readonly nullable?: true } | null;
   readonly required: boolean;
-  /** Fill eligible ordinary-array omissions; defaults and update omissions stay host-owned. */
+  /** Fill eligible ordinary-array omissions; defaults, nullable inputs, and update omissions stay host-owned. */
   readonly arrayFill: boolean;
   /** Present non-null values must be arrays (any marker). */
   readonly arrayCheck: boolean;
@@ -111,7 +111,9 @@ export function prepareDescriptorInputs(
           : null,
       required: input.required,
       arrayFill: marker !== undefined && !marker.required && descriptor.kind !== 'update' &&
-        input.default === undefined,
+        input.default === undefined &&
+        !(input.kind !== 'ref' && input.kind !== 'delivery' &&
+          Object.hasOwn(input, 'valueType') && input.valueType?.endsWith('?')),
       arrayCheck: marker !== undefined,
     };
   });

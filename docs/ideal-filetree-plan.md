@@ -309,3 +309,6 @@ Root released formatting reconciliation: compiler owns checked localized-message
 
 
 Root bounded typed-association reconciliation: Contracts vocabulary and State whole-set registry/model intake retain one metadata owner for int/datetime scalar, array and nullable container profiles. Ordinary/prepared admission preserves host defaults and partial updates; engine nullableFields retains omission policy. Released owner build and12affected metadata checks plus27unchanged admission results qualify this source prerequisite. Runtime/compiled-default/D1/installed/native and accumulated review remain open; no new codec owner, merge or complete checkpoint advancement.
+
+
+Root nullable-array correction: State ordinary/prepared admission preserves checked nullable omissions for existing default/null-fill owners; legacy unknown-array behavior remains. Owner compilation and28affected admission checks pass, with12metadata checks reused. Runtime/compiler/D1 consumers remain separately active; no default-evaluation owner, merge or complete checkpoint advancement.
