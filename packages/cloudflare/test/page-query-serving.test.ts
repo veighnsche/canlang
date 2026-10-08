@@ -4,9 +4,10 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { Miniflare } from "miniflare";
+import { chromium, expect as browserExpect } from "@playwright/test";
 import type { CompileArtifact } from "@canlang/contracts";
 import { CSRF_FIELD } from "@canlang/contracts";
-import { buildSessionCookie, deriveCsrfToken, hashPassword, loginWithPassword, sha256HexText } from "@canlang/identity";
+import { SESSION_COOKIE_NAME, buildSessionCookie, deriveCsrfToken, hashPassword, loginWithPassword, sha256HexText } from "@canlang/identity";
 import { deriveOperationInputs } from "@canlang/interfaces/http/operations";
 import { projectGeneratedInputs, submitGeneratedForm } from "@canlang/ui";
 import { buildDeployBundleWithAssets, writeDeployBundleWithAssets, DEPLOY_MAIN_MODULE } from "../src/deploy/bundle.js";
@@ -128,6 +129,85 @@ describe("authored operation forms through defining default Worker", () => {
     expect(afterHtml).not.toContain("Save changes");
     const nextId = attributes(afterHtml.match(/<input\b[^>]*name="operation_id"[^>]*>/)![0])["value"];
     expect(nextId).not.toBe(flat["operation_id"]);
+
+    // Drive the emitted bootstrap in installed Chrome over the real Worker
+    // HTTP origin. Direct submission above remains a separate admitted path.
+    const origin = (await worker.ready).origin;
+    const browser = await chromium.launch({ channel: "chrome", headless: true });
+    try {
+      const context = await browser.newContext();
+      try {
+        await context.addCookies([{ name: SESSION_COOKIE_NAME, value: token, url: `${origin}/`,
+          httpOnly: true, secure: false, sameSite: "Lax" }]);
+        const browserPage = await context.newPage();
+        const response = await browserPage.goto(`${origin}/`);
+        expect(response?.status()).toBe(200);
+        const browserForm = browserPage.locator("form[data-can-generated-form]");
+        await browserExpect(browserForm).toHaveCount(1);
+        await browserForm.getByLabel("Entry label").fill("Browser created entry");
+        await browserForm.getByLabel("Count", { exact: true }).fill("");
+        const nonce = await browserForm.locator('input[name="operation_id"]').inputValue();
+        expect(nonce).not.toBe(flat["operation_id"]);
+        const button = browserForm.getByRole("button", { name: "Add entry", exact: true });
+        const isCreatePost = (response: import("@playwright/test").Response) =>
+          new URL(response.url()).pathname === action && response.request().method() === "POST";
+        const browserPost = browserPage.waitForResponse(isCreatePost);
+        await button.click();
+        const createdResponse = await browserPost;
+        expect(createdResponse.status()).toBe(200);
+        expect(createdResponse.request().headers()["content-type"]).toContain("application/json");
+        expect(createdResponse.request().headers()["x-csrf-token"]).toBe(csrf);
+        expect(createdResponse.request().postDataJSON()).toEqual({
+          operation: operation.name, operation_id: nonce, inputs: { label: "Browser created entry" },
+        });
+        const createdResult = await createdResponse.json();
+        expect(createdResult.status).toBe("committed");
+        await browserExpect(browserForm).toHaveAttribute("data-can-submit-state", "committed");
+        const browserRows = await deps.store.query({ model, authority: "owner" });
+        expect(browserRows).toHaveLength(2);
+        const browserRow = browserRows.find((entry: { data: Record<string, unknown> }) => entry.data["label"] === "Browser created entry");
+        expect(browserRow.data).toEqual({ label: "Browser created entry", count: "1", owner: { id: user.user_id } });
+        const browserReceipt = await deps.store.readReceipt({ app: "TypedOperationForms", owner: team.team_id,
+          principal: user.user_id, operation: operation.name, operationId: nonce });
+        expect(browserReceipt.resolvedDefaults).toEqual({ count: "1", owner: { id: user.user_id } });
+        const browserHistory = await deps.store.historyFor(model, browserRow.id);
+        const browserRevision = await deps.store.readRevision();
+
+        // The same DOM form retains its nonce; a second actual click replays.
+        const browserReplay = browserPage.waitForResponse(isCreatePost);
+        await button.click();
+        const replayResponse = await browserReplay;
+        expect(replayResponse.status()).toBe(200);
+        expect(replayResponse.request().postDataJSON().operation_id).toBe(nonce);
+        const replayResult = await replayResponse.json();
+        expect(replayResult.status).toBe("replayed");
+        expect(replayResult.result).toEqual(createdResult.result);
+        await browserExpect(browserForm).toHaveAttribute("data-can-submit-state", "committed");
+        expect(await deps.store.readRevision()).toBe(browserRevision);
+        expect(await deps.store.query({ model, authority: "owner" })).toEqual(browserRows);
+        expect(await deps.store.historyFor(model, browserRow.id)).toEqual(browserHistory);
+
+        await browserForm.locator(`input[name="${CSRF_FIELD}"]`).evaluate((input, value) => {
+          (input as HTMLInputElement).value = value;
+        }, "wrong");
+        const browserDenial = browserPage.waitForResponse(isCreatePost);
+        await button.click();
+        const deniedResponse = await browserDenial;
+        expect(deniedResponse.status()).toBe(403);
+        expect(deniedResponse.request().headers()["x-csrf-token"]).toBe("wrong");
+        await browserExpect(browserForm).toHaveAttribute("data-can-submit-state", "denied");
+        expect(await deps.store.readRevision()).toBe(browserRevision);
+        expect(await deps.store.query({ model, authority: "owner" })).toEqual(browserRows);
+        expect(await deps.store.historyFor(model, browserRow.id)).toEqual(browserHistory);
+        expect(await deps.store.readReceipt({ app: "TypedOperationForms", owner: team.team_id,
+          principal: user.user_id, operation: operation.name, operationId: nonce })).toEqual(browserReceipt);
+        const anonymousContext = await browser.newContext();
+        try {
+          const anonymousPage = await anonymousContext.newPage();
+          expect((await anonymousPage.goto(`${origin}/`))?.status()).toBe(403);
+        } finally { await anonymousContext.close(); }
+      } finally { await context.close(); }
+    } finally { await browser.close(); }
   }, 60_000);
 });
 const loadStagedModule = (url: string): Promise<any> => import(/* @vite-ignore */ url);
