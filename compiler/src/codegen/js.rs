@@ -1735,6 +1735,7 @@ pub struct Emitter<'a> {
     bindings: Vec<HashMap<String, String>>,
     binding_seq: usize,
     localized_format: bool,
+    checked_message: bool,
     formatted_bindings: Vec<HashMap<String, bool>>,
     formatted_derives: BTreeSet<String>,
 }
@@ -1779,6 +1780,7 @@ impl<'a> Emitter<'a> {
             bindings: vec![HashMap::new()],
             binding_seq: 0,
             localized_format: false,
+            checked_message: false,
             formatted_bindings: vec![HashMap::new()],
             formatted_derives: BTreeSet::new(),
         };
@@ -2256,10 +2258,22 @@ impl<'a> Emitter<'a> {
     /// Shared generated adapters for owning runtime contracts. Keep this
     /// separate from imports so test-only modules use the same adapter.
     pub fn support_lines(&self) -> Vec<String> {
-        if !self.localized_format {
-            return Vec::new();
+        let mut lines = Vec::new();
+        if self.checked_message {
+            lines.push(format!(
+                "function {}(source,variants,params,sourceLocale){{\n\
+                 const canonical={}(sourceLocale);\n\
+                 const descriptor={}(source,variants,params,canonical);\n\
+                 if(descriptor?.sourceLocale!==canonical)throw new ValueError(\"invalid-construction\",\"message constructor must preserve checked source locale\");\n\
+                 return descriptor;\n\
+                 }}",
+                binding_ident("h", "checked_message"),
+                binding_ident("u", "normalizeTag"),
+                binding_ident("u", "message")
+            ));
         }
-        vec![format!(
+        if self.localized_format {
+            lines.push(format!(
             "function {}(c,d,locale,sourceLang,signature){{\n\
              if(typeof c?.formatting?.appDefault!==\"string\")throw new ValueError(\"invalid-construction\",\"message formatting requires checked selected-app scope\");\n\
              const timeZone=c.team===null?\"UTC\":c.team?.timezone;\n\
@@ -2271,7 +2285,9 @@ impl<'a> Emitter<'a> {
              return format(makeMessageDescriptor(d.source,d.variants,signature.length?params:undefined),{{locale,appDefault:c.formatting.appDefault,sourceLang,timeZone}});\n\
              }}",
             binding_ident("h", "localized_format")
-        )]
+            ));
+        }
+        lines
     }
 
     /// Preserve a checked bounded alias while keeping the ordinary wrappers.
@@ -3794,8 +3810,7 @@ impl<'a> Emitter<'a> {
         )
     }
 
-    /// Lower a display message: `message(source, {locales})`, or the
-    /// three-argument parameterized form preserving typed parameters.
+    /// Retain the checked source locale through the owning message factory.
     pub fn lower_message(&mut self, message: &IrMessage) -> String {
         if let Some(param) = message
             .params
@@ -3805,15 +3820,14 @@ impl<'a> Emitter<'a> {
             return self.formatted_refusal("formatted message parameter", param.value.span);
         }
         self.ui.insert("message".to_string());
+        self.ui.insert("normalizeTag".to_string());
+        self.stdlib.insert("ValueError".to_string());
+        self.checked_message = true;
         let mut out = format!(
-            "{}({}",
-            binding_ident("u", "message"),
+            "{}({},",
+            binding_ident("h", "checked_message"),
             js_string(&message.source)
         );
-        if message.variants.is_empty() && message.params.is_empty() {
-            out.push(')');
-            return out;
-        }
         let variants = message
             .variants
             .iter()
@@ -3828,7 +3842,7 @@ impl<'a> Emitter<'a> {
             })
             .collect::<Vec<_>>()
             .join(",");
-        out.push_str(&format!(",{{{variants}}}"));
+        out.push_str(&format!("{{{variants}}},"));
         if !message.params.is_empty() {
             let params = message
                 .params
@@ -3843,9 +3857,11 @@ impl<'a> Emitter<'a> {
                 })
                 .collect::<Vec<_>>()
                 .join(",");
-            out.push_str(&format!(",{{{params}}}"));
+            out.push_str(&format!("{{{params}}}"));
+        } else {
+            out.push_str("undefined");
         }
-        out.push(')');
+        out.push_str(&format!(",{})", js_string(&message.source_lang)));
         out
     }
 
@@ -4804,7 +4820,11 @@ impl<'a> Emitter<'a> {
             && node.children.iter().all(|child| child.factory == "tabItem");
         let mut props = vec![format!("context:{ctx}")];
         for (key, value) in &node.props {
-            let value = self.lower_business_expr(value, "unclassified formatted UI prop");
+            let value = if node.factory == "text" && key == "values" {
+                self.lower_expr(value)
+            } else {
+                self.lower_business_expr(value, "unclassified formatted UI prop")
+            };
             let value = if transient_tabs && key == "id" && !occurrences.is_empty() {
                 format!(
                     r#"{value}+"-"+encodeURIComponent(JSON.stringify([{}]))"#,

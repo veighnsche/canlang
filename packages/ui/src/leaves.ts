@@ -38,6 +38,7 @@ import type {
   MessageValue,
   PageChildren,
   PresentationContext,
+  ResolvedMessage,
   StatusProps,
   TextValue,
 } from "@canlang/contracts";
@@ -50,6 +51,7 @@ import {
   canonicalPreferredTags,
   formatScalar,
   resolveCaption,
+  resolvedText,
 } from "./messages.js";
 
 function joinClasses(base: string, modifiers: string): string {
@@ -62,7 +64,7 @@ function pageLocaleOf(context: PresentationContext): string {
 }
 
 function isMessageDescriptor(
-  value: MessageDescriptor | MessageParamValue,
+  value: MessageDescriptor | MessageParamValue | ResolvedMessage,
 ): value is MessageDescriptor {
   return typeof (value as MessageDescriptor).source === "string";
 }
@@ -83,10 +85,14 @@ function plainTextOf(value: TextValue, context: PresentationContext): string {
   if (typeof value === "number" || typeof value === "bigint") {
     return String(value);
   }
+  const formatted = resolvedText(value);
+  if (formatted !== undefined) {
+    return formatted.text;
+  }
   if (isMessageDescriptor(value)) {
     return resolveCaption(value, context);
   }
-  return formatScalar(value, {
+  return formatScalar(value as MessageParamValue, {
     locale: pageLocaleOf(context),
     timeZone: "UTC",
     ...(context.currencyScales !== undefined
