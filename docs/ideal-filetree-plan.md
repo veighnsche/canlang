@@ -273,3 +273,6 @@ Root bounded browser reconciliation: UI bootstrap owns real Document visibility 
 
 
 Root bounded query reconciliation: State's existing invocation and bound read port now own optional per-call where/limit selection through the defining viewer query engine, with invocation/read-selection.test.ts. Routing, live admission, projection, archive exclusion and revision behavior retain one owner; the page consumer no longer needs an independent second query. The owning build and focused17 checks qualify this prerequisite only. Durable/installed/whole query duties and accumulated checkpoint review remain open. Current central coordination replaces worker goals; no responsibility move, merge or complete checkpoint advance.
+
+
+Root released cleanup reconciliation: AGENTS and language/roadmap instructions retain one proportionate direct check per changed behavior. Retired nested verification metadata and duplicated snapshots are removed; substantive source/artifact/expected fixtures, original direct results and all task/dependency identities remain with their existing owners. Package H1 approved advice and source contracts remain, without a hash/handle chain. Active build outputs are retained. This changes retained verification material, not production responsibility, functional scope, a merge or the accumulated complete checkpoint.
