@@ -148,9 +148,10 @@
   ],
   "scheduler": {
     "id": "canlang-challenge-implementation",
-    "status": "ACTIVE",
+    "status": "MISSING_IN_APP",
     "cadence_minutes": 15,
-    "owner": "originating Codex, no worker timers"
+    "owner": "originating Codex, no worker timers",
+    "observed": "2026-10-08: supported automation_update reports old canlang-challenge-implementation does not exist; existing record was stale. Human schedule preference requested via coordinator; not recreated."
   },
   "additional_dispatch": {
     "id": "DEL-D02",
@@ -1001,7 +1002,15 @@
       "review_read_released": true,
       "commit_pending": false,
       "parent_limit": "No Chromium/full installed browser/visibility/HTMX/can:settled or async disposal/physical fetch cancellation acceptance",
-      "commit": "8a34b582"
+      "commit": "8a34b582",
+      "document_visibility_join": {
+        "state": "Accepted bounded direct Document visibility correction; private owning emit and Node2/2 pass, commit pending",
+        "files": [
+          "packages/ui/src/browser/bootstrap.ts",
+          "packages/ui/test/browser-polling-join.test.ts"
+        ],
+        "limit": "happy-dom structural Document/Window and actual UI markup; no Chromium/full installed browser/physical transport or broader product closure"
+      }
     },
     "DEL-B02": {
       "planning_status": "blocked",
@@ -1695,7 +1704,7 @@
   "foreign_runtime_pure_integration": "implementation/package-maintenance-repair/runs/codex-go-20261007/runtime-pure-helpers-root-integration.json",
   "current_goal_turn_actions": {
     "classification": "progress",
-    "evidence": "Defining owner released exact H1 Contracts/State metadata shape and five-file lease; former coordinator becomes finite implementation lane. Actual page/query source trace remains active and disjoint. Process decision recorded; implementation ACK/results remain pending. Process decision committed 6a6e3ba9; recipient reported metadata implementation started; stale DEL-D03 pending labels reconciled to actual 73942cbd/788e5352 source commits without repeating tests. H1 direct diff accepted, owning build4/4 and tests14/14 pass; page/query ten-file implementation START_ACK and browser Document visibility two-file START_ACK; both source work continues disjointly."
+    "evidence": "Defining owner released exact H1 Contracts/State metadata shape and five-file lease; former coordinator becomes finite implementation lane. Actual page/query source trace remains active and disjoint. Process decision recorded; implementation ACK/results remain pending. Process decision committed 6a6e3ba9; recipient reported metadata implementation started; stale DEL-D03 pending labels reconciled to actual 73942cbd/788e5352 source commits without repeating tests. H1 direct diff accepted, owning build4/4 and tests14/14 pass; page/query ten-file implementation START_ACK and browser Document visibility two-file START_ACK; both source work continues disjointly. H1 committed d495469a; UI\u2192Values single lock edge committed 6cd15950; browser Document correction owns2/2 direct checks; next State one-scan selection START_ACK; redundant nested check artifacts deleted. Old package heartbeat proven missing by app update and reported for human preference, not falsely ACTIVE."
   },
   "live_finite_packets": [
     {
@@ -1709,7 +1718,7 @@
     {
       "task": "TECH-V03/V04 checked scalar/result source ownership",
       "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
-      "status": "Implemented/released: canonical build4/4 and owning metadata/secret/model tests14/14 pass; root direct diff accepted; scoped commit pending",
+      "status": "Committed d495469a; metadata-only build4/4 and tests14/14 accepted; runtime conversion/native/installed/parent completion remain open",
       "contract": "h1-owning-contract.json",
       "source_paths": [
         "packages/contracts/src/artifact.ts",
@@ -1717,17 +1726,28 @@
         "packages/state/src/invocation/registry.ts",
         "packages/state/src/mutation/models.ts",
         "packages/state/test/typed-artifact-metadata.test.ts"
-      ]
+      ],
+      "commit": "d495469a361b862f38a33d08990bf96e12447e53"
     },
     {
       "task": "DEL-B01 real Document visibility/initializer prerequisite",
       "agent": "/root/browser_visibility_join",
       "model": "gpt-6.1-sol",
       "effort": "medium",
-      "status": "Two-file implementation ACK; private original tsc plus owning node:test awaiting coordinator short slot",
+      "status": "Two-file Document visibility fix released; private original TypeScript emit and owning Node checks2/2 pass; direct root diff accepted, scoped commit pending",
       "files": [
         "packages/ui/src/browser/bootstrap.ts",
         "packages/ui/test/browser-polling-join.test.ts"
+      ]
+    },
+    {
+      "task": "TECH-S04-query defining one-scan State selection prerequisite",
+      "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+      "status": "Exact three-file START_ACK, source implementation active; one focused validation after edit; no public grammar/authority override",
+      "files": [
+        "packages/state/src/invocation/invoke.ts",
+        "packages/state/src/ports/transact.ts",
+        "packages/state/test/invocation/read-selection.test.ts"
       ]
     }
   ],
@@ -1743,8 +1763,9 @@
     "cross_chat_coordinator": "01a11903-6033-78b3-b682-ee7f97196adf",
     "package_owner": "01a10c5a-0fb5-7343-9659-c3efab311c0c",
     "validation": "One direct proportionate layer; reuse unchanged accepted results; repeat only for relevant edits, failures or concrete unresolved risks. No nested proof/review chains.",
-    "heavy_capacity": "One memory-heavy local job at a time coordinated by 01a11903; independent edits concurrent.",
+    "heavy_capacity": "Serialize only genuinely memory-heavy jobs or output conflicts. Fast private TypeScript builds and focused tests with disjoint outputs require no coordinator approval queue.",
     "package_heartbeat": "Existing 15-minute implementation supervision retained.",
     "new_coordinator_reviews_code": false
-  }
+  },
+  "released_nested_cleanup": "Removed retired manifest-check outputs, duplicate business-error checker/review copies and completed Git helper scripts; preserved original source, product tests/fixtures, direct final outcomes/logs and all active private output readers. No cleanup-test/proof chain."
 }

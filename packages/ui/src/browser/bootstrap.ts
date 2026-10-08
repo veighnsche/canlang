@@ -40,10 +40,12 @@
  * window, and fetch explicitly and returns a stop handle.
  */
 import { PollRegion, submitFetchPollFetch } from "./polling.js";
+import type { VisibilityLike } from "./polling.js";
 import type { SubmitFetch } from "../client.js";
 
 /** Minimal structural document (satisfied by DOM Document and fakes). */
 export interface DocumentLike {
+  readonly visibilityState: string;
   readonly body: ElementLike | null;
   readonly activeElement: ElementLike | null;
   querySelectorAll(selectors: string): Iterable<ElementLike>;
@@ -76,7 +78,6 @@ export interface EventLike {
 /** Minimal structural window (satisfied by DOM Window and fakes). */
 export interface WindowLike {
   readonly document: DocumentLike;
-  readonly visibilityState: string;
   readonly location: { readonly hash: string; readonly pathname?: string; readonly search?: string };
   addEventListener(type: string, listener: (event: EventLike) => void): void;
   removeEventListener(type: string, listener: (event: EventLike) => void): void;
@@ -90,6 +91,7 @@ export interface ClientInternals {
   readonly windowRef: WindowLike;
   readonly deliver?: BrowserClientOptions["deliverPollResponse"];
   readonly document: DocumentLike;
+  readonly visibility: VisibilityLike;
 }
 
 /** Per-component binder: bind behavior under `root`, return an unbind. */
@@ -120,6 +122,8 @@ export function registeredBinderIds(): ReadonlyArray<string> {
 export interface BrowserClientOptions {
   readonly window: WindowLike;
   readonly fetchImpl: SubmitFetch;
+  /** Visibility defaults to the document; native cache suspension supplies an adapter. */
+  readonly visibility?: VisibilityLike;
   /**
    * htmx swap hook when htmx is present: called with a rescan
    * callback to invoke after every swap into `#can-main`. Absent
@@ -273,7 +277,7 @@ function bindPollRegion(
   const url = region.getAttribute("data-can-poll-url");
   const interval = parseIntervalSeconds(region.getAttribute("data-can-poll-interval"));
   const context = client.contextKey();
-  if (url === null || url === "" || interval === null || internals.windowRef.visibilityState === 'hidden' ||
+  if (url === null || url === "" || interval === null || internals.visibility.visibilityState === 'hidden' ||
       (internals.windowRef.location.pathname !== undefined && url.split('?')[0] !== internals.windowRef.location.pathname)) {
     return () => {};
   }
@@ -283,7 +287,7 @@ function bindPollRegion(
     contextKey: context,
     fetchImpl: submitFetchPollFetch(internals.fetchImpl),
     timers: internals.windowRef,
-    visibility: internals.windowRef,
+    visibility: internals.visibility,
     context: {
       key: () => client.contextKey(),
       isAlive: () => region.isConnected,
@@ -428,6 +432,7 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
     fetchImpl: options.fetchImpl,
     windowRef: options.window,
     document,
+    visibility: options.visibility ?? document,
     ...(options.deliverPollResponse === undefined
       ? {}
       : { deliver: options.deliverPollResponse }),
@@ -559,7 +564,6 @@ export function startNativeBrowserClient(native: NativeWindow): BrowserClient {
   let suspended = false;
   const windowRef: WindowLike = {
     document: native.document, location: native.location,
-    get visibilityState() { return suspended ? "hidden" : native.document.visibilityState; },
     addEventListener: (type, listener) => native.addEventListener(type, listener),
     removeEventListener: (type, listener) => native.removeEventListener(type, listener),
     setTimeout: (callback, ms) => native.setTimeout(callback, ms),
@@ -567,6 +571,7 @@ export function startNativeBrowserClient(native: NativeWindow): BrowserClient {
   };
   const client = startBrowserClient({
     window: windowRef,
+    visibility: { get visibilityState() { return suspended ? "hidden" : native.document.visibilityState; } },
     fetchImpl: async (url, init) => {
       const response = await native.fetch(url, { method: init.method, headers: init.headers, credentials: 'same-origin', cache: 'no-store' });
       return { status: response.redirected === true ? 409 : response.status, headers: response.headers, text: () => response.text() };

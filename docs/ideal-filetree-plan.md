@@ -267,3 +267,6 @@ Root execution-process reconciliation: cross-chat coordination now belongs to 01
 
 
 Root finite typed-metadata reconciliation: Contracts artifact/state vocabulary and existing State registry/model table retain checked scalar/result association with one owning metadata test. No parallel runtime type map or new policy/codec owner is introduced; source entries identify the existing load only. Original build and focused tests pass, while conversion/activation/native/installed completeness stays open. The relayed UI Gregorian and compiler accounting/release notes preserve their existing owners and qualified limits. These scoped commits are not merges; inherited filetree coverage/checkpoint review remains unchanged.
+
+
+Root bounded browser reconciliation: UI bootstrap owns real Document visibility and its native suspension adapter; one owning happy-dom page/collection check replaces invented Window visibility in the public caller. Existing cleanup and polling policy remain with their owners; full browser/installed/resource duties remain open. Retired private nested validation copies/checkers are removed without a cleanup verification chain. No merge or complete checkpoint advancement follows.
