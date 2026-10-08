@@ -770,7 +770,7 @@ export function readModelPolicyEntry(registry: unknown, model: string): unknown 
 
 /** One model's transcribed read posture: servable grants or ruled refusal. */
 export interface TranscribedReadPolicy {
-  /** True when the model carries read rules with no public marks (serve-time `validation`, never served). */
+  /** True when no owning actor-only predicate or legacy public mark can serve its read rules. */
   readonly ruled: boolean;
   /** The table-builder input; `null` when ruled (ruled models are omitted from the table). */
   readonly input: CanonicalModelPolicyInput | null;
@@ -792,6 +792,7 @@ interface ReadPolicyFacts {
 interface ReadSelectorFacts {
   readonly fields: ReadonlyArray<string>;
   readonly grants: ReadonlyMap<string, ReadonlyArray<string> | undefined>;
+  readonly by: ReadonlyMap<string, ReadonlyArray<string>>;
 }
 
 /** Emitted metadata owns data properties; accessor execution is not provenance. */
@@ -867,9 +868,16 @@ function readSelectorFacts(
   provenance: ReadPolicyProvenance | undefined,
   where: string,
 ): ReadSelectorFacts | undefined {
-  if ((policy.public?.length ?? 0) === 0) return undefined;
   const declaration = provenance === undefined ? undefined : readMetadataMember(provenance, "declaration", where)?.value;
   const readRules = provenance === undefined ? undefined : readMetadataMember(provenance, "readRules", where)?.value;
+  // Older non-public rules have no data-only actor predicates. Preserve
+  // their refusal; neither a function nor its source text supplies a grant.
+  if ((policy.public?.length ?? 0) === 0) {
+    const member = isUnknownRecord(declaration) ? readMetadataMember(declaration, "readGrants", where) : undefined;
+    if (member === undefined) return undefined;
+    const grants = readMetadataArray(member.value, where, "readGrants declaration");
+    if (!grants.some((grant) => isUnknownRecord(grant) && readMetadataMember(grant, "by", where) !== undefined)) return undefined;
+  }
   if (!isUnknownRecord(declaration) || !isUnknownRecord(readRules)) {
     throw new Error(`${where}: missing owning read selector provenance.`);
   }
@@ -886,6 +894,7 @@ function readSelectorFacts(
   const rules = new Set(policy.read ?? []);
   const fieldNames = new Set(declaredFields);
   const selectors = new Map<string, ReadonlyArray<string> | undefined>();
+  const predicates = new Map<string, ReadonlyArray<string>>();
   for (const grant of declarations) {
     const id = isUnknownRecord(grant) ? readMetadataMember(grant, "rule", where)?.value : undefined;
     if (!isUnknownRecord(grant) || typeof id !== "string" || !rules.has(id) || selectors.has(id)) {
@@ -910,12 +919,24 @@ function readSelectorFacts(
       }
     }
     selectors.set(id, selected);
+    const by = readMetadataMember(grant, "by", where);
+    if (by === undefined && "by" in grant) {
+      throw new Error(`${where}: inherited read predicate on ${JSON.stringify(id)}.`);
+    }
+    if (by !== undefined) {
+      const spellings = readMetadataStrings(by.value, where, `read predicate on ${JSON.stringify(id)}`);
+      if (spellings.length !== 1) throw new Error(`${where}: malformed read predicate on ${JSON.stringify(id)}; one checked actor role is required.`);
+      if (policy.public?.includes(id) && (spellings.length !== 1 || spellings[0] !== "public")) {
+        throw new Error(`${where}: public mark disagrees with owning read predicate on ${JSON.stringify(id)}.`);
+      }
+      predicates.set(id, spellings);
+    }
   }
   if (selectors.size !== rules.size) throw new Error(`${where}: readGrants and policy rule identities disagree (emitter skew?).`);
   for (const id of rules) {
     if (!selectors.has(id)) throw new Error(`${where}: readGrants and policy rule identities disagree (emitter skew?).`);
   }
-  return { fields: [...declaredFields], grants: selectors };
+  return { fields: [...declaredFields], grants: selectors, by: predicates };
 }
 
 function sameReadStrings(left: ReadonlyArray<string> | undefined, right: ReadonlyArray<string> | undefined): boolean {
@@ -930,9 +951,12 @@ function sameReadPolicies(left: ReadPolicyFacts, right: ReadPolicyFacts): boolea
 }
 function sameReadSelectors(left: ReadSelectorFacts | undefined, right: ReadSelectorFacts | undefined): boolean {
   if (left === undefined || right === undefined) return left === right;
-  if (!sameReadStrings(left.fields, right.fields) || left.grants.size !== right.grants.size) return false;
+  if (!sameReadStrings(left.fields, right.fields) || left.grants.size !== right.grants.size || left.by.size !== right.by.size) return false;
   for (const [id, fields] of left.grants) {
     if (!right.grants.has(id) || !sameReadStrings(fields, right.grants.get(id))) return false;
+  }
+  for (const [id, by] of left.by) {
+    if (!sameReadStrings(by, right.by.get(id))) return false;
   }
   return true;
 }
@@ -944,21 +968,24 @@ function transcribeReadFacts(
   secretFields: ReadonlyArray<string>,
   selectors: ReadSelectorFacts | undefined,
 ): TranscribedReadPolicy {
-  if ((policy.read?.length ?? 0) > 0 && (policy.public?.length ?? 0) === 0) return { ruled: true, input: null };
+  const supported = (policy.read ?? []).filter((id) => selectors?.by.has(id) || policy.public?.includes(id));
+  if ((policy.read?.length ?? 0) > 0 && supported.length === 0) return { ruled: true, input: null };
   const secrets = new Set(secretFields);
   return { ruled: false, input: {
     model, secretFields: [...secretFields],
-    grants: (policy.public ?? []).map((id) => {
+    grants: supported.map((id) => {
       if (selectors === undefined || !selectors.grants.has(id)) {
         throw new Error(`t17b: model ${JSON.stringify(model)} read selector identity is missing.`);
       }
       const selected = selectors.grants.get(id);
-      return { by: "public", fields: [...(selected ?? declaredFields.filter((field) => !secrets.has(field)))] };
+      const spellings = selectors.by.get(id);
+      const by = spellings === undefined ? "public" : mapCrudPolicyToBy(`${model}:${id}`, { by: spellings });
+      return { by, fields: [...(selected ?? declaredFields.filter((field) => !secrets.has(field)))] };
     }),
   } };
 }
 
-/** Transcribe only proven public rules, preserving their exact declared selectors. */
+/** Transcribe owning actor-only rules and legacy public marks with their exact selectors. */
 export function mapReadRulesToPolicy(
   model: string,
   entry: unknown,
@@ -2949,6 +2976,14 @@ async function runScenarioSeam(
   const staged: Map<string, StoredRow | null> = new Map();
   const views = new Map<string, Record<string, unknown>>();
   const recordBindings = new Map<Record<string, unknown>, { model: string; id: string }>();
+  const callable = opts.artifact.callables.find((entry) => entry.id === opts.operation);
+  const nativeMetadata = (row: StoredRow | ProjectedRecord) => ({
+    id: row.id, version: BigInt(row.version),
+    created: decodeValue("datetime", new Date(row.created).toISOString()),
+    updated: decodeValue("datetime", new Date(row.updated).toISOString()),
+    created_by: row.createdBy, updated_by: row.updatedBy,
+    archived_at: row.archivedAt === null ? null : decodeValue("datetime", new Date(row.archivedAt).toISOString()),
+  });
   const recordView = (modelName: string, row: StoredRow): Record<string, unknown> => {
     const key = stagedKey(modelName, row.id);
     const existing = views.get(key);
@@ -2966,14 +3001,23 @@ async function runScenarioSeam(
     });
     // Ordinary references retain admitted metadata while domain reads see
     // provisional writes; reserved post-write versions belong to staged rows.
-    Object.assign(record, { id: row.id, version: BigInt(row.version),
-      created: decodeValue("datetime", new Date(row.created).toISOString()),
-      updated: decodeValue("datetime", new Date(row.updated).toISOString()),
-      created_by: row.createdBy, updated_by: row.updatedBy,
-      archived_at: row.archivedAt === null ? null : decodeValue("datetime", new Date(row.archivedAt).toISOString()),
-    });
+    Object.assign(record, nativeMetadata(row));
     Object.freeze(record);
     views.set(key, record);
+    recordBindings.set(record, { model: modelName, id: row.id });
+    return record;
+  };
+  const projectedRecordView = (modelName: string, row: ProjectedRecord): Record<string, unknown> => {
+    const model = loaded.models.find((model) => model.name === modelName);
+    const record: Record<string, unknown> = Object.create(null);
+    // Do not reuse a full parameter/write view or load the stored row: a
+    // matching read grant may expose only part of its data.
+    for (const [field, wire] of Object.entries(row.data)) {
+      const type = model?.fields[field]?.valueType;
+      record[field] = type === undefined ? wire : decodeValue(type, wire);
+    }
+    Object.assign(record, nativeMetadata(row));
+    Object.freeze(record);
     recordBindings.set(record, { model: modelName, id: row.id });
     return record;
   };
@@ -3013,6 +3057,10 @@ async function runScenarioSeam(
     builtinRoles: Object.freeze(builtinRoles),
     operation: opts.operation,
     operationId: call.context.operationId,
+    ...(callable?.inputStyle !== "parameters" ? {} : {
+      readRecords: async (model: string, query: CanonicalReadQuery) =>
+        (await scope.readModel(model, query)).map((row) => projectedRecordView(model, row)),
+    }),
     createRecord: async (model, data) => {
       const id = `${call.context.operationId}#create:${createIndex++}`;
       const row = await scope.stageWrite({ op: "create", model, id, data });
@@ -3155,7 +3203,6 @@ async function runScenarioSeam(
     qualified: call.context,
     ...(opts.formatting === undefined ? {} : { formatting: opts.formatting }),
   });
-  const callable = opts.artifact.callables.find((entry) => entry.id === opts.operation);
   const argument = callable?.inputStyle === "parameters"
     ? scenarioParameters(call, loaded, recordView, resolvedDefaults)
     : { operation_id: call.context.operationId, inputs: call.inputs };

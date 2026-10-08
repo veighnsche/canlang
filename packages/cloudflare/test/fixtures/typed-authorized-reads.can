@@ -1,0 +1,22 @@
+app TypedAuthorizedReads
+Given
+ role auditor
+ Entry { count:int=1, secret:text="sensitive" }
+ policy Entry read=owner
+ policy Entry read=auditor fields=count
+When
+ crud Entry by=owner fields=count
+ ## The aggregate sums authorized entries, using their native integers.
+ scenario total() -> int by=public
+  do
+   return sum(Entry as entry select entry.count)
+ ## Authorized projection omits secret for auditors, even inside native handlers.
+ scenario hidden() -> bool by=public
+  do
+   return all(Entry as entry,entry.secret=="sensitive")
+ ## Authorized model reads include this invocation's provisional creation.
+ scenario staged(count:int) -> int by=owner
+  do
+   create Entry {count=count} as entry
+   return sum(Entry as visible select visible.count)
+Then

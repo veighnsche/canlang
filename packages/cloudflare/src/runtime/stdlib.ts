@@ -229,8 +229,9 @@ export async function deleteRecord(
 /**
  * Serve one whole-model viewer read through `invokeRead` (admission +
  * engine grant projection, over the staged overlay so handler reads see
- * handler writes). Returns projected records (denied leaves omitted,
- * never null). Unservable shapes refuse LOUD with `validation`:
+ * handler writes). Checked source handlers receive flat native record
+ * fields; legacy handlers retain projected wire envelopes. Both use only
+ * granted fields (denied leaves omitted, never null). Unservable shapes refuse LOUD with `validation`:
  * `where`/`order`/`limit` (T04a carries no filter vocabulary — T04b
  * does; the engine fails limit overflow instead of truncating, so a
  * client slice would mis-serve), `archived: 'include'` (reads exclude),
@@ -240,18 +241,21 @@ export async function records(
   c: HandlerContext,
   model: string,
   query: RecordsQuery = {},
-): Promise<ReadonlyArray<ProjectedRecord>> {
+): Promise<ReadonlyArray<ProjectedRecord | Record<string, unknown>>> {
   const scope = requireScope(c, 'records');
   if (typeof model !== 'string' || model === '') {
     throw new Error('t17: stdlib records() needs a non-empty string model.');
   }
-  return scope.readModel(model, {
+  const selection = {
     ...(query.where === undefined ? {} : { where: query.where }),
     ...(query.order === undefined ? {} : { order: query.order }),
     ...(query.limit === undefined ? {} : { limit: query.limit }),
     ...(query.archived === undefined ? {} : { archived: query.archived }),
     ...(query.authority === undefined ? {} : { authority: query.authority }),
-  });
+  };
+  return scope.readRecords === undefined
+    ? scope.readModel(model, selection)
+    : scope.readRecords(model, selection);
 }
 
 /** Stub helper: every unimplemented data-plane name throws loudly. */
