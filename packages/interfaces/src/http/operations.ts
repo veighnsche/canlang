@@ -36,6 +36,8 @@ import type {
   ResolvedIdentity,
 } from '@canlang/contracts';
 import { IdentityError, assertCredentialLive, deriveCsrfToken, sha256HexText } from '@canlang/identity';
+import { SOURCE_FORM_BINDING_FIELD } from '@canlang/contracts';
+export { createSourceFormBindings } from './form-binding.js';
 import type { HttpDeps, OperationInputShape, SchemaCatalog } from '../ports.js';
 import { checkArtifactOperation, checkArtifactOperations, checkBoundArguments, isDeliveryField } from '../mcp/schemas.js';
 import type {
@@ -263,8 +265,21 @@ export async function handleOperationRequest(
     if (shape === null) {
       return denyOrRerender(deps, request, operation, buildBusinessError('not_found', 'Unknown operation.'), seen, authed);
     }
-    const { [CSRF_FIELD]: _csrf, ...businessInputs } = inputs;
+    const { [CSRF_FIELD]: _csrf, ...submittedInputs } = inputs;
     void _csrf;
+    const derived = deps.catalog.derivedFor?.(operation) ?? null;
+    let businessInputs = submittedInputs;
+    if (Object.hasOwn(record, SOURCE_FORM_BINDING_FIELD)) {
+      const token = record[SOURCE_FORM_BINDING_FIELD];
+      const restored = typeof token !== 'string' || derived === null || deps.formBindings === undefined ? null :
+        await deps.formBindings.restore({ appId: deps.app.appId, sessionToken, identity, derived,
+          operationId, nowMs: deps.clock.nowMs() }, token, submittedInputs);
+      if (restored === null) {
+        return denyOrRerender(deps, request, operation,
+          buildBusinessError('forbidden', 'This form binding is no longer available. Reload the page.'), seen, authed);
+      }
+      businessInputs = restored;
+    }
     const closedError = checkClosedInputs(businessInputs, shape);
     if (closedError !== null) {
       return denyOrRerender(deps, request, operation, closedError, seen, authed);
@@ -273,7 +288,6 @@ export async function handleOperationRequest(
     // to its derived declaration (delivery binds to nothing — submitted
     // receipts fail here when framing admits them). Catalogs without the
     // derived channel keep framing-only behavior.
-    const derived = deps.catalog.derivedFor?.(operation) ?? null;
     if (derived !== null) {
       const boundError = checkBoundArguments(derived, businessInputs);
       if (boundError !== null) {

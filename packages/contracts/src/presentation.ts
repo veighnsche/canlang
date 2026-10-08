@@ -35,6 +35,8 @@ export const PRESENTATION_CONTRACT_VERSION = "canlang.presentation/0.15.0";
  * input and never logged.
  */
 export const CSRF_FIELD = "_csrf";
+/** Opaque, host-verified source form binding; never canonical business input. */
+export const SOURCE_FORM_BINDING_FIELD = "form_binding";
 
 /**
  * Name of the pre-session token field in the login form. Rendered by lane
@@ -484,7 +486,7 @@ export interface ListProps {
   readonly limit?: number;
   readonly cursor?: string;
   readonly empty: MessageValue;
-  readonly renderRow: (row: RowView, view: PresentationContext) => PageChildren;
+  readonly renderRow: (row: RowView, view: PresentationContext) => PageChildren | Promise<PageChildren>;
   /** Search/filter/order/pagination/export toolbar; absent renders rows only. */
   readonly controls?: CollectionControls;
 }
@@ -790,6 +792,10 @@ export interface FormProps {
   readonly mode: FormMode;
   /** Checked operation inputs consumed by the existing browser submit projection. */
   readonly derived?: DerivedOperationInputs;
+  /** Server-sealed fixed arguments and editable fields for this occurrence. */
+  readonly sourceBinding?: string;
+  /** Stable occurrence comparison only; never authorization or a proof. */
+  readonly sourceBindingIdentity?: string;
   /** Bound record for updates (hidden id/version); required in update mode. */
   readonly record?: MutationRef;
   /** Resolved rendering timezone (team adapter or explicit UTC fallback). */
@@ -835,7 +841,7 @@ export type PreparedOperationForm =
       readonly message: MessageValue;
     };
 
-export type OperationFormPreparer = (request: OperationFormRequest) => PreparedOperationForm;
+export type OperationFormPreparer = (request: OperationFormRequest) => PreparedOperationForm | Promise<PreparedOperationForm>;
 
 export interface EditProps extends Omit<FormProps, "mode" | "record"> {
   readonly record: MutationRef;

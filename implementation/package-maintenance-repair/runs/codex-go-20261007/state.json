@@ -1619,7 +1619,7 @@
     ],
     "restrictions": "No staging/commit; preserve all bytes, root retains Git/state/filetree and source leases",
     "package_decision_notes_pending": [],
-    "heading": "2026-10-07 — Assign proposed worker profiles to the capability roadmap (PROPOSED)",
+    "heading": "2026-10-07 \u2014 Assign proposed worker profiles to the capability roadmap (PROPOSED)",
     "foreign_append_staging": "All foreign proposals preserved unstaged",
     "end_sha256": "c0eedd9b5459716abfb439a685d601fe934c13ee1bc8f7d0890fd0852486f403"
   },
@@ -1937,7 +1937,7 @@
         "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts",
         "packages/cloudflare/src/runtime/t17b-durable.test.ts"
       ],
-      "validation": "Private focused owning emit, original memory62/62 and D1other2/2 pass. First D1case required3obsolete create+set version2→1 assertions perDESIGN:103; only affected case rerun1/1 passed including fresh-handle/receipt/history/read/revision assertions.",
+      "validation": "Private focused owning emit, original memory62/62 and D1other2/2 pass. First D1case required3obsolete create+set version2\u21921 assertions perDESIGN:103; only affected case rerun1/1 passed including fresh-handle/receipt/history/read/revision assertions.",
       "commands_live": false,
       "limits": "Explicitly handwritten synthetic artifacts, not compiler provenance; original authority/error behavior retained, no product runtime fallback."
     }
@@ -2139,6 +2139,19 @@
       "a9ff3f342b5863e6ecdd5d924d3064d54ad632d6",
       "a9569c25f126bbcbc967edea758e1ea238612533"
     ],
-    "rendered_projection": "Root direct-reviewed exact rendered-input projection; private UI emit0; affected29/29 effective passes (28 original run, obsolete create-tag assertion corrected and only that case rerun1/1). Optional legacy behavior retained; selected unchecked bool false, unrendered boolean/ref/datetime/unknown/delivery omitted; no protected-binding authority claim."
+    "rendered_projection": "Root direct-reviewed exact rendered-input projection; private UI emit0; affected29/29 effective passes (28 original run, obsolete create-tag assertion corrected and only that case rerun1/1). Optional legacy behavior retained; selected unchecked bool false, unrendered boolean/ref/datetime/unknown/delivery omitted; no protected-binding authority claim.",
+    "protected_producer": {
+      "status": "defining source/API checked; actual protected compiled Worker/browser consumer pending",
+      "scope": "host-key native HMAC seal/restore for exact normalized singular versioned refs and selected edits; awaitable source prepareForm and list row rendering",
+      "validation": "Contracts/UI/Interfaces emit0; signing5/5 effective (4 original+failed normalization case1/1 after fix); source preparation/HTTP2/2 effective; proof transport1/1; async row ordering/evaluate-once1/1; browser asset build0",
+      "contract": "explicit canonical32-byte CAN_FORM_BINDING_KEY; artifact revision/schema/app/session/actor/team/op+nonce/refs/edits and15min expiry; no permission grant; unchanged canonical admission/live credential/version fence",
+      "advice": "/private/tmp/canlang-repair-go-20261007/protected-source-form-contract; native host-private signature .67/.28, reconstruct-source .21; mixed low-confidence advice retained",
+      "limits": [
+        "actual CF composition and compiled source/browser consumer pending",
+        "bound arrays/non-ref arguments, remote handles and upload intents unsupported",
+        "no installed release/native preparation/default-adoption or parent-count claim"
+      ],
+      "models": "Sol high defining security/lifecycle seam; Sol low finite awaitable-list ABI repair; root sole direct checks and Git"
+    }
   }
 }

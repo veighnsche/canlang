@@ -137,7 +137,7 @@ export async function list(props: ListProps): Promise<string> {
   }
   const items: string[] = [];
   for (const row of result.rows) {
-    const body = await resolveChildren(props.renderRow(row, props.context));
+    const body = await resolveChildren(await props.renderRow(row, props.context));
     items.push(`<li class="list-row">${body}</li>`);
   }
   const rowsHtml = `<ul class="list">${items.join("")}</ul>`;
@@ -1002,4 +1002,3 @@ function renderCsvReview(props: CsvImportProps): string {
     `<table class="table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></section>`
   );
 }
-

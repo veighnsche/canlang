@@ -266,7 +266,7 @@ describe("T20b envelope submit", () => {
     const result = await submitGeneratedForm({
       derived: CREATE,
       mode: "create",
-      flat: baseFlat({ "inputs[title]": "wrench", operation: "tampered.Op" }),
+      flat: baseFlat({ "inputs[title]": "wrench", operation: "tampered.Op", form_binding: "opaque-host-proof" }),
       action: "/api/operations/Store.Gadget.create",
       fragment: true,
       fetchImpl: fetch,
@@ -283,6 +283,7 @@ describe("T20b envelope submit", () => {
       operation: "Store.Gadget.create",
       operation_id: "op-1",
       inputs: { title: "wrench" },
+      form_binding: "opaque-host-proof",
     });
     assert.equal(call.init.headers["content-type"], "application/json");
     assert.equal(call.init.headers["x-csrf-token"], "csrf-123");
