@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T04:49:00.016664+00:00",
+  "updated_utc": "2026-10-08T04:50:34.140019+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1670,10 +1670,10 @@
       "DEL-D03",
       "DEL-D04",
       "DEL-E02",
-      "VERIFY-TV01"
+      "VERIFY-TV01",
+      "DEL-C01"
     ],
     "open_or_blocked": [
-      "DEL-C01",
       "DEL-C02",
       "DEL-R01",
       "FINAL-R03",
@@ -1692,13 +1692,13 @@
     ],
     "counts": {
       "finished": 20,
-      "partial": 14,
-      "open_or_blocked": 13,
+      "partial": 15,
+      "open_or_blocked": 12,
       "held": 1,
       "total": 48
     },
     "source_basis": "Current queue IDs + explicit independent dispositions/task scope; accepted narrow corrections do not close broad qualification packets",
-    "status_given_to_human": "20/48 finished,14partial,13open,1held"
+    "status_given_to_human": "20/48 finished,15 partial,12 open or blocked,1 held; finite CSV correction does not close its parent"
   },
   "foreign_source_leases": {
     "conditional_state_nullable_writer": {
