@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T13:03:31.214527+00:00",
+  "updated_utc": "2026-10-08T13:06:12.711995+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2021,6 +2021,23 @@
       "sources_outputs_handles_released": true,
       "counts_unchanged": true,
       "commit": "ded8103fb90756f6be9f3eb07743ba9a8f050009"
+    },
+    "source_progress_occurrence_producer": {
+      "status": "Root directly reviewed released actual source/nativeD1 progressed occurrence consumer; scoped commit ready",
+      "sources": [
+        "packages/cloudflare/src/runtime/invoke.ts (own121-line checked producer block only)",
+        "packages/cloudflare/src/runtime/bound-dispatch.ts",
+        "packages/cloudflare/src/runtime/text-generation-progress.ts",
+        "packages/cloudflare/src/runtime/typed-generation-progress.test.ts",
+        "packages/cloudflare/test/fixtures/typed-generation-progress.can",
+        "packages/cloudflare/test/fixtures/typed-generation-progress.json"
+      ],
+      "contract": "Verified actual app/module/callable/original checked binding-from-qualified event/private input declaration feeds existing Work schedulePut. Original admitted drive fence supplies concrete owner; each new receipt snapshot stages its own UUID-keyed immutable delivery_id occurrence in the same receipt transaction. Exact replay exits before UUID/events. Ordinary Work kernel unchanged.",
+      "verification": "Actual Compiler24b7e91d source/binary released missing defining event schemas; genuine artifact regenerated. Normal CF emit0; same changed nativeD1 generation case1/1 in27.27s with real streamed snapshots, late measured terminal occurrence, unique durable keys/payload, exact replay, reopen, genuine private source handler effects, wrong owner/event refusal and due replay without effects. Earlier post-fix test incorrectly used a new duplicate checkpoint; corrected only to original saved receipt revision and reran affected case, production policy unchanged.",
+      "limits": "Controlled localhost protocol/tokenizer and explicit memory identity with nativeD1 only. One handler per event/package; ambiguity refuses before transport. New recovery without original admitted owner refuses, existing retained recovery preserved. General inherited/cross-package event routing, deployed/provider account continuity, fullTask21/installed/root48 remain open; capability addition not replacement reduction.",
+      "model": "gpt-6.1-sol high for finite original owner/fence/event lifecycle consumer; root direct source review, no repeated checks",
+      "sources_outputs_handles_released": true,
+      "counts_unchanged": true
     }
   },
   "live_finite_packets": [
@@ -2835,7 +2852,7 @@
       "commit": "c35fc990f121565a7ed8bdb2176c39296bc78e7e"
     },
     "images_rich_progress_core": {
-      "status": "Root directly reviewed released canonical ImageRun State/Work component; scoped commit ready",
+      "status": "Root directly reviewed and committedd178d7b0 finite canonical ImageRun State/Work core",
       "sources": [
         "packages/contracts/src/services.ts",
         "packages/state/src/receipt/tables.ts",
@@ -2849,7 +2866,8 @@
       "model": "gpt-6.1-sol high for nested Values/receipt authority/lifecycle seam; finite direct root review",
       "limits": "Repository core only, existing result parent grant/no nested File selector. No actual Images generated dispatcher/File finalization/gallery/deployed GPU/account/installed/allhost/wholeTask24/root48 acceptance. This capability addition receives no replacement reduction credit; native preparation HOLD unchanged.",
       "sources_outputs_handles_released": true,
-      "counts_unchanged": true
+      "counts_unchanged": true,
+      "commit": "d178d7b0c00fec0f851d7301f6363b9c60c9da0e"
     }
   }
 }
