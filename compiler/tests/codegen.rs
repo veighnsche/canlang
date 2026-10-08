@@ -406,7 +406,7 @@ fn golden_teamtasks_structure() {
         "Todo label"
     );
     assert!(
-        entry.contains("readGrants:[{rule:\"Todo.read.1\"}]"),
+        entry.contains("readGrants:[{rule:\"Todo.read.1\",by:[\"members\"]}]"),
         "Todo read grant"
     );
     assert!(
@@ -924,7 +924,7 @@ fn golden_expenseflow_structure() {
         "lock refs"
     );
     assert!(
-        entry.contains("readGrants:[{rule:\"Expense.read.1\"},{rule:\"Expense.read.2\"}]"),
+        entry.contains("readGrants:[{rule:\"Expense.read.1\"},{rule:\"Expense.read.2\",by:[\"expenses.reviewer\"]}]"),
         "grant refs"
     );
     // Rule registry bodies: conjunctions, comparisons, `in` membership.
