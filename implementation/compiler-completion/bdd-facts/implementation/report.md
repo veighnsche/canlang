@@ -25,3 +25,32 @@ The root-reviewed golden restoration touches only `golden_expenseflow_structure`
 Actual installed catalog/dists and unchanged generated modules are used. The selected-call runtime regression executes the public stdlib/UI facades; the BDD binding runtime regression executes actual testkit load/provision/observation/causal-step code through an invocation port. That test explicitly does not execute application operations against a canonical state engine. The UI adapter receipt comes from its separate owning worker and is included in the frozen shared build.
 
 Zero ExpenseFlow emission gaps do not prove complete ExpenseFlow runtime execution. The subject-role facade still rejects unsupported noncaller subject checks in the current producer, and query/read/canonical application joins remain independently owned. No mock state engine, facade substitution, or guessed fallback is presented as full seam proof. A frozen CLI is copied only to `/private/tmp/can-bdd-ui-review/can-frozen`; the repository contains no binary. `final-manifest.json` records its SHA, version, complete compiler inputs and actual relevant package dists. Root owns acceptance, decisions, Git and final integration.
+
+## Sequence request forwarding follow-up
+
+The compiler already emits the declared optional `request(c,s,b)` closure. The
+existing runner now evaluates it once, after caller and inputs and before
+invocation, through the same contextual `callClosure` path and fixture/binding
+facades. Its evaluated value passes unchanged through `StepCall` and the existing
+dispatch adapter. Absent closures leave the request member absent. Business input
+objects, caller selection, success/error envelopes and `as` bindings retain their
+existing behavior. Applying version overrides remains with the actual invoker;
+this repair supplies no new wire codec or authority.
+
+The focused `authored_sequence_requests_reach_the_dispatch_adapter` test compiles
+actual source and loads its unchanged example module through public testkit. It
+checks a fixture version override, a prior reserved-name binding override,
+expected conflict handling followed by success, exact business-record identity,
+input/request/dispatch order, evaluate-once behavior, absence preservation and a
+request exception preventing dispatch with the authored step index. It passes
+**1/1** against a private build of the changed testkit; direct testkit TypeScript
+checking also passes. An initial event probe incorrectly assumed caller bindings
+were reread after factory capture; that expectation was corrected, while actual
+caller identities remain checked. Accepted property-carrier/order controls are
+reused rather than rerun.
+
+This closes request evaluation/forwarding through the invocation port only.
+Canonical application version application, real result payload/inspection/as
+semantics, live record refresh, helper composition and wider platform joins remain
+open under their existing owning contracts and narrow BDD consultation hold.
+Canonical completion remains **48/67**.
