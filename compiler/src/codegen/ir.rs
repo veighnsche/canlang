@@ -2866,6 +2866,24 @@ impl<'a> Cx<'a> {
     /// Decode member access, wrapping delivery-typed bases in the sole
     /// observation helper shape (`DeliveryRead`).
     fn decode_member(&mut self, scope: &Scope, node: &SyntaxNode, ty: &ResolvedType) -> TypedExpr {
+        if let Some((child, parent)) = self.contained_collection_head(node) {
+            let parent = self.decode_expr(scope, parent);
+            return TypedExpr::new(
+                IrExpr::Query(IrQuery {
+                    domain: IrQueryDomain::Model(self.canonical(child)),
+                    parent: Some(Box::new(parent)),
+                    where_pred: None,
+                    where_async: false,
+                    order: Vec::new(),
+                    limit: None,
+                    archived: None,
+                    select: None,
+                    select_param: None,
+                }),
+                ty.clone(),
+                node.span,
+            );
+        }
         // Collect the outer chain: `a.b.c` decodes inside-out, but a
         // delivery crossing wraps once with the full static prop list.
         // Returns the typed expression: the checked type wins, table
@@ -3578,7 +3596,11 @@ impl<'a> Cx<'a> {
         };
         // A model head lowers through `records(c, model, ...)`; any other
         // head lowers as an in-memory value.
-        let model_id = self.collection_head_model(scope.module, head);
+        let containment = self.contained_collection_head(head);
+        let parent = containment.map(|(_, base)| Box::new(self.decode_expr(scope, base)));
+        let model_id = self
+            .collection_head_model(scope.module, head)
+            .or(containment.map(|(child, _)| child));
         let model = model_id.map(|id| self.canonical(id));
         let value_base = if model.is_none() {
             Some(self.decode_expr(scope, head))
@@ -3777,7 +3799,7 @@ impl<'a> Cx<'a> {
         };
         IrExpr::Query(IrQuery {
             domain,
-            parent: None,
+            parent,
             where_pred,
             where_async,
             order,
@@ -7700,6 +7722,50 @@ impl<'a> Cx<'a> {
         match self.program.symbols.get(id.0 as usize).map(|s| &s.kind) {
             Some(SymbolKind::Model { .. }) => Some(id),
             _ => None,
+        }
+    }
+
+    /// Stored child navigation is a query, while declared fields remain values.
+    fn contained_collection_head<'n>(
+        &self,
+        head: &'n SyntaxNode,
+    ) -> Option<(SymbolId, &'n SyntaxNode)> {
+        if head.kind != SyntaxKind::Member {
+            return None;
+        }
+        let parts = kids(head);
+        let base = *parts.iter().find(|node| is_expression(node.kind))?;
+        let field = parts
+            .iter()
+            .rev()
+            .find_map(|node| name_text(self.db, node))?;
+        let ResolvedType::Record {
+            symbol: parent,
+            stored: true,
+        } = self.node_type(base)
+        else {
+            return None;
+        };
+        if self.fields.contains_key(&(parent, field.clone())) {
+            return None;
+        }
+        let ResolvedType::Array { element, .. } = self.node_type(head) else {
+            return None;
+        };
+        let ResolvedType::Record {
+            symbol: child,
+            stored: true,
+        } = element.as_ref()
+        else {
+            return None;
+        };
+        let candidate = self.program.symbols.get(child.0 as usize)?;
+        if candidate.name == field
+            && matches!(candidate.kind, SymbolKind::Model { owner: ModelOwner::ChildOf(owner), .. } if owner == parent)
+        {
+            Some((*child, base))
+        } else {
+            None
         }
     }
 
