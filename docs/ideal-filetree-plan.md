@@ -270,3 +270,6 @@ Root finite typed-metadata reconciliation: Contracts artifact/state vocabulary a
 
 
 Root bounded browser reconciliation: UI bootstrap owns real Document visibility and its native suspension adapter; one owning happy-dom page/collection check replaces invented Window visibility in the public caller. Existing cleanup and polling policy remain with their owners; full browser/installed/resource duties remain open. Retired private nested validation copies/checkers are removed without a cleanup verification chain. No merge or complete checkpoint advancement follows.
+
+
+Root bounded query reconciliation: State's existing invocation and bound read port now own optional per-call where/limit selection through the defining viewer query engine, with invocation/read-selection.test.ts. Routing, live admission, projection, archive exclusion and revision behavior retain one owner; the page consumer no longer needs an independent second query. The owning build and focused17 checks qualify this prerequisite only. Durable/installed/whole query duties and accumulated checkpoint review remain open. Current central coordination replaces worker goals; no responsibility move, merge or complete checkpoint advance.
