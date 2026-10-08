@@ -452,3 +452,19 @@ actor/reference, scalar/User and replay checks were reused. Required enum
 arrays, element-nullable/nested defaults, wider read/private/CRUD/D1 consumers
 and full S9-Q02 remain separate. Canonical completion remains **57/67**, with
 **10** remaining.
+
+The [read-scenario enum-default case](../../compiler/tests/read_enum_default_runtime.rs)
+passes **1/1** on its first actual execution through genuine compiler output
+and canonical CF/State Memory. A real CRUD-created record is admitted to the
+released `readBound` path by versionless ID. Its projected enum field feeds
+nullable/ordinary-array defaults and declaration-ordered parameter copies;
+the installed `at` helper executes once for each omitted helper expression.
+Supplied null, empty and ordered-array values suppress all defaults. Anonymous,
+nonmember and revoked callers deny before authored execution, and every read
+preserves the revision and record history. Package's minimal existing `at`
+facade export and Work's actual selective output publication are consumed;
+no replacement helper or compiler source change was needed. The existing
+`int[]` result remains in use, with no read receipt or enum-result claim.
+Accepted mutation, input, actor/reference and replay checks were reused.
+Broader read/default forms, CRUD/private/D1/full applications and full S9-Q02
+remain separate. Canonical completion remains **57/67**, with **10** remaining.

@@ -3107,3 +3107,7 @@ The same actual native D1 workflow passed 1/1 with a separate Identity database 
 The compiler publishes computed-default omission claims for checked enum types after one supported outer nullable-container and ordinary-array unwrap. Nonempty enum arrays, nullable elements, nested arrays and collapsed aliases remain unqualified; scalar behavior is unchanged. This reuses the existing checked enum type claim and defining Values codec rather than introducing another representation.
 
 The owning enum_default_shapes consumer passed 1/1 (0.44s) across nine actual canonical Memory calls after the affected build passed. Earlier accepted input, actor, reference and replay checks were reused; root reviewed the released source and actual consumer. The generated mutation profiles are accepted at this scope, while read-scenario, private/CRUD/D1, installed/full-application and parent task claims remain separate.
+
+### Values indexing in generated read defaults (accepted, 2026-10-08)
+
+Cloudflare's existing generated pure-helper facade directly reexports Values at; no wrapper or second indexing mechanism is added. The actual generated read-default consumer passed 1/1 (.48s), including real projected-record seeds, nullable/ordinary-array copies, helper once/order, explicit overrides, live caller refusal and unchanged revision/history. Acceptance is canonical Memory with the existing int[] result, not enum results, D1, installed/full applications or parent task closure.

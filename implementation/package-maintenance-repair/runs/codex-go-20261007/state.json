@@ -1620,7 +1620,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T18:34:35.902307+00:00",
+  "updated_utc": "2026-10-08T18:52:33.380211+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2610,7 +2610,8 @@
         "owner": "Roadmap01a117b5-8358-7e31-9de3-03d0302cdd3c",
         "state": "Owning runtime found actual empty/exhausted scan authority gap and is preparing maintainFanoutNavigationCanonical plus thin cohort-tick factory. Source and output are unchecked/held until coherent actual release.",
         "required_behavior": "Actual concrete team-owner boundary before State reads; actual Work source/completed-route evidence; current identity and persisted pin nearest revision-fenced navigation/scan commit. No owner-text-only authority, fake child or widened completion/resource claim.",
-        "root_followup": "Only owned deploy/bundle.ts PINNED_RUNTIME_FILES cohort-tick.js addition after factory source freeze and owning consumer release; reuse actual results, no extra review/test layer."
+        "root_followup": "Only owned deploy/bundle.ts PINNED_RUNTIME_FILES cohort-tick.js addition after factory source freeze and owning consumer release; reuse actual results, no extra review/test layer.",
+        "installed_owner_scope": "Roadmap prepares optional trusted host selected-team CAN_STATE_OWNER plus separate STATE_DB and explicit fresh-assignment opt-in in env/main. DB remains Identity-only in selected mode, no State bootstrap/global fallback before actual owner boundary; legacy environment unchanged and app/mixed-root/general pages/MCP claims excluded. Unchecked source stays outside capture."
       }
     },
     "owner_storage_canonical_consumer": {
@@ -2630,14 +2631,32 @@
       "verification": "Owning affected build0(3.66s) after correcting actual nonempty field name; first actual enum_default_shapes consumer1/1(0.44s), nine canonical Memory calls. State/CF profile and earlier supplied-input/actor/ref/scalar/replay checks reused. Root direct source/test review, no rerun.",
       "sources_outputs_handles_released": true,
       "counts_unchanged": true,
-      "limits": "Selected mutation/default Memory profiles only; next genuine readBound consumer requires existing pure at facade export. Wider CRUD/private/D1/host/fullS9 and root48 remain separate."
+      "limits": "Selected mutation/default Memory profiles only; next genuine readBound consumer requires existing pure at facade export. Wider CRUD/private/D1/host/fullS9 and root48 remain separate.",
+      "commit": "5b80d48afa939f68aba3ce144c0fc183ac535c98"
     },
     "read_enum_at_facade": {
-      "state": "Root added only existing Values pure at export in runtime/stdlib.ts named pure-helper block; source clear for owning output publication and forthcoming real read_enum_default_runtime consumer.",
-      "source": "packages/cloudflare/src/runtime/stdlib.ts",
-      "contract": "Direct reexport of defining Values at helper; no wrapper, new algorithm, codec or c-first argument conversion.",
-      "verification": "Await actual owning generated read consumer; no standalone export-identity test or root/shared emission.",
+      "state": "Direct defining Values at reexport and genuine generated read enum default consumer reviewed and accepted at finite canonical Memory scope; capture ready.",
+      "contract": "One existing at export, no adapter. Real projected record feeds nullable/ordinary-array enum source seeds and ordered parameter copies; supplied null/empty/ordered overrides skip defaults. Existing live read admission and result projection remain defining owners.",
+      "verification": "First owning read_enum_default_runtime1/1(.48s) after one compile0(8.48s) and actual selective at publication. Six genuine CRUD/read attempts, once/order, anonymous/nonmember/revoked refusal before authored execution, unchanged revision/history. Root direct source review, no new run or reviewer.",
+      "limits": "Canonical Memory with existing int[] result; no read receipt/effects, enum result, D1/installed/full application or root48 closure.",
+      "sources_outputs_handles_released": true,
       "counts_unchanged": true
+    },
+    "fanout_final_join": {
+      "state": "Direct defining State inspection and Roadmap handoff agree pure zero-child/navigation/scan staging is already implemented; no second State helper/API/engine/test.",
+      "sources": [
+        "packages/state/src/fanout/navigation.ts",
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/src/runtime/cohort-tick.ts"
+      ],
+      "actual_remaining": "CF owner-authorized zero-child/exhausted scan and installed tick actual consumer.",
+      "concrete_corrections": [
+        "At maintenance current revision, requery existing one-row navigation child query before null wrap; avoid new no-op write for already-null exhausted owner scan.",
+        "Nearest retained-admission commit, revalidate actual current owner boundary/pin through existing StoragePort delegation rather than only start-of-tick owner resolution."
+      ],
+      "ownership": "Roadmap retains active CF writer; exact helper-only release requested for Package, no overlapping edit. SAME native case qualifies the coherent consumer; accepted State results reused.",
+      "counts_unchanged": true,
+      "scope_limits": "No global Identity/State atomicity, app/mixed-root/page/MCP/general host or constant total CPU/bytes claim; existing holds preserved."
     }
   },
   "live_finite_packets": [

@@ -63,7 +63,7 @@ import { sameNativeReference } from './native-records.js';
 
 // Generated pure helpers retain their Values producer identity.
 export {
-  int64, datetime, compareInstant, addDuration, all, sum, join, trim, compareScalar,
+  int64, datetime, compareInstant, addDuration, all, at, sum, join, trim, compareScalar,
   parseDecimal, addDecimal, compareDecimal, money, addMoney, compareMoney,
   date, add_days, compareDate,
 } from '@canlang/values';
