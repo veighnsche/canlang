@@ -39,6 +39,7 @@ fn operation_order_omissions_and_present_empty_metadata() {
     let mut input = JsOperationField {
         name: "id".into(),
         value_type: None,
+        computed_default: false,
         field: JsMcpField::Ref {
             model: "P.Row".into(),
             require_version: false,
