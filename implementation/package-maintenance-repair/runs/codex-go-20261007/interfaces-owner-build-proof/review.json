@@ -1,0 +1,27 @@
+{
+  "verdict": "PASS_WITH_METADATA_DEFECT",
+  "candidateVerdict": "PASS",
+  "ownerSnapshotQualification": "PASS",
+  "defects": [
+    {
+      "id": "D1",
+      "kind": "producer-runtime-metadata",
+      "description": "Before recipe raw log proves Node24.21.0 while packet asserts Node26.10.0; after invocation identity unproven. Correct claim or supply invocation-specific evidence."
+    }
+  ],
+  "candidateSHA": "67c8201177f547a06f6a97885430833ceffafc800976432982eacd975bcc1cad",
+  "pagesSnapshotSHA": "f0c29777fd6be3be69561e1c309f3feb1ef49a04a1943b983512ad4bdca26238",
+  "frozenSourcePinsSHA": "b5e38f57ca36aa78d70b7120ff83dbe3809fe2c3f7d9258b93e9d3056ecfdd98",
+  "ownerOutputPinsSHA": "2d00a9fba7a9f160e756af25d9920be64efff3fefe4db1ac69c39ba3947f1e0d",
+  "dependencyOutputPinsSHA": "3d51deaea43b825381dacd5f2cda4633a653cbb30ca4a7f6b24949a2cca97dee",
+  "sourceSnapshotMismatchesAtRelease": [
+    "packages/interfaces/src/index.ts",
+    "packages/interfaces/src/http/pages.ts"
+  ],
+  "allReadsReleased": true,
+  "allCommandsExited": true,
+  "repositoryWrites": false,
+  "parentPacketWrites": false,
+  "networkRequests": 0,
+  "fullOwnerBuildReplayed": false
+}

@@ -38,6 +38,8 @@
   ],
   "zero_initializer_effects_claimed": false,
   "writer_reader_commands_released": true,
-  "commit_pending": true,
-  "no_parent_closure": true
+  "commit_pending": false,
+  "no_parent_closure": true,
+  "commit": "b5f3f61c5a7aa942cc9e535312bc848fe21cf497",
+  "commit_record_updated_utc": "2026-10-08T00:07:55.091754+00:00"
 }

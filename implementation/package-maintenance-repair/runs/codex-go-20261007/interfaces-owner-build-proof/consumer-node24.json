@@ -1,0 +1,862 @@
+{
+  "scope": "real owner-produced outside-checkout package declared exports and distribution module preloads; no installed Worker or mount claim",
+  "node": "v24.21.0",
+  "execPath": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+  "exports": [
+    {
+      "specifier": "@canlang/interfaces",
+      "resolved": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/index.js",
+      "ok": true,
+      "names": [
+        "AUTHORIZATION_SERVER_PATH",
+        "AUTHORIZE_PATH",
+        "CIRCULAR",
+        "CSRF_FIELD",
+        "CSRF_HEADER",
+        "CSV_PREFIX",
+        "DEPTH_EXCEEDED",
+        "EXPORTS_PREFIX",
+        "FORM_BODY_MAX_BYTES",
+        "HANDLE_MODE_ALLOWED",
+        "INGRESS_BODY_MAX_BYTES",
+        "INGRESS_PREFIX",
+        "IncompatibleDescriptorError",
+        "JSON_BODY_MAX_BYTES",
+        "MAX_ID_LENGTH",
+        "MCP_MAX_INLINE_FIELDS",
+        "MCP_SERVER_VERSION",
+        "OAUTH_PREFIX",
+        "OPERATIONS_PREFIX",
+        "OPERATION_ID_FUTURE_TOLERANCE_MS",
+        "OPERATION_ID_MAX_AGE_MS",
+        "OPERATION_NAME_PATTERN",
+        "PRINT_PREFIX",
+        "PROTECTED_RESOURCE_PATH",
+        "PUBLIC_ERROR_MESSAGES",
+        "RATE_LIMIT_AUTH",
+        "RATE_LIMIT_RECOVERY",
+        "RATE_LIMIT_RECOVERY_WINDOW_MS",
+        "RATE_LIMIT_WINDOW_MS",
+        "REDACTED",
+        "REGISTER_PATH",
+        "SECRET_KEY_PATTERN",
+        "SIGN_IN_PATH",
+        "SIGN_OUT_PATH",
+        "SWITCH_TEAM_PATH",
+        "TOKEN_PATH",
+        "UNSERIALIZABLE",
+        "UPLOADS_PREFIX",
+        "UPLOAD_ADAPTER_BRIDGE_V1",
+        "UUID_V7_PATTERN",
+        "WELL_KNOWN_PREFIX",
+        "assertPostCsrf",
+        "authorizationServerMetadata",
+        "bindingForIntent",
+        "buildBusinessError",
+        "buildPresentationContext",
+        "catalogFromArtifactOperations",
+        "caughtToBusinessError",
+        "checkArtifactOperation",
+        "checkArtifactOperations",
+        "checkArtifactSliceVersion",
+        "checkAuthRateLimit",
+        "checkBoundArgument",
+        "checkBoundArguments",
+        "checkClosedInputs",
+        "checkExpectedVersion",
+        "checkedToMcpInputSchema",
+        "checkedToToolInputSchema",
+        "clientKey",
+        "createConsoleLogger",
+        "createHttpHandler",
+        "createMcpHandler",
+        "csrfTokenForSession",
+        "deriveOperationInputs",
+        "deriveOperationShape",
+        "extractUuidV7Ms",
+        "fieldError",
+        "fragmentErrorResponse",
+        "fromUnknown",
+        "handleAuthRequest",
+        "handleIngressRequest",
+        "handleModeAllowed",
+        "handleOAuthRequest",
+        "handleOperationRequest",
+        "handlePageRequest",
+        "handleUploadRequest",
+        "hasGrantedPath",
+        "httpStatusFor",
+        "incidentId",
+        "isBusinessErrorCode",
+        "isBusinessThrow",
+        "isDeliveryField",
+        "isMutationKind",
+        "isPartialRequest",
+        "jsonErrorResponse",
+        "listToolsFor",
+        "logBusinessError",
+        "logInternalError",
+        "mapVerifiedIngress",
+        "mintOperationId",
+        "parseCollectionQuery",
+        "parseFormBody",
+        "parseJsonBody",
+        "parseMutationRef",
+        "parseReadRef",
+        "projectFields",
+        "protectedResourceMetadata",
+        "readCappedBody",
+        "receiverFromIdentity",
+        "redactForLog",
+        "registryFromArtifactOperations",
+        "renderReferenceMarkdown",
+        "requestOrigin",
+        "resolveReferenceDescription",
+        "resolveRequestIdentity",
+        "retryAfterMsOf",
+        "systemInterfacesClock",
+        "toHttpResponse",
+        "toJsonSchema",
+        "toMcpError",
+        "toMcpInputSchema",
+        "toMcpTool",
+        "toMcpToolFromArtifact",
+        "toOperationDescriptor",
+        "toToolInputSchema",
+        "toToolInputSchemaFromArtifact",
+        "toolsFor",
+        "toolsFromArtifactOperations",
+        "validateOperationId",
+        "wwwAuthenticateChallenge"
+      ]
+    },
+    {
+      "specifier": "@canlang/interfaces/distribution",
+      "resolved": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/distribution.js",
+      "ok": true,
+      "names": [
+        "distribution"
+      ]
+    },
+    {
+      "specifier": "@canlang/interfaces/testing",
+      "resolved": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/testing.js",
+      "ok": true,
+      "names": [
+        "createFakeBindings",
+        "createFakeCatalog",
+        "createFakeFileUseInfo",
+        "createFakeInvoker",
+        "createFakeKernel",
+        "createFakeMcpFilesInfo",
+        "createFakeOperationRegistry",
+        "createFakePermissions",
+        "createFakeRegistry",
+        "createFakeSink",
+        "createFakeVerifier",
+        "createGrantFixture",
+        "createIdentityFixture",
+        "createMemoryRateLimiter",
+        "createRecordingLogger",
+        "createTestApp",
+        "createTestBinding",
+        "createTestDeps",
+        "createTestEnvelope",
+        "createTestIdentityDeps",
+        "createTestIngressDeps",
+        "createTestMcpDeps",
+        "createTestOAuthDeps",
+        "createTestUploadDeps",
+        "testRequest"
+      ]
+    },
+    {
+      "specifier": "@canlang/interfaces/http/form-errors",
+      "resolved": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/http/formErrors.js",
+      "ok": true,
+      "names": [
+        "applyDrafts",
+        "bindingFromDerived",
+        "clearFormBindings",
+        "errorOutcome",
+        "formBindingFor",
+        "registerFormBinding",
+        "renderFormError",
+        "safeFormError",
+        "wantsHtmlRerender"
+      ]
+    },
+    {
+      "specifier": "@canlang/interfaces/uploads/kernel",
+      "resolved": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/uploads/kernel.js",
+      "ok": true,
+      "names": [
+        "assertFileJourneyBindings",
+        "assertFileKernelBindings",
+        "createFileJourneyKernel",
+        "createFileKernel"
+      ]
+    },
+    {
+      "specifier": "@canlang/interfaces/mcp/server",
+      "resolved": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/mcp/server.js",
+      "ok": true,
+      "names": [
+        "MCP_SERVER_VERSION",
+        "createMcpHandler"
+      ]
+    },
+    {
+      "specifier": "@canlang/interfaces/http/operations",
+      "resolved": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/http/operations.js",
+      "ok": true,
+      "names": [
+        "OPERATION_NAME_PATTERN",
+        "catalogFromArtifactOperations",
+        "deriveOperationInputs",
+        "deriveOperationShape",
+        "handleOperationRequest"
+      ]
+    }
+  ],
+  "modulePreloads": [
+    {
+      "relative": "distribution.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/distribution.js",
+      "ok": true,
+      "exports": [
+        "distribution"
+      ]
+    },
+    {
+      "relative": "docs/reference.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/docs/reference.js",
+      "ok": true,
+      "exports": [
+        "renderReferenceMarkdown",
+        "resolveReferenceDescription"
+      ]
+    },
+    {
+      "relative": "envelope/prepared.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/envelope/prepared.js",
+      "ok": true,
+      "exports": [
+        "prepareHttpPlan",
+        "runPreparedHttpPlan"
+      ]
+    },
+    {
+      "relative": "envelope/refs.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/envelope/refs.js",
+      "ok": true,
+      "exports": [
+        "MAX_ID_LENGTH",
+        "parseMutationRef",
+        "parseReadRef"
+      ]
+    },
+    {
+      "relative": "envelope/validate.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/envelope/validate.js",
+      "ok": true,
+      "exports": [
+        "OPERATION_ID_FUTURE_TOLERANCE_MS",
+        "OPERATION_ID_MAX_AGE_MS",
+        "UUID_V7_PATTERN",
+        "checkClosedInputs",
+        "extractUuidV7Ms",
+        "validateOperationId"
+      ]
+    },
+    {
+      "relative": "envelope/versions.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/envelope/versions.js",
+      "ok": true,
+      "exports": [
+        "checkExpectedVersion"
+      ]
+    },
+    {
+      "relative": "errors/envelope.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/errors/envelope.js",
+      "ok": true,
+      "exports": [
+        "MCP_MAX_INLINE_FIELDS",
+        "buildBusinessError",
+        "fromUnknown",
+        "httpStatusFor",
+        "toHttpResponse",
+        "toMcpError"
+      ]
+    },
+    {
+      "relative": "errors/logging.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/errors/logging.js",
+      "ok": true,
+      "exports": [
+        "createConsoleLogger",
+        "incidentId",
+        "logBusinessError",
+        "logInternalError"
+      ]
+    },
+    {
+      "relative": "errors/redact.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/errors/redact.js",
+      "ok": true,
+      "exports": [
+        "CIRCULAR",
+        "DEPTH_EXCEEDED",
+        "REDACTED",
+        "SECRET_KEY_PATTERN",
+        "UNSERIALIZABLE",
+        "redactForLog"
+      ]
+    },
+    {
+      "relative": "errors/safe.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/errors/safe.js",
+      "ok": true,
+      "exports": [
+        "PUBLIC_ERROR_MESSAGES",
+        "fieldError",
+        "isBusinessErrorCode"
+      ]
+    },
+    {
+      "relative": "http/assets.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/http/assets.js",
+      "ok": true,
+      "exports": [
+        "ASSETS_PREFIX",
+        "ASSET_MIME_CSS",
+        "ASSET_MIME_JAVASCRIPT",
+        "createAssetTable",
+        "handleAssetsRequest"
+      ]
+    },
+    {
+      "relative": "http/auth.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/http/auth.js",
+      "ok": true,
+      "exports": [
+        "handleAuthRequest"
+      ]
+    },
+    {
+      "relative": "http/canonical-json.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/http/canonical-json.js",
+      "ok": true,
+      "exports": [
+        "canonicalJson"
+      ]
+    },
+    {
+      "relative": "http/context.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/http/context.js",
+      "ok": true,
+      "exports": [
+        "CSRF_FIELD",
+        "CSRF_HEADER",
+        "assertPostCsrf",
+        "caughtToBusinessError",
+        "clientKey",
+        "csrfTokenForSession",
+        "isBusinessThrow",
+        "jsonErrorResponse",
+        "mintOperationId",
+        "resolveRequestIdentity"
+      ]
+    },
+    {
+      "relative": "http/csv.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/http/csv.js",
+      "ok": true,
+      "exports": [
+        "CsvParseError",
+        "CsvTooManyRowsError",
+        "handleCsvRequest",
+        "parseCsvText",
+        "reviewCsvCandidates"
+      ]
+    },
+    {
+      "relative": "http/export.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/http/export.js",
+      "ok": true,
+      "exports": [
+        "SecretRefusal",
+        "assertExportAuthority",
+        "checkListOperation",
+        "escapeCsvCell",
+        "handleExportRequest",
+        "isExportFileValue",
+        "isExportSecretValue",
+        "neutralizeFormula",
+        "pageToCsv",
+        "projectExportCell",
+        "readExportPage"
+      ]
+    },
+    {
+      "relative": "http/formErrors.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/http/formErrors.js",
+      "ok": true,
+      "exports": [
+        "applyDrafts",
+        "bindingFromDerived",
+        "clearFormBindings",
+        "errorOutcome",
+        "formBindingFor",
+        "registerFormBinding",
+        "renderFormError",
+        "safeFormError",
+        "wantsHtmlRerender"
+      ]
+    },
+    {
+      "relative": "http/fragments.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/http/fragments.js",
+      "ok": true,
+      "exports": [
+        "fragmentErrorResponse",
+        "isPartialRequest"
+      ]
+    },
+    {
+      "relative": "http/limits.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/http/limits.js",
+      "ok": true,
+      "exports": [
+        "FORM_BODY_MAX_BYTES",
+        "JSON_BODY_MAX_BYTES",
+        "RATE_LIMIT_AUTH",
+        "RATE_LIMIT_RECOVERY",
+        "RATE_LIMIT_RECOVERY_WINDOW_MS",
+        "RATE_LIMIT_WINDOW_MS",
+        "checkAuthRateLimit",
+        "parseCollectionQuery",
+        "parseFormBody",
+        "parseJsonBody",
+        "readCappedBody",
+        "retryAfterMsOf"
+      ]
+    },
+    {
+      "relative": "http/operations.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/http/operations.js",
+      "ok": true,
+      "exports": [
+        "OPERATION_NAME_PATTERN",
+        "catalogFromArtifactOperations",
+        "deriveOperationInputs",
+        "deriveOperationShape",
+        "handleOperationRequest"
+      ]
+    },
+    {
+      "relative": "http/pages.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/http/pages.js",
+      "ok": true,
+      "exports": [
+        "handlePageRequest"
+      ]
+    },
+    {
+      "relative": "http/presentation.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/http/presentation.js",
+      "ok": true,
+      "exports": [
+        "buildPresentationContext"
+      ]
+    },
+    {
+      "relative": "http/print.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/http/print.js",
+      "ok": true,
+      "exports": [
+        "handlePrintRequest"
+      ]
+    },
+    {
+      "relative": "http/routes.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/http/routes.js",
+      "ok": true,
+      "exports": [
+        "CSV_PREFIX",
+        "EXPORTS_PREFIX",
+        "INGRESS_PREFIX",
+        "OAUTH_PREFIX",
+        "OPERATIONS_PREFIX",
+        "PRINT_PREFIX",
+        "SIGN_IN_PATH",
+        "SIGN_OUT_PATH",
+        "SWITCH_TEAM_PATH",
+        "UPLOADS_PREFIX",
+        "WELL_KNOWN_PREFIX",
+        "createHttpHandler"
+      ]
+    },
+    {
+      "relative": "index.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/index.js",
+      "ok": true,
+      "exports": [
+        "AUTHORIZATION_SERVER_PATH",
+        "AUTHORIZE_PATH",
+        "CIRCULAR",
+        "CSRF_FIELD",
+        "CSRF_HEADER",
+        "CSV_PREFIX",
+        "DEPTH_EXCEEDED",
+        "EXPORTS_PREFIX",
+        "FORM_BODY_MAX_BYTES",
+        "HANDLE_MODE_ALLOWED",
+        "INGRESS_BODY_MAX_BYTES",
+        "INGRESS_PREFIX",
+        "IncompatibleDescriptorError",
+        "JSON_BODY_MAX_BYTES",
+        "MAX_ID_LENGTH",
+        "MCP_MAX_INLINE_FIELDS",
+        "MCP_SERVER_VERSION",
+        "OAUTH_PREFIX",
+        "OPERATIONS_PREFIX",
+        "OPERATION_ID_FUTURE_TOLERANCE_MS",
+        "OPERATION_ID_MAX_AGE_MS",
+        "OPERATION_NAME_PATTERN",
+        "PRINT_PREFIX",
+        "PROTECTED_RESOURCE_PATH",
+        "PUBLIC_ERROR_MESSAGES",
+        "RATE_LIMIT_AUTH",
+        "RATE_LIMIT_RECOVERY",
+        "RATE_LIMIT_RECOVERY_WINDOW_MS",
+        "RATE_LIMIT_WINDOW_MS",
+        "REDACTED",
+        "REGISTER_PATH",
+        "SECRET_KEY_PATTERN",
+        "SIGN_IN_PATH",
+        "SIGN_OUT_PATH",
+        "SWITCH_TEAM_PATH",
+        "TOKEN_PATH",
+        "UNSERIALIZABLE",
+        "UPLOADS_PREFIX",
+        "UPLOAD_ADAPTER_BRIDGE_V1",
+        "UUID_V7_PATTERN",
+        "WELL_KNOWN_PREFIX",
+        "assertPostCsrf",
+        "authorizationServerMetadata",
+        "bindingForIntent",
+        "buildBusinessError",
+        "buildPresentationContext",
+        "catalogFromArtifactOperations",
+        "caughtToBusinessError",
+        "checkArtifactOperation",
+        "checkArtifactOperations",
+        "checkArtifactSliceVersion",
+        "checkAuthRateLimit",
+        "checkBoundArgument",
+        "checkBoundArguments",
+        "checkClosedInputs",
+        "checkExpectedVersion",
+        "checkedToMcpInputSchema",
+        "checkedToToolInputSchema",
+        "clientKey",
+        "createConsoleLogger",
+        "createHttpHandler",
+        "createMcpHandler",
+        "csrfTokenForSession",
+        "deriveOperationInputs",
+        "deriveOperationShape",
+        "extractUuidV7Ms",
+        "fieldError",
+        "fragmentErrorResponse",
+        "fromUnknown",
+        "handleAuthRequest",
+        "handleIngressRequest",
+        "handleModeAllowed",
+        "handleOAuthRequest",
+        "handleOperationRequest",
+        "handlePageRequest",
+        "handleUploadRequest",
+        "hasGrantedPath",
+        "httpStatusFor",
+        "incidentId",
+        "isBusinessErrorCode",
+        "isBusinessThrow",
+        "isDeliveryField",
+        "isMutationKind",
+        "isPartialRequest",
+        "jsonErrorResponse",
+        "listToolsFor",
+        "logBusinessError",
+        "logInternalError",
+        "mapVerifiedIngress",
+        "mintOperationId",
+        "parseCollectionQuery",
+        "parseFormBody",
+        "parseJsonBody",
+        "parseMutationRef",
+        "parseReadRef",
+        "projectFields",
+        "protectedResourceMetadata",
+        "readCappedBody",
+        "receiverFromIdentity",
+        "redactForLog",
+        "registryFromArtifactOperations",
+        "renderReferenceMarkdown",
+        "requestOrigin",
+        "resolveReferenceDescription",
+        "resolveRequestIdentity",
+        "retryAfterMsOf",
+        "systemInterfacesClock",
+        "toHttpResponse",
+        "toJsonSchema",
+        "toMcpError",
+        "toMcpInputSchema",
+        "toMcpTool",
+        "toMcpToolFromArtifact",
+        "toOperationDescriptor",
+        "toToolInputSchema",
+        "toToolInputSchemaFromArtifact",
+        "toolsFor",
+        "toolsFromArtifactOperations",
+        "validateOperationId",
+        "wwwAuthenticateChallenge"
+      ]
+    },
+    {
+      "relative": "ingress/mapping.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/ingress/mapping.js",
+      "ok": true,
+      "exports": [
+        "mapVerifiedIngress"
+      ]
+    },
+    {
+      "relative": "ingress/routes.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/ingress/routes.js",
+      "ok": true,
+      "exports": [
+        "INGRESS_BODY_MAX_BYTES",
+        "handleIngressRequest"
+      ]
+    },
+    {
+      "relative": "instrumentation/intake.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/instrumentation/intake.js",
+      "ok": true,
+      "exports": [
+        "INTAKE_BODY_MAX_BYTES",
+        "INTAKE_MESSAGE_MAX_CHARS",
+        "INTAKE_PREFIX",
+        "INTAKE_RATE_LIMIT",
+        "INTAKE_RATE_WINDOW_MS",
+        "INTAKE_STACK_MAX_CHARS",
+        "INTAKE_VERSION",
+        "OCCURRENCE_FUTURE_TOLERANCE_MS",
+        "OCCURRENCE_MAX_AGE_MS",
+        "admitIntakeReport",
+        "handleIntakeRequest"
+      ]
+    },
+    {
+      "relative": "internal/input-admission.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/internal/input-admission.js",
+      "ok": true,
+      "exports": [
+        "bearerToken",
+        "parseObjectBody"
+      ]
+    },
+    {
+      "relative": "internal/prepared-binding.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/internal/prepared-binding.js",
+      "ok": true,
+      "exports": [
+        "toBindingEntry"
+      ]
+    },
+    {
+      "relative": "mcp/discovery.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/mcp/discovery.js",
+      "ok": true,
+      "exports": [
+        "listToolsFor"
+      ]
+    },
+    {
+      "relative": "mcp/prepared.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/mcp/prepared.js",
+      "ok": true,
+      "exports": [
+        "prepareMcpPlan",
+        "runPreparedMcpPlan"
+      ]
+    },
+    {
+      "relative": "mcp/schemas.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/mcp/schemas.js",
+      "ok": true,
+      "exports": [
+        "HANDLE_MODE_ALLOWED",
+        "IncompatibleDescriptorError",
+        "checkArtifactOperation",
+        "checkArtifactOperations",
+        "checkArtifactSliceVersion",
+        "checkBoundArgument",
+        "checkBoundArguments",
+        "checkedToMcpInputSchema",
+        "checkedToToolInputSchema",
+        "handleModeAllowed",
+        "isDeliveryField",
+        "isMutationKind",
+        "toJsonSchema",
+        "toMcpInputSchema",
+        "toToolInputSchema",
+        "toToolInputSchemaFromArtifact"
+      ]
+    },
+    {
+      "relative": "mcp/server.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/mcp/server.js",
+      "ok": true,
+      "exports": [
+        "MCP_SERVER_VERSION",
+        "createMcpHandler"
+      ]
+    },
+    {
+      "relative": "mcp/tools.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/mcp/tools.js",
+      "ok": true,
+      "exports": [
+        "registryFromArtifactOperations",
+        "toMcpTool",
+        "toMcpToolFromArtifact",
+        "toOperationDescriptor",
+        "toolsFor",
+        "toolsFromArtifactOperations"
+      ]
+    },
+    {
+      "relative": "oauth/metadata.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/oauth/metadata.js",
+      "ok": true,
+      "exports": [
+        "AUTHORIZATION_SERVER_PATH",
+        "AUTHORIZE_PATH",
+        "PROTECTED_RESOURCE_PATH",
+        "REGISTER_PATH",
+        "TOKEN_PATH",
+        "authorizationServerMetadata",
+        "protectedResourceMetadata",
+        "requestOrigin",
+        "wwwAuthenticateChallenge"
+      ]
+    },
+    {
+      "relative": "oauth/routes.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/oauth/routes.js",
+      "ok": true,
+      "exports": [
+        "handleOAuthRequest"
+      ]
+    },
+    {
+      "relative": "ports.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/ports.js",
+      "ok": true,
+      "exports": [
+        "systemInterfacesClock"
+      ]
+    },
+    {
+      "relative": "projection/project.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/projection/project.js",
+      "ok": true,
+      "exports": [
+        "hasGrantedPath",
+        "projectFields"
+      ]
+    },
+    {
+      "relative": "testing.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/testing.js",
+      "ok": true,
+      "exports": [
+        "createFakeBindings",
+        "createFakeCatalog",
+        "createFakeFileUseInfo",
+        "createFakeInvoker",
+        "createFakeKernel",
+        "createFakeMcpFilesInfo",
+        "createFakeOperationRegistry",
+        "createFakePermissions",
+        "createFakeRegistry",
+        "createFakeSink",
+        "createFakeVerifier",
+        "createGrantFixture",
+        "createIdentityFixture",
+        "createMemoryRateLimiter",
+        "createRecordingLogger",
+        "createTestApp",
+        "createTestBinding",
+        "createTestDeps",
+        "createTestEnvelope",
+        "createTestIdentityDeps",
+        "createTestIngressDeps",
+        "createTestMcpDeps",
+        "createTestOAuthDeps",
+        "createTestUploadDeps",
+        "testRequest"
+      ]
+    },
+    {
+      "relative": "uploads/kernel.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/uploads/kernel.js",
+      "ok": true,
+      "exports": [
+        "assertFileJourneyBindings",
+        "assertFileKernelBindings",
+        "createFileJourneyKernel",
+        "createFileKernel"
+      ]
+    },
+    {
+      "relative": "uploads/principals.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/uploads/principals.js",
+      "ok": true,
+      "exports": [
+        "UPLOAD_ADAPTER_BRIDGE_V1",
+        "bindingForIntent",
+        "receiverFromIdentity"
+      ]
+    },
+    {
+      "relative": "uploads/routes.js",
+      "url": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/uploads/routes.js",
+      "ok": true,
+      "exports": [
+        "handleUploadRequest"
+      ]
+    }
+  ],
+  "consumers": [
+    {
+      "kind": "declared-root-real-business-error-projection",
+      "status": 404,
+      "body": "{\"code\":\"not_found\",\"message\":\"Not found.\",\"retryable\":false}"
+    }
+  ],
+  "distributionModules": "file:///private/tmp/canlang-repair-go-20261007/interfaces-owner-build-current/outside-consumer/node_modules/@canlang/interfaces/dist/src/",
+  "deepImport": {
+    "ok": false,
+    "error": {
+      "name": "Error",
+      "code": "ERR_PACKAGE_PATH_NOT_EXPORTED",
+      "message": "Package subpath './dist/src/http/assets.js' is not defined by \"exports\" in /private/tmp/canlang-repair-go-20261007/interfaces-owner-build-independent/outside-consumer/node_modules/@canlang/interfaces/package.json imported from /private/tmp/canlang-repair-go-20261007/interfaces-owner-build-independent/outside-consumer/consumer.mjs"
+    }
+  },
+  "passed": true
+}

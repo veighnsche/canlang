@@ -1,0 +1,16 @@
+[
+  {
+    "execPath": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+    "node": "v24.21.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "sha256": "e4b5a3af0e05c75de2eae013904145f40fe7fc2a6e6f17510128bf45cca4e79b"
+  },
+  {
+    "execPath": "/opt/homebrew/Cellar/node/26.10.0_1/bin/node",
+    "node": "v26.10.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "sha256": "d4cd917f05a5730ffda8a203e32fb8f9b70f79213fff1fafb045e438db8a6c06"
+  }
+]
