@@ -1707,7 +1707,7 @@
   "foreign_runtime_pure_integration": "implementation/package-maintenance-repair/runs/codex-go-20261007/runtime-pure-helpers-root-integration.json",
   "current_goal_turn_actions": {
     "classification": "progress",
-    "evidence": "State one-query selection committed256a1796 with17focused passes; nested verification cleanup committed2266088b. Released page source uses defining Interfaces renderer and State executor, private owning builds and34checks pass. Preserved actual bare-list Images fails422 due missing required empty caption; compiler adds source refusal and supported authored variant qualification proceeds. Required shared-default design remains open. Full48 centrally tracked; no worker goal or timer. Page source committed1c1fcc9f. Ordered typed-write State checkpoint qualifies native row/default wire conversion at its existing late boundary with81focused passes; broad typed consumer remains in progress."
+    "evidence": "State one-query selection committed256a1796 with17focused passes; nested verification cleanup committed2266088b. Released page source uses defining Interfaces renderer and State executor, private owning builds and34checks pass. Preserved actual bare-list Images fails422 due missing required empty caption; compiler adds source refusal and supported authored variant qualification proceeds. Required shared-default design remains open. Full48 centrally tracked; no worker goal or timer. Page source committed1c1fcc9f. Ordered typed-write State checkpoint qualifies native row/default wire conversion at its existing late boundary with81focused passes; broad typed consumer remains in progress. Explicit authored empty-caption Images compiler and real Node/workerd+D1 gate pass; original workflow default stays open. State typed checkpoint committed841f56a8. Finite checked locale reader is now implementing. Checked locale reader private emit and11focused assembly boundary tests pass; the existing owning assembly/main caller fixtures are now being reconciled and tested for their concrete old-interim setup risk."
   },
   "live_finite_packets": [
     {
@@ -1715,12 +1715,29 @@
       "agent": "/root/asset_consumer_join",
       "model": "gpt-6.1-sol",
       "effort": "high",
-      "status": "Committed1c1fcc9f source prerequisite: owning private UI/Interfaces/Cloudflare builds pass, page/form34/34. Actual original bare-list page422 retained; explicit supported variant consumer gate in progress. No downstream qualification yet.",
+      "status": "Committed1c1fcc9f; actual explicitly authored empty-caption Images variant compiler0 and focused Node26/workerd+D1 consumer1/1 passed. Original bare-list source/artifact422 retained; no shared-default/full-browser/installed/native-preparation claim.",
       "root_base": "7c8dbe2e751b7a9cbe6e4af7944c87017a9ed520",
       "blocker": "Bare list is missing required empty message, a confirmed language/UI contract gap; preserve original failure. Qualify only an explicitly authored supported empty-caption variant. Strict formatter remains; no invented compiler default.",
       "outputs": "/private/tmp/canlang-repair-go-20261007/page-query-implementation",
       "commands_live": false,
-      "commit": "1c1fcc9f"
+      "commit": "1c1fcc9f",
+      "direct_outcome": {
+        "source_difference": "list Job empty=\"No jobs yet\"; original source/artifact untouched",
+        "compiler": "Existing released compiler and frozen catalog compile0, normal generated message prop",
+        "consumer": "Existing page-query-serving.test.ts, Node26 Vitest, maxWorkers1/no-file-parallelism;1/1 in7.58s (test4.77s)",
+        "covers": [
+          "Initial empty200",
+          "Real D1 projected rows",
+          "Full/HX/HEAD one-main and poll metadata",
+          "CSS/bootstrap plus3byte-exact resources",
+          "Invalid session403",
+          "Canonical AST predicate/projection/bounds",
+          "Parent/cursor/function/malformed predicate refusals",
+          "Limit overflow refusal"
+        ],
+        "log": "/private/tmp/canlang-repair-go-20261007/page-query-implementation/explicit-empty/focused.log",
+        "original_failure": "/private/tmp/canlang-repair-go-20261007/page-query-implementation/focused-original-bare-list422.log"
+      }
     },
     {
       "task": "TECH-V03/V04 checked scalar/result source ownership",
@@ -1771,14 +1788,42 @@
     {
       "task": "TECH-V03/V04 ordered State typed-write checkpoint",
       "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
-      "status": "Released and root-reviewed; isolated owning emit and81focused mutation checks pass (9new). Native default receipt correction retained. Runtime codec/producer/hook/installed joins remain open.",
+      "status": "Committed841f56a8; root-reviewed; isolated owning emit and81focused mutation checks pass (9new). Native default receipt correction retained. Runtime codec/producer/hook/installed joins remain open.",
       "files": [
         "packages/state/src/mutation/pipeline.ts",
         "packages/state/src/mutation/models.ts",
         "packages/state/test/mutation/typed-staging.test.ts"
       ],
       "outputs": "/private/tmp/can-state-typed-td2vqp2p/dist",
-      "validation": "One post-correction isolated State emit and81focused checks; root reuses direct outcome, no rerun/proof chain."
+      "validation": "One post-correction isolated State emit and81focused checks; root reuses direct outcome, no rerun/proof chain.",
+      "commit": "841f56a8"
+    },
+    {
+      "task": "DEL-B02/H3 checked app locale metadata reader",
+      "agent": "/root/app_locale_consumer",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "reason": "Finite existing metadata ingestion point under released compiler contract; no new policy",
+      "files": [
+        "packages/cloudflare/src/worker/assembly.ts::loadAppInfo",
+        "packages/cloudflare/test/app-locale-serving.test.ts"
+      ],
+      "status": "Released and root direct reviewed: owning private TypeScript emit passed;11focused existing assembly factory handoff cases passed. Metadata fixture scope only; actual compiler/durable/installed claims remain open.",
+      "outputs": "/private/tmp/canlang-app-locale-consumer-20261008",
+      "validation": "One private exact owning TypeScript emit and emitted Vitest run;11/11. Private-only missing resolver links and test discovery fixed before behavioral pass, no production weakening.",
+      "commands_live": false
+    },
+    {
+      "task": "DEL-B02/DEL-R01 original owning assembly caller regression migration",
+      "agent": "/root/asset_consumer_join",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "reason": "Actual legacy caller fixtures cross identity/page/operation/file owners; preserve original refusal/journey behavior without interim production fallback",
+      "files": [
+        "packages/cloudflare/test/assembly.test.ts",
+        "packages/cloudflare/test/worker-main.test.ts"
+      ],
+      "status": "Active finite test writer, exact released source snapshot and two owning suites only; invoke.ts active writer untouched"
     }
   ],
   "foreign_runtime_pure_integration_commit": "b5f3f61c5a7aa942cc9e535312bc848fe21cf497",

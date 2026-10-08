@@ -1104,7 +1104,19 @@ async function loadAppInfo(artifact: CompileArtifact, asm: AssembledModules): Pr
   if (!isRecord(definition) || typeof definition["id"] !== "string" || definition["id"] === "") {
     throw new Error("assembly: selected app entry has no defining appDefinition.id");
   }
-  return { appId: definition["id"], brand: definition["id"], appDefaultLocale: "en", ownerLabels: new Map() };
+  let appDefaultLocale = "en";
+  if (Object.prototype.hasOwnProperty.call(definition, "appDefaultLocale")) {
+    const claimedLocale = definition["appDefaultLocale"];
+    try {
+      if (typeof claimedLocale !== "string" || Intl.getCanonicalLocales(claimedLocale).length !== 1) {
+        throw new Error("invalid locale");
+      }
+      appDefaultLocale = claimedLocale;
+    } catch {
+      throw new Error("assembly: selected app entry has invalid appDefinition.appDefaultLocale");
+    }
+  }
+  return { appId: definition["id"], brand: definition["id"], appDefaultLocale, ownerLabels: new Map() };
 }
 
 /**

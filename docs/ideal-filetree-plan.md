@@ -282,3 +282,6 @@ Root bounded page reconciliation: Interfaces owns actual page HTTP admission/dis
 
 
 Root bounded typed-write reconciliation: State mutation/pipeline retains structural/presence/default/hook ordering and owns one late optional field conversion checkpoint; the runtime/Values owner supplies actual codecs through retained checked metadata. Original resolved defaults keep existing write attribution. Owning typed-staging controls cover exact native row/default wire values and refusal isolation (81focused pass); full runtime/hook/durable/installed gates remain open. No new representation owner or complete checkpoint advancement.
+
+
+Root bounded locale/caller reconciliation: compiler owns checked composed-app locale and incomplete-list emission refusal; Cloudflare consumes the selected locale through existing AppInfo, with metadata-only11test scope. Actual explicitly authored Images empty-caption consumer passes Node/workerd+D1; original bare-list default, broad formatting/browser/installed and accumulated review remain open. Editor documentation now declares its existing document/startup-catalog ownership; wider workspace engine remains unimplemented. Checkpoint unchanged; no responsibility reassignment or false whole-scope advancement.
