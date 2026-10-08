@@ -270,6 +270,7 @@ const KNOWN_INPUT_KINDS: ReadonlySet<string> = new Set([
   'money',
   'datetime',
   'duration',
+  'user',
   'boolean',
   'file',
   'enum',
@@ -296,11 +297,11 @@ function checkResult(holder: Record<string, unknown>, what: string): CanonicalOp
   if (!Object.hasOwn(holder, 'result')) return undefined;
   const result = holder['result'];
   if (!isRecord(result) || !Object.hasOwn(result, 'type')) {
-    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration profile or bare void.`);
+    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration/user profile or bare void.`);
   }
   const type = result['type'];
-  if (type !== 'void' && (typeof type !== 'string' || !/^(int|datetime|text|bool|decimal|money|date|duration)(\[\])?\??$/.test(type))) {
-    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration profile or bare void.`);
+  if (type !== 'void' && (typeof type !== 'string' || !/^(int|datetime|text|bool|decimal|money|date|duration|user)(\[\])?\??$/.test(type))) {
+    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration/user profile or bare void.`);
   }
   return Object.freeze({ type });
 }
@@ -308,8 +309,8 @@ function checkResult(holder: Record<string, unknown>, what: string): CanonicalOp
 function checkValueType(field: Record<string, unknown>, what: string): CanTypeId | undefined {
   if (!Object.hasOwn(field, 'valueType')) return undefined;
   const type = field['valueType'];
-  if (typeof type !== 'string' || !/^(int|datetime|text|bool|decimal|money|date|duration)(\[\])?\??$/.test(type)) {
-    fail('malformed_descriptor', `Invalid ${what}: valueType must declare an int/datetime/text/bool/decimal/money/date/duration profile.`);
+  if (typeof type !== 'string' || !/^(int|datetime|text|bool|decimal|money|date|duration|user)(\[\])?\??$/.test(type)) {
+    fail('malformed_descriptor', `Invalid ${what}: valueType must declare an int/datetime/text/bool/decimal/money/date/duration/user profile.`);
   }
   if (Object.hasOwn(field, 'nullable') &&
       (typeof field['nullable'] !== 'boolean' || type.endsWith('?') !== field['nullable'])) {
@@ -334,6 +335,7 @@ function scalarTypeForKind(kind: unknown): string | undefined {
     case 'money': return 'money';
     case 'date': return 'date';
     case 'duration': return 'duration';
+    case 'user': return 'user';
     case 'string': return 'text';
     default: return undefined;
   }
@@ -473,7 +475,7 @@ function checkCanonicalInput(
     fail(
       'unknown_input_kind',
       `Unknown input kind ${JSON.stringify(kind)} for ${what}; ` +
-        'supported: ref, string, integer, decimal, money, datetime, duration, boolean, file, enum.',
+        'supported: ref, string, integer, decimal, money, datetime, duration, user, boolean, file, enum.',
     );
   }
   if (typeof value['required'] !== 'boolean') {
@@ -1234,7 +1236,7 @@ export function artifactToDescriptorSet(
         fail(
           'unknown_input_kind',
           `Unknown input kind ${JSON.stringify(inputKind)} for ${what}; ` +
-            'supported: ref, string, integer, decimal, money, datetime, duration, boolean, file, enum.',
+            'supported: ref, string, integer, decimal, money, datetime, duration, user, boolean, file, enum.',
         );
       }
       if (typeof input.required !== 'boolean') {

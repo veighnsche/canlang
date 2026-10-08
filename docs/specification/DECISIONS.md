@@ -2468,3 +2468,10 @@ Both owning private source typechecks/emits and 68 focused mounted/advisory CSV 
 The existing exact-number source fixture now authors Money constructor defaults in model fields and scalar/array/nullable parameters. Omission resolves canonical minor-unit defaults (including half-even 2.505 EUR to minor 250); explicit null and supplied values bypass parameter defaults. Tests observe the actual canonical resolved-default receipt, unchanged supplied inputs and retained explicit arithmetic/CRUD paths. No runtime or State repair was needed for this consumer join.
 
 Current source compile and Cloudflare typecheck passed, and the two affected original memory/Miniflare D1 cases passed. Same-directory D1 reopen preserves rows, history and resolved-default receipts; replay does not add revisions or domain/history effects. These are source-generated repository consumer results with fixture identity, not installed/deployed, physical tenant, hook or trusted-service qualification. Broader original and package parent gates remain open; fixture/test growth earns no replacement savings.
+
+
+### Accepted: State preserves checked native User type associations (2026-10-08)
+
+Canonical State metadata accepts the owning `user` scalar tag and exact `user`, `user[]`, `user?` and `user[]?` input/model/result profiles. Association checks require agreement with array/nullable markers and the checked owning tag; descriptors are copied/frozen, while id-shaped defaults do not create a type claim. User directory, assignment validity, membership and storage/tenant authority are not inferred from this metadata.
+
+Compiler producer and interface mirrors are committed at 66c3b567. Contracts and State builds passed sequentially; the owning metadata suite passed 18/18, and unchanged admission 28/28 results were reused. This releases metadata only; Cloudflare/native value conversion and actual source/storage consumer qualification remain separately owned until their handoff.
