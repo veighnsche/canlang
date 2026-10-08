@@ -78,6 +78,39 @@ test('compiled decimal and money profiles retain exact native arithmetic and can
       delta: '0.1', amounts: ['0.1', '0.2'],
     });
     assert.deepEqual(committed(await invoker.invokeMutation(defaults, identity), 'replayed').result, eur('30'));
+    const omittedCreate = envelope('Ledger.create', {});
+    const defaultBorn = committed(await invoker.invokeMutation(omittedCreate, identity));
+    const defaultRow = defaultBorn.result as { id: string; data: Record<string, unknown> };
+    assert.deepEqual(defaultRow.data, row.data);
+    const omittedCreateReceipt = await store.readReceipt(receiptIdentity(omittedCreate));
+    assert.deepEqual(omittedCreateReceipt?.resolvedDefaults['cash'], eur('250'));
+    assert.deepEqual(omittedCreateReceipt?.resolvedDefaults['seedCoins'], [eur('10'), eur('20')]);
+    const moneyDefaults = envelope('defaults', {});
+    const nullableDefaults = envelope('nullableDefaults', {});
+    const nullDefaults = envelope('nullableDefaults', { value: null, values: null });
+    const overriddenDefaults = envelope('nullableDefaults', { value: eur('99'), values: [eur('101')] });
+    for (const [request, result] of [[moneyDefaults, eur('30')], [nullableDefaults, eur('250')],
+      [nullDefaults, null], [overriddenDefaults, eur('99')]] as const) {
+      assert.deepEqual(committed(await invoker.invokeMutation(request, identity)).result, result);
+    }
+    const moneyDefaultsReceipt = await store.readReceipt(receiptIdentity(moneyDefaults));
+    assert.deepEqual(moneyDefaultsReceipt?.resolvedDefaults, {
+      delta: '0.1', cash: eur('20'), amounts: ['0.1', '0.2'], coins: [eur('10')],
+    });
+    const nullableDefaultsReceipt = await store.readReceipt(receiptIdentity(nullableDefaults));
+    assert.deepEqual(nullableDefaultsReceipt?.resolvedDefaults, { value: eur('250'), values: [eur('10'), eur('20')] });
+    for (const request of [nullDefaults, overriddenDefaults]) {
+      assert.deepEqual((await store.readReceipt(receiptIdentity(request)))?.resolvedDefaults, {});
+    }
+    const defaultsRevision = await store.readRevision();
+    const defaultsHistory = await store.historyFor(MODEL, asId(defaultRow.id));
+    for (const [request, result] of [[omittedCreate, defaultBorn.result], [moneyDefaults, eur('30')],
+      [nullableDefaults, eur('250')], [nullDefaults, null], [overriddenDefaults, eur('99')]] as const) {
+      assert.deepEqual(committed(await invoker.invokeMutation(request, identity), 'replayed').result, result);
+    }
+    assert.equal(await store.readRevision(), defaultsRevision);
+    assert.deepEqual((await store.load(MODEL, asId(defaultRow.id)))?.data, defaultRow.data);
+    assert.deepEqual(await store.historyFor(MODEL, asId(defaultRow.id)), defaultsHistory);
     for (const [value, minor] of [['2.5', '250'], ['2.505', '250'], ['2.515', '252']]) {
       assert.deepEqual(committed(await invoker.invokeMutation(envelope('construct', { value }), identity)).result, eur(minor!));
     }
@@ -162,7 +195,8 @@ canApp = function() {
     ), 'validation');
     assert.deepEqual(await store.load(MODEL, asId(row.id)), beforeFailures);
     assert.deepEqual(await store.historyFor(MODEL, asId(row.id)), history);
-    assert.doesNotThrow(() => JSON.stringify([createReceipt, defaultsReceipt, stored, history]));
+    assert.doesNotThrow(() => JSON.stringify([createReceipt, defaultsReceipt, omittedCreateReceipt,
+      moneyDefaultsReceipt, nullableDefaultsReceipt, stored, history]));
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
 
@@ -221,6 +255,33 @@ test('compiled decimal and money D1 lifecycle persists exact values, CRUD refusa
     assert.deepEqual(committed(await invoker.invokeMutation(defaults, identity)).result, eur('30'));
     const defaultsReceipt = await d1.store.readReceipt(receiptIdentity(defaults));
     assert.deepEqual(defaultsReceipt?.resolvedDefaults, { delta: '0.1', amounts: ['0.1', '0.2'] });
+    const omittedCreate = envelope('Ledger.create', {});
+    const defaultBorn = committed(await invoker.invokeMutation(omittedCreate, identity));
+    const defaultRow = defaultBorn.result as { id: string; data: Record<string, unknown> };
+    assert.deepEqual(defaultRow.data, initialData);
+    const defaultStored = await d1.store.load(MODEL, asId(defaultRow.id));
+    const defaultHistory = await d1.store.historyFor(MODEL, asId(defaultRow.id));
+    const omittedCreateReceipt = await d1.store.readReceipt(receiptIdentity(omittedCreate));
+    assert.deepEqual(omittedCreateReceipt?.resolvedDefaults['cash'], eur('250'));
+    assert.deepEqual(omittedCreateReceipt?.resolvedDefaults['seedCoins'], [eur('10'), eur('20')]);
+    const moneyDefaults = envelope('defaults', {});
+    const nullableDefaults = envelope('nullableDefaults', {});
+    const nullDefaults = envelope('nullableDefaults', { value: null, values: null });
+    const overriddenDefaults = envelope('nullableDefaults', { value: eur('99'), values: [eur('101')] });
+    const moneyDefaultCases = [[moneyDefaults, eur('30')], [nullableDefaults, eur('250')],
+      [nullDefaults, null], [overriddenDefaults, eur('99')]] as const;
+    for (const [request, result] of moneyDefaultCases) {
+      assert.deepEqual(committed(await invoker.invokeMutation(request, identity)).result, result);
+    }
+    const moneyDefaultsReceipt = await d1.store.readReceipt(receiptIdentity(moneyDefaults));
+    assert.deepEqual(moneyDefaultsReceipt?.resolvedDefaults, {
+      delta: '0.1', cash: eur('20'), amounts: ['0.1', '0.2'], coins: [eur('10')],
+    });
+    const nullableDefaultsReceipt = await d1.store.readReceipt(receiptIdentity(nullableDefaults));
+    assert.deepEqual(nullableDefaultsReceipt?.resolvedDefaults, { value: eur('250'), values: [eur('10'), eur('20')] });
+    for (const request of [nullDefaults, overriddenDefaults]) {
+      assert.deepEqual((await d1.store.readReceipt(receiptIdentity(request)))?.resolvedDefaults, {});
+    }
     const ref = (version: number) => ({ id: row.id, version: String(version) });
     const add = envelope('add', {
       ledger: ref(1), delta: '9007199254740993.1', cash: eur('9007199254740993'),
@@ -290,6 +351,11 @@ test('compiled decimal and money D1 lifecycle persists exact values, CRUD refusa
     assert.deepEqual(await d1.store.readReceipt(receiptIdentity(defaults)), defaultsReceipt);
     assert.deepEqual(await d1.store.readReceipt(receiptIdentity(clear)), clearReceipt);
     assert.deepEqual(await d1.store.readReceipt(receiptIdentity(rollback)), rollbackReceipt);
+    assert.deepEqual(await d1.store.load(MODEL, asId(defaultRow.id)), defaultStored);
+    assert.deepEqual(await d1.store.historyFor(MODEL, asId(defaultRow.id)), defaultHistory);
+    assert.deepEqual(await d1.store.readReceipt(receiptIdentity(omittedCreate)), omittedCreateReceipt);
+    assert.deepEqual(await d1.store.readReceipt(receiptIdentity(moneyDefaults)), moneyDefaultsReceipt);
+    assert.deepEqual(await d1.store.readReceipt(receiptIdentity(nullableDefaults)), nullableDefaultsReceipt);
     assert.deepEqual(committed(await reopened.invokeMutation(envelope('cash', { ledger: ref(5) }), identity)).result,
       eur('9007199254741323'));
     assert.deepEqual(committed(await reopened.invokeMutation(envelope('amounts', { ledger: ref(5) }), identity)).result,
@@ -307,9 +373,15 @@ test('compiled decimal and money D1 lifecycle persists exact values, CRUD refusa
     assert.equal(committed(await reopened.invokeMutation(clear, identity), 'replayed').result, null);
     assert.deepEqual(committed(await reopened.invokeMutation(defaults, identity), 'replayed').result, eur('30'));
     assert.deepEqual(rejected(await reopened.invokeMutation(rollback, identity)), rollbackError);
+    assert.deepEqual(committed(await reopened.invokeMutation(omittedCreate, identity), 'replayed').result, defaultBorn.result);
+    for (const [request, result] of moneyDefaultCases) {
+      assert.deepEqual(committed(await reopened.invokeMutation(request, identity), 'replayed').result, result);
+    }
     assert.equal(await d1.store.readRevision(), revision);
     assert.deepEqual(await d1.store.query({ model: MODEL, authority: 'owner' }), rows);
     assert.deepEqual(await d1.store.historyFor(MODEL, asId(row.id)), history);
+    assert.deepEqual(await d1.store.load(MODEL, asId(defaultRow.id)), defaultStored);
+    assert.deepEqual(await d1.store.historyFor(MODEL, asId(defaultRow.id)), defaultHistory);
   } finally {
     try { await d1?.worker.dispose(); }
     finally { await rm(dir, { recursive: true, force: true }); }
