@@ -13,6 +13,12 @@ Given
  derive nested():Nested = {amount=3,values=[1.50,-2.00,4]}
  derive identity(value:decimal=1.50):decimal = value
  derive defaults():decimal = identity()
+ derive exactSum():decimal = 0.10 + 0.20
+ derive difference():decimal = 1.50 - 0.25
+ derive product():decimal = -1.50 * 2.00
+ derive quotient():decimal = 1.00 / 8.00
+ derive bigSum():decimal = 12345678901234567890.1200 + 0.0001
+ derive repeating():decimal = 1.0 / 3.0
 When
  scenario literal() read=true -> decimal by=members
   do
