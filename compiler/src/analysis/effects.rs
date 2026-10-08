@@ -84,7 +84,7 @@ use crate::analysis::resolve::{
     Binding, ContextVar, CrudOp, ModelOwner, ModuleId, ModuleKind, ResolveTables, ScopedName,
     SymbolId, SymbolKind,
 };
-use crate::analysis::types::{ResolvedType, Scalar, TypeTable};
+use crate::analysis::types::{ResolvedType, Scalar, SelectedCallTarget, TypeTable};
 use crate::diagnostic::{Diagnostic, Related};
 use crate::source::{SourceDb, SourceId, Span};
 use crate::syntax::{SyntaxKind, SyntaxNode, decode_json_string};
@@ -992,6 +992,10 @@ struct Cx<'a> {
     callable_calls: HashMap<SymbolId, Vec<SymbolId>>,
     /// Executed create targets and supplied fields per callable.
     callable_creates: HashMap<SymbolId, Vec<(SymbolId, Vec<String>)>>,
+    /// Checked expression calls whose omitted defaults execute in each callable.
+    callable_default_calls: HashMap<SymbolId, Vec<NodeKey>>,
+    /// Fixed scenario calls and their supplied argument names.
+    callable_scenario_inputs: HashMap<SymbolId, Vec<(SymbolId, Vec<String>)>>,
     /// `on=every` handlers: (scenario, `on=` value span).
     every_handlers: Vec<(SymbolId, Span)>,
     /// Builtin ids referenced from checked call positions.
@@ -1033,6 +1037,8 @@ impl<'a> Cx<'a> {
             callable_models: HashMap::new(),
             callable_calls: HashMap::new(),
             callable_creates: HashMap::new(),
+            callable_default_calls: HashMap::new(),
+            callable_scenario_inputs: HashMap::new(),
             every_handlers: Vec::new(),
             builtins: HashSet::new(),
             descriptions: Vec::new(),
@@ -2451,7 +2457,11 @@ impl<'a> Cx<'a> {
                 _ => {}
             }
         }
-        self.record_data_dependencies(id, text, node);
+        for child in significant_children(node) {
+            if matches!(child.kind, SyntaxKind::Require | SyntaxKind::DoBlock) {
+                self.record_data_dependencies(id, text, child);
+            }
+        }
         let (expose_words, _) = selector_words(text, node, "expose");
         let signature = self.signature_params(text, id, &params, node);
         self.out.scenarios.insert(
@@ -3132,6 +3142,27 @@ impl<'a> Cx<'a> {
                     self.check_action_call(module, text, node, target);
                 }
                 effect.args = effect_args(text, node);
+                if let (Some(EffectTarget::Operation(callee)), Some(caller)) =
+                    (&effect.target, self.current_scenario)
+                {
+                    let supplied = effect.args.iter().map(|arg| arg.key.clone()).collect();
+                    match self.tables.symbols[callee.0 as usize].kind {
+                        SymbolKind::Scenario { .. } => self
+                            .callable_scenario_inputs
+                            .entry(caller)
+                            .or_default()
+                            .push((*callee, supplied)),
+                        SymbolKind::CrudOp {
+                            model,
+                            op: CrudOp::Create,
+                        } => self
+                            .callable_creates
+                            .entry(caller)
+                            .or_default()
+                            .push((model, supplied)),
+                        _ => {}
+                    }
+                }
                 effect.binding = as_binding(text, node);
             }
             SyntaxKind::Emit => {
@@ -4128,6 +4159,11 @@ impl<'a> Cx<'a> {
 
     /// Owner-bound reads/writes and derived calls share the same scope closure.
     fn record_data_dependencies(&mut self, id: SymbolId, text: &str, node: &SyntaxNode) {
+        collect_selected_calls(
+            node,
+            self.types,
+            self.callable_default_calls.entry(id).or_default(),
+        );
         collect_subtree_models(
             self.tables,
             self.types,
@@ -4139,45 +4175,100 @@ impl<'a> Cx<'a> {
         );
     }
 
-    /// Creation executes server initializers and omitted ordinary defaults.
-    /// Follow only these checked owning anchors after declaration collection.
+    /// Follow only executed owning initializer anchors after declaration collection.
     fn record_creation_dependencies(&mut self, trees: &[(SourceId, SyntaxNode)]) {
-        for (caller, creates) in self.callable_creates.clone() {
-            for (model, supplied) in creates {
-                let Some(data) = self.out.models.get(&model) else {
-                    continue;
-                };
-                for field in &data.fields {
-                    let name = &self.tables.symbols[field.field.0 as usize].name;
-                    let initializer = field.server.or_else(|| {
-                        (!supplied.contains(name))
-                            .then_some(field.default)
-                            .flatten()
-                    });
-                    let Some(key) = initializer else { continue };
-                    let Some(node) = trees
-                        .iter()
-                        .find(|(file, _)| *file == key.file)
-                        .and_then(|(_, tree)| dependency_node(tree, &key))
-                    else {
-                        continue;
-                    };
-                    let mut nested_creates = Vec::new();
-                    collect_subtree_models(
-                        self.tables,
-                        self.types,
-                        self.db
-                            .get(key.file)
-                            .map(|source| source.text.as_str())
-                            .unwrap_or(""),
-                        node,
-                        self.callable_models.entry(caller).or_default(),
-                        self.callable_calls.entry(caller).or_default(),
-                        &mut nested_creates,
-                    );
+        let mut pending = Vec::new();
+        for (caller, calls) in &self.callable_default_calls {
+            for call in calls {
+                pending.extend(
+                    self.selected_defaults(call)
+                        .into_iter()
+                        .map(|key| (*caller, key)),
+                );
+            }
+        }
+        for (caller, calls) in &self.callable_scenario_inputs {
+            for (callee, supplied) in calls {
+                if let Some(data) = self.out.scenarios.get(callee) {
+                    for param in &data.params {
+                        let name = &self.tables.symbols[param.param.0 as usize].name;
+                        if !supplied.contains(name)
+                            && let Some(key) = param.default
+                        {
+                            pending.push((*caller, key));
+                        }
+                    }
                 }
             }
         }
+        for (caller, creates) in &self.callable_creates {
+            for (model, supplied) in creates {
+                if let Some(data) = self.out.models.get(model) {
+                    for field in &data.fields {
+                        let name = &self.tables.symbols[field.field.0 as usize].name;
+                        if let Some(key) = field.server.or_else(|| {
+                            (!supplied.contains(name))
+                                .then_some(field.default)
+                                .flatten()
+                        }) {
+                            pending.push((*caller, key));
+                        }
+                    }
+                }
+            }
+        }
+        let mut visited = HashSet::new();
+        while let Some((caller, key)) = pending.pop() {
+            if !visited.insert((caller, key)) {
+                continue;
+            }
+            let Some(node) = trees
+                .iter()
+                .find(|(file, _)| *file == key.file)
+                .and_then(|(_, tree)| dependency_node(tree, &key))
+            else {
+                continue;
+            };
+            let mut nested_creates = Vec::new();
+            collect_subtree_models(
+                self.tables,
+                self.types,
+                self.db
+                    .get(key.file)
+                    .map(|source| source.text.as_str())
+                    .unwrap_or(""),
+                node,
+                self.callable_models.entry(caller).or_default(),
+                self.callable_calls.entry(caller).or_default(),
+                &mut nested_creates,
+            );
+            let mut calls = Vec::new();
+            collect_selected_calls(node, self.types, &mut calls);
+            for call in calls {
+                pending.extend(
+                    self.selected_defaults(&call)
+                        .into_iter()
+                        .map(|key| (caller, key)),
+                );
+            }
+        }
+    }
+
+    fn selected_defaults(&self, call: &NodeKey) -> Vec<NodeKey> {
+        let Some(selected) = self.types.selected_calls.get(call) else {
+            return Vec::new();
+        };
+        let params = match selected.target {
+            SelectedCallTarget::DeriveFn(id) => self.out.derives.get(&id).map(|data| &data.params),
+            SelectedCallTarget::Message(id) => self.out.messages.get(&id).map(|data| &data.params),
+            _ => None,
+        };
+        params
+            .into_iter()
+            .flatten()
+            .zip(&selected.slots)
+            .filter_map(|(param, slot)| slot.is_none().then_some(param.default).flatten())
+            .collect()
     }
 
     /// E4051: an `on=every` handler must not mix app-scoped and team-scoped
@@ -5201,6 +5292,22 @@ fn dependency_node<'a>(node: &'a SyntaxNode, key: &NodeKey) -> Option<&'a Syntax
 
 /// Direct owner-bound model dependencies and bound derived-function calls.
 /// Examples and malformed local statements/expressions are excluded.
+fn collect_selected_calls(node: &SyntaxNode, types: &TypeTable, calls: &mut Vec<NodeKey>) {
+    if matches!(
+        node.kind,
+        SyntaxKind::Examples | SyntaxKind::Error | SyntaxKind::BadToken
+    ) {
+        return;
+    }
+    let key = NodeKey::of(node);
+    if types.selected_calls.contains_key(&key) {
+        calls.push(key);
+    }
+    for child in significant_children(node) {
+        collect_selected_calls(child, types, calls);
+    }
+}
+
 fn collect_subtree_models(
     tables: &ResolveTables,
     types: &TypeTable,
