@@ -3051,3 +3051,9 @@ Three equivalent new material cursor questions preferred this representation wit
 The defining State registry now accepts and forwards an explicit canonical inline enum valueType only when it matches the owning ordered cases and existing array/container-nullability claims. Values parse/print supplies canonical grammar; no second parser or enum codec is added. Absent claims preserve the historical arbitrary-label and presence-only State/generated profile, and State admission/prepared input behavior is unchanged. Computed enum default omission retains its existing singular nonnullable bound.
 
 Private State emission and one changed owning metadata case passed. Root directly reviewed source and reused the outcome. The actual compiler must emit the claim and the existing canonical host Values checkpoint must handle own supplied undefined, type/member/null failures and attributed errors through its real consumer. Those source/consumer joins remain separate from this metadata prerequisite; no whole package acceptance or replacement reduction follows.
+
+## 2026-10-08: qualify public null-actor computed defaults
+
+The genuine canonical Memory consumer now qualifies public who:user?=actor with an actual null actor/team. Omission returns and receipts null, explicit null/UserRef overrides suppress default recording, exact supplied-input receipts replay without helper/body execution and changed inputs conflict. A members-only sibling still refuses a scoped anonymous caller. Production identity, default, permission and replay policies are unchanged.
+
+The owning changed consumer passed on its first run; root reviewed released source and reused the result and accepted member/User/reference controls. Nonnullable actor defaults, trusted null-context and wider D1/application qualification remain separate. This is selected evidence of existing capability, not production reduction or full package acceptance.

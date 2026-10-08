@@ -1,6 +1,6 @@
 # Active compiler completion
 
-Current completion is **54 of 67 references**, with **13 remaining including partial work**. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
+Current completion is **57 of 67 references**, with **10 remaining including partial work**. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
 The user has authorized finishing the remaining compiler tasks. Use the [recorded work/review settings](../../docs/research/compiler-library-audit-20261006/resumption/model-allocation.md); overlapping references share work and completed receipts are reused at matching scope. Current completion joins append to the canonical coverage ledger; historical source pins remain unchanged.
 
@@ -411,3 +411,14 @@ input-hash and replay contracts remain unchanged. This narrows the earlier
 “stored-model defaults remain separate” qualification to other reference
 shapes and contexts, without closing broader S9-Q02 or application work.
 Canonical completion remains **57/67**, with **10** remaining.
+
+The [anonymous actor-default case](../../compiler/tests/anonymous_actor_default_runtime.rs)
+passes **1/1** through canonical CF/State Memory with genuine compiler output.
+Public admission with a null actor/team preserves omitted `who:user?=actor`
+as a null result and `{who:null}` receipt default. Explicit null and closed
+user-reference overrides suppress the default. Original-input receipts replay
+without helper/body work, changed inputs conflict, and the members-only sibling
+refuses the anonymous caller without creating a receipt. No production policy
+or context changes were needed; prior accepted cases were reused. Nonnullable
+actor defaults, trusted/null actor workflows, D1 and full applications remain
+separate. Canonical completion remains **57/67**, with **10** remaining.
