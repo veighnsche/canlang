@@ -2919,17 +2919,13 @@ async function runScenarioSeam(
         return type === undefined || wire === undefined ? wire : decodeValue(type, wire);
       },
     });
-    const metadata: Record<string, () => unknown> = {
-      id: () => row.id, version: () => BigInt(current()?.version ?? row.version),
-      created: () => new Date(row.created).toISOString(),
-      updated: () => new Date(current()?.updated ?? row.updated).toISOString(),
-      created_by: () => row.createdBy, updated_by: () => current()?.updatedBy ?? row.updatedBy,
-      archived_at: () => {
-        const at = current()?.archivedAt;
-        return at === undefined || at === null ? null : new Date(at).toISOString();
-      },
-    };
-    for (const [field, get] of Object.entries(metadata)) Object.defineProperty(record, field, { enumerable: true, get });
+    // Ordinary references retain admitted metadata while domain reads see
+    // provisional writes; reserved post-write versions belong to staged rows.
+    Object.assign(record, { id: row.id, version: BigInt(row.version),
+      created: new Date(row.created).toISOString(), updated: new Date(row.updated).toISOString(),
+      created_by: row.createdBy, updated_by: row.updatedBy,
+      archived_at: row.archivedAt === null ? null : new Date(row.archivedAt).toISOString(),
+    });
     Object.freeze(record);
     views.set(key, record);
     recordBindings.set(record, { model: modelName, id: row.id });

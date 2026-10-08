@@ -32,7 +32,8 @@ When
    create Counter {} as counter
    set counter {count=counter.count+1}
    return counter.count
- scenario nextVersion(counter:Counter) -> int by=members
+ ## Field reads change provisionally; an existing reference keeps its admitted version.
+ scenario observedVersion(counter:Counter) -> int by=members
   do
    set counter {count=counter.count+1}
    set counter {count=counter.count+1}

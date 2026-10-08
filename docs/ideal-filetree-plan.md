@@ -291,3 +291,6 @@ Root UI dependency reconciliation: packages/ui/package.json now declares the exi
 
 
 Root bounded typed-consumer reconciliation: Cloudflare context/invoke/stdlib retain language projection and operation-bound records over State-loaded metadata, while Values owns codecs and State owns ordering/storage/receipt commits. Colocated runtime typed-scenario-values and authored/compiler fixtures exercise real D1 plus explicit legacy controls. Singular-int/void source consumer accepted; full scalar/array/hooks/native/installed and accumulated complete checkpoint review remain open. Compiler DEP-02 actual mapped-runtime attribution retains its finite producer/consumer owner and broader browser/app/GUI limits. No new adapter registry, merge or complete checkpoint advancement.
+
+
+Root typed metadata correction: the existing bound-record view owns stable admitted metadata/version and staged domain-field reads; State rows/hooks own reserved post-write metadata. The actual compiled admitted4/stored5 D1 control passes. This restores DESIGN§2 without a new responsibility or checkpoint advancement.
