@@ -160,7 +160,7 @@ function validateInputs(def: InterimOperationDef, inputs: ClosedInputs): Pending
  * as the interim validator: unknown members, missing required inputs,
  * malformed record refs, and non-canonical versions aggregate into one
  * `validation` rejection with field-level paths and the same codes. Two
- * generated-only rules: omitted ordinary-array inputs without defaults fill `[]`
+ * generated-only rules: omitted nonnullable ordinary-array inputs without defaults fill `[]`
  * outside updates (T16 honors
  * the T15a input array marker; required-array omission on creates is
  * enforced by the model table in the pipeline), and present non-null values
@@ -200,7 +200,9 @@ function validateGeneratedInputs(
       } else {
         const marker = def.inputArrays[param];
         if (marker !== undefined && !marker.required && def.descriptor.kind !== 'update' &&
-            paramDef.default === undefined) {
+            paramDef.default === undefined &&
+            !(paramDef.kind !== 'ref' && paramDef.kind !== 'delivery' &&
+              Object.hasOwn(paramDef, 'valueType') && paramDef.valueType?.endsWith('?'))) {
           normalized[param] = [];
         }
       }

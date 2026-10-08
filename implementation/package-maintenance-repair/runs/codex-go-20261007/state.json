@@ -1528,7 +1528,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T02:59:15.721935+00:00",
+  "updated_utc": "2026-10-08T03:04:47.373890+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1977,6 +1977,17 @@
       "packages/state/test/invocation/owned-admission.test.ts"
     ],
     "validation": "Owner Contracts+State tsc passed; affected metadata12/12 after root-found claim/tag correction; unchanged owned-admission27/27 reused. No root rerun.",
-    "limits": "Runtime compiled datetime/default/array D1 flow pending under owner; no native, installed or whole packet completion."
+    "limits": "Runtime compiled datetime/default/array D1 flow pending under owner; no native, installed or whole packet completion.",
+    "nullable_omission_followup": {
+      "status": "Root direct-reviewed accepted correction; exact three-file writer released",
+      "files": [
+        "packages/state/src/invocation/admission.ts",
+        "packages/state/src/invocation/prepared-inputs.ts",
+        "packages/state/test/invocation/owned-admission.test.ts"
+      ],
+      "result": "Owner State tsc0 and affected admission28/28; unchanged metadata12/12 reused.",
+      "scope": "Loaded own nullable association preserves omission for existing defaults/null-fill; unknown ordinary arrays unchanged.",
+      "limit": "Compiled D1 nullable/default/result fixture remains active and unaccepted."
+    }
   }
 }
