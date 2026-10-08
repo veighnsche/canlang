@@ -100,7 +100,7 @@ import type {
   UniqueRelease,
 } from "@canlang/contracts";
 import { COLLECTION_DEFAULT_LIMIT, COLLECTION_MAX_LIMIT, DELIVERY_RESULT_LEAVES } from "@canlang/contracts";
-import { decodeValue, encodeValue, isRecordRef, makeRecordRef, normalizeSchema, validateOperationInput } from "@canlang/values";
+import { decodeValue, encodeValue, isRecordRef, makeRecordRef, normalizeSchema, parseTypeId, printTypeId, validateOperationInput } from "@canlang/values";
 import type { FieldDescriptor, SchemaDescriptor } from "@canlang/values";
 import type { SystemCommandContext, SystemStaging } from "@canlang/state";
 import { assertReceiptJoin } from "@canlang/state/receipt/tables";
@@ -1624,6 +1624,8 @@ export interface RequiresProvidedVersions {
   readonly state: number;
   readonly values: number;
   readonly inputChoices?: number;
+  /** Present only when assembly has the actual installed v1 cohort tick. */
+  readonly cohorts?: number;
 }
 
 /**
@@ -1640,6 +1642,12 @@ export function assertRequiresFulfilled(
 ): void {
   for (const requirement of requires) {
     const capability = requirement.capability;
+    if (capability === 'state.cohorts') {
+      if (requirement.min_version !== 1 || provided.cohorts !== 1) {
+        throw new Error(`Artifact requires state.cohorts v${requirement.min_version}; its installed consumer is unavailable or incompatible.`);
+      }
+      continue;
+    }
     if (capability === 'interfaces.input-choices') {
       if (provided.inputChoices !== requirement.min_version) {
         throw new Error(`Artifact requires interfaces.input-choices v${requirement.min_version}; its installed consumer is unavailable or incompatible.`);
@@ -9775,6 +9783,97 @@ export interface RunRetainedFanoutSchedulerTurnOpts extends Omit<RunFanoutSchedu
   readonly retainedIntent: StoredRow;
   /** Co-stage an actual selected intent visit in the named owner scan row. */
   readonly advanceOwnerScan?: boolean;
+  /** Actual host owner boundary for source-authorized navigation without a child. */
+  readonly sourceOwner?: {
+    readonly boundary: import('../worker/assembly.js').TeamOwnerStorageBoundary;
+    readonly scope: import('@canlang/contracts').WorkScope;
+  };
+}
+
+/**
+ * Maintain a selected source's navigation, or wrap an exhausted owner scan.
+ * The actual owner boundary selects storage before any read; a scope or cursor
+ * alone cannot authorize the write. This never reports child completion.
+ */
+export async function maintainFanoutNavigationCanonical(opts: {
+  readonly boundary: import('../worker/assembly.js').TeamOwnerStorageBoundary;
+  readonly scope: import('@canlang/contracts').WorkScope;
+  readonly now: number;
+  readonly intentRow?: StoredRow;
+  readonly advanceOwnerScan?: boolean;
+}): Promise<{ readonly wrapped: boolean; readonly navigationWrite?: DomainWrite }> {
+  const { boundary, now, intentRow, advanceOwnerScan } = opts;
+  const scope = Object.freeze({ ...opts.scope });
+  const { store } = await boundary.forTrustedScope(scope, now);
+  const revision = await store.readRevision();
+  const module = await loadProducerModule('@canlang/state/fanout/navigation', 'state fanout maintenance');
+  const scanModel = requireProducerString(module, 'FANOUT_OWNER_SCAN_MODEL', 'state fanout maintenance') as ModelName;
+  const scanId = requireProducerFn(module, 'fanoutOwnerScanRowId', 'state fanout maintenance') as
+    typeof import('@canlang/state/fanout/navigation').fanoutOwnerScanRowId;
+  const stageScan = requireProducerFn(module, 'stageFanoutOwnerScanWrite', 'state fanout maintenance') as
+    typeof import('@canlang/state/fanout/navigation').stageFanoutOwnerScanWrite;
+  const scan = await store.load(scanModel, scanId(scope.owner) as RecordId);
+  const meta = { actor: 'scheduler:fanout-navigation', nowMs: now };
+  const writes: DomainWrite[] = [];
+  let navigationWrite: DomainWrite | undefined;
+  if (intentRow === undefined) {
+    const query = requireProducerFn(module, 'fanoutOwnerIntentQuery', 'state fanout maintenance') as
+      typeof import('@canlang/state/fanout/navigation').fanoutOwnerIntentQuery;
+    const readScan = requireProducerFn(module, 'readFanoutOwnerScanRow', 'state fanout maintenance') as
+      typeof import('@canlang/state/fanout/navigation').readFanoutOwnerScanRow;
+    if ((await store.query(query({ row: scan, owner: scope.owner, limit: 1 }))).length !== 0 || scan === null ||
+        readScan(scan, scope.owner).lastVisitedIntentId === null) {
+      return { wrapped: false };
+    }
+    writes.push(stageScan({ row: scan, owner: scope.owner, visitedIntentRow: null, meta }));
+  } else {
+    const producers = await loadFanoutStateProducers();
+    const current = await store.load(T34F7_FANOUT_INTENT_MODEL, intentRow.id);
+    if (current === null || current.version !== intentRow.version ||
+        JSON.stringify(producers.tables.readFanoutIntentRow(current)) !==
+          JSON.stringify(producers.tables.readFanoutIntentRow(intentRow))) {
+      throw new Error('Fanout maintenance requires its exact current frozen intent.');
+    }
+    const intent = producers.tables.readFanoutIntentRow(current);
+    const work = await loadProducerModule('@canlang/work/kernel/tables', 'fanout maintenance source');
+    const readSchedule = requireProducerFn(work, 'readScheduleRow', 'fanout maintenance source') as
+      typeof import('@canlang/work/kernel/tables').readScheduleRow;
+    const readReceipt = requireProducerFn(work, 'readOccurrenceRow', 'fanout maintenance source') as
+      typeof import('@canlang/work/kernel/tables').readOccurrenceRow;
+    const sourceRow = await store.load(requireProducerString(work, 'WORK_SCHEDULE_MODEL', 'fanout maintenance source') as ModelName,
+      intent.sourceOccurrence as RecordId);
+    const receiptRow = await store.load(requireProducerString(work, 'WORK_OCCURRENCE_MODEL', 'fanout maintenance source') as ModelName,
+      intent.sourceOccurrence as RecordId);
+    if (sourceRow === null || receiptRow === null) throw new Error('Fanout maintenance lost its admitted source.');
+    const source = readSchedule(sourceRow);
+    const receipt = readReceipt(receiptRow);
+    if (source.scopeApp !== scope.app || source.scopeOwner !== scope.owner || source.scopeOwnerPackage !== scope.ownerPackage ||
+        receipt.status !== 'completed' || !isUnknownRecord(receipt.result) || !Array.isArray(receipt.result.fanouts) ||
+        !receipt.result.fanouts.some((entry: unknown) => isUnknownRecord(entry) &&
+          entry.handler === intent.handler && entry.fanoutId === intent.fanoutId)) {
+      throw new Error('Fanout maintenance source receipt disagrees with its actual owner or retained route.');
+    }
+    const navigationModel = requireProducerString(module, 'FANOUT_NAVIGATION_MODEL', 'state fanout maintenance') as ModelName;
+    const navigationId = requireProducerFn(module, 'fanoutNavigationRowId', 'state fanout maintenance') as
+      typeof import('@canlang/state/fanout/navigation').fanoutNavigationRowId;
+    const stageNavigation = requireProducerFn(module, 'stageFanoutNavigationWrite', 'state fanout maintenance') as
+      typeof import('@canlang/state/fanout/navigation').stageFanoutNavigationWrite;
+    const row = await store.load(navigationModel, navigationId(scope.owner, intent.fanoutId) as RecordId);
+    const childQuery = requireProducerFn(module, 'fanoutNavigationChildQuery', 'state fanout maintenance') as
+      typeof import('@canlang/state/fanout/navigation').fanoutNavigationChildQuery;
+    if ((await store.query(childQuery({ row, owner: scope.owner, intentRow: current, limit: 1 }))).length !== 0) {
+      return { wrapped: false };
+    }
+    navigationWrite = stageNavigation({ row, owner: scope.owner, intentRow: current, visitedChildRow: null, meta });
+    writes.push(navigationWrite);
+    if (advanceOwnerScan === true) writes.push(stageScan({ row: scan, owner: scope.owner, visitedIntentRow: current, meta }));
+  }
+  // Revalidate actual current Identity and persisted physical owner pin nearest
+  // the same revision-fenced maintenance commit; no synthetic child is used.
+  await boundary.forTrustedScope(scope, now);
+  await store.commit({ expectedRevision: revision, writes, history: [], receipt: null,
+    outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [] });
+  return { wrapped: true, ...(navigationWrite === undefined ? {} : { navigationWrite }) };
 }
 
 /** One durable slice, not admission, coverage, or completion. */
@@ -9936,6 +10035,15 @@ export async function runRetainedFanoutSchedulerTurn(
   // Only an actually empty page wraps. A short or truncated page still resumes
   // after its last processed child; wrap never claims terminal coverage.
   if (page.rows.length === 0) {
+    if (opts.sourceOwner !== undefined) {
+      if (opts.sourceOwner.scope.owner !== opts.owner || opts.sourceOwner.scope.app !== opts.invoke.app) {
+        throw new Error('Retained navigation source owner disagrees with its actual invocation.');
+      }
+      const wrap = await maintainFanoutNavigationCanonical({ ...opts.sourceOwner,
+        now: opts.meta.nowMs, intentRow, advanceOwnerScan: opts.advanceOwnerScan === true });
+      if (!wrap.wrapped || wrap.navigationWrite === undefined) throw new Error('Retained source navigation did not wrap.');
+      acceptVisit(wrap.navigationWrite);
+    } else {
     const revision = await opts.store.readRevision();
     const retainedMember = intent.members[0];
     if (retainedMember === undefined) {
@@ -9953,6 +10061,7 @@ export async function runRetainedFanoutSchedulerTurn(
       writes: [visitWrite, ...(scanWrite === null ? [] : [scanWrite])], history: [], receipt: null,
       outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [] });
     acceptVisit(visitWrite);
+    }
   }
   return { status: 'turn', driven, released: released.released, releaseSkipped: released.skipped,
     cursor: navigationRow === null ? null : navigation.read(navigationRow, binding).lastVisitedChildId,

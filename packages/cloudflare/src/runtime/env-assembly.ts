@@ -55,6 +55,26 @@ import type {
   TeamId,
   UserId,
 } from "@canlang/contracts";
+import type { D1Database } from '@cloudflare/workers-types';
+
+/** Trusted host assignment; never populated from request inputs. */
+export interface StateTeamBinding {
+  readonly owner: string;
+  readonly db: D1Database;
+  readonly initializeFresh?: true;
+}
+
+function unavailableGlobalStore(): StoragePort {
+  const refuse = async (): Promise<never> => {
+    throw new Error('owner-storage: selected team State requires its owner boundary; global storage is unavailable');
+  };
+  return Object.freeze({ readRevision: refuse, load: refuse, query: refuse, commit: refuse,
+    readReceipt: refuse, outboxPending: refuse, scheduleGet: refuse, schedulesDue: refuse,
+    historyFor: refuse, readInstalledSnapshot: refuse, readMigrationProgress: refuse,
+    readStagedRows: refuse, stageMigrationRows: refuse, publishMigrationChunk: refuse,
+    flipInstalledSnapshot: refuse, readMigrationOutcomes: refuse, recordMigrationFailure: refuse, discardStagedRows: refuse,
+    readMigrationFailure: refuse });
+}
 
 /* ------------------------------------------------------------------ */
 /* Verbatim mirrors of `packages/identity/src/ports.ts`.               */
@@ -317,7 +337,7 @@ async function loadIdentityD1(): Promise<IdentityD1Producer> {
  */
 export async function buildProductionDeps(
   env: Record<string, unknown>,
-): Promise<{ store: StoragePort; identityStore: IdentityStore }> {
+): Promise<{ store: StoragePort; identityStore: IdentityStore; stateTeam?: StateTeamBinding }> {
   const db: unknown = env["DB"];
   if (!isD1Binding(db)) {
     // Self-identifying (module + function): P-A's worker main surfaces
@@ -327,6 +347,28 @@ export async function buildProductionDeps(
       "mcp-deploy: buildProductionDeps (../runtime/env-assembly.js) requires env.DB " +
         "(a D1 database binding with prepare/exec/batch); bind a D1 database as DB or the worker cannot serve",
     );
+  }
+  const selectedOwner = env['CAN_STATE_OWNER'];
+  if (selectedOwner === undefined && (env['STATE_DB'] !== undefined || env['CAN_STATE_INITIALIZE_FRESH'] !== undefined)) {
+    throw new Error('owner-storage: STATE_DB/fresh assignment requires explicit CAN_STATE_OWNER');
+  }
+  if (selectedOwner !== undefined) {
+    if (typeof selectedOwner !== 'string' || selectedOwner === '' || selectedOwner === 'app') {
+      throw new Error('owner-storage: CAN_STATE_OWNER must be a concrete Identity team ID');
+    }
+    const stateDb = env['STATE_DB'];
+    if (!isD1Binding(stateDb) || stateDb === db) {
+      throw new Error('owner-storage: selected team requires a separate actual STATE_DB D1 binding');
+    }
+    const fresh = env['CAN_STATE_INITIALIZE_FRESH'];
+    if (fresh !== undefined && fresh !== true && fresh !== 'true') {
+      throw new Error('owner-storage: CAN_STATE_INITIALIZE_FRESH requires explicit true authorization');
+    }
+    const identity = await loadIdentityD1();
+    await identity.ensureIdentitySchema(db);
+    return { store: unavailableGlobalStore(), identityStore: identity.createD1IdentityStore(db),
+      stateTeam: { owner: selectedOwner, db: stateDb as unknown as D1Database,
+        ...(fresh === undefined ? {} : { initializeFresh: true }) } };
   }
   const state = await loadStateD1();
   const identity = await loadIdentityD1();
