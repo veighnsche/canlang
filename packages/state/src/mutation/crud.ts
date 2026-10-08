@@ -24,7 +24,7 @@ import { isGeneratedOperationDef } from '../invocation/registry.js';
 import { validateByPredicate, type ByPredicate } from '../policy/roles.js';
 import { validatePredicateShape } from '../policy/grants.js';
 import { StateError } from '../errors.js';
-import { runMutationWrites } from './pipeline.js';
+import { runMutationWrites, type MutationWritesInput } from './pipeline.js';
 import type { ModelTable } from './models.js';
 
 /** INTERIM CRUD def: an operation def with an optional candidate `when`. */
@@ -316,6 +316,8 @@ export function crudExecute(
 export interface GeneratedCrudExecuteInput {
   readonly table: ModelTable;
   readonly store: StoragePort;
+  /** Existing late pipeline conversion for checked field associations. */
+  readonly encodeField?: MutationWritesInput['encodeField'];
 }
 
 /**
@@ -391,7 +393,7 @@ function generatedRecordInput(def: GeneratedOperationDef): Extract<
 export function generatedCrudExecute(
   input: GeneratedCrudExecuteInput,
 ): (call: AdmittedCall) => Promise<ExecutionEffects> {
-  const { table, store } = input;
+  const { table, store, encodeField } = input;
   return async (call: AdmittedCall): Promise<ExecutionEffects> => {
     const def = call.def;
     if (!isGeneratedOperationDef(def)) {
@@ -438,6 +440,7 @@ export function generatedCrudExecute(
         ],
         context: call.context,
         store,
+        ...(encodeField !== undefined ? { encodeField } : {}),
       });
       const first = effects.writes[0];
       if (first === undefined) {
@@ -493,6 +496,7 @@ export function generatedCrudExecute(
         ],
         context: call.context,
         store,
+        ...(encodeField !== undefined ? { encodeField } : {}),
       });
       const first = effects.writes[0];
       if (first === undefined) {
