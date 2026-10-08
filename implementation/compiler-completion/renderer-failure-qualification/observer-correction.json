@@ -1,0 +1,23 @@
+{
+  "attempt": 1,
+  "executed_cases": [
+    "source-check",
+    "success",
+    "nonzero",
+    "signal"
+  ],
+  "outcome": "observer assertion failed, no renderer production defect",
+  "cause": "helper named signal.py shadowed Python standard library signal; genuine child exited 1 with AttributeError",
+  "correction": "prefix child helper filenames with renderer-; remove shadowing helper; preserve failed stderr as attempt1-signal.stderr",
+  "cleanup": "CLI reaped and recorded child absent",
+  "attempt2": {
+    "cause": "observer assumed parser refusal exit 1; actual native CLI preserves established exit 10/E1200/E1204",
+    "correction": "assert actual parser refusal exit 10 and renderer marker absent",
+    "production_defect": false
+  },
+  "attempt3": {
+    "cause": "read-only stdout fd returned success; Rust stdio invalid-fd behavior invalidated the non-BrokenPipe oracle",
+    "correction": "retain stdout-ebadf as exit-0 carrier observation; independently establish kernel EFBIG with RLIMIT_FSIZE=1 and ignored SIGXFSZ",
+    "production_defect": false
+  }
+}

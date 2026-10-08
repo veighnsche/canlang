@@ -1,0 +1,24 @@
+
+/// The only escape-policy overrides; all string scanning belongs to serde_json.
+pub(crate) fn write_compatible_escape<W: ?Sized + std::io::Write>(
+    writer: &mut W,
+    escape: serde_json::ser::CharEscape,
+) -> std::io::Result<()> {
+    use serde_json::ser::{CharEscape, CompactFormatter, Formatter};
+    match escape {
+        CharEscape::Backspace => writer.write_all(b"\\u0008"),
+        CharEscape::FormFeed => writer.write_all(b"\\u000c"),
+        other => CompactFormatter.write_char_escape(writer, other),
+    }
+}
+
+struct CanCompactFormatter;
+impl serde_json::ser::Formatter for CanCompactFormatter {
+    fn write_char_escape<W: ?Sized + std::io::Write>(
+        &mut self,
+        writer: &mut W,
+        escape: serde_json::ser::CharEscape,
+    ) -> std::io::Result<()> {
+        write_compatible_escape(writer, escape)
+    }
+}

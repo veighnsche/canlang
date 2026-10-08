@@ -1,0 +1,47 @@
+#[inline]
+pub fn to_vec_pretty<T>(value: &T) -> Result<Vec<u8>>
+where
+    T: ?Sized + Serialize,
+{
+    let mut writer = Vec::with_capacity(128);
+    tri!(to_writer_pretty(&mut writer, value));
+    Ok(writer)
+}
+
+/// Serialize the given data structure as a String of JSON.
+///
+/// # Errors
+///
+/// Serialization can fail if `T`'s implementation of `Serialize` decides to
+/// fail, or if `T` contains a map with non-string keys.
+#[inline]
+pub fn to_string<T>(value: &T) -> Result<String>
+where
+    T: ?Sized + Serialize,
+{
+    let vec = tri!(to_vec(value));
+    let string = unsafe {
+        // We do not emit invalid UTF-8.
+        String::from_utf8_unchecked(vec)
+    };
+    Ok(string)
+}
+
+/// Serialize the given data structure as a pretty-printed String of JSON.
+///
+/// # Errors
+///
+/// Serialization can fail if `T`'s implementation of `Serialize` decides to
+/// fail, or if `T` contains a map with non-string keys.
+#[inline]
+pub fn to_string_pretty<T>(value: &T) -> Result<String>
+where
+    T: ?Sized + Serialize,
+{
+    let vec = tri!(to_vec_pretty(value));
+    let string = unsafe {
+        // We do not emit invalid UTF-8.
+        String::from_utf8_unchecked(vec)
+    };
+    Ok(string)
+}

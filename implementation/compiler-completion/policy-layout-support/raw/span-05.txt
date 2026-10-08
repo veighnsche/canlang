@@ -1,0 +1,9 @@
+    Object {
+        root: bool,
+    },
+    Array {
+        item_indent: usize,
+        end_indent: usize,
+        populated: bool,
+    },
+}

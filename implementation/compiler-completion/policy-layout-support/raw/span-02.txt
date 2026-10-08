@@ -1,0 +1,20 @@
+/// Render a dump as deterministic pretty JSON (`"version":1`).
+pub fn policy_dump_json(dump: &PolicyDump) -> String {
+    #[derive(Serialize)]
+    struct Envelope<'a> {
+        version: u32,
+        roles: &'a [RoleEntry],
+        models: &'a [ModelEntry],
+        operations: &'a [OperationEntry],
+    }
+    let envelope = Envelope {
+        version: POLICY_DUMP_VERSION,
+        roles: &dump.roles,
+        models: &dump.models,
+        operations: &dump.operations,
+    };
+    let mut out = crate::json::to_string_with_formatter(&envelope, PolicyFormatter::default())
+        .expect("policy JSON serialization invariant");
+    out.push('\n');
+    out
+}

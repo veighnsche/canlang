@@ -1,0 +1,7 @@
+fn indent<W: ?Sized + Write>(writer: &mut W, spaces: usize) -> io::Result<()> {
+    writer.write_all(b"\n")?;
+    for _ in 0..spaces {
+        writer.write_all(b" ")?;
+    }
+    Ok(())
+}

@@ -1,0 +1,25 @@
+compiler/tests/typed_policy.rs:7:        policy_dump_json(&PolicyDump::default()),
+compiler/tests/typed_policy.rs:54:        policy_dump_json(&dump),
+compiler/tests/typed_policy.rs:141:        policy_dump_json(&dump),
+compiler/src/cli.rs:825:    let dump = crate::policy::policy_dump(&db, &program, &files);
+compiler/src/cli.rs:827:        OutputFormat::Json => format!("{}\n", crate::policy::policy_dump_json(&dump)),
+compiler/src/policy.rs:29:/// Dump schema version emitted by [`policy_dump_json`].
+compiler/src/policy.rs:128:pub fn policy_dump(db: &SourceDb, program: &CheckedProgram, files: &[SourceId]) -> PolicyDump {
+compiler/src/policy.rs:145:pub fn policy_dump_json(dump: &PolicyDump) -> String {
+compiler/src/policy.rs:159:    let mut out = crate::json::to_string_with_formatter(&envelope, PolicyFormatter::default())
+compiler/src/policy.rs:168:struct PolicyFormatter {
+compiler/src/policy.rs:169:    containers: Vec<Layout>,
+compiler/src/policy.rs:174:enum Layout {
+compiler/src/policy.rs:185:fn indent<W: ?Sized + Write>(writer: &mut W, spaces: usize) -> io::Result<()> {
+compiler/src/policy.rs:193:impl Formatter for PolicyFormatter {
+compiler/src/policy.rs:214:        self.containers.push(Layout::Object {
+compiler/src/policy.rs:221:        if matches!(self.containers.pop(), Some(Layout::Object { root: true })) {
+compiler/src/policy.rs:235:        if matches!(self.containers.last(), Some(Layout::Object { root: true })) {
+compiler/src/policy.rs:260:        self.containers.push(Layout::Array {
+compiler/src/policy.rs:277:            Some(Layout::Array { item_indent, .. }) if *item_indent > 0 => {
+compiler/src/policy.rs:287:        if let Some(Layout::Array {
+compiler/src/policy.rs:301:        if let Some(Layout::Array { populated, .. }) = self.containers.last_mut() {
+compiler/src/policy.rs:768:        let dump = policy_dump(&db, &program, &[id]);
+compiler/src/policy.rs:800:    fn golden_expenseflow_policy_dump() {
+compiler/src/policy.rs:807:        let dump = policy_dump(&db, &program, &[id]);
+compiler/src/policy.rs:808:        let json = policy_dump_json(&dump);

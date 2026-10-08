@@ -1,0 +1,80 @@
+/// Render diagnostics with exit 10: shared by the analysis-error and
+/// emission-error paths of [`run_compile`].
+/// Success prints the policy surface: the JSON dump as json, one
+/// declaration per line as text (source order).
+fn run_policy(
+    operands: &[String],
+    format: OutputFormat,
+    analyzer: &dyn Analyzer,
+) -> DispatchResult {
+    if operands.is_empty() {
+        return DispatchResult::tool_error(
+            "E7001",
+            "can policy expects at least one FILE.can operand".to_string(),
+        );
+    }
+    let mut db = SourceDb::new();
+    let mut files = Vec::new();
+    for path in operands {
+        let text = match std::fs::read_to_string(path) {
+            Ok(text) => text,
+            Err(err) => {
+                return DispatchResult::tool_error("E7002", format!("cannot read '{path}': {err}"));
+            }
+        };
+        files.push(db.add(path.clone(), text));
+    }
+    let owned = analyzer.analyze_owned(&db, tool_version());
+    let mut result = owned.result;
+    result.finish();
+    if result.has_errors() {
+        return emit_diagnostics(&result, &db, format);
+    }
+    let Some(program) = owned.program else {
+        return DispatchResult::tool_error(
+            "E7001",
+            "can policy needs a pipeline analyzer; this backend keeps no checked program (production dispatch always passes one)".to_string(),
+        );
+    };
+    let dump = crate::policy::policy_dump(&db, &program, &files);
+    let stdout = match format {
+        OutputFormat::Json => format!("{}\n", crate::policy::policy_dump_json(&dump)),
+        OutputFormat::Text => {
+            let mut out = String::new();
+            for role in &dump.roles {
+                out.push_str(&format!("role {}\n", role.canonical));
+            }
+            for model in &dump.models {
+                out.push_str(&format!("model {}\n", model.canonical));
+                for policy in &model.policies {
+                    out.push_str(&format!("  policy {}={}\n", policy.kind, policy.grantee));
+                    if let Some(pred) = &policy.where_predicate {
+                        out.push_str(&format!("    where {pred}\n"));
+                    }
+                }
+                for invariant in &model.invariants {
+                    out.push_str(&format!("  invariant {}\n", invariant.predicate));
+                }
+            }
+            for op in &dump.operations {
+                out.push_str(&format!("operation {} {}\n", op.kind, op.canonical));
+                if let Some(by) = &op.by {
+                    out.push_str(&format!("  by {by}\n"));
+                }
+                if let Some(when) = &op.when {
+                    out.push_str(&format!("  when {when}\n"));
+                }
+                for require in &op.requires {
+                    out.push_str(&format!("  require {require}\n"));
+                }
+            }
+            out
+        }
+    };
+    DispatchResult {
+        code: exit::OK,
+        stdout,
+        stderr: String::new(),
+        run_lsp: false,
+    }
+}

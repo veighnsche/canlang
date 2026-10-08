@@ -1,0 +1,8 @@
+error[E7004]: reference renderer '/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/signal.py docs' failed (exit 1): Traceback (most recent call last):
+  File "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/signal.py", line 2, in <module>
+    import os,sys,time,json,signal
+  File "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/signal.py", line 5, in <module>
+    os.kill(os.getpid(), signal.SIGTERM)
+                         ^^^^^^^^^^^^^^
+AttributeError: module 'signal' has no attribute 'SIGTERM' (consider renaming '/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/signal.py' since it has the same name as the standard library module named 'signal' and prevents importing that standard library module)
+

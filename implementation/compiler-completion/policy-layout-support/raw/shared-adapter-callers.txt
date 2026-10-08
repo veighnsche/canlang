@@ -1,0 +1,22 @@
+compiler/src/cli.rs:1725:                let output = crate::json::to_compact_string(&LintOutput {
+compiler/src/diagnostic.rs:283:        crate::json::to_compact_string(self).expect("closed diagnostic JSON DTO must serialize")
+compiler/src/diagnostic.rs:339:    out.push_str(&crate::json::to_compact_string(s).expect("JSON string must serialize"));
+compiler/src/json.rs:18:pub fn to_compact_string<T: serde::Serialize + ?Sized>(
+compiler/src/json.rs:21:    to_string_with_formatter(value, CanCompactFormatter)
+compiler/src/json.rs:25:pub(crate) fn to_string_with_formatter<
+compiler/src/json.rs:39:pub(crate) fn write_compatible_escape<W: ?Sized + std::io::Write>(
+compiler/src/json.rs:58:        write_compatible_escape(writer, escape)
+compiler/src/codegen/sourcemap.rs:131:    crate::json::to_compact_string(map).expect("source-map DTO serialization is infallible")
+compiler/src/codegen/artifact.rs:595:    crate::json::to_compact_string(&wire).expect("artifact DTO serialization is infallible")
+compiler/src/policy.rs:159:    let mut out = crate::json::to_string_with_formatter(&envelope, PolicyFormatter::default())
+compiler/src/policy.rs:199:        crate::json::write_compatible_escape(writer, escape)
+compiler/src/lsp/output.rs:41:    crate::json::to_compact_string(value).expect("closed LSP DTO must serialize")
+compiler/src/explain.rs:71:    crate::json::to_compact_string(&entry).expect("explain DTO serialization is infallible")
+compiler/src/docs.rs:1118:        json::to_compact_string(value).expect("closed reference JSON value must serialize");
+compiler/src/docs.rs:1128:        json::to_compact_string(self).expect("closed reference JSON model must serialize")
+compiler/src/lint/driver.rs:420:    crate::json::to_compact_string(fix).expect("lint fix JSON serialization invariant")
+compiler/src/lint/driver.rs:427:    crate::json::to_compact_string(fixes).expect("lint fixes JSON serialization invariant")
+compiler/src/lint/driver.rs:439:    crate::json::to_compact_string(rejected).expect("lint rejection JSON serialization invariant")
+compiler/src/codegen/js.rs:41:    crate::json::to_compact_string(value).expect("descriptor JSON serialization invariant")
+compiler/src/codegen/js.rs:1098:    crate::json::to_compact_string(value).expect("JS string JSON serialization invariant")
+compiler/src/lsp/server.rs:1431:                crate::json::to_compact_string(&completion_kind(name)).unwrap(),

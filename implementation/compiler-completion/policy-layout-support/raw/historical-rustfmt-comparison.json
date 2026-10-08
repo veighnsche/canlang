@@ -1,0 +1,28 @@
+{
+  "baseline_hunks": 88,
+  "current_hunks": 83,
+  "added_hunks": [],
+  "removed_hunks": [
+    {
+      "file": "src/codegen/js.rs",
+      "hunk": "match default {\n         None => None,\n         Some(IrDefault::Literal(value)) => literal_json(value).map(JsFieldDefault::Literal),\n-        Some(IrDefault::Computed { expr, .. }) => parent_path(expr).map(|path| JsFieldDefault::Parent {\n-            path,\n-        }),\n+        Some(IrDefault::Computed { expr, .. }) => {\n+            parent_path(expr).map(|path| JsFieldDefault::Parent { path })\n+        }\n     }\n }"
+    },
+    {
+      "file": "src/codegen/js.rs",
+      "hunk": "#[derive(Debug, Clone)]\n pub enum JsModelFieldType {\n     /// Stored-record reference: canonical target model.\n-    Ref { model: String },\n+    Ref {\n+        model: String,\n+    },\n     String,\n     Integer,\n     Decimal,"
+    },
+    {
+      "file": "src/codegen/js.rs",
+      "hunk": "Boolean,\n     File,\n     /// Anonymous enum: case spellings in declaration order.\n-    Enum { values: Vec<String> },\n+    Enum {\n+        values: Vec<String>,\n+    },\n     /// T15b provider delivery: a T14c typed `std` receipt (shared\n     /// [`JsDeliveryDescriptor`] shape with [`JsMcpField::Delivery`]).\n     Delivery(JsDeliveryDescriptor),"
+    },
+    {
+      "file": "src/codegen/js.rs",
+      "hunk": "Json,\n     Bytes,\n     /// Honest fallback: `type_id` is the source type id.\n-    Other { type_id: String },\n+    Other {\n+        type_id: String,\n+    },\n }\n\n impl JsModelFieldType {"
+    },
+    {
+      "file": "src/codegen/js.rs",
+      "hunk": "JsModelFieldType::Json => \"{\\\"kind\\\":\\\"json\\\"}\".to_string(),\n             JsModelFieldType::Bytes => \"{\\\"kind\\\":\\\"bytes\\\"}\".to_string(),\n             JsModelFieldType::Delivery(descriptor) => descriptor.to_json(),\n-            JsModelFieldType::Other { type_id } => format!(\n-                \"{{\\\"kind\\\":\\\"other\\\",\\\"type\\\":{}}}\",\n-                js_string(type_id)\n-            ),\n+            JsModelFieldType::Other { type_id } => {\n+                format!(\"{{\\\"kind\\\":\\\"other\\\",\\\"type\\\":{}}}\", js_string(type_id))\n+            }\n         }\n     }\n }"
+    }
+  ],
+  "normalization": "checkout prefix, header line numbers, archival trailing whitespace only"
+}

@@ -1,0 +1,15 @@
+pub fn policy_dump(db: &SourceDb, program: &CheckedProgram, files: &[SourceId]) -> PolicyDump {
+    let mut dump = PolicyDump::default();
+    for &file in files {
+        let text = file_text(db, file).unwrap_or("");
+        let (tree, _) = parse(db, file);
+        let mut walker = Walker {
+            program,
+            text,
+            module: None,
+            dump: &mut dump,
+        };
+        walker.walk(&tree);
+    }
+    dump
+}

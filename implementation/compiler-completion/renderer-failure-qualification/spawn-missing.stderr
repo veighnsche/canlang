@@ -1,0 +1,1 @@
+error[E7004]: lane-7 producer '/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/does-not-exist' is not a file for `can docs`; install it or fix CAN_PLATFORM_BIN (see can explain E7004)

@@ -1,0 +1,470 @@
+{
+  "verdict": "completed_bounded",
+  "binary": "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+  "binary_sha256": "b2608559e9af0e934a0727faad1d31aee43528cb87a9359f3576a6d8b3db3a7e",
+  "compiler_manifest": "/Users/vince/Projects/canlang/implementation/compiler-completion/integration-after-bindings/after-decimal-materialization/before-compiler-inputs.json",
+  "compiler_manifest_sha256": "6451a206cc8ff88ecb6e441704fb461a976a74b00e6685c9ecb3c4e8c5d5898b",
+  "source_pins": {
+    "compiler/src/cli.rs": "0e9eb7cfd2ee3e20ac9238c67872800cbe99911b3b799fa2616526f9be5a1f94",
+    "compiler/src/main.rs": "0ffc541bd55a96f5d3779eb59b0e7ef3e0ef119956ec8363af13942c1c46f610"
+  },
+  "results": [
+    {
+      "case": "source-check",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "check",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/input.can"
+      ],
+      "environment_override": {},
+      "cli_pid": 85159,
+      "exit": 0,
+      "seconds": 0.02869325000210665,
+      "watchdog_seconds": 10,
+      "timed_out": false,
+      "observer_cleanup": "none",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "",
+      "cli_reaped": true
+    },
+    {
+      "case": "success",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "docs",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/input.can"
+      ],
+      "environment_override": {
+        "CAN_PLATFORM_BIN": "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/renderer-success.py"
+      },
+      "cli_pid": 85160,
+      "exit": 0,
+      "seconds": 0.07118158299999777,
+      "watchdog_seconds": 10,
+      "timed_out": false,
+      "observer_cleanup": "none",
+      "stdout_bytes": 12,
+      "stdout_sha256": "cb0730c7d12a2cc1ef8c9942bbc96ef996ecd3afaa6235b49d81c5e800572a81",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "",
+      "cli_reaped": true,
+      "renderer_pid": 85162,
+      "renderer_alive_after_cli_exit": false
+    },
+    {
+      "case": "nonzero",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "docs",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/input.can"
+      ],
+      "environment_override": {
+        "CAN_PLATFORM_BIN": "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/renderer-nonzero.py"
+      },
+      "cli_pid": 85171,
+      "exit": 2,
+      "seconds": 0.07118083300156286,
+      "watchdog_seconds": 10,
+      "timed_out": false,
+      "observer_cleanup": "none",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 190,
+      "stderr_sha256": "da507a4f403a30e0558bf248a19f4ed9b15914f931073a2792257b6b7be35750",
+      "stderr": "error[E7004]: reference renderer '/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/renderer-nonzero.py docs' failed (exit 3): renderer-control\n",
+      "cli_reaped": true,
+      "renderer_pid": 85172,
+      "renderer_alive_after_cli_exit": false
+    },
+    {
+      "case": "signal",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "docs",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/input.can"
+      ],
+      "environment_override": {
+        "CAN_PLATFORM_BIN": "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/renderer-signal.py"
+      },
+      "cli_pid": 85173,
+      "exit": 2,
+      "seconds": 0.06863754199730465,
+      "watchdog_seconds": 10,
+      "timed_out": false,
+      "observer_cleanup": "none",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 202,
+      "stderr_sha256": "2849139d744398c5fcb772c4cc5913e8da03367da1217d5a34ae91f5418f21c2",
+      "stderr": "error[E7004]: reference renderer '/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/renderer-signal.py docs' failed (killed by signal): no detail on stderr\n",
+      "cli_reaped": true,
+      "renderer_pid": 85174,
+      "renderer_alive_after_cli_exit": false
+    },
+    {
+      "case": "invalid-utf8",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "docs",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/input.can"
+      ],
+      "environment_override": {
+        "CAN_PLATFORM_BIN": "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/renderer-invalid-utf8.py"
+      },
+      "cli_pid": 85175,
+      "exit": 2,
+      "seconds": 0.07010108299436979,
+      "watchdog_seconds": 10,
+      "timed_out": false,
+      "observer_cleanup": "none",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 183,
+      "stderr_sha256": "63883c7fc10513805f67ac9297bf5b04a80be65ecd25f212501f12e8c8fd45f0",
+      "stderr": "error[E7004]: reference renderer '/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/renderer-invalid-utf8.py docs' wrote non-UTF8 output\n",
+      "cli_reaped": true,
+      "renderer_pid": 85176,
+      "renderer_alive_after_cli_exit": false
+    },
+    {
+      "case": "empty",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "docs",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/input.can"
+      ],
+      "environment_override": {
+        "CAN_PLATFORM_BIN": "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/renderer-empty.py"
+      },
+      "cli_pid": 85177,
+      "exit": 2,
+      "seconds": 0.06598920800024644,
+      "watchdog_seconds": 10,
+      "timed_out": false,
+      "observer_cleanup": "none",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 173,
+      "stderr_sha256": "1d4dc68bd19cb766644e4c756cf6e3449fafe81ee401f922a1a9ab44c362b722",
+      "stderr": "error[E7004]: reference renderer '/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/renderer-empty.py docs' produced no output\n",
+      "cli_reaped": true,
+      "renderer_pid": 85178,
+      "renderer_alive_after_cli_exit": false
+    },
+    {
+      "case": "duplex",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "docs",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/input.can"
+      ],
+      "environment_override": {
+        "CAN_PLATFORM_BIN": "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/renderer-duplex.py"
+      },
+      "cli_pid": 85179,
+      "exit": 0,
+      "seconds": 0.06841504100157181,
+      "watchdog_seconds": 10,
+      "timed_out": false,
+      "observer_cleanup": "none",
+      "stdout_bytes": 262156,
+      "stdout_sha256": "cab97174553a8593024092f4594c94bf08cb536b812c3f98938cd68f82e17359",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "",
+      "cli_reaped": true,
+      "renderer_pid": 85180,
+      "renderer_alive_after_cli_exit": false
+    },
+    {
+      "case": "closed-input",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "docs",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/input.can"
+      ],
+      "environment_override": {
+        "CAN_PLATFORM_BIN": "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/renderer-closed-input.py"
+      },
+      "cli_pid": 85181,
+      "exit": 2,
+      "seconds": 0.06525412500195671,
+      "watchdog_seconds": 10,
+      "timed_out": false,
+      "observer_cleanup": "none",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 207,
+      "stderr_sha256": "6e87d03b87ebe966fe02e75e3ab372f946e10b9c44df299b6837f51d5a6cc651",
+      "stderr": "error[E7004]: failed to pipe the reference model to '/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/renderer-closed-input.py docs': Broken pipe (os error 32)\n",
+      "cli_reaped": true,
+      "renderer_pid": 85182,
+      "renderer_alive_after_cli_exit": false
+    },
+    {
+      "case": "nonzero-after-duplex",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "docs",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/input.can"
+      ],
+      "environment_override": {
+        "CAN_PLATFORM_BIN": "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/renderer-nonzero-after-duplex.py"
+      },
+      "cli_pid": 85183,
+      "exit": 2,
+      "seconds": 0.0670836249992135,
+      "watchdog_seconds": 10,
+      "timed_out": false,
+      "observer_cleanup": "none",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 2190,
+      "stderr_sha256": "eaafb68cbef3574cfd0e87ea417104e9589f7bc86e7b94ce287f2a57b0ef6a68",
+      "stderr": "error[E7004]: reference renderer '/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/renderer-nonzero-after-duplex.py docs' failed (exit 7): ...bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbEND-DETAIL\n",
+      "cli_reaped": true,
+      "renderer_pid": 85184,
+      "renderer_alive_after_cli_exit": false
+    },
+    {
+      "case": "closed-input-after-duplex",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "docs",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/input.can"
+      ],
+      "environment_override": {
+        "CAN_PLATFORM_BIN": "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/renderer-closed-input-after-duplex.py"
+      },
+      "cli_pid": 85185,
+      "exit": 2,
+      "seconds": 0.07060008299595211,
+      "watchdog_seconds": 10,
+      "timed_out": false,
+      "observer_cleanup": "none",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 220,
+      "stderr_sha256": "000972614c03977de1ce28aa9b82c07da2ed60b6c1816cd66ca7a96bac1cd766",
+      "stderr": "error[E7004]: failed to pipe the reference model to '/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/renderer-closed-input-after-duplex.py docs': Broken pipe (os error 32)\n",
+      "cli_reaped": true,
+      "renderer_pid": 85186,
+      "renderer_alive_after_cli_exit": false
+    },
+    {
+      "case": "analysis-before-renderer",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "docs",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/invalid.can"
+      ],
+      "environment_override": {
+        "CAN_PLATFORM_BIN": "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/must-not-run.py"
+      },
+      "cli_pid": 85188,
+      "exit": 10,
+      "seconds": 0.005322707998857368,
+      "watchdog_seconds": 10,
+      "timed_out": false,
+      "observer_cleanup": "none",
+      "stdout_bytes": 250,
+      "stdout_sha256": "79b7c852f5ab89db3604821d66ff57e07c684e14548b834c05e2b7a17a59dcbe",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "",
+      "cli_reaped": true,
+      "renderer_spawned": false
+    },
+    {
+      "case": "spawn-missing",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "docs",
+        "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/input.can"
+      ],
+      "environment_override": {
+        "CAN_PLATFORM_BIN": "/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/does-not-exist"
+      },
+      "cli_pid": 85189,
+      "exit": 2,
+      "seconds": 0.04574754200439202,
+      "watchdog_seconds": 10,
+      "timed_out": false,
+      "observer_cleanup": "none",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 232,
+      "stderr_sha256": "328b5be0103b927779a420f8f81e6bc94a54d0187dcb0780cca808dc50f1f16e",
+      "stderr": "error[E7004]: lane-7 producer '/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/does-not-exist' is not a file for `can docs`; install it or fix CAN_PLATFORM_BIN (see can explain E7004)\n",
+      "cli_reaped": true
+    },
+    {
+      "case": "stdout-epipe",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "--help"
+      ],
+      "environment_override": {},
+      "cli_pid": 85190,
+      "exit": 0,
+      "seconds": 0.003079250003793277,
+      "watchdog_seconds": 10,
+      "timed_out": false,
+      "observer_cleanup": "none",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "",
+      "cli_reaped": true,
+      "native_sink": "pipe with no readers"
+    },
+    {
+      "case": "stderr-epipe",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "not-a-command"
+      ],
+      "environment_override": {},
+      "cli_pid": 85191,
+      "exit": 2,
+      "seconds": 0.0041917080015991814,
+      "watchdog_seconds": 10,
+      "timed_out": false,
+      "observer_cleanup": "none",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "",
+      "cli_reaped": true,
+      "native_sink": "pipe with no readers"
+    },
+    {
+      "case": "both-epipe",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "not-a-command"
+      ],
+      "environment_override": {},
+      "cli_pid": 85192,
+      "exit": 2,
+      "seconds": 0.005262917002255563,
+      "watchdog_seconds": 10,
+      "timed_out": false,
+      "observer_cleanup": "none",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "",
+      "cli_reaped": true,
+      "native_sink": "pipe with no readers"
+    },
+    {
+      "case": "stdout-ebadf",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "--help"
+      ],
+      "environment_override": {},
+      "cli_pid": 85193,
+      "exit": 0,
+      "seconds": 0.002360165999562014,
+      "watchdog_seconds": 10,
+      "timed_out": false,
+      "observer_cleanup": "none",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "",
+      "cli_reaped": true,
+      "native_sink": "read-only descriptor (EBADF)"
+    },
+    {
+      "case": "stdout-efbig",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "--help"
+      ],
+      "environment_override": {},
+      "cli_pid": 85194,
+      "exit": 2,
+      "seconds": 0.00331295799696818,
+      "watchdog_seconds": 10,
+      "timed_out": false,
+      "observer_cleanup": "none",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 130,
+      "stderr_sha256": "8b94572da5af1970a3e3c78442111321419669ad56e044099786fd4561b1a70d",
+      "stderr": "error[E7005]: internal error at src/cli.rs:230: failed printing to stdout: File too large (os error 27) (see `can explain E7005`)\n",
+      "cli_reaped": true,
+      "native_sink": "regular file, RLIMIT_FSIZE=1, SIGXFSZ ignored (EFBIG)",
+      "sink_bytes": {
+        "stdout-efbig.stdout.sink": 1
+      }
+    },
+    {
+      "case": "stderr-efbig",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "not-a-command"
+      ],
+      "environment_override": {},
+      "cli_pid": 85195,
+      "exit": 2,
+      "seconds": 0.0033222910060430877,
+      "watchdog_seconds": 10,
+      "timed_out": false,
+      "observer_cleanup": "none",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "",
+      "cli_reaped": true,
+      "native_sink": "regular file, RLIMIT_FSIZE=1, SIGXFSZ ignored (EFBIG)",
+      "sink_bytes": {
+        "stderr-efbig.stderr.sink": 1
+      }
+    },
+    {
+      "case": "both-efbig",
+      "command": [
+        "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+        "--help"
+      ],
+      "environment_override": {},
+      "cli_pid": 85196,
+      "exit": 2,
+      "seconds": 0.0056839579992811196,
+      "watchdog_seconds": 10,
+      "timed_out": false,
+      "observer_cleanup": "none",
+      "stdout_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "",
+      "cli_reaped": true,
+      "native_sink": "regular file, RLIMIT_FSIZE=1, SIGXFSZ ignored (EFBIG)",
+      "sink_bytes": {
+        "both-efbig.stdout.sink": 1,
+        "both-efbig.stderr.sink": 1
+      }
+    }
+  ],
+  "limits": [
+    "Finite native macOS CLI/helper and real descriptor controls only.",
+    "10-second observer watchdog and finite fixtures are not production timeout/capture policy.",
+    "Child absence is observed after CLI return; source child.wait provides the reap path. OS wait/read failure injection, thread failures and descendant pipe holders remain structural/unqualified.",
+    "Broader all-sink command inventory, other hosts, arbitrary blocked/flooding producers and resource policy remain open.",
+    "Source pins cover the unchanged renderer/main adapter, not compiler changes after the frozen build."
+  ]
+}

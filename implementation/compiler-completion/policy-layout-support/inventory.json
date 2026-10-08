@@ -1,0 +1,23 @@
+{
+  "reference": "integration:policy-layout-engine",
+  "head_observed": "0a771e1453189d5a64c1cb1a95924c9bdb89cf90",
+  "profile_manifest_counts": {
+    "compiler": 121,
+    "packages": 1770,
+    "can": 5
+  },
+  "matched_relevant_profile_inputs": 11,
+  "historical_scope": "Relevant matching source/test/actual built UI consumer bodies only; full 121/1770/5 profile is historical, not current whole-source qualification.",
+  "retirement_count": 142,
+  "retirement_span": [
+    165,
+    306
+  ],
+  "conditional_net_target": 120,
+  "maximum_replacement_closure_growth_if_only_retirement_region_removed": 22,
+  "deleted_production_lines": 0,
+  "deleted_mechanisms": 0,
+  "new_tests_or_test_runs": 0,
+  "outcome": "RETAIN current supported formatter and byte/helper contract; no new API/layout policy selected",
+  "future_revision": "Conditional cleanup remains proposed and needs owning byte/readability/layout revision plus actual-consumer qualification and full net count."
+}

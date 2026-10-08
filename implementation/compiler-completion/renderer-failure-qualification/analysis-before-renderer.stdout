@@ -1,0 +1,2 @@
+implementation/compiler-completion/renderer-failure-qualification/invalid.can:1:1: error E1204 package is missing When/Then
+implementation/compiler-completion/renderer-failure-qualification/invalid.can:3:10: error E1200 expected a model field schema

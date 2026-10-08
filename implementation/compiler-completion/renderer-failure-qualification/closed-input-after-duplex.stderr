@@ -1,0 +1,1 @@
+error[E7004]: failed to pipe the reference model to '/Users/vince/Projects/canlang/implementation/compiler-completion/renderer-failure-qualification/renderer-closed-input-after-duplex.py docs': Broken pipe (os error 32)
