@@ -50,10 +50,13 @@ pub fn build(module_path: &str, db: &SourceDb, lines: &[JsLine]) -> SourceMap {
     for (i, line) in lines.iter().enumerate() {
         // Always use IDs returned by the library, including empty/repeated names.
         let name_id = line.name.as_ref().map(|name| {
-            if !names.contains(name) {
+            let id = builder.add_name(name);
+            // The builder interns names in first-appearance order. A new ID
+            // extends our matching wire table; existing IDs need no scan.
+            if id as usize == names.len() {
                 names.push(name.clone());
             }
-            builder.add_name(name)
+            id
         });
         let (source_id, src_line, src_col) = match db.get(line.span.file) {
             Some(source) => {
@@ -306,6 +309,38 @@ mod tests {
             assert_eq!(row.len(), 1);
             assert_eq!(row[0].src, None);
         }
+    }
+
+    #[test]
+    fn wide_name_table_reuses_first_appearance_ids_and_preserves_output() {
+        let mut db = SourceDb::new();
+        let source = db.add("wide.can".into(), "é😀\r\nvalue".into());
+        let names: Vec<String> = std::iter::once(String::new())
+            .chain((1..256).map(|i| format!("name_{i}")))
+            .collect();
+        let mut lines = Vec::new();
+        for name in &names {
+            lines.push(line(source, 6, Some(name)));
+        }
+        for name in names.iter().rev() {
+            lines.push(line(source, 8, Some(name)));
+        }
+        let map = build("wide.mjs", &db, &lines);
+        assert_eq!(map.names, names);
+        let rows = decode_mappings(&map.mappings).unwrap();
+        assert_eq!(rows.len(), 512);
+        for (i, row) in rows.iter().enumerate() {
+            assert_eq!(row.len(), 1);
+            let expected_name = if i < 256 { i } else { 511 - i };
+            assert_eq!(row[0].name, Some(expected_name as i64));
+            assert_eq!(row[0].src, Some(0));
+            assert_eq!(row[0].src_line, Some(i64::from(i >= 256)));
+            assert_eq!(row[0].src_col, Some(if i < 256 { 6 } else { 0 }));
+        }
+        let wire: serde_json::Value = serde_json::from_str(&to_json(&map)).unwrap();
+        assert_eq!(wire["names"], serde_json::json!(names));
+        assert_eq!(wire["sourcesContent"], serde_json::json!(["é😀\r\nvalue"]));
+        assert_eq!(wire["mappings"], map.mappings);
     }
 
     #[test]
