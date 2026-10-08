@@ -2427,6 +2427,7 @@ fn construct_effects() {
         },
         IrStmt::Send {
             operation: "demo.Svc.ping".to_string(),
+            deployment_binding: None,
             args: typed(IrExpr::Object(vec![]), widget.clone()),
             when: Some(typed(
                 IrExpr::Bool(true),
@@ -6438,6 +6439,7 @@ fn t31_hook_stmt_backstops() {
     };
     let send = IrStmt::Send {
         operation: "x.y".to_string(),
+        deployment_binding: None,
         args: typed(IrExpr::Object(Vec::new()), ResolvedType::Unknown),
         when: None,
         binding: None,

@@ -1316,6 +1316,8 @@ pub enum IrStmt {
         args: TypedExpr,
         when: Option<TypedExpr>,
         binding: Option<String>,
+        /// Exact importing module/alias key in appDefinition.bindings.
+        deployment_binding: Option<String>,
         span: Span,
     },
     /// `schedule key at=... event=... {...}`.
@@ -4281,9 +4283,22 @@ impl<'a> Cx<'a> {
             }
             _ => None,
         };
-        let Some(operation) = operation else {
-            return unsupported_stmt("send statement", "no operation target is published", span);
+        let Some(target) = self.node(&effect.node).and_then(|node| {
+            kids(node)
+                .into_iter()
+                .find(|child| is_expression(child.kind))
+        }) else {
+            return unsupported_stmt(
+                "send statement",
+                "checked target source is unavailable",
+                span,
+            );
         };
+        let (operation, deployment_binding) =
+            match self.send_target_provenance(scope, target, operation) {
+                Ok(target) => target,
+                Err(reason) => return unsupported_stmt("send statement", reason, span),
+            };
         IrStmt::Send {
             operation,
             args: self.effect_args_object(scope, effect),
@@ -4292,8 +4307,108 @@ impl<'a> Cx<'a> {
                 .as_ref()
                 .map(|key| self.decode_anchored(scope, key, &format!("{what} send guard"))),
             binding: effect.binding.clone(),
+            deployment_binding,
             span,
         }
+    }
+
+    /// Join the authored target head to checked import provenance, never
+    /// choosing a deployment alias from a canonical operation alone.
+    fn send_target_provenance(
+        &self,
+        scope: &Scope,
+        mut target: &SyntaxNode,
+        selected: Option<String>,
+    ) -> Result<(String, Option<String>), &'static str> {
+        while target.kind == SyntaxKind::Group {
+            target = kids(target)
+                .into_iter()
+                .find(|n| is_expression(n.kind))
+                .ok_or("grouped target source is unavailable")?;
+        }
+        let parts = kids(target);
+        let (head, member) = if target.kind == SyntaxKind::Member && parts.len() == 3 {
+            (parts[0], name_text(self.db, parts[2]))
+        } else if target.kind == SyntaxKind::NameRef {
+            (target, None)
+        } else {
+            return Err("checked target import provenance is unavailable");
+        };
+        if head.kind != SyntaxKind::NameRef {
+            return Err("checked target import head is unavailable");
+        }
+        let alias = kids(head)
+            .into_iter()
+            .find_map(|n| name_text(self.db, n))
+            .ok_or("checked target alias is unavailable")?;
+        let host = self
+            .program
+            .modules
+            .get(scope.module.0 as usize)
+            .ok_or("target importing module is unavailable")?;
+        let imports: Vec<_> = host
+            .imports
+            .iter()
+            .flat_map(|import| {
+                import
+                    .members
+                    .iter()
+                    .filter(|m| m.alias == alias)
+                    .map(move |m| (import, m))
+            })
+            .collect();
+        if imports.len() > 1 {
+            return Err("target import provenance is ambiguous");
+        }
+        let external = self.program.types.target_bindings.get(&NodeKey::of(head));
+        if let Some(crate::analysis::resolve::Binding::External { provider, name }) = external {
+            let (import, imported) = imports
+                .first()
+                .copied()
+                .ok_or("checked external target import is unavailable")?;
+            if &import.provider != provider || &imported.name != name || import.from.is_none() {
+                return Err("checked external target import provenance disagrees");
+            }
+            let cap = (provider == "std")
+                .then(|| std_capability(name))
+                .flatten()
+                .ok_or("external target has no owning operation schema")?;
+            let op = member
+                .as_deref()
+                .and_then(|name| crate::analysis::catalog::std_operation(cap.name, name))
+                .ok_or("external target has no checked owning operation")?;
+            let canonical = format!("{}.{}", cap.name, op.name);
+            if selected
+                .as_ref()
+                .is_some_and(|selected| selected != &canonical)
+            {
+                return Err("selected operation disagrees with checked external target");
+            }
+            return Ok((canonical, Some(format!("{}.{}", host.name, alias))));
+        }
+        let operation = selected.ok_or("no operation target is published")?;
+        if let Some((import, imported)) = imports.first().copied() {
+            let Some(crate::analysis::resolve::Binding::Symbol(head_symbol)) =
+                self.program.types.target_bindings.get(&NodeKey::of(head))
+            else {
+                // Lexical values can shadow an import; spelling never selects it.
+                return Ok((operation, None));
+            };
+            if self.canonical(*head_symbol) != format!("{}.{}", import.provider, imported.name) {
+                return Err("checked target declaration disagrees with authored import");
+            }
+            let expected = match member {
+                Some(member) => format!("{}.{}.{}", import.provider, imported.name, member),
+                None => format!("{}.{}", import.provider, imported.name),
+            };
+            if expected != operation {
+                return Err("selected operation disagrees with authored import target");
+            }
+            if import.from.is_some() {
+                return Ok((operation, Some(format!("{}.{}", host.name, alias))));
+            }
+        }
+        Ok((operation, None))
     }
 
     /// Operation identity of a `call` effect (total over targets).
