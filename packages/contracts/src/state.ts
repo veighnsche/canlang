@@ -758,6 +758,8 @@ export type CanonicalInputDef =
   | {
       readonly name: string;
       readonly kind: 'ref';
+      /** Optional singular nonnullable scenario/read input whose default remains host-owned. */
+      readonly computedDefault?: true;
       readonly model: ModelName;
       readonly versioned: boolean;
       readonly required: boolean;

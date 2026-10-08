@@ -485,11 +485,11 @@ function checkComputedDefault(
 ): true | undefined {
   if (!Object.hasOwn(input, 'computedDefault')) return undefined;
   if (input['computedDefault'] !== true || (operationKind !== 'scenario' && operationKind !== 'read') || required ||
-      (inputKind !== 'enum' && (scalarTypeForKind(inputKind) === undefined || valueType === undefined)) ||
-      (inputKind === 'enum' && (Object.hasOwn(input, 'array') || input['array'] !== undefined ||
+      (inputKind !== 'enum' && inputKind !== 'ref' && (scalarTypeForKind(inputKind) === undefined || valueType === undefined)) ||
+      ((inputKind === 'enum' || inputKind === 'ref') && (Object.hasOwn(input, 'array') || input['array'] !== undefined ||
         (Object.hasOwn(input, 'nullable') && input['nullable'] !== false))) ||
       Object.hasOwn(input, 'default') || input['default'] !== undefined) {
-    fail('malformed_descriptor', `Invalid ${what}: computedDefault requires true on an optional checked scalar or singular nonnullable enum scenario or read input without a wire default.`);
+    fail('malformed_descriptor', `Invalid ${what}: computedDefault requires true on an optional checked scalar or singular nonnullable enum/ref scenario or read input without a wire default.`);
   }
   return true;
 }
@@ -549,6 +549,7 @@ function checkCanonicalInput(
       model: model as ModelName,
       versioned: value['versioned'] as boolean,
       required,
+      ...(computedDefault !== undefined ? { computedDefault } : {}),
       ...(fallback !== undefined ? { default: fallback } : {}),
     };
   }
@@ -892,6 +893,9 @@ export function loadExecutionDescriptorSet(
       }
     }
     for (const input of inputs) {
+      if (input.kind === 'ref' && input.computedDefault === true && Object.hasOwn(arrayMarkers, input.name)) {
+        fail('malformed_descriptor', `Invalid input ${JSON.stringify(input.name)} on operation ${JSON.stringify(opName)}: computedDefault ref requires a singular input.`);
+      }
       if (input.kind !== 'ref' && input.kind !== 'delivery') {
         checkTypeArray(input.valueType, Object.hasOwn(arrayMarkers, input.name), `input ${JSON.stringify(input.name)} on operation ${JSON.stringify(opName)}`);
         if (input.kind === 'enum' && input.computedDefault === true && Object.hasOwn(arrayMarkers, input.name)) {
@@ -916,7 +920,7 @@ export function loadExecutionDescriptorSet(
         if (input === undefined) {
           fail('dangling_reference', `Invalid nullable ref marker ${JSON.stringify(inputName)} on operation ${JSON.stringify(opName)}: no such input.`);
         }
-        if (marker !== true || input.kind !== 'ref' || Object.hasOwn(arrayMarkers, inputName)) {
+        if (marker !== true || input.kind !== 'ref' || input.computedDefault === true || Object.hasOwn(arrayMarkers, inputName)) {
           fail('malformed_descriptor', `Invalid nullable ref marker ${JSON.stringify(inputName)} on operation ${JSON.stringify(opName)}: only true singular-ref markers are supported.`);
         }
         nullableRefs[inputName] = true;
@@ -1318,6 +1322,7 @@ export function artifactToDescriptorSet(
           model: target as ModelName,
           versioned: refTag['requireVersion'] as boolean,
           required: input.required,
+          ...(computedDefault !== undefined ? { computedDefault } : {}),
           ...(fallback !== undefined ? { default: fallback } : {}),
         });
       } else if (inputKind === 'enum') {
