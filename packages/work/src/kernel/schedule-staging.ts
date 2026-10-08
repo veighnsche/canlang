@@ -5,10 +5,11 @@ import type {
   OperationName,
   OutboxId,
   ScheduleOp,
+  RecordId,
   StoredRow,
   WorkScope,
 } from '@canlang/contracts';
-import type { SystemCommandDef } from '@canlang/state';
+import type { SystemCommandContext, SystemCommandDef, SystemStaging } from '@canlang/state';
 import { freezeRequest } from '../intent/staging.js';
 import { argInstant, argRecord, argString, checkArgs } from './arguments.js';
 import {
@@ -20,11 +21,13 @@ import type { StageContext } from './staging-support.js';
 import {
   KernelTableError,
   WORK_SCHEDULE_MODEL,
+  WORK_OCCURRENCE_MODEL,
   newScheduleRow,
   readScheduleRow,
+  readOccurrenceRow,
   scheduleByKeyQuery,
 } from './tables.js';
-import type { ScheduleRowData } from './tables.js';
+import type { OccurrenceRowData, ScheduleRowData } from './tables.js';
 
 function argScope(
   args: Readonly<Record<string, unknown>>,
@@ -126,6 +129,97 @@ function embedScheduleKey(scope: WorkScope, key: string, what: string): string {
     );
   }
   return embedded;
+}
+
+export interface DueScheduleInput {
+  readonly key: string;
+  readonly scope: WorkScope;
+  readonly occurrenceId: string;
+  readonly event: string;
+  readonly at: number;
+}
+
+export type DueScheduleResult =
+  | { status: 'ready'; occurrence: ScheduleRowData; effects: SystemStaging }
+  | { status: 'replayed'; receipt: OccurrenceRowData }
+  | { status: 'refused'; reason: string };
+
+/**
+ * Stage first delivery of one authoritative due head inside the caller's
+ * existing owner revision fence. The runtime qualifies input/context/schema;
+ * this helper grants no authority and executes or commits nothing. The caller
+ * combines ready effects, handler effects and the terminal occurrence receipt
+ * in that same fence. Transient failures discard all effects; terminal authored
+ * refusals retain admission/consumption and a failed receipt, without business
+ * changes. Already-admitted work without a receipt has no first-delivery path.
+ */
+export async function stageDueSchedule(
+  input: DueScheduleInput,
+  ctx: SystemCommandContext,
+): Promise<DueScheduleResult> {
+  const what = 'stageDueSchedule';
+  // Keep the existing argument checks and scoped-key encoding used by put/cancel.
+  const args = input as unknown as Readonly<Record<string, unknown>>;
+  checkArgs(args, what);
+  const key = argString(args, 'key', what);
+  const scope = argScope(args, what);
+  const at = argInstant(args, 'at', what);
+  const event = argString(args, 'event', what);
+  const occurrenceId = argString(args, 'occurrenceId', what);
+  const l3Key = embedScheduleKey(scope, key, what);
+  const row = await ctx.load(WORK_SCHEDULE_MODEL, occurrenceId as RecordId);
+  if (row === null) return { status: 'refused', reason: 'missing' };
+  const data = readScheduleRow(row);
+  if (
+    row.id !== data.occurrenceId ||
+    data.occurrenceId !== occurrenceId ||
+    data.key !== key ||
+    data.scopeApp !== scope.app ||
+    data.scopeOwner !== scope.owner ||
+    data.scopeOwnerPackage !== scope.ownerPackage ||
+    data.event !== event ||
+    data.at !== at
+  ) {
+    return { status: 'refused', reason: 'mismatched' };
+  }
+  // Retain the authoritative stored payload, never a delivery-supplied snapshot.
+  const occurrence = Object.freeze({ ...data, payload: freezeRequest(data.payload) });
+  const receiptRow = await ctx.load(WORK_OCCURRENCE_MODEL, occurrenceId as RecordId);
+  if (receiptRow !== null) {
+    const receipt = readOccurrenceRow(receiptRow);
+    if (receiptRow.id !== occurrenceId || receipt.occurrenceId !== occurrenceId) {
+      return { status: 'refused', reason: 'mismatched-receipt' };
+    }
+    // Original receipts replay even after a replacement became the current head.
+    return { status: 'replayed', receipt };
+  }
+  if (occurrence.state !== 'pending') {
+    return { status: 'refused', reason: occurrence.state };
+  }
+  if (occurrence.at > ctx.now) return { status: 'refused', reason: 'future' };
+  const entries = await loadKeyedSchedules(ctx, scope, key);
+  const head = selectScheduleHead(entries);
+  if (
+    head === null ||
+    head.row.id !== occurrenceId ||
+    head.data.occurrenceId !== occurrenceId ||
+    head.row.version !== row.version ||
+    head.data.state !== 'pending' ||
+    head.data.event !== event ||
+    head.data.at !== at
+  ) {
+    return { status: 'refused', reason: 'stale' };
+  }
+  return {
+    status: 'ready',
+    occurrence,
+    effects: {
+      writes: [
+        updateWrite(row, { ...occurrence, state: 'admitted' }, ctx, WORK_SCHEDULE_MODEL, what),
+      ],
+      schedules: [{ op: 'cancel', key: l3Key }],
+    },
+  };
 }
 
 /**
