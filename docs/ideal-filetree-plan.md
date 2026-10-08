@@ -315,3 +315,6 @@ Root nullable-array correction: State ordinary/prepared admission preserves chec
 
 
 Root datetime-default producer reconciliation: compiler checked literal/default ownership now emits existing-parser canonical wire instants while preserving native constructor execution; Values remains the wire codec owner. Released2/2producer and Clippy results qualify this finite source prerequisite. Runtime/default/persistence and accumulated complete coverage remain separate; no new parser/normalizer owner, merge or checkpoint advancement.
+
+
+Root bounded temporal consumer reconciliation: Cloudflare scenario/default/record projection retains one binding over State-loaded metadata and public Values codecs; State remains admission/storage/receipt owner. Null-prototype parameter/default dictionaries preserve supported own names. Owner source compilation and corrected actual generated Node-handler/D1 profile1/1 pass; integer compatibility3/3 reused. Compiler current collection-call source commit, wider scalar/hook/deployed/installed/native consumers and complete checkpoint review remain separate; no duplicate Values implementation or merge.
