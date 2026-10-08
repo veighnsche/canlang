@@ -152,3 +152,25 @@ the prior failure. Only that failed case was repeated; its source/Cargo lease
 is released.
 No new test, proof packet, giant probe, global byte cap or full FAIL-R06 closure
 is added.
+
+## Remaining used-catalog and field-reuse duty
+
+`960f0665` finishes the remaining original finite AR-11 matching profile.
+The new source-legal case loads a genuine test-producer catalog, retains its
+clone after dropping the original, and passes a builtin result containing
+256 alternating closed-object/nonempty-collection wrappers into a second
+builtin. It verifies every substituted wrapper and the concrete int leaf,
+selects the later specific overload over an earlier matching bool result,
+and preserves reordered named slots `[1,0]`. The exact new case passes
+**1/1**; it neither bypasses matching through Unknown/Opaque nor credits an
+unused catalog load. Existing nullable matching controls are reused.
+
+AR-17's field-reuse lead is already resolved by cached `decl_type`, bounded
+fixpoint rounds and iterative dependency-cycle reporting. Existing accepted
+forward chains and exact self/mutual E3008 controls retain their outcomes;
+no remaining production defect was found and those checks were not repeated.
+The original finite duties are complete at these recorded profiles; deeper
+signature forms, universal resource/performance and raw-carrier guarantees
+retain their original limits. The coordinator joined the original FAIL-R06
+closure using these accepted outcomes; no new review or proof packet was
+added. Canonical completion is **57/67**, with **10** remaining.

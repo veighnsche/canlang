@@ -187,3 +187,34 @@ supplied empty/large-integer arrays and live read authority through the real
 handler. Nullable mutation controls keep their existing scope; wider
 ref/identity/enum/host and parent-reference claims stay separate. No producer
 check was repeated. Completion stays **54/67**, with **13** remaining.
+
+The remaining original FAIL-R06 used-catalog/field-reuse duty is finished at
+its finite scope. `960f0665` passes **1/1** for a genuine loaded catalog's
+256-wrapper builtin result flowing into actual overload matching, checking
+every type, specificity and reordered slots. Existing nullable matching and
+cached forward-field/cycle outcomes are reused without repeats. No new
+production defect or resource policy is introduced. The coordinator joined
+its original finite closure, S9-Q06's accepted public cohort contract and
+ARCH-01's original defer disposition. Completion is **57/67**, with **10**
+remaining; their accepted checks were reused.
+
+`54d1112c` qualifies the remaining custom same-arity binding consumer at its
+declared expression-host scope. The loaded catalog selects the later
+overload and reversed named slots; unchanged emitted code executes the
+installed date facade with exact result, getter order, single evaluation
+and exception propagation. The new exact case passes **1/1**. State
+admission and broader application outcomes remain with their owners.
+
+`4c72cc6d` admits the accepted manifest's original
+`TextGenerationV1.generate.progressed` and `ImagesV1.submit.progressed`
+handlers. Checked `{delivery_id:text}` authority flows into private event
+metadata and the existing `{event}` callable. Genuine source and native
+handler execution pass **1/1**, including unrelated-source and extra-payload
+refusals. The same release fixes null-equality precedence for observed
+delivery leaves. The affected native consumer passes **1/1** for null,
+queued and running states, both operand orders and inequality, preserving
+one observation and one getter. Its initial missing UI import was repaired
+by linking the installed package, then only the failed case was repeated.
+The current CLI is released to Work and Cloudflare/UI owners for their
+remaining event and page joins; no full Task21/25 or parent-reference
+closure is claimed. Completion stays **57/67**.
