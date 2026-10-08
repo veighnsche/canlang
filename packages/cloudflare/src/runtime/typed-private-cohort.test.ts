@@ -63,7 +63,7 @@ test('declared private cohorts freeze sibling handlers and retain checked events
   };
   try {
     const asm = await assembleModules({ artifact, sourcePath: fixturePath }, {
-      workDir: join(dir, 'modules'), stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+      workDir: join(dir, 'modules'), stdlibUrl: new URL('./stdlib.js', import.meta.url).href,
       uiUrl: import.meta.resolve('@canlang/ui'),
     });
     let storage = await open();

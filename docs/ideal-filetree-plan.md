@@ -423,3 +423,6 @@ Redundant synchronous guard export verification scaffolding is retired:112 histo
 
 
 The existing generation consumer now imports its adapter and dispatcher from the same emitted CF graph as its defining progress producer. Private output previously mixed installed and private module identities, correctly refusing the foreign producer before HTTP; authority checks remain unchanged. Clean same native generation/D1/reopen/provider case passes1/1 (28144.749292ms), selected typecheck/emit0. An intermediate unsupported private subpath attempt and diagnostic pass remain recorded; no new export or production change. MCP/cohort and full original parent gates stay separate.
+
+
+The existing typed-private-cohort source consumer now uses its same emitted stdlib identity rather than mixing private output with installed CF modules. The sole source-current native case passes1/1 (23.760s;24.118s total) with the released portable Judgment/deployment closure, frozen membership/current refs, restart/recovery/fences/navigation. No production reference or authority semantics changed; prior partial failure/cancel outcomes and full parent limits remain. Complete checkpoint unchanged.
