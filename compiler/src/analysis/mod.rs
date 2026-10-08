@@ -146,7 +146,26 @@ pub fn check_program(
         diagnostics.append(&mut parse_diags);
         trees.push((file, tree));
     }
-    let resolve_tables = resolve::resolve_program(db, &trees, catalog, &mut diagnostics);
+    let resolve_tables = match resolve::try_resolve_program(db, &trees, catalog, &mut diagnostics) {
+        Ok(tables) => tables,
+        Err(diagnostic) => {
+            diagnostics.push(diagnostic);
+            let mut diagnostics = check::dedup_diagnostics(diagnostics);
+            check::sort_diagnostics(&mut diagnostics);
+            return (
+                CheckedProgram {
+                    modules: Vec::new(),
+                    symbols: Vec::new(),
+                    types: TypeTable::default(),
+                    effects: EffectTables::default(),
+                    examples: ExampleTables::default(),
+                    catalog_version: catalog.map_or_else(String::new, |c| c.version().to_string()),
+                    cohort: cohort::CheckedCohort::new(db, files, catalog),
+                },
+                diagnostics,
+            );
+        }
+    };
     let types = types::check_types(db, &trees, catalog, &resolve_tables, &mut diagnostics);
     resolve::emit_unresolved(db, &resolve_tables, &types, &mut diagnostics);
     let effects = effects::check_effects(
