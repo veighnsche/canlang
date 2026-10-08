@@ -113,6 +113,8 @@ export function prepareDescriptorInputs(
       arrayFill: marker !== undefined && !marker.required && descriptor.kind !== 'update' &&
         input.default === undefined &&
         !(input.kind !== 'ref' && input.kind !== 'delivery' &&
+          Object.hasOwn(input, 'computedDefault') && input.computedDefault === true) &&
+        !(input.kind !== 'ref' && input.kind !== 'delivery' &&
           Object.hasOwn(input, 'valueType') && input.valueType?.endsWith('?')),
       arrayCheck: marker !== undefined,
     };

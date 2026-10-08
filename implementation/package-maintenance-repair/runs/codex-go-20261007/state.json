@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T10:11:05.931044+00:00",
+  "updated_utc": "2026-10-08T10:19:54.112542+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1840,6 +1840,23 @@
         "State_consumer_prerequisite": "544aae43",
         "counts_unchanged": true
       }
+    },
+    "computed_default_omission": {
+      "status": "Defining Contracts/State source released and directly reviewed; commit ready, generated-handler/runtime consumer pending",
+      "source_paths": [
+        "packages/contracts/src/artifact.ts",
+        "packages/contracts/src/state.ts",
+        "packages/state/src/invocation/registry.ts",
+        "packages/state/src/invocation/admission.ts",
+        "packages/state/src/invocation/prepared-inputs.ts",
+        "packages/state/test/invocation/owned-admission.test.ts"
+      ],
+      "contract": "Own computedDefault:true on optional checked scalar scenario inputs, including ordinary arrays; no wire default.kind, State never evaluates the default. Artifact and canonical intake retain/copy the marker; required/ref/nonscenario/malformed/default conflicts refuse.",
+      "validation": "Owning Node24 Contracts and State TypeScript emits exit0; existing loader-driven owned-admission case1/1. Root reviewed exact6-file diff and reused unchanged results.",
+      "consumer_limits": "Compiler producer and appDefinition/artifact pairing plus nullable scenarioParameters fill suppression remain owning Compiler/Roadmap consumer work. Whole H1, read/ref/replay/durable/installed and parent acceptance are not implied.",
+      "model": "gpt-6.1-sol medium: frozen finite checked omission metadata consumer",
+      "sources_dist_handles_released": true,
+      "counts_unchanged": true
     }
   },
   "live_finite_packets": [

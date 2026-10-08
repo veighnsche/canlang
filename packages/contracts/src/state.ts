@@ -766,6 +766,8 @@ export type CanonicalInputDef =
   | {
       readonly name: string;
       readonly kind: CanonicalScalarKind;
+      /** Checked optional scenario input whose computed default remains host-owned. */
+      readonly computedDefault?: true;
       /** Checked int/datetime/text/bool/decimal/money/date/duration/user association; absence carries no type claim. */
       readonly valueType?: CanTypeId;
       readonly required: boolean;
