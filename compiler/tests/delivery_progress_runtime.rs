@@ -10,7 +10,7 @@ fn declared_progress_alias_observes_the_existing_result_once() {
     let scratch = tempfile::tempdir().unwrap();
     let source = std::fs::read_to_string(root.join("packages/cloudflare/test/fixtures/typed-generation-progress.can"))
         .unwrap()
-        .replace("request.status,request.result", "request.status,request.progress")
+        .replace("fields=label,request.progress.content", "fields=label,request.status,request.progress")
         .replace("When\n", " policy Job read=members fields=request.progress.content\n contract Counter {progress:text}\n derive content(job:Job):text = job.request?.progress?.content ?? \"\"\n derive resultContent(job:Job):text = job.request?.result?.content ?? \"\"\n derive isRunning(job:Job):bool = job.request?.progress?.state == running\n derive detail(job:Job):text = job.request?.progress?.detail ?? \"\"\n derive ordinary(value:Counter):text = value.progress\nWhen\n");
     let input = scratch.path().join("progress.can");
     std::fs::write(&input, source).unwrap();
@@ -44,6 +44,7 @@ export async function delivery(context,locator,selected){
  const probe=globalThis.probe;assert.equal(context,probe.context);assert.equal(locator.record,probe.record);assert.equal(locator.field,'request');assert.deepEqual(selected,[probe.expectedKey]);
  const key=selected[0];probe.trace.push(['delivery',key]);
  if(!context.memberships.includes('members')||!(probe.grants.mayObserve('result',{field:'request'})||probe.paths.has(`request.${key}`)))throw Error('denied');
+ if(probe.absentAssociation)return null;
  return {[key]:probe.result===null?null:key==='result'?probe.result:probe.result[key.slice('result.'.length)]};
 }
 export async function send(){throw Error('unused send');}
@@ -84,6 +85,11 @@ for(const [name,expected,field]of [['content','Draft','content'],['resultContent
 }
 globalThis.probe.result=null;globalThis.probe.expectedKey='result.content';trace.length=0;assert.equal(await callable('content')(context,record),'');assert.deepEqual(trace,[['delivery','result.content']]);
 globalThis.probe.expectedKey='result.state';assert.equal(await callable('isRunning')(context,record),false);globalThis.probe.expectedKey='result.detail';assert.equal(await callable('detail')(context,record),'');
+globalThis.probe.absentAssociation=true;
+for(const [name,expected,field]of [['content','','content'],['resultContent','','content'],['isRunning',false,'state'],['detail','','detail']]){
+ globalThis.probe.expectedKey=`result.${field}`;trace.length=0;assert.equal(await callable(name)(context,record),expected);assert.deepEqual(trace,[['delivery',`result.${field}`]]);
+}
+globalThis.probe.absentAssociation=false;
 trace.length=0;assert.equal(await callable('ordinary')(context,{progress:'ordinary'}),'ordinary');assert.deepEqual(trace,[]);
 globalThis.probe.result=result;globalThis.probe.grants=child;globalThis.probe.paths=new Set(grants[1].fields);globalThis.probe.expectedKey='result.content';assert.equal(await callable('content')(context,record),'Draft');assert.equal(await callable('resultContent')(context,record),'Draft');
 const {delivery}=await import('@canlang/stdlib');globalThis.probe.expectedKey='result';await assert.rejects(delivery(context,{record,field:'request'},['result']),{message:'denied'});

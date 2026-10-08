@@ -2218,10 +2218,15 @@ impl<'a> Emitter<'a> {
                 self.stdlib.insert("delivery".to_string());
                 let record_text = self.lower_expr(record);
                 let selected = js_string(&props.join("."));
-                format!(
-                    "(await delivery(c,{{record:{record_text},field:{}}},[{selected}]))[{selected}]",
+                let observed = format!(
+                    "(await delivery(c,{{record:{record_text},field:{}}},[{selected}]))",
                     js_string(field)
-                )
+                );
+                if expr.ty.nullable_inner().is_some() {
+                    format!("({observed}?.[{selected}] ?? null)")
+                } else {
+                    format!("{observed}[{selected}]")
+                }
             }
             IrExpr::Message(message) => self.lower_message(message),
             IrExpr::MessageCall {
