@@ -3427,6 +3427,7 @@ impl<'a> Cx<'a> {
         let scope = self.tables.expr_scope.get(&NodeKey::of(target)).copied()?;
         let binding = self.tables.resolve_name(scope, segments[0], self.catalog)?;
         let ty = match &binding {
+            Binding::CohortChild { model, .. } => return Some(*model),
             Binding::Symbol(id) => {
                 if matches!(
                     self.tables.symbols[id.0 as usize].kind,

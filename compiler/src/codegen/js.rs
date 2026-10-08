@@ -6420,17 +6420,39 @@ impl<'a> Emitter<'a> {
                 choices: None,
             });
         }
-        if has_duplicate_names(&inputs) {
-            return None;
-        }
         let IrItemKind::Scenario {
             description,
             result,
+            cohort,
             ..
         } = &handler.kind
         else {
             return None;
         };
+        if let Some(cohort) = cohort {
+            let model = self.ir.items.get(cohort.model.0 as usize)?;
+            if !matches!(model.kind, IrItemKind::Model { .. }) {
+                return None;
+            }
+            inputs.push(JsOperationField {
+                name: cohort.bind.clone().unwrap_or_else(|| "$cohort".to_string()),
+                field: JsMcpField::Ref {
+                    model: model.canonical.clone(),
+                    require_version: false,
+                },
+                value_type: None,
+                required: true,
+                nullable: false,
+                array_required: None,
+                computed_default: false,
+                default: None,
+                description: None,
+                choices: None,
+            });
+        }
+        if has_duplicate_names(&inputs) {
+            return None;
+        }
         Some(JsOperation {
             name: handler.canonical.clone(),
             kind: JsOperationKind::Scenario,
@@ -7754,6 +7776,7 @@ impl<'a> Emitter<'a> {
                     params,
                     trusted,
                     hook,
+                    cohort,
                     by,
                     guards,
                     effects,
@@ -7767,7 +7790,12 @@ impl<'a> Emitter<'a> {
                     let handler = object_key(&item.canonical);
                     self.enter_scope();
                     let signature = if *trusted {
-                        format!("c,{{event:{}}}", self.bind("event"))
+                        let mut bindings = vec![format!("event:{}", self.bind("event"))];
+                        if let Some(bind) = cohort.as_ref().and_then(|cohort| cohort.bind.as_ref())
+                        {
+                            bindings.push(format!("{}:{}", object_key(bind), self.bind(bind)));
+                        }
+                        format!("c,{{{}}}", bindings.join(","))
                     } else {
                         let names: Vec<String> = params
                             .iter()

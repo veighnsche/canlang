@@ -128,6 +128,7 @@ pub enum LocalKind {
     Let,
     QueryAlias,
     ForItem,
+    CohortChild,
     CreateAs,
     CallAs,
     SendAs,
@@ -141,6 +142,7 @@ impl LocalKind {
             LocalKind::Let => "let binding",
             LocalKind::QueryAlias => "query alias",
             LocalKind::ForItem => "for item",
+            LocalKind::CohortChild => "cohort child",
             LocalKind::CreateAs => "create binding",
             LocalKind::CallAs => "call binding",
             LocalKind::SendAs => "send binding",
@@ -653,6 +655,7 @@ impl<'a> Snapshot<'a> {
                 binding @ (Binding::Let { .. }
                 | Binding::QueryAlias { .. }
                 | Binding::ForItem { .. }
+                | Binding::CohortChild { .. }
                 | Binding::CreateAs { .. }
                 | Binding::CallAs { .. }
                 | Binding::SendAs { .. }
@@ -1182,6 +1185,7 @@ fn index_locals(tables: &ResolveTables) -> HashMap<NodeKey, (String, LocalKind)>
                 Binding::Let { node } => (*node, LocalKind::Let),
                 Binding::QueryAlias { node } => (*node, LocalKind::QueryAlias),
                 Binding::ForItem { node } => (*node, LocalKind::ForItem),
+                Binding::CohortChild { node, .. } => (*node, LocalKind::CohortChild),
                 Binding::CreateAs { node } => (*node, LocalKind::CreateAs),
                 Binding::CallAs { node } => (*node, LocalKind::CallAs),
                 Binding::SendAs { node } => (*node, LocalKind::SendAs),
@@ -1200,6 +1204,7 @@ fn local_binding_key(binding: &Binding) -> Option<NodeKey> {
         Binding::Let { node }
         | Binding::QueryAlias { node }
         | Binding::ForItem { node }
+        | Binding::CohortChild { node, .. }
         | Binding::CreateAs { node }
         | Binding::CallAs { node }
         | Binding::SendAs { node }
@@ -1218,6 +1223,7 @@ fn local_name_span(node: &SyntaxNode, kind: LocalKind, text: &str) -> Option<Spa
         LocalKind::QueryAlias => name_after(&parts, text, "as"),
         // `for NAME in ...`
         LocalKind::ForItem => name_after(&parts, text, "for"),
+        LocalKind::CohortChild => Some(node.span),
         // `create|call ... as NAME`, `send ... as NAME`
         LocalKind::CreateAs | LocalKind::CallAs | LocalKind::SendAs => {
             name_after(&parts, text, "as")
@@ -1357,6 +1363,7 @@ fn binding_completion_kind(binding: &Binding, tables: &ResolveTables) -> &'stati
         Binding::Let { .. }
         | Binding::QueryAlias { .. }
         | Binding::ForItem { .. }
+        | Binding::CohortChild { .. }
         | Binding::CreateAs { .. }
         | Binding::CallAs { .. }
         | Binding::SendAs { .. }
@@ -1379,6 +1386,7 @@ fn binding_detail(binding: &Binding, tables: &ResolveTables) -> Option<String> {
         Binding::Let { .. } => Some(LocalKind::Let.noun().to_string()),
         Binding::QueryAlias { .. } => Some(LocalKind::QueryAlias.noun().to_string()),
         Binding::ForItem { .. } => Some(LocalKind::ForItem.noun().to_string()),
+        Binding::CohortChild { .. } => Some(LocalKind::CohortChild.noun().to_string()),
         Binding::CreateAs { .. } => Some(LocalKind::CreateAs.noun().to_string()),
         Binding::CallAs { .. } => Some(LocalKind::CallAs.noun().to_string()),
         Binding::SendAs { .. } => Some(LocalKind::SendAs.noun().to_string()),

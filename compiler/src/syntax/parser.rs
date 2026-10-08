@@ -4414,9 +4414,8 @@ impl<'a> Parser<'a> {
         if has_params {
             self.parse_params(cursor, &mut inner)?;
         }
-        // `each` is listed so `by=`/`on=` value expressions stop before
-        // `each=`; it is intercepted below (proposal marker, not a hard
-        // failure) rather than parsed by the generic attribute path.
+        // `each` owns its path and optional child alias rather than using
+        // the generic attribute expression parser.
         let allowed = ["by", "on", "each", "read", "scope", "label", "expose"];
         let mut seen: Vec<String> = Vec::new();
         let mut has_result = false;
@@ -4594,16 +4593,9 @@ impl<'a> Parser<'a> {
 
     /// Parse `each=<path> [as <name>]` on a scenario header.
     ///
-    /// Fan-out has no normative production (GRAMMAR trusted-scenario row
-    /// lists only `on=`), so the `E1203` proposal marker stays — but it
-    /// is reported without failing the scenario. A hard failure here
-    /// would wrap the line in [`SyntaxKind::Error`](crate::syntax::cst::SyntaxKind::Error)
-    /// and knock the enclosing package out of the module index, leaving
-    /// the whole package body unchecked; recovering keeps the package
-    /// indexed while the diagnostic still flags the proposal. The
-    /// `Attribute` keeps the standard three-child shape and the `as`
-    /// binding sits beside it, mirroring `send`/`create` aliases, so
-    /// downstream keyed attribute readers simply ignore it.
+    /// The checked cohort pass owns model/anchor/trigger eligibility.
+    /// The attribute keeps its standard three-child shape and the child
+    /// alias sits beside it, mirroring send/create aliases.
     fn parse_each_attribute(
         &mut self,
         cursor: &mut Cursor<'a>,
@@ -4633,14 +4625,6 @@ impl<'a> Parser<'a> {
             let binding = cursor.expect_name()?;
             self.builder.leaf(inner, &binding);
         }
-        self.diags.push(
-            Fail::new(
-                "E1203",
-                "unsupported scenario attribute `each`".to_string(),
-                key.span,
-            )
-            .diag(),
-        );
         Ok(())
     }
 

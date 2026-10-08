@@ -65,16 +65,10 @@ fn collect_can(dir: &str, out: &mut Vec<PathBuf>) {
 
 /// Known draft-owner syntax defects, pinned exactly: (path suffix, codes).
 ///
-/// `each=` fan-out on trusted scenarios has no normative production in
-/// GRAMMAR.md or DESIGN.md (handoff HO-DRAFT-01 to the draft coordinator
-/// via the orchestrator). The parser correctly rejects it; this table pins
-/// the defect so the suite stays green while failing on any NEW breakage
-/// or any change to the defect shape. Remove an entry the day its file
-/// parses clean (the test enforces that).
-const KNOWN_CORPUS_DEFECTS: &[(&str, &[&str])] = &[
-    ("draft/CanShift.can", &["E1203", "E1203"]),
-    ("draft/CanVolunteer.can", &["E1203", "E1203"]),
-];
+/// Keep this table empty while all shipped files parse clean. Declared
+/// cohort syntax is accepted; complete application/runtime qualification
+/// remains separate from parsing.
+const KNOWN_CORPUS_DEFECTS: &[(&str, &[&str])] = &[];
 
 /// Golden corpus: every shipped `.can` file parses clean with full
 /// coverage, except [`KNOWN_CORPUS_DEFECTS`] which must match exactly.

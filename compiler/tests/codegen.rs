@@ -7364,9 +7364,8 @@ fn t18_r27_server_owned_checker() {
 // without `each=` emit byte-identical output (all pre-existing goldens
 // also guard this).
 //
-// Standing context (not F6's): handler triggers still keep their
-// `E6008` (no §13 trigger lowering exists yet), pinned below as the
-// only emit diagnostics. TEST-ONLY artifacts: see module docs.
+// Declared-event cohort triggers now lower. These metadata pins still use
+// test-only emission; cohort_trigger_runtime separately uses the actual CLI.
 
 /// T34-F6 fixture: one bare-model and one parent-anchored cohort.
 const F6_EMIT_BOTH: &str = "app Shop\nGiven\n Todo { title:text }\n Community { name:text }\n Opportunity in Community { title:text }\n Signup in Opportunity { email:text }\n event Ping {}\n event Cancelled { opportunity:Opportunity, reason:text }\nWhen\n scenario sweep on=Ping each=Todo as todo\n  do\n   let x=1\n scenario cancel_each on=Cancelled each=event.opportunity.Signup as signup\n  do\n   let x=1\nThen\n";
@@ -7393,10 +7392,7 @@ fn f6_cohorts_member(js: &str) -> String {
 #[test]
 fn f6_both_spellings_emit_cohort_descriptors() {
     let (_program, artifact, diags) = d03_emit(F6_EMIT_BOTH);
-    // Standing trigger lowering only: each handler trigger keeps its
-    // E6008; the cohort descriptors still emit beside it.
-    let codes: Vec<&str> = diags.iter().map(|d| d.code).collect();
-    assert_eq!(codes, vec!["E6008", "E6008"], "emit diags: {diags:?}");
+    assert!(diags.is_empty(), "emit diags: {diags:?}");
     let js = &artifact.modules[0].js;
     assert_eq!(js.matches("cohorts:{").count(), 1, "one member:\n{js}");
     assert_eq!(
@@ -7431,8 +7427,7 @@ fn f6_no_cohort_emits_no_member() {
 fn f6_missing_bind_emits_null() {
     let src = "app Shop\nGiven\n Todo { title:text }\n event Ping {}\nWhen\n scenario sweep on=Ping each=Todo\n  do\n   let x=1\nThen\n";
     let (_program, artifact, diags) = d03_emit(src);
-    let codes: Vec<&str> = diags.iter().map(|d| d.code).collect();
-    assert_eq!(codes, vec!["E6008"], "emit diags: {diags:?}");
+    assert!(diags.is_empty(), "emit diags: {diags:?}");
     let js = &artifact.modules[0].js;
     assert_eq!(
         f6_cohorts_member(js),
@@ -7447,8 +7442,7 @@ fn f6_invalid_cohort_emits_no_descriptor() {
     // descriptor even though test-only emission proceeds.
     let src = "app Shop\nGiven\n Todo { title:text }\n event Ping {}\nWhen\n scenario sweep on=Ping each=Nosuch as todo\n  do\n   let x=1\nThen\n";
     let (program, artifact, diags) = d03_emit(src);
-    let codes: Vec<&str> = diags.iter().map(|d| d.code).collect();
-    assert_eq!(codes, vec!["E6008"], "emit diags: {diags:?}");
+    assert!(diags.is_empty(), "emit diags: {diags:?}");
     let js = &artifact.modules[0].js;
     assert!(
         !js.contains("cohorts:"),

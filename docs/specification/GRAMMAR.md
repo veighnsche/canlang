@@ -96,7 +96,7 @@ Header attributes have the following closed sets. Fixed syntax before the attrib
 | judgment | `judgment NAME` | `version=expr` **required**; an integer declaration version is required semantically |
 | CRUD | `crud path` | `by=expr` **required**, `fields=selectors` **required**, `create_fields=selectors`, `expose=selectors` (enabled CRUD names or sole `none`), `when=expr`, `create=NAME`, `update=NAME`, `delete=NAME`; supported explicit modes are create/update `none` and delete `none`/`remove`; `label=crud_labels` is a closed enabled-operation caption map |
 | user scenario | `scenario NAME parameters` | `by=expr` **required**, `read=true`, `scope=authority`, one `-> type` result annotation, `label=caption` |
-| trusted scenario | `scenario NAME` | `on=source` **required**; no parameters, `by`, `read`, `scope` or result annotation |
+| trusted scenario | `scenario NAME` | `on=source` **required**, optional `each=cohort [as NAME]`; no parameters, `by`, `read`, `scope` or result annotation |
 | execution/mapper guard | `require expr` | `message=expr`; a literal text or message value is required semantically; presentation require has no attributes |
 | send effect | `send ordinary values` | `when=ordinary`, followed by mandatory `as NAME` binding |
 | schedule effect | `schedule expr` | `at=expr` **required**, `event=path values` **required** |
@@ -342,6 +342,7 @@ crud_head       = "crud" path attributes ;
 user_scenario   = ["export"] "scenario" NAME parameters attributes suite(scenario_body) ;
 trusted_scenario = "scenario" NAME attributes suite(scenario_body) ;
 handler_source  = path | "every" "(" DURATION [","] ")" ;
+cohort          = NAME | "event" "." NAME "." NAME {"." NAME} ;
 scenario_body   = {guard_line} do_body {scenario_examples} ;
 guard_line      = line(guard {";" guard}) ;
 guard           = "require" expr ["message" "=" expr] ;
@@ -368,6 +369,14 @@ match_arm       = "case" NAME suite(effect_body) ;
 loop            = "for" NAME "in" expr "limit" "=" expr suite(effect_body) ;
 mutation_target = path ;
 ```
+
+The optional trusted-header `each=cohort [as NAME]` selects a same-package
+stored model or a nonnullable event-rooted parent's contained collection.
+Its optional alias is a stored child reference in the handler's lexical
+scope and cannot hide a contextual fact. Declared-event cohorts currently
+emit a private handler plus checked child admission metadata and require
+`state.cohorts@1`. Periodic, lifecycle and delivery-progress cohort trigger
+lowering remains unavailable; ordinary trigger syntax is unchanged.
 
 The table's `on=source` slot uses `handler_source`. Each effect suite is nonempty. `else` occurs at the same indentation as its paired `if` immediately after that suite, ignoring blank/comments. No `else if` shortcut is introduced; write a nested `if` in the `else` suite. The mandatory `limit` slot parses an expression whose value must be a positive integer within the work budget. It is not a query clause. Loop query expressions end at `limit=`. Call/send targets parse ordinary expressions with unparenthesized typed construction disabled so their following argument object remains a distinct effect slot; later checking requires a valid operation/action reference. A delete path must resolve to a permitted mutable record target.
 

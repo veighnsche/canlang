@@ -301,6 +301,8 @@ pub enum Binding {
     QueryAlias { node: NodeKey },
     /// `for` item (the types pass types the domain element).
     ForItem { node: NodeKey },
+    /// Current stored child selected by an owning `each=... as name` header.
+    CohortChild { model: SymbolId, node: NodeKey },
     /// `create ... as name` (record of the resolved model).
     CreateAs { node: NodeKey },
     /// Effect `call ... as name` (declared result or opaque).
@@ -4082,6 +4084,7 @@ impl<'a> Resolver<'a> {
             self.tables.scopes[scope.0 as usize]
                 .bindings
                 .insert("event".to_string(), Binding::Context(ContextVar::Event));
+            self.bind_cohort_child(text, module, scope, node, diags);
             let _ = &mut scope;
             self.resolve_execution(text, module, scope, node, diags)?;
         } else {
@@ -4346,6 +4349,62 @@ impl<'a> Resolver<'a> {
             }
         }
         Ok(())
+    }
+
+    /// Give an adopted cohort header a lexical child before body typing.
+    /// Effects subsequently validates the complete cohort and trigger; this
+    /// provisional binding grants neither cohort admission nor authority.
+    fn bind_cohort_child(
+        &mut self,
+        text: &str,
+        module: ModuleId,
+        scope: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) {
+        let Some(value) =
+            attribute_value(node, "each", text).filter(|value| value.kind == SyntaxKind::Path)
+        else {
+            return;
+        };
+        let segments = path_segments(value, text);
+        if segments.len() != 1 && segments.first() != Some(&"event") {
+            return;
+        }
+        let Some(ScopedName::Local(model)) = segments
+            .last()
+            .and_then(|name| self.lookup_prod(module, name))
+        else {
+            return;
+        };
+        if !matches!(
+            self.tables.symbols[model.0 as usize].kind,
+            SymbolKind::Model { .. }
+        ) || self.tables.symbols[model.0 as usize].module != module
+        {
+            return;
+        }
+        let parts = kids(node);
+        let Some(alias) = parts
+            .windows(2)
+            .find_map(|pair| is_name(pair[0], text, "as").then_some(pair[1]))
+        else {
+            return;
+        };
+        let Some(name) = name_text(alias, text) else {
+            return;
+        };
+        self.bind_authored(
+            scope,
+            name,
+            Binding::CohortChild {
+                model,
+                node: NodeKey::of(alias),
+            },
+            alias.span,
+            "cohort child",
+            diags,
+        );
     }
 
     /// Walk one `require` guard (predicate plus optional message).
