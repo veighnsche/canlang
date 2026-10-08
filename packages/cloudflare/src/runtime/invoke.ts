@@ -101,6 +101,7 @@ import type {
   CanonicalReadQuery,
   CanonicalStagedWrite,
   HandlerContext,
+  HandlerFormattingScope,
 } from "./context.js";
 import { createContext } from "./context.js";
 import type { AssembledModules } from "./modules.js";
@@ -2400,6 +2401,8 @@ export interface CanonicalMutationOpts {
   readonly identity: ResolvedIdentity;
   /** Selected deployment app; part of the receipt identity. */
   readonly app: string;
+  /** Checked selected-app facts supplied by the host assembly, never the envelope. */
+  readonly formatting?: HandlerFormattingScope;
   /** Serving-source label (MCP path passes `mcp`, standalone `worker`). */
   readonly source: string;
   readonly store: StoragePort;
@@ -3113,6 +3116,7 @@ async function runScenarioSeam(
     memberships: grants,
     canonical: scope,
     qualified: call.context,
+    ...(opts.formatting === undefined ? {} : { formatting: opts.formatting }),
   });
   const callable = opts.artifact.callables.find((entry) => entry.id === opts.operation);
   const argument = callable?.inputStyle === "parameters"

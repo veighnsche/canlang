@@ -91,16 +91,20 @@ export interface CanonicalEffectsScope {
   readModel(model: string, query: CanonicalReadQuery): Promise<ReadonlyArray<ProjectedRecord>>;
 }
 
-/**
- * Handler context threaded as the first argument (`c`) of every emitted
- * operation handler and every c-first stdlib function.
- */
+/** Formatting facts installed from the checked selected app. */
+export interface HandlerFormattingScope {
+  /** Checked selected-app metadata; never viewer preferences or business inputs. */
+  readonly appDefault: string;
+}
+
+/** Handler context threaded as the first argument (`c`) of emitted handlers. */
 export interface HandlerContext {
   caller: CallerInfo;
   store: StoragePort;
   clock: () => number;
   memberships: string[];
   preferences: Record<string, Record<string, unknown>>;
+  readonly formatting?: HandlerFormattingScope;
   /** Source facts installed only from an admitted canonical context. */
   readonly actor?: UserRef | null;
   readonly team?: { readonly id: string; readonly timezone: string } | null;
@@ -132,6 +136,8 @@ export interface CreateContextDeps {
   canonical?: CanonicalEffectsScope;
   /** Internal admitted facts; business inputs and caller labels cannot supply these. */
   qualified?: InvocationContext;
+  /** Internal checked selected-app formatting facts. No context-level defaults. */
+  formatting?: HandlerFormattingScope;
 }
 
 /**
@@ -147,6 +153,9 @@ export function createContext(deps: CreateContextDeps): HandlerContext {
     clock: deps.clock ?? (() => Date.now()),
     memberships: deps.memberships ?? [],
     preferences: deps.preferences ?? {},
+    ...(deps.formatting === undefined ? {} : {
+      formatting: Object.freeze({ appDefault: deps.formatting.appDefault }),
+    }),
     ...(deps.canonical === undefined ? {} : { canonical: deps.canonical }),
     ...(deps.qualified === undefined ? {} : {
       actor: deps.qualified.actor === null ? null : makeUserRef(deps.qualified.actor.userId),
