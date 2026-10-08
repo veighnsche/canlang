@@ -246,6 +246,26 @@ describe('V02.4 owned admission: prepared-inputs leaf', () => {
     assert.ok(!Object.isFrozen(first.normalized['tags']));
   });
 
+  it('preserves omitted array defaults and update changes in both validators', () => {
+    for (const kind of ['scenario', 'create', 'update', 'read'] as const) {
+      for (const withDefault of [false, true]) {
+        const input: CanonicalInputDef = { name: 'counts', kind: 'integer', required: false,
+          ...(withDefault ? { default: { kind: 'literal' as const, value: ['1', '2'] } } : {}) };
+        const base = makeGenerated([input], { counts: { required: false } });
+        const def: GeneratedOperationDef = { ...base, kind, descriptor: { ...base.descriptor, kind } };
+        const plan = prepareOperationInputs(def);
+        const expected = kind === 'update' || withDefault ? {} : { counts: [] };
+        assert.deepEqual(validateCallInputs(def, {}).normalized, expected);
+        assert.deepEqual(validatePreparedInputs(plan, {}).normalized, expected);
+        for (const supplied of [{ counts: [] }, { counts: ['3'] }, { counts: null }]) {
+          assert.deepEqual(validateCallInputs(def, supplied).normalized, supplied);
+          assert.deepEqual(validatePreparedInputs(plan, supplied).normalized, supplied);
+        }
+        assert.equal(typeof plan.rules[0]!.arrayFill, 'boolean');
+      }
+    }
+  });
+
   it('returns a fresh unfrozen shallow copy and never mutates the caller inputs', () => {
     const withTags = makeGenerated([scalar('note', false), scalar('tags', false)], {
       tags: { required: false },

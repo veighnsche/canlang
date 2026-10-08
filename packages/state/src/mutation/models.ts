@@ -354,8 +354,10 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>): ModelTa
         );
       }
       if (Object.hasOwn(field, 'valueType') &&
-          (field.valueType !== 'int' || field.array !== undefined || field.nullable === true)) {
-        throw new Error(`Invalid valueType for field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: singular nonnullable int only.`);
+          (typeof field.valueType !== 'string' || !/^(int|datetime)(\[\])?\??$/.test(field.valueType) ||
+           field.valueType.includes('[]') !== (field.array !== undefined) ||
+           Object.hasOwn(field, 'nullable') && field.valueType.endsWith('?') !== field.nullable)) {
+        throw new Error(`Invalid valueType for field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: int/datetime profile must agree with array/nullable markers.`);
       }
       if (field.array !== undefined) {
         const marker = field.array;
@@ -741,6 +743,14 @@ export function buildModelTableFromCanonical(
   for (const model of models) {
     const fields: Record<string, InterimFieldDef> = {};
     for (const [name, field] of Object.entries(model.fields)) {
+      if (Object.hasOwn(field, 'valueType') &&
+          (typeof field.valueType !== 'string' || !/^(int|datetime)(\[\])?\??$/.test(field.valueType) ||
+           field.valueType.includes('[]') !== (field.array !== undefined) ||
+           Object.hasOwn(field, 'nullable') &&
+             (typeof field.nullable !== 'boolean' || field.valueType.endsWith('?') !== field.nullable))) {
+        throw new Error(`Invalid valueType for field ${JSON.stringify(name)} on model ${JSON.stringify(model.name)}: int/datetime profile must agree with array/nullable markers.`);
+      }
+
       let fallback: unknown;
       let hasFallback = false;
       const canonicalDefault = field.default;

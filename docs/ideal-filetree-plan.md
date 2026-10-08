@@ -306,3 +306,6 @@ Root bounded loader-cleanup reconciliation: existing e2e loader/testkit conforma
 
 
 Root released formatting reconciliation: compiler owns checked localized-message lowering and its one descriptor bridge; existing Values format, Cloudflare trusted app scope and State invoker retain defining responsibilities. Owner source-current consumer and focused results close finite SEM-R03 only. Public presentation source-language, outbound classification/freezing and wider host/installed/app duties remain distinct; no whole locale or complete checkpoint advancement.
+
+
+Root bounded typed-association reconciliation: Contracts vocabulary and State whole-set registry/model intake retain one metadata owner for int/datetime scalar, array and nullable container profiles. Ordinary/prepared admission preserves host defaults and partial updates; engine nullableFields retains omission policy. Released owner build and12affected metadata checks plus27unchanged admission results qualify this source prerequisite. Runtime/compiled-default/D1/installed/native and accumulated review remain open; no new codec owner, merge or complete checkpoint advancement.
