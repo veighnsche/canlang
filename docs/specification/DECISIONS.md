@@ -2942,3 +2942,9 @@ Private State emission and the one extended existing loader/admission case passe
 Accepted the released ordinary-scenario fanout bridge. It forwards the existing admitted child call and full canonical effects, uses current required reference versions, retains generated result receipts and guard/read dependencies, and pins the body factory to the admitted actor, team, app and source. Domain effects, history, receipt, child outcome and its checkpoint use the existing owning child transaction. Legacy unversioned body behavior is retained.
 
 The owner changed-source emission and one genuine compiled-source native D1 case passed after correcting the caller/source pin; four unchanged affected cases are reused. The case covers bounded frozen children, consent rollback, late insertion exclusion, response loss with persisted reopen/no repeat, current-role fences and wrong-source refusal. Root reviewed the exact source without another consumer check. Private declared-event each/trigger admission and broader durable/installed/whole-parent qualification remain open; no second State engine or library-replacement reduction is claimed.
+
+## 2026-10-08: retire released nested verification artifacts
+
+Removed the remaining 54 tracked files under the released root-owned asset-mount, Interfaces owner-build and DO-reset verification directories (182604 bytes). The original maintained product sources and direct tests remain; three existing records now retain concise actual outcomes and qualification limits, including the unproven owner-build runtime and test-only DO scope. Raw historical artifacts remain recoverable in Git.
+
+No cleanup verification packet, new snapshots, repeated tests or recursive checkpoint update is created. This removes obsolete evidence scaffolding, with no production-code reduction or task completion credit. Foreign work, shared outputs, caches, original fixtures and unresolved contract/JEV material are preserved.
