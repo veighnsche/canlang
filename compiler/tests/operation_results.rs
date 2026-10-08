@@ -380,6 +380,10 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
 
     let entry = artifact["modules"][0]["js"].as_str().unwrap();
     assert!(entry.contains("default:datetime(\"2030-01-01T00:00:00Z\")"));
+    assert!(
+        entry.contains("submit:\"Create item\""),
+        "authored form submit: {entry}"
+    );
     let expected_forms: Vec<_> = [
         "Client.Item.create",
         "Client.Item.update",

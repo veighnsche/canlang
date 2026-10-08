@@ -7051,7 +7051,7 @@ impl<'a> Cx<'a> {
         self.decode_expr(scope, value)
     }
 
-    /// Decode a `form` node: operation plus display/arguments/fields.
+    /// Decode a `form` node: operation plus display/arguments/fields/submit.
     fn decode_form(
         &mut self,
         scope: &Scope,
@@ -7097,9 +7097,9 @@ impl<'a> Cx<'a> {
                         ));
                     }
                 }
-                "arguments" => {
+                "arguments" | "submit" => {
                     if let Some(value) = value {
-                        props.push(("arguments".to_string(), self.decode_expr(scope, value)));
+                        props.push((name, self.decode_expr(scope, value)));
                     }
                 }
                 "fields" => {
