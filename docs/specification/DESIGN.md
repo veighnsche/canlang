@@ -346,10 +346,22 @@ Installed State preserves that omission; the emitted scenario evaluates the
 default once in declaration order after its permission guard. A supplied
 value suppresses its default. The [direct source/State/native check](../../compiler/tests/enum_default_runtime.rs)
 qualifies those joins and rejects null or foreign-domain source defaults.
-The current generated State enum profile validates presence and input shape;
-runtime enum membership/null validation and resolved-default receipt/replay
-remain separate qualifications. Nullable enum, enum-array and reference
-computed-default support is not extended by this slice.
+For ordinary mutation calls with admitted computed parameter defaults, generated
+handlers accept an optional invocation-local synchronous observer. They report
+an actually omitted value immediately after assigning it and before subsequent
+defaults, guards or body execution; direct two-argument calls retain their
+existing behavior. The canonical CF/State Memory path encodes omitted scalar,
+ordinary-array and singular finite-enum values with the owning descriptor,
+rejects foreign, duplicate or missing reports, and commits reported defaults
+only for a successful attempt. The
+[resolved-default receipt/replay check](../../compiler/tests/resolved_default_replay.rs)
+also verifies declaration-order values, supplied overrides, discarded rejected
+defaults, raw-input conflicts, replay without re-execution, and a newly revoked
+member being denied. Supplied-input hashing and receipt-first replay policy are
+unchanged; replay does not reauthorize current membership. The receipt witness
+qualifies finite enums through canonical CF/State Memory. Nullable enum,
+enum-array, reference and identity defaults, hostile supplied-enum/null wire
+validation, D1 and full-application paths remain open.
 
 Optional operation-owned input assistance is authored on the parameter, for example `assignee:user choices={read=reviewer_choices(document=submission.parent),value="user",labels=["name","role","home"]}` or `region:Region choices={read=region_choices(country=country),labels=["name"]}`. The compiler derives the canonical owning read, checked input paths, candidate value and labels from declarations, and publishes version 1 metadata on the existing input descriptor. A checked read returning a nonnullable one-dimensional stored-model collection publishes its canonical model-array result, such as `approve.Employee[]`; each value keeps the existing model-reference wire representation. Choices grant no authority, execute no read themselves and change no final input, default or server guard. Artifacts carrying choices require `interfaces.input-choices@1`; a consumer must support that feature before admitting the artifact. Viewer-authorized read execution, current draft binding, cancellation, stale-response fencing and form controls retain their owning consumer scopes. Labels preserve declared reference identities; they introduce no directory or file enrichment.
 

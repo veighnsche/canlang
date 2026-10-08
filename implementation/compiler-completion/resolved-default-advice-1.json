@@ -1,0 +1,45 @@
+{
+  "request": {
+    "state": {
+      "brief": "Which boundary best repairs the verified missing computed-default receipt values while preserving the released execution contract?",
+      "verified_facts": [
+        "Verified compiler source js.rs emit_handler_fns: ordinary generated method is async (c,{named params}); permission check precedes left-to-right if(param===undefined){param=defaultExpr;} assignments and then authored guards/body. IrDefault::Computed and scenario_default_omission_supported already publish checked computedDefault:true; native omitted/supplied/order/permission behavior passed1/1 with installed State, and singular nonnullable finite enum marker support is released. Computed values currently remain local, with no observation channel.",
+        "Verified CF invokeCallable/invokeWith calls the resolved function as fn(ctx,...args). runScenarioSeam currently supplies [argument]; scenarioParameters hydrates actual admitted refs and decodes loader-owned valueType. It records omitted literal defaults and implicit nullable null, deliberately preserving computed-default omission. Each execution attempt owns a fresh resolvedDefaults map and returns it with successful effects. Known scalar/native-array types have owning encodeValue codecs; enum has exact copied enumValues but no scalar valueType. Computed refs/deliveries/nullable enum/enum-array are outside released computed-default support.",
+        "Verified State invoke saves successful effects.resolvedDefaults in the existing receipt, failed authored business receipts use {}, and fence retries call a fresh seam. Matching supplied-input hash receipt replay returns the saved outcome before current membership/by and never executes the body. Receipt contract explicitly stores originally resolved defaults separately from normalized explicitly supplied input hash. Preserve this existing policy. Current emitted source internal call is E6008 unsupported; reads have no receipt obligation, trusted handlers have no source parameter-default block.",
+        "Bounded goal: capture each actually omitted checked computed default once after assignment, before later defaults/guards/body; encode its native value using the actual declared owner schema into the existing attempt-local map. Explicit overrides report nothing. Throws/failure/conflicts must not publish abandoned values. No new evaluator, canonical invocation engine, storage authority, user parameter, result envelope or receipt/hash/replay policy. Preserve direct two-argument callable behavior. A canonical target must refuse incomplete computed-default reporting from an older or mismatched callable before committing successful effects; do not silently save {}. Existing compiled receipt behavior implies seed b/copy omitted resolves b but receipt lacks copied, rather than a completed replay witness.",
+        "All alternatives below are to meet these identical correctness/order/failure/wire/compatibility/maintenance requirements. Repository prioritizes adoption, simplicity, concise owning declarations and focused changes. Advice is not authority. CF seam is owned by another active producer; no concurrent source writer. Choose the smallest justified join and retain ABI/type/compatibility uncertainty."
+      ]
+    },
+    "questions": {
+      "observation_boundary": {
+        "type": "choice",
+        "instructions": "Compare the alternatives fairly by correctness, invocation attribution, once/order/failure isolation, existing wire codecs, direct-call compatibility and implementation simplicity. Choose one; retain uncertainty about compatibility and omitted unsupported types.",
+        "criteria": {
+          "invocation_argument": "Add an optional third handler argument for an invocation-local synchronous default observer. Generated code calls it immediately after assigning an actually omitted checked computed default. Only canonical mutation seam passes [argument,observer]; its closure validates name/computed claim/original omission/once, encodes actual type or finite enum cases, and records the existing fresh map. Direct callers omit it. Naturally attributes values to the exact invoked operation, leaves context/result/State APIs intact, but adds a private callable argument and needs an explicit completeness/compatibility check.",
+          "context_hook": "Provide an optional observer in the existing trusted handler context. Generated default assignments call it with canonical operation identity, parameter name and native value. The hook validates that operation/slot/omission/type/once and writes the existing attempt map. Keeps two-argument handler arity and can reuse a context across execution, but needs HandlerContext/createContext plumbing and explicit attribution so nested operations cannot write outer defaults. Direct contexts without the hook retain behavior; completeness/compatibility still required.",
+          "shared_preparation": "Generate one shared checked input/default preparation function and reuse it from direct handlers and the canonical seam, with permission checked before preparation. Return resolved parameter values and defaults to the existing body; supplied values suppress defaults and body does not recompute. Uses the same default IR lowering, not a new evaluator. Avoids observer side effects and can make a complete resolved map explicit, but adds executable/link metadata and a preparation/body handoff, with greater work to preserve guard/default order, native conversions and direct-call behavior."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "observation_boundary": {
+        "type": "choice",
+        "choice": "invocation_argument",
+        "confidence": 0.77,
+        "probabilities": {
+          "invocation_argument": 0.84,
+          "context_hook": 0.14,
+          "shared_preparation": 0.02
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1281,
+      "output_tokens": 51
+    }
+  }
+}

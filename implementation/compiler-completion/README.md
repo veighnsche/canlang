@@ -339,3 +339,25 @@ wire validation, nullable/array/ref/identity defaults and resolved-default
 receipt/replay remain outside this qualification. Existing accepted default
 outcomes and the owning loader case were reused. Canonical completion
 remains **57/67**, with **10** remaining.
+
+The follow-up [resolved-default replay case](../../compiler/tests/resolved_default_replay.rs)
+passes **1/1** through the canonical CF/State Memory path after the owning CF
+emit exited 0. Generated ordinary-mutation handlers report actually omitted
+computed defaults through an optional third synchronous invocation-local
+observer, after permission and assignment and before later defaults/body.
+The collector uses owning scalar/ordinary-array codecs or singular finite-enum
+cases and rejects foreign, duplicate or missing reports. The genuine enum
+case checks declaration-order receipt values, empty override maps, rejected
+attempts discarding defaults, receipt-first replay without execution,
+raw-input conflict and fresh revoked-member denial. Supplied-input hashing
+and existing replay authority policy remain unchanged. Both affected native
+default compatibility cases pass **1/1** each, preserving two-argument callers.
+
+Three independent [JEV](resolved-default-advice-1.json)
+[responses](resolved-default-advice-2.json)
+[agree](resolved-default-advice-3.json) on the invocation argument (confidence
+.77/.85/.80); this is advice, with private ABI/legacy compatibility still
+unqualified. The canonical receipt witness covers finite enums in Memory;
+ref/identity, nullable-enum/enum-array defaults, hostile supplied-enum wire,
+D1 and full-application paths remain open. This component leaves the broader
+S9-Q02 reference open and completion at **57/67**, with **10** remaining.
