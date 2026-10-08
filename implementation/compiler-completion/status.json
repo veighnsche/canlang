@@ -378,5 +378,15 @@
     "verified": "Same owning typed-private-cohort case final1/1 (23.760s;24.118s total). Full original case completes native frozen sibling, scoped membership, current references, restart/recovery, fences and retained navigation, plus installed bundle/worker behavior; original same() reference failure is gone.",
     "qualification": "Only test source uses stdlibUrl=new URL('./stdlib.js',import.meta.url).href so private generated bindings and installed public stdlib share the actual emitted owner. No production/runtime/compiler/reference-policy/shared identity-map change. No full S9-Q02/task-count, BDD3 policy change or new packet. No scope/read-output holds added. Original completion58/67 with9open unchanged.",
     "ownership": "Work owns the single Cloudflare test hunk; Package Services closure5ca0e117 and emitted/installed outcome reused; coordinator owns final capture and shared index."
+  },
+  "canonical_state_internal_mapped_failure": {
+    "scope": "Finite original S9-Q08/OUT-R05 existing-StateError-details attribution hop through canonical State Memory; broader returned/as/live/context disclosure and replay/public policy remain separate.",
+    "state": "qualified on actual canonical State consumer",
+    "direct_case": "compiler/tests/map_attribution.rs::production_failure_retains_internal_attribution_through_canonical_state",
+    "source_change": "Cloudflare invoke.ts places existing outcome.mapped into existing StateError.details for fresh canonical rule_failed errors; preserves engineFailures and public code/message/opid/retryable:false. No new carrier or source-map policy.",
+    "verified": "Actual1/1 (0.21s): production CLI/installed catalog artifact, refreshed Cloudflare invoke/stdlib assembly and real State Memory. Real Attempt.create rolls back; receipt has no mapped field; same-ID rejected replay leaks no mapping. Fresh map-free artifact with raw maps removed and sourceMaps/mapUrls empty yields details:null.",
+    "setup_history": "Original0/1 (0.36s) exposed missing required as binding; next0/1 (0.52s) exposed TypeScript parameter-property test-loader setup. Only fixture setup was corrected before the installed compiled consumer. Focused TypeScript no-emit and Rust build0 outcomes are reused, not repeated.",
+    "qualification": "Internal wrapping hop only. Held BDD3 returned/as/live/context disclosure, full replay/public source policy and full S9-Q08/OUT-R05 remain open. No full-reference/task-count credit; counts58/67 with9open unchanged.",
+    "ownership": "Cloudflare invoke.ts existing error-details owner; compiler map-attribution consumer and notes ready for coordinator/Package capture."
   }
 }
