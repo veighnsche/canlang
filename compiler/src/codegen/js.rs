@@ -368,8 +368,8 @@ pub fn js_server_init(server: &IrServer) -> JsServerInit {
 /// encode via [`literal_json`]; computed defaults map only when they
 /// are a parent path ([`parent_path`]). Any other computed default (a
 /// non-parent expression) maps to `None`: the caller keeps
-/// `required: false` and the emitted `default(c)` callable preserves
-/// execution — T04b grows the vocabulary. Total and diagnostic-free:
+/// `required: false`; owning model defaults or supported ordered scenario
+/// handler fills preserve execution. Total and diagnostic-free:
 /// descriptors never fail compilation.
 pub fn js_field_default(
     default: Option<&IrDefault>,
@@ -5988,6 +5988,8 @@ impl<'a> Emitter<'a> {
                         IrDefault::Literal(_) => {
                             members.push_str(&format!(",default:{}", self.lower_default(default)));
                         }
+                        IrDefault::Computed { .. }
+                            if !wire && scenario_default_omission_supported(ty) => {}
                         IrDefault::Computed { .. } => {
                             self.unsupported(
                                 "parameter default",
@@ -7412,6 +7414,31 @@ impl<'a> Emitter<'a> {
                         &format!("async {handler}({signature}){{"),
                     );
                     self.emit_admission_check(out, by, item.span);
+                    if !*trusted {
+                        for id in params {
+                            let param = self.ir.items[id.0 as usize].clone();
+                            if let IrItemKind::Param {
+                                default: Some(default),
+                                ..
+                            } = &param.kind
+                            {
+                                let name = self.reference(&param.name);
+                                let value = match default {
+                                    IrDefault::Literal(expr) | IrDefault::Computed { expr, .. } => {
+                                        self.lower_business_expr(
+                                            expr,
+                                            "formatted scenario parameter default",
+                                        )
+                                    }
+                                };
+                                out.push(
+                                    param.span,
+                                    Some(item.canonical.clone()),
+                                    &format!("if({name}===undefined){{{name}={value};}}"),
+                                );
+                            }
+                        }
+                    }
                     for guard in guards {
                         for (line, span) in self.lower_stmt(guard, 0) {
                             out.push(span, Some(item.canonical.clone()), &line);
@@ -7623,6 +7650,32 @@ impl<'a> Emitter<'a> {
     }
 }
 
+/// Omission must survive native admission before a handler can fill a default.
+fn scenario_default_omission_supported(ty: &IrType) -> bool {
+    // Admission preserves absent optional nonnullable scalar inputs. Nullable,
+    // array and reference inputs need an owning omission/hydration seam first.
+    matches!(
+        ty,
+        IrType::Known(
+            ResolvedType::Scalar(
+                Scalar::Bool
+                    | Scalar::Int
+                    | Scalar::Decimal
+                    | Scalar::Text
+                    | Scalar::Email
+                    | Scalar::Url
+                    | Scalar::Locale
+                    | Scalar::Date
+                    | Scalar::Datetime
+                    | Scalar::Duration
+                    | Scalar::Timezone
+                    | Scalar::Currency
+                    | Scalar::Money
+            ) | ResolvedType::Enum { .. }
+        )
+    )
+}
+
 /// Closed checked scalar result profile; other shapes stay unknown.
 fn checked_scenario_result(result: Option<&ResolvedType>) -> Option<&'static str> {
     // Only successful checked Scenario signatures establish no result.
@@ -7639,7 +7692,18 @@ fn checked_string_value_type(ty: &IrType) -> Option<&'static str> {
     checked_value_profile(ty).filter(|value| {
         matches!(
             *value,
-            "text" | "text?" | "text[]" | "text[]?" | "date" | "date?" | "date[]" | "date[]?"
+            "text"
+                | "text?"
+                | "text[]"
+                | "text[]?"
+                | "date"
+                | "date?"
+                | "date[]"
+                | "date[]?"
+                | "file"
+                | "file?"
+                | "file[]"
+                | "file[]?"
         )
     })
 }
@@ -7690,6 +7754,10 @@ fn checked_value_profile(result: &ResolvedType) -> Option<&'static str> {
         (ResolvedType::Scalar(Scalar::User), false, true) => Some("user?"),
         (ResolvedType::Scalar(Scalar::User), true, false) => Some("user[]"),
         (ResolvedType::Scalar(Scalar::User), true, true) => Some("user[]?"),
+        (ResolvedType::Scalar(Scalar::File), false, false) => Some("file"),
+        (ResolvedType::Scalar(Scalar::File), false, true) => Some("file?"),
+        (ResolvedType::Scalar(Scalar::File), true, false) => Some("file[]"),
+        (ResolvedType::Scalar(Scalar::File), true, true) => Some("file[]?"),
         _ => None,
     }
 }

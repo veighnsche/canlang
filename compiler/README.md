@@ -128,6 +128,27 @@ Implemented modules:
   `Values` helpers. Permanent native runtime witnesses cover these supported
   paths in `tests/decimal_runtime.rs` and `tests/fixtures/decimal-runtime/`;
   this does not qualify every Decimal expression, backend, transport or host.
+- Scenario handlers fill checked literal and supported computed signature
+  defaults in source order after admission and before guards/effects. Native
+  parameter-style execution covers nonnullable scalar defaults, selected async
+  calls, supplied empty/false/zero overrides and first-failure order. Real State
+  admission preserves their omitted inputs; computed values make no fabricated
+  wire-default claim. Nullable, array and reference computed defaults retain
+  E6008 until an owning omission/hydration seam is qualified. Read-scenario
+  runtime joins and resolved-default receipt/replay remain separate.
+  Scope analysis follows only executed omitted parameter/create defaults and
+  server initializers through selected calls; supplied ordinary overrides stay
+  inactive. Permanent controls are in `tests/default_parameter_runtime.rs` and
+  `tests/effects.rs`.
+- Checked File scalar, nullable and array profiles publish their owning Values
+  type in model/input/result metadata. `tests/file_profile_runtime.rs` exercises
+  unchanged native returns and the real identity-only `{id}` codec; File
+  authority and byte-transfer workflows remain runtime duties. Known imported
+  standard nominal constructors use their owning catalog field schemas,
+  including contextual enum cases and aliases. The actual TextRequest source
+  in `tests/std_nominal_construct.rs` preserves lexical binding priority,
+  closed field checks and native send/association/require order; unknown
+  external types retain their existing behavior.
 - Public native compile/runtime facades have permanent execution witnesses for
   value equality and membership, nullable and mixed numeric equality, text
   scalar ordering and mixed numeric relations (including values above 2^53 and
