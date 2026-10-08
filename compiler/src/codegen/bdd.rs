@@ -135,6 +135,9 @@ pub fn emit_suite(
     for line in emitter.import_lines() {
         out.push(suite.span, None, &line);
     }
+    for line in emitter.example_helper_lines() {
+        out.push(suite.span, None, &line);
+    }
     for line in emitter.support_lines() {
         out.push(suite.span, None, &line);
     }
