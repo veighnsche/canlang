@@ -946,7 +946,7 @@
         "commit": "4d103fbe"
       },
       "finite_scalar_mapping": {
-        "state": "root reviewed and accepted finite correction; commit pending",
+        "state": "root reviewed and accepted finite correction; committed12fefa16",
         "files": [
           "packages/interfaces/src/http/csv.ts",
           "packages/ui/src/csv/parse.ts",
@@ -970,7 +970,17 @@
         "log": "/private/tmp/canlang-repair-go-20261007/csv-candidate-contract/check/checks.log",
         "model_choice": "Existing Sol6.1 high for cross-file semantic contract and implementation; Sol6.1 low for specified header precedence leaf. Root direct review; no extra review/proof trees.",
         "maintenance": "Required correctness growth: net+71 production text lines (includes comments/declarations),+71 test text lines;2 shared exports,no new dependencies/modules/lifecycle. Not a library-replacement reduction claim.",
-        "release": "Both exact source/test writers and commands released; no installed browser/native/durable consumer claim."
+        "release": "Both exact source/test writers and commands released; no installed browser/native/durable consumer claim.",
+        "commit": "12fefa16",
+        "cleanup": {
+          "owner": "root",
+          "state": "Exact released private emits and dependency-link tree removed after both agents and their owning commands completed; recipes/check log and three JEV responses retained. Shared caches and foreign outputs untouched.",
+          "removed": [
+            "/private/tmp/canlang-repair-go-20261007/csv-candidate-contract/check/ui/dist",
+            "/private/tmp/canlang-repair-go-20261007/csv-candidate-contract/check/interfaces/dist",
+            "/private/tmp/canlang-repair-go-20261007/csv-candidate-contract/check/node_modules"
+          ]
+        }
       }
     },
     "DEL-C02": {
@@ -1568,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T04:46:34.739489+00:00",
+  "updated_utc": "2026-10-08T04:49:00.016664+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
