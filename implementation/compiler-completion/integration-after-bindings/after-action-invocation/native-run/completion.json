@@ -1,0 +1,23 @@
+{
+  "exit_code": 0,
+  "end_head": "83d40be0e9a50f19bd72e721e489a5f3bc7cf690",
+  "end_utc": "2026-10-08T00:21:27.108050+00:00",
+  "log_sha256": "f005c4bdd9a0d6236e32dd40fc454666c668cf7fa551664d8c91ba4afb1c2338",
+  "changes": {
+    "compiler-inputs": {
+      "added": [],
+      "removed": [],
+      "changed": []
+    },
+    "package-producers": {
+      "added": [],
+      "removed": [],
+      "changed": []
+    },
+    "external-can-fixtures": {
+      "added": [],
+      "removed": [],
+      "changed": []
+    }
+  }
+}

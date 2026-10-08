@@ -1,0 +1,71 @@
+{
+  "status": "exact_committed_numeric_source_compiled_through_qualified_frozen_native_producer",
+  "command": [
+    "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+    "compile",
+    "--format=json",
+    "--catalog",
+    "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+    "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/f1-invocation/NumericControl.can"
+  ],
+  "exit_code": 0,
+  "pins": {
+    "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/f1-invocation/NumericControl.can": "bc734b652caa04d0a73fd9e090b66efe16825a623fad6bb0b2a262baa07a60be",
+    "/private/tmp/can-compiler-0134ebb0-page-handoff/can": "b2608559e9af0e934a0727faad1d31aee43528cb87a9359f3576a6d8b3db3a7e",
+    "/Users/vince/Projects/canlang/packages/values/dist/catalog.json": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62"
+  },
+  "pins_unchanged": true,
+  "source_head": "83d40be0e9a50f19bd72e721e489a5f3bc7cf690",
+  "executable_build_source_commit": "0134ebb0",
+  "executable_qualification": "Frozen private b260 executable from matching121compilerinput1154nativeprofile; no current source/build/sharedtarget mutation.",
+  "artifact": "implementation/compiler-completion/numeric-control-producer/artifact.json",
+  "artifact_sha256": "245bc51ae190144e3eb5925ee5a0d94d51e8968ac5f309ed720c6e4d48c29fff",
+  "modules": [
+    {
+      "artifact_path": "$can$m$4e756d65726963436f6e74726f6c.mjs",
+      "saved": "module-0.mjs",
+      "sha256": "857594e1774e5a7451113e916504cf91152b2cb9aef0d27ba97cf8f0b4537d93"
+    }
+  ],
+  "metadata": "metadata.json exact parsed models/operations projections; rawartifact authoritative",
+  "permission_scope": "Exact unchanged committed NumericControl.can compile/source/artifact/module/model-field/operation-input/result descriptor evidence through frozenCLI. Private/evidence outputs only, no compiler/package source/rebuild/sharedtarget mutation.",
+  "limits": "No generatedCRUDmoduleinstantiation,Statehydration,mutations,admission,replay,authority or prototype conversion qualified. Existing wire/default/codec boundaries must remain explicit.",
+  "actual_descriptor_evidence": {
+    "artifact_model_field": {
+      "name": "count",
+      "field": {
+        "kind": "integer"
+      },
+      "required": false,
+      "serverOnly": false,
+      "default": {
+        "kind": "literal",
+        "value": "1"
+      }
+    },
+    "artifact_increment_operation": {
+      "name": "NumericControl.increment",
+      "kind": "scenario",
+      "description": "",
+      "inputs": {
+        "fields": [
+          {
+            "name": "job",
+            "field": {
+              "kind": "ref",
+              "model": "NumericControl.Job",
+              "requireVersion": true
+            },
+            "required": true
+          }
+        ]
+      }
+    },
+    "artifact_operation_result_present": false,
+    "emitted_definition_declaration": "app-definition-declaration.mjs exact raw export line7 frommodule-0.mjs",
+    "emitted_model_count": "{type:\"int\",default:1n}",
+    "emitted_increment_result": "{type:\"int\"}",
+    "qualification": "Rawactualcompileddeclarations, not moduleinstantiation/evaluated definition. Standalone artifact operation metadata omits result; generated appDefinition declares it. No desired shape inferred."
+  },
+  "app_definition_declaration_sha256": "4f2fd0951786d38cc42fdc193016777565bc66c02e9f48fb150c296694b92629"
+}

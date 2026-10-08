@@ -32,5 +32,35 @@
     "scope": "Read-only compiler operation via frozen private CLI and pinned catalog; private sources/artifacts/modules/results only. No compiler/package source edits, rebuild/shared target mutation or new context/public scalar/permission policy.",
     "consumer_requirement": "Use actual admitted canonical call.context and actual public constructors/comparators. Record existing actor/caller, operation/name/id/source, team and clock carrier mismatches or refusals; do not invent trusted metadata, replace emitted expressions, silently coerce clock/context values or claim authority/browser/deployed behavior.",
     "default_join": "Accepted artifact String/default support retention and bounded native Decimal constructor are documented in default-representation/independent-review/review.md and temporal-values/decimal-materialization/independent-review/REVIEW.md. Native metadata-to-wire-schema refusal is a precondition observation; production default/hydration/admission remains unestablished and broader references stay open. No new default/codec representation or State patch is selected."
+  },
+  "numeric_control_evidence_use": {
+    "status": "bounded_ack_exact_committed_fixture_compile_complete",
+    "fixture": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/f1-invocation/NumericControl.can",
+    "fixture_sha256": "bc734b652caa04d0a73fd9e090b66efe16825a623fad6bb0b2a262baa07a60be",
+    "receipt": "implementation/compiler-completion/numeric-control-producer/receipt.json",
+    "artifact": "/Users/vince/Projects/canlang/implementation/compiler-completion/numeric-control-producer/artifact.json",
+    "artifact_sha256": "245bc51ae190144e3eb5925ee5a0d94d51e8968ac5f309ed720c6e4d48c29fff",
+    "executable": "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+    "executable_sha256": "b2608559e9af0e934a0727faad1d31aee43528cb87a9359f3576a6d8b3db3a7e",
+    "catalog": "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+    "catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+    "command": [
+      "/private/tmp/can-compiler-0134ebb0-page-handoff/can",
+      "compile",
+      "--format=json",
+      "--catalog",
+      "/Users/vince/Projects/canlang/packages/values/dist/catalog.json",
+      "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/f1-invocation/NumericControl.can"
+    ],
+    "scope": "Exact unchanged committed NumericControl.can compile/source/artifact/module/model-field/operation-input/result descriptor evidence through frozenCLI. Private/evidence outputs only, no compiler/package source/rebuild/sharedtarget mutation.",
+    "limits": "No generatedCRUDmoduleinstantiation,Statehydration,mutations,admission,replay,authority or prototype conversion qualified. Existing wire/default/codec boundaries must remain explicit.",
+    "descriptor_note": "Rawartifactmodelcount.kind=integer/default.literal.value=\"1\"; nativeemittedappDefinitioncount.type=int/default=1n andincrement.result.type=int. Standaloneartifactoperationsomitresult. Receiptcontains exactsource declarations, not runtime hydration/admission inference."
+  },
+  "rules_machine_evidence_use": {
+    "status": "bounded_read_execute_ack",
+    "source_scope": "Additional small canonical rules/machine fixtures under implementation/capability-roadmap-20261008/ using strings/bools; preserve original Images and full-original-app acceptance separately.",
+    "producer": "Reuse this frozen0134 executable and pinned catalog after checking their hashes. Private/evidence compile output only; no compiler reads/builds/writes, shared-target changes or rewritten emitted witnesses.",
+    "qualification": "Ordered require messages, invariant Job, conditional lock Job, direct machine-write rejection may be investigated through actual producers. Save clean admission, exact source/artifact/consumer pins and original failures; ACK is execution permission and does not assert support or close original references.",
+    "typed_metadata_prerequisite": "Standalone operation result metadata awaits exact Contracts H1 vocabulary/owner release. No typeof inference or generated-JS reconstruction as descriptor authority."
   }
 }

@@ -1,0 +1,7 @@
+{
+  "editors/vscode/test/lsp-capabilities.can": "85aa43ee466489cac94812f6623bd77265e1b605a686d8e344c62d20cba0cd01",
+  "editors/vscode/test/lsp-codeaction.can": "72f692cd2cfb80ee6e342b60ae489d88f74bef8d995ff9cbed6c545d7fb6be6e",
+  "examples/ExpenseFlow.can": "f5dc2988336e9368445f92cb9ba11d4517b23de07226f504bd6dfb707f19b98b",
+  "examples/Generation.can": "2a72305a6aeeb7e9a7b99d0edee68149f61c0c106fe376b950a908a7740edc51",
+  "examples/TeamTasks.can": "78020054ba06d0282047d4c400487ea1da070e7ebdb624637f0ff1802683f3d0"
+}
