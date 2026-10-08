@@ -95,7 +95,7 @@ import type {
   UniqueRelease,
 } from "@canlang/contracts";
 import { COLLECTION_DEFAULT_LIMIT, COLLECTION_MAX_LIMIT } from "@canlang/contracts";
-import { decodeValue, encodeValue, normalizeSchema, validateOperationInput } from "@canlang/values";
+import { decodeValue, encodeValue, makeRecordRef, normalizeSchema, validateOperationInput } from "@canlang/values";
 import type { FieldDescriptor, SchemaDescriptor } from "@canlang/values";
 import type { SystemStaging } from "@canlang/state";
 import type { GeneratedOperationDef } from "@canlang/state/invocation/registry";
@@ -2918,6 +2918,7 @@ async function runScenarioSeam(
   loaded: LoadedCanonicalDescriptors,
   opts: CanonicalMutationOpts,
   call: CanonicalSeamCall,
+  occurrenceIds: string[],
 ): Promise<CanonicalExecutionEffects> {
   const actorUserId = call.context.actor?.userId ?? null;
   const teamId = call.context.team?.teamId ?? null;
@@ -3039,8 +3040,9 @@ async function runScenarioSeam(
   const reservedVersions = new Map<string, RecordVersion>();
   const stagedHistory: unknown[] = [];
   const stagedTouches: CanonicalStagedUniqueTouch[] = [];
-  const sendEffects: SystemStaging[] = [];
+  const deferredEffects: SystemStaging[] = [];
   let sendIndex = 0;
+  let scheduleIndex = 0;
   const resolvedDefaults: Record<string, unknown> = Object.create(null);
   let callIndex = 0;
   let createIndex = 0;
@@ -3067,6 +3069,18 @@ async function runScenarioSeam(
     throw new Error(
       `t17b: staged write kind ${JSON.stringify(write.kind)} is not a domain write (pipeline/dist skew?)`,
     );
+  };
+  const appendDeferredEffects = (effects: SystemStaging): void => {
+    // Canonical invocation has no acknowledgement channel; deferred stages
+    // use domain writes/outbox/schedules, never a separate acknowledgement.
+    if ((effects.outboxAck?.length ?? 0) !== 0) {
+      throw new Error('Canonical deferred effects cannot stage outbox acknowledgements.');
+    }
+    for (const write of effects.writes ?? []) {
+      stagedWrites.push(write);
+      applyStagedWrite(write);
+    }
+    deferredEffects.push(effects);
   };
   const scope: CanonicalEffectsScope = {
     builtinRoles: Object.freeze(builtinRoles),
@@ -3206,6 +3220,45 @@ async function runScenarioSeam(
     },
   };
   const admittedNow = call.context.now;
+  const scheduleScope = async (ownerPackage: string) => {
+    const where = 'Keyed schedule';
+    const moduleUrl = callable === undefined ? undefined : opts.asm.moduleUrls[callable.module];
+    if (moduleUrl === undefined) throw new Error(`${where} has no owning compiled module.`);
+    const module: unknown = await import(moduleUrl);
+    const member = (value: unknown, key: string): unknown =>
+      isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
+    const definition = member(module, 'appDefinition');
+    if (member(member(definition, 'packages'), ownerPackage) === undefined) {
+      throw new Error(`${where} has no checked lexical package ${JSON.stringify(ownerPackage)}.`);
+    }
+    if (call.checkpoint === undefined) throw new Error(`${where} has no admitted owner checkpoint.`);
+    return {
+      definition, member,
+      scope: { app: call.context.app, owner: call.checkpoint.owner, ownerPackage },
+      context: {
+        actor: actorUserId ?? call.context.trustedSource ?? 'anonymous', now: admittedNow,
+        operation: call.context.operation, load: overlay.load.bind(overlay),
+        query: async (spec: Parameters<StoragePort['query']>[0]) => {
+          if (spec.limit !== undefined) throw new Error('Work staged queries do not support limit.');
+          const { where, ...wholeModel } = spec;
+          if (where === undefined) return overlay.query(wholeModel);
+          const grants = await loadProducerModule(STATE_GRANTS_SPECIFIER, 'state query predicate producer');
+          const validate = requireProducerFn(grants, 'validatePredicateShape', 'state query predicate producer') as
+            typeof import('@canlang/state/policy/grants').validatePredicateShape;
+          const evaluate = requireProducerFn(grants, 'evalPredicateForRow', 'state query predicate producer') as
+            typeof import('@canlang/state/policy/grants').evalPredicateForRow;
+          validate(where);
+          const rows = await overlay.query(wholeModel);
+          return rows.filter((row) => evaluate(where, row));
+        },
+      },
+    };
+  };
+  const deferredFailure = (error: unknown): never => {
+    const failure = error instanceof StateError ? error : new StateError('validation', message(error));
+    recordEngineFailure(failure);
+    throw failure;
+  };
   const ctx = createContext({
     caller:
       actorUserId === null
@@ -3215,6 +3268,58 @@ async function runScenarioSeam(
     clock: () => admittedNow,
     memberships: grants,
     canonical: scope,
+    scheduleDeferred: async (key, at, event, payload, ownerPackage) => {
+      try {
+        const selected = await scheduleScope(ownerPackage);
+        const inputs = selected.member(selected.member(selected.member(selected.definition, 'events'), event), 'inputs');
+        if (!isUnknownRecord(inputs) || !isUnknownRecord(payload)) {
+          throw new Error('Keyed schedule requires its checked event inputs and an argument object.');
+        }
+        const schema = normalizeSchema({ operations: { [event]: { inputs } } } as SchemaDescriptor);
+        const wire: Record<string, unknown> = Object.create(null);
+        for (const [name, value] of Object.entries(payload)) {
+          const field = selected.member(inputs, name) as FieldDescriptor | undefined;
+          // Only proven engine record views become references. Preserve the
+          // observed version, including a reserved version after a staged set.
+          // Due admission independently resolves the current stored row.
+          const binding = typeof value === 'object' && value !== null
+            ? recordBindings.get(value as Record<string, unknown>) : undefined;
+          const reserved = binding === undefined ? undefined : reservedVersions.get(stagedKey(binding.model, binding.id));
+          const native = binding === undefined ? value : makeRecordRef(binding.model, binding.id,
+            reserved === undefined ? (value as Record<string, unknown>)['version'] as bigint : BigInt(reserved));
+          wire[name] = field === undefined || native === undefined ? native : encodeValue(field.type, native as CanValue);
+        }
+        const checked = validateOperationInput(schema, event, wire);
+        const arguments_: Record<string, unknown> = Object.create(null);
+        for (const [name, value] of Object.entries(checked)) {
+          const field = selected.member(inputs, name) as FieldDescriptor;
+          arguments_[name] = encodeValue(field.type, value);
+        }
+        encodeValue('datetime', at);
+        const producer = await loadProducerModule('@canlang/work/kernel/schedule-staging', 'work keyed schedule producer');
+        const command = producer['workSchedulePutCommand'];
+        if (!isUnknownRecord(command)) throw new Error('Work keyed schedule producer has no put command.');
+        const stage = requireProducerFn(command, 'stage', 'work keyed schedule producer') as
+          typeof import('@canlang/work/kernel/schedule-staging').workSchedulePutCommand.stage;
+        // Mint only on actual execution; the invocation-local table survives
+        // fence retries. Receipt replay never executes this callback.
+        const ordinal = scheduleIndex++;
+        const occurrenceId = occurrenceIds[ordinal] ??= crypto.randomUUID();
+        appendDeferredEffects(await stage({ key, scope: selected.scope, at: Number(at.ms),
+          event, payload: arguments_, occurrenceId }, selected.context));
+      } catch (error) { deferredFailure(error); }
+    },
+    cancelDeferred: async (key, ownerPackage) => {
+      try {
+        const selected = await scheduleScope(ownerPackage);
+        const producer = await loadProducerModule('@canlang/work/kernel/schedule-staging', 'work keyed schedule producer');
+        const command = producer['workScheduleCancelCommand'];
+        if (!isUnknownRecord(command)) throw new Error('Work keyed schedule producer has no cancel command.');
+        const stage = requireProducerFn(command, 'stage', 'work keyed schedule producer') as
+          typeof import('@canlang/work/kernel/schedule-staging').workScheduleCancelCommand.stage;
+        appendDeferredEffects(await stage({ key, scope: selected.scope }, selected.context));
+      } catch (error) { deferredFailure(error); }
+    },
     sendDeferred: async (source, request, bindingKey) => {
       try {
         const moduleUrl = callable === undefined ? undefined : opts.asm.moduleUrls[callable.module];
@@ -3269,16 +3374,7 @@ async function runScenarioSeam(
           actor: actorUserId ?? 'anonymous', now: admittedNow, operation: scope.operation,
           load: overlay.load.bind(overlay), query: overlay.query.bind(overlay),
         });
-        // The current canonical invocation contract has no acknowledgement
-        // channel. This producer stages writes/outbox, never acknowledgements.
-        if ((stagedSend.effects.outboxAck?.length ?? 0) !== 0) {
-          throw new Error('Canonical send cannot stage outbox acknowledgements.');
-        }
-        for (const write of stagedSend.effects.writes ?? []) {
-          stagedWrites.push(write);
-          applyStagedWrite(write);
-        }
-        sendEffects.push(stagedSend.effects);
+        appendDeferredEffects(stagedSend.effects);
         return stagedSend.delivery;
       } catch (error) {
         const failure = error instanceof StateError ? error : new StateError('validation', message(error));
@@ -3331,17 +3427,17 @@ async function runScenarioSeam(
   }
   return {
     writes: collapseStagedWrites(stagedWrites),
-    history: [...stagedHistory, ...sendEffects.flatMap((effects) => effects.history ?? [])].map((entry) => {
+    history: [...stagedHistory, ...deferredEffects.flatMap((effects) => effects.history ?? [])].map((entry) => {
       if (!isUnknownRecord(entry)) return entry;
       const first = stagedWrites.find((write) => write.model === entry["model"] &&
         (write.kind === "insert" ? write.row?.id : write.id) === entry["recordId"]);
       const version = first?.kind === "insert" ? 1 : typeof first?.expectedVersion !== "number" ? undefined : first.expectedVersion + (first.kind === "remove" ? 0 : 1);
       return version === undefined ? entry : { ...entry, version };
     }),
-    outbox: sendEffects.flatMap((effects) => effects.outbox ?? []),
-    schedules: sendEffects.flatMap((effects) => effects.schedules ?? []),
-    uniqueClaims: [...uniques.claims, ...sendEffects.flatMap((effects) => effects.uniqueClaims ?? [])],
-    uniqueReleases: [...uniques.releases, ...sendEffects.flatMap((effects) => effects.uniqueReleases ?? [])],
+    outbox: deferredEffects.flatMap((effects) => effects.outbox ?? []),
+    schedules: deferredEffects.flatMap((effects) => effects.schedules ?? []),
+    uniqueClaims: [...uniques.claims, ...deferredEffects.flatMap((effects) => effects.uniqueClaims ?? [])],
+    uniqueReleases: [...uniques.releases, ...deferredEffects.flatMap((effects) => effects.uniqueReleases ?? [])],
     resolvedDefaults,
     result,
     // T32b: the seam's commit-time evidence — the caller-roles guard
@@ -3366,6 +3462,8 @@ export async function invokeMutationCanonical(
     store: opts.store,
     encodeField: (type, value) => encodeCanonicalWireField(StateError, type, value),
   });
+  // One opaque ID per actual schedule ordinal, retained across State retries.
+  const occurrenceIds: string[] = [];
   return loaded.producers.invoke.invoke({
     registry: loaded.registry,
     envelope: {
@@ -3393,7 +3491,7 @@ export async function invokeMutationCanonical(
         return crudExecute(call);
       }
       if (kind === "scenario") {
-        return runScenarioSeam(loaded, opts, call);
+        return runScenarioSeam(loaded, opts, call, occurrenceIds);
       }
       // Reads never reach the seam (the invoke read-guard rejects
       // first); unknown kinds never load. Defensive, unreachable.

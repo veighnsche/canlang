@@ -1,0 +1,29 @@
+app TypedKeyedSchedule
+Given
+ Entry { label:text, eligible:bool=true, fired:int=0, observedVersion:int=0 }
+ event Due { entry:Entry }
+ policy Entry read=public
+When
+ crud Entry by=owner fields=label,eligible
+ ## Scheduling this record key again replaces its pending occurrence.
+ ## A refusal after staging must preserve the previous row and schedule.
+ scenario arm(entry:Entry,at:datetime,accept:bool) -> int by=owner
+  do
+   set entry {eligible=true}
+   schedule entry.id at=at event=Due {entry}
+   require accept
+   return entry.version
+ ## Cancellation and eligibility changes share the admitted transaction.
+ scenario stop(entry:Entry,accept:bool) -> int by=owner
+  do
+   set entry {eligible=false}
+   cancel entry.id
+   require accept
+   return entry.version
+ ## At due execution, the declared reference resolves the current row.
+ ## Eligibility and observedVersion must come from that row, not enqueue time.
+ scenario fire on=Due
+  do
+   require event.entry.eligible
+   set event.entry {fired=event.entry.fired+1,observedVersion=event.entry.version}
+Then

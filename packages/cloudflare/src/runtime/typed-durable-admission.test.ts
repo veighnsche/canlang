@@ -279,3 +279,126 @@ test('compiled bound send joins D1 mutation rollback and replays one durable req
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('compiled record-key schedules replace and cancel atomically and survive D1 replay and reopening', async () => {
+  const app = 'TypedKeyedSchedule';
+  const model = asModel(`${app}.Entry`);
+  const path = resolve('packages/cloudflare/test/fixtures/typed-keyed-schedule.json');
+  const artifact = JSON.parse(await readFile(path, 'utf8')) as CompileArtifact;
+  const { scheduleByKeyQuery } = await import('@canlang/work/kernel/tables');
+  const memberships = createMemoryIdentityStore();
+  const owner = await seedMember(memberships, { isOwner: true });
+  const identity = makeIdentity({ membership: owner.membership, email: owner.user.email });
+  const scope = { app, owner: owner.team.team_id, ownerPackage: app };
+  const request = (operation: string, inputs: MutationEnvelope['inputs']): MutationEnvelope => ({
+    operation: `${app}.${operation}`, inputs,
+    operation_id: asOperationId(uuidv7(FIXED_NOW, ++sequence)),
+  });
+  const receiptIdentity = (input: MutationEnvelope) => ({ app,
+    owner: owner.team.team_id, principal: owner.user.user_id,
+    operation: asOperation(input.operation), operationId: asOperationId(input.operation_id),
+  });
+  const dir = await mkdtemp(join(tmpdir(), 'can-keyed-schedule-'));
+  let d1: Awaited<ReturnType<typeof openD1>> | undefined;
+  try {
+    const asm = await assembleModules({ artifact, sourcePath: path }, {
+      workDir: join(dir, 'modules'), stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+      uiUrl: import.meta.resolve('@canlang/ui'),
+    });
+    d1 = await openD1(join(dir, 'd1'));
+    const invoker = buildInvoker(artifact, asm, d1.store, { memberships, now: () => FIXED_NOW });
+    const born = committed(await invoker.invokeMutation(request('Entry.create', { label: 'timer' }), identity));
+    const row = born.result as { id: string; version: number; data: Record<string, unknown> };
+    const ref = (version: number) => ({ id: row.id, version: String(version) });
+    const firstAt = FIXED_NOW + 60_000;
+    const secondAt = firstAt + 60_000;
+    const arm = request('arm', { entry: ref(1), at: new Date(firstAt).toISOString(), accept: true });
+    assert.equal(committed(await invoker.invokeMutation(arm, identity)).result, '1');
+    const firstRows = await d1.store.query(scheduleByKeyQuery(scope, row.id));
+    assert.equal(firstRows.length, 1);
+    const first = firstRows[0]!;
+    assert.equal(first.data['state'], 'pending');
+    assert.equal(first.data['event'], `${app}.Due`);
+    assert.equal(first.data['at'], firstAt);
+    assert.deepEqual(first.data['payload'], { entry: { id: row.id, version: '2' } });
+    assert.equal(first.data['scopeApp'], app);
+    assert.equal(first.data['scopeOwner'], owner.team.team_id);
+    assert.equal(first.data['scopeOwnerPackage'], app);
+    const firstDue = await d1.store.schedulesDue(firstAt, 10);
+    assert.equal(firstDue.length, 1);
+    assert.equal(firstDue[0]!.event, `${app}.Due`);
+    assert.equal(firstDue[0]!.at, firstAt);
+    assert.deepEqual(firstDue[0]!.payload, first.data['payload']);
+    const storedKey = firstDue[0]!.key;
+    const firstLive = await d1.store.load(model, asId(row.id));
+    assert.equal(firstLive?.version, 2);
+
+    const failedArm = request('arm', { entry: ref(2), at: new Date(secondAt).toISOString(), accept: false });
+    const armFailure = rejected(await invoker.invokeMutation(failedArm, identity), 'rule_failed');
+    assert.deepEqual(await d1.store.query(scheduleByKeyQuery(scope, row.id)), firstRows);
+    assert.deepEqual(await d1.store.schedulesDue(firstAt, 10), firstDue);
+    assert.deepEqual(await d1.store.load(model, asId(row.id)), firstLive);
+
+    const replace = request('arm', { entry: ref(2), at: new Date(secondAt).toISOString(), accept: true });
+    assert.equal(committed(await invoker.invokeMutation(replace, identity)).result, '2');
+    const replacedRows = await d1.store.query(scheduleByKeyQuery(scope, row.id));
+    assert.equal(replacedRows.length, 2);
+    const old = replacedRows.find((entry) => entry.id === first.id)!;
+    const pending = replacedRows.find((entry) => entry.id !== first.id)!;
+    assert.equal(old.data['state'], 'superseded');
+    assert.equal(pending.data['state'], 'pending');
+    assert.equal(pending.data['replaces'], first.id);
+    assert.notEqual(pending.id, first.id);
+    assert.equal(pending.data['at'], secondAt);
+    assert.deepEqual(pending.data['payload'], { entry: { id: row.id, version: '3' } });
+    assert.deepEqual(await d1.store.schedulesDue(firstAt, 10), []);
+    const secondDue = await d1.store.schedulesDue(secondAt, 10);
+    assert.equal(secondDue.length, 1);
+    assert.equal(secondDue[0]!.key, storedKey);
+    const replacementRevision = await d1.store.readRevision();
+    assert.equal(committed(await invoker.invokeMutation(replace, identity), 'replayed').result, '2');
+    assert.equal(await d1.store.readRevision(), replacementRevision);
+    assert.deepEqual(await d1.store.query(scheduleByKeyQuery(scope, row.id)), replacedRows);
+
+    const failedStop = request('stop', { entry: ref(3), accept: false });
+    const stopFailure = rejected(await invoker.invokeMutation(failedStop, identity), 'rule_failed');
+    assert.deepEqual(await d1.store.query(scheduleByKeyQuery(scope, row.id)), replacedRows);
+    assert.deepEqual(await d1.store.schedulesDue(secondAt, 10), secondDue);
+    const stop = request('stop', { entry: ref(3), accept: true });
+    assert.equal(committed(await invoker.invokeMutation(stop, identity)).result, '3');
+    assert.equal(await d1.store.scheduleGet(storedKey), null);
+    assert.deepEqual(await d1.store.schedulesDue(secondAt, 10), []);
+    const cancelledRows = await d1.store.query(scheduleByKeyQuery(scope, row.id));
+    assert.equal(cancelledRows.find((entry) => entry.id === pending.id)?.data['state'], 'cancelled');
+    assert.equal(cancelledRows.find((entry) => entry.id === first.id)?.data['state'], 'superseded');
+    const live = await d1.store.load(model, asId(row.id));
+    assert.equal(live?.version, 4);
+    assert.deepEqual(live?.data, { label: 'timer', eligible: false, fired: '0', observedVersion: '0' });
+    const history = await d1.store.historyFor(model, asId(row.id));
+    assert.deepEqual(history.map((entry) => entry.version), [1, 2, 3, 4]);
+    const revision = await d1.store.readRevision();
+    const requests = [arm, replace, stop, failedArm, failedStop];
+    const receipts = await Promise.all(requests.map((input) => d1!.store.readReceipt(receiptIdentity(input))));
+    await d1.worker.dispose();
+    d1 = undefined;
+    d1 = await openD1(join(dir, 'd1'));
+    const reopened = buildInvoker(artifact, asm, d1.store, { memberships, now: () => FIXED_NOW });
+    assert.equal(committed(await reopened.invokeMutation(arm, identity), 'replayed').result, '1');
+    assert.equal(committed(await reopened.invokeMutation(replace, identity), 'replayed').result, '2');
+    assert.equal(committed(await reopened.invokeMutation(stop, identity), 'replayed').result, '3');
+    assert.equal(rejected(await reopened.invokeMutation(failedArm, identity), 'rule_failed').message, armFailure.message);
+    assert.equal(rejected(await reopened.invokeMutation(failedStop, identity), 'rule_failed').message, stopFailure.message);
+    assert.deepEqual(await d1.store.load(model, asId(row.id)), live);
+    assert.deepEqual(await d1.store.historyFor(model, asId(row.id)), history);
+    assert.deepEqual(await d1.store.query(scheduleByKeyQuery(scope, row.id)), cancelledRows);
+    assert.equal(await d1.store.scheduleGet(storedKey), null);
+    assert.deepEqual(await d1.store.outboxPending(), []);
+    assert.deepEqual(await Promise.all(requests.map((input) => d1!.store.readReceipt(receiptIdentity(input)))), receipts);
+    assert.equal(await d1.store.readRevision(), revision);
+    // This case qualifies keyed staging only. The authored fire handler is
+    // not invoked without an owning verified due-head admission/consume port.
+  } finally {
+    await d1?.worker.dispose();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
