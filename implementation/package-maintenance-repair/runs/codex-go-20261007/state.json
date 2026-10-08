@@ -2975,6 +2975,12 @@
       ],
       "logs": "/private/tmp/canlang-crud-public-migration/",
       "limits": "no fixture/policy/grant change, scenario/internal outputs retained; no parent credit"
+    },
+    "preferences_then_priority": {
+      "state": "released coherent compiler/normative/draft source captured",
+      "verified": "native1/1 .10s, draft45+7 owner/identity unchanged;52-source CLI zero syntax/preferences diagnostics",
+      "draft_commit": "77c9424",
+      "limits": "CLI exit10 unrelated semantics; no lifecycle/full-workflow/count credit"
     }
   },
   "live_finite_packets": [

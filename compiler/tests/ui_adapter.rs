@@ -8,7 +8,7 @@ fn unsupported_preference_tabs_and_order_refuse_at_the_authored_profile() {
     use std::path::PathBuf;
     use std::process::Command;
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
-    let prefix = "app BoundUi\nGiven\n preferences { view:enum(all,finished)=all label={text=\"View\",values={all=\"All\",finished=\"Finished\"}} }\n Todo { title:text }\n policy Todo read=public\nWhen\nThen\n page / title=\"Page\"\n";
+    let prefix = "app BoundUi\nGiven\n Todo { title:text }\n policy Todo read=public\nWhen\nThen\n preferences { view:enum(all,finished)=all label={text=\"View\",values={all=\"All\",finished=\"Finished\"}} }\n page / title=\"Page\"\n";
     for (body, profile, authored) in [
         (
             "  tabs preferences.view\n",
