@@ -111,7 +111,7 @@ When
  crud Item by=members fields=title,optional,titles,maybeTitles,flag,optionalFlag,flags,maybeFlags,day,optionalDay,days,maybeDays,elapsed,optionalElapsed,elapsedValues,maybeElapsedValues,person,optionalPerson,people,maybePeople
 Then
  page /forms title="Forms"
-  form Item.create display=inline
+  form Item.create display=inline submit="Create item"
   form Item.update display=inline
   form FormTarget.create display=inline
   form FormTarget.update display=inline
