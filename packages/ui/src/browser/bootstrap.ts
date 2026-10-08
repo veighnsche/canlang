@@ -27,7 +27,8 @@
  *   with unsaved input warns; no other form is affected.
  * - Generated forms: `form[data-can-generated-form]` binds the exact
  *   prepared operation metadata to the existing submit client. Result
- *   hooks leave occurrence-specific error and draft rendering to the host.
+ *   denials render safe text in that form's feedback outlet; its edited
+ *   controls stay in place. Hooks let the host handle committed results.
  * - Obsolete actions: `[data-can-once]` controls disable while their
  *   request is in flight (re-enabled on completion/failure), so a
  *   repeated activation can never double-submit a mutation.
@@ -153,7 +154,7 @@ export interface BrowserClientOptions {
    * stops the poll rather than painting an error or a different context.
    */
   readonly deliverPollResponse?: (region: ElementLike, body: string, status: number) => boolean | void;
-  /** The host owns occurrence-specific outcome and draft rendering. */
+  /** The host can observe outcomes; source error feedback retains the form DOM. */
   readonly onGeneratedFormResult?: (form: ElementLike, result: GeneratedSubmitResult) => void;
   readonly onGeneratedFormError?: (form: ElementLike, error: unknown) => void;
 }
@@ -362,6 +363,18 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
   let pending = false;
   let previousBusy: string | null = null;
   const alive = () => !stopped && form.isConnected && client.contextKey() === context;
+  const feedback = (code: string | null, message: string): void => {
+    const outlet = form.querySelector?.('[data-can-form-feedback]') as (ElementLike & { textContent: string | null }) | null | undefined;
+    if (outlet === null || outlet === undefined) return;
+    outlet.textContent = message;
+    if (code === null) {
+      outlet.setAttribute('hidden', '');
+      outlet.removeAttribute('data-can-form-feedback-code');
+    } else {
+      outlet.removeAttribute('hidden');
+      outlet.setAttribute('data-can-form-feedback-code', code);
+    }
+  };
   const releaseBusy = () => {
     if (previousBusy === null) form.removeAttribute('aria-busy');
     else form.setAttribute('aria-busy', previousBusy);
@@ -370,6 +383,7 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
     event.preventDefault();
     event.stopPropagation?.();
     if (pending || !alive()) return;
+    feedback(null, '');
     pending = true;
     previousBusy = form.getAttribute('aria-busy');
     form.setAttribute('aria-busy', 'true');
@@ -400,7 +414,7 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
         }
         const result = await submitGeneratedForm({
           derived: metadata.derived, mode: metadata.mode!, flat,
-          action: form.getAttribute('action') ?? '', fragment: false,
+          action: form.getAttribute('action') ?? '', fragment: false, denialFormat: 'json',
           fetchImpl: (url, init) => {
             if (!alive()) throw new GeneratedSubmitError('transport', 'Form submit owner is no longer active.', false);
             return internals.fetchImpl(url, init);
@@ -408,11 +422,20 @@ function bindGeneratedForm(form: ElementLike, client: BrowserClient, internals: 
         });
         if (alive()) {
           form.setAttribute('data-can-submit-state', result.kind);
+          if (result.kind === 'denied') {
+            feedback(result.error.code, [
+              result.error.message,
+              ...(result.error.fields ?? []).map(field => field.message),
+            ].join('\n'));
+          }
           internals.onGeneratedFormResult?.(form, result);
         }
       } catch (error) {
         if (alive()) {
           form.setAttribute('data-can-submit-state', 'error');
+          const projection = error instanceof GeneratedSubmitError && error.code === 'projection';
+          feedback(projection ? 'projection' : 'submit_failed', projection
+            ? error.message : 'The submission could not be confirmed. Please try again.');
           internals.onGeneratedFormError?.(form, error);
         }
       } finally {

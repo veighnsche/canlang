@@ -5,8 +5,9 @@
  * names are never expanded server-side, so this client collects the flat
  * submitted map, uploads picked file bytes through the S7 intent flow,
  * projects the envelope through `projectGeneratedInputs`, and POSTs the
- * JSON mutation envelope to the dispatcher-supplied action. Denials come
- * back as JSON (no binding) or HTML (re-rendered form, fragment iff the
+ * JSON mutation envelope to the dispatcher-supplied action. Source form
+ * occurrences opt into JSON denials to retain their own draft DOM. Default
+ * callers receive JSON (no binding) or HTML (re-rendered form, fragment iff the
  * submit carried HX-Request); success is always the JSON mutation result
  * (E-pinned: no success headers, no HTML success swaps). The caller owns
  * all URLs (action, intents) and all DOM swaps; this module stays DOM-free
@@ -32,7 +33,7 @@ import { projectGeneratedInputs } from "./forms.js";
  */
 const CSRF_HEADER = "x-csrf-token";
 
-/** Denial content the client asks for: re-renderable HTML, never bare JSON. */
+/** Default denial content preserves the existing re-renderable HTML contract. */
 const SUBMIT_ACCEPT = "text/html";
 
 /** Typed submit failure: correctable keeps input for retry, else loud. */
@@ -142,6 +143,8 @@ export interface SubmitGeneratedFormInput {
   readonly action: string;
   /** True submits (and expects denials) as an HTMX fragment. */
   readonly fragment: boolean;
+  /** Source occurrences retain their own DOM and consume checked JSON errors. */
+  readonly denialFormat?: "html" | "json";
   /** Dispatcher-supplied S7 intents URL; required iff files carry bytes. */
   readonly intentsUrl?: string;
   readonly fetchImpl?: SubmitFetch;
@@ -700,7 +703,7 @@ export async function submitGeneratedForm(
     const headers: Record<string, string> = {
       "content-type": "application/json",
       [CSRF_HEADER]: csrf,
-      accept: SUBMIT_ACCEPT,
+      accept: input.denialFormat === "json" ? "application/json" : SUBMIT_ACCEPT,
     };
     if (input.fragment) {
       headers["HX-Request"] = "true";
@@ -726,6 +729,13 @@ export async function submitGeneratedForm(
     return { kind: "committed", result: checkedMutationResult(body, input.derived.operation) };
   }
   if (contentType.includes("text/html")) {
+    if (input.denialFormat === "json") {
+      throw new GeneratedSubmitError(
+        "contract",
+        `submit for ${JSON.stringify(input.derived.operation)} answered an HTML denial instead of JSON`,
+        false,
+      );
+    }
     return {
       kind: "rerender",
       html: body,
