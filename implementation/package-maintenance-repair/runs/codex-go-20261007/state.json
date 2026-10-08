@@ -1616,7 +1616,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T17:05:11.189008+00:00",
+  "updated_utc": "2026-10-08T17:06:24.340658+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2365,7 +2365,7 @@
       }
     },
     "fanout_winning_claim_repair": {
-      "status": "Root source reviewed; authorized exact driver/test capture in progress, owner checks reused",
+      "status": "Root reviewed and committed released driver/test; source-clear returned to Roadmap",
       "files": [
         "packages/cloudflare/src/runtime/invoke.ts (driver8880+ only)",
         "packages/cloudflare/src/runtime/typed-private-cohort.test.ts"
@@ -2373,6 +2373,13 @@
       "contract": "Winning claim row/version/running state before body and final owner commit; offered authority/private host guards revalidated; refusal/rejection cleanup cannot mutate rival generation. Existing State invocation/row/revision fences shared, no new engine/schema.",
       "verification": "Owning private native D1case1/1(10.14s), affected ordinary nativecase1/1(4.20s), CFnoEmit0; root direct review no repeat.",
       "limits": "Same defining driver profiles only; broader durable tick navigation/routing/default Worker/full48 unclosed.",
+      "counts_unchanged": true,
+      "commit": "72d953837fd901d821df874915e6cf5d6d443418"
+    },
+    "computed_user_shape_default": {
+      "status": "Root directly reviewed; released shape source/test/own docs capture in progress",
+      "verification": "Owner genuine canonical Memory1/1 across nine calls; prior unchanged authority/failure/replay/wire outcomes reused",
+      "limits": "No actor-context/stored-model/D1/fullS9/root48 completion or replacement reduction credit",
       "counts_unchanged": true
     }
   },
