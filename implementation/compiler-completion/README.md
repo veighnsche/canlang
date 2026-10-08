@@ -633,3 +633,17 @@ the existing optional mapped name and was corrected; only that affected case
 repeated. Accepted DEP-02 emission/Node/decoder evidence is reused. Full State
 operation conversion still discards the mapped location and needs its defining
 wire/disclosure release; no production/API change or full S9-Q08 credit follows.
+
+The finite SEM-R08 rejected-trial literal-fact defect is now qualified and
+repaired in the [owning overload seam](overload-owner-seam/README.md). The same
+new permanent `rejected_currency_overload_preserves_winning_text_argument_facts`
+case passes **1/1** (0.10s): a sound Currency `choose` subset preceding the
+installed generic signature rejects its later argument, while the successful
+generic call retains checked/IR `[Bool,Text,Text]`. Trial-local literal writes,
+fork/commit and winner publication preserve the accepted narrow call's
+`[Bool,Currency,Currency]`. Both actual generated stdlib calls return `USD`
+before fact assertions, as they did in the intended prepatch failure. Earlier
+13 standard-catalog nonreproduction checks and selected-call matrices are reused
+unchanged. Full SEM-R08 remains open; no IDE-error, wrong-native-value, new API
+or new catalog producer contract is claimed. Package owns facade capture and
+the coordinator owns decisions/coverage/index; completion counters are unchanged.

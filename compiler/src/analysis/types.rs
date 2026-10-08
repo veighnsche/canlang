@@ -14871,6 +14871,9 @@ impl<'a> Typer<'a> {
                 }
             }
             if let Some((index, result, _, trial, slots)) = best {
+                for (key, ty) in &trial.literal_retypes {
+                    self.types.node_types.insert(*key, ty.clone());
+                }
                 for (key, ty) in &trial.claimed {
                     self.types.resolved_cases.insert(*key);
                     self.types.node_types.insert(*key, ty.clone());
@@ -15507,8 +15510,8 @@ impl<'a> Typer<'a> {
 
     /// Try one overload: bind arguments to parameters (positional
     /// fill, then named), then match each parameter shape. Trial
-    /// bindings are local; enum claims and literal re-types persist
-    /// (a claim is correct whenever the expectation was).
+    /// bindings and contextual types are local; only the selected
+    /// overload commits enum claims and validated literal re-types.
     fn try_overload(
         &mut self,
         cx: &Ctx<'_, '_>,
@@ -15776,7 +15779,9 @@ impl<'a> Typer<'a> {
         };
         match validated_shape(want, &text) {
             None => {
-                self.record(leaf, ResolvedType::Scalar(want));
+                trial
+                    .literal_retypes
+                    .push((NodeKey::of(leaf), ResolvedType::Scalar(want)));
                 true
             }
             Some(problem) => {
@@ -16460,6 +16465,8 @@ struct Trial {
     cases_fail: Option<(NodeKey, Span, Vec<String>)>,
     /// Enum-case claims, flushed only for the winning overload.
     claimed: Vec<(NodeKey, ResolvedType)>,
+    /// Validated literals do not mark enum cases as resolved.
+    literal_retypes: Vec<(NodeKey, ResolvedType)>,
 }
 
 impl Trial {
@@ -16473,6 +16480,7 @@ impl Trial {
             literal_fail: self.literal_fail.clone(),
             cases_fail: self.cases_fail.clone(),
             claimed: self.claimed.clone(),
+            literal_retypes: self.literal_retypes.clone(),
         }
     }
 
@@ -16482,6 +16490,7 @@ impl Trial {
         self.action_op = fork.action_op;
         self.action_bound = fork.action_bound;
         self.claimed = fork.claimed;
+        self.literal_retypes = fork.literal_retypes;
         // Precise failures merge: keep the earliest evidence.
         if self.literal_fail.is_none() {
             self.literal_fail = fork.literal_fail;
