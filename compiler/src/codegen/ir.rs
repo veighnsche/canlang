@@ -4893,6 +4893,12 @@ fn is_literal_default(expr: &TypedExpr) -> bool {
         | IrExpr::DurationMs(_)
         | IrExpr::Date(_)
         | IrExpr::Datetime(_) => true,
+        IrExpr::Call {
+            target: IrCallTarget::Builtin { id, awaited: false },
+            args,
+        } if id == "datetime" => {
+            matches!(args.as_slice(), [value] if matches!(value.expr, IrExpr::Text(_)))
+        }
         IrExpr::Array(items) => items.iter().all(is_literal_default),
         IrExpr::Object(entries) => entries.iter().all(|(_, v)| is_literal_default(v)),
         _ => false,
