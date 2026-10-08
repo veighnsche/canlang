@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "captured_utc": "2026-10-08T00:56:15.187366+00:00",
-  "status": "shared_ownership_and_first_metadata_slice_accepted_runtime_conversion_activation_still_pending",
+  "status": "shared_ownership_metadata_and_ordered_state_checkpoint_accepted_actual_runtime_consumer_pending",
   "task_ids": [
     "TECH-V03",
     "TECH-V04"
@@ -40,7 +40,6 @@
     "reconciliation": "h1-placement-advice/reconciliation.md"
   },
   "producer": "implementation/compiler-completion/numeric-control-producer/receipt.json",
-  "producer_artifact_sha256": "245bc51ae190144e3eb5925ee5a0d94d51e8968ac5f309ed720c6e4d48c29fff",
   "first_finite_release": [
     "Existing Contracts field/input type and explicit declared result vocabulary, agreed legacy/void/typed capability gate",
     "Compiler-owned actual checked metadata packet; no runtime guessing or artifact format stamp",
@@ -69,12 +68,17 @@
     "replacement_savings": 0,
     "growth_budget": "required typed runtime correctness, shared horizon maintenance benefit remains to measure"
   },
-  "writer_state": "Five selected Contracts/State source/test paths implemented, original canonical build4/4 and focused Node tests14/14 passed; writer released and root direct diff accepted. Compiler retains checked-result producer; runtime projection/write/activation gates remain open.",
-  "reconciliation_sha256": "6cb25d69c39be1e733fba42a1814e8e4e0e9225ce971e528857512e63d036407",
+  "writer_state": "Shared Contracts/State metadata committedd495469a; compiler checked int/void producer61c08f20 released. State late typed-write checkpoint committed841f56a8 with81focused passes including native original-default receipt conversion. Runtime writer now owns actual scenario parameter/write/result codec consumer; no parent/native/installed closure.",
   "first_metadata_acceptance": {
     "build": "node scripts/run-tasks.mjs build --filter=@canlang/state --concurrency=1: 4/4",
     "tests": "one Node invocation: typed-artifact-metadata, secret-metadata, owning models:14/14",
     "scope": "Own copied/frozen int|void result, retained singular nonnullable integer association and optional source inputs; absence stays unknown. No value/default/result conversion or activation."
   },
-  "checked_result_producer": "Compiler-owned commit61c08f20 publishes checked int and explicit void; missing legacy/unsupported result metadata stays unknown. Runtime consumer and ordered typed-write gates remain open."
+  "checked_result_producer": "Compiler-owned commit61c08f20 publishes checked int and explicit void; missing legacy/unsupported result metadata stays unknown. Runtime consumer and ordered typed-write gates remain open.",
+  "ordered_write_checkpoint": {
+    "commit": "841f56a8",
+    "validation": "One owning private State emit and81focused mutation checks (9new); root direct review reused result",
+    "scope": "Existing late checkpoint and retained metadata only; original default/write attribution and refusal isolation preserved",
+    "limits": "Actual Values codecs, full typed inputs/defaults/hooks/results/native/durable/installed consumers remain open"
+  }
 }
