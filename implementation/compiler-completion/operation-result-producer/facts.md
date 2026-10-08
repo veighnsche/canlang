@@ -40,3 +40,21 @@ they were moved to explicit grammar-refusal controls.
 
 Runtime H1 admission/hydration/default/execution qualification belongs to its
 consumer owner. Wider result publication and execution completeness remain open.
+
+Literal-default follow-up: the shared checked default classifier now recognizes
+only synchronous builtin `datetime` calls with one direct text literal, including
+within existing literal arrays/objects. Model and parameter metadata therefore
+publish scalar and array defaults; dynamic constructor defaults still refuse
+with E6008. Existing constructor validation retains E3001 for invalid literals.
+The shared checked datetime parser supplies the instant for canonical UTC
+`YYYY-MM-DDTHH:MM:SS.sssZ` wire metadata, rather than copying constructor spelling.
+Generated native defaults continue to call the owning datetime constructor.
+
+The affected `operation_results` check passes **2/2** after the default change;
+strict library Clippy also passes with `-D warnings`.
+Its fresh CLI witnesses cover model and parameter metadata, nullable parameter
+defaults, omitted-input metadata, offset normalization across a leap-day boundary,
+pre-epoch fractions, supported minimum/maximum instants, invalid calendar input,
+and computed-default refusal. Runtime omission/null/default execution remains
+the consumer owner's qualification. This bounded follow-up leaves the canonical
+completion count at **48/67**.

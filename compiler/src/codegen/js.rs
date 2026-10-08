@@ -25,7 +25,7 @@
 
 use crate::analysis::catalog::{StdOperation, nominal_schema, std_capability};
 use crate::analysis::resolve::{CrudOp, ModuleKind, SymbolId};
-use crate::analysis::types::{ResolvedType, Scalar};
+use crate::analysis::types::{ResolvedType, Scalar, canonical_datetime_literal};
 use crate::codegen::ir::{
     IrBinOp, IrCallTarget, IrDefault, IrExpr, IrFieldLabel, IrGuard, IrHook, IrItem, IrItemKind,
     IrMessage, IrOwner, IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp,
@@ -447,7 +447,10 @@ fn wire_literal(expr: &TypedExpr) -> Option<WireLiteral> {
             currency: currency.clone(),
         }),
         IrExpr::DurationMs(ms) => Some(WireLiteral::String(ms.to_string())),
-        IrExpr::Date(value) | IrExpr::Datetime(value) => Some(WireLiteral::String(value.clone())),
+        IrExpr::Date(value) => Some(WireLiteral::String(value.clone())),
+        IrExpr::Datetime(value) => {
+            Some(WireLiteral::String(canonical_datetime_literal(value).ok()?))
+        }
         IrExpr::Array(items) => {
             let mut parts = Vec::with_capacity(items.len());
             for item in items {
@@ -485,11 +488,17 @@ fn wire_literal(expr: &TypedExpr) -> Option<WireLiteral> {
                         currency: c.clone(),
                     })
                 }
-                ("date" | "datetime", [single]) if matches!(single.expr, IrExpr::Text(_)) => {
+                ("date", [single]) if matches!(single.expr, IrExpr::Text(_)) => {
                     let IrExpr::Text(value) = &single.expr else {
                         return None;
                     };
                     Some(WireLiteral::String(value.clone()))
+                }
+                ("datetime", [single]) if matches!(single.expr, IrExpr::Text(_)) => {
+                    let IrExpr::Text(value) = &single.expr else {
+                        return None;
+                    };
+                    Some(WireLiteral::String(canonical_datetime_literal(value).ok()?))
                 }
                 _ => None,
             }
