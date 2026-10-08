@@ -25,8 +25,8 @@
 //! typing, label tables, caption shapes and descriptor locale tags
 //! (`E3013`–`E3016`). This pass never re-reports those faults: subtrees
 //! containing a syntax error are skipped, unresolvable header names are
-//! resolve's `E2001`, and placeholder/parameter *name* coverage stays
-//! `E3016` (only structural ICU profile violations are `E5007`).
+//! resolve's `E2001`. Named-message placeholder coverage stays `E3016`;
+//! unbound variables in selected anonymous format descriptors are `E5007`.
 //!
 //! Row-cell *values* (other than `as` caller cells and `error(code)`
 //! cells) and observation expressions are runner-typed: this pass checks
@@ -40,7 +40,7 @@ use super::resolve::{
     CrudOp, FixtureTarget, ModelOwner, ModuleId, ResolveTables, ScopedName, SymbolId, SymbolKind,
     has_error, is_expression,
 };
-use super::types::{ResolvedType, Scalar, TypeTable};
+use super::types::{ResolvedType, Scalar, SelectedCallTarget, TypeTable};
 use super::{
     NodeKey, attribute_parts, attribute_value, file_text, is_name, kids, name_text, path_segments,
 };
@@ -242,13 +242,21 @@ impl<'a> Checker<'a> {
                 }
             }
         }
-        // Anonymous (inline) descriptors anywhere outside `message`
-        // declarations: structural ICU only, no declared signature.
+        // Validate selected anonymous format operands even in declaration
+        // defaults, then structurally check other inline descriptors.
         for (file, tree) in trees {
             let Some(text) = file_text(self.db, *file) else {
                 continue;
             };
-            self.check_inline_patterns(text, tree);
+            let bound_inline = self.inline_format_descriptors(tree);
+            let empty = HashMap::new();
+            for descriptor in tree
+                .descendants()
+                .filter(|node| bound_inline.contains(&NodeKey::of(node)))
+            {
+                self.check_message_value(text, descriptor, Some(&empty), true);
+            }
+            self.check_inline_patterns(text, tree, &bound_inline);
         }
     }
 
@@ -503,33 +511,104 @@ impl<'a> Checker<'a> {
             .iter()
             .filter(|n| n.kind == SyntaxKind::MessageValue)
         {
-            self.check_message_value(text, value, Some(&arg_types));
+            self.check_message_value(text, value, Some(&arg_types), false);
         }
     }
 
-    /// Structural ICU validation of inline descriptors outside
-    /// `message` declarations (labels, titles, cells, ...).
-    fn check_inline_patterns(&mut self, text: &str, node: &SyntaxNode) {
+    /// Anonymous localized-format descriptors have the same empty parameter
+    /// schema consumed by IR. Select their authored arguments from checked slots.
+    fn inline_format_descriptors(&self, tree: &SyntaxNode) -> HashSet<NodeKey> {
+        let mut descriptors = HashSet::new();
+        for call in tree
+            .descendants()
+            .filter(|node| node.kind == SyntaxKind::Call)
+        {
+            let Some(selected) = self.types.selected_calls.get(&NodeKey::of(call)) else {
+                continue;
+            };
+            let SelectedCallTarget::Builtin { id, overload } = &selected.target else {
+                continue;
+            };
+            if id != "format" {
+                continue;
+            }
+            let Some(signature) = self
+                .catalog
+                .and_then(|catalog| catalog.overloads(id))
+                .and_then(|overloads| overloads.get(*overload))
+            else {
+                continue;
+            };
+            if !signature
+                .params
+                .first()
+                .is_some_and(|param| param.name == "descriptor")
+            {
+                continue;
+            }
+            let Some(argument) = selected
+                .slots
+                .first()
+                .copied()
+                .flatten()
+                .and_then(|index| selected.arguments.get(index))
+            else {
+                continue;
+            };
+            let Some(mut descriptor) = call
+                .descendants()
+                .find(|node| NodeKey::of(node) == *argument)
+            else {
+                continue;
+            };
+            while descriptor.kind == SyntaxKind::Group {
+                let Some(inner) = kids(descriptor)
+                    .into_iter()
+                    .find(|node| is_expression(node.kind) || node.kind == SyntaxKind::MessageValue)
+                else {
+                    break;
+                };
+                descriptor = inner;
+            }
+            if descriptor.kind == SyntaxKind::MessageValue {
+                descriptors.insert(NodeKey::of(descriptor));
+            }
+        }
+        descriptors
+    }
+
+    /// Structural ICU validation of inline descriptors outside declarations;
+    /// selected localized-format operands additionally have an empty schema.
+    fn check_inline_patterns(
+        &mut self,
+        text: &str,
+        node: &SyntaxNode,
+        bound_inline: &HashSet<NodeKey>,
+    ) {
         if node.kind == SyntaxKind::Message {
             return;
         }
         if node.kind == SyntaxKind::MessageValue {
-            self.check_message_value(text, node, None);
+            if !bound_inline.contains(&NodeKey::of(node)) {
+                self.check_message_value(text, node, None, false);
+            }
             return;
         }
         for child in &node.children {
-            self.check_inline_patterns(text, child);
+            self.check_inline_patterns(text, child, bound_inline);
         }
     }
 
     /// Validate the ICU profile of one descriptor's source and variants
     /// (`E5007`). `params` carries declared argument types for named
-    /// messages; anonymous descriptors get structural checks only.
+    /// messages; selected anonymous format operands require the empty schema.
+    /// Other anonymous descriptors retain structural checking.
     fn check_message_value(
         &mut self,
         text: &str,
         node: &SyntaxNode,
         params: Option<&HashMap<String, IcuType>>,
+        require_declared: bool,
     ) {
         if has_error(node) || subtree_has(node, SyntaxKind::BadToken) {
             return;
@@ -560,7 +639,7 @@ impl<'a> Checker<'a> {
             let Some(template) = template else {
                 continue;
             };
-            if let Some(problem) = icu_error(&template, params) {
+            if let Some(problem) = icu_error(&template, params, require_declared) {
                 self.diags.push(Diagnostic::error(
                     "E5007",
                     format!("invalid message pattern: {problem}"),
@@ -3031,15 +3110,20 @@ impl IcuType {
 /// mandatory `other` branch. Rejects offsets, choice/skeleton styles,
 /// duplicate branches, `#` outside a plural and unbalanced patterns.
 /// The profile is implementation-defined pending a DESIGN ruling.
-/// Declared-variable *coverage* stays the types pass (`E3016`); only
-/// structurally typed selectors are checked against `params` here.
-fn icu_error(template: &str, params: Option<&HashMap<String, IcuType>>) -> Option<String> {
+/// Named-message coverage stays the types pass (`E3016`). Selected anonymous
+/// format descriptors additionally require their empty parameter schema.
+fn icu_error(
+    template: &str,
+    params: Option<&HashMap<String, IcuType>>,
+    require_declared: bool,
+) -> Option<String> {
     let chars: Vec<char> = template.chars().collect();
     IcuParser {
         chars: &chars,
         pos: 0,
         params,
         plural_depth: 0,
+        require_declared,
     }
     .parse_message(0)
     .err()
@@ -3050,6 +3134,7 @@ struct IcuParser<'t> {
     pos: usize,
     params: Option<&'t HashMap<String, IcuType>>,
     plural_depth: usize,
+    require_declared: bool,
 }
 
 impl<'t> IcuParser<'t> {
@@ -3121,6 +3206,15 @@ impl<'t> IcuParser<'t> {
         self.pos += 1; // `{`
         self.skip_ws();
         let name = self.parse_name()?;
+        if self.require_declared
+            && self
+                .params
+                .is_some_and(|params| !params.contains_key(&name))
+        {
+            return Err(format!(
+                "message pattern uses undeclared variable {{{name}}}"
+            ));
+        }
         self.skip_ws();
         let end = self.chars.get(self.pos).copied();
         if end == Some('}') {
