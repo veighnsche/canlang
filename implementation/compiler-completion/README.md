@@ -279,3 +279,31 @@ conflict: the exported `can_work` derive calls the state-reading
 `active_member`, which the established pure-derive rule rejects with
 E3010. Original guards remain intact. Three-handler qualification awaits
 a helper/source design resolution; canonical completion remains **57/67**.
+
+`cd8b3d06` publishes a genuinely declared singular stored-model operation
+result with its qualified identity, including mutations. The changed
+input-choice case passes **1/1** for artifact/runtime metadata and exact
+native result identity; the genuine artifact is released for the consumer's
+failed save-submit case. Existing scalar/nullable and read-array profiles
+retain their prior behavior.
+
+Original SEQ032's new direct check passes **1/1** at `36d2ef8b`: all three
+saved handlers and their current-if alternatives produce their expected
+captions, preserve eligibility controls, and refuse six changed owning
+case sets. Approval/hiring now execute the original eligibility predicate
+in `do`, using the unique active employee before current membership and
+location checks. Approval preserves submitter/null-location shortcuts and
+coordinator-to-reviewer fallback; the fallback's redundant known-nonnull
+test is removed. Checked bare-role references now lower through the existing
+caller-role helper, while same-named boolean parameters and locals remain
+values. The native membership adapter reads current host state and publishes
+its own availability; the installed catalog still refuses E6007. Derive/page
+purity, StateRead classification, wider shared-source migration and installed
+membership/full-application gaps remain explicit.
+
+Only edited authored measurements were refreshed. Full compiler-lexer
+counts for current/improved/match are **6471/6471/6466** for approval and
+**6079/6079/6068** for hiring, including the repeated fallback. Unchanged
+generation/effect counts and accepted rollback/tooling outcomes are reused;
+model tokens are unmeasured and no overall source saving is claimed.
+Canonical completion remains **57/67**.
