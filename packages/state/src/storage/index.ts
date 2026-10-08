@@ -15,3 +15,5 @@ export {
   SCHEMA_SQL,
   SCHEMA_STATEMENTS,
 } from './schema.js';
+export { createD1OwnerRouter } from './owner-router.js';
+export type { D1OwnerScope, TrustedD1OwnerBinding } from './owner-router.js';
