@@ -1,0 +1,20 @@
+[
+  {
+    "index": 1,
+    "exit_code": 0,
+    "response_present": true,
+    "stderr": ""
+  },
+  {
+    "index": 2,
+    "exit_code": 0,
+    "response_present": true,
+    "stderr": ""
+  },
+  {
+    "index": 3,
+    "exit_code": 0,
+    "response_present": true,
+    "stderr": ""
+  }
+]
