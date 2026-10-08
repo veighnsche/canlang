@@ -48,6 +48,21 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
         operation(&artifact, "work.finish")["result"],
         json!({"type":"void"})
     );
+    for (name, ty) in [
+        ("Client.nullable", "int?"),
+        ("Client.instant", "datetime"),
+        ("Client.optionalInstant", "datetime?"),
+        ("Client.integers", "int[]"),
+        ("Client.instants", "datetime[]"),
+        ("Client.optionalIntegers", "int[]?"),
+        ("Client.optionalInstants", "datetime[]?"),
+    ] {
+        assert_eq!(
+            operation(&artifact, name)["result"],
+            json!({"type":ty}),
+            "{name}"
+        );
+    }
     assert_eq!(
         operation(&artifact, "work.number")["inputs"],
         json!({"fields":[
@@ -56,7 +71,9 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
     );
     for name in [
         "Client.number",
-        "Client.nullable",
+        "Client.textArray",
+        "Client.optionalText",
+        "Client.boolean",
         "Client.Item.read",
         "Client.Item.create",
         "Client.Item.update",
@@ -86,18 +103,31 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
 
 #[test]
 fn invalid_result_body_never_publishes_a_successful_artifact() {
-    let output = compile(
-        "app Invalid\nGiven\nWhen\n scenario number() read=true -> int by=members\n  do\n   return \"wrong\"\nThen\n",
-    );
-    assert!(!output.status.success(), "unchecked result was published");
-    let response: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert!(
-        response["diagnostics"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|diagnostic| diagnostic["code"].as_str().unwrap().starts_with("E3")),
-        "{response}"
-    );
-    assert!(response.get("operations").is_none(), "{response}");
+    for (source, prefix) in [
+        (
+            "app Invalid\nGiven\nWhen\n scenario number() read=true -> int by=members\n  do\n   return \"wrong\"\nThen\n",
+            "E3",
+        ),
+        (
+            "app Invalid\nGiven\nWhen\n scenario number() read=true -> int[][] by=members\n  do return [[1]]\nThen\n",
+            "E1213",
+        ),
+        (
+            "app Invalid\nGiven\nWhen\n scenario number() read=true -> int?[] by=members\n  do return [null,1]\nThen\n",
+            "E1213",
+        ),
+    ] {
+        let output = compile(source);
+        assert!(!output.status.success(), "unchecked result was published");
+        let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert!(
+            response["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|diagnostic| diagnostic["code"].as_str().unwrap().starts_with(prefix)),
+            "{response}"
+        );
+        assert!(response.get("operations").is_none(), "{response}");
+    }
 }

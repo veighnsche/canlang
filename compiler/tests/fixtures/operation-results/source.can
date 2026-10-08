@@ -20,6 +20,24 @@ When
  scenario nullable(value:int?) read=true -> int? by=members
   do
    return value
+ scenario instant(value:datetime) read=true -> datetime by=members
+  do return value
+ scenario optionalInstant(value:datetime?) read=true -> datetime? by=members
+  do return value
+ scenario integers(value:int[]) read=true -> int[] by=members
+  do return value
+ scenario instants(value:datetime[]) read=true -> datetime[] by=members
+  do return value
+ scenario optionalIntegers(value:int[]?) read=true -> int[]? by=members
+  do return value
+ scenario optionalInstants(value:datetime[]?) read=true -> datetime[]? by=members
+  do return value
+ scenario textArray(value:text[]) read=true -> text[] by=members
+  do return value
+ scenario optionalText(value:text?) read=true -> text? by=members
+  do return value
+ scenario boolean() read=true -> bool by=members
+  do return true
  scenario hidden(value:int) read=true -> int by=members expose=none
   do
    return value
