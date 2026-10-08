@@ -72,11 +72,11 @@ export const same = sameNativeReference;
 export { delivery } from '@canlang/state/effects/delivery';
 
 /** Lowered static source constant: no provider call, storage read or additional authority. */
-export function judgmentSpecification(c: HandlerContext, qualifiedName: string): JudgmentSpec {
+export function judgmentSpecification(c: HandlerContext, qualifiedName: string, options?: unknown): JudgmentSpec {
   if (typeof c.judgmentSpecification !== 'function') {
     throw new Error('Judgment specification requires the pinned compiled source resolver.');
   }
-  return c.judgmentSpecification(qualifiedName);
+  return c.judgmentSpecification(qualifiedName, options);
 }
 
 /** Pure checked equality, with compatibility for earlier c-first artifacts. */

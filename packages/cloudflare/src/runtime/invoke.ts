@@ -1959,6 +1959,8 @@ export interface LoadedCanonicalDescriptors {
   readonly table: unknown;
   readonly policy: unknown;
   readonly ruledModels: ReadonlySet<string>;
+  /** Emitted hooks cannot be skipped by the canonical empty-hook table. */
+  readonly unsupportedHookOperations: ReadonlySet<string>;
   readonly collectionColumns: ReadonlyMap<string, readonly ColumnMeta[]>;
   /** C3/B3: loader-built delivery-field schema, carried for the T25 receipt join (D3 consumes). */
   readonly deliveryFields: ReadonlyMap<string, ReadonlySet<string>>;
@@ -2410,6 +2412,63 @@ export function assertStateMachineProducerCapability(artifact: CompileArtifact, 
   }
 }
 
+/** Retain owning emitted hook targets until State supplies canonical hook finalization. */
+async function collectUnsupportedHookOperations(asm: AssembledModules, artifact: CompileArtifact): Promise<ReadonlySet<string>> {
+  const targets = new Set<string>();
+  const seen = new Set<string>();
+  const callableWhere = 'Canonical hook callables';
+  const callables = readMetadataArray(readMetadataMember(artifact, 'callables', callableWhere)?.value, callableWhere, 'callables');
+  const own = (value: unknown, key: string): unknown =>
+    isUnknownRecord(value) ? readMetadataMember(value, key, callableWhere)?.value : undefined;
+  const models = new Set((artifact.models ?? []).map(model => model.name));
+  for (const module of Object.keys(asm.moduleUrls)) {
+    const where = `Canonical hooks module ${JSON.stringify(module)}`;
+    const url = readMetadataMember(asm.moduleUrls, module, where)?.value;
+    if (typeof url !== 'string' || url === '') throw new Error(`${where} has no owning module URL.`);
+    const imported: unknown = await import(url);
+    const factory = isUnknownRecord(imported) ? readMetadataMember(imported, 'canApp', where)?.value : undefined;
+    if (factory === undefined) continue;
+    if (typeof factory !== 'function') throw new Error(`${where} has no callable canApp.`);
+    const registry: unknown = factory();
+    if (!isUnknownRecord(registry)) throw new Error(`${where} has no owning registry.`);
+    const hooks = readMetadataMember(registry, 'hooks', where)?.value;
+    if (hooks === undefined) continue;
+    if (!isUnknownRecord(hooks)) throw new Error(`${where} carries malformed hooks.`);
+    for (const target of Object.keys(hooks)) {
+      const split = target.lastIndexOf('.');
+      const model = target.slice(0, split);
+      const operation = target.slice(split + 1);
+      if (!models.has(model) || !['create', 'update', 'delete'].includes(operation)) {
+        throw new Error(`${where} hook target has no owning model mutation.`);
+      }
+      const hook = readMetadataMember(hooks, target, where)?.value;
+      const name = isUnknownRecord(hook) ? readMetadataMember(hook, 'name', where)?.value : undefined;
+      const run = isUnknownRecord(hook) ? readMetadataMember(hook, 'run', where)?.value : undefined;
+      const ops = isUnknownRecord(hook) ? readMetadataStrings(readMetadataMember(hook, 'ops', where)?.value, where, 'hook ops') : [];
+      const normalized = operation === 'delete' ? 'remove' : operation;
+      if (typeof name !== 'string' || name === '' || typeof run !== 'function' || !ops.includes(normalized)) {
+        throw new Error(`${where} hook has no checked mutation body.`);
+      }
+      const matches = callables.filter(callable => own(callable, 'id') === name && own(callable, 'module') === module &&
+        own(callable, 'kind') === 'handler' && JSON.stringify(readMetadataStrings(own(callable, 'member'), where, 'hook callable member')) ===
+          JSON.stringify(['hooks', target, 'run']));
+      if (matches.length !== 1) throw new Error(`${where} hook lacks its exact owning emitted callable.`);
+      seen.add(`${module}\0${name}`);
+      targets.add(target);
+    }
+  }
+  for (const callable of callables) {
+    if (own(callable, 'kind') !== 'handler') continue;
+    const rawMember = own(callable, 'member');
+    if (rawMember === undefined) continue;
+    const member = readMetadataStrings(rawMember, callableWhere, 'handler callable member');
+    if (member[0] === 'hooks' && !seen.has(`${String(own(callable, 'module'))}\0${String(own(callable, 'id'))}`)) {
+      throw new Error('Canonical hook callable has no owning emitted hook metadata.');
+    }
+  }
+  return targets;
+}
+
 export async function loadCanonicalDescriptors(
   asm: AssembledModules,
   artifact: CompileArtifact,
@@ -2423,6 +2482,7 @@ export async function loadCanonicalDescriptors(
     assertStateMachineProducerCapability(artifact, catalog);
   }
   const producers = await loadCanonicalStateProducers();
+  const unsupportedHookOperations = await collectUnsupportedHookOperations(asm, artifact);
   const ops = readPreloadOperations(artifact);
   const crudBy = new Map<string, CanonicalByPredicate>();
   for (const op of ops) {
@@ -2530,6 +2590,7 @@ export async function loadCanonicalDescriptors(
     table,
     policy,
     ruledModels,
+    unsupportedHookOperations,
     collectionColumns,
     producers,
     conflictServerOnly: buildConflictServerOnly(loaded.models),
@@ -3482,6 +3543,10 @@ async function runScenarioSeam(
         if (typeof write.id !== "string" || write.id === "") {
           throw new Error(`t17b: stageWrite needs a non-empty string record id (wiring bug).`);
         }
+        const mutation = `${write.model}.${write.op === 'remove' ? 'delete' : write.op}`;
+        if (loaded.unsupportedHookOperations.has(mutation)) {
+          throw new StateError('validation', `Operation ${JSON.stringify(mutation)} requires unsupported canonical hooks.`);
+        }
         // Delivery tags predate the scalar valueType checkpoint. Their owning
         // artifact declaration still selects Values' exact native/wire codec.
         const data = write.data === undefined ? undefined : { ...write.data };
@@ -3694,6 +3759,8 @@ async function runScenarioSeam(
         if (typeof member(binding, 'judgment') === 'string') {
           boundRequest = freezeBoundJudgmentRequest({
             appDefinition: definition, binding: bindingKey, target: source, arguments: request,
+            ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }),
+            ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
           });
         } else {
           if (typeof capability !== 'string' || typeof from !== 'string' || from === '') {
@@ -3920,6 +3987,9 @@ export async function invokeMutationCanonical(
       const kind = seamDefKind(call.def, opts.operation);
       let effects: CanonicalExecutionEffects;
       if (kind === "create" || kind === "update" || kind === "delete") {
+        if (loaded.unsupportedHookOperations.has(opts.operation)) {
+          throw new StateError('validation', `Operation ${JSON.stringify(opts.operation)} requires unsupported canonical hooks.`);
+        }
         effects = await crudExecute(call);
       } else if (kind === "scenario") {
         effects = await runScenarioSeam(loaded, opts, call, occurrenceIds);
@@ -4103,19 +4173,29 @@ async function loadJudgmentSpecificationResolver(
   if (judgments === undefined) return undefined;
   if (!isUnknownRecord(judgments)) throw new Error(`${where} requires checked declaration metadata.`);
   const specifications = new Map<string, import('@canlang/contracts').JudgmentSpec>();
-  return qualifiedName => {
+  return (qualifiedName, options) => {
     if (typeof qualifiedName !== 'string' || !Object.hasOwn(judgments, qualifiedName)) {
       throw new Error(`${where} requires an exact defining declaration.`);
     }
-    const prior = specifications.get(qualifiedName);
-    if (prior !== undefined) return prior;
     const descriptor = own(judgments, qualifiedName);
     const language = own(descriptor, 'sourceLanguage');
     if (!isUnknownRecord(descriptor) || typeof language !== 'string') {
       throw new Error(`${where} has no checked source language.`);
     }
-    const frozen = freezeJudgmentSource(qualifiedName, descriptor as unknown as StaticJudgmentDescriptor, language);
-    specifications.set(qualifiedName, frozen.specification);
+    const questions = readMetadataArray(own(descriptor, 'questions'), where, 'questions');
+    const runtime = questions.some(question => own(question, 'runtime') === true);
+    const cacheable = !runtime && options === undefined;
+    if (cacheable) {
+      const prior = specifications.get(qualifiedName);
+      if (prior !== undefined) return prior;
+    }
+    if (runtime && artifact.valueTypes === undefined) {
+      throw new Error(`${where} has no checked runtime option inventory.`);
+    }
+    const source = { version: own(descriptor, 'version'), questions,
+      ...(runtime ? { valueTypes: artifact.valueTypes } : {}) };
+    const frozen = freezeJudgmentSource(qualifiedName, source as unknown as StaticJudgmentDescriptor, language, options);
+    if (cacheable) specifications.set(qualifiedName, frozen.specification);
     return frozen.specification;
   };
 }

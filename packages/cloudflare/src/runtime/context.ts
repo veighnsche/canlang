@@ -114,7 +114,7 @@ export interface HandlerContext {
   preferences: Record<string, Record<string, unknown>>;
   readonly formatting?: HandlerFormattingScope;
   /** Pure source asset resolver installed from this invocation's pinned compiled definition. */
-  readonly judgmentSpecification?: (qualifiedName: string) => JudgmentSpec;
+  readonly judgmentSpecification?: (qualifiedName: string, options?: unknown) => JudgmentSpec;
   /** Source facts installed only from an admitted canonical context. */
   readonly actor?: UserRef | null;
   /** Current-caller facts for checked actor property reads; never part of a generic user reference. */
