@@ -47,8 +47,8 @@ use crate::source::{SourceDb, SourceId, Span};
 use crate::syntax::{Punct, SyntaxKind, SyntaxNode, TokenKind};
 
 use super::catalog::{
-    Availability, Catalog, Effects, SigOverload, SigType, StdNominal, StdOperation, nominal_schema,
-    std_capability,
+    Availability, Catalog, Effects, SigOverload, SigType, StdNominal, StdOperation,
+    T13B_DELIVERY_OBSERVABLES, nominal_schema, std_capability,
 };
 use super::resolve::{
     ActorKind, Binding, ContextVar, CrudOp, FixtureTarget, ModelOwner, ModuleId, ResolveTables,
@@ -395,6 +395,27 @@ pub struct SelectedCall {
     pub slots: Vec<Option<usize>>,
 }
 
+/// Only declared T13b delivery observations alias progress to their latest result.
+pub(crate) fn delivery_progress_alias(ty: &ResolvedType) -> bool {
+    let ty = ty.nullable_inner().unwrap_or(ty);
+    let ResolvedType::StdDelivery { capability, op } = ty else {
+        return false;
+    };
+    T13B_DELIVERY_OBSERVABLES
+        .iter()
+        .any(|observable| observable.target == format!("{capability}.{}", op.name))
+}
+
+pub(crate) fn std_delivery_result_type(op: &StdOperation) -> ResolvedType {
+    match std_schema_type(op.result) {
+        Some(ty) => ResolvedType::Nullable(Box::new(ty)),
+        None => match nominal_schema(op.result) {
+            Some(schema) => ResolvedType::Nullable(Box::new(std_nominal_object(schema))),
+            None => ResolvedType::Opaque("std delivery result"),
+        },
+    }
+}
+
 /// Types and selected bindings per symbol and typed CST node.
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
@@ -407,6 +428,8 @@ pub struct TypeTable {
     pub bound_names: HashSet<NodeKey>,
     /// Resolved type of each typed CST node (absent = untyped position).
     pub node_types: HashMap<NodeKey, ResolvedType>,
+    /// Canonical delivery observation selectors checked against their source owner.
+    pub delivery_selectors: HashMap<NodeKey, String>,
     /// Additional unbound names found by the types pass (pass 2 `E2001`).
     pub unresolved_names: Vec<NodeKey>,
     /// Unbound names the types pass claimed as unique-expected-enum
@@ -5459,9 +5482,12 @@ impl<'a> Typer<'a> {
             // selector keeps the contract-only rule below.
             if segments.len() > 1
                 && (node.kind == SyntaxKind::Policy || what == "columns")
-                && self.selector_delivery_leaf(model, &segments)
+                && let Some(canonical) = self.selector_delivery_leaf(model, &segments)
             {
-                selected.push(segments.join("."));
+                self.types
+                    .delivery_selectors
+                    .insert(NodeKey::of(path), canonical.clone());
+                selected.push(canonical);
                 continue;
             }
             if self.navigate_selector(cx, node, model, path, &segments, allow_reserved) {
@@ -5475,43 +5501,51 @@ impl<'a> Typer<'a> {
     /// (`id`/`status`/`error`/`result` on a delivery value) with an
     /// expression-resolvable prefix (DESIGN §7.1 delivery-observation
     /// leaves, e.g. `notification.status`, `request.error`,
-    /// `current.request.status`). Leaves are terminal: no descent
-    /// past them. Silent (no diagnostics): the legacy navigation
+    /// `current.request.status`). Declared std result objects also admit
+    /// their typed children. Silent (no diagnostics): the legacy navigation
     /// below reports failures.
-    fn selector_delivery_leaf(&self, model: SymbolId, segments: &[&str]) -> bool {
-        let Some(first) = self.model_field_named(model, segments[0]) else {
-            return false;
-        };
+    fn selector_delivery_leaf(&self, model: SymbolId, segments: &[&str]) -> Option<String> {
+        let first = self.model_field_named(model, segments[0])?;
         let mut current = self.decl_type(first);
+        let mut canonical: Vec<String> = segments
+            .iter()
+            .map(|segment| (*segment).to_string())
+            .collect();
+        let mut observed = false;
         let rest = &segments[1..];
         for (i, segment) in rest.iter().enumerate() {
             let last = i == rest.len() - 1;
-            current = match &current {
-                ResolvedType::Nullable(inner) => inner.as_ref().clone(),
-                other => other.clone(),
-            };
+            current = current.nullable_inner().unwrap_or(&current).clone();
             match &current {
                 ResolvedType::Record { symbol, .. } => {
-                    let Some(next) = self.record_field_named(*symbol, segment) else {
-                        return false;
-                    };
-                    current = self.decl_type(next);
+                    current = self.decl_type(self.record_field_named(*symbol, segment)?);
+                }
+                ResolvedType::StdDelivery { op, .. }
+                    if *segment == "result"
+                        || (*segment == "progress" && delivery_progress_alias(&current)) =>
+                {
+                    if *segment == "progress" {
+                        canonical[i + 1] = "result".to_string();
+                    }
+                    observed = true;
+                    if last {
+                        return Some(canonical.join("."));
+                    }
+                    current = std_delivery_result_type(op);
                 }
                 ResolvedType::Delivery { .. }
                 | ResolvedType::StdDelivery { .. }
                 | ResolvedType::Opaque(_) => {
-                    // Delivery-typed fields and deployment-bound
-                    // (opaque) delivery targets alike: the same member
-                    // chains resolve in expression position.
-                    if !last || !matches!(segment, &"id" | &"status" | &"error" | &"result") {
-                        return false;
-                    }
-                    return true;
+                    return (last && matches!(*segment, "id" | "status" | "error" | "result"))
+                        .then(|| canonical.join("."));
                 }
-                _ => return false,
+                ResolvedType::Object(fields) if observed => {
+                    current = fields.iter().find(|(name, _)| name == segment)?.1.clone();
+                }
+                _ => return None,
             }
         }
-        false
+        observed.then(|| canonical.join("."))
     }
 
     /// Push an `E2013` for a selector path that names no canonical
@@ -10747,15 +10781,15 @@ impl<'a> Typer<'a> {
                     // vocabulary; transcribed T13c nominals resolve
                     // to their closed field object; unknown/absent
                     // nominals stay opaque, never guessed.
-                    "result" => Some(match std_schema_type(op.result) {
-                        Some(ty) => ResolvedType::Nullable(Box::new(ty)),
-                        None => match nominal_schema(op.result) {
-                            Some(schema) => {
-                                ResolvedType::Nullable(Box::new(std_nominal_object(schema)))
-                            }
-                            None => ResolvedType::Opaque("std delivery result"),
-                        },
-                    }),
+                    "result" => Some(std_delivery_result_type(op)),
+                    "progress"
+                        if delivery_progress_alias(&ResolvedType::StdDelivery {
+                            capability,
+                            op,
+                        }) =>
+                    {
+                        Some(std_delivery_result_type(op))
+                    }
                     _ => {
                         self.unknown_member(
                             cx,
