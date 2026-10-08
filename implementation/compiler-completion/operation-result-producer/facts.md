@@ -124,3 +124,16 @@ pass. A first fixture expectation incorrectly used a date input tag and omitted
 claim suffixes; these expectations were corrected to the existing wire contract.
 The corresponding TypeScript mirrors and actual calendar/duration consumer run
 belong to their package owners. This bounded producer leaves completion **48/67**.
+
+Duration TypeScript mirror: the artifact, derived-input and MCP closed-kind
+unions now include duration. Interface derivation projects that tag and renders
+its wire value as a string. Literal defaults and bound arguments delegate to
+the owning Values decoder, using the declared scalar/array/nullable shape for
+defaults. The existing decoder normalizes leading-zero and negative-zero int64
+spellings; no new adapter restriction or Values codec change is introduced.
+Private Contracts/Interfaces TypeScript builds pass, and the single focused
+duration adapter check passes **1/1**, covering metadata/default preservation,
+scalar/array/null defaults, int64 edges, malformed and out-of-range refusals.
+An initial interfaces check used stale shared Contracts declarations; the direct
+private producer/consumer build supplies the changed declarations. Unchanged
+adapter checks are reused. Actual application execution remains consumer-owned.

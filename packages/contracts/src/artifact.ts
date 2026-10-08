@@ -157,6 +157,7 @@ export type ArtifactOperationField =
   | { kind: 'decimal' }
   | { kind: 'money' }
   | { kind: 'datetime' }
+  | { kind: 'duration' }
   | { kind: 'boolean' }
   | { kind: 'file' }
   | { kind: 'enum'; values: string[] }

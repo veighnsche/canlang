@@ -269,6 +269,7 @@ const KNOWN_INPUT_KINDS: ReadonlySet<string> = new Set([
   'decimal',
   'money',
   'datetime',
+  'duration',
   'boolean',
   'file',
   'enum',
@@ -295,11 +296,11 @@ function checkResult(holder: Record<string, unknown>, what: string): CanonicalOp
   if (!Object.hasOwn(holder, 'result')) return undefined;
   const result = holder['result'];
   if (!isRecord(result) || !Object.hasOwn(result, 'type')) {
-    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money profile or bare void.`);
+    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration profile or bare void.`);
   }
   const type = result['type'];
-  if (type !== 'void' && (typeof type !== 'string' || !/^(int|datetime|text|bool|decimal|money)(\[\])?\??$/.test(type))) {
-    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money profile or bare void.`);
+  if (type !== 'void' && (typeof type !== 'string' || !/^(int|datetime|text|bool|decimal|money|date|duration)(\[\])?\??$/.test(type))) {
+    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration profile or bare void.`);
   }
   return Object.freeze({ type });
 }
@@ -307,8 +308,8 @@ function checkResult(holder: Record<string, unknown>, what: string): CanonicalOp
 function checkValueType(field: Record<string, unknown>, what: string): CanTypeId | undefined {
   if (!Object.hasOwn(field, 'valueType')) return undefined;
   const type = field['valueType'];
-  if (typeof type !== 'string' || !/^(int|datetime|text|bool|decimal|money)(\[\])?\??$/.test(type)) {
-    fail('malformed_descriptor', `Invalid ${what}: valueType must declare an int/datetime/text/bool/decimal/money profile.`);
+  if (typeof type !== 'string' || !/^(int|datetime|text|bool|decimal|money|date|duration)(\[\])?\??$/.test(type)) {
+    fail('malformed_descriptor', `Invalid ${what}: valueType must declare an int/datetime/text/bool/decimal/money/date/duration profile.`);
   }
   if (Object.hasOwn(field, 'nullable') &&
       (typeof field['nullable'] !== 'boolean' || type.endsWith('?') !== field['nullable'])) {
@@ -331,13 +332,15 @@ function scalarTypeForKind(kind: unknown): string | undefined {
     case 'boolean': return 'bool';
     case 'decimal': return 'decimal';
     case 'money': return 'money';
+    case 'date': return 'date';
+    case 'duration': return 'duration';
     case 'string': return 'text';
     default: return undefined;
   }
 }
 
-/** Text requires an own checked claim: the compiler's string tag also represents aliases. */
-function artifactValueType(field: Record<string, unknown>, what: string): CanTypeId | undefined {
+/** Collapsed string tags require own claims; operation inputs also collapse checked date source. */
+function artifactValueType(field: Record<string, unknown>, what: string, operationInput = false): CanTypeId | undefined {
   if (Object.hasOwn(field, 'valueType')) {
     checkTypeArray(checkValueType(field, what), field['array'] !== undefined, what);
   }
@@ -353,7 +356,10 @@ function artifactValueType(field: Record<string, unknown>, what: string): CanTyp
   if (Object.hasOwn(field, 'nullable') && typeof field['nullable'] !== 'boolean') {
     fail('malformed_descriptor', `Invalid ${what}: nullable must be a boolean.`);
   }
-  const type = `${scalarTypeForKind(tag['kind'])}${field['array'] !== undefined ? '[]' : ''}${Object.hasOwn(field, 'nullable') && field['nullable'] === true ? '?' : ''}`;
+  const base = operationInput && tag['kind'] === 'string' &&
+    typeof field['valueType'] === 'string' && field['valueType'].replace(/\[\]|\?/g, '') === 'date'
+    ? 'date' : scalarTypeForKind(tag['kind']);
+  const type = `${base}${field['array'] !== undefined ? '[]' : ''}${Object.hasOwn(field, 'nullable') && field['nullable'] === true ? '?' : ''}`;
   if (Object.hasOwn(field, 'valueType') && field['valueType'] !== type) {
     fail('malformed_descriptor', `Invalid ${what}: valueType disagrees with compiler tag.`);
   }
@@ -467,7 +473,7 @@ function checkCanonicalInput(
     fail(
       'unknown_input_kind',
       `Unknown input kind ${JSON.stringify(kind)} for ${what}; ` +
-        'supported: ref, string, integer, decimal, money, datetime, boolean, file, enum.',
+        'supported: ref, string, integer, decimal, money, datetime, duration, boolean, file, enum.',
     );
   }
   if (typeof value['required'] !== 'boolean') {
@@ -476,8 +482,9 @@ function checkCanonicalInput(
   const required = value['required'] as boolean;
   const fallback = checkDefault(value['default'], what);
   const valueType = checkValueType(value, what);
-  if (valueType !== undefined &&
-      valueType.replace(/\[\]|\?/g, '') !== scalarTypeForKind(kind)) {
+  const inputBase = valueType?.replace(/\[\]|\?/g, '');
+  if (valueType !== undefined && inputBase !== scalarTypeForKind(kind) &&
+      !(kind === 'string' && inputBase === 'date')) {
     fail('malformed_descriptor', `Invalid ${what}: valueType disagrees with input kind.`);
   }
   if (kind === 'ref') {
@@ -1227,14 +1234,14 @@ export function artifactToDescriptorSet(
         fail(
           'unknown_input_kind',
           `Unknown input kind ${JSON.stringify(inputKind)} for ${what}; ` +
-            'supported: ref, string, integer, decimal, money, datetime, boolean, file, enum.',
+            'supported: ref, string, integer, decimal, money, datetime, duration, boolean, file, enum.',
         );
       }
       if (typeof input.required !== 'boolean') {
         fail('malformed_descriptor', `Invalid ${what}: required must be a boolean.`);
       }
       const fallback = checkDefault(input.default, what);
-      const valueType = artifactValueType(input as unknown as Record<string, unknown>, what);
+      const valueType = artifactValueType(input as unknown as Record<string, unknown>, what, true);
       if (inputKind === 'ref') {
         const refTag = input.field as { model?: unknown; requireVersion?: unknown };
         if (typeof refTag['model'] !== 'string' || refTag['model'] === '') {
