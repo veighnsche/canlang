@@ -2793,6 +2793,26 @@ impl<'a> Cx<'a> {
                     );
                 }
                 let mut expr = self.decode_expr(scope, base);
+                // Only checked contextual actor facts use the private
+                // facts carrier. Ordinary user values and aliases retain
+                // their native identity shape and checker restrictions.
+                // Group decoding preserves the same contextual IR root;
+                // its synthetic `c` has Unknown type, unlike a typed local.
+                if !scope.in_hook
+                    && fields.len() == 1
+                    && matches!(
+                        (fields[0].as_str(), ty),
+                        ("email", ResolvedType::Scalar(Scalar::Email))
+                            | ("email_verified", ResolvedType::Scalar(Scalar::Bool))
+                    )
+                    && matches!(&expr.expr,
+                        IrExpr::Member { base, field }
+                            if field == "actor"
+                                && matches!(&base.expr, IrExpr::Name(name) if name == "c")
+                                && matches!(base.ty, ResolvedType::Unknown))
+                {
+                    expr.expr = member_of("c", "actorFacts", &ResolvedType::Unknown, base.span);
+                }
                 for field in fields.iter().rev() {
                     let inferred = self.member_ty(&expr.ty, field);
                     let field_ty = if *field == fields[0] && !matches!(ty, ResolvedType::Unknown) {
