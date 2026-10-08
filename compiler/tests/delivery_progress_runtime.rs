@@ -8,10 +8,15 @@ use std::{path::Path, process::Command};
 fn declared_progress_alias_observes_the_existing_result_once() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let scratch = tempfile::tempdir().unwrap();
+    // This compiler consumer pins whole/child grants while the package fixture
+    // continues to grow its own page and policy coverage.
     let source = std::fs::read_to_string(root.join("packages/cloudflare/test/fixtures/typed-generation-progress.can"))
         .unwrap()
-        .replace("fields=label,request.progress.content", "fields=label,request.status,request.progress")
-        .replace("When\n", " policy Job read=members fields=request.progress.content\n contract Counter {progress:text}\n derive content(job:Job):text = job.request?.progress?.content ?? \"\"\n derive resultContent(job:Job):text = job.request?.result?.content ?? \"\"\n derive isRunning(job:Job):bool = job.request?.progress?.state == running\n derive detail(job:Job):text = job.request?.progress?.detail ?? \"\"\n derive ordinary(value:Counter):text = value.progress\nWhen\n");
+        .lines()
+        .filter(|line| !line.trim_start().starts_with("policy Job "))
+        .collect::<Vec<_>>()
+        .join("\n")
+        .replace("When\n", " policy Job read=members fields=label,request.status,request.progress\n policy Job read=members fields=request.progress.content\n contract Counter {progress:text}\n derive content(job:Job):text = job.request?.progress?.content ?? \"\"\n derive resultContent(job:Job):text = job.request?.result?.content ?? \"\"\n derive isRunning(job:Job):bool = job.request?.progress?.state == running\n derive detail(job:Job):text = job.request?.progress?.detail ?? \"\"\n derive stateMissing(job:Job):bool = job.request?.progress?.state == null\n derive statePresent(job:Job):bool = job.request?.progress?.state != null\n derive missingStateReverse(job:Job):bool = null == job.request?.progress?.state\n derive presentStateReverse(job:Job):bool = null != job.request?.progress?.state\n derive ordinary(value:Counter):text = value.progress\nWhen\n");
     let input = scratch.path().join("progress.can");
     std::fs::write(&input, source).unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_can"))
@@ -52,6 +57,11 @@ export async function set(){throw Error('unused set');}
 export async function create(){throw Error('unused create');}
 export async function deleteRecord(){throw Error('unused delete');}
 "#).unwrap();
+    std::os::unix::fs::symlink(
+        root.join("node_modules/@canlang/ui"),
+        scratch.path().join("node_modules/@canlang/ui"),
+    )
+    .unwrap();
     let runner = scratch.path().join("execute.mjs");
     std::fs::write(&runner, r#"
 import assert from 'node:assert/strict';
@@ -82,6 +92,15 @@ globalThis.probe={context,record,trace,result,grants:whole,paths:new Set(grants[
 function callable(name){const descriptor=artifact.callables.find(callable=>callable.id===`TypedGenerationProgress.${name}`);assert(descriptor,name);let fn=registry;for(const part of descriptor.member)fn=fn[part];return fn;}
 for(const [name,expected,field]of [['content','Draft','content'],['resultContent','Draft','content'],['isRunning',true,'state'],['detail','Preparing','detail']]){
  globalThis.probe.expectedKey=`result.${field}`;trace.length=0;assert.equal(await callable(name)(context,record),expected);assert.deepEqual(trace,[['delivery',`result.${field}`],['read',field]]);
+}
+// A delivery leaf lowers through `?? null`; equality must compare its value,
+// including reversed operands and inequality, without another observation.
+for(const state of [null,'queued','running']){
+ globalThis.probe.result={get state(){trace.push(['read','state']);return state;}};
+ globalThis.probe.expectedKey='result.state';
+ for(const [name,expected]of [['stateMissing',state===null],['statePresent',state!==null],['missingStateReverse',state===null],['presentStateReverse',state!==null]]){
+  trace.length=0;assert.equal(await callable(name)(context,record),expected,`${name}: ${state}`);assert.deepEqual(trace,[['delivery','result.state'],['read','state']]);
+ }
 }
 globalThis.probe.result=null;globalThis.probe.expectedKey='result.content';trace.length=0;assert.equal(await callable('content')(context,record),'');assert.deepEqual(trace,[['delivery','result.content']]);
 globalThis.probe.expectedKey='result.state';assert.equal(await callable('isRunning')(context,record),false);globalThis.probe.expectedKey='result.detail';assert.equal(await callable('detail')(context,record),'');
