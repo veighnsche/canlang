@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "origin": "/root existing goal implementation authorization; assetsevenwriterpaths released; readonly stdlib mapping diagnosis released",
+  "scope": "Existing defining Cloudflare generated runtime stdlib selection in deployment bundler, matching CLI selection; no fa\u00e7ade/runtime/newbuiltin signature change",
+  "paths": {
+    "packages/cloudflare/src/deploy/bundle.ts": "58ded31efce1f9ee89369eb21eb35636725b9d16a14cda6c2258efdf786a2875",
+    "packages/cloudflare/test/browser-assets-bundle.test.ts": "07fc3b33dc304614816da23faee477249a26141db91cecabfe6745e33ccae11b"
+  },
+  "read_inputs": {
+    "packages/cloudflare/src/runtime/stdlib.ts": "6c6d35ed8294f12e1badf4325f9553ee3eb6d2faeff1ffa1a2ac6152cba07207",
+    "packages/cloudflare/src/cli/platform.ts": "b6910c319e7196c585e9613f489f5ecab194483b9c9f9ea71913bfd4e0109e2a",
+    "packages/cloudflare/src/runtime/modules.ts": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+    "packages/cloudflare/src/runtime/invoke.ts": "48f4c79ab213f0fe95b4e8e3b01dd643793ed1a345d075f27aef214101d0bbe5"
+  },
+  "contract": [
+    "Stage actual built runtime/stdlib.js through existing pinned-runtime mechanism",
+    "Map generated @canlang/stdlib imports to that defining runtime owner as Node CLI already does",
+    "Keep public vendor stdlib selection for its own other consumers unchanged; no blanket rename",
+    "Preserve canonical descriptor preload, binding/activation and generatedCrudExecute routing",
+    "Reuse frozen released owner outputs/evidence; original CF build once for changed source, targeted mapping/refusal checks and actual Images Node/workerd consumers",
+    "No handwritten staged-text patch, duplicate stdlib factory, changed signatures or source-derived asset-selection claim"
+  ],
+  "no_write": [
+    "compiler",
+    "packages/stdlib",
+    "packages/state",
+    "runtime/stdlib.ts",
+    "runtime/invoke.ts",
+    "worker main/assembly",
+    "Interfaces sources"
+  ],
+  "proof_limits": [
+    "Dormant generated CRUD signature skew remains separately open",
+    "Required real source-derived browser selection caller still open",
+    "No full backend/native/installed/default/HOLD acceptance"
+  ],
+  "status": "exact_twofile_writer_and_all_commands_released_root_mapping_review_accepted",
+  "created_utc": "2026-10-08T00:41:55.363251+00:00",
+  "result": "asset-mount-proof/mapping/result.md"
+}

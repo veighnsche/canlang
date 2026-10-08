@@ -1,0 +1,19 @@
+node:internal/modules/run_main:111
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: {"code":"rule_failed","message":"The operation was rejected.","retryable":false}
+
+422 !== 200
+
+    at file:///private/tmp/canlang-repair-go-20261007/asset-mount-independent/probe.mjs:13:88
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 422,
+  expected: 200,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v26.10.0

@@ -1,0 +1,72 @@
+{
+  "verdict": "finite_main_assembly_interfaces_seam_pass_with_page_browser_limits",
+  "findings": [],
+  "scope": "Released main/assembly/Interfaces source and existing finite controls; actual selected Images default workerd resources independently probed after mapper stage read release. Mapper implementation itself excluded.",
+  "source_pins": [
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/worker/main.ts",
+      "sha256": "386873b51c7675904776ea6a2f4db5f18533f14905bf252bf7ee59d8ad6cedc5"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/src/worker/assembly.ts",
+      "sha256": "8a450a67484dbce787f10b9186e10c6cedb18e663a733df5df63c15aa17218a8"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/src/http/pages.ts",
+      "sha256": "e7e4bd23e5e9bd3f43e831058248ed5d2bf5342be5b05f7eda63f74b52836f3c"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/interfaces/src/index.ts",
+      "sha256": "f342676874f69561ec6234a06b1a6a9e15e36d80a4b5e2709c2cf89174e0b521"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/packages/cloudflare/test/browser-assets-serving.test.ts",
+      "sha256": "f9d7eafa033d34cc5b072e0093b2fd70e18eb6b9e891b85b1ac4ede648c699f8"
+    },
+    {
+      "path": "/Users/vince/Projects/canlang/implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-contract.json",
+      "sha256": "f19b2d2fd1f037dad4ded1d042ebdeed812017111cb58c203c8bb136bf16d11e"
+    }
+  ],
+  "source_review": {
+    "order": "outer required DB binding; staged marker validation; production deps; assembly activation; compatibility/contracts/requires; canonical descriptor preload; page descriptor loading; selected handler collision/integrity; first serving dispatch",
+    "routing": "Raw URL.pathname exact canonical finite paths only; query ignored; other paths follow existing authored dispatch. No prefix-wide mount or percent alias. Generated selected handler calls the existing defining matchDescriptor and existing createAssetTable/handleAssetsRequest.",
+    "failure": "Selected marker presence is checked with Object.hasOwn, shape/version/module/entries are validated; selected import/function/path validation failures throw. Generated handler compares staged and embedded manifests, validates digest/bytes, refuses exact or existing dynamic matcher collision before any table is returned. No selected failure downgrade. Inactive assembly returns refusal before selected handler import; outer marker shape validation can precede inactivity.",
+    "public_surface": "matchDescriptor exported only from owning http/pages module; public index continues to export handlePageRequest alone from pages. Existing decoded-key assets helper retained; finite raw-path gate is assembly-owned."
+  },
+  "controls": {
+    "existing_raw_tests": "cloudflare-owner/finite-tests.json+finite-tests.log: 2 files/14 tests exit0; explicit fixtures are controls, not actual source adoption evidence. Tests cover exact/dynamic collision, selected corrupt bytes/module/shape/version/manifest/handler, unselected authored dispatch, GET/query/HEAD/conditional200, alias refusal, DB/inactivity. Not rerun.",
+    "own_actual_probe": {
+      "command_file": "/private/tmp/canlang-repair-go-20261007/asset-mount-independent/probe-command.json",
+      "results_file": "/private/tmp/canlang-repair-go-20261007/asset-mount-independent/probe-results.json",
+      "module_inventory": "/private/tmp/canlang-repair-go-20261007/asset-mount-independent/input-inventory.json",
+      "verified_module_pins": 173,
+      "requests": 17,
+      "status": "passed resource/refusal assertions, page-render limitation explicitly expected after separately preserved failed HTML assertion",
+      "actual_source": "Images.can source sha256 960ba9a4bf278ecd4e22769a5c4830868cb68b1a83673511017cd42cdc50987e; generated module sha256 8435651a89cfc708d0b9e8e21707b9555cb2dcfa5bde1e95361cee7ac63a1f05",
+      "stage_origin": "/private/tmp/canlang-repair-go-20261007/stdlib-generated-create-join/implementation/selected-default-consumer/stage",
+      "resourcesSha256": "5c548547c8265b84c8a3016208c9bad1451dfe62a2f2d4ca3507da593935a48f",
+      "limits": "Actual page / answers422 rule_failed under both selected and unselected stages, with identical body hash; no page HTML or canonical resource URLs demonstrated. Static requests do pass canonical preload and default-main gates. No actual browser/caller/installed package claim."
+    }
+  },
+  "limits": [
+    "No finding in finite seam; final acceptance remains root-owned.",
+    "Actual page HTML, browser hydration/polling/CSS behavior, caller selection and installed consumer not established by this review.",
+    "Earlier selected workerd old stage failure missing stdlib create export is superseded only by independently tested fresh mapper stage; do not treat old failure as successful evidence.",
+    "No mutable bundle.ts or new bundle test read; no build/Git/source edits; no duplicate mapper consumer launched.",
+    "All own requests used copied stage, local isolated Miniflare D1, bounded50s command; workers disposed. Initial sandbox IPC failure and failed page200 expectation preserved.",
+    "Baseline source-byte diff was not reconstructed; released exact source pins and narrow contract-relevant code were inspected."
+  ],
+  "actual_page_defect": {
+    "observed_envelope": {
+      "code": "rule_failed",
+      "message": "The operation was rejected.",
+      "retryable": false
+    },
+    "generated_render": "Images / generated render calls list({context:c,model:\"Images.Job\",renderRow:...}); stage/$can$m$496d61676573.mjs",
+    "query_caller": "stage/vendor/ui/collections.js:83 calls props.context.query(props.context.invocation, props.model, queryArgs(props,\"list\"))",
+    "assembly_caller": "packages/cloudflare/src/worker/assembly.ts:1410 anonymousIdentity(ctx.now()), :1437 invocation:identity, :1438 query:interimQuery; render called with that context and admitted bindings.",
+    "throw": "assembly.ts:1107 interimQuery throws Error(\"assembly interim: in-render reads need the interfaces join (bound RowQueryRunner); rows are supplied, never queried\"); generic render catch maps unexpected throw to rule_failed422.",
+    "classification": "Existing required actual-page/query/caller join obligation, outside finite static seam. Inference from source plus actual observed envelope; no instrumented exception trace."
+  }
+}

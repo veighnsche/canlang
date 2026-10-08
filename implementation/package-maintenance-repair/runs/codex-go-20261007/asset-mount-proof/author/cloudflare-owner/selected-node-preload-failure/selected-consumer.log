@@ -1,0 +1,19 @@
+node:internal/modules/run_main:111
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: {"code":"worker-assembly-failed","message":"deploy main: assembleWorker threw (t16b: operation \"Images.Job.create\" module \"$can$m$496d61676573.mjs\" failed to import (The requested module './vendor/stdlib/index.js' does not provide an export named 'create'))"}
+
+500 !== 200
+
+    at file:///private/tmp/canlang-repair-go-20261007/asset-mount-implementation/cloudflare-owner/workspace/selected-static-consumer.mjs:27:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 500,
+  expected: 200,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v26.10.0

@@ -380,6 +380,14 @@ export interface HttpJoin {
   readonly createOperationHandler?: HttpOperationHandlerFactory;
   /** C1 deploy-baked E1 channel, shared verbatim with the MCP path. */
   readonly derivedInputs?: BakedDerivedInputs;
+  /** Selected static resources load only after the existing serving gates. */
+  readonly loadBrowserAssets?: (pages: readonly PageDescriptor[]) => Promise<BrowserAssetsHandler>;
+}
+
+/** Finite generated static-resource join; no filesystem or session access. */
+export interface BrowserAssetsHandler {
+  readonly paths: readonly string[];
+  readonly fetch: (request: Request) => Response;
 }
 
 /**
@@ -1139,6 +1147,7 @@ interface InterimDispatchContext {
   readonly identityStore: unknown;
   readonly mcp: McpJoin | undefined;
   readonly http: HttpJoin | undefined;
+  readonly browserAssets?: BrowserAssetsHandler;
 }
 
 /** Same-origin upload-intents path advertised in the MCP `_meta` block. */
@@ -1363,6 +1372,10 @@ function buildInterimFetch(
     const url = new URL(req.url);
     const method = req.method.toUpperCase();
     const pathname = url.pathname;
+
+    if (ctx.browserAssets?.paths.includes(pathname)) {
+      return ctx.browserAssets.fetch(req);
+    }
 
     if (pathname === "/mcp") {
       return handleMcpRequest(req, ctx);
@@ -1688,6 +1701,8 @@ export async function assembleWorker(
 
   const { descriptors } = await loadPageRegistry(artifact, asm);
 
+  const browserAssets = await deps.http?.loadBrowserAssets?.(descriptors);
+
   const now = deps.now ?? Date.now;
   const innerFetch = buildInterimFetch(descriptors, {
     app: interimAppInfo(artifact),
@@ -1699,6 +1714,7 @@ export async function assembleWorker(
     identityStore: deps.identityStore,
     mcp: deps.mcp,
     http: deps.http,
+    ...(browserAssets === undefined ? {} : { browserAssets }),
   });
 
   // Real entry wiring (mirrors entry.ts; not a fork): dynamic import keeps

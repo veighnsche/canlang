@@ -1,0 +1,294 @@
+{
+  "schema": 1,
+  "captured_utc": "2026-10-08T00:51:44.262402+00:00",
+  "root_disposition": "independently_accepted_finite_selected_static_serving_and_existing_runtime_owner_mapping",
+  "task_ids": [
+    "DEL-B02",
+    "DEL-R01"
+  ],
+  "parent_complete": false,
+  "source_pins_and_accounting": {
+    "packages/cloudflare/src/deploy/bundle.ts": {
+      "before_sha256": "8ccf7b1178df87cdb02c1312bf4e2314680697034b5391fdad6a062ed80a7f85",
+      "after_sha256": "3b18b2ad9ace66b53c3dd46a2f5f698ec18cf20481eeaf9c0d3f92bcfd7d58c7",
+      "before_bytes": 64100,
+      "after_bytes": 69320,
+      "byte_delta": 5220,
+      "newline_delta": 73,
+      "test": false
+    },
+    "packages/cloudflare/src/worker/main.ts": {
+      "before_sha256": "4a701c54ffa724e047a12407a19068223e571213a0c874e96e5dd32ce8f944a1",
+      "after_sha256": "386873b51c7675904776ea6a2f4db5f18533f14905bf252bf7ee59d8ad6cedc5",
+      "before_bytes": 25304,
+      "after_bytes": 28569,
+      "byte_delta": 3265,
+      "newline_delta": 61,
+      "test": false
+    },
+    "packages/cloudflare/src/worker/assembly.ts": {
+      "before_sha256": "31239a80e12c6db7c51c744e22fd5e20dc69567b11781b71ce2485accb99be11",
+      "after_sha256": "8a450a67484dbce787f10b9186e10c6cedb18e663a733df5df63c15aa17218a8",
+      "before_bytes": 68447,
+      "after_bytes": 69128,
+      "byte_delta": 681,
+      "newline_delta": 16,
+      "test": false
+    },
+    "packages/cloudflare/test/browser-assets-serving.test.ts": {
+      "before_sha256": null,
+      "after_sha256": "f9d7eafa033d34cc5b072e0093b2fd70e18eb6b9e891b85b1ac4ede648c699f8",
+      "before_bytes": 0,
+      "after_bytes": 7779,
+      "byte_delta": 7779,
+      "newline_delta": 117,
+      "test": true
+    },
+    "packages/cloudflare/test/browser-assets-bundle.test.ts": {
+      "before_sha256": null,
+      "after_sha256": "6a0acb4ab84c552f16a540ec3d7dc2f6838fd55194dbd3fc6a5b370b76ae01b6",
+      "before_bytes": 0,
+      "after_bytes": 3697,
+      "byte_delta": 3697,
+      "newline_delta": 55,
+      "test": true
+    },
+    "packages/interfaces/src/http/pages.ts": {
+      "before_sha256": "f0c29777fd6be3be69561e1c309f3feb1ef49a04a1943b983512ad4bdca26238",
+      "after_sha256": "e7e4bd23e5e9bd3f43e831058248ed5d2bf5342be5b05f7eda63f74b52836f3c",
+      "before_bytes": 13736,
+      "after_bytes": 13743,
+      "byte_delta": 7,
+      "newline_delta": 0,
+      "test": false
+    },
+    "packages/interfaces/src/index.ts": {
+      "before_sha256": "afa4236f123cfc58cc612dace8e94b3605769c27d0ad924a16b16d6a3cf63ef9",
+      "after_sha256": "f342676874f69561ec6234a06b1a6a9e15e36d80a4b5e2709c2cf89174e0b521",
+      "before_bytes": 1140,
+      "after_bytes": 1160,
+      "byte_delta": 20,
+      "newline_delta": 0,
+      "test": false
+    }
+  },
+  "verified": [
+    "Actual original UI/Interfaces/Work/Cloudflare selected owner recipes at named frozen source/input scope, no native HOLD command",
+    "Different-author seam review and own actual Images defaultworkerd17 resource/refusal requests",
+    "Current focused15/15 tests; previous14 controls reused at unchanged seam scope",
+    "Actual source Images defaultNode/workerd resources GET/HEAD/conditional200 with pinned bytes; source now clears canonical descriptor preload",
+    "Runtime stdlib mapping matches existing CLI, publicvendorstdlib selection unchanged, no stub/signature/newfactory/preload bypass"
+  ],
+  "actual_page_residual": {
+    "observed_envelope": {
+      "code": "rule_failed",
+      "message": "The operation was rejected.",
+      "retryable": false
+    },
+    "generated_render": "Images / generated render calls list({context:c,model:\"Images.Job\",renderRow:...}); stage/$can$m$496d61676573.mjs",
+    "query_caller": "stage/vendor/ui/collections.js:83 calls props.context.query(props.context.invocation, props.model, queryArgs(props,\"list\"))",
+    "assembly_caller": "packages/cloudflare/src/worker/assembly.ts:1410 anonymousIdentity(ctx.now()), :1437 invocation:identity, :1438 query:interimQuery; render called with that context and admitted bindings.",
+    "throw": "assembly.ts:1107 interimQuery throws Error(\"assembly interim: in-render reads need the interfaces join (bound RowQueryRunner); rows are supplied, never queried\"); generic render catch maps unexpected throw to rule_failed422.",
+    "classification": "Existing required actual-page/query/caller join obligation, outside finite static seam. Inference from source plus actual observed envelope; no instrumented exception trace."
+  },
+  "limits": [
+    "Actual selected / returns422 rule_failed under selected/unselected; real page query/caller, shell CSS/hydration/polling and completebrowserworkflow not accepted",
+    "Production caller still does not derive browserselection from owning source pages; explicit package API option only",
+    "No installed/fullclosure/durable/current-auth/upload/export/print/native backend or heldrelease acceptance",
+    "Dormant emittedCRUDwrite signature skew remains separate; canonical execution routes generatedCRUDthroughState",
+    "JEVcache confidence mixed; retained existing maxAge0/immutablefalse, no new304/validator/positivefreshness"
+  ],
+  "maintenance": {
+    "production_byte_growth": 9193,
+    "production_newline_delta": 150,
+    "test_byte_growth": 11476,
+    "generated_resource_transport_bytes": 1643204,
+    "raw_ui_resource_bytes": 1186167,
+    "new_dependencies": 0,
+    "new_package_entries": 0,
+    "replacement_savings": 0,
+    "budget": "required serving capability, charged separately; no source compression/move/test saving credit"
+  },
+  "proof_files": [
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author-release.json",
+      "bytes": 16600,
+      "sha256": "c873a4850c3e8a9b1fde6e14ca241bf9e691784265eb7a8f5ab31dcc05b2a56d"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/ui-owner/observed-build.json",
+      "bytes": 2082,
+      "sha256": "1f43d56660d73c281a947a31ff818ebea19a5df6f53ea29f0e81491c9d1355a0"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/ui-owner/review.json",
+      "bytes": 1882,
+      "sha256": "4b0eae8ba7ad35232c205a15b2a9da9aca60ceb8f6621101099b208cddef3e81"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/interfaces-owner/observed-build.json",
+      "bytes": 1872,
+      "sha256": "52940336143d1531d69d700c707562e6b7e885896d0381cf18b1d01fa46185d0"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/interfaces-owner/public-surface-and-matcher.json",
+      "bytes": 910,
+      "sha256": "17a4aa95b42abf0ed9fd007c930362778769d25fdbb9542dc7bc8fd19c188f0f"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/interfaces-owner/consumer-node26.json",
+      "bytes": 3420,
+      "sha256": "db84778d0add5ffed33c00e6be1e7c5ab28541925fab140595e09335cc5f639f"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/interfaces-owner/consumer-node24.json",
+      "bytes": 3432,
+      "sha256": "a299d7b53f372f8158b9068795d576afa0aea262781852c34dde776785c67969"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/handoff-verification.json",
+      "bytes": 10719,
+      "sha256": "1a32e07e21adceacaaf35f9f31445a0e25df9dbb1455c678da679f1b447f6469"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/observed-build.json",
+      "bytes": 1798,
+      "sha256": "5c275f02cdef30902927f6ddbedcb07d94446100aef2a6edb5108bd3466ae54d"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/work-owner-current/observed-build.json",
+      "bytes": 1452,
+      "sha256": "9297d080a9039e188cc54f168e9c127df2756b77b3f2e5c5c02d5cadc42cbad2"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/finite-tests.json",
+      "bytes": 611,
+      "sha256": "dc80129c75aeb6802d0d1db0e5c09e2a7391a3378f9003129fad831844e302d7"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/finite-tests.log",
+      "bytes": 4862,
+      "sha256": "99779caad56d2719c2169d7b92067791e6b0c61f2f38eb0952f75f078657f765"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/selected-node-preload-failure/selected-consumer.log",
+      "bytes": 758,
+      "sha256": "d9431f6d3eeaa0e6f13b0d1418c1fd4d9a1f3a48ad448cb6d664e0600bf0419a"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/selected-workerd-control.log",
+      "bytes": 758,
+      "sha256": "ee44706a904e3658f05c92f2a3c8b1eb4cd751825845662c28b51c2c279fbd58"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/selected-producer-refusals.json",
+      "bytes": 1818,
+      "sha256": "0acc00d2e1f9e768b62600abc3591ed7a2803d2008b56d525d4768c246f26545"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/final-freeze-verification.json",
+      "bytes": 2533,
+      "sha256": "344ee61deec286cd7b3299c53d05eb980cfe3a842ca3566ffc52c47260e4a767"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/maintenance-cost.json",
+      "bytes": 2684,
+      "sha256": "6e5d614226b8db1f3c08a31c6853eb39fc408fef16cb0b280d4c68b2cef3ead3"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/private-marker-type-emission-comparison.json",
+      "bytes": 111,
+      "sha256": "d806463d25caa506bb0133f2f626566253e8bc4be71f5831c509aeb1b7e89cd8"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/mapping/result.md",
+      "bytes": 3304,
+      "sha256": "ae3438366d031b5dd0ac150ff33ec438fe3ac596a9ed82a2768680c9e559e2b7"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/mapping/result-pins.json",
+      "bytes": 3494,
+      "sha256": "f34b11ec11697d4a80a2b668ee2bde25c9b2a1089d088ffea4200ae83874ecc4"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/mapping/observed-build.json",
+      "bytes": 1798,
+      "sha256": "70c8be09bb9798345ab8e9425d93e95c0b9c01d3e1ccbf592bf6c9b4bafef252"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/mapping/observed-build.log",
+      "bytes": 95,
+      "sha256": "6a31457237ef7fc1b99415af2d349172b2c475eb57b64b5028b93a30a7e87304"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/mapping/finite-tests.json",
+      "bytes": 612,
+      "sha256": "16d7e9fb3e1f181a9e83d1aa9dbbffcf33054cb8b9c13a315aede17555166648"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/mapping/finite-tests.log",
+      "bytes": 5127,
+      "sha256": "51f5985abfb849023a6bd122569b347a59ad98d5b6e558fbe436c3ea9df0e3d5"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/mapping/selected-static-consumer.log",
+      "bytes": 1548,
+      "sha256": "c8bce7742c1de074cad7edad8ac05f485264f96f3178ff2df563dcfa0bd6e700"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/mapping/selected-workerd-consumer.log",
+      "bytes": 1548,
+      "sha256": "e1a2a60d8fcd68b389e17cfe8c0a72083147405f98cecf8920bbd54dcb562da9"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/independent/review.json",
+      "bytes": 6475,
+      "sha256": "809bba691480c92d9e6c3c78ef93e8e30c83b5e514bcc06d193135237147bfbf"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/independent/report.md",
+      "bytes": 2871,
+      "sha256": "720ef7dacc753cf9302619be284468a928f1e8ce742bc9ffe3b8feff6c7b94d7"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/independent/probe-results.json",
+      "bytes": 6791,
+      "sha256": "db6c79cd36153c284c54db6862db5c47dba984d7a8a64d5566875b52fc00cd23"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/independent/probe-command.json",
+      "bytes": 288,
+      "sha256": "08a1439142c66a7c9c5ae04b6d5dee738ac9c8d6694a5caef871cbe3f0f33b67"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/independent/probe.log",
+      "bytes": 59,
+      "sha256": "d764801152d085ad33712b5d75649030eae57f7aa177e4e145e1ca64f3a866cd"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/independent/page-probe-failure.log",
+      "bytes": 526,
+      "sha256": "72122724f270c9e5746e63501a5945fc0230cbe68746f8e549f031ba2d1d00e1"
+    },
+    {
+      "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/independent/page-probe-failure-command.json",
+      "bytes": 288,
+      "sha256": "eb3551b33db26e3a64fb2572a3d5546652c415366aef23f2ce74541373625302"
+    }
+  ],
+  "proof_bytes": 93126,
+  "all_commands_and_writers_released": true,
+  "git": {
+    "before": "29f9d7b7eb74146569b9b370ff0b01d1a772548a",
+    "commit_pending": true,
+    "no_merge": true,
+    "no_push": true
+  },
+  "task_counts_unchanged": {
+    "finished": 20,
+    "partial": 14,
+    "open_or_blocked": 13,
+    "held": 1,
+    "total": 48
+  }
+}

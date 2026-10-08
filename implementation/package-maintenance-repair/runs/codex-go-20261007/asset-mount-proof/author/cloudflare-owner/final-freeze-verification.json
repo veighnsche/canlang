@@ -1,0 +1,73 @@
+{
+  "candidate_sources_equal": true,
+  "private_links": 378,
+  "external_links": [],
+  "critical": [
+    {
+      "relative_path": "packages/interfaces/dist/src/http/assets.js",
+      "sha256": "063bb3a203d5fba001cede801c7a823349ee552921e28c2b8e3496d0b0c55515",
+      "bytes": 5323
+    },
+    {
+      "relative_path": "packages/interfaces/dist/src/http/pages.js",
+      "sha256": "733beb8e7cae4a7cfa633fb4b5642d4e669ee66cb86dedbc95b696e0abaf6232",
+      "bytes": 13479
+    },
+    {
+      "relative_path": "packages/interfaces/dist/src/index.js",
+      "sha256": "9d27d0cea6ceb198eb6af8bc5ff1ed4d33cd2d09c359ab73a1fadcd129ada806",
+      "bytes": 1192
+    },
+    {
+      "relative_path": "packages/ui/dist/browser/bootstrap.js",
+      "sha256": "06b7907b99b6d563465abf045a0980493667cdd045b48b3fdfd4c6d79b00f9c9",
+      "bytes": 22985
+    },
+    {
+      "relative_path": "packages/ui/dist/browser/polling.js",
+      "sha256": "6edff27510aca98f9b5c4915c250d62c77b2b41d7dc0d59c9093c6e33047cadb",
+      "bytes": 7199
+    },
+    {
+      "relative_path": "packages/ui/dist/browser/can-style.css",
+      "sha256": "5cdb8bf94708637e24d344062333cb68b4efbf06b284a5f16200c54eecf46333",
+      "bytes": 1155983
+    },
+    {
+      "relative_path": "packages/ui/dist/browser/manifest.json",
+      "sha256": "03b780df55ea4d9ca3f74e9c61d5347f10de79fcb29e0192c74b9bb65ca22a25",
+      "bytes": 622
+    },
+    {
+      "relative_path": "packages/cloudflare/dist/worker/main.js",
+      "sha256": "4b64af94b82370227d3e50513f06711ff1236e8ae829eb3fc349417abdbc5a04",
+      "bytes": 22829
+    },
+    {
+      "relative_path": "packages/cloudflare/dist/worker/assembly.js",
+      "sha256": "2fbe1f9ab5361ddb1fdd8f7f349f997b71ae134bd8b7df6d0caac20b6bea0d42",
+      "bytes": 44657
+    },
+    {
+      "relative_path": "packages/cloudflare/dist/deploy/bundle.js",
+      "sha256": "4d3cae5a1f284fa37ea9d27dec8b96674b59dc823996de5eb747b12171d0b533",
+      "bytes": 66471
+    },
+    {
+      "relative_path": "packages/work/package.json",
+      "sha256": "c4ca397414147a1e544db045d2fb883aa2aa85d56c8ded8b17a188c1cf6ac906",
+      "bytes": 3220
+    },
+    {
+      "relative_path": "packages/work/dist/src/receipt/index.js",
+      "sha256": "8b72cd8794116434866f484df94de641134a905f10a69d1c811c13a9fb0e9b55",
+      "bytes": 11017
+    },
+    {
+      "relative_path": "packages/work/dist/src/receipt/index.d.ts",
+      "sha256": "f886ca7453a9246bcf61b31d5b6c3f8a629a0b238f4ad17b19875072737e480e",
+      "bytes": 8359
+    }
+  ],
+  "producer_negative_mutations_restored": true
+}

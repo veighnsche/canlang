@@ -1,0 +1,38 @@
+
+ RUN  v3.2.7 /private/tmp/canlang-repair-go-20261007/asset-mount-implementation/cloudflare-owner/workspace
+
+Sourcemap for "/private/tmp/canlang-repair-go-20261007/asset-mount-implementation/cloudflare-owner/workspace/dependencies/@modelcontextprotocol_sdk-1.32.0-bbe3863b/dist/esm/server/index.js" points to missing source files
+Sourcemap for "/private/tmp/canlang-repair-go-20261007/asset-mount-implementation/cloudflare-owner/workspace/dependencies/@modelcontextprotocol_sdk-1.32.0-bbe3863b/dist/esm/shared/protocol.js" points to missing source files
+Sourcemap for "/private/tmp/canlang-repair-go-20261007/asset-mount-implementation/cloudflare-owner/workspace/dependencies/@modelcontextprotocol_sdk-1.32.0-bbe3863b/dist/esm/server/zod-compat.js" points to missing source files
+Sourcemap for "/private/tmp/canlang-repair-go-20261007/asset-mount-implementation/cloudflare-owner/workspace/dependencies/@modelcontextprotocol_sdk-1.32.0-bbe3863b/dist/esm/types.js" points to missing source files
+Sourcemap for "/private/tmp/canlang-repair-go-20261007/asset-mount-implementation/cloudflare-owner/workspace/dependencies/@modelcontextprotocol_sdk-1.32.0-bbe3863b/dist/esm/experimental/tasks/interfaces.js" points to missing source files
+Sourcemap for "/private/tmp/canlang-repair-go-20261007/asset-mount-implementation/cloudflare-owner/workspace/dependencies/@modelcontextprotocol_sdk-1.32.0-bbe3863b/dist/esm/server/zod-json-schema-compat.js" points to missing source files
+Sourcemap for "/private/tmp/canlang-repair-go-20261007/asset-mount-implementation/cloudflare-owner/workspace/dependencies/@modelcontextprotocol_sdk-1.32.0-bbe3863b/dist/esm/validation/ajv-provider.js" points to missing source files
+Sourcemap for "/private/tmp/canlang-repair-go-20261007/asset-mount-implementation/cloudflare-owner/workspace/dependencies/@modelcontextprotocol_sdk-1.32.0-bbe3863b/dist/esm/experimental/tasks/server.js" points to missing source files
+Sourcemap for "/private/tmp/canlang-repair-go-20261007/asset-mount-implementation/cloudflare-owner/workspace/dependencies/@modelcontextprotocol_sdk-1.32.0-bbe3863b/dist/esm/experimental/tasks/helpers.js" points to missing source files
+Sourcemap for "/private/tmp/canlang-repair-go-20261007/asset-mount-implementation/cloudflare-owner/workspace/dependencies/@modelcontextprotocol_sdk-1.32.0-bbe3863b/dist/esm/server/webStandardStreamableHttp.js" points to missing source files
+Sourcemap for "/private/tmp/canlang-repair-go-20261007/asset-mount-implementation/cloudflare-owner/workspace/dependencies/@modelcontextprotocol_sdk-1.32.0-bbe3863b/dist/esm/shared/mediaType.js" points to missing source files
+Sourcemap for "/private/tmp/canlang-repair-go-20261007/asset-mount-implementation/cloudflare-owner/workspace/dependencies/@modelcontextprotocol_sdk-1.32.0-bbe3863b/dist/esm/server/requestBody.js" points to missing source files
+Sourcemap for "/private/tmp/canlang-repair-go-20261007/asset-mount-implementation/cloudflare-owner/workspace/dependencies/@modelcontextprotocol_sdk-1.32.0-bbe3863b/dist/esm/server/sseKeepAlive.js" points to missing source files
+ ✓ packages/cloudflare/test/browser-assets-serving.test.ts (11 tests) 10693ms
+   ✓ actual default Worker static asset dispatch > serves exact bytes, HEAD, query and conditional 200 while retaining ordinary authored paths  3512ms
+   ✓ actual default Worker static asset dispatch > preserves required bindings and inactive refusal without loading selected resources  1062ms
+   ✓ actual default Worker static asset dispatch > refuses collision /assets/browser/bootstrap.js through the defining page matcher  469ms
+   ✓ actual default Worker static asset dispatch > refuses collision /assets/browser/{Name} through the defining page matcher  558ms
+   ✓ actual default Worker static asset dispatch > refuses missing selected code and a corrupt staged resource manifest  1372ms
+   ✓ actual default Worker static asset dispatch > retains authored dispatch without selected browser resources  885ms
+   ✓ actual default Worker static asset dispatch > refuses selected version corruption  525ms
+   ✓ actual default Worker static asset dispatch > refuses selected module corruption  503ms
+   ✓ actual default Worker static asset dispatch > refuses selected shape corruption  454ms
+   ✓ actual default Worker static asset dispatch > refuses selected bytes corruption  857ms
+   ✓ actual default Worker static asset dispatch > refuses selected handler corruption  496ms
+ ✓ packages/cloudflare/test/browser-assets-bundle.test.ts (4 tests) 3394ms
+   ✓ selected browser resource transport > links generated write imports to the defining runtime without replacing the public facade  427ms
+   ✓ selected browser resource transport > builds deterministic defining-owner transport tied to the resource inventory  2437ms
+   ✓ selected browser resource transport > does not manufacture a mount when browser resources are unselected  524ms
+
+ Test Files  2 passed (2)
+      Tests  15 passed (15)
+   Start at  02:45:46
+   Duration  18.76s (transform 2.40s, setup 0ms, collect 4.11s, tests 14.09s, environment 0ms, prepare 95ms)
+

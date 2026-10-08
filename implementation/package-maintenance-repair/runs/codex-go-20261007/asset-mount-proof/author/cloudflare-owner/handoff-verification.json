@@ -1,0 +1,190 @@
+[
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/runtime/invoke.ts",
+    "sha256": "48f4c79ab213f0fe95b4e8e3b01dd643793ed1a345d075f27aef214101d0bbe5"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/runtime/context.ts",
+    "sha256": "6c79953696b9b5a2332d4291bfc70aee45d09b959bfa98dac609ee8f9b496450"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/runtime/modules.ts",
+    "sha256": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/runtime/stdlib.ts",
+    "sha256": "6c6d35ed8294f12e1badf4325f9553ee3eb6d2faeff1ffa1a2ac6152cba07207"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/worker/assembly.ts",
+    "sha256": "31239a80e12c6db7c51c744e22fd5e20dc69567b11781b71ce2485accb99be11"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/runtime/sourcemap.ts",
+    "sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/deploy/producer-files.ts",
+    "sha256": "8ac214b19c81f74b9cf3561cf26c4c67a43ca20f28eedc8f94ef58574b72f6ba"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/deploy/module-imports.ts",
+    "sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/deploy/module-maps.ts",
+    "sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/runtime/mcp-registry.ts",
+    "sha256": "cf8cf482728036635a1d964ab8fc94ff365eb900e3efb0a99d9f9daa69f34c14"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/runtime/verified-context.test.ts",
+    "sha256": "65cf5be12155008a41ec091d0057a01288c3e9eed7935a15972e7cd60f51fb11"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/dist/runtime/context.js",
+    "sha256": "25ebb54b6efeefbbe0934c1add9b3641f32305d7ca21d73ea8a8b9252a30acd5"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/dist/runtime/context.d.ts",
+    "sha256": "e6937b5c563084b4d859ae6c592d15025537da1b740fc98c66d1f3452901d7fc"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/dist/runtime/invoke.js",
+    "sha256": "e69a608f8a607a585c8697f5cd31982d06941473f80aadc7b9a5be63c50e81e4"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/dist/runtime/invoke.d.ts",
+    "sha256": "8bca41bd80d41fcb0219d13fe7242abb5fb7841e650d689bbdf6b18671c8ec0a"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/dist/runtime/verified-context.test.js",
+    "sha256": "7ae06b4ac6b7bcef701f55a4da49c028bec05efbd11d539cf64c2fe2b3e0d741"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/dist/runtime/modules.js",
+    "sha256": "db7d2d6da2db92a1ee393de19f14f52487b7b1a27d55818301524dfc357b2a59"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/dist/runtime/stdlib.js",
+    "sha256": "bb60997f0584c9a7334ace3647c89d927fe4821725f7a69e8332cfd9a832d4f2"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/dist/worker/assembly.js",
+    "sha256": "e00b6dc58da7ddf8733d86f19769493efc483c8f3b70181d892ad39838f92c6f"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state/dist/src/storage/port.js",
+    "sha256": "467e924a82951d104048ae19f387f8df841148ab3a416874ea74441e16faca24"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state/dist/src/storage/memory.js",
+    "sha256": "9cf46b69ebe8f928e4c95d023d2c1adc75986a2f42a17835ca72acbf4bc4d090"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state/dist/src/invocation/invoke.js",
+    "sha256": "8ec0fffa6d2c8c4580a928752fca9b382a02a696a1bab3f0a9748372f8858bc9"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state/dist/src/invocation/context.js",
+    "sha256": "227e0fb15bfa5adf3c31909d9706a5917635be03bfe6b099e7a91d3f93567fab"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state/dist/src/invocation/admission.js",
+    "sha256": "3bf0a56a243f2026104bd59380d3add236b6caf1ea88a565e01283ac659e562c"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state/dist/src/invocation/registry.js",
+    "sha256": "e7e9cdb33df5e9e87714cd3da621f3e3e9dbd0e8294f19a5763b4a9019d938fe"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state/dist/src/invocation/prepared-inputs.js",
+    "sha256": "ced9a2ec5217708e44a298201a61482121669737158b139be8a65d74e0966238"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state/dist/src/mutation/pipeline.js",
+    "sha256": "8e0a3c826ab1fb0c565103f57cf24edb39b19ee3fc49c0b2c39ef03335a4d7ba"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity/dist/src/authentication/context.js",
+    "sha256": "8a1412b3958496ebae70a74d73f455e1c8dab1c2200cf016f3329d81caf35b2f"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity/dist/src/testing.js",
+    "sha256": "c4a58dbd0b11100ce9001d77a7bcbe73caf340414b8b620c0abf80f708ebbcc1"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/values/dist/src/kinds.js",
+    "sha256": "45c3c4990042482221f22168a66dd34e044946c2b9f0d9104eb1246f487bd9ac"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/values/dist/src/temporal.js",
+    "sha256": "92a8b3d1fc67604e43f4547efa59a811590ca0d79b041e54088bfee824acb4f7"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/values/dist/src/index.js",
+    "sha256": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/contracts/dist/index.js",
+    "sha256": "7144e217dc766394fe4eaef56a5f1ef7eb272a2cd4e2907a18a8117ce4fcb36f"
+  },
+  {
+    "path": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-repair/cloudflare-tsconfig.json",
+    "sha256": "fe0c6bf80013f7e685fbf28e3dbbe2230e0f9038684261922741315127e50bae"
+  },
+  {
+    "path": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-repair/build-commands.json",
+    "sha256": "51934b6a737015d5e4c230d6e56818e806f8b10e0612bddb9b20fde70ddeca19"
+  },
+  {
+    "path": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-repair/private-snapshot.json",
+    "sha256": "f7db400fb351d037f5db0ca4e98717b051688bd3c37ec577108657442615fded"
+  },
+  {
+    "path": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-repair/support-compatibility.json",
+    "sha256": "df0e83dc3b2208851e03e4bc56c9560954c1343e582577662fa2021345382840"
+  },
+  {
+    "path": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-repair/other-selected-source-compatibility.json",
+    "sha256": "857ebabc3f8a356f971f772c64d183dd0827bc8fd088d7ac4e404c44115b6aca"
+  },
+  {
+    "path": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-repair/candidate-source-output-pins.json",
+    "sha256": "39215d659e11c23be95c6e5b97ce47de42655a78a90cc7231827127a5cdd4d35"
+  },
+  {
+    "path": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-repair-review.json",
+    "sha256": "959ae1929ddf5db21187f1f12f83aee6b458bb7a89832e07f0c4095dca110070"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/package.json",
+    "sha256": "3110b58d8d57ce356bef66c6545cfefbc2270c28542129b4ef5f9bb942998cd8"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/contracts/package.json",
+    "sha256": "77d6b51fade16c2c304664ec5ee55c820121314e7b6ab8cdca6266ce21c78bf3"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state/package.json",
+    "sha256": "d90414f00530243e1ee386b4f9e070f8f3016da23f89993bacdcec21c6997f82"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity/package.json",
+    "sha256": "bfa816930f592063f798273533fa138a0a8d9fa3a35cb3222af6d9c313fd87f4"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/values/package.json",
+    "sha256": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/ui/package.json",
+    "sha256": "5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4"
+  },
+  {
+    "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/interfaces/package.json",
+    "sha256": "8f3639d8cbbe1e5d0e4af4c1d92352fbdb66f56994c3863d54274f4258c47cad"
+  }
+]

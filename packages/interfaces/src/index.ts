@@ -14,7 +14,7 @@ export * from './envelope/refs.js';
 export * from './envelope/versions.js';
 export * from './projection/project.js';
 export * from './http/routes.js';
-export * from './http/pages.js';
+export { handlePageRequest } from './http/pages.js';
 export * from './http/operations.js';
 export * from './http/fragments.js';
 export * from './http/limits.js';
