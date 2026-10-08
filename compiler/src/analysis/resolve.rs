@@ -4525,6 +4525,22 @@ impl<'a> Resolver<'a> {
                     }
                 }
             }
+            SyntaxKind::Match => {
+                let parts = kids(node);
+                if let Some(subject) = parts.iter().find(|part| is_expression(part.kind)) {
+                    self.walk_expr(module, scope, subject, text, ExprCtx::bare(), diags)?;
+                }
+                for arm in parts
+                    .iter()
+                    .filter(|part| part.kind == SyntaxKind::MatchArm)
+                {
+                    let arm_scope = self.new_scope(Some(scope), arm.span)?;
+                    // `case` and its raw label are not lexical expressions.
+                    for statement in kids(arm).into_iter().skip(2) {
+                        self.walk_statement(text, module, arm_scope, statement, diags)?;
+                    }
+                }
+            }
             SyntaxKind::If => {
                 let parts = kids(node);
                 let mut else_at = None;
