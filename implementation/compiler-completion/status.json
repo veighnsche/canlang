@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-08T10:44:56Z",
+  "updated_utc": "2026-10-08T11:08:02Z",
   "total": 67,
   "finished_at_recorded_scope": 54,
   "remaining_including_partial": 13,
@@ -101,9 +101,9 @@
     }
   },
   "latest_component": {
-    "commit": "768e9e443016b52f0646f546b48c41d19a7ce5cb",
-    "previous_component": "f0cb18be0057942002a867dba0951fb24f319b13",
-    "outcome": "Nullable exact selected delivery extraction handles a null facade response as Can null, preserving one observation and exact keys. The revised native case passes1/1 at its host seam; genuine Cloudflare fixture qualification is runtime-owned. ARCH-02 original retain-support index is complete by reusing all five previously accepted family outcomes; zero deletion/mechanisms and no new checks. Read-scenario computed defaults remain blocked by actual State/CF read execution prerequisites, routed to their runtime owner."
+    "commit": "41b587fca9a655108b912a3f06f8550afb0ca575",
+    "previous_component": "58209f7bfc022a3f8a9a2bcf91b483c8cd548fcd",
+    "outcome": "Additive fallible SourceDb/LineIndex admission preserves exact u32 endpoints/last identity; checked refusal precedes hash/storage/path mutation. CLI files precheck opened metadata before bounded source reads; LSP logs source failures without changing last admitted state. Native sparse MAX+1 file refusal case passes1/1 for all6source tools, no output/writes; actual ordinary fmt stdin passes. Three JEV replies advise fallible owner (.94/.88/.37 confidence), weakest .58 vs .42 checkedprecondition; rationale/uncertainty retained. Standalone raw lexer/parser admission guarded before UTF8/scanning/layout/parse; fitting lexer spans/UTF8 and parser errors/coverage existingcases each1/1 pass; finalsourceCLIbuild passes. Semantic/map/output and actual giant allocation/cardinality qualification remain separate; no whole FAIL-R06 or count closure."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -128,9 +128,10 @@
     "../../compiler/tests/delivery_progress_runtime.rs",
     "retained-support-review/report.md",
     "public-fragment-support/independent-review/qualification.md",
-    "lsp-support/independent-review/review.md"
+    "lsp-support/independent-review/review.md",
+    "width-boundaries/README.md"
   ],
-  "current_source_work": "Private trusted handler invocation metadata86a8be55, standard delivery owning-schema joinbdab3576 and reserved Receipt.read producerf1d63d0a retain their accepted bounded outcomes. Ordered nonnullable scalar scenario defaults and File native profiles121688d7 pass source/native/State-omission/Values-codec controls; reference/identity/enum/collapsed-alias computed defaults, read-scenario runtime, resolved-default receipt/replay and File authority/byte transfer remain open owning joins; qualified native nullable/ordinary-array omission is recorded below. Executed default/server scope closured2fb9024 repairs actual E4051 omission while supplied overrides stay inactive. Known standard nominal construct join6dd7bf96 passes genuine TextRequest nested enum/native execution without guessed schemas. Standalone decoder endpoint repairc0a633b2 and finite source/message/diagnostic/graph widths remain bounded; extreme source/count/generated-output admission is unresolved. Anonymous format coveragee71b37cf, earlier selected-call controls and held BDD/timezone/model-rule profiles remain bounded. No broader reference or whole-suite closure is claimed. Reachable standard nominal contract emission8aa1bc33 resolves the demonstrated real Values TextRequest admission blocker using existing producer schemas; generated/native request validation passes at its declared scope. Declared progress alias74cb4cb8 qualifies checked/canonical paths. Exact flat selected-key loweringf0cb18be qualifies both progress and ordinary result children, Can null/order/Values equality and child-only grant facts in the focused native host case1/1. Defining facade8c61fc5b and Work selected projection25302017 are released; genuine Cloudflare serving remains runtime-owned. Additive computedDefault:true producer0da68bec pairs artifact/canonical profiles; direct real-State/native nullable/ordinary-array omission and suppliednull/[] controls pass at their recorded body scope. A subsequent stale grammar expectation is corrected without repeating accepted work; no overall passing run total is claimed. Actual Cloudflare serving and ref/identity/enum/collapsed-alias/read/receipt/replay joins remain owning work. Nullable selected extraction768e9e44 repairs actual null-facade indexing before Can null normalization; the focused affected host case passes1/1, genuine CF qualification is separate. Read-scenario computed defaults have actual missing State/CF marker/admission/handler-serving prerequisites; no unsupported marker promise is emitted. ARCH-02 retain-support index is reconciled from all five accepted family-specific outcomes with zero deletion/mechanisms and no repeated checks.",
+  "current_source_work": "Source-intake58209f7b and standalone-syntax41b587fc admit intrinsic u32 byte/ID ranges through fallible owning APIs, graceful CLI/LSP intake and E1008 before standalone processing. Native sparse MAX+1 file case1/1 covers6actual source tools; ordinary fmtstdin, affected lexer1/1, parser1/1 and finalCLIbuild pass. Three JEV replies advise additive fallible owner with weakest .37 confidence/.58 probability; saved uncertainty remains. Exact selected deliveryf0cb18be plus nullable extraction768e9e44 preserve child-only keys, once and Can null; native host cases pass, genuine CF workflow remains runtime-owned. Known standard constructors6dd7bf96 and reachable schemas8aa1bc33 join actual TextRequest/Values admission. Ordered native defaults121688d7/computedDefault0da68bec, executed scopeclosured2fb9024, File profiles, checked sends/schedules/trusted-handler profiles and bounded earlier receipts retain their recorded outcomes. Native nullable/ordinary-array default positive State controls pass; no overall run count is claimed for its corrected E1213 negative expectation. Read-scenario default runtime, ref/identity/enum/collapsed-alias defaults, resolved-default receipt/replay, full File authority/byte transfer, semantic registry/map/output extremes, broader UI/application/BDD and held timezone/model-rule work remain separate. ARCH-02 retains all5indexed public API families using their accepted outcomes, zero deletion/mechanisms. Historical whole-suite pins remain unchanged; no broad current closure.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
