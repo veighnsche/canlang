@@ -1,6 +1,0 @@
-Warning: Detected unsettled top-level await at file:///Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/runtime-pure-helpers/run.mjs:31
- const db=await mf.getD1Database('DB');await ensureSchema(db);const store=createD1Storage(db);
-          ^
-
-
-

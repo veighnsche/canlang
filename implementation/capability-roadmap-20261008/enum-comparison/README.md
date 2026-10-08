@@ -22,7 +22,7 @@ Generation currently has five presentation `alert require` blocks, not a stateme
 
 ## Complete authoring cost
 
-Compiler/model token counts are **not measured**. `measurements.json` reports exact UTF-8 bytes and whitespace-separated source units, including the entire app, retained comments/examples and equal added operations. Whitespace units are an authoring proxy, not compiler or model tokens; no precise token savings claim follows. A reproducible tokenizer comparison should be rerun against the accepted pin if a token value gate is required.
+Compiler/model token counts are **not measured**. `measurements.json` reports exact UTF-8 bytes and whitespace-separated source units, including the entire app, retained comments/examples and equal added operations. Whitespace units are an authoring proxy, not compiler or model tokens; no precise token savings claim follows. A reproducible tokenizer comparison should be rerun against the accepted compiler version if a token value gate is required.
 
 | Full source | Current if units | Improved if units | Proposed match units |
 | --- | ---: | ---: | ---: |
@@ -55,4 +55,4 @@ Every finite route expectation now names actor, membership, fixtures, current wo
 
 Raw sources now include current/improved-if omitted branches and all three owner-case-removal variants. Domain removals preserve full original operations/examples (which can themselves become invalid); this is a compound domain migration probe, not isolated diagnostic attribution. Isolated proposed `match` sources cover duplicate case, foreign case, wrong return type, nullable/explicitly guarded nullable, branch scope, lexical collision and unsupported wildcard. These remain uncompiled inputs to unresolved contract questions. An added ImageRun catalog case is a concrete JSON old/new catalog input paired with the full consumer sources; it does not mutate product catalog source. Effectful/awaited single-evaluation instrumentation remains a future contract vector, because inventing a legal effectful helper or execution route would exceed source preparation.
 
-`measurements.json` refreshes the twelve principal source proxies. `packet-source-costs.json` separately tallies every `.can` original, principal variant, mutation and isolated probe. `packet-source-hashes.json` pins those sources for recheck. Token counts, tokenizer/config choice, strictness opt-in source and runtime/tooling costs remain unclosed; this receipt accepts no contract, diagnostics, runtime route or whole-app outcome.
+`measurements.json` refreshes the twelve principal source proxies. `packet-source-costs.json` separately tallies every `.can` original, principal variant, mutation and isolated probe. Source inventories identify the compared inputs. Token counts, tokenizer/config choice, strictness opt-in source and runtime/tooling costs remain unclosed; this receipt accepts no contract, diagnostics, runtime route or whole-app outcome.

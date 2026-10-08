@@ -1,8 +1,0 @@
-{
-  "root": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969",
-  "build": "passed",
-  "typecheck": "passed",
-  "constructor_tests": "see exact TAP",
-  "commands_released": true
-}
-

@@ -4,7 +4,7 @@ Observation: committed `7205de218eba543acb160b839aa13b18db759faa`; exact committ
 
 **Status:** factual SEQ-005 preparation. No contract is released by this inventory. Existing accepted decisions and historical receipts retain their explicit scopes; missing joins do not gain acceptance.
 
-The detailed [F1 producer handoff](../f1-metadata/producer-handoff.json) owns the emitted/loaded type and producer map. This matrix adds downstream gates and defining owners. The original task-sequence packet gates and canonical crosswalk remain required.
+This matrix records downstream gates and defining owners. The original task-sequence packet gates and canonical crosswalk remain required.
 
 | Task / narrow output | Defining owner | Evidence boundary | Next reviewable action |
 |---|---|---|---|

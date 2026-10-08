@@ -1,4 +1,0 @@
-{
-  "packages/cloudflare/src/runtime/stdlib.ts": "6c6d35ed8294f12e1badf4325f9553ee3eb6d2faeff1ffa1a2ac6152cba07207",
-  "packages/cloudflare/test/runtime-stdlib-pure.test.ts": "6af5cdec3681419fba28eb50b96f3dd89ed605313d140306eb1b549bb12ba750"
-}

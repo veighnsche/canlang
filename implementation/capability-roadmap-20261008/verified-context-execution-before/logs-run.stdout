@@ -1,8 +1,0 @@
-{
-  "status": "verified_before_binding_failures_not_product_acceptance",
-  "observations": 13,
-  "checks": 19,
-  "failed": [],
-  "packet": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-execution-before"
-}
-

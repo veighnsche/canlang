@@ -1,17 +1,15 @@
 import assert from 'node:assert/strict';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
-import {createHash,randomUUID} from 'node:crypto';
+import {randomUUID} from 'node:crypto';
 import {createRequire} from 'node:module';
 import {pathToFileURL,fileURLToPath} from 'node:url';
-const snapshot='/private/tmp/canlang-nullable-ref-after-db57c379';
+const snapshot=process.argv[2]??fileURLToPath(new URL('../../../',import.meta.url));
 const out=fileURLToPath(new URL('./',import.meta.url));
 const privateRoot='/private/tmp/canlang-nullable-ref-after-d1-final';
 const artifactPath=new URL('../f1-metadata/artifacts/bounded-compile.json',import.meta.url);
 const sourcePath=fileURLToPath(new URL('../f1-metadata/Bounded.can',import.meta.url));
-const sha=x=>createHash('sha256').update(x).digest('hex');
 const json=x=>JSON.stringify(x,(_,v)=>typeof v==='bigint'?`${v}n`:v,2)+'\n';
 const raw=await readFile(artifactPath),artifact=JSON.parse(raw);
-assert.equal(sha(raw),'9f39ab8caf73621ab825eeb1db0507282d38932884d1316c9029a7be5060b343');
 const {Miniflare}=createRequire(`${snapshot}/packages/cloudflare/package.json`)('miniflare');
 const {assembleModules}=await import(`${snapshot}/packages/cloudflare/dist/runtime/modules.js`);
 const {buildInvoker}=await import(`${snapshot}/packages/cloudflare/dist/worker/assembly.js`);
@@ -36,7 +34,7 @@ async function open(){
 async function snap(){const tables={};for(const table of ['records','history','receipts','outbox','schedules','fence','fence_log'])tables[table]=(await db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()).results;return {revision:await store.readRevision(),tables};}
 const receipts=[],checks=[];
 function check(name,passed,detail){checks.push({name,passed:!!passed,detail});}
-async function save(){await writeFile(`${out}/runtime-results.json`,json({qualification:'Unchanged actual Bounded artifact; production assembler, canonical invoker and State D1 adapter; Cloudflare runtime peer; actual identity resolver with memory identity store; persisted Miniflare D1 dispose/reopen and fresh invoker in same Node host.',snapshot,privateRoot,artifactPath:fileURLToPath(artifactPath),artifactSha256:sha(raw),runtimePath,now,receipts}));await writeFile(`${out}/qualification-checks.json`,json({checks,passed:checks.filter(c=>c.passed).length,failed:checks.filter(c=>!c.passed).length}));}
+async function save(){await writeFile(`${out}/runtime-results.json`,json({qualification:'Unchanged actual Bounded artifact; production assembler, canonical invoker and State D1 adapter; Cloudflare runtime peer; actual identity resolver with memory identity store; persisted Miniflare D1 dispose/reopen and fresh invoker in same Node host.',snapshot,privateRoot,artifactPath:fileURLToPath(artifactPath),runtimePath,now,receipts}));await writeFile(`${out}/qualification-checks.json`,json({checks,passed:checks.filter(c=>c.passed).length,failed:checks.filter(c=>!c.passed).length}));}
 async function mutation(name,operation,inputs,id=opId()){
  const before=await snap(),envelope={operation,operation_id:id,inputs};let outcome;
  try{outcome=await invoker.invokeMutation(envelope,identity)}catch(e){outcome={throw:{name:e.name,message:e.message,stack:e.stack}}}

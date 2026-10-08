@@ -1,10 +1,12 @@
 # Can proposal implementation plans
 
+Use one direct, proportionate validation of changed behavior and a concise result. Reuse unchanged accepted checks. Do not create nested verification, review receipts, checks of checks, tests of testing code, duplicated snapshots or hash-manifest chains. Repeat a check only after a relevant change, failure or concrete unresolved risk.
+
 The plans below preserve the 21 example identities. Every selected or conditionally worthwhile proposal has a concrete implementation path. Deferred grammar has a reconsideration gate instead of an implied commitment. All steps are proposed. Existing task IDs are dependencies or aliases, never duplicate jobs or claims of new completion.
 
 ## Common release requirements
 
-Before assigning source changes, refresh the pinned baseline against current owner-approved commits and reuse accepted task slices. Record the smallest missing producer/consumer contract and obtain its owner handoff. Preserve the current package repair and compiler correctness scopes, native preparation HOLD, installed-release requirements and complete file-tree checkpoint. Narrow task releases may proceed without waiting for every unrelated programme parent.
+Before assigning source changes, inspect current owner-approved commits and reuse accepted task slices. Record the smallest missing producer/consumer contract and obtain its owner handoff. Preserve the current package repair and compiler correctness scopes, native preparation HOLD, installed-release requirements and complete file-tree checkpoint. Narrow task releases may proceed without waiting for every unrelated programme parent.
 
 For a new source feature, compare a complete current-source implementation and a complete proposed implementation with identical actors, permissions, failures, retries and retention. Count total source tokens, declarations, helper code and new public concepts. Require a demonstrated authoring reduction or prevention of a concrete error; record the cost rather than assuming syntax is beneficial. Update grammar, design, decisions, descriptions/editor support and canonical interface metadata together. Reject unsupported syntax explicitly. Capability-gate new artifact semantics and define what happens to pending work and stored data across upgrade.
 
@@ -46,7 +48,7 @@ Run focused parser/checker/emitter tests for source changes, state/interface tes
 **Selected path:** concrete ordinary composition, then a shared package/template where safe. Owners: app/package source, canonical state and identity policies, interfaces/UI. Dependencies: T04/T15/T19/T20, FP.CONTEXT, applicable identity and read-fence tasks, proposal 20. FP.INVOCATION is additionally needed only for approving protected operation values. Witnesses: ExpenseFlow, CanApprove and workbench.
 
 1. Implement expense review and image revision review with the same outcomes as their explicit current models/scenarios. Separate common evidence values from domain-specific approval/finalization policies. Prove the storage-owner mapping before shared mutating calls; use concrete source templates if an ordinary imported package cannot participate in the same transaction.
-2. Freeze the exact subject revision and review requirements. Specify eligible reviewers, distinct votes, exclusion of requester, quorum, rejection policy, expiry, escalation and re-request semantics. Decide each domain policy explicitly rather than hiding it in universal defaults.
+2. Identify the exact subject revision and approval requirements. Specify eligible reviewers, distinct votes, exclusion of requester, quorum, rejection policy, expiry, escalation and re-request semantics. Decide each domain policy explicitly rather than hiding it in universal defaults.
 3. Export typed request/approve/reject/read operations and protected review presentation. Source ownership derives schemas and actions once. Publishing/spending remains a separate authorized operation that checks current review evidence.
 4. Compare all authored models/policies/helpers between concrete duplication, a template and a package. Promote the stable API only if both domains retain their full rules with less source or a clear correctness benefit.
 
@@ -171,7 +173,7 @@ Any future plan must prove distinct storage/tool identities, no automatic role g
 
 **Disposition:** finish FP.INVOCATION and related current-authority joins. Owners: compiler canonical types, services/state, interfaces projection and protected actions. Dependencies: T04/T15/T16/T32, FP.CONTEXT and the allowed target operations.
 
-1. Normalize/freeze target identity, arguments, reference versions and provenance under the accepted finite allowlist. Reuse the existing invocation value; no string dispatcher or alternate execution endpoint.
+1. Normalize and retain target identity, arguments, reference versions and provenance under the accepted finite allowlist. Reuse the existing invocation value; no string dispatcher or alternate execution endpoint.
 2. Provide currently readable protected previews. Approve/call the exact value through current target admission, and store approval evidence with effects in the same allowed owner transaction.
 3. Qualify actual Workbench update/complete and one publication operation, including post-call invariant rollback and server-managed fields. Descriptive proposals are never execution authority.
 
@@ -182,7 +184,7 @@ Any future plan must prove distinct storage/tool identities, no automatic role g
 **Disposition:** finish source-derived judgment lowering/provider qualification. Owners: compiler judgment/catalog, contracts/services normalization, work/provider and testkit. Reuse T12/T13/T24 and FP.AW-JUDGMENT. Proposal 15's receipt/progress slice applies where the judgment is externally delivered.
 
 1. Trace the declaration's versioned rubric, static/runtime choices and generated operation/result schemas to the actual provider request and normalization path. Avoid duplicated generic request APIs.
-2. Qualify full probability distributions, completeness, numeric bounds/tolerance, score expectation and exact runtime option correspondence. Freeze the actual specification/model/usage; localized UI text must not alter inference prompts.
+2. Qualify full probability distributions, completeness, numeric bounds/tolerance, score expectation and exact runtime option correspondence. Record the actual specification/model/usage; localized UI text must not alter inference prompts.
 3. Run CanDecide or the accepted judgment consumer with provider negatives and explicit human/business policy. Measure authoring savings against manually repeated schemas only after equal validation is present.
 
 **Acceptance:** missing/extra options, malformed probabilities, out-of-range scores, mismatched version/candidate set, invalid provider output, retries and unknown usage. Never substitute argmax for a declared distribution or treat confidence as calibrated truth or authorization.

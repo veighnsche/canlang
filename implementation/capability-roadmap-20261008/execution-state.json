@@ -1,0 +1,1141 @@
+{
+  "goal": "Complete the 63-task capability roadmap with economical task workers and scoped acceptance.",
+  "client_date": "2026-10-08",
+  "plan_source": "/Users/vince/Projects/canlang/design/language-proposals-20261007/task-sequence.json",
+  "plan_sha256_at_start": "c0852b1f31e503003b08d0ecee5561288345e7baf99fa561e13280979472f391",
+  "initial_head": "c718517a5aae8481a8b548a7eb299b8c5377dee6",
+  "status": "active",
+  "git_and_shared_bookkeeping_owner": "package implementer retains scoped Git/DECISIONS/filetree; cross-chat coordination released to 01a11903-6033-78b3-b682-ee7f97196adf",
+  "goal_authorizes_implementation": true,
+  "conditional_and_original_gates_retained": true,
+  "captured_utc": "2026-10-07T22:11:06.473966+00:00",
+  "tasks": [
+    {
+      "id": "SEQ-001",
+      "number": 1,
+      "title": "Freeze the accepted source baseline",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "medium",
+      "state": "complete_at_inventory_scope",
+      "evidence": [
+        "source-inventory.md"
+      ],
+      "next_gate": [],
+      "conditional_gates": [],
+      "acceptance_scope": "Committed source inventory and receipt attribution were reconciled; dirty candidates were excluded. This closes inventory scope only."
+    },
+    {
+      "id": "SEQ-002",
+      "number": 2,
+      "title": "Agree file ownership and handoffs",
+      "model": "gpt-6-luna",
+      "reasoning_effort": "medium",
+      "state": "nullable_committed_pure_helper_frozen_selected_page_private_handoff_active_shared_owners_retained",
+      "evidence": [
+        "ownership-matrix.md"
+      ],
+      "next_gate": [
+        "SEQ-001"
+      ],
+      "conditional_gates": [],
+      "acceptance_scope": "The bounded nullable-ref writer received the exact State-source handoff. Package ownership of shared Git, DECISIONS and file-tree bookkeeping remains in force."
+    },
+    {
+      "id": "SEQ-003",
+      "number": 3,
+      "title": "Register two complete application witnesses",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "low",
+      "state": "complete_at_registration_scope",
+      "evidence": [
+        "witness-registration.md"
+      ],
+      "next_gate": [
+        "SEQ-001"
+      ],
+      "conditional_gates": [],
+      "acceptance_scope": "Two application witnesses were registered with their source and intent provenance. Concrete provider/backend instances remain a later qualification gate."
+    },
+    {
+      "id": "SEQ-004",
+      "number": 4,
+      "title": "Write the independent outcome matrix",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "complete_at_expected_outcome_preparation_scope",
+      "evidence": [
+        "app-outcomes/"
+      ],
+      "next_gate": [
+        "SEQ-003"
+      ],
+      "conditional_gates": [],
+      "worker": "/root/roadmap_app_outcomes",
+      "acceptance_scope": "Independent expected outcomes were prepared for both original workflows; semantic intent questions and execution remain open."
+    },
+    {
+      "id": "SEQ-005",
+      "number": 5,
+      "title": "Inventory and release the narrow contracts",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "inventory_verified_defining_owner_release_pending",
+      "evidence": [
+        "contract-inventory/README.md"
+      ],
+      "next_gate": [
+        "Current exact producer/consumer contracts; defining-owner acceptance of missing boundaries."
+      ],
+      "conditional_gates": [],
+      "worker": "/root/roadmap_contract_inventory",
+      "acceptance_scope": "The factual source/contract inventory is complete; defining-owner acceptance of the missing boundaries is pending."
+    },
+    {
+      "id": "SEQ-006",
+      "number": 6,
+      "title": "Prepare the enum handling comparison",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "state": "complete_at_source_comparison_preparation_scope",
+      "evidence": [
+        "enum-comparison/README.md"
+      ],
+      "next_gate": [
+        "SEQ-001"
+      ],
+      "conditional_gates": [],
+      "acceptance_scope": "The finite source comparison for added handlers/effects is complete. Grammar, values, tokens, runtime, foreign-owner and unsupported-arm behavior remain open."
+    },
+    {
+      "id": "SEQ-007",
+      "number": 7,
+      "title": "Prepare the dependent-input comparison",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "complete_at_source_comparison_preparation_scope",
+      "evidence": [
+        "dependent-input-comparison/README.md"
+      ],
+      "next_gate": [
+        "SEQ-001"
+      ],
+      "conditional_gates": [],
+      "worker": "/root/roadmap_app_outcomes",
+      "acceptance_scope": "Thirty expected dependent-input vectors were reviewed. Tokens, grammar, browser/runtime behavior and adoption value remain unqualified."
+    },
+    {
+      "id": "SEQ-008",
+      "number": 8,
+      "title": "Qualify actual emitted metadata",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "state": "partial_metadata_qualified_pure_helper_independently_accepted_and_committed",
+      "evidence": [
+        "f1-metadata/REPORT.md",
+        "runtime-pure-helpers/REPORT.md"
+      ],
+      "next_gate": [
+        "SEQ-005"
+      ],
+      "conditional_gates": [],
+      "worker": "/root/roadmap_f1_metadata_probe",
+      "acceptance_scope": "Three direct existing Values helpers (int64, datetime, compareInstant) were independently accepted and integrated in b5f3f61c. H1 typed metadata is authored; the package owner reports one build (4/4) and 14/14 focused tests passed, with package commit d495469a. This bounded metadata slice does not close full SEQ-008.",
+      "unresolved_gate": "Broader canonical representability, actual typed scalar/default/input/hydration, duration publication and ownership contracts remain. NumericControl typed conversion and int64 hydration require State/runtime handoffs; original runtime execution and exact void-result replay remain open.",
+      "commit": "b5f3f61c5a7aa942cc9e535312bc848fe21cf497",
+      "current_metadata_substep": {
+        "scope": "H1 shared typed metadata only; no typed execution activation",
+        "owner_reported_result": "one canonical build4/4 and one focused Node test invocation14/14 passed",
+        "integration": "ready for package-owned scoped commit",
+        "full_task_complete": false
+      }
+    },
+    {
+      "id": "SEQ-009",
+      "number": 9,
+      "title": "Qualify canonical mutation and replay",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "bounded_nullable_repair_accepted_and_committed_broader_f1_open",
+      "evidence": [
+        "f1-invocation/REPORT.md",
+        "f1-invocation/runtime-results.json",
+        "nullable-ref-repair/REPORT.md"
+      ],
+      "next_gate": [
+        "SEQ-008"
+      ],
+      "conditional_gates": [],
+      "worker": "/root/roadmap_f1_invocation",
+      "acceptance_scope": "The bounded nullable-ref correction is committed as 06bc25d1. Full canonical mutation/replay still requires typed input/default/hydration, exact void-result replay, context and installed-provider contracts.",
+      "unresolved_gate": "Bounded nullable correction is committed after exact source-contract lease,97owning checks, real unchanged-artifact D1 qualification and independent review. Full canonical mutation/replay still requires typed input/default/hydration, exact void-result replay, context and installed-provider contracts.",
+      "commit": "06bc25d1dd12fec6bd1f66502f93b09dddab1b06"
+    },
+    {
+      "id": "SEQ-010",
+      "number": 10,
+      "title": "Carry verified context through every used scope",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "bounded_context_binding_independently_accepted_and_committed",
+      "evidence": [
+        "verified-context-inventory/README.md",
+        "verified-context-repair/REPORT.md"
+      ],
+      "next_gate": [
+        "SEQ-008"
+      ],
+      "conditional_gates": [],
+      "worker": "/root/roadmap_contract_inventory; Sol medium factual substep only",
+      "acceptance_scope": "The bounded canonical admitted-context binding is committed as 29f9d7b7. Full actor facts, other context scopes, durable/installed execution and complete workflows remain open.",
+      "unresolved_gate": "memory evidence only. Full actor facts, other context scopes, durable/installed execution and complete original workflows remain open.",
+      "next_owner_handoff": "Commit integrated by package coordinator; runtime owner retains new writer coordination.",
+      "factual_authfact_preparation": {
+        "worker": "/root/roadmap_contract_inventory",
+        "model": "gpt-6.1-sol",
+        "effort": "medium",
+        "evidence": "authenticated-actor-carrier-facts/README.md",
+        "scope": "Read-only user codec/clone/JSON facts only; no adopted fullactorcarrier. Enumerableextra facts surviveclone/JSON/membercopy; typedencode erases anddecode refuses. Actualfield/returnmutation notexecuted."
+      },
+      "commit": "29f9d7b7eb74146569b9b370ff0b01d1a772548a"
+    },
+    {
+      "id": "SEQ-011",
+      "number": 11,
+      "title": "Enforce ordered rules and machine protection",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-009",
+        "SEQ-010"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-012",
+      "number": 12,
+      "title": "Enforce current authorized reads and fences",
+      "model": "gpt-6-astra",
+      "reasoning_effort": "medium",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-009",
+        "SEQ-010"
+      ],
+      "conditional_gates": [],
+      "acceptance_scope": "A State read-selection precursor passed one build and 17/17 focused tests, then was handed to the package Git owner. This is not full Task 12 acceptance."
+    },
+    {
+      "id": "SEQ-013",
+      "number": 13,
+      "title": "Produce complete canonical form descriptors",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-008",
+        "SEQ-010"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-014",
+      "number": 14,
+      "title": "Join browser and MCP submissions",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-009",
+        "SEQ-012",
+        "SEQ-013"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-015",
+      "number": 15,
+      "title": "Qualify a read-only page and installed polling",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "state": "current_producer_page_correspondence_independently_accepted_broader_readonly_polling_open",
+      "evidence": [
+        "../../compiler/tests/state_machines.rs",
+        "../../compiler/tests/fixtures/state-machine-consumer.mjs",
+        "../state-machines/integration-verification.json",
+        "../compiler-completion/selected-page-cli-handoff.json",
+        "selected-page-refresh/report.md"
+      ],
+      "next_gate": [
+        "SEQ-008",
+        "SEQ-010",
+        "SEQ-012"
+      ],
+      "conditional_gates": [],
+      "acceptance_scope": "The unchanged Images source and compiled artifact correspond for the selected memory consumer. This producer check does not qualify production authorized queries/read fences, verified page context, browser/assets/installed mount/cache or full Task 15.",
+      "unresolved_gate": "Supplied syntheticidentity/memory/store.load query/fixedpoll token remain testcontext. Production authorizedquery/readfences, verified pagecontext, actualbrowser/assets/installedmount/cache and compatibility gates remain open with package owner."
+    },
+    {
+      "id": "SEQ-016",
+      "number": 16,
+      "title": "Qualify refresh with editable forms",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-014",
+        "SEQ-015"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-017",
+      "number": 17,
+      "title": "Stage a generated external effect atomically",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-009",
+        "SEQ-010"
+      ],
+      "conditional_gates": [
+        {
+          "when": "operation declares rules or current spending predicates",
+          "tasks": [
+            "SEQ-011",
+            "SEQ-012"
+          ],
+          "reason": "Apply the operation-specific rule and authority gates before accepting this generated send."
+        }
+      ]
+    },
+    {
+      "id": "SEQ-018",
+      "number": 18,
+      "title": "Qualify a scoped durable dispatcher and provider",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-017"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-019",
+      "number": 19,
+      "title": "Qualify keyed scheduling and dispatch guards",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-009",
+        "SEQ-010"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-020",
+      "number": 20,
+      "title": "Qualify a scoped authorized receipt observer",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-018",
+        "SEQ-012"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-021",
+      "number": 21,
+      "title": "Qualify typed generation progress",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-020"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-022",
+      "number": 22,
+      "title": "Qualify targeted stop and reconciliation",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-021"
+      ],
+      "conditional_gates": [
+        {
+          "when": "a deadline branch is qualified",
+          "tasks": [
+            "SEQ-019"
+          ],
+          "reason": "A targeted stop alone does not require keyed scheduling."
+        }
+      ]
+    },
+    {
+      "id": "SEQ-023",
+      "number": 23,
+      "title": "Qualify generic canonical file transfer",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-009",
+        "SEQ-010"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-024",
+      "number": 24,
+      "title": "Finalize provider outputs into the receiving app",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-021",
+        "SEQ-023"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-025",
+      "number": 25,
+      "title": "Render the complete generation lifecycle",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-014",
+        "SEQ-015",
+        "SEQ-021"
+      ],
+      "conditional_gates": [
+        {
+          "when": "the gallery renders finalized real outputs",
+          "tasks": [
+            "SEQ-024"
+          ],
+          "reason": "Progress/guard UI preparation may proceed before file finalization; real gallery acceptance requires it."
+        }
+      ]
+    },
+    {
+      "id": "SEQ-026",
+      "number": 26,
+      "title": "Execute the whole private image journey",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-011",
+        "SEQ-016",
+        "SEQ-018",
+        "SEQ-020",
+        "SEQ-022",
+        "SEQ-024",
+        "SEQ-025"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-027",
+      "number": 27,
+      "title": "Qualify image schema and pending-work upgrades",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-026"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-028",
+      "number": 28,
+      "title": "Choose the bounded exhaustive surface",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-005",
+        "SEQ-006"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-029",
+      "number": 29,
+      "title": "Implement the selected enum coverage analysis",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-028"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-030",
+      "number": 30,
+      "title": "Lower exhaustive branches through existing execution",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-029"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-031",
+      "number": 31,
+      "title": "Complete enum tooling and specification",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-029",
+        "SEQ-030"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-032",
+      "number": 32,
+      "title": "Independently qualify exhaustive handling",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-030",
+        "SEQ-031"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-033",
+      "number": 33,
+      "title": "Specify the dependent input contract",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-005",
+        "SEQ-007"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-034",
+      "number": 34,
+      "title": "Implement the checked dependent descriptor",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-012",
+        "SEQ-014",
+        "SEQ-033"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-035",
+      "number": 35,
+      "title": "Implement the authorized lookup route",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-012",
+        "SEQ-014",
+        "SEQ-033"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-036",
+      "number": 36,
+      "title": "Implement dependent control interaction",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-014",
+        "SEQ-033"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-037",
+      "number": 37,
+      "title": "Qualify dependent forms vertically",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-034",
+        "SEQ-035",
+        "SEQ-036"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-038",
+      "number": 38,
+      "title": "Implement concrete approval protocols",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-009",
+        "SEQ-011",
+        "SEQ-012",
+        "SEQ-014"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-039",
+      "number": 39,
+      "title": "Finish reviewed invocation value execution",
+      "model": "gpt-6-astra",
+      "reasoning_effort": "medium",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-009",
+        "SEQ-011",
+        "SEQ-012",
+        "SEQ-014"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-040",
+      "number": 40,
+      "title": "Execute the whole approval application",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-038",
+        "SEQ-014",
+        "SEQ-011",
+        "SEQ-012"
+      ],
+      "conditional_gates": [
+        {
+          "when": "approval app uses files",
+          "tasks": [
+            "SEQ-023"
+          ],
+          "reason": "Qualify original file retention/authority."
+        },
+        {
+          "when": "approval app stores protected invocation values",
+          "tasks": [
+            "SEQ-039"
+          ],
+          "reason": "Qualify exact reviewed target/value execution."
+        }
+      ]
+    },
+    {
+      "id": "SEQ-041",
+      "number": 41,
+      "title": "Prove accounting units and ownership",
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-005"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-042",
+      "number": 42,
+      "title": "Implement admission hold and request staging",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-009",
+        "SEQ-011",
+        "SEQ-012",
+        "SEQ-017",
+        "SEQ-041"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-043",
+      "number": 43,
+      "title": "Implement verified settlement and late usage",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-042"
+      ],
+      "conditional_gates": [
+        {
+          "when": "settling generation usage",
+          "tasks": [
+            "SEQ-021"
+          ],
+          "reason": "Other resources need their own released verified-usage contract."
+        }
+      ]
+    },
+    {
+      "id": "SEQ-044",
+      "number": 44,
+      "title": "Test cancellation reuse in a second consumer",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-019",
+        "SEQ-022"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-045",
+      "number": 45,
+      "title": "Implement explicit domain recovery",
+      "model": "gpt-6-astra",
+      "reasoning_effort": "medium",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-018",
+        "SEQ-020"
+      ],
+      "conditional_gates": [
+        {
+          "when": "payment recovery is selected",
+          "tasks": [],
+          "reason": "The original canonical FP.AW-PAYMENTS adapter task and definite-effect/reconcile contract are required; no new payment task is invented."
+        }
+      ]
+    },
+    {
+      "id": "SEQ-046",
+      "number": 46,
+      "title": "Finish typed judgment generation and validation",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-008",
+        "SEQ-018",
+        "SEQ-020"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-047",
+      "number": 47,
+      "title": "Finish authorized corpus lifecycle and disclosure",
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-008",
+        "SEQ-012",
+        "SEQ-018",
+        "SEQ-020",
+        "SEQ-023"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-048",
+      "number": 48,
+      "title": "Qualify the existing cohort executor",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-009",
+        "SEQ-012",
+        "SEQ-017"
+      ],
+      "conditional_gates": [
+        {
+          "when": "cohort children dispatch external provider work",
+          "tasks": [
+            "SEQ-018"
+          ],
+          "reason": "Qualify the selected child provider/durable dispatcher; internal canonical children do not wait for image generation."
+        }
+      ]
+    },
+    {
+      "id": "SEQ-049",
+      "number": 49,
+      "title": "Qualify reviewed CSV invocation",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-012",
+        "SEQ-014"
+      ],
+      "conditional_gates": [
+        {
+          "when": "selected CSV inputs contain files",
+          "tasks": [
+            "SEQ-023"
+          ],
+          "reason": "Consume the applicable finalized file bridge."
+        }
+      ]
+    },
+    {
+      "id": "SEQ-050",
+      "number": 50,
+      "title": "Decide and implement only a thin bulk surface",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-048",
+        "SEQ-049"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-051",
+      "number": 51,
+      "title": "Pilot wizard presentation when resume is needed",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-014"
+      ],
+      "conditional_gates": [
+        {
+          "when": "private drafts contain files",
+          "tasks": [
+            "SEQ-023"
+          ],
+          "reason": "Qualify finalization, expiry, discard and authorization for those files."
+        }
+      ]
+    },
+    {
+      "id": "SEQ-052",
+      "number": 52,
+      "title": "Pilot typed views when custom content repeats",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-005"
+      ],
+      "conditional_gates": [
+        {
+          "when": "the reusable subtree includes forms or actions",
+          "tasks": [
+            "SEQ-014"
+          ],
+          "reason": "A read-only view needs its actual renderer, not a generic form prerequisite."
+        }
+      ]
+    },
+    {
+      "id": "SEQ-053",
+      "number": 53,
+      "title": "Pilot versioned calendar helpers",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-005"
+      ],
+      "conditional_gates": [
+        {
+          "when": "a durable scheduled calendar witness is executed",
+          "tasks": [
+            "SEQ-019"
+          ],
+          "reason": "Pure versioned date calculation remains independent."
+        }
+      ]
+    },
+    {
+      "id": "SEQ-054",
+      "number": 54,
+      "title": "Pilot the smallest useful flat-machine reuse",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-011"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-055",
+      "number": 55,
+      "title": "Measure and conditionally pilot push",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-015"
+      ],
+      "conditional_gates": [
+        {
+          "when": "push refreshes editable forms",
+          "tasks": [
+            "SEQ-016"
+          ],
+          "reason": "Read-only push consumes the read-only installed route from task15."
+        }
+      ]
+    },
+    {
+      "id": "SEQ-056",
+      "number": 56,
+      "title": "Reconsider bounded durable await only after evidence",
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-018",
+        "SEQ-020"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-057",
+      "number": 57,
+      "title": "Reconsider compensation grammar only after recovery reuse",
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-045"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-058",
+      "number": 58,
+      "title": "Reconsider package parameters only after concrete reuse",
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-005"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-059",
+      "number": 59,
+      "title": "Reconsider richer statecharts only for a real workflow",
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [
+        "SEQ-011"
+      ],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-060",
+      "number": 60,
+      "title": "Review and integrate each released slice",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "reviewed_documentation_evidence_preserved_product_integration_pending",
+      "evidence": [],
+      "next_gate": [],
+      "conditional_gates": [],
+      "acceptance_scope": "Roadmap documentation and evidence were committed as 4475990f; no product integration or living-plan checkpoint advance is claimed."
+    },
+    {
+      "id": "SEQ-061",
+      "number": 61,
+      "title": "Qualify the claimed installed and durable scope",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-062",
+      "number": 62,
+      "title": "Reconcile coverage and decisions after integration",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "state": "not_started",
+      "evidence": [],
+      "next_gate": [],
+      "conditional_gates": []
+    },
+    {
+      "id": "SEQ-063",
+      "number": 63,
+      "title": "Publish the capability evidence and remaining gates",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "low",
+      "state": "interim_status_snapshot_recorded_final_report_pending",
+      "evidence": [
+        "proposal-status.md",
+        "proposal-status.json"
+      ],
+      "next_gate": [],
+      "conditional_gates": [],
+      "acceptance_scope": "Interim 21-proposal/63-task snapshot only; no proposal workflow or final reporting gate closed."
+    }
+  ],
+  "current_source_observation": "db57c3794d386fcd27f17f54b199272d58106a81",
+  "source_registration_verified": [
+    "draft/CanCreative.can",
+    "draft/CanCreative.md",
+    "draft/CanCreative.mjs",
+    "draft/CanChat.can",
+    "draft/CanChat.md",
+    "draft/CanChat.mjs",
+    "draft/CanApprove.can",
+    "draft/CanApprove.md",
+    "draft/CanApprove.mjs",
+    "draft/shared/Employees.can",
+    "draft/shared/Locations.can",
+    "draft/WORKSPACE_OPERATOR.md",
+    "draft/PORTFOLIO.md",
+    "design/complex-apps/chat-media.md",
+    "design/language-proposals-20261007/draft-intent-hashes.json",
+    "design/language-proposals-20261007/draft-intent-excerpts.md",
+    "design/language-proposals-20261007/historical-draft-excerpts.md"
+  ],
+  "source_provenance_resolution": "October7ignored-local ledger retained historically; current clean nested draft repository matches outer160000gitlink at a55a0f7. Outer submodule status has uninitialized marker; no submodule mutation.",
+  "read_handoffs": [
+    {
+      "owner_thread": "01a10c5a-0fb5-7343-9659-c3efab311c0c",
+      "scope": "Private frozen committed State invocation/mutation/default/atomic, contracts artifact/execution and Cloudflare context/invoke/stdlib snapshot probes. No main product writes.",
+      "original_vectors": "Explicit/omitted read selectors; secrecy/grants; current membership revocation with held identity; first errors/effect order; replay projection/admission reevaluation; real adapter/barriers for durable claims.",
+      "source_ownership": "Shared Git/DECISIONS/filetree and active UI bootstrap/polling remain with package coordinator."
+    },
+    {
+      "owner_thread": "01a10c5a-0fb5-7343-9659-c3efab311c0c",
+      "scope": "Renewed frozen db57 and private output read/commands for finiteBoundedmutation/default/ref/flat-machine/replay; no conflicting owner known.",
+      "source_ownership": "No shared product edits/dependency publication; sharedGit/DECISIONS/filetree retain coordinator. UI synchronouscleanup released8a34b582; noactiveUIwriter now.",
+      "status": "active_bounded_snapshot_probe"
+    }
+  ],
+  "updated_utc": "2026-10-08T01:20:00Z",
+  "progress_reporting": {
+    "user_requested": true,
+    "format": "done / 63 after every finished roadmap task; report partial slices separately without incrementing full-task count",
+    "completed_tasks": [
+      "SEQ-001",
+      "SEQ-003",
+      "SEQ-004",
+      "SEQ-006",
+      "SEQ-007"
+    ],
+    "done": 5,
+    "total": 63,
+    "acceptance_rule": "A task counts when its declared deliverable/done_when and applicable stage/owner/original gates are accepted; bounded implementation substeps do not close parent tasks. Per-slice/conditional tasks retain their specific gates."
+  },
+  "execution_policy_update": {
+    "reason": "Human appointed a separate coordinator and explicitly limited validation to one direct layer.",
+    "actions": [
+      "Keep implementation moving on disjoint owned paths; coordinator performs no code review.",
+      "Reuse accepted unchanged results; repeat focused checks only for relevant edits, failures or concrete unresolved risks.",
+      "Do not generate nested evidence packets, reviews of reviews or tests of testing code.",
+      "Serialize heavy local builds within measured Mac RAM capacity; lightweight checks and editing continue.",
+      "Report full roadmap completion separately from bounded substeps; preserve existing product scope and human holds."
+    ]
+  },
+  "coordination": {
+    "thread_id": "01a11903-6033-78b3-b682-ee7f97196adf",
+    "note": "implementation/coordination/README.md",
+    "heartbeat_id": "coordinate-can-implementation",
+    "interval_minutes": 15,
+    "coordination_files_released": true,
+    "former_coordinator_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+    "former_coordinator_role": "implementation",
+    "role": "cross-chat allocation, overlap prevention, resources and task status; no code review",
+    "validation": "one direct proportionate layer; no nested proof or review chains"
+  },
+  "live_handoffs": {
+    "h1_typed_metadata": {
+      "state": "bounded_slice_committed",
+      "commit": "d495469a",
+      "recorded_checks": "one build 4/4; focused tests 14/14",
+      "limit": "Does not close SEQ-008; compiler int/void result producer is available, State typed staging and Cloudflare invoke.ts release remain pending."
+    },
+    "state_read_selection": {
+      "state": "precursor_handed_to_package_git_owner",
+      "recorded_checks": "one build; focused tests 17/17",
+      "limit": "Does not close SEQ-012."
+    }
+  }
+}

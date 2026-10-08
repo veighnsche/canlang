@@ -1,2 +1,0 @@
-// Generated pure helpers retain their Values producer identity.
-export { int64, datetime, compareInstant } from '@canlang/values';

@@ -1,4 +1,0 @@
-TypeError: store.queryAll is not a function
-    at snapshot (file:///Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-execution-before/run.mjs:87:218)
-    at async invoke (file:///Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-execution-before/run.mjs:93:16)
-    at async file:///Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-execution-before/run.mjs:97:17

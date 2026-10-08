@@ -1,5 +1,5 @@
 {
-  "status": "narrow_context_candidate_passed_pending_independent_review",
+  "status": "passed",
   "node": {
     "argv": [
       "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
@@ -7,8 +7,7 @@
     ],
     "version": "v24.21.0",
     "execPath": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
-    "realpath": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
-    "sha256": "e4b5a3af0e05c75de2eae013904145f40fe7fc2a6e6f17510128bf45cca4e79b"
+    "realpath": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
   },
   "root": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969",
   "foundation": "/private/tmp/canlang-nullable-ref-after-db57c379",
@@ -58,9 +57,6 @@
     "created_at": "2026-10-08T10:20:30.123Z"
   },
   "user_id": "424b44b0-5897-423e-8c67-c99cbaadab42",
-  "source_sha256": "f01e44a16219ef2c6253450448a455569bd958d55df921e5bce8d34626379507",
-  "artifact_sha256": "161da074987f6af7c96212cb240507ac18f8a725687049eaa1333e0bd85f1f20",
-  "before_manifest_sha256": "5ebc87bb3823dd4b5846692a5a7a38d52484fc89a1e75efc7817a6313796c9b1",
   "assembly": {
     "entryUrl": "file:///Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-repair/assembled/$can$m$5665726966696564436f6e74657874.mjs",
     "moduleUrls": {

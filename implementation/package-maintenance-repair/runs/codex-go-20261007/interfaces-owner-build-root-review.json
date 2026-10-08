@@ -16,10 +16,8 @@
     "maintained_test_bytes_delta": 78,
     "maintained_test_lines_delta": 4
   },
-  "actual_owner_recipe": "unmodified bun run build\u2192scripts/build-package.mjs/taskEnvironment\u2192original strict noEmitOnError tsc and fixtures; actualbeforeexit1 TS2322, afterexit0",
+  "actual_owner_recipe": "unmodified bun run build→scripts/build-package.mjs/taskEnvironment→original strict noEmitOnError tsc and fixtures; actualbeforeexit1 TS2322, afterexit0",
   "independent_review": {
-    "path": "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/review.json",
-    "sha256": "c21c1e4313fc9d37360f3937eb623740692ac1df2f1e6c7e7444b5e177656400",
     "author": "/root/interfaces_owner_build_review",
     "model": "gpt-6.1-sol",
     "reasoning_effort": "medium",
@@ -58,71 +56,5 @@
   "readers_writers_commands_released_for_this_snapshot": true,
   "commit_pending": false,
   "whole_attributable_cost": "Required owning regression typing correction only; proof separate, no library reduction claim",
-  "evidence_pins": {
-    "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/review.json": {
-      "sha256": "c21c1e4313fc9d37360f3937eb623740692ac1df2f1e6c7e7444b5e177656400",
-      "bytes": 1160
-    },
-    "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/verification.json": {
-      "sha256": "79e44c5a5b6017efb6c0e7206b2533acc7aa4aeaf3ff4433a4dee664a3f1e4e5",
-      "bytes": 2377
-    },
-    "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/commands.json": {
-      "sha256": "205864623c630043d247e4ee5d7c1e463806ab7a97e435910dc38b33e6564e9d",
-      "bytes": 1235
-    },
-    "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/runtime-identities.json": {
-      "sha256": "a827b4fba4cb840aa9205d7ce78eb0561bd36e885cc468bbae7029773341b396",
-      "bytes": 465
-    },
-    "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/compiled-test-node26.log": {
-      "sha256": "2c68d63915b97f7e7dc84b663d5e9be11b573231ccb8ba92f9c48b57d8ba9970",
-      "bytes": 1358
-    },
-    "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/consumer-node24.json": {
-      "sha256": "6015de654e6ccc41d05bd6af0c0faf506df271fd4fb0663a09704be90ee89259",
-      "bytes": 28965
-    },
-    "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/consumer-node26.json": {
-      "sha256": "1c8dbbaa6c4c62ad4626812252add363fff4e6af7f6bcb2f003cf12f31832409",
-      "bytes": 28953
-    },
-    "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/consumer-node24.log": {
-      "sha256": "b5847e8b0c45270be297b412f7afe5b614fd5089172e60af0c520912246ec78b",
-      "bytes": 80
-    },
-    "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/consumer-node26.log": {
-      "sha256": "4cfac056a5dfe598915e5c2ef16503ec2bcb5583e984f17e47f116bea7591297",
-      "bytes": 80
-    },
-    "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/source-equality-before.json": {
-      "sha256": "bb8c51821544c6ecec9236eb97c944fb26a480025984aa6e0c282943f9376eed",
-      "bytes": 22734
-    },
-    "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/source-equality-after.json": {
-      "sha256": "b65f7e54d95e7e0104f460fccc095bd72a85b31b211c8bdd9f23220260ba1859",
-      "bytes": 22736
-    },
-    "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/accepted-closure-comparison.json": {
-      "sha256": "57e28f149c02425bfa9a364ebd34bc66b4a023c2963c7d2904a9c0974ea57ab5",
-      "bytes": 2071
-    },
-    "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/dependency-original-comparison.json": {
-      "sha256": "063ebc3725a0891ffc82b99a58fea433c14ad563d46a51f8197e2f96d9f08973",
-      "bytes": 3172
-    },
-    "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/findings.txt": {
-      "sha256": "e3152c4c99c0d61e784e570b24eec4fe3896d87d5a6a3e1e6623fefec5727ef9",
-      "bytes": 4931
-    },
-    "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/pins.json": {
-      "sha256": "4492fd6a510c073431a723d6763c66c37b2205b4d9a1f83939c9701360537aeb",
-      "bytes": 1440
-    },
-    "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/outside-consumer/consumer.mjs": {
-      "sha256": "e5bde8530b1d4457d59453ec201d44a2e08368212f780247fcd119799eaf5ce7",
-      "bytes": 3033
-    }
-  },
   "commit": "9f63a132bdffd8d850fdf3c54205fea416ddd232"
 }
