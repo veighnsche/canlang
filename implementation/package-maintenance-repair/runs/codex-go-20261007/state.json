@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T09:37:00.414497+00:00",
+  "updated_utc": "2026-10-08T09:45:02.737693+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1783,7 +1783,20 @@
       "commands_live": false,
       "correction": "DESIGN:103 ordinary bound refs keep admitted metadata/version v while fields read staged rows. Actual observedVersion returns4 while committed row5. Same compiler fixture regenerated; final owning CF emit and affected D1 profile1/1 passed; other direct results reused.",
       "commit": "61baff85",
-      "correction_commit": "342f225a"
+      "correction_commit": "342f225a",
+      "checked_file_metadata": {
+        "status": "Root directly reviewed released checked File State metadata extension; scoped commit ready",
+        "files": [
+          "packages/state/src/invocation/registry.ts",
+          "packages/state/src/mutation/models.ts",
+          "packages/state/test/typed-artifact-metadata.test.ts"
+        ],
+        "scope": "Existing checked scalar/model/input/result profiles admit file,file?,file[],file[]?; no new codec, authority or public interface",
+        "validation": "Normal State TypeScript emit0; focused checked File metadata/refusal/normal-prepared admission suite2/2, unchanged checks reused",
+        "model": "gpt-6.1-sol medium: finite multiple closed-profile gates and consumer ownership; no architectural escalation",
+        "sources_outputs_handles_released": true,
+        "limits": "Metadata/admission only; legacy presence-only remains, actual Values/Compiler/native Files consumer qualification is owning Roadmap next gate; root48 counts unchanged"
+      }
     }
   },
   "previous_goal_turn_classification": {
