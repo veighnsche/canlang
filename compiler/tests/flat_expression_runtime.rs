@@ -338,9 +338,18 @@ fn enum_claims_and_membership_execute_with_binding_and_order_controls() {
         ("date", "date"),
         ("datetime", "datetime"),
         ("contract", "ValuePair"),
+        ("money", "money"),
     ] {
         source.push_str(&format!(
-            " derive {family}Equal(a:{ty},b:{ty}):bool = a==b\n derive {family}Member(a:{ty},values:{ty}[]):bool = a in values\n"
+            " derive {family}Equal(a:{ty},b:{ty}):bool = a==b\n derive {family}Member(a:{ty},values:{ty}[]):bool = a in values\n derive {family}NullableEqual(a:{ty}?,b:{ty}?):bool = a==b\n derive {family}NullableNotEqual(a:{ty}?,b:{ty}?):bool = a!=b\n"
+        ));
+    }
+    for (name, left, right) in [
+        ("intDecimal", "int", "decimal"),
+        ("decimalInt", "decimal", "int"),
+    ] {
+        source.push_str(&format!(
+            " derive {name}Equal(a:{left},b:{right}):bool = a==b\n derive {name}NotEqual(a:{left},b:{right}):bool = a!=b\n"
         ));
     }
     source.push_str(" derive intInDecimal(a:int,values:decimal[]):bool = a in values\n derive decimalInInt(a:decimal,values:int[]):bool = a in values\n");
@@ -391,6 +400,7 @@ const nativeCases=[
  ['date','date',decodeValue('date','2026-10-04'),decodeValue('date','2026-10-04'),decodeValue('date','2026-10-05')],
  ['datetime','datetime',decodeValue('datetime','2026-10-04T12:34:56.789Z'),decodeValue('datetime','2026-10-04T12:34:56.789Z'),decodeValue('datetime','2026-10-04T12:34:56.790Z')],
  ['contract','Joins.ValuePair',{value:7n,label:'pair'},{label:'pair',value:7n},{value:8n,label:'pair'}],
+ ['money','money',decodeValue('money',{minor:'100',currency:'EUR'}),decodeValue('money',{minor:'100',currency:'EUR'}),decodeValue('money',{minor:'101',currency:'EUR'})],
 ];
 for(const [family,type,left,equal,unequal]of nativeCases){
  assert.notEqual(left,equal,family+' separate values');
@@ -403,8 +413,25 @@ for(const [family,type,left,equal,unequal]of nativeCases){
  Object.defineProperty(values,1,{get(){scan.push(1);return equal;}});
  Object.defineProperty(values,2,{get(){throw Error('membership scanned after match');}});
  assert.equal(await call(family+'Member')(context,left,values),true,family+' matching scan');assert.deepEqual(scan,[0,1]);
+ for(const [a,b,expected]of [[null,null,true],[null,left,false],[left,null,false],[left,equal,true],[left,unequal,false]]){
+  assert.equal(equalValue(type+'?',a,b),expected,family+' owning nullable equality');
+  assert.equal(await call(family+'NullableEqual')(context,a,b),expected,family+' nullable equality');
+  assert.equal(await call(family+'NullableNotEqual')(context,a,b),!expected,family+' nullable inequality');
+ }
 }
 assert.equal(await call('decimalEqual')(context,parseDecimal('1.50'),parseDecimal('1.50')),true,'equal-scale decimal copies');
+for(const [integer,decimal,expected]of [
+ [2n,parseDecimal('2.00'),true],
+ [2n,parseDecimal('2.01'),false],
+ [9007199254740993n,parseDecimal('9007199254740993.00'),true],
+ [9007199254740993n,parseDecimal('9007199254740992.00'),false],
+]){
+ for(const [name,a,b]of [['intDecimal',integer,decimal],['decimalInt',decimal,integer]]){
+  assert.equal(equalValue('decimal',a,b),expected,name+' owning exact equality');
+  assert.equal(await call(name+'Equal')(context,a,b),expected,name+' exact equality');
+  assert.equal(await call(name+'NotEqual')(context,a,b),!expected,name+' exact inequality');
+ }
+}
 for(const [name,type,left,equal,unequal]of [
  ['intInDecimal','decimal',2n,parseDecimal('2.00'),parseDecimal('2.01')],
  ['decimalInInt','int',parseDecimal('2.00'),2n,3n],

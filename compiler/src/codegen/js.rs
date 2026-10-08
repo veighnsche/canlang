@@ -2551,6 +2551,22 @@ impl<'a> Emitter<'a> {
             let js_op = if negate { "!==" } else { "===" };
             return format!("{l} {js_op} {r}");
         }
+        // Nullable values must apply the owning null rules before a scalar
+        // comparator or reference helper sees either operand. Hook carrier
+        // qualification remains on its existing lowering paths.
+        if !self.in_hook()
+            && (matches!(left.ty, ResolvedType::Nullable(_))
+                || matches!(right.ty, ResolvedType::Nullable(_)))
+        {
+            self.stdlib.insert("equalValue".to_string());
+            let ty = if matches!(left.ty, ResolvedType::Nullable(_)) {
+                &left.ty
+            } else {
+                &right.ty
+            };
+            let id = self.canonical_type_id(ty, span);
+            return negate_call(negate, &format!("equalValue({}, {l},{r})", js_string(&id)));
+        }
         // Stored rows compare by reference identity; contracts, arrays and
         // objects compare structurally so they are never compared by
         // JavaScript object identity.
@@ -2594,7 +2610,8 @@ impl<'a> Emitter<'a> {
                 self.stdlib.insert("equalMoney".to_string());
                 negate_call(negate, &format!("equalMoney({l},{r})"))
             }
-            (Some(ScalarFamily::Decimal), Some(ScalarFamily::Decimal)) => {
+            (Some(ScalarFamily::Decimal), Some(ScalarFamily::Decimal | ScalarFamily::Int))
+            | (Some(ScalarFamily::Int), Some(ScalarFamily::Decimal)) => {
                 if self.in_hook() {
                     return self.hook_gap(
                         "hook equality",
