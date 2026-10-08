@@ -166,7 +166,7 @@
   },
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
   "next_active_packets": [
-    "TECH-S02/REPLAY-IP07 finite CRUD public result contract (specific JEV approval pending)",
+    "TECH-S02/REPLAY-IP07 finite CRUD public result contract (JEV advice complete; defining implementation contract pending)",
     "H3 compiler consumer of released trusted formatting scope",
     "H1 full scalar/array/default/hook/native consumer residuals",
     "TECH-V05 exact external timezone payload approval pending"
@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T21:53:13.782873+00:00",
+  "updated_utc": "2026-10-08T22:01:16.868649+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2866,6 +2866,11 @@
       "contract": "Trial-local literal retypes flush only for selected overload, alongside existing enum claims; no scoring/ties/slots/evaluation/API change.",
       "limits": "Finite chosen/accepted actual consumer, not all SEM-R08/original13 or root48 credit.",
       "counts_unchanged": true
+    },
+    "crud_public_advice": {
+      "status": "Three human-approved consultations completed once; unanimous directions, varying confidence; implementation and consumer gates remain open",
+      "evidence": "/private/tmp/canlang-repair-go-20261007/crud-public-contract",
+      "limits": "No blanket scenario return refusal or public deployment accepted"
     }
   },
   "live_finite_packets": [
@@ -3086,12 +3091,103 @@
     "limits": "Refusal correction only, no rule callback/expression activation, State API, native hook or whole-rule qualification."
   },
   "crud_public_contract": {
-    "status": "Source-current finite investigation complete; exact new3JEV requests prepared, first outbound rejected by automatic approval review before execution; explicit human approval pending",
+    "status": "Explicit human approval received; three prepared JEV consultations completed once each; advice recorded, concrete source contract and consumer qualification pending",
     "requests": "/private/tmp/canlang-repair-go-20261007/crud-public-contract/request-{1,2,3}.json",
     "bytes": 20847,
     "scope": "Architecture/security-contract facts only, no source excerpts/secrets. New finite CRUD result/legacy producing-origin/live replay-authority questions, not repetition of prior metadata/H1 questions.",
     "alternatives": "CRUD null-business-result plus authorized records versus complete saved row only when fully disclosable; new explicit result provenance/legacy refusal versus trusted historical association; current mutation-by+read versus current read only.",
-    "source_limits": "Current wire forbids partial result. Existing raw receipts lack producing-kind/artifact evidence; current descriptor/row shape cannot authenticate old outcome. No guessed mapper, replay reexecution, blanket unrelated null or first-call delivery claimed."
+    "source_limits": "Current wire forbids partial result. Existing raw receipts lack producing-kind/artifact evidence; current descriptor/row shape cannot authenticate old outcome. No guessed mapper, replay reexecution, blanket unrelated null or first-call delivery claimed.",
+    "responses": "/private/tmp/canlang-repair-go-20261007/crud-public-contract/response-{1,2,3}.json",
+    "advice": [
+      {
+        "crud_result": {
+          "type": "choice",
+          "choice": "default_envelope",
+          "confidence": 0.72,
+          "probabilities": {
+            "default_envelope": 0.86,
+            "complete_when_authorized": 0.14
+          }
+        },
+        "receipt_origin": {
+          "type": "choice",
+          "choice": "new_attested_legacy_refusal",
+          "confidence": 0.85,
+          "probabilities": {
+            "new_attested_legacy_refusal": 0.93,
+            "verified_historical_activation": 0.07
+          }
+        },
+        "replay_authority": {
+          "type": "choice",
+          "choice": "current_by_and_read",
+          "confidence": 0.67,
+          "probabilities": {
+            "current_by_and_read": 0.83,
+            "current_read_only": 0.17
+          }
+        }
+      },
+      {
+        "crud_result": {
+          "type": "choice",
+          "choice": "default_envelope",
+          "confidence": 0.62,
+          "probabilities": {
+            "default_envelope": 0.81,
+            "complete_when_authorized": 0.19
+          }
+        },
+        "receipt_origin": {
+          "type": "choice",
+          "choice": "new_attested_legacy_refusal",
+          "confidence": 0.9,
+          "probabilities": {
+            "new_attested_legacy_refusal": 0.95,
+            "verified_historical_activation": 0.05
+          }
+        },
+        "replay_authority": {
+          "type": "choice",
+          "choice": "current_by_and_read",
+          "confidence": 0.82,
+          "probabilities": {
+            "current_by_and_read": 0.91,
+            "current_read_only": 0.09
+          }
+        }
+      },
+      {
+        "crud_result": {
+          "type": "choice",
+          "choice": "default_envelope",
+          "confidence": 0.65,
+          "probabilities": {
+            "default_envelope": 0.83,
+            "complete_when_authorized": 0.17
+          }
+        },
+        "receipt_origin": {
+          "type": "choice",
+          "choice": "new_attested_legacy_refusal",
+          "confidence": 0.72,
+          "probabilities": {
+            "new_attested_legacy_refusal": 0.86,
+            "verified_historical_activation": 0.14
+          }
+        },
+        "replay_authority": {
+          "type": "choice",
+          "choice": "current_by_and_read",
+          "confidence": 0.93,
+          "probabilities": {
+            "current_by_and_read": 0.96,
+            "current_read_only": 0.04
+          }
+        }
+      }
+    ],
+    "acceptance": "Advice only. Generated CRUD default envelope/current operation and read authority/new provenance favored unanimously. No blanket nonnull scenario refusal accepted; legitimate returns and unknown legacy outcomes need an explicit supported contract. TECH-S02 and REPLAY-IP07 remain open."
   },
   "foreign_typed_array_integration": {
     "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
