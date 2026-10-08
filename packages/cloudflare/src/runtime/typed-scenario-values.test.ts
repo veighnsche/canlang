@@ -63,7 +63,7 @@ async function memberWorld() {
 
 test('actual compiled scenarios preserve typed staging, receipts and persisted D1 replay', async () => {
   const compiled = await artifact();
-  for (const name of ['increment', 'twice', 'rollback', 'echo', 'born', 'nextVersion']) {
+  for (const name of ['increment', 'twice', 'rollback', 'echo', 'born', 'observedVersion']) {
     assert.deepEqual(compiled.operations?.find((op) => op.name === `${APP}.${name}`)?.result, { type: 'int' });
   }
   assert.deepEqual(compiled.operations?.find((op) => op.name === `${APP}.finish`)?.result, { type: 'void' });
@@ -126,9 +126,9 @@ test('actual compiled scenarios preserve typed staging, receipts and persisted D
     assert.ok(Object.hasOwn(finished, 'result'));
     assert.equal(finished.result, null);
     assert.equal(committed(await invoker.invokeMutation(finish, world.identity), 'replayed').result, null);
-    assert.equal(committed(await invoker.invokeMutation(envelope('nextVersion', {
+    assert.equal(committed(await invoker.invokeMutation(envelope('observedVersion', {
       counter: ref(4),
-    }), world.identity)).result, '5');
+    }), world.identity)).result, '4');
     assert.equal((await d1.store.load(MODEL, asId(row.id)))?.version, 5);
     const beforeRefusal = await d1.store.load(MODEL, asId(row.id));
     const beforeHistory = await d1.store.historyFor(MODEL, asId(row.id));
