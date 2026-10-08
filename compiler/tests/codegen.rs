@@ -3329,9 +3329,8 @@ fn sourcemap_mappings_round_trip() {
     assert!(sourcemap::decode_mappings("!").is_err());
 }
 
-/// F3 forms: a `form` without `fields=` defaults to the target model's
-/// stored field names in schema order — the same array the explicit-all
-/// spelling would emit. Explicit `fields=` wins (pinned by the TeamTasks
+/// F3 forms: a `form` without `fields=` defaults to the operation's
+/// writable fields in schema order. Explicit `fields=` wins (pinned by the TeamTasks
 /// golden's `fields:["title","assignee"]` assertion above).
 #[test]
 fn form_fields_default_to_model_schema() {
@@ -3342,7 +3341,7 @@ fn form_fields_default_to_model_schema() {
     let _ = std::fs::remove_file(&catalog_path);
     let entry = &artifact.modules[0].js;
     // `form Note.create display=inline` (examples/TeamTasks.can:50) has no
-    // `fields=`: it defaults to every stored Note field in schema order,
+    // `fields=`: both stored Note fields are writable, in schema order,
     // exactly the explicit `fields=title,content` array.
     assert!(
         entry.contains(

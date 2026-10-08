@@ -380,6 +380,32 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
 
     let entry = artifact["modules"][0]["js"].as_str().unwrap();
     assert!(entry.contains("default:datetime(\"2030-01-01T00:00:00Z\")"));
+    let expected_forms: Vec<_> = [
+        "Client.Item.create",
+        "Client.Item.update",
+        "Client.FormTarget.create",
+        "Client.FormTarget.update",
+    ]
+    .iter()
+    .map(|name| {
+        let editable_names: Vec<_> = operation(&artifact, name)["inputs"]["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|input| input["name"] != "record")
+            .map(|input| input["name"].clone())
+            .collect();
+        format!(
+            "{{page:\"/forms\",operation:{},fields:{},display:\"inline\"}}",
+            json!(name),
+            json!(editable_names)
+        )
+    })
+    .collect();
+    assert!(
+        entry.contains(&format!("forms:[{}]", expected_forms.join(","))),
+        "form defaults must match the operation's editable inputs: {entry}"
+    );
     let start = entry.find("operations:[").expect("canApp operations") + "operations:".len();
     let mut values = serde_json::Deserializer::from_str(&entry[start..]).into_iter::<Value>();
     let embedded = values.next().unwrap().unwrap();

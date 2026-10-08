@@ -7226,27 +7226,36 @@ impl<'a> Cx<'a> {
     }
 
     /// Default `fields` for a form whose `fields=` attribute is absent:
-    /// create/update CRUD ops default to the target model's stored field
-    /// names in schema order (derived fields are computed, never inputs);
+    /// create/update CRUD ops default to their checked writable stored
+    /// fields in schema order (derived and server fields are never inputs);
     /// scenarios with inputs default to their parameter names. Delete ops,
     /// capability ops and unknown targets stay loud (no default).
     fn default_form_fields(&self, op: SymbolId) -> Option<Vec<String>> {
         match &self.program.symbols.get(op.0 as usize)?.kind {
-            SymbolKind::CrudOp { model, op } => match op {
+            SymbolKind::CrudOp {
+                model,
+                op: operation,
+            } => match operation {
                 CrudOp::Create | CrudOp::Update => {
-                    let fields = match &self.program.symbols.get(model.0 as usize)?.kind {
-                        SymbolKind::Model { fields, .. } => fields.clone(),
-                        _ => return None,
-                    };
+                    let operation = self.program.effects.crud_ops.get(&op)?;
+                    let model = self.program.effects.models.get(model)?;
                     Some(
-                        fields
+                        model
+                            .fields
                             .iter()
-                            .filter_map(|id| {
-                                let field = self.program.symbols.get(id.0 as usize)?;
-                                match &field.kind {
-                                    SymbolKind::Field { .. } => Some(field.name.clone()),
-                                    _ => None,
+                            .filter_map(|data| {
+                                if data.server.is_some() {
+                                    return None;
                                 }
+                                let field = self.program.symbols.get(data.field.0 as usize)?;
+                                // Match operation publication: dotted selectors
+                                // admit their top-level field; an empty allowlist
+                                // admits every caller-writable stored field.
+                                (operation.fields.is_empty()
+                                    || operation.fields.iter().any(|path| {
+                                        path.split('.').next() == Some(field.name.as_str())
+                                    }))
+                                .then(|| field.name.clone())
                             })
                             .collect(),
                     )
