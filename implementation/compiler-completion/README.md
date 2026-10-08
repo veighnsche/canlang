@@ -218,3 +218,37 @@ by linking the installed package, then only the failed case was repeated.
 The current CLI is released to Work and Cloudflare/UI owners for their
 remaining event and page joins; no full Task21/25 or parent-reference
 closure is claimed. Completion stays **57/67**.
+
+`24b7e91d` implements optional enum-only `match` with complete unique
+subject-owned cases, explicit nullable guards, separate arm scopes,
+checked returns and one subject evaluation in source order. The new native
+source case and changed awaited delivery-state case pass **1/1** each.
+[Saved contract advice](../capability-roadmap-20261008/enum-comparison/contract-advice/README.md)
+retains the split surface recommendation and stronger subject-label
+agreement; the comparison claims no overall source savings. The same
+release fixes the Task21 consumer's missing progressed-event table by
+deriving its `delivery_id:text` schema from existing checked private
+invocation fields. The affected event-schema regression passes **1/1**;
+current full runtime acceptance stays with its owner.
+
+`829f1510` adds optional owning-parameter `choices=` metadata. Checked read
+signatures and current operation input paths determine canonical read
+identity, argument mappings, whole-record or declared-field values and
+labels. The producer publishes exact canonical stored-model array results
+for checked reads and requires `interfaces.input-choices@1` on artifacts
+carrying the feature. Its actual fixture covers sibling country/region,
+`Submission.parent` and direct-document reviewer mappings, preserving
+opaque user and home-reference identities, defaults, requiredness,
+descriptions and captions. The focused source/native nonexecution case
+passes **1/1**, including invalid mappings and dependency cycles; unchanged
+operation and artifact byte contracts pass **1/1** each.
+
+The native host reuses installed helpers and refuses every candidate query:
+the installed stdlib currently lacks the emitted `records` helper. This
+qualifies static annotations and unchanged assisted invocation, while
+query serving, viewer predicates, partial draft binding, response fencing,
+browser controls and complete CountryRegion/CanApprove workflows remain
+with their consumer owners. The genuine source is
+[the compiler fixture](../../compiler/tests/fixtures/input_choices.can);
+no copied descriptor sketch replaces it. No wider reference closure is
+claimed. Completion remains **57/67**, with **10** remaining.
