@@ -4677,6 +4677,28 @@ impl<'a> Emitter<'a> {
                     .collect();
                 members.push(format!("uniques:[{}]", entries.join(",")));
             }
+            for field_id in &fields {
+                let Some(field) = self.ir.items.get(field_id.0 as usize) else {
+                    continue;
+                };
+                if let IrItemKind::Field {
+                    ty: IrType::Known(ty),
+                    default: Some(default @ IrDefault::Computed { .. }),
+                    ..
+                } = &field.kind
+                    && matches!(
+                        checked_value_profile(ty),
+                        Some("money" | "money?" | "money[]" | "money[]?")
+                    )
+                    && js_field_default(Some(default), None).is_none()
+                {
+                    self.unsupported(
+                        "money model default",
+                        "computed money defaults have no artifact wire lowering; the declared default cannot be omitted",
+                        field.span,
+                    );
+                }
+            }
             members.push(self.emit_fields_schema(&fields));
             let derived = self.emit_derived_member(item.id);
             if let Some(derived) = derived {
