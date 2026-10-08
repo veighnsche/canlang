@@ -102,7 +102,7 @@ fn legal_bindings_execute_through_artifact_callables() {
     for owner in ["alpha", "ALPHA"] {
         source.push_str(&format!("package {owner}\n Given\n  export capability Svc version=1\n   ping(class:text) -> text\n When\n Then\n"));
     }
-    source.push_str("app Consumer\nuse alpha {Svc as A}\nuse ALPHA {Svc as B}\nGiven\nWhen\n scenario left(class:text) read=true -> text by=members\n  do return class\n scenario right(class:text) read=true -> text by=members\n  do return class\nThen\n");
+    source.push_str("app Consumer\nuse alpha {Svc as A}\nuse ALPHA {Svc as B}\nuse std {EmailV1 as Left} from=deployment.left\nuse std {EmailV1 as Right} from=deployment.right\nGiven\nWhen\n scenario dispatch(to:email,subject:text,body:text) by=members\n  do\n   send Left.send {to,subject,body} as first\n   send Right.send {to,subject,body} as second\n   send Left.send {to,subject,body} when=false as skipped\n scenario left(class:text) read=true -> text by=members\n  do return class\n scenario right(class:text) read=true -> text by=members\n  do return class\nThen\n");
     std::fs::write(&imports, source).unwrap();
     let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
         .args(["compile", "--format=json", "--catalog"])
@@ -146,6 +146,7 @@ import assert from 'node:assert/strict';
 export const trace=[];
 export function hasRole(context,role){assert.equal(context.marker,'ambient');trace.push(['role',role]);return context.memberships.includes(role);}
 export function require(value,code){if(!value)throw Error(code);}
+export async function send(context,operation,request,options){assert.equal(context.marker,'ambient');trace.push(['send',context,operation,request,options]);return {id:'receipt',status:'pending'};}
 export function int64(value){assert.equal(typeof value,'bigint');return value;}
 export async function create(context,model,input){assert.equal(context.marker,'ambient');trace.push(['create',model,input]);return {model,input};}
 export async function set(context,record,changes){assert.equal(context.marker,'ambient');trace.push(['set',record,changes]);}
@@ -214,6 +215,32 @@ for(const [owner,index]of [['alpha',1],['ALPHA',2]]){
  const functions=Object.values(module).filter(value=>typeof value==='function');assert.equal(functions.length,1);
  await assert.rejects(functions[0](context,owner),error=>error.message===`external capability operation ${owner}.Svc.ping binds at deployment`);
 }
+// Compiler ABI witness only: the host double does not authorize/stage Work.
+const importsEntry=await import(pathToFileURL(resolve(dirname(new URL(import.meta.url).pathname),'imports',imports.modules[0].path)));
+const definition=importsEntry.appDefinition;
+for(const owner of ['alpha','ALPHA']){
+ assert.deepEqual(definition.capabilities[`${owner}.Svc`].operations.ping,{inputs:{class:{type:'text'}},result:{type:'text'}});
+}
+assert.equal(definition.capabilities['std.EmailV1'].version,1n);
+assert.deepEqual(definition.capabilities['std.EmailV1'].operations.send,{
+ inputs:{to:{type:'email'},subject:{type:'text'},body:{type:'text'},attachments:{type:'file',array:true}},result:{type:'EmailAccepted'},
+});
+assert.equal(Object.keys(definition.capabilities).filter(key=>key==='std.EmailV1').length,1);
+assert.deepEqual(definition.bindings['Consumer.Left'],{capability:'std.EmailV1',from:'deployment.left'});
+assert.deepEqual(definition.bindings['Consumer.Right'],{capability:'std.EmailV1',from:'deployment.right'});
+const dispatch=imports.callables.find(item=>item.id==='Consumer.dispatch');
+let dispatchFn=importsEntry.canApp();for(const part of dispatch.member)dispatchFn=dispatchFn[part];
+const reads=[];const dispatchInput={};
+for(const [key,value]of [['to','a@b.test'],['subject','Authored'],['body','Body']])Object.defineProperty(dispatchInput,key,{enumerable:true,get(){reads.push(key);return value;}});
+const sendStart=trace.length;
+await dispatchFn(context,dispatchInput);
+assert.deepEqual(reads,['to','subject','body']);
+const sends=trace.slice(sendStart).filter(item=>item[0]==='send');
+assert.equal(sends.length,3);
+for(const item of sends){assert.equal(item[1],context);assert.equal(item[2],'std.EmailV1.send');assert.deepEqual(item[3],{to:'a@b.test',subject:'Authored',body:'Body'});}
+assert.deepEqual(sends.map(item=>item[4].binding),['Consumer.Left','Consumer.Right','Consumer.Left']);
+assert.equal(sends[0][4].when,undefined);assert.equal(sends[1][4].when,undefined);
+assert.equal(typeof sends[2][4].when,'function');assert.equal(sends[2][4].when(),false);
 // Actual installed artifact loader, module assembler and callable consumer.
 const runtime=resolve(process.argv[2],'packages/cloudflare/dist/runtime');
 const {loadArtifactFile}=await import(pathToFileURL(resolve(runtime,'artifact.js')));

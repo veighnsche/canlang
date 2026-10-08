@@ -398,6 +398,8 @@ pub struct SelectedCall {
 /// Types and selected bindings per symbol and typed CST node.
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
+    /// Checked external and capability/operation declaration heads for sends.
+    pub target_bindings: HashMap<NodeKey, Binding>,
     /// Selected call authority consumed by IR without rebinding arguments.
     pub selected_calls: HashMap<NodeKey, SelectedCall>,
     /// Name references with a lexical value binding. Retained for IR so
@@ -451,6 +453,21 @@ pub fn check_types(
             )
         })
         .map(|(key, _)| *key)
+        .collect();
+    typer.types.target_bindings = tables
+        .node_binding
+        .iter()
+        .filter(|(_, binding)| match binding {
+            Binding::External { .. } => true,
+            Binding::Symbol(id) => matches!(
+                tables.symbols[id.0 as usize].kind,
+                SymbolKind::Capability { .. }
+                    | SymbolKind::CapabilityOp { .. }
+                    | SymbolKind::Scenario { .. }
+            ),
+            _ => false,
+        })
+        .map(|(key, binding)| (*key, binding.clone()))
         .collect();
     typer.types
 }
@@ -512,7 +529,7 @@ fn std_recipe_requires_input(declared: &str) -> bool {
 /// `None` is nominal-only (e.g. `ErrorReport`): presence-checked,
 /// shape unchecked — the consumed schema carries the name without
 /// fields, so the value shape is walked for effects, never guessed.
-fn std_schema_type(declared: &str) -> Option<ResolvedType> {
+pub(crate) fn std_schema_type(declared: &str) -> Option<ResolvedType> {
     if let Some(inner) = declared.strip_suffix('?') {
         return std_schema_type(inner).map(|ty| ResolvedType::Nullable(Box::new(ty)));
     }

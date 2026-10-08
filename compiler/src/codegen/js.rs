@@ -25,7 +25,7 @@
 
 use crate::analysis::catalog::{StdOperation, nominal_schema, std_capability};
 use crate::analysis::resolve::{CrudOp, ModuleKind, SymbolId};
-use crate::analysis::types::{ResolvedType, Scalar, canonical_datetime_literal};
+use crate::analysis::types::{ResolvedType, Scalar, canonical_datetime_literal, std_schema_type};
 use crate::codegen::ir::{
     IrBinOp, IrCallTarget, IrDefault, IrExpr, IrFieldLabel, IrGuard, IrHook, IrItem, IrItemKind,
     IrMessage, IrOwner, IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp,
@@ -3514,6 +3514,7 @@ impl<'a> Emitter<'a> {
             }
             IrStmt::Send {
                 operation,
+                deployment_binding,
                 args,
                 when,
                 binding,
@@ -3535,15 +3536,20 @@ impl<'a> Emitter<'a> {
                 }
                 self.stdlib.insert("send".to_string());
                 let args_text = self.lower_expr(args);
-                let when_text = when
-                    .as_ref()
-                    .map(|cond| {
-                        let cond_text = self.lower_expr(cond);
-                        format!(",{{when:()=>{cond_text}}}")
-                    })
-                    .unwrap_or_default();
+                let mut options = Vec::new();
+                if let Some(binding) = deployment_binding {
+                    options.push(format!("binding:{}", js_string(binding)));
+                }
+                if let Some(cond) = when {
+                    options.push(format!("when:()=>{}", self.lower_expr(cond)));
+                }
+                let options_text = if options.is_empty() {
+                    String::new()
+                } else {
+                    format!(",{{{}}}", options.join(","))
+                };
                 let call = format!(
-                    "await send(c,{}, {args_text}{when_text})",
+                    "await send(c,{}, {args_text}{options_text})",
                     js_string(operation)
                 );
                 vec![(
@@ -4942,14 +4948,17 @@ impl<'a> Emitter<'a> {
         format!("{member}:{{{}}}", records.join(","))
     }
 
-    /// Emit the `capabilities` member: versions plus declared events.
+    /// Emit owning capability versions, operation schemas and events.
     fn emit_capabilities_member(&mut self) -> String {
         let mut capabilities = Vec::new();
+        let mut published = BTreeSet::new();
         for item in &self.ir.items.clone() {
-            let (events, version) = match &item.kind {
+            let (ops, events, version) = match &item.kind {
                 IrItemKind::Capability {
-                    events, version, ..
-                } => (events.clone(), *version),
+                    ops,
+                    events,
+                    version,
+                } => (ops.clone(), events.clone(), *version),
                 _ => continue,
             };
             let mut members = Vec::new();
@@ -4958,6 +4967,27 @@ impl<'a> Emitter<'a> {
             }
             if let Some(version) = version {
                 members.push(format!("version:{version}n"));
+            }
+            if !ops.is_empty() {
+                let mut entries = Vec::new();
+                for op_id in &ops {
+                    let Some(op) = self.ir.items.get(op_id.0 as usize).cloned() else {
+                        continue;
+                    };
+                    let IrItemKind::CapabilityOp { params, result } = &op.kind else {
+                        continue;
+                    };
+                    let inputs = self.emit_params_schema(params);
+                    let result = match result {
+                        IrType::Known(ty) => self.field_schema(ty, op.span),
+                        IrType::Unknown => "{type:\"unknown\"}".to_string(),
+                    };
+                    entries.push(format!(
+                        "{}:{{inputs:{{{inputs}}},result:{result}}}",
+                        object_key(&op.name)
+                    ));
+                }
+                members.push(format!("operations:{{{}}}", entries.join(",")));
             }
             if !events.is_empty() {
                 let mut entries = Vec::new();
@@ -4980,8 +5010,90 @@ impl<'a> Emitter<'a> {
                 js_string(&item.canonical),
                 members.join(",")
             ));
+            published.insert(item.canonical.clone());
+        }
+        // Standard imports are checked external declarations, without IR
+        // item rows. Publish their owning catalog schemas through the same
+        // field adapter; named references stay nominal and unexpanded.
+        for module in &self.ir.modules.clone() {
+            for import in &module.imports {
+                if import.provider != "std" {
+                    continue;
+                }
+                for (name, _, span) in &import.members {
+                    let Some(capability) = std_capability(name) else {
+                        continue;
+                    };
+                    if !published.insert(capability.name.to_string()) {
+                        continue;
+                    }
+                    let operations = capability
+                        .operations
+                        .iter()
+                        .map(|op| {
+                            let inputs = op
+                                .inputs
+                                .iter()
+                                .map(|(name, ty)| {
+                                    format!(
+                                        "{}:{}",
+                                        object_key(name),
+                                        self.std_field_schema(ty, *span)
+                                    )
+                                })
+                                .collect::<Vec<_>>()
+                                .join(",");
+                            let result = self.std_field_schema(op.result, *span);
+                            format!(
+                                "{}:{{inputs:{{{inputs}}},result:{result}}}",
+                                object_key(op.name)
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    let mut members = vec![
+                        format!("version:{}n", capability.version),
+                        format!("operations:{{{operations}}}"),
+                    ];
+                    if !capability.events.is_empty() {
+                        let events = capability
+                            .events
+                            .iter()
+                            .map(|event| {
+                                let fields = event
+                                    .fields
+                                    .iter()
+                                    .map(|(name, ty)| {
+                                        format!(
+                                            "{}:{}",
+                                            object_key(name),
+                                            self.std_field_schema(ty, *span)
+                                        )
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .join(",");
+                                format!("{}:{{{fields}}}", object_key(event.name))
+                            })
+                            .collect::<Vec<_>>()
+                            .join(",");
+                        members.push(format!("events:{{{events}}}"));
+                    }
+                    capabilities.push(format!(
+                        "{}:{{{}}}",
+                        js_string(capability.name),
+                        members.join(",")
+                    ));
+                }
+            }
         }
         format!("capabilities:{{{}}}", capabilities.join(","))
+    }
+
+    fn std_field_schema(&mut self, declared: &str, span: Span) -> String {
+        match std_schema_type(declared) {
+            Some(ty) => self.field_schema(&ty, span),
+            None => format!("{{type:{}}}", js_string(declared)),
+        }
     }
 
     /// Emit the `models` member: ownership, labels, rule references,
