@@ -252,6 +252,8 @@ pub enum HandlerSource {
     ScenarioCompleted { scenario: SymbolId },
     /// Delivery completion: `on=Cap.op.completed`.
     DeliveryCompleted { capability: SymbolId, op: SymbolId },
+    /// Checked original-operation progress: `on=Cap.op.progressed`.
+    DeliveryProgressed { source: String },
     /// Unresolved or invalid source (`source` is the trimmed source slice;
     /// an earlier pass diagnosed it).
     Unknown { source: String },
@@ -2842,6 +2844,11 @@ impl<'a> Cx<'a> {
         if on.kind != SyntaxKind::Path {
             return HandlerSource::Unknown {
                 source: slice_trimmed(text, on),
+            };
+        }
+        if let Some(source) = self.types.delivery_progress_handlers.get(&NodeKey::of(on)) {
+            return HandlerSource::DeliveryProgressed {
+                source: source.clone(),
             };
         }
         let segments = path_segments(on, text);
