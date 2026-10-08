@@ -13,6 +13,18 @@ When
    require accept
    transition job.status queued -> ready
    return job.attempts
+ ## The selected finite Match arm stages a write before a later requirement.
+ scenario matchWrite(job:Job,accept:bool) -> int by=members
+  do
+   match job.status
+    case idle
+     set job {attempts=job.attempts+1}
+    case queued
+     set job {attempts=job.attempts+2}
+    case ready
+     set job {attempts=job.attempts+3}
+   require accept
+   return job.attempts
  ## This declared edge fails on idle and rolls back the preceding ordinary write.
  scenario mismatch(job:Job) -> int by=members
   do

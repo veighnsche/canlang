@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T13:14:16.369281Z",
+  "updated_utc": "2026-10-08T13:33:22.626869Z",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2041,7 +2041,7 @@
       "commit": "5417247d88b5e620e1d211cc8075b9e08f262f70"
     },
     "source_read_candidates": {
-      "status": "Root directly reviewed released model-read candidate and trusted predicate State prerequisite; coherent commit ready",
+      "status": "Root directly reviewed and committed841d8293 State candidate read/predicate/order producer",
       "sources": [
         "packages/state/src/invocation/registry.ts",
         "packages/state/src/query/engine.ts",
@@ -2056,7 +2056,24 @@
       "model": "gpt-6.1-sol high for finite actual read authority/predicate/representation seam; root direct source and Git review",
       "sources_outputs_handles_released": true,
       "counts_unchanged": true,
-      "checked_producer": "Compiler829f1510 matching CLI and genuine input_choices source/artifact release canonical model[] read results and version1 choices in both channels; owning validation reused. Feature remains refused until real consumer qualifies."
+      "checked_producer": "Compiler829f1510 matching CLI and genuine input_choices source/artifact release canonical model[] read results and version1 choices in both channels; owning validation reused. Feature remains refused until real consumer qualifies.",
+      "commit": "841d82939093b48c5cff677c4461d8d48800567e"
+    },
+    "compiled_match_later_failure": {
+      "status": "Root directly reviewed missing SEQ030 actual compiled Match effect/later-failure consumer; coherent commit ready",
+      "sources": [
+        "packages/cloudflare/src/runtime/generated-machines.test.ts",
+        "packages/cloudflare/test/fixtures/generated-machines.can",
+        "packages/cloudflare/test/fixtures/generated-machines.json"
+      ],
+      "contract": "Genuine exhaustive Match selected arm stages ordinary attempts write, then later requirement may fail. Original scenarios are preserved. Domain record/version/history/pending outbox remain unchanged on failure; existing State rejection receipt intentionally commits exactly one global revision. Failure replay adds nothing. Paired successful invocation commits one write/history/version, exact success replay adds nothing.",
+      "verification": "Released existing Compiler CLI compiled actual fixture0, no rebuild. Private frozen HEAD CF TypeScript emission0, only changed existing consumer case1/1 (56.30ms, total118.51ms). Initial assertion incorrectly expected no global revision for receipted business rejection; test-only expectation corrected under invocation/invoke.ts and existing t32b-wire receipt contract, then only changed case rerun. Root read generated switch/set/require code and exact source/test diff; no repeat unchanged State/Compiler outcomes.",
+      "runtime": "Canonical State memory under Node/native generated JavaScript, not nativeD1/durable/installed",
+      "limits": "Closes only this missing emitted Match\u2192effect\u2192later-failure memory consumer gate. Compiler once-subject/branch/effect-order results reused, broader roadmap/three original handlers/all-host outcomes remain owning gates. Original48 count unchanged and native preparation HOLD retained.",
+      "model": "gpt-6.1-sol medium for finite existing consumer/fixture mechanics after contract release; root direct source review",
+      "sources_outputs_handles_released": true,
+      "private_output_cleanup": "Root owns released /private/tmp/can-match-gate.ijo2og and temporary /private/tmp/can-match-generated-machines.json; discard after source/compact outcome commit, preserve shared caches and foreign outputs.",
+      "counts_unchanged": true
     }
   },
   "live_finite_packets": [
