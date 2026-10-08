@@ -13039,7 +13039,56 @@ impl<'a> Typer<'a> {
                 }
                 return ResolvedType::Error;
             }
-            Some(TypeRef::External) => return ResolvedType::Opaque("external construct"),
+            Some(TypeRef::External) => {
+                // The imported owner name, rather than the source alias,
+                // selects a consumed std schema. Other providers and
+                // nominal names without a schema retain the opaque path.
+                let schema = nameref_word(head, cx.text)
+                    .and_then(|name| {
+                        self.tables.module_scopes[cx.module.0 as usize]
+                            .prod
+                            .get(name)
+                    })
+                    .and_then(|binding| match binding {
+                        ScopedName::External { provider, name } if provider == "std" => {
+                            nominal_schema(name)
+                        }
+                        _ => None,
+                    });
+                let Some(schema) = schema else {
+                    return ResolvedType::Opaque("external construct");
+                };
+                let expected = std_nominal_object(schema);
+                if let Some(object) = object {
+                    self.type_object(cx, object, Some(&expected), true);
+                    if cx.strict {
+                        let entries = object_entries(object, cx.text);
+                        for (name, key, _) in &entries {
+                            if !schema.fields.iter().any(|(field, _)| field == name) {
+                                self.member_fail(
+                                    key,
+                                    key.span,
+                                    format!("std {}", schema.name),
+                                    name.to_string(),
+                                );
+                            }
+                        }
+                        for (name, declared) in schema.fields {
+                            if !entries.iter().any(|(key, _, _)| key == name)
+                                && !declared.ends_with('?')
+                                && !declared.ends_with("[]")
+                            {
+                                self.diags.push(Diagnostic::error(
+                                    "E3001",
+                                    format!("missing required field '{name}' of {}", schema.name),
+                                    tight_span(cx.text, node),
+                                ));
+                            }
+                        }
+                    }
+                }
+                return expected;
+            }
             None => return ResolvedType::Error,
         };
         let Some(object) = object else {
