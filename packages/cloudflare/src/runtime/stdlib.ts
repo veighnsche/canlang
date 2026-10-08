@@ -62,8 +62,8 @@ import { equalValue as equalValueProducer } from '@canlang/values';
 
 // Generated pure helpers retain their Values producer identity.
 export {
-  int64, datetime, compareInstant, addDuration, all, sum, join, same, trim,
-  parseDecimal, addDecimal, money, addMoney, compareMoney,
+  int64, datetime, compareInstant, addDuration, all, sum, join, same, trim, compareScalar,
+  parseDecimal, addDecimal, compareDecimal, money, addMoney, compareMoney,
   date, add_days, compareDate,
 } from '@canlang/values';
 

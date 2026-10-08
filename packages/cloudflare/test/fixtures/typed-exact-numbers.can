@@ -35,7 +35,7 @@ When
  ## Original parameter literals retain their wire values in replay receipts.
  scenario defaults(delta:decimal=0.10,cash:money=money(0.20,"EUR"),amounts:decimal[]=[0.10,0.20],coins:money[]=[money(0.10,"EUR")]) -> money by=members
   do
-   require delta+sum(amounts)==0.40
+   require delta+sum(amounts)==0.40 and 0<=delta and delta>=0
    return cash+sum(coins,"EUR")
  ## Omitted nullable parameters use constructors; explicit null bypasses those defaults.
  scenario nullableDefaults(value:money?=money(2.505,"EUR"),values:money[]?=[money(0.10,"EUR"),money(0.20,"EUR")]) -> money? by=members
