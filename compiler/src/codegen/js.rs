@@ -3995,6 +3995,12 @@ impl<'a> Emitter<'a> {
                     .join(",")
             ),
         ];
+        if let Some(locale) = entry
+            .map(|id| self.ir.module(id))
+            .and_then(|module| module.app_default_locale.as_deref())
+        {
+            members.push(format!("appDefaultLocale:{}", js_string(locale)));
+        }
         // Alternative authored app assemblies, keyed by declared identity.
         let compositions: Vec<String> = self
             .ir
@@ -4011,7 +4017,13 @@ impl<'a> Emitter<'a> {
                     .map(|u| js_string(u))
                     .collect::<Vec<_>>()
                     .join(",");
-                format!("{}:{{uses:[{uses}]}}", js_string(&m.name))
+                let locale = m
+                    .app_default_locale
+                    .as_deref()
+                    .map_or_else(String::new, |locale| {
+                        format!(",appDefaultLocale:{}", js_string(locale))
+                    });
+                format!("{}:{{uses:[{uses}]{locale}}}", js_string(&m.name))
             })
             .collect();
         if !compositions.is_empty() {

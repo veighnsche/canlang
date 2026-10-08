@@ -161,6 +161,7 @@ fn fixture_ir() -> IrProgram {
             imports: Vec::new(),
             uses: Vec::new(),
             uses_resolved: Vec::new(),
+            app_default_locale: None,
             pages: Vec::new(),
             description: None,
         }],
@@ -367,11 +368,11 @@ fn golden_teamtasks_structure() {
     assert!(entry.contains("id:\"TeamOffice\""), "app id");
     assert!(entry.contains("compositions:{"), "compositions");
     assert!(
-        entry.contains("\"TeamTasks\":{uses:[]}"),
+        entry.contains("\"TeamTasks\":{uses:[],appDefaultLocale:\"en\"}"),
         "TeamTasks assembly"
     );
     assert!(
-        entry.contains("\"TeamNotes\":{uses:[]}"),
+        entry.contains("\"TeamNotes\":{uses:[],appDefaultLocale:\"en\"}"),
         "TeamNotes assembly"
     );
     // Bridge per-family report (TeamTasks):
@@ -4451,6 +4452,7 @@ fn t15a_model_field_tags() {
             imports: Vec::new(),
             uses: Vec::new(),
             uses_resolved: Vec::new(),
+            app_default_locale: None,
             pages: Vec::new(),
             description: None,
         }],
@@ -5264,6 +5266,7 @@ fn t15b_std_delivery_model_tags() {
             imports: Vec::new(),
             uses: Vec::new(),
             uses_resolved: Vec::new(),
+            app_default_locale: None,
             pages: Vec::new(),
             description: None,
         }],
