@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T08:18:16.431040+00:00",
+  "updated_utc": "2026-10-08T08:22:27.480153+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2242,14 +2242,21 @@
     "counts_unchanged": true,
     "commit": "a9ed6865657ca4d18c0b00992bb600407063c804",
     "due_gate": {
-      "status": "root direct-reviewed; own Work emit0/affected22/22; scoped commit pending",
+      "status": "root direct-reviewed and committed 8addb074bfceea3ec15e49b6bb050f2065f26fca; owning Work emit0/affected22/22; actual consumer qualification pending",
       "api": "@canlang/work/kernel/schedule-staging stageDueSchedule(DueScheduleInput,SystemCommandContext):Promise<DueScheduleResult>",
       "contract": "Runtime qualifies key/scope/original occurrence/event/at/context/schema. Match authoritative row id/scope/event/time; original receipt replays without consuming replacement. First pending due selected head/version produces frozen stored payload and expected-version admitted-row update + scoped L3 cancel, with no commit/handler/actor invention. Caller must join handler and terminal occurrence receipt in existing same owner fence; transient exception drops all; false authored require retains only terminal consumption/failed receipt.",
       "review": "work-runtime-gates-root-review.json",
       "writers_commands_released": true,
-      "actual_consumer_pending": true
+      "actual_consumer_pending": true,
+      "commit": "8addb074bfceea3ec15e49b6bb050f2065f26fca"
     },
-    "occurrence_mint_policy": "Existing opaque runtime OccurrenceIdPort through native crypto.randomUUID once per invocation/actual schedule ordinal; invocation-local memo retained through fence retries, replay uses receipt, replacement fresh and due uses stored original. No new hash recipe/every-ID reuse/source-input mint."
+    "occurrence_mint_policy": "Existing opaque runtime OccurrenceIdPort through native crypto.randomUUID once per invocation/actual schedule ordinal; invocation-local memo retained through fence retries, replay uses receipt, replacement fresh and due uses stored original. No new hash recipe/every-ID reuse/source-input mint.",
+    "consumer_handoff": {
+      "target": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+      "state": "Exact built API8addb074 sent through supported app channel; producer/mint/ref contracts actually ACKed; actual put/cancel D1 case encountered existing filtered query/whole-model overlay mismatch, owner repairing with public State predicate matcher. No due/current handler acceptance yet.",
+      "producer_input": "Coordinator exact checked event.inputs/operation.event and lexical ownerPackage release; versioned/versionless owning codec probes passed and reused",
+      "due_reference_contract": "Persist supplied observed version with canonical model/id; current qualified due frame hydrates current row/version without altering capture or broad public-version bypass."
+    }
   },
   "installed_bound_provider_release": {
     "status": "Defining Services type port committed3f8c1d918e0797c93bbea9999d8975300b48cb22; actual adapter and claim consumer prepared by owning Roadmap, not accepted",
@@ -2264,12 +2271,18 @@
     ],
     "commit": "3f8c1d918e0797c93bbea9999d8975300b48cb22",
     "claim_availability_gate": {
-      "status": "root direct-reviewed existing factory, Work emit0/affected22/22; scoped commit pending",
+      "status": "root direct-reviewed and committed 8addb074bfceea3ec15e49b6bb050f2065f26fca; owning Work emit0/affected22/22; actual consumer qualification pending",
       "api": "@canlang/work/kernel/commands createWorkDispatchClaimCommand(availability?:(intentId:OutboxId,target:string)=>boolean):SystemCommandDef",
       "contract": "Existing superseded/pinned/deferred/held/settled refusal precedes availability; only pending/stale-reclaim candidates invoke exact installed-config callback once before returned claim writes. Nontrue is closed unavailable with id/target and no effects; default command preserves prior unknown-availability behavior. Runtime still owns current transitive scope/authority/provider flow.",
       "review": "work-runtime-gates-root-review.json",
       "actual_consumer_pending": true,
-      "writers_commands_released": true
+      "writers_commands_released": true,
+      "commit": "8addb074bfceea3ec15e49b6bb050f2065f26fca"
+    },
+    "consumer_handoff": {
+      "target": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+      "state": "Services port and operative installed/refusal/async-reconcile handoff delivered; actual owner adapter prepared, requested/received defining Work claim factory source. Final8addb074 built22/22 API release sent; exact consumer completion/repair acceptance remains pending.",
+      "commands": "Root defining emissions/checks complete and released; no duplicate owning provider test or live external transport."
     }
   }
 }
