@@ -642,7 +642,8 @@ describe("T16b canonical CRUD (pipeline executes; handlers never run)", () => {
     const result = outcome.result as MutationResult;
     assert.equal(result.status, "committed");
     assert.equal(result.operation_id, operationId);
-    const row = result.result as { id: string; version: number; data: Record<string, unknown> };
+    assert.equal(result.result, null);
+    const row = result.records![0] as { id: string; version: number; data: Record<string, unknown> };
     assert.equal(row.id, operationId);
     assert.equal(row.version, 1);
     assert.deepEqual(row.data, { title: "buy milk" });
@@ -683,7 +684,8 @@ describe("T16b canonical CRUD (pipeline executes; handlers never run)", () => {
     const replayed = second.result as MutationResult;
     assert.equal(replayed.status, "replayed");
     assert.equal(replayed.operation_id, operationId);
-    assert.deepEqual(replayed.result, (first.result as MutationResult).result);
+    assert.equal(replayed.result, null);
+    assert.deepEqual(replayed.records, (first.result as MutationResult).records);
     assert.equal(await store.readRevision(), revisionAfterCommit);
     assert.equal((await todoRows(store)).length, 1);
   });
@@ -707,7 +709,7 @@ describe("T16b canonical CRUD (pipeline executes; handlers never run)", () => {
       ownerIdentity,
     );
     assert.ok("result" in created, `want result, got ${JSON.stringify(created)}`);
-    const id = ((created.result as MutationResult).result as { id: string }).id;
+    const id = ((created.result as MutationResult).records![0] as { id: string }).id;
     const updated = await invoker.invokeMutation(
       mutationEnvelope("acme.Todo.update", freshOperationId(seed.now), {
         record: { id, version: "1" },
@@ -716,7 +718,7 @@ describe("T16b canonical CRUD (pipeline executes; handlers never run)", () => {
       ownerIdentity,
     );
     assert.ok("result" in updated, `want result, got ${JSON.stringify(updated)}`);
-    const updatedRow = (updated.result as MutationResult).result as {
+    const updatedRow = (updated.result as MutationResult).records![0] as {
       version: number;
       data: Record<string, unknown>;
     };
@@ -740,6 +742,8 @@ describe("T16b canonical CRUD (pipeline executes; handlers never run)", () => {
       clerkIdentity,
     );
     assert.ok("result" in deleted, `want result, got ${JSON.stringify(deleted)}`);
+    assert.equal(deleted.result.result, null);
+    assert.deepEqual(deleted.result.records, []);
     assert.equal(await store.load("acme.Todo" as ModelName, id as RecordId), null);
   });
 });
@@ -967,7 +971,7 @@ describe("T16b canonical negatives (codes + unchanged state)", () => {
       memberIdentity,
     );
     assert.ok("result" in created, `member creates, got ${JSON.stringify(created)}`);
-    const id = ((created.result as MutationResult).result as { id: string }).id;
+    const id = ((created.result as MutationResult).records![0] as { id: string }).id;
     const memberUpdate = await invoker.invokeMutation(
       mutationEnvelope("acme.Todo.update", freshOperationId(seed.now), {
         record: { id, version: "1" },
@@ -1078,7 +1082,7 @@ describe("T16b read-envelope closure (query port owns reads in T17)", () => {
       identity,
     );
     assert.ok("result" in created, `want result, got ${JSON.stringify(created)}`);
-    const id = ((created.result as MutationResult).result as { id: string }).id;
+    const id = ((created.result as MutationResult).records![0] as { id: string }).id;
     const revisionAfterCommit = await store.readRevision();
     const readViaRead = await invoker.invokeRead({ operation: "acme.Todo.read", inputs: {} }, identity);
     assert.ok("result" in readViaRead, `want served reads, got ${JSON.stringify(readViaRead)}`);

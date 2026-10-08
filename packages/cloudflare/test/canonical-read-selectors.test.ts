@@ -54,7 +54,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { randomBytes } from 'node:crypto';
-import type { CompileArtifact, ResolvedIdentity } from '@canlang/contracts';
+import type { CompileArtifact, ModelName, RecordId, ResolvedIdentity } from '@canlang/contracts';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { T18_SHOP_ARTIFACT_JSON } from '@canlang/state/mutation/t18-shop.artifact';
 import { buildInvoker } from '../src/worker/assembly.js';
@@ -101,7 +101,13 @@ test('actual canonical create stores plain generated hex; read/query omit it but
     const created = await invoker.invokeMutation({ operation: 'Shop.Team.create', operation_id: id,
       inputs: { name: 'visible label', owner: 'user-a', flags: [] } }, identity);
     assert.ok('result' in created, JSON.stringify(created));
-    const raw = (created.result as any).result.data;
+    assert.equal(created.result.result, null);
+    const publicRow = created.result.records![0] as { data: Record<string, unknown> };
+    assert.equal(Object.hasOwn(publicRow.data, 'token'), false);
+    const stored = await store.load('Shop.Team' as ModelName, id as RecordId);
+    assert.ok(stored);
+    const raw = stored.data;
+    assert.ok(typeof raw.token === 'string');
     assert.match(raw.token, /^[0-9a-f]{64}$/);
     const read = await invoker.invokeRead({ operation: 'Shop.Team.read', inputs: {} }, identity);
     assert.ok('result' in read, JSON.stringify(read));

@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T22:45:36.986383+00:00",
+  "updated_utc": "2026-10-08T22:48:03.731021+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2960,6 +2960,21 @@
       "verified": "owning State emission0; temporal arrays + scenario values same native cases4/4",
       "scope": "null-prototype metadata map and Compiler regenerated modules-only fixture; no source/grant/policy change",
       "limits": "other fourteen-caller failures remain open"
+    },
+    "crud_fourteen_consumer_migration": {
+      "state": "caller-only source migrated; consumer qualification partial/blocked",
+      "verified": "native11 files79/108 pass29fail31.94s; MCP4/23 pass19fail6.17s; page0/3 failed before browser on missing staged bound-judgment module",
+      "typecheck": "exit2 unchanged Request/Response textStream source lines; emitted runtime output separately, not passing typecheck",
+      "failure_groups": [
+        "26 canonical historical initial schema-admission failures",
+        "scenario creator reference object/string disagreement",
+        "generation provider requests0vs1",
+        "cohort native alias",
+        "MCP selected app/pages, module accessor and deployment metadata",
+        "missing staged bound-judgment.js"
+      ],
+      "logs": "/private/tmp/canlang-crud-public-migration/",
+      "limits": "no fixture/policy/grant change, scenario/internal outputs retained; no parent credit"
     }
   },
   "live_finite_packets": [
