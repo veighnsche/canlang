@@ -1,0 +1,26 @@
+app TypedImagesProgress
+use std {WorkflowDefinition,WorkflowInput,ImageRequest}
+use std {ImagesV1 as Images} from=deployment.comfyui
+Given
+ Job { label:text="Images", request:delivery(Images.submit)? }
+ ProgressNotice { delivery:text }
+ policy Job read=members fields=label,request.progress.state,request.progress.outputs,request.progress.sequence
+When
+ ## Every original progress notification retains its real delivery identity.
+ scenario progressed on=Images.submit.progressed
+  do create ProgressNotice {delivery=event.delivery_id} as notice
+ crud Job by=members fields=label
+ ## The receiving member supplies a real finalized workflow artifact.
+ scenario generate(job:Job,graph:file,validation:text,prompt:text,accept:bool) by=members
+  do
+   let workflow=WorkflowDefinition {graph,prompt=WorkflowInput {node="6",key="text"},negative=WorkflowInput {node="7",key="text"},width=WorkflowInput {node="5",key="width"},height=WorkflowInput {node="5",key="height"}}
+   let value=ImageRequest {source=operation.id,revision=job.version,workflow,validation,prompt,negative="",width=512,height=512,max_outputs=2,max_duration=30s}
+   send Images.submit {value} as attempt
+   set job {request=attempt}
+   require accept
+Then
+ page / title="Image jobs"
+  require members
+  form Job.create
+  list Job empty="No image jobs"
+   text row.label
