@@ -850,15 +850,19 @@ test('money and file inputs derive with their wire boundaries', () => {
     required: false,
     file: { valueShape: 'opaque-file-id', format: 'can-file' },
   });
-  // MCP renders the file slot as the opaque-string format; HTTP carries the same claim.
+  // MCP renders the closed File wire object; HTTP carries the same provenance claim.
   const tool = toMcpToolFromArtifact(LEDGER_CREATE);
   assert.deepEqual(propertiesOf(anyOfBranch(tool.inputSchema, 0))['doc'], {
-    type: 'string',
-    format: 'can-file',
+    type: 'object',
+    properties: { id: { type: 'string', minLength: 1 } },
+    required: ['id'],
+    additionalProperties: false,
   });
   assert.deepEqual(propertiesOf(anyOfBranch(tool.inputSchema, 1))['doc'], {
-    type: 'string',
-    format: 'can-file',
+    type: 'object',
+    properties: { id: { type: 'string', minLength: 1 } },
+    required: ['id'],
+    additionalProperties: false,
   });
   assert.deepEqual(
     toMcpInputSchema(LEDGER_CREATE).fields.find((field) => field.name === 'doc')?.field,
@@ -922,8 +926,8 @@ test('bound arguments: enums, files, numerics bind; delivery never binds', () =>
   assert.ok((checkBoundArgument(enumInput, 'archived')?.message ?? '').includes('"draft", "submitted"'));
 
   const fileInput = derivedInput(deriveOperationInputs(LEDGER_CREATE), 'doc');
-  assert.equal(checkBoundArgument(fileInput, 'file-opaque-1'), null);
-  for (const bad of ['', 5, null, {}, []]) {
+  assert.equal(checkBoundArgument(fileInput, { id: 'file-opaque-1' }), null);
+  for (const bad of ['file-opaque-1', '', 5, null, {}, [], { id: '' }, { id: 5 }, { id: 'file-opaque-1', extra: true }]) {
     assert.ok(checkBoundArgument(fileInput, bad) !== null, `file ${JSON.stringify(bad)}`);
   }
 
