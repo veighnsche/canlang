@@ -46,6 +46,7 @@ import {
   workDispatchRecoverCommand,
   workDispatchStageCommand,
 } from '../src/kernel/commands.js';
+import { stageCanonicalSend } from '../src/kernel/dispatch-staging.js';
 import {
   lifecycleOf,
   isTerminalLifecycle,
@@ -505,6 +506,49 @@ describe('t24a planRecoveryScan: resuming interrupted claims', () => {
 });
 
 describe('t24a work.dispatch.stage command', () => {
+  it('joins a canonical checked send without committing and returns its native delivery identity', async () => {
+    const stored = seed([]);
+    const ctx = { ...fakeCtx(stored), operation: 'Acme.notify' };
+    const input = {
+      operationId: '0193f2c0-0000-7000-8000-000000000001',
+      source: 'std.EmailV1.send',
+      occurrenceIndex: 2,
+      request: { to: 'a@example.com', subject: 'Ready' },
+      originOccurrence: null,
+    };
+    const { effects, delivery } = await stageCanonicalSend(input, ctx);
+    const intent = stageOutboxIntent(input);
+    assert.deepEqual(delivery, { kind: 'delivery', id: intent.item.id, operation: input.source });
+    assert.ok(Object.isFrozen(delivery));
+    assert.equal(stored.size, 0);
+    assert.deepEqual(effects.outbox, [{
+      intentId: delivery.id,
+      operation: ctx.operation,
+      operationId: input.operationId,
+      target: input.source,
+      arguments: input.request,
+      occurrenceIndex: input.occurrenceIndex,
+    }]);
+    assert.equal(effects.writes?.length, 1);
+    const write = effects.writes![0]!;
+    assert.equal(write.kind, 'insert');
+    assert.equal(write.model, WORK_DISPATCH_MODEL);
+    assert.ok(write.kind === 'insert');
+    const origin = readDispatchRow(write.row);
+    assert.equal(origin.operationId, input.operationId);
+    assert.equal(origin.source, input.source);
+    assert.equal(origin.occurrenceIndex, input.occurrenceIndex);
+    assert.equal(origin.guardVerdict, null);
+    stored.set(`${WORK_DISPATCH_MODEL}\0${write.row.id}`, write.row);
+    const replay = await stageCanonicalSend(input, ctx);
+    assert.deepEqual(replay.delivery, delivery);
+    assert.deepEqual(replay.effects.writes, []);
+    assert.deepEqual(replay.effects.outbox, []);
+    await assert.rejects(stageCanonicalSend(input, {
+      ...ctx, load: async () => ({ ...write.row, data: { ...write.row.data, source: 'foreign' } }),
+    }), /different origin or verdict/);
+  });
+
   function stageArgs(intents: ReadonlyArray<Record<string, unknown>>): Record<string, unknown> {
     return { operationId: 'run_stage_1', intents: [...intents] };
   }

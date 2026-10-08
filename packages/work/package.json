@@ -28,7 +28,8 @@
   ],
   "dependencies": {
     "@canlang/contracts": "workspace:*",
-    "@canlang/state": "workspace:*"
+    "@canlang/state": "workspace:*",
+    "@canlang/values": "workspace:*"
   },
   "exports": {
     ".": {
@@ -42,6 +43,10 @@
     "./kernel/commands": {
       "types": "./dist/src/kernel/commands.d.ts",
       "default": "./dist/src/kernel/commands.js"
+    },
+    "./kernel/dispatch-staging": {
+      "types": "./dist/src/kernel/dispatch-staging.d.ts",
+      "default": "./dist/src/kernel/dispatch-staging.js"
     },
     "./kernel/tables": {
       "types": "./dist/src/kernel/tables.d.ts",
