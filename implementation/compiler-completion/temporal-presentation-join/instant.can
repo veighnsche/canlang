@@ -1,0 +1,9 @@
+app TemporalPage source="en"
+context
+ locale default="en"
+Given
+ message probe(x:datetime) = "{x,time}"@{}
+When
+Then
+ page / title="Temporal"
+  text probe(x=datetime("2024-03-31T22:30:00Z"))

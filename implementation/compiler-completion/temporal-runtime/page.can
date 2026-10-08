@@ -1,0 +1,7 @@
+app TemporalPage
+Given
+ message day(x:date) = "{x,date}"@{nl="{x,date}"}
+When
+Then
+ page / title="Temporal"
+  text day(x=date("0001-01-01"))

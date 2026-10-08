@@ -1,0 +1,41 @@
+{
+  "verdict": "accept bounded UI full-year string leaf; native generated presentation seam remains required/open",
+  "productionWrites": false,
+  "command": "node implementation/compiler-completion/temporal-presentation-join/independent-review/public-controls.mjs",
+  "exit": 0,
+  "stderrBytes": 0,
+  "independentCalendarCases": 42,
+  "inheritancePartitionCases": 8,
+  "originalTestsPreserved": 26,
+  "reusedMessageTestsPassed": 28,
+  "unchangedNativeGeneratedRefusals": 6,
+  "unchangedIntegerOrdinalSuccesses": 2,
+  "actualStateWireRowsRendered": 2,
+  "pinnedInputChanges": [],
+  "sources": {
+    "packages/ui/src/messages.ts": "473c3a986d7dc75d7939c3e20cb9a52be94f96759d246a6ed06417ea94826908",
+    "packages/ui/test/messages.test.ts": "aafbc42dff2ccbe173f493d8c51e4af4d4bc582c5d65eb88c0aa35e03ed13aca",
+    "packages/ui/dist/src/messages.js": "01970d5d006068552bd8d6aa2dbb43c114e179176fd84108817094fbb6ae4f47",
+    "packages/ui/dist/test/messages.test.js": "07b992fba01eb8ee57ac4a38fd683a2656cc9533e35819c9e2375bd4d1a6a033",
+    "packages/contracts/src/presentation.ts": "8c0a790f53f463e0097443f941994a0a0b3fa450e7393fd7fa4e344e5258a507",
+    "packages/values/src/kinds.ts": "73885ccd5d2262b74d2d7fdca124835b1280062a63b445dfee58b758f5afe4ad",
+    "packages/values/src/decimal.ts": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
+    "packages/values/src/wire.ts": "0313cb7b43eecd4b61470ff279a18627e0e7c2abd239fe200497144afb86e842",
+    "packages/values/src/internal/wire-core.ts": "9b0a8abc935d43f657246897128ae163ab895ac456c8f9efb8d18b322c4dc9ea",
+    "packages/ui/package.json": "5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4",
+    "packages/values/package.json": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+    "packages/stdlib/package.json": "bd70216878bf4523b101f2627bd703576b78d78b1b411134a2ded0adf2675cf2",
+    "packages/stdlib/src/index.ts": "0e64d8717b37680fb8fa02c432e7146d793ec90a47d788e3aa8393637171761a",
+    "packages/state/src/query/engine.ts": "9d8b5f499dd04f72a71511af3761c53051f2df5476174e40627eb91ada337a83",
+    "compiler/src/codegen/js.rs": "ce804121e2ff1bbb1158eb0953ec86ca5fcf0aba873b7c3be21eeb351c12c970"
+  },
+  "outputs": {
+    "REVIEW.md": "3b92a68bb25c092f8d12b6fdc9a5d30db28de3b905bc6db127605129c3471077",
+    "public-controls.mjs": "e61d231568188f66422ecefa4113be49ddf614be58c53930ecc73c71c7d11b2f",
+    "outcomes.json": "131bdc365ea324d073f25143abdfc94409ecbce060b184db7ee4cd00c2c6689f",
+    "pins.json": "dbf63c165dc79dc29144cd66bda630c8f8f0149a9cc630f05e5f60fd6934698b",
+    "public-controls.stdout": "7736cb67905639a2583e09c05a3b842c421fa55b11d4182e925665bd6470ad8d",
+    "public-controls.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "selection": "none; new dependency/representation-boundary choice deferred to root verified-context JEV"
+}

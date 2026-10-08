@@ -1,0 +1,1030 @@
+{
+  "scope": "Independent existing public UI sink/full-year leaf and unchanged emitted native plus State wire query witnesses. Explicit public contexts; no canonical dispatcher or deployment claim.",
+  "node": "v24.21.0",
+  "versions": {
+    "node": "24.21.0",
+    "acorn": "8.18.0",
+    "ada": "4.0.0",
+    "amaro": "1.1.11",
+    "ares": "1.34.8",
+    "brotli": "1.2.0",
+    "cldr": "48.0",
+    "icu": "78.3",
+    "llhttp": "9.4.3",
+    "merve": "1.2.2",
+    "modules": "137",
+    "napi": "10",
+    "nbytes": "0.1.4",
+    "ncrypto": "0.0.1",
+    "nghttp2": "1.70.0",
+    "nghttp3": "",
+    "ngtcp2": "",
+    "openssl": "3.5.8",
+    "simdjson": "4.6.7",
+    "simdutf": "6.4.0",
+    "sqlite": "3.53.4",
+    "tz": "2026c",
+    "undici": "7.29.1",
+    "unicode": "17.0",
+    "uv": "1.52.1",
+    "uvwasi": "0.0.23",
+    "v8": "13.6.233.17-node.53",
+    "zlib": "1.3.2.1-motley-8002e91",
+    "zstd": "1.5.7"
+  },
+  "originalTestsPreserved": true,
+  "reusedUiTests": {
+    "command": "node --test packages/ui/dist/test/messages.test.js",
+    "exit": 0,
+    "passed": 28,
+    "originalCount": 26,
+    "addedCount": 2,
+    "producerHashesMatch": true,
+    "stdoutHash": "22844810f5968a99d01ec888107c2ef881597575df9b98ccf39c5b0cb4f155d4",
+    "stderrHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "calendar": [
+    {
+      "day": "0001-01-01",
+      "type": "date",
+      "direct": "Jan 1, 1",
+      "caption": "Jan 1, 1",
+      "text": "<p>⁨Jan 1, 1⁩</p>",
+      "scalar": "Jan 1, 1"
+    },
+    {
+      "day": "0001-01-01",
+      "type": "datetime",
+      "direct": "Jan 1, 1",
+      "caption": "Jan 1, 1",
+      "text": "<p>⁨Jan 1, 1⁩</p>",
+      "scalar": "Jan 1, 1, 12:00:00 AM"
+    },
+    {
+      "day": "0099-01-01",
+      "type": "date",
+      "direct": "Jan 1, 99",
+      "caption": "Jan 1, 99",
+      "text": "<p>⁨Jan 1, 99⁩</p>",
+      "scalar": "Jan 1, 99"
+    },
+    {
+      "day": "0099-01-01",
+      "type": "datetime",
+      "direct": "Jan 1, 99",
+      "caption": "Jan 1, 99",
+      "text": "<p>⁨Jan 1, 99⁩</p>",
+      "scalar": "Jan 1, 99, 12:00:00 AM"
+    },
+    {
+      "day": "0100-01-01",
+      "type": "date",
+      "direct": "Jan 1, 100",
+      "caption": "Jan 1, 100",
+      "text": "<p>⁨Jan 1, 100⁩</p>",
+      "scalar": "Jan 1, 100"
+    },
+    {
+      "day": "0100-01-01",
+      "type": "datetime",
+      "direct": "Jan 1, 100",
+      "caption": "Jan 1, 100",
+      "text": "<p>⁨Jan 1, 100⁩</p>",
+      "scalar": "Jan 1, 100, 12:00:00 AM"
+    },
+    {
+      "day": "0004-02-29",
+      "type": "date",
+      "direct": "Feb 29, 4",
+      "caption": "Feb 29, 4",
+      "text": "<p>⁨Feb 29, 4⁩</p>",
+      "scalar": "Feb 29, 4"
+    },
+    {
+      "day": "0004-02-29",
+      "type": "datetime",
+      "direct": "Feb 29, 4",
+      "caption": "Feb 29, 4",
+      "text": "<p>⁨Feb 29, 4⁩</p>",
+      "scalar": "Feb 29, 4, 12:00:00 AM"
+    },
+    {
+      "day": "0400-02-29",
+      "type": "date",
+      "direct": "Feb 29, 400",
+      "caption": "Feb 29, 400",
+      "text": "<p>⁨Feb 29, 400⁩</p>",
+      "scalar": "Feb 29, 400"
+    },
+    {
+      "day": "0400-02-29",
+      "type": "datetime",
+      "direct": "Feb 29, 400",
+      "caption": "Feb 29, 400",
+      "text": "<p>⁨Feb 29, 400⁩</p>",
+      "scalar": "Feb 29, 400, 12:00:00 AM"
+    },
+    {
+      "day": "1900-02-28",
+      "type": "date",
+      "direct": "Feb 28, 1900",
+      "caption": "Feb 28, 1900",
+      "text": "<p>⁨Feb 28, 1900⁩</p>",
+      "scalar": "Feb 28, 1900"
+    },
+    {
+      "day": "1900-02-28",
+      "type": "datetime",
+      "direct": "Feb 28, 1900",
+      "caption": "Feb 28, 1900",
+      "text": "<p>⁨Feb 28, 1900⁩</p>",
+      "scalar": "Feb 28, 1900, 12:00:00 AM"
+    },
+    {
+      "day": "2000-02-29",
+      "type": "date",
+      "direct": "Feb 29, 2000",
+      "caption": "Feb 29, 2000",
+      "text": "<p>⁨Feb 29, 2000⁩</p>",
+      "scalar": "Feb 29, 2000"
+    },
+    {
+      "day": "2000-02-29",
+      "type": "datetime",
+      "direct": "Feb 29, 2000",
+      "caption": "Feb 29, 2000",
+      "text": "<p>⁨Feb 29, 2000⁩</p>",
+      "scalar": "Feb 29, 2000, 12:00:00 AM"
+    },
+    {
+      "day": "9999-12-31",
+      "type": "date",
+      "direct": "Dec 31, 9999",
+      "caption": "Dec 31, 9999",
+      "text": "<p>⁨Dec 31, 9999⁩</p>",
+      "scalar": "Dec 31, 9999"
+    },
+    {
+      "day": "9999-12-31",
+      "type": "datetime",
+      "direct": "Dec 31, 9999",
+      "caption": "Dec 31, 9999",
+      "text": "<p>⁨Dec 31, 9999⁩</p>",
+      "scalar": "Dec 31, 9999, 12:00:00 AM"
+    },
+    {
+      "day": "0000-01-01",
+      "type": "date",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "day": "0000-01-01",
+      "type": "datetime",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "day": "0001-02-29",
+      "type": "date",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "day": "0001-02-29",
+      "type": "datetime",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "day": "0099-02-29",
+      "type": "date",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "day": "0099-02-29",
+      "type": "datetime",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "day": "0100-02-29",
+      "type": "date",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "day": "0100-02-29",
+      "type": "datetime",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "day": "1900-02-29",
+      "type": "date",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "day": "1900-02-29",
+      "type": "datetime",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "day": "0004-02-30",
+      "type": "date",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "day": "0004-02-30",
+      "type": "datetime",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "day": "2000-02-30",
+      "type": "date",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "day": "2000-02-30",
+      "type": "datetime",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "day": "2024-04-31",
+      "type": "date",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "day": "2024-04-31",
+      "type": "datetime",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "day": "2024-00-01",
+      "type": "date",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "day": "2024-00-01",
+      "type": "datetime",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "day": "2024-13-01",
+      "type": "date",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "day": "2024-13-01",
+      "type": "datetime",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "day": "2024-01-00",
+      "type": "date",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "day": "2024-01-00",
+      "type": "datetime",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "day": "2024-01-32",
+      "type": "date",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "day": "2024-01-32",
+      "type": "datetime",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "day": "10000-01-01",
+      "type": "date",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "day": "10000-01-01",
+      "type": "datetime",
+      "direct": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "text": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "scalar": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"value\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    }
+  ],
+  "inheritance": [
+    {
+      "value": "0001-01-01T00:00:00.000Z",
+      "actual": "12:00:00 AM",
+      "expected": "12:00:00 AM"
+    },
+    {
+      "value": "0099-01-01T23:59:59.999Z",
+      "actual": "11:59:59 PM",
+      "expected": "11:59:59 PM"
+    },
+    {
+      "value": "0004-02-29T12:34:56.000Z",
+      "actual": "12:34:56 PM",
+      "expected": "12:34:56 PM"
+    },
+    {
+      "value": "0004-02-29T24:00:00.000Z",
+      "result": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "value": "0004-02-29T00:60:00.000Z",
+      "result": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "value": "0004-02-29T00:00:60.000Z",
+      "result": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "value": "0004-02-29T00:00:00+00:00",
+      "result": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "dateTimeRefusal": {
+        "ok": false,
+        "name": "Error",
+        "message": "message argument \"x\": date-only values have no time"
+      }
+    }
+  ],
+  "codecs": [
+    {
+      "type": "date",
+      "wire": "0001-01-01",
+      "nativeGuard": true,
+      "wireGuard": false,
+      "nativeSink": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "encodedText": "<p>⁨Jan 1, 1⁩</p>",
+      "wireAsNative": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "expected a date value at $"
+      }
+    },
+    {
+      "type": "date",
+      "wire": "0099-01-01",
+      "nativeGuard": true,
+      "wireGuard": false,
+      "nativeSink": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "encodedText": "<p>⁨Jan 1, 99⁩</p>",
+      "wireAsNative": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "expected a date value at $"
+      }
+    },
+    {
+      "type": "datetime",
+      "wire": "2024-03-31T22:30:00.000Z",
+      "nativeGuard": true,
+      "wireGuard": false,
+      "nativeSink": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      },
+      "encodedText": "<p>⁨10:30:00 PM⁩</p>",
+      "wireAsNative": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "expected a datetime value at $"
+      }
+    },
+    {
+      "type": "decimal",
+      "wire": "12345678901234567890.123456789012345678",
+      "nativeGuard": true,
+      "wireGuard": false,
+      "nativeSink": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type decimal needs a bigint or canonical decimal string"
+      },
+      "encodedText": "<p>⁨12,345,678,901,234,567,890.123456789012345678⁩</p>",
+      "wireAsNative": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "expected a decimal value at $"
+      }
+    },
+    {
+      "datetimeGuardNeedsCodecRange": true,
+      "outsideRangeRefusal": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "datetime outside the supported 0001-9999 range at $"
+      }
+    }
+  ],
+  "nativeGenerated": [
+    {
+      "id": "date0001",
+      "ref": {
+        "owner": "TemporalPage",
+        "path": "/",
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f"
+      },
+      "bindings": {},
+      "render": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "date0099",
+      "ref": {
+        "owner": "TemporalPage",
+        "path": "/",
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f"
+      },
+      "bindings": {},
+      "render": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "date2001",
+      "ref": {
+        "owner": "TemporalPage",
+        "path": "/",
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f"
+      },
+      "bindings": {},
+      "render": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "date2024",
+      "ref": {
+        "owner": "TemporalPage",
+        "path": "/",
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f"
+      },
+      "bindings": {},
+      "render": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "instant",
+      "ref": {
+        "owner": "TemporalPage",
+        "path": "/",
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f"
+      },
+      "bindings": {},
+      "render": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "id": "decimal",
+      "ref": {
+        "owner": "TemporalPage",
+        "path": "/",
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f"
+      },
+      "bindings": {},
+      "render": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type decimal needs a bigint or canonical decimal string"
+      }
+    },
+    {
+      "id": "integer",
+      "ref": {
+        "owner": "TemporalPage",
+        "path": "/",
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f"
+      },
+      "bindings": {},
+      "render": {
+        "ok": true,
+        "value": "<p>⁨2⁩</p>"
+      }
+    },
+    {
+      "id": "ordinal",
+      "ref": {
+        "owner": "TemporalPage",
+        "path": "/",
+        "module": "$can$m$54656d706f72616c50616765.mjs",
+        "export": "$can$p$54656d706f72616c506167653a64657363726970746f723a2f"
+      },
+      "bindings": {},
+      "render": {
+        "ok": true,
+        "value": "<p>⁨two⁩</p>"
+      }
+    }
+  ],
+  "wireQuery": [
+    {
+      "ref": {
+        "owner": "TemporalWire",
+        "path": "/",
+        "module": "$can$m$54656d706f72616c57697265.mjs",
+        "export": "$can$p$54656d706f72616c576972653a64657363726970746f723a2f"
+      },
+      "queries": [
+        {
+          "actualModel": "TemporalWire.Item",
+          "args": {},
+          "data": {
+            "day": "2001-01-01",
+            "instant": "2024-03-31T22:30:00.000Z",
+            "amount": "1.50"
+          }
+        }
+      ],
+      "rendered": "<ul class=\"list\"><li class=\"list-row\"><p>⁨Jan 1, 2001⁩ ⁨10:30:00 PM⁩ ⁨1.5⁩</p></li></ul>",
+      "universalEncoding": [
+        {
+          "type": "date",
+          "result": {
+            "ok": false,
+            "name": "ValueError",
+            "code": "invalid-construction",
+            "message": "expected a date value at $"
+          }
+        },
+        {
+          "type": "datetime",
+          "result": {
+            "ok": false,
+            "name": "ValueError",
+            "code": "invalid-construction",
+            "message": "expected a datetime value at $"
+          }
+        },
+        {
+          "type": "decimal",
+          "result": {
+            "ok": false,
+            "name": "ValueError",
+            "code": "invalid-construction",
+            "message": "expected a decimal value at $"
+          }
+        }
+      ]
+    },
+    {
+      "ref": {
+        "owner": "TemporalWire",
+        "path": "/",
+        "module": "$can$m$54656d706f72616c57697265.mjs",
+        "export": "$can$p$54656d706f72616c576972653a64657363726970746f723a2f"
+      },
+      "queries": [
+        {
+          "actualModel": "TemporalWire.Item",
+          "args": {},
+          "data": {
+            "day": "0004-02-29",
+            "instant": "0099-01-01T23:59:59.999Z",
+            "amount": "12345678901234567890.123456789012345678"
+          }
+        }
+      ],
+      "rendered": "<ul class=\"list\"><li class=\"list-row\"><p>⁨Feb 29, 4⁩ ⁨11:59:59 PM⁩ ⁨12,345,678,901,234,567,890.123456789012345678⁩</p></li></ul>",
+      "universalEncoding": [
+        {
+          "type": "date",
+          "result": {
+            "ok": false,
+            "name": "ValueError",
+            "code": "invalid-construction",
+            "message": "expected a date value at $"
+          }
+        },
+        {
+          "type": "datetime",
+          "result": {
+            "ok": false,
+            "name": "ValueError",
+            "code": "invalid-construction",
+            "message": "expected a datetime value at $"
+          }
+        },
+        {
+          "type": "decimal",
+          "result": {
+            "ok": false,
+            "name": "ValueError",
+            "code": "invalid-construction",
+            "message": "expected a decimal value at $"
+          }
+        }
+      ]
+    }
+  ],
+  "changes": []
+}

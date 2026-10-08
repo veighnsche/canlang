@@ -202,10 +202,13 @@ function decimalKey(text: string): string {
 
 function isValidDate(iso: string): boolean {
   const [y, m, d] = iso.split("-").map(Number);
-  if ((m as number) < 1 || (m as number) > 12 || (d as number) < 1 || (d as number) > 31) {
+  if ((y as number) < 1 || (y as number) > 9999 || (m as number) < 1 || (m as number) > 12 || (d as number) < 1 || (d as number) > 31) {
     return false;
   }
-  const dt = new Date(Date.UTC(y as number, (m as number) - 1, d as number));
+  // Date.UTC remaps years 0–99 to 1900–1999. Set the full year and
+  // calendar fields together so low years retain their own leap rules.
+  const dt = new Date(0);
+  dt.setUTCFullYear(y as number, (m as number) - 1, d as number);
   return (
     dt.getUTCFullYear() === y && dt.getUTCMonth() === (m as number) - 1 && dt.getUTCDate() === d
   );

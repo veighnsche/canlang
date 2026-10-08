@@ -1,0 +1,9 @@
+app TemporalPage source="en"
+context
+ locale default="en"
+Given
+ message probe(x:int) = "{x,number,integer}"@{}
+When
+Then
+ page / title="Temporal"
+  text probe(x=2)

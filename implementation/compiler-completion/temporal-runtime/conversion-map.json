@@ -1,0 +1,182 @@
+{
+  "scope": "existing public codec -> existing public UI descriptor/formatter only; generated modules unchanged; no compiler fix or canonical locale/timezone credit",
+  "facadeProducerIdentity": true,
+  "rows": [
+    {
+      "id": "date0001",
+      "type": "date",
+      "expected": "0001-01-01",
+      "encoded": "0001-01-01",
+      "rendered": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "nativeFormatter": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param x must be a date"
+      }
+    },
+    {
+      "id": "date0099",
+      "type": "date",
+      "expected": "0099-01-01",
+      "encoded": "0099-01-01",
+      "rendered": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      },
+      "nativeFormatter": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param x must be a date"
+      }
+    },
+    {
+      "id": "date2001",
+      "type": "date",
+      "expected": "2001-01-01",
+      "encoded": "2001-01-01",
+      "rendered": {
+        "ok": true,
+        "value": "Jan 1, 2001"
+      },
+      "nativeFormatter": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param x must be a date"
+      }
+    },
+    {
+      "id": "date2024",
+      "type": "date",
+      "expected": "2024-02-29",
+      "encoded": "2024-02-29",
+      "rendered": {
+        "ok": true,
+        "value": "Feb 29, 2024"
+      },
+      "nativeFormatter": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param x must be a date"
+      }
+    },
+    {
+      "id": "instant",
+      "type": "datetime",
+      "expected": "2024-03-31T20:30:00.000Z",
+      "encoded": "2024-03-31T20:30:00.000Z",
+      "rendered": {
+        "ok": true,
+        "value": "8:30:00 PM"
+      },
+      "nativeFormatter": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param x must be a datetime"
+      }
+    },
+    {
+      "id": "decimal",
+      "type": "decimal",
+      "expected": "1.5",
+      "encoded": "1.5",
+      "rendered": {
+        "ok": true,
+        "value": "1.5"
+      },
+      "nativeFormatter": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param x must be a decimal"
+      }
+    },
+    {
+      "id": "decimalexact",
+      "type": "decimal",
+      "expected": "12345678901234567890.123456789012345678",
+      "encoded": "12345678901234567890.123456789012345678",
+      "rendered": {
+        "ok": true,
+        "value": "12,345,678,901,234,567,890.123456789012345678"
+      },
+      "nativeFormatter": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "message param x must be a decimal"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "id": "null-date",
+      "type": "date",
+      "result": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "null for non-nullable date at $"
+      }
+    },
+    {
+      "id": "null-datetime",
+      "type": "datetime",
+      "result": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "null for non-nullable datetime at $"
+      }
+    },
+    {
+      "id": "null-decimal",
+      "type": "decimal",
+      "result": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "null for non-nullable decimal at $"
+      }
+    },
+    {
+      "id": "date-string",
+      "type": "date",
+      "result": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "expected a date value at $"
+      }
+    },
+    {
+      "id": "datetime-string",
+      "type": "datetime",
+      "result": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "expected a datetime value at $"
+      }
+    },
+    {
+      "id": "decimal-string",
+      "type": "decimal",
+      "result": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "expected a decimal value at $"
+      }
+    }
+  ]
+}

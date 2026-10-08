@@ -1,0 +1,14 @@
+app TemporalWire source="en"
+context
+ locale default="en"
+Given
+ Item { day:date, instant:datetime, amount:decimal }
+ policy Item read=members
+ message calendar(x:date) = "{x,date}"@{}
+ message clock(x:datetime) = "{x,time}"@{}
+ message number(x:decimal) = "{x,number}"@{}
+When
+Then
+ page / title="Temporal wire"
+  list Item
+   text calendar(row.day),clock(row.instant),number(row.amount)

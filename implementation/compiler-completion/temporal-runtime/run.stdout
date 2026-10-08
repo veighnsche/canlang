@@ -1,0 +1,213 @@
+{
+  "observations": [
+    {
+      "id": "date0001",
+      "exit": 0,
+      "result": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "date0099",
+      "exit": 0,
+      "result": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "date2001",
+      "exit": 0,
+      "result": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "date2024",
+      "exit": 0,
+      "result": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "instant",
+      "exit": 0,
+      "result": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type datetime needs a canonical RFC3339 UTC instant"
+      }
+    },
+    {
+      "id": "decimal",
+      "exit": 0,
+      "result": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type decimal needs a bigint or canonical decimal string"
+      }
+    },
+    {
+      "id": "integer",
+      "exit": 0,
+      "result": {
+        "ok": true,
+        "value": "<p>⁨2⁩</p>"
+      }
+    },
+    {
+      "id": "ordinal",
+      "exit": 0,
+      "result": {
+        "ok": true,
+        "value": "<p>⁨two⁩</p>"
+      }
+    }
+  ],
+  "controls": [
+    {
+      "id": "constructor-and-supported-presentation-0001-01-01",
+      "tagged": {
+        "kind": "date",
+        "year": 1,
+        "month": 1,
+        "day": 1
+      },
+      "expected": "Jan 1, 1",
+      "values": {
+        "ok": true,
+        "value": "Jan 1, 1"
+      },
+      "uiSupportedString": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "constructor-and-supported-presentation-0099-01-01",
+      "tagged": {
+        "kind": "date",
+        "year": 99,
+        "month": 1,
+        "day": 1
+      },
+      "expected": "Jan 1, 99",
+      "values": {
+        "ok": true,
+        "value": "Jan 1, 99"
+      },
+      "uiSupportedString": {
+        "ok": false,
+        "name": "TypeError",
+        "message": "message argument \"x\": type date needs a valid YYYY-MM-DD civil date"
+      }
+    },
+    {
+      "id": "constructor-and-supported-presentation-2001-01-01",
+      "tagged": {
+        "kind": "date",
+        "year": 2001,
+        "month": 1,
+        "day": 1
+      },
+      "expected": "Jan 1, 2001",
+      "values": {
+        "ok": true,
+        "value": "Jan 1, 2001"
+      },
+      "uiSupportedString": {
+        "ok": true,
+        "value": "Jan 1, 2001"
+      }
+    },
+    {
+      "id": "constructor-and-supported-presentation-2024-02-29",
+      "tagged": {
+        "kind": "date",
+        "year": 2024,
+        "month": 2,
+        "day": 29
+      },
+      "expected": "Feb 29, 2024",
+      "values": {
+        "ok": true,
+        "value": "Feb 29, 2024"
+      },
+      "uiSupportedString": {
+        "ok": true,
+        "value": "Feb 29, 2024"
+      }
+    },
+    {
+      "id": "real-host-zone-UTC",
+      "assert": {
+        "ok": true,
+        "value": "UTC"
+      },
+      "localDate": {
+        "ok": true,
+        "value": {
+          "kind": "date",
+          "year": 2024,
+          "month": 3,
+          "day": 31
+        }
+      },
+      "expected": {
+        "kind": "date",
+        "year": 2024,
+        "month": 3,
+        "day": 31
+      }
+    },
+    {
+      "id": "real-host-zone-Europe/Brussels",
+      "assert": {
+        "ok": true,
+        "value": "Europe/Brussels"
+      },
+      "localDate": {
+        "ok": true,
+        "value": {
+          "kind": "date",
+          "year": 2024,
+          "month": 4,
+          "day": 1
+        }
+      },
+      "expected": {
+        "kind": "date",
+        "year": 2024,
+        "month": 4,
+        "day": 1
+      }
+    },
+    {
+      "id": "real-host-zone-Mars/Olympus",
+      "assert": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid IANA timezone: Mars/Olympus"
+      },
+      "localDate": {
+        "ok": false,
+        "name": "ValueError",
+        "code": "invalid-construction",
+        "message": "invalid IANA timezone: Mars/Olympus"
+      },
+      "expected": {
+        "error": "invalid-construction"
+      }
+    }
+  ],
+  "changes": []
+}

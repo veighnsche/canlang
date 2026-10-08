@@ -1,0 +1,9 @@
+app TemporalProbe
+Given
+ message day(x:date) = "{x,date}"@{nl="{x,date}"}
+When
+ scenario rendered() read=true -> text by=members
+  do
+   let value = date("0001-01-01")
+   return format(day(x=value),locale="en")
+Then
