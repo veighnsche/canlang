@@ -28,6 +28,7 @@ const TABLES = [
   'migration_staging',
   'migration_progress',
   'migration_outcomes',
+  'migration_failures',
 ];
 
 function serializeError(error) {
