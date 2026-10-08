@@ -78,3 +78,12 @@ send/association/require order. Focused native cases, strict library Clippy and
 the compiler build pass. These components leave the count at **53/67**, with
 **14 remaining**; File authority/byte transfer and wider runtime workflows
 remain owning consumer work.
+
+The actual TextRequest consumer then exposed its missing named schema closure.
+`8aa1bc33` emits reachable standard contracts from the owning imported capability
+input/result declarations. Real Values normalization, native encoding and
+operation admission now consume the generated TextRequest/TextMessage/TextRun
+schemas; exact integer/duration wire values and invalid nested role rejection
+pass in the affected native case. Strict library Clippy passes. This is a
+bounded producer join; standard shapes outside this path and provider/progress
+workflows remain separate, with no canonical count change.

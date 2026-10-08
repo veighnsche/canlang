@@ -149,6 +149,11 @@ Implemented modules:
   in `tests/std_nominal_construct.rs` preserves lexical binding priority,
   closed field checks and native send/association/require order; unknown
   external types retain their existing behavior.
+  Reachable standard nominal schemas also populate `appDefinition.contracts`
+  from imported capability input/result declarations. The real Values facade
+  admits the emitted TextRequest/TextMessage closure, including inline role
+  cases and the existing canonical duration representation. This qualifies the
+  demonstrated request path; unrelated standard shapes retain their scope.
 - Public native compile/runtime facades have permanent execution witnesses for
   value equality and membership, nullable and mixed numeric equality, text
   scalar ordering and mixed numeric relations (including values above 2^53 and

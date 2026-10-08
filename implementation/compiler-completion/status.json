@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-08T09:42:46Z",
+  "updated_utc": "2026-10-08T09:57:04Z",
   "total": 67,
   "finished_at_recorded_scope": 53,
   "remaining_including_partial": 14,
@@ -101,9 +101,9 @@
     }
   },
   "latest_component": {
-    "commit": "121688d7d8bbdd4c2e2770a82cf080cdf5a9ceb7",
-    "previous_component": "f1d63d0a31a4906bcc368aa4e8c7cb0ef2f51161",
-    "outcome": "Ordered nonnullable scalar scenario defaults and File scalar/nullable/array model/input/result profiles pass their focused native cases, including real State omission and Values identity codecs. Scope closure d2fb9024 follows only executed omitted parameter/create defaults and server initializers; new 11-control and affected existing creation cases pass. Owning standard nominal constructors 6dd7bf96 contextualize TextMessage.role from its declared schema and pass genuine TextRequest native execution plus refusal/alias/binding controls. Strict library Clippy and can build pass across these source changes. Nullable/array/reference computed defaults, read-scenario runtime, resolved-default receipt/replay and File authority/byte transfer remain separate owning joins."
+    "commit": "8aa1bc3333a57af006218568aef65d895f173c42",
+    "previous_component": "121688d7d8bbdd4c2e2770a82cf080cdf5a9ceb7",
+    "outcome": "Reachable standard nominal contracts derive from checked imported capability input/result schemas. The genuine TextRequest source now admits through real Values normalizeSchema and validateOperationInput using emitted TextRequest/TextMessage/TextRun definitions; native encode preserves exact integer/duration wire strings and nested invalid enum refusal. CanDuration uses the existing owning Values duration domain. Focused affected native case and strict library Clippy pass; broader standard shapes, provider serving and progress-source aliases remain separate."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -126,7 +126,7 @@
     "../../compiler/tests/file_profile_runtime.rs",
     "../../compiler/tests/std_nominal_construct.rs"
   ],
-  "current_source_work": "Private trusted handler invocation metadata86a8be55, standard delivery owning-schema joinbdab3576 and reserved Receipt.read producerf1d63d0a retain their accepted bounded outcomes. Ordered nonnullable scalar scenario defaults and File native profiles121688d7 pass source/native/State-omission/Values-codec controls; nullable/array/ref computed defaults, read-scenario runtime, resolved-default receipt/replay and File authority/byte transfer remain open owning joins. Executed default/server scope closured2fb9024 repairs actual E4051 omission while supplied overrides stay inactive. Known standard nominal construct join6dd7bf96 passes genuine TextRequest nested enum/native execution without guessed schemas. Standalone decoder endpoint repairc0a633b2 and finite source/message/diagnostic/graph widths remain bounded; extreme source/count/generated-output admission is unresolved. Anonymous format coveragee71b37cf, earlier selected-call controls and held BDD/timezone/model-rule profiles remain bounded. No broader reference or whole-suite closure is claimed.",
+  "current_source_work": "Private trusted handler invocation metadata86a8be55, standard delivery owning-schema joinbdab3576 and reserved Receipt.read producerf1d63d0a retain their accepted bounded outcomes. Ordered nonnullable scalar scenario defaults and File native profiles121688d7 pass source/native/State-omission/Values-codec controls; nullable/array/ref computed defaults, read-scenario runtime, resolved-default receipt/replay and File authority/byte transfer remain open owning joins. Executed default/server scope closured2fb9024 repairs actual E4051 omission while supplied overrides stay inactive. Known standard nominal construct join6dd7bf96 passes genuine TextRequest nested enum/native execution without guessed schemas. Standalone decoder endpoint repairc0a633b2 and finite source/message/diagnostic/graph widths remain bounded; extreme source/count/generated-output admission is unresolved. Anonymous format coveragee71b37cf, earlier selected-call controls and held BDD/timezone/model-rule profiles remain bounded. No broader reference or whole-suite closure is claimed. Reachable standard nominal contract emission8aa1bc33 resolves the demonstrated real Values TextRequest admission blocker using existing producer schemas; generated/native request validation passes at its declared scope.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
