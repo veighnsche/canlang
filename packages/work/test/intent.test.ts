@@ -9,10 +9,25 @@ import {
   requireCommitted,
   stageOutboxIntent,
 } from '../src/intent/index.js';
+import { deriveOutboxIdAsync, stageOutboxIntentAsync } from '../src/intent/staging.js';
 
 const OPERATION = '0193f2c0-0000-7000-8000-000000000001';
 
 describe('intent: stable outbox-id derivation', () => {
+  it('keeps native async hashing identical to the existing sync recipe', async () => {
+    for (const [operation, source, index] of [
+      [OPERATION, 'Mail.send', 0],
+      [OPERATION, '通知.送信', 42],
+      ['operation\0id', 'source\0name', 128],
+      ['operation', '\ud800', 0],
+      ['operation', 'a'.repeat(256), 1],
+    ] as const) {
+      assert.equal(await deriveOutboxIdAsync(operation, source, index), deriveOutboxId(operation, source, index));
+    }
+    await assert.rejects(deriveOutboxIdAsync('', 'Mail.send', 0), RangeError);
+    await assert.rejects(deriveOutboxIdAsync(OPERATION, 'Mail.send', -1), RangeError);
+  });
+
   it('derives the same id for the same inputs', () => {
     const a = deriveOutboxId(OPERATION, 'Mail.send', 0);
     const b = deriveOutboxId(OPERATION, 'Mail.send', 0);
@@ -78,6 +93,25 @@ describe('intent: frozen-request builder', () => {
 });
 
 describe('intent: commit gate', () => {
+  it('captures an async staged request before hashing and retains the commit gate', async () => {
+    const input = {
+      operationId: OPERATION,
+      source: 'Mail.send',
+      occurrenceIndex: 0,
+      request: { nested: { subject: 'before' } },
+      originOccurrence: null,
+    };
+    const expected = stageOutboxIntent(input);
+    const pending = stageOutboxIntentAsync(input);
+    input.source = 'changed';
+    input.request.nested.subject = 'after';
+    const staged = await pending;
+    assert.deepEqual(staged, expected);
+    assert.ok(Object.isFrozen(staged.item.request));
+    assert.ok(Object.isFrozen(staged.item.request['nested']));
+    assert.throws(() => requireCommitted(staged), /not committed; dispatch refused/);
+  });
+
   it('stages intents without a commit marker', () => {
     const staged = stageOutboxIntent({
       operationId: OPERATION,
