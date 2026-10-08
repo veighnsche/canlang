@@ -1,5 +1,0 @@
-app T
-Given
- derive g():bool = starts_with(prefix="A",value="AB")
-When
-Then
