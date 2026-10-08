@@ -1858,10 +1858,7 @@ impl<'a> Emitter<'a> {
             ResolvedType::Enum {
                 owner: Some(id), ..
             } => self.ir.items[id.0 as usize].canonical.clone(),
-            ResolvedType::Enum { owner: None, .. } => {
-                self.unsupported("type", "ownerless enum has no §13 type id", span);
-                self.throw_expr("ownerless enum type id")
-            }
+            ResolvedType::Enum { owner: None, cases } => format!("enum({})", cases.join(",")),
             ResolvedType::Record { symbol, .. }
             | ResolvedType::Message(symbol)
             | ResolvedType::Operation(symbol) => self.ir.items[symbol.0 as usize].canonical.clone(),

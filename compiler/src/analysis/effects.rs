@@ -1838,7 +1838,20 @@ impl<'a> Cx<'a> {
         self.next_rule_id += 1;
         match node.kind {
             SyntaxKind::Policy => {
-                let (fields, fields_node) = selector_paths(text, node, "fields");
+                let (mut fields, fields_node) = selector_paths(text, node, "fields");
+                if let Some(selectors) = attribute_value(node, "fields", text) {
+                    fields = significant_children(selectors)
+                        .iter()
+                        .filter(|path| path.kind == SyntaxKind::Path)
+                        .map(|path| {
+                            self.types
+                                .delivery_selectors
+                                .get(&NodeKey::of(path))
+                                .cloned()
+                                .unwrap_or_else(|| path_segments(path, text).join("."))
+                        })
+                        .collect();
+                }
                 if let (Some(model), true) = (is_model.then_some(target_id), self.checks_on) {
                     self.check_secret_grant(module, text, model, node);
                     self.check_leaf_grant_reference(text, model, node);
@@ -2236,6 +2249,19 @@ impl<'a> Cx<'a> {
                     }
                     let next = self.record_field_named(symbol, segment)?;
                     current = self.types.symbol_types.get(&next).cloned()?;
+                }
+                ResolvedType::StdDelivery { op, .. }
+                    if *segment == "result"
+                        || (*segment == "progress"
+                            && super::types::delivery_progress_alias(&current)) =>
+                {
+                    if last {
+                        return traversed;
+                    }
+                    current = super::types::std_delivery_result_type(op);
+                }
+                ResolvedType::Object(fields) => {
+                    current = fields.iter().find(|(name, _)| name == segment)?.1.clone();
                 }
                 ResolvedType::Delivery { .. } | ResolvedType::StdDelivery { .. } => {
                     if !last || !matches!(*segment, "id" | "status" | "error" | "result") {
