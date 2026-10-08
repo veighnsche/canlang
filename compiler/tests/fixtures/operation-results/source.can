@@ -13,6 +13,8 @@ use work {number as selected, finish as complete}
 Given
  Item { title:text, optional:text?, titles:text[], maybeTitles:text[]?, flag:bool, optionalFlag:bool?, flags:bool[], maybeFlags:bool[]?, address:email, link:url, language:locale, zone:timezone, code:currency, addresses:email[], links:url[]?, secret:secret server=random_secret(), at:datetime=datetime("2030-01-01T00:00:00Z"), instants:datetime[]=[datetime("2030-01-01T01:00:00.125+01:00"),datetime("1969-12-31t23:59:59.1z"),datetime("2000-03-01T00:15:00+01:00"),datetime("0001-01-01T00:00:00Z"),datetime("9999-12-31T23:59:59.999000Z")], day:date=date("2030-01-01"), optionalDay:date?=date("2030-01-01"), days:date[]=[date("2030-01-01")], maybeDays:date[]?=[date("2030-01-01")], elapsed:duration=1s, optionalElapsed:duration?=1s, elapsedValues:duration[]=[1s], maybeElapsedValues:duration[]?=[1s], person:user, optionalPerson:user?, people:user[], maybePeople:user[]? }
  policy Item read=members
+ FormTarget { first:text="fixed", next:text?, internal:text="fixed", owner:user server=actor }
+ policy FormTarget read=members
 When
  scenario number(value:text) read=true -> text by=members
   do
@@ -105,5 +107,11 @@ When
  scenario hidden(value:int) read=true -> int by=members expose=none
   do
    return value
+ crud FormTarget by=members fields=next,first create_fields=first
  crud Item by=members fields=title,optional,titles,maybeTitles,flag,optionalFlag,flags,maybeFlags,day,optionalDay,days,maybeDays,elapsed,optionalElapsed,elapsedValues,maybeElapsedValues,person,optionalPerson,people,maybePeople
 Then
+ page /forms title="Forms"
+  form Item.create display=inline
+  form Item.update display=inline
+  form FormTarget.create display=inline
+  form FormTarget.update display=inline
