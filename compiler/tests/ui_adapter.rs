@@ -1,6 +1,66 @@
 //! Production CLI -> unchanged generated modules -> public UI factories.
 //! This finite static markup test does not substitute an authorized query
 //! runner or claim the separate canonical bound-preference save lifecycle.
+
+#[test]
+fn unsupported_preference_tabs_and_order_refuse_at_the_authored_profile() {
+    use std::path::PathBuf;
+    use std::process::Command;
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let prefix = "app BoundUi\nGiven\n preferences { view:enum(all,finished)=all label={text=\"View\",values={all=\"All\",finished=\"Finished\"}} }\n Todo { title:text }\n policy Todo read=public\nWhen\nThen\n page / title=\"Page\"\n";
+    for (body, profile, authored) in [
+        (
+            "  tabs preferences.view\n",
+            "bound tabs",
+            "preferences.view",
+        ),
+        (
+            "  list Todo order=title empty=\"No tasks\"\n   text row.title\n",
+            "collection order",
+            "title",
+        ),
+        (
+            "  list Todo order={by=preferences.view,default=[-created],cases={finished=[title]}} empty=\"No tasks\"\n   text row.title\n",
+            "collection order",
+            "{by=preferences.view,default=[-created],cases={finished=[title]}}",
+        ),
+    ] {
+        let scratch = tempfile::tempdir().unwrap();
+        let source = prefix.to_string() + body;
+        let path = scratch.path().join("profile.can");
+        std::fs::write(&path, &source).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["compile", "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(path)
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap();
+        assert!(!output.status.success(), "{profile} unexpectedly published");
+        let diagnostic: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        let errors = diagnostic["diagnostics"].as_array().unwrap();
+        let gap = errors.iter().find(|error| {
+            error["code"] == "E6008" && error["message"].as_str().unwrap().contains(profile)
+        });
+        assert!(
+            gap.is_some(),
+            "{profile}: {}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        let span = &gap.unwrap()["primary"];
+        assert_eq!(
+            source
+                [span["start"].as_u64().unwrap() as usize..span["end"].as_u64().unwrap() as usize]
+                .trim(),
+            authored
+        );
+        assert!(
+            diagnostic.get("modules").is_none(),
+            "blocked profile published modules"
+        );
+    }
+}
+
 #[test]
 fn literal_card_and_transient_tabs_reach_actual_factory() {
     use std::path::PathBuf;
