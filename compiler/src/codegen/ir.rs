@@ -2050,9 +2050,9 @@ struct Scope {
     /// field-placement controls need one. Collections reset it (their
     /// scope ends field placement unless nested under another owner).
     in_field_owner: bool,
-    /// Whether decoding sits inside a pre-commit hook body (T31 Rule A):
-    /// context vars read the hook context (`$hookCtx`) instead of the
-    /// ambient operation context (`c`), which hooks never receive.
+    /// Whether decoding sits inside a pre-commit hook body (T31 Rule A).
+    /// Hooks do not receive the ambient operation context (`c`), and
+    /// contextual values need an owning hook contract before lowering.
     in_hook: bool,
 }
 
@@ -2511,17 +2511,26 @@ impl<'a> Cx<'a> {
             "c" | "row" | "event" | "result" | "parent" | "preferences" | "s" | "b" => {
                 return IrExpr::Name(name.to_string());
             }
-            // T31 Rule A: hooks read actor/now off their hook context;
-            // the run function binds `$hookCtx`, never `c`.
-            "actor" if scope.in_hook => return member_of("$hookCtx", "actor", ty, span),
-            "now" if scope.in_hook => return member_of("$hookCtx", "now", ty, span),
+            // The hook carrier does not implement the checked native
+            // actor/now/team/operation types. Refuse these reads until
+            // an owning contract supplies them; never emit unbound names
+            // or reinterpret raw carrier strings/numbers as native values.
+            "actor" | "now" | "team" | "operation" if scope.in_hook => {
+                let why = "no owning hook context contract supplies the checked value";
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    format!("cannot lower hook contextual binding `{name}`: {why}"),
+                    span,
+                ));
+                return IrExpr::Unsupported {
+                    what: format!("hook contextual binding `{name}`"),
+                    why: why.to_string(),
+                };
+            }
             "actor" => return member_of("c", "actor", ty, span),
             "now" => return member_of("c", "now", ty, span),
-            // B4-G/O2: non-hook bodies read team/operation off the
-            // ambient context like actor/now; hooks keep the legacy
-            // fallthrough until T34-Q5 settles the hook-side contract.
-            "team" if !scope.in_hook => return member_of("c", "team", ty, span),
-            "operation" if !scope.in_hook => return member_of("c", "operation", ty, span),
+            "team" => return member_of("c", "team", ty, span),
+            "operation" => return member_of("c", "operation", ty, span),
             _ => {}
         }
         if is_test_account(name) {
