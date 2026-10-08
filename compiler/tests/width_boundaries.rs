@@ -161,6 +161,131 @@ fn used_catalog_postfix_shapes_match_through_every_wrapper() {
 }
 
 #[test]
+fn used_catalog_nested_result_matches_specific_sink_at_depth_256() {
+    bounded_cases(
+        "used_catalog_nested_result_matches_specific_sink_at_depth_256",
+        &[256],
+        |depth| {
+            // Exactly 256 alternating object/collection wrappers. Source stays
+            // flat: the producer result supplies the nested type to the sink.
+            let mut shape = String::from("int");
+            for level in 0..depth {
+                shape = if level % 2 == 0 {
+                    format!("{{item:{shape}}}")
+                } else {
+                    format!("nonempty C<{shape}>")
+                };
+            }
+            let general = shape.replace("nonempty C<", "C<");
+            let document = serde_json::json!({
+                "language_version": "1.0",
+                "catalog_version": "nested-result-test",
+                "entries": [
+                    {
+                        "id": "depth_source", "js": "depthSource",
+                        "owner": "nested-result-test-producer", "kind": "builtin",
+                        "signature": format!("depth_source(value:int)->{shape}"),
+                        "effects": "pure", "availability": "implemented"
+                    },
+                    {
+                        "id": "depth_sink", "js": "depthSink",
+                        "owner": "nested-result-test-producer", "kind": "builtin",
+                        "signature": format!(
+                            "depth_sink(value:{general},marker:int)->bool;depth_sink(value:{shape},marker:int)->int"
+                        ),
+                        "effects": "pure", "availability": "implemented"
+                    }
+                ]
+            });
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("catalog.json");
+            std::fs::write(&path, document.to_string()).unwrap();
+            let (loaded, diagnostics) = load_catalog(&CatalogRequest {
+                flag: Some(&path),
+                env: None,
+                cwd: dir.path(),
+                primary: Span::new(SourceId(0), 0, 0),
+            });
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            let loaded = loaded.unwrap();
+            let catalog = loaded.clone();
+            drop(loaded);
+            for id in ["depth_source", "depth_sink"] {
+                assert_eq!(
+                    catalog.lookup(id).unwrap().owner,
+                    "nested-result-test-producer"
+                );
+            }
+
+            let mut db = SourceDb::new();
+            let source = db.add(
+                "nested-result.can".into(),
+                "app Width\nGiven\n derive accepted(value:int): int = depth_sink(marker=7,value=depth_source(value))\nWhen\nThen\n".into(),
+            );
+            let (program, diagnostics) = check_program(&db, &[source], Some(&catalog));
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            assert_eq!(program.checked_files(), &[source]);
+            assert_eq!(program.catalog_version, "nested-result-test");
+            assert_eq!(program.types.selected_calls.len(), 2);
+            let (source_key, source_call) = program
+                .types
+                .selected_calls
+                .iter()
+                .find(|(_, call)| {
+                    matches!(&call.target, SelectedCallTarget::Builtin { id, overload: 0 } if id == "depth_source")
+                })
+                .unwrap();
+            assert_eq!(source_call.slots, vec![Some(0)]);
+            assert_eq!(source_call.arguments.len(), 1);
+            let (sink_key, sink_call) = program
+                .types
+                .selected_calls
+                .iter()
+                .find(|(_, call)| {
+                    matches!(&call.target, SelectedCallTarget::Builtin { id, overload: 1 } if id == "depth_sink")
+                })
+                .unwrap();
+            // Both overloads match; the nonempty shape wins over the earlier
+            // general overload, whose bool result would violate this derive.
+            assert_eq!(sink_call.slots, vec![Some(1), Some(0)]);
+            assert_eq!(sink_call.arguments.len(), 2);
+            assert_eq!(sink_call.arguments[1], *source_key);
+            assert_eq!(
+                program.types.node_types[sink_key],
+                ResolvedType::Scalar(Scalar::Int)
+            );
+
+            // Inspect every substituted wrapper and the concrete leaf: an
+            // Unknown/Opaque shortcut cannot satisfy this structural oracle.
+            let mut resolved = &program.types.node_types[source_key];
+            for level in (0..depth).rev() {
+                if level % 2 == 0 {
+                    let ResolvedType::Object(fields) = resolved else {
+                        panic!("expected object at level {level}");
+                    };
+                    assert_eq!(fields.len(), 1);
+                    assert_eq!(fields[0].0, "item");
+                    resolved = &fields[0].1;
+                } else {
+                    let ResolvedType::Array {
+                        element,
+                        ordered,
+                        nonempty,
+                    } = resolved
+                    else {
+                        panic!("expected collection at level {level}");
+                    };
+                    assert!(*ordered);
+                    assert!(*nonempty);
+                    resolved = element;
+                }
+            }
+            assert_eq!(*resolved, ResolvedType::Scalar(Scalar::Int));
+        },
+    );
+}
+
+#[test]
 fn acyclic_field_reuse_resolves_forward_chain() {
     bounded_cases(
         "acyclic_field_reuse_resolves_forward_chain",
