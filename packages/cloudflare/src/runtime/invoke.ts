@@ -3030,7 +3030,7 @@ function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 're
         } else if (!Object.hasOwn(parameters, field.name) && field.computedDefault !== true && field.valueType.endsWith("?")) {
           parameters[field.name] = null;
           resolvedDefaults[field.name] = null;
-        } else if (parameters[field.name] !== undefined) {
+        } else if (field.kind === "enum" ? Object.hasOwn(parameters, field.name) : parameters[field.name] !== undefined) {
           parameters[field.name] = decodeValue(field.valueType, parameters[field.name]);
         }
       } catch (error) {
