@@ -10,12 +10,12 @@
   "local_capacity": {
     "slots_including_coordinator": 4,
     "author_slots_max": 2,
-    "independent_reviewer_slots": 1,
+    "implementation_worker_slots": 3,
     "other_chats_capacity": "separate; not part of this local pool"
   },
   "staffing": {
     "default_author": "Sol medium",
-    "default_review": "Sol medium; high for cross-file/uncertain boundaries",
+    "default_direct_validation": "One proportionate behavior check; escalate reasoning only for cross-file or uncertain boundaries",
     "repeatable_inventory": "Luna light/medium",
     "escalation": "Astra for actual difficult/consequential authority or recovery decisions; no model changed by this plan"
   },
@@ -23,7 +23,7 @@
     "native preparation HOLD",
     "original task acceptance and installed/durable/browser/provider scopes",
     "foreign compiler/package/Git ownership",
-    "full file-tree review checkpoint"
+    "complete file-tree reconciliation checkpoint"
   ],
   "readiness": [
     "integrated source and accepted evidence current",
@@ -32,7 +32,7 @@
     "conditional value/measurement gate satisfied",
     "consequential open semantics settled with verified JEV3 advice",
     "exact write set handed off by current owner",
-    "independent expected cases and affected checks defined"
+    "expected cases and proportionate direct check defined"
   ],
   "first_dispatch_queue": [
     "O0",
@@ -49,7 +49,7 @@
     "scope_verified",
     "integrated"
   ],
-  "failure_policy": "Suspend only affected consumer outputs after regression; fix/review at exact scope; retain uncertainty and unrelated accepted credit.",
+  "failure_policy": "Suspend only affected consumer outputs after regression; fix and repeat the relevant check at exact scope; retain uncertainty and unrelated accepted credit.",
   "proposal_coverage": {
     "1": [
       "F4",
@@ -227,7 +227,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [],
       "conditional_dependency_outputs": [],
       "conditional_canonical_references": []
@@ -297,7 +297,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "O0",
@@ -386,7 +386,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "O1",
@@ -473,7 +473,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "F1",
@@ -559,7 +559,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "F1",
@@ -640,7 +640,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "F1",
@@ -705,7 +705,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "F4",
@@ -780,7 +780,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "F5",
@@ -847,7 +847,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "F1",
@@ -922,7 +922,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "F1",
@@ -1039,7 +1039,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "F1",
@@ -1093,7 +1093,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "O1",
@@ -1147,7 +1147,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "O1",
@@ -1214,7 +1214,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "F1",
@@ -1288,7 +1288,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "D4",
@@ -1383,7 +1383,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "F1",
@@ -1456,7 +1456,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "F4",
@@ -1518,7 +1518,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "F4",
@@ -1585,7 +1585,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "F1",
@@ -1656,7 +1656,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "F1",
@@ -1727,7 +1727,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "F1",
@@ -1812,7 +1812,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "F1",
@@ -1882,7 +1882,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "O1",
@@ -1941,7 +1941,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "F3",
@@ -1998,7 +1998,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "O1",
@@ -2059,7 +2059,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "F2",
@@ -2111,7 +2111,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "V0",
@@ -2168,7 +2168,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "O1",
@@ -2216,7 +2216,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "F4",
@@ -2270,7 +2270,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "D3",
@@ -2317,7 +2317,7 @@
           "owner_acceptance": null
         }
       ],
-      "output_release_rule": "Each output must name exact app/operation/type/profile/backend, defining-owner acceptance and independent evidence. A sibling output or broad task status cannot substitute.",
+      "output_release_rule": "Each output names exact app/operation/type/profile/backend, defining-owner acceptance and a concise direct check result. A sibling output or broad task status cannot substitute.",
       "dependency_outputs": [
         {
           "packet": "F2",
@@ -2335,7 +2335,7 @@
   "ownership_groups": {
     "coordination": {
       "role": "coordinator and current shared Git/document integrator",
-      "scope": "readiness, exact evidence, owner handoffs, independent review, focused integration; existing integration leases retained"
+      "scope": "readiness, exact owner handoffs, proportionate direct checks and focused integration; existing integration leases retained"
     },
     "compiler": {
       "role": "defining compiler owner",
@@ -2362,12 +2362,13 @@
       "scope": "upload/finalize/provenance/bytes/metadata/retention and authorized bridges"
     },
     "app_witnesses": {
-      "role": "application author and independent journey owner",
+      "role": "application author and journey owner",
       "scope": "complete pinned source/policies/BDD, before/after comparisons, real generated/browser/durable/provider routes"
     },
     "values_calendar": {
       "role": "calendar/value defining owner",
       "scope": "pure helpers, versioned timezone/calendar data contract and independent reference cases"
     }
-  }
+  },
+  "validation_policy": "Use one direct, proportionate validation of changed behavior and record a concise result. Reuse unchanged accepted checks. Repeat only after a relevant change, failure or concrete unresolved risk. Do not create nested verification, review receipts, checks of checks, duplicated snapshots or hash-manifest chains."
 }

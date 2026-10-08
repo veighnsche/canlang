@@ -1,5 +1,9 @@
 # Can capability roadmap execution
 
-Active execution of the [63-task plan](../../design/language-proposals-20261007/task-sequence.md), authorized on October8,2026. The [execution state](execution-state.json) records source pins, worker choices, evidence and current readiness. Conditional/value/reconsideration gates and original acceptance remain in force.
+Follow the [63-task plan](../../design/language-proposals-20261007/task-sequence.md). The coordinator owns [execution state](execution-state.json) and [proposal status](proposal-status.md). Preserve complete application workflows, original sources, conditional value gates and file ownership.
 
-Begin with source and ownership reconciliation. Existing coding owners retain busy paths and shared Git/bookkeeping until exact handoffs. Complete registered original app journeys; a narrow proof does not close a broader parent.
+Use one direct, proportionate validation of a change and record its concise result. Reuse unchanged checks. Do not create proof packets, review receipts, tests of testing code, repeated snapshots or hash-manifest chains. Correct a real failure, then continue implementation.
+
+Implemented slices include nullable reference semantics (`06bc25d1`), existing pure helper exports (`b5f3f61c`), admitted handler context (`29f9d7b7`) and checked scalar/result metadata (`d495469a`). The metadata build and one focused test invocation passed 14/14. These are bounded changes; full typed execution, context scopes and original application workflows remain open.
+
+Source fixtures, expected behavior cases and actual generated artifacts remain available. Redundant verification bookkeeping has been removed; historical committed material remains recoverable through Git when needed.

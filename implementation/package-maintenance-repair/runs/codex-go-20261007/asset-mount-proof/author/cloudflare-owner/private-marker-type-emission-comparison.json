@@ -1,7 +1,0 @@
-{
-  "changed": [
-    "worker/main.d.ts.map",
-    "worker/main.d.ts"
-  ],
-  "main_runtime_js_unchanged": true
-}

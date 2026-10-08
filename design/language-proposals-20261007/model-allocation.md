@@ -1,10 +1,12 @@
 # Worker models for the 63-task Can roadmap
 
+Use one direct, proportionate validation of changed behavior and a concise result. Reuse unchanged accepted checks. Do not create nested verification, review receipts, checks of checks, tests of testing code, duplicated snapshots or hash-manifest chains. Repeat a check only after a relevant change, failure or concrete unresolved risk.
+
 These are proposed task-worker defaults, including delegated support for coordinator-owned items. They do not change the coordinating chat or existing coding chats, assign authors, acquire file leases, dispatch implementation, or remove any original readiness/value/acceptance gate.
 
-Choose for the expected complete run: enough capability to finish reliably, with the lowest justified cost for context, reasoning, retries and review. These allocations are judgments about the written tasks, not measured completion-token forecasts. Exact dispatcher settings use `low`, `medium` and `high`; the skill’s “Light” means `low`.
+Choose for the expected complete run: enough capability to finish reliably, with the lowest justified cost for context and reasoning. These allocations are judgments about the written tasks, not measured completion-token forecasts. Exact dispatcher settings use `low`, `medium` and `high`; the skill’s “Light” means `low`.
 
-The choices follow the [model-selection skill](/Users/vince/.codex/skills/model-selection/SKILL.md) and the enabled dispatcher. Official guidance positions Luna for focused high-volume work, Sol for intelligence/cost balance and Astra for demanding reasoning. [OpenAI model guidance](https://developers.openai.com/api/docs/models).
+The choices follow the model-selection guidance and enabled dispatcher. Official guidance positions Luna for focused high-volume work, Sol for intelligence/cost balance and Astra for demanding reasoning. [OpenAI model guidance](https://developers.openai.com/api/docs/models).
 
 ## Pricing basis
 
@@ -33,12 +35,12 @@ Most workers use Sol: 52 tasks. Luna handles two bounded collection tasks; Astra
 
 | Task | Work | Model | Reasoning | Why this default |
 |---:|---|---|---|---|
-| 1 | Freeze the accepted source baseline | `gpt-6-luna` | `medium` | Bounded receipt, source-pin and digest collection; ambiguous acceptance scope returns to the coordinator. |
+| 1 | Reconcile current source and accepted work | `gpt-6-luna` | `medium` | Bounded source and owner-status inspection; ambiguous acceptance scope goes to the coordinator. |
 | 2 | Agree file ownership and handoffs | `gpt-6-luna` | `medium` | Collect explicit ownership releases and maintain a fixed matrix; competing claims require coordinator judgment. |
 | 3 | Register two complete application witnesses | `gpt-6.1-sol` | `low` | Register the established complete witnesses and provenance; uncertain original intent escalates before selection. |
-| 4 | Write the independent outcome matrix | `gpt-6.1-sol` | `high` | Independent cross-application expectations must preserve authority, failure, replay and upgrade behavior. |
+| 4 | Write the independent outcome matrix | `gpt-6.1-sol` | `high` | Cross-application expectations must preserve authority, failure, replay and upgrade behavior. |
 | 5 | Inventory and release the narrow contracts | `gpt-6.1-sol` | `high` | Trace and reconcile cross-owner contracts; reuse accepted semantics and isolate genuinely unresolved boundaries. |
-| 6 | Prepare the enum handling comparison | `gpt-6.1-sol` | `medium` | Finite comparison of three enum handlers and known alternatives with independent expected cases. |
+| 6 | Prepare the enum handling comparison | `gpt-6.1-sol` | `medium` | Finite comparison of three enum handlers and known alternatives with expected cases. |
 | 7 | Prepare the dependent-input comparison | `gpt-6.1-sol` | `high` | Compare complete interaction and authoring behavior while retaining candidate and final authority. |
 | 8 | Qualify actual emitted metadata | `gpt-6.1-sol` | `medium` | Bounded generated-artifact and production-loader qualification against the released declaration matrix. |
 | 9 | Qualify canonical mutation and replay | `gpt-6.1-sol` | `high` | Canonical admission, durable mutation, versioning, rollback and replay interact across execution layers. |
@@ -92,18 +94,18 @@ Most workers use Sol: 52 tasks. Luna handles two bounded collection tasks; Astra
 | 57 | Reconsider compensation grammar only after recovery reuse | `gpt-6-astra` | `high` | Possible recovery syntax must reconcile two consequential domain protocols, ordering and crash gaps. |
 | 58 | Reconsider package parameters only after concrete reuse | `gpt-6-astra` | `high` | Parameterized package identity, owner boundaries, roles and migrations need major architecture judgment. |
 | 59 | Reconsider richer statecharts only for a real workflow | `gpt-6-astra` | `high` | Nested/parallel/history state semantics, conflicts, effects and migrations must be designed together. |
-| 60 | Review and integrate each released slice | `gpt-6.1-sol` | `high` | Independent review of the exact slice requires its authority/protocol context; clean integration can use a cheaper split. |
+| 60 | Validate and integrate each released slice | `gpt-6.1-sol` | `high` | Direct validation should match the changed behavior and risk; routine integration can use a cheaper worker. |
 | 61 | Qualify the claimed installed and durable scope | `gpt-6.1-sol` | `high` | Interpret actual installed/backend/provider scope and unexplained failures without overclaiming acceptance. |
-| 62 | Reconcile coverage and decisions after integration | `gpt-6.1-sol` | `medium` | Reconcile changes against reviewed receipts and the living checkpoint; collection can be delegated more cheaply. |
-| 63 | Publish the capability evidence and remaining gates | `gpt-6.1-sol` | `low` | Publish a status matrix from already validated receipts; uncertain claims return to their qualified reviewer. |
+| 62 | Reconcile coverage and decisions after integration | `gpt-6.1-sol` | `medium` | Reconcile actual changes against the living checkpoint and decisions. |
+| 63 | Publish the capability evidence and remaining gates | `gpt-6.1-sol` | `low` | Publish a status matrix from direct check results; resolve uncertain claims at their actual scope. |
 
 ## Escalation and cheaper splits
 
-- Luna collects explicit receipts and confirmed releases; ambiguous acceptance or competing ownership returns to Sol/coordinator judgment.
+- Luna records confirmed source status and owner releases; ambiguous acceptance or competing ownership returns to Sol/coordinator judgment.
 - Sol low rises to medium for substantive provenance or status interpretation. Sol medium rises to high for unresolved interactions across subsystems.
 - Sol high rises to Astra medium for conflicting bounded evidence; consequential new authority, ownership or architecture choices use Astra high upfront, with JEV where the project requires it.
 - Task45 uses Astra medium for a released bounded recovery contract; payment or unresolved-owner recovery uses Astra high.
-- Task60 reviews at the changed slice’s risk level. Routine clean integration can use Sol low; a high-risk accounting, privacy or architecture slice retains its Astra-level independent review.
+- Task60 validates changed behavior at a proportionate level. Routine clean integration can use Sol low; consequential accounting, privacy or architecture changes retain the model effort needed to reason through their behavior.
 - No default Ultra/max assignment is made. A newly warranted coordinated procedure requires a separate recorded selection under the skill; being in this orchestration alone is insufficient.
 
 | Task | Cheaper bounded helper | Boundary |
@@ -113,16 +115,16 @@ Most workers use Sol: 52 tasks. Luna handles two bounded collection tasks; Astra
 | 5 | `gpt-6.1-sol` / `medium` | Trace already accepted contracts; consequential unresolved boundaries use Astra high and verified-context JEV before adoption. |
 | 31 | `gpt-6-luna` / `medium` | Apply approved prose/checklist updates; formatter/LSP behavior retains the task worker. |
 | 55 | `gpt-6.1-sol` / `medium` | Run the agreed polling benchmark before any transport design or authority decision. |
-| 60 | `gpt-6.1-sol` / `low` | Clean integration of an independently accepted exact diff; authority/accounting/privacy/architecture review uses the slice risk profile, including Astra where applicable. |
+| 60 | `gpt-6.1-sol` / `low` | Routine clean integration after the author’s direct check; consequential behavior retains the slice’s needed reasoning. |
 | 61 | `gpt-6.1-sol` / `medium` | Execute scripted released qualification vectors; scope interpretation and unexplained failures retain the task worker. |
-| 62 | `gpt-6-luna` / `medium` | Collect receipts and update an approved ledger; completeness/decision reconciliation retains the task worker. |
+| 62 | `gpt-6-luna` / `medium` | Update status from direct check results; completeness/decision reconciliation retains the task worker. |
 | 63 | `gpt-6-luna` / `low` | Format an already approved status report without changing any acceptance claim. |
 
 ## Keep dispatches concise
 
-Pass the chosen task, exact producer handoffs, relevant source paths/excerpts and independent expected cases. Keep raw evidence in files and pass short receipts. Reuse stable lane context. Do not start duplicate shared-file authors or retry unchanged conceptual failures. Cheaper helpers never decide authority contracts, accept their own implementation or broaden a proof.
+Pass the chosen task, exact producer handoffs, relevant source paths/excerpts and expected cases. Pass source paths and concise direct check results. Reuse stable lane context. Do not start duplicate shared-file authors or retry unchanged conceptual failures. Cheaper helpers never decide authority contracts or broaden acceptance scope.
 
 Before actual execution, recheck model/effort availability, current owners and released contracts. If Sol6.1 is unavailable, use available Sol6 at the same approved effort. No quoted task count predicts total token usage or cost.
 
-The independent allocation review proposed the same final default groups and cheaper boundaries. This documents a scheduling proposal, not language acceptance. See [the complete sequence](task-sequence.md), [structured records](task-sequence.json) and [verification](model-allocation-verification.json).
+These proposed worker defaults document scheduling guidance, not language acceptance. See [the complete sequence](task-sequence.md) and [structured records](task-sequence.json).
 

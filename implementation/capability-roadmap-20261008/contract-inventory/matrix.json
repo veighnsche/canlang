@@ -6,7 +6,6 @@
   "frozen_draft_gitlink": "a55a0f700f07f6f972d9d6091b0fdbceee399eb9",
   "definition_evidence": "DECISIONS.md accepted entries retain their stated stage/scope; source facts and old receipts are separate evidence. This collection selects no missing consequential semantics.",
   "original_gates": "task-sequence.json and orchestration-canonical-references.json apply; exact output scope can unblock a consumer but cannot close whole F1/F2/F3/V0 or broader canonical tasks.",
-  "producer_handoff_reference": "../f1-metadata/producer-handoff.json is authoritative detailed emitted/loaded map; intentionally not duplicated.",
   "released_contracts_by_this_inventory": [],
   "scope_exclusions": [
     "No fresh runtime/test/installed/durable qualification",
@@ -286,8 +285,7 @@
       "receipts": [
         "implementation/capability-roadmap-20261008/f1-metadata/REPORT.md",
         "implementation/capability-roadmap-20261008/f1-metadata/loader-results.json",
-        "implementation/capability-roadmap-20261008/f1-metadata/unsupported-results.json",
-        "implementation/capability-roadmap-20261008/f1-metadata/producer-handoff.json"
+        "implementation/capability-roadmap-20261008/f1-metadata/unsupported-results.json"
       ]
     },
     {

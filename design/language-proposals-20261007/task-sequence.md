@@ -1,12 +1,14 @@
 # Detailed Can capability task sequence
 
+Use one direct, proportionate validation of changed behavior and a concise result. Reuse unchanged accepted checks. Do not create nested verification, review receipts, checks of checks, tests of testing code, duplicated snapshots or hash-manifest chains. Repeat a check only after a relevant change, failure or concrete unresolved risk.
+
 The first deliverable is a working private image-generation app whose frontend follows current authorized state. Prepare enum exhaustiveness and dependent forms alongside that work, then build concrete domain reuse and qualify a whole approval app. Conditional and deferred features enter only when their original value gates pass.
 
 These 63 steps expand the existing 31 [orchestration packets](orchestration.md); they are not 63 new canonical jobs. [The structured sequence](task-sequence.json) carries packet references and inherited gates. Every task remains proposed. Numbers indicate priority and suggested order; only named prerequisites and required released outputs impose waiting. Tasks 60–63 repeat for each applicable slice rather than waiting for every conditional idea.
 
-Keep one coordinator, up to two authors and an independent reviewer within this chat's four slots. The two existing coding chats keep their own work and file ownership. Consume their exact reviewed releases; do not reimplement or stage their dirty candidates. No fixed dates or measured effort estimates are assumed.
+Keep one coordinator and implementation workers within this chat's four slots. Authors use direct focused checks; do not reserve a standing reviewer lane. The two existing coding chats keep their own work and file ownership. Consume their exact reviewed releases; do not reimplement or stage their dirty candidates. No fixed dates or measured effort estimates are assumed.
 
-This sequence initially observed source 3403dc71; the shared checkout continues changing under its current coding owners. The compiler chat reports selected-call acceptance, while an older working README still describes an earlier review stage; actual receipt/source pin reconciliation is task 1. The required card-title rendering correction is incoming work owned by that chat. Neither observation proves all canonical calls/forms or original apps are complete.
+This sequence initially observed source 3403dc71; the shared checkout continues changing under its current coding owners. Confirm selected-call acceptance and the card-title correction at their current integrated scope in task 1. The required card-title rendering correction is incoming work owned by that chat. Neither observation proves all canonical calls/forms or original apps are complete.
 
 The existing proposed roadmap decision covers this elaboration; no new grammar or API choice is adopted. Per-proposal contracts and full original acceptance remain in [the implementation plans](implementation-plan.md), [canonical reference crosswalk](orchestration-canonical-references.json) and packet graph. Consequential unsettled semantic choices use the preauthorized JEV triple before adoption.
 
@@ -20,15 +22,15 @@ Model and reasoning defaults are attached to every task below. The [allocation t
 
 ## Source and design preparation
 
-### 1 Freeze the accepted source baseline
+### 1 Reconcile the current source and accepted work
 
 **Owner:** Coordinator. **After:** source inspection and existing evidence. **Packet:** O0. 
 
-**Recommended worker:** gpt-6-luna · `medium` reasoning. Bounded receipt, source-pin and digest collection; ambiguous acceptance scope returns to the coordinator.
+**Recommended worker:** gpt-6-luna · `medium` reasoning. Bounded source and owner-status inspection; resolve ambiguous acceptance scope with the relevant owner.
 
-Record committed HEAD, relevant accepted fixes, current dirty files and source digests. Check actual owner receipts for selected-call/default/format repairs, provider limits, OAuth and bundle changes.
+Inspect the current committed source, relevant owner-reported fixes, active changes and exact acceptance scope for selected-call/default/format repairs, provider limits, OAuth and bundle changes.
 
-**Deliverable:** A source/evidence inventory separating committed acceptance, reported acceptance and unaccepted candidates.
+**Deliverable:** A concise source and acceptance status distinguishing integrated work, reported work and candidates.
 
 **Complete when:** No foreign dirty patch is credited as integrated; each reused fix has its exact evidence scope.
 
@@ -56,9 +58,9 @@ Choose one private image app and one original approval app. Pin complete source,
 
 **Complete when:** Local ignored drafts and committed historical snapshots have distinct provenance; no trimmed app substitutes for a whole-app claim.
 
-### 4 Write the independent outcome matrix
+### 4 Define the outcome matrix
 
-**Owner:** Independent witness/reviewer. **After:** 3. **Packet:** O0, J0, J1. 
+**Owner:** Application author with relevant domain owners. **After:** 3. **Packet:** O0, J0, J1.
 
 **Recommended worker:** gpt-6.1-sol · `high` reasoning. Independent cross-application expectations must preserve authority, failure, replay and upgrade behavior.
 
@@ -84,13 +86,13 @@ Trace canonical IDs/types/defaults, verified context, owner transaction, provisi
 
 **Owner:** Source comparison author. **After:** 1. **Packet:** N8. Runs alongside task 7; does not wait for providers or the whole-app outcome matrix.
 
-**Recommended worker:** gpt-6.1-sol · `medium` reasoning. Finite comparison of three enum handlers and known alternatives with independent expected cases.
+**Recommended worker:** gpt-6.1-sol · `medium` reasoning. Finite comparison of three enum handlers and known alternatives with expected cases.
 
-Write three complete current handlers and proposed exhaustive equivalents, including an intentional fallback. Add a new enum case to show the omission risk and count all authored source. Register the selected finite witness and obtain independent expected cases for this comparison; unrelated whole-app paths in task 4 are not a preparation prerequisite.
+Write three complete current handlers and proposed exhaustive equivalents, including an intentional fallback. Add a new enum case to show the omission risk and count all authored source. Register the selected finite witness and obtain expected cases for this comparison; unrelated whole-app paths in task 4 are not a preparation prerequisite.
 
 **Deliverable:** Before/after sources and independent case/branch expectations, labelled proposed.
 
-**Complete when:** Comparison preserves permissions, effects and failures; it includes stronger existing-if analysis as an alternative. The selected comparison has independently checked expectations before its value decision.
+**Complete when:** Comparison preserves permissions, effects and failures; it includes stronger existing-if analysis as an alternative. The selected comparison has directly checked expectations before its value decision.
 
 ### 7 Prepare the dependent-input comparison
 
@@ -98,11 +100,11 @@ Write three complete current handlers and proposed exhaustive equivalents, inclu
 
 **Recommended worker:** gpt-6.1-sol · `high` reasoning. Compare complete interaction and authoring behavior while retaining candidate and final authority.
 
-Compare a complete country/region form and reviewer selection with current nested read forms. Preserve candidate authority and final mutation guards. Register the selected finite witness and obtain independent expected cases for this comparison; unrelated whole-app paths in task 4 are not a preparation prerequisite.
+Compare a complete country/region form and reviewer selection with current nested read forms. Preserve candidate authority and final mutation guards. Register the selected finite witness and obtain expected cases for this comparison; unrelated whole-app paths in task 4 are not a preparation prerequisite.
 
 **Deliverable:** Input dependency/result sketches, expected stale-response behavior and source/interaction comparison.
 
-**Complete when:** A real interaction or authoring benefit is identified; no copied input schema or arbitrary client expression is assumed. The selected comparison has independently checked expectations before its value decision.
+**Complete when:** A real interaction or authoring benefit is identified; no copied input schema or arbitrary client expression is assumed. The selected comparison has directly checked expectations before its value decision.
 
 ## Canonical execution and browser foundations
 
@@ -332,9 +334,9 @@ Render domain lifecycle and provider progress separately, including queued/runni
 
 ### 26 Execute the whole private image journey
 
-**Owner:** Independent app journey reviewer. **After:** 11, 16, 18, 20, 22, 24, 25. **Packet:** J0. 
+**Owner:** Application owner with relevant domain owners. **After:** 11, 16, 18, 20, 22, 24, 25. **Packet:** J0.
 
-**Recommended worker:** gpt-6.1-sol · `high` reasoning. Independent whole-app qualification spans browser, MCP, provider, durable storage and negative journeys.
+**Recommended worker:** gpt-6.1-sol · `high` reasoning. Whole-app qualification spans browser, MCP, provider, durable storage and negative journeys.
 
 Run the registered complete source through create/submit/progress/output, failure, uncertainty, stop/reconcile/retry and all other declared original workflows using real browser/MCP/durable/provider paths.
 
@@ -344,7 +346,7 @@ Run the registered complete source through create/submit/progress/output, failur
 
 ### 27 Qualify image schema and pending-work upgrades
 
-**Owner:** Upgrade owner and independent reviewer. **After:** 26. **Packet:** J0. 
+**Owner:** Upgrade owner with relevant domain owners. **After:** 26. **Packet:** J0.
 
 **Recommended worker:** gpt-6.1-sol · `high` reasoning. Qualify the released upgrade path against persisted/pending work; new compatibility semantics require escalation.
 
@@ -376,7 +378,7 @@ Compare enum-only match with stronger conditional coverage on the complete witne
 
 If bounded match wins the value gate, add its closed parser/AST and checks. If stronger existing-if analysis wins, change only analysis and diagnostics. Preserve physical source locations and reject unsupported patterns.
 
-**Deliverable:** Parser/CST/type/effect changes plus independent invalid cases.
+**Deliverable:** Parser/CST/type/effect changes plus invalid cases checked against expected diagnostics.
 
 **Complete when:** Missing/new/duplicate/foreign cases fail correctly; ordinary intentional if/else remains valid.
 
@@ -406,7 +408,7 @@ Update formatting, descriptions, completion/lint/LSP and exact grammar/design fo
 
 ### 32 Independently qualify exhaustive handling
 
-**Owner:** Independent source/runtime reviewer. **After:** 30, 31. **Packet:** N8. 
+**Owner:** Source/runtime owner. **After:** 30, 31. **Packet:** N8.
 
 **Recommended worker:** gpt-6.1-sol · `medium` reasoning. Independent finite handler and case-mutation checks have explicit expected diagnostics and behavior.
 
@@ -450,7 +452,7 @@ Resolve the source binding and derive parameter/result mapping. Add explicit art
 
 Map selected form values to the existing canonical read admission, limits and safe candidate projections. Work against the released contract while producer integration proceeds.
 
-**Deliverable:** Lookup implementation and independent authority/race cases.
+**Deliverable:** Lookup implementation and authority/race cases checked against expected outcomes.
 
 **Complete when:** Unauthorized/expired candidates do not leak; malformed or missing prerequisite input behaves as specified.
 
@@ -468,7 +470,7 @@ Add bounded debouncing/cancellation, sequence/context fencing, parent-change cle
 
 ### 37 Qualify dependent forms vertically
 
-**Owner:** Independent browser/canonical reviewer. **After:** 34, 35, 36. **Packet:** N9. 
+**Owner:** Browser/canonical owner. **After:** 34, 35, 36. **Packet:** N9.
 
 **Recommended worker:** gpt-6.1-sol · `high` reasoning. Independent generated lookup/control/final-submission qualification includes revocation and stale selections.
 
@@ -506,7 +508,7 @@ Normalize/freeze exact allowed target arguments, reference versions and provenan
 
 ### 40 Execute the whole approval application
 
-**Owner:** Independent app journey reviewer. **After:** 38, 14, 11, 12. **Packet:** J1. 
+**Owner:** Application owner with relevant domain owners. **After:** 38, 14, 11, 12. **Packet:** J1.
 
 **Recommended worker:** gpt-6.1-sol · `high` reasoning. Whole original approval workflows require durable, interface, authority and upgrade evidence.
 
@@ -528,7 +530,7 @@ Run every registered original approval workflow through actual compiled browser/
 
 Choose allowance and concurrency-slot consumers; specify units, admission maximum, authoritative owner, usage provenance, late evidence and uncertain commitments. Compare same-owner and explicit staged alternatives.
 
-**Deliverable:** Owner mapping and independently expected race/crash/accounting cases.
+**Deliverable:** Owner mapping and expected race/crash/accounting cases.
 
 **Complete when:** No forbidden atomicity; nonnegative balance is not imposed on valid debt/reversal domains; hard money caps require enforceable pricing evidence.
 
@@ -774,21 +776,21 @@ Compare qualified flat alternatives with one actual nested/parallel workflow. Se
 
 **Complete when:** No shared-graph prerequisite is imposed if irrelevant; fresh JEV3 precedes any separate implementation plan.
 
-## Review integration and release cycle
+## Validation, integration and release cycle
 
-### 60 Review and integrate each released slice
+### 60 Validate and integrate each released slice
 
-**Owner:** Independent reviewer and current Git integrator. **After:** An implemented slice and independent expected cases are ready for review; reviewed source is required before integration.. **Packet:** O0, O1. 
+**Owner:** Slice author and current Git integrator. **After:** An implemented slice is ready for direct validation and integration. **Packet:** O0, O1.
 
-**Recommended worker:** gpt-6.1-sol · `high` reasoning. Independent review of the exact slice requires its authority/protocol context; clean integration can use a cheaper split.
+**Recommended worker:** gpt-6.1-sol · `high` reasoning. Direct validation should match the changed behavior and risk; routine integration can use a cheaper worker.
 
-For every implemented slice, review raw code/contract/expected cases, correct material gaps, integrate on the approved base and make a focused Conventional Commit.
+For each implemented slice, inspect the changed code and contract, run one proportionate direct behavior check, correct failures, integrate on the current base and make a focused Conventional Commit.
 
-**Deliverable:** Reviewed exact diff, checks, source pin and explicit file handback.
+**Deliverable:** Integrated exact change, concise check result and explicit file handback.
 
 **Complete when:** Foreign index/work is preserved; unsupported consumers cannot silently ignore new semantics. This repeats per slice, not after all conditional work.
 
-**Repeat:** Each applicable exact-scope implementation, integration or release claim. This is not a global barrier after task 59.
+**Repeat:** A relevant change, failure or concrete unresolved risk. This is not a global barrier after task 59.
 
 ### 61 Qualify the claimed installed and durable scope
 
@@ -802,47 +804,47 @@ For each release claim, run actual outside-checkout package/artifact/browser/bac
 
 **Complete when:** Mocks/source traces remain scoped; native preparation HOLD and original full release prerequisites are preserved.
 
-**Repeat:** Each applicable exact-scope implementation, integration or release claim. This is not a global barrier after task 59.
+**Repeat:** A relevant change, failure or concrete unresolved risk. This is not a global barrier after task 59.
 
 ### 62 Reconcile coverage and decisions after integration
 
 **Owner:** Handling integrator. **After:** An integration or merge happened; the handling integrator owns reconciliation of all changes since the checkpoint.. **Packet:** O0, O1. 
 
-**Recommended worker:** gpt-6.1-sol · `medium` reasoning. Reconcile changes against reviewed receipts and the living checkpoint; collection can be delegated more cheaply.
+**Recommended worker:** gpt-6.1-sol · `medium` reasoning. Reconcile actual changes against the living checkpoint and decisions.
 
-Record qualified outputs and original task acceptance. After every merge, reconcile all changes since the living checkpoint with coverage/decisions; advance only after complete review.
+Record qualified outputs and original task acceptance. After every merge, reconcile all changes since the living checkpoint with coverage/decisions; advance the checkpoint when reconciliation is complete.
 
 **Deliverable:** Current coverage/decision/task crosswalk and retained historical pins.
 
 **Complete when:** No false broad parent completion, recursive bookkeeping work or premature complete-checkpoint advancement.
 
-**Repeat:** Each applicable exact-scope implementation, integration or release claim. This is not a global barrier after task 59.
+**Repeat:** A relevant change, failure or concrete unresolved risk. This is not a global barrier after task 59.
 
-### 63 Publish the capability evidence and remaining gates
+### 63 Publish capability status and remaining gates
 
-**Owner:** Coordinator. **After:** The claimed scope has reviewed evidence and the recorded incomplete gates are current.. **Packet:** O0, J0, J1. 
+**Owner:** Coordinator. **After:** The claimed scope has direct check results and recorded incomplete gates are current. **Packet:** O0, J0, J1.
 
-**Recommended worker:** gpt-6.1-sol · `low` reasoning. Publish a status matrix from already validated receipts; uncertain claims return to their qualified reviewer.
+**Recommended worker:** gpt-6.1-sol · `low` reasoning. Publish a status matrix from direct check results; resolve uncertain claims at their actual scope.
 
 Report implemented source/consumer behavior, full witnesses, measurements, conditional/deferred items and exact remaining gaps. Release workers and file leases.
 
-**Deliverable:** A 21-proposal capability/status matrix supported by raw receipts.
+**Deliverable:** A 21-proposal capability/status matrix with concise check results and remaining gates.
 
 **Complete when:** Every claim names its actual scope; source approval, provider behavior, installed release and full app acceptance are not conflated.
 
-**Repeat:** Each applicable exact-scope implementation, integration or release claim. This is not a global barrier after task 59.
+**Repeat:** A relevant change, failure or concrete unresolved risk. This is not a global barrier after task 59.
 
 ## Parallel execution and first queue
 
-After tasks 1–5 identify the actual source and releases, assign one author tasks 6/28 and another tasks 7/33 for disjoint comparisons/contracts. The independent reviewer checks their expected cases and alternatives. Current compiler/package owners continue their own repairs; new shared-file implementation waits for their specific handoff.
+After tasks 1–5 identify the actual source and releases, assign one author tasks 6/28 and another tasks 7/33 for disjoint comparisons/contracts. Compare expected cases and alternatives directly, without a separate verification pipeline. Current compiler/package owners continue their own repairs; new shared-file implementation waits for their specific handoff.
 
 Next, consume or finish the narrow foundations in tasks 8–16. Read-only rendering (15) can proceed beside forms (13–14). Generic file transfer (23) need not wait for compiled sends/timers or generation; only provider output finalization (24) needs the generation path. Enum implementation (29–32) can proceed before the provider/image milestone, provided its local generated execution seam is actually released.
 
-With contracts stable, work 18–24 progresses through durable/provider owners while interface authors integrate25 and independent reviewers prepare26. Dependent lookup/control consumers (35–36) can develop against the approved metadata contract; qualification37 waits for real producer, lookup and browser joins. Serialize all shared compiler/IR/JS, public descriptor, runtime invocation and browser bootstrap changes under one writer.
+With contracts stable, work 18–24 progresses through durable/provider owners while interface authors integrate25 and authors prepare26. Dependent lookup/control consumers (35–36) can develop against the approved metadata contract; qualification37 waits for real producer, lookup and browser joins. Serialize all shared compiler/IR/JS, public descriptor, runtime invocation and browser bootstrap changes under one writer.
 
 Approval40 and specialized judgment46/corpus47 consume only their actual needed contracts; they do not inherit unrelated image generation or optional view/wizard improvements. Preparation of accounting41 and conditional pure calendar53 can use free capacity. Conditional55 push consumes read-only15; editable consumers additionally consume16.
 
-Repeat60–63 for each reviewed release. A task may release a narrowly proved output while its broad original parent remains partial. Complete whole-app or installed-release claims only against all original required acceptance. Preserve native preparation HOLD and the complete living-plan checkpoint until their own requirements are met.
+Repeat60–63 only for a relevant change, failure or concrete unresolved risk. A task may release a narrowly proved output while its broad original parent remains partial. Complete whole-app or installed-release claims only against all original required acceptance. Preserve native preparation HOLD and the complete living-plan checkpoint until their own requirements are met.
 
 
 
