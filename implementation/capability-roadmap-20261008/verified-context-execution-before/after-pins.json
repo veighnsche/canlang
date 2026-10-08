@@ -1,0 +1,13 @@
+{
+  "source_sha256": "f01e44a16219ef2c6253450448a455569bd958d55df921e5bce8d34626379507",
+  "artifact_sha256": "161da074987f6af7c96212cb240507ac18f8a725687049eaa1333e0bd85f1f20",
+  "assembled": {
+    "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-execution-before/assembled/$can$m$5665726966696564436f6e74657874.mjs": {
+      "sha256": "40808a6675930258dfec63bf5e0ba7bab705f571218df26567258614ccb5e5ab",
+      "realpath": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-execution-before/assembled/$can$m$5665726966696564436f6e74657874.mjs"
+    }
+  },
+  "frozen_outputs_unchanged": true,
+  "frozen_supplemental_unchanged": true,
+  "commands_released": true
+}

@@ -1,0 +1,13 @@
+{
+  "pins": {
+    "audit.py": "52c4d339edcd293bf975b07842c773b2ea332db09c18531c4445d931d9124860",
+    "constructor-tests.tap": "23652c6092c9e4772d40f49cc7858406e9000d5d6f690caa803c69b3e38815ba",
+    "control.log": "d473350a8ae7eae3f00599ec3a89de68812e597cb59aa8f998aece383aa8f10f",
+    "control.mjs": "aa5ebdc1a70273827a1bf53c32b13a5b837039b274b78f291599cca5baabe623",
+    "independent-pins.json": "27d5ae286244d143f7b9746d9f9778f932d4fb3675fc1684efabd819cf88eaf5",
+    "raw-audit.json": "6507fa66a283c56d8eb13e988ed927918dec83ef9e139572733b4f8909a6e5d5",
+    "runtime-results.json": "b8de82814c7b00fcf8bd4f88a59b399ba9ce7cfb68ce1424098f9343964d8fa0"
+  },
+  "commands_released": true,
+  "no_servers_or_pending_processes": true
+}

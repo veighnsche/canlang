@@ -1,0 +1,63 @@
+{
+  "status": "candidate_failed",
+  "observations": 17,
+  "checks": 18,
+  "failed": [
+    {
+      "name": "forced retry observes exactly two real handler-result commits",
+      "passed": false,
+      "detail": {
+        "commitAttempts": [
+          {
+            "expectedRevision": 10,
+            "receipt_operation": "VerifiedContext.nowEquals",
+            "result": true,
+            "createdAt": 1791454830123,
+            "hostClockSamples": [
+              1791454830123
+            ]
+          }
+        ],
+        "competitor": {
+          "result": {
+            "status": "committed",
+            "operation_id": "01a11b07-5e2b-709f-8610-6e08b53595e4",
+            "result": true,
+            "deliveries": []
+          }
+        }
+      }
+    },
+    {
+      "name": "retry does not resample advancing host clock",
+      "passed": false,
+      "detail": {
+        "hostClockSamples": [
+          1791454830123
+        ],
+        "outcome": {
+          "error": {
+            "code": "rule_failed",
+            "message": "Right-hand side of 'instanceof' is not an object",
+            "operation_id": "01a11b07-5e2b-7ea2-829e-c1b5af4aa6ba",
+            "retryable": false
+          }
+        }
+      }
+    },
+    {
+      "name": "retry commits one final receipt plus one distinct competing receipt",
+      "passed": false,
+      "detail": {
+        "retryReceipts": [],
+        "before_revision": 10,
+        "after_revision": 11
+      }
+    }
+  ],
+  "two_retry_attempts": 1,
+  "host_clock_samples": [
+    1791454830123
+  ]
+}
+

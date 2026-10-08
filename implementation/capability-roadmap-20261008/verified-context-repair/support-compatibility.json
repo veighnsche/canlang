@@ -1,0 +1,66 @@
+{
+  "foundation": "/private/tmp/canlang-nullable-ref-after-db57c379",
+  "scope": "Current Cloudflare static relative-source closure; other package bodies remain separately frozen/pinned",
+  "results": [
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "current": "48f4c79ab213f0fe95b4e8e3b01dd643793ed1a345d075f27aef214101d0bbe5",
+      "foundation": "6b135086c8d0c904008f2100ed0930fd8ebfed60769e73efc8944bed45f50997",
+      "matches": false
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/context.ts",
+      "current": "6c79953696b9b5a2332d4291bfc70aee45d09b959bfa98dac609ee8f9b496450",
+      "foundation": "497e1bbc7cbecd984e2ea7119cd1f4913688b2044158eaaaa0a74f3af0fbb98b",
+      "matches": false
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/modules.ts",
+      "current": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+      "foundation": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+      "matches": true
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/stdlib.ts",
+      "current": "6c6d35ed8294f12e1badf4325f9553ee3eb6d2faeff1ffa1a2ac6152cba07207",
+      "foundation": "12505068df2bbe3b6cdf74d52d1e7f2533283c3649bb22333bd77516d437e272",
+      "matches": false
+    },
+    {
+      "path": "packages/cloudflare/src/worker/assembly.ts",
+      "current": "31239a80e12c6db7c51c744e22fd5e20dc69567b11781b71ce2485accb99be11",
+      "foundation": "31239a80e12c6db7c51c744e22fd5e20dc69567b11781b71ce2485accb99be11",
+      "matches": true
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/sourcemap.ts",
+      "current": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "foundation": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+      "matches": true
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/producer-files.ts",
+      "current": "8ac214b19c81f74b9cf3561cf26c4c67a43ca20f28eedc8f94ef58574b72f6ba",
+      "foundation": "8ac214b19c81f74b9cf3561cf26c4c67a43ca20f28eedc8f94ef58574b72f6ba",
+      "matches": true
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-imports.ts",
+      "current": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+      "foundation": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+      "matches": true
+    },
+    {
+      "path": "packages/cloudflare/src/deploy/module-maps.ts",
+      "current": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+      "foundation": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+      "matches": true
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/mcp-registry.ts",
+      "current": "cf8cf482728036635a1d964ab8fc94ff365eb900e3efb0a99d9f9daa69f34c14",
+      "foundation": "cf8cf482728036635a1d964ab8fc94ff365eb900e3efb0a99d9f9daa69f34c14",
+      "matches": true
+    }
+  ]
+}

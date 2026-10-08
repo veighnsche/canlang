@@ -1,0 +1,284 @@
+{
+  "status": "SEQ-010 factual preparation only; unavailable context not repaired; no contract acceptance",
+  "observed_utc": "2026-10-07T23:00:12.636110+00:00",
+  "current_committed_revision": "a590a1eae97dcc8b4311b3b96a24433aa7be43de",
+  "frozen_revision": "db57c3794d386fcd27f17f54b199272d58106a81",
+  "source_pins": {
+    "compiler/src/codegen/ir.rs": {
+      "current_commit": "a590a1eae97dcc8b4311b3b96a24433aa7be43de",
+      "current_committed_sha256": "c354936b8b67f23b4d0e159dd75ce67df085b9d5509c1fa35061eeb744b36f0d",
+      "worktree_sha256": "c354936b8b67f23b4d0e159dd75ce67df085b9d5509c1fa35061eeb744b36f0d",
+      "dirty_observation": false,
+      "frozen_db57_sha256": "c354936b8b67f23b4d0e159dd75ce67df085b9d5509c1fa35061eeb744b36f0d",
+      "committed_changed_since_frozen": false
+    },
+    "compiler/src/codegen/js.rs": {
+      "current_commit": "a590a1eae97dcc8b4311b3b96a24433aa7be43de",
+      "current_committed_sha256": "dd4a84f977a0ecdeb1e03685936042fcf47706de3757feda5f89c7987d99e8d4",
+      "worktree_sha256": "dd4a84f977a0ecdeb1e03685936042fcf47706de3757feda5f89c7987d99e8d4",
+      "dirty_observation": false,
+      "frozen_db57_sha256": "dd4a84f977a0ecdeb1e03685936042fcf47706de3757feda5f89c7987d99e8d4",
+      "committed_changed_since_frozen": false
+    },
+    "packages/cloudflare/src/runtime/context.ts": {
+      "current_commit": "a590a1eae97dcc8b4311b3b96a24433aa7be43de",
+      "current_committed_sha256": "497e1bbc7cbecd984e2ea7119cd1f4913688b2044158eaaaa0a74f3af0fbb98b",
+      "worktree_sha256": "497e1bbc7cbecd984e2ea7119cd1f4913688b2044158eaaaa0a74f3af0fbb98b",
+      "dirty_observation": false,
+      "frozen_db57_sha256": "497e1bbc7cbecd984e2ea7119cd1f4913688b2044158eaaaa0a74f3af0fbb98b",
+      "committed_changed_since_frozen": false
+    },
+    "packages/cloudflare/src/runtime/invoke.ts": {
+      "current_commit": "a590a1eae97dcc8b4311b3b96a24433aa7be43de",
+      "current_committed_sha256": "6b135086c8d0c904008f2100ed0930fd8ebfed60769e73efc8944bed45f50997",
+      "worktree_sha256": "6b135086c8d0c904008f2100ed0930fd8ebfed60769e73efc8944bed45f50997",
+      "dirty_observation": false,
+      "frozen_db57_sha256": "6b135086c8d0c904008f2100ed0930fd8ebfed60769e73efc8944bed45f50997",
+      "committed_changed_since_frozen": false
+    },
+    "packages/state/src/invocation/context.ts": {
+      "current_commit": "a590a1eae97dcc8b4311b3b96a24433aa7be43de",
+      "current_committed_sha256": "5c894dc055c26df2723f5d2f38f16be5bd83e3e361595c1a91de03dda6c2292f",
+      "worktree_sha256": "5c894dc055c26df2723f5d2f38f16be5bd83e3e361595c1a91de03dda6c2292f",
+      "dirty_observation": false,
+      "frozen_db57_sha256": "5c894dc055c26df2723f5d2f38f16be5bd83e3e361595c1a91de03dda6c2292f",
+      "committed_changed_since_frozen": false
+    },
+    "packages/state/src/invocation/admission.ts": {
+      "current_commit": "a590a1eae97dcc8b4311b3b96a24433aa7be43de",
+      "current_committed_sha256": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6",
+      "worktree_sha256": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6",
+      "dirty_observation": false,
+      "frozen_db57_sha256": "c83e7b06b932e7e16402f0c815121a917f7b63daa90e4000fd822d16b1fc1ba6",
+      "committed_changed_since_frozen": false
+    },
+    "packages/state/src/invocation/invoke.ts": {
+      "current_commit": "a590a1eae97dcc8b4311b3b96a24433aa7be43de",
+      "current_committed_sha256": "37f76500d8b0ed9959cf0110c70b0750263b9c0134fc19194229db1924ca4670",
+      "worktree_sha256": "37f76500d8b0ed9959cf0110c70b0750263b9c0134fc19194229db1924ca4670",
+      "dirty_observation": false,
+      "frozen_db57_sha256": "37f76500d8b0ed9959cf0110c70b0750263b9c0134fc19194229db1924ca4670",
+      "committed_changed_since_frozen": false
+    },
+    "packages/state/src/invocation/registry.ts": {
+      "current_commit": "a590a1eae97dcc8b4311b3b96a24433aa7be43de",
+      "current_committed_sha256": "eac07bdbb50e1362da25e6a35069ba56dc5305ef31dd49e33613fa3d15ce8810",
+      "worktree_sha256": "eac07bdbb50e1362da25e6a35069ba56dc5305ef31dd49e33613fa3d15ce8810",
+      "dirty_observation": false,
+      "frozen_db57_sha256": "eac07bdbb50e1362da25e6a35069ba56dc5305ef31dd49e33613fa3d15ce8810",
+      "committed_changed_since_frozen": false
+    },
+    "packages/state/src/mutation/pipeline.ts": {
+      "current_commit": "a590a1eae97dcc8b4311b3b96a24433aa7be43de",
+      "current_committed_sha256": "89b5840c8a819a80fb142fe720e252ffca2e02033abb15d8bbe043645ff546f4",
+      "worktree_sha256": "89b5840c8a819a80fb142fe720e252ffca2e02033abb15d8bbe043645ff546f4",
+      "dirty_observation": false,
+      "frozen_db57_sha256": "89b5840c8a819a80fb142fe720e252ffca2e02033abb15d8bbe043645ff546f4",
+      "committed_changed_since_frozen": false
+    },
+    "packages/state/src/storage/schema.ts": {
+      "current_commit": "a590a1eae97dcc8b4311b3b96a24433aa7be43de",
+      "current_committed_sha256": "2a64ec108ea971c72be75c7c7bc1c8a16566bdcb81cf75178fb564a490468520",
+      "worktree_sha256": "2a64ec108ea971c72be75c7c7bc1c8a16566bdcb81cf75178fb564a490468520",
+      "dirty_observation": false,
+      "frozen_db57_sha256": "2a64ec108ea971c72be75c7c7bc1c8a16566bdcb81cf75178fb564a490468520",
+      "committed_changed_since_frozen": false
+    },
+    "packages/contracts/src/state.ts": {
+      "current_commit": "a590a1eae97dcc8b4311b3b96a24433aa7be43de",
+      "current_committed_sha256": "64fe3d14fd57de3ded9a5f802016a147a30ed468832ef8d891ba6a6c5d0b4e8c",
+      "worktree_sha256": "64fe3d14fd57de3ded9a5f802016a147a30ed468832ef8d891ba6a6c5d0b4e8c",
+      "dirty_observation": false,
+      "frozen_db57_sha256": "64fe3d14fd57de3ded9a5f802016a147a30ed468832ef8d891ba6a6c5d0b4e8c",
+      "committed_changed_since_frozen": false
+    },
+    "packages/contracts/src/identity.ts": {
+      "current_commit": "a590a1eae97dcc8b4311b3b96a24433aa7be43de",
+      "current_committed_sha256": "19816727c6b820ffb5328eeab2e3211390cf91482a592923b2ac87cc4a72c440",
+      "worktree_sha256": "19816727c6b820ffb5328eeab2e3211390cf91482a592923b2ac87cc4a72c440",
+      "dirty_observation": false,
+      "frozen_db57_sha256": "19816727c6b820ffb5328eeab2e3211390cf91482a592923b2ac87cc4a72c440",
+      "committed_changed_since_frozen": false
+    },
+    "packages/identity/src/authentication/context.ts": {
+      "current_commit": "a590a1eae97dcc8b4311b3b96a24433aa7be43de",
+      "current_committed_sha256": "ff5fd0d20b2751609825e755d113e534a74b8e750600f3395a1e9573cb1dce96",
+      "worktree_sha256": "ff5fd0d20b2751609825e755d113e534a74b8e750600f3395a1e9573cb1dce96",
+      "dirty_observation": false,
+      "frozen_db57_sha256": "ff5fd0d20b2751609825e755d113e534a74b8e750600f3395a1e9573cb1dce96",
+      "committed_changed_since_frozen": false
+    }
+  },
+  "input_and_receipt_pins": {
+    "draft/CanCreative.can": {
+      "frozen_draft_gitlink": "a55a0f700f07f6f972d9d6091b0fdbceee399eb9",
+      "sha256": "a65f6aaf3c0ee3eeefe064a44eb7a72782d7edae02ed693a434e23c72c16bd52",
+      "role": "preserved source"
+    },
+    "draft/CanApprove.can": {
+      "frozen_draft_gitlink": "a55a0f700f07f6f972d9d6091b0fdbceee399eb9",
+      "sha256": "515648eb449308363023ed6fe7cc986c0eceba58ba5fa5f88a6c30cf7a0fc981",
+      "role": "preserved source"
+    },
+    "draft/CanCreative.mjs": {
+      "frozen_draft_gitlink": "a55a0f700f07f6f972d9d6091b0fdbceee399eb9",
+      "sha256": "2dd89a79f7671ac631b2ed887a97639bf3cae84addb5aec04a57bc75e0d43e75",
+      "role": "desired checked-in output; NOT actual successful compiler output"
+    },
+    "draft/CanApprove.mjs": {
+      "frozen_draft_gitlink": "a55a0f700f07f6f972d9d6091b0fdbceee399eb9",
+      "sha256": "f8acc5397ebc7b63a8b8ba202b55875fba25ebdee5a939273d35f136bde48f49",
+      "role": "desired checked-in output; NOT actual successful compiler output"
+    },
+    "implementation/capability-roadmap-20261008/f1-metadata/Bounded.can": {
+      "sha256": "77631d6ace05a26bd9bb1c54135ade632a7c699a0465630bf1346d9358fb8451",
+      "role": "existing bounded evidence, read without mutation/rerun"
+    },
+    "implementation/capability-roadmap-20261008/f1-metadata/artifacts/bounded-compile.json": {
+      "sha256": "9f39ab8caf73621ab825eeb1db0507282d38932884d1316c9029a7be5060b343",
+      "role": "existing bounded evidence, read without mutation/rerun"
+    },
+    "implementation/capability-roadmap-20261008/f1-invocation-review.md": {
+      "sha256": "4e7243ec7c890f88c910530e15e50c2ee785c4fb5d6174db9efa413460d93d95",
+      "role": "existing bounded evidence, read without mutation/rerun"
+    },
+    "implementation/capability-roadmap-20261008/f1-invocation-review.json": {
+      "sha256": "b02d6938e6f9597986a246dfd7fb4651d7d5ae10f71cd43b474ccba4c4d15638",
+      "role": "existing bounded evidence, read without mutation/rerun"
+    },
+    "implementation/capability-roadmap-20261008/f1-metadata/producer-handoff.json": {
+      "sha256": "b5dfb2e61a82313a190b7a57bfe7e99aaa2f556360d39499c59240eefe5323fa",
+      "role": "existing bounded evidence, read without mutation/rerun"
+    }
+  },
+  "actual_bounded_emitted_body": "async \"Bounded.advance\"(c,{job:$can$l$323a6a6f62}){\ncheck(hasRole(c,\"public\"),\"forbidden\");\nawait transition(c,\"Bounded.Job\",($can$l$323a6a6f62).id,\"status\",\"idle\",\"queued\");\nawait transition(c,\"Bounded.Job\",($can$l$323a6a6f62).id,\"status\",\"queued\",\"ready\");\n},",
+  "scopes": [
+    {
+      "scope": "Identity and State admitted user operation",
+      "source": [
+        "packages/identity/src/authentication/context.ts:64 resolveIdentity",
+        "packages/state/src/invocation/context.ts:90 buildContext",
+        "packages/contracts/src/state.ts:65 InvocationContext",
+        "packages/state/src/invocation/admission.ts:180 closed generated inputs; :344 live membership; :651 trusted revalidation boundary"
+      ],
+      "bindings": {
+        "actor": "Principal|null from resolved identity; userId/email/emailVerified",
+        "team": "TeamScope|null from resolved team, teamId/timezone",
+        "clock": "input.now captured in InvocationContext; not caller business input",
+        "operation": "operation name + operationId + source in separate readonly fields",
+        "locale_timezone": "team.timezone exists; no locale in InvocationContext"
+      },
+      "evidence": "F1 invocation independent review uses production resolver/live membership over memory identity store; canonical D1 route proves public/member/owner selected gates and membership revocation. Installed/D1 identity remains unqualified.",
+      "unavailable": "This carrier is not the emitted HandlerContext object. Canonical context presence cannot qualify direct c.actor/c.team/c.now/c.operation bindings.",
+      "input_boundary": "Unknown generated business input fields reject; context fields supplied to internal APIs are trusted host inputs, not automatically verified merely by type. operation_id is caller/runtime UUIDv7 identity subject to age/replay checks, not proof of authenticated human identity."
+    },
+    {
+      "scope": "Emitted user scenario c (Creative/Approve required; Bounded actually executed)",
+      "source": [
+        "compiler/src/codegen/ir.rs:2451 decode_bare_name",
+        "compiler/src/codegen/js.rs:1670 lower_expr",
+        "packages/cloudflare/src/runtime/context.ts:93 HandlerContext; :132 createContext",
+        "packages/cloudflare/src/runtime/invoke.ts:2892 CanonicalEffectsScope; :3000 createContext; :2761 scenarioParameters"
+      ],
+      "bindings": {
+        "actor": "IR targets c.actor; constructor supplies c.caller.userId (anonymous sentinel for null), not c.actor",
+        "team": "IR targets c.team; no c.team field installed by createContext",
+        "clock": "IR targets c.now; actual c.clock supplied; not c.now",
+        "operation": "IR targets c.operation, including source operation.id; actual c.canonical.operation is name string and c.canonical.operationId is separate id",
+        "locale_timezone": "No locale/timezone installed on HandlerContext"
+      },
+      "evidence": "Bounded.advance actual module executes hasRole(c,public), transition(c,...) twice. It does not read actor/team/now/operation. Reviewed D1 success and restart therefore cover canonical closures and admission, not these expression bindings. Creative compile has112 diagnostics; Approve5; neither actual result contains production modules.",
+      "unavailable": "Actor/team/now/operation expression fields unavailable on the actual constructed c. This is a static producer/consumer mismatch, not a new runtime failure claim. Preserved .mjs expresses desired c fields, not successful emitted artifact. Current and frozen source spans are pinned.",
+      "input_boundary": "scenarioParameters clones admitted inputs and replaces record refs with frozen/provisional views. It does not add verified actor/team/clock/operation context. Arbitrary handler args cannot supply legitimate ambient fields; closed descriptor admission is the host boundary."
+    },
+    {
+      "scope": "Contextual server defaults and attribution",
+      "source": [
+        "compiler/src/codegen/ir.rs:4545 server=actor/now",
+        "packages/state/src/invocation/registry.ts:207 ServerInitKind",
+        "packages/state/src/mutation/pipeline.ts:158 actorFor; :178 evalServerInit; :262 context.now/actor"
+      ],
+      "bindings": {
+        "actor": "Pipeline actorFor uses context.actor.userId, then test/trustedSource/public attribution; server=actor returns {id:actor}",
+        "team": "No server=team initializer in closed supported set",
+        "clock": "server=now returns ISO datetime from fixed context.now",
+        "operation": "History derives operation identity from InvocationContext",
+        "locale_timezone": "No contextual locale initializer"
+      },
+      "evidence": "Creative Template.owner/Run.author and Approve Document.submitter declare server=actor. Bounded has scalar literal defaults only and no contextual initializer; F1 review explicitly retains contextual-default gate open.",
+      "unavailable": "Source implementation exists; original app and actor-null/trusted contextual-default semantics are not qualified by Bounded. Attribution fallback strings must not be interpreted as verified human actors.",
+      "input_boundary": "Server-only caller-supplied values are rejected by pipeline; internal attribution initialization is distinct from forgeable request data."
+    },
+    {
+      "scope": "Mutation hooks",
+      "source": [
+        "compiler/src/codegen/ir.rs:2463 hook actor/now; :2469 hook team/operation fallthrough",
+        "compiler/src/codegen/js.rs:1350 enter_hook; :1396 hook_gap",
+        "packages/state/src/mutation/pipeline.ts:646 InterimHookContext",
+        "packages/cloudflare/src/runtime/invoke.ts canonical model-table hooks attachment"
+      ],
+      "bindings": {
+        "actor": "IR targets $hookCtx.actor; pipeline provides attribution string from actorFor, not source user carrier",
+        "team": "No released hook-team field; IR preserves fallthrough",
+        "clock": "IR targets $hookCtx.now; pipeline supplies number context.now",
+        "operation": "hook op=create/update/remove exists, not source operation {id,source}; source operation falls through",
+        "locale_timezone": "No hook locale/timezone carrier"
+      },
+      "evidence": "Creative template_edited on=Template.update uses event.after. F1 independent review states canonical model table installs empty hooks/invariants/locks; no hook executes in bounded invocation witness.",
+      "unavailable": "Hook context needs owner release and actual generated hook attachment. Ambient-context-dependent hook paths report E6008 throwing placeholder; team/operation fallthrough is not proof of a bound variable. Actor/time representation compatibility remains unqualified.",
+      "input_boundary": "Pipeline controls staging and trigger owner; hooks do not inherit triggering dependencies and open fresh transitive read scopes. This source boundary is not a receipt for complete hook authorization."
+    },
+    {
+      "scope": "Trusted event/occurrence handlers",
+      "source": [
+        "packages/state/src/invocation/context.ts:105 trustedSource guard; :112 actor=null",
+        "packages/state/src/invocation/admission.ts:344 trusted/user branch; :651 trusted commit revalidation",
+        "packages/cloudflare/src/runtime/invoke.ts:418 OccurrenceContext; :465 invokeOccurrenceWith",
+        "compiler/src/codegen/ir.rs:2451 non-hook context lowering"
+      ],
+      "bindings": {
+        "actor": "State trusted kind forces actor=null; cannot forge human actor from raw resolved actor",
+        "team": "State may retain resolved team/timezone; emitted c.team still unavailable unless distinct owner installs it",
+        "clock": "State fixed now; emitted c.now is not installed by ordinary constructor",
+        "operation": "State operation name/id/source/trustedSource distinct; ordinary HandlerContext installs only canonical closure where used",
+        "locale_timezone": "No actual localized handler carrier proved"
+      },
+      "evidence": "Creative conversation_revoked/member_removed/image_progressed and Approve remind/notify require event scopes. Existing F1 reviewed witness has no trusted event or provider occurrence execution. buildContext source requires nonempty trustedSource, but host verification/provenance is separately owned.",
+      "unavailable": "No selected trusted event actor-null/wrong-scope receipt or event payload-to-generated-handler join. Direct invokeOccurrenceWith validates occurrence carrier separately; its existence does not qualify canonical trusted event admission.",
+      "input_boundary": "Nonempty trustedSource alone is not provenance proof. Need verified trusted producer/ingress envelope and current authority at actual used event scope; ordinary user business inputs cannot authorize trusted kind."
+    },
+    {
+      "scope": "Locale/timezone and source formatting",
+      "source": [
+        "docs/specification/DECISIONS.md:1911 localized formatting accepted design, implementation pending",
+        "packages/cloudflare/src/runtime/context.ts:93 HandlerContext",
+        "packages/state/src/invocation/context.ts:121 resolved team.timezone",
+        "draft/CanApprove.can:101 format(...locale=null)"
+      ],
+      "bindings": {
+        "actor": "as above per executable scope",
+        "team": "verified team.timezone exists only on State carrier",
+        "clock": "fixed canonical clock separate from formatting carrier",
+        "operation": "formatter must receive actual executable scope per accepted design",
+        "locale_timezone": "HandlerContext has no formatter input fields; accepted design remains implementation pending; team-null UTC is design requirement, not current execution receipt"
+      },
+      "evidence": "No localized-format workflow in Bounded. Approve uses locale=null and translated labels; desired .mjs and explicit locale syntax do not establish actual formatter default/team forwarding.",
+      "unavailable": "Checked app metadata/default-after-composition, direct/canonical/occurrence constructor forwarding, locale provenance and compatibility gates remain open.",
+      "input_boundary": "Viewer locale and shared package may not choose deployment default under accepted design; this inventory selects no new context policy."
+    }
+  ],
+  "open_gates": [
+    "SEQ-010 per used user/hook/trusted scope verified actor/team/clock/operation bindings",
+    "FP.CONTEXT actual emitted/executed meaningful actor-null and wrong-scope controls",
+    "Hook-owner carrier/version/attachment release; no inference from non-hook c",
+    "Localized formatting accepted design implementation and compatibility/provenance",
+    "Installed real identity versus memory resolver evidence",
+    "Original Creative/Approve unchanged compiler diagnostic and full workflow gates"
+  ],
+  "next_owner_action": "Root Sol-high defining compiler/runtime/context owners review the unavailable c fields and per-scope carriers against original gates; make any consequential selection through existing policy/JEV process, then implement and qualify separately.",
+  "exclusions": [
+    "No mutation/runtime reruns",
+    "No source/dist/git/DECISIONS/filetree changes",
+    "No inferred context acceptance from Bounded transition or desired .mjs"
+  ]
+}

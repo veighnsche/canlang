@@ -1,0 +1,1393 @@
+{
+  "kind": "Real StoragePort commit interleaving; competing actual canonical operation advances memory fence. No forged context, handler patch or manufactured conflict error.",
+  "commitAttempts": [
+    {
+      "expectedRevision": 10,
+      "receipt_operation": "VerifiedContext.nowEquals",
+      "result": true,
+      "createdAt": 1791454830123,
+      "hostClockSamples": [
+        1791454830123
+      ]
+    }
+  ],
+  "hostClockSamples": [
+    1791454830123
+  ],
+  "competitor": {
+    "name": "real competing canonical commit to move fence",
+    "envelope": {
+      "operation": "VerifiedContext.datetimeBaseline",
+      "operation_id": "01a11b07-5e2b-709f-8610-6e08b53595e4",
+      "inputs": {
+        "stamp": "2026-10-08T10:20:30.123Z"
+      }
+    },
+    "actor_user_id": "067403d8-bcf1-4b19-a650-d43855fea279",
+    "selected_team_id": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+    "before": {
+      "revision": 10,
+      "records": [],
+      "outbox": [],
+      "schedules": [],
+      "receipts": [
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.datetimeBaseline",
+            "operationId": "01a11b07-5e2b-7af3-891d-8d10de36d406"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.datetimeBaseline",
+              "operationId": "01a11b07-5e2b-7af3-891d-8d10de36d406"
+            },
+            "inputHash": "afa3aaa8302e6dc37051bf905ffee0808783dae6bf428ad893dc976147b65c36",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": true,
+              "recordVersions": []
+            },
+            "committedRevision": 1,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.actorId",
+            "operationId": "01a11b07-5e2b-7701-8c61-dd81fae4075b"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.actorId",
+              "operationId": "01a11b07-5e2b-7701-8c61-dd81fae4075b"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "recordVersions": []
+            },
+            "committedRevision": 2,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.teamId",
+            "operationId": "01a11b07-5e2b-7f9d-8a5e-3b7f2521bde8"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.teamId",
+              "operationId": "01a11b07-5e2b-7f9d-8a5e-3b7f2521bde8"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "recordVersions": []
+            },
+            "committedRevision": 3,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.teamTimezone",
+            "operationId": "01a11b07-5e2b-7d3e-89e6-fcf578beb639"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.teamTimezone",
+              "operationId": "01a11b07-5e2b-7d3e-89e6-fcf578beb639"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": "Europe/Brussels",
+              "recordVersions": []
+            },
+            "committedRevision": 4,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.operationId",
+            "operationId": "01a11b07-5e2b-7e77-81f6-c1635de47242"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.operationId",
+              "operationId": "01a11b07-5e2b-7e77-81f6-c1635de47242"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": "01a11b07-5e2b-7e77-81f6-c1635de47242",
+              "recordVersions": []
+            },
+            "committedRevision": 5,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.operationSource",
+            "operationId": "01a11b07-5e2b-790e-8967-035b160f0fab"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.operationSource",
+              "operationId": "01a11b07-5e2b-790e-8967-035b160f0fab"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": "mcp",
+              "recordVersions": []
+            },
+            "committedRevision": 6,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.nowEquals",
+            "operationId": "01a11b07-5e2b-7647-8eb7-55e7aab403fa"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.nowEquals",
+              "operationId": "01a11b07-5e2b-7647-8eb7-55e7aab403fa"
+            },
+            "inputHash": "afa3aaa8302e6dc37051bf905ffee0808783dae6bf428ad893dc976147b65c36",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": true,
+              "recordVersions": []
+            },
+            "committedRevision": 7,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.nowEquals",
+            "operationId": "01a11b07-5e2b-72d1-85b4-50e377a0e811"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.nowEquals",
+              "operationId": "01a11b07-5e2b-72d1-85b4-50e377a0e811"
+            },
+            "inputHash": "c5c5a0a9aae7eadec91341176e90a02941e34d9e6ab408204cb145ed62156f42",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": false,
+              "recordVersions": []
+            },
+            "committedRevision": 8,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "app",
+            "principal": "public",
+            "operation": "VerifiedContext.anonymousNull",
+            "operationId": "01a11b07-5e2b-735a-8e72-6bae3f4c52b1"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "app",
+              "principal": "public",
+              "operation": "VerifiedContext.anonymousNull",
+              "operationId": "01a11b07-5e2b-735a-8e72-6bae3f4c52b1"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": true,
+              "recordVersions": []
+            },
+            "committedRevision": 9,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "app",
+            "principal": "public",
+            "operation": "VerifiedContext.actorId",
+            "operationId": "01a11b07-5e2b-7df0-86c4-efdd6fae1b8f"
+          },
+          "receipt": null
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "ac5e057d-b2c3-4ad2-adb6-1b8303ebb022",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.teamId",
+            "operationId": "01a11b07-5e2b-71b8-8e40-9b9e681478c8"
+          },
+          "receipt": null
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.actorId",
+            "operationId": "01a11b07-5e2b-713e-8cb5-e41527e637bd"
+          },
+          "receipt": null
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.nowEquals",
+            "operationId": "01a11b07-5e2b-7027-8cf7-21474e73e441"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.nowEquals",
+              "operationId": "01a11b07-5e2b-7027-8cf7-21474e73e441"
+            },
+            "inputHash": "dd0f3fa1c7b097bf4eebea6302e05c8076acfacfb29d5c0866c029e9d042b4d6",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "rejected",
+              "code": "rule_failed",
+              "message": "invalid datetime text: malformed"
+            },
+            "committedRevision": 10,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.nowEquals",
+            "operationId": "01a11b07-5e2b-7ea2-829e-c1b5af4aa6ba"
+          },
+          "receipt": null
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.datetimeBaseline",
+            "operationId": "01a11b07-5e2b-709f-8610-6e08b53595e4"
+          },
+          "receipt": null
+        }
+      ]
+    },
+    "outcome": {
+      "result": {
+        "status": "committed",
+        "operation_id": "01a11b07-5e2b-709f-8610-6e08b53595e4",
+        "result": true,
+        "deliveries": []
+      }
+    },
+    "after": {
+      "revision": 11,
+      "records": [],
+      "outbox": [],
+      "schedules": [],
+      "receipts": [
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.datetimeBaseline",
+            "operationId": "01a11b07-5e2b-7af3-891d-8d10de36d406"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.datetimeBaseline",
+              "operationId": "01a11b07-5e2b-7af3-891d-8d10de36d406"
+            },
+            "inputHash": "afa3aaa8302e6dc37051bf905ffee0808783dae6bf428ad893dc976147b65c36",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": true,
+              "recordVersions": []
+            },
+            "committedRevision": 1,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.actorId",
+            "operationId": "01a11b07-5e2b-7701-8c61-dd81fae4075b"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.actorId",
+              "operationId": "01a11b07-5e2b-7701-8c61-dd81fae4075b"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "recordVersions": []
+            },
+            "committedRevision": 2,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.teamId",
+            "operationId": "01a11b07-5e2b-7f9d-8a5e-3b7f2521bde8"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.teamId",
+              "operationId": "01a11b07-5e2b-7f9d-8a5e-3b7f2521bde8"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "recordVersions": []
+            },
+            "committedRevision": 3,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.teamTimezone",
+            "operationId": "01a11b07-5e2b-7d3e-89e6-fcf578beb639"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.teamTimezone",
+              "operationId": "01a11b07-5e2b-7d3e-89e6-fcf578beb639"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": "Europe/Brussels",
+              "recordVersions": []
+            },
+            "committedRevision": 4,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.operationId",
+            "operationId": "01a11b07-5e2b-7e77-81f6-c1635de47242"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.operationId",
+              "operationId": "01a11b07-5e2b-7e77-81f6-c1635de47242"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": "01a11b07-5e2b-7e77-81f6-c1635de47242",
+              "recordVersions": []
+            },
+            "committedRevision": 5,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.operationSource",
+            "operationId": "01a11b07-5e2b-790e-8967-035b160f0fab"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.operationSource",
+              "operationId": "01a11b07-5e2b-790e-8967-035b160f0fab"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": "mcp",
+              "recordVersions": []
+            },
+            "committedRevision": 6,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.nowEquals",
+            "operationId": "01a11b07-5e2b-7647-8eb7-55e7aab403fa"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.nowEquals",
+              "operationId": "01a11b07-5e2b-7647-8eb7-55e7aab403fa"
+            },
+            "inputHash": "afa3aaa8302e6dc37051bf905ffee0808783dae6bf428ad893dc976147b65c36",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": true,
+              "recordVersions": []
+            },
+            "committedRevision": 7,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.nowEquals",
+            "operationId": "01a11b07-5e2b-72d1-85b4-50e377a0e811"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.nowEquals",
+              "operationId": "01a11b07-5e2b-72d1-85b4-50e377a0e811"
+            },
+            "inputHash": "c5c5a0a9aae7eadec91341176e90a02941e34d9e6ab408204cb145ed62156f42",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": false,
+              "recordVersions": []
+            },
+            "committedRevision": 8,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "app",
+            "principal": "public",
+            "operation": "VerifiedContext.anonymousNull",
+            "operationId": "01a11b07-5e2b-735a-8e72-6bae3f4c52b1"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "app",
+              "principal": "public",
+              "operation": "VerifiedContext.anonymousNull",
+              "operationId": "01a11b07-5e2b-735a-8e72-6bae3f4c52b1"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": true,
+              "recordVersions": []
+            },
+            "committedRevision": 9,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "app",
+            "principal": "public",
+            "operation": "VerifiedContext.actorId",
+            "operationId": "01a11b07-5e2b-7df0-86c4-efdd6fae1b8f"
+          },
+          "receipt": null
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "ac5e057d-b2c3-4ad2-adb6-1b8303ebb022",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.teamId",
+            "operationId": "01a11b07-5e2b-71b8-8e40-9b9e681478c8"
+          },
+          "receipt": null
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.actorId",
+            "operationId": "01a11b07-5e2b-713e-8cb5-e41527e637bd"
+          },
+          "receipt": null
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.nowEquals",
+            "operationId": "01a11b07-5e2b-7027-8cf7-21474e73e441"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.nowEquals",
+              "operationId": "01a11b07-5e2b-7027-8cf7-21474e73e441"
+            },
+            "inputHash": "dd0f3fa1c7b097bf4eebea6302e05c8076acfacfb29d5c0866c029e9d042b4d6",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "rejected",
+              "code": "rule_failed",
+              "message": "invalid datetime text: malformed"
+            },
+            "committedRevision": 10,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.nowEquals",
+            "operationId": "01a11b07-5e2b-7ea2-829e-c1b5af4aa6ba"
+          },
+          "receipt": null
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.datetimeBaseline",
+            "operationId": "01a11b07-5e2b-709f-8610-6e08b53595e4"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.datetimeBaseline",
+              "operationId": "01a11b07-5e2b-709f-8610-6e08b53595e4"
+            },
+            "inputHash": "afa3aaa8302e6dc37051bf905ffee0808783dae6bf428ad893dc976147b65c36",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": true,
+              "recordVersions": []
+            },
+            "committedRevision": 11,
+            "createdAt": 1791454830123
+          }
+        }
+      ]
+    }
+  },
+  "retried": {
+    "name": "real fence retry keeps first admitted now despite advancing host clock",
+    "envelope": {
+      "operation": "VerifiedContext.nowEquals",
+      "operation_id": "01a11b07-5e2b-7ea2-829e-c1b5af4aa6ba",
+      "inputs": {
+        "stamp": "2026-10-08T10:20:30.123Z"
+      }
+    },
+    "actor_user_id": "067403d8-bcf1-4b19-a650-d43855fea279",
+    "selected_team_id": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+    "before": {
+      "revision": 10,
+      "records": [],
+      "outbox": [],
+      "schedules": [],
+      "receipts": [
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.datetimeBaseline",
+            "operationId": "01a11b07-5e2b-7af3-891d-8d10de36d406"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.datetimeBaseline",
+              "operationId": "01a11b07-5e2b-7af3-891d-8d10de36d406"
+            },
+            "inputHash": "afa3aaa8302e6dc37051bf905ffee0808783dae6bf428ad893dc976147b65c36",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": true,
+              "recordVersions": []
+            },
+            "committedRevision": 1,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.actorId",
+            "operationId": "01a11b07-5e2b-7701-8c61-dd81fae4075b"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.actorId",
+              "operationId": "01a11b07-5e2b-7701-8c61-dd81fae4075b"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "recordVersions": []
+            },
+            "committedRevision": 2,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.teamId",
+            "operationId": "01a11b07-5e2b-7f9d-8a5e-3b7f2521bde8"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.teamId",
+              "operationId": "01a11b07-5e2b-7f9d-8a5e-3b7f2521bde8"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "recordVersions": []
+            },
+            "committedRevision": 3,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.teamTimezone",
+            "operationId": "01a11b07-5e2b-7d3e-89e6-fcf578beb639"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.teamTimezone",
+              "operationId": "01a11b07-5e2b-7d3e-89e6-fcf578beb639"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": "Europe/Brussels",
+              "recordVersions": []
+            },
+            "committedRevision": 4,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.operationId",
+            "operationId": "01a11b07-5e2b-7e77-81f6-c1635de47242"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.operationId",
+              "operationId": "01a11b07-5e2b-7e77-81f6-c1635de47242"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": "01a11b07-5e2b-7e77-81f6-c1635de47242",
+              "recordVersions": []
+            },
+            "committedRevision": 5,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.operationSource",
+            "operationId": "01a11b07-5e2b-790e-8967-035b160f0fab"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.operationSource",
+              "operationId": "01a11b07-5e2b-790e-8967-035b160f0fab"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": "mcp",
+              "recordVersions": []
+            },
+            "committedRevision": 6,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.nowEquals",
+            "operationId": "01a11b07-5e2b-7647-8eb7-55e7aab403fa"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.nowEquals",
+              "operationId": "01a11b07-5e2b-7647-8eb7-55e7aab403fa"
+            },
+            "inputHash": "afa3aaa8302e6dc37051bf905ffee0808783dae6bf428ad893dc976147b65c36",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": true,
+              "recordVersions": []
+            },
+            "committedRevision": 7,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.nowEquals",
+            "operationId": "01a11b07-5e2b-72d1-85b4-50e377a0e811"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.nowEquals",
+              "operationId": "01a11b07-5e2b-72d1-85b4-50e377a0e811"
+            },
+            "inputHash": "c5c5a0a9aae7eadec91341176e90a02941e34d9e6ab408204cb145ed62156f42",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": false,
+              "recordVersions": []
+            },
+            "committedRevision": 8,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "app",
+            "principal": "public",
+            "operation": "VerifiedContext.anonymousNull",
+            "operationId": "01a11b07-5e2b-735a-8e72-6bae3f4c52b1"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "app",
+              "principal": "public",
+              "operation": "VerifiedContext.anonymousNull",
+              "operationId": "01a11b07-5e2b-735a-8e72-6bae3f4c52b1"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": true,
+              "recordVersions": []
+            },
+            "committedRevision": 9,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "app",
+            "principal": "public",
+            "operation": "VerifiedContext.actorId",
+            "operationId": "01a11b07-5e2b-7df0-86c4-efdd6fae1b8f"
+          },
+          "receipt": null
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "ac5e057d-b2c3-4ad2-adb6-1b8303ebb022",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.teamId",
+            "operationId": "01a11b07-5e2b-71b8-8e40-9b9e681478c8"
+          },
+          "receipt": null
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.actorId",
+            "operationId": "01a11b07-5e2b-713e-8cb5-e41527e637bd"
+          },
+          "receipt": null
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.nowEquals",
+            "operationId": "01a11b07-5e2b-7027-8cf7-21474e73e441"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.nowEquals",
+              "operationId": "01a11b07-5e2b-7027-8cf7-21474e73e441"
+            },
+            "inputHash": "dd0f3fa1c7b097bf4eebea6302e05c8076acfacfb29d5c0866c029e9d042b4d6",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "rejected",
+              "code": "rule_failed",
+              "message": "invalid datetime text: malformed"
+            },
+            "committedRevision": 10,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.nowEquals",
+            "operationId": "01a11b07-5e2b-7ea2-829e-c1b5af4aa6ba"
+          },
+          "receipt": null
+        }
+      ]
+    },
+    "outcome": {
+      "error": {
+        "code": "rule_failed",
+        "message": "Right-hand side of 'instanceof' is not an object",
+        "operation_id": "01a11b07-5e2b-7ea2-829e-c1b5af4aa6ba",
+        "retryable": false
+      }
+    },
+    "after": {
+      "revision": 11,
+      "records": [],
+      "outbox": [],
+      "schedules": [],
+      "receipts": [
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.datetimeBaseline",
+            "operationId": "01a11b07-5e2b-7af3-891d-8d10de36d406"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.datetimeBaseline",
+              "operationId": "01a11b07-5e2b-7af3-891d-8d10de36d406"
+            },
+            "inputHash": "afa3aaa8302e6dc37051bf905ffee0808783dae6bf428ad893dc976147b65c36",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": true,
+              "recordVersions": []
+            },
+            "committedRevision": 1,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.actorId",
+            "operationId": "01a11b07-5e2b-7701-8c61-dd81fae4075b"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.actorId",
+              "operationId": "01a11b07-5e2b-7701-8c61-dd81fae4075b"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "recordVersions": []
+            },
+            "committedRevision": 2,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.teamId",
+            "operationId": "01a11b07-5e2b-7f9d-8a5e-3b7f2521bde8"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.teamId",
+              "operationId": "01a11b07-5e2b-7f9d-8a5e-3b7f2521bde8"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "recordVersions": []
+            },
+            "committedRevision": 3,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.teamTimezone",
+            "operationId": "01a11b07-5e2b-7d3e-89e6-fcf578beb639"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.teamTimezone",
+              "operationId": "01a11b07-5e2b-7d3e-89e6-fcf578beb639"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": "Europe/Brussels",
+              "recordVersions": []
+            },
+            "committedRevision": 4,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.operationId",
+            "operationId": "01a11b07-5e2b-7e77-81f6-c1635de47242"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.operationId",
+              "operationId": "01a11b07-5e2b-7e77-81f6-c1635de47242"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": "01a11b07-5e2b-7e77-81f6-c1635de47242",
+              "recordVersions": []
+            },
+            "committedRevision": 5,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.operationSource",
+            "operationId": "01a11b07-5e2b-790e-8967-035b160f0fab"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.operationSource",
+              "operationId": "01a11b07-5e2b-790e-8967-035b160f0fab"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": "mcp",
+              "recordVersions": []
+            },
+            "committedRevision": 6,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.nowEquals",
+            "operationId": "01a11b07-5e2b-7647-8eb7-55e7aab403fa"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.nowEquals",
+              "operationId": "01a11b07-5e2b-7647-8eb7-55e7aab403fa"
+            },
+            "inputHash": "afa3aaa8302e6dc37051bf905ffee0808783dae6bf428ad893dc976147b65c36",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": true,
+              "recordVersions": []
+            },
+            "committedRevision": 7,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.nowEquals",
+            "operationId": "01a11b07-5e2b-72d1-85b4-50e377a0e811"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.nowEquals",
+              "operationId": "01a11b07-5e2b-72d1-85b4-50e377a0e811"
+            },
+            "inputHash": "c5c5a0a9aae7eadec91341176e90a02941e34d9e6ab408204cb145ed62156f42",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": false,
+              "recordVersions": []
+            },
+            "committedRevision": 8,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "app",
+            "principal": "public",
+            "operation": "VerifiedContext.anonymousNull",
+            "operationId": "01a11b07-5e2b-735a-8e72-6bae3f4c52b1"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "app",
+              "principal": "public",
+              "operation": "VerifiedContext.anonymousNull",
+              "operationId": "01a11b07-5e2b-735a-8e72-6bae3f4c52b1"
+            },
+            "inputHash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": true,
+              "recordVersions": []
+            },
+            "committedRevision": 9,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "app",
+            "principal": "public",
+            "operation": "VerifiedContext.actorId",
+            "operationId": "01a11b07-5e2b-7df0-86c4-efdd6fae1b8f"
+          },
+          "receipt": null
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "ac5e057d-b2c3-4ad2-adb6-1b8303ebb022",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.teamId",
+            "operationId": "01a11b07-5e2b-71b8-8e40-9b9e681478c8"
+          },
+          "receipt": null
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.actorId",
+            "operationId": "01a11b07-5e2b-713e-8cb5-e41527e637bd"
+          },
+          "receipt": null
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.nowEquals",
+            "operationId": "01a11b07-5e2b-7027-8cf7-21474e73e441"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.nowEquals",
+              "operationId": "01a11b07-5e2b-7027-8cf7-21474e73e441"
+            },
+            "inputHash": "dd0f3fa1c7b097bf4eebea6302e05c8076acfacfb29d5c0866c029e9d042b4d6",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "rejected",
+              "code": "rule_failed",
+              "message": "invalid datetime text: malformed"
+            },
+            "committedRevision": 10,
+            "createdAt": 1791454830123
+          }
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.nowEquals",
+            "operationId": "01a11b07-5e2b-7ea2-829e-c1b5af4aa6ba"
+          },
+          "receipt": null
+        },
+        {
+          "identity": {
+            "app": "VerifiedContext",
+            "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+            "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+            "operation": "VerifiedContext.datetimeBaseline",
+            "operationId": "01a11b07-5e2b-709f-8610-6e08b53595e4"
+          },
+          "receipt": {
+            "identity": {
+              "app": "VerifiedContext",
+              "owner": "6cf6463f-daab-4758-9f4a-df0479ea82ca",
+              "principal": "067403d8-bcf1-4b19-a650-d43855fea279",
+              "operation": "VerifiedContext.datetimeBaseline",
+              "operationId": "01a11b07-5e2b-709f-8610-6e08b53595e4"
+            },
+            "inputHash": "afa3aaa8302e6dc37051bf905ffee0808783dae6bf428ad893dc976147b65c36",
+            "resolvedDefaults": {},
+            "outcome": {
+              "status": "committed",
+              "result": true,
+              "recordVersions": []
+            },
+            "committedRevision": 11,
+            "createdAt": 1791454830123
+          }
+        }
+      ]
+    }
+  }
+}

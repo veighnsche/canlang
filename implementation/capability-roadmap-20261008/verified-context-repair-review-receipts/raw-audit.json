@@ -1,0 +1,197 @@
+{
+  "status": "passed",
+  "checks": [
+    {
+      "name": "before assembler unchanged handler body",
+      "passed": true,
+      "detail": {
+        "staged_sha256": "40808a6675930258dfec63bf5e0ba7bab705f571218df26567258614ccb5e5ab",
+        "raw_sha256": "e63a21ade1d4aff1bc26c64c37166df00e9a9984525f1d40deb62c857f1ae4d7",
+        "staged_path": "/private/tmp/canlang-context-independent-before-uaGIIp/$can$m$5665726966696564436f6e74657874.mjs"
+      }
+    },
+    {
+      "name": "after assembler unchanged handler body",
+      "passed": true,
+      "detail": {
+        "staged_sha256": "2d4e12092ce50ae36d5579f2544a65fe1b085d0a0a2fc101609426524af92753",
+        "raw_sha256": "e63a21ade1d4aff1bc26c64c37166df00e9a9984525f1d40deb62c857f1ae4d7",
+        "staged_path": "/private/tmp/canlang-context-independent-after-FTNu0q/$can$m$5665726966696564436f6e74657874.mjs"
+      }
+    },
+    {
+      "name": "author raw exact actorId",
+      "passed": true,
+      "detail": {
+        "expected": "424b44b0-5897-423e-8c67-c99cbaadab42",
+        "actual": {
+          "result": {
+            "status": "committed",
+            "operation_id": "01a11b07-5e2b-7a2d-8ab9-84eca3d4265a",
+            "result": "424b44b0-5897-423e-8c67-c99cbaadab42",
+            "deliveries": []
+          }
+        }
+      }
+    },
+    {
+      "name": "author raw exact teamId",
+      "passed": true,
+      "detail": {
+        "expected": "fdbb9ccb-9e0d-4272-be93-65a97ca6b3c6",
+        "actual": {
+          "result": {
+            "status": "committed",
+            "operation_id": "01a11b07-5e2b-7e1c-831d-f97b8f2f6b92",
+            "result": "fdbb9ccb-9e0d-4272-be93-65a97ca6b3c6",
+            "deliveries": []
+          }
+        }
+      }
+    },
+    {
+      "name": "author raw exact teamTimezone",
+      "passed": true,
+      "detail": {
+        "expected": "Europe/Brussels",
+        "actual": {
+          "result": {
+            "status": "committed",
+            "operation_id": "01a11b07-5e2b-77a5-8ceb-e51468cc80b6",
+            "result": "Europe/Brussels",
+            "deliveries": []
+          }
+        }
+      }
+    },
+    {
+      "name": "author raw exact operationSource",
+      "passed": true,
+      "detail": {
+        "expected": "mcp",
+        "actual": {
+          "result": {
+            "status": "committed",
+            "operation_id": "01a11b07-5e2b-7da2-8850-5e4629cc3d33",
+            "result": "mcp",
+            "deliveries": []
+          }
+        }
+      }
+    },
+    {
+      "name": "author raw exact nowEquals",
+      "passed": true,
+      "detail": {
+        "expected": true,
+        "actual": {
+          "result": {
+            "status": "committed",
+            "operation_id": "01a11b07-5e2b-760d-8805-94fed7748376",
+            "result": true,
+            "deliveries": []
+          }
+        }
+      }
+    },
+    {
+      "name": "author raw envelope operation identity",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "author raw full unchanged anonymous member denial preserved",
+      "passed": true,
+      "detail": {
+        "error": {
+          "code": "forbidden",
+          "message": "This operation is not permitted for the caller.",
+          "operation_id": "01a11b07-5e2b-7d6a-8810-32d29b7dc152",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "name": "author raw full unchanged wrong selected team member denial preserved",
+      "passed": true,
+      "detail": {
+        "error": {
+          "code": "forbidden",
+          "message": "This operation is not permitted for the caller.",
+          "operation_id": "01a11b07-5e2b-7fb6-8736-7fd72d807ff9",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "name": "author raw full unchanged ambient input spoof refusal preserved",
+      "passed": true,
+      "detail": {
+        "error": {
+          "code": "validation",
+          "message": "Invalid operation inputs.",
+          "operation_id": "01a11b07-5e2b-7631-8392-024e4b27a5dd",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "name": "author raw full unchanged fresh current membership removal denial preserved",
+      "passed": true,
+      "detail": {
+        "error": {
+          "code": "forbidden",
+          "message": "This operation is not permitted for the caller.",
+          "operation_id": "01a11b07-5e2b-7769-870c-e12ee169e018",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "name": "author raw actual fence revisions/errors",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "author raw admitted time/results",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "author raw competitor independently committed",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "author raw exact receipt cardinality",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "final live/private source unchanged packages/cloudflare/src/runtime/context.ts",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "final live/private source unchanged packages/cloudflare/src/runtime/invoke.ts",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "final live/private source unchanged packages/cloudflare/src/runtime/verified-context.test.ts",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "final frozen manifest unchanged before",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "final frozen manifest unchanged after",
+      "passed": true,
+      "detail": null
+    }
+  ],
+  "count": 21
+}

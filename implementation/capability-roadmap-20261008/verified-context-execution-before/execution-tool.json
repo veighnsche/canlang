@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+    "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-execution-before/run.mjs"
+  ],
+  "execArgv": [],
+  "version": "v24.21.0",
+  "execPath": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+  "realpath": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+  "sha256": "e4b5a3af0e05c75de2eae013904145f40fe7fc2a6e6f17510128bf45cca4e79b",
+  "cwd": "/Users/vince/Projects/canlang"
+}

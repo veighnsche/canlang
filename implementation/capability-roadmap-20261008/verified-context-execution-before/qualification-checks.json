@@ -1,0 +1,243 @@
+{
+  "status": "verified_before_binding_failures_not_product_acceptance",
+  "observations": 13,
+  "checks": [
+    {
+      "name": "actual current source caller-text temporal baseline executes true",
+      "passed": true,
+      "detail": {
+        "result": {
+          "status": "committed",
+          "operation_id": "01a11b07-5e2b-757e-83cf-2dde4a9ea00c",
+          "result": true,
+          "deliveries": []
+        }
+      }
+    },
+    {
+      "name": "before mismatch actorId fails independently",
+      "passed": true,
+      "detail": {
+        "outcome": {
+          "error": {
+            "code": "rule_failed",
+            "message": "Cannot read properties of undefined (reading 'id')",
+            "operation_id": "01a11b07-5e2b-7438-87ee-7891e3a16829",
+            "retryable": false
+          }
+        },
+        "expected_after_narrow_repair": "fe1c2b34-398b-444b-b364-eceda28dc042"
+      }
+    },
+    {
+      "name": "before actorId rejection has no domain/work writes",
+      "passed": true,
+      "detail": {
+        "before_revision": 1,
+        "after_revision": 2
+      }
+    },
+    {
+      "name": "before mismatch teamId fails independently",
+      "passed": true,
+      "detail": {
+        "outcome": {
+          "error": {
+            "code": "rule_failed",
+            "message": "Cannot read properties of undefined (reading 'id')",
+            "operation_id": "01a11b07-5e2b-7a0e-810e-8ab5e2bc0805",
+            "retryable": false
+          }
+        },
+        "expected_after_narrow_repair": "69b4272a-e618-4a91-a524-26f2d178e0eb"
+      }
+    },
+    {
+      "name": "before teamId rejection has no domain/work writes",
+      "passed": true,
+      "detail": {
+        "before_revision": 2,
+        "after_revision": 3
+      }
+    },
+    {
+      "name": "before mismatch teamTimezone fails independently",
+      "passed": true,
+      "detail": {
+        "outcome": {
+          "error": {
+            "code": "rule_failed",
+            "message": "Cannot read properties of undefined (reading 'timezone')",
+            "operation_id": "01a11b07-5e2b-7fe8-8c8c-caa0f6079b60",
+            "retryable": false
+          }
+        },
+        "expected_after_narrow_repair": "Europe/Brussels"
+      }
+    },
+    {
+      "name": "before teamTimezone rejection has no domain/work writes",
+      "passed": true,
+      "detail": {
+        "before_revision": 3,
+        "after_revision": 4
+      }
+    },
+    {
+      "name": "before mismatch operationId fails independently",
+      "passed": true,
+      "detail": {
+        "outcome": {
+          "error": {
+            "code": "rule_failed",
+            "message": "Cannot read properties of undefined (reading 'id')",
+            "operation_id": "01a11b07-5e2b-7f86-807f-7a4af8047496",
+            "retryable": false
+          }
+        },
+        "expected_after_narrow_repair": "01a11b07-5e2b-7f86-807f-7a4af8047496"
+      }
+    },
+    {
+      "name": "before operationId rejection has no domain/work writes",
+      "passed": true,
+      "detail": {
+        "before_revision": 4,
+        "after_revision": 5
+      }
+    },
+    {
+      "name": "before mismatch operationSource fails independently",
+      "passed": true,
+      "detail": {
+        "outcome": {
+          "error": {
+            "code": "rule_failed",
+            "message": "Cannot read properties of undefined (reading 'source')",
+            "operation_id": "01a11b07-5e2b-7bbc-8abd-6ff30a0fbd8a",
+            "retryable": false
+          }
+        },
+        "expected_after_narrow_repair": "mcp"
+      }
+    },
+    {
+      "name": "before operationSource rejection has no domain/work writes",
+      "passed": true,
+      "detail": {
+        "before_revision": 5,
+        "after_revision": 6
+      }
+    },
+    {
+      "name": "before mismatch nowEquals fails independently",
+      "passed": true,
+      "detail": {
+        "outcome": {
+          "error": {
+            "code": "rule_failed",
+            "message": "compareInstant must be a datetime value",
+            "operation_id": "01a11b07-5e2b-7064-84ad-dc0cda9d216a",
+            "retryable": false
+          }
+        },
+        "expected_after_narrow_repair": true
+      }
+    },
+    {
+      "name": "before nowEquals rejection has no domain/work writes",
+      "passed": true,
+      "detail": {
+        "before_revision": 6,
+        "after_revision": 7
+      }
+    },
+    {
+      "name": "anonymous before mismatch is recorded as false rather than null success",
+      "passed": true,
+      "detail": {
+        "actual": {
+          "result": {
+            "status": "committed",
+            "operation_id": "01a11b07-5e2b-7eb9-8f8e-7e15d453677e",
+            "result": false,
+            "deliveries": []
+          }
+        },
+        "expected_after_narrow_repair": true
+      }
+    },
+    {
+      "name": "anonymous members denial has no receipt or revision change",
+      "passed": true,
+      "detail": {
+        "error": {
+          "code": "forbidden",
+          "message": "This operation is not permitted for the caller.",
+          "operation_id": "01a11b07-5e2b-7f79-8ed2-b4506c7c1458",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "name": "wrong team members denial has no receipt or revision change",
+      "passed": true,
+      "detail": {
+        "error": {
+          "code": "forbidden",
+          "message": "This operation is not permitted for the caller.",
+          "operation_id": "01a11b07-5e2b-7685-82ee-990c420aa047",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "name": "forged ambient business fields refused before handler without receipt",
+      "passed": true,
+      "detail": {
+        "error": {
+          "code": "validation",
+          "message": "Invalid operation inputs.",
+          "operation_id": "01a11b07-5e2b-7d0e-89dd-8058206566f0",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "name": "rejected actor read replay reproduces error and complete selected snapshot",
+      "passed": true,
+      "detail": {
+        "error": {
+          "code": "rule_failed",
+          "message": "Cannot read properties of undefined (reading 'id')",
+          "operation_id": "01a11b07-5e2b-7438-87ee-7891e3a16829",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "name": "current membership removal denies fresh context operation without receipt",
+      "passed": true,
+      "detail": {
+        "resolved_membership": null,
+        "outcome": {
+          "error": {
+            "code": "forbidden",
+            "message": "This operation is not permitted for the caller.",
+            "operation_id": "01a11b07-5e2b-7da2-8a3f-7f80c448a5fe",
+            "retryable": false
+          }
+        }
+      }
+    }
+  ],
+  "product_acceptance": false,
+  "seq010_complete": false,
+  "commands_released": true,
+  "limitations": [
+    "Current frozen CLI and accepted pure relay run on frozen db57 context/invoker/State bodies; no current runtime refresh.",
+    "No handler patch, context shim, typed-clock coercion, split facade or compiler/package build.",
+    "No internal retry was forced and no typed context value was staged/serialized.",
+    "No full actor email mapping, null-team policy, trusted occurrence/hook/page/locale/default/installed identity/provider/owner-routing/authority qualification."
+  ]
+}

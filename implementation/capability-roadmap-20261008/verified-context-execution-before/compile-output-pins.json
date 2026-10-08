@@ -1,0 +1,14 @@
+{
+  "artifact": {
+    "path": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-execution-before/artifact.json",
+    "sha256": "161da074987f6af7c96212cb240507ac18f8a725687049eaa1333e0bd85f1f20"
+  },
+  "generated": [
+    {
+      "path": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-execution-before/generated/$can$m$5665726966696564436f6e74657874.mjs",
+      "module_path": "$can$m$5665726966696564436f6e74657874.mjs",
+      "sha256": "e63a21ade1d4aff1bc26c64c37166df00e9a9984525f1d40deb62c857f1ae4d7"
+    }
+  ],
+  "source_sha256": "f01e44a16219ef2c6253450448a455569bd958d55df921e5bce8d34626379507"
+}

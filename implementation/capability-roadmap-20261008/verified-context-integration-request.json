@@ -1,0 +1,475 @@
+{
+  "status": "independently_accepted_exact_context_manifest_ready_for_coordinator",
+  "captured_utc": "2026-10-08T00:15:35.242639+00:00",
+  "head_observed": "83d40be0e9a50f19bd72e721e489a5f3bc7cf690",
+  "suggested_commit": "fix(cloudflare): bind admitted facts to generated handlers",
+  "product_paths": [
+    "packages/cloudflare/src/runtime/context.ts",
+    "packages/cloudflare/src/runtime/invoke.ts",
+    "packages/cloudflare/src/runtime/verified-context.test.ts"
+  ],
+  "before_pins": {
+    "packages/cloudflare/src/runtime/context.ts": "497e1bbc7cbecd984e2ea7119cd1f4913688b2044158eaaaa0a74f3af0fbb98b",
+    "packages/cloudflare/src/runtime/invoke.ts": "6b135086c8d0c904008f2100ed0930fd8ebfed60769e73efc8944bed45f50997"
+  },
+  "new_test_absent_before": "packages/cloudflare/src/runtime/verified-context.test.ts",
+  "test_path_amendment_ack": "verified-context-test-path-amendment.json",
+  "reviewer": "/root/roadmap_f1_invocation_review",
+  "writer_reader_commands": "released",
+  "scope": "Canonical admitted id/time/team/operation projection + actualsource scalar memory/refusal/replay/forcedretry only. FullTask9/10/F1 notaccepted. D1/fullactor/typedpersistence/default/trusted/hooks/pages/locale/voidreplay gatesopen.",
+  "bookkeeping": "Only exactmanifest plus coordinator-owned scoped DECISIONS/coverage/request/integrationrecords; no mergecheckpoint; preserveforeignwork/index. Exclude activeledger/actor-carrierfactual/prepared-owner/page-refresh/foreign artifacts.",
+  "manifest": [
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-contract-review/review.md",
+      "sha256": "f11e7cc5e13f197402f71be40f6bd174fbc29052bbb29ac67b4cad03f0fea6ff",
+      "bytes": 18194
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-contract-review/source-pins.json",
+      "sha256": "72bb325cc36877dacdafe6fb299daa3320bcf14acbce6edce3ec43febf12f4e7",
+      "bytes": 3033
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/REPORT.md",
+      "sha256": "be708109127db6cc8f06f199cd991a19766bd6e6b4a712751a631f3380ea0e56",
+      "bytes": 6834
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/VerifiedContext.can",
+      "sha256": "f01e44a16219ef2c6253450448a455569bd958d55df921e5bce8d34626379507",
+      "bytes": 883
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/after-pins.json",
+      "sha256": "16650a11ac5ef078cdd2ed364207161b18a267721ec9e36b6938760033bd5090",
+      "bytes": 744
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/artifact.json",
+      "sha256": "161da074987f6af7c96212cb240507ac18f8a725687049eaa1333e0bd85f1f20",
+      "bytes": 12391
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/assembled/$can$m$5665726966696564436f6e74657874.mjs",
+      "sha256": "40808a6675930258dfec63bf5e0ba7bab705f571218df26567258614ccb5e5ab",
+      "bytes": 6455
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/assembled/$can$m$5665726966696564436f6e74657874.mjs.map",
+      "sha256": "9de26481f8a8f906bf4f3bf214e56d717244f386b1f7094fe835fced3625b4a1",
+      "bytes": 1750
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/commands.json",
+      "sha256": "be305a9bad265da629565a1f17ca5f64102ba563c695933d34169d36c93dfe6c",
+      "bytes": 3163
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/compile-output-pins.json",
+      "sha256": "0b4a08f011c5cd030eeb17e3d66559b539bdb9e9eba75ed6a9df1048700d32d5",
+      "bytes": 687
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/execution-tool.json",
+      "sha256": "e509d17f21fab26c36708f27b9ce309f61914879e41231681369dd0b0772877c",
+      "bytes": 518
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/final-pins.json",
+      "sha256": "5ebc87bb3823dd4b5846692a5a7a38d52484fc89a1e75efc7817a6313796c9b1",
+      "bytes": 3746
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/generated/$can$m$5665726966696564436f6e74657874.mjs",
+      "sha256": "e63a21ade1d4aff1bc26c64c37166df00e9a9984525f1d40deb62c857f1ae4d7",
+      "bytes": 6231
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/helper-review-verification.json",
+      "sha256": "3ed885471099f5b538c1ecb9e5aac6a84f7e35b83c345258c95b6db37ef3d854",
+      "bytes": 2478
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/initial-harness-attempt/commands.json",
+      "sha256": "a512e4b2b5a2e26680948dac5178fb6386b2e73373025e4e7a428689443439f3",
+      "bytes": 3161
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/initial-harness-attempt/compile-output-pins.json",
+      "sha256": "0b4a08f011c5cd030eeb17e3d66559b539bdb9e9eba75ed6a9df1048700d32d5",
+      "bytes": 687
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/initial-harness-attempt/execution-tool.json",
+      "sha256": "e509d17f21fab26c36708f27b9ce309f61914879e41231681369dd0b0772877c",
+      "bytes": 518
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/initial-harness-attempt/fatal.json",
+      "sha256": "ec57a88eacefb7f97673938c228ab9ac97aecf2385e41f4e73c762585aad1122",
+      "bytes": 4013
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/initial-harness-attempt/logs-run.stderr",
+      "sha256": "6ba76f759bb2f6c635635708ca93c2aa002bec92f6fd5e35a2305d17eb5406ce",
+      "bytes": 482
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/initial-harness-attempt/logs-run.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/initial-harness-attempt/producer-pins.json",
+      "sha256": "d178371a5c769950565dd12476f1234e26d32be7b88b2a82bd7eb7638379ee03",
+      "bytes": 23294
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/initial-harness-attempt/run.mjs",
+      "sha256": "d2ac5353548b8e32be82346e87a962117b86a60a2e2da3530404b3f8a4654037",
+      "bytes": 17508
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/logs/compiler-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/logs/compiler-version.stdout",
+      "sha256": "8db42c21a3c5a92d5d4072f7f58b5f0804abc6e570aa81e61323fa3a32e9bca2",
+      "bytes": 52
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/logs/current-head.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/logs/current-head.stdout",
+      "sha256": "91d6912e91f8ab1a7b848782ed35b1463a55e11428105a146ab33fa8293076a7",
+      "bytes": 41
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/logs/current-target-status.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/logs/current-target-status.stdout",
+      "sha256": "d7bd9d0070c70db066a99531142f2c759b638f853b6c0c8b51ccb0d72cc1c183",
+      "bytes": 75
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/logs/raw-check.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/logs/raw-check.stdout",
+      "sha256": "8d51fa8058d2cf7fdec9cf91a75592bb652057b9e3caa2d0df1dc4a842c5f9cd",
+      "bytes": 360
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/logs/raw-compile.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/logs/raw-compile.stdout",
+      "sha256": "161da074987f6af7c96212cb240507ac18f8a725687049eaa1333e0bd85f1f20",
+      "bytes": 12391
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/logs-run.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/logs-run.stdout",
+      "sha256": "29dfa27ae5dfdb2ac3670f134bdc1a14d7841608d0463063cbefc345aebca8b9",
+      "bytes": 251
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/producer-pins.json",
+      "sha256": "b51bc2039a763370510ba42890a76b42e0396cad2eb98df62a2079ce5b9c53f9",
+      "bytes": 23325
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/qualification-checks.json",
+      "sha256": "190d3790f78f69d5c45086d9bacecb94d8d135733ff6530a88081800720b21fb",
+      "bytes": 7309
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/run.mjs",
+      "sha256": "897239d10611dec55320f10bd36aaaa712ae6bb2d4171693153ae93434566536",
+      "bytes": 17505
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-execution-before/runtime-results.json",
+      "sha256": "dc3ba164f5d3646ee5b957ff63a528cd7a7690ecd96fc7742307644a3a1d1b40",
+      "bytes": 200401
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-integration-note.md",
+      "sha256": "660541b70f4d08a4ed96525eacc4e7cd023704d191ac503c944d8692df00bc7e",
+      "bytes": 2940
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-inventory/README.md",
+      "sha256": "b86cd842aac88d200a78d681e5b6cb5dc9cbb43453606dd293f66e33ba909af3",
+      "bytes": 5723
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-inventory/map.json",
+      "sha256": "0df6a3bb2bec2e3418b9c4f9128da05f95065111d1e77105af8003560f31f4ae",
+      "bytes": 20324
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/REPORT.md",
+      "sha256": "d87c5e36628a65f59ba764db0361c708e7e8557de9843e2e34badfadc2af52d4",
+      "bytes": 8748
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/VerifiedContext.can",
+      "sha256": "f01e44a16219ef2c6253450448a455569bd958d55df921e5bce8d34626379507",
+      "bytes": 883
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/artifact.json",
+      "sha256": "161da074987f6af7c96212cb240507ac18f8a725687049eaa1333e0bd85f1f20",
+      "bytes": 12391
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/assembled/$can$m$5665726966696564436f6e74657874.mjs",
+      "sha256": "2d4e12092ce50ae36d5579f2544a65fe1b085d0a0a2fc101609426524af92753",
+      "bytes": 6519
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/assembled/$can$m$5665726966696564436f6e74657874.mjs.map",
+      "sha256": "9de26481f8a8f906bf4f3bf214e56d717244f386b1f7094fe835fced3625b4a1",
+      "bytes": 1750
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/build-commands.json",
+      "sha256": "51934b6a737015d5e4c230d6e56818e806f8b10e0612bddb9b20fde70ddeca19",
+      "bytes": 1700
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/candidate-source-output-pins.json",
+      "sha256": "39215d659e11c23be95c6e5b97ce47de42655a78a90cc7231827127a5cdd4d35",
+      "bytes": 9146
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/candidate.diff",
+      "sha256": "9f0aa0cf1a6e8aeaa6a71fc7d000382fd8d39db4d8b98093f6c0dca0438723cb",
+      "bytes": 8893
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/cloudflare-tsconfig.json",
+      "sha256": "fe0c6bf80013f7e685fbf28e3dbbe2230e0f9038684261922741315127e50bae",
+      "bytes": 1173
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/final-pins.json",
+      "sha256": "60d2dcb5ba619e35c2b1d3ec5a6d0007178aa0a2e17aedb6a7d914edfb691d55",
+      "bytes": 3572
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/initial-after-harness/logs-after.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/initial-after-harness/logs-after.stdout",
+      "sha256": "694dba9b024f52f0ff191ba4c4151628fe4ccfa08025c5df400f41647d74a88e",
+      "bytes": 1540
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/initial-after-harness/qualification-checks.json",
+      "sha256": "220dd10134611d1e66a91c6022ab091afdb491b22032bce04147badeb8b867f8",
+      "bytes": 7502
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/initial-after-harness/retry-control.json",
+      "sha256": "aa4680c90d7cd8f6acf993966239b9b3741444b125a6629e32fea46daa2a378d",
+      "bytes": 52975
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/initial-after-harness/run-after.mjs",
+      "sha256": "a7e0b47361251cfe5ceba9da29887f4d47036cbde8ba0d34b1024760a9c10263",
+      "bytes": 13472
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/initial-after-harness/runtime-results.json",
+      "sha256": "c99475458df9cd44a4b687d828856c4364689aaa37edca9f57201db7c48c465b",
+      "bytes": 311008
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/logs/constructor-tests.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/logs/constructor-tests.stdout",
+      "sha256": "c05a5321581254482f1939e358ee778e2a6ba28fe5085f4ac359324334e81bcf",
+      "bytes": 779
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/logs/selected-build.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/logs/selected-build.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/logs/selected-typecheck.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/logs/selected-typecheck.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/logs-after.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/logs-after.stdout",
+      "sha256": "08be436bd8af72ed8fa4b54c0b6db06b5d77ec59bdccda5762f639bf4b51720e",
+      "bytes": 208
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/logs-prepare.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/logs-prepare.stdout",
+      "sha256": "baf17be89e04c7fae588e2677c67c238f68301f18f381035a49c67e5017b88f3",
+      "bytes": 213
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/other-selected-source-compatibility.json",
+      "sha256": "857ebabc3f8a356f971f772c64d183dd0827bc8fd088d7ac4e404c44115b6aca",
+      "bytes": 4087
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/prepare.mjs",
+      "sha256": "2d962789ea1b7651d4435621531efa813440af32b9dc5e58c8a29208d0b63323",
+      "bytes": 3968
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/private-snapshot.json",
+      "sha256": "f7db400fb351d037f5db0ca4e98717b051688bd3c37ec577108657442615fded",
+      "bytes": 25159
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/qualification-checks.json",
+      "sha256": "35c3ddc2fa2eb1b7b33f08690af113eb308e21fea0d8221624f554499e185f26",
+      "bytes": 9153
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/retry-control.json",
+      "sha256": "9aa53b8154a9f07ed1fd1d18e13d7d5cdd88d7f7485d95c65b58f98f3da8fc91",
+      "bytes": 54055
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/run-after.mjs",
+      "sha256": "f7ddd98f4a58f59fd18ca30298fae0bda44f0411c571962a16181956bfbd57d7",
+      "bytes": 13523
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/runtime-results.json",
+      "sha256": "322ddf293aeff6194d7d76eeac06e8e85a4730297e0e9f6b5ca8d30df14fd0ee",
+      "bytes": 314786
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair/support-compatibility.json",
+      "sha256": "df0e83dc3b2208851e03e4bc56c9560954c1343e582577662fa2021345382840",
+      "bytes": 2911
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair-review-receipts/audit.py",
+      "sha256": "52c4d339edcd293bf975b07842c773b2ea332db09c18531c4445d931d9124860",
+      "bytes": 4095
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair-review-receipts/constructor-tests.tap",
+      "sha256": "23652c6092c9e4772d40f49cc7858406e9000d5d6f690caa803c69b3e38815ba",
+      "bytes": 782
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair-review-receipts/control.log",
+      "sha256": "d473350a8ae7eae3f00599ec3a89de68812e597cb59aa8f998aece383aa8f10f",
+      "bytes": 148
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair-review-receipts/control.mjs",
+      "sha256": "aa5ebdc1a70273827a1bf53c32b13a5b837039b274b78f291599cca5baabe623",
+      "bytes": 10432
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair-review-receipts/final-pins.json",
+      "sha256": "350ea64a3f3e3b1c6ac7930b679d0b2ee434938186e2de719d8d2c7277c5bae4",
+      "bytes": 729
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair-review-receipts/independent-pins.json",
+      "sha256": "27d5ae286244d143f7b9746d9f9778f932d4fb3675fc1684efabd819cf88eaf5",
+      "bytes": 88540
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair-review-receipts/raw-audit.json",
+      "sha256": "6507fa66a283c56d8eb13e988ed927918dec83ef9e139572733b4f8909a6e5d5",
+      "bytes": 5567
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair-review-receipts/runtime-results.json",
+      "sha256": "b8de82814c7b00fcf8bd4f88a59b399ba9ce7cfb68ce1424098f9343964d8fa0",
+      "bytes": 697058
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair-review.json",
+      "sha256": "959ae1929ddf5db21187f1f12f83aee6b458bb7a89832e07f0c4095dca110070",
+      "bytes": 5375
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-repair-review.md",
+      "sha256": "9354577428a7067a5366e298ff1c5d66702b40deca51b55a428db135c9ad1d8f",
+      "bytes": 7044
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-test-path-amendment.json",
+      "sha256": "d484f8250fdaba8793ad4b70be90ee0bc6609c320a88b5ac30bbb05c2802ef6f",
+      "bytes": 1250
+    },
+    {
+      "path": "implementation/capability-roadmap-20261008/verified-context-write-lease.json",
+      "sha256": "1b9200691ba1f4f98325957837199536dfee74f7ccae3e3580cbebeee6878a8f",
+      "bytes": 2124
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/context.ts",
+      "sha256": "6c79953696b9b5a2332d4291bfc70aee45d09b959bfa98dac609ee8f9b496450",
+      "bytes": 7020
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/invoke.ts",
+      "sha256": "48f4c79ab213f0fe95b4e8e3b01dd643793ed1a345d075f27aef214101d0bbe5",
+      "bytes": 332579
+    },
+    {
+      "path": "packages/cloudflare/src/runtime/verified-context.test.ts",
+      "sha256": "65cf5be12155008a41ec091d0057a01288c3e9eed7935a15972e7cd60f51fb11",
+      "bytes": 4845
+    }
+  ],
+  "file_count": 90,
+  "total_bytes": 2445169
+}

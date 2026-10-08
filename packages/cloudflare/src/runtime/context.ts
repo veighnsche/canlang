@@ -16,7 +16,8 @@
  * removed every serving path outside canonical execution, so a missing scope
  * fails loud instead of committing directly.
  */
-import type { ProjectedRecord, RecordParent, StoragePort, StoredRow } from '@canlang/contracts';
+import type { DatetimeValue, InvocationContext, ProjectedRecord, RecordParent, StoragePort, StoredRow, UserRef } from '@canlang/contracts';
+import { makeDatetime, makeUserRef } from '@canlang/values';
 
 /** Authenticated caller identity: stable user id plus granted role names. */
 export interface CallerInfo {
@@ -96,6 +97,11 @@ export interface HandlerContext {
   clock: () => number;
   memberships: string[];
   preferences: Record<string, Record<string, unknown>>;
+  /** Source facts installed only from an admitted canonical context. */
+  readonly actor?: UserRef | null;
+  readonly team?: { readonly id: string; readonly timezone: string } | null;
+  readonly now?: DatetimeValue;
+  readonly operation?: { readonly id: string; readonly source: string };
   /**
    * Canonical execution scope (T17b). Present inside canonical scenario
    * execution only; the migrated stdlib data plane requires it and fails
@@ -120,6 +126,8 @@ export interface CreateContextDeps {
   memberships?: string[];
   preferences?: Record<string, Record<string, unknown>>;
   canonical?: CanonicalEffectsScope;
+  /** Internal admitted facts; business inputs and caller labels cannot supply these. */
+  qualified?: InvocationContext;
 }
 
 /**
@@ -136,5 +144,11 @@ export function createContext(deps: CreateContextDeps): HandlerContext {
     memberships: deps.memberships ?? [],
     preferences: deps.preferences ?? {},
     ...(deps.canonical === undefined ? {} : { canonical: deps.canonical }),
+    ...(deps.qualified === undefined ? {} : {
+      actor: deps.qualified.actor === null ? null : makeUserRef(deps.qualified.actor.userId),
+      team: deps.qualified.team === null ? null : Object.freeze({ id: deps.qualified.team.teamId, timezone: deps.qualified.team.timezone }),
+      now: makeDatetime(BigInt(deps.qualified.now)),
+      operation: Object.freeze({ id: deps.qualified.operationId, source: deps.qualified.source }),
+    }),
   };
 }

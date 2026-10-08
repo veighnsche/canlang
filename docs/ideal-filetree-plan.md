@@ -252,3 +252,6 @@ Root finite Interfaces producer reconciliation: owning asset-byte regression ret
 
 
 Root finite DEL-E02 reconciliation: State TEST-ONLY DOreset and owning storage/do.test.ts retain one fixture owner; migrationfailure audits now reset between reused lifecycles while productiondiscard remains unchanged. Independently authored actualworkerd twoaudit/reuse controls accept this gate, with zero productiondelta. Loader/DOwholeconformance/installed/evidence-retention duties remain open; no new responsibility, merge or complete checkpoint advance. See do-reset-independent-review.json.
+
+
+Root finite canonical-context integration: Cloudflare context.ts remains the owning admitted fact projection and invoke.ts retains canonical admission/clock/retry orchestration, with one exact source-owning constructor test. Existing Values factories own UserRef/Datetime. The independently reviewed actual-source memory gate preserves old unqualified shape, explicit null and receipt precedence; full actor, typed/default/persistence, installed/host and whole-app duties remain open. Required correctness growth is separately charged, zero replacement savings; no new owner/framework, merge or complete checkpoint advancement. Exact90-file evidence and root release review are recorded in verified-context-root-review.json.

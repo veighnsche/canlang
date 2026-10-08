@@ -1,0 +1,457 @@
+{
+  "asset_handoff": {
+    "actual_sha256": "316a6d44e76b8240d85d77753f7ae0f695a2c6067e39d19b038d2f8fdd6d05f6",
+    "all_47_declared_pins_match": true,
+    "authority": "Source-input/read-copy handoff only; no writer transfer/sharedbuild/mutation of releasedsnapshot or proof of assetmount/defaultWorker acceptance. Receiving worker must pin its actual supportclosure/deps after privatecopy.",
+    "current_scope": "10relativeCloudflare sourceclosure containsexactcontext/invoke/purestdlib overlays, owningtest included;4currentnullableStatesourcebytes and15named selectedsourceentries separatelyverified. Othercopiedbodies frozenhistorical, not arbitrarywholecurrentgraph.",
+    "declared_pin_count": 47,
+    "excluded_current_inputs": "Do not copy mutableforeignmain context/invoke/stdlib/compiler or assume packagecurrentdist. Overlay only your own releasedasset/UI/Interface candidate inputs in separatelyownedprivatecopy.",
+    "expected_sha256": "316a6d44e76b8240d85d77753f7ae0f695a2c6067e39d19b038d2f8fdd6d05f6",
+    "foundation": "/private/tmp/canlang-nullable-ref-after-db57c379",
+    "hash_matches": true,
+    "mismatch_count": 0,
+    "path": "implementation/capability-roadmap-20261008/runtime-support-asset-handoff.json",
+    "pin_checks": [
+      {
+        "actual_sha256": "48f4c79ab213f0fe95b4e8e3b01dd643793ed1a345d075f27aef214101d0bbe5",
+        "bytes": 332579,
+        "expected_sha256": "48f4c79ab213f0fe95b4e8e3b01dd643793ed1a345d075f27aef214101d0bbe5",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/runtime/invoke.ts"
+      },
+      {
+        "actual_sha256": "6c79953696b9b5a2332d4291bfc70aee45d09b959bfa98dac609ee8f9b496450",
+        "bytes": 7020,
+        "expected_sha256": "6c79953696b9b5a2332d4291bfc70aee45d09b959bfa98dac609ee8f9b496450",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/runtime/context.ts"
+      },
+      {
+        "actual_sha256": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+        "bytes": 6362,
+        "expected_sha256": "c6297b40cdc68b3065d6dacd7b9a8dd4350ce0c4bcfc7268ee5d2527b6e4eb6d",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/runtime/modules.ts"
+      },
+      {
+        "actual_sha256": "6c6d35ed8294f12e1badf4325f9553ee3eb6d2faeff1ffa1a2ac6152cba07207",
+        "bytes": 11700,
+        "expected_sha256": "6c6d35ed8294f12e1badf4325f9553ee3eb6d2faeff1ffa1a2ac6152cba07207",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/runtime/stdlib.ts"
+      },
+      {
+        "actual_sha256": "31239a80e12c6db7c51c744e22fd5e20dc69567b11781b71ce2485accb99be11",
+        "bytes": 68447,
+        "expected_sha256": "31239a80e12c6db7c51c744e22fd5e20dc69567b11781b71ce2485accb99be11",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/worker/assembly.ts"
+      },
+      {
+        "actual_sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+        "bytes": 6534,
+        "expected_sha256": "565f9c8521b6eaed277a65bbb8b82c4edea0c4f67ddada9df071dd16d4199113",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/runtime/sourcemap.ts"
+      },
+      {
+        "actual_sha256": "8ac214b19c81f74b9cf3561cf26c4c67a43ca20f28eedc8f94ef58574b72f6ba",
+        "bytes": 870,
+        "expected_sha256": "8ac214b19c81f74b9cf3561cf26c4c67a43ca20f28eedc8f94ef58574b72f6ba",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/deploy/producer-files.ts"
+      },
+      {
+        "actual_sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+        "bytes": 12176,
+        "expected_sha256": "13ef57c952c0cadfabf873b49f64917113f2ce6721f941ba4611a95b4b597362",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/deploy/module-imports.ts"
+      },
+      {
+        "actual_sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+        "bytes": 5985,
+        "expected_sha256": "e336c88f2ab17acc09bd57713a79d9a19b41c13a6241193edae4ae185aaa4f98",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/deploy/module-maps.ts"
+      },
+      {
+        "actual_sha256": "cf8cf482728036635a1d964ab8fc94ff365eb900e3efb0a99d9f9daa69f34c14",
+        "bytes": 19020,
+        "expected_sha256": "cf8cf482728036635a1d964ab8fc94ff365eb900e3efb0a99d9f9daa69f34c14",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/runtime/mcp-registry.ts"
+      },
+      {
+        "actual_sha256": "65cf5be12155008a41ec091d0057a01288c3e9eed7935a15972e7cd60f51fb11",
+        "bytes": 4845,
+        "expected_sha256": "65cf5be12155008a41ec091d0057a01288c3e9eed7935a15972e7cd60f51fb11",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/src/runtime/verified-context.test.ts"
+      },
+      {
+        "actual_sha256": "25ebb54b6efeefbbe0934c1add9b3641f32305d7ca21d73ea8a8b9252a30acd5",
+        "bytes": 1164,
+        "expected_sha256": "25ebb54b6efeefbbe0934c1add9b3641f32305d7ca21d73ea8a8b9252a30acd5",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/dist/runtime/context.js"
+      },
+      {
+        "actual_sha256": "e6937b5c563084b4d859ae6c592d15025537da1b740fc98c66d1f3452901d7fc",
+        "bytes": 6443,
+        "expected_sha256": "e6937b5c563084b4d859ae6c592d15025537da1b740fc98c66d1f3452901d7fc",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/dist/runtime/context.d.ts"
+      },
+      {
+        "actual_sha256": "e69a608f8a607a585c8697f5cd31982d06941473f80aadc7b9a5be63c50e81e4",
+        "bytes": 242862,
+        "expected_sha256": "e69a608f8a607a585c8697f5cd31982d06941473f80aadc7b9a5be63c50e81e4",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/dist/runtime/invoke.js"
+      },
+      {
+        "actual_sha256": "8bca41bd80d41fcb0219d13fe7242abb5fb7841e650d689bbdf6b18671c8ec0a",
+        "bytes": 107184,
+        "expected_sha256": "8bca41bd80d41fcb0219d13fe7242abb5fb7841e650d689bbdf6b18671c8ec0a",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/dist/runtime/invoke.d.ts"
+      },
+      {
+        "actual_sha256": "7ae06b4ac6b7bcef701f55a4da49c028bec05efbd11d539cf64c2fe2b3e0d741",
+        "bytes": 4966,
+        "expected_sha256": "7ae06b4ac6b7bcef701f55a4da49c028bec05efbd11d539cf64c2fe2b3e0d741",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/dist/runtime/verified-context.test.js"
+      },
+      {
+        "actual_sha256": "db7d2d6da2db92a1ee393de19f14f52487b7b1a27d55818301524dfc357b2a59",
+        "bytes": 4822,
+        "expected_sha256": "db7d2d6da2db92a1ee393de19f14f52487b7b1a27d55818301524dfc357b2a59",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/dist/runtime/modules.js"
+      },
+      {
+        "actual_sha256": "bb60997f0584c9a7334ace3647c89d927fe4821725f7a69e8332cfd9a832d4f2",
+        "bytes": 7293,
+        "expected_sha256": "bb60997f0584c9a7334ace3647c89d927fe4821725f7a69e8332cfd9a832d4f2",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/dist/runtime/stdlib.js"
+      },
+      {
+        "actual_sha256": "e00b6dc58da7ddf8733d86f19769493efc483c8f3b70181d892ad39838f92c6f",
+        "bytes": 44395,
+        "expected_sha256": "e00b6dc58da7ddf8733d86f19769493efc483c8f3b70181d892ad39838f92c6f",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/dist/worker/assembly.js"
+      },
+      {
+        "actual_sha256": "467e924a82951d104048ae19f387f8df841148ab3a416874ea74441e16faca24",
+        "bytes": 2587,
+        "expected_sha256": "467e924a82951d104048ae19f387f8df841148ab3a416874ea74441e16faca24",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state/dist/src/storage/port.js"
+      },
+      {
+        "actual_sha256": "9cf46b69ebe8f928e4c95d023d2c1adc75986a2f42a17835ca72acbf4bc4d090",
+        "bytes": 38336,
+        "expected_sha256": "9cf46b69ebe8f928e4c95d023d2c1adc75986a2f42a17835ca72acbf4bc4d090",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state/dist/src/storage/memory.js"
+      },
+      {
+        "actual_sha256": "8ec0fffa6d2c8c4580a928752fca9b382a02a696a1bab3f0a9748372f8858bc9",
+        "bytes": 19489,
+        "expected_sha256": "8ec0fffa6d2c8c4580a928752fca9b382a02a696a1bab3f0a9748372f8858bc9",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state/dist/src/invocation/invoke.js"
+      },
+      {
+        "actual_sha256": "227e0fb15bfa5adf3c31909d9706a5917635be03bfe6b099e7a91d3f93567fab",
+        "bytes": 4102,
+        "expected_sha256": "227e0fb15bfa5adf3c31909d9706a5917635be03bfe6b099e7a91d3f93567fab",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state/dist/src/invocation/context.js"
+      },
+      {
+        "actual_sha256": "3bf0a56a243f2026104bd59380d3add236b6caf1ea88a565e01283ac659e562c",
+        "bytes": 22570,
+        "expected_sha256": "3bf0a56a243f2026104bd59380d3add236b6caf1ea88a565e01283ac659e562c",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state/dist/src/invocation/admission.js"
+      },
+      {
+        "actual_sha256": "e7e9cdb33df5e9e87714cd3da621f3e3e9dbd0e8294f19a5763b4a9019d938fe",
+        "bytes": 44462,
+        "expected_sha256": "e7e9cdb33df5e9e87714cd3da621f3e3e9dbd0e8294f19a5763b4a9019d938fe",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state/dist/src/invocation/registry.js"
+      },
+      {
+        "actual_sha256": "ced9a2ec5217708e44a298201a61482121669737158b139be8a65d74e0966238",
+        "bytes": 7811,
+        "expected_sha256": "ced9a2ec5217708e44a298201a61482121669737158b139be8a65d74e0966238",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state/dist/src/invocation/prepared-inputs.js"
+      },
+      {
+        "actual_sha256": "8e0a3c826ab1fb0c565103f57cf24edb39b19ee3fc49c0b2c39ef03335a4d7ba",
+        "bytes": 55390,
+        "expected_sha256": "8e0a3c826ab1fb0c565103f57cf24edb39b19ee3fc49c0b2c39ef03335a4d7ba",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state/dist/src/mutation/pipeline.js"
+      },
+      {
+        "actual_sha256": "8a1412b3958496ebae70a74d73f455e1c8dab1c2200cf016f3329d81caf35b2f",
+        "bytes": 5373,
+        "expected_sha256": "8a1412b3958496ebae70a74d73f455e1c8dab1c2200cf016f3329d81caf35b2f",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity/dist/src/authentication/context.js"
+      },
+      {
+        "actual_sha256": "c4a58dbd0b11100ce9001d77a7bcbe73caf340414b8b620c0abf80f708ebbcc1",
+        "bytes": 14815,
+        "expected_sha256": "c4a58dbd0b11100ce9001d77a7bcbe73caf340414b8b620c0abf80f708ebbcc1",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity/dist/src/testing.js"
+      },
+      {
+        "actual_sha256": "45c3c4990042482221f22168a66dd34e044946c2b9f0d9104eb1246f487bd9ac",
+        "bytes": 10634,
+        "expected_sha256": "45c3c4990042482221f22168a66dd34e044946c2b9f0d9104eb1246f487bd9ac",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/values/dist/src/kinds.js"
+      },
+      {
+        "actual_sha256": "92a8b3d1fc67604e43f4547efa59a811590ca0d79b041e54088bfee824acb4f7",
+        "bytes": 19544,
+        "expected_sha256": "92a8b3d1fc67604e43f4547efa59a811590ca0d79b041e54088bfee824acb4f7",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/values/dist/src/temporal.js"
+      },
+      {
+        "actual_sha256": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c",
+        "bytes": 630,
+        "expected_sha256": "51bbc15972a6836a4e1b4cebf6b2bd5b48e34405ff7f09062ad65b449dc1093c",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/values/dist/src/index.js"
+      },
+      {
+        "actual_sha256": "7144e217dc766394fe4eaef56a5f1ef7eb272a2cd4e2907a18a8117ce4fcb36f",
+        "bytes": 1628,
+        "expected_sha256": "7144e217dc766394fe4eaef56a5f1ef7eb272a2cd4e2907a18a8117ce4fcb36f",
+        "group": "source_and_selected_output",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/contracts/dist/index.js"
+      },
+      {
+        "actual_sha256": "fe0c6bf80013f7e685fbf28e3dbbe2230e0f9038684261922741315127e50bae",
+        "bytes": 1173,
+        "expected_sha256": "fe0c6bf80013f7e685fbf28e3dbbe2230e0f9038684261922741315127e50bae",
+        "group": "config_evidence",
+        "matches": true,
+        "path": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-repair/cloudflare-tsconfig.json"
+      },
+      {
+        "actual_sha256": "51934b6a737015d5e4c230d6e56818e806f8b10e0612bddb9b20fde70ddeca19",
+        "bytes": 1700,
+        "expected_sha256": "51934b6a737015d5e4c230d6e56818e806f8b10e0612bddb9b20fde70ddeca19",
+        "group": "config_evidence",
+        "matches": true,
+        "path": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-repair/build-commands.json"
+      },
+      {
+        "actual_sha256": "f7db400fb351d037f5db0ca4e98717b051688bd3c37ec577108657442615fded",
+        "bytes": 25159,
+        "expected_sha256": "f7db400fb351d037f5db0ca4e98717b051688bd3c37ec577108657442615fded",
+        "group": "config_evidence",
+        "matches": true,
+        "path": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-repair/private-snapshot.json"
+      },
+      {
+        "actual_sha256": "df0e83dc3b2208851e03e4bc56c9560954c1343e582577662fa2021345382840",
+        "bytes": 2911,
+        "expected_sha256": "df0e83dc3b2208851e03e4bc56c9560954c1343e582577662fa2021345382840",
+        "group": "config_evidence",
+        "matches": true,
+        "path": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-repair/support-compatibility.json"
+      },
+      {
+        "actual_sha256": "857ebabc3f8a356f971f772c64d183dd0827bc8fd088d7ac4e404c44115b6aca",
+        "bytes": 4087,
+        "expected_sha256": "857ebabc3f8a356f971f772c64d183dd0827bc8fd088d7ac4e404c44115b6aca",
+        "group": "config_evidence",
+        "matches": true,
+        "path": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-repair/other-selected-source-compatibility.json"
+      },
+      {
+        "actual_sha256": "39215d659e11c23be95c6e5b97ce47de42655a78a90cc7231827127a5cdd4d35",
+        "bytes": 9146,
+        "expected_sha256": "39215d659e11c23be95c6e5b97ce47de42655a78a90cc7231827127a5cdd4d35",
+        "group": "config_evidence",
+        "matches": true,
+        "path": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-repair/candidate-source-output-pins.json"
+      },
+      {
+        "actual_sha256": "959ae1929ddf5db21187f1f12f83aee6b458bb7a89832e07f0c4095dca110070",
+        "bytes": 5375,
+        "expected_sha256": "959ae1929ddf5db21187f1f12f83aee6b458bb7a89832e07f0c4095dca110070",
+        "group": "config_evidence",
+        "matches": true,
+        "path": "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/verified-context-repair-review.json"
+      },
+      {
+        "actual_sha256": "3110b58d8d57ce356bef66c6545cfefbc2270c28542129b4ef5f9bb942998cd8",
+        "bytes": 3427,
+        "expected_sha256": "3110b58d8d57ce356bef66c6545cfefbc2270c28542129b4ef5f9bb942998cd8",
+        "group": "copied_package_manifests",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/cloudflare/package.json"
+      },
+      {
+        "actual_sha256": "77d6b51fade16c2c304664ec5ee55c820121314e7b6ab8cdca6266ce21c78bf3",
+        "bytes": 1064,
+        "expected_sha256": "77d6b51fade16c2c304664ec5ee55c820121314e7b6ab8cdca6266ce21c78bf3",
+        "group": "copied_package_manifests",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/contracts/package.json"
+      },
+      {
+        "actual_sha256": "d90414f00530243e1ee386b4f9e070f8f3016da23f89993bacdcec21c6997f82",
+        "bytes": 8838,
+        "expected_sha256": "d90414f00530243e1ee386b4f9e070f8f3016da23f89993bacdcec21c6997f82",
+        "group": "copied_package_manifests",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/state/package.json"
+      },
+      {
+        "actual_sha256": "bfa816930f592063f798273533fa138a0a8d9fa3a35cb3222af6d9c313fd87f4",
+        "bytes": 1655,
+        "expected_sha256": "bfa816930f592063f798273533fa138a0a8d9fa3a35cb3222af6d9c313fd87f4",
+        "group": "copied_package_manifests",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/identity/package.json"
+      },
+      {
+        "actual_sha256": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+        "bytes": 2763,
+        "expected_sha256": "e542125300e2ee229f96bd37cc66af50c8982e588c26c9ba6cf363640688618f",
+        "group": "copied_package_manifests",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/values/package.json"
+      },
+      {
+        "actual_sha256": "5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4",
+        "bytes": 1747,
+        "expected_sha256": "5c7e8332525050e9503e397c27107b2f197e1edcec80b5ace95dc4b9ef3daaf4",
+        "group": "copied_package_manifests",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/ui/package.json"
+      },
+      {
+        "actual_sha256": "8f3639d8cbbe1e5d0e4af4c1d92352fbdb66f56994c3863d54274f4258c47cad",
+        "bytes": 2137,
+        "expected_sha256": "8f3639d8cbbe1e5d0e4af4c1d92352fbdb66f56994c3863d54274f4258c47cad",
+        "group": "copied_package_manifests",
+        "matches": true,
+        "path": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969/packages/interfaces/package.json"
+      }
+    ],
+    "pin_group_counts": {
+      "config_evidence": 7,
+      "copied_package_manifests": 7,
+      "source_and_selected_output": 33
+    },
+    "pin_match_count": 47,
+    "pin_mismatches": [],
+    "recorded_pin_items": 0,
+    "separate_tool_pins": {
+      "node": {
+        "actual_sha256": "e4b5a3af0e05c75de2eae013904145f40fe7fc2a6e6f17510128bf45cca4e79b",
+        "bytes": 122129232,
+        "expected_sha256": "e4b5a3af0e05c75de2eae013904145f40fe7fc2a6e6f17510128bf45cca4e79b",
+        "matches": true,
+        "path": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+      },
+      "typescript": {
+        "actual_sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+        "bytes": 45,
+        "expected_sha256": "8d5fa5bd883fec0979fc2004f1fe1d99aef40570155d550eadc0b03b55513bf0",
+        "matches": true,
+        "path": "/Users/vince/Projects/canlang/node_modules/.bun/typescript@5.9.3/node_modules/typescript/bin/tsc"
+      }
+    },
+    "support_root": "/private/tmp/canlang-verified-context-after-153de375-7d80-4724-845c-cafcb9669969",
+    "writer_and_commands": "author/reviewer released; no plannedrepairwriter; futurefix requires explicitnewlease and cannotmutate thisfrozen baseline."
+  },
+  "head": "2819e8add2675360e25fe323d6aff52f04b9ef7f",
+  "head_before_pin_checks": {
+    "packages/cloudflare/src/runtime/context.ts": {
+      "expected_sha256": "497e1bbc7cbecd984e2ea7119cd1f4913688b2044158eaaaa0a74f3af0fbb98b",
+      "head_blob_sha256": "497e1bbc7cbecd984e2ea7119cd1f4913688b2044158eaaaa0a74f3af0fbb98b",
+      "matches": true
+    },
+    "packages/cloudflare/src/runtime/invoke.ts": {
+      "expected_sha256": "6b135086c8d0c904008f2100ed0930fd8ebfed60769e73efc8944bed45f50997",
+      "head_blob_sha256": "6b135086c8d0c904008f2100ed0930fd8ebfed60769e73efc8944bed45f50997",
+      "matches": true
+    }
+  },
+  "limits": [
+    "Mechanical hash/index inspection only.",
+    "No builds, semantic review, or complete dependency-graph inference."
+  ],
+  "manifest": {
+    "actual_sha256": "c783360dc082aa533a44f9caee4329d02bb1f08df8810717a23fcab668b76d57",
+    "declared_bytes": 2445169,
+    "declared_count": 90,
+    "expected_bytes": 2445169,
+    "expected_count": 90,
+    "expected_sha256": "c783360dc082aa533a44f9caee4329d02bb1f08df8810717a23fcab668b76d57",
+    "hash_matches": true,
+    "mismatches": [],
+    "path": "implementation/capability-roadmap-20261008/verified-context-integration-request.json",
+    "path_escapes": [],
+    "symlinks": [],
+    "verified_bytes": 2445169,
+    "verified_count": 90
+  },
+  "mismatch_count": 0,
+  "mismatches": [],
+  "new_test_absent_in_head": true,
+  "new_test_path": "packages/cloudflare/src/runtime/verified-context.test.ts",
+  "staged_diff_exit_code": 0,
+  "staged_index_empty": true
+}

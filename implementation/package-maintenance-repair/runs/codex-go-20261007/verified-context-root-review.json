@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "captured_utc": "2026-10-08T00:38:44.792403+00:00",
+  "status": "root_source_and_different_author_evidence_review_accepted_finite_projection",
+  "root": "/root",
+  "manifest_path": "implementation/capability-roadmap-20261008/verified-context-integration-request.json",
+  "manifest_sha256": "c783360dc082aa533a44f9caee4329d02bb1f08df8810717a23fcab668b76d57",
+  "exact_candidate_count": 90,
+  "exact_candidate_bytes": 2445169,
+  "review_path": "implementation/capability-roadmap-20261008/verified-context-repair-review.json",
+  "review_sha256": "959ae1929ddf5db21187f1f12f83aee6b458bb7a89832e07f0c4095dca110070",
+  "mechanical_precommit_recheck": "implementation/package-maintenance-repair/runs/codex-go-20261007/verified-context-precommit-recheck.json",
+  "root_source_review": [
+    "Only qualified canonical call.context supplies facts; structural optional carrier is not authentication",
+    "Public owning Values factories copy/freeze exact facts, explicit actor/team null preserved, no inferred email or caller fallback",
+    "Unqualified handler context own-key shape/lazy host clock unchanged",
+    "Canonical source clock is sampled admitted now across retry; State admission and saved-receipt precedence unchanged",
+    "No new identity resolver, global brand, generic wrapper, typed storage/default or whole-host qualification"
+  ],
+  "verified": {
+    "targeted_pin_comparisons": 263,
+    "pin_failures": 0,
+    "constructor_tests": {
+      "passed": 6,
+      "failed": 0
+    },
+    "independent_actual_runtime": {
+      "checks": 35,
+      "failed": 0,
+      "before_observations": 8,
+      "after_observations": 20,
+      "source_sha256": "f01e44a16219ef2c6253450448a455569bd958d55df921e5bce8d34626379507",
+      "artifact_sha256": "161da074987f6af7c96212cb240507ac18f8a725687049eaa1333e0bd85f1f20",
+      "node": {
+        "execPath": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node",
+        "version": "v24.21.0",
+        "sha256": "e4b5a3af0e05c75de2eae013904145f40fe7fc2a6e6f17510128bf45cca4e79b"
+      }
+    },
+    "raw_author_and_module_audit": {
+      "checks": 21,
+      "failed": 0
+    }
+  },
+  "retained_gaps": [
+    "D1/reopen/process crash/installed or deployed identity and owner routing",
+    "full actor email/email_verified carrier, global null-team applicability, direct contexts/trusted occurrences/hooks/pages/locale/contextual defaults",
+    "tagged datetime/user results, writes, schema/provenance mapping, persistence/hydration and integer arithmetic",
+    "whole-current graph and broader host/backend/wasm eager Values import equivalence",
+    "exact void replay representation undefined versus null remains open",
+    "Task 9/Task 10/SEQ009/SEQ010/F1/full-app gates remain open"
+  ],
+  "source_maintenance_delta": {
+    "context.ts": {
+      "bytes": 957,
+      "readable_newline_delta": 14
+    },
+    "invoke.ts": {
+      "bytes": 78,
+      "readable_newline_delta": 2
+    },
+    "test": {
+      "bytes": 4845,
+      "lines": 87
+    },
+    "replacement_savings": 0,
+    "classification": "required canonical-fact correctness, separate growth budget; declaration/build/evidence costs remain separate"
+  },
+  "writer_reader_commands_released": true,
+  "git": {
+    "before": "0611db21a7a8c83e61c55bdec8798f71daa92ab4",
+    "commit_pending": true,
+    "no_merge": true,
+    "no_push": true
+  },
+  "whole_graph_acceptance": false,
+  "task_counts_unchanged": {
+    "finished": 20,
+    "partial": 14,
+    "open_or_blocked": 13,
+    "held": 1,
+    "total": 48
+  },
+  "raw_provenance_whitespace": "Preserved raw logs/diffs may contain trailing whitespace; source and authored decision/filetree notes checked separately."
+}

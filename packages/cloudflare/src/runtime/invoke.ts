@@ -2997,15 +2997,17 @@ async function runScenarioSeam(
       }
     },
   };
+  const admittedNow = call.context.now;
   const ctx = createContext({
     caller:
       actorUserId === null
         ? { userId: "anonymous", roles: [] }
         : { userId: actorUserId, roles: grants },
     store: withCanonicalCommitGuard(overlay, opts.operation),
-    clock: opts.now,
+    clock: () => admittedNow,
     memberships: grants,
     canonical: scope,
+    qualified: call.context,
   });
   const callable = opts.artifact.callables.find((entry) => entry.id === opts.operation);
   const argument = callable?.inputStyle === "parameters"
