@@ -1,0 +1,14 @@
+app TypedDurableAdmission
+Given
+ Entry { label:text, count:int=1, stamp:datetime server=now }
+ policy Entry read=public
+When
+ crud Entry by=owner fields=label,count
+ ## Owner is the live team membership role. A later guard must roll back the staged update.
+ scenario change(entry:Entry,delta:int,accept:bool) -> int by=owner
+  do
+   require entry.stamp==entry.created
+   set entry {count=entry.count+delta}
+   require accept
+   return entry.count
+Then
