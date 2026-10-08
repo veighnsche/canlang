@@ -347,6 +347,7 @@ export interface SourceFormBindingContext {
   readonly derived: DerivedOperationInputs;
   readonly operationId: string;
   readonly nowMs: number;
+  readonly occurrence?: string;
 }
 export interface SourceFormBindingProof {
   readonly token: string;
