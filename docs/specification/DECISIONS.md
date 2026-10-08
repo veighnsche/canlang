@@ -2736,3 +2736,10 @@ A selected `result.content` read returns the flat `result.content` key and only 
 ### 2026-10-08 — Export the trusted selected-delivery facade (accepted prerequisite)
 
 State owns the `delivery(c, {record, field}, selected)` function. It forwards the original arguments to the admitted canonical `observeDelivery` callback and returns its exact selected projection or null; a missing callback fails validation. Public stdlib reexports this same binding. The runtime owner wires the callback to the existing current State/Work receipt join, including declaration, grants, retention and fences. No second observer, parser, normalization, synthetic identity or permission decision is added. State/stdlib emits and the two existing export/identity checks passed; root directly reviewed the source. Actual generated/runtime/provider and installed consumers remain pending. This is required capability growth, not replacement reduction credit.
+
+
+## 2026-10-08 — Selected durable File host and real field consumer
+
+Accepted: the existing Files kernel uses an explicit Node24 SQLite host subpath. Upload intents, finalized metadata and bytes share one SQLite transaction; the portable package root stays separate. The actual authenticated Interfaces upload/MCP attachment and canonical record-field download reuse the defining Values File codec and current identity/owner/membership checks. Download rechecks current access and the same field/value/version before exposing bytes.
+
+The selected nativeD1 State and SQLite Files case and existing bundle link pass; root reviewed the released source and reused those results. Files attachment metadata follows the State commit and is repaired on the same receipted envelope after a lost response. This is not a cross-database atomic transaction. Identity in this case remains an explicit memory fixture. Browser, R2/default Worker, shared-principal, installed release and wider parent gates stay open; this capability addition receives no replacement reduction credit.

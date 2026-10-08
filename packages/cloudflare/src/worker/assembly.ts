@@ -102,6 +102,7 @@ import type {
 } from "@canlang/contracts";
 import type { AssembledModules } from "../runtime/modules.js";
 import type { HandlerContext } from "../runtime/context.js";
+import type { CanonicalFileBinding } from '../runtime/file-staging.js';
 import type {
   CanonicalMembershipReader,
   CanonicalMutationOpts,
@@ -507,6 +508,9 @@ export interface InterimFileKernel {
 export interface InterimFilesBinding {
   readonly usesFiles: boolean;
   readonly kernel: InterimFileKernel;
+  /** Selected real host transport, including current-grant finalized reads. */
+  readonly fetch?: (request: Request) => Promise<Response>;
+  readonly canonical?: CanonicalFileBinding;
 }
 
 /**
@@ -903,6 +907,7 @@ export interface CanonicalInvokerOpts {
   /** Host-owned checked selected-app metadata, shared with page serving. */
   readonly appInfo?: AppInfo;
   readonly selectedReceiptObserver?: SelectedReceiptObserverBinding;
+  readonly files?: CanonicalFileBinding;
 }
 
 /**
@@ -975,6 +980,7 @@ export function buildInvoker(
           store,
           memberships: opts.memberships as CanonicalMembershipReader,
           now: opts.now ?? Date.now,
+          ...(opts.files === undefined ? {} : { files: opts.files }),
         });
         return { result };
       } catch (error) {
@@ -1239,6 +1245,7 @@ async function handleMcpRequest(req: Request, ctx: InterimDispatchContext): Prom
       appInfo: ctx.app,
       now,
       ...(ctx.selectedReceiptObserver === undefined ? {} : { selectedReceiptObserver: ctx.selectedReceiptObserver }),
+      ...(ctx.files?.canonical === undefined ? {} : { files: ctx.files.canonical }),
     }),
     catalog,
     files: {
@@ -1342,6 +1349,7 @@ async function handleHttpOperationRequest(
       appInfo: ctx.app,
       now,
       ...(ctx.selectedReceiptObserver === undefined ? {} : { selectedReceiptObserver: ctx.selectedReceiptObserver }),
+      ...(ctx.files?.canonical === undefined ? {} : { files: ctx.files.canonical }),
     }),
     catalog,
     limiter: {
@@ -1372,7 +1380,7 @@ async function handleHttpOperationRequest(
           return ctx.files?.usesFiles ?? false;
         },
       },
-      kernel: {
+      kernel: ctx.files?.kernel ?? {
         maxBytes: (): number => unjoined("file kernel"),
         createIntent: async (): Promise<InterimKernelCreateOutcome> => unjoined("file kernel"),
         append: async (): Promise<InterimKernelAppendOutcome> => unjoined("file kernel"),
@@ -1418,6 +1426,7 @@ function buildInterimFetch(
       return interimUnavailable("auth routes need the interfaces join (handleAuthRequest)");
     }
     if (pathname.startsWith("/files/")) {
+      if (ctx.files?.fetch !== undefined) return ctx.files.fetch(req);
       return interimFilesResponse(pathname, method, ctx.files);
     }
     if (ctx.pageHandler === undefined) return notFoundResponse();

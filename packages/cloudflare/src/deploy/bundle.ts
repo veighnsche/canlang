@@ -130,6 +130,7 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
   "stdlib.js",
   "invoke.js",
   "receipt-staging.js",
+  "file-staging.js",
   "sourcemap.js",
   "mcp-registry.js",
   "env-assembly.js",

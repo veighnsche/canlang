@@ -26,9 +26,14 @@
   ],
   "dependencies": {
     "@canlang/contracts": "workspace:*",
+    "@canlang/values": "workspace:*",
     "@canlang/services": "workspace:*"
   },
   "exports": {
+    "./host/sqlite": {
+      "types": "./dist/src/host/sqlite.d.ts",
+      "default": "./dist/src/host/sqlite.js"
+    },
     ".": {
       "types": "./dist/src/index.d.ts",
       "default": "./dist/src/index.js"

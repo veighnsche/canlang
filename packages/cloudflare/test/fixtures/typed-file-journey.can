@@ -1,0 +1,13 @@
+app TypedFileJourney
+Given
+ Entry { label:text="Uploaded", attachment:file? }
+ policy Entry read=owner fields=label,attachment
+ policy Entry read=members fields=label
+When
+ crud Entry by=owner fields=label
+ ## Only finalized files can enter the authored attachment transaction.
+ scenario attach(entry:Entry,attachment:file,accept:bool) by=owner
+  do
+   set entry {attachment=attachment}
+   require accept
+Then
