@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "captured_utc": "2026-10-08T00:56:15.187366+00:00",
-  "status": "shared_ownership_accepted_exact_additive_shape_and_revision_gate_proposed_pending_owner_release",
+  "status": "shared_ownership_and_first_metadata_slice_accepted_runtime_conversion_activation_still_pending",
   "task_ids": [
     "TECH-V03",
     "TECH-V04"
@@ -123,6 +123,11 @@
     "replacement_savings": 0,
     "growth_budget": "required typed runtime correctness, shared horizon maintenance benefit remains to measure"
   },
-  "writer_state": "No Contracts/State/runtime writer granted by this ownership choice; source coordinator received compact next exactshape/files/gate handoff request. Compiler retains existing owner.",
-  "reconciliation_sha256": "6cb25d69c39be1e733fba42a1814e8e4e0e9225ce971e528857512e63d036407"
+  "writer_state": "Five selected Contracts/State source/test paths implemented, original canonical build4/4 and focused Node tests14/14 passed; writer released and root direct diff accepted. Compiler retains checked-result producer; runtime projection/write/activation gates remain open.",
+  "reconciliation_sha256": "6cb25d69c39be1e733fba42a1814e8e4e0e9225ce971e528857512e63d036407",
+  "first_metadata_acceptance": {
+    "build": "node scripts/run-tasks.mjs build --filter=@canlang/state --concurrency=1: 4/4",
+    "tests": "one Node invocation: typed-artifact-metadata, secret-metadata, owning models:14/14",
+    "scope": "Own copied/frozen int|void result, retained singular nonnullable integer association and optional source inputs; absence stays unknown. No value/default/result conversion or activation."
+  }
 }

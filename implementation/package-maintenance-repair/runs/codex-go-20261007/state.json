@@ -1040,7 +1040,7 @@
     },
     "DEL-D03": {
       "planning_status": "blocked",
-      "state": "Independently accepted planned ancestry preflight; committing finite source/proof. Wider lifecycle/sidecar/installed gates open",
+      "state": "Independently accepted planned ancestry preflight committed 788e5352; wider lifecycle/sidecar/installed gates open",
       "files": [
         "packages/cloudflare/src/deploy/bundle.ts",
         "packages/cloudflare/src/preparation/build-adapter.ts",
@@ -1097,7 +1097,7 @@
         "commit": "41a7b05b63637af53e5c3a9aa3fbf82546c76352"
       },
       "mixed_writer_correction": {
-        "state": "Different-author physical-preflight review accepted; separate coherent commit prepared, planned-prefix residual open",
+        "state": "Different-author physical-preflight correction committed 73942cbd; planned-prefix residual subsequently corrected in 788e5352",
         "files": [
           "packages/cloudflare/src/deploy/bundle.ts",
           "packages/cloudflare/test/mixed-output-containment.test.ts"
@@ -1116,18 +1116,21 @@
         "review_outputs": "/private/tmp/canlang-repair-go-20261007/mixed-writer-independent",
         "limit": "Existing-state containment only; sidecars/races/atomic/installed/native/HOLD gates remain open",
         "review": "mixed-output-containment-independent-review.json",
-        "commit_pending": true
+        "commit_pending": false,
+        "commit": "73942cbdb57d6fdcae1ce81aa1c068324844dc4e"
       },
       "planned_collision_residual": {
-        "state": "Root verified independent real before/current partial-effects witness; next finite defining common-layout repair selected",
+        "state": "Resolved by committed defining common-layout ancestry check 788e5352; focused text/binary both-direction and precedence controls accepted",
         "contract": "Reject selected file/directory parent-child conflicts in text/binary mixed layout before output effects; preserve both entry domains/reserved-manifest policy and existing layout/digest/error precedence",
         "evidence": "/private/tmp/canlang-repair-go-20261007/mixed-writer-independent/result.json",
-        "writer_active": false
+        "writer_active": false,
+        "commit": "788e5352ea989fafc4677af27f72e61f70f4738c"
       },
       "review_read_released": true,
       "planned_collision_review": "planned-output-collision-independent-review.json",
       "source_pin": "8ccf7b1178df87cdb02c1312bf4e2314680697034b5391fdad6a062ed80a7f85",
-      "planned_test_pin": "c3d09faf0da8ac9e27d1f756d5491906dec4ee7f0452a6312c19d240c37536f8"
+      "planned_test_pin": "c3d09faf0da8ac9e27d1f756d5491906dec4ee7f0452a6312c19d240c37536f8",
+      "planned_collision_commit": "788e5352ea989fafc4677af27f72e61f70f4738c"
     },
     "DEL-D04": {
       "planning_status": "blocked",
@@ -1692,7 +1695,7 @@
   "foreign_runtime_pure_integration": "implementation/package-maintenance-repair/runs/codex-go-20261007/runtime-pure-helpers-root-integration.json",
   "current_goal_turn_actions": {
     "classification": "progress",
-    "evidence": "Defining owner released exact H1 Contracts/State metadata shape and five-file lease; former coordinator becomes finite implementation lane. Actual page/query source trace remains active and disjoint. Process decision recorded; implementation ACK/results remain pending."
+    "evidence": "Defining owner released exact H1 Contracts/State metadata shape and five-file lease; former coordinator becomes finite implementation lane. Actual page/query source trace remains active and disjoint. Process decision recorded; implementation ACK/results remain pending. Process decision committed 6a6e3ba9; recipient reported metadata implementation started; stale DEL-D03 pending labels reconciled to actual 73942cbd/788e5352 source commits without repeating tests. H1 direct diff accepted, owning build4/4 and tests14/14 pass; page/query ten-file implementation START_ACK and browser Document visibility two-file START_ACK; both source work continues disjointly."
   },
   "live_finite_packets": [
     {
@@ -1700,13 +1703,13 @@
       "agent": "/root/asset_consumer_join",
       "model": "gpt-6.1-sol",
       "effort": "high",
-      "status": "finite actual422 definingowner/productioncaller trace READ_ACK; no source writes yet",
+      "status": "Actual ten-file START_ACK; defining page/session/row-query/source-caller implementation active; no build started",
       "root_base": "7c8dbe2e751b7a9cbe6e4af7944c87017a9ed520"
     },
     {
       "task": "TECH-V03/V04 checked scalar/result source ownership",
       "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
-      "status": "Exact five-file metadata writer release and contract ACK delivered; recipient implementation ACK/results pending",
+      "status": "Implemented/released: canonical build4/4 and owning metadata/secret/model tests14/14 pass; root direct diff accepted; scoped commit pending",
       "contract": "h1-owning-contract.json",
       "source_paths": [
         "packages/contracts/src/artifact.ts",
@@ -1714,6 +1717,17 @@
         "packages/state/src/invocation/registry.ts",
         "packages/state/src/mutation/models.ts",
         "packages/state/test/typed-artifact-metadata.test.ts"
+      ]
+    },
+    {
+      "task": "DEL-B01 real Document visibility/initializer prerequisite",
+      "agent": "/root/browser_visibility_join",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "status": "Two-file implementation ACK; private original tsc plus owning node:test awaiting coordinator short slot",
+      "files": [
+        "packages/ui/src/browser/bootstrap.ts",
+        "packages/ui/test/browser-polling-join.test.ts"
       ]
     }
   ],

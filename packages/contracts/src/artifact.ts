@@ -1,4 +1,5 @@
 import type { FieldMachine } from "./state.js";
+import type { CanTypeId } from "./values.js";
 
 /**
  * Lane 01-owned compiled-artifact boundary.
@@ -365,6 +366,8 @@ export interface ArtifactOperation {
   inputs: {
     fields: ArtifactOperationInput[];
   };
+  /** Optional declared result; absence leaves legacy result typing unknown. */
+  result?: { readonly type: CanTypeId };
 }
 
 /**
