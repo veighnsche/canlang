@@ -2573,6 +2573,12 @@ impl<'a> Cx<'a> {
         // Analysis owns enum-case claims, including spellings also used
         // by unrelated fields or fixed scope slots such as `b`.
         let key = NodeKey::of(node);
+        if let Some(role) = self.program.types.role_references.get(&key) {
+            return IrExpr::HasRole {
+                role: self.canonical(*role),
+                person: None,
+            };
+        }
         if self.program.types.resolved_cases.contains(&key) && is_enum_ty(ty) {
             return IrExpr::Text(name);
         }
@@ -2597,6 +2603,13 @@ impl<'a> Cx<'a> {
         if let Some(id) = self.fixture_in_scope(scope.module, &name) {
             let fixture_name = self.local_name(id);
             return member_of("s", &fixture_name, &self.fixture_type(id), node.span);
+        }
+        // A checked lexical bool remains a value even when a module role
+        // shares its spelling. Genuine role references were consumed above.
+        if self.program.types.bound_names.contains(&key)
+            && matches!(ty, ResolvedType::Scalar(Scalar::Bool))
+        {
+            return IrExpr::Name(name);
         }
         self.decode_bare_name(scope, &name, ty, node.span)
     }

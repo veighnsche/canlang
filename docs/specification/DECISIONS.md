@@ -2897,3 +2897,10 @@ Private State emission and the sole changed actual bound-reader case pass1/1, in
 Accepted finite State descriptor intake: ordinary scenario and read operations may declare a known qualified nonnullable singular loaded model. Read-only ordinary model arrays retain their existing separate profile; CRUD singular, nullable, nested, union, ref, enum and unknown-model claims remain refused. The checked result claim is copied and frozen through both loaders. This admits the genuine compiler declaration without serializing a raw model view or granting result authority from shape alone.
 
 Normal private State emission and the two changed descriptor cases pass2/2; root directly reviewed the source and reused unchanged scalar/array/numeric checks. The compiler released the genuine singular result declaration; the existing Cloudflare consumer owner separately qualifies admitted/created-view provenance, native reference encoding, current authority and receipt/replay. That owner alone receives the next shared State output writer lease. This is a required producer correction, with no replacement reduction credit or whole input-choice, security, product or root48 acceptance; native preparation remains held.
+
+
+## 2026-10-08 — Reviewed CSV uses the existing public request handler
+
+Accepted finite CSV consumer: expose the existing handleCsvRequest through Interfaces and mount it with canonical operation/auth routes. The owning compiled-source/D1 case exercises source catalog, rendered preview/FormData consent, authored row order, invalid/duplicate/excluded rows, current defaults, receipts/history and replay. Midbatch revocation preserves the committed prefix and refuses the later row; a lost committed response stays a transport uncertainty until the caller explicitly retries the same key, without additional writes.
+
+The changed owning case passes1/1 and normal Cloudflare emission passes; root inspected the focused export and consumer and reused unchanged outcomes. This does not close broader CSV resource/schema/installed/transport or original product acceptance. No second CSV implementation, automatic retry or reduction credit is introduced.
