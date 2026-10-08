@@ -63,7 +63,9 @@ Implemented modules:
   `title` text, `text` values, single-value `content`/`badge`/`stat` and optional
   `divider` captions, transient tabs, `fieldset`/`join` children, named slots for modal/drawer/chat bubbles,
   and main/action children for FAB. Forms go through the runtime's
-  `prepareForm`; `list`/`table` carry named model and query scope. Catalog
+  `prepareForm`, awaiting preparation once before authored children; collection
+  row rendering carries the same asynchronous preparation. `list`/`table` carry
+  named model and query scope. Catalog
   availability alone does not make a word or profile authorable: unsupported
   source-to-factory shapes fail with E6008. The generic catalog fallback and
   incomplete legacy `action`, `actions`, `edit`, `history`, `copy`, `metrics`,
@@ -73,6 +75,12 @@ Implemented modules:
   of being dropped. This bounded surface does not qualify whole-app generation,
   every backend/browser workflow, protected forms or BDD3 returned/live
   payloads.
+- Checked sends retain the exact selected deployment binding alongside their
+  canonical operation. Capability input/result metadata derives from owning
+  declarations and the standard catalog, with named standard types retained as
+  references. The existing native binding witness checks alias selection,
+  request schemas, context identity, input reads and lazy guard order. Canonical
+  Work staging and dispatch are qualified by their owning runtime consumers.
 - Decimal literals and contextual integral values lower through the existing
   `parseDecimal` path. Decimal arithmetic and value comparisons use the owning
   `Values` helpers. Permanent native runtime witnesses cover these supported
