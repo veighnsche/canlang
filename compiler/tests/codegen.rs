@@ -3354,7 +3354,7 @@ fn form_fields_unknown_op_stays_loud() {
 /// ternaries.
 #[test]
 fn catalog_factories_lower_from_source() {
-    let src = "app Probe uses=[shop]\npackage shop\n Given\n  export Item { name:text label=\"Item\"@{nl=\"Artikel\"} }\n  policy Item read=members\n When\n  crud Item by=members fields=name delete=none\n Then\n  page / title=\"Shop\"@{nl=\"Winkel\"}\n   breadcrumbs\n   card \"Sell\"@{nl=\"Verkopen\"}\n    form Item.create\n     input name\n    list Item\n     badge row.name\n     alert\n      require row.name != \"\"\n      text row.name\n     divider \"More\"@{nl=\"Meer\"}\n     join\n      button opens=dlg\n     modal \"Dialog\"@{nl=\"Dialoog\"} id=dlg\n      slot content\n       text row.name\n     pagination\n    stat 1,2\n";
+    let src = "app Probe uses=[shop]\npackage shop\n Given\n  export Item { name:text label=\"Item\"@{nl=\"Artikel\"} }\n  policy Item read=members\n When\n  crud Item by=members fields=name delete=none\n Then\n  page / title=\"Shop\"@{nl=\"Winkel\"}\n   breadcrumbs\n   card \"Sell\"@{nl=\"Verkopen\"}\n    form Item.create\n     input name\n    list Item empty=\"No items yet\"\n     badge row.name\n     alert\n      require row.name != \"\"\n      text row.name\n     divider \"More\"@{nl=\"Meer\"}\n     join\n      button opens=dlg\n     modal \"Dialog\"@{nl=\"Dialoog\"} id=dlg\n      slot content\n       text row.name\n     pagination\n    stat 1,2\n";
     let mut db = SourceDb::new();
     let id = db.add("probe-ui.can".to_string(), src.to_string());
     let (catalog, catalog_path) = golden_catalog();
@@ -3522,7 +3522,10 @@ fn construct_ui_gate_ternary() {
     };
     let list = IrUi {
         factory: "list".to_string(),
-        props: vec![("model".to_string(), text_lit("demo.Widget"))],
+        props: vec![
+            ("model".to_string(), text_lit("demo.Widget")),
+            ("empty".to_string(), text_lit("No widgets yet")),
+        ],
         children: vec![gated],
         row_scope: Some(("row".to_string(), "rowView".to_string())),
         gate: None,
@@ -7537,7 +7540,7 @@ fn a2b_composite_unique_emits_sparse_member_and_registry_rule() {
 /// bare delete infers the full deleteRecord card.
 #[test]
 fn a2b_ui_profiles_lower_to_factories() {
-    let src = "app Probe uses=[shop]\npackage shop\n Given\n  export Item { name:text label=\"Item\"@{nl=\"Artikel\"} }\n  policy Item read=members\n When\n  crud Item by=members fields=name\n Then\n  page / title=\"Shop\"\n   card \"Go\"\n    form Item.create\n     fieldset \"Details\"\n      input name\n      radio name\n      select name\n    fab\n     button opens=dlg\n     button opens=dlg\n    modal \"Dialog\" id=dlg\n     slot content\n      text \"x\"\n    list Item\n     chat_bubble\n      slot content\n       content row.name\n      slot header\n       text row.name\n     delete\n";
+    let src = "app Probe uses=[shop]\npackage shop\n Given\n  export Item { name:text label=\"Item\"@{nl=\"Artikel\"} }\n  policy Item read=members\n When\n  crud Item by=members fields=name\n Then\n  page / title=\"Shop\"\n   card \"Go\"\n    form Item.create\n     fieldset \"Details\"\n      input name\n      radio name\n      select name\n    fab\n     button opens=dlg\n     button opens=dlg\n    modal \"Dialog\" id=dlg\n     slot content\n      text \"x\"\n    list Item empty=\"No items yet\"\n     chat_bubble\n      slot content\n       content row.name\n      slot header\n       text row.name\n     delete\n";
     let (artifact, diags) = a2a_emit(src);
     assert!(
         diags.iter().all(|d| d.code != "E6006" && d.code != "E6008"),
