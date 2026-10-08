@@ -6,6 +6,54 @@ use canlang_compiler::source::{LineIndex, SourceDb, SourceId, Span};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
+#[test]
+#[cfg(unix)]
+fn native_cli_refuses_unrepresentable_source_before_reading_or_writing() {
+    use canlang_compiler::source::{SourceAdmissionError, admit_source_len};
+
+    assert_eq!(admit_source_len(u64::from(u32::MAX)), Ok(u32::MAX));
+    let oversized_len = u64::from(u32::MAX) + 1;
+    assert_eq!(
+        admit_source_len(oversized_len),
+        Err(SourceAdmissionError::TextTooLong {
+            bytes: oversized_len
+        })
+    );
+
+    let scratch = tempfile::tempdir().unwrap();
+    let oversized = scratch.path().join("oversized.can");
+    // A sparse file has a real unrepresentable length without allocating text.
+    std::fs::File::create(&oversized)
+        .unwrap()
+        .set_len(oversized_len)
+        .unwrap();
+    let ordinary = scratch.path().join("ordinary.can");
+    let original = "app Ordinary\nGiven\nWhen\nThen\n";
+    std::fs::write(&ordinary, original).unwrap();
+    for command in ["check", "compile", "lint", "policy", "docs", "fmt"] {
+        let result = Command::new(env!("CARGO_BIN_EXE_can"))
+            .arg(command)
+            .arg(&ordinary)
+            .arg(&oversized)
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap();
+        assert_eq!(result.status.code(), Some(2), "{command}");
+        assert!(result.stdout.is_empty(), "{command}");
+        assert_eq!(
+            String::from_utf8(result.stderr).unwrap(),
+            format!(
+                "error[E7002]: cannot read '{}': source has {oversized_len} bytes; byte offsets support at most {} bytes\n",
+                oversized.display(),
+                u32::MAX
+            ),
+            "{command}"
+        );
+        assert_eq!(std::fs::read_to_string(&ordinary).unwrap(), original);
+        assert_eq!(std::fs::metadata(&oversized).unwrap().len(), oversized_len);
+    }
+}
+
 fn bounded_cases(name: &str, depths: &[usize], run: impl Fn(usize)) {
     if let Ok(depth) = std::env::var("CAN_WIDTH_BOUNDARY_DEPTH") {
         run(depth.parse().unwrap());

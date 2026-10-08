@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "We need choose source admission for a language compiler, rather than guess a general size budget. Every source identity and byte-range endpoint uses u32. The append-only source owner currently converts its usize count to u32 without checking and accepts any String length before hashing/storage. Its clients are CLI source tools and editor open/change. Source indexing/lexing/maps depend on those coordinates. Public fragment and JSON-string decoding already perform checked length/end admission and preserve fitting inputs, including the largest u32 endpoint. Existing finite tests cannot demonstrate billions of bytes or sources; we will not allocate them or forge source internals. The public source-add function returns an identity with no Result. Any repair must keep old snapshot identity, replacement-path lookup and no mutation after refusal. The final possible ID is u32::MAX; a text ending at byte u32::MAX is also representable. Compare an additive fallible owner API, a whole carrier-width migration, and enforcing a documented precondition under the current API, using the same criteria: correct coordinates/IDs, explicit graceful intake failure, compatibility, closure across clients, and minimal justified complexity. Which contract best supports the next implementation?",
+    "questions": {
+      "source_admission": {
+        "type": "choice",
+        "instructions": "Select one owning representability/admission contract using the same stated outcomes. Treat the result as advice; identify uncertainty rather than assuming external support or runtime resources.",
+        "criteria": {
+          "fallible_owner": "Add a public fallible source-add operation which checks byte length and next ID before mutation, returning a structured representability error. Preserve existing add as a documented compatibility convenience delegating to it and panicking deterministically only for out-of-range caller input; migrate shipped CLI/LSP intake to graceful errors. Check CLI file lengths/stream reads before unbounded allocation where practical. Standalone raw lexer/line-index entrypoints need their own declared representability admission/precondition. Retains u32 consumers and existing supported ordinary API behavior, adds one explicit owner error path.",
+          "widen_carriers": "Migrate source identities and offset/span/line/map carriers to wider integer types across public APIs and shipped consumers. Preserve exact original bytes/IDs and handle external u32 map/schema boundaries explicitly. Avoids the u32 input range but changes public types, downstream serialization and implementation closure; allocation and final consumers still have finite machine/API limits. Requires a larger coordinated migration rather than a cap policy.",
+          "checked_precondition": "Keep current source-add signature and explicitly declare representable text length/count as its caller precondition. Add checked assertions before narrowing/storage so violating inputs cannot wrap IDs/offsets. CLI/editor intake enforce that range directly and report their existing errors; private callers prove it before add. Lowest additive API surface, but safe graceful handling is distributed across clients and raw library callers still receive a panic for an unmet precondition."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "source_admission": {
+        "type": "choice",
+        "choice": "fallible_owner",
+        "confidence": 0.88,
+        "probabilities": {
+          "checked_precondition": 0.08,
+          "widen_carriers": 0.0,
+          "fallible_owner": 0.92
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 897,
+      "output_tokens": 52
+    }
+  }
+}

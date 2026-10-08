@@ -30,7 +30,8 @@
 use crate::analysis::catalog::{CATALOG_ENV_VAR, CatalogRequest, load_catalog};
 use crate::diagnostic::DiagnosticResult;
 use crate::exit;
-use crate::source::{SourceDb, SourceId, Span};
+use crate::source::{SourceDb, SourceId, Span, admit_source_len};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 /// Output format for machine/human surfaces.
@@ -663,6 +664,32 @@ fn command_help(cmd: &str) -> String {
     }
 }
 
+/// Refuse files outside the byte-offset range before allocating their contents.
+fn read_source_file(path: impl AsRef<Path>) -> std::io::Result<String> {
+    let file = std::fs::File::open(path)?;
+    admit_source_len(file.metadata()?.len())
+        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
+    read_source_text(file)
+}
+
+/// A growing file or stream may reveal one byte beyond the representable range.
+fn read_source_text(reader: impl Read) -> std::io::Result<String> {
+    let mut text = String::new();
+    reader
+        .take(u64::from(u32::MAX) + 1)
+        .read_to_string(&mut text)?;
+    admit_source_len(text.len() as u64)
+        .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
+    Ok(text)
+}
+
+fn add_source(db: &mut SourceDb, path: String, text: String) -> Result<SourceId, DispatchResult> {
+    let display = path.clone();
+    db.try_add(path, text).map_err(|error| {
+        DispatchResult::tool_error("E7002", format!("cannot admit '{display}': {error}"))
+    })
+}
+
 fn run_check_like(
     cmd: &str,
     operands: &[String],
@@ -677,13 +704,15 @@ fn run_check_like(
     }
     let mut db = SourceDb::new();
     for path in operands {
-        let text = match std::fs::read_to_string(path) {
+        let text = match read_source_file(path) {
             Ok(text) => text,
             Err(err) => {
                 return DispatchResult::tool_error("E7002", format!("cannot read '{path}': {err}"));
             }
         };
-        db.add(path.clone(), text);
+        if let Err(error) = add_source(&mut db, path.clone(), text) {
+            return error;
+        }
     }
     let mut result = analyzer.analyze(&db, tool_version());
     result.finish();
@@ -724,13 +753,15 @@ fn run_compile(
     }
     let mut db = SourceDb::new();
     for path in operands {
-        let text = match std::fs::read_to_string(path) {
+        let text = match read_source_file(path) {
             Ok(text) => text,
             Err(err) => {
                 return DispatchResult::tool_error("E7002", format!("cannot read '{path}': {err}"));
             }
         };
-        db.add(path.clone(), text);
+        if let Err(error) = add_source(&mut db, path.clone(), text) {
+            return error;
+        }
     }
     let owned = analyzer.analyze_owned(&db, tool_version());
     let mut result = owned.result;
@@ -802,13 +833,16 @@ fn run_policy(
     let mut db = SourceDb::new();
     let mut files = Vec::new();
     for path in operands {
-        let text = match std::fs::read_to_string(path) {
+        let text = match read_source_file(path) {
             Ok(text) => text,
             Err(err) => {
                 return DispatchResult::tool_error("E7002", format!("cannot read '{path}': {err}"));
             }
         };
-        files.push(db.add(path.clone(), text));
+        match add_source(&mut db, path.clone(), text) {
+            Ok(id) => files.push(id),
+            Err(error) => return error,
+        }
     }
     let owned = analyzer.analyze_owned(&db, tool_version());
     let mut result = owned.result;
@@ -920,13 +954,16 @@ fn run_docs_with_platform(
     // original spelling (refusal above already compared both spellings).
     let root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     for path in operands {
-        let text = match std::fs::read_to_string(path) {
+        let text = match read_source_file(path) {
             Ok(text) => text,
             Err(err) => {
                 return DispatchResult::tool_error("E7002", format!("cannot read '{path}': {err}"));
             }
         };
-        files.push(db.add(crate::docs::portable_source_id(path, &root), text));
+        match add_source(&mut db, crate::docs::portable_source_id(path, &root), text) {
+            Ok(id) => files.push(id),
+            Err(error) => return error,
+        }
     }
     let owned = analyzer.analyze_owned(&db, tool_version());
     let mut result = owned.result;
@@ -1265,7 +1302,7 @@ fn run_fmt(operands: &[String], check: bool) -> DispatchResult {
                 );
             }
             stdin_used = true;
-            match std::io::read_to_string(std::io::stdin()) {
+            match read_source_text(std::io::stdin()) {
                 Ok(text) => inputs.push(FmtInput {
                     name: "<stdin>".to_string(),
                     text,
@@ -1280,7 +1317,7 @@ fn run_fmt(operands: &[String], check: bool) -> DispatchResult {
             }
             continue;
         }
-        match std::fs::read_to_string(operand) {
+        match read_source_file(operand) {
             Ok(text) => inputs.push(FmtInput {
                 name: operand.to_string(),
                 text,
@@ -1304,7 +1341,10 @@ fn run_fmt(operands: &[String], check: bool) -> DispatchResult {
         crate::SCHEMA_VERSION,
     );
     for input in &inputs {
-        let id = db.add(input.name.clone(), input.text.clone());
+        let id = match add_source(&mut db, input.name.clone(), input.text.clone()) {
+            Ok(id) => id,
+            Err(error) => return error,
+        };
         match crate::format::format_source(id, &input.text) {
             Ok(formatted) => outputs.push(formatted.text),
             Err(error) => {
@@ -1678,13 +1718,15 @@ fn run_lint(
     }
     let mut db = SourceDb::new();
     for path in operands {
-        let text = match std::fs::read_to_string(path) {
+        let text = match read_source_file(path) {
             Ok(text) => text,
             Err(err) => {
                 return DispatchResult::tool_error("E7002", format!("cannot read '{path}': {err}"));
             }
         };
-        db.add(path.clone(), text);
+        if let Err(error) = add_source(&mut db, path.clone(), text) {
+            return error;
+        }
     }
     let owned = analyzer.analyze_owned(&db, tool_version());
     let mut result = owned.result;
