@@ -57,6 +57,7 @@ fn owning_input_choices_publish_checked_bindings_without_executing_annotations()
         operation("reviewer_choices")["result"]["type"],
         "InputChoices.Employee[]"
     );
+    assert_eq!(operation("save")["result"]["type"], "InputChoices.Region");
     assert_eq!(
         input(operation("save"), "region")["choices"],
         json!({"version":1,"readOperation":"InputChoices.region_choices","arguments":{"country":{"input":"country","path":[]}},"value":{"kind":"record"},"labels":["name"]})
@@ -122,6 +123,7 @@ import {readFileSync} from 'node:fs';
 const artifact = JSON.parse(readFileSync(process.argv[3],'utf8'));
 const entry = await import(pathToFileURL(process.argv[2]));
 const registry = entry.canApp(), context = {memberships:['members']};
+assert.deepEqual(registry.operations.find(operation=>operation.name==='InputChoices.save').result,{type:'InputChoices.Region'});
 function callable(name){
  const descriptor = artifact.callables.find(callable=>callable.id===`InputChoices.${name}`);
  assert(descriptor,name);let fn=registry;for(const part of descriptor.member)fn=fn[part];return fn;
