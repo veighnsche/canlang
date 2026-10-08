@@ -2,7 +2,7 @@
 //! recoverable parser, `E1xxx` diagnostics and the golden `.can` corpus.
 
 use canlang_compiler::diagnostic::Diagnostic;
-use canlang_compiler::source::SourceId;
+use canlang_compiler::source::{SourceId, Span};
 use canlang_compiler::syntax::{
     LayoutResult, Punct, SyntaxKind, SyntaxNode, Token, TokenKind, decode_json_string, layout, lex,
     lex_bytes, lex_fragment, parse_source,
@@ -251,6 +251,49 @@ fn invalid_numeric_units() {
         assert_eq!(diags[0].primary.start, start, "{text:?}");
         assert_eq!(diags[0].primary.end, end, "{text:?}");
     }
+}
+
+#[test]
+fn standalone_string_decoder_checks_absolute_source_range() {
+    assert_eq!(
+        decode_json_string(r#""\q""#, u32::MAX, file()),
+        Err((
+            "string token extends beyond the u32 source-offset range".into(),
+            Span::new(file(), u32::MAX, u32::MAX),
+        )),
+    );
+    for raw in [
+        r#""\q""#,
+        r#""plain""#,
+        "\"😀\"",
+        r#""\uD800""#,
+        r#""\uaabé""#,
+        "\"a\tb\"",
+    ] {
+        let length = u32::try_from(raw.len()).unwrap();
+        let base = u32::MAX - length;
+        let expected = decode_json_string(raw, 0, file()).map_err(|(message, span)| {
+            (
+                message,
+                Span::new(file(), base + span.start, base + span.end),
+            )
+        });
+        assert_eq!(decode_json_string(raw, base, file()), expected, "{raw:?}");
+        let rejected_base = base + 1;
+        assert_eq!(
+            decode_json_string(raw, rejected_base, file()),
+            Err((
+                "string token extends beyond the u32 source-offset range".into(),
+                Span::new(file(), rejected_base, rejected_base),
+            )),
+            "{raw:?} must refuse before decoding",
+        );
+    }
+    assert_eq!(
+        decode_json_string(r#""""#, u32::MAX - 2, file()).unwrap(),
+        "",
+    );
+    assert!(decode_json_string(r#""\q""#, u32::MAX, file()).is_err());
 }
 
 #[test]
