@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-08T11:08:02Z",
+  "updated_utc": "2026-10-08T11:26:28Z",
   "total": 67,
   "finished_at_recorded_scope": 54,
   "remaining_including_partial": 13,
@@ -101,9 +101,9 @@
     }
   },
   "latest_component": {
-    "commit": "41b587fca9a655108b912a3f06f8550afb0ca575",
-    "previous_component": "58209f7bfc022a3f8a9a2bcf91b483c8cd548fcd",
-    "outcome": "Additive fallible SourceDb/LineIndex admission preserves exact u32 endpoints/last identity; checked refusal precedes hash/storage/path mutation. CLI files precheck opened metadata before bounded source reads; LSP logs source failures without changing last admitted state. Native sparse MAX+1 file refusal case passes1/1 for all6source tools, no output/writes; actual ordinary fmt stdin passes. Three JEV replies advise fallible owner (.94/.88/.37 confidence), weakest .58 vs .42 checkedprecondition; rationale/uncertainty retained. Standalone raw lexer/parser admission guarded before UTF8/scanning/layout/parse; fitting lexer spans/UTF8 and parser errors/coverage existingcases each1/1 pass; finalsourceCLIbuild passes. Semantic/map/output and actual giant allocation/cardinality qualification remain separate; no whole FAIL-R06 or count closure."
+    "commit": "e217deafafe12a2046f30fef6d1b95b47932e4db",
+    "previous_component": "41b587fca9a655108b912a3f06f8550afb0ca575",
+    "outcome": "Checked module/symbol/scope allocation admits final u32::MAX IDs and refuses the next allocation with E2019. Additive try_resolve_program returns no partial tables; compatibility resolver appends the error and returns empty tables. Full checking stops dependent passes and retains diagnostics/catalog/cohort metadata. Actual changed-source finite graph case1/1 and existing b4_resolve11/11 pass after correcting explanation catalog count. Three saved JEV replies weak/split (.23/.36/.55 confidence); caller-based complete-abort rationale and partial-support uncertainty retained. No billion-entry allocation, whole-suite repeat, broad FAIL-R06 closure or count change; generated output/map widths remain separate."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -131,7 +131,7 @@
     "lsp-support/independent-review/review.md",
     "width-boundaries/README.md"
   ],
-  "current_source_work": "Source-intake58209f7b and standalone-syntax41b587fc admit intrinsic u32 byte/ID ranges through fallible owning APIs, graceful CLI/LSP intake and E1008 before standalone processing. Native sparse MAX+1 file case1/1 covers6actual source tools; ordinary fmtstdin, affected lexer1/1, parser1/1 and finalCLIbuild pass. Three JEV replies advise additive fallible owner with weakest .37 confidence/.58 probability; saved uncertainty remains. Exact selected deliveryf0cb18be plus nullable extraction768e9e44 preserve child-only keys, once and Can null; native host cases pass, genuine CF workflow remains runtime-owned. Known standard constructors6dd7bf96 and reachable schemas8aa1bc33 join actual TextRequest/Values admission. Ordered native defaults121688d7/computedDefault0da68bec, executed scopeclosured2fb9024, File profiles, checked sends/schedules/trusted-handler profiles and bounded earlier receipts retain their recorded outcomes. Native nullable/ordinary-array default positive State controls pass; no overall run count is claimed for its corrected E1213 negative expectation. Read-scenario default runtime, ref/identity/enum/collapsed-alias defaults, resolved-default receipt/replay, full File authority/byte transfer, semantic registry/map/output extremes, broader UI/application/BDD and held timezone/model-rule work remain separate. ARCH-02 retains all5indexed public API families using their accepted outcomes, zero deletion/mechanisms. Historical whole-suite pins remain unchanged; no broad current closure.",
+  "current_source_work": "Semantic admissione217deaf checks all owning module/symbol/scope allocations; E2019 returns no partial tables and stops dependent checking while retaining diagnostics/cohort. Finite graph1/1 and existing resolver11/11 pass; weak/split JEV uncertainty retained, no billion-entry exhaustion claim. Source-intake58209f7b and standalone-syntax41b587fc admit intrinsic u32 byte/ID ranges through fallible owning APIs, graceful CLI/LSP intake and E1008 before standalone processing. Native sparse MAX+1 file case1/1 covers6actual source tools; ordinary fmtstdin, affected lexer1/1, parser1/1 and finalCLIbuild pass. Three JEV replies advise additive fallible owner with weakest .37 confidence/.58 probability; saved uncertainty remains. Exact selected deliveryf0cb18be plus nullable extraction768e9e44 preserve child-only keys, once and Can null; native host cases pass, genuine CF workflow remains runtime-owned. Known standard constructors6dd7bf96 and reachable schemas8aa1bc33 join actual TextRequest/Values admission. Ordered native defaults121688d7/computedDefault0da68bec, executed scopeclosured2fb9024, File profiles, checked sends/schedules/trusted-handler profiles and bounded earlier receipts retain their recorded outcomes. Native nullable/ordinary-array default positive State controls pass; no overall run count is claimed for its corrected E1213 negative expectation. Read-scenario default runtime, ref/identity/enum/collapsed-alias defaults, resolved-default receipt/replay, full File authority/byte transfer, generated map/output extremes, broader UI/application/BDD and held timezone/model-rule work remain separate. ARCH-02 retains all5indexed public API families using their accepted outcomes, zero deletion/mechanisms. Historical whole-suite pins remain unchanged; no broad current closure.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
