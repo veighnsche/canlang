@@ -117,6 +117,14 @@ When
   do return copied
  scenario flag(seed:bool=true,copied:bool=seed) -> bool by=public
   do return copied
+ scenario nullable(seed:text?="x",copied:text?=seed,finished:text?=copied) -> text? by=public
+  do return finished
+ scenario array(seed:text[]=["x"],copied:text[]=seed,finished:text[]=copied) -> text[] by=public
+  do return finished
+ scenario nullableArray(seed:text[]?=["x"],copied:text[]?=seed,finished:text[]?=copied) -> text[]? by=public
+  do return finished
+ scenario untouched(seed:text?,items:text[]) -> text? by=public
+  do return seed
 Then
 "#;
     let compiled = compile("scenario.can", source);
@@ -158,12 +166,17 @@ const require=createRequire(resolve(root,'package.json'));
 const {loadArtifactDescriptors}=await import(pathToFileURL(require.resolve('@canlang/state/invocation/registry')));
 const {validateCallInputs}=await import(pathToFileURL(require.resolve('@canlang/state/invocation/admission')));
 const loaded=loadArtifactDescriptors(artifact,{by:operation=>entry.appDefinition.operations[operation.name].by});
-for(const name of ['chosen','decorated','number','flag']){
+for(const name of ['chosen','decorated','number','flag','nullable','array','nullableArray']){
  const id=`ScenarioDefaults.${name}`,descriptor=artifact.operations.find(operation=>operation.name===id);assert.equal(descriptor.kind,'scenario');
  const def=loaded.registry.get(id);assert.equal(def.generated,true);assert.equal(def.by,'public');
  const admitted=validateCallInputs(def,{});assert.deepEqual(admitted.normalized,{});assert.deepEqual(admitted.refs,[]);
  for(const field of descriptor.inputs.fields)assert.equal(field.required,false);
- for(const field of descriptor.inputs.fields.filter(field=>field.name!=='seed'))assert.equal(Object.hasOwn(field,'default'),false,'computed defaults make no fabricated wire claim');
+ for(const field of descriptor.inputs.fields){
+  const canonical=entry.appDefinition.operations[id].inputs[field.name];
+  if(field.name==='seed'){assert.equal(Object.hasOwn(field,'computedDefault'),false);assert.equal(Object.hasOwn(canonical,'computedDefault'),false);}
+  else{assert.equal(field.computedDefault,true);assert.equal(canonical.computedDefault,true);assert.equal(Object.hasOwn(field,'default'),false,'computed presence contains no fabricated wire value');assert.equal(Object.hasOwn(canonical,'default'),false);}
+ }
+
 }
 for(const [input,expected]of [[{},'x'],[{seed:'supplied'},'supplied'],[{copied:'second'},'second'],[{seed:'first',copied:'second',finished:'third'},'third'],[{seed:''},'']]){
  trace.length=0;assert.equal(await callable('chosen')(context,input),expected);assert.deepEqual(trace,[['check',true],['check',true]]);
@@ -177,7 +190,18 @@ for(const [name,value]of [['seed','supplied'],['copied',undefined],['finished',u
 trace.length=0;assert.equal(await decorated(context,input),'supplied!!');assert.deepEqual(reads,['seed','copied','finished']);assert.deepEqual(trace,[['check',true],['format','supplied'],['format','supplied!'],['check',true]]);
 trace.length=0;await assert.rejects(decorated(context,{seed:'fail'}),{message:'default failure'});assert.deepEqual(trace,[['check',true],['format','fail']]);
 assert.equal(await callable('number')(context,{seed:0n}),0n);assert.equal(await callable('flag')(context,{seed:false}),false);
-console.log('native scenario scalar defaults: real State omission, selected async calls, once/order/laziness and first failure passed');
+for(const [name,cases]of [
+ ['nullable',[[{},'x'],[{seed:'supplied'},'supplied'],[{seed:null},null],[{copied:null},null],[{finished:null},null]]],
+ ['array',[[{},['x']],[{seed:['supplied']},['supplied']],[{seed:[]},[]],[{copied:[]},[]],[{finished:[]},[]]]],
+ ['nullableArray',[[{},['x']],[{seed:['supplied']},['supplied']],[{seed:null},null],[{seed:[]},[]],[{copied:null},null],[{finished:[]},[]]]],
+]){
+ const def=loaded.registry.get(`ScenarioDefaults.${name}`),fn=callable(name);
+ for(const [wire,expected]of cases){const admitted=validateCallInputs(def,wire);assert.equal(Object.hasOwn(admitted.normalized,'copied'),Object.hasOwn(wire,'copied'));assert.equal(Object.hasOwn(admitted.normalized,'finished'),Object.hasOwn(wire,'finished'));assert.deepEqual(await fn(context,admitted.normalized),expected);}
+}
+const untouched=artifact.operations.find(operation=>operation.name==='ScenarioDefaults.untouched');
+for(const field of untouched.inputs.fields){assert.equal(Object.hasOwn(field,'computedDefault'),false);assert.equal(Object.hasOwn(entry.appDefinition.operations[untouched.name].inputs[field.name],'computedDefault'),false);}
+const admittedUntouched=validateCallInputs(loaded.registry.get(untouched.name),{});assert.deepEqual(admittedUntouched.normalized,{items:[]});
+console.log('native scenario scalar, nullable and array defaults: real State omission, selected async calls, once/order/laziness and first failure passed');
 "#).unwrap();
     let executed = Command::new("node").arg(runner).arg(root).output().unwrap();
     assert!(
@@ -187,13 +211,20 @@ console.log('native scenario scalar defaults: real State omission, selected asyn
         String::from_utf8_lossy(&executed.stderr)
     );
 
-    for (name, declarations, params) in [
-        ("nullable", "Given\n", "seed:text?=\"x\",copied:text?=seed"),
-        ("array", "Given\n", "seed:text[]=[\"x\"],copied:text[]=seed"),
+    for (name, declarations, params, code, message) in [
+        (
+            "nullableElement",
+            "Given\n",
+            "seed:text?[]=[null],copied:text?[]=seed",
+            "E1213",
+            "type permits one array suffix followed by one nullable suffix",
+        ),
         (
             "ref",
             "Given\n Entry {title:text}\n policy Entry read=public\n",
             "seed:Entry,copied:Entry=seed",
+            "E6008",
+            "cannot lower parameter default: computed parameter defaults have no §13 lowering",
         ),
     ] {
         let source = format!(
@@ -210,6 +241,14 @@ console.log('native scenario scalar defaults: real State omission, selected asyn
             canlang_compiler::json::parse(&String::from_utf8_lossy(&rejected.stdout)).unwrap();
         assert!(output.get("modules").is_none());
         let diagnostics = output.get("diagnostics").unwrap().as_arr().unwrap();
-        assert!(diagnostics.iter().any(|diagnostic| diagnostic.get("code").unwrap().as_str()==Some("E6008") && diagnostic.get("message").unwrap().as_str()==Some("cannot lower parameter default: computed parameter defaults have no §13 lowering")), "{name}: {output:?}");
+        assert!(
+            diagnostics
+                .iter()
+                .any(
+                    |diagnostic| diagnostic.get("code").unwrap().as_str() == Some(code)
+                        && diagnostic.get("message").unwrap().as_str() == Some(message)
+                ),
+            "{name}: {output:?}"
+        );
     }
 }
