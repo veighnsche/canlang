@@ -12,10 +12,13 @@
  * below is the verbatim T15b-pinned T19b descriptor.
  */
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import type { CompileArtifact, DerivedOperationInputs } from "@canlang/contracts";
 import { catalogFromArtifactOperations } from "@canlang/interfaces/http/operations";
 import {
   createArtifactCatalog,
+  createArtifactRegistry,
   type BakedDerivedInputs,
 } from "../src/runtime/mcp-registry.js";
 
@@ -72,6 +75,32 @@ function bake(): BakedDerivedInputs {
 }
 
 describe("artifact catalog derived channel (C1 mirror)", () => {
+  it("preserves checked user and duration inputs from genuine compiled artifacts", () => {
+    for (const fixture of ["typed-user-references", "typed-calendar-durations"]) {
+      const compiled = JSON.parse(readFileSync(resolve(
+        `packages/cloudflare/test/fixtures/${fixture}.json`,
+      ), "utf8")) as CompileArtifact;
+      const registry = createArtifactRegistry(compiled);
+      const catalog = createArtifactCatalog(compiled);
+      expect(registry.list(null).flatMap((operation) => operation.inputs.fields).some(
+        (input) => input.field.kind === (fixture === "typed-user-references" ? "user" : "duration"),
+      )).toBe(true);
+      for (const source of compiled.operations ?? []) {
+        const descriptor = registry.list(null).find((operation) => operation.name === source.name)!;
+        const claimed = source.inputs.fields.filter((input) => input.valueType !== undefined);
+        for (const input of claimed) {
+          expect(descriptor.inputs.fields.find((field) => field.name === input.name)).toMatchObject({
+            field: input.field, valueType: input.valueType,
+          });
+        }
+        expect(catalog.shapeFor(source.name)).toEqual({
+          allowed: source.inputs.fields.map((input) => input.name),
+          required: source.inputs.fields.filter((input) => input.required).map((input) => input.name),
+        });
+      }
+    }
+  });
+
   it("is framing-only without baked data (E1 legacy shape, byte-identical)", () => {
     const catalog = createArtifactCatalog(artifact);
     expect("derivedFor" in catalog).toBe(false);
