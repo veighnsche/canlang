@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T22:40:55.643926+00:00",
+  "updated_utc": "2026-10-08T22:41:40.330315+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2934,6 +2934,21 @@
       "verified": "same installed D1/localhost consumer1/1 case3909.972708ms total4315.032333ms; owning emit0 reused",
       "failed_attempt": "first preassertion missing ValueError export fixed by existing re-export",
       "limits": "full original46 and held22 open"
+    },
+    "crud_six_consumer_migration": {
+      "state": "six exact caller migrations captured; validation partial",
+      "model": "gpt-6-luna medium, mechanical fixed contract migration",
+      "verified": "private TypeScript emit0; six suites11 subtests9pass2fail",
+      "failures": [
+        "typed-scenario-values required computed-default report at source194",
+        "typed-temporal-arrays namedDefault valueType disagrees with array marker before migrated CRUD assertions"
+      ],
+      "harness_attempts": [
+        "first preassertion miniflare module resolution failure",
+        "second preassertion self @canlang/cloudflare module resolution failure",
+        "private dependency union resolved dependencies; actual assertions reached"
+      ],
+      "limits": "scenario returns/direct State behavior preserved; failed consumers remain open; no whole parent count credit"
     }
   },
   "live_finite_packets": [
