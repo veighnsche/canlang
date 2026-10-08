@@ -1123,6 +1123,46 @@ test('HTTP/MCP parity across every T19b operation', () => {
 });
 
 
+test('Checked input claims retain finite owning types and reject inconsistent metadata', () => {
+  const kinds = [
+    ['text', 'string'], ['bool', 'boolean'], ['int', 'integer'], ['decimal', 'decimal'],
+    ['money', 'money'], ['date', 'string'], ['datetime', 'datetime'],
+    ['duration', 'duration'], ['user', 'user'],
+  ] as const;
+  for (const [base, kind] of kinds) {
+    for (const array of [false, true]) for (const nullable of [false, true]) {
+      const valueType = `${base}${array ? '[]' : ''}${nullable ? '?' : ''}`;
+      const input = { name: 'value', field: { kind }, required: false, valueType,
+        ...(array ? { array: { required: false } } : {}), ...(nullable ? { nullable } : {}),
+        description: ' authored text ' };
+      const op: ArtifactOperation = { name: 'Claims.choose', kind: 'read', description: '', inputs: { fields: [input] } };
+      const checked = checkArtifactOperation(op).fields[0]!;
+      assert.equal('field' in checked && checked.valueType, valueType);
+      assert.deepEqual(toMcpInputSchema(op).fields, [{ name: 'value', field: { kind }, required: false,
+        valueType, description: ' authored text ' }]);
+    }
+  }
+  const input = { name: 'value', field: { kind: 'string' }, required: false, valueType: 'text' };
+  const op = (patch: Record<string, unknown>) => ({ name: 'Claims.choose', kind: 'read', description: '',
+    inputs: { fields: [{ ...input, ...patch }] } });
+  for (const patch of [
+    { valueType: undefined }, { valueType: 'email' }, { valueType: 'text[][]' }, { valueType: 'text[]!' },
+    { valueType: 'bool' }, { valueType: 'text[]' }, { valueType: 'text?' },
+    { nullable: 'yes' }, { nullable: true }, { array: { required: false } },
+    { field: { kind: 'file' } }, { field: { kind: 'enum', values: ['a'] } },
+    { field: { kind: 'ref', model: 'Claims.Record', requireVersion: true } },
+    { field: RETRY.inputs.fields.find((field) => field.name === 'attempt')!.field },
+  ]) assert.equal(rejectionReason(() => checkArtifactOperation(op(patch))), 'malformed_descriptor');
+  assert.match(rejectionMessage(() => checkArtifactOperation(op({ required: 'bad', valueType: 'bool' }))), /required must be a boolean/);
+  assert.match(rejectionMessage(() => checkArtifactOperation(op({ default: { kind: 'server' }, valueType: 'bool' }))), /server-owned inputs/);
+  assert.match(rejectionMessage(() => checkArtifactOperation(op({ array: { required: 'bad' }, valueType: 'bool' }))), /array markers/);
+  assert.equal(Object.hasOwn(toMcpInputSchema(LEDGER_CREATE).fields[0]!, 'valueType'), false);
+  assert.deepEqual(toMcpInputSchema(RETRY).fields.map((field) => field.name), ['note']);
+  const inherited = Object.assign(Object.create({ valueType: 'bool' }), { ...input });
+  delete inherited.valueType;
+  assert.equal(Object.hasOwn(checkArtifactOperation({ ...op({}), inputs: { fields: [inherited] } }).fields[0]!, 'valueType'), false);
+});
+
 test('User interface mirrors use exact owning wire profiles for schemas, inputs, and defaults', () => {
   const wire = { id: 'user-a' };
   const native = decodeValue('user', wire);
