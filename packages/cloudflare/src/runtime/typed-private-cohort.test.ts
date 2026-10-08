@@ -7,6 +7,7 @@ import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
 import type { CompileArtifact, ReceiptIdentity, StoragePort, StoredRow } from '@canlang/contracts';
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
+import { createD1OwnerRouter } from '@canlang/state/storage/owner-router';
 import { createSystemRegistry } from '@canlang/state/ports/system';
 import { asId, asModel, FIXED_NOW, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
 import { FANOUT_NAVIGATION_MODEL, FANOUT_OWNER_SCAN_MODEL, fanoutNavigationRowId, fanoutOwnerScanRowId,
@@ -16,7 +17,7 @@ import { workSchedulePutCommand } from '@canlang/work/kernel/schedule-staging';
 import { WORK_HANDLER_OCCURRENCE_MODEL, readHandlerOccurrenceRow } from '@canlang/work/kernel/handler-occurrence';
 import { WORK_SCHEDULE_MODEL, WORK_OCCURRENCE_MODEL, readScheduleRow, readOccurrenceRow } from '@canlang/work/kernel/tables';
 import { assembleModules } from './modules.js';
-import { buildInvoker } from '../worker/assembly.js';
+import { buildInvoker, createTeamOwnerStorageBoundary } from '../worker/assembly.js';
 import { createCanonicalDueCohortBody, invokeDueScheduleCanonical, invokeDueSourceRoutingCanonical,
   invokeRetainedHandlerOccurrenceCanonical, loadFanoutStateProducers,
   runFanoutSchedulerTurn, T34F7_FANOUT_INTENT_MODEL, T34F7_FANOUT_CHECKPOINT_MODEL,
@@ -37,6 +38,7 @@ test('declared private cohorts freeze sibling handlers and retain checked events
   const artifact = JSON.parse(await readFile(fixturePath, 'utf8')) as CompileArtifact;
   const dir = await mkdtemp(join(tmpdir(), 'can-private-cohort-'));
   let mf: Miniflare | undefined;
+  let ownerMf: Miniflare | undefined;
   let now = FIXED_NOW;
   let sequence = 0;
   const clock = { nowMs: () => now };
@@ -545,5 +547,147 @@ test('declared private cohorts freeze sibling handlers and retain checked events
     assert.ok(guardedDomain);
     assert.deepEqual(await storage.state.load(ENTRY, guardedDomain.id), guardedDomain);
     assert.deepEqual(await storage.state.historyFor(ENTRY, guardedDomain.id), guardedHistory);
-  } finally { await mf?.dispose(); await rm(dir, { recursive: true, force: true }); }
+
+    // Normal and trusted calls share one real owner resolver. Identity has its
+    // own database; each team's State database receives its own durable pin.
+    const openOwners = async () => {
+      ownerMf = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
+        script: 'export default { fetch() { return new Response("ok"); } }',
+        d1Databases: { IDENTITY: 'private-owner-identity', OWNER_A: 'private-owner-a', OWNER_B: 'private-owner-b' },
+        d1Persist: join(dir, 'owners') });
+      const identityDb = await ownerMf.getD1Database('IDENTITY') as unknown as D1Database;
+      await ensureIdentitySchema(identityDb);
+      return { identities: createD1IdentityStore(identityDb, { clock }),
+        a: await ownerMf.getD1Database('OWNER_A') as unknown as D1Database,
+        b: await ownerMf.getD1Database('OWNER_B') as unknown as D1Database };
+    };
+    let owners = await openOwners();
+    const ownerA = await owners.identities.createTeam({ timezone: 'UTC' });
+    const ownerB = await owners.identities.createTeam({ timezone: 'UTC' });
+    const ownerUser = await owners.identities.createUser({ email: 'physical-owner@example.test', email_verified: true,
+      password_hash: 'unused' });
+    for (const owner of [ownerA, ownerB]) await owners.identities.createMembership({
+      user_id: ownerUser.user_id, team_id: owner.team_id, is_owner: true, roles: [] });
+    const tokenA = 'physical-owner-session-a';
+    const tokenB = 'physical-owner-session-b';
+    for (const [owner, sessionToken] of [[ownerA, tokenA], [ownerB, tokenB]] as const) {
+      await owners.identities.createSession({ user_id: ownerUser.user_id, token_sha256: await sha256HexText(sessionToken),
+        expires_at: new Date(now + 3600_000).toISOString(), last_team_id: owner.team_id });
+    }
+    let resolverCalls = 0;
+    let fallbackCalls = 0;
+    const defaultStore = new Proxy(storage.state, { get(target, property, receiver) {
+      const value: unknown = Reflect.get(target, property, receiver);
+      if (typeof value !== 'function') return value;
+      return () => { fallbackCalls += 1; throw new Error('Owner boundary fell back to default State storage.'); };
+    } });
+    const ownerBoundary = () => createTeamOwnerStorageBoundary({ artifact, asm, app: APP, identities: owners.identities,
+      router: createD1OwnerRouter({ resolveBinding: scope => {
+        resolverCalls += 1;
+        if (scope.app !== APP) return null;
+        const db = scope.owner === ownerA.team_id ? owners.a : scope.owner === ownerB.team_id ? owners.b : null;
+        return db === null ? null : { ...scope, db, initializeFresh: true };
+      } }) });
+    let boundary = await ownerBoundary();
+    let ownerInvoker = buildInvoker(artifact, asm, defaultStore,
+      { memberships: owners.identities, now: clock.nowMs, ownerStorage: boundary });
+    const identityFor = (sessionToken: string) => resolveIdentity(owners.identities, { session_token: sessionToken }, { clock });
+    const parentAEnvelope = { operation: `${APP}.Container.create`, operation_id: nextId(), inputs: { name: 'only A parent' } };
+    const parentBEnvelope = { operation: `${APP}.Container.create`, operation_id: nextId(), inputs: { name: 'only B parent' } };
+    const parentAResult = await ownerInvoker.invokeMutation(parentAEnvelope, await identityFor(tokenA));
+    const parentBResult = await ownerInvoker.invokeMutation(parentBEnvelope, await identityFor(tokenB));
+    assert.ok('result' in parentAResult); assert.ok('result' in parentBResult);
+    assert.equal(parentAResult.result.status, 'committed'); assert.equal(parentBResult.result.status, 'committed');
+    const parentARef = parentAResult.result.result as { id: string };
+    const parentBRef = parentBResult.result.result as { id: string };
+    const entryAEnvelope = { operation: `${APP}.Entry.create`, operation_id: nextId(),
+      inputs: { label: 'only A record', parent: { id: parentARef.id } } };
+    const entryBEnvelope = { operation: `${APP}.Entry.create`, operation_id: nextId(),
+      inputs: { label: 'only B record', parent: { id: parentBRef.id } } };
+    const createdA = await ownerInvoker.invokeMutation(entryAEnvelope, await identityFor(tokenA));
+    const createdB = await ownerInvoker.invokeMutation(entryBEnvelope, await identityFor(tokenB));
+    assert.ok('result' in createdA); assert.ok('result' in createdB);
+    assert.equal(createdA.result.status, 'committed'); assert.equal(createdB.result.status, 'committed');
+    const entryA = createdA.result.result as { id: string; version: number };
+    const entryB = createdB.result.result as { id: string; version: number };
+    for (const [sessionToken, expectedId] of [[tokenA, entryA.id], [tokenB, entryB.id]] as const) {
+      const read = await ownerInvoker.invokeRead({ operation: `${APP}.Entry.read`, inputs: {} }, await identityFor(sessionToken));
+      assert.ok('result' in read);
+      assert.ok(typeof read.result === 'object' && read.result !== null && 'records' in read.result);
+      assert.ok(Array.isArray(read.result.records));
+      assert.deepEqual(read.result.records.map((row: unknown) => {
+        assert.ok(typeof row === 'object' && row !== null && 'id' in row); return row.id;
+      }), [expectedId]);
+    }
+    const scopeA = { app: APP, owner: ownerA.team_id, ownerPackage: APP };
+    const scopeB = { app: APP, owner: ownerB.team_id, ownerPackage: APP };
+    let trustedA = await boundary.forTrustedScope(scopeA, now);
+    let trustedB = await boundary.forTrustedScope(scopeB, now);
+    assert.equal(trustedA.identity.actor, null); assert.equal(trustedA.identity.team?.team_id, ownerA.team_id);
+    assert.equal(trustedB.identity.actor, null); assert.equal(trustedB.identity.team?.team_id, ownerB.team_id);
+    const revisionB = await trustedB.store.readRevision();
+    const ownerOccurrenceId = nextId();
+    await registry.run('work.schedule.put', { key: ownerOccurrenceId, scope: scopeA, occurrenceId: ownerOccurrenceId,
+      event: `${APP}.Mixed`, at: now,
+      payload: { entry: { id: entryA.id, version: String(entryA.version) }, marker: 'A retained source result' } },
+    { actor: ownerUser.user_id, operation: 'work.schedule.put', operationId: nextId(), now }, { store: trustedA.store });
+    const ownerDue = { key: ownerOccurrenceId, scope: scopeA, occurrenceId: ownerOccurrenceId, event: `${APP}.Mixed`, at: now };
+    const ownerDueOpts = () => ({ artifact, asm, app: APP, handler: `${APP}.mixedOrdinary`, due: ownerDue,
+      store: trustedA.store, identities: owners.identities, now: clock.nowMs, cohortBounds: { pageLimit: 2, chunkSize: 10 } });
+    assert.equal(outcomeStatus(await invokeDueSourceRoutingCanonical(ownerDueOpts())), 'completed');
+    const ownerIntents = await trustedA.store.query({ model: T34F7_FANOUT_INTENT_MODEL, authority: 'owner', limit: 2 });
+    assert.equal(ownerIntents.length, 1);
+    assert.deepEqual(producers.tables.readFanoutIntentRow(ownerIntents[0]!).members, [entryA.id]);
+    const ownerChildren = await trustedA.store.query(producers.tables.fanoutChildPageQuery(ownerIntents[0]!.id,
+      { cursor: null, limit: 2 }));
+    assert.equal(ownerChildren.length, 1);
+    const ownerHandlers = await trustedA.store.query({ model: WORK_HANDLER_OCCURRENCE_MODEL, authority: 'owner', limit: 2 });
+    assert.equal(ownerHandlers.length, 1);
+    const ownerHandler = readHandlerOccurrenceRow(ownerHandlers[0]!);
+    const ownerSelector = { sourceOccurrence: ownerHandler.sourceOccurrence, handler: ownerHandler.handler,
+      event: ownerHandler.event, scope: scopeA };
+    const ownerHandlerOpts = () => ({ artifact, asm, app: APP, selector: ownerSelector,
+      store: trustedA.store, identities: owners.identities, now: clock.nowMs });
+    assert.equal(outcomeStatus(await invokeRetainedHandlerOccurrenceCanonical(ownerHandlerOpts())), 'completed');
+    const ownerAfter = await trustedA.store.load(ENTRY, asId(entryA.id)); assert.ok(ownerAfter);
+    assert.equal(ownerAfter.data.label, 'A retained source result');
+    const ownerHistory = await trustedA.store.historyFor(ENTRY, ownerAfter.id);
+    assert.equal(await trustedB.store.load(ENTRY, ownerAfter.id), null);
+    assert.equal(await trustedB.store.load(WORK_SCHEDULE_MODEL, asId(ownerOccurrenceId)), null);
+    assert.equal(await trustedB.store.load(WORK_HANDLER_OCCURRENCE_MODEL, ownerHandlers[0]!.id), null);
+    assert.equal(await trustedB.store.load(T34F7_FANOUT_CHILD_MODEL, ownerChildren[0]!.id), null);
+    assert.equal(outcomeStatus(await invokeRetainedHandlerOccurrenceCanonical({ ...ownerHandlerOpts(),
+      selector: { ...ownerSelector, scope: scopeB }, store: trustedB.store })), 'refused');
+    assert.equal(await trustedB.store.readRevision(), revisionB);
+    assert.equal((await trustedB.store.load(ENTRY, asId(entryB.id)))?.data.label, 'only B record');
+    const beforeInvalid = resolverCalls;
+    for (const scope of [{ ...scopeA, app: 'other-app' }, { ...scopeA, ownerPackage: 'other-package' },
+      { ...scopeA, owner: 'app' }, { ...scopeA, owner: null }, { ...scopeA, owner: nextId() }]) {
+      await assert.rejects(() => Reflect.apply(boundary.forTrustedScope, boundary, [scope, now]));
+    }
+    assert.equal(resolverCalls, beforeInvalid, 'Invalid scopes never select a physical State binding.');
+    assert.equal(fallbackCalls, 0);
+    const pinA = await owners.a.prepare('SELECT app, owner FROM state_owner_pin WHERE id = 1').first();
+    const pinB = await owners.b.prepare('SELECT app, owner FROM state_owner_pin WHERE id = 1').first();
+    assert.deepEqual(pinA, { app: APP, owner: ownerA.team_id });
+    assert.deepEqual(pinB, { app: APP, owner: ownerB.team_id });
+    await ownerMf!.dispose(); ownerMf = undefined;
+    owners = await openOwners(); boundary = await ownerBoundary();
+    ownerInvoker = buildInvoker(artifact, asm, defaultStore,
+      { memberships: owners.identities, now: clock.nowMs, ownerStorage: boundary });
+    trustedA = await boundary.forTrustedScope(scopeA, now); trustedB = await boundary.forTrustedScope(scopeB, now);
+    const ownerReopenedRevision = await trustedA.store.readRevision();
+    const ownerReplay = await ownerInvoker.invokeMutation(entryAEnvelope, await identityFor(tokenA));
+    assert.ok('result' in ownerReplay); assert.equal(ownerReplay.result.status, 'replayed');
+    assert.deepEqual(ownerReplay.result.result, createdA.result.result);
+    assert.equal(outcomeStatus(await invokeRetainedHandlerOccurrenceCanonical(ownerHandlerOpts())), 'replayed');
+    assert.equal(outcomeStatus(await invokeDueSourceRoutingCanonical(ownerDueOpts())), 'replayed');
+    assert.equal(await trustedA.store.readRevision(), ownerReopenedRevision);
+    assert.deepEqual(await trustedA.store.load(ENTRY, ownerAfter.id), ownerAfter);
+    assert.deepEqual(await trustedA.store.historyFor(ENTRY, ownerAfter.id), ownerHistory);
+    assert.equal(await trustedB.store.load(WORK_HANDLER_OCCURRENCE_MODEL, ownerHandlers[0]!.id), null);
+    assert.deepEqual(await owners.a.prepare('SELECT app, owner FROM state_owner_pin WHERE id = 1').first(), pinA);
+    assert.deepEqual(await owners.b.prepare('SELECT app, owner FROM state_owner_pin WHERE id = 1').first(), pinB);
+    assert.equal(fallbackCalls, 0);
+  } finally { await ownerMf?.dispose(); await mf?.dispose(); await rm(dir, { recursive: true, force: true }); }
 });
