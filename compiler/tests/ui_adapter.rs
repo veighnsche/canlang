@@ -1,6 +1,7 @@
 //! Production CLI -> unchanged generated modules -> public UI factories.
-//! This finite static markup test does not substitute an authorized query
-//! runner or claim the separate canonical bound-preference save lifecycle.
+//! Static markup uses actual factories. A separate controlled async form/query
+//! probe verifies producer ordering only, returning unavailable forms; it makes
+//! no authorization, protected-binding or preference-save lifecycle claim.
 
 #[test]
 fn unsupported_preference_tabs_and_order_refuse_at_the_authored_profile() {
@@ -107,7 +108,12 @@ fn literal_card_and_transient_tabs_reach_actual_factory() {
         r#"app Ui
 Given
  derive caption():text = "Dynamic"
+ Probe { show:bool, note:text }
+ policy Probe read=public
 When
+ scenario renderFormProbe(note:text) by=public
+  do
+   let chosen = "ready"
 Then
  page / title="Home"
   card "Card <&>" layout=columns
@@ -159,6 +165,16 @@ Then
     text "Hidden panel"
    tab "Visible"
     text "Visible panel"
+ page /async title="Async producer"
+  form renderFormProbe fields=note submit="Page submit"
+   text actor
+  form renderFormProbe fields=note submit="Gated page submit"
+   require false
+   text actor
+  list Probe empty="No probes"
+   form renderFormProbe fields=note submit=row.note
+    require row.show
+    text actor
 "#,
     )
     .unwrap();
@@ -227,7 +243,44 @@ assert.deepEqual([...groups.values()].map(items=>items.map(item=>item.value)),[[
 assert.deepEqual([...groups.values()].map(items=>items.filter(item=>item.checked).length),[1,1,1],'first surviving panel is default active');
 const ids=[...html.matchAll(/ id="([^"]+)"/g)].map(match=>match[1]);
 assert.equal(new Set(ids).size,ids.length,'parent/tab/panel IDs never collide');
-console.log('actual static UI adapter: card title, caption transport, ordered children, gates, default active and distinct sites passed');
+// Controlled unavailable forms exercise only emitted await/gate/order behavior.
+const asyncPage=generated.appDefinition.pages[1];
+const trace=[];
+let childReads=0;
+const invocation={probe:'producer-only'};
+const formContext={
+ appDefaultLocale:'en',preferredLocales:[],invocation,
+ async prepareForm(request) {
+  const label=typeof request.submit==='string'?request.submit:request.submit.source;
+  trace.push(['prepare:start',request.operation,label]);
+  await Promise.resolve();
+  trace.push(['prepare:end',request.operation,label]);
+  return {status:'unavailable',message:`Unavailable ${label}`};
+ },
+ async query(seenInvocation,model) {
+  assert.equal(seenInvocation,invocation);
+  trace.push(['query',model]);
+  return {columns:[],rows:[
+   {id:'hidden',fields:{show:false,note:'Gated row submit'}},
+   {id:'visible',fields:{show:true,note:'Row submit'}},
+  ]};
+ },
+};
+Object.defineProperty(formContext,'actor',{get(){childReads++;throw new Error('unavailable/gated form evaluated its child');}});
+const asyncHtml=await asyncPage.render(formContext,await asyncPage.admit({}));
+assert.deepEqual(trace,[
+ ['prepare:start','Ui.renderFormProbe','Page submit'],
+ ['prepare:end','Ui.renderFormProbe','Page submit'],
+ ['query','Ui.Probe'],
+ ['prepare:start','Ui.renderFormProbe','Row submit'],
+ ['prepare:end','Ui.renderFormProbe','Row submit'],
+],'each admitted form awaits one preparation before child rendering, in source/row order');
+assert.equal(childReads,0,'unavailable and false gates never evaluate authored children');
+assert.equal(asyncHtml.split('Unavailable Page submit').length-1,1);
+assert.equal(asyncHtml.split('Unavailable Row submit').length-1,1);
+assert.ok(!asyncHtml.includes('Gated page submit')&&!asyncHtml.includes('Gated row submit'));
+assert.ok(!asyncHtml.includes('<form'),'unavailable forms expose no controls or submit');
+console.log('actual UI adapter and controlled async unavailable-form producer passed');
 "#).unwrap();
     let consumed = Command::new("node")
         .arg(&runner)
