@@ -36,7 +36,11 @@ import type {
   NoulAnswer,
   ScoreAnswer,
   ScoreLevel,
+  JudgmentEvaluationResult,
+  JudgmentSpec,
+  DecimalValue,
 } from '@canlang/contracts';
+import { int64, parseDecimal, scalarLength } from '@canlang/values';
 import { assertValidHttpConfig, httpRequest } from '../http/client.js';
 import type { HttpClientConfig } from '../http/client.js';
 import {
@@ -49,7 +53,9 @@ import {
 import { assertValidCompletion } from '../mail/adapter.js';
 import { deliveryError } from '../mail/redact.js';
 import { systemClock } from '../ports.js';
-import type { Clock, JudgmentPort } from '../ports.js';
+import type { Clock, InstalledJudgment, JudgmentEvaluationInput, JudgmentPort } from '../ports.js';
+import { freezeJudgmentSource } from './specification.js';
+import type { StaticJudgmentQuestion } from './specification.js';
 
 export interface SystemOneConfig {
   /** Fixed provider endpoint origin. */
@@ -681,6 +687,178 @@ export function mapJudgmentError(
   throw err;
 }
 
+/** JSON.parse supplies original numeric spelling; Number is never a canonical value. */
+const WIRE_NUMBER = Symbol('System One numeric lexeme');
+interface WireNumber { readonly [WIRE_NUMBER]: string }
+
+function exactJson(text: string): unknown {
+  return JSON.parse(text, (_key: string, value: unknown, context?: { source?: string }) => {
+    if (typeof value !== 'number') return value;
+    if (typeof context?.source !== 'string') throw new Error('Numeric source lexemes unavailable');
+    return { [WIRE_NUMBER]: context.source } satisfies WireNumber;
+  });
+}
+
+function wireDecimal(value: unknown): DecimalValue {
+  if (typeof value !== 'object' || value === null || !(WIRE_NUMBER in value)) throw new Error('Expected JSON number');
+  const text = (value as WireNumber)[WIRE_NUMBER];
+  const match = /^(-?)(\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/.exec(text);
+  if (match === null) throw new Error('Invalid numeric lexeme');
+  const fraction = match[3] ?? '';
+  const exponent = BigInt(match[4] ?? '0');
+  const scale = BigInt(fraction.length) - exponent;
+  // Bound before constructing strings; this is exact decimal expansion, never rounding.
+  if (scale > 18n || scale < -38n) throw new Error('Decimal outside portable precision');
+  const digits = (match[2] + fraction).replace(/^0+(?=\d)/, '');
+  let plain: string;
+  if (scale <= 0n) plain = digits + '0'.repeat(Number(-scale));
+  else {
+    const padded = digits.padStart(Number(scale) + 1, '0');
+    plain = `${padded.slice(0, -Number(scale))}.${padded.slice(-Number(scale))}`;
+  }
+  return parseDecimal(match[1] + plain);
+}
+
+const DECIMAL_UNIT = 10n ** 18n;
+const DECIMAL_TOLERANCE = 10n ** 12n;
+function units(value: DecimalValue): bigint { return value.coef * 10n ** BigInt(18 - value.scale); }
+function within(a: bigint, b: bigint): boolean { const delta = a - b; return delta >= -DECIMAL_TOLERANCE && delta <= DECIMAL_TOLERANCE; }
+function probability(value: unknown): DecimalValue {
+  const decimal = wireDecimal(value), scaled = units(decimal);
+  if (scaled < 0n || scaled > DECIMAL_UNIT) throw new Error('Invalid probability');
+  return decimal;
+}
+function record(value: unknown): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('Expected object');
+  return value as Record<string, unknown>;
+}
+function usageCount(value: unknown): bigint {
+  const decimal = wireDecimal(value), divisor = 10n ** BigInt(decimal.scale);
+  if (decimal.coef % divisor !== 0n) throw new Error('Expected integer token count');
+  const count = int64(decimal.coef / divisor);
+  if (count < 0n) throw new Error('Negative token count');
+  return count;
+}
+
+function staticResult(bodyText: string, spec: JudgmentSpec, order: readonly string[]): JudgmentEvaluationResult | null {
+  try {
+    const body = record(exactJson(bodyText)), answers = record(body['answers']), usage = record(body['usage']);
+    if (!isNonEmptyString(body['model']) || !sameStringSet(Object.keys(answers), order)) return null;
+    const result: Record<string, JudgmentEvaluationResult[string]> = Object.assign(Object.create(null), {
+      specification_revision: spec.revision, model: body['model'],
+      input_tokens: usageCount(usage['input_tokens']), output_tokens: usageCount(usage['output_tokens']),
+    });
+    const questions = new Map<string,
+      | { readonly kind: 'noul'; readonly question: JudgmentSpec['noul'][number] }
+      | { readonly kind: 'choice'; readonly question: JudgmentSpec['choice'][number] }
+      | { readonly kind: 'score'; readonly question: JudgmentSpec['score'][number] }
+    >([
+      ...spec.noul.map(q => [q.id, { kind: 'noul' as const, question: q }] as const),
+      ...spec.choice.map(q => [q.id, { kind: 'choice' as const, question: q }] as const),
+      ...spec.score.map(q => [q.id, { kind: 'score' as const, question: q }] as const),
+    ]);
+    for (const id of order) {
+      const entry = questions.get(id)!, answer = record(answers[id]);
+      if (answer['type'] !== entry.kind) return null;
+      if (entry.kind === 'noul') result[id] = { probability: probability(answer['noul']) };
+      else if (entry.kind === 'choice') {
+        const options = entry.question.options, distribution = record(answer['probabilities']);
+        if (!sameStringSet(Object.keys(distribution), options.map(o => o.id)) ||
+            typeof answer['choice'] !== 'string' || !options.some(o => o.id === answer['choice'])) return null;
+        const probabilities = options.map(o => ({ option: o.id, probability: probability(distribution[o.id]) }));
+        const sum = probabilities.reduce((sum, p) => sum + units(p.probability), 0n);
+        const selected = probabilities.find(p => p.option === answer['choice'])!;
+        if (!within(sum, DECIMAL_UNIT) || probabilities.some(p => units(p.probability) - units(selected.probability) > DECIMAL_TOLERANCE)) return null;
+        result[id] = { choice: answer['choice'], probabilities, confidence: probability(answer['confidence']) };
+      } else {
+        const sourceLevels = entry.question.levels, distribution = record(answer['probabilities']), legend = record(answer['legend']);
+        const indices = sourceLevels.map((_, index) => String(index));
+        if (!sameStringSet(Object.keys(distribution), indices) || !sameStringSet(Object.keys(legend), indices)) return null;
+        const levels = sourceLevels.map((level, index) => {
+          if (legend[String(index)] !== level.description) throw new Error('Legend differs from source');
+          return { level: level.id, index: BigInt(index), description: level.description, probability: probability(distribution[String(index)]) };
+        });
+        const score = wireDecimal(answer['score']), scaledScore = units(score);
+        const sum = levels.reduce((sum, level) => sum + units(level.probability), 0n);
+        const weighted = levels.reduce((sum, level) => sum + level.index * units(level.probability), 0n);
+        if (scaledScore < 0n || scaledScore > BigInt(levels.length - 1) * DECIMAL_UNIT ||
+            !within(sum, DECIMAL_UNIT) || !within(weighted, scaledScore)) return null;
+        result[id] = { score, levels, confidence: probability(answer['confidence']) };
+      }
+    }
+    return result as unknown as JudgmentEvaluationResult;
+  } catch { return null; }
+}
+
+/** Rebuild from source values to validate revision, ordering, portable bounds and ownership. */
+function staticRequest(input: JudgmentEvaluationInput, binding: InstalledJudgment['binding'], model: string): {
+  readonly body: string; readonly specification: JudgmentSpec; readonly order: readonly string[];
+} {
+  const fail = (): never => { throw new JudgmentValidationError('Invalid static judgment request'); };
+  const source = input?.source, spec = source?.specification;
+  if (!spec || spec.declaration !== binding.judgment || spec.version !== binding.version ||
+      typeof input.state !== 'string' || scalarLength(input.state) > 40000n || !Array.isArray(source.order) ||
+      !Array.isArray(spec.noul) || !Array.isArray(spec.choice) || !Array.isArray(spec.score)) fail();
+  const questions = new Map<string, StaticJudgmentQuestion>();
+  const add = (question: StaticJudgmentQuestion): void => { if (questions.has(question.name)) fail(); questions.set(question.name, question); };
+  for (const q of spec.noul) {
+    if ((q.yes === null) !== (q.no === null) ||
+        (q.yes !== null && typeof q.yes !== 'string') || (q.no !== null && typeof q.no !== 'string')) fail();
+    add({ name: q.id, kind: 'noul', instructions: q.instructions,
+      ...(q.yes === null ? {} : { yes: q.yes, no: q.no! }) });
+  }
+  for (const q of spec.choice) add({ name: q.id, kind: 'choice', instructions: q.instructions, options: q.options });
+  for (const q of spec.score) add({ name: q.id, kind: 'score', instructions: q.instructions, levels: q.levels });
+  if (!sameStringSet(source.order, [...questions.keys()])) fail();
+  const frozen = freezeJudgmentSource(spec.declaration, { version: spec.version, questions: source.order.map(id => questions.get(id)!) }, spec.language);
+  // A revision is trusted only after deriving it from the exact source declaration.
+  if (frozen.specification.revision !== spec.revision ||
+      !sameOrderedIds(frozen.specification.noul, spec.noul) || !sameOrderedIds(frozen.specification.choice, spec.choice) ||
+      !sameOrderedIds(frozen.specification.score, spec.score)) fail();
+  const wire: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
+  const byId = new Map<string, unknown>();
+  for (const q of frozen.specification.noul) byId.set(q.id, { type: 'noul', instructions: q.instructions,
+    ...(q.yes === null ? {} : { criteria: { true: q.yes, false: q.no } }) });
+  for (const q of frozen.specification.choice) byId.set(q.id, { type: 'choice', instructions: q.instructions,
+    criteria: Object.fromEntries(q.options.map(o => [o.id, o.description])) });
+  for (const q of frozen.specification.score) byId.set(q.id, { type: 'score', instructions: q.instructions,
+    criteria: q.levels.map(l => l.description) });
+  for (const id of frozen.order) wire[id] = byId.get(id);
+  return { body: JSON.stringify({ model, state: input.state, questions: wire }), specification: frozen.specification, order: frozen.order };
+}
+function sameOrderedIds(a: readonly { readonly id: string }[], b: readonly { readonly id: string }[]): boolean {
+  return a.length === b.length && a.every((q, index) => q.id === b[index].id);
+}
+function canonicalFailure(completion: CapabilityCompletion<JudgmentBatchResult>): CapabilityCompletion<JudgmentEvaluationResult> {
+  if (completion.status === 'succeeded') return { delivery_id: completion.delivery_id, status: 'failed', result: null,
+    error: deliveryError('invalid_response', GENERIC.invalidResponse) };
+  return { delivery_id: completion.delivery_id, status: completion.status, result: null, error: completion.error };
+}
+
+/** Deployment-owned model and tokenizer; no implicit alias, budget estimate or discovery. */
+export function createInstalledSystemOneJudgment(
+  config: SystemOneConfig,
+  binding: InstalledJudgment['binding'],
+  profile: { readonly model: string; readonly maxInputTokens: number; readonly countInputTokens: (exactSerializedBody: string) => number },
+): InstalledJudgment {
+  if (!binding || !isNonEmptyString(binding.judgment) || !isNonEmptyString(binding.deployment) || !isNonEmptyString(binding.account) ||
+      typeof binding.version !== 'bigint' || binding.version < 0n || int64(binding.version) !== binding.version ||
+      !isNonEmptyString(profile.model) || !config.models.includes(profile.model) ||
+      !Number.isSafeInteger(profile.maxInputTokens) || profile.maxInputTokens <= 0 || typeof profile.countInputTokens !== 'function') {
+    throw new JudgmentValidationError('Invalid installed judgment binding or model profile');
+  }
+  const adapter = new SystemOneAdapter(config), frozenBinding = Object.freeze({ ...binding });
+  const model = profile.model, maxInputTokens = profile.maxInputTokens, countInputTokens = profile.countInputTokens;
+  return Object.freeze({ binding: frozenBinding,
+    profile: Object.freeze({ provider: 'systemone', model, maxInputTokens, inputTokenization: 'deployment' as const }),
+    judgment: Object.freeze({
+      evaluate: (input: JudgmentEvaluationInput, options: { readonly deliveryId: string }) =>
+        adapter.evaluateStatic(input, options, frozenBinding, { model, maxInputTokens, countInputTokens }),
+      reconcile: async (deliveryId: string) => canonicalFailure(await adapter.reconcile(deliveryId)),
+    }),
+  });
+}
+
 export class SystemOneAdapter implements JudgmentPort {
   private readonly http: HttpClientConfig;
   private readonly models: readonly string[];
@@ -766,22 +944,66 @@ export class SystemOneAdapter implements JudgmentPort {
       maxScoreLevels: this.maxScoreLevels,
       maxRequestBytes: this.maxRequestBytes,
     });
-    let completion: CapabilityCompletion<JudgmentBatchResult>;
+    return this.send(serializeJudgmentBody(request), request.deliveryId,
+      response => mapJudgmentResponse(request.deliveryId, response.status, response.bodyText, request.questions),
+      err => mapJudgmentError(request.deliveryId, err, request.questions));
+  }
+
+  /** Canonical authored TEXT evaluation, separate from the legacy object-state batch API. */
+  async evaluateStatic(
+    input: JudgmentEvaluationInput,
+    options: { readonly deliveryId: string },
+    binding: InstalledJudgment['binding'],
+    profile: { readonly model: string; readonly maxInputTokens: number; readonly countInputTokens: (body: string) => number },
+  ): Promise<CapabilityCompletion<JudgmentEvaluationResult>> {
+    const deliveryId = options.deliveryId;
+    if (!isNonEmptyString(deliveryId)) throw new JudgmentValidationError('deliveryId must be a non-empty string');
+    const request = staticRequest(input, binding, profile.model);
+    if (!this.models.includes(profile.model)) throw new JudgmentValidationError('Static model is not bound');
+    for (const q of request.specification.choice) {
+      if (q.options.length < this.minChoiceOptions || q.options.length > this.maxChoiceOptions)
+        throw new JudgmentValidationError('Static choice is unsupported by the deployment');
+    }
+    for (const q of request.specification.score) {
+      if (q.levels.length < this.minScoreLevels || q.levels.length > this.maxScoreLevels)
+        throw new JudgmentValidationError('Static score is unsupported by the deployment');
+    }
+    if (this.maxRequestBytes !== null && new TextEncoder().encode(request.body).byteLength > this.maxRequestBytes)
+      throw new JudgmentValidationError('Static judgment exceeds the deployment byte budget');
+    let tokens: number;
+    try { tokens = profile.countInputTokens(request.body); }
+    catch { throw new JudgmentValidationError('Deployment input tokenization unavailable'); }
+    if (!Number.isSafeInteger(tokens) || tokens < 0 || tokens > profile.maxInputTokens)
+      throw new JudgmentValidationError('Static judgment exceeds the deployment token budget');
+    return this.send(request.body, deliveryId, response => {
+      if (response.status < 200 || response.status > 299)
+        return canonicalFailure(mapJudgmentResponse(deliveryId, response.status, response.bodyText, []));
+      const result = staticResult(response.bodyText, request.specification, request.order);
+      return result === null
+        ? { delivery_id: deliveryId, status: 'failed', result: null, error: deliveryError('invalid_response', GENERIC.invalidResponse) }
+        : { delivery_id: deliveryId, status: 'succeeded', result, error: null };
+    }, err => canonicalFailure(mapJudgmentError(deliveryId, err, [])));
+  }
+
+  /** Shared transport, failure classification and completion validation for both surfaces. */
+  private async send<T>(
+    body: string,
+    deliveryId: string,
+    normalize: (response: { readonly status: number; readonly bodyText: string }) => CapabilityCompletion<T>,
+    failure: (err: unknown) => CapabilityCompletion<T>,
+  ): Promise<CapabilityCompletion<T>> {
+    let completion: CapabilityCompletion<T>;
     try {
       const response = await httpRequest(this.http, {
         method: 'POST',
         path: SYSTEMONE_PATH,
-        body: serializeJudgmentBody(request),
+        body,
       });
-      completion = mapJudgmentResponse(
-        request.deliveryId,
-        response.status,
-        response.bodyText,
-        request.questions,
-      );
+      completion = normalize(response);
     } catch (err) {
-      completion = mapJudgmentError(request.deliveryId, err, request.questions);
+      completion = failure(err);
     }
+    if (completion.delivery_id !== deliveryId) throw new Error('Judgment completion identity mismatch');
     assertValidCompletion(completion);
     return completion;
   }

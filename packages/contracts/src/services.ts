@@ -13,7 +13,8 @@
  */
 
 import type { FinalizedFileRef } from './files.js';
-import type { CanDuration, DatetimeValue, WireMoney } from './values.js';
+import type { CanDuration, CanInt, DatetimeValue, DecimalValue, WireMoney } from './values.js';
+import type { Bcp47Tag } from './presentation.js';
 
 /**
  * This contract's version. Added by T13a (the T12 inventory noted
@@ -703,20 +704,14 @@ export const STD_PAYMENTS_V1_CONTRACT: CapabilityContract = {
  *   applies, and scoping out would block the entire CanInbox
  *   `Post.*` flow.
  * - B7 RECONCILE (two joined layers, no new std capability):
- *   drafts never import a std judgment capability — `Judge`
- *   binds in-corpus (`inbox.Triage`, `decide.ChangeReview`;
- *   section-C / B12 ownership, preserved for T28). `std`
- *   contributes only the shared `JudgmentSpec` value (`{revision}`,
- *   the sole leaf ever read, CanInbox.can:160,
- *   CanDecide.can:104/121) plus the documented wire mapping:
- *   noul answers match exactly; choice probabilities are an ARRAY
- *   of `{option, probability}` in drafts (CanInbox.can:87) vs a
- *   MAP in `ChoiceAnswer`; score levels carry a level NAME in
- *   drafts vs `ScoreLevel {index, description, probability}`; the
- *   result envelope carries `specification_revision` + per-question
- *   leaves vs `JudgmentBatchResult.answers[]`. Normalization is
- *   owned by the T24 runtime join; `ai.SystemOneV1` wire stays
- *   untouched.
+ *   source-owned judgment declarations derive their typed evaluation
+ *   interface and result. `std.JudgmentSpec` retains the normalized
+ *   source-language questions, ordered options/levels, declaration,
+ *   canonical version and text revision (DESIGN §8.2/§13.1; accepted
+ *   Inbox judgment typing contract). Provider-owned
+ *   `JudgmentBatchInput` / `JudgmentBatchResult` remain the low-level
+ *   `ai.SystemOneV1` wire; normalization joins those answers to the
+ *   frozen declaration without changing that provider API.
  * - B8 SPLIT: `KnowledgeRequest` / `IndexState` are NEW-CONTRACT
  *   std value schemas from CanKnowledge evidence (fixtures
  *   :80-82, `ask` :157, index reads :281-284/336). The `corpus
@@ -1013,19 +1008,89 @@ export interface MailReplyOutcome {
   detail: string | null;
 }
 
+/** One source-retained judgment option or ordered score level. */
+export interface JudgmentOption {
+  readonly id: string;
+  readonly description: string;
+}
+
+/** Source-language NOUL question; yes/no criteria are both present or both null. */
+export interface NoulQuestion {
+  readonly id: string;
+  readonly instructions: string;
+  readonly yes: string | null;
+  readonly no: string | null;
+}
+
+/** Source-language choice question with declaration-ordered options. */
+export interface ChoiceQuestion {
+  readonly id: string;
+  readonly instructions: string;
+  readonly options: ReadonlyArray<JudgmentOption>;
+}
+
+/** Source-language score question; level insertion order is semantic. */
+export interface ScoreQuestion {
+  readonly id: string;
+  readonly instructions: string;
+  readonly levels: ReadonlyArray<JudgmentOption>;
+}
+
 /**
- * `std` frozen judgment specification value. Evidence-capped at
- * `{revision}`: both consuming apps read only `.revision`
- * (CanInbox.can:160, CanDecide.can:104/121) to bind a result to
- * the exact evaluated spec (`result.specification_revision ==
- * specification.revision`). The question text and runtime options
- * live in the owning in-corpus `export judgment` decl (plus its
- * `specification()` member: nullary `Triage.specification`,
- * parameterized `ChangeReview.specification({pick})`), not in
- * this value. A richer snapshot would be invention.
+ * `std` frozen normalized judgment specification (DESIGN §8.2/§13.1;
+ * accepted Inbox judgment typing contract). Source-language strings and
+ * ordered identities derive from the owning declaration; display
+ * localization does not change inference or its canonical text revision.
+ * Each question-kind array may be empty; the accepted suite is nonempty
+ * in total. Provider request/result normalization remains adapter-owned.
  */
 export interface JudgmentSpec {
-  revision: number;
+  readonly declaration: string;
+  readonly version: CanInt;
+  readonly revision: string;
+  readonly language: Bcp47Tag;
+  readonly noul: ReadonlyArray<NoulQuestion>;
+  readonly choice: ReadonlyArray<ChoiceQuestion>;
+  readonly score: ReadonlyArray<ScoreQuestion>;
+}
+
+/** Canonical NOUL answer; probability has no invented confidence field. */
+export interface JudgmentNoulAnswer {
+  readonly probability: DecimalValue;
+}
+
+/** Canonical choice answer; generated schemas retain the exact option enum. */
+export interface JudgmentChoiceAnswer {
+  readonly choice: string;
+  readonly probabilities: ReadonlyArray<{
+    readonly option: string;
+    readonly probability: DecimalValue;
+  }>;
+  readonly confidence: DecimalValue;
+}
+
+/** Canonical score answer; levels preserve the frozen specification order. */
+export interface JudgmentScoreAnswer {
+  readonly score: DecimalValue;
+  readonly levels: ReadonlyArray<{
+    readonly level: string;
+    readonly index: CanInt;
+    readonly description: string;
+    readonly probability: DecimalValue;
+  }>;
+  readonly confidence: DecimalValue;
+}
+
+/**
+ * Shared dynamic judgment result envelope. The compiler derives exact
+ * named question fields and schemas and excludes reserved metadata names.
+ */
+export interface JudgmentEvaluationResult {
+  readonly specification_revision: string;
+  readonly model: string;
+  readonly input_tokens: CanInt;
+  readonly output_tokens: CanInt;
+  readonly [question: string]: string | CanInt | JudgmentNoulAnswer | JudgmentChoiceAnswer | JudgmentScoreAnswer;
 }
 
 /**
