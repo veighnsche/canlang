@@ -539,3 +539,85 @@ only this affected case was corrected and repeated. No production change or
 accepted matrix rerun was needed. This qualifies the original S9-Q02 bounded
 domain/order/failure slice; async predicates, hooks, outbound lifecycle, D1
 and the broader reference remain open. Completion remains **58/67**.
+
+The earlier async-query mutation slice remains unqualified. Current source emits an
+awaited async model predicate through the existing derive/query path, but
+canonical mutation `records(where)` explicitly refuses with `validation`
+before source callbacks or updates. The first native case exposed that
+boundary; a reduced refusal-only run was already started before the
+coordinator stopped recertification and passed 1/1 (0.73s). Prepared source
+and test were left uncaptured and removed. That mutation outcome carries no
+positive async/once credit. The distinct held Task22 outbox lookup contract
+stays held. Work subsequently released its separate viewer-query repair;
+the supported read result below supersedes the earlier predicate-replay gap.
+
+The supported [hook source](../../compiler/tests/fixtures/hook_order_rollback.can)
+compiles, but its [prepared native case](../../compiler/tests/hook_order_rollback_runtime.rs)
+failed **0/1** (6.63s): canonical CRUD committed the proposed Entry update
+without executing the emitted authored hook. Production output contains the
+hook registry and explicit callable linkage; the defining invocation assembly
+was silently omitting them. After Work released the explicit unsupported-hook
+refusal, the same reduced case passed **1/1** (0.51s): `validation` names the
+unsupported canonical hook, no authored guards run, Entry/version/history and
+absent Audit remain intact, and the native rejected receipt advances the fence
+once. Candidate order, staged Audit and late rollback remain unqualified
+through this path. The reduced refusal case is ready for capture. Accepted T31
+native engine staging coverage is reused; no replacement callbacks or contexts
+were introduced and no unchanged case was repeated.
+
+Runtime-choice Judgment now extends the [same source](../../compiler/tests/fixtures/static_judgment.can)
+and [same direct case](../../compiler/tests/static_judgment_runtime.rs), passing
+**1/1** (0.58s) through production CLI, installed catalog and actual module
+assembly. One checked inventory adds the bounded text choice alias, candidate
+record and required options array with count, distinct-ID and authored-ID
+exclusion constraints. `RuntimeCandidates.choices` reuses that field with
+the receiving max=8 intersection. Static descriptor/types remain unchanged;
+runtime specification emits the third options argument and evaluate receives
+the same typed options contract. Missing send options (E3010), missing
+specification argument (E3005) and an authored 81-scalar ID (E3001) refuse
+without modules. Mechanical affected IR/descriptor fixture constructors compile;
+accepted matrices were not executed. Nonliteral receiving bounds on these
+constrained reused fields explicitly refuse. Work/Package own the native
+dispatch, provider normalization and storage/receipt join through this source;
+full roadmap46/CanDecide and S9-Q02 remain open. Completion remains **58/67**.
+Two concrete edge corrections were batched in the same case, then it passed
+**1/1** (0.75s): a question named `runtime` remains static unless the actual
+`options=runtime` marker is present; an omitted authored map emits no `options`
+property and derives a 2–26 runtime array, while an explicit empty map refuses
+with E1204. Both positive variants load actual generated modules. The targeted
+existing descriptor byte contract also passes 1/1, preserving unchanged
+standard delivery bytes when optional constraints are absent.
+
+The bounded S9-Q01 branch-options formatter case
+[`localized_format_executes_source_owned_branch_options`](../../compiler/tests/localized_format.rs)
+passes **1/1** (0.65s). The existing real
+[generated-import consumer](../../compiler/tests/fixtures/localized-format-consumer.mjs)
+uses `--branch-options` to compile one genuine `.can` source, load its artifact,
+assemble unchanged exported derives and execute the installed stdlib formatter.
+Nested enum select/int plural/bool select, int ordinals, exact Decimal selectors
+and number rendering, safe-range refusal, en/fr selected-locale fallback,
+positional/reordered named getter order and once, and first-failure identity
+and short-circuit are qualified. The first failed source case exposed a tiny
+`types.rs::scan_argument` closing-brace ownership defect for typed ICU arguments;
+the owning scan now consumes that argument's closing brace. The same affected
+case passed after that repair. Existing selected-call/localized-format matrices
+are reused unchanged. This is an expression host with explicit app scope: no
+full S9-Q01, State, authority, timezone or Decimal-source-literal claim. The
+contextual attribute-name issue for a parameter named `label` remains unclaimed;
+this case uses `word`. Completion counters are unchanged.
+
+The restored [async-query source](../../compiler/tests/fixtures/async_query_predicate.can)
+and [same native case](../../compiler/tests/async_query_predicate_runtime.rs)
+pass **1/1** (0.75s) against Work's actual released viewer-query repair. The
+production CLI and installed catalog emit an awaited model predicate; actual
+Cloudflare/State Memory invocation preserves one predicate call per candidate
+in its native scan order, short circuit, awaited nested reads, and first
+arithmetic failure without later evaluation. Fresh membership revocation
+refuses both a nonempty result and an all-false result whose nested Probe
+reads are empty, without replaying source. All read outcomes preserve domain
+rows, versions, history and the global fence without receipts. Native CRUD
+supplies all fixtures and Probe deletion; real membership fixtures supply
+revocations. Two preparation failures corrected unsupported returned-query
+`limit=` and bare `order=` in the fixture; no production query feature was
+added. Mutation-filter refusal, structured expression ordering, D1 and full
+S9-Q02 remain separate. Completion remains **58/67**.

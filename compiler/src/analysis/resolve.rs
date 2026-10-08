@@ -421,9 +421,9 @@ pub struct ResolveTables {
     pub children_of: HashMap<SymbolId, Vec<SymbolId>>,
     /// Fixture reference edges (fixture id to referenced fixture ids).
     pub fixture_edges: HashMap<SymbolId, Vec<SymbolId>>,
-    /// Source judgment owners, including unsupported runtime-choice declarations.
+    /// Source judgment owners.
     pub judgments: HashSet<SymbolId>,
-    /// Static source descriptors; the types pass releases checked descriptors.
+    /// Source descriptors; the types pass releases checked descriptors.
     pub judgment_declarations: HashMap<SymbolId, CheckedJudgment>,
     /// Derived symbols are checker facts, never separately authored schemas.
     pub judgment_generated_symbols: HashSet<SymbolId>,
@@ -435,6 +435,19 @@ pub struct ResolveTables {
     pub judgment_standard_records: HashMap<String, SymbolId>,
     /// Required-array presence is field metadata, independent of array values.
     pub judgment_required_arrays: HashSet<SymbolId>,
+    /// Derived value restrictions, kept separate from scalar type identity.
+    pub judgment_value_constraints: HashMap<SymbolId, CheckedValueConstraints>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CheckedValueConstraints {
+    pub min: Option<i64>,
+    pub max: Option<i64>,
+    pub format: Option<String>,
+    pub distinct_by: Option<String>,
+    pub excluded_ids: Vec<String>,
+    /// Owning bounded scalar alias, rather than a fabricated enum identity.
+    pub alias: Option<SymbolId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -454,6 +467,7 @@ pub struct CheckedJudgmentOption {
 pub struct CheckedJudgmentQuestion {
     pub name: String,
     pub kind: CheckedJudgmentKind,
+    pub runtime: bool,
     pub instructions: NodeKey,
     pub yes: Option<NodeKey>,
     pub no: Option<NodeKey>,
@@ -468,6 +482,10 @@ pub struct CheckedJudgment {
     pub questions: Vec<CheckedJudgmentQuestion>,
     pub evaluate: SymbolId,
     pub state: SymbolId,
+    pub options: Option<SymbolId>,
+    pub evaluate_options: Option<SymbolId>,
+    pub specification: Option<SymbolId>,
+    pub specification_options: Option<SymbolId>,
 }
 
 impl ResolveTables {
@@ -1106,6 +1124,14 @@ impl<'a> Resolver<'a> {
         Ok(id)
     }
 
+    fn judgment_runtime_marker(item: &SyntaxNode, text: &str) -> bool {
+        kids(item).windows(3).any(|parts| {
+            is_name(parts[0], text, "options")
+                && is_punct(parts[1], text, "=")
+                && is_name(parts[2], text, "runtime")
+        })
+    }
+
     fn index_judgment(
         &mut self,
         text: &str,
@@ -1121,14 +1147,28 @@ impl<'a> Resolver<'a> {
             .into_iter()
             .filter(|n| n.kind == SyntaxKind::JudgmentItem)
             .collect();
-        // Runtime choices have a separately versioned interface; retain the
-        // owner but never release a static evaluate signature for them.
-        if items
+        let has_runtime = items
             .iter()
-            .any(|item| kids(item).iter().any(|n| is_name(n, text, "runtime")))
-        {
-            return Ok(());
-        }
+            .any(|item| Self::judgment_runtime_marker(item, text));
+        let options_record = if has_runtime {
+            let record = self.judgment_symbol(
+                owner,
+                "options",
+                "options",
+                SymbolKind::Contract { fields: Vec::new() },
+                node,
+            )?;
+            self.tables.judgment_type_paths.insert(
+                format!(
+                    "{}.options",
+                    self.tables.symbols[owner.0 as usize].canonical
+                ),
+                record,
+            );
+            Some(record)
+        } else {
+            None
+        };
         let version = attribute_value(node, "version", text)
             .and_then(|n| {
                 (n.kind == SyntaxKind::Literal)
@@ -1165,6 +1205,7 @@ impl<'a> Resolver<'a> {
                 continue;
             };
             if !seen.insert(name.to_string())
+                || (has_runtime && ["options", "evaluate", "specification"].contains(&name))
                 || [
                     "specification_revision",
                     "model",
@@ -1186,6 +1227,8 @@ impl<'a> Resolver<'a> {
                 Some("score") => CheckedJudgmentKind::Score,
                 _ => continue,
             };
+            let runtime = kind == CheckedJudgmentKind::Choice
+                && Self::judgment_runtime_marker(item, text);
             let captions: Vec<_> = parts
                 .iter()
                 .copied()
@@ -1262,10 +1305,109 @@ impl<'a> Resolver<'a> {
                     },
                     item,
                 )?;
-                let enumeration = ResolvedType::Enum {
-                    cases: options.iter().map(|o| o.id.clone()).collect(),
-                    owner: Some(enum_field),
+                let enumeration = if runtime {
+                    ResolvedType::Scalar(Scalar::Text)
+                } else {
+                    ResolvedType::Enum {
+                        cases: options.iter().map(|o| o.id.clone()).collect(),
+                        owner: Some(enum_field),
+                    }
                 };
+                if runtime {
+                    let constraints = CheckedValueConstraints {
+                        min: Some(1),
+                        max: Some(80),
+                        format: Some("name".to_string()),
+                        alias: Some(enum_field),
+                        ..Default::default()
+                    };
+                    self.tables
+                        .judgment_value_constraints
+                        .insert(enum_field, constraints.clone());
+                    let option_path = format!("{name}.option");
+                    let option_record = self.judgment_symbol(
+                        owner,
+                        &option_path,
+                        "option",
+                        SymbolKind::Contract { fields: Vec::new() },
+                        item,
+                    )?;
+                    self.tables.judgment_type_paths.insert(
+                        format!(
+                            "{}.{}",
+                            self.tables.symbols[owner.0 as usize].canonical, option_path
+                        ),
+                        option_record,
+                    );
+                    let id = self.judgment_field(
+                        owner,
+                        option_record,
+                        &format!("{option_path}.id"),
+                        "id",
+                        ResolvedType::Scalar(Scalar::Text),
+                        item,
+                    )?;
+                    self.tables
+                        .judgment_value_constraints
+                        .insert(id, constraints);
+                    let description = self.judgment_field(
+                        owner,
+                        option_record,
+                        &format!("{option_path}.description"),
+                        "description",
+                        ResolvedType::Scalar(Scalar::Text),
+                        item,
+                    )?;
+                    self.tables.judgment_value_constraints.insert(
+                        description,
+                        CheckedValueConstraints {
+                            min: Some(1),
+                            max: Some(2000),
+                            ..Default::default()
+                        },
+                    );
+                    for field in [id, description] {
+                        self.tables.judgment_type_paths.insert(
+                            self.tables.symbols[field.0 as usize].canonical.clone(),
+                            field,
+                        );
+                    }
+                    let options_path = format!("options.{name}");
+                    let count = options.len() as i64;
+                    let candidates = self.judgment_field(
+                        owner,
+                        options_record.expect("runtime options owner"),
+                        &options_path,
+                        name,
+                        ResolvedType::Array {
+                            element: Box::new(ResolvedType::Record {
+                                symbol: option_record,
+                                stored: true,
+                            }),
+                            ordered: true,
+                            nonempty: count < 2,
+                        },
+                        item,
+                    )?;
+                    self.tables.judgment_required_arrays.insert(candidates);
+                    self.tables.judgment_value_constraints.insert(
+                        candidates,
+                        CheckedValueConstraints {
+                            min: Some((2 - count).max(0)),
+                            max: Some(26 - count),
+                            distinct_by: Some("id".to_string()),
+                            excluded_ids: options.iter().map(|option| option.id.clone()).collect(),
+                            ..Default::default()
+                        },
+                    );
+                    self.tables.judgment_type_paths.insert(
+                        format!(
+                            "{}.{}",
+                            self.tables.symbols[owner.0 as usize].canonical, options_path
+                        ),
+                        candidates,
+                    );
+                }
                 self.tables
                     .judgment_types
                     .insert(enum_field, enumeration.clone());
@@ -1310,7 +1452,7 @@ impl<'a> Resolver<'a> {
                 } else {
                     "level"
                 };
-                self.judgment_field(
+                let identity_field = self.judgment_field(
                     owner,
                     element,
                     &format!("{element_path}.{identity}"),
@@ -1318,6 +1460,12 @@ impl<'a> Resolver<'a> {
                     enumeration,
                     item,
                 )?;
+                if runtime {
+                    let constraints = self.tables.judgment_value_constraints[&enum_field].clone();
+                    self.tables
+                        .judgment_value_constraints
+                        .insert(identity_field, constraints);
+                }
                 if kind == CheckedJudgmentKind::Score {
                     self.judgment_field(
                         owner,
@@ -1374,6 +1522,7 @@ impl<'a> Resolver<'a> {
             questions.push(CheckedJudgmentQuestion {
                 name: name.to_string(),
                 kind,
+                runtime,
                 instructions: NodeKey::of(instructions),
                 yes: (kind == CheckedJudgmentKind::Noul)
                     .then(|| captions.get(1).map(|n| NodeKey::of(n)))
@@ -1422,6 +1571,64 @@ impl<'a> Resolver<'a> {
         {
             params.push(state);
         }
+        let mut evaluate_options = None;
+        let mut specification = None;
+        let mut specification_options = None;
+        if let Some(options) = options_record {
+            let options_type = ResolvedType::Record {
+                symbol: options,
+                stored: true,
+            };
+            let parameter = self.judgment_symbol(
+                owner,
+                "evaluate.options",
+                "options",
+                SymbolKind::Param {
+                    owner: evaluate,
+                    index: 1,
+                    type_node: NodeKey::of(node),
+                },
+                node,
+            )?;
+            self.tables
+                .judgment_types
+                .insert(parameter, options_type.clone());
+            if let SymbolKind::CapabilityOp { params, .. } =
+                &mut self.tables.symbols[evaluate.0 as usize].kind
+            {
+                params.push(parameter);
+            }
+            evaluate_options = Some(parameter);
+            let function = self.judgment_symbol(
+                owner,
+                "specification",
+                "specification",
+                SymbolKind::DeriveFn {
+                    params: Vec::new(),
+                    result_node: NodeKey::of(node),
+                },
+                node,
+            )?;
+            let parameter = self.judgment_symbol(
+                owner,
+                "specification.options",
+                "options",
+                SymbolKind::Param {
+                    owner: function,
+                    index: 0,
+                    type_node: NodeKey::of(node),
+                },
+                node,
+            )?;
+            self.tables.judgment_types.insert(parameter, options_type);
+            if let SymbolKind::DeriveFn { params, .. } =
+                &mut self.tables.symbols[function.0 as usize].kind
+            {
+                params.push(parameter);
+            }
+            specification = Some(function);
+            specification_options = Some(parameter);
+        }
         self.tables.judgment_declarations.insert(
             owner,
             CheckedJudgment {
@@ -1430,6 +1637,10 @@ impl<'a> Resolver<'a> {
                 questions,
                 evaluate,
                 state,
+                options: options_record,
+                evaluate_options,
+                specification,
+                specification_options,
             },
         );
         Ok(())
