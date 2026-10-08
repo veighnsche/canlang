@@ -22,9 +22,12 @@
  * `McpDeps.identity.store` is an `IdentityStore`.
  */
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { createRequire } from "node:module";
+import { execFileSync } from "node:child_process";
+import { compileFunction, constants as vmConstants } from "node:vm";
+import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import type {
@@ -33,6 +36,7 @@ import type {
   ModelName,
   MutationEnvelope,
   OperationId,
+  OperationName,
   ResolvedIdentity,
   StoragePort,
 } from "@canlang/contracts";
@@ -41,6 +45,7 @@ import { createTestMemoryStorage } from "@canlang/state/storage/memory";
 // Cross-package journey imports: interfaces DIST (never src), per the
 // assembly.test.ts precedent. Root `build` builds interfaces dist first.
 import { createMcpHandler } from "@canlang/interfaces/mcp/server";
+import { handlePageRequest } from "@canlang/interfaces";
 import { catalogFromArtifactOperations } from "@canlang/interfaces/http/operations";
 import {
   createGrantFixture,
@@ -53,18 +58,21 @@ import type {
   SchemaCatalog as RealSchemaCatalog,
 } from "@canlang/interfaces";
 import {
-  assembleWorker,
-  buildInvoker,
   type AssembledModules,
   type AssemblyDeps,
   type McpDeps as AssemblyMcpDeps,
   type McpHandlerFactory,
 } from "../src/worker/assembly.js";
+// Native installed producer imports preserve ESM own-data metadata; Vitest proxies expose getters.
+const { assembleWorker, buildInvoker } = await compileFunction("return import(url)", ["url"], {
+  importModuleDynamically: vmConstants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
+})(
+  pathToFileURL(createRequire(import.meta.url).resolve("@canlang/cloudflare/worker/assembly")).href,
+) as typeof import("../src/worker/assembly.js");
 import {
   createArtifactCatalog,
   createArtifactRegistry,
   createDenyClosedMcpPermissions,
-  type BakedDerivedInputs,
 } from "../src/runtime/mcp-registry.js";
 
 /* ------------------------------------------------------------------ */
@@ -164,8 +172,8 @@ function fixtureArtifact(): CompileArtifact {
     artifact_version: 1,
     language_version: "mcp-route-fixture/0 (hand-written; NOT compiler output)",
     tool_version: "mcp-route-fixture/0",
-    sources: [{ path: "examples/TeamTasks.can", sha256: "fixture-not-a-digest" }],
-    modules: [],
+    sources: [{ path: "ops.mjs", sha256: createHash("sha256").update(OPS_SOURCE, "utf8").digest("hex") }],
+    modules: [{ path: "ops.mjs", js: OPS_SOURCE }],
     callables: [
       { id: READ_OP, kind: "operation", module: "ops.mjs", export: "todoRead", member: ["todoRead"] },
       { id: MUT_OP, kind: "operation", module: "ops.mjs", export: "todoCreate", member: ["todoCreate"] },
@@ -179,40 +187,30 @@ function fixtureArtifact(): CompileArtifact {
   } as unknown as CompileArtifact;
 }
 
-/**
- * T17c: T15a model descriptors (hand-written; NOT compiler output),
- * attached ONLY under the `canonical` assemble flag. The interim
- * bridge served descriptor-less artifacts; the canonical path needs
- * the model table, so converted pins opt in while every other test
- * keeps its descriptor-less fixture byte-identically.
- */
-function fixtureModels(): unknown[] {
-  return [
-    {
-      name: "acme.Todo",
-      fields: [
-        { name: "title", required: true, serverOnly: false, field: { kind: "string" } },
-        { name: "done", required: false, serverOnly: false, field: { kind: "boolean" } },
-        // C1: plain string at the model layer; the OPERATION declares
-        // the enum (see the bound-check test) so only the derived
-        // channel — never model validation — rejects non-members.
-        { name: "priority", required: false, serverOnly: false, field: { kind: "string" } },
-      ],
-      deleteMode: "remove",
-    },
-  ];
-}
+// Source-owned canonical fixture; the historical discovery fixtures below remain handwritten.
+const CANONICAL_SOURCE = `app acme
+Given
+ Todo { title:text, done:bool?, priority:text? }
+ policy Todo read=public
+When
+ crud Todo by=members fields=title,done,priority delete=remove
+Then
+`;
 
-const OPS_SOURCE = `export function canApp() {
+const OPS_SOURCE = `export const appDefinition = {
+  id: "acme",
+  policy: {
+    operations: { "acme.Todo.create": { by: ["members"] } },
+    models: { "acme.Todo": { read: ["Todo.read.1"], public: ["Todo.read.1"] } },
+  },
+};
+export function canApp() {
   return {
     // B7: the create declares its admission gate (absent entries
     // deny) and Todo carries explicit-public read provenance
     // (absent reads serve zero grants) so the canonical pins
     // still commit and read back.
-    policy: {
-      operations: { "acme.Todo.create": { by: ["members"] } },
-      models: { "acme.Todo": { read: ["Todo.read.1"], public: ["Todo.read.1"] } },
-    },
+    policy: appDefinition.policy,
     todoRead: async (c, input) => ({ rows: [{ id: "t1", title: "fixture" }], caller: c.caller.userId, inputs: input.inputs }),
     todoCreate: async (c, input) => ({ status: "committed", operation_id: input.operation_id, title: input.inputs.title, caller: c.caller.userId }),
   };
@@ -228,7 +226,8 @@ async function assembleMcpWorker(opts: {
   permissions?: AssemblyDeps["mcp"] extends { permissions?: infer P } | undefined ? P : never;
   withFactory?: boolean;
   canonical?: boolean;
-  derivedInputs?: BakedDerivedInputs;
+  withDerivedInputs?: boolean;
+  canonicalSource?: string;
 }): Promise<{
   fetch: (req: Request) => Promise<Response>;
   grantToken: string;
@@ -239,8 +238,8 @@ async function assembleMcpWorker(opts: {
 }> {
   const dir = tempDir();
   const url = writeModule(dir, "ops.mjs", OPS_SOURCE);
-  const asm: AssembledModules = { dir, entryUrl: "fixture-entry", moduleUrls: { "ops.mjs": url } };
-  const artifact = fixtureArtifact();
+  let asm: AssembledModules = { dir, entryUrl: url, moduleUrls: { "ops.mjs": url } };
+  let artifact = fixtureArtifact();
   if (opts.ops !== undefined) {
     (artifact as unknown as { operations: unknown[] }).operations = opts.ops;
   }
@@ -249,7 +248,25 @@ async function assembleMcpWorker(opts: {
   // else keeps the stub store + descriptor-less shape.
   const store = opts.canonical === true ? createTestMemoryStorage().store : stubStore();
   if (opts.canonical === true) {
-    (artifact as unknown as { models: unknown[] }).models = fixtureModels();
+    const sourcePath = join(dir, "canonical.can");
+    writeFileSync(sourcePath, opts.canonicalSource ?? CANONICAL_SOURCE);
+    artifact = JSON.parse(execFileSync(resolve("compiler/target/debug/can"),
+      ["compile", "--format=json", sourcePath], { encoding: "utf8" })) as CompileArtifact;
+    const { assembleModules } = await compileFunction("return import(url)", ["url"], {
+      importModuleDynamically: vmConstants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
+    })(pathToFileURL(createRequire(import.meta.url).resolve("@canlang/cloudflare/runtime/modules")).href
+    ) as typeof import("../src/runtime/modules.js");
+    asm = await assembleModules({ artifact, sourcePath }, { workDir: join(dir, "compiled"),
+      stdlibUrl: pathToFileURL(createRequire(import.meta.url).resolve("@canlang/cloudflare/runtime/stdlib")).href });
+  }
+  const derivedInputs: Record<string, DerivedOperationInputs> | undefined = opts.withDerivedInputs === true ? {} : undefined;
+  if (derivedInputs !== undefined) {
+    const catalog = catalogFromArtifactOperations(artifact);
+    for (const operation of artifact.operations ?? []) {
+      const derived = catalog.derivedFor(operation.name);
+      if (derived === null) throw new Error(`no derivation for ${operation.name}`);
+      derivedInputs[operation.name] = derived;
+    }
   }
   const identity = await createIdentityFixture({});
   const { token: grantToken } = await createGrantFixture(identity);
@@ -262,7 +279,7 @@ async function assembleMcpWorker(opts: {
           mcp: {
             createHandler: _factoryShape,
             ...(opts.permissions === undefined ? {} : { permissions: opts.permissions }),
-            ...(opts.derivedInputs === undefined ? {} : { derivedInputs: opts.derivedInputs }),
+            ...(derivedInputs === undefined ? {} : { derivedInputs }),
           },
         }),
   };
@@ -448,7 +465,7 @@ describe("worker POST /mcp", () => {
       records: Array<{ id: string; data: Record<string, unknown>; createdBy: string }>;
     };
     expect(payload.records.length).toBe(1);
-    expect(payload.records[0]?.data).toEqual({ title: "fixture" });
+    expect(payload.records[0]?.data).toEqual({ title: "fixture", done: null, priority: null });
     // The grant identity (not anonymous) reached the canonical path.
     const grantIdentity: ResolvedIdentity = await resolveIdentity(identityStore, {
       mcp_grant_token: grantToken,
@@ -492,7 +509,7 @@ describe("worker POST /mcp", () => {
     expect(payload.operation_id).toBe(operationId);
     expect(payload.records[0]!.id).toBe(operationId);
     expect(payload.records[0]!.version).toBe(1);
-    expect(payload.records[0]!.data).toEqual({ title: "buy milk" });
+    expect(payload.records[0]!.data).toEqual({ title: "buy milk", done: null, priority: null });
     expect(
       await store.query({ model: "acme.Todo" as ModelName, authority: "owner" }),
     ).toHaveLength(1);
@@ -547,7 +564,7 @@ describe("worker POST /mcp", () => {
     expect(direct.result.result).toBeNull();
     const directRow = direct.result.records![0] as { id: string; data: Record<string, unknown> };
     expect(directRow.id).toBe(httpOperationId);
-    expect(directRow.data).toEqual({ title: "parity" });
+    expect(directRow.data).toEqual({ title: "parity", done: null, priority: null });
     expect(mcpPayload.records[0]!.data).toEqual(directRow.data);
   });
 
@@ -602,43 +619,11 @@ describe("worker POST /mcp", () => {
   });
 
   it("bound-checks MCP calls when derived inputs are joined (C1 mirror)", async () => {
-    // Framing admits any present string; only the bound checker
-    // rejects enum non-members. With derivedInputs joined (the
-    // production shape the P-B bake stages), the worker answers
-    // InvalidParams; without, the same call commits framing-only
-    // (E1 legacy — the gap this mirror closes).
-    const ops = [
-      {
-        name: MUT_OP,
-        kind: "create",
-        description: "Create with priority.",
-        inputs: {
-          fields: [
-            { name: "title", field: { kind: "string" }, required: true },
-            { name: "priority", field: { kind: "enum", values: ["low", "high"] }, required: false },
-          ],
-        },
-      },
-    ];
-    const bakeFor = (artifact: CompileArtifact): BakedDerivedInputs => {
-      const real = catalogFromArtifactOperations(artifact);
-      const baked: Record<string, DerivedOperationInputs> = {};
-      for (const op of artifact.operations ?? []) {
-        const derived = real.derivedFor(op.name);
-        if (derived === null) throw new Error(`no derivation for ${op.name}`);
-        baked[op.name] = derived;
-      }
-      return baked;
-    };
-    const bakeArtifact = fixtureArtifact();
-    (bakeArtifact as unknown as { operations: unknown[] }).operations = ops;
-    const baked = bakeFor(bakeArtifact);
-
+    // The old handwritten fixture let transport metadata contradict the model.
+    // A genuine enum refuses invalid values even without transport-derived inputs.
+    const canonicalSource = CANONICAL_SOURCE.replace("priority:text?", "priority:enum(low,high)?");
     const { fetch, grantToken } = await assembleMcpWorker({
-      ops,
-      permissions: allowAllPermissions(),
-      canonical: true,
-      derivedInputs: baked,
+      permissions: allowAllPermissions(), canonical: true, canonicalSource, withDerivedInputs: true,
     });
     const bad = await mcpCall(
       fetch,
@@ -667,23 +652,25 @@ describe("worker POST /mcp", () => {
     ) as { status: string; result: null; records: Array<{ data: Record<string, unknown> }> };
     expect(committed.status).toBe("committed");
     expect(committed.result).toBeNull();
-    expect(committed.records[0]!.data).toEqual({ title: "x", priority: "high" });
+    expect(committed.records[0]!.data).toEqual({ title: "x", done: null, priority: "high" });
 
-    const legacy = await assembleMcpWorker({ ops, permissions: allowAllPermissions(), canonical: true });
+    const legacy = await assembleMcpWorker({ permissions: allowAllPermissions(), canonical: true, canonicalSource });
+    const unboundOperationId = freshOperationId();
     const unbound = await mcpCall(
       legacy.fetch,
       "tools/call",
       {
         name: MUT_OP,
-        arguments: { operation_id: freshOperationId(), title: "x", priority: "urgent" },
+        arguments: { operation_id: unboundOperationId, title: "x", priority: "urgent" },
       },
       { grant: legacy.grantToken },
     );
     expect(unbound.body.error).toBeUndefined();
-    const legacyCommitted = JSON.parse(
+    const canonicalRefusal = JSON.parse(
       ((unbound.body.result as ToolResultBody).content[0]?.text ?? "null") as string,
-    ) as { status: string };
-    expect(legacyCommitted.status).toBe("committed");
+    ) as { code: string };
+    expect(canonicalRefusal).toMatchObject({ code: "validation" });
+    expect((unbound.body.result as ToolResultBody).isError).toBe(true);
   });
 
   it("deny-closed by default: empty list, forbidden calls, no oracle", async () => {
@@ -741,7 +728,7 @@ describe("worker POST /mcp", () => {
     const { token: grantToken } = await createGrantFixture(identity);
     const assembled = await assembleWorker(
       artifact,
-      { dir, entryUrl: "fixture-entry", moduleUrls: { "ops.mjs": url } },
+      { dir, entryUrl: url, moduleUrls: { "ops.mjs": url } },
       {
         store: stubStore(),
         identityStore: identity.store,
@@ -759,17 +746,20 @@ describe("worker POST /mcp", () => {
     const url = writeModule(
       dir,
       "home.mjs",
-      `export const home = { owner: "fixture", path: "/", title: "Home", admit: async () => ({}), render: async () => "<h1>ok</h1>" };\n`,
+      `export const appDefinition = { id: "acme" };
+export const home = { owner: "fixture", path: "/", title: "Home", admit: async () => ({}), render: async () => "<h1>ok</h1>" };\n`,
     );
     const artifact = fixtureArtifact();
+    (artifact as unknown as { modules: unknown[] }).modules = [{ path: "home.mjs" }];
     (artifact as unknown as { pages: CompileArtifact["pages"] }).pages = [
       { owner: "fixture", path: "/", module: "home.mjs", export: "home" },
     ];
     const identity = await createIdentityFixture({});
     const assembled = await assembleWorker(
       artifact,
-      { dir, entryUrl: "fixture-entry", moduleUrls: { "home.mjs": url } },
-      { store: stubStore(), identityStore: identity.store, mcp: { createHandler: _factoryShape } },
+      { dir, entryUrl: url, moduleUrls: { "home.mjs": url } },
+      { store: stubStore(), identityStore: identity.store, mcp: { createHandler: _factoryShape },
+        http: { createPageHandler: deps => request => handlePageRequest(deps as unknown as Parameters<typeof handlePageRequest>[0], request) } },
       { active: true },
     );
     expect(assembled.pageCount).toBe(1);
