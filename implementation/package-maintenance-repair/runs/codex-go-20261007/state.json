@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T21:18:34.757914+00:00",
+  "updated_utc": "2026-10-08T21:30:52.576964+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2802,6 +2802,15 @@
       "contract": "One checked inventory drives MCP constraints, runtime specification, retained candidate/options order and actual HTTP/Work dispatch. Original typed receipt union, late guard rollback, replay and unknown no-resubmit preserved.",
       "limits": "Acknowledged dynamic Receipt.read fails closed without original retained context; held Task22 remains. Canonical hook target writes explicitly refuse until actual hook attachment/finalization, not hook execution acceptance. No installed all-host or full parent credit.",
       "sources_outputs_handles_released": true,
+      "counts_unchanged": true,
+      "commit": "9e4b6f9acad53f267bf53ef2f9716a55fbf805b4"
+    },
+    "runtime_choice_compiler_and_read_capture": {
+      "status": "Released defining producer and exact read consumer captured; broad parent counts unchanged",
+      "verification": "Owner same runtime choice case1/1 .75s, unchanged byte ABI1/1; existing localized branch case1/1 .65s; unsupported hook refusal1/1 .51s; supported async read case1/1 .75s and owning CF emit0/4. Root changed Services omitted-exclusions case1/1, owning emit0. Exact released diff reviewed; unchanged checks reused.",
+      "contracts": "Runtime marker must be options=runtime; omitted authored map omits options property, explicit empty authored map refuses. Shared bounded aliases/candidate arrays retain receiving intersections. Fresh read authority validates all projected predicate dependencies without source replay, including false candidates and nested empty domains.",
+      "limits": "No full Task46/S9, positive canonical hooks, structured-order/mutation-filter/D1 read qualification or held original outbox Task22 completion. No broader installed/backend adoption/retirement.",
+      "source_outputs_handles_released": true,
       "counts_unchanged": true
     }
   },

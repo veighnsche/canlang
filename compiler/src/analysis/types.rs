@@ -51,9 +51,9 @@ use super::catalog::{
     T13B_DELIVERY_OBSERVABLES, nominal_schema, std_capability,
 };
 use super::resolve::{
-    ActorKind, Binding, CheckedJudgment, CheckedJudgmentKind, ContextVar, CrudOp, FixtureTarget,
-    ModelOwner, ModuleId, ResolveTables, ScopedName, SymbolId, SymbolKind, TypeRef,
-    UnresolvedMember, has_error, is_expression,
+    ActorKind, Binding, CheckedJudgment, CheckedJudgmentKind, CheckedValueConstraints, ContextVar,
+    CrudOp, FixtureTarget, ModelOwner, ModuleId, ResolveTables, ScopedName, SymbolId, SymbolKind,
+    TypeRef, UnresolvedMember, has_error, is_expression,
 };
 use super::{
     NodeKey, attribute_parts, attribute_value, file_text, is_name, is_punct, kids, name_text,
@@ -396,6 +396,12 @@ pub struct SelectedCall {
     pub slots: Vec<Option<usize>>,
 }
 
+#[derive(Debug, Clone)]
+pub struct CheckedJudgmentSpecificationCall {
+    pub judgment: SymbolId,
+    pub options: NodeKey,
+}
+
 /// Only declared T13b delivery observations alias progress to their latest result.
 pub(crate) fn delivery_progress_alias(ty: &ResolvedType) -> bool {
     let ty = ty.nullable_inner().unwrap_or(ty);
@@ -443,10 +449,14 @@ pub enum CheckedChoiceValue {
 /// Types and selected bindings per symbol and typed CST node.
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
-    /// Checked static declarations: one descriptor owns every derived shape.
+    /// Checked declarations: one descriptor owns every derived shape.
     pub judgments: HashMap<SymbolId, CheckedJudgment>,
     /// Exact checked generated source constant references.
     pub judgment_specifications: HashMap<NodeKey, SymbolId>,
+    /// Actual checked runtime specification calls and their options argument.
+    pub judgment_specification_calls: HashMap<NodeKey, CheckedJudgmentSpecificationCall>,
+    /// Owning generated and receiving fields/parameters retain value constraints.
+    pub value_constraints: HashMap<SymbolId, CheckedValueConstraints>,
     /// Derived symbols have ordinary identities but no authored emission body.
     pub judgment_generated_symbols: HashSet<SymbolId>,
     /// Checked required-array field presence, independent of value cardinality.
@@ -6710,7 +6720,6 @@ impl<'a> Typer<'a> {
             return;
         };
         let Some(mut judgment) = self.tables.judgment_declarations.get(&owner).cloned() else {
-            self.diags.push(Diagnostic::error("E6006", "runtime-options judgment interfaces are not implemented; only checked static judgments are supported".to_string(), node.span));
             return;
         };
         let before = self.diags.len();
@@ -6760,14 +6769,23 @@ impl<'a> Typer<'a> {
             };
             let allowed = match question.kind {
                 CheckedJudgmentKind::Noul => true,
+                CheckedJudgmentKind::Choice if question.runtime => count <= 26,
                 CheckedJudgmentKind::Choice => (2..=26).contains(&count),
                 CheckedJudgmentKind::Score => (2..=10).contains(&count),
             };
             if !allowed {
-                self.diags.push(Diagnostic::error("E3001", "static judgment choices require 2–26 options; scores require 2–10 ordered levels".to_string(), item.span));
+                self.diags.push(Diagnostic::error("E3001", "static judgment choices require 2–26 options; runtime choices permit at most 26 authored options; scores require 2–10 ordered levels".to_string(), item.span));
             }
             let mut ids = HashSet::new();
             for option in question.options.iter().chain(question.levels.iter()) {
+                if question.runtime && !(1..=80).contains(&option.id.chars().count()) {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        "runtime judgment option IDs require 1–80 Unicode scalars matching NAME"
+                            .to_string(),
+                        item.span,
+                    ));
+                }
                 if !ids.insert(&option.id) {
                     self.diags.push(Diagnostic::error(
                         "E2002",
@@ -8903,9 +8921,10 @@ fn scan_argument(chars: &[char], i: &mut usize, slots: &mut Vec<String>, depth: 
         return;
     }
     // Simple (`number`/`date`/`time`) or out-of-profile type: the name
-    // already binds; the interior scans flat so any nested unknown
-    // name keeps failing exactly as before.
+    // already binds. Consume its own closing brace before the enclosing
+    // branch resumes; nested malformed slots still receive the same scan.
     *i = k;
+    scan_message(chars, i, slots, true, depth + 1);
 }
 
 /// Scan the branch list of a well-formed `{name,
@@ -9564,6 +9583,7 @@ impl<'a> Typer<'a> {
     /// targets, non-type annotations) are `E3008`/`E3009`/`E3010`.
     fn phase1(&mut self, trees: &[(SourceId, SyntaxNode)]) {
         self.decl.extend(self.tables.judgment_types.clone());
+        self.types.value_constraints = self.tables.judgment_value_constraints.clone();
         for field in self.tables.judgment_types.keys() {
             self.shapes.insert(
                 *field,
@@ -9578,6 +9598,21 @@ impl<'a> Typer<'a> {
         self.types.judgment_required_arrays = self.tables.judgment_required_arrays.clone();
         for (owner, judgment) in &self.tables.judgment_declarations {
             self.shapes.insert(judgment.state, (false, false, true));
+            for parameter in [judgment.evaluate_options, judgment.specification_options]
+                .into_iter()
+                .flatten()
+            {
+                self.shapes.insert(parameter, (false, false, false));
+            }
+            if let Some(specification) = judgment.specification {
+                self.results.insert(
+                    specification,
+                    Some(ResolvedType::Record {
+                        symbol: self.tables.judgment_standard_records["JudgmentSpec"],
+                        stored: true,
+                    }),
+                );
+            }
             self.results.insert(
                 judgment.evaluate,
                 Some(ResolvedType::Record {
@@ -9597,13 +9632,24 @@ impl<'a> Typer<'a> {
         // entry, so `entries + 1` extra rounds always suffice.
         let bound = self.decl.len() + self.results.len() + self.routes.len() + 1;
         for _ in 0..bound {
-            let before = (self.decl.clone(), self.results.clone(), self.routes.clone());
+            let before = (
+                self.decl.clone(),
+                self.results.clone(),
+                self.routes.clone(),
+                self.types.value_constraints.clone(),
+            );
             let mut scratch = Vec::new();
             std::mem::swap(&mut *self.diags, &mut scratch);
             self.phase1_round(trees);
             let round = std::mem::replace(&mut *self.diags, scratch);
             merge_round_diags(self.diags, round);
-            if (self.decl.clone(), self.results.clone(), self.routes.clone()) == before {
+            if (
+                self.decl.clone(),
+                self.results.clone(),
+                self.routes.clone(),
+                self.types.value_constraints.clone(),
+            ) == before
+            {
                 break;
             }
         }
@@ -9838,6 +9884,7 @@ impl<'a> Typer<'a> {
             return;
         };
         let resolved = self.resolve_type_node(file, text, module, type_node, Some(id));
+        self.intersect_reused_constraints(id, field, text, &shape.modifiers);
         // `!` is required-array-input metadata; the value type is the array.
         // Error/Opaque/Unknown already carry their own diagnostic: stay silent.
         if shape.bang
@@ -9911,6 +9958,7 @@ impl<'a> Typer<'a> {
                 continue;
             };
             let resolved = self.resolve_type_node(file, text, module, type_node, Some(*id));
+            self.intersect_reused_constraints(*id, param_node, text, &shape.modifiers);
             self.decl.insert(*id, resolved);
         }
         // Positional mismatch (duplicate parameters already `E2002`):
@@ -9966,6 +10014,60 @@ impl<'a> Typer<'a> {
         self.decl.get(&id).cloned().unwrap_or(ResolvedType::Error)
     }
 
+    fn inherit_value_constraints(&mut self, owner: Option<SymbolId>, source: SymbolId) {
+        if let Some(owner) = owner {
+            if let Some(constraints) = self.types.value_constraints.get(&source).cloned() {
+                self.types.value_constraints.insert(owner, constraints);
+            } else {
+                self.types.value_constraints.remove(&owner);
+            }
+        }
+    }
+
+    /// A receiving declaration narrows inherited bounds without weakening them.
+    fn intersect_reused_constraints(
+        &mut self,
+        id: SymbolId,
+        node: &SyntaxNode,
+        text: &str,
+        modifiers: &[FieldModifier<'_>],
+    ) {
+        let Some(mut constraints) = self.types.value_constraints.get(&id).cloned() else {
+            return;
+        };
+        for modifier in modifiers {
+            let (word, minimum) = match modifier {
+                FieldModifier::Min(word) => (*word, true),
+                FieldModifier::Max(word) => (*word, false),
+                _ => continue,
+            };
+            let Some(bound) = modifier_value(node, word) else {
+                continue;
+            };
+            let Some(value) = int_literal_value(bound, text).filter(|value| *value >= 0) else {
+                self.diags.push(Diagnostic::error(
+                    "E3012",
+                    "a reused judgment value bound requires a nonnegative int literal".to_string(),
+                    tight_span(text, bound),
+                ));
+                continue;
+            };
+            if minimum {
+                constraints.min = Some(constraints.min.map_or(value, |old| old.max(value)));
+            } else {
+                constraints.max = Some(constraints.max.map_or(value, |old| old.min(value)));
+            }
+        }
+        if matches!((constraints.min, constraints.max), (Some(min), Some(max)) if min > max) {
+            self.diags.push(Diagnostic::error(
+                "E3012",
+                "receiving bounds conflict with inherited judgment value bounds".to_string(),
+                tight_span(text, node),
+            ));
+        }
+        self.types.value_constraints.insert(id, constraints);
+    }
+
     /// Resolve one type node. `owner` is the declared field/parameter
     /// symbol for enum ownership (and reuse-cycle reporting).
     fn resolve_type_node(
@@ -10016,6 +10118,17 @@ impl<'a> Typer<'a> {
                     .find(|n| is_type_node(n.kind))
                     .map(|t| self.resolve_type_node(file, text, module, t, owner))
                     .unwrap_or(ResolvedType::Error);
+                // Scalar alias bounds belong to each element. The alias
+                // retains them; outer field bounds describe array length.
+                if matches!(inner, ResolvedType::Scalar(_))
+                    && let Some(owner) = owner
+                    && let Some(constraints) = self.types.value_constraints.get_mut(&owner)
+                    && constraints.alias.is_some()
+                {
+                    constraints.min = None;
+                    constraints.max = None;
+                    constraints.format = None;
+                }
                 match inner {
                     ResolvedType::Error | ResolvedType::Opaque(_) => inner,
                     ResolvedType::Array { .. } => {
@@ -10089,7 +10202,10 @@ impl<'a> Typer<'a> {
                 },
             },
             TypeRef::External => ResolvedType::Opaque("external type"),
-            TypeRef::Symbol(id) => self.symbol_type(file, text, module, id, path.span),
+            TypeRef::Symbol(id) => {
+                self.inherit_value_constraints(owner, id);
+                self.symbol_type(file, text, module, id, path.span)
+            }
             TypeRef::FieldChain {
                 head,
                 fields,
@@ -10226,6 +10342,7 @@ impl<'a> Typer<'a> {
         if let Some(owner) = owner {
             self.field_reuse_edges.push((owner, field, span));
         }
+        self.inherit_value_constraints(owner, field);
         self.decl_type(field)
     }
 
@@ -11354,6 +11471,9 @@ impl<'a> Typer<'a> {
                         return ResolvedType::Operation(judgment.evaluate);
                     }
                     if !safe && name == "specification" {
+                        if let Some(function) = judgment.specification {
+                            return ResolvedType::Operation(function);
+                        }
                         if let Some(symbol) = self
                             .tables
                             .judgment_standard_records
@@ -14618,6 +14738,15 @@ impl<'a> Typer<'a> {
                     // still invoked with `call` statements.
                     let ty = self.expr(cx, current, None);
                     return match ty {
+                        ResolvedType::Operation(id)
+                            if self.tables.judgment_generated_symbols.contains(&id)
+                                && matches!(
+                                    self.tables.symbols[id.0 as usize].kind,
+                                    SymbolKind::DeriveFn { .. }
+                                ) =>
+                        {
+                            CalleeKind::DeriveFn(id)
+                        }
                         ResolvedType::Operation(id) => CalleeKind::NotCallable(format!(
                             "'{}' is an operation; invoke it with a `call` statement, not an expression call",
                             record_name(self.tables, cx.module, id)
@@ -15019,6 +15148,7 @@ impl<'a> Typer<'a> {
         what: &str,
     ) -> ResolvedType {
         self.record_call_edge(tight_span(cx.text, node), id);
+        let before = self.diags.len();
         let params = match &self.tables.symbols[id.0 as usize].kind {
             SymbolKind::DeriveFn { params, .. } => params.clone(),
             _ => Vec::new(),
@@ -15034,17 +15164,38 @@ impl<'a> Typer<'a> {
             args,
             &bound,
         );
+        let mut valid_arguments = true;
         for (param, arg) in &bound {
             let expected = self.decl_type(*param);
             let actual = self.expr(cx, arg.value, Some(expected.clone()));
             if !actual.is_error() {
-                self.assign_ok(
+                valid_arguments &= self.assign_ok(
                     cx,
                     tight_span(cx.text, arg.value),
                     &actual,
                     &expected,
                     &format!("argument '{}'", self.tables.symbols[param.0 as usize].name),
                 );
+            } else {
+                valid_arguments = false;
+            }
+        }
+        if valid_arguments && self.diags.len() == before {
+            if let Some((owner, _)) = self
+                .tables
+                .judgment_declarations
+                .iter()
+                .find(|(_, judgment)| judgment.specification == Some(id))
+            {
+                if let Some((_, argument)) = bound.first() {
+                    self.types.judgment_specification_calls.insert(
+                        NodeKey::of(node),
+                        CheckedJudgmentSpecificationCall {
+                            judgment: *owner,
+                            options: NodeKey::of(argument.value),
+                        },
+                    );
+                }
             }
         }
         match self.results.get(&id).cloned() {
