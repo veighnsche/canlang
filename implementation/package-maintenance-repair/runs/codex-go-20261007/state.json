@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T11:39:23.116020+00:00",
+  "updated_utc": "2026-10-08T11:42:32.972859+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1919,7 +1919,7 @@
       }
     },
     "read_scenario_state_component": {
-      "status": "Root source-reviewed released State read-scenario component; commit pending; actual CF consumer ongoing",
+      "status": "Root reviewed and committede1204fdb State component; real generated CF read consumer accepted at finite native scope",
       "sources": [
         "packages/state/src/invocation/admission.ts",
         "packages/state/src/invocation/invoke.ts",
@@ -1933,7 +1933,25 @@
       "model": "gpt-6.1-sol high for actual authority/read admission seam; root source/Git review",
       "limits": "Source State component only; actual generated CF read handler/default/native consumer ongoing. No authority-report bypass, computed-ref default, prepared/provenance, installed/all-host or whole H1/48-packet acceptance.",
       "sources_outputs_handles_released": true,
-      "counts_unchanged": true
+      "counts_unchanged": true,
+      "commit": "e1204fdb",
+      "runtime_consumer": {
+        "status": "Root reviewed real source/native read consumer; commit pending",
+        "sources": [
+          "packages/cloudflare/src/runtime/invoke.ts",
+          "packages/cloudflare/src/runtime/context.ts",
+          "packages/cloudflare/src/worker/assembly.ts",
+          "packages/cloudflare/src/runtime/typed-scenario-values.test.ts",
+          "packages/cloudflare/test/fixtures/typed-scenario-values.can",
+          "packages/cloudflare/test/fixtures/typed-scenario-values.json"
+        ],
+        "contract": "Loader pairs original checked read descriptor/callable/own source read/result/by/default claims; actual State read invoker admits before generated handler. Shared Values parameter/result codec preserves native projected references and omission defaults. Context forwards actual admitted identity/source/time/selected-app formatting with no operation ID; effects/direct storage bypass refuse. Source model queries reuse ordinary viewer restrictions and recheck same actual projections before final State authority/revision check.",
+        "verification": "Actual existing Compiler produced fixturecompile0; normal CFemit0, exact owning typed-scenario file3/3 in3.56s after sandbox Miniflare listener EPERM retried with processpermission. Genuine omitted/supplied/empty/large integer arrays and native projected ref, wrongnative/null/extra/outsider refusal, unchanged revision/history and ordinary model read pass. Narrow adversarial wrapper around real emitted handler proves actual context/noID/effect refusal; existing mutation/replay compatibility retained. Root reviewed source and reused checks.",
+        "node_source_syntax": "Coordinator requested concrete strip-only DueScheduleChanged parameter-property fix: explicit field and constructor assignment; preserves outcome identity.",
+        "limits": "Node repository/nativeD1 with explicit memory identity. Authority scope and unsupported query shapes remain refused; prepared/ref/computed-ref/default provenance, all-host/installed and whole H1 remain separate. No counts/retirement/default/deploy/native preparation change.",
+        "sources_outputs_handles_released": true,
+        "counts_unchanged": true
+      }
     }
   },
   "live_finite_packets": [
