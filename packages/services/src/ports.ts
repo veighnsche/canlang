@@ -26,6 +26,7 @@ import type {
   ModelChatInput,
   ModelChatReply,
   ModelRunSnapshot,
+  ProviderBinding,
 } from '@canlang/contracts';
 import { randomUUID } from 'node:crypto';
 import http from 'node:http';
@@ -58,6 +59,20 @@ export interface MailSender {
   ): Promise<CapabilityCompletion<EmailAccepted>>;
   reconcile(deliveryId: string): Promise<CapabilityCompletion<EmailAccepted>>;
 }
+
+/** An actual caller-configured installation, never source inputs, account fallback or discovery. */
+export interface InstalledMailSender {
+  readonly binding: ProviderBinding;
+  readonly mail: MailSender;
+}
+
+/**
+ * Returns null when missing; supplies the exact deployment for the runtime
+ * to verify before guard evaluation or transport.
+ */
+export type ResolveInstalledMailSender = (
+  exactDeployment: string,
+) => InstalledMailSender | null;
 
 /**
  * Live handle for one streaming model run. Snapshots are ordered

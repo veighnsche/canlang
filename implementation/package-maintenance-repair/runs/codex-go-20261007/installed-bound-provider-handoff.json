@@ -1,0 +1,36 @@
+{
+  "scope": "SEQ018 selected installed std.EmailV1.send defining Services port and consumer handoff; no installed transport acceptance",
+  "source_sha256": {
+    "packages/services/src/ports.ts": "1e1a5aecf982f15c1914a953fa01032b4758ce731bb44b2ee85a6aa026305027"
+  },
+  "api": {
+    "module": "@canlang/services",
+    "InstalledMailSender": "{readonly binding:ProviderBinding;readonly mail:MailSender}",
+    "ResolveInstalledMailSender": "(exactDeployment:string)=>InstalledMailSender|null",
+    "MailSender": "unchanged async send(input,{deliveryId}) and reconcile(originalDeliveryId)"
+  },
+  "owners": "Services owns real adapter/configuration/completion vocabulary; runtime assembly owns owning compiler association and existing dispatch/recovery/fence join. Type-only definition adds no runtime resolver/registry, Work dependency or duplicate transport.",
+  "availability_contract": [
+    "Read exact BoundCapabilityRequest logical binding/from/nested arguments from persisted intent; match exact owning appDefinition binding, canonical target and declared capability version. No alias or route/version/account fallback.",
+    "Resolve genuinely configured exact deployment. Verify installed deployment/capability/version and actual account before dynamic guard/claim/provider transport. A missing/mismatched installation is explicitly unavailable, not a callback exception or uncertain provider attempt.",
+    "Preserve existing committed/inherited-scope/supersession/settled-state precedence and current authority rules. Existing kernel availability can consume a per-intent exact resolver closure; current CF driver lacks actual injection and evaluates readers before the kernel, so the consumer must qualify the needed short-circuit rather than infer it.",
+    "Only checked nested arguments reach MailSender.send; original intent.intentId is the stable delivery id for initial call, retries and reconciliation. Never claim ID/new UUID/attempt count."
+  ],
+  "completion_contract": [
+    "Validate completion delivery_id matches original intent id. Coherent succeeded EmailAccepted maps to delivered result; definite documented provider rejection maps to closed terminal error; unknown/malformed/unexpected pending or skipped/throw remain uncertain with no ack or blind retry.",
+    "MailSender.reconcile is async. Join it deliberately to the current synchronous CF evidence reader or change that reader with corresponding actual callers; never pass a Promise as evidence.",
+    "HTTP404 unknown_delivery and invalid_response do not prove provider never saw the request; keep them unknown, not not-found retry permission. Only an actual supported provider guarantee can admit not-found.",
+    "CF delivered-state marking currently does not persist provider result. Completion association/result observation remains a separate exact selected consumer gate and must not be credited from a returned drive outcome."
+  ],
+  "validation": {
+    "services_type_emit": 0,
+    "test_policy": "Type-only definition: no mirror tests, transport suite rerun or second verification layer"
+  },
+  "allowed_consumer": "Real adapter fetch against owned bounded localhost provider server only; no external email or paid calls; exact compiler envelope and actual D1 retry/reopen paths where claimed.",
+  "gaps": [
+    "No runtime installed resolver implementation/availability short-circuit yet",
+    "Async actual recovery/completion association and original restart id qualification pending",
+    "No general provider/native Cloudflare preparation/installed release/whole-parent acceptance"
+  ],
+  "model": "Sol low frozen type-only definition; Sol medium read-only existing API inventory; root direct source review/emit/Git"
+}
