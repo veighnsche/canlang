@@ -67,6 +67,7 @@ import type {
   ReadEnvelope,
   ReadResult,
   ResolvedIdentity,
+  RowQueryRunner,
   UploadIntentGrant,
   UploadIntentRequest,
 } from '@canlang/contracts';
@@ -125,9 +126,18 @@ export interface IdentityDeps {
  * Assembled HTTP dependencies. The L7 worker assembly constructs these
  * from environment bindings at B1; S4 tests construct them directly.
  */
-export interface HttpDeps {
+/** Page serving uses the owning identity store and authorized collection runner. */
+export interface PageHttpDeps {
   readonly app: AppInfo;
   readonly pages: PageRegistry;
+  readonly logger: Logger;
+  readonly clock: InterfacesClock;
+  readonly identity: Pick<IdentityDeps, 'store'>;
+  /** Absent joins refuse queries; non-query pages need no collection backend. */
+  readonly query?: RowQueryRunner;
+}
+
+export interface HttpDeps extends PageHttpDeps {
   readonly invoker: OperationInvoker;
   readonly catalog: SchemaCatalog;
   readonly limiter: RateLimiter;
