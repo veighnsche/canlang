@@ -25,8 +25,12 @@ language, recursive/diamond coalescence, omission before explicit folding in
 either membership order, sibling/parent conflicts and spans, import isolation,
 and existing locale validity/duplicate diagnostics.
 
-This closes compiler metadata production only. Trusted `HandlerContext`
-construction, formatter bridging, runtime invocation/presentation consumption,
-and source-language/runtime provenance remain broader gaps. Existing `docs.rs`
-still consumes raw `locale_default` with its current source-language fallback;
+The subsequent ad195c83 correction coalesces case-equivalent explicit tags,
+retaining the first authored spelling; six locale checks pass. Full Intl alias
+equivalence remains outside the current compiler tag normalizer. Trusted
+`HandlerContext` construction is released at package commit b8399f5e, and the
+[localized formatter join](../localized-format/outcome.md) consumes it with
+the owning source language and explicit business-sink refusals. Wider
+presentation/outbound provenance remains open. Existing `docs.rs` still
+consumes raw `locale_default` with its current source-language fallback;
 inherited composition locale behavior is not migrated for that consumer here.

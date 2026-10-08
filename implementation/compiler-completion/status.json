@@ -1,9 +1,9 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-08T02:18:40.686282+00:00",
+  "updated_utc": "2026-10-08T02:44:25.022433+00:00",
   "total": 67,
-  "finished_at_recorded_scope": 47,
-  "remaining_including_partial": 20,
+  "finished_at_recorded_scope": 48,
+  "remaining_including_partial": 19,
   "finished_references": [
     "COST-01",
     "DEP-01",
@@ -35,6 +35,7 @@
     "S9-Q04",
     "SEM-R01",
     "SEM-R02",
+    "SEM-R03",
     "SEM-R04",
     "SEM-R06",
     "SEM-R07",
@@ -67,7 +68,6 @@
     "S9-Q06",
     "S9-Q07",
     "S9-Q08",
-    "SEM-R03",
     "SEM-R05",
     "SEM-R08",
     "SYN-R03",
@@ -81,7 +81,6 @@
     "S9-Q01",
     "S9-Q03",
     "S9-Q06",
-    "SEM-R03",
     "SYN-R03",
     "SYN-R04",
     "SYN-R07"
@@ -102,17 +101,17 @@
     }
   },
   "latest_component": {
-    "commit": "ff28ba52",
-    "previous_component": "d400ef09",
-    "outcome": "DEP-02 actual map attribution qualifies retained support; field-reuse and explicit-empty producer corrections integrated as bounded components."
+    "commit": "ad195c83",
+    "previous_component": "ff28ba52",
+    "outcome": "Original finite SEM-R03 checked binding/two-argument formatter owner join completed; S9-Q01 presentation and outbound consumer duties remain open."
   },
   "latest_accepted_outcomes": [
-    "renderer-failure-qualification/README.md",
-    "policy-layout-support/disposition.md",
-    "json-frame-oracles/README.md",
-    "corpus-admission/independent-review/REVIEW.md"
+    "localized-format/outcome.md",
+    "map-attribution/outcome.md",
+    "editor-project-scope/outcome.md",
+    "native-scalar-presentation/README.md"
   ],
-  "current_source_work": "No active compiler production writer. SEM-R08 actual nominal/overload owner seam inspection proceeds; runtime formatting and BDD consumer work remain open. Shared empty-state default remains proposed; explicit caption path is verified.",
+  "current_source_work": "No active compiler production writer. Localized formatter and source-level business refusals integrated; actual overload-owner inspection completed without a new proven defect. BDD consumer and wider presentation/outbound/host workflows remain open.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"

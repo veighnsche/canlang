@@ -25,26 +25,27 @@
     "checked_operation_result": "61c08f20;13 focused tests pass, unsupported/missing results remain unknown.",
     "UI_native_scalar_presentation": "56b06e68;31 focused messages plus generated native/wire and State query outcomes; original SEM-R06 defects complete.",
     "source_map_names": "3d304dc7;6 focused checks pass; broader widths remain open.",
-    "selected_app_locale": "94c2ae16;6 locale/117 codegen tests pass; runtime formatting join remains open.",
+    "selected_app_locale": "94c2ae16/ad195c83; explicit fold and case equivalence qualified; runtime selected-app scope released b8399f5e, wider presentation/deployment identity remains open.",
     "editor_project_scope": "5a0006ec;declared document/catalog lifetime and actual client/CLI comparison accepted bounded.",
     "field_type_reuse_cycles": "13ec4873;existing E3008 cycle contract corrected, focused reuse/cycle controls pass.",
     "list_explicit_empty": "d400ef09;absent required caption refuses, actual explicit-caption empty query/UI path and owning regressions pass.",
-    "map_actual_attribution": "ff28ba52;independent actual Node mapped failure, original DEP-02 retained-support scope complete."
+    "map_actual_attribution": "ff28ba52;independent actual Node mapped failure, original DEP-02 retained-support scope complete.",
+    "localized_format": "ad195c83; checked source-order/schema/source language bridge to real two-argument formatter, canonical context and explicit business-sink refusals qualified. S9-Q01 remains open."
   },
   "pending_releases": {
     "UI_static": "Releasedc718517a; furtherlegalcaption/genericprofiles needexactownerqualification",
     "BDD": "Publication released at96fd4b4b; future consumer policy remains pending, no active source writer."
   },
   "remaining_app_prerequisites": [
-    "Localizedformat checkedselectedappmetadata/context/descriptor/provenance boundary designselected, implementationpending",
+    "Public presentation source-language carrier, exact human outbound sink admission, delivery freezing and wider serving profiles remain open after localized formatter join ad195c83.",
     "Canonicalreadscenarios refuse outside <Model>.read core",
     "BoundenumTabs exhaustiveness/casetype facts and canonicalversioned immediate preference HTTP save owner unresolved",
     "Structuredpreference order requires whole list/query producer forwarding",
     "Subject-scoped synchronousguard remains unsupported exactoriginalbehavior",
     "GenericUI profile admission/capability/image app actualconsumerworkflow notcovered by staticleaf"
   ],
-  "next_enum_dependent_input_source_slot": "No active IR/analysis writer. js.rs lower_message reserved to temporal owner; all further writers require exact coordinated lease.",
-  "coordination": "Package/Git coordinator foreign ownership preserved. Root makes only scoped reviewed compiler packet commits; no merge/checkpoint advance. Future compiler writers require an exact coordinated lease.",
+  "next_enum_dependent_input_source_slot": "No active compiler writer; localized formatting paths are released. Coordinate actual shared source conflicts with the current writer.",
+  "coordination": "Coordinator owns shared Git/package boundaries. Disjoint compiler work may proceed; commits stage exact owned paths from an empty index with fresh HEAD guards. No merge/checkpoint advance.",
   "pending_consumer_policy": {
     "compiler_paths": "analysis/types.rs,codegen/ir.rs,codegen/bdd.rs,codegen/js.rs",
     "status": "Future BDD consumer join held for specific consultation approval; no active writer or blanket file lease."
