@@ -323,3 +323,19 @@ nullable anchors and unsupported trigger kinds refuse. The genuine
 to the existing runtime child-unit owner. Frozen membership, transactional
 rollback/replay and the complete original48 runtime matrix remain separate;
 this producer does not close the broader compiler references.
+
+The finite-enum computed-default join passes the new direct case **1/1**
+after one installed State emission and its owning registry correction.
+Singular nonnullable enum parameters preserve finite case metadata and
+`computedDefault:true`, without inventing a scalar value type or literal
+wire default. Installed State admission retains omission; the emitted
+callable uses the installed Values/helper facade, evaluates defaults once
+in declaration order, suppresses supplied overrides and refuses failed
+permissions before default/body execution. Native input getters remain
+once. Null and foreign-domain source defaults refuse with E3011; missing
+required inputs and unexpected keys refuse State admission. The existing
+State enum profile remains presence/shape-only: hostile enum membership/null
+wire validation, nullable/array/ref/identity defaults and resolved-default
+receipt/replay remain outside this qualification. Existing accepted default
+outcomes and the owning loader case were reused. Canonical completion
+remains **57/67**, with **10** remaining.
