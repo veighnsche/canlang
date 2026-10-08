@@ -27,6 +27,16 @@ handshake. `can fmt` replaces each changed file atomically using a
 destination-local owned temporary file and preserves the promised source mode.
 Atomic entry replacement does not promise crash durability or owner/ACL retention.
 
+`can check FILE.can...` analyzes the supplied sources together, including their
+package imports and exports. `can lsp` analyzes each open document independently;
+definitions, references and rename are confined to that document. Opening another
+file does not add it to the document's checked program. The server loads one
+catalog at startup from `CAN_CATALOG`, `./can-catalog.json`, or
+`./packages/values/dist/catalog.json`, in that order, relative to its process
+working directory. Every open document uses it. Workspace-folder, configuration
+and watched-file notifications do not reload the catalog; start a new server
+process to use changed catalog contents. `can lsp` accepts no `--catalog` flag.
+
 Implemented modules:
 
 - `src/source.rs`: `SourceDb`/`SourceId`, byte `Span`, `LineIndex`

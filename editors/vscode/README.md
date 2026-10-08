@@ -13,6 +13,22 @@ Edit `.can` files with syntax highlighting, language tools, and Can file icons. 
 
 Syntax highlighting, icons, and indentation work without the compiler. Diagnostics and the other language tools require the `can` compiler, installed separately.
 
+Language tools analyze each open document independently. Definition, references,
+and rename work within that document; opening imported files does not add them to
+its analysis. To check imports and composed apps across files, pass their sources
+together to `can check FILE.can...`.
+
+The extension starts one server for its open Can documents. Its working directory
+is the starting Can document's local workspace folder, or the first local folder
+when that document has no local owner. The server loads one producer catalog at
+startup: `CAN_CATALOG`, then `./can-catalog.json`, then
+`./packages/values/dist/catalog.json`, relative to that working directory. All
+documents use that catalog, including documents in other workspace folders.
+After changing the catalog, run **Can: Restart Language Server**. Folder changes
+and catalog file changes do not reload it automatically. Restart uses the active
+Can document's local folder when available. With no local workspace folder, the
+server inherits the editor process's working directory.
+
 ## Install
 
 1. Get the extension's `.vsix` file. The [release workflow](https://github.com/veighnsche/canlang/actions/workflows/release.yml) produces an `editor-bundle` artifact containing `canlang-vscode.vsix`; download and extract it from a successful run. If you already have a locally built VSIX, use that file.
