@@ -318,7 +318,8 @@ function checkedNominal(type: unknown, schema?: NormalizedSchema): boolean {
   try {
     const parsed = parseTypeId(type);
     return printTypeId(parsed) === type && parsed.base.kind === 'nominal' &&
-      (Object.hasOwn(schema.contracts, parsed.base.path) || Object.hasOwn(schema.enums, parsed.base.path));
+      (Object.hasOwn(schema.contracts, parsed.base.path) || Object.hasOwn(schema.enums, parsed.base.path) ||
+        schema.aliases !== undefined && Object.hasOwn(schema.aliases, parsed.base.path));
   } catch { return false; }
 }
 
