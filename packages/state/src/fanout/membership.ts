@@ -46,6 +46,7 @@ import {
   FANOUT_CHECKPOINT_MODEL,
   FANOUT_CHILD_MODEL,
   FANOUT_INTENT_MODEL,
+  fanoutChildRowId,
   fanoutIntentRowId,
   newFanoutCheckpointRow,
   newFanoutChildRow,
@@ -124,6 +125,138 @@ export interface FrozenMembership {
 export type FreezeMembershipOutcome =
   | { readonly ok: true; readonly frozen: FrozenMembership }
   | { readonly ok: false; readonly diagnosis: FanoutCohortDiagnosis };
+
+/** One captured retained admission slice in the already resolved owning store. */
+export interface AdmitRetainedFanoutChunkInput {
+  readonly store: StoragePort;
+  readonly intentRow: StoredRow;
+  readonly checkpointRow: StoredRow;
+  readonly chunkSize: number;
+  readonly expectedRevision: Revision;
+  readonly meta: FanoutRowMeta;
+}
+
+export type AdmitRetainedFanoutChunkOutcome =
+  | { readonly ok: true; readonly cursor: string | null; readonly admitted: number }
+  | { readonly ok: false; readonly diagnosis: FanoutCohortDiagnosis };
+
+/**
+ * v2 measures the verified immutable member prefix, independent of chunk size.
+ * Legacy admit/N omitted its original chunk size: verify again from zero,
+ * reusing existing children. Other opaque cursors cannot establish this prefix.
+ * Existing full replay treats both versions as non-null and may still finish.
+ */
+function retainedAdmissionOffset(cursor: string, memberCount: number): number {
+  const current = /^admit\/v2\/(0|[1-9]\d*)$/.exec(cursor);
+  const legacy = /^admit\/([1-9]\d*)$/.exec(cursor);
+  const encoded = current?.[1] ?? legacy?.[1];
+  if (encoded === undefined || !Number.isSafeInteger(Number(encoded))) {
+    throw new StateError('validation', 'Fanout retained admission cursor is unknown or malformed.');
+  }
+  const offset = current === null ? 0 : Number(encoded);
+  // A legacy index cannot exceed member count even at the smallest old bound.
+  if (offset > memberCount || (current === null && Number(encoded) > memberCount)) {
+    throw new StateError('validation', 'Fanout retained admission cursor exceeds frozen membership.');
+  }
+  return offset;
+}
+
+function liveAdmissionRow(row: StoredRow): void {
+  if (!Number.isSafeInteger(row.version) || row.version < 1 || row.archivedAt !== null ||
+    (row.parent ?? null) !== null) {
+    throw new StateError('validation', 'Fanout retained admission requires a live unparented versioned row.');
+  }
+}
+
+/**
+ * Verify/materialize exactly one bounded retained slice; never query or drain.
+ * The caller first resolves actual installed ownership/source authority, then
+ * captures these rows and revision in that same owner invocation fence. Neither
+ * caller row text nor frozen membership grants authority. The retained intent
+ * is immutable; replacement invalidates the verified-prefix contract.
+ *
+ * Only deterministic child point loads (at most chunkSize) are performed beyond
+ * the two actual row loads. Inserts and cursor advancement share one existing
+ * revision/version-fenced transaction, preserving terminal completed coverage.
+ * A conflict returns for a later slice; this call never retries another chunk.
+ */
+export async function admitRetainedFanoutChunk(
+  input: AdmitRetainedFanoutChunkInput,
+): Promise<AdmitRetainedFanoutChunkOutcome> {
+  if (!Number.isSafeInteger(input.chunkSize) || input.chunkSize < 1) {
+    throw new StateError('validation', 'Fanout retained admission chunkSize must be an integer >= 1.');
+  }
+  liveAdmissionRow(input.intentRow);
+  liveAdmissionRow(input.checkpointRow);
+  const capturedIntent = readFanoutIntentRow(input.intentRow);
+  const capturedCheckpoint = readFanoutCheckpointRow(input.checkpointRow);
+  const unavailable = (message: string): AdmitRetainedFanoutChunkOutcome => ({
+    ok: false, diagnosis: diagnoseCohort('membership-unavailable', message),
+  });
+  if (capturedCheckpoint.fanoutId !== capturedIntent.fanoutId) {
+    return unavailable('Fanout captured checkpoint disagrees with the retained intent.');
+  }
+  try {
+    const intentRow = await input.store.load(FANOUT_INTENT_MODEL as ModelName, input.intentRow.id);
+    const checkpointRow = await input.store.load(FANOUT_CHECKPOINT_MODEL as ModelName, input.checkpointRow.id);
+    if (intentRow === null || checkpointRow === null) {
+      return unavailable('Fanout retained intent or checkpoint is missing during admission.');
+    }
+    liveAdmissionRow(intentRow);
+    liveAdmissionRow(checkpointRow);
+    const intent = readFanoutIntentRow(intentRow);
+    const checkpoint = readFanoutCheckpointRow(checkpointRow);
+    if (intentRow.version !== input.intentRow.version || checkpointRow.version !== input.checkpointRow.version ||
+      intent.fanoutId !== capturedIntent.fanoutId || intent.sourceOccurrence !== capturedIntent.sourceOccurrence ||
+      intent.handler !== capturedIntent.handler || intent.cohort !== capturedIntent.cohort ||
+      intent.members.length !== capturedIntent.members.length ||
+      intent.members.some((member, index) => member !== capturedIntent.members[index]) ||
+      checkpoint.fanoutId !== intent.fanoutId || checkpoint.cursor !== capturedCheckpoint.cursor) {
+      return unavailable('Fanout retained admission capture is stale or disagrees with actual owner rows.');
+    }
+    if (checkpoint.cursor === null) return { ok: true, cursor: null, admitted: 0 };
+    let offset: number;
+    try {
+      offset = retainedAdmissionOffset(checkpoint.cursor, intent.members.length);
+    } catch (error) {
+      if (!(error instanceof StateError)) throw error;
+      return unavailable(error.message);
+    }
+    const chunk = intent.members.slice(offset, offset + input.chunkSize);
+    const missing: StoredRow[] = [];
+    for (const recordId of chunk) {
+      const childRow = await input.store.load(FANOUT_CHILD_MODEL as ModelName,
+        fanoutChildRowId(intent.sourceOccurrence, intent.handler, recordId) as RecordId);
+      if (childRow === null) {
+        missing.push(newFanoutChildRow({ fanoutId: intent.fanoutId,
+          parentOccurrence: intent.sourceOccurrence, handler: intent.handler, recordId }, input.meta));
+      } else {
+        liveAdmissionRow(childRow);
+        const child = readFanoutChildRow(childRow);
+        if (child.fanoutId !== intent.fanoutId || child.parentOccurrence !== intent.sourceOccurrence ||
+          child.handler !== intent.handler || child.recordId !== recordId) {
+          return unavailable('Fanout retained admission child disagrees with frozen membership.');
+        }
+      }
+    }
+    const end = offset + chunk.length;
+    const cursor = end === intent.members.length ? null : `admit/v2/${end}`;
+    await commitBatch(input.store, {
+      expectedRevision: input.expectedRevision,
+      writes: [
+        ...missing.map(row => ({ kind: 'insert' as const, model: FANOUT_CHILD_MODEL as ModelName, row })),
+        { kind: 'update', model: FANOUT_CHECKPOINT_MODEL as ModelName, id: checkpointRow.id,
+          expectedVersion: checkpointRow.version,
+          row: withFanoutRowData(checkpointRow, { ...checkpoint, cursor }, input.meta) },
+      ],
+      history: [], receipt: null, outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [],
+    });
+    return { ok: true, cursor, admitted: missing.length };
+  } catch (error) {
+    if (error instanceof StateError) throw error;
+    return unavailable(`Fanout retained admission failed: ${error instanceof Error ? error.message : String(error)}.`);
+  }
+}
 
 /** Opaque enumeration cursor while admission chunks remain. */
 function admitCursor(nextChunkIndex: number): string {

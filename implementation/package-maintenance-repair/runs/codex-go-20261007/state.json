@@ -1620,7 +1620,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T17:41:23.518765+00:00",
+  "updated_utc": "2026-10-08T17:48:01.988647+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2498,6 +2498,26 @@
       "contract": "TypeTable/IR carry exact earlier required same-owner same-model seed SymbolId; one shared emitter predicate plus runtime captured pointer/admitted model/id/version preserves closed reference default receipt wire. No lookup/read/create-view/raw-ID fallback.",
       "limits": "Narrow supplied required seed-copy profile only; broader ref expressions/read/nullable-array/D1/fullS9/root48 remain separate.",
       "commands_released": true,
+      "counts_unchanged": true,
+      "commit": "c46f93de41b6322d933a64e5a9180de4b76a36cc"
+    },
+    "retained_fanout_admission": {
+      "state": "Root directly reviewed and captured defining one-chunk retained admission; real runtime consumer remains owning Roadmap join",
+      "verification": "Private scoped State TypeScript emit0; one genuine interrupted legacy/change-bounds/restart/conflict owning case1/1. Failed initial private Node typeRoots harness corrected; no shared emit or broad/unchanged repeat.",
+      "contract": "New opaque admit/v2/verified-prefix-member-offset. Legacy canonical admit/N restarts verification0 because original chunkSize absent; immutable prefix advances atomically with bounded deterministic child point loads/inserts and expected revision/checkpoint row version. No query/fresh enumeration/full progress/recursive retry; completion coverage preserved.",
+      "consultation": "Three equivalent new material cursor questions exit0, v2prefix unanimous confidence .82/.66/.66; verified all TS/Rust existing cursor readers opaque and old full-replay interoperation. Advice only.",
+      "limits": "Storage call/write bound per chunk; loading/validating retained full member array still scales with frozen membership. Actual owner-local port/installed runtime total resources and whole TECH-W02/root48 remain open.",
+      "counts_unchanged": true,
+      "commands_released": true,
+      "private_output": "/private/tmp/canlang-repair-go-20261007/retained-admission-chunk-check/output"
+    },
+    "owner_storage_defining_choice": {
+      "state": "Source-only trusted owner-to-D1 router selected by Coordinator; implementation assigned to same defining producer",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "consultation": "Three equivalent facts-only questions exit0; real owner-routed database unanimous confidence .92/.94/.94. Advice only; no actual router existed, complete StoragePort plane inspected.",
+      "contract": "Trusted app+concrete owner route selects exact fresh D1 binding; persisted pin before use defeats aliases. Missing/mismatched route refuses with no shared-global fallback. Default legacy/global port is not scoped. No automatic repinning/provision/DO swap; unknown legacy databases remain unassigned and unchanged.",
+      "limits": "Producer/check and shared normal/trusted consumer join pending; no installed task5/global-data migration/native preparation/default adoption/parent closure claim.",
       "counts_unchanged": true
     }
   },

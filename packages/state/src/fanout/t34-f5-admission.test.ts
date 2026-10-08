@@ -35,11 +35,12 @@ import {
   FANOUT_INTENT_MODEL,
   fanoutChildRowId,
   fanoutIntentRowId,
+  withFanoutRowData,
   readFanoutCheckpointRow,
   readFanoutChildRow,
   readFanoutIntentRow,
 } from './tables.js';
-import { freezeFanoutMembership } from './membership.js';
+import { admitRetainedFanoutChunk, freezeFanoutMembership } from './membership.js';
 import { driveFanoutChild } from '../../test/fanout/test-driver.js';
 import {
   FIXED_NOW,
@@ -217,6 +218,126 @@ async function childData(
 }
 
 describe('t34-f5 admission: fresh fence per child (M5)', () => {
+  it('restarts one bounded retained admission prefix with changed chunk bounds and atomic conflicts', async () => {
+    const store = createMemoryStorage();
+    await store.commit(makeBatch((await store.readRevision()) as number, {
+      writes: ['a', 'b', 'c', 'd', 'e'].map(id => ({ kind: 'insert' as const,
+        model: asModel(MODEL), row: makeRow({ id }) })),
+    }));
+    const interrupted = await freezeFanoutMembership({
+      store: { ...store, commit: async batch => {
+        if (batch.writes.some(write => write.kind === 'insert' && write.model === FANOUT_CHILD_MODEL &&
+          readFanoutChildRow(write.row).recordId === 'c')) throw new Error('stop after durable first chunk');
+        return store.commit(batch);
+      } },
+      cutoff: { sourceOccurrence: SOURCE, handler: HANDLER },
+      cohort: { kind: 'model', owner: 'owner', model: MODEL }, owner: 'owner',
+      bounds: { pageLimit: 2, chunkSize: 2, maxAttempts: 1 }, meta: META,
+    });
+    assert.equal(interrupted.ok, false);
+    const fanoutId = fanoutIntentRowId(SOURCE, HANDLER, 'model');
+    const initial = (await store.load(asModel(FANOUT_CHECKPOINT_MODEL), asId(fanoutId)))!;
+    assert.equal(readFanoutCheckpointRow(initial).cursor, 'admit/1');
+    // An already terminal sibling's coverage survives admission maintenance.
+    const firstChild = (await store.load(asModel(FANOUT_CHILD_MODEL),
+      asId(fanoutChildRowId(SOURCE, HANDLER, 'a'))))!;
+    await store.commit(makeBatch((await store.readRevision()) as number, {
+      writes: [
+        { kind: 'update', model: asModel(FANOUT_CHILD_MODEL), id: firstChild.id,
+          expectedVersion: firstChild.version, row: withFanoutRowData(firstChild,
+            { ...readFanoutChildRow(firstChild), state: 'completed', causeKind: 'completed' }, META) },
+        { kind: 'update', model: asModel(FANOUT_CHECKPOINT_MODEL), id: initial.id,
+          expectedVersion: initial.version, row: withFanoutRowData(initial,
+            { ...readFanoutCheckpointRow(initial), completed: ['a'] }, META) },
+      ],
+    }));
+    let childLoads = 0;
+    let inserts = 0;
+    let commits = 0;
+    let conflict = false;
+    const restarted: StoragePort = {
+      ...store,
+      query: async () => { throw new Error('retained admission must not query'); },
+      load: async (model, id) => {
+        if (model === FANOUT_CHILD_MODEL) childLoads += 1;
+        return store.load(model, id);
+      },
+      commit: async batch => {
+        commits += 1;
+        inserts += batch.writes.filter(write => write.kind === 'insert').length;
+        if (conflict) {
+          conflict = false;
+          await store.commit(makeBatch((await store.readRevision()) as number, {
+            writes: [{ kind: 'insert', model: asModel(MODEL), row: makeRow({ id: 'late' }) }],
+          }));
+        }
+        return store.commit(batch);
+      },
+    };
+    const capture = async (chunkSize: number) => ({ store: restarted, chunkSize, meta: META,
+      expectedRevision: await store.readRevision(),
+      intentRow: (await store.load(asModel(FANOUT_INTENT_MODEL), asId(fanoutId)))!,
+      checkpointRow: (await store.load(asModel(FANOUT_CHECKPOINT_MODEL), asId(fanoutId)))!,
+    });
+    for (const cursor of ['unknown', 'admit/0', 'admit/01', 'admit/6', 'admit/v2/01', 'admit/v2/6']) {
+      const current = await capture(1);
+      await store.commit(makeBatch(current.expectedRevision as number, { writes: [{ kind: 'update',
+        model: asModel(FANOUT_CHECKPOINT_MODEL), id: current.checkpointRow.id,
+        expectedVersion: current.checkpointRow.version, row: withFanoutRowData(current.checkpointRow,
+          { ...readFanoutCheckpointRow(current.checkpointRow), cursor }, META) }] }));
+      assert.equal((await admitRetainedFanoutChunk(await capture(1))).ok, false);
+    }
+    const restore = await capture(1);
+    await store.commit(makeBatch(restore.expectedRevision as number, { writes: [{ kind: 'update',
+      model: asModel(FANOUT_CHECKPOINT_MODEL), id: restore.checkpointRow.id,
+      expectedVersion: restore.checkpointRow.version, row: withFanoutRowData(restore.checkpointRow,
+        { ...readFanoutCheckpointRow(restore.checkpointRow), cursor: 'admit/1' }, META) }] }));
+    const first = await capture(1);
+    assert.equal((await admitRetainedFanoutChunk({ ...first,
+      intentRow: { ...first.intentRow, version: (first.intentRow.version + 1) as StoredRow['version'] } })).ok, false);
+    assert.equal((await admitRetainedFanoutChunk({ ...first,
+      intentRow: { ...first.intentRow, data: { ...first.intentRow.data,
+        members: ['a', 'b', 'c', 'd', 'foreign'] } } })).ok, false);
+    assert.equal(childLoads, 0);
+    assert.equal(commits, 0);
+    assert.deepEqual(await admitRetainedFanoutChunk(first), { ok: true, cursor: 'admit/v2/1', admitted: 0 });
+    assert.equal(childLoads, 1);
+    assert.equal(commits, 1);
+    assert.equal(inserts, 0);
+    // A new call changes the bound; the persisted offset still verifies b,c.
+    const second = await capture(2);
+    childLoads = inserts = commits = 0;
+    conflict = true;
+    assert.equal((await admitRetainedFanoutChunk(second)).ok, false);
+    assert.equal(childLoads, 2);
+    assert.equal(commits, 1);
+    assert.equal(inserts, 1);
+    assert.deepEqual(await store.load(asModel(FANOUT_CHECKPOINT_MODEL), asId(fanoutId)), second.checkpointRow);
+    assert.equal(await store.load(asModel(FANOUT_CHILD_MODEL),
+      asId(fanoutChildRowId(SOURCE, HANDLER, 'c'))), null);
+    childLoads = inserts = commits = 0;
+    assert.deepEqual(await admitRetainedFanoutChunk(await capture(2)),
+      { ok: true, cursor: 'admit/v2/3', admitted: 1 });
+    assert.equal(childLoads, 2);
+    assert.equal(commits, 1);
+    assert.equal(inserts, 1);
+    assert.equal(await store.load(asModel(FANOUT_CHILD_MODEL),
+      asId(fanoutChildRowId(SOURCE, HANDLER, 'd'))), null);
+    // Recreate the caller from retained rows again; the final bounded slice nulls atomically.
+    childLoads = inserts = commits = 0;
+    assert.deepEqual(await admitRetainedFanoutChunk(await capture(3)),
+      { ok: true, cursor: null, admitted: 2 });
+    assert.equal(childLoads, 2);
+    assert.equal(commits, 1);
+    assert.equal(inserts, 2);
+    const finished = (await store.load(asModel(FANOUT_CHECKPOINT_MODEL), asId(fanoutId)))!;
+    assert.deepEqual(readFanoutCheckpointRow(finished), { fanoutId, completed: ['a'], cursor: null });
+    for (const recordId of ['a', 'b', 'c', 'd', 'e']) assert.equal((await childData(store, recordId)).recordId, recordId);
+    assert.equal((await childData(store, 'a')).state, 'completed');
+    assert.equal(await store.load(asModel(FANOUT_CHILD_MODEL),
+      asId(fanoutChildRowId(SOURCE, HANDLER, 'late'))), null);
+  });
+
   it('resumes retained membership after interrupted admission without domain enumeration', async () => {
     // Memory-only fault injection: Work reads remain available on restart.
     const store = createMemoryStorage();
