@@ -3444,6 +3444,7 @@ impl<'a> Emitter<'a> {
             IrStmt::Cancel { key, .. } => vec![key],
             IrStmt::Return { value, .. } => value.iter().collect(),
             IrStmt::Require { cond, .. } | IrStmt::If { cond, .. } => vec![cond],
+            IrStmt::Match { subject, .. } => vec![subject],
             IrStmt::For { domain, limit, .. } => {
                 std::iter::once(domain).chain(limit.iter()).collect()
             }
@@ -3771,6 +3772,31 @@ impl<'a> Emitter<'a> {
                     self.exit_scope();
                     lines.push((format!("{pad}}}"), *span));
                 }
+                lines
+            }
+            IrStmt::Match {
+                subject,
+                arms,
+                span,
+            } => {
+                // JavaScript switch evaluates its subject once, including an
+                // awaited observation, before any selected arm's effects.
+                let subject_text = self.lower_expr(subject);
+                let mut lines = vec![(format!("{pad}switch ({subject_text}) {{"), *span)];
+                for arm in arms {
+                    lines.push((
+                        format!("{pad}  case {}: {{", js_string(&arm.case)),
+                        arm.span,
+                    ));
+                    self.enter_scope();
+                    for statement in &arm.body {
+                        lines.extend(self.lower_stmt(statement, indent + 2));
+                    }
+                    self.exit_scope();
+                    lines.push((format!("{pad}    break;"), arm.span));
+                    lines.push((format!("{pad}  }}"), arm.span));
+                }
+                lines.push((format!("{pad}}}"), *span));
                 lines
             }
             IrStmt::For {
@@ -5064,6 +5090,48 @@ impl<'a> Emitter<'a> {
                 members.join(",")
             ));
             published.insert(item.canonical.clone());
+        }
+        if kinds.contains(&"Event") {
+            // Owning lifecycle events are checked IR sources, not authored
+            // event declarations. Publish their private payload schema once
+            // per identity so the existing owning input gate can admit it.
+            for item in &self.ir.items {
+                let IrItemKind::Scenario {
+                    event_source: Some(source @ IrEventSource::DeliveryProgressed(identity)),
+                    ..
+                } = &item.kind
+                else {
+                    continue;
+                };
+                if published.contains(identity) {
+                    continue;
+                }
+                let Some(invocation) = self.private_event_invocation(item, source) else {
+                    continue;
+                };
+                let Some(inputs) = invocation
+                    .inputs
+                    .iter()
+                    .map(|field| {
+                        field.value_type.map(|type_id| {
+                            format!(
+                                "{}:{{type:{}}}",
+                                object_key(&field.name),
+                                js_string(type_id)
+                            )
+                        })
+                    })
+                    .collect::<Option<Vec<_>>>()
+                else {
+                    continue;
+                };
+                records.push(format!(
+                    "{}:{{inputs:{{{}}}}}",
+                    js_string(identity),
+                    inputs.join(",")
+                ));
+                published.insert(identity.clone());
+            }
         }
         if kinds.contains(&"Contract") {
             // Reach only schemas owned by checked imported capabilities.
@@ -7027,6 +7095,11 @@ impl<'a> Emitter<'a> {
                         collect(else_branch, model, field, operation, out);
                     }
                     IrStmt::For { body, .. } => collect(body, model, field, operation, out),
+                    IrStmt::Match { arms, .. } => {
+                        for arm in arms {
+                            collect(&arm.body, model, field, operation, out);
+                        }
+                    }
                     _ => {}
                 }
             }

@@ -281,7 +281,7 @@ pub struct Effect {
     pub message: Option<NodeKey>,
     /// `require` predicate / `if` condition.
     pub cond: Option<NodeKey>,
-    /// `let` value / `return` value / `cancel` key.
+    /// `let` value / `return` value / `cancel` key / `match` subject.
     pub value: Option<NodeKey>,
     /// `schedule` key expression.
     pub key: Option<NodeKey>,
@@ -295,6 +295,16 @@ pub struct Effect {
     pub then_effects: Vec<Effect>,
     /// `if` else-branch.
     pub else_effects: Vec<Effect>,
+    /// Ordered finite-enum branches with type-checked subject-domain cases.
+    pub match_arms: Vec<EffectMatchArm>,
+}
+
+/// One finite-enum branch; absent case authority cannot be reconstructed.
+#[derive(Debug, Clone)]
+pub struct EffectMatchArm {
+    pub node: NodeKey,
+    pub case: Option<String>,
+    pub effects: Vec<Effect>,
 }
 
 /// Closed effect vocabulary (DESIGN §5).
@@ -313,6 +323,7 @@ pub enum EffectVerb {
     Cancel,
     Return,
     If,
+    Match,
     For,
 }
 
@@ -3038,7 +3049,7 @@ impl<'a> Cx<'a> {
                 ));
             }
             if let Some(effect) = self.walk_effect(module, text, stmt) {
-                dead = dead || effect_returns(&effect);
+                dead = dead || effect_returns(&effect, self.types);
                 out.push(effect);
             }
         }
@@ -3067,6 +3078,7 @@ impl<'a> Cx<'a> {
             limit: None,
             then_effects: Vec::new(),
             else_effects: Vec::new(),
+            match_arms: Vec::new(),
         };
         let parts = significant_children(node);
         match node.kind {
@@ -3296,6 +3308,28 @@ impl<'a> Cx<'a> {
                 }
                 effect.then_effects = self.walk_stmt_list(module, text, &then_parts);
                 effect.else_effects = self.walk_stmt_list(module, text, &else_parts);
+            }
+            SyntaxKind::Match => {
+                effect.verb = EffectVerb::Match;
+                effect.value = parts
+                    .iter()
+                    .find(|n| is_expression(n.kind))
+                    .copied()
+                    .map(NodeKey::of);
+                for arm in parts.iter().filter(|n| n.kind == SyntaxKind::MatchArm) {
+                    let statements: Vec<_> = significant_children(arm)
+                        .into_iter()
+                        .filter(|n| !matches!(n.kind, SyntaxKind::Name | SyntaxKind::Punct))
+                        .collect();
+                    let node = NodeKey::of(arm);
+                    let case = self.types.enum_match_cases.get(&node).cloned();
+                    let effects = self.walk_stmt_list(module, text, &statements);
+                    effect.match_arms.push(EffectMatchArm {
+                        node,
+                        case,
+                        effects,
+                    });
+                }
             }
             SyntaxKind::For => {
                 effect.verb = EffectVerb::For;
@@ -5298,16 +5332,34 @@ fn fits_type(actual: &ResolvedType, expected: &ResolvedType) -> bool {
     }
 }
 
-/// Whether an effect always returns: `return`, or `if` with two
-/// always-returning branches (`for` may run zero times).
-fn effect_returns(effect: &Effect) -> bool {
+/// Whether an effect always returns: `return`, `if` with two returning
+/// branches, or a checked exhaustive match whose arms all return.
+/// `for` may run zero times.
+fn effect_returns(effect: &Effect, types: &TypeTable) -> bool {
     match effect.verb {
         EffectVerb::Return => true,
         EffectVerb::If => {
             !effect.then_effects.is_empty()
-                && effect.then_effects.iter().any(effect_returns)
+                && effect
+                    .then_effects
+                    .iter()
+                    .any(|effect| effect_returns(effect, types))
                 && !effect.else_effects.is_empty()
-                && effect.else_effects.iter().any(effect_returns)
+                && effect
+                    .else_effects
+                    .iter()
+                    .any(|effect| effect_returns(effect, types))
+        }
+        EffectVerb::Match => {
+            types.exhaustive_matches.contains(&effect.node)
+                && !effect.match_arms.is_empty()
+                && effect.match_arms.iter().all(|arm| {
+                    arm.case.is_some()
+                        && arm
+                            .effects
+                            .iter()
+                            .any(|effect| effect_returns(effect, types))
+                })
         }
         _ => false,
     }

@@ -1400,6 +1400,7 @@ fn keywords_at(tree: &SyntaxNode, text: &str, offset: u32) -> Vec<&'static str> 
                 | SyntaxKind::Require
                 | SyntaxKind::If
                 | SyntaxKind::For
+                | SyntaxKind::Match
         )
     }) {
         return vec![
@@ -1435,9 +1436,9 @@ fn keywords_at(tree: &SyntaxNode, text: &str, offset: u32) -> Vec<&'static str> 
     // expression keywords (a superset is honest here: every listed word
     // is a real GRAMMAR word for some nearby slot).
     vec![
-        "let", "do", "require", "if", "else", "for", "create", "set", "delete", "call", "emit",
-        "send", "schedule", "cancel", "return", "in", "limit", "and", "or", "not", "is", "true",
-        "false", "null",
+        "let", "do", "require", "if", "else", "for", "match", "case", "create", "set", "delete",
+        "call", "emit", "send", "schedule", "cancel", "return", "in", "limit", "and", "or", "not",
+        "is", "true", "false", "null",
     ]
 }
 

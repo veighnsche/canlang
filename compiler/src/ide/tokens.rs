@@ -198,6 +198,13 @@ fn classify_name(
         Some(SyntaxKind::ObjectEntry) => Some(("property", 0)),
         Some(SyntaxKind::ImportMember) => Some(("variable", 0)),
         Some(SyntaxKind::LabelCase | SyntaxKind::OrderCase) => Some(("enumMember", 0)),
+        Some(SyntaxKind::MatchArm) => {
+            if is_first_name_child(parent.expect("matched"), node) {
+                Some(("keyword", 0))
+            } else {
+                Some(("enumMember", 0))
+            }
+        }
         Some(SyntaxKind::Attribute) => {
             if is_first_name_child(parent.expect("matched"), node) {
                 Some(("keyword", 0))
@@ -253,6 +260,9 @@ fn classify_name(
                 return Some(("keyword", 0));
             }
             if matches!(word, "for" | "in" | "limit") && parent_kind == Some(SyntaxKind::For) {
+                return Some(("keyword", 0));
+            }
+            if word == "match" && parent_kind == Some(SyntaxKind::Match) {
                 return Some(("keyword", 0));
             }
             if matches!(word, "if" | "else") && parent_kind == Some(SyntaxKind::If) {

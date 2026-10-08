@@ -338,6 +338,8 @@ fn is_compound_head(text: &str, piece: &[Token]) -> bool {
             | "details"
             | "if"
             | "for"
+            | "match"
+            | "case"
             | "do"
             | "else"
     ))
@@ -5059,6 +5061,65 @@ impl<'a> Parser<'a> {
         if_node.children = if_children;
     }
 
+    /// Parse an enum-match arm suite under the shared nesting budget.
+    /// Labels remain raw names: the subject's enum, rather than lexical
+    /// expression lookup, owns their meaning.
+    fn parse_match_arms(
+        &mut self,
+        out: &mut Vec<SyntaxNode>,
+        lines: &'a [LogicalLine],
+        mapper: bool,
+    ) {
+        if self.suite_depth >= MAX_SUITE_DEPTH {
+            self.cap_suite(out, lines, "match arm", "E1216");
+            return;
+        }
+        self.suite_depth += 1;
+        for line in lines {
+            if line.tokens.is_empty() {
+                self.push_dangling(out, line);
+                continue;
+            }
+            if piece_has_error(&line.tokens) {
+                self.error_for_line(out, line);
+                continue;
+            }
+            let eof = piece_eof(&line.tokens, self.file, Span::new(self.file, 0, 0));
+            let mut cursor = self.cursor(&line.tokens, eof);
+            let result = self.attempt(out, |parser, scratch| {
+                let head = cursor.expect_name_is("case")?;
+                let label = cursor.expect_name()?;
+                if label.text(cursor.text) == "_" {
+                    return Err(Fail::new(
+                        "E1216", "match requires a bare enum case; wildcards are not supported".to_string(), label.span,
+                    ));
+                }
+                if let Some(extra) = cursor.peek() {
+                    return Err(Fail::new(
+                        "E1216", "case accepts one bare enum name; patterns, alternatives and guards are not supported".to_string(), extra.span,
+                    ));
+                }
+                cursor.end()?;
+                if !line.children.iter().any(|child| !child.tokens.is_empty()) {
+                    return Err(Fail::new(
+                        "E1204", "case requires a nonempty indented body".to_string(), head.span,
+                    ));
+                }
+                let mut inner = Vec::new();
+                parser.builder.leaf(&mut inner, &head);
+                parser.builder.leaf(&mut inner, &label);
+                parser.parse_statements(&mut inner, &line.children, mapper);
+                let arm = SyntaxNode::enclosing(SyntaxKind::MatchArm, inner);
+                parser.builder.push_inner(scratch, arm);
+                Ok(())
+            });
+            if let Err(fail) = result {
+                self.recover(out, line, fail);
+            }
+        }
+        self.suite_depth -= 1;
+    }
+
     /// Parse one effect statement; reports its [`StmtKind`].
     fn parse_statement(
         &mut self,
@@ -5077,6 +5138,24 @@ impl<'a> Parser<'a> {
             ));
         }
         match word.as_str() {
+            "match" => {
+                let mut inner = Vec::new();
+                self.builder.leaf(&mut inner, &head);
+                let subject = self.parse_expr(cursor, &never, true, true)?;
+                self.builder.push_inner(&mut inner, subject);
+                cursor.end()?;
+                if !children.iter().any(|child| !child.tokens.is_empty()) {
+                    return Err(Fail::new(
+                        "E1204",
+                        "match requires at least one indented case arm".to_string(),
+                        head.span,
+                    ));
+                }
+                self.parse_match_arms(&mut inner, children, mapper);
+                let node = SyntaxNode::enclosing(SyntaxKind::Match, inner);
+                self.builder.push_inner(kids, node);
+                Ok(StmtKind::Other)
+            }
             "if" => {
                 let mut inner = Vec::new();
                 self.builder.leaf(&mut inner, &head);

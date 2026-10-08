@@ -94,6 +94,7 @@ const context={operation:'progress-consumer'},trace=[];globalThis.probe={context
 for(const [name,eventIdentity]of [['reply_progressed','OwningProgress.LLM.generate.progressed'],['image_progressed','OwningProgress.Images.submit.progressed']]){
  const id=`OwningProgress.${name}`,operation=entry.appDefinition.operations[id];
  assert.equal(operation.event,eventIdentity);
+ assert.deepEqual(entry.appDefinition.events[eventIdentity],{inputs:{delivery_id:{type:'text'}}});
  assert.deepEqual(operation.invocation,{name:id,kind:'scenario',description:'',result:{type:'void'},inputs:{fields:[{name:'delivery_id',field:{kind:'string'},valueType:'text',required:true}]}});
  assert(!artifact.operations.some(operation=>operation.name===id));
  const descriptor=artifact.callables.find(item=>item.id===id);assert.equal(descriptor.kind,'handler');
@@ -101,6 +102,7 @@ for(const [name,eventIdentity]of [['reply_progressed','OwningProgress.LLM.genera
  const event={get delivery_id(){trace.push(['read','delivery_id']);return 'original-delivery';}};
  trace.length=0;await fn(context,{event});assert.deepEqual(trace,[['read','delivery_id'],['create','original-delivery']]);
 }
+assert.deepEqual(Object.keys(entry.appDefinition.events).sort(),['OwningProgress.Images.submit.progressed','OwningProgress.LLM.generate.progressed']);
 console.log('original delivery progress: checked identities, private payload and event callable passed');
 "#).unwrap();
     let executed = Command::new("node").arg(runner).output().unwrap();

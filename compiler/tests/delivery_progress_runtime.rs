@@ -17,6 +17,7 @@ fn declared_progress_alias_observes_the_existing_result_once() {
         .collect::<Vec<_>>()
         .join("\n")
         .replace("When\n", " policy Job read=members fields=label,request.status,request.progress\n policy Job read=members fields=request.progress.content\n contract Counter {progress:text}\n derive content(job:Job):text = job.request?.progress?.content ?? \"\"\n derive resultContent(job:Job):text = job.request?.result?.content ?? \"\"\n derive isRunning(job:Job):bool = job.request?.progress?.state == running\n derive detail(job:Job):text = job.request?.progress?.detail ?? \"\"\n derive stateMissing(job:Job):bool = job.request?.progress?.state == null\n derive statePresent(job:Job):bool = job.request?.progress?.state != null\n derive missingStateReverse(job:Job):bool = null == job.request?.progress?.state\n derive presentStateReverse(job:Job):bool = null != job.request?.progress?.state\n derive ordinary(value:Counter):text = value.progress\nWhen\n");
+    let source = source.replace("When\n", "When\n scenario progressCaption(job:Job) read=true -> text by=members\n  do\n   let state=job.request?.progress?.state\n   if state!=null\n    match state\n     case queued\n      return \"queued\"\n     case running\n      return \"running\"\n     case succeeded\n      return \"succeeded\"\n     case failed\n      return \"failed\"\n     case unknown\n      return \"unknown\"\n     case cancelled\n      return \"cancelled\"\n   else\n    return \"Missing\"\n");
     let input = scratch.path().join("progress.can");
     std::fs::write(&input, source).unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_can"))
@@ -101,6 +102,7 @@ for(const state of [null,'queued','running']){
  for(const [name,expected]of [['stateMissing',state===null],['statePresent',state!==null],['missingStateReverse',state===null],['presentStateReverse',state!==null]]){
   trace.length=0;assert.equal(await callable(name)(context,record),expected,`${name}: ${state}`);assert.deepEqual(trace,[['delivery','result.state'],['read','state']]);
  }
+ trace.length=0;assert.equal(await callable('progressCaption')(context,{job:record}),state??'Missing');assert.deepEqual(trace,[['delivery','result.state'],['read','state']]);
 }
 globalThis.probe.result=null;globalThis.probe.expectedKey='result.content';trace.length=0;assert.equal(await callable('content')(context,record),'');assert.deepEqual(trace,[['delivery','result.content']]);
 globalThis.probe.expectedKey='result.state';assert.equal(await callable('isRunning')(context,record),false);globalThis.probe.expectedKey='result.detail';assert.equal(await callable('detail')(context,record),'');

@@ -1266,6 +1266,16 @@ impl IrCohortKind {
     }
 }
 
+/// One arm of a checked exhaustive enum statement.
+#[derive(Debug, Clone)]
+pub struct IrMatchArm {
+    /// Case label admitted in the checked subject's enum domain.
+    pub case: String,
+    /// Ordered effects in this arm's own lexical scope.
+    pub body: Vec<IrStmt>,
+    pub span: Span,
+}
+
 /// Checked effect/handler statements in source order.
 #[derive(Debug, Clone)]
 pub enum IrStmt {
@@ -1358,6 +1368,12 @@ pub enum IrStmt {
         cond: TypedExpr,
         then_branch: Vec<IrStmt>,
         else_branch: Vec<IrStmt>,
+        span: Span,
+    },
+    /// Exhaustive single-case enum arms, with one evaluation of the subject.
+    Match {
+        subject: TypedExpr,
+        arms: Vec<IrMatchArm>,
         span: Span,
     },
     /// `for item in domain` → `for (const item of await domain)`.
@@ -4177,6 +4193,46 @@ impl<'a> Cx<'a> {
                         .iter()
                         .map(|e| self.decode_effect(scope, e, what))
                         .collect(),
+                    span,
+                }
+            }
+            EffectVerb::Match => {
+                if !self.program.types.exhaustive_matches.contains(&effect.node) {
+                    return unsupported_stmt(
+                        "match statement",
+                        "no checked exhaustive enum coverage is published",
+                        span,
+                    );
+                }
+                let Some(subject) = effect
+                    .value
+                    .as_ref()
+                    .map(|key| self.decode_anchored(scope, key, &format!("{what} match subject")))
+                else {
+                    return unsupported_stmt("match statement", "no subject is published", span);
+                };
+                let mut arms = Vec::new();
+                for arm in &effect.match_arms {
+                    let Some(case) = &arm.case else {
+                        return unsupported_stmt(
+                            "match case",
+                            "no checked owning enum case is published",
+                            Span::new(arm.node.file, arm.node.start, arm.node.end),
+                        );
+                    };
+                    arms.push(IrMatchArm {
+                        case: case.clone(),
+                        body: arm
+                            .effects
+                            .iter()
+                            .map(|effect| self.decode_effect(scope, effect, what))
+                            .collect(),
+                        span: Span::new(arm.node.file, arm.node.start, arm.node.end),
+                    });
+                }
+                IrStmt::Match {
+                    subject,
+                    arms,
                     span,
                 }
             }

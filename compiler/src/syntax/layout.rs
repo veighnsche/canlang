@@ -440,7 +440,7 @@ fn is_ineligible_head(text: &str, line: &TreeLine) -> bool {
             token.kind == TokenKind::Name
                 && matches!(
                     word,
-                    "Given" | "When" | "Then" | "do" | "require" | "if" | "else" | "for" | "examples"
+                    "Given" | "When" | "Then" | "do" | "require" | "if" | "else" | "for" | "match" | "case" | "examples"
                 )
         }
     )
