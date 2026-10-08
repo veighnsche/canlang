@@ -1,0 +1,57 @@
+{
+  "verdict": "PASS unmodified actual UI owner build, private outputs",
+  "source_inputs_current_equal": true,
+  "source_files": 75,
+  "output_files": 272,
+  "browser_rows": {
+    "bootstrap.js": {
+      "bytes": 22985,
+      "sha256": "06b7907b99b6d563465abf045a0980493667cdd045b48b3fdfd4c6d79b00f9c9",
+      "manifest_matches": true,
+      "compiled_source_copy_matches": true
+    },
+    "polling.js": {
+      "bytes": 7199,
+      "sha256": "6edff27510aca98f9b5c4915c250d62c77b2b41d7dc0d59c9093c6e33047cadb",
+      "manifest_matches": true,
+      "compiled_source_copy_matches": true
+    },
+    "can-style.css": {
+      "bytes": 1155983,
+      "sha256": "5cdb8bf94708637e24d344062333cb68b4efbf06b284a5f16200c54eecf46333",
+      "manifest_matches": true,
+      "compiled_source_copy_matches": null
+    }
+  },
+  "manifest": {
+    "generator": "ui/scripts/build-browser.mjs (FP.BROWSER-UI)",
+    "daisyui": "5.7.47",
+    "catalog": "0.1.0-lane05-draft",
+    "binderIds": [
+      "guarded-form",
+      "once-action",
+      "poll-region"
+    ],
+    "files": {
+      "bootstrap.js": {
+        "sha256": "06b7907b99b6d563465abf045a0980493667cdd045b48b3fdfd4c6d79b00f9c9",
+        "bytes": 22985
+      },
+      "polling.js": {
+        "sha256": "6edff27510aca98f9b5c4915c250d62c77b2b41d7dc0d59c9093c6e33047cadb",
+        "bytes": 7199
+      },
+      "can-style.css": {
+        "sha256": "5cdb8bf94708637e24d344062333cb68b4efbf06b284a5f16200c54eecf46333",
+        "bytes": 1155983
+      }
+    }
+  },
+  "limits": [
+    "Frozen external prebuilt contracts support; its current producer build not asserted.",
+    "No browser runtime, full shell, all binders or installed HTTP serving acceptance.",
+    "Private recipe support symlinks inventoried; unrelated installed self-loop omitted, actual producer recipe unchanged."
+  ],
+  "all_commands_released": true,
+  "all_reads_released": true
+}

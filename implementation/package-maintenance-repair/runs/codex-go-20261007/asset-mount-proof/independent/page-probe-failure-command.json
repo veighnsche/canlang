@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/opt/homebrew/Cellar/node/26.10.0_1/bin/node",
+    "probe.mjs"
+  ],
+  "cwd": "/private/tmp/canlang-repair-go-20261007/asset-mount-independent",
+  "pid": 10767,
+  "deadline_seconds": 50,
+  "exit_code": 1,
+  "expired": false,
+  "elapsed_seconds": 0.6716767499965499
+}

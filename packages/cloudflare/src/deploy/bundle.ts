@@ -43,8 +43,8 @@
  *   assembly; `env-assembly`, `grant-route` for main). Pinned by name —
  *   the rest of `dist/runtime` imports node: builtins and MUST NOT ship.
  * - artifact modules at their artifact-relative paths, with
- *   `@canlang/stdlib` / `@canlang/ui` rewritten to module-relative
- *   `vendor/` specifiers (computed per importing module, so nested
+ *   `@canlang/stdlib` / `@canlang/ui` rewritten to the defining runtime
+ *   and vendor entries (computed per importing module, so nested
  *   modules resolve correctly). Pages and callables reference staged
  *   modules by name and are validated, never silently dropped.
  * - `vendor/…` trees: package-owned exported distributions for contracts,
@@ -90,6 +90,7 @@ import { distribution as identityDistribution } from "@canlang/identity/distribu
 import { distribution as stdlibDistribution } from "@canlang/stdlib/distribution";
 import { distribution as stateDistribution } from "@canlang/state/distribution";
 import { distribution as valuesDistribution } from "@canlang/values/distribution";
+import { distribution as interfacesDistribution } from "@canlang/interfaces/distribution";
 import { dirname, join, posix, relative, resolve, sep } from "node:path";
 import type {
   ActivationVerdict,
@@ -111,6 +112,8 @@ export const DEPLOY_MAIN_MODULE = "worker/main.js";
 export const MCP_HANDLER_MODULE = "worker/mcp-handler.js";
 /** HTTP operations key: the sibling `./http-operations.js` bundle convention (C3). */
 export const HTTP_OPERATIONS_MODULE = "worker/http-operations.js";
+/** Selected finite browser resources, using the defining Interfaces owners. */
+export const HTTP_ASSETS_MODULE = "worker/http-assets.js";
 /** Staged-deployment key: the sibling `./artifact.js` join contract. */
 export const ARTIFACT_MODULE = "worker/artifact.js";
 /** Derived-inputs key: the sibling `./derived-inputs.js` E1 join contract (C1 bake). */
@@ -124,6 +127,7 @@ const ASSEMBLY_MODULE_KEY = "worker/assembly.js";
  */
 const PINNED_RUNTIME_FILES: readonly string[] = [
   "context.js",
+  "stdlib.js",
   "invoke.js",
   "sourcemap.js",
   "mcp-registry.js",
@@ -223,6 +227,8 @@ function stageBrowserDependencies(): Record<string, string> {
 /** Vendor entry keys (mirroring each package's `main`). */
 const UI_VENDOR_ENTRY = "vendor/ui/index.js";
 const STDLIB_VENDOR_ENTRY = "vendor/stdlib/index.js";
+/** Generated handlers use the same canonical data-plane owner as the CLI. */
+const GENERATED_STDLIB_RUNTIME_ENTRY = "runtime/stdlib.js";
 const IDENTITY_VENDOR_ENTRY = "vendor/identity/index.js";
 /** Mirrors `@canlang/contracts` package `main` (`./dist/index.js`). */
 const CONTRACTS_VENDOR_ENTRY = "vendor/contracts/index.js";
@@ -434,7 +440,7 @@ function relativeSpecifier(fromModule: string, toKey: string): string {
 
 function rewriteArtifactImports(js: string, modulePath: string) {
   return rewriteModuleImports(js, modulePath, (specifier) => {
-    if (specifier === STDLIB_SPECIFIER) return relativeSpecifier(modulePath, STDLIB_VENDOR_ENTRY);
+    if (specifier === STDLIB_SPECIFIER) return relativeSpecifier(modulePath, GENERATED_STDLIB_RUNTIME_ENTRY);
     if (specifier === UI_SPECIFIER) return relativeSpecifier(modulePath, UI_VENDOR_ENTRY);
     return specifier;
   });
@@ -467,6 +473,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
       return relativeSpecifier(moduleKey, STATE_RECEIPT_OBSERVER_VENDOR_ENTRY);
     }
     if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
+    if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
     if (spec.startsWith("@canlang/state/")) return relativeSpecifier(moduleKey, `vendor/state/${spec.slice("@canlang/state/".length)}.js`);
     return spec;
   };
@@ -517,6 +524,8 @@ function rewriteVendorImports(js: string, moduleKey: string): string {
     if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
     if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
     if (spec === "@canlang/contracts/values") return relativeSpecifier(moduleKey, "vendor/contracts/values.js");
+    if (spec === "@canlang/state/effects/transition") return relativeSpecifier(moduleKey, "vendor/state/effects/transition.js");
+    if (spec === "@canlang/state/effects/guards") return relativeSpecifier(moduleKey, "vendor/state/effects/guards.js");
     return spec;
   };
   return rewriteModuleImports(js, moduleKey, mapped, { profile: "trusted-producer" }).js;
@@ -971,6 +980,9 @@ export function buildDeployBundle(
     ...stageRuntimeDist(runtimeDistDir),
     ...stagedArtifact.modules,
   };
+  if (Object.hasOwn(modules, HTTP_ASSETS_MODULE)) {
+    throw new Error("deploy bundle: worker/http-assets.js is reserved for selected browser resources");
+  }
   for (const tree of VENDOR_TREES) {
     Object.assign(modules, readVendorTree(tree));
   }
@@ -1293,6 +1305,57 @@ function resourcesSha256(resources: Record<string, PackageResource>): string {
     .digest("hex");
 }
 
+/** Build one selected, byte-pinned static handler; no alternate serving algorithm. */
+function buildBrowserAssetsModule(
+  resources: Record<string, PackageResource>,
+  manifest: { version: 1; module: "./http-assets.js"; resourcesSha256: string; resources: ReturnType<typeof resourceEntries> },
+): string {
+  const root = fileURLToPath(interfacesDistribution.modules);
+  const assets = join(root, "http", "assets.js");
+  const pages = join(root, "http", "pages.js");
+  for (const file of [assets, pages]) {
+    if (!statSync(file).isFile()) throw new Error(`deploy bundle: missing defining browser assets producer ${file}`);
+  }
+  const workDir = mkdtempSync(join(tmpdir(), "can-deploy-assets-"));
+  const entry = join(workDir, "http-assets-entry.js");
+  const output = join(workDir, "http-assets.mjs");
+  const encoded = manifest.resources.map((row) => Buffer.from((resources[row.key] as PackageResource).bytes).toString("base64"));
+  const source =
+    `import { createAssetTable, handleAssetsRequest } from ${JSON.stringify(assets.split(sep).join("/"))};\n` +
+    `import { matchDescriptor } from ${JSON.stringify(pages.split(sep).join("/"))};\n` +
+    `const manifest = ${JSON.stringify(manifest)};\n` +
+    `const encoded = ${JSON.stringify(encoded)};\n` +
+    `async function sha256(bytes) { return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), value => value.toString(16).padStart(2, "0")).join(""); }\n` +
+    `export async function createHandler(pages, expected) {\n` +
+    `  if (JSON.stringify(expected) !== JSON.stringify(manifest)) throw new Error("browser assets: staged manifest mismatch");\n` +
+    `  if (await sha256(new TextEncoder().encode(JSON.stringify({ version: 1, resources: manifest.resources }))) !== manifest.resourcesSha256) throw new Error("browser assets: resource manifest digest mismatch");\n` +
+    `  const paths = manifest.resources.map(row => "/assets/" + row.key);\n` +
+    `  for (const path of paths) if (matchDescriptor(pages, path) !== null) throw new Error("browser assets: selected page collides with " + path);\n` +
+    `  const rows = [];\n` +
+    `  for (const [index, row] of manifest.resources.entries()) {\n` +
+    `    const bytes = Uint8Array.from(atob(encoded[index]), value => value.charCodeAt(0));\n` +
+    `    if (bytes.length !== row.bytes || await sha256(bytes) !== row.sha256) throw new Error("browser assets: selected resource integrity mismatch " + row.key);\n` +
+    `    rows.push({ key: row.key, bytes, mime: row.contentType, cache: { maxAgeSeconds: 0, immutable: false } });\n` +
+    `  }\n` +
+    `  const table = createAssetTable(rows);\n` +
+    `  return Object.freeze({ paths: Object.freeze(paths), fetch: request => handleAssetsRequest(table, request) });\n` +
+    `}\n`;
+  try {
+    writeFileSync(entry, source, "utf8");
+    // Whitespace minification removes the random generated-entry path comment.
+    execFileSync("bun", ["build", entry, "--format=esm", "--target=browser", "--minify-whitespace", `--outfile=${output}`], { stdio: "pipe" });
+    const contents = readFileSync(output, "utf8");
+    for (const marker of ["createHandler", "browser assets: selected page collides", "browser assets: selected resource integrity mismatch"]) {
+      if (!contents.includes(marker)) throw new Error(`deploy bundle: selected browser assets bundle dropped ${marker}`);
+    }
+    return contents;
+  } catch (error) {
+    throw new Error(`deploy bundle: selected browser assets producer bundle failed: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    rmSync(workDir, { recursive: true, force: true });
+  }
+}
+
 /**
  * Resolve explicit assets from the installed owning packages. Binding JS uses
  * the same vendor rewrite/link checks as ordinary producers. Browser resources
@@ -1305,6 +1368,17 @@ export function buildDeployBundleWithAssets(
   const assets = gatherDeploymentAssets(options.assets);
   const base = buildDeployBundle(artifact, options);
   const modules = { ...base.modules };
+  const resources = snapshotResources(assets.resources);
+  const resourceDigest = resourcesSha256(resources);
+  if (options.assets?.browser === true) {
+    const entries = resourceEntries(resources);
+    if (entries.map((row) => row.key).join(",") !== "browser/bootstrap.js,browser/can-style.css,browser/polling.js") {
+      throw new Error("deploy bundle: selected browser resource inventory is not the finite shared producer");
+    }
+    const manifest = { version: 1 as const, module: "./http-assets.js" as const, resourcesSha256: resourceDigest, resources: entries };
+    modules[HTTP_ASSETS_MODULE] = buildBrowserAssetsModule(resources, manifest);
+    modules[ARTIFACT_MODULE] += `export const browserAssets = ${JSON.stringify(manifest)};\n`;
+  }
   for (const [key, js] of Object.entries(assets.modules)) {
     if (Object.hasOwn(modules, key)) {
       throw new Error(`deploy bundle: package asset ${JSON.stringify(key)} collides with a text module`);
@@ -1320,9 +1394,8 @@ export function buildDeployBundleWithAssets(
     moduleCount: Object.keys(sorted).length,
     sha256: bundleSha256(base.mainModule, sorted),
   }, assets.binaries);
-  const resources = snapshotResources(assets.resources);
   assertPackageOutputLayout(mixed.modules, mixed.binaries, resources);
-  return { ...mixed, resources, resourcesSha256: resourcesSha256(resources) };
+  return { ...mixed, resources, resourcesSha256: resourceDigest };
 }
 
 /** Validate the complete resource/module layout before creating the output. */

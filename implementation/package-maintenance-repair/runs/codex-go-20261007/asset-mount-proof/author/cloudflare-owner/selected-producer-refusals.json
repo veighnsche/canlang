@@ -1,0 +1,25 @@
+{
+  "checks": [
+    {
+      "name": "missing-assets-helper",
+      "refused": true,
+      "error": "ENOENT: no such file or directory, stat '/private/tmp/canlang-repair-go-20261007/asset-mount-implementation/cloudflare-owner/workspace/packages/interfaces/dist/src/http/assets.js'"
+    },
+    {
+      "name": "corrupt-matcher-producer",
+      "refused": true,
+      "error": "deploy bundle: selected browser assets producer bundle failed: Command failed: bun build /var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-deploy-assets-FUwNg6/http-assets-entry.js --format=esm --target=browser --minify-whitespace --outfile=/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-deploy-assets-FUwNg6/http-assets.mjs\n2 | import { matchDescriptor } from \"/private/tmp/canlang-repair-go-20261007/asset-mount-impl\n             ^\nerror: No matching export in \"packages/interfaces/dist/src/http/pages.js\" for import \"matchDescriptor\"\n    at /private/var/folders/5x/bpszcvmj1tddmjp35y21dt680000gn/T/can-deploy-assets-FUwNg6/http-assets-entry.js:2:10\n"
+    },
+    {
+      "name": "missing-browser-bytes",
+      "refused": true,
+      "error": "package assets: missing asset /private/tmp/canlang-repair-go-20261007/asset-mount-implementation/cloudflare-owner/workspace/packages/ui/dist/browser/bootstrap.js: Error: ENOENT: no such file or directory, lstat '/private/tmp/canlang-repair-go-20261007/asset-mount-implementation/cloudflare-owner/workspace/packages/ui/dist/browser/bootstrap.js'"
+    },
+    {
+      "name": "corrupt-browser-bytes",
+      "refused": true,
+      "error": "package assets: integrity mismatch for bootstrap.js: /private/tmp/canlang-repair-go-20261007/asset-mount-implementation/cloudflare-owner/workspace/packages/ui/dist/browser/manifest.json"
+    }
+  ],
+  "allPrivateProducerBytesRestored": true
+}

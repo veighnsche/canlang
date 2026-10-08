@@ -1,0 +1,281 @@
+{
+  "status": "finite_candidate_control_verified_actual_selected_source_consumer_blocked",
+  "task_ids": [
+    "DEL-B02",
+    "DEL-R01"
+  ],
+  "parent_closure": false,
+  "product_writer_release": {
+    "paths": {
+      "packages/cloudflare/src/deploy/bundle.ts": "58ded31efce1f9ee89369eb21eb35636725b9d16a14cda6c2258efdf786a2875",
+      "packages/cloudflare/src/worker/main.ts": "386873b51c7675904776ea6a2f4db5f18533f14905bf252bf7ee59d8ad6cedc5",
+      "packages/cloudflare/src/worker/assembly.ts": "8a450a67484dbce787f10b9186e10c6cedb18e663a733df5df63c15aa17218a8",
+      "packages/cloudflare/test/browser-assets-serving.test.ts": "f9d7eafa033d34cc5b072e0093b2fd70e18eb6b9e891b85b1ac4ede648c699f8",
+      "packages/cloudflare/test/browser-assets-bundle.test.ts": "07fc3b33dc304614816da23faee477249a26141db91cecabfe6745e33ccae11b",
+      "packages/interfaces/src/http/pages.ts": "e7e4bd23e5e9bd3f43e831058248ed5d2bf5342be5b05f7eda63f74b52836f3c",
+      "packages/interfaces/src/index.ts": "f342676874f69561ec6234a06b1a6a9e15e36d80a4b5e2709c2cf89174e0b521"
+    },
+    "status": "released_frozen_for_independent_review",
+    "no_git_docs_state_shared_dist_changes": true
+  },
+  "authorities": {
+    "root_contract_sha256": "f19b2d2fd1f037dad4ded1d042ebdeed812017111cb58c203c8bb136bf16d11e",
+    "runtime_handoff_sha256": "316a6d44e76b8240d85d77753f7ae0f695a2c6067e39d19b038d2f8fdd6d05f6",
+    "handoff47_named_pins_verified": true,
+    "selected_page_packet_sha256": "70d507f95935758fedbf88468567a22964ebfbe24dc3c5075254d2731d24d59b",
+    "selected_page_review_sha256": "24c7e8741e74d6005a855688fdfc0d48f74454caf28617af48a5486a9e326b9c",
+    "selected_artifact_sha256": "b72b27edc8df17942d832f3d1f5dcb0ab8ca803388cc71564b1af68990707950",
+    "selection": "actual owning Images page plus explicit existing assets.browser deployment option; artifact has no targets array; no manufactured syntax/target metadata"
+  },
+  "implemented_chain": [
+    "Actual UI unmodified owner recipe emits and verifies three browser byte resources",
+    "Existing gatherDeploymentAssets selects and verifies resources; exact copied table + resource inventory SHA enters generated artifact.js browserAssets v1 marker",
+    "Generated worker/http-assets.js imports defining Interfaces createAssetTable/handleAssetsRequest and direct existing matchDescriptor; no alternate matcher/server algorithm",
+    "Real default main validates selected marker, preserving required DB binding, staged validation, production dependencies and activation order",
+    "Existing assembleWorker keeps activation/contracts/canonical generated descriptors/page registry gates before lazy HttpJoin loader",
+    "Selected raw URL.pathname exact canonical equality invokes defining helper; query ignored; other paths use existing authored dispatcher"
+  ],
+  "rules": {
+    "routes": [
+      "/assets/browser/bootstrap.js",
+      "/assets/browser/polling.js",
+      "/assets/browser/can-style.css"
+    ],
+    "collision": "defining existing exact/dynamic page matchDescriptor refuses any selected canonical route before serving",
+    "cache": {
+      "maxAgeSeconds": 0,
+      "immutable": false,
+      "header": "public, max-age=0"
+    },
+    "conditional": "existing200; no validators/304",
+    "failure": "selected missing/bad shape/version/module/handler/resource/bytes refuses, never optional-catch downgrade",
+    "unselected": "no generated sibling/marker/table/mount",
+    "public_root_preservation": "Interfaces root remains120 original exports; matcher exported only by defining distribution module, index explicit handlePageRequest export; no package entry added"
+  },
+  "verified": {
+    "ui_owner": "unmodified actual recipe PASS,75 source inputs,272 emitted outputs; fixed installed declared versions, no fetch",
+    "interfaces_owner": "unmodified actual recipe PASS,96 source/config inputs; defining matcher export+public root unchanged outside Node24/26 consumer imports",
+    "work_owner": "unmodified actual current TS recipe PASS,58 current included source/config/test inputs,224 emitted outputs; actual current manifest c4ca397414147a1e544db045d2fb883aa2aa85d56c8ded8b17a188c1cf6ac906; no native kernel/HOLD",
+    "cloudflare_owner": "unmodified actual TS+chmod recipe PASS against qualified frozen support closure and three current owned overlays,224 emitted outputs; initial historical Work manifest failed and receipt retained",
+    "host_identity": "Original taskEnvironment identities observed on actual owner recipe children: Node26.10.0/darwin-arm64/Bun1.4.2; ps basename does not separately establish exact Node executable path/hash. Direct finite consumer invocation binary and hash recorded independently.",
+    "finite_tests": "14/14 PASS,2 leased files; selected/unselected actual default workerd control artifacts, resource bytes/MIME/queries/GET/HEAD/conditional200/POST404/authored routes/raw alias/bindings/inactive/exact+dynamic collision/missing code/marker digest/version/module/shape/byte/handler corruption/determinism/reserved sibling",
+    "actual_producer_negatives": "four PASS: missing helper, corrupt defining matcher export, missing browser bytes, corrupt producer digest; all private owner bytes restored",
+    "actual_selected_stage": {
+      "module_count": 172,
+      "bundle_sha256": "81a1e142196e657d7f17bacfbc6461b1ecdb9ba77c8965765904d46520500dc7",
+      "resources_sha256": "5c548547c8265b84c8a3016208c9bad1451dfe62a2f2d4ca3507da593935a48f",
+      "generated_assets_module": {
+        "path": "worker/http-assets.js",
+        "bytes": 1643204,
+        "sha256": "087040fdf3e68965f320c0b66970467ebb0b62a237f76aa4633806633819618e"
+      }
+    },
+    "private_marker_type_change": "main runtime JS byte-identical after removing unnecessary named marker type export; actual owner recipe passed, only d.ts/map changed"
+  },
+  "opposing_actual_source_evidence": {
+    "node_default": "500 worker-assembly-failed before selected table load",
+    "workerd_default": "same500 before selected table load",
+    "generated_import": "require as check, create, deleteRecord, hasRole, set, transition from ./vendor/stdlib/index.js",
+    "generated_module_path": "$can$m$496d61676573.mjs",
+    "generated_stage_sha256": "84748f409c46985927a18135b31efe57d04ab223ba98f63b6ae920bf7d34ae9e",
+    "vendor_stdlib_stage_sha256": "303a87238b200bb0739c9b8d24696c3648c5ba844ebd2a364d1d142205cba2a2",
+    "missing_export": "create",
+    "ownership": "released stdlib package body is frozen historical, not current package source authority; no Stdlib writer lease or facade repair inferred",
+    "delegated_diagnosis": "root/stdlib_generated_create_join is tracing genuine current owner; no actual Images/default static serving credit"
+  },
+  "required_remaining": [
+    "Release genuine source-corresponding Stdlib generated mutation producer/export closure and repeat exact actual Images Node/workerd default request proof without gate bypass",
+    "Connect supported production caller to existing asset-enabled bundle/writer from selected owning page declarations; only fixture verification script currently selects browser=true",
+    "Separate actual full-shell/CSS/poll/browser/export/print/source-target/host-installed and release/native-HOLD gates; no closure inferred"
+  ],
+  "next_finite_caller_packet": {
+    "facts": "locator finds only scripts/verify-installed-worker.mjs calls buildDeployBundleWithAssets/writeDeployBundleWithAssets; root likewise finds no production source caller",
+    "needed_trace": [
+      "packages/cloudflare/src/cli/platform.ts runBuild at393 and runDeploy at398",
+      "packages/cloudflare/src/deploy/plan.ts owning artifact/deployment-plan boundary",
+      "contracts owning target/browser declarations, already-authorized selected source page metadata"
+    ],
+    "smallest_compatible_recommendation": "After finite caller read/lease, use the existing supported source/compile artifact page selection at the actual defining preparation/build caller to select the shared browser resource producer and existing buildDeployBundleWithAssets/writeDeployBundleWithAssets pair. Preserve target/host/binding/admission authority and no-target artifact semantics; no unconditional browser=true, new target syntax, generic adapter or deployment activation. Exact edit files depend on verified caller body; do not invent a new production caller from test-only option usage."
+  },
+  "support_scope": {
+    "current_named_source_scope": "10 Cloudflare runtime support +4 nullable State +15 named support entries per released handoff; other snapshot bodies historical; current Work58 explicitly added via root lease",
+    "frozen_external_package_count": 188,
+    "private_links": 378,
+    "external_links": [],
+    "initial_input_files": 12673,
+    "required_dependencies_unresolved": 0,
+    "optional_platform_variants_unavailable": 77,
+    "loaded_closure_limit": "Declared dependencies plus resolved installed peer links frozen; unavailable peers/platforms recorded. Not a claim every optional platform or whole current source graph is qualified.",
+    "memory_state_context_limits": "Finite scalar/memory retry support acceptance; no D1 persistence/full actor/trusted/hooks/page wholeTask10 qualification"
+  },
+  "maintenance_cost": {
+    "packages/cloudflare/src/deploy/bundle.ts": {
+      "sha256": "58ded31efce1f9ee89369eb21eb35636725b9d16a14cda6c2258efdf786a2875",
+      "bytes": 69153,
+      "lines": 1525
+    },
+    "packages/cloudflare/src/worker/main.ts": {
+      "sha256": "386873b51c7675904776ea6a2f4db5f18533f14905bf252bf7ee59d8ad6cedc5",
+      "bytes": 28569,
+      "lines": 688,
+      "exact_before_bytes": 25304,
+      "source_growth_bytes": 3265,
+      "source_growth_lines": 61
+    },
+    "packages/cloudflare/src/worker/assembly.ts": {
+      "sha256": "8a450a67484dbce787f10b9186e10c6cedb18e663a733df5df63c15aa17218a8",
+      "bytes": 69128,
+      "lines": 1734,
+      "exact_before_bytes": 68447,
+      "source_growth_bytes": 681,
+      "source_growth_lines": 16
+    },
+    "packages/cloudflare/test/browser-assets-serving.test.ts": {
+      "sha256": "f9d7eafa033d34cc5b072e0093b2fd70e18eb6b9e891b85b1ac4ede648c699f8",
+      "bytes": 7779,
+      "lines": 117
+    },
+    "packages/cloudflare/test/browser-assets-bundle.test.ts": {
+      "sha256": "07fc3b33dc304614816da23faee477249a26141db91cecabfe6745e33ccae11b",
+      "bytes": 2619,
+      "lines": 41
+    },
+    "packages/interfaces/src/http/pages.ts": {
+      "sha256": "e7e4bd23e5e9bd3f43e831058248ed5d2bf5342be5b05f7eda63f74b52836f3c",
+      "bytes": 13743,
+      "lines": 373
+    },
+    "packages/interfaces/src/index.ts": {
+      "sha256": "f342676874f69561ec6234a06b1a6a9e15e36d80a4b5e2709c2cf89174e0b521",
+      "bytes": 1160,
+      "lines": 34
+    },
+    "bundle_transport_body": {
+      "bytes": 3630,
+      "lines": 51,
+      "before_bundle_sha256": "8ccf7b1178df87cdb02c1312bf4e2314680697034b5391fdad6a062ed80a7f85",
+      "exact_before_bundle_bytes_unavailable_in_this_private_receipt": true
+    },
+    "interfaces_emit_growth": {
+      "http/pages.js": {
+        "beforeBytes": 13472,
+        "currentBytes": 13479,
+        "delta": 7,
+        "sha256": "733beb8e7cae4a7cfa633fb4b5642d4e669ee66cb86dedbc95b696e0abaf6232"
+      },
+      "http/pages.d.ts": {
+        "beforeBytes": 322,
+        "currentBytes": 702,
+        "delta": 380,
+        "sha256": "93b82eae38d433201170cea66670e70f7ce956234ddca00642c007b6bfa0e649"
+      },
+      "index.js": {
+        "beforeBytes": 1172,
+        "currentBytes": 1192,
+        "delta": 20,
+        "sha256": "9d27d0cea6ceb198eb6af8bc5ff1ed4d33cd2d09c359ab73a1fadcd129ada806"
+      },
+      "index.d.ts": {
+        "beforeBytes": 1174,
+        "currentBytes": 1194,
+        "delta": 20,
+        "sha256": "741a081b6e3ddb529c6d90d1969f94cf913488ad6ec8caf35c46d160cb1db3ac"
+      }
+    },
+    "new_dependency_manifest_changes": 0,
+    "new_package_entries": 0,
+    "new_generated_module_count": 1,
+    "generated_transport_bytes": 1643204,
+    "raw_resource_bytes": 1186167,
+    "growth_class": "required correctness capability; no replacement savings"
+  },
+  "lifecycle": "One additional generated sibling; same existing Bun helper producer invocation; transient generation directory cleaned finally; selected byte table loads once through existing memoized assembly promise after gates, failures retain existing retry behavior. Base64 copied transport and decoded immutable table add isolate memory; no measured whole-cache or browser-memory claim. No new manifest dependency/package entry; new required correctness growth, no replacement savings.",
+  "negative_receipt_corrections": [
+    "Sandbox local runtime startup reached110s timeout and process group was terminated; identical private local IPC-approved run passes14/14.",
+    "Private workerd Request harness first used incompatible native Node Request; raw retained, corrected to URL/init before actual workerd failure receipt.",
+    "Private producer refusal harness first had incorrect dist/http path; raw retained, corrected defining dist/src/http before four negatives."
+  ],
+  "handles": "All build/test/stage/control command sessions completed or deadline-terminated; no active command/read/write process; exact seven product writer paths released. Any further source edit requires root new finite lease/ACK.",
+  "evidence_pins": {
+    "ui-owner/observed-build.json": {
+      "sha256": "1f43d56660d73c281a947a31ff818ebea19a5df6f53ea29f0e81491c9d1355a0",
+      "bytes": 2082
+    },
+    "ui-owner/review.json": {
+      "sha256": "4b0eae8ba7ad35232c205a15b2a9da9aca60ceb8f6621101099b208cddef3e81",
+      "bytes": 1882
+    },
+    "interfaces-owner/observed-build.json": {
+      "sha256": "52940336143d1531d69d700c707562e6b7e885896d0381cf18b1d01fa46185d0",
+      "bytes": 1872
+    },
+    "interfaces-owner/public-surface-and-matcher.json": {
+      "sha256": "17a4aa95b42abf0ed9fd007c930362778769d25fdbb9542dc7bc8fd19c188f0f",
+      "bytes": 910
+    },
+    "interfaces-owner/consumer-node26.json": {
+      "sha256": "db84778d0add5ffed33c00e6be1e7c5ab28541925fab140595e09335cc5f639f",
+      "bytes": 3420
+    },
+    "interfaces-owner/consumer-node24.json": {
+      "sha256": "a299d7b53f372f8158b9068795d576afa0aea262781852c34dde776785c67969",
+      "bytes": 3432
+    },
+    "cloudflare-owner/handoff-verification.json": {
+      "sha256": "1a32e07e21adceacaaf35f9f31445a0e25df9dbb1455c678da679f1b447f6469",
+      "bytes": 10719
+    },
+    "cloudflare-owner/observed-build.json": {
+      "sha256": "5c275f02cdef30902927f6ddbedcb07d94446100aef2a6edb5108bd3466ae54d",
+      "bytes": 1798
+    },
+    "cloudflare-owner/work-owner-current/observed-build.json": {
+      "sha256": "9297d080a9039e188cc54f168e9c127df2756b77b3f2e5c5c02d5cadc42cbad2",
+      "bytes": 1452
+    },
+    "cloudflare-owner/finite-tests.json": {
+      "sha256": "dc80129c75aeb6802d0d1db0e5c09e2a7391a3378f9003129fad831844e302d7",
+      "bytes": 611
+    },
+    "cloudflare-owner/finite-tests.log": {
+      "sha256": "99779caad56d2719c2169d7b92067791e6b0c61f2f38eb0952f75f078657f765",
+      "bytes": 4862
+    },
+    "cloudflare-owner/selected-node-preload-failure/selected-consumer.log": {
+      "sha256": "d9431f6d3eeaa0e6f13b0d1418c1fd4d9a1f3a48ad448cb6d664e0600bf0419a",
+      "bytes": 758
+    },
+    "cloudflare-owner/selected-workerd-control.log": {
+      "sha256": "ee44706a904e3658f05c92f2a3c8b1eb4cd751825845662c28b51c2c279fbd58",
+      "bytes": 758
+    },
+    "cloudflare-owner/selected-producer-refusals.json": {
+      "sha256": "0acc00d2e1f9e768b62600abc3591ed7a2803d2008b56d525d4768c246f26545",
+      "bytes": 1818
+    },
+    "cloudflare-owner/final-freeze-verification.json": {
+      "sha256": "344ee61deec286cd7b3299c53d05eb980cfe3a842ca3566ffc52c47260e4a767",
+      "bytes": 2533
+    },
+    "cloudflare-owner/maintenance-cost.json": {
+      "sha256": "6e5d614226b8db1f3c08a31c6853eb39fc408fef16cb0b280d4c68b2cef3ead3",
+      "bytes": 2684
+    },
+    "cloudflare-owner/private-marker-type-emission-comparison.json": {
+      "sha256": "d806463d25caa506bb0133f2f626566253e8bc4be71f5831c509aeb1b7e89cd8",
+      "bytes": 111
+    },
+    "cloudflare-owner/selected-default-consumer/inventory.json": {
+      "sha256": "5f1623e3c10fd1c4cbca4475fa75d754d68a6c9bfb1f1b90d2a2a5400f113ecf",
+      "bytes": 28950
+    },
+    "selected-producer/input-pins.json": {
+      "sha256": "d30bcf5d216ae85d2c836780a8c19a0449ff01d4bc43ce3dfa3b42077109226c",
+      "bytes": 15432
+    },
+    "selected-producer/independent-receipt.json": {
+      "sha256": "24c7e8741e74d6005a855688fdfc0d48f74454caf28617af48a5486a9e326b9c",
+      "bytes": 1790
+    }
+  }
+}

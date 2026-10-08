@@ -69,9 +69,10 @@
   "writer_reader_commands_released": true,
   "git": {
     "before": "0611db21a7a8c83e61c55bdec8798f71daa92ab4",
-    "commit_pending": true,
+    "commit_pending": false,
     "no_merge": true,
-    "no_push": true
+    "no_push": true,
+    "commit": "29f9d7b7eb74146569b9b370ff0b01d1a772548a"
   },
   "whole_graph_acceptance": false,
   "task_counts_unchanged": {
