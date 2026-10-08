@@ -921,7 +921,15 @@ export async function form(props: FormProps): Promise<string> {
     const children = typeof props.children === "function" ? await props.children() : props.children;
     rendered.push(...(await Promise.all(children)));
   }
-  const fieldsHtml = rendered.join("");
+  const choicesHtml = (props.derived?.inputs ?? []).filter(input =>
+    input.choices !== undefined && props.fields.some(field => field.path === input.name),
+  ).map(input => {
+    const id = `${props.idPrefix}-choices-${input.name}`;
+    return `<div data-can-choices="${escapeAttr(input.name)}"><label for="${escapeAttr(id)}">Choose ${escapeHtml(input.name)}</label>` +
+      `<select id="${escapeAttr(id)}" data-can-choices-select disabled><option value="">Choose a value</option></select>` +
+      '<div data-can-choices-feedback role="status" aria-live="polite"></div></div>';
+  }).join("");
+  const fieldsHtml = rendered.join("") + choicesHtml;
   const submitLabel = escapeHtml(resolveCaption(props.submit, props.context));
   const renderedForm = (
     formOpenTag(props.action, needsMultipart(props.fields), props.derived, props.fields.map(field => field.path), props.sourceBindingIdentity, props.sourceBindingDraftIdentity) +
@@ -1113,6 +1121,16 @@ function literalPrefill(input: DerivedWritableInput): unknown {
     return undefined;
   }
   let prefill: unknown = fallback.value;
+  if (
+    input.kind === "user" &&
+    input.array === undefined &&
+    typeof prefill === "object" &&
+    prefill !== null &&
+    !Array.isArray(prefill) &&
+    "id" in prefill
+  ) {
+    prefill = (prefill as Record<string, unknown>)["id"];
+  }
   if (
     input.kind === "money" &&
     typeof prefill === "object" &&
@@ -1841,11 +1859,11 @@ export function projectGeneratedInputs(
       }
       continue;
     }
-    if (input.kind === "file") {
-      // The opaque finalized id, filled by the client after the S7
-      // intent flow becomes the canonical Values wire {id}. An empty
-      // draft id stays empty inside that shape for correctable admission.
-      if (raw === undefined) {
+    if (input.kind === "file" || input.kind === "user") {
+      // Opaque user IDs and finalized S7 file IDs use the canonical
+      // Values wire {id}. Blank optional users omit for engine defaults;
+      // required users and empty file drafts retain correctable admission.
+      if (raw === undefined || (input.kind === "user" && raw === "" && !input.required)) {
         continue;
       }
       out[input.name] = { id: raw };
@@ -1921,7 +1939,7 @@ export function generatedDraftValues(
       }
       continue;
     }
-    if (input.kind === "ref") {
+    if (input.kind === "ref" || input.kind === "user") {
       if (!isDraftRecord(member) || typeof member["id"] !== "string") {
         continue;
       }
