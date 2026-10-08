@@ -5350,12 +5350,7 @@ impl<'a> Emitter<'a> {
                             .map(|message| message.source.clone())
                             .unwrap_or_default(),
                         inputs,
-                        result: match result {
-                            Some(ResolvedType::Scalar(Scalar::Int)) => Some("int"),
-                            // The checked Scenario signature establishes no result.
-                            None => Some("void"),
-                            _ => None,
-                        },
+                        result: checked_scenario_result(result.as_ref()),
                     });
                 }
                 IrItemKind::CrudOp {
@@ -6669,6 +6664,33 @@ impl<'a> Emitter<'a> {
         self.callables.extend(callables);
         self.pages.extend(pages);
         out.finish(module_path(&module_data.name))
+    }
+}
+
+/// Closed checked int/datetime result profile; other shapes stay unknown.
+fn checked_scenario_result(result: Option<&ResolvedType>) -> Option<&'static str> {
+    // Only successful checked Scenario signatures establish no result.
+    let Some(result) = result else {
+        return Some("void");
+    };
+    let (value, nullable) = match result {
+        ResolvedType::Nullable(value) => (value.as_ref(), true),
+        value => (value, false),
+    };
+    let (scalar, array) = match value {
+        ResolvedType::Array { element, .. } => (element.as_ref(), true),
+        value => (value, false),
+    };
+    match (scalar, array, nullable) {
+        (ResolvedType::Scalar(Scalar::Int), false, false) => Some("int"),
+        (ResolvedType::Scalar(Scalar::Datetime), false, false) => Some("datetime"),
+        (ResolvedType::Scalar(Scalar::Int), false, true) => Some("int?"),
+        (ResolvedType::Scalar(Scalar::Datetime), false, true) => Some("datetime?"),
+        (ResolvedType::Scalar(Scalar::Int), true, false) => Some("int[]"),
+        (ResolvedType::Scalar(Scalar::Datetime), true, false) => Some("datetime[]"),
+        (ResolvedType::Scalar(Scalar::Int), true, true) => Some("int[]?"),
+        (ResolvedType::Scalar(Scalar::Datetime), true, true) => Some("datetime[]?"),
+        _ => None,
     }
 }
 
