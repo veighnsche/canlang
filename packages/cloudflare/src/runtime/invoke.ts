@@ -9497,6 +9497,196 @@ export async function runFanoutSchedulerTurn(
   };
 }
 
+export interface RunRetainedFanoutSchedulerTurnOpts extends Omit<RunFanoutSchedulerTurnOpts, 'cursor' | 'freeze'> {
+  /** Trusted operating owner; the supplied store must already own this source. */
+  readonly owner: string;
+  readonly retainedIntent: StoredRow;
+  /** Co-stage an actual selected intent visit in the named owner scan row. */
+  readonly advanceOwnerScan?: boolean;
+}
+
+/** One durable slice, not admission, coverage, or completion. */
+export interface RetainedFanoutSchedulerTurnResult {
+  readonly status: 'turn';
+  readonly driven: ReadonlyArray<FanoutTurnDrivenChild>;
+  readonly released: ReadonlyArray<string>;
+  readonly releaseSkipped: ReadonlyArray<{ readonly childId: string; readonly reason: string }>;
+  readonly cursor: string | null;
+  readonly wrapped: boolean;
+}
+
+/**
+ * Resume only actual retained children through the existing child engine.
+ * Two bounded child queries: unchanged stale release, then navigation at the
+ * same position/limit. No membership admission or full progress traversal.
+ * Owner/source storage authority is a trusted prerequisite of this port;
+ * navigation rows and caller-supplied owner text confer no authority.
+ */
+export async function runRetainedFanoutSchedulerTurn(
+  opts: RunRetainedFanoutSchedulerTurnOpts,
+): Promise<RetainedFanoutSchedulerTurnResult> {
+  const producers = opts.producers ?? await loadFanoutStateProducers();
+  checkFanoutRowMeta(opts.meta, 'retained turn');
+  checkFanoutPolicy(opts.policy, 'retained turn');
+  checkClosedText(opts.owner, 'retained turn owner');
+  checkClosedText(opts.fanoutId, 'retained turn fanout id');
+  checkClosedText(opts.cohort.model, 'retained turn cohort model');
+  checkClosedText(opts.invoke.refInput, 'retained turn ref input');
+  if (!Number.isSafeInteger(opts.bounds.pageLimit) || opts.bounds.pageLimit < 1 ||
+      !Number.isSafeInteger(opts.bounds.maxDrives) || opts.bounds.maxDrives < 1 ||
+      !Number.isFinite(opts.maxClaimAgeMs) || opts.maxClaimAgeMs < 0 ||
+      typeof opts.evaluateGuard !== 'function' || typeof opts.readSnapshot !== 'function' ||
+      typeof opts.fenceFor !== 'function' || typeof opts.body !== 'function' ||
+      typeof opts.invoke.operationIdFor !== 'function') {
+    throw new Error('Retained fanout turn needs finite bounds and the actual child driver ports.');
+  }
+  if ((opts.invoke.identity.team?.team_id ?? 'app') !== opts.owner) {
+    throw new Error('Retained fanout owner disagrees with the actual invocation identity.');
+  }
+  const intentRow = await opts.store.load(T34F7_FANOUT_INTENT_MODEL, opts.fanoutId as RecordId);
+  if (intentRow === null || intentRow.id !== opts.retainedIntent.id ||
+      intentRow.id !== opts.fanoutId || intentRow.version !== opts.retainedIntent.version ||
+      JSON.stringify(producers.tables.readFanoutIntentRow(intentRow)) !==
+        JSON.stringify(producers.tables.readFanoutIntentRow(opts.retainedIntent))) {
+    throw new Error('Retained fanout turn needs its exact current named intent and frozen membership.');
+  }
+  const intent = producers.tables.readFanoutIntentRow(intentRow);
+  if (intent.handler !== opts.invoke.childOperation ||
+      intent.cohort !== (opts.cohort.anchor === undefined ? 'model' : 'anchored-collection')) {
+    throw new Error('Retained fanout intent disagrees with its actual child operation or cohort.');
+  }
+  const navigationModule = await loadProducerModule('@canlang/state/fanout/navigation', 'state fanout navigation');
+  const navigation = {
+    navigationModel: requireProducerString(navigationModule, 'FANOUT_NAVIGATION_MODEL', 'state fanout navigation') as ModelName,
+    scanModel: requireProducerString(navigationModule, 'FANOUT_OWNER_SCAN_MODEL', 'state fanout navigation') as ModelName,
+    rowId: requireProducerFn(navigationModule, 'fanoutNavigationRowId', 'state fanout navigation') as
+      typeof import('@canlang/state/fanout/navigation').fanoutNavigationRowId,
+    scanId: requireProducerFn(navigationModule, 'fanoutOwnerScanRowId', 'state fanout navigation') as
+      typeof import('@canlang/state/fanout/navigation').fanoutOwnerScanRowId,
+    read: requireProducerFn(navigationModule, 'readFanoutNavigationRow', 'state fanout navigation') as
+      typeof import('@canlang/state/fanout/navigation').readFanoutNavigationRow,
+    query: requireProducerFn(navigationModule, 'fanoutNavigationChildQuery', 'state fanout navigation') as
+      typeof import('@canlang/state/fanout/navigation').fanoutNavigationChildQuery,
+    stage: requireProducerFn(navigationModule, 'stageFanoutNavigationWrite', 'state fanout navigation') as
+      typeof import('@canlang/state/fanout/navigation').stageFanoutNavigationWrite,
+    stageScan: requireProducerFn(navigationModule, 'stageFanoutOwnerScanWrite', 'state fanout navigation') as
+      typeof import('@canlang/state/fanout/navigation').stageFanoutOwnerScanWrite,
+  };
+  const binding = { owner: opts.owner, intentRow };
+  let navigationRow = await opts.store.load(navigation.navigationModel, navigation.rowId(opts.owner, opts.fanoutId) as RecordId);
+  const initialCursor = navigationRow === null ? null : navigation.read(navigationRow, binding).lastVisitedChildId;
+  const childQuery = navigation.query({ ...binding, row: navigationRow, limit: opts.bounds.pageLimit });
+  let scanWrite: DomainWrite | null = null;
+  if (opts.advanceOwnerScan === true) {
+    const row = await opts.store.load(navigation.scanModel, navigation.scanId(opts.owner) as RecordId);
+    scanWrite = navigation.stageScan({ row, owner: opts.owner, visitedIntentRow: intentRow, meta: opts.meta });
+  }
+  const fenceFor = (child: FanoutChildId): FanoutClaimFenceInput => {
+    const fence = opts.fenceFor(child);
+    if (fence.owner !== opts.owner) throw new Error('Retained child claim fence disagrees with its operating owner.');
+    return fence;
+  };
+  const childIdentity = (row: StoredRow): FanoutChildId => {
+    const child = producers.tables.readFanoutChildRow(row);
+    if (child.fanoutId !== intent.fanoutId || child.parentOccurrence !== intent.sourceOccurrence ||
+        child.handler !== intent.handler || !intent.members.includes(child.recordId)) {
+      throw new Error('Retained child is outside the original source membership.');
+    }
+    return { parentOccurrence: child.parentOccurrence, handler: child.handler, recordId: child.recordId };
+  };
+  const releaseStore: StoragePort = { ...opts.store, commit: async batch => {
+    for (const write of batch.writes) {
+      if (write.model !== T34F7_FANOUT_CHILD_MODEL || write.kind === 'remove') {
+        throw new Error('Retained stale release must contain only actual child updates.');
+      }
+      if (await fenceFor(childIdentity(write.row)).revalidateAuthority() !== true) {
+        throw new FanoutCommitAuthorityChanged('Retained stale release no longer has its owner authority.');
+      }
+    }
+    return opts.store.commit(batch);
+  } };
+  const released = await releaseStaleFanoutClaims({ store: releaseStore, fanoutId: opts.fanoutId,
+    cursor: initialCursor, limit: opts.bounds.pageLimit, nowMs: opts.meta.nowMs,
+    maxClaimAgeMs: opts.maxClaimAgeMs, meta: opts.meta, producers });
+  const page = producers.tables.fanoutChildPageResult(await opts.store.query(childQuery), opts.bounds.pageLimit);
+  const driven: FanoutTurnDrivenChild[] = [];
+  const visits = page.rows.slice(0, opts.bounds.maxDrives);
+  const stageVisit = (row: StoredRow | null): DomainWrite => navigation.stage({
+    ...binding, row: navigationRow, visitedChildRow: row, meta: opts.meta,
+  });
+  const acceptVisit = (write: DomainWrite): void => {
+    if (write.kind === 'remove') throw new Error('Navigation producer cannot remove a position.');
+    navigationRow = write.row;
+    scanWrite = null;
+  };
+  for (const childRow of visits) {
+    const child = childIdentity(childRow);
+    const fence = fenceFor(child);
+    if (await fence.revalidateAuthority() !== true) {
+      throw new FanoutCommitAuthorityChanged('Retained child no longer has its owner authority.');
+    }
+    let committedVisit = false;
+    const visitStore: StoragePort = { ...opts.store, commit: async batch => {
+      const terminalWrite = batch.writes.find(write => write.model === T34F7_FANOUT_CHILD_MODEL &&
+        write.kind !== 'remove' && write.row.id === childRow.id &&
+        fanoutChildOutcomeFromData(producers.tables.readFanoutChildRow(write.row)) !== null);
+      if (terminalWrite === undefined || terminalWrite.kind === 'remove') return opts.store.commit(batch);
+      const visitWrite = stageVisit(terminalWrite.row);
+      // Canonical unit commits already performed the driver's winning claim,
+      // owner, and source guard checks. Add only synchronous producer writes
+      // at that boundary; pins have no such check and revalidate here.
+      if (batch.receipt === null && await fence.revalidateAuthority() !== true) {
+        throw new FanoutCommitAuthorityChanged('Retained terminal pin lost its owner authority.');
+      }
+      const result = await opts.store.commit({ ...batch,
+        writes: [...batch.writes, visitWrite, ...(scanWrite === null ? [] : [scanWrite])] });
+      acceptVisit(visitWrite);
+      committedVisit = true;
+      return result;
+    } };
+    const result = await driveFanoutTurnChild({ ...opts, store: visitStore, childRow, fenceFor, producers });
+    if (!committedVisit) {
+      const revision = await opts.store.readRevision();
+      const current = await opts.store.load(T34F7_FANOUT_CHILD_MODEL, childRow.id);
+      if (current === null) throw new Error('Retained visited child disappeared before navigation maintenance.');
+      childIdentity(current);
+      const visitWrite = stageVisit(current);
+      if (await fence.revalidateAuthority() !== true) {
+        throw new FanoutCommitAuthorityChanged('Retained navigation maintenance lost its owner authority.');
+      }
+      await opts.store.commit({ expectedRevision: revision,
+        writes: [visitWrite, ...(scanWrite === null ? [] : [scanWrite])], history: [], receipt: null,
+        outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [] });
+      acceptVisit(visitWrite);
+    }
+    driven.push(result);
+  }
+  // Only an actually empty page wraps. A short or truncated page still resumes
+  // after its last processed child; wrap never claims terminal coverage.
+  if (page.rows.length === 0) {
+    const revision = await opts.store.readRevision();
+    const retainedMember = intent.members[0];
+    if (retainedMember === undefined) {
+      throw new Error('Empty retained membership has no admitted child authority for navigation maintenance.');
+    }
+    const retainedChild = await opts.store.load(T34F7_FANOUT_CHILD_MODEL,
+      producers.tables.fanoutChildRowId(intent.sourceOccurrence, intent.handler, retainedMember) as RecordId);
+    if (retainedChild === null) throw new Error('Retained wrap requires an actual admitted child authority.');
+    const wrapFence = fenceFor(childIdentity(retainedChild));
+    const visitWrite = stageVisit(null);
+    if (await wrapFence.revalidateAuthority() !== true) {
+      throw new FanoutCommitAuthorityChanged('Retained navigation wrap lost its owner authority.');
+    }
+    await opts.store.commit({ expectedRevision: revision,
+      writes: [visitWrite, ...(scanWrite === null ? [] : [scanWrite])], history: [], receipt: null,
+      outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [] });
+    acceptVisit(visitWrite);
+  }
+  return { status: 'turn', driven, released: released.released, releaseSkipped: released.skipped,
+    cursor: navigationRow === null ? null : navigation.read(navigationRow, binding).lastVisitedChildId,
+    wrapped: page.rows.length === 0 };
+}
+
 /* -- T34-F7 operator progress + provider cancellation. -- */
 
 /**

@@ -9,6 +9,8 @@ import type { CompileArtifact, ReceiptIdentity, StoragePort, StoredRow } from '@
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { createSystemRegistry } from '@canlang/state/ports/system';
 import { asId, asModel, FIXED_NOW, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
+import { FANOUT_NAVIGATION_MODEL, FANOUT_OWNER_SCAN_MODEL, fanoutNavigationRowId, fanoutOwnerScanRowId,
+  readFanoutNavigationRow, readFanoutOwnerScanRow } from '@canlang/state/fanout/navigation';
 import { createD1IdentityStore, ensureIdentitySchema, resolveIdentity, sha256HexText } from '@canlang/identity';
 import { workSchedulePutCommand } from '@canlang/work/kernel/schedule-staging';
 import { WORK_SCHEDULE_MODEL, WORK_OCCURRENCE_MODEL, readScheduleRow, readOccurrenceRow } from '@canlang/work/kernel/tables';
@@ -16,7 +18,7 @@ import { assembleModules } from './modules.js';
 import { buildInvoker } from '../worker/assembly.js';
 import { createCanonicalDueCohortBody, invokeDueScheduleCanonical, loadFanoutStateProducers,
   runFanoutSchedulerTurn, T34F7_FANOUT_INTENT_MODEL, T34F7_FANOUT_CHECKPOINT_MODEL,
-  T34F7_FANOUT_CHILD_MODEL, releaseStaleFanoutClaims, claimFanoutChild } from './invoke.js';
+  T34F7_FANOUT_CHILD_MODEL, releaseStaleFanoutClaims, claimFanoutChild, runRetainedFanoutSchedulerTurn } from './invoke.js';
 import type { CanonicalDueScheduleOpts, FanoutSchedulerBodyPort, FanoutSchedulerTurnResult } from './invoke.js';
 
 const APP = 'CohortJourney';
@@ -219,6 +221,133 @@ test('declared private cohorts freeze sibling handlers and retain checked events
     const afterScoped = await storage.state.readRevision();
     assert.equal(outcomeStatus(await invokeDueScheduleCanonical(opts('scoped', scopedDue))), 'replayed');
     assert.equal(await storage.state.readRevision(), afterScoped);
+
+    // A retained child slice resumes its committed navigation after process
+    // loss, and a live held child cannot starve the later frozen identities.
+    const retainedDue = await schedule('Scoped', { container: { id: firstParent.id, version: '2' },
+      marker: 'durable bounded visit' });
+    const retainedOpts = () => ({ ...opts('scoped', retainedDue), cohortBounds: { pageLimit: 2, chunkSize: 10 } });
+    assert.equal(outcomeStatus(await invokeDueScheduleCanonical(retainedOpts())), 'completed');
+    let retained = await createCanonicalDueCohortBody(retainedOpts());
+    assert.deepEqual(retained.bounds, { pageLimit: 2, chunkSize: 10 });
+    const retainedIntent = await storage.state.load(T34F7_FANOUT_INTENT_MODEL, asId(retained.fanoutId));
+    assert.ok(retainedIntent);
+    const retainedChildren = await storage.state.query(producers.tables.fanoutChildPageQuery(retained.fanoutId,
+      { cursor: null, limit: 10 }));
+    assert.equal(retainedChildren.length, 3);
+    assert.equal((await storage.state.load(T34F7_FANOUT_CHECKPOINT_MODEL, asId(retained.fanoutId)))?.data.cursor, null);
+    const firstChild = retainedChildren[0]!;
+    const heldChild = retainedChildren[1]!;
+    const laterChild = retainedChildren[2]!;
+    const retainedBefore = await Promise.all(retainedChildren.map(row => {
+      const data = producers.tables.readFanoutChildRow(row);
+      return storage.state.load(ENTRY, asId(data.recordId));
+    }));
+    const retainedHistoryBefore = await Promise.all(retainedBefore.map(row => {
+      assert.ok(row); return storage.state.historyFor(ENTRY, row.id);
+    }));
+    const heldData = producers.tables.readFanoutChildRow(heldChild);
+    const retainedFence = () => ({ owner: team.team_id,
+      revalidateAuthority: async () => (await storage.identity.findTeamById(team.team_id)) !== null });
+    const heldClaim = await claimFanoutChild({ store: storage.state,
+      child: { parentOccurrence: retainedDue.occurrenceId, handler: `${APP}.scoped`, recordId: heldData.recordId },
+      snapshotVersion: heldChild.version, guard: { predicate: null }, frozenInputs: null,
+      readCurrentSnapshot: () => storage.state.load(ENTRY, asId(heldData.recordId)), evaluateGuard: () => true,
+      fence: retainedFence(), policy: { maxAttempts: 3, horizonMs: 60_000 },
+      meta: { actor: retained.trustedSource, nowMs: now }, producers });
+    assert.equal(heldClaim.status, 'claimed');
+    const responseLoss = new Error('actual terminal commit response lost');
+    let lossFired = false;
+    let retainedReceipt: ReceiptIdentity | undefined;
+    const retainedSlice = async (loseResponse = false, advanceOwnerScan = false) => {
+      const actualStore = storage.state;
+      let childQueries = 0;
+      const measured: StoragePort = { ...actualStore, query: async query => {
+        if (query.model === T34F7_FANOUT_CHILD_MODEL) {
+          childQueries += 1;
+          assert.ok(query.limit !== undefined && query.limit <= 2);
+        }
+        return actualStore.query(query);
+      }, commit: async batch => {
+        const committed = await actualStore.commit(batch);
+        if (loseResponse && !lossFired && batch.receipt !== null &&
+            batch.writes.some(write => write.model === asModel(FANOUT_NAVIGATION_MODEL)) &&
+            batch.writes.some(write => write.model === T34F7_FANOUT_CHILD_MODEL && write.kind !== 'remove' &&
+              write.row.id === firstChild.id && producers.tables.readFanoutChildRow(write.row).state === 'completed')) {
+          retainedReceipt = batch.receipt.identity;
+          lossFired = true;
+          throw responseLoss;
+        }
+        return committed;
+      } };
+      try {
+        const result = await runRetainedFanoutSchedulerTurn({ store: measured, owner: team.team_id,
+          retainedIntent, fanoutId: retained.fanoutId, advanceOwnerScan,
+          bounds: { pageLimit: 2, maxDrives: 1 }, policy: { maxAttempts: 3, horizonMs: 60_000 },
+          meta: { actor: retained.trustedSource, nowMs: now }, maxClaimAgeMs: 1000,
+          cohort: { model: retained.cohort.model, ...(retained.cohort.kind === 'anchored-collection'
+            ? { anchor: retained.cohort.parent } : {}) },
+          guard: { predicate: null, frozenInputs: null }, evaluateGuard: () => true,
+          readSnapshot: (_child, row) => row, fenceFor: retainedFence, body: retained.body, producers,
+          invoke: { registry: retained.registry, memberships: storage.identity, clock, identity: retained.identity,
+            app: APP, source: 'schedule', childOperation: `${APP}.scoped`, refInput: retained.refInput,
+            inputs: retained.inputs, kind: 'trusted', trustedSource: retained.trustedSource, operationIdFor: nextId } });
+        assert.ok(result.driven.length <= 1);
+        return result;
+      } finally { assert.equal(childQueries, 2, 'Hot retained turn performs only its two bounded child-page queries.'); }
+    };
+    await assert.rejects(() => retainedSlice(true, true), responseLoss);
+    assert.equal(lossFired, true); assert.ok(retainedReceipt);
+    const navigationId = asId(fanoutNavigationRowId(team.team_id, retained.fanoutId));
+    const navigationAfterLoss = await storage.state.load(asModel(FANOUT_NAVIGATION_MODEL), navigationId);
+    assert.ok(navigationAfterLoss);
+    assert.deepEqual(readFanoutNavigationRow(navigationAfterLoss, { owner: team.team_id, intentRow: retainedIntent }), {
+      owner: team.team_id, fanoutId: retained.fanoutId, sourceOccurrence: retainedDue.occurrenceId,
+      handler: `${APP}.scoped`, cohort: 'anchored-collection', intentVersion: retainedIntent.version,
+      lastVisitedChildId: firstChild.id,
+    });
+    const scanAfterLoss = await storage.state.load(asModel(FANOUT_OWNER_SCAN_MODEL), asId(fanoutOwnerScanRowId(team.team_id)));
+    assert.ok(scanAfterLoss);
+    assert.deepEqual(readFanoutOwnerScanRow(scanAfterLoss, team.team_id),
+      { owner: team.team_id, lastVisitedIntentId: retained.fanoutId });
+    assert.equal(producers.tables.readFanoutChildRow((await storage.state.load(T34F7_FANOUT_CHILD_MODEL, firstChild.id))!).state,
+      'completed');
+    const savedChildReceipt = await storage.state.readReceipt(retainedReceipt); assert.ok(savedChildReceipt);
+    assert.equal(savedChildReceipt.outcome.status, 'committed');
+    const firstData = producers.tables.readFanoutChildRow(firstChild);
+    const firstAfterLoss = await storage.state.load(ENTRY, asId(firstData.recordId)); assert.ok(firstAfterLoss);
+    assert.equal(firstAfterLoss.data.label, 'durable bounded visit');
+    const firstHistoryAfterLoss = await storage.state.historyFor(ENTRY, firstAfterLoss.id);
+    await mf!.dispose(); mf = undefined;
+    storage = await open();
+    invoker = buildInvoker(artifact, asm, storage.state, { memberships: storage.identity, now: clock.nowMs });
+    retained = await createCanonicalDueCohortBody(retainedOpts());
+    assert.deepEqual(await storage.state.load(asModel(FANOUT_NAVIGATION_MODEL), navigationId), navigationAfterLoss);
+    assert.deepEqual(await storage.state.readReceipt(retainedReceipt), savedChildReceipt);
+    const heldVisit = await retainedSlice();
+    assert.deepEqual(heldVisit.driven.map(child => [child.childId, child.status]), [[heldChild.id, 'held']]);
+    assert.equal(heldVisit.cursor, heldChild.id);
+    const laterVisit = await retainedSlice();
+    assert.deepEqual(laterVisit.driven.map(child => [child.childId, child.status]), [[laterChild.id, 'recorded']]);
+    assert.equal((await retainedSlice()).wrapped, true);
+    now += 1000;
+    const releasedVisit = await retainedSlice();
+    assert.ok(releasedVisit.released.includes(heldChild.id));
+    assert.deepEqual(releasedVisit.driven.map(child => [child.childId, child.status]), [[firstChild.id, 'replayed']]);
+    assert.deepEqual((await retainedSlice()).driven.map(child => [child.childId, child.status]), [[heldChild.id, 'recorded']]);
+    assert.deepEqual((await retainedSlice()).driven.map(child => [child.childId, child.status]), [[laterChild.id, 'replayed']]);
+    assert.equal((await retainedSlice()).wrapped, true);
+    for (const [index, before] of retainedBefore.entries()) {
+      assert.ok(before);
+      const after = await storage.state.load(ENTRY, before.id); assert.ok(after);
+      assert.equal(after.version, before.version + 1);
+      assert.equal(after.data.label, 'durable bounded visit');
+      assert.equal((await storage.state.historyFor(ENTRY, before.id)).length, retainedHistoryBefore[index]!.length + 1);
+    }
+    assert.deepEqual(await storage.state.load(ENTRY, firstAfterLoss.id), firstAfterLoss);
+    assert.deepEqual(await storage.state.historyFor(ENTRY, firstAfterLoss.id), firstHistoryAfterLoss);
+    assert.deepEqual(await storage.state.load(asModel(FANOUT_OWNER_SCAN_MODEL), scanAfterLoss.id), scanAfterLoss);
+
     // A real trusted admission under another source principal cannot borrow
     // this retained event or commit any of its provisional business changes.
     const wrongPrincipalDue = await schedule('Sweep', { marker: 'wrong principal must not run' });
