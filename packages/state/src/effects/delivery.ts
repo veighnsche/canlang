@@ -1,4 +1,4 @@
-import type { ReceiptProperty, SelectedReceiptProjection } from '@canlang/contracts';
+import type { ReceiptProperty } from '@canlang/contracts';
 import { StateError } from '../errors.js';
 
 /** Installed by canonical scenario execution; observation stays with its owner. */
@@ -7,7 +7,7 @@ export interface DeliveryContext {
     observeDelivery?(
       locator: { readonly record: unknown; readonly field: string },
       selected: readonly ReceiptProperty[],
-    ): Promise<SelectedReceiptProjection | null>;
+    ): Promise<Readonly<Partial<Record<ReceiptProperty, unknown>>> | null>;
   };
 }
 
@@ -16,7 +16,7 @@ export async function delivery(
   c: DeliveryContext,
   locator: { readonly record: unknown; readonly field: string },
   selected: readonly ReceiptProperty[],
-): Promise<SelectedReceiptProjection | null> {
+): Promise<Readonly<Partial<Record<ReceiptProperty, unknown>>> | null> {
   if (typeof c.canonical?.observeDelivery !== 'function') {
     throw new StateError('validation', 'delivery requires canonical receipt observation scope.');
   }
