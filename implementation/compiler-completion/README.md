@@ -160,3 +160,23 @@ caller has no failed-prefix status, supporting complete abort while preserving
 that uncertainty. Billion-entry exhaustion was not allocated. Generated
 output/map widths and the broader FAIL-R06 reference remain open; completion
 stays **54/67**, with **13** remaining.
+
+`e38474fd` adds owning numeric output admission: the writer checks its 1-based
+line domain before mutation, propagates failed appended writers and refuses
+prefixes through `try_finish`; source maps check 0-based coordinates and their
+library's separate missing source/name ID sentinel through `try_build`. Entry,
+package, BDD/shell and map assembly paths report E6012 with no executable
+compile artifact. The six existing map producer cases and two existing BDD
+cases pass. The actual map consumer case failed when Node strip-only mode
+encountered the package's new TypeScript parameter-property constructor;
+that production-owner prerequisite is routed, with no passing overall case
+claimed. Three advisory replies favor writer status (.76/.76/.82 confidence);
+no resource or giant-allocation guarantee follows.
+
+The same producer release enables parameter-style callable metadata and
+checked scalar/nullable/ordinary-array omission markers for public read=true
+scenarios, retaining computed-ref refusal. The current real native CLI emits
+the owning `typed-scenario-values.json` from its readBound source with exit 0;
+both fixture paths are released to the package owner for its paired commit
+and existing genuine viewer/default/result case. Runtime qualification remains
+with that owner. Completion stays **54/67**, with **13** remaining.

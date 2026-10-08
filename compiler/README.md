@@ -190,6 +190,15 @@ Implemented modules:
   refuses its successor. Full checking stops before dependent passes, retaining
   diagnostics and cohort metadata. The compatibility resolver returns empty
   tables on capacity failure. Generated output/map widths remain separate.
+- Generated output has fallible `JsWriter::try_finish` and
+  `codegen::sourcemap::try_build` admission. E6012 refuses unrepresentable
+  line/row/source/name IDs and compilation returns no executable artifact.
+  Source maps preserve their distinct coordinate and missing-ID domains;
+  ordinary bytes and public convenience signatures remain supported.
+- Supported public read scenarios now publish parameter-style callables and
+  the same checked computed-default omission marker as mutation scenarios.
+  The owning runtime qualifies viewer reads, defaults and result serving;
+  computed reference defaults still report E6008.
 - `src/policy.rs`, `src/lint/`, `src/format.rs`, `src/ide/`: policy dumps,
   lint rules, the formatter, and editor services.
 
