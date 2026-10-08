@@ -11,17 +11,18 @@
 //!
 //! * Zero error-severity analysis diagnostics: B1 needs a supported source.
 //! * TeamTasks: `E6006 == 0` (every needed position bridged),
-//!   `E6007 == 0` (real catalog pins every builtin), `E6008 == 3`
-//!   (the pinned unlowered-UI-factory positions
-//!   `tooltip`/`delete`/`collapse`; each a throwing placeholder).
+//!   `E6007 == 0` (real catalog pins every builtin), `E6008 == 4`
+//!   (the pinned unlowered-UI-factory positions `tooltip`/`collapse`,
+//!   plus bound tabs and authored collection order).
 //!   NOTE: `can compile` (CLI policy) refuses to print an artifact
 //!   while `E6008`s report; this test drives `emit()` directly to pin
 //!   the artifact SHAPE those diagnostics accompany. A zero-`E6008`
 //!   source (`demo.can`, TeamTasks minus the unlowered lines)
 //!   compiles end to end via the CLI; see the phase-2 evidence note.
-//! * ExpenseFlow (B2a): `E6006 == 0`, `E6007 == 0`, `E6008 == 0`
-//!   with the real catalog — every factory, gate, slot, value query
-//!   and the causal sequence lower, and nothing throws.
+//! * ExpenseFlow (B2a): `E6006 == 0`, `E6007 == 0`, `E6008 == 2`
+//!   with the real catalog — bound tabs and authored collection order
+//!   are explicitly refused; other factories, gates, slots, value
+//!   queries and the causal sequence lower.
 //! * Entrypoint markers pinned from real emission (model shapes, CRUD
 //!   operations, page descriptors); no metadata spread.
 //! * Pages: exactly the 2 declared descriptors, exports resolved.
@@ -176,7 +177,7 @@ fn b1_teamtasks_artifact() {
     let (artifact, emit_diags) = emit(&program, &sources);
 
     // Exact emission profile: bridged (E6006=0), pinned (E6007=0),
-    // 2 loud unlowered-UI positions (E6008). Nothing else may appear.
+    // 4 explicit UI refusals (E6008). Nothing else may appear.
     // (A2b closed the `delete` gap: bare delete lowers to deleteRecord.)
     for d in &emit_diags {
         if d.code != "E6006" && d.code != "E6007" && d.code != "E6008" {
@@ -200,10 +201,10 @@ fn b1_teamtasks_artifact() {
             "expected zero E6007 with the real catalog, got {e6007}"
         ));
     }
-    if e6008 != 2 {
-        failures.push(format!("expected E6008=2 pinned UI gaps, got {e6008}"));
+    if e6008 != 4 {
+        failures.push(format!("expected E6008=4 pinned UI refusals, got {e6008}"));
     }
-    for word in ["tooltip", "collapse"] {
+    for word in ["tooltip", "collapse", "bound tabs", "collection order"] {
         if !emit_diags
             .iter()
             .any(|d| d.code == "E6008" && d.message.contains(word))
@@ -303,7 +304,8 @@ fn b2_expenseflow_artifact() {
     let (artifact, emit_diags) = emit(&program, &sources);
 
     // Exact emission profile: everything bridges (E6006=0), pins
-    // (E6007=0) and lowers (E6008=0). Nothing else may appear.
+    // (E6007=0); bound tabs and authored collection order are refused
+    // explicitly (E6008=2). Nothing else may appear.
     for d in &emit_diags {
         if d.code != "E6006" && d.code != "E6007" && d.code != "E6008" {
             failures.push(format!("unexpected codegen code {}: {}", d.code, d.message));
@@ -326,8 +328,16 @@ fn b2_expenseflow_artifact() {
             "expected zero E6007 with the real catalog, got {e6007}"
         ));
     }
-    if e6008 != 0 {
-        failures.push(format!("expected E6008=0 lowered, got {e6008}"));
+    if e6008 != 2 {
+        failures.push(format!("expected E6008=2 UI refusals, got {e6008}"));
+    }
+    for word in ["bound tabs", "collection order"] {
+        if !emit_diags
+            .iter()
+            .any(|d| d.code == "E6008" && d.message.contains(word))
+        {
+            failures.push(format!("expected a pinned E6008 for `{word}`"));
+        }
     }
 
     // Artifact shape per artifact.ts.

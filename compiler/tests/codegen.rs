@@ -5,7 +5,7 @@
 //! with a hermetic golden catalog, so `E6007` cannot fire and availability
 //! is pinned, not discovered. Goldens run over the complete PR5+ analysis
 //! (effects, examples, UI shape rules, handler sources); remaining `E6006`
-//! gaps and `E6008` unlowered positions are pinned per golden with their
+//! gaps and `E6008` refused positions are pinned per golden with their
 //! fail-closed placeholders (throwing stubs). NOTHING HERE CLAIMS RUNTIME
 //! SUCCESS: no emitted module is executed, no stdlib/UI binding is linked,
 //! and no artifact ships until the B1 join re-verifies it over a complete
@@ -391,8 +391,9 @@ fn golden_teamtasks_structure() {
     // - G9 modules: page descriptors/functions, app/package/page
     //   descriptions; `disabled` computed (empty: full CRUD everywhere).
     //   Catalog UI factories `breadcrumbs`/`input`/`textarea`/
-    //   `pagination` lower; `tooltip`/`delete`/`collapse` have no §13
-    //   lowering (3 E6008, each pinned below).
+    //   `pagination` lower; `tooltip`/`collapse` have no §13 lowering,
+    //   while bound tabs and authored collection order are refused
+    //   (5 E6008, each pinned below).
     // - G10 examples: the update table (fixture recipe, common inputs,
     //   selectors, observations, rows with errors) lowered.
     // - G12 awaited: `count` is catalog state-read, so calls await.
@@ -467,8 +468,8 @@ fn golden_teamtasks_structure() {
         "app description"
     );
     assert!(
-        entry.contains("selector:\"TeamTasks.view\""),
-        "tabs selector"
+        !entry.contains("selector:\"TeamTasks.view\""),
+        "refused tabs selector is absent"
     );
     assert!(
         entry.contains("$can$u$666f726d({context:c,operation:\"TeamTasks.Todo.create\",fields:[\"title\",\"assignee\"],display:\"inline\""),
@@ -502,8 +503,12 @@ fn golden_teamtasks_structure() {
         "list predicate lambda"
     );
     assert!(
-        entry.contains("order:[\"-created\"],search:[\"title\"],filter:[\"done\"]"),
-        "list props"
+        entry.contains("search:[\"title\"],filter:[\"done\"]"),
+        "supported list props"
+    );
+    assert!(
+        !entry.contains("order:[\"-created\"]"),
+        "refused collection order is absent"
     );
     assert!(
         entry.contains("renderRow:($can$l$313a726f77,$can$l$323a726f7756696577)=>"),
@@ -689,10 +694,8 @@ fn golden_teamtasks_structure() {
     }
     // Codegen diagnostics: zero E6006 (every emission-needed position
     // is checked and bridged), zero E6007 (the golden catalog verifies
-    // every referenced builtin), and three E6008: the untyped BDD call and catalog UI
-    // factories with no §13 lowering (`tooltip`/`collapse`;
-    // `breadcrumbs`/`input`/`textarea`/`pagination` lower now, and
-    // A2b closed `delete`).
+    // every referenced builtin), and five E6008: the untyped BDD call,
+    // `tooltip`/`collapse`, bound tabs, and authored collection order.
     for diag in &diags {
         assert!(
             diag.code == "E6006" || diag.code == "E6007" || diag.code == "E6008",
@@ -718,7 +721,7 @@ fn golden_teamtasks_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        3,
+        5,
         "unsupported count"
     );
     for (word, n) in [("tooltip", 1), ("collapse", 1)] {
@@ -729,6 +732,16 @@ fn golden_teamtasks_structure() {
                 .count(),
             n,
             "{word} factory"
+        );
+    }
+    for word in ["bound tabs", "collection order"] {
+        assert_eq!(
+            diags
+                .iter()
+                .filter(|d| d.code == "E6008" && d.message.contains(word))
+                .count(),
+            1,
+            "{word} refusal"
         );
     }
     if let Some(node) = find_node() {
@@ -1109,11 +1122,10 @@ fn golden_expenseflow_structure() {
         "list defaults"
     );
     assert!(
-        entry.contains(
-            "$can$u$74616273({context:c,selector:\"reporting.status\",value:preferences.status})"
-        ),
-        "tabs selector"
+        !entry.contains("selector:\"reporting.status\""),
+        "refused tabs selector is absent"
     );
+    assert!(!entry.contains("order:"), "refused collection order is absent");
     // Callables cover scenarios and generated CRUD ops (no delete).
     let callable_ids: Vec<&str> = artifact.callables.iter().map(|c| c.id.as_str()).collect();
     assert_eq!(
@@ -1279,7 +1291,7 @@ fn golden_expenseflow_structure() {
     // Zero E6006 (tables and the approve sequence all bridge), zero
     // E6007 (the golden catalog verifies every referenced builtin),
     // BDD calls and dependent assertion types consume owning checked facts.
-    // No lowering gap remains; runtime execution is separately qualified.
+    // Bound tabs and authored collection order are explicitly refused.
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6006").count(),
         0,
@@ -1296,9 +1308,19 @@ fn golden_expenseflow_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        0,
-        "unsupported count: {diags:?}"
+        2,
+        "bound tabs and authored collection order refusals: {diags:?}"
     );
+    for word in ["bound tabs", "collection order"] {
+        assert_eq!(
+            diags
+                .iter()
+                .filter(|d| d.code == "E6008" && d.message.contains(word))
+                .count(),
+            1,
+            "{word} refusal"
+        );
+    }
     for test in &artifact.tests {
         assert!(
             !test.module.js.contains("throw new Error"),
