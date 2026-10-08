@@ -566,7 +566,7 @@ pub struct JsOperationField {
     /// Closed typed schema (element kind for array inputs).
     pub field: JsMcpField,
     /// Checked source value identity when the wire kind alone is ambiguous.
-    pub value_type: Option<&'static str>,
+    pub value_type: Option<String>,
     /// Whether the caller must supply the member.
     pub required: bool,
     /// Whether the input accepts explicit null (T15a additive).
@@ -970,7 +970,7 @@ impl Serialize for JsOperationField {
         )?;
         state.serialize_field("name", &self.name)?;
         state.serialize_field("field", &self.field)?;
-        if let Some(value_type) = self.value_type {
+        if let Some(value_type) = &self.value_type {
             state.serialize_field("valueType", value_type)?;
         }
         state.serialize_field("required", &self.required)?;
@@ -5173,7 +5173,7 @@ impl<'a> Emitter<'a> {
                     .inputs
                     .iter()
                     .map(|field| {
-                        field.value_type.map(|type_id| {
+                        field.value_type.as_deref().map(|type_id| {
                             format!(
                                 "{}:{{type:{}}}",
                                 object_key(&field.name),
@@ -6424,7 +6424,7 @@ impl<'a> Emitter<'a> {
                     inputs: vec![JsOperationField {
                         name: "delivery_id".to_string(),
                         field: JsMcpField::String,
-                        value_type: Some("text"),
+                        value_type: Some("text".to_string()),
                         required: true,
                         nullable: false,
                         array_required: None,
@@ -6468,7 +6468,7 @@ impl<'a> Emitter<'a> {
             inputs.push(JsOperationField {
                 name: item.name.clone(),
                 field,
-                value_type: checked_string_value_type(ty),
+                value_type: checked_operation_input_value_type(ty),
                 required: default.is_none() && !nullable && (!is_array || *required_array),
                 nullable,
                 array_required: is_array.then_some(*required_array),
@@ -6563,7 +6563,9 @@ impl<'a> Emitter<'a> {
                 .map(|name| JsOperationField {
                     name: name.to_string(),
                     field: JsMcpField::String,
-                    value_type: Some(if name == "selected" { "text[]" } else { "text" }),
+                    value_type: Some(
+                        if name == "selected" { "text[]" } else { "text" }.to_string(),
+                    ),
                     required: true,
                     nullable: false,
                     array_required: (name == "selected").then_some(false),
@@ -6720,7 +6722,7 @@ impl<'a> Emitter<'a> {
                             Some((field, is_array)) => inputs.push(JsOperationField {
                                 name: param.name.clone(),
                                 field,
-                                value_type: checked_string_value_type(ty),
+                                value_type: checked_operation_input_value_type(ty),
                                 required: default.is_none() && !nullable && !is_array,
                                 nullable,
                                 array_required: is_array.then_some(false),
@@ -6857,7 +6859,7 @@ impl<'a> Emitter<'a> {
                                 flat.push(JsOperationField {
                                     name: field_item.name.clone(),
                                     field,
-                                    value_type: checked_string_value_type(ty),
+                                    value_type: checked_operation_input_value_type(ty),
                                     required,
                                     nullable,
                                     array_required,
@@ -8195,6 +8197,31 @@ fn checked_scenario_result(result: Option<&ResolvedType>) -> Option<Cow<'static,
         return Some(Cow::Borrowed("void"));
     };
     checked_value_profile(result).map(Cow::Borrowed)
+}
+
+/// Operation enum claims name the ordered checked cases and their supported
+/// wrappers explicitly; other inputs retain their existing scalar claims.
+fn checked_operation_input_value_type(ty: &IrType) -> Option<String> {
+    let IrType::Known(resolved) = ty else {
+        return None;
+    };
+    let (base, nullable) = match resolved {
+        ResolvedType::Nullable(inner) => (inner.as_ref(), true),
+        base => (base, false),
+    };
+    let (base, array) = match base {
+        ResolvedType::Array { element, .. } => (element.as_ref(), true),
+        base => (base, false),
+    };
+    if let ResolvedType::Enum { cases, .. } = base {
+        return Some(format!(
+            "enum({}){}{}",
+            cases.join(","),
+            if array { "[]" } else { "" },
+            if nullable { "?" } else { "" },
+        ));
+    }
+    checked_string_value_type(ty).map(str::to_string)
 }
 
 fn checked_string_value_type(ty: &IrType) -> Option<&'static str> {
