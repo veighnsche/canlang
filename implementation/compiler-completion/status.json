@@ -333,5 +333,50 @@
     "verified": "Actual production CLI/installed catalog/generated canApp metadata/UI consumer first actual0/1 (0.51s) exposed only missing authored model read policy at the final contextual model control; native preference behavior passed. Adding authored policy read=members yielded SAME case1/1 (0.10s). Generated appDefinition preserves preference defaults view=all and limit=3n; native validation accepts3n/rejects0n; page admission/render honors the reference. Focused preferences/syntax --no-run build0 (11.12s); corrected test-control rebuild0 (0.78s).",
     "qualification": "No production API or policy change, saved-preference admission, browser/read lifecycle or full S9-Q03 claim. Source/test/example/tooling inputs are frozen for capture. Original goal count58/67 with9open unchanged; no task-count credit.",
     "ownership": "Compiler grammar/type/effects and focused source consumer owned by this slice; Package owns normative documentation/DECISIONS and capture; coordinator owns coverage/index. Roadmap45-draft declarations in42 files are separately migrated and excluded here."
+  },
+  "default_read_dependency_consumer": {
+    "scope": "Bounded SEM-R08 scenario default context/read-dependency handoff; no full reference credit.",
+    "state": "qualified on first actual run and required host-migration rerun; no production repair required",
+    "direct_case": "compiler/tests/default_read_dependency.rs::computed_read_default_uses_admitted_context_and_skips_explicit_override",
+    "checked_facts": "Same genuine source/actual installed catalog public load_catalog/check_program: scenario parameter default NodeKey selects owning DeriveFn DefaultRead.entry_count symbol and node type Int. Same SourceDb/catalog IR parameter has Computed Call DeriveFn canonical DefaultRead.entry_count, no args, Int.",
+    "metadata": "Actual production CLI artifact computedDefault:true, no wire literal default, parameter-style callable and existing state/state.parameters requirements.",
+    "verified": "Historical first same actualcase1/1 (5.13s) retained. After required host migration45cbbd3e, affected case rerun SAME1/1 (0.51s) after consumer-only setup correction; affected --no-run build0 (5.60s). Public loadArtifactFile/assembleModules and unchanged generated imports execute through native CF/State Memory. Public CRUD returns null without read authority; setup uses explicit submitted operationId, asserts null public result and looks up the created row through the owning internal store (count1/version1). Omission returns wire2, explicit wire9 skips helper/read/count. Forwarding hasRole/records/count retain first admitted c and identical records(c), native array/row identity and integer projections; default helper records/count each once, domain rows/versions/history unchanged.",
+    "observer": "Before first run, full-role trace oracle narrowed to allow legitimate owning policy checks while retaining first admitted context and exact helper read/count once. No failed test or repeated case.",
+    "reused": "Earlier actor/read/default/effects d2fb9024 and accepted matrices reused without execution.",
+    "qualification": "Consumer-only setup change for migrated public null result; authored source grants/default expectations unchanged. No production repair, server-marker/unsupported-default API expansion, broad actor/replay/default matrix, full SEM-R08 or task-count credit. Counts58/67 with9open unchanged.",
+    "ownership": "Source/test/own notes frozen for scoped capture; root Cargo/CLI free; coordinator owns DECISIONS/coverage/index."
+  },
+  "localized_text_presentation_consumer": {
+    "scope": "Finite S9-Q01 native text presentation source-language/carrier join; full reference and wider hosts/business/outbound/timezone remain open.",
+    "state": "qualified on first actual run",
+    "direct_case": "compiler/tests/localized_format.rs::localized_format_displays_checked_source_locale_and_frozen_result",
+    "consumer": "compiler/tests/fixtures/localized-format-consumer.mjs --presentation",
+    "producer": "IrMessage.source_lang derives from actual checked message/module owner; absent owner E6006/no panic. One generated checked_message helper uses existing UI.normalizeTag, canonical fourth UI.message source-locale argument and required returned-field match, failing ValueError invalid-construction on incompatible constructor. Values format/makeMessageDescriptor signatures unchanged. Only text props.values admits complete formatted pair; all other business/sink refusals unchanged.",
+    "verified": "First SAME exactcase1/1 (6.81s), three old tests filtered out. Genuine Shared source FR/int plural0/nl variant via actual production CLI/loadArtifactFile/assembleModules/page.admit/page.render/installed UI. Two text nodes use canonical fr/un grammar; escaped HTML, literal braces, Arabic, FSI/PDI and lang=fr retained. Dutch rerender direct descriptor becomes nl/andere while explicit es formatted pair stays fr/frozen.",
+    "controls": "Legacy three-argument message and explicit old French source option preserved. Carried-source mismatch and malformed closed pairs reject. Simulated old UI drops fourth argument and required postcondition refuses. Formatted badge remains E6008/no modules.",
+    "compile_only": "Affected localized_format/codegen --no-run build0: mechanically changed IrMessage builders/goldens compile; no codegen tests/old matrices executed.",
+    "reused": "Historical branch, label and expression profile scopes/results reused unchanged.",
+    "qualification": "No full S9-Q01, wider host/business/human sink/outbound freezing/timezone or task-count credit. Counters58/67 and9remaining unchanged.",
+    "ownership": "Work owns UI/source consumer/assessment appendix; Package Contracts4304da2b/output emit0 release; root owns compiler/harness/own notes; coordinator owns DECISIONS/index."
+  },
+  "imported_scalar_alias_overlaps": {
+    "scope": "Finite SEM-R08 imported scalar-alias/date-datetime same-arity overload consumer; no full-reference credit.",
+    "state": "qualified on first actual case",
+    "source": "compiler/tests/fixtures/scalar-alias-overlaps.can",
+    "direct_case": "compiler/tests/selected_calls.rs::imported_scalar_aliases_preserve_installed_temporal_overloads",
+    "checked_facts": "Unchanged installed catalog and public load_catalog/check_program: imported Calendar.day/instant aliases retain canonical identities and date/datetime argument types; selected overlaps arms 0/1, Bool result, source slots [3,1,2,0]. Public IR retains exact bound pure builtin and nested source-ordered derive arguments.",
+    "verified": "One isolated actual production CLI/generated-module/installed Values facade case1/1 (0.54s): date and datetime overlap/touching return true/false; record getter receiver, once/source order bEnd,aEnd,bStart,aStart and original constructor input references preserved. Six unchanged selected_calls tests filtered/reused.",
+    "qualification": "Finite alias/overload consumer qualification only; no prior defect, matching/catalog/API/authority change, full alias/scalar-provenance or full SEM-R08/task-count credit. Unknown dotted nominal and other SEM-R08 duties remain open; counters58/67 with9open unchanged.",
+    "ownership": "Compiler owns source fixture and focused selected_calls case; coordinator owns DECISIONS/coverage/index joins."
+  },
+  "current_cohort_host": {
+    "scope": "Qualified original S9-Q02 current cohort-host identity/source handoff at recorded scope; no full task-count credit.",
+    "origin": "Original installed-host scoped JSON case55 at /private/tmp/canlang-crud-public-migration/node-tests.log259ff reports ValueError for same(entry.parent,event.container); authored source, checked producer and saved emission are correct.",
+    "host_finding": "Private outinvoke bindNativeRecord and installed public stdlib use distinct WeakMaps. One owning test-only hunk in packages/cloudflare/src/runtime/typed-private-cohort.test.ts sets stdlibUrl to new URL('./stdlib.js',import.meta.url).href so the same emitted owner is used; no production/compiler/reference-policy/global-map/projection change.",
+    "preparation": "Package Services closure5ca0e117 released; normal Services Cloudflare dist emit0 and installed1/1/pages3/3 reused, not rerun. Root refreshed selected cohort plus required stdlib TypeScript emit0 in fresh private root /private/tmp/canlang-cohort-owner-20261009-01a1171b/out.",
+    "attempts": "Earlier first actual0/1 (21.831s) passed reference/scoped/frozen/restart/current-authority portions before private-host self-package resolution failed. Temporary dependency overlay enabled second same case0/1 (22.806s), which passed those portions before missing bound-judgment staged module. Third launch was interrupted at21.460s (cancelled,1 pass,0 fail) while awaiting package closure. Explicit closure release justified final same-case repeat.",
+    "verified": "Same owning typed-private-cohort case final1/1 (23.760s;24.118s total). Full original case completes native frozen sibling, scoped membership, current references, restart/recovery, fences and retained navigation, plus installed bundle/worker behavior; original same() reference failure is gone.",
+    "qualification": "Only test source uses stdlibUrl=new URL('./stdlib.js',import.meta.url).href so private generated bindings and installed public stdlib share the actual emitted owner. No production/runtime/compiler/reference-policy/shared identity-map change. No full S9-Q02/task-count, BDD3 policy change or new packet. No scope/read-output holds added. Original completion58/67 with9open unchanged.",
+    "ownership": "Work owns the single Cloudflare test hunk; Package Services closure5ca0e117 and emitted/installed outcome reused; coordinator owns final capture and shared index."
   }
 }

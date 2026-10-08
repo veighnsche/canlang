@@ -426,3 +426,6 @@ The existing generation consumer now imports its adapter and dispatcher from the
 
 
 The existing typed-private-cohort source consumer now uses its same emitted stdlib identity rather than mixing private output with installed CF modules. The sole source-current native case passes1/1 (23.760s;24.118s total) with the released portable Judgment/deployment closure, frozen membership/current refs, restart/recovery/fences/navigation. No production reference or authority semantics changed; prior partial failure/cancel outcomes and full parent limits remain. Complete checkpoint unchanged.
+
+
+Released finite Compiler consumers are captured without producer expansion: read-dependent default follows admitted context/read/count once and explicit override skips it, with current-host CRUD setup corrected; scalar-alias overlaps retains declared date/datetime owner types, chosen slots, argument order/identity and installed Values results. Sole affected cases pass1/1 (.51s) and1/1 (.54s), earlier presentation/cohort receipts reused in owning notes. No matching/default API or full SEM/S9/count acceptance; complete filetree checkpoint unadvanced.
