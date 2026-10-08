@@ -62,7 +62,7 @@ export function createOperationFormPreparer(
       derived,
       props: {
         context, action: `${OPERATIONS_PREFIX}${encodeURIComponent(derived.operation)}`,
-        operation: derived.operation, operationId: mintOperationId(clock.nowMs()), mode,
+        operation: derived.operation, operationId: mintOperationId(clock.nowMs()), mode, derived,
         timeZone, fields: renderedFields, submit: request.submit ?? SUBMIT,
         display: request.display ?? 'drawer', idPrefix,
       },
