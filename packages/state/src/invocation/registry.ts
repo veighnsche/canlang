@@ -463,10 +463,10 @@ function checkComputedDefault(
   valueType: CanTypeId | undefined, required: boolean, what: string,
 ): true | undefined {
   if (!Object.hasOwn(input, 'computedDefault')) return undefined;
-  if (input['computedDefault'] !== true || operationKind !== 'scenario' || required ||
+  if (input['computedDefault'] !== true || (operationKind !== 'scenario' && operationKind !== 'read') || required ||
       scalarTypeForKind(inputKind) === undefined || valueType === undefined ||
       Object.hasOwn(input, 'default') || input['default'] !== undefined) {
-    fail('malformed_descriptor', `Invalid ${what}: computedDefault requires true on an optional checked scalar scenario input without a wire default.`);
+    fail('malformed_descriptor', `Invalid ${what}: computedDefault requires true on an optional checked scalar scenario or read input without a wire default.`);
   }
   return true;
 }

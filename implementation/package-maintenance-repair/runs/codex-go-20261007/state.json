@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T11:16:41.641773+00:00",
+  "updated_utc": "2026-10-08T11:39:23.116020+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1917,6 +1917,23 @@
         "source_output_handles_released": true,
         "counts_unchanged": true
       }
+    },
+    "read_scenario_state_component": {
+      "status": "Root source-reviewed released State read-scenario component; commit pending; actual CF consumer ongoing",
+      "sources": [
+        "packages/state/src/invocation/admission.ts",
+        "packages/state/src/invocation/invoke.ts",
+        "packages/state/src/invocation/registry.ts",
+        "packages/state/src/ports/transact.ts",
+        "packages/state/src/invocation/invoke-read.test.ts",
+        "packages/state/test/invocation/owned-admission.test.ts"
+      ],
+      "contract": "Generated ordinary reads use closed owning inputs and live by authority, viewer-projected refs before stale/archive disclosure, original revision and final membership/ref rechecks. Callback has no mutation context, UUID/hash, receipt or effect stage. Shared mutation ref loader retains its prior order when no projection hook is supplied. Read computed-default omission is admitted only at the same checked optional scalar/ordinary-array marker gate.",
+      "verification": "State owner normal emit0, read/admission34/34 after actual privacy-order correction; final modified computed-default metadata case1/1. Root direct source review reuses results.",
+      "model": "gpt-6.1-sol high for actual authority/read admission seam; root source/Git review",
+      "limits": "Source State component only; actual generated CF read handler/default/native consumer ongoing. No authority-report bypass, computed-ref default, prepared/provenance, installed/all-host or whole H1/48-packet acceptance.",
+      "sources_outputs_handles_released": true,
+      "counts_unchanged": true
     }
   },
   "live_finite_packets": [

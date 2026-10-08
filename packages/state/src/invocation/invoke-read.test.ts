@@ -28,8 +28,8 @@ import {
 } from './registry.js';
 import { buildModelTableFromCanonical, type ModelTable } from '../mutation/models.js';
 import { generatedCrudExecute } from '../mutation/crud.js';
-import { invoke, invokeRead } from './invoke.js';
-import { createReadInvoker } from '../ports/transact.js';
+import { invoke, invokeRead, invokeReadScenario, type AdmittedReadScenarioCall } from './invoke.js';
+import { createReadInvoker, createReadScenarioInvoker } from '../ports/transact.js';
 import { createTestMemoryStorage } from '../storage/memory.js';
 import { buildPolicyTable, type PolicyTable } from '../policy/grants.js';
 import {
@@ -511,5 +511,122 @@ describe('T17a invokeRead: identity, trust, and purity', () => {
     assert.equal(rows[0]?.id, row.id);
     assert.equal(rows[0]?.version, row.version);
     assert.deepEqual(rows[0]?.data, row.data);
+  });
+});
+
+
+describe('ordinary source read scenarios', () => {
+  async function scenarioSetup() {
+    const setup = await setupReads();
+    const slice = readSlice();
+    const loaded = loadArtifactDescriptors({ ...slice, operations: [...slice.operations!, {
+      name: 'Shop.inspect', kind: 'read', description: 'Return visible gadget details.',
+      inputs: { fields: [refInput('gadget', GADGET, true),
+        { name: 'labels', field: { kind: 'string' }, required: false, array: { required: false } },
+        { name: 'counts', field: { kind: 'integer' }, required: false,
+          array: { required: false }, default: { kind: 'literal', value: ['2'] } }] },
+    }] }, { by: 'members' });
+    return { ...setup, registry: loaded.registry };
+  }
+
+  it('executes the source callback with projected refs/normalized omissions and no mutation surfaces', async () => {
+    const setup = await scenarioSetup();
+    const row = await seedGadget(setup, { title: 'drill', code: 'source', stock: '3' });
+    const store: StoragePort = { ...setup.store,
+      commit: async () => { assert.fail('read committed'); },
+      readReceipt: async () => { assert.fail('read checked a receipt'); } };
+    const args = { envelope: readEnvelope('Shop.inspect', { gadget: { id: row.id, version: '1' } }),
+      identity: identityFor(setup.alice), execute: async (call: AdmittedReadScenarioCall) => {
+        assert.deepEqual(call.inputs, { gadget: { id: row.id, version: '1' }, labels: [] });
+        assert.deepEqual(call.recordRefs[0]!.row.data, { title: 'drill', code: 'source' });
+        assert.equal(call.membership!.is_owner, false);
+        assert.equal('context' in call, false);
+        assert.equal('inputHash' in call, false);
+        return { title: call.recordRefs[0]!.row.data['title'] };
+      } };
+    const served = await createReadScenarioInvoker({ ...setup, store })(args);
+    assert.deepEqual(served, { result: { title: 'drill' }, revision: 1 });
+    assert.equal(await setup.store.readRevision(), 1);
+  });
+
+  it('rejects shape errors and stale-before-archive references before executing', async () => {
+    const setup = await scenarioSetup();
+    const row = await seedGadget(setup, { title: 'drill', code: 'source-order' });
+    let ran = false;
+    const run = (inputs: Record<string, unknown>, store = setup.store) => invokeReadScenario({
+      ...setup, store, envelope: readEnvelope('Shop.inspect', inputs),
+      identity: identityFor(setup.alice), execute: async () => { ran = true; return null; },
+    });
+    const closed = await captureStateError(() => run({ gadget: { id: row.id, version: '1' }, extra: true }));
+    assert.equal(closed.code, 'validation');
+    const archived: StoragePort = { ...setup.store, load: async () => ({ ...row, archivedAt: FIXED_NOW }) };
+    assert.equal((await captureStateError(() => run({ gadget: { id: row.id, version: '2' } }, archived))).code, 'conflict');
+    assert.equal((await captureStateError(() => run({ gadget: { id: row.id, version: '1' } }, archived))).code, 'validation');
+    // Arbitrary IDs disclose neither stale nor archive facts without a grant.
+    const denied = (version: string) => invokeReadScenario({ ...setup, store: archived,
+      policy: buildPolicyTable([]),
+      envelope: readEnvelope('Shop.inspect', { gadget: { id: row.id, version } }),
+      identity: identityFor(setup.alice), execute: async () => { ran = true; return null; },
+    });
+    for (const version of ['1', '2']) {
+      assert.equal((await captureStateError(() => denied(version))).code, 'not_found');
+    }
+    assert.equal(ran, false);
+  });
+
+  it('voids a result when the real revision changes during source evaluation', async () => {
+    const setup = await scenarioSetup();
+    const row = await seedGadget(setup, { title: 'drill', code: 'source-fence' });
+    const error = await captureStateError(() => invokeReadScenario({ ...setup,
+      envelope: readEnvelope('Shop.inspect', { gadget: { id: row.id, version: '1' } }),
+      identity: identityFor(setup.alice), execute: async () => {
+        await seedGadget(setup, { title: 'saw', code: 'fence-write' });
+        return 'stale';
+      },
+    }));
+    assert.equal(error.code, 'conflict');
+  });
+
+  it('voids role/owner changes even when the members operation gate still holds', async () => {
+    const setup = await scenarioSetup();
+    const row = await seedGadget(setup, { title: 'drill', code: 'source-roles' });
+    let changed = false;
+    const memberships = { ...setup.memberships, findMembership: async (team: string, user: string) => {
+      const member = await setup.memberships.findMembership(team, user);
+      return member !== null && changed ? { ...member, is_owner: true } : member;
+    } };
+    const error = await captureStateError(() => invokeReadScenario({ ...setup, memberships,
+      envelope: readEnvelope('Shop.inspect', { gadget: { id: row.id, version: '1' } }),
+      identity: identityFor(setup.alice), execute: async () => { changed = true; return 'old-authority'; },
+    }));
+    assert.equal(error.code, 'forbidden');
+  });
+
+  it('rechecks ref grant subjects independently of the caller membership', async () => {
+    const setup = await scenarioSetup();
+    const row = await seedGadget(setup, { title: 'drill', code: 'source-grants' });
+    const reviewer = await seedMember(setup.memberships, { isOwner: true, teamId: setup.alice.team.team_id });
+    const policy = buildPolicyTable([{ model: asModel(GADGET), secretFields: [], grants: [{
+      by: { roleSubject: { role: 'owner', person: reviewer.user.user_id } }, fields: ['title'],
+    }] }]);
+    const error = await captureStateError(() => invokeReadScenario({ ...setup, policy,
+      envelope: readEnvelope('Shop.inspect', { gadget: { id: row.id, version: '1' } }),
+      identity: identityFor(setup.alice), execute: async () => {
+        await setup.memberships.removeMembership(reviewer.membership.membership_id);
+        return 'revoked-data';
+      },
+    }));
+    assert.equal(error.code, 'not_found');
+  });
+
+  it('uses live caller membership instead of forged identity roles', async () => {
+    const setup = await scenarioSetup();
+    const row = await seedGadget(setup, { title: 'drill', code: 'source-forged' });
+    await setup.memberships.removeMembership(setup.alice.membership.membership_id);
+    const error = await captureStateError(() => invokeReadScenario({ ...setup,
+      envelope: readEnvelope('Shop.inspect', { gadget: { id: row.id, version: '1' } }),
+      identity: identityFor(setup.alice), execute: async () => assert.fail('forged identity executed'),
+    }));
+    assert.equal(error.code, 'forbidden');
   });
 });
