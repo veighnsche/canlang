@@ -13,6 +13,10 @@ import {
   classifyStreamLine,
   readFinalChatReply,
 } from '../src/models/ollama.js';
+import type {
+  FrozenChatRequest,
+  OllamaTextGenerationInstallation,
+} from '../src/models/ollama.js';
 import { startControlledOllamaServer } from '../src/models/harness.js';
 import type {
   ControlledOllamaScenario,
@@ -22,6 +26,7 @@ import { fixedClock } from '../src/ports.js';
 import type {
   ModelChatInput,
   ModelRunSnapshot,
+  TextRequest,
 } from '@canlang/contracts';
 
 const CLOCK_NOW = 1_758_000_000_000;
@@ -93,6 +98,202 @@ function doneLine(over: Record<string, unknown> = {}): Record<string, unknown> {
     ...over,
   };
 }
+
+function textInput(over: Partial<TextRequest> = {}): TextRequest {
+  return {
+    source: 'operation_1',
+    revision: 1,
+    profile: 'local-chat',
+    policy_revision: 'policy-1',
+    messages: [{ role: 'user', content: 'Hello', attachments: [] }],
+    max_input_tokens: 12,
+    max_output_tokens: 64,
+    max_duration: 1000n,
+    ...over,
+  };
+}
+
+function textInstallation(
+  over: Partial<OllamaTextGenerationInstallation> = {},
+): OllamaTextGenerationInstallation {
+  return {
+    binding: {
+      capability: 'std.TextGenerationV1', capabilityVersion: 1,
+      deployment: 'deployment.llm', account: 'local',
+    },
+    profile: 'local-chat', policyRevision: 'policy-1', model: MODEL,
+    maxInputTokens: 1024,
+    // Controlled deployment-count result, not a production tokenizer implementation.
+    countInputTokens: () => 12,
+    ...over,
+  };
+}
+
+describe('models: installed std text generation', () => {
+  it('derives identity and ceilings from the same adapter and sends the counted frozen request', async () => {
+    await withServer({ kind: 'final', body: finalBody() }, async (server) => {
+      const adapter = makeAdapter(server.url, { maxOutputTokens: 128, timeoutMs: 2000 });
+      const input = textInput();
+      let counted: FrozenChatRequest | undefined;
+      const config = textInstallation({ countInputTokens: request => {
+        counted = request;
+        assert.ok(Object.isFrozen(request));
+        assert.ok(Object.isFrozen(request.messages));
+        assert.ok(Object.isFrozen(request.messages[0]));
+        input.messages[0]!.content = 'Changed after authorization';
+        input.max_output_tokens = 9000;
+        return 12;
+      } });
+      const installed = adapter.installTextGeneration(config);
+      config.binding.deployment = 'deployment.changed';
+      assert.equal(installed.binding.deployment, 'deployment.llm');
+      assert.deepEqual(installed.profile, {
+        name: 'local-chat', policyRevision: 'policy-1', provider: 'ollama', model: MODEL,
+        maxInputTokens: 1024, maxOutputTokens: 128, maxDurationMs: 2000,
+        inputTokenization: 'deployment', attachments: 'unsupported',
+      });
+      assert.ok(Object.isFrozen(installed));
+      const completion = await installed.text.generate(input, { deliveryId: 'text_1' });
+      assert.equal(completion.status, 'succeeded');
+      assert.equal(counted?.createdAt, CLOCK_NOW);
+      const wire = JSON.parse(server.requests[0]!.bodyText);
+      assert.equal(wire.model, counted?.model);
+      assert.deepEqual(wire.messages, counted?.messages);
+      assert.deepEqual(wire.options, { num_predict: counted?.maxTokens });
+      assert.deepEqual(wire.messages, [{ role: 'user', content: 'Hello' }]);
+      assert.equal(wire.options.num_predict, 64);
+    });
+  });
+
+  it('refuses unsupported mapping/tokenization and mismatched or over-budget requests before bytes', async () => {
+    await withServer({ kind: 'final', body: finalBody() }, async (server) => {
+      const adapter = makeAdapter(server.url);
+      const installed = adapter.installTextGeneration(textInstallation());
+      const inputs = [
+        textInput({ source: '' }),
+        textInput({ revision: -1 }),
+        textInput({ revision: 1.5 }),
+        textInput({ revision: Number.MAX_SAFE_INTEGER + 1 }),
+        textInput({ profile: 'other-profile' }),
+        textInput({ policy_revision: 'other-policy' }),
+        textInput({ messages: [{ role: 'user', content: 'Hello', attachments: ['file_1'] }] }),
+        textInput({ max_input_tokens: 11 }),
+        textInput({ max_input_tokens: 1025 }),
+        textInput({ max_input_tokens: 0 }),
+        textInput({ max_output_tokens: 4097 }),
+        textInput({ max_duration: 5001n }),
+        textInput({ max_duration: 0n }),
+      ];
+      for (const input of inputs) {
+        await assert.rejects(installed.text.generate(input, { deliveryId: 'text_1' }), ModelValidationError);
+        assert.throws(() => installed.text.generateStream(input, { deliveryId: 'text_1' }), ModelValidationError);
+      }
+      const unsupported = adapter.installTextGeneration(textInstallation({ countInputTokens: undefined }));
+      assert.equal(unsupported.profile.inputTokenization, 'unsupported');
+      await assert.rejects(unsupported.text.generate(textInput(), { deliveryId: 'text_1' }), ModelValidationError);
+      assert.throws(() => unsupported.text.generateStream(textInput(), { deliveryId: 'text_1' }), ModelValidationError);
+      assert.equal(server.requests.length, 0);
+    });
+  });
+
+  it('refuses invalid token counts, count failure and mutations of the original input budget', async () => {
+    await withServer({ kind: 'final', body: finalBody() }, async (server) => {
+      const adapter = makeAdapter(server.url);
+      for (const count of [-1, 1.5, NaN, Number.MAX_SAFE_INTEGER + 1]) {
+        const installed = adapter.installTextGeneration(textInstallation({ countInputTokens: () => count }));
+        await assert.rejects(installed.text.generate(textInput(), { deliveryId: 'text_1' }), ModelValidationError);
+      }
+      const broken = adapter.installTextGeneration(textInstallation({ countInputTokens: () => { throw new Error('private tokenizer failure'); } }));
+      await assert.rejects(broken.text.generate(textInput(), { deliveryId: 'text_1' }), /could not count/);
+      const input = textInput({ max_input_tokens: 11 });
+      const mutating = adapter.installTextGeneration(textInstallation({ countInputTokens: () => {
+        input.max_input_tokens = 1024;
+        return 12;
+      } }));
+      await assert.rejects(mutating.text.generate(input, { deliveryId: 'text_1' }), /requested input budget/);
+      assert.equal(server.requests.length, 0);
+    });
+  });
+
+  it('refuses unsupported installation identities and deadline ceilings before bytes', async () => {
+    await withServer({ kind: 'final', body: finalBody() }, async (server) => {
+      const adapter = makeAdapter(server.url);
+      const config = textInstallation();
+      for (const over of [
+        { model: 'not-bound' }, { profile: '' }, { policyRevision: '' }, { maxInputTokens: 0 },
+        { binding: { ...config.binding, capability: 'ai.ChatV1' } },
+        { binding: { ...config.binding, capabilityVersion: 2 } },
+      ]) {
+        assert.throws(() => adapter.installTextGeneration(textInstallation(over)), ModelValidationError);
+      }
+      for (const timeoutMs of [1.5, 2_147_483_648]) {
+        assert.throws(() => makeAdapter(server.url, { timeoutMs }).installTextGeneration(config), ModelValidationError);
+      }
+      assert.equal(server.requests.length, 0);
+    });
+  });
+
+  it('uses each requested duration for final and streamed transport instead of the larger adapter timeout', async () => {
+    await withServer({ kind: 'hang' }, async (server) => {
+      const installed = makeAdapter(server.url).installTextGeneration(textInstallation());
+      const input = textInput({ max_duration: 80n });
+      const startedAt = performance.now();
+      const final = await installed.text.generate(input, { deliveryId: 'text_final' });
+      assert.equal(final.status, 'unknown');
+      assert.equal(final.error?.code, 'transport_timeout');
+      const stream = installed.text.generateStream(input, { deliveryId: 'text_stream' });
+      const streamed = await stream.done();
+      assert.equal(streamed.status, 'unknown');
+      assert.equal(streamed.error?.code, 'transport_timeout');
+      assert.ok(performance.now() - startedAt < 1500, 'two 80ms requests must not use the 5000ms adapter timeout');
+      assert.equal(server.requests.length, 2);
+      const expired = installed.text.generateStream(textInput({ max_duration: 20n }), {
+        deliveryId: 'text_observer_expired',
+        onSnapshot: snapshot => {
+          if (snapshot.sequence === 0) {
+            const observerEndsAt = performance.now() + 30;
+            while (performance.now() < observerEndsAt) {
+              // The synchronous initial observer consumes the same request deadline.
+            }
+          }
+        },
+      });
+      const beforeTransport = await expired.done();
+      assert.equal(beforeTransport.status, 'failed');
+      assert.equal(beforeTransport.error?.code, 'transport_timeout');
+      assert.match(beforeTransport.error?.message ?? '', /before provider transport/);
+      assert.equal(expired.snapshots().at(-1)?.state, 'failed');
+      assert.equal(server.requests.length, 2, 'an expired initial observer must send no provider request');
+      const reconciled = await installed.text.reconcile('text_final');
+      assert.equal(reconciled.status, 'unknown');
+      assert.equal(reconciled.error?.code, 'no_run_resume');
+      assert.equal(server.requests.length, 2);
+    });
+  });
+
+  it('counts once and uses that frozen transcript and output budget for a successful stream', async () => {
+    await withServer({ kind: 'stream', lines: [
+      { model: MODEL, message: { role: 'assistant', content: 'Hi' }, done: false }, doneLine(),
+    ] }, async (server) => {
+      let calls = 0;
+      let counted: FrozenChatRequest | undefined;
+      const installed = makeAdapter(server.url).installTextGeneration(textInstallation({ countInputTokens: request => {
+        calls += 1;
+        counted = request;
+        return 12;
+      } }));
+      const seen: ModelRunSnapshot[] = [];
+      const run = installed.text.generateStream(textInput(), { deliveryId: 'text_stream', onSnapshot: snapshot => seen.push(snapshot) });
+      assert.equal((await run.done()).status, 'succeeded');
+      assert.equal(calls, 1);
+      assert.deepEqual(seen, run.snapshots());
+      const wire = JSON.parse(server.requests[0]!.bodyText);
+      assert.equal(wire.stream, true);
+      assert.deepEqual(wire.messages, counted?.messages);
+      assert.deepEqual(wire.options, { num_predict: counted?.maxTokens });
+    });
+  });
+});
 
 describe('models: final-only generation', () => {
   it('accepts a valid final reply with usage', async () => {

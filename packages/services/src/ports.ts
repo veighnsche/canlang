@@ -27,6 +27,7 @@ import type {
   ModelChatReply,
   ModelRunSnapshot,
   ProviderBinding,
+  TextRequest,
 } from '@canlang/contracts';
 import { randomUUID } from 'node:crypto';
 import http from 'node:http';
@@ -115,6 +116,44 @@ export interface ModelChatPort {
    */
   reconcile(deliveryId: string): Promise<CapabilityCompletion<ModelChatReply>>;
 }
+
+/** Installed std generation accepts its complete budgets, never a lossy chat projection. */
+export interface TextGenerationPort {
+  generate(
+    input: TextRequest,
+    options: { readonly deliveryId: string },
+  ): Promise<CapabilityCompletion<ModelChatReply>>;
+  generateStream(
+    input: TextRequest,
+    options: {
+      readonly deliveryId: string;
+      readonly onSnapshot?: (snapshot: ModelRunSnapshot) => void;
+    },
+  ): ModelRunHandle;
+  reconcile(deliveryId: string): Promise<CapabilityCompletion<ModelChatReply>>;
+}
+
+/** Exact deployment-owned identity and ceilings supplied by the actual adapter. */
+export interface InstalledTextGeneration {
+  readonly binding: Readonly<ProviderBinding>;
+  readonly profile: {
+    readonly name: string;
+    readonly policyRevision: string;
+    readonly provider: string;
+    readonly model: string;
+    readonly maxInputTokens: number;
+    readonly maxOutputTokens: number;
+    readonly maxDurationMs: number;
+    readonly inputTokenization: 'deployment' | 'unsupported';
+    readonly attachments: 'unsupported';
+  };
+  readonly text: TextGenerationPort;
+}
+
+/** Missing exact installations return null; aliases and discovery are not fallbacks. */
+export type ResolveInstalledTextGeneration = (
+  exactDeployment: string,
+) => InstalledTextGeneration | null;
 
 export interface JudgmentPort {
   /**

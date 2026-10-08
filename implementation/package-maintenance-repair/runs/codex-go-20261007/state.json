@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T10:58:27.193044+00:00",
+  "updated_utc": "2026-10-08T11:00:07.212692+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2569,7 +2569,7 @@
       "counts_unchanged": true,
       "commit": "c2d0499228ea4fc38dc976f22034d02d67cefa24",
       "public_ui_consumer": {
-        "status": "Root directly reviewed frozen6-path real public File submit consumer; selected native browser-client workflow accepted; commit ready",
+        "status": "Root reviewed and committed795ebadd selected public native File submit consumer",
         "sources": [
           "packages/ui/src/client.ts",
           "packages/ui/src/forms.ts",
@@ -2583,8 +2583,28 @@
         "limits": "Actual public submission function in Node with assembled selected native host; no Chrome DOM, R2/default Worker/shared-principal/hosted or generated-provider finalization/whole-F7 qualification.",
         "sources_outputs_handles_released": true,
         "counts_unchanged": true,
-        "other_owner_scope": "Roadmap SEQ-023 selected generic native browser/MCP File transfer accepted17/63; independent denominator"
+        "other_owner_scope": "Roadmap SEQ-023 selected generic native browser/MCP File transfer accepted17/63; independent denominator",
+        "commit": "795ebadd6911a149271a70276c27c4e663b583bb"
       }
+    },
+    "generation_installed_profile": {
+      "status": "Defining installed Services TextGeneration profile directly reviewed after deadline repair; source component accepted, commit ready",
+      "sources": [
+        "packages/services/src/ports.ts",
+        "packages/services/src/models/ollama.ts",
+        "packages/services/test/models-ollama.test.ts"
+      ],
+      "contract": "InstalledTextGeneration resolves exact ProviderBinding/profile/policy/model; nominal TextRequest port comes from same actual Ollama adapter. Adapter derives output/deadline ceilings, counts the exact frozen transcript through deployment-owned model tokenizer, and transports that same frozen request. Missing tokenizer/attachments unsupported/malformed identity or budgets refuse before bytes. One absolute monotonic deadline includes preparation, JSON encoding and synchronous initial snapshot observer; expired-before-transport stream reports definite failure without sending.",
+      "verification": "Owning Contracts/Services normal emits0 and affected adapter29/29 initial. Root found remaining-deadline gap; owner repaired it, Services emit0 and only2 affected cases2/2 after edit, remaining27 prior passes reused. Root direct review, no duplicate check.",
+      "model": "gpt-6.1-sol high: finite actual transport/resource/installed identity seam",
+      "limits": [
+        "No actual deployment tokenizer implementation/model qualification supplied; count fixture verifies enforcement hook only, actual tokenizer must include model chat template/special tokens",
+        "Attachments remain unsupported; generic ModelChatPort unchanged",
+        "Runtime owns nominal wire mapping, durable dispatch/progress/restart; Ollama reconciliation remains honest unknown, no documented durable run lookup",
+        "No installed/host/default backend/native preparation/whole Generation or parent acceptance"
+      ],
+      "sources_outputs_handles_released": true,
+      "counts_unchanged": true
     }
   }
 }
