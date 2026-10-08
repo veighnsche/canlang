@@ -2261,3 +2261,14 @@ Compiler5a0006ec declares the existing editor document-only query and startup-cw
 
 
 The released UI manifest now declares its defining Values runtime dependency, completing the previously integrated workspace lock edge6cd15950. Its unchanged actual31UI guard/codec checks are reused; no installed/native backend adoption claim.
+
+
+## 2026-10-08 — Consume checked integer values in canonical scenarios (accepted bounded)
+
+Cloudflare consumes State-loaded checked type/result metadata through defining Values codecs, with lazy operation-bound record views over stored/staged wire rows. Generated create/set/delete use the existing ordered State pipeline and one fenced commit; stable opaque operation-ID/create-index record IDs and declared deletion modes preserve retry semantics. Explicit-ID legacy helpers remain available, while an object carrying an ID does not gain record authority. Declared integer results encode to wire and explicit void becomes null; absent historical result metadata retains its unknown JSON/BigInt refusal. Original resolved defaults remain separately attributed. Candidate predicates refuse until their own supported wiring exists.
+
+The released owning dependency build22/22 and final Cloudflare emit passed. Direct actual compiler-artifact D1 scenarios exercise exact large integers, default versus staged values, reserved versions, rollback, archive, immediate/replay and close/reopen persistence; synthetic missing-result and explicit-ID/forged-binding controls pass. Root directly reviewed source and reused unchanged State81 results. This is a singular nonnullable int/void consumer prerequisite; hooks, all scalar/array profiles, provider/catalogue, native backend, installed workers and whole-app duties remain open.
+
+## 2026-10-08 — Retain real mapped-runtime attribution (accepted finite DEP-02)
+
+The compiler owner qualifies actual emitted remainder failures through its production CLI, public assembler, installed producers and Node engine, mapping them to original source4:8. Direct consumer tests and retained API/extraction/repeated-source controls support this finite DEP-02 attribution result (compilerff28ba52). Broader browser/app/GUI outcomes remain open. Reuse the released direct results; no additional proof chain or repeated review is required.

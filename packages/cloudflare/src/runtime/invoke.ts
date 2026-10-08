@@ -45,6 +45,9 @@
  */
 import type {
   ArtifactCohortDescriptor,
+  CanTypeId,
+  CanValue,
+  CanonicalModelDescriptor,
   ClaimId,
   CompileArtifact,
   ColumnMeta,
@@ -91,6 +94,8 @@ import type {
   UniqueRelease,
 } from "@canlang/contracts";
 import { COLLECTION_DEFAULT_LIMIT, COLLECTION_MAX_LIMIT } from "@canlang/contracts";
+import { decodeValue, encodeValue } from "@canlang/values";
+import type { GeneratedOperationDef } from "@canlang/state/invocation/registry";
 import type {
   CanonicalEffectsScope,
   CanonicalReadQuery,
@@ -1001,7 +1006,7 @@ interface StateRegistryProducer {
     },
   ): {
     readonly registry: ReadonlyMap<string, unknown>;
-    readonly models: ReadonlyArray<unknown>;
+    readonly models: ReadonlyArray<CanonicalModelDescriptor>;
     readonly refs: ReadonlyMap<string, ReadonlyArray<{ readonly field: string; readonly model: string }>>;
     /**
      * C2 production joins (B1/B2/B5): engine-local channels the frozen
@@ -1300,6 +1305,7 @@ interface StatePipelineProducer {
     readonly writes: ReadonlyArray<CanonicalPipelineWrite>;
     readonly context: InvocationContext;
     readonly store: StoragePort;
+    readonly encodeField?: (type: CanTypeId, value: unknown) => unknown;
     /**
      * T32b: the triggering checkpoint POINT (revision + owner). Hook
      * bodies read it as `transitive.triggerRevision`; the trigger's
@@ -1761,6 +1767,7 @@ async function importPolicyRegistry(
  */
 export interface LoadedCanonicalDescriptors {
   readonly registry: ReadonlyMap<string, unknown>;
+  readonly models: ReadonlyArray<CanonicalModelDescriptor>;
   readonly table: unknown;
   readonly policy: unknown;
   readonly ruledModels: ReadonlySet<string>;
@@ -2294,7 +2301,7 @@ export async function loadCanonicalDescriptors(
   const collectionColumns = new Map<string, readonly ColumnMeta[]>();
   for (const [index, model] of loaded.models.entries()) {
     const name = canonicalModelName(model, index);
-    const fields = (model as Record<string, unknown>)["fields"] as Record<string, unknown>;
+    const fields = model.fields;
     const secrets = loaded.secretFields.get(name)!;
     collectionColumns.set(name, Object.keys(fields).filter(field => !secrets.has(field)).flatMap(field => {
       const type = manifests.get(name)?.fieldTypes.get(field);
@@ -2303,6 +2310,7 @@ export async function loadCanonicalDescriptors(
   }
   const canonical: LoadedCanonicalDescriptors = {
     registry: loaded.registry,
+    models: loaded.models,
     table,
     policy,
     ruledModels,
@@ -2791,29 +2799,26 @@ async function readCallerRolesSnapshot(
  * touch keeps its history entry. The ONE fenced commit carries the
  * scenario operation identity into history + receipt.
  */
-/** Clone admitted snapshots so handlers cannot mutate admission evidence or stored rows. */
-function scenarioParameters(call: CanonicalSeamCall, artifact: CompileArtifact, staged: Map<string, StoredRow | null>): Record<string, unknown> {
+function generatedScenarioDef(call: CanonicalSeamCall): GeneratedOperationDef | undefined {
+  return isUnknownRecord(call.def) && call.def["generated"] === true
+    ? call.def as unknown as GeneratedOperationDef : undefined;
+}
+
+/** Clone admitted snapshots; decode only their loader-owned type associations. */
+function scenarioParameters(call: CanonicalSeamCall, loaded: LoadedCanonicalDescriptors, recordView: (model: string, row: StoredRow) => Record<string, unknown>): Record<string, unknown> {
   const parameters = structuredClone(call.inputs);
-  const views = new Map<string, object>();
-  for (const ref of call.recordRefs ?? []) {
-    const row = ref.row;
-    const key = stagedKey(ref.model, row.id);
-    let view = views.get(key);
-    if (view === undefined) {
-      const admitted = freezeScenarioSnapshot(structuredClone(row.data)) as Record<string, unknown>;
-      const fields = artifact.models?.find((model) => model.name === ref.model)?.fields.map((field) => field.name) ?? Object.keys(row.data);
-      const record: Record<string, unknown> = {};
-      for (const field of fields) Object.defineProperty(record, field, {
-        enumerable: true, get: () => staged.has(key) ? staged.get(key)?.data[field] : admitted[field],
-      });
-      Object.assign(record, { id: row.id, version: BigInt(row.version), created: new Date(row.created).toISOString(),
-        updated: new Date(row.updated).toISOString(), created_by: row.createdBy, updated_by: row.updatedBy,
-        archived_at: row.archivedAt === null ? null : new Date(row.archivedAt).toISOString(),
-      });
-      view = Object.freeze(record);
-      views.set(key, view);
+  const def = generatedScenarioDef(call);
+  for (const field of def?.descriptor.inputs ?? []) {
+    if (field.kind === "integer" && def?.inputArrays[field.name] === undefined && parameters[field.name] !== undefined) {
+      try {
+        parameters[field.name] = decodeValue("int", parameters[field.name]);
+      } catch (error) {
+        throw new loaded.producers.errors("validation", message(error));
+      }
     }
-    parameters[ref.param] = view;
+  }
+  for (const ref of call.recordRefs ?? []) {
+    parameters[ref.param] = recordView(ref.model, ref.row);
   }
   return parameters;
 }
@@ -2891,7 +2896,45 @@ async function runScenarioSeam(
       engineFailures.set(error.message, error);
     }
   };
+  const refuseRecordBinding = (text: string): never => {
+    const error = new StateError("validation", text);
+    recordEngineFailure(error);
+    throw error;
+  };
   const staged: Map<string, StoredRow | null> = new Map();
+  const views = new Map<string, Record<string, unknown>>();
+  const recordBindings = new Map<Record<string, unknown>, { model: string; id: string }>();
+  const recordView = (modelName: string, row: StoredRow): Record<string, unknown> => {
+    const key = stagedKey(modelName, row.id);
+    const existing = views.get(key);
+    if (existing !== undefined) return existing;
+    const snapshot = freezeScenarioSnapshot(structuredClone(row)) as StoredRow;
+    const current = () => staged.has(key) ? staged.get(key) : snapshot;
+    const model = loaded.models.find((model) => model.name === modelName);
+    const record: Record<string, unknown> = {};
+    for (const field of Object.keys(model?.fields ?? snapshot.data)) Object.defineProperty(record, field, {
+      enumerable: true, get: () => {
+        const wire = current()?.data[field];
+        const type = model?.fields[field]?.valueType;
+        return type === undefined || wire === undefined ? wire : decodeValue(type, wire);
+      },
+    });
+    const metadata: Record<string, () => unknown> = {
+      id: () => row.id, version: () => BigInt(current()?.version ?? row.version),
+      created: () => new Date(row.created).toISOString(),
+      updated: () => new Date(current()?.updated ?? row.updated).toISOString(),
+      created_by: () => row.createdBy, updated_by: () => current()?.updatedBy ?? row.updatedBy,
+      archived_at: () => {
+        const at = current()?.archivedAt;
+        return at === undefined || at === null ? null : new Date(at).toISOString();
+      },
+    };
+    for (const [field, get] of Object.entries(metadata)) Object.defineProperty(record, field, { enumerable: true, get });
+    Object.freeze(record);
+    views.set(key, record);
+    recordBindings.set(record, { model: modelName, id: row.id });
+    return record;
+  };
   const overlay = withStagedOverlay(opts.store, staged);
   const stagedWrites: CanonicalStagedDomainWrite[] = [];
   const reservedVersions = new Map<string, RecordVersion>();
@@ -2899,6 +2942,7 @@ async function runScenarioSeam(
   const stagedTouches: CanonicalStagedUniqueTouch[] = [];
   const resolvedDefaults: Record<string, unknown> = {};
   let callIndex = 0;
+  let createIndex = 0;
   const applyStagedWrite = (write: CanonicalStagedDomainWrite): StoredRow | null => {
     if (typeof write.kind !== "string" || typeof write.model !== "string") {
       throw new Error(`t17b: staged write lost its kind/model (pipeline/dist skew?)`);
@@ -2927,6 +2971,27 @@ async function runScenarioSeam(
     builtinRoles: Object.freeze(builtinRoles),
     operation: opts.operation,
     operationId: call.context.operationId,
+    createRecord: async (model, data) => {
+      const id = `${call.context.operationId}#create:${createIndex++}`;
+      const row = await scope.stageWrite({ op: "create", model, id, data });
+      if (row === null) throw new StateError("validation", "Create staged no record.");
+      return recordView(model, row);
+    },
+    setRecord: async (record, data) => {
+      const binding = recordBindings.get(record);
+      if (binding === undefined) return refuseRecordBinding("Set needs a record bound in this operation.");
+      const row = await scope.stageWrite({ op: "update", ...binding, data });
+      if (row === null) throw new StateError("validation", "Set staged no record.");
+      return recordView(binding.model, row);
+    },
+    deleteRecord: async (record, mode) => {
+      const binding = recordBindings.get(record);
+      if (binding === undefined) return refuseRecordBinding("Delete needs a record bound in this operation.");
+      if (loaded.models.find((model) => model.name === binding.model)?.deleteMode !== mode) {
+        refuseRecordBinding("Delete mode must match the model declaration.");
+      }
+      await scope.stageWrite({ op: "remove", ...binding });
+    },
     stageWrite: async (write: CanonicalStagedWrite): Promise<StoredRow | null> => {
       try {
         if (write.op !== "create" && write.op !== "update" && write.op !== "remove") {
@@ -2955,6 +3020,16 @@ async function runScenarioSeam(
           // C2/B1: admission-parity archive gate (CRUD inherits it from
           // admission; scenario writes bypass per-write admission).
           gateArchivedTargets: true,
+          // The checked type fixes semantics. Strings here are that type's
+          // wire carrier (stored fields/defaults); other values go directly
+          // to its defining native encoder. No source type is inferred.
+          encodeField: (type, value) => {
+            try {
+              return encodeValue(type, typeof value === "string" ? decodeValue(type, value) : value as CanValue);
+            } catch (error) {
+              throw new StateError("validation", message(error));
+            }
+          },
           // T32b: the triggering checkpoint point — hook bodies name it
           // back as their `triggerRevision` when they open fresh
           // transitive scopes. Absent on checkpoint-less calls.
@@ -3045,7 +3120,7 @@ async function runScenarioSeam(
   });
   const callable = opts.artifact.callables.find((entry) => entry.id === opts.operation);
   const argument = callable?.inputStyle === "parameters"
-    ? scenarioParameters(call, opts.artifact, staged)
+    ? scenarioParameters(call, loaded, recordView)
     : { operation_id: call.context.operationId, inputs: call.inputs };
   const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx, [argument]);
   if (!outcome.ok) {
@@ -3070,6 +3145,20 @@ async function runScenarioSeam(
     throw new StateError("rule_failed", message);
   }
   const uniques = netStagedUniques(stagedTouches);
+  const resultType = generatedScenarioDef(call)?.descriptor.result?.type;
+  let result = outcome.value;
+  if (resultType !== undefined) {
+    try {
+      if (resultType === "void") {
+        if (result !== undefined) throw new Error("A void operation cannot return a value.");
+        result = null;
+      } else {
+        result = encodeValue(resultType, result as CanValue);
+      }
+    } catch (error) {
+      throw new StateError("validation", message(error));
+    }
+  }
   return {
     writes: collapseStagedWrites(stagedWrites),
     history: stagedHistory.map((entry) => {
@@ -3084,7 +3173,7 @@ async function runScenarioSeam(
     uniqueClaims: uniques.claims,
     uniqueReleases: uniques.releases,
     resolvedDefaults,
-    result: outcome.value,
+    result,
     // T32b: the seam's commit-time evidence — the caller-roles guard
     // plus every served read. State invoke revalidates both against
     // CURRENT state before the fenced commit (both-site inheritance:

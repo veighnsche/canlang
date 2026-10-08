@@ -1,0 +1,43 @@
+app TypedScenarioValues
+Given
+ Counter { count:int=1 }
+ policy Counter read=public
+When
+ crud Counter by=members fields=count
+ ## Reads after each set use the staged record and native integer arithmetic.
+ scenario increment(counter:Counter,delta:int) -> int by=members
+  do
+   set counter {count=counter.count+delta}
+   return counter.count
+ scenario twice(counter:Counter) -> int by=members
+  do
+   set counter {count=counter.count+1}
+   set counter {count=counter.count+1}
+   return counter.count
+ ## Omitted result syntax compiles to explicit void metadata.
+ scenario finish(counter:Counter) by=members
+  do
+   set counter {count=counter.count+1}
+ scenario rollback(counter:Counter,accept:bool) -> int by=members
+  do
+   set counter {count=counter.count+1}
+   require accept
+   return counter.count
+ scenario echo(value:int) -> int by=members
+  do
+   return value
+ ## Newly created bindings read native values and observe their staged update.
+ scenario born() -> int by=members
+  do
+   create Counter {} as counter
+   set counter {count=counter.count+1}
+   return counter.count
+ scenario nextVersion(counter:Counter) -> int by=members
+  do
+   set counter {count=counter.count+1}
+   set counter {count=counter.count+1}
+   return counter.version
+ scenario discard(counter:Counter) by=members
+  do
+   delete counter
+Then

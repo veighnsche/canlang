@@ -84,6 +84,10 @@ export interface CanonicalEffectsScope {
   readonly operation: string;
   readonly operationId: string;
   stageWrite(write: CanonicalStagedWrite): Promise<StoredRow | null>;
+  /** Generated language helpers use native record bindings; storage stays wire-valued. */
+  createRecord?(model: string, data: Record<string, unknown>): Promise<Record<string, unknown>>;
+  setRecord?(record: Record<string, unknown>, data: Record<string, unknown>): Promise<Record<string, unknown>>;
+  deleteRecord?(record: Record<string, unknown>, mode: 'archive' | 'remove'): Promise<void>;
   readModel(model: string, query: CanonicalReadQuery): Promise<ReadonlyArray<ProjectedRecord>>;
 }
 
