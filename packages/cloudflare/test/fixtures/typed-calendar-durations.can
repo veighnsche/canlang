@@ -1,0 +1,41 @@
+app TypedCalendarDurations
+Given
+ Span { day:date=date("2028-02-28"), elapsed:duration=1ms, days:date[], durations:duration[], seedDays:date[]=[date("2028-02-28")], seedDurations:duration[]=[1ms,1s], maybeDay:date?, maybeElapsed:duration?, maybeDays:date[]?, maybeDurations:duration[]? }
+ policy Span read=public
+When
+ crud Span by=members fields=day,elapsed,days,durations,seedDays,seedDurations,maybeDay,maybeElapsed,maybeDays,maybeDurations
+ ## Calendar arithmetic crosses leap day; durations remain exact integer milliseconds.
+ scenario advance(span:Span,day:date,delta:duration,days:date[],durations:duration[],accept:bool) -> date by=members
+  do
+   require day>=span.day and all(days as value,value>=day)
+   set span {day=add_days(day,1),elapsed=span.elapsed+delta+sum(durations)+sum(span.seedDurations),days=days,durations=durations}
+   require span.day>day
+   require accept
+   return span.day
+ scenario elapsed(span:Span) -> duration by=members
+  do return span.elapsed
+ scenario days(span:Span) -> date[] by=members
+  do
+   require all(span.days as value,value>=date("0001-01-01"))
+   return span.days
+ scenario durations(span:Span) -> duration[] by=members
+  do return [sum(span.durations),span.elapsed]
+ ## Non-null inputs write nullable fields; omitted nullable inputs clear them.
+ scenario optional(span:Span,day:date?,elapsed:duration?,days:date[]?,durations:duration[]?) -> duration? by=members
+  do
+   set span {maybeDay=day,maybeElapsed=elapsed,maybeDays=days,maybeDurations=durations}
+   return span.maybeElapsed
+ scenario maybeDay(span:Span) -> date? by=members
+  do return span.maybeDay
+ scenario maybeElapsed(span:Span) -> duration? by=members
+  do return span.maybeElapsed
+ scenario maybeDays(span:Span) -> date[]? by=members
+  do return span.maybeDays
+ scenario maybeDurations(span:Span) -> duration[]? by=members
+  do return span.maybeDurations
+ ## Original date and millisecond defaults remain wire receipt values.
+ scenario defaults(day:date=date("2028-02-28"),delta:duration=1s,days:date[]=[date("2028-02-28")],durations:duration[]=[1ms,1s]) -> duration by=members
+  do
+   require add_days(day,1)==date("2028-02-29") and all(days as value,value==day)
+   return delta+sum(durations)
+Then
