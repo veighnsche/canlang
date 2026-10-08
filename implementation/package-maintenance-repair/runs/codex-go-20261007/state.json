@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T09:10:48.341134+00:00",
+  "updated_utc": "2026-10-08T09:12:07.973796+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1755,7 +1755,15 @@
         "status": "Root explicit test amendment ACK delivered preserving sourceowningtsconfig; no new product behavior or recipe change",
         "after_sha256": "65cf5be12155008a41ec091d0057a01288c3e9eed7935a15972e7cd60f51fb11"
       },
-      "root_review": "verified-context-root-review.json"
+      "root_review": "verified-context-root-review.json",
+      "selected_transport_consumer": {
+        "status": "Root direct-reviewed released finite HTTP/MCP current context/D1 identity/reopening source case; commit pending",
+        "review": "verified-context-root-review.json selected_transport_consumer",
+        "source_path": "packages/cloudflare/src/runtime/typed-context-serving.test.ts",
+        "writers_commands_released": true,
+        "counts_unchanged": true,
+        "broader_parent_open": true
+      }
     },
     "typed_runtime_consumer": {
       "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
@@ -2267,11 +2275,12 @@
       "due_handler_pending": false,
       "commit": "1586af1e",
       "due_handler": {
-        "status": "Selected compiled private due Node/nativeD1 source reviewed; six-path commit pending",
+        "status": "Root direct-reviewed and committed selected private due Node/nativeD1 source; broad parent open",
         "review": "keyed-schedule-consumer-root-review.json due_handler",
         "source_commands_released": true,
         "counts_unchanged": true,
-        "broader_parent_open": true
+        "broader_parent_open": true,
+        "commit": "de3cd6938a19ec5bab80188c8190c6d252d15225"
       }
     },
     "occurrence_receipt_gate": {
