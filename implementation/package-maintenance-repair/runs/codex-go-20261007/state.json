@@ -1578,7 +1578,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T10:34:08.273500+00:00",
+  "updated_utc": "2026-10-08T10:34:11.247730+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -1869,6 +1869,22 @@
       "limits": "Roadmap Files23 owns actual authenticated upload/finalization/attachment/download workflow; helper acceptance does not close File/durable/host/parent scope.",
       "model": "gpt-6.1-sol low: fixed source contract mismatch",
       "sources_dist_handles_released": true,
+      "counts_unchanged": true
+    },
+    "delivery_facade": {
+      "status": "Defining State/public stdlib export directly reviewed; commit ready, actual runtime callback consumer pending",
+      "sources": [
+        "packages/state/src/effects/delivery.ts",
+        "packages/state/package.json",
+        "packages/stdlib/src/index.ts",
+        "packages/stdlib/test/assembly.test.ts"
+      ],
+      "contract": "delivery(c,{record,field},selected):Promise<SelectedReceiptProjection|null> forwards original arguments to canonical.observeDelivery; missing callback throws StateError validation. No fabricated context/grants/store/clock, alternate observation or normalizer. Stdlib reexports exact State binding.",
+      "runtime_owner": "Roadmap01a117b5-8358-7e31-9de3-03d0302cdd3c ACKed canonical.observeDelivery exact contract and owns CF context/invoke/stdlib wiring to current checked State/Work join.",
+      "verification": "Normal State and Stdlib emits0; existing public export inventory/binding identity2/2. No fake callback tests or repeated unchanged producer checks. Root direct4-file diff review.",
+      "limits": "Public export prerequisite only; no generated/runtime provider or installed/host delivery acceptance. Capability addition is not replacement production-reduction credit.",
+      "model": "gpt-6.1-sol medium: finite existing structural facade pattern",
+      "sources_outputs_handles_released": true,
       "counts_unchanged": true
     }
   },

@@ -253,3 +253,6 @@ export { transition } from '@canlang/state/effects/transition';
 
 // Filed runtime-export-join request: synchronous handler guards, verbatim.
 export { require, hasRole } from '@canlang/state/effects/guards';
+
+// Selected receipt observation is produced by the canonical state scope.
+export { delivery } from '@canlang/state/effects/delivery';
