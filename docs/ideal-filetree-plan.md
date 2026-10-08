@@ -420,3 +420,6 @@ The installed Worker bundle stages the exact bound-judgment runtime and exported
 
 
 Redundant synchronous guard export verification scaffolding is retired:112 historical scripts/artifacts/logs/hash chains/review trees removed. Eight existing files retain the concise accepted outcome and precise handler/admission replay boundary, plus the original three JEV requests/responses and uncertainty assessment. Maintained production guard and selected-call tests remain outside this directory; no runtime change or test rerun. Owning pointers now link the retained report. Cleanup does not qualify current source or advance the complete filetree checkpoint.
+
+
+The existing generation consumer now imports its adapter and dispatcher from the same emitted CF graph as its defining progress producer. Private output previously mixed installed and private module identities, correctly refusing the foreign producer before HTTP; authority checks remain unchanged. Clean same native generation/D1/reopen/provider case passes1/1 (28144.749292ms), selected typecheck/emit0. An intermediate unsupported private subpath attempt and diagnostic pass remain recorded; no new export or production change. MCP/cohort and full original parent gates stay separate.
