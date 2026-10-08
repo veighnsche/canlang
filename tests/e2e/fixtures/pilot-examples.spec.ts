@@ -208,3 +208,82 @@ test("provisions fixtures live with baseline matching and establishment", async 
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("public runner disposes PilotExamples scopes after comparison throws and retains failures", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "pilot-examples-disposal-"));
+  try {
+    const file = join(dir, "suite.mjs");
+    await writeFile(file, SUITE_MODULE);
+    for (const failure of ["comparison", "comparison-and-disposal", "invocation-and-disposal"] as const) {
+      const primary = new Error(`primary ${failure}`);
+      const cleanup = new Error(`cleanup ${failure}`);
+      const { invoker, store, calls } = makeDoubles();
+      const load = store.load.bind(store);
+      let comparisons = 0;
+      // Deliberate faults over the original doubles caller and suite module.
+      const events: string[] = [];
+      if (failure !== "invocation-and-disposal") {
+        store.load = async (model, id) => {
+          const row = await load(model, id);
+          if (row === null || row.data["done"] !== true) return row;
+          const completedBy = Object.defineProperty({ kind: "user" }, "id", {
+            enumerable: true,
+            get() {
+              comparisons += 1;
+              events.push("comparison");
+              throw primary;
+            },
+          });
+          return { ...row, data: { ...row.data, completed_by: completedBy } };
+        };
+      } else {
+        const invoke = invoker.invokeMutation.bind(invoker);
+        invoker.invokeMutation = async (...args) => {
+          if (args[0].operation === "todo.complete") throw primary;
+          return invoke(...args);
+        };
+      }
+      let op = 0;
+      const runner = new PilotExamples({
+        artifact: ARTIFACT,
+        invoker,
+        store,
+        caller: { actor: { user_id: "u-member" } } as unknown as ResolvedIdentity,
+        userId: "u-member",
+        now: () => 0,
+        operationId: () => `op-${++op}` as OperationId,
+      });
+      const createScope = runner.createScope;
+      const disposals: number[] = [];
+      runner.createScope = async (rowIndex) => {
+        events.push(`create:${rowIndex}`);
+        const scope = await createScope(rowIndex);
+        const dispose = scope.dispose;
+        scope.dispose = async () => {
+          disposals.push(rowIndex);
+          events.push(`dispose:${rowIndex}`);
+          await dispose();
+          if (failure !== "comparison") throw cleanup;
+        };
+        return scope;
+      };
+      if (failure === "invocation-and-disposal") {
+        const report = await runner.runSuite(pathToFileURL(file).href, "todo.complete");
+        expect(report.rows.map((row) => row.outcome)).toEqual(["failed", "failed"]);
+        for (const row of report.rows) {
+          expect(row.detail).toContain(`unexpected invocation failure: ${primary.message}`);
+          expect(row.detail).toContain(cleanup.message);
+        }
+        expect(disposals).toEqual([0, 1]);
+      } else {
+        await expect(runner.runSuite(pathToFileURL(file).href, "todo.complete")).rejects.toBe(primary);
+        expect(comparisons).toBe(1);
+        expect(disposals).toEqual([0]);
+        expect(events).toEqual(["create:0", "comparison", "dispose:0"]);
+        expect(calls.map((call) => call.operation)).toEqual(["todo.Task.create", "todo.complete"]);
+      }
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
