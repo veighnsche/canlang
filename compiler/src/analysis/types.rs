@@ -442,6 +442,8 @@ pub enum CheckedChoiceValue {
 /// Types and selected bindings per symbol and typed CST node.
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
+    /// Exact earlier-parameter identity claimed by an authored bare default.
+    pub param_default_copy_sources: HashMap<SymbolId, SymbolId>,
     /// Exact typed cohort-child reads, consumed without spelling rebinding.
     pub cohort_child_references: HashMap<NodeKey, SymbolId>,
     /// Exact checked bare-role value references, preserving lexical collisions.
@@ -4007,6 +4009,16 @@ impl<'a> Typer<'a> {
             // choice metadata and a parameter named `choices` never do.
             let default = field_parts(param_node, text).default;
             if let Some(default) = default {
+                if default.kind == SyntaxKind::NameRef
+                    && let Some(Binding::Symbol(seed)) =
+                        self.tables.node_binding.get(&NodeKey::of(default))
+                    && matches!(
+                        self.tables.symbols[seed.0 as usize].kind,
+                        SymbolKind::Param { .. }
+                    )
+                {
+                    self.types.param_default_copy_sources.insert(param, *seed);
+                }
                 for (name, span) in self.effectful_calls(default, text) {
                     self.diags.push(Diagnostic::error(
                         "E3011",

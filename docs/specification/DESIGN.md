@@ -354,23 +354,42 @@ canonical CF/State Memory. The
 [nullable/array user-default check](../../compiler/tests/user_default_shapes.rs)
 also qualifies earlier-parameter copies through `user?`, `user[]` and `user[]?`,
 including null, empty arrays, ordered users and supplied overrides, using the
-existing complete owning codec profiles.
+existing complete owning codec profiles. The
+[member actor-default check](../../compiler/tests/actor_default_replay.rs)
+qualifies omitted `who:user?=actor` against the existing fixed member frame,
+including null/peer overrides and receipt-first replay after revocation;
+anonymous/null actor frames and nonnullable actor defaults remain separate.
+A direct nonnullable singular stored-model parameter default is admitted only
+when its bare source names an earlier required, supplied parameter of the same
+model in the same owner. The checked seed identity is carried through the
+parameter IR; canonical Memory validates the captured native record reference
+against the call's admitted record refs and preserves its `{id,version}` wire
+form. The [stored-model default check](../../compiler/tests/model_reference_default_runtime.rs)
+verifies real create results, ordered copied defaults, explicit override,
+rejected cross-reference, and receipt-first replay/conflict/revocation behavior.
+It performs no read, create-view or raw-ID fallback. Default chains, later or
+optional seeds, cross-model sources, nullable/array reference targets, and
+read/create-view forms remain unsupported.
 For ordinary mutation calls with admitted computed parameter defaults, generated
 handlers accept an optional invocation-local synchronous observer. They report
 an actually omitted value immediately after assigning it and before subsequent
 defaults, guards or body execution; direct two-argument calls retain their
 existing behavior. The canonical CF/State Memory path encodes omitted scalar,
 ordinary-array and singular finite-enum values with the owning descriptor,
-rejects foreign, duplicate or missing reports, and commits reported defaults
-only for a successful attempt. The
+and the admitted direct stored-model case with its original native reference;
+it rejects foreign, duplicate or missing reports and commits reported defaults
+only for a successful attempt. TypeTable and parameter IR carry the checked
+source provenance; runtime input hashing, authorization, result and capability
+interfaces are unchanged. The
 [resolved-default receipt/replay check](../../compiler/tests/resolved_default_replay.rs)
 also verifies declaration-order values, supplied overrides, discarded rejected
 defaults, raw-input conflicts, replay without re-execution, and a newly revoked
 member being denied. Supplied-input hashing and receipt-first replay policy are
-unchanged; replay does not reauthorize current membership. The receipt witness
-qualifies finite enums through canonical CF/State Memory. Nullable enum,
-enum-array, stored-model references and contextual actor/identity defaults, hostile supplied-enum/null wire validation, D1 and
-full-application paths remain open.
+unchanged; replay does not reauthorize current membership. Receipt witnesses
+qualify finite enums and the narrow direct stored-model profile through
+canonical CF/State Memory. Nullable enum, enum-array, other stored-model forms,
+anonymous/null actor frames and nonnullable actor defaults, hostile
+supplied-enum/null wire validation, D1 and full-application paths remain open.
 
 Optional operation-owned input assistance is authored on the parameter, for example `assignee:user choices={read=reviewer_choices(document=submission.parent),value="user",labels=["name","role","home"]}` or `region:Region choices={read=region_choices(country=country),labels=["name"]}`. The compiler derives the canonical owning read, checked input paths, candidate value and labels from declarations, and publishes version 1 metadata on the existing input descriptor. A checked read returning a nonnullable one-dimensional stored-model collection publishes its canonical model-array result, such as `approve.Employee[]`; each value keeps the existing model-reference wire representation. Choices grant no authority, execute no read themselves and change no final input, default or server guard. Artifacts carrying choices require `interfaces.input-choices@1`; a consumer must support that feature before admitting the artifact. Viewer-authorized read execution, current draft binding, cancellation, stale-response fencing and form controls retain their owning consumer scopes. Labels preserve declared reference identities; they introduce no directory or file enrichment.
 

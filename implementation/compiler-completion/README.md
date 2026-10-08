@@ -384,3 +384,30 @@ stored-model defaults remain separate; the prepared
 [source witness](../../compiler/tests/fixtures/model_reference_default.can)
 has not run and retains E6008 pending its current-binding consumer contract.
 Canonical completion remains **57/67**, with **10** remaining.
+
+The [member actor-default case](../../compiler/tests/actor_default_replay.rs)
+passes **1/1** through canonical CF/State Memory. Omitted `who:user?=actor`
+records the actual fixed member actor as a closed `{id}` value. Explicit null
+and peer overrides suppress the default; matching receipts replay after
+membership removal without default/body work, changed inputs conflict and new
+revoked calls deny without a receipt. One fixture trace-count expectation was
+corrected, then only that failed case repeated. Existing context/auth/replay
+rules and production code are unchanged; anonymous/null actor frames,
+nonnull actor defaults and broader D1 workflows remain separate.
+Canonical completion remains **57/67**, with **10** remaining.
+
+The prepared [stored-model source witness](../../compiler/tests/fixtures/model_reference_default.can)
+now passes as a genuine [canonical Memory case](../../compiler/tests/model_reference_default_runtime.rs)
+**1/1**. The released default profile is limited to a direct nonnullable
+singular stored-model target whose bare source is an earlier required,
+same-owner/same-model supplied parameter. The native copied value is checked
+against `call.recordRefs`; no read, create-view or raw-ID fallback is used.
+Real CRUD creation, native `count` result `1`, `{id,version}` receipt defaults,
+override suppression, distinct-record rejection, receipt-first replay after
+revocation, hash conflict and fresh denial are covered. Source default chains,
+later/optional/cross-model seeds, nullable/array reference targets, and
+read/create-view forms remain E6008 or unadmitted. Existing owner, authorization,
+input-hash and replay contracts remain unchanged. This narrows the earlier
+“stored-model defaults remain separate” qualification to other reference
+shapes and contexts, without closing broader S9-Q02 or application work.
+Canonical completion remains **57/67**, with **10** remaining.

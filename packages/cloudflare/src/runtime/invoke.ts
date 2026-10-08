@@ -3705,9 +3705,14 @@ async function runScenarioSeam(
     ? scenarioParameters(call, loaded, recordView, resolvedDefaults)
     : { operation_id: call.context.operationId, inputs: call.inputs };
   const observesDefaults = due === undefined && cohort === undefined && callable?.inputStyle === 'parameters';
-  const computedSlots = new Map((generatedScenarioDef(call)?.descriptor.inputs ?? []).flatMap(field =>
-    field.kind !== 'ref' && field.kind !== 'delivery' && field.computedDefault === true && !Object.hasOwn(call.inputs, field.name)
+  const defaultDef = generatedScenarioDef(call);
+  const defaultInputs = defaultDef?.descriptor.inputs ?? [];
+  const computedSlots = new Map(defaultInputs.flatMap(field =>
+    field.kind !== 'delivery' && field.computedDefault === true && !Object.hasOwn(call.inputs, field.name)
       ? [[field.name, field] as const] : []));
+  const admittedDefaultSeeds = (call.recordRefs ?? []).map(ref => ({
+    ref, value: isUnknownRecord(argument) && Object.hasOwn(argument, ref.param) ? argument[ref.param] : undefined,
+  }));
   const observedDefaults = new Set<string>();
   const observeDefault = (name: unknown, value: unknown): void => {
     try {
@@ -3716,7 +3721,28 @@ async function runScenarioSeam(
         throw new StateError('validation', 'Computed default reports require an omitted owning slot, exactly once.');
       }
       let wire: unknown;
-      if (field.kind === 'enum') {
+      if (field.kind === 'ref') {
+        const binding = isUnknownRecord(value) ? recordBindings.get(value) : undefined;
+        const slotIndex = defaultInputs.indexOf(field);
+        const nullableRefs = defaultDef?.inputNullableRefs ?? {};
+        const admitted = defaultDef === undefined ||
+          Object.hasOwn(defaultDef.inputArrays, field.name) ||
+          Object.hasOwn(nullableRefs, field.name)
+          ? undefined : admittedDefaultSeeds.find(({ ref, value: seedValue }) => {
+            const seedIndex = defaultInputs.findIndex(seed => seed.name === ref.param);
+            const seed = defaultInputs[seedIndex];
+            return seedIndex >= 0 && seedIndex < slotIndex && seed?.kind === 'ref' &&
+              seed.model === field.model && ref.model === field.model &&
+              !Object.hasOwn(defaultDef.inputArrays, seed.name) &&
+              !Object.hasOwn(nullableRefs, seed.name) && seedValue === value &&
+              binding?.model === ref.model && binding.id === ref.row.id &&
+              binding.version === ref.row.version;
+          });
+        if (admitted === undefined) {
+          throw new StateError('validation', 'Computed reference default requires an earlier admitted singular nonnullable input of the same model.');
+        }
+        wire = encodeValue(field.model, makeRecordRef(field.model, admitted.ref.row.id, BigInt(admitted.ref.row.version)));
+      } else if (field.kind === 'enum') {
         if (typeof value !== 'string' || !field.enumValues?.includes(value)) {
           throw new StateError('validation', 'Computed enum default is outside its declared cases.');
         }
