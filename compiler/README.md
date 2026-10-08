@@ -197,7 +197,8 @@ Implemented modules:
   ordinary bytes and public convenience signatures remain supported.
 - Supported public read scenarios now publish parameter-style callables and
   the same checked computed-default omission marker as mutation scenarios.
-  The owning runtime qualifies viewer reads, defaults and result serving;
+  The owning Cloudflare case passes genuine viewer reads, omitted defaults,
+  supplied arrays, exact integer results and live authority refusal;
   computed reference defaults still report E6008.
 - `src/policy.rs`, `src/lint/`, `src/format.rs`, `src/ide/`: policy dumps,
   lint rules, the formatter, and editor services.
