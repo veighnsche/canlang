@@ -517,10 +517,10 @@ function checkComputedDefault(
   if (!Object.hasOwn(input, 'computedDefault')) return undefined;
   if (input['computedDefault'] !== true || (operationKind !== 'scenario' && operationKind !== 'read') || required ||
       (inputKind !== 'enum' && inputKind !== 'ref' && (scalarTypeForKind(inputKind) === undefined || valueType === undefined)) ||
-      ((inputKind === 'enum' || inputKind === 'ref') && (Object.hasOwn(input, 'array') || input['array'] !== undefined ||
+      ((inputKind === 'ref' || (inputKind === 'enum' && valueType === undefined)) && (Object.hasOwn(input, 'array') || input['array'] !== undefined ||
         (Object.hasOwn(input, 'nullable') && input['nullable'] !== false) || valueType?.endsWith('?'))) ||
       Object.hasOwn(input, 'default') || input['default'] !== undefined) {
-    fail('malformed_descriptor', `Invalid ${what}: computedDefault requires true on an optional checked scalar or singular nonnullable enum/ref scenario or read input without a wire default.`);
+    fail('malformed_descriptor', `Invalid ${what}: computedDefault requires true on an optional checked scalar/enum or singular nonnullable legacy enum/ref scenario or read input without a wire default.`);
   }
   return true;
 }
@@ -931,7 +931,7 @@ export function loadExecutionDescriptorSet(
       }
       if (input.kind !== 'ref' && input.kind !== 'delivery') {
         checkTypeArray(input.valueType, Object.hasOwn(arrayMarkers, input.name), `input ${JSON.stringify(input.name)} on operation ${JSON.stringify(opName)}`);
-        if (input.kind === 'enum' && input.computedDefault === true && Object.hasOwn(arrayMarkers, input.name)) {
+        if (input.kind === 'enum' && input.computedDefault === true && input.valueType === undefined && Object.hasOwn(arrayMarkers, input.name)) {
           fail('malformed_descriptor', `Invalid input ${JSON.stringify(input.name)} on operation ${JSON.stringify(opName)}: computedDefault enum requires a singular input.`);
         }
         if (input.computedDefault === true && arrayMarkers[input.name]?.required === true) {
