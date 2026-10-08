@@ -1611,7 +1611,7 @@
     "handback": "7f92c05f77841fe724bd804c2d7b83666c775b1f",
     "foreign_scope": "Human-authorized state-machine/refresh feature; its verification retained as external source-current input, not root package acceptance",
     "checkpoint": "824934 unchanged; foreign integrator explicitly leaves accumulated allocation review open",
-    "current_index_owner": "Root after Compiler explicit empty-index handback; HEAD7126ef6f. Compiler source b40a5390 and own bookkeeping7126ef6f remain preserved; no concurrent staging until root handoff."
+    "current_index_owner": "Compiler temporary five-path enum-default handoff; root staging waits exact empty-index return."
   },
   "shared_doc_handoff": {
     "target": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
@@ -2185,20 +2185,23 @@
       "git_handoff": "Exactly ten owned paths inspected/committed under coordinator exclusive index ACK; index returned empty. CF invoke and active UI/form sources remain other writer leases."
     },
     "fanout_generated_body_followup": {
-      "status": "Owner ordinary compiled-child release reopened on two paths for actual-call identity/source pin; root holds capture until renewed release",
-      "contract": "Existing State invokeFanoutChild/ExecuteHandler already carries full admitted call, guards/readings/unique/default effects. CF owning mirror/body bridge now passes them and real generated result through existing child unit; actual registry and fresh row select refversion, no second engine.",
-      "outcome": "Original ordinary native D1 case1/1 and unchanged legacy4/4 accepted as owner results; actual factory identity versus admitted call context risk reopened by owner. Private each/trigger source admission still open.",
-      "held_sources": [
-        "packages/cloudflare/src/runtime/invoke.ts",
-        "packages/cloudflare/src/runtime/typed-cohort-journey.test.ts"
-      ],
+      "status": "Renewed owner freeze directly reviewed by root; ordinary compiled-child component ready for focused capture",
+      "contract": "Existing canonical child call/full effects forwarded; generated ordinary scenario body uses actual admitted context/inputs/current version, pins factory actor/team/app/source and keeps guard/readings/unique/default/result effects in the same child unit. Existing legacy body profile retained.",
+      "outcome": "Latest changed CF emit0 and same owning actual native D1 case1/1 (~4.7sec) after actual-call identity/source correction. Unchanged legacy4/4 reused. Root direct exact source review; no extra consumer check/review packet.",
+      "held_sources": [],
       "owner": "Roadmap01a117b5-8358-7e31-9de3-03d0302cdd3c, no Git staging",
       "root_limit": "No duplicate tests/emit/review agents or staging live files; root exclusive Git index retained. Scope counts unchanged.",
       "released_sources": [
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/src/runtime/typed-cohort-journey.test.ts",
         "packages/cloudflare/test/fixtures/typed-cohort-journey.can",
         "packages/cloudflare/test/fixtures/typed-cohort-journey.json",
         "packages/cloudflare/test/fanout-fresh-facts.test.ts"
-      ]
+      ],
+      "scope": "Genuine ordinary compiled scenario, real D1 domain/history/result receipt + child outcome/checkpoint, admitted-version intake, post-staging caller-role fence, consent rollback, frozen late exclusion and bounded2+1 turns, successful commit response loss with D1 reopen/no repeat, between-child owner revocation and wrong-source no-write refusal.",
+      "limits": "Private declared-event each/trigger source admission remains open. No full original48, whole TECH-W02 compiled/durable/installed/T26, multi-host, native preparation or replacement reduction claim.",
+      "sources_outputs_handles_released": true,
+      "counts_unchanged": true
     },
     "retained_membership_resume": {
       "status": "Root directly reviewed and committed finite retained admission-resume correction",
@@ -2218,7 +2221,7 @@
       "commit": "854936b3665d491748a5d5f59942bc7d88829f89"
     },
     "enum_computed_default_intake": {
-      "status": "Root accepted finite omission-marker intake; focused commit prepared, Compiler actual consumer pending",
+      "status": "Root directly reviewed and committed finite enum default omission intake",
       "sources": [
         "packages/state/src/invocation/registry.ts",
         "packages/state/test/invocation/owned-admission.test.ts"
@@ -2229,7 +2232,9 @@
       "shared_output_owner": "Compiler sole State emission for its pending original enum-default native case; root does not emit shared outputs.",
       "private_cleanup": "Removed exact /private/tmp/canlang-enum-computed-marker.qEUQwe after terminal command handles; symlink target/shared outputs preserved.",
       "limits": "No runtime enum membership/null validation guarantee or whole task/parent acceptance; state-generated/v1 remains presence-only for scalars. Compiler source controls do not substitute for runtime hostile-input checks. Native preparation HOLD and counts unchanged.",
-      "sources_outputs_handles_released": true
+      "sources_outputs_handles_released": true,
+      "commit": "a67050375e48e6f80554e9ba19c25c70f130c8fd",
+      "compiler_consumer": "Coordinator reports Compiler sole shared State emit0 and pending original enum native case1/1 passed; output/Cargo writers released. No runtime enum membership/null or full S9-Q02 credit."
     }
   },
   "live_finite_packets": [
@@ -3061,5 +3066,17 @@
       "counts_unchanged": true,
       "commit": "d178d7b0c00fec0f851d7301f6363b9c60c9da0e"
     }
+  },
+  "released_nested_cleanup_followup": {
+    "status": "Removed remaining released root-owned nested verification outputs; no new proof/cleanup snapshot or test",
+    "removed_roots": [
+      "asset-mount-proof",
+      "interfaces-owner-build-proof",
+      "do-reset-proof"
+    ],
+    "files_removed": 54,
+    "bytes_removed": 182604,
+    "retained": "Original maintained product sources/tests, concise three existing outcomes, unresolved contracts/JEV advice/negative witnesses and raw Git history. Foreign files, shared caches and mutable outputs untouched.",
+    "scope": "Documentation/evidence cleanup only; zero production reduction or parent task completion."
   }
 }

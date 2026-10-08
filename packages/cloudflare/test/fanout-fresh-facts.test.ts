@@ -220,12 +220,12 @@ describe("fanout exposed consumer current facts", () => {
       .toEqual({ guardFacts: [{ flag: "B" }], seen: ["B"], status: "recorded",
         effects: { row: "B", outbox: ["B"], schedule: "B" } });
   });
-  it("the versioned-ref profile refuses the id-only input before the body", async () => {
+  it("the versioned-ref profile submits the current required version", async () => {
     const w = await world(["a"], true), seen: string[] = [];
-    await expect(surface.runSchedulerTurn(options(w, effectBody(seen))))
-      .rejects.toMatchObject({ code: "validation" });
-    expect(seen).toEqual([]);
-    expect(await w.store.load(asModel(EFFECT), "effect-a" as RecordId)).toBeNull();
+    const result = turn(await surface.runSchedulerTurn(options(w, effectBody(seen))));
+    expect(result.driven[0]?.status).toBe("recorded");
+    expect(seen).toEqual(["A"]);
+    expect((await w.store.load(asModel(EFFECT), "effect-a" as RecordId))?.data["flag"]).toBe("A");
   });
   it("canonical current membership refusal pins inaccessible without body effects", async () => {
     const w = await world(["a"]), seen: string[] = [];
