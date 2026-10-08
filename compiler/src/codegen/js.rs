@@ -37,6 +37,16 @@ use serde::ser::{SerializeMap, SerializeStruct};
 use serde::{Serialize, Serializer};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
+fn invocation_base(ty: &ResolvedType) -> bool {
+    match ty {
+        ResolvedType::Invocation { .. } => true,
+        ResolvedType::Array { element, .. } | ResolvedType::Nullable(element) => {
+            invocation_base(element)
+        }
+        _ => false,
+    }
+}
+
 fn descriptor_json(value: &(impl Serialize + ?Sized)) -> String {
     crate::json::to_compact_string(value).expect("descriptor JSON serialization invariant")
 }
@@ -1474,10 +1484,14 @@ impl<'a> Emitter<'a> {
                 self.unsupported("type", "action values have no §13 type id", span);
                 self.throw_expr("action type id")
             }
-            ResolvedType::Invocation { .. } => {
-                self.unsupported("type", "invocation values have no §13 type id", span);
-                self.throw_expr("invocation type id")
-            }
+            ResolvedType::Invocation { targets } => format!(
+                "invocation({})",
+                targets
+                    .iter()
+                    .map(|symbol| self.ir.items[symbol.0 as usize].canonical.clone())
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ),
             ResolvedType::Delivery { .. } => {
                 self.unsupported(
                     "type",
@@ -1584,6 +1598,15 @@ impl<'a> Emitter<'a> {
         required_array: bool,
         span: Span,
     ) -> String {
+        // The implemented Values FieldDescriptor owns shape in its canonical
+        // type string. Invocation has no legacy structural descriptor keys.
+        if invocation_base(ty) {
+            let mut id = self.canonical_type_id(ty, span);
+            if required_array && matches!(ty, ResolvedType::Array { .. }) {
+                id.push('!');
+            }
+            return format!("type:{}", js_string(&id));
+        }
         match ty {
             ResolvedType::Scalar(scalar) => format!("type:{}", js_string(scalar.as_str())),
             ResolvedType::Record { symbol, .. } => format!(

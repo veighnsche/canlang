@@ -3,13 +3,10 @@
  *
  * The façade re-exports producer surfaces VERBATIM per filed lane
  * requests — no wrappers, no synonyms, no back-imports (PLAN/CONTRACTS).
- * v0 fulfills exactly one filed request: lane-02's FACADE REQUEST
- * (lane-02 status, PR6), groups (a)–(d) below, verified present in the
- * current `@canlang/values` barrel (zero drift at S8 writing; the 10
- * barrel names added since the request are deliberately NOT assembled —
- * see the assembly test + status file). "Corresponding TS types" (the
- * request's words) reads here as the barrel's full type surface,
- * enumerated explicitly; lane-02 trims on follow-up request.
+ * v0 retains lane-02's filed FACADE REQUEST (groups (a)–(d)), the
+ * requested type surface and subsequent checked producer joins.
+ * Invocation re-exports the existing pure Values constructor for checked
+ * complete-call construction; it neither executes nor authorizes a call.
  *
  * NOT in v0 (recorded gaps, not inventions): app-level record/query/
  * mutation/send/schedule builtins (`records`, `create`, `set`, …) have
@@ -21,7 +18,7 @@
  */
 export const STDLIB_CONTRACT_VERSION = 1;
 
-// (a) 32 pure builtins (lane-02 request, verbatim).
+// (a) Requested pure builtins plus the implemented invocation constructor.
 export {
   abs,
   action,
@@ -41,6 +38,7 @@ export {
   flatten,
   format,
   group,
+  invocation,
   join,
   local_date,
   local_instant,
