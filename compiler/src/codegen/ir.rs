@@ -2168,7 +2168,7 @@ impl<'a> Cx<'a> {
                 let mut values = Vec::new();
                 for child in kids(&node) {
                     match child.kind {
-                        SyntaxKind::MessageValue | SyntaxKind::Path => {
+                        SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path => {
                             if text.is_none() {
                                 text = self.decode_message_node(module, child);
                             }
@@ -2183,7 +2183,7 @@ impl<'a> Cx<'a> {
                 }
                 text.map(|text| IrFieldLabel { text, values })
             }
-            SyntaxKind::MessageValue | SyntaxKind::Path => self
+            SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path => self
                 .decode_message_node(module, &node)
                 .map(|text| IrFieldLabel {
                     text,
