@@ -300,3 +300,6 @@ Root formatting-scope reconciliation: existing AppInfo owns selected app locale;
 
 
 Root model-rule refusal reconciliation: existing canonical metadata intake refuses declared invariants/locks without their defining State execution binding; owning declarations and policy both preserve constraints. Owning test/compiler fixtures qualify12direct cases, not rule execution. Proposed callback ownership and complete checkpoint review remain open; no new parser/engine or responsibility reassignment.
+
+
+Root bounded loader-cleanup reconciliation: existing e2e loader/testkit conformance and fixture owners retain private scratch until successful handoff. Failure cleanup and unique MCP attempt roots replace leaked/shared scratch, with8direct lifecycle controls and5existing page-less specs; table disposal and DO audit reset are reused. Actual evidence/assets remain, conditional corpus and installed/native duties stay separate. No new lifetime owner, production saving, merge or complete checkpoint advancement.

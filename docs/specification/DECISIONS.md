@@ -2289,3 +2289,10 @@ One private owning Cloudflare emit and direct canonical bridge check1/1 passed: 
 ## 2026-10-08 — Refuse unenforced model rules at canonical activation (accepted correction)
 
 Canonical Cloudflare activation checks both owning appDefinition declarations and validated canApp policy arrays for invariants/locks before a missing-policy early exit. Declared constraints cannot disappear silently when the current State binding omits their execution, even if either representation masks the other. Unsupported rules refuse activation; no callback/expression API or replacement rule engine is adopted. Final owning Cloudflare emit and12direct controls pass, including9actual/synthetic masking refusals,2unchanged machine/current-read checks and1explicit-ID compatibility. Unchanged typed D1 results are reused. Actual rule execution and the separate proposed owner contract remain open.
+
+
+## 2026-10-08 — Clean private loader scratch before ownership handoff (accepted bounded)
+
+The existing e2e loader and testkit conformance caller own their temporary directories until returning a successful assembly or cleanup handle. Failed assembly, deployment write/read and fixture setup now attempt local cleanup while preserving the first failure. MCP bundle attempts use unique directories rather than a process-wide filename, and successful pilot fixtures remove their scratch after execution/assertions. Successful returned assemblies retain caller disposal; cleanup failure after a successful bundle still refuses. No new lifetime API or responsibility owner is introduced.
+
+One direct owning-loader check passes8/8 with compiler/assembler/bundler peers doubled; direct testkit staging controls pass and the existing page-less pilot/vendor specs pass5/5. Unchanged table disposal24b1d92a and real TEST-ONLY DO migration_failures reset2819e8ad are reused. Actual fixtures, runtime assets and independent negative witnesses remain; conditional corpus consolidation, native-held preparation and installed qualification are separate. This is test/qualification resource correctness, with no production reduction or original parent completion.

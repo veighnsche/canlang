@@ -190,33 +190,40 @@ function buildMcpBundle(root: string): string {
   resolveBuiltModule("@canlang/interfaces/mcp/server", "bun run --filter @canlang/interfaces build");
   resolveBuiltModule("@canlang/cloudflare/runtime/mcp-registry", "bun run --filter @canlang/cloudflare build");
   const entry = join(root, "tests/e2e/fixtures/handbuilt/mcp-bundle-entry.js");
-  const outFile = join(tmpdir(), `can-e2e-mcp-bundle-${process.pid}.mjs`);
-  try {
-    execFileSync(
-      "bun",
-      ["build", entry, "--format=esm", "--target=browser", `--outfile=${outFile}`],
-      { stdio: "pipe" },
-    );
-  } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    if (detail.includes("ENOENT")) {
-      throw new Error(
-        "e2e loader: `bun` is not on PATH, needed to bundle the MCP handler chain; " +
-          "install bun (https://bun.sh) or run e2e via `bun run test:e2e`",
-      );
-    }
-    throw new Error(
-      `e2e loader: MCP bundle build failed (\`bun build ${entry}\`); ` +
-        `the MCP SDK must resolve (run \`bun install\`) and both producer dists must be built. ` +
-        `Underlying error: ${detail}`,
-    );
-  }
+  const workDir = mkdtempSync(join(tmpdir(), "can-e2e-mcp-bundle-"));
+  const outFile = join(workDir, "bundle.mjs");
   let contents: string;
   try {
+    try {
+      execFileSync(
+        "bun",
+        ["build", entry, "--format=esm", "--target=browser", `--outfile=${outFile}`],
+        { stdio: "pipe" },
+      );
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      if (detail.includes("ENOENT")) {
+        throw new Error(
+          "e2e loader: `bun` is not on PATH, needed to bundle the MCP handler chain; " +
+            "install bun (https://bun.sh) or run e2e via `bun run test:e2e`",
+        );
+      }
+      throw new Error(
+        `e2e loader: MCP bundle build failed (\`bun build ${entry}\`); ` +
+          `the MCP SDK must resolve (run \`bun install\`) and both producer dists must be built. ` +
+          `Underlying error: ${detail}`,
+      );
+    }
     contents = readFileSync(outFile, "utf8");
-  } finally {
-    rmSync(outFile, { force: true });
+  } catch (thrown) {
+    try {
+      rmSync(workDir, { recursive: true, force: true });
+    } catch {
+      // Preserve the build/read failure even if cleanup also fails.
+    }
+    throw thrown;
   }
+  rmSync(workDir, { recursive: true, force: true });
   for (const marker of ["createMcpHandler", "createArtifactRegistry", "createArtifactCatalog"]) {
     if (!contents.includes(marker)) {
       throw new Error(
@@ -460,13 +467,23 @@ export async function loadCompiledArtifact(spec: CompiledArtifactSpec): Promise<
   });
   const stdlibUrl = resolveBuiltModule("@canlang/cloudflare/runtime/stdlib", CLOUDFLARE_DIST_BUILD_COMMAND);
   const workDir = mkdtempSync(join(tmpdir(), "can-e2e-compiled-"));
-  const asm = await assembleModules(
-    { artifact, sourcePath: `compiled:${source}` },
-    {
-      workDir,
-      stdlibUrl,
-    },
-  );
+  let asm: AssembledModules;
+  try {
+    asm = await assembleModules(
+      { artifact, sourcePath: `compiled:${source}` },
+      {
+        workDir,
+        stdlibUrl,
+      },
+    );
+  } catch (thrown) {
+    try {
+      rmSync(workDir, { recursive: true, force: true });
+    } catch {
+      // Preserve the assembly failure even if cleanup also fails.
+    }
+    throw thrown;
+  }
   return {
     artifact,
     sourcePath: source,
