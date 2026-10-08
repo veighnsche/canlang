@@ -381,6 +381,12 @@ function checkValueType(field: Record<string, unknown>, what: string, valueSchem
   if (!Object.hasOwn(field, 'valueType')) return undefined;
   const type = field['valueType'];
   if (checkedNominal(type, valueSchema)) return checkNominalValueType(field, what, valueSchema);
+  if (typeof type === 'string' && type.startsWith('enum(')) {
+    let parsed: ReturnType<typeof parseTypeId>;
+    try { parsed = parseTypeId(type); }
+    catch { fail('malformed_descriptor', `Invalid ${what}: valueType must declare a canonical inline enum profile.`); }
+    return checkEnumValueType(field, parsed.base.kind === 'enum' ? parsed.base.cases : undefined, what, valueSchema);
+  }
   if (typeof type !== 'string' || !/^(int|datetime|text|bool|decimal|money|date|duration|user|file)(\[\])?\??$/.test(type)) {
     fail('malformed_descriptor', `Invalid ${what}: valueType must declare an int/datetime/text/bool/decimal/money/date/duration/user/file profile.`);
   }
@@ -459,9 +465,22 @@ function artifactValueType(field: Record<string, unknown>, what: string, operati
     checkNominalArray(type, marker as { required: boolean } | undefined, what, valueSchema);
     return type;
   }
-  if (operationInput && Object.hasOwn(field, 'field') && isRecord(field['field']) &&
+  if (Object.hasOwn(field, 'field') && isRecord(field['field']) &&
       Object.hasOwn(field['field'], 'kind') && field['field']['kind'] === 'enum') {
-    const type = checkEnumValueType(field, field['field']['values'], what, valueSchema);
+    const values = field['field']['values'];
+    let association = field;
+    if (!operationInput && !Object.hasOwn(field, 'valueType')) {
+      if (!Array.isArray(values) || values.length === 0 ||
+          values.some(entry => typeof entry !== 'string' || entry === '')) {
+        fail('malformed_descriptor', `Invalid ${what}: enum fields require ordered non-empty cases.`);
+      }
+      association = { ...field,
+        valueType: `enum(${values.join(',')})${field['array'] === undefined ? '' : '[]'}${field['nullable'] === true ? '?' : ''}` };
+    }
+    const type = checkEnumValueType(association, values, what, valueSchema);
+    if (!operationInput && type !== undefined && parseTypeId(type).nullable !== (field['nullable'] === true)) {
+      fail('malformed_descriptor', `Invalid ${what}: valueType disagrees with enum compiler nullable marker.`);
+    }
     const marker = field['array'];
     if (checkedNominal(type, valueSchema) && marker !== undefined && (!isRecord(marker) || typeof marker['required'] !== 'boolean')) fail('malformed_descriptor', `Invalid ${what}: array markers carry a boolean required.`);
     checkNominalArray(type, marker as { required: boolean } | undefined, what, valueSchema);
