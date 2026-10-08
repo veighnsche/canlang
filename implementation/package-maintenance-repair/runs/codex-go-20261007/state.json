@@ -2267,11 +2267,20 @@
       "commit": "1586af1e"
     },
     "occurrence_receipt_gate": {
-      "status": "same defining command extracted and directly reviewed; emit0/existing3/3; scoped commit pending",
+      "status": "Root direct-reviewed and committed65acd49e; Work emit0/existing3/3; actual due consumer pending",
       "api": "@canlang/work/kernel/occurrence-staging workOccurrencePutReceiptCommand.stage(args,SystemCommandContext)",
       "review": "portable-occurrence-receipt-root-review.json",
       "source_and_output_leases_released": true,
       "actual_due_consumer_pending": true,
+      "counts_unchanged": true,
+      "commit": "65acd49e"
+    },
+    "authored_require_gate": {
+      "status": "direct defining review and State emit0/guards5/5; scoped commit pending",
+      "api": "@canlang/state/effects/guards AuthoredRequireFailure,isAuthoredRequireFailure",
+      "review": "work-runtime-gates-root-review.json authored_require_gate",
+      "raw_failure_consumer_pending": true,
+      "source_outputs_released": true,
       "counts_unchanged": true
     }
   },

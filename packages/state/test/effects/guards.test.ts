@@ -1,16 +1,36 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { hasRole, require as guard, type HandlerRoleContext } from '../../src/effects/guards.js';
+import {
+  AuthoredRequireFailure, hasRole, isAuthoredRequireFailure, require as guard,
+  type HandlerRoleContext,
+} from '../../src/effects/guards.js';
 
 describe('synchronous handler guards', () => {
   it('preserves truthiness and plain guard error messages', () => {
-    guard({});
-    guard('yes');
+    assert.equal(guard({}), undefined);
+    assert.equal(guard('yes'), undefined);
     for (const condition of [false, null, undefined, 0, '']) {
       assert.throws(() => guard(condition), { name: 'Error', message: 'forbidden' });
     }
     assert.throws(() => guard(false, 'limit'), { name: 'Error', message: 'limit' });
     assert.throws(() => guard(false, ''), { name: 'Error', message: 'forbidden' });
+  });
+
+  it('identifies authored refusals by the owning class only', () => {
+    assert.throws(() => guard(false, 'limit'), (error: unknown) => {
+      assert.ok(error instanceof AuthoredRequireFailure);
+      assert.ok(error instanceof Error);
+      assert.equal(isAuthoredRequireFailure(error), true);
+      assert.equal(error.name, 'Error');
+      assert.equal(error.message, 'limit');
+      return true;
+    });
+    assert.equal(isAuthoredRequireFailure(new Error('limit')), false);
+    assert.equal(isAuthoredRequireFailure({ name: 'Error', message: 'limit' }), false);
+    assert.equal(isAuthoredRequireFailure({ name: 'AuthoredRequireFailure', message: 'limit' }), false);
+    for (const error of [null, undefined, false, 0, 'limit']) {
+      assert.equal(isAuthoredRequireFailure(error), false);
+    }
   });
 
   it('keeps canonical built-ins separate from declared snapshot grants', () => {
