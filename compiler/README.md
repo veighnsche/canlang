@@ -177,6 +177,14 @@ Implemented modules:
   `tests/string_payload_runtime.rs`. These qualify the named paths and recorded
   profiles only; they do not establish full backend, transport, UI or host
   workflows.
+- Source intake has fallible `SourceDb::try_add` and `LineIndex::try_new`
+  admission for intrinsic `u32` identities/offsets; existing convenience APIs
+  retain documented panic behavior for out-of-range inputs. CLI files are
+  admitted by opened-file length before reading, growing files/stdin use a
+  bounded reader, and LSP failures preserve the last admitted snapshot with a
+  typed error log. Standalone lexer/parser entrypoints also admit whole source
+  length before scanning and return E1008 for unrepresentable input. Exact
+  `u32::MAX` endpoints stay supported; no memory/timing guarantee follows.
 - `src/policy.rs`, `src/lint/`, `src/format.rs`, `src/ide/`: policy dumps,
   lint rules, the formatter, and editor services.
 
