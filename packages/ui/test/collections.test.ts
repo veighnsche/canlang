@@ -134,6 +134,36 @@ describe("list", () => {
     assert.ok(html.includes("<li class=\"list-row\"><b>x</b></li>"));
   });
 
+  it("awaits each row renderer once and resolves its children before the next row", async () => {
+    const seen: SeenCall[] = [];
+    const context = makeContext({
+      query: stubRunner(seen, { rows: [row("a"), row("b")], columns: [] }),
+    });
+    const events: string[] = [];
+    const html = await list({
+      context,
+      model: "TeamTasks.Todo",
+      empty: "No todos",
+      renderRow: async (item) => {
+        events.push(`render:${item.id}`);
+        await Promise.resolve();
+        events.push(`ready:${item.id}`);
+        return () => {
+          events.push(`children:${item.id}`);
+          return [Promise.resolve().then(() => {
+            events.push(`resolved:${item.id}`);
+            return `<span>${item.id}</span>`;
+          })];
+        };
+      },
+    });
+    assert.deepEqual(events, [
+      "render:a", "ready:a", "children:a", "resolved:a",
+      "render:b", "ready:b", "children:b", "resolved:b",
+    ]);
+    assert.equal(html, '<ul class="list"><li class="list-row"><span>a</span></li><li class="list-row"><span>b</span></li></ul>');
+  });
+
   it("renders the empty state when rows are empty", async () => {
     const seen: SeenCall[] = [];
     const empty = message("Nothing here", { nl: "Niets hier" });

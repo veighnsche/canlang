@@ -58,6 +58,7 @@ export interface SchemaCatalog {
 
 import type {
   BusinessError,
+  ClosedInputs,
   ContentCheck,
   DerivedOperationInputs,
   FinalizedFile,
@@ -76,6 +77,28 @@ import type {
 import type { VerifiedIngressEnvelope } from '@canlang/contracts';
 export type { VerifiedIngressEnvelope };
 import type { Clock, IdentityStore, MailPort } from '@canlang/identity';
+
+/** Current request facts; session bearer stays inside the server. */
+export interface SourceFormBindingContext {
+  readonly appId: string;
+  readonly sessionToken: string;
+  readonly identity: ResolvedIdentity;
+  readonly derived: DerivedOperationInputs;
+  readonly operationId: string;
+  readonly nowMs: number;
+}
+
+/** Protects source bindings; canonical admission still decides permission. */
+export interface SourceFormBindingProof {
+  readonly token: string;
+  /** Stable for the same binding and current context, independent of nonce/expiry. */
+  readonly identity: string;
+}
+
+export interface SourceFormBindings {
+  seal(context: SourceFormBindingContext, bound: ClosedInputs, editable: readonly string[]): Promise<SourceFormBindingProof>;
+  restore(context: SourceFormBindingContext, token: string, inputs: ClosedInputs): Promise<ClosedInputs | null>;
+}
 
 /** Owning-app facts the shell needs. L1 binds from appDefinition. */
 export interface AppInfo {
@@ -139,6 +162,8 @@ export interface PageHttpDeps {
   readonly query?: RowQueryRunner;
   /** The same checked operation catalog used by canonical HTTP submission. */
   readonly catalog?: SchemaCatalog;
+  /** Explicit stable host-private protection; absent leaves bound forms unavailable. */
+  readonly formBindings?: SourceFormBindings;
 }
 
 export interface HttpDeps extends PageHttpDeps {

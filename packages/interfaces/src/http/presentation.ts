@@ -17,7 +17,7 @@ import { DEFAULT_THEME } from '@canlang/contracts';
 import { makeUserRef } from '@canlang/values';
 import { createOperationFormPreparer } from './forms.js';
 import { systemInterfacesClock } from '../ports.js';
-import type { InterfacesClock, SchemaCatalog } from '../ports.js';
+import type { InterfacesClock, SchemaCatalog, SourceFormBindings } from '../ports.js';
 import type {
   PageSourceContext,
   PresentationContext,
@@ -43,6 +43,9 @@ export interface BuildPresentationContextInput {
   readonly source?: PageSourceContext;
   readonly catalog?: SchemaCatalog;
   readonly clock?: InterfacesClock;
+  readonly formBindings?: SourceFormBindings;
+  readonly appId?: string;
+  readonly sessionToken?: string | null;
   /** Row-query runner bound before the call. */
   readonly query: RowQueryRunner;
 }
@@ -109,6 +112,9 @@ export function buildPresentationContext(
   };
   return input.catalog === undefined ? context : {
     ...context,
-    prepareForm: createOperationFormPreparer(context, input.catalog, input.clock ?? systemInterfacesClock),
+    prepareForm: createOperationFormPreparer(context, input.catalog, input.clock ?? systemInterfacesClock,
+      input.formBindings === undefined || input.appId === undefined || input.sessionToken == null ? undefined : {
+        service: input.formBindings, appId: input.appId, sessionToken: input.sessionToken, identity: input.principal,
+      }),
   };
 }

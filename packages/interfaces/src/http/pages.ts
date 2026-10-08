@@ -276,6 +276,8 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
       source,
       query,
       ...(deps.catalog === undefined ? {} : { catalog: deps.catalog }),
+      ...(deps.formBindings === undefined ? {} : { formBindings: deps.formBindings }),
+      appId: deps.app.appId, sessionToken,
       clock: deps.clock,
     });
     let children: string;
@@ -334,6 +336,8 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
     source,
     query,
     ...(deps.catalog === undefined ? {} : { catalog: deps.catalog }),
+    ...(deps.formBindings === undefined ? {} : { formBindings: deps.formBindings }),
+    appId: deps.app.appId, sessionToken,
     clock: deps.clock,
   });
   let children: string;

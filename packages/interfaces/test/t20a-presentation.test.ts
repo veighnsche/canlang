@@ -14,7 +14,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { deriveCsrfToken } from '@canlang/identity';
+import { deriveCsrfToken, sha256HexText } from '@canlang/identity';
 import type { IdentityStore } from '@canlang/identity';
 import { ARTIFACT_VERSION } from '@canlang/contracts';
 import type { ArtifactOperation } from '@canlang/contracts';
@@ -32,6 +32,7 @@ import { buildBusinessError } from '../src/errors/envelope.js';
 import { UUID_V7_PATTERN, extractUuidV7Ms, validateOperationId } from '../src/envelope/validate.js';
 import { deriveOperationInputs, catalogFromArtifactOperations } from '../src/http/operations.js';
 import { handleOperationRequest } from '../src/http/operations.js';
+import { createSourceFormBindings } from '../src/http/form-binding.js';
 import { csrfTokenForSession, mintOperationId, resolveRequestIdentity } from '../src/http/context.js';
 import { buildPresentationContext } from '../src/http/presentation.js';
 import {
@@ -48,6 +49,7 @@ import {
   formFragmentWrap,
   generatedFields,
   generatedForm,
+  form,
   projectGeneratedInputs,
 } from '@canlang/ui';
 
@@ -338,7 +340,7 @@ test('source form preparation scopes typed controls and refuses unavailable bind
     query: async () => ({ rows: [], columns: [] }), catalog, clock: deps.clock,
   });
   const prepare = context.prepareForm!;
-  const first = prepare({ operation: STORE_CREATE_OP.name, fields: ['title'], authoredFields: ['title'], labels: { title: 'Gadget title' }, submit: 'Publish', display: 'inline' });
+  const first = await prepare({ operation: STORE_CREATE_OP.name, fields: ['title'], authoredFields: ['title'], labels: { title: 'Gadget title' }, submit: 'Publish', display: 'inline' });
   assert.equal(first.status, 'ready');
   if (first.status !== 'ready') throw new Error('expected the admitted unbound form');
   assert.deepEqual(first.derived, deriveOperationInputs(STORE_CREATE_OP));
@@ -351,7 +353,7 @@ test('source form preparation scopes typed controls and refuses unavailable bind
   assert.equal(first.props.submit, 'Publish');
   assert.equal(first.props.display, 'inline');
   assert.equal(validateOperationId(first.props.operationId, deps.clock), null);
-  const second = prepare({ operation: STORE_CREATE_OP.name });
+  const second = await prepare({ operation: STORE_CREATE_OP.name });
   assert.equal(second.status, 'ready');
   if (second.status !== 'ready') throw new Error('expected automatic form');
   assert.notEqual(second.props.idPrefix, first.props.idPrefix);
@@ -367,7 +369,61 @@ test('source form preparation scopes typed controls and refuses unavailable bind
     { operation: STORE_CREATE_OP.name, fields: [] },
     { operation: GADGET_CREATE_OP.name, authoredFields: ['title', 'stock', 'price', 'state', 'owner', 'tags', 'ids', 'code'] },
     { operation: 'Missing.create' },
-  ]) assert.equal(prepare(request).status, 'unavailable');
+  ]) assert.equal((await prepare(request)).status, 'unavailable');
+});
+
+test('protected source update submits only editable values and restores its exact record through HTTP', async () => {
+  const calls: MutationEnvelope[] = [];
+  const { deps, identity } = await createTestDeps({ mutations: {
+    [STORE_UPDATE_OP.name]: envelope => {
+      calls.push(envelope);
+      return { result: { status: 'committed', operation_id: envelope.operation_id, result: null } };
+    },
+  } });
+  const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: PILOT_OPS });
+  const formBindings = await createSourceFormBindings(new Uint8Array(32).fill(93), 'source-update-revision');
+  const session = await deps.identity.store.findSessionByTokenHash(await sha256HexText(identity.sessionToken));
+  assert.ok(session);
+  await deps.identity.store.setSessionTeam(session.session_id, identity.teamId);
+  const csrf = await deriveCsrfToken(identity.sessionToken);
+  const { identity: principal } = await resolveRequestIdentity(deps.identity.store,
+    testRequest('/forms', { cookie: identity.cookie }), { clock: deps.clock, teamId: identity.teamId });
+  const context = buildPresentationContext({ request: testRequest('/forms', { cookie: identity.cookie }),
+    pathname: '/forms', isPartial: false, appDefaultLocale: 'en', csrfToken: csrf, principal,
+    query: async () => ({ rows: [], columns: [] }), catalog, clock: deps.clock,
+    formBindings, appId: deps.app.appId, sessionToken: identity.sessionToken,
+  });
+  const prepared = await context.prepareForm!({ operation: STORE_UPDATE_OP.name, fields: ['title'],
+    arguments: { record: { id: 'g1', version: 7n, title: 'Original', privateField: 'Never serialized' } } });
+  assert.equal(prepared.status, 'ready');
+  if (prepared.status !== 'ready') throw new Error('expected protected update');
+  assert.equal(prepared.field('title').field.value, 'Original');
+  assert.throws(() => prepared.field('record'), /outside/);
+  const html = await form(prepared.props);
+  assert.ok(html.includes('name="form_binding"'));
+  assert.ok(!html.includes('inputs[record]'));
+  assert.ok(!html.includes('Never serialized'));
+  const inputs = projectGeneratedInputs(prepared.derived, 'update', { 'inputs[changes][title]': 'Edited' }, ['title']);
+  assert.deepEqual(inputs, { title: 'Edited' });
+  const protectedDeps = { ...deps, catalog, formBindings };
+  const submit = (body: Record<string, unknown>, csrfValue = csrf) => handleOperationRequest(protectedDeps,
+    testRequest('/forms', { method: 'POST', cookie: identity.cookie,
+      headers: { 'content-type': 'application/json', 'x-csrf-token': csrfValue }, body: JSON.stringify(body) }), STORE_UPDATE_OP.name);
+  const envelope = { operation: STORE_UPDATE_OP.name, operation_id: prepared.props.operationId,
+    form_binding: prepared.props.sourceBinding, inputs };
+  for (const invalid of [
+    { ...envelope, form_binding: `${prepared.props.sourceBinding}x` },
+    { ...envelope, operation_id: mintOperationId(deps.clock.nowMs()) },
+    { ...envelope, inputs: { ...inputs, record: { id: 'other', version: '7' } } },
+    { ...envelope, inputs: { ...inputs, unknown: 'extra' } },
+  ]) assert.equal((await submit(invalid)).status, 403);
+  assert.equal((await submit(envelope, 'bad-csrf')).status, 403);
+  assert.equal(calls.length, 0, 'protection/CSRF refusal precedes canonical invocation');
+  assert.equal((await submit(envelope)).status, 200);
+  assert.equal(Object.getPrototypeOf(calls[0]!.inputs), null);
+  assert.deepEqual(JSON.parse(JSON.stringify(calls[0]!.inputs)), { title: 'Edited', record: { id: 'g1', version: '7' } });
+  assert.equal((await submit(envelope)).status, 200);
+  assert.deepEqual(calls[1]!.inputs, calls[0]!.inputs, 'retry retains exact canonical inputs');
 });
 
 test('bindingFromDerived pins the operation and checks mode agreement', () => {
