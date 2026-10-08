@@ -26,6 +26,9 @@ import type {
   RowQueryRunner,
 } from '@canlang/contracts';
 
+/** Bounds locator extraction only; the complete page query stays in polling state. */
+const COLLECTION_SELECTION_QUERY_MAX_CHARS = 8_192;
+
 /** Inputs to {@link buildPresentationContext}, all dispatcher-supplied. */
 export interface BuildPresentationContextInput {
   /** Request carrying the `Accept-Language` header. */
@@ -94,6 +97,19 @@ export function buildPresentationContext(
   input: BuildPresentationContextInput,
 ): PresentationContext {
   const source = input.source ?? buildPageSourceContext(input.principal);
+  const url = new URL(input.request.url);
+  const collectionSelections = new Map<string, string>();
+  if (url.search.length <= COLLECTION_SELECTION_QUERY_MAX_CHARS + 1) {
+    for (const [key, value] of url.searchParams) {
+      if (!key.startsWith('can-row:')) continue;
+      const occurrence = key.slice('can-row:'.length);
+      if (occurrence === '' || value === '' || collectionSelections.has(occurrence)) {
+        collectionSelections.clear();
+        break;
+      }
+      collectionSelections.set(occurrence, value);
+    }
+  }
   const context: PresentationContext = {
     ...source,
     canonical: input.observeDelivery === undefined ? source.canonical : Object.freeze({
@@ -103,13 +119,14 @@ export function buildPresentationContext(
     appDefaultLocale: input.appDefaultLocale,
     theme: DEFAULT_THEME,
     path: input.pathname,
-    pollUrl: input.pathname + new URL(input.request.url).search,
+    pollUrl: input.pathname + url.search,
+    collectionSelections,
     isPartial: input.isPartial,
     csrfToken: input.csrfToken,
     // A comparison key for the active browser view, never an authority grant.
     // Only already-client-visible session protection and this caller's own
     // selected identity participate; no email, grants or private records.
-    pollContext: JSON.stringify([new URL(input.request.url).origin, input.pathname + new URL(input.request.url).search,
+    pollContext: JSON.stringify([url.origin, input.pathname + url.search,
       input.csrfToken, input.principal.actor?.user_id ?? null,
       input.principal.team?.team_id ?? null]),
     principal: input.principal,
