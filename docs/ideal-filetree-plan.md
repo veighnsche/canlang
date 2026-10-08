@@ -396,3 +396,6 @@ The canonical user-mutation host now forwards defining original secret metadata,
 
 
 Accepted finite native text presentation join: checked source locale reaches the existing UI message factory; its canonical returned field is required by one generated helper. Final text/locale pairs render literally with escaping, language markup and bidi isolation, while legacy three-argument messages remain supported. First owning installed consumer1/1 (6.81s) and affected compile-only0 are reused. No wider outbound/timezone/host or full S9 acceptance; complete filetree checkpoint remains unadvanced.
+
+
+The generated runtime facade exposes the existing Values ValueError directly, without a new implementation. The existing real localhost/D1 Judgment consumer now refuses valid answers from a mismatched answering model: receipt remains pending with null result, recovery never resubmits, and durable intent/history stay unchanged. Exact same affected consumer1/1 (3909.972708ms;4315.032333ms total) and owning emission0 are reused; earlier missing-export failure is retained. Full original46 and held outbox22 remain open.

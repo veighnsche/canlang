@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T22:40:36.604257+00:00",
+  "updated_utc": "2026-10-08T22:40:55.643926+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2928,6 +2928,12 @@
       "state": "released finite source captured",
       "verified": "owning installed consumer1/1 6.81s; affected compile-only0 reused",
       "limits": "wider hosts/business/outbound/timezone and full parent remain open"
+    },
+    "judgment_model_mismatch_capture": {
+      "state": "released exact source captured",
+      "verified": "same installed D1/localhost consumer1/1 case3909.972708ms total4315.032333ms; owning emit0 reused",
+      "failed_attempt": "first preassertion missing ValueError export fixed by existing re-export",
+      "limits": "full original46 and held22 open"
     }
   },
   "live_finite_packets": [
