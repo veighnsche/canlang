@@ -26,6 +26,11 @@ When
  scenario echo(value:int) -> int by=members
   do
    return value
+ ## Bound source defaults run only for omission; explicit null and empty stay supplied.
+ scenario boundNullable(counter:Counter,value:int?=counter.count) -> int? by=members
+  do return value
+ scenario boundArray(counter:Counter,values:int[]=[counter.count]) -> int[] by=members
+  do return values
  ## Newly created bindings read native values and observe their staged update.
  scenario born() -> int by=members
   do

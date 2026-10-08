@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
-import type { CompileArtifact, MutationEnvelope } from '@canlang/contracts';
+import type { ArtifactOperationInput, CompileArtifact, MutationEnvelope } from '@canlang/contracts';
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import {
@@ -68,6 +68,12 @@ test('actual compiled scenarios preserve typed staging, receipts and persisted D
   }
   assert.deepEqual(compiled.operations?.find((op) => op.name === `${APP}.finish`)?.result, { type: 'void' });
   assert.deepEqual(compiled.operations?.find((op) => op.name === `${APP}.discard`)?.result, { type: 'void' });
+  for (const [name, fieldName] of [['boundNullable', 'value'], ['boundArray', 'values']] as const) {
+    const field: ArtifactOperationInput | undefined = compiled.operations?.find((op) => op.name === `${APP}.${name}`)?.inputs.fields.find((field) => field.name === fieldName);
+    assert.equal(field?.computedDefault, true);
+    assert.deepEqual(field?.field, { kind: 'integer' });
+    assert.equal(field?.default, undefined);
+  }
   const dir = await mkdtemp(join(tmpdir(), 'can-typed-scenarios-'));
   const world = await memberWorld();
   let d1: Awaited<ReturnType<typeof openD1>> | undefined;
@@ -89,10 +95,62 @@ test('actual compiled scenarios preserve typed staging, receipts and persisted D
     });
     const receipt = await d1.store.readReceipt(receiptIdentity(create));
     assert.equal(receipt?.resolvedDefaults['count'], '1');
+    const defaultCounter = committed(await invoker.invokeMutation(envelope('Counter.create', { count: '7' }), world.identity))
+      .result as { id: string; version: number };
+    const boundRef = { id: defaultCounter.id, version: String(defaultCounter.version) };
+    // Genuine source still owns its default; inherited artifact metadata cannot pair with it.
+    const inheritedClaim = structuredClone(compiled);
+    const inheritedField = inheritedClaim.operations!.find((op) => op.name === `${APP}.boundNullable`)!
+      .inputs.fields.find((field) => field.name === 'value')!;
+    assert.equal(Reflect.deleteProperty(inheritedField, 'computedDefault'), true);
+    Object.setPrototypeOf(inheritedField, { computedDefault: true });
+    assert.equal(Object.hasOwn(inheritedField, 'computedDefault'), false);
+    const inheritedInvoker = buildInvoker(inheritedClaim, asm, d1.store, {
+      memberships: world.memberships, now: () => FIXED_NOW,
+    });
+    const beforeInherited = await d1.store.readRevision();
+    const inheritedRefusal = rejected(await inheritedInvoker.invokeMutation(envelope('boundNullable', {
+      counter: boundRef,
+    }), world.identity));
+    assert.match(inheritedRefusal.message, /computedDefault/);
+    assert.equal(await d1.store.readRevision(), beforeInherited);
+    assert.equal((await d1.store.load(MODEL, asId(defaultCounter.id)))?.version, 1);
+    const nullableDefault = envelope('boundNullable', { counter: boundRef });
+    const arrayDefault = envelope('boundArray', { counter: boundRef });
+    assert.equal(committed(await invoker.invokeMutation(nullableDefault, world.identity)).result, '7');
+    assert.deepEqual(committed(await invoker.invokeMutation(arrayDefault, world.identity)).result, ['7']);
+    assert.equal(Object.hasOwn(nullableDefault.inputs, 'value'), false);
+    assert.equal(Object.hasOwn(arrayDefault.inputs, 'values'), false);
+    const nullableReceipt = await d1.store.readReceipt(receiptIdentity(nullableDefault));
+    const arrayReceipt = await d1.store.readReceipt(receiptIdentity(arrayDefault));
+    assert.ok(nullableReceipt?.inputHash);
+    assert.ok(arrayReceipt?.inputHash);
+    assert.equal(committed(await invoker.invokeMutation(envelope('boundNullable', {
+      counter: boundRef, value: null,
+    }), world.identity)).result, null);
+    assert.deepEqual(committed(await invoker.invokeMutation(envelope('boundArray', {
+      counter: boundRef, values: [],
+    }), world.identity)).result, []);
+    assert.equal(committed(await invoker.invokeMutation(envelope('boundNullable', {
+      counter: boundRef, value: '9',
+    }), world.identity)).result, '9');
+    assert.deepEqual(committed(await invoker.invokeMutation(envelope('boundArray', {
+      counter: boundRef, values: ['9'],
+    }), world.identity)).result, ['9']);
+    rejected(await invoker.invokeMutation(envelope('boundNullable', { counter: boundRef, value: 9 }), world.identity), 'validation');
+    rejected(await invoker.invokeMutation(envelope('boundArray', { counter: boundRef, values: [9] }), world.identity), 'validation');
+    rejected(await invoker.invokeMutation({ ...nullableDefault, inputs: { counter: boundRef, value: null } }, world.identity), 'conflict');
+    rejected(await invoker.invokeMutation({ ...arrayDefault, inputs: { counter: boundRef, values: [] } }, world.identity), 'conflict');
+    const defaultRevision = await d1.store.readRevision();
+    assert.equal(committed(await invoker.invokeMutation(nullableDefault, world.identity), 'replayed').result, '7');
+    assert.deepEqual(committed(await invoker.invokeMutation(arrayDefault, world.identity), 'replayed').result, ['7']);
+    assert.deepEqual(await d1.store.readReceipt(receiptIdentity(nullableDefault)), nullableReceipt);
+    assert.deepEqual(await d1.store.readReceipt(receiptIdentity(arrayDefault)), arrayReceipt);
+    assert.equal(await d1.store.readRevision(), defaultRevision);
     const bornRequest = envelope('born', {});
     assert.equal(committed(await invoker.invokeMutation(bornRequest, world.identity)).result, '2');
     const bornRows = await d1.store.query({ model: MODEL, authority: 'owner' });
-    const createdInScenario = bornRows.find((candidate) => candidate.id !== row.id);
+    const createdInScenario = bornRows.find((candidate) => candidate.id !== row.id && candidate.id !== defaultCounter.id);
     assert.equal(createdInScenario?.data['count'], '2');
     assert.equal(createdInScenario?.version, 1);
     const bornReceipt = await d1.store.readReceipt(receiptIdentity(bornRequest));
@@ -171,6 +229,10 @@ test('actual compiled scenarios preserve typed staging, receipts and persisted D
     assert.equal(committed(await reopened.invokeMutation(increment, world.identity), 'replayed').result, large.result);
     assert.equal(committed(await reopened.invokeMutation(finish, world.identity), 'replayed').result, null);
     assert.equal(committed(await reopened.invokeMutation(discard, world.identity), 'replayed').result, null);
+    assert.equal(committed(await reopened.invokeMutation(nullableDefault, world.identity), 'replayed').result, '7');
+    assert.deepEqual(committed(await reopened.invokeMutation(arrayDefault, world.identity), 'replayed').result, ['7']);
+    assert.deepEqual(await d1.store.readReceipt(receiptIdentity(nullableDefault)), nullableReceipt);
+    assert.deepEqual(await d1.store.readReceipt(receiptIdentity(arrayDefault)), arrayReceipt);
     assert.equal(await d1.store.readRevision(), revision);
   } finally {
     await d1?.worker.dispose();
