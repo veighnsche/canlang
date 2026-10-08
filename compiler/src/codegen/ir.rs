@@ -4978,7 +4978,7 @@ fn is_literal_default(expr: &TypedExpr) -> bool {
         IrExpr::Call {
             target: IrCallTarget::Builtin { id, awaited: false },
             args,
-        } if id == "datetime" => {
+        } if matches!(id.as_str(), "date" | "datetime") => {
             matches!(args.as_slice(), [value] if matches!(value.expr, IrExpr::Text(_)))
         }
         IrExpr::Array(items) => items.iter().all(is_literal_default),
