@@ -1,10 +1,11 @@
 # Bounded checked operation result producer
 
 The shared `operations_json` serializer publishes optional `result: {type}`.
-Selected checked Scenario declarations publish the closed `int`/`datetime`/`text`/`bool`
+Selected checked Scenario declarations publish the closed
+`int`/`datetime`/`text`/`bool`/`decimal`/`money`
 scalar profile, one optional array suffix followed by one nullable suffix, or
 explicit `void` for declaration-established no-result signatures. Other result
-shapes, including specialized string types, money and records, remain absent.
+shapes, including specialized string types and records, remain absent.
 Policy reads and generated CRUD
 keep absent results. Input schemas, canonical identity, and exclusions retain
 their existing selection rules. Metadata does not activate conversion or defaults.
@@ -81,3 +82,12 @@ golden passes. Two handcrafted datetime witnesses now use valid constructor
 strings and expect canonical wire metadata. The other passing checks were reused.
 Runtime text/bool admission/execution qualification belongs to its consumer owner;
 broader canonical references remain open, leaving completion at **48/67**.
+
+Decimal/money follow-up: checked Scenario results now include `decimal`,
+`decimal?`, `decimal[]`, `decimal[]?`, `money`, `money?`, `money[]` and `money[]?`.
+The existing own decimal/money input kinds retain their identity and array/null
+markers without a text valueType claim. Fresh CLI metadata and shared canApp
+serialization pass the affected **2/2** operation_results checks; strict library
+Clippy passes. Unchanged text/bool and earlier serializer outcomes are reused.
+Consumer execution/default qualification remains with its owner. This additive
+producer slice does not close broader references; completion stays **48/67**.
