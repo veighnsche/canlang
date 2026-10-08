@@ -327,3 +327,6 @@ Root bounded text/bool association reconciliation: compiler0bd0f82b owns exact t
 
 
 Root bounded text/bool consumer reconciliation: Cloudflare shares one Values codec adapter between its existing canonical CRUD/scenario bindings; State remains metadata, ordering, storage and receipt owner, and the stdlib forwards public join. Actual compiled memory profile1/1, owner emit, affected int/temporal D1+compatibility4/4 and canonical memory31/31 qualify this finite release; unchanged results are reused and only the affected timestamp assertion rerun. Text/bool persistence, wider scalar/hook/installed/native and accumulated checkpoint review remain separate. No new codec/lifecycle owner, merge or complete checkpoint advancement.
+
+
+Root bounded decimal/money association reconciliation: Contracts vocabulary and State retain the existing single whole-set intake/model owner, deriving only exact own unique kinds and checking explicit scalar/array/nullable claims. Owner compilation and metadata15/15 pass; unchanged admission28/28 reused. Actual compiler/default/runtime/persistence/installed/native consumers and accumulated checkpoint review remain separate. No new schema/codec owner, merge or checkpoint advancement.

@@ -87,7 +87,7 @@ test('canonical loading checks its own finite scalar profile without inferring d
 });
 
 test('declared typed and void results are copied and frozen in both loading paths', () => {
-  for (const type of ['int', 'int?', 'int[]', 'int[]?', 'datetime', 'datetime?', 'datetime[]', 'datetime[]?', 'text', 'text?', 'text[]', 'text[]?', 'bool', 'bool?', 'bool[]', 'bool[]?', 'void']) {
+  for (const type of ['int', 'int?', 'int[]', 'int[]?', 'datetime', 'datetime?', 'datetime[]', 'datetime[]?', 'text', 'text?', 'text[]', 'text[]?', 'bool', 'bool?', 'bool[]', 'bool[]?', 'decimal', 'decimal?', 'decimal[]', 'decimal[]?', 'money', 'money?', 'money[]', 'money[]?', 'void']) {
     const result = { type };
     const raw = artifact();
     raw.operations![0]!.result = result;
@@ -111,7 +111,7 @@ test('missing and inherited result claims stay unknown; explicit malformed claim
   assert.equal(Object.hasOwn(descriptor(loadArtifactDescriptors(artifact(), opts)), 'result'), false);
   assert.equal(Object.hasOwn(descriptor(loadExecutionDescriptorSet(intake(), opts)), 'result'), false);
   for (const result of [undefined, null, [], {}, { type: 'string' }, { type: 'integer' },
-    { type: 'void?' }, { type: 'void[]' }, { type: 'int?[]' }, { type: 'datetime[][]' },
+    { type: 'void?' }, { type: 'void[]' }, { type: 'int?[]' }, { type: 'datetime[][]' }, { type: 'decimal?[]' }, { type: 'money[][]' },
     { type: 1 }, Object.create({ type: 'int' })]) {
     const raw = artifact();
     const changed = { ...raw, operations: [{ ...raw.operations![0]!, result }] } as unknown as ArtifactDescriptorSlice;
@@ -324,9 +324,9 @@ test('own artifact associations require an exact owning supported tag for models
 });
 
 
-test('checked text and bool associations preserve scalar, array and nullable profiles', () => {
-  for (const kind of ['string', 'boolean'] as const) {
-    const base = kind === 'string' ? 'text' : 'bool';
+test('checked text, bool, decimal and money associations preserve scalar, array and nullable profiles', () => {
+  for (const kind of ['string', 'boolean', 'decimal', 'money'] as const) {
+    const base = kind === 'string' ? 'text' : kind === 'boolean' ? 'bool' : kind;
     for (const array of [undefined, { required: false }, { required: true }]) {
       for (const nullable of [false, true]) {
         const valueType = `${base}${array ? '[]' : ''}${nullable ? '?' : ''}`;
@@ -399,5 +399,47 @@ test('text requires an own source claim and mismatched text/bool associations re
       incompatible(() => loadExecutionDescriptorSet(changed, opts));
       assert.throws(() => buildModelTableFromCanonical(changed.models), /Invalid valueType/);
     }
+  }
+});
+
+
+test('decimal and money claims require owning kinds and reject malformed containers', () => {
+  for (const kind of ['decimal', 'money'] as const) {
+    const raw = artifact();
+    for (const claim of [kind === 'decimal' ? 'money' : 'decimal', `${kind}[][]`, `${kind}?[]`,
+      `${kind}[]`, `${kind}?`, undefined]) {
+      const modelField = { name: 'count', field: { kind }, required: false, serverOnly: false,
+        valueType: claim };
+      const inputField = { name: 'value', field: { kind }, required: false, valueType: claim };
+      for (const changed of [
+        { ...raw, models: [{ ...raw.models![0]!, fields: [modelField] }] },
+        { ...raw, operations: [{ ...raw.operations![0]!, inputs: { fields: [inputField] } }] },
+      ]) incompatible(() => loadArtifactDescriptors(changed as unknown as ArtifactDescriptorSlice, opts));
+    }
+    const ownKindMissing = [undefined, Object.create({ kind }), { kind: 'ref', model, requireVersion: false }];
+    for (const field of ownKindMissing) {
+      const modelField = { name: 'count', field, required: false, serverOnly: false, valueType: kind };
+      const inputField = { name: 'value', field, required: false, valueType: kind };
+      for (const changed of [
+        { ...raw, models: [{ ...raw.models![0]!, fields: [modelField] }] },
+        { ...raw, operations: [{ ...raw.operations![0]!, inputs: { fields: [inputField] } }] },
+      ]) incompatible(() => loadArtifactDescriptors(changed as unknown as ArtifactDescriptorSlice, opts));
+    }
+    for (const extra of [{ array: { required: false } }, { nullable: true }]) {
+      const direct = intake();
+      const changed = { ...direct, models: [{ ...direct.models[0]!, fields: {
+        count: { required: false, serverOnly: false, valueType: kind, ...extra },
+      } }] };
+      incompatible(() => loadExecutionDescriptorSet(changed, opts));
+      assert.throws(() => buildModelTableFromCanonical(changed.models), /Invalid valueType/);
+    }
+    const direct = intake();
+    incompatible(() => loadExecutionDescriptorSet({ ...direct, operations: [{ ...direct.operations[0]!,
+      inputs: [{ name: 'value', kind, required: false, valueType: kind === 'decimal' ? 'money' : 'decimal' }] }] }, opts));
+    const legacy = { ...raw, models: [{ ...raw.models![0]!, fields: [{ name: 'count',
+      field: Object.create({ kind }), required: false, serverOnly: false,
+      default: { kind: 'literal' as const, value: kind === 'decimal' ? '1.25' : { minor: '125', currency: 'USD' } },
+    }] }] };
+    assert.equal(Object.hasOwn(loadArtifactDescriptors(legacy, opts).models[0]!.fields.count!, 'valueType'), false);
   }
 });

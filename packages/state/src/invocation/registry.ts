@@ -295,11 +295,11 @@ function checkResult(holder: Record<string, unknown>, what: string): CanonicalOp
   if (!Object.hasOwn(holder, 'result')) return undefined;
   const result = holder['result'];
   if (!isRecord(result) || !Object.hasOwn(result, 'type')) {
-    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool profile or bare void.`);
+    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money profile or bare void.`);
   }
   const type = result['type'];
-  if (type !== 'void' && (typeof type !== 'string' || !/^(int|datetime|text|bool)(\[\])?\??$/.test(type))) {
-    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool profile or bare void.`);
+  if (type !== 'void' && (typeof type !== 'string' || !/^(int|datetime|text|bool|decimal|money)(\[\])?\??$/.test(type))) {
+    fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money profile or bare void.`);
   }
   return Object.freeze({ type });
 }
@@ -307,8 +307,8 @@ function checkResult(holder: Record<string, unknown>, what: string): CanonicalOp
 function checkValueType(field: Record<string, unknown>, what: string): CanTypeId | undefined {
   if (!Object.hasOwn(field, 'valueType')) return undefined;
   const type = field['valueType'];
-  if (typeof type !== 'string' || !/^(int|datetime|text|bool)(\[\])?\??$/.test(type)) {
-    fail('malformed_descriptor', `Invalid ${what}: valueType must declare an int/datetime/text/bool profile.`);
+  if (typeof type !== 'string' || !/^(int|datetime|text|bool|decimal|money)(\[\])?\??$/.test(type)) {
+    fail('malformed_descriptor', `Invalid ${what}: valueType must declare an int/datetime/text/bool/decimal/money profile.`);
   }
   if (Object.hasOwn(field, 'nullable') &&
       (typeof field['nullable'] !== 'boolean' || type.endsWith('?') !== field['nullable'])) {
@@ -329,6 +329,8 @@ function scalarTypeForKind(kind: unknown): string | undefined {
     case 'integer': return 'int';
     case 'datetime': return 'datetime';
     case 'boolean': return 'bool';
+    case 'decimal': return 'decimal';
+    case 'money': return 'money';
     case 'string': return 'text';
     default: return undefined;
   }
