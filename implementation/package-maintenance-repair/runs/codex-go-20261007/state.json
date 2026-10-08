@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T23:52:48.080864+00:00",
+  "updated_utc": "2026-10-08T23:53:32.534875+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -3084,6 +3084,11 @@
       "verification": "Samecase1/1(316ms,total1.03s),15oldcases skipped; correct businesserror envelope/rejectedreceipt/no row/outbox/schedule; high/null positive retained",
       "review_correction": "Removed ineffective historyFor(operationId cast RecordId) assertion/import after rootreview; no checkrepeat, owningState31 historyrollback controls reused",
       "limits": "No globalbackend/fullparent/count/checkpoint credit; prior genuine enum commit witness preserved"
+    },
+    "split_locator_carrier": {
+      "state": "Defining existing collection/context locator carrier captured and output released to UI",
+      "verification": "Owning Contracts/Interfaces privateemit0,presentation12/12; normalInterfacesemit0handle71796",
+      "limits": "Decoded locator map only, no read/authority; actual UI projectedmatch/drawer/controls pending,parent/cursor/outsidepage/full52 remain open"
     }
   },
   "live_finite_packets": [

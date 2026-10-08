@@ -188,6 +188,8 @@ export interface PresentationContext extends Partial<PageSourceContext> {
   readonly pollContext?: string;
   /** Current same-app pathname plus query, preserving team selection and filters. */
   readonly pollUrl?: string;
+  /** URL occurrence → row-id locators; select only from the current authorized collection result. */
+  readonly collectionSelections?: ReadonlyMap<string, string>;
   /** True for HTMX partial requests; false for full page GET. */
   readonly isPartial: boolean;
   /** Lane 6 issued CSRF token covering canonical POSTs from this page. */
@@ -505,6 +507,9 @@ export interface ListProps {
   readonly where?: unknown;
   readonly limit?: number;
   readonly cursor?: string;
+  readonly display?: "split";
+  /** Stable source collection occurrence; required when display is split. */
+  readonly occurrence?: string;
   /** Omission uses the standard shared collection empty message. */
   readonly empty?: MessageValue;
   readonly renderRow: (row: RowView, view: PresentationContext) => PageChildren | Promise<PageChildren>;
@@ -519,9 +524,14 @@ export interface TableProps {
   readonly where?: unknown;
   readonly limit?: number;
   readonly cursor?: string;
+  readonly display?: "split";
+  /** Stable source collection occurrence; required when display is split. */
+  readonly occurrence?: string;
   readonly columns: readonly string[];
   /** Omission uses the standard shared collection empty message. */
   readonly empty?: MessageValue;
+  /** Split detail body receives only the freshly queried authorized row and current view. */
+  readonly renderRow?: (row: RowView, view: PresentationContext) => PageChildren | Promise<PageChildren>;
   /** Search/filter/order/pagination/export toolbar; absent renders rows only. */
   readonly controls?: CollectionControls;
 }

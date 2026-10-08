@@ -141,11 +141,12 @@ test('dispatch builds equal partial and full contexts across all 10 fields', asy
   const partial = await createTestDeps({ descriptors: [capturingPage(partialCaptured)] });
   const headers = { 'accept-language': 'nl,en;q=0.5' };
 
-  const fullRes = await handlePageRequest(full.deps, testRequest('/hello', { headers }));
+  const pageUrl = '/hello?can-row%3Amain=row-one&filter=failed';
+  const fullRes = await handlePageRequest(full.deps, testRequest(pageUrl, { headers }));
   assert.equal(fullRes.status, 200);
   const partialRes = await handlePageRequest(
     partial.deps,
-    testRequest('/hello', { headers: { ...headers, 'HX-Request': 'true' } }),
+    testRequest(pageUrl, { headers: { ...headers, 'HX-Request': 'true' } }),
   );
   assert.equal(partialRes.status, 200);
   assert.equal(fullCaptured.length, 1);
@@ -159,6 +160,10 @@ test('dispatch builds equal partial and full contexts across all 10 fields', asy
   assert.deepEqual(partialCtx.theme, fullCtx.theme);
   assert.equal(partialCtx.path, fullCtx.path);
   assert.equal(partialCtx.csrfToken, fullCtx.csrfToken);
+  assert.deepEqual(partialCtx.collectionSelections, fullCtx.collectionSelections);
+  assert.deepEqual([...fullCtx.collectionSelections!], [['main', 'row-one']]);
+  assert.equal(partialCtx.pollUrl, pageUrl);
+  assert.equal(partialCtx.pollContext, fullCtx.pollContext);
   for (const field of ['actor', 'actorFacts', 'team', 'memberships', 'canonical'] as const) {
     assert.deepEqual(partialCtx[field], fullCtx[field]);
   }
@@ -220,4 +225,52 @@ test('poll URL preserves the team selector and collection query', () => {
   const context = buildPresentationContext({ request: testRequest('/hello?team=team-two&filter=failed'), pathname: '/hello', isPartial: false, appDefaultLocale: 'en', csrfToken: '', principal: fakeIdentity(), query: fakeQuery() });
   assert.equal(context.path, '/hello');
   assert.equal(context.pollUrl, '/hello?team=team-two&filter=failed');
+});
+
+test('collection selections carry exact decoded occurrence keys and opaque row locators only', () => {
+  const params = new URLSearchParams([
+    ['team', 'team-two'], ['filter', 'failed'], ['can-row:page:/hello/view:é😀', 'row +/%é😀'],
+    ['can-row:__proto__', 'constructor'], ['can-row', 'ordinary'], ['filter[can-row:other]', 'ordinary'],
+  ]);
+  const pageUrl = `/hello?${params}`;
+  const principal = fakeIdentity();
+  const query = fakeQuery();
+  const context = buildPresentationContext({ request: testRequest(pageUrl), pathname: '/hello',
+    isPartial: false, appDefaultLocale: 'en', csrfToken: '', principal, query });
+  assert.deepEqual([...context.collectionSelections!], [
+    ['page:/hello/view:é😀', 'row +/%é😀'], ['__proto__', 'constructor'],
+  ]);
+  assert.equal(context.principal, principal);
+  assert.equal(context.invocation, principal);
+  assert.equal(context.query, query);
+  assert.equal(context.pollUrl, pageUrl);
+  assert.equal(JSON.parse(context.pollContext!)[1], pageUrl);
+});
+
+test('ambiguous or empty reserved collection locators refuse the whole selection set', () => {
+  for (const reserved of [
+    'can-row%3Amain=row-one&can-row%3Amain=row-two',
+    'can-row%3Amain=row-one&%63an-row%3Amain=row-one',
+    'can-row%3A=row-one', 'can-row%3Amain=',
+  ]) {
+    const pageUrl = `/hello?filter=failed&can-row%3Aother=row-other&${reserved}`;
+    const context = buildPresentationContext({ request: testRequest(pageUrl), pathname: '/hello',
+      isPartial: false, appDefaultLocale: 'en', csrfToken: '', principal: fakeIdentity(), query: fakeQuery() });
+    assert.equal(context.collectionSelections!.size, 0);
+    assert.equal(context.pollUrl, pageUrl);
+    assert.equal(JSON.parse(context.pollContext!)[1], pageUrl);
+  }
+});
+
+test('collection locator extraction bounds the raw query while preserving complete polling state', () => {
+  const prefix = 'can-row%3Amain=row-one&filter=';
+  const atBudget = prefix + 'x'.repeat(8192 - prefix.length);
+  for (const [query, expected] of [[atBudget, [['main', 'row-one']]], [`${atBudget}x`, []]] as const) {
+    const pageUrl = `/hello?${query}`;
+    const context = buildPresentationContext({ request: testRequest(pageUrl), pathname: '/hello',
+      isPartial: true, appDefaultLocale: 'en', csrfToken: '', principal: fakeIdentity(), query: fakeQuery() });
+    assert.deepEqual([...context.collectionSelections!], expected);
+    assert.equal(context.pollUrl, pageUrl);
+    assert.equal(JSON.parse(context.pollContext!)[1], pageUrl);
+  }
 });
