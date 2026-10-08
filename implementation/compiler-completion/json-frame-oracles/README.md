@@ -2,17 +2,11 @@
 
 **Accept the original finite task at its declared retained-current-oracle scope.** The original `docs/research/compiler-library-audit-20261006/resumption/audit-costs-and-oracles.md` row 68 chooses “Retain current tests; defer generic framework.” It asks for independent bounded grammar/Unicode/lexeme/depth and malformed-frame outcomes, and additions only for distinct missing outcomes. This review found no distinct uncaught legal outcome or concrete production defect requiring a new test or owning implementation writer. It does not convert that row into universal JSON/transport certification.
 
-Only this packet was written. Production, tests, dependencies, DECISIONS, ledgers, status files and Git state were unchanged. Allocation: Sol, medium reasoning, finite source/outcome review. No network/JEV, pricing estimate, generic property/fuzz framework or repeated green compiler run.
+## Retained direct checks
 
-## Source and execution qualification
+The original native run at `83d40be0` recorded JSON contract 6/0, catalog input contract 6/0, real stdio admission 32/0, and framing reader 11/0. Their raw suite sections remain in this packet. The owning checks are `compiler/tests/json_input_contract.rs`, `catalog_input_contract.rs`, `lsp_admission.rs`, and `lsp_frame_reader.rs`; the full raw run remains in `../integration-after-bindings/after-action-invocation/native-run/full-suite.log`.
 
-`verification.json` records a fresh exact SHA-256 check of 12 relevant source/dependency/test/helper files against both native-run manifests at `83d40be0`. All match. The captured native raw log matches its completion hash `f005c4bdd9a0d6236e32dd40fc454666c668cf7fa551664d8c91ba4afb1c2338`. Independently accepted accounting reports 1162 native passes and 0 failures; this review credits only the relevant bodies, not that count as universal correctness.
-
-Four raw suite sections are retained locally: JSON contract 6/0, catalog input contract 6/0, real stdio admission 32/0, framing reader 11/0. Each section's passing body count equals its summary, with no ignored bodies or raw SKIP marker. The optional available-producer catalog body ran: all five prerequisites have captured PROFILE lines, whose current byte lengths and hashes match. Relevant production JSON inline tests also appear in the same captured native run. Narrower independent JSON controls accepted 28 source-inclusion tests and direct dependency API controls; their current recorded relevant pins all match, and their raw upstream/archive/artifact dependency pins are preserved in this packet's verification. Source search additionally confirms docs `reference_json` as an owning parser caller after typed serialization; that source pin also matches the native run. Its generated output path is outside this bounded input/framing packet. Their diagnostic writer adapter is limited harness evidence, so real catalog loader/CLI and shipped stdio acceptance comes from the current native consumer tests.
-
-The narrower framing independent receipt's transport, admission and reader pins match; its historical server whole-file pin differs. That receipt therefore supplies framing-reader evidence, while current server-process claims use the exact matching native server/test/helper inputs. It supplies injected non-EOF error propagation controls and allocation-request observations, without pretending the historical server receipt qualifies a changed whole file.
-
-Run `python3 implementation/compiler-completion/json-frame-oracles/verify.py` for read-only pin/log qualification. This does not rerun tests. Captured logs and pinned source expectations are the evidence; the script fails if current relevant source or captured log differs.
+Those checks exercise authored JSON outcomes, public catalog loading, real stdio lifecycle, and reader boundaries. The separate direct JSON and framing controls remain in `../json-reader/` and `../frame-admission/`. This is historical bounded coverage; it does not claim that later source edits were executed by that run.
 
 ## Qualified bounded state classes
 

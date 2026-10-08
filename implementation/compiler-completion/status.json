@@ -1,12 +1,13 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-08T00:53:13.791903+00:00",
+  "updated_utc": "2026-10-08T01:32:34.932012+00:00",
   "total": 67,
-  "finished_at_recorded_scope": 42,
-  "remaining_including_partial": 25,
+  "finished_at_recorded_scope": 45,
+  "remaining_including_partial": 22,
   "finished_references": [
     "COST-01",
     "DEP-01",
+    "DEP-03",
     "ED-R01",
     "ED-R02",
     "ED-R03",
@@ -21,6 +22,7 @@
     "FAIL-R04",
     "FAIL-R05",
     "FAIL-R07",
+    "OR-01",
     "OR-03",
     "OR-04",
     "OR-05",
@@ -32,6 +34,7 @@
     "SEM-R01",
     "SEM-R02",
     "SEM-R04",
+    "SEM-R06",
     "SEM-R07",
     "SYN-R01",
     "SYN-R02",
@@ -52,10 +55,8 @@
     "ARCH-01",
     "ARCH-02",
     "DEP-02",
-    "DEP-03",
     "ED-R07",
     "FAIL-R06",
-    "OR-01",
     "OR-02",
     "OR-06",
     "OUT-R05",
@@ -68,7 +69,6 @@
     "S9-Q08",
     "SEM-R03",
     "SEM-R05",
-    "SEM-R06",
     "SEM-R08",
     "SYN-R03",
     "SYN-R04",
@@ -104,19 +104,17 @@
   },
   "goal_status": "active",
   "latest_component": {
-    "commit": "0611db21",
-    "focused_passed": 28,
-    "strict_clippy_exit": 0,
-    "review": "corpus-admission/independent-review/REVIEW.md",
-    "outcome": "ExplicitCorpuscompileE6008/retainedJudgmentE6006 no-loss; no supportedCorpus/Judgmentruntime implementation."
+    "commit": "56b06e68",
+    "previous_component": "61c08f20",
+    "outcome": "SEM-R06 original three UI defects resolved; checked operation result metadata integrated as a bounded component."
   },
   "latest_accepted_outcomes": [
-    "renderer-failure-qualification/independent-review/review.md",
-    "policy-layout-support/independent-review/review.md",
-    "json-frame-oracles/independent-review/README.md",
+    "renderer-failure-qualification/README.md",
+    "policy-layout-support/disposition.md",
+    "json-frame-oracles/README.md",
     "corpus-admission/independent-review/REVIEW.md"
   ],
-  "current_source_work": "Temporal full-year UI validator has focused passing tests; independent review pending. Compiler native temporal presentation conversion held for demonstrated unhydrated State model/query prerequisite. Release archive/notices and installed target prerequisites being qualified separately.",
+  "current_source_work": "Native scalar UI and checked operation result producer integrated. Redundant nested verification removed; direct fixtures/results retained. Width-boundary source work proceeds; localized formatting and BDD consumer work remain open.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
