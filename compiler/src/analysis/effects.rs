@@ -957,7 +957,7 @@ pub fn check_effects(
         cx.walk_file(*file, tree);
     }
     cx.walk_calls_and_descriptions(trees);
-    cx.finish();
+    cx.finish(trees);
     cx.out.referenced_builtins.sort();
     cx.out.referenced_builtins.dedup();
     cx.out
@@ -990,6 +990,8 @@ struct Cx<'a> {
     callable_models: HashMap<SymbolId, Vec<SymbolId>>,
     /// Bound local calls per scenario/derive (scenarios, derives and CRUD ops).
     callable_calls: HashMap<SymbolId, Vec<SymbolId>>,
+    /// Executed create targets and supplied fields per callable.
+    callable_creates: HashMap<SymbolId, Vec<(SymbolId, Vec<String>)>>,
     /// `on=every` handlers: (scenario, `on=` value span).
     every_handlers: Vec<(SymbolId, Span)>,
     /// Builtin ids referenced from checked call positions.
@@ -1030,6 +1032,7 @@ impl<'a> Cx<'a> {
             analytics: HashMap::new(),
             callable_models: HashMap::new(),
             callable_calls: HashMap::new(),
+            callable_creates: HashMap::new(),
             every_handlers: Vec::new(),
             builtins: HashSet::new(),
             descriptions: Vec::new(),
@@ -1040,9 +1043,10 @@ impl<'a> Cx<'a> {
         self.db.get(file).map(|s| s.text.as_str()).unwrap_or("")
     }
 
-    fn finish(&mut self) {
+    fn finish(&mut self, trees: &[(SourceId, SyntaxNode)]) {
         self.check_app_locales();
         self.check_app_policies();
+        self.record_creation_dependencies(trees);
         self.check_every_scopes();
         self.out.referenced_builtins = self.builtins.iter().cloned().collect();
         let descriptions = std::mem::take(&mut self.descriptions);
@@ -4131,7 +4135,49 @@ impl<'a> Cx<'a> {
             node,
             self.callable_models.entry(id).or_default(),
             self.callable_calls.entry(id).or_default(),
+            self.callable_creates.entry(id).or_default(),
         );
+    }
+
+    /// Creation executes server initializers and omitted ordinary defaults.
+    /// Follow only these checked owning anchors after declaration collection.
+    fn record_creation_dependencies(&mut self, trees: &[(SourceId, SyntaxNode)]) {
+        for (caller, creates) in self.callable_creates.clone() {
+            for (model, supplied) in creates {
+                let Some(data) = self.out.models.get(&model) else {
+                    continue;
+                };
+                for field in &data.fields {
+                    let name = &self.tables.symbols[field.field.0 as usize].name;
+                    let initializer = field.server.or_else(|| {
+                        (!supplied.contains(name))
+                            .then_some(field.default)
+                            .flatten()
+                    });
+                    let Some(key) = initializer else { continue };
+                    let Some(node) = trees
+                        .iter()
+                        .find(|(file, _)| *file == key.file)
+                        .and_then(|(_, tree)| dependency_node(tree, &key))
+                    else {
+                        continue;
+                    };
+                    let mut nested_creates = Vec::new();
+                    collect_subtree_models(
+                        self.tables,
+                        self.types,
+                        self.db
+                            .get(key.file)
+                            .map(|source| source.text.as_str())
+                            .unwrap_or(""),
+                        node,
+                        self.callable_models.entry(caller).or_default(),
+                        self.callable_calls.entry(caller).or_default(),
+                        &mut nested_creates,
+                    );
+                }
+            }
+        }
     }
 
     /// E4051: an `on=every` handler must not mix app-scoped and team-scoped
@@ -5143,6 +5189,16 @@ fn effect_returns(effect: &Effect) -> bool {
     }
 }
 
+/// Locate an existing checked initializer anchor, without resolving its source.
+fn dependency_node<'a>(node: &'a SyntaxNode, key: &NodeKey) -> Option<&'a SyntaxNode> {
+    if NodeKey::of(node) == *key {
+        return Some(node);
+    }
+    node.children
+        .iter()
+        .find_map(|child| dependency_node(child, key))
+}
+
 /// Direct owner-bound model dependencies and bound derived-function calls.
 /// Examples and malformed local statements/expressions are excluded.
 fn collect_subtree_models(
@@ -5152,6 +5208,7 @@ fn collect_subtree_models(
     node: &SyntaxNode,
     out: &mut Vec<SymbolId>,
     calls: &mut Vec<SymbolId>,
+    creates: &mut Vec<(SymbolId, Vec<String>)>,
 ) {
     if matches!(
         node.kind,
@@ -5191,6 +5248,17 @@ fn collect_subtree_models(
                 )
             {
                 push_unique(out, model);
+                let supplied = significant_children(node)
+                    .into_iter()
+                    .find(|n| n.kind == SyntaxKind::Object)
+                    .map(|object| {
+                        object_entries(object, text)
+                            .into_iter()
+                            .map(|(key, _, _)| key.to_string())
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                creates.push((model, supplied));
             }
         }
         SyntaxKind::Set | SyntaxKind::Transition | SyntaxKind::Delete => {
@@ -5248,7 +5316,7 @@ fn collect_subtree_models(
         _ => {}
     }
     for child in &node.children {
-        collect_subtree_models(tables, types, text, child, out, calls);
+        collect_subtree_models(tables, types, text, child, out, calls, creates);
     }
 }
 
