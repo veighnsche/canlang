@@ -40,6 +40,9 @@ Direct validation:
 - App-locale **6 passed** after case-equivalent `NL`/`nl` composition repair;
   the first selected authored spelling is retained. Full Intl alias
   equivalence remains outside the compiler's current tag normalizer.
+- Strict library Clippy (`--lib -- -D warnings`) passes after four equivalent
+  match/iterator/condition style corrections. Direct behavior results are
+  reused; these corrections change no emitted contract.
 
 Earlier consumer failures were fixture/observer corrections: sections attached
 to a composed app instead of its selected package, localized short year `1`
