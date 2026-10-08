@@ -2510,3 +2510,7 @@ Accepted: the Cloudflare facade exports Values trim and delegates both current p
 ### 2026-10-08 — retain checked operation input type claims
 
 Accepted: Interfaces validates own artifact valueType claims using the existing Values type parser and transport-specific kind/container agreement, then preserves the claim in its checked descriptor and MCP projection. This admits only the currently emitted int/datetime/text/bool/decimal/money/date/duration/user profiles, retaining legacy absence and delivery/file/ref exclusions; it adds no codec or independent parser. Reuse the direct Interfaces emit and existing T19b suite 20/20 covering scalar/array/nullability consistency, malformed claims, legacy omission and error ordering. Root source review found no additional defect. Cloudflare mirror and actual bundled consumers remain separate owner gates, not implied acceptance.
+
+### 2026-10-08 — portable owning operation descriptor checks
+
+Accepted: Cloudflare retains duration/user and own valueType metadata through the public Interfaces descriptor checker/projection, retaining legacy framing and delivery exclusion. Its deploy join reexports the exact two defining checker functions from the already bundled HTTP-operations module, avoiding a copied validator or bare installed-runtime import. Reuse Interfaces a9ff3f34 direct emit/T19b 20/20, the affected Cloudflare MCP consumer 5/5 and the actual default-Worker form case which loads this portable join. Root reviewed the three released paths; no new type semantics or parent acceptance is implied.

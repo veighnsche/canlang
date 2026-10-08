@@ -9,19 +9,17 @@
  * this module via dynamic `import()` and feeds the builders below into
  * the assembled `McpDeps`.
  *
- * Types mirror `packages/interfaces/src/ports.ts` VERBATIM (each cites
- * its source): `@canlang/interfaces` is not a dependency of this
- * package, so a direct import is impossible, and a relative type import
- * would break the composite `rootDir`. Structural identity is proven by
- * static assertions in `test/mcp-route.test.ts`, which assigns every
- * builder result to the REAL ports.ts type. The deploy join swaps these
- * mirrors for the real import with no semantic change.
+ * Types mirror `packages/interfaces/src/ports.ts` (each cites its
+ * source). Structural identity is checked in `test/mcp-route.test.ts`.
+ * Own source type claims reuse the public Interfaces descriptor checker
+ * and framing projection rather than defining another type validator.
  *
- * Worker-safe: type-only `@canlang/contracts` import, no `node:`
+ * Worker-safe: public Interfaces checker, type-only Contracts, no `node:`
  * builtins, no I/O. Pure functions over the artifact JSON.
  */
 
-import type { CompileArtifact, DerivedOperationInputs, ResolvedIdentity } from "@canlang/contracts";
+import type { CanTypeId, CompileArtifact, DerivedOperationInputs, ResolvedIdentity } from "@canlang/contracts";
+import { checkArtifactOperation, checkedToMcpInputSchema } from "@canlang/interfaces";
 
 /* ------------------------------------------------------------------ */
 /* Verbatim mirrors of `packages/interfaces/src/ports.ts`.             */
@@ -35,6 +33,8 @@ export type McpSchemaField =
   | { readonly kind: "decimal" }
   | { readonly kind: "money" }
   | { readonly kind: "datetime" }
+  | { readonly kind: "duration" }
+  | { readonly kind: "user" }
   | { readonly kind: "boolean" }
   | { readonly kind: "file" }
   | { readonly kind: "enum"; readonly values: readonly string[] };
@@ -43,6 +43,8 @@ export type McpSchemaField =
 export interface McpNamedField {
   readonly name: string;
   readonly field: McpSchemaField;
+  /** Optional owning compiler claim; a bare string kind cannot establish text. */
+  readonly valueType?: CanTypeId;
   readonly required: boolean;
   /** Authored `@{desc="..."}` text, verbatim; absent when not authored (MCP P4). */
   readonly description?: string;
@@ -141,6 +143,7 @@ export interface ArtifactOperationInputs {
 export interface ArtifactInputField {
   readonly name: string;
   readonly field: McpSchemaField;
+  readonly valueType?: CanTypeId;
   readonly required: boolean;
   /** Authored `@{desc="..."}` text, verbatim; absent when not authored (MCP P4). */
   readonly description?: string;
@@ -182,6 +185,8 @@ function checkField(raw: unknown, where: string): McpSchemaField {
     case "decimal":
     case "money":
     case "datetime":
+    case "duration":
+    case "user":
     case "boolean":
     case "file":
       return { kind: raw["kind"] };
@@ -210,7 +215,7 @@ function checkField(raw: unknown, where: string): McpSchemaField {
     default:
       fail(
         `${where}.kind`,
-        `must be one of ref|string|integer|decimal|money|datetime|boolean|file|enum (got ${JSON.stringify(raw["kind"])})`,
+        `must be one of ref|string|integer|decimal|money|datetime|duration|user|boolean|file|enum (got ${JSON.stringify(raw["kind"])})`,
       );
   }
 }
@@ -291,6 +296,13 @@ function checkOperation(raw: unknown, index: number): OperationDescriptor {
     }
     seen.add(checked.name);
     fields.push(checked);
+  }
+  // Preserve the existing framing checks and their error paths. Source type
+  // claims additionally pass through the owning Interfaces descriptor checker;
+  // legacy descriptors retain their original framing-only admission.
+  if (fieldsRaw.some((entry) => isRecord(entry) && Object.hasOwn(entry, "valueType"))) {
+    const schema = checkedToMcpInputSchema(checkArtifactOperation(raw));
+    fields.splice(0, fields.length, ...schema.fields);
   }
   return {
     name,

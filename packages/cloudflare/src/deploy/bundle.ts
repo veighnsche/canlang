@@ -474,6 +474,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     }
     if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
     if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
+    if (spec === "@canlang/interfaces") return relativeSpecifier(moduleKey, HTTP_OPERATIONS_MODULE);
     if (spec.startsWith("@canlang/state/")) return relativeSpecifier(moduleKey, `vendor/state/${spec.slice("@canlang/state/".length)}.js`);
     return spec;
   };
@@ -698,7 +699,8 @@ export function buildHttpOperationsBundle(_repoRoot?: string): string {
     writeFileSync(
       entryFile,
       `export { handleOperationRequest } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n` +
-      `export { handlePageRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "pages.js")))};\n`,
+      `export { handlePageRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "pages.js")))};\n` +
+      `export { checkArtifactOperation, checkedToMcpInputSchema } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "mcp", "schemas.js")))};\n`,
       "utf8",
     );
     entryWritten = true;
