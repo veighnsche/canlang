@@ -64,6 +64,7 @@ import { equalValue as equalValueProducer } from '@canlang/values';
 export {
   int64, datetime, compareInstant, addDuration, all, sum, join,
   parseDecimal, addDecimal, money, addMoney, compareMoney,
+  date, add_days, compareDate,
 } from '@canlang/values';
 
 /** Generated equality is c-first; the pure Values producer needs only its typed operands. */
