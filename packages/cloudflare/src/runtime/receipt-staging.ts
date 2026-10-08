@@ -1,12 +1,13 @@
 /** Authored delivery assignments stage their protected receipt pair in the caller's fence. */
 import { T26_PROGRESS_RELATIONS } from '@canlang/contracts';
-import type { ArtifactModel, DeliveryRef, DomainWrite, ModelName, OutboxIntent, RecordId } from '@canlang/contracts';
-import { isDeliveryRef } from '@canlang/values';
+import type { ArtifactModel, CanonicalValueTypes, DeliveryRef, JudgmentSpec, ReceiptResultContext, DomainWrite, ModelName, OutboxIntent, RecordId } from '@canlang/contracts';
+import { isDeliveryRef, validateValue } from '@canlang/values';
+import type { NormalizedSchema } from '@canlang/values';
 import { StateError } from '@canlang/state/errors';
 import type { SystemCommandContext, SystemStaging } from '@canlang/state/ports/system';
 import {
   associationRowId, readAssociationRow, readReceiptRow, newAssociationRow, newReceiptRow,
-  withAssociationRowData, RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL,
+  withAssociationRowData, RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL, createJudgmentReceiptContext,
 } from '@canlang/state/receipt/tables';
 
 export interface AuthoredDeliveryInput {
@@ -17,6 +18,9 @@ export interface AuthoredDeliveryInput {
   /** Runtime-owned sends actually staged during this admitted invocation. */
   readonly queued: ReadonlyMap<string, OutboxIntent>;
   readonly operationId: string;
+  /** Actual checked owning inventory and its loaded Values schema. */
+  readonly valueTypes?: CanonicalValueTypes;
+  readonly valueSchema?: NormalizedSchema;
   /** Actual owner checkpoint for the containing canonical commit. */
   readonly revision: number;
 }
@@ -38,9 +42,10 @@ export async function stageAuthoredDelivery(input: AuthoredDeliveryInput, ctx: S
         (field.nullable !== undefined && field.nullable !== true)) refuse();
     const descriptor = field.field;
     const target = `${descriptor.capability}.${descriptor.operation}`;
-    const resultContext = descriptor.result === undefined ? undefined
+    const judgment = 'judgment' in descriptor && descriptor.judgment === true;
+    let resultContext: ReceiptResultContext | undefined = descriptor.result === undefined ? undefined
       : { source: target, declaredResult: descriptor.result };
-    if (!T26_PROGRESS_RELATIONS.some(relation => relation.target === target && relation.version === descriptor.version)) refuse();
+    if (!judgment && !T26_PROGRESS_RELATIONS.some(relation => relation.target === target && relation.version === descriptor.version)) refuse();
     if (input.value === null) {
       if (field.nullable !== true) refuse();
     } else {
@@ -52,6 +57,25 @@ export async function stageAuthoredDelivery(input: AuthoredDeliveryInput, ctx: S
     const associationId = associationRowId(input.model.name, input.recordId, input.field);
     const existing = await ctx.load(RECEIPT_ASSOCIATION_MODEL as ModelName, associationId as RecordId);
     const current = existing === null ? null : readAssociationRow(existing);
+    // Acknowledged original carriers are not exposed by the current reader port;
+    // do not validate replacement/clear against a different new specification.
+    if (judgment && current !== null &&
+        (input.value === null || current.deliveryId !== input.value.id)) refuse();
+    if (judgment && input.value === null) return { writes: [] };
+    if (judgment) {
+      // The admitted invocation owns this queued carrier; authored values cannot
+      // substitute their own specification or a latest declaration revision.
+      if (input.value === null || input.valueTypes === undefined || input.valueSchema === undefined) refuse();
+      const original = input.queued.get(input.value.id)!;
+      const carrier = original.arguments;
+      if (typeof carrier !== 'object' || carrier === null || Array.isArray(carrier)) refuse();
+      const frozen = (carrier as Record<string, unknown>)['judgment'];
+      if (typeof frozen !== 'object' || frozen === null || Array.isArray(frozen)) refuse();
+      const specification = validateValue(input.valueSchema, 'std.JudgmentSpec',
+        (frozen as Record<string, unknown>)['specification'], 'create') as unknown as JudgmentSpec;
+      if (!('judgment' in descriptor) || descriptor.judgment !== true) refuse();
+      resultContext = createJudgmentReceiptContext(descriptor, specification, input.valueTypes);
+    }
     if (current !== null) {
       if (existing!.id !== associationId || existing!.data.recordModel !== input.model.name || current.locator.recordId !== input.recordId ||
           current.locator.field !== input.field || current.source !== target || current.revision > input.revision) refuse();
@@ -84,5 +108,5 @@ export async function stageAuthoredDelivery(input: AuthoredDeliveryInput, ctx: S
         row: withAssociationRowData(existing, association, meta) };
     return { writes: [associationWrite, { kind: 'insert', model: RECEIPT_MODEL as ModelName,
       row: newReceiptRow({ deliveryId: input.value.id, revision: input.revision, status: 'pending', result: null,
-        error: null, contentRef: null, resultExpiresAtMs: null }, meta) }] };
+        error: null, contentRef: null, resultExpiresAtMs: null }, meta, resultContext) }] };
 }

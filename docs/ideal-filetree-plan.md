@@ -345,3 +345,6 @@ Static Judgment canonical intake retains one source/type owner: Compiler supplie
 
 
 Static Judgment Compiler ownership is reconciled against the released source producer: one checked IR inventory derives nominal and enum definitions for artifact and generated module, while installed module execution reuses the public Cloudflare/Values/State owners. Source refusals and installed module1/1 qualify the static compiler component. Native D1/provider/receipt and runtime-choice/application duties remain separate; no original parent credit or accumulated complete checkpoint advancement.
+
+
+Static Judgment consumer ownership is reconciled through the existing Cloudflare canonical invoker/outbox, Work dispatcher and State receipt/read fence. The same genuine compiled source passes one Node-handler/native local D1/controlled HTTP provider workflow, including rollback, replay, typed read, reopen and unknown reconciliation without resend. Immutable source/value inventory remains defining; there is no parallel lifecycle or app-local schema engine. Runtime choices, acknowledged-original clear/replacement, remote/deployed/installed backend and wider original duties remain separate; no full Task46/root repair or accumulated complete checkpoint advancement.

@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T20:31:03.561983+00:00",
+  "updated_utc": "2026-10-08T20:33:06.785087+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2729,6 +2729,16 @@
       "scope": "Compiler derives declaration, exact int64 version, sourceLanguage, ordered questions, evaluate binding and generated nominal/enum inventory once from owning checked IR; required-array presence retained. Ordinary send/assessment creation/request association authored source retained.",
       "validation": "Owner production CLI and installed catalog source controls pass; actual static installed module case1/1(.18s) after defining output release. Actual version=-1 source refuses E3001 without modules through existing Literal-only attribute rule. Root scoped source review/diffcheck0; no unchanged check replay.",
       "limits": "Static source/module only; actual native D1 delivery/retained receipt workflow is Roadmap-owned and currently qualifying. Runtime choices refuse E6006; no full46/root48 acceptance, source growth is required added capability rather than replacement-only saving. Compiler wider completed count58/67 remains its own ledger.",
+      "source_writers_released": true,
+      "commit": "3789b154ee149145a0191fb90470bc7952ee5e5f"
+    },
+    "static_judgment_runtime": {
+      "state": "Root-reviewed selected static compiler/Node-handler/native D1/local HTTP path accepted; full Task46 remains open",
+      "source": "compiler/tests/fixtures/static_judgment.can",
+      "case": "packages/cloudflare/src/runtime/bound-judgment-durable.test.ts",
+      "scope": "Same compiled source creates Assessment, freezes exact source specification in queued Work carrier, stages association and protected receipt atomically, dispatches installed selected System One adapter through existing Work engine, and reads typed results under current grants/context.",
+      "validation": "Owning actual one native D1+localhost provider case1/1(2.499s): rollback no business/outbox; same-key replay no effect; exact NOUL/choice/score; claim/ack; actual Receipt.read and nominal snapshot/enum result; persistent D1 reopen;503 unknown/reconcile without resend. Two original envelope assertions corrected to actual read/business-error shapes before relevant case passed. State0/16 and CF0/36 owner compilation reused; changed owning case0/4 reemit. Root direct source review/diffcheck0.",
+      "limits": "Node handler and native local D1 with controlled HTTP provider, not remote service/tokenizer or deployed Worker/default adoption. Runtime choices, acknowledged original carrier lookup for clear/replacement, full46 and original repair/port/application gates remain open. Interfaces nominal metadata/output follow-up separately finishing; repair totals/complete checkpoint unchanged.",
       "source_writers_released": true
     }
   },
