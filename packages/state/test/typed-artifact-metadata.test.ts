@@ -150,8 +150,55 @@ test('generated read results admit only declared qualified ordinary model arrays
   }
 });
 
-test('model result claims refuse nullable/required/union/ref/unknown and non-read profiles', () => {
-  for (const type of [model, `${model}?`, `${model}[]?`, `${model}[]!`, `${model}?[]`,
+test('ordinary singular model results require a declared qualified nonnullable model in both loaders', () => {
+  const check = (type: string, kind: 'scenario' | 'read' | 'create' | 'update' | 'delete', modelName = model) => {
+    const raw = artifact();
+    raw.models![0]!.name = modelName;
+    raw.operations![0]!.kind = kind;
+    const result = { type };
+    raw.operations![0]!.result = result;
+    const set = intake();
+    const directResult = { type };
+    return { result, directResult,
+      artifact: () => loadArtifactDescriptors(raw, opts),
+      direct: () => loadExecutionDescriptorSet({ ...set,
+        models: [{ ...set.models[0]!, name: modelName }],
+        operations: [{ ...set.operations[0]!, kind, result: directResult }],
+      }, opts),
+    };
+  };
+  for (const kind of ['scenario', 'read'] as const) {
+    const claims = check(model, kind);
+    const loaded = claims.artifact();
+    const direct = claims.direct();
+    claims.result.type = claims.directResult.type = 'Example.Unknown';
+    for (const checked of [descriptor(loaded).result, descriptor(direct).result]) {
+      assert.deepEqual(checked, { type: model });
+      assert.ok(Object.isFrozen(checked));
+    }
+    for (const type of [`${model}?`, `${model}[][]`, `${model}[]!`, `${model}|Example.Other`,
+      `ref ${model}`, 'Example.Unknown', 'Example.Contract', 'enum(a,b)', 'Job',
+      'Example..Job', 'Example.Job ', 'member', 'json']) {
+      const rejected = check(type, kind);
+      incompatible(rejected.artifact);
+      incompatible(rejected.direct);
+    }
+    // Even membership cannot turn a bare name or an enum into a qualified model.
+    for (const type of ['Job', 'enum(a,b)']) {
+      const rejected = check(type, kind, type as ModelName);
+      incompatible(rejected.artifact);
+      incompatible(rejected.direct);
+    }
+  }
+  for (const kind of ['create', 'update', 'delete'] as const) {
+    const rejected = check(model, kind);
+    incompatible(rejected.artifact);
+    incompatible(rejected.direct);
+  }
+});
+
+test('model array result claims refuse nullable/required/union/ref/unknown and non-read profiles', () => {
+  for (const type of [`${model}?`, `${model}[]?`, `${model}[]!`, `${model}?[]`,
     `${model}[][]`, `${model}|${model}[]`, `ref ${model}[]`, 'ref(Example.Job)[]',
     'Example.Unknown[]', 'Example.Contract[]', 'enum(a,b)[]', ' Job[]', 'Job[]',
     'Example..Job[]', 'Example.Job []', 'member[]', 'json[]']) {
