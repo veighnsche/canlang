@@ -666,11 +666,17 @@ describe("worker POST /mcp", () => {
       { grant: legacy.grantToken },
     );
     expect(unbound.body.error).toBeUndefined();
-    const canonicalRefusal = JSON.parse(
-      ((unbound.body.result as ToolResultBody).content[0]?.text ?? "null") as string,
-    ) as { code: string };
-    expect(canonicalRefusal).toMatchObject({ code: "validation" });
-    expect((unbound.body.result as ToolResultBody).isError).toBe(true);
+    const canonicalRefusal = unbound.body.result as ToolResultBody;
+    expect(canonicalRefusal.isError).toBe(true);
+    expect(canonicalRefusal.structuredContent).toMatchObject({ code: "validation" });
+    const identity = await resolveIdentity(legacy.identityStore, { mcp_grant_token: legacy.grantToken });
+    const receipt = await legacy.store.readReceipt({ app: "acme", owner: identity.team!.team_id,
+      principal: identity.actor!.user_id, operation: MUT_OP as OperationName,
+      operationId: unboundOperationId as OperationId });
+    expect(receipt?.outcome).toMatchObject({ status: "rejected", code: "validation" });
+    expect(await legacy.store.query({ model: "acme.Todo" as ModelName, authority: "owner" })).toEqual([]);
+    expect(await legacy.store.outboxPending()).toEqual([]);
+    expect(await legacy.store.schedulesDue(Number.MAX_SAFE_INTEGER, 1)).toEqual([]);
   });
 
   it("deny-closed by default: empty list, forbidden calls, no oracle", async () => {
