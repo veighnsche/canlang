@@ -5720,6 +5720,9 @@ impl<'a> Emitter<'a> {
                 _ => {}
             }
         }
+        if self.has_receipt_delivery_fields() && self.receipt_read_collision().is_none() {
+            operations.push("\"Receipt.read\":{kind:\"read\",read:true,by:\"public\"}".to_string());
+        }
         format!("operations:{{{}}}", operations.join(","))
     }
 
@@ -6105,6 +6108,58 @@ impl<'a> Emitter<'a> {
         })
     }
 
+    /// The reserved serving route belongs to the existing receipt observer;
+    /// only joined singular delivery model fields make it available.
+    fn has_receipt_delivery_fields(&self) -> bool {
+        self.ir.items.iter().any(|model| {
+            let IrItemKind::Model { fields, .. } = &model.kind else {
+                return false;
+            };
+            fields
+                .iter()
+                .filter_map(|id| self.ir.items.get(id.0 as usize))
+                .any(|field| {
+                    let descriptor = self.model_field(field);
+                    descriptor.array_required.is_none()
+                        && matches!(descriptor.field, JsModelFieldType::Delivery(_))
+                })
+        })
+    }
+
+    fn receipt_read_collision(&self) -> Option<Span> {
+        self.ir
+            .items
+            .iter()
+            .find(|item| {
+                item.canonical == "Receipt.read"
+                    || (matches!(item.kind, IrItemKind::Model { .. })
+                        && item.canonical == "Receipt")
+            })
+            .map(|item| item.span)
+    }
+
+    fn receipt_read_operation() -> JsOperation {
+        JsOperation {
+            name: "Receipt.read".to_string(),
+            kind: JsOperationKind::Read,
+            description: String::new(),
+            inputs: ["recordId", "field", "selected"]
+                .into_iter()
+                .map(|name| JsOperationField {
+                    name: name.to_string(),
+                    field: JsMcpField::String,
+                    value_type: Some(if name == "selected" { "text[]" } else { "text" }),
+                    required: true,
+                    nullable: false,
+                    array_required: (name == "selected").then_some(false),
+                    default: None,
+                    description: None,
+                })
+                .collect(),
+            result: None,
+        }
+    }
+
     /// Emit the `canApp()` callable-registry factory: the shared
     /// `crudWhen` admission map, rule registries (`read`, `invariants`,
     /// `locks`, `retention`, `preferencesValid`), derives and operation
@@ -6116,8 +6171,8 @@ impl<'a> Emitter<'a> {
     /// event handlers (the `{event}` signature), not user operations, so
     /// they are skipped.
     ///
-    /// Descriptors are fail-closed metadata: they never block compilation
-    /// and never advertise a skewed schema. An operation with ANY input
+    /// Descriptors are fail-closed metadata and never advertise a skewed schema.
+    /// Reserved Receipt.read identity collisions refuse compilation. An operation with ANY input
     /// that has no MCP mapping (compound values, `duration`, `json`,
     /// `bytes`, nested arrays, or a dangling IR row) — or whose inputs
     /// would repeat a name — is omitted from the descriptors entirely: no
@@ -6139,8 +6194,19 @@ impl<'a> Emitter<'a> {
     /// inline/attached/shared/legacy spellings feed one slot and MCP
     /// renders its source string on this same path; variants stay out
     /// of the descriptors (localized MCP is deferred).
-    fn collect_operations(&self) -> Vec<JsOperation> {
+    fn collect_operations(&mut self) -> Vec<JsOperation> {
         let mut operations = Vec::new();
+        if self.has_receipt_delivery_fields() {
+            if let Some(span) = self.receipt_read_collision() {
+                self.unsupported(
+                    "reserved receipt operation",
+                    "canonical declaration collides with reserved Receipt.read",
+                    span,
+                );
+            } else {
+                operations.push(Self::receipt_read_operation());
+            }
+        }
         for item in &self.ir.items {
             match &item.kind {
                 IrItemKind::Model { grants, .. } => {

@@ -100,7 +100,11 @@ Implemented modules:
   type ID and delivery field schema, including nullability. Their public
   capability/operation/version/result descriptor keeps its existing owner.
   The native Email fixture qualifies metadata, codec and send/association
-  order; persistence and provider observation remain runtime duties.
+  order. Joined singular delivery fields also publish the existing reserved
+  `Receipt.read` read operation with required `recordId`, `field` and `selected`
+  inputs. The real State loader consumes its generated public gate; an exact
+  source identity collision refuses with E6008. Model binding, current grants,
+  persistence and provider observation remain runtime duties.
 - Ordinary checked schedules emit
   `schedule(c,key,at,event,payload,{ownerPackage})`; cancellation emits
   `cancel(c,key,{ownerPackage})`. The compiler supplies the declaring package
