@@ -59,7 +59,7 @@ import type {
 import type { CanonicalEffectsScope, HandlerContext } from './context.js';
 
 // Generated pure helpers retain their Values producer identity.
-export { int64, datetime, compareInstant, addDuration, all, sum } from '@canlang/values';
+export { int64, datetime, compareInstant, addDuration, all, sum, join } from '@canlang/values';
 
 /** Input for {@link create}: explicit id plus data (crud interim convention). */
 export interface CreateInput {

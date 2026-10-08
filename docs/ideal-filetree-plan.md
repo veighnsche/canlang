@@ -324,3 +324,6 @@ Root released collection producer reconciliation: compiler6b4b7d91 retains check
 
 
 Root bounded text/bool association reconciliation: compiler0bd0f82b owns exact text source claims and declared result profiles; Contracts carries the additive claim and State retains the single checked intake/model owner. Its optional generated CRUD callback reuses the existing late mutation pipeline conversion. Released owner compilation and metadata14/14 pass; admission28/28 and compiler producer checks are reused. Runtime consumer, other scalar/hook/installed duties and accumulated full checkpoint review remain separate. No new metadata/codec owner, merge or checkpoint advancement.
+
+
+Root bounded text/bool consumer reconciliation: Cloudflare shares one Values codec adapter between its existing canonical CRUD/scenario bindings; State remains metadata, ordering, storage and receipt owner, and the stdlib forwards public join. Actual compiled memory profile1/1, owner emit, affected int/temporal D1+compatibility4/4 and canonical memory31/31 qualify this finite release; unchanged results are reused and only the affected timestamp assertion rerun. Text/bool persistence, wider scalar/hook/installed/native and accumulated checkpoint review remain separate. No new codec/lifecycle owner, merge or complete checkpoint advancement.

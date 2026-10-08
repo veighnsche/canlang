@@ -1179,6 +1179,7 @@ interface StateCrudProducer {
   generatedCrudExecute(input: {
     readonly table: unknown;
     readonly store: StoragePort;
+    readonly encodeField?: (type: CanTypeId, value: unknown) => unknown;
   }): (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
 }
 
@@ -2826,6 +2827,19 @@ function generatedScenarioDef(call: CanonicalSeamCall): GeneratedOperationDef | 
     ? call.def as unknown as GeneratedOperationDef : undefined;
 }
 
+/** One late field boundary shared by generated CRUD and scenario writes. */
+function encodeCanonicalField(StateError: StateErrorsProducer, type: CanTypeId, value: unknown): unknown {
+  try {
+    try {
+      return encodeValue(type, value as CanValue);
+    } catch {
+      return encodeValue(type, decodeValue(type, value));
+    }
+  } catch (error) {
+    throw new StateError("validation", message(error));
+  }
+}
+
 /** Clone admitted snapshots; decode only their loader-owned type associations. */
 function scenarioParameters(call: CanonicalSeamCall, loaded: LoadedCanonicalDescriptors, recordView: (model: string, row: StoredRow) => Record<string, unknown>, resolvedDefaults: Record<string, unknown>): Record<string, unknown> {
   const parameters: Record<string, unknown> = Object.assign(Object.create(null), structuredClone(call.inputs));
@@ -3051,17 +3065,7 @@ async function runScenarioSeam(
           // Generated writes carry native values; stored fields and defaults
           // carry wire values. Let this checked type's public codecs admit
           // either representation at the existing late checkpoint.
-          encodeField: (type, value) => {
-            try {
-              try {
-                return encodeValue(type, value as CanValue);
-              } catch {
-                return encodeValue(type, decodeValue(type, value));
-              }
-            } catch (error) {
-              throw new StateError("validation", message(error));
-            }
-          },
+          encodeField: (type, value) => encodeCanonicalField(StateError, type, value),
           // T32b: the triggering checkpoint point — hook bodies name it
           // back as their `triggerRevision` when they open fresh
           // transitive scopes. Absent on checkpoint-less calls.
@@ -3223,11 +3227,12 @@ export async function invokeMutationCanonical(
   assertCanonicalStore(opts.store, opts.operation);
   assertCanonicalMemberships(opts.memberships, opts.operation);
   const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+  const StateError = loaded.producers.errors;
   const crudExecute = loaded.producers.crud.generatedCrudExecute({
     table: loaded.table,
     store: opts.store,
+    encodeField: (type, value) => encodeCanonicalField(StateError, type, value),
   });
-  const StateError = loaded.producers.errors;
   return loaded.producers.invoke.invoke({
     registry: loaded.registry,
     envelope: {
