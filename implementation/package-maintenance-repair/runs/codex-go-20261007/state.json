@@ -541,7 +541,7 @@
     },
     "TECH-W02": {
       "planning_status": "ready",
-      "state": "Partial: retained membership resume, ordinary compiled-child bridge and genuine declared-event private cohort component accepted; default installed Worker, mixed-handler and broader durable/installed/T26 gates open.",
+      "state": "Partial: retained membership, mixed matching handlers and the default installed team-cohort Worker consumer are accepted at their actual source/host scope; broader resource, owner enumeration and original T26 lifecycle joins remain open.",
       "files": [
         "packages/cloudflare/src/runtime/invoke.ts",
         "packages/state/src/fanout/lifecycle.ts",
@@ -591,7 +591,7 @@
         "packages/cloudflare/test/fanout-fresh-facts.test.ts": "0ad244593fcc37ffe08a43676f89c67fdc35a77d29cb9fc9bffe93748272ae1a"
       },
       "commit_pending": false,
-      "parent_limit": "Original compiled/mounted/durable/startup/installed/T26 qualification remains open; structural view is not admission authority",
+      "parent_limit": "The actual installed fetch/scheduled waitUntil path passed on local workerd/native D1 with concrete team/model roots, replay and restart. General app/mixed roots, owner enumeration, full-cohort O(N) decoding/freeze resource qualification and original T26 authority/receipt/notification joins remain open.",
       "commit": "c7c98b71",
       "private_cohort_component": {
         "state": "Root reviewed finite component committed fe35fc99; source lease cleared to Coordinator/Roadmap, broader parent remains partial",
@@ -606,6 +606,12 @@
         "owner_contract": "Existing Work stageDueSchedule and occurrence receipt stage produce effects without commit; one revision-fenced owner batch admits every matching pure-cohort handler and its occurrence-wide source receipt",
         "limits": "Internal constructor only; default installed Worker fulfillment, mixed ordinary/cohort events and broader lifecycle/security/resource/installed parent gates remain open; no replacement reduction or root48 count credit",
         "commit": "fe35fc990822234822b3cdb2f489b72347313610"
+      },
+      "installed_worker_component": {
+        "commit": "662d59755ecdcf6eb70a34870d7d01f61c3cc2d7",
+        "state": "Accepted actual default Worker consumer, 1/1 owning case on real workerd/native D1",
+        "scope": "Concrete team/all-team model roots; immutable module map fetch/scheduled, both handler kinds, waitUntil, replay, zero-member exhaustion and fresh-isolate persisted D1 restart",
+        "limits": "No remote deployment; broader resource/owner/app-root and parent T26 outcomes remain separate"
       }
     },
     "TECH-W03": {
@@ -1620,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T19:23:12.340213+00:00",
+  "updated_utc": "2026-10-08T19:56:15.320669+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2694,6 +2700,17 @@
       "commit": "1527a249c915076c3e87daa5e8a488ac3c5a0e85",
       "push": "normal fast-forward7dc9ee16..1527a249 exit0; origin/main verified equal",
       "limits": "Released narrow Memory consumer acceptance; broader tasks unchanged. Compiler own scope notes captured separately, foreign DESIGN section11 preserved."
+    },
+    "static_judgment_shared_join": {
+      "state": "Accepted shared source/provider prerequisite; actual outputs published; genuine compiler/runtime consumer remains with root and Roadmap",
+      "scope": "Full static shared JudgmentSpec and exact canonical authored result; one source-owned descriptor, immutable specification and original question order; installed SystemOne binding/model/tokenizer and request/result join",
+      "model_allocation": "Sol medium canonical Contracts correction; root source/ports assembly and direct review; Sol high exact numeric/provider compatibility implementation. One direct test layer, no premium or nested reviews.",
+      "checks": "Private owning TypeScript0; canonical real local HTTP2/2 and affected legacy12/12. Relevant final frozen deliveryId/source snapshot edit canonical2/2; unchanged legacy reused. Actual Contracts/Services fresh build-package emit0/0; offline script-free lock join0.",
+      "verified": "Exact18-digit decimals, exponent score, beyond-Number int64 usage, source question/option/level order, true/false NOUL criteria, exact source descriptions/maximal choice/distributions, invalid usage/output/spec/order/model, before-transport token/byte/state bounds, own __proto__, safe provider status/redaction and unknown reconcile.",
+      "owner_release": "Source/commands released; root pure helper/context and Roadmap bound delivery/receipt join continue over same genuine Compiler fixture. No shared CF/State/native emit by root.",
+      "limits": "Controlled local provider and configured tokenizer callback; actual remote inference/model context measurements, Worker numeric-source feature, genuine compiled invocation/retained receipt, runtime options, historic placeholder migrations and wider Task46 are not accepted. Native JSON.parse source required; no duplicate raw JSON-key scanner.",
+      "maintenance_budget": "Required added capability; no replacement-only production-reduction claim; no new schema, decimal engine, transport framework or generated app contract copy.",
+      "counts_unchanged": true
     }
   },
   "live_finite_packets": [

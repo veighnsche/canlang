@@ -24,6 +24,7 @@ import type {
   ImageRun,
   JudgmentBatchInput,
   JudgmentBatchResult,
+  JudgmentEvaluationResult,
   ModelChatInput,
   ModelChatReply,
   ModelRunSnapshot,
@@ -35,6 +36,7 @@ import { randomUUID } from 'node:crypto';
 import http from 'node:http';
 import { readTextBody, sendBody } from './internal/controlled-http.js';
 import type { Socket } from 'node:net';
+import type { FrozenJudgmentSource } from './judgments/specification.js';
 
 export type MailAttachmentRef = EmailSendInput['attachments'][number];
 
@@ -174,6 +176,39 @@ export interface JudgmentPort {
     deliveryId: string,
   ): Promise<CapabilityCompletion<JudgmentBatchResult>>;
 }
+
+/** Source-owned static judgment input; model selection belongs to the installation. */
+export interface JudgmentEvaluationInput {
+  readonly source: FrozenJudgmentSource;
+  readonly state: string;
+}
+
+export interface JudgmentEvaluationPort {
+  evaluate(
+    input: JudgmentEvaluationInput,
+    options: { readonly deliveryId: string },
+  ): Promise<CapabilityCompletion<JudgmentEvaluationResult>>;
+  reconcile(deliveryId: string): Promise<CapabilityCompletion<JudgmentEvaluationResult>>;
+}
+
+/** Exact defining declaration and deployment, with no discovery or model fallback. */
+export interface InstalledJudgment {
+  readonly binding: {
+    readonly judgment: string;
+    readonly version: bigint;
+    readonly deployment: string;
+    readonly account: string;
+  };
+  readonly profile: {
+    readonly provider: string;
+    readonly model: string;
+    readonly maxInputTokens: number;
+    readonly inputTokenization: 'deployment';
+  };
+  readonly judgment: JudgmentEvaluationPort;
+}
+
+export type ResolveInstalledJudgment = (exactDeployment: string) => InstalledJudgment | null;
 
 export interface MediaPort {
   /**
