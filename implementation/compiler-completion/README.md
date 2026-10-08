@@ -603,8 +603,8 @@ the owning scan now consumes that argument's closing brace. The same affected
 case passed after that repair. Existing selected-call/localized-format matrices
 are reused unchanged. This is an expression host with explicit app scope: no
 full S9-Q01, State, authority, timezone or Decimal-source-literal claim. The
-contextual attribute-name issue for a parameter named `label` remains unclaimed;
-this case uses `word`. Completion counters are unchanged.
+prior contextual attribute-name issue for a parameter named `label` is now
+qualified separately below; this earlier branch case still uses `word`. Completion counters are unchanged.
 
 The restored [async-query source](../../compiler/tests/fixtures/async_query_predicate.can)
 and [same native case](../../compiler/tests/async_query_predicate_runtime.rs)
@@ -647,3 +647,36 @@ before fact assertions, as they did in the intended prepatch failure. Earlier
 unchanged. Full SEM-R08 remains open; no IDE-error, wrong-native-value, new API
 or new catalog producer contract is claimed. Package owns facade capture and
 the coordinator owns decisions/coverage/index; completion counters are unchanged.
+
+The same generated formatter consumer now separately qualifies contextual
+`label` parameters in
+`localized_format_preserves_contextual_label_parameter_and_caption`: **1/1**
+(0.68s). The first affected run **0/1** (0.58s) reported two E3016 diagnostics
+at valid `label` parameter text types. `resolve_param_defaults` now treats
+`label` as metadata only when followed by `=`, preserving the earlier `seed`
+default binding; `check_param_defaults` uses the existing `field_parts.label`
+owner. Actual native outputs are `{text:"Ready|Ready|T",locale:"en"}` for the
+dependent default and `{text:"S|Bound|T",locale:"en"}` for explicit binding. A
+true parameter caption referencing a parameterized message still refuses the
+exact E3016 with no modules. Existing matrices and branch outcomes are reused
+unchanged. This finite S9-Q01 source/default/caption qualification adds no task
+count, full S9-Q01, carrier, public human sink, State/authority, parser or facade
+claim. Source/test/own notes are ready for capture; coordinator/Package own
+DECISIONS/index joins.
+
+The [bounded model query-order join](query-order/outcome.md) qualifies direct
+`entry.count` and unary `-entry.count` through the genuine authorized-read
+fixture. Its production compiler case **1/1** (0.40s) is reused without rerun;
+two prior source E6008 refusals are repaired, while same-source arithmetic and
+typed foreign-root order still refuse exact E6008 with no modules. The same
+authorized D1 case now passes **1/1** (4213.82ms; 4396.74ms total), following
+production CLI0/Cloudflare emit0. Work fixed the observed `14` before `7` sort
+defect by supplying `models: loaded.models` to State's existing comparator; no
+State API/comparator change was required. Owners/auditors receive exact
+`["1","7","14","9007199254740993"]` and its descending reverse;
+members/anonymous preserve existing ungranted-order validation, correcting the
+earlier proposed empty-array observer. Existing predicate/privacy, provisional,
+rollback and role-loss checks are reused within the same changed native case.
+Full S9-Q02/Q08, metadata and computed ordering remain open. Completion remains
+**58/67**, with **9 open** references; Work owns Cloudflare/fixture capture and
+the coordinator owns DECISIONS/index joins.

@@ -4059,12 +4059,17 @@ impl<'a> Resolver<'a> {
                     self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
                 } else if part.kind == SyntaxKind::DescriptionValue {
                     self.resolve_description_value(text, module, part, diags);
-                } else if is_name(part, text, "label") {
+                } else if is_name(part, text, "label")
+                    && parts.peek().is_some_and(|next| is_punct(next, text, "="))
+                {
                     break;
                 }
             }
             for (j, part) in kids(param_node).iter().enumerate() {
                 if is_name(part, text, "label")
+                    && kids(param_node)
+                        .get(j + 1)
+                        .is_some_and(|next| is_punct(next, text, "="))
                     && let Some(caption) = kids(param_node).get(j + 2)
                 {
                     self.resolve_caption(text, module, caption, diags);

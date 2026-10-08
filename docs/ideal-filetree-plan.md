@@ -378,3 +378,6 @@ Released native mutation filters reuse State’s existing viewer-projected read 
 
 
 Mutation query ordering now forwards existing checked model metadata to State’s canonical read producer, retaining its numeric comparison and unreadable-path refusal. The same compiled D1 consumer qualifies ascending/descending int values beyond Number precision. Compiler owns the separate field/member ordering producer release; no new comparator or State API. Private decision authority, full SEQ042 and complete checkpoint review remain open.
+
+
+Compiler direct current-model field ordering lowers once to existing IrOrder/native selectors, with computed and foreign-root expressions still refused. Its owning production case and the already captured D1 consumer qualify the finite int order join. Contextual label parameters now use existing declaration ownership to distinguish label: bindings from label= caption metadata, preserving defaults and parameterized-caption refusal in the same installed formatter case. No new parser, carrier or formatter facade; wider S9/SEM and full checkpoint review remain open.

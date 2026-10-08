@@ -21,6 +21,45 @@ const load = path => import(pathToFileURL(resolve(root, path)));
 const {loadArtifactFile} = await load('packages/cloudflare/src/runtime/artifact.ts');
 const {assembleModules} = await load('packages/cloudflare/src/runtime/modules.ts');
 
+if (process.argv.includes('--label-parameter')) {
+  const source=`app LabelParameter uses=[Labels]
+context
+ locale default="en"
+package Labels source="en"
+ Given
+  message caption = "Actual caption"@{}
+  message greet(seed:text="S",label:text=seed,tail:text="T" label=caption) = "{seed}|{label}|{tail}"@{}
+  export derive render(seed:text):text = format(greet(seed=seed),locale=null)
+  export derive explicit(label:text):text = format(greet(seed="S",label=label),locale=null)
+ When
+ Then
+`;
+  const compileSource=(name,text)=>{
+    const file=resolve(scratch,name+'.can');
+    writeFileSync(file,text);
+    return spawnSync(can,['compile','--format=json','--catalog',resolve(root,'packages/values/dist/catalog.json'),file],{encoding:'utf8',timeout:15000});
+  };
+  const compiled=compileSource('LabelParameter',source);
+  assert.equal(compiled.status,0,compiled.stdout+'\n'+compiled.stderr);
+  const artifactPath=resolve(scratch,'LabelParameter.json');
+  writeFileSync(artifactPath,compiled.stdout);
+  const loaded=loadArtifactFile(artifactPath);
+  const asm=await assembleModules(loaded,{workDir:resolve(scratch,'LabelParameter'),stdlibUrl:import.meta.resolve('@canlang/stdlib'),uiUrl:import.meta.resolve('@canlang/ui')});
+  const registry=(await import(asm.entryUrl)).canApp();
+  const context={formatting:{appDefault:'en'},team:null};
+  assert.deepEqual(await registry['Labels.render'](context,'Ready'),{text:'Ready|Ready|T',locale:'en'});
+  assert.deepEqual(await registry['Labels.explicit'](context,'Bound'),{text:'S|Bound|T',locale:'en'});
+  const refused=compileSource('InvalidLabelCaption',source.replace('message caption = "Actual caption"','message caption(value:text) = "Actual {value}"'));
+  assert.equal(refused.status,10,refused.stdout+'\n'+refused.stderr);
+  const response=JSON.parse(refused.stdout);
+  assert.equal(response.diagnostics.length,1,refused.stdout);
+  assert.equal(response.diagnostics[0].code,'E3016');
+  assert.equal(response.diagnostics[0].message,"label cannot reference 'caption'; parameterized messages need call syntax");
+  assert.equal(response.modules,undefined,'invalid actual caption cannot publish modules');
+  console.log('localized contextual label parameter: dependent default and explicit binding execute through generated formatter; invalid actual parameter caption refuses E3016');
+  process.exit(0);
+}
+
 if (process.argv.includes('--branch-options')) {
   // One source-owned case crosses production compilation, artifact loading,
   // generated imports and the installed formatter facade. This is an
