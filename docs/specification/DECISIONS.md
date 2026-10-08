@@ -2272,3 +2272,8 @@ The released owning dependency build22/22 and final Cloudflare emit passed. Dire
 ## 2026-10-08 — Retain real mapped-runtime attribution (accepted finite DEP-02)
 
 The compiler owner qualifies actual emitted remainder failures through its production CLI, public assembler, installed producers and Node engine, mapping them to original source4:8. Direct consumer tests and retained API/extraction/repeated-source controls support this finite DEP-02 attribution result (compilerff28ba52). Broader browser/app/GUI outcomes remain open. Reuse the released direct results; no additional proof chain or repeated review is required.
+
+
+## 2026-10-08 — Preserve admitted metadata on ordinary record references (corrected)
+
+The initial typed getter incorrectly exposed the reserved post-write metadata version on an ordinary bound record. DESIGN§2 requires its admitted version and metadata to remain stable throughout the transaction while domain fields observe provisional writes; staged rows/hooks retain the reserved version. The focused correction restores that existing contract, with an actual compiled scenario returning admitted4 while the committed row advances to5. Final owning Cloudflare emit and the affected real D1 profile1/1 pass, including reopen/replay; unchanged controls are reused. This is a correction to the bounded typed release, not new version semantics or wider qualification.
