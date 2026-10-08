@@ -308,8 +308,8 @@ generation/effect counts and accepted rollback/tooling outcomes are reused;
 model tokens are unmeasured and no overall source saving is claimed.
 Canonical completion remains **57/67**.
 
-The current declared-event cohort producer passes the new genuine
-source/native case **1/1**, affected F6 descriptor cases **4/4**, and the
+b40a5390 releases the declared-event cohort producer. The new genuine
+source/native case passes **1/1**, affected F6 descriptor cases **4/4**, and the
 parser corpus case **1/1**. `each=Model [as child]` and nonnullable
 `each=event.parent.Child [as child]` now reach checked private handlers.
 The existing cohort descriptor shape stays intact; private event inputs add
