@@ -56,9 +56,21 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
         ("Client.instants", "datetime[]"),
         ("Client.optionalIntegers", "int[]?"),
         ("Client.optionalInstants", "datetime[]?"),
+        ("Client.copyDate", "date"),
+        ("Client.copyOptionalDate", "date?"),
+        ("Client.copyDates", "date[]"),
+        ("Client.copyOptionalDates", "date[]?"),
+        ("Client.copyDuration", "duration"),
+        ("Client.copyOptionalDuration", "duration?"),
+        ("Client.copyDurations", "duration[]"),
+        ("Client.copyOptionalDurations", "duration[]?"),
         ("Client.defaultInstant", "datetime"),
         ("Client.optionalDefaultInstant", "datetime?"),
         ("Client.defaultInstants", "datetime[]"),
+        ("Client.defaultDate", "date"),
+        ("Client.optionalDefaultDate", "date?"),
+        ("Client.defaultDates", "date[]"),
+        ("Client.defaultDuration", "duration"),
         ("Client.number", "text"),
         ("Client.textArray", "text[]"),
         ("Client.optionalText", "text?"),
@@ -98,6 +110,10 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
             "Client.defaultInstants",
             json!(["2030-01-01T00:00:00.000Z"]),
         ),
+        ("Client.defaultDate", json!("2030-01-01")),
+        ("Client.optionalDefaultDate", json!("2030-01-01")),
+        ("Client.defaultDates", json!(["2030-01-01"])),
+        ("Client.defaultDuration", json!("1000")),
     ] {
         let input = &operation(&artifact, name)["inputs"]["fields"][0];
         assert_eq!(
@@ -125,6 +141,14 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
                 "9999-12-31T23:59:59.999Z"
             ]),
         ),
+        ("day", json!("2030-01-01")),
+        ("optionalDay", json!("2030-01-01")),
+        ("days", json!(["2030-01-01"])),
+        ("maybeDays", json!(["2030-01-01"])),
+        ("elapsed", json!("1000")),
+        ("optionalElapsed", json!("1000")),
+        ("elapsedValues", json!(["1000"])),
+        ("maybeElapsedValues", json!(["1000"])),
     ] {
         let field = model["fields"]
             .as_array()
@@ -159,11 +183,43 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
         assert_eq!(input["nullable"] == true, ty.ends_with('?'));
         assert_eq!(input.get("array").is_some(), ty.contains("[]"));
     }
+    for (name, ty) in [
+        ("Client.copyDate", "date"),
+        ("Client.copyOptionalDate", "date?"),
+        ("Client.copyDates", "date[]"),
+        ("Client.copyOptionalDates", "date[]?"),
+        ("Client.defaultDate", "date"),
+        ("Client.optionalDefaultDate", "date?"),
+        ("Client.defaultDates", "date[]"),
+    ] {
+        let input = &operation(&artifact, name)["inputs"]["fields"][0];
+        assert_eq!(input["field"]["kind"], "string", "{name}: {input}");
+        assert_eq!(input["valueType"], ty, "{name}: {input}");
+        assert_eq!(input["nullable"] == true, ty.ends_with('?'));
+        assert_eq!(input.get("array").is_some(), ty.contains("[]"));
+    }
+    for (name, ty) in [
+        ("Client.copyDuration", "duration"),
+        ("Client.copyOptionalDuration", "duration?"),
+        ("Client.copyDurations", "duration[]"),
+        ("Client.copyOptionalDurations", "duration[]?"),
+        ("Client.defaultDuration", "duration"),
+    ] {
+        let input = &operation(&artifact, name)["inputs"]["fields"][0];
+        assert_eq!(input["field"]["kind"], "duration", "{name}: {input}");
+        assert!(input.get("valueType").is_none(), "{name}: {input}");
+        assert_eq!(input["nullable"] == true, ty.ends_with('?'));
+        assert_eq!(input.get("array").is_some(), ty.contains("[]"));
+    }
     for input in operation(&artifact, "Client.specialized")["inputs"]["fields"]
         .as_array()
         .unwrap()
     {
-        assert!(input.get("valueType").is_none(), "{input}");
+        if input["name"] == "day" {
+            assert_eq!(input["valueType"], "date", "{input}");
+        } else {
+            assert!(input.get("valueType").is_none(), "{input}");
+        }
     }
     for input in operation(&artifact, "Client.booleans")["inputs"]["fields"]
         .as_array()
@@ -203,6 +259,10 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
         ("optional", "text?"),
         ("titles", "text[]"),
         ("maybeTitles", "text[]?"),
+        ("day", "date"),
+        ("optionalDay", "date?"),
+        ("days", "date[]"),
+        ("maybeDays", "date[]?"),
     ] {
         let field = model["fields"]
             .as_array()
@@ -224,10 +284,49 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
         }
     }
     for field in model["fields"].as_array().unwrap().iter().filter(|field| {
-        !["title", "optional", "titles", "maybeTitles"]
-            .iter()
-            .any(|name| field["name"] == *name)
+        ![
+            "title",
+            "optional",
+            "titles",
+            "maybeTitles",
+            "day",
+            "optionalDay",
+            "days",
+            "maybeDays",
+        ]
+        .iter()
+        .any(|name| field["name"] == *name)
     }) {
+        assert!(field.get("valueType").is_none(), "{field}");
+    }
+    for (name, ty) in [
+        ("day", "date"),
+        ("optionalDay", "date?"),
+        ("days", "date[]"),
+        ("maybeDays", "date[]?"),
+    ] {
+        let field = model["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|f| f["name"] == name)
+            .unwrap();
+        assert_eq!(field["field"]["kind"], "date", "{field}");
+        assert_eq!(field["valueType"], ty, "{field}");
+    }
+    for name in [
+        "elapsed",
+        "optionalElapsed",
+        "elapsedValues",
+        "maybeElapsedValues",
+    ] {
+        let field = model["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|f| f["name"] == name)
+            .unwrap();
+        assert_eq!(field["field"]["kind"], "duration", "{field}");
         assert!(field.get("valueType").is_none(), "{field}");
     }
     let names: Vec<_> = artifact["operations"]
@@ -272,6 +371,14 @@ fn invalid_result_body_never_publishes_a_successful_artifact() {
         ),
         (
             "app Invalid\nGiven\nWhen\n scenario instant(raw:text,value:datetime=datetime(raw)) read=true -> datetime by=members\n  do return value\nThen\n",
+            "E6008",
+        ),
+        (
+            "app Invalid\nGiven\nWhen\n scenario day() read=true -> date by=members\n  do return date(\"2030-02-30\")\nThen\n",
+            "E3001",
+        ),
+        (
+            "app Invalid\nGiven\nWhen\n scenario day(raw:text,value:date=date(raw)) read=true -> date by=members\n  do return value\nThen\n",
             "E6008",
         ),
         (

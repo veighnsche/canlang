@@ -165,6 +165,7 @@ pub enum JsMcpField {
     Decimal,
     Money,
     Datetime,
+    Duration,
     Boolean,
     File,
     /// Anonymous enum: case spellings in declaration order.
@@ -798,6 +799,7 @@ impl Serialize for JsMcpField {
             Self::Decimal => FieldTag::Decimal,
             Self::Money => FieldTag::Money,
             Self::Datetime => FieldTag::Datetime,
+            Self::Duration => FieldTag::Duration,
             Self::Boolean => FieldTag::Boolean,
             Self::File => FieldTag::File,
             Self::Enum { values } => FieldTag::Enum { values },
@@ -5395,7 +5397,7 @@ impl<'a> Emitter<'a> {
                             Some((field, is_array)) => inputs.push(JsOperationField {
                                 name: param.name.clone(),
                                 field,
-                                value_type: checked_text_value_type(ty),
+                                value_type: checked_string_value_type(ty),
                                 required: default.is_none() && !nullable && !is_array,
                                 nullable,
                                 array_required: is_array.then_some(false),
@@ -5525,7 +5527,7 @@ impl<'a> Emitter<'a> {
                                 flat.push(JsOperationField {
                                     name: field_item.name.clone(),
                                     field,
-                                    value_type: checked_text_value_type(ty),
+                                    value_type: checked_string_value_type(ty),
                                     required,
                                     nullable,
                                     array_required,
@@ -5673,9 +5675,10 @@ impl<'a> Emitter<'a> {
                     Scalar::Decimal => JsMcpField::Decimal,
                     Scalar::Money => JsMcpField::Money,
                     Scalar::Datetime => JsMcpField::Datetime,
+                    Scalar::Duration => JsMcpField::Duration,
                     Scalar::Bool => JsMcpField::Boolean,
                     Scalar::File => JsMcpField::File,
-                    Scalar::Duration | Scalar::Json | Scalar::Bytes => return None,
+                    Scalar::Json | Scalar::Bytes => return None,
                 },
                 false,
             )),
@@ -5825,7 +5828,7 @@ impl<'a> Emitter<'a> {
             return JsModelField {
                 name: field_item.name.clone(),
                 field,
-                value_type: checked_text_value_type(ty),
+                value_type: checked_string_value_type(ty),
                 required: false,
                 nullable,
                 server_only: true,
@@ -5876,7 +5879,7 @@ impl<'a> Emitter<'a> {
         JsModelField {
             name: field_item.name.clone(),
             field,
-            value_type: checked_text_value_type(ty),
+            value_type: checked_string_value_type(ty),
             required,
             nullable,
             server_only: server.is_some(),
@@ -6755,12 +6758,16 @@ fn checked_scenario_result(result: Option<&ResolvedType>) -> Option<&'static str
     checked_value_profile(result)
 }
 
-fn checked_text_value_type(ty: &IrType) -> Option<&'static str> {
+fn checked_string_value_type(ty: &IrType) -> Option<&'static str> {
     let IrType::Known(ty) = ty else {
         return None;
     };
-    checked_value_profile(ty)
-        .filter(|value| matches!(*value, "text" | "text?" | "text[]" | "text[]?"))
+    checked_value_profile(ty).filter(|value| {
+        matches!(
+            *value,
+            "text" | "text?" | "text[]" | "text[]?" | "date" | "date?" | "date[]" | "date[]?"
+        )
+    })
 }
 
 fn checked_value_profile(result: &ResolvedType) -> Option<&'static str> {
@@ -6797,6 +6804,14 @@ fn checked_value_profile(result: &ResolvedType) -> Option<&'static str> {
         (ResolvedType::Scalar(Scalar::Money), false, true) => Some("money?"),
         (ResolvedType::Scalar(Scalar::Money), true, false) => Some("money[]"),
         (ResolvedType::Scalar(Scalar::Money), true, true) => Some("money[]?"),
+        (ResolvedType::Scalar(Scalar::Date), false, false) => Some("date"),
+        (ResolvedType::Scalar(Scalar::Date), false, true) => Some("date?"),
+        (ResolvedType::Scalar(Scalar::Date), true, false) => Some("date[]"),
+        (ResolvedType::Scalar(Scalar::Date), true, true) => Some("date[]?"),
+        (ResolvedType::Scalar(Scalar::Duration), false, false) => Some("duration"),
+        (ResolvedType::Scalar(Scalar::Duration), false, true) => Some("duration?"),
+        (ResolvedType::Scalar(Scalar::Duration), true, false) => Some("duration[]"),
+        (ResolvedType::Scalar(Scalar::Duration), true, true) => Some("duration[]?"),
         _ => None,
     }
 }
