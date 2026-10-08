@@ -259,6 +259,16 @@ test('compiled generation streams controlled provider bytes into granted native 
     // Passive observation after actual native commits. The defining dispatcher
     // alone stages progress; this wrapper neither creates nor modifies it.
     const snapshots: Record<string, unknown>[] = [];
+    let checkedRunningOrder = false;
+    const stageOriginalProgress = (revision: number, progress: Record<string, unknown>) =>
+      stageTextGenerationProgress({ intent, context: resultContext, revision,
+        progress: progress as unknown as import('./bound-text-generation.js').TextRunWire,
+        progressed: { producer: progressed, owner: team.team_id } },
+      { actor: user.user_id, now: FIXED_NOW, operation: 'test.generation.progress-admission',
+        load: store.load.bind(store), query: store.query.bind(store) });
+    const refusedProgress = (revision: number, progress: Record<string, unknown>) =>
+      assert.rejects(stageOriginalProgress(revision, progress), error =>
+        error instanceof Error && 'code' in error && error.code === 'validation');
     let terminalFaultIntent: OutboxIntent | null = null;
     let terminalResponseLost = false;
     let recordFaultIntent: OutboxIntent | null = null;
@@ -303,6 +313,23 @@ test('compiled generation streams controlled provider bytes into granted native 
             const caption = { queued: 'Queued', running: 'Running', succeeded: 'Succeeded' }[String(run['state']) as 'queued' | 'running' | 'succeeded'];
             assert.ok(caption && html.includes(caption), html);
             assert.ok(html.includes(String(run['content'])), html);
+            if (!checkedRunningOrder && run['state'] === 'running') {
+              checkedRunningOrder = true;
+              const progressRevision = await store.readRevision();
+              const occurrences = await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' });
+              assert.deepEqual(await stageOriginalProgress(retained.revision, run),
+                { writes: [], result: { notification: null } });
+              await refusedProgress(retained.revision, { ...run, content: 'Conflicting duplicate' });
+              await refusedProgress(retained.revision - 1, run);
+              await refusedProgress(retained.revision + 1, { ...run, sequence: String(BigInt(String(run['sequence'])) - 1n) });
+              await refusedProgress(retained.revision + 1, { ...run, sequence: String(BigInt(String(run['sequence'])) + 1n),
+                source: 'another-request' });
+              await refusedProgress(retained.revision + 1, { ...run, sequence: String(BigInt(String(run['sequence'])) + 1n),
+                revision: String(BigInt(String(run['revision'])) + 1n) });
+              assert.equal(await store.readRevision(), progressRevision);
+              assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(intent.intentId)), actual);
+              assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), occurrences);
+            }
           }
         }
         return committedSet;
@@ -328,6 +355,7 @@ test('compiled generation streams controlled provider bytes into granted native 
     assert.deepEqual(provider.requests[0], { model: LOCAL_MODEL,
       messages: [{ role: 'user', content: 'Actual compiled request' }] });
     assert.ok(snapshots.some(run => run['state'] === 'running' && run['content'] === 'Local '));
+    assert.equal(checkedRunningOrder, true, 'The reordered controls must use actual committed nonterminal provider progress.');
     for (let index = 0; index < snapshots.length; index++) {
       const run = snapshots[index]!;
       assert.equal(run['source'], original.operation_id);
@@ -388,6 +416,15 @@ test('compiled generation streams controlled provider bytes into granted native 
     { actor: user.user_id, now: FIXED_NOW, operation: 'test.generation.duplicate',
       load: store.load.bind(store), query: store.query.bind(store) });
     assert.deepEqual(duplicate, { writes: [], result: { notification: null } });
+    const terminalRevision = readReceiptRow(receiptBeforeReplay, resultContext).receipt.revision;
+    // Equal terminal checkpoints replay the saved outcome even if the sender
+    // repeats different content; a newer checkpoint cannot rewrite it.
+    assert.deepEqual(await stageOriginalProgress(terminalRevision, { ...final, content: 'Different replay content' }),
+      { writes: [], result: { notification: null } });
+    await refusedProgress(terminalRevision + 1, { ...final, sequence: String(BigInt(String(final['sequence'])) + 1n),
+      content: 'Cannot overwrite terminal content' });
+    await refusedProgress(terminalRevision + 1, { ...final, sequence: String(BigInt(String(final['sequence'])) + 1n),
+      used_tokens: String(BigInt(String(final['used_tokens'])) + 1n) });
     const replayed = await invoker.invokeMutation(original, identity);
     assert.ok('result' in replayed, JSON.stringify(replayed));
     assert.equal(replayed.result.status, 'replayed');
