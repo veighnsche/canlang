@@ -1,10 +1,11 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-08T11:45:00Z",
+  "updated_utc": "2026-10-08T12:24:48Z",
   "total": 67,
-  "finished_at_recorded_scope": 54,
-  "remaining_including_partial": 13,
+  "finished_at_recorded_scope": 57,
+  "remaining_including_partial": 10,
   "finished_references": [
+    "ARCH-01",
     "ARCH-02",
     "COST-01",
     "DEP-01",
@@ -24,6 +25,7 @@
     "FAIL-R03",
     "FAIL-R04",
     "FAIL-R05",
+    "FAIL-R06",
     "FAIL-R07",
     "OR-01",
     "OR-02",
@@ -35,6 +37,7 @@
     "OUT-R03",
     "OUT-R04",
     "S9-Q04",
+    "S9-Q06",
     "SEM-R01",
     "SEM-R02",
     "SEM-R03",
@@ -61,28 +64,22 @@
     "integration:source-map-extraction"
   ],
   "remaining_references": [
-    "ARCH-01",
-    "FAIL-R06",
     "OR-06",
     "OUT-R05",
     "S9-Q01",
     "S9-Q02",
     "S9-Q03",
     "S9-Q05",
-    "S9-Q06",
     "S9-Q07",
     "S9-Q08",
     "SEM-R05",
     "SEM-R08"
   ],
   "bounded_components_with_broader_reference_still_open": [
-    "ARCH-01",
     "ARCH-02",
     "S9-Q01",
     "S9-Q03",
-    "S9-Q06",
     "SEM-R08",
-    "FAIL-R06",
     "S9-Q02"
   ],
   "counting_policy": "Count canonical reference once. Reuse17previously accepted bounded references; add only full recorded finding/retention outcomes. Partial joins/components do not close their broader reference. Wider host/application and future-source requirements remain separately explicit. These references overlap and are not67independent implementations.",
@@ -101,9 +98,9 @@
     }
   },
   "latest_component": {
-    "commit": "e38474fd276f039f7e656a829048e341e212d71a",
-    "previous_component": "e217deafafe12a2046f30fef6d1b95b47932e4db",
-    "outcome": "Owning writer/map numeric admission preserves inclusive 1-based writer and0-based map coordinate endpoints plus exclusive MAX source/name sentinel; try_finish/try_build refuse prefix or invalid map IDs. Entry/package/BDD/shell and assembly/compile closure return E6012 with no executable artifact. Existing map producer6/6 and BDD2/2 pass; actual map consumer first fails0/1 on new package TS parameter-property syntax after map/decoder assertions; after owner releases explicit-field correction, same case passes1/1. Prior failure retained and only failed case repeated; no giant/resource/full FAIL-R06 claim. Three saved JEV replies favor writer-status finalization .76/.76/.82 confidence, no rationale. Public read=true scenario parameter-style and supported computedDefault markers now emitted; genuine package readBound artifact regenerated through current real native CLI exit0, fixture pair released to package owner; owner reports actual fixture compile0/CFemit0/existing file3/3 through read handler, Statee1204fdb committed, CFscoped commit following; omission/supplied arrays/exact ints/live authority qualified at this scope. Canonical count stays54/67 with13open."
+    "commit": "4c72cc6dffdcc51a2d5d4e398570b7e88be9304b",
+    "previous_component": "54d1112c29fc232ae6ae1e2093044b7332c44f28",
+    "outcome": "Accepted original TextGenerationV1.generate/ImagesV1.submit progressed handlers carry checked delivery_id:text into private event invocation metadata and existing c,{event} callables. Genuine source/native handler case1/1 passes, unrelated sources E3010 and extra event.status E2013 refuse without modules. Null equality now groups observed operands for ==/!= in both orders; affected existing native delivery consumer1/1 passes null/queued/running exact booleans with one facade/one getter. Initial compiler borrow mismatch and new source create-as omission corrected; delivery host missing new fixture UI import corrected with installed package, only failed case repeated. Current source-matching CLI and exact release routed through approved coordinator to owning Work/CF/UI consumers. No full Task21/25 or wider reference credit; canonical57/67,10remaining."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -132,9 +129,36 @@
     "width-boundaries/README.md",
     "../../packages/cloudflare/src/runtime/typed-scenario-values.test.ts"
   ],
-  "current_source_work": "Output admissione38474fd closes numeric writer/map failures with E6012/no executable artifact. Existing map6/6 and BDD2/2 pass; actual consumer first0/1 fails at new CF TS strip-only syntax, then same case1/1 passes after released owner explicit-field correction; only failed case repeated. Read-scenario callable/default markers enabled and owning readBound fixture artifact emitted by currentCLI exit0, owning actual fixture compile0/CFemit0/existing file3/3 passes through read handler, Statee1204fdb committed and CFscoped commit following; no producer repeat. Semantic admissione217deaf checks all owning module/symbol/scope allocations; E2019 returns no partial tables and stops dependent checking while retaining diagnostics/cohort. Finite graph1/1 and existing resolver11/11 pass; weak/split JEV uncertainty retained, no billion-entry exhaustion claim. Source-intake58209f7b and standalone-syntax41b587fc admit intrinsic u32 byte/ID ranges through fallible owning APIs, graceful CLI/LSP intake and E1008 before standalone processing. Native sparse MAX+1 file case1/1 covers6actual source tools; ordinary fmtstdin, affected lexer1/1, parser1/1 and finalCLIbuild pass. Three JEV replies advise additive fallible owner with weakest .37 confidence/.58 probability; saved uncertainty remains. Exact selected deliveryf0cb18be plus nullable extraction768e9e44 preserve child-only keys, once and Can null; native host cases pass, genuine CF workflow remains runtime-owned. Known standard constructors6dd7bf96 and reachable schemas8aa1bc33 join actual TextRequest/Values admission. Ordered native defaults121688d7/computedDefault0da68bec, executed scopeclosured2fb9024, File profiles, checked sends/schedules/trusted-handler profiles and bounded earlier receipts retain their recorded outcomes. Native nullable/ordinary-array default positive State controls pass; no overall run count is claimed for its corrected E1213 negative expectation. Broader read-scenario profiles, ref/identity/enum/collapsed-alias defaults, resolved-default receipt/replay, full File authority/byte transfer, generated output resource/extreme-execution qualification, broader UI/application/BDD and held timezone/model-rule work remain separate. ARCH-02 retains all5indexed public API families using their accepted outcomes, zero deletion/mechanisms. Historical whole-suite pins remain unchanged; no broad current closure.",
+  "current_source_work": "Progress handlers/null comparison4c72cc6d pass changed production cases1/1 each; private event profiles follow the accepted original-operation manifest and native observations stay once. Source-matching CLI released to Work/CF/UI owners. Custom overload consumer54d1112c passes1/1 with actual installed date facade, exact order/once/failure and reordered winner slots. Original finite catalog/field duty960f0665 passes new used-result case1/1 at256 object/collection wrappers, selected specificity/slots exact; accepted nullable/field outcomes reused. Canonical FAIL-R06/S9-Q06/ARCH-01 original dispositions joined by coordinator; no speculative API changes. Output admissione38474fd closes numeric writer/map failures with E6012/no executable artifact. Existing map6/6 and BDD2/2 pass; actual consumer first0/1 fails at new CF TS strip-only syntax, then same case1/1 passes after released owner explicit-field correction; only failed case repeated. Read-scenario callable/default markers enabled and owning readBound fixture artifact emitted by currentCLI exit0, owning actual fixture compile0/CFemit0/existing file3/3 passes through read handler, Statee1204fdb committed and CFscoped commit following; no producer repeat. Semantic admissione217deaf checks all owning module/symbol/scope allocations; E2019 returns no partial tables and stops dependent checking while retaining diagnostics/cohort. Finite graph1/1 and existing resolver11/11 pass; weak/split JEV uncertainty retained, no billion-entry exhaustion claim. Source-intake58209f7b and standalone-syntax41b587fc admit intrinsic u32 byte/ID ranges through fallible owning APIs, graceful CLI/LSP intake and E1008 before standalone processing. Native sparse MAX+1 file case1/1 covers6actual source tools; ordinary fmtstdin, affected lexer1/1, parser1/1 and finalCLIbuild pass. Three JEV replies advise additive fallible owner with weakest .37 confidence/.58 probability; saved uncertainty remains. Exact selected deliveryf0cb18be plus nullable extraction768e9e44 preserve child-only keys, once and Can null; native host cases pass, genuine CF workflow remains runtime-owned. Known standard constructors6dd7bf96 and reachable schemas8aa1bc33 join actual TextRequest/Values admission. Ordered native defaults121688d7/computedDefault0da68bec, executed scopeclosured2fb9024, File profiles, checked sends/schedules/trusted-handler profiles and bounded earlier receipts retain their recorded outcomes. Native nullable/ordinary-array default positive State controls pass; no overall run count is claimed for its corrected E1213 negative expectation. Broader read-scenario profiles, ref/identity/enum/collapsed-alias defaults, resolved-default receipt/replay, full File authority/byte transfer, generated output resource/extreme-execution qualification, broader UI/application/BDD and held timezone/model-rule work remain separate. ARCH-02 retains all5indexed public API families using their accepted outcomes, zero deletion/mechanisms. Historical whole-suite pins remain unchanged; no broad current closure.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
-  ]
+  ],
+  "latest_full_reference_completion": {
+    "reference": "FAIL-R06",
+    "scope": "Original finite representability qualification; no giant allocation, global cap, allocator or public-carrier guarantee.",
+    "commit": "960f0665251d4fb99d59b0524370add2e674c0e9",
+    "outcome": "Actual used-catalog nested result matching at depth256 passes1/1 with specific overload and reordered named slots. Accepted nullable-depth, cached field-reuse/iterative-cycle, source/syntax/resolver/graph/diagnostic/map/output outcomes reused; no repeated checks or speculative implementation."
+  },
+  "accepted_original_dispositions": {
+    "S9-Q06": {
+      "disposition": "Original coherent checked source/catalog preconditions and complete callers qualified.",
+      "accepted_outcome": "checked-cohort/independent-review/review.md",
+      "remaining_policy": "Cache/snapshot/fact publication remains dependent policy; raw carriers/caller-edited public facts retain declared responsibilities."
+    },
+    "ARCH-01": {
+      "disposition": "Original defer-architecture/API selection disposition satisfied using accepted repetition, immutable cohort/invalidation and actual session ownership outcomes.",
+      "accepted_outcomes": [
+        "checked-cohort/independent-review/review.md",
+        "session-history/independent-review/review.md"
+      ],
+      "remaining_policy": "Cache/general reclamation/API selection and wider cross-file/performance policy remain proposed; no new architecture or blanket application guarantee."
+    }
+  },
+  "custom_overload_binding_consumer": {
+    "commit": "54d1112c29fc232ae6ae1e2093044b7332c44f28",
+    "test": "effectful_custom_same_arity_binding_executes_typed_native_getters",
+    "outcome": "Exact new case1/1: genuine loaded custom catalog, later same-arity overload1, reordered slots[1,0], awaited BoundCall and unchanged emitted module execute installed add_days with native Date exact result, getter order/once and exception identity/short-circuit.",
+    "scope": "Expression host only; no State admission, serving, authority or full parent-reference credit."
+  }
 }
