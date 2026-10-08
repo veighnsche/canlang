@@ -2658,7 +2658,7 @@ impl<'a> Parser<'a> {
             matches!(
                 w,
                 "trim" | "min" | "max" | "unique" | "machine" | "server" | "label" | "desc"
-            )
+            ) || (is_param && w == "choices")
         };
         let mut initialized = false;
         if cursor.at_p(Punct::Eq) {
@@ -2711,6 +2711,24 @@ impl<'a> Parser<'a> {
                 self.builder.leaf(&mut kids, &eq);
                 let bound = self.parse_expr(cursor, field_stop, true, true)?;
                 self.builder.push_inner(&mut kids, bound);
+            }
+        }
+        if is_param && cursor.at_name("choices") {
+            let choices = cursor.next().expect("peeked choices");
+            self.builder.leaf(&mut kids, &choices);
+            let eq = cursor.expect_p(Punct::Eq)?;
+            self.builder.leaf(&mut kids, &eq);
+            let value = self.parse_expr(cursor, field_stop, true, true)?;
+            if value.kind != SyntaxKind::Object {
+                return Err(Fail::new(
+                    "E1203",
+                    "choices= requires a metadata object".to_string(),
+                    value.span,
+                ));
+            }
+            self.builder.push_inner(&mut kids, value);
+            if cursor.at_name("choices") {
+                return cursor.err("E1202", "duplicate choices= parameter metadata");
             }
         }
         // A `NAME=` matching no modifier is an unknown attribute, not a

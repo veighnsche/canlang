@@ -299,6 +299,21 @@ pub fn assemble(
         });
         requires.sort_by(|a, b| a.capability.cmp(&b.capability));
     }
+    if ir.items.iter().any(|item| {
+        matches!(
+            item.kind,
+            IrItemKind::Param {
+                choices: Some(_),
+                ..
+            }
+        )
+    }) {
+        requires.push(ArtifactRequirement {
+            capability: "interfaces.input-choices".to_string(),
+            min_version: 1,
+        });
+        requires.sort_by(|a, b| a.capability.cmp(&b.capability));
+    }
     if ir
         .items
         .iter()

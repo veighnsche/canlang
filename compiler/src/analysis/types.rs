@@ -416,9 +416,34 @@ pub(crate) fn std_delivery_result_type(op: &StdOperation) -> ResolvedType {
     }
 }
 
+/// Checked nonexecutable choice assistance owned by one operation input.
+#[derive(Debug, Clone)]
+pub struct CheckedInputChoice {
+    pub read_operation: SymbolId,
+    pub arguments: Vec<CheckedChoiceArgument>,
+    pub value: CheckedChoiceValue,
+    pub labels: Vec<String>,
+}
+
+/// One owning read input supplied from an owning assisted-operation input.
+#[derive(Debug, Clone)]
+pub struct CheckedChoiceArgument {
+    pub parameter: SymbolId,
+    pub input: SymbolId,
+    pub path: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub enum CheckedChoiceValue {
+    Record,
+    Field(String),
+}
+
 /// Types and selected bindings per symbol and typed CST node.
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
+    /// Optional checked assistance; final input typing/defaults/grants are unchanged.
+    pub input_choices: HashMap<SymbolId, CheckedInputChoice>,
     /// Checked external and capability/operation declaration heads for sends.
     pub target_bindings: HashMap<NodeKey, Binding>,
     /// Checked owning progress handler identities, consumed without source rebinding.
@@ -469,6 +494,7 @@ pub fn check_types(
     typer.collect_module_sources(trees);
     typer.phase1(trees);
     typer.phase2(trees);
+    typer.check_input_choice_cycles();
     typer.check_cycles();
     typer.types.symbol_types = std::mem::take(&mut typer.decl);
     typer.types.symbol_results = std::mem::take(&mut typer.results);
@@ -3973,22 +3999,9 @@ impl<'a> Typer<'a> {
                 continue;
             };
             let expected = self.decl_type(param);
-            // Mirror resolve: the default is the expression after `=`,
-            // stopping at `label`.
-            let parts = kids(param_node);
-            let mut seen_eq = false;
-            let mut default = None;
-            for part in &parts {
-                if part.kind == SyntaxKind::Punct {
-                    seen_eq = true;
-                    continue;
-                }
-                if seen_eq && is_expression(part.kind) {
-                    default = Some(*part);
-                } else if is_name(part, text, "label") {
-                    break;
-                }
-            }
+            // Only the owning type's immediate `=` introduces a default;
+            // choice metadata and a parameter named `choices` never do.
+            let default = field_parts(param_node, text).default;
             if let Some(default) = default {
                 for (name, span) in self.effectful_calls(default, text) {
                     self.diags.push(Diagnostic::error(
@@ -4026,9 +4039,331 @@ impl<'a> Typer<'a> {
                     self.check_scalar_caption(&cx, caption, "label");
                 }
             }
+            let parts = kids(param_node);
+            let choices = parts
+                .iter()
+                .position(|part| is_type_node(part.kind))
+                .and_then(|type_at| {
+                    parts
+                        .iter()
+                        .enumerate()
+                        .skip(type_at + 1)
+                        .find_map(|(index, part)| {
+                            (is_name(part, text, "choices")
+                                && parts
+                                    .get(index + 1)
+                                    .is_some_and(|eq| is_punct(eq, text, "=")))
+                            .then(|| parts.get(index + 2).copied())
+                            .flatten()
+                        })
+                });
+            if let Some(choices) = choices {
+                match self.checked_input_choice(module, text, param, choices) {
+                    Ok(choice) => {
+                        self.types.input_choices.insert(param, choice);
+                    }
+                    Err(message) => self.diags.push(Diagnostic::error(
+                        "E3001",
+                        message,
+                        tight_span(text, choices),
+                    )),
+                }
+            }
             let narrow = NarrowEnv::default();
             let cx = Self::body_cx(module, file, text, &narrow);
             self.check_description_slot(&cx, param_node);
+        }
+    }
+
+    /// Decode choice assistance as declaration metadata, never as an expression.
+    fn checked_input_choice(
+        &self,
+        module: ModuleId,
+        text: &str,
+        assisted: SymbolId,
+        metadata: &SyntaxNode,
+    ) -> Result<CheckedInputChoice, String> {
+        let fail = |message: &str| format!("choices=: {message}");
+        let SymbolKind::Param { owner, .. } = self.tables.symbols[assisted.0 as usize].kind else {
+            return Err(fail("requires an owning operation input"));
+        };
+        let SymbolKind::Scenario {
+            params: inputs,
+            trusted: false,
+            ..
+        } = &self.tables.symbols[owner.0 as usize].kind
+        else {
+            return Err(fail("is supported only on ordinary scenario parameters"));
+        };
+        if metadata.kind != SyntaxKind::Object {
+            return Err(fail("requires a metadata object"));
+        }
+        let entries = object_entries(metadata, text);
+        let mut keys = HashSet::new();
+        for (key, _, value) in &entries {
+            if !matches!(*key, "read" | "value" | "labels") || value.is_none() {
+                return Err(fail(
+                    "accepts only explicit read=, value= and labels= entries",
+                ));
+            }
+            if !keys.insert(*key) {
+                return Err(fail("duplicate metadata entry"));
+            }
+        }
+        let entry = |key| {
+            entries
+                .iter()
+                .find(|(name, _, _)| *name == key)
+                .and_then(|(_, _, value)| *value)
+        };
+        let read = entry("read").ok_or_else(|| fail("requires read="))?;
+        if read.kind != SyntaxKind::Call {
+            return Err(fail(
+                "read= must name an owning read operation and its input mappings",
+            ));
+        }
+        let call_parts = kids(read);
+        let callee = call_parts
+            .iter()
+            .find(|n| is_expression(n.kind))
+            .copied()
+            .ok_or_else(|| fail("missing read operation"))?;
+        let read_name = (callee.kind == SyntaxKind::NameRef)
+            .then(|| nameref_word(callee, text))
+            .flatten()
+            .ok_or_else(|| fail("read= must name a local or imported scenario"))?;
+        let read_operation = self
+            .prod_or_imported(module, read_name)
+            .ok_or_else(|| fail("unknown read operation"))?;
+        if read_operation == owner {
+            return Err(fail("cannot look up choices through its own operation"));
+        }
+        let SymbolKind::Scenario {
+            params: read_params,
+            trusted: false,
+            ..
+        } = &self.tables.symbols[read_operation.0 as usize].kind
+        else {
+            return Err(fail("read= must select an ordinary read=true scenario"));
+        };
+        if !self.read_scenarios.contains(&read_operation) {
+            return Err(fail("read= cannot select a mutation operation"));
+        }
+        let Some(Some(ResolvedType::Array { element, .. })) = self.results.get(&read_operation)
+        else {
+            return Err(fail(
+                "read operation must return a collection of stored model references",
+            ));
+        };
+        let ResolvedType::Record {
+            symbol: candidate,
+            stored: true,
+        } = element.as_ref()
+        else {
+            return Err(fail(
+                "read operation must return a collection of stored model references",
+            ));
+        };
+        if !matches!(
+            self.tables.symbols[candidate.0 as usize].kind,
+            SymbolKind::Model { .. }
+        ) {
+            return Err(fail(
+                "read result candidates must be stored model references",
+            ));
+        }
+        let narrow = NarrowEnv::default();
+        let cx = Self::body_cx(module, metadata.span.file, text, &narrow);
+        let mut mapped: Vec<Option<CheckedChoiceArgument>> = vec![None; read_params.len()];
+        let mut positional = 0;
+        for arg in call_parts.iter().filter(|n| n.kind == SyntaxKind::Argument) {
+            let arg = self
+                .read_argument(&cx, arg)
+                .ok_or_else(|| fail("invalid read argument mapping"))?;
+            let index = if let Some(name) = &arg.name {
+                read_params
+                    .iter()
+                    .position(|param| self.tables.symbols[param.0 as usize].name == *name)
+                    .ok_or_else(|| fail("unknown read argument"))?
+            } else {
+                let index = positional;
+                positional += 1;
+                index
+            };
+            let parameter = *read_params
+                .get(index)
+                .ok_or_else(|| fail("too many read argument mappings"))?;
+            if mapped[index].is_some() {
+                return Err(fail("duplicate read argument mapping"));
+            }
+            let (input_name, path) = choice_input_path(arg.value, text)
+                .ok_or_else(|| fail("read arguments must be input roots or stable member paths; executable expressions are unsupported"))?;
+            let input = inputs
+                .iter()
+                .copied()
+                .find(|input| self.tables.symbols[input.0 as usize].name == input_name)
+                .ok_or_else(|| fail("read arguments must be rooted in this operation's inputs"))?;
+            if input == assisted {
+                return Err(fail("a choice input cannot depend on itself"));
+            }
+            let actual = self
+                .choice_input_path_type(input, &path)
+                .ok_or_else(|| fail("unsupported or nullable intermediate input member path"))?;
+            let expected = self.decl_type(parameter);
+            if actual.is_error()
+                || expected.is_error()
+                || !self.types_compatible(&actual, &expected)
+            {
+                return Err(fail(
+                    "read argument type does not match its owning read input",
+                ));
+            }
+            mapped[index] = Some(CheckedChoiceArgument {
+                parameter,
+                input,
+                path,
+            });
+        }
+        for (index, parameter) in read_params.iter().enumerate() {
+            let ty = self.decl_type(*parameter);
+            let required = !self.param_has_default(*parameter)
+                && !matches!(ty, ResolvedType::Nullable(_) | ResolvedType::Array { .. });
+            if mapped[index].is_none() && required {
+                return Err(fail("missing required read argument mapping"));
+            }
+        }
+        let (value, actual) = if let Some(value) = entry("value") {
+            let field_name = string_literal_value(value)
+                .ok_or_else(|| fail("value= requires one declared candidate field name string"))?;
+            let field = self
+                .record_field_named(*candidate, &field_name)
+                .ok_or_else(|| fail("value= names no declared candidate field"))?;
+            let actual = self.decl_type(field);
+            if !self.choice_leaf_supported(&actual) {
+                return Err(fail(
+                    "value= requires a supported candidate scalar, enum or model-reference leaf",
+                ));
+            }
+            (CheckedChoiceValue::Field(field_name), actual)
+        } else {
+            (CheckedChoiceValue::Record, element.as_ref().clone())
+        };
+        let expected = self.decl_type(assisted);
+        if !self.types_compatible(&actual, &expected) {
+            return Err(fail(
+                "candidate value is incompatible with the assisted input",
+            ));
+        }
+        let labels_node = entry("labels").ok_or_else(|| fail("requires labels="))?;
+        if labels_node.kind != SyntaxKind::Array {
+            return Err(fail(
+                "labels= requires an array of declared candidate field name strings",
+            ));
+        }
+        let mut labels = Vec::new();
+        for node in kids(labels_node)
+            .into_iter()
+            .filter(|n| is_expression(n.kind))
+        {
+            let name = string_literal_value(node)
+                .ok_or_else(|| fail("labels= accepts only candidate field name strings"))?;
+            if labels.contains(&name) {
+                return Err(fail("duplicate candidate label field"));
+            }
+            let field = self
+                .record_field_named(*candidate, &name)
+                .ok_or_else(|| fail("labels= names no declared candidate field"))?;
+            if !self.choice_leaf_supported(&self.decl_type(field)) {
+                return Err(fail(
+                    "labels= requires supported candidate scalar, enum or model-reference leaves",
+                ));
+            }
+            labels.push(name);
+        }
+        if labels.is_empty() {
+            return Err(fail("labels= requires at least one candidate field"));
+        }
+        Ok(CheckedInputChoice {
+            read_operation,
+            arguments: mapped.into_iter().flatten().collect(),
+            value,
+            labels,
+        })
+    }
+
+    /// Only stored fields and the model's owning parent relation are stable.
+    fn choice_input_path_type(&self, input: SymbolId, path: &[String]) -> Option<ResolvedType> {
+        let mut ty = self.decl_type(input);
+        for member in path {
+            let ResolvedType::Record { symbol, .. } = ty else {
+                return None;
+            };
+            ty = if let Some(field) = self.record_field_named(symbol, member) {
+                self.decl_type(field)
+            } else if member == "parent" {
+                ResolvedType::Record {
+                    symbol: contained_parent_of(self.tables, symbol)?,
+                    stored: true,
+                }
+            } else {
+                return None;
+            };
+        }
+        (!matches!(
+            ty,
+            ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_)
+        ))
+        .then_some(ty)
+    }
+
+    fn choice_leaf_supported(&self, ty: &ResolvedType) -> bool {
+        match ty.nullable_inner().unwrap_or(ty) {
+            ResolvedType::Scalar(Scalar::Secret | Scalar::Json | Scalar::Bytes | Scalar::File) => {
+                false
+            }
+            ResolvedType::Scalar(_) | ResolvedType::Enum { .. } => true,
+            ResolvedType::Record {
+                symbol,
+                stored: true,
+            } => matches!(
+                self.tables.symbols[symbol.0 as usize].kind,
+                SymbolKind::Model { .. }
+            ),
+            _ => false,
+        }
+    }
+
+    /// Reject cycles after every owning parameter's metadata has been checked.
+    fn check_input_choice_cycles(&mut self) {
+        let mut inputs: Vec<_> = self.types.input_choices.keys().copied().collect();
+        inputs.sort_by_key(|input| input.0);
+        let mut cyclic = Vec::new();
+        for input in inputs {
+            let mut pending = self.types.input_choices[&input]
+                .arguments
+                .iter()
+                .map(|arg| arg.input)
+                .collect::<Vec<_>>();
+            let mut seen = HashSet::new();
+            while let Some(dependency) = pending.pop() {
+                if dependency == input {
+                    cyclic.push(input);
+                    break;
+                }
+                if seen.insert(dependency)
+                    && let Some(choice) = self.types.input_choices.get(&dependency)
+                {
+                    pending.extend(choice.arguments.iter().map(|arg| arg.input));
+                }
+            }
+        }
+        for input in cyclic {
+            self.types.input_choices.remove(&input);
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "choices=: dependent input mappings form a cycle".to_string(),
+                self.tables.symbols[input.0 as usize].span,
+            ));
         }
     }
 
@@ -8173,6 +8508,23 @@ impl<'a> Typer<'a> {
     }
 
     // --- Phase 2: scenarios and operations (P3) ---
+}
+
+/// Metadata paths have no expression evaluation or ambient lexical scope.
+fn choice_input_path(node: &SyntaxNode, text: &str) -> Option<(String, Vec<String>)> {
+    match node.kind {
+        SyntaxKind::NameRef => Some((nameref_word(node, text)?.to_string(), Vec::new())),
+        SyntaxKind::Member => {
+            let parts = kids(node);
+            if parts.len() != 3 || !is_punct(parts[1], text, ".") {
+                return None;
+            }
+            let (input, mut path) = choice_input_path(parts[0], text)?;
+            path.push(name_text(parts[2], text)?.to_string());
+            Some((input, path))
+        }
+        _ => None,
+    }
 }
 
 /// Lexer-owned decoded value of a string `Literal` node.

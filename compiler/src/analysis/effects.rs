@@ -84,7 +84,9 @@ use crate::analysis::resolve::{
     Binding, ContextVar, CrudOp, ModelOwner, ModuleId, ModuleKind, ResolveTables, ScopedName,
     SymbolId, SymbolKind,
 };
-use crate::analysis::types::{ResolvedType, Scalar, SelectedCallTarget, TypeTable};
+use crate::analysis::types::{
+    CheckedInputChoice, ResolvedType, Scalar, SelectedCallTarget, TypeTable,
+};
 use crate::diagnostic::{Diagnostic, Related};
 use crate::source::{SourceDb, SourceId, Span};
 use crate::syntax::{SyntaxKind, SyntaxNode, decode_json_string};
@@ -757,6 +759,8 @@ pub struct DeriveData {
 /// Signature parameter with its type, default and label.
 #[derive(Debug, Clone)]
 pub struct ParamData {
+    /// Checked optional input assistance; never an executable initializer.
+    pub choices: Option<CheckedInputChoice>,
     /// Parameter symbol.
     pub param: SymbolId,
     /// Parameter declaration node.
@@ -1574,6 +1578,7 @@ impl<'a> Cx<'a> {
                     .insert(NodeKey::of(child), checked);
             }
             out.push(ParamData {
+                choices: self.types.input_choices.get(&param).cloned(),
                 param,
                 node: NodeKey::of(child),
                 type_node,
@@ -5628,6 +5633,10 @@ fn param_shape(text: &str, param: &SyntaxNode) -> ParamShape {
             .copied()
             .map(NodeKey::of);
         i += 2;
+    }
+    // Choice metadata is nonexecutable and does not replace the default.
+    if parts.get(i).is_some_and(|n| is_name(n, text, "choices")) {
+        i += 3;
     }
     // A `desc=` spelling sits between the default and `label=`
     // (the legacy annotation trails); skip it so `label=` still decodes.
