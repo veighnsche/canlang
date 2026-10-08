@@ -46,7 +46,7 @@ Fields and signature parameters additionally accept one compact inline `desc=` v
 
 The next nonblank/non-`##` source item must be an eligible declaration starting at the same physical column. Its `export` modifier, if present, starts at that column. An ineligible item, a different column, a description at another column or end of source before attachment is an error. A pending description does not skip guards or effects to find a later declaration.
 
-Eligible items are apps, contexts, packages, imports, stored models, schema fields/signature parameters, contracts, events, roles, derived fields/functions, capabilities and their operation signatures, judgments, corpora, named messages, policies, invariants, unique constraints, locks, lifetimes, fixtures, CRUD declarations, scenarios, all presentation declarations except `require`, context resources/settings and migration declarations/directives. Presentation metadata can describe content, grouping, navigation and operation controls in their view context. Section markers `Given`, `When`, `Then`, execution introducers `do`, guards/effects, `if`, `else`, execution `for`, examples headers/rows and presentation `require` are ineligible. Required descriptions and whether an attached description is sufficiently informative are semantic checks.
+Eligible items are apps, contexts, packages, imports, stored models, schema fields/signature parameters, contracts, events, roles, derived fields/functions, capabilities and their operation signatures, judgments, corpora, named messages, policies, invariants, unique constraints, locks, lifetimes, fixtures, CRUD declarations, scenarios, all presentation declarations except `require`, context resources/settings and migration declarations/directives. Presentation metadata can describe content, grouping, navigation and operation controls in their view context. Section markers `Given`, `When`, `Then`, execution introducers `do`, guards/effects, `if`, `else`, `match`, `case`, execution `for`, examples headers/rows and presentation `require` are ineligible. Required descriptions and whether an attached description is sufficiently informative are semantic checks.
 
 For a multiline schema, field descriptions use the field's actual column:
 
@@ -182,9 +182,12 @@ field            = NAME ":" field_type [initializer] {field_modifier} [desc_attr
 initializer      = "=" expr | "server" "=" expr ;
 field_modifier   = "trim" | "unique" | "machine" | "min" "=" expr | "max" "=" expr ;
 parameters       = "(" bracketed(parameter) ")" ;
-parameter        = NAME ":" type ["=" expr] [desc_attribute] [field_label_attribute] ;
+parameter        = NAME ":" type ["=" expr] [choices_attribute] [desc_attribute] [field_label_attribute] ;
+choices_attribute = "choices" "=" object ;
 desc_attribute   = "desc" "=" (STRING [message_variants] | path) ;
 ```
+
+An ordinary scenario parameter can carry optional `choices={read=owning_read(input=current_input.path),value="field",labels=["name","home"]}` metadata. The read call records input mappings; it does not execute while declaring or invoking the assisted operation. Its callee must own a checked `read=true` signature returning a nonnullable collection of stored model references. Mappings use this operation's typed input roots and stable declared member paths, including a contained model's parent relation. Omitting `value` selects the whole candidate record; an explicit field must match the assisted input's declared type. Labels name supported declared scalar, enum or model-reference leaves. Self-dependencies, cycles, ambient values and executable mapping expressions are rejected. Defaults, descriptions and labels retain their existing order and meaning. This attribute is not a stored-field modifier.
 
 `enum(...)`, `action(...)`, `delivery(...)` and `invocation(...)` are recognized by their exact call-shaped type production. A bare type path component named `enum`, `action`, `delivery` or `invocation` is not globally banned. Their atom forms are not union arms. Union `|` combines all named paths before array/container suffixes: `A|B[]?` means a nullable array of union values. There are no grouped types, repeated array suffixes or nullable-element spelling `T?[]`. A scalar may have `?` without an array. Enumerator/allowed-action lists are syntactically nonempty, and enum entries are unqualified names. Checking requires distinct values and valid canonical action targets. Union arms must resolve to the supported tagged named value types; primitive unions are not authorized by their syntactic path shape.
 
@@ -343,7 +346,7 @@ scenario_body   = {guard_line} do_body {scenario_examples} ;
 guard_line      = line(guard {";" guard}) ;
 guard           = "require" expr ["message" "=" expr] ;
 do_body         = "do" (line(effect_leaves) | suite(effect_body)) ;
-effect_body     = {effect_line | conditional | loop} ;
+effect_body     = {effect_line | conditional | enum_match | loop} ;
 effect_line     = line(effect_leaves) ;
 effect_leaves   = effect_leaf {";" effect_leaf} ;
 effect_leaf     = let | guard | create | set | transition | delete | call | emit | send
@@ -360,13 +363,17 @@ schedule        = "schedule" expr "at" "=" expr "event" "=" path values ;
 cancel          = "cancel" expr ;
 return          = "return" expr ;
 conditional     = "if" expr suite(effect_body) ["else" suite(effect_body)] ;
+enum_match      = "match" expr suite(match_arm {match_arm}) ;
+match_arm       = "case" NAME suite(effect_body) ;
 loop            = "for" NAME "in" expr "limit" "=" expr suite(effect_body) ;
 mutation_target = path ;
 ```
 
 The table's `on=source` slot uses `handler_source`. Each effect suite is nonempty. `else` occurs at the same indentation as its paired `if` immediately after that suite, ignoring blank/comments. No `else if` shortcut is introduced; write a nested `if` in the `else` suite. The mandatory `limit` slot parses an expression whose value must be a positive integer within the work budget. It is not a query clause. Loop query expressions end at `limit=`. Call/send targets parse ordinary expressions with unparenthesized typed construction disabled so their following argument object remains a distinct effect slot; later checking requires a valid operation/action reference. A delete path must resolve to a permitted mutable record target.
 
-There is exactly one `do` per scenario. `let` before `do` is invalid. Leading guards and statements inside `do` retain written order. Attached examples come after execution and cannot be effects. An inline `do` admits only semicolon-separated simple effects; `if` and `for` require indented suites. A single inline effect cannot receive a child suite. `set` and `delete` have path targets; invocation targets have their separate ordinary-expression slots above. Parsing a path/expression never establishes a writable record or authority-bearing operation. Safe access remains a read-only expression rather than writable field access. Record ownership/mutability and special `event.after` behavior require checks.
+`match` and each `case` require indented nonempty suites and occupy their logical lines alone. A case takes one bare name; `_`, alternative lists, guards, patterns and expression tails are rejected. Labels belong to the checked subject enum rather than the lexical expression scope. Checking requires a known nonnullable finite enum, exactly one arm for every current case and typed returning paths where the enclosing scenario requires a result. Nullable handling is an explicit surrounding guard; `else` and wildcard fallback arms are absent. Existing migration mapper admission does not gain match.
+
+There is exactly one `do` per scenario. `let` before `do` is invalid. Leading guards and statements inside `do` retain written order. Attached examples come after execution and cannot be effects. An inline `do` admits only semicolon-separated simple effects; `if`, `match` and `for` require indented suites. A single inline effect cannot receive a child suite. `set` and `delete` have path targets; invocation targets have their separate ordinary-expression slots above. Parsing a path/expression never establishes a writable record or authority-bearing operation. Safe access remains a read-only expression rather than writable field access. Record ownership/mutability and special `event.after` behavior require checks.
 
 User scenarios require parameter parentheses even when empty and a `by` expression. Trusted scenarios have no authored parameters and use `on=source`; `by` and `on` cannot coexist. Capability/CRUD sources and `.completed` suffixes are parsed as paths, then validated against the finite source registry. Read return requirements, permissible read effects, synchronous call cycles, remote/local targets and all authority rules remain semantic work.
 
