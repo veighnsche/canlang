@@ -437,6 +437,9 @@ impl Serialize for WireLiteral {
 }
 
 fn wire_literal(expr: &TypedExpr) -> Option<WireLiteral> {
+    if let Some(value) = super::defaults::money_default_wire(expr) {
+        return Some(owner_wire_literal(value));
+    }
     match &expr.expr {
         IrExpr::Int(value) => Some(WireLiteral::String(value.to_string())),
         IrExpr::Decimal(spelling) => Some(WireLiteral::String(spelling.clone())),
@@ -477,18 +480,6 @@ fn wire_literal(expr: &TypedExpr) -> Option<WireLiteral> {
                 IrCallTarget::CapabilityOp(_) | IrCallTarget::DeriveFn(_) => return None,
             };
             match (id, args.as_slice()) {
-                ("money", [minor, currency])
-                    if matches!(minor.expr, IrExpr::Int(_))
-                        && matches!(currency.expr, IrExpr::Text(_)) =>
-                {
-                    let (IrExpr::Int(m), IrExpr::Text(c)) = (&minor.expr, &currency.expr) else {
-                        return None;
-                    };
-                    Some(WireLiteral::Money {
-                        minor: m.to_string(),
-                        currency: c.clone(),
-                    })
-                }
                 ("date", [single]) if matches!(single.expr, IrExpr::Text(_)) => {
                     let IrExpr::Text(value) = &single.expr else {
                         return None;
@@ -505,6 +496,20 @@ fn wire_literal(expr: &TypedExpr) -> Option<WireLiteral> {
             }
         }
         _ => None,
+    }
+}
+
+/// Adapt the owner's canonical output tree without owning its encoding rules.
+fn owner_wire_literal(value: values_semantics::codecs::numeric::WireValue) -> WireLiteral {
+    use values_semantics::codecs::numeric::WireValue;
+    match value {
+        WireValue::Text(value) => WireLiteral::String(value),
+        WireValue::Object(entries) => WireLiteral::Object(
+            entries
+                .into_iter()
+                .map(|(key, value)| (key, owner_wire_literal(value)))
+                .collect(),
+        ),
     }
 }
 
