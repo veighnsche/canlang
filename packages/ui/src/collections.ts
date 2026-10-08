@@ -52,6 +52,7 @@ import {
 const MORE_ROWS = message("More rows available.", {
   nl: "Meer rijen beschikbaar.",
 });
+const EMPTY_COLLECTION = message("No records.", { nl: "Geen gegevens." }, undefined, "en");
 
 /** Scalar cell types rendered through formatScalar; see renderCell. */
 const SCALAR_CELL_TYPES = new Set([
@@ -131,7 +132,7 @@ export async function list(props: ListProps): Promise<string> {
   );
   if (result.rows.length === 0) {
     if (props.controls === undefined) {
-      return renderState({ context: props.context, kind: "empty", message: props.empty });
+      return renderState({ context: props.context, kind: "empty", message: props.empty ?? EMPTY_COLLECTION });
     }
     return wrapWithControls(props.controls, await emptyBody(props.controls, props), props);
   }
@@ -168,7 +169,7 @@ export async function table(props: TableProps): Promise<string> {
   }
   if (result.rows.length === 0) {
     if (props.controls === undefined) {
-      return renderState({ context: props.context, kind: "empty", message: props.empty });
+      return renderState({ context: props.context, kind: "empty", message: props.empty ?? EMPTY_COLLECTION });
     }
     return wrapWithControls(props.controls, await emptyBody(props.controls, props), props);
   }
@@ -752,7 +753,7 @@ async function emptyBody(
   if (hasActiveQuery(controls)) {
     return noMatchBlock(controls);
   }
-  return renderState({ context: props.context, kind: "empty", message: props.empty });
+  return renderState({ context: props.context, kind: "empty", message: props.empty ?? EMPTY_COLLECTION });
 }
 
 /**

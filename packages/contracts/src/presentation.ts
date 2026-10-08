@@ -505,7 +505,8 @@ export interface ListProps {
   readonly where?: unknown;
   readonly limit?: number;
   readonly cursor?: string;
-  readonly empty: MessageValue;
+  /** Omission uses the standard shared collection empty message. */
+  readonly empty?: MessageValue;
   readonly renderRow: (row: RowView, view: PresentationContext) => PageChildren | Promise<PageChildren>;
   /** Search/filter/order/pagination/export toolbar; absent renders rows only. */
   readonly controls?: CollectionControls;
@@ -519,7 +520,8 @@ export interface TableProps {
   readonly limit?: number;
   readonly cursor?: string;
   readonly columns: readonly string[];
-  readonly empty: MessageValue;
+  /** Omission uses the standard shared collection empty message. */
+  readonly empty?: MessageValue;
   /** Search/filter/order/pagination/export toolbar; absent renders rows only. */
   readonly controls?: CollectionControls;
 }
