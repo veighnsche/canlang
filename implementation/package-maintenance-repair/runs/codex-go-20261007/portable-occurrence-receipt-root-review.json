@@ -1,0 +1,25 @@
+{
+  "scope": "SEQ019 portable defining terminal receipt stage only",
+  "model": "Sol low exact extraction; root direct review/Git",
+  "source_sha256": {
+    "packages/work/package.json": "9d88eec6f7e1a5b8893b71defa62a2ae1295f01be9924706a26ef61da7b1dc40",
+    "packages/work/src/kernel/commands.ts": "e4681263580a9c77ce1a72cf98205c03c4c1a1109503f15645d1a4afe43008ca",
+    "packages/work/src/kernel/occurrence-staging.ts": "08e59f0a49766309278f670e2c1d889285e5cfcc1acf4909b30e0bf6566d8b4d",
+    "packages/work/test/kernel-commands.test.ts": "1dcfe12f6ea193573bbab95a464305b4301c024172af5144150a3f4fbe88aa02"
+  },
+  "api": "@canlang/work/kernel/occurrence-staging workOccurrencePutReceiptCommand: SystemCommandDef; identical commands reexport/registry object/order",
+  "contract": "Existing put-if-absent stage validates occurrenceId/status then loads winner. Duplicate returns parsed receipt with no effects; absent returns one owning newOccurrenceRow insert. Optional result/code/message/time behavior unchanged. No handler/commit, identity allocation or schema change. Caller composes terminal stage in existing owner fence.",
+  "review": "Verbatim original definition equality checked; no duplicated receipt algorithm, removed commands definition; portable runtime closure only arguments/tables",
+  "verification": {
+    "work_emit": 0,
+    "existing_receipt_group": "3/3; includes public-subpath/registry object identity",
+    "receipt_directory": "/private/tmp/canlang-repair-go-20261007/portable-occurrence-receipt",
+    "repeated_emit_reason": "Public export/identity import was authorized after first emission began; source changed, final emission rerun once"
+  },
+  "limits": [
+    "Actual CF/D1 due/current authority/terminal receipt and transient rollback remains unqualified",
+    "Put-if-absent commit races still handled by enclosing owner fence; stage itself does not commit",
+    "No parent completion/installed scheduler/native preparation/release"
+  ],
+  "whitespace_cleanup": "Final diff check removed only redundant trailing blank line; semantics and emitted results unchanged."
+}

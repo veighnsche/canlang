@@ -51,6 +51,7 @@ import {
   workScheduleCancelCommand as portableScheduleCancelCommand,
   workSchedulePutCommand as portableSchedulePutCommand,
 } from '@canlang/work/kernel/schedule-staging';
+import { workOccurrencePutReceiptCommand as portableOccurrencePutReceiptCommand } from '@canlang/work/kernel/occurrence-staging';
 import { RootRecurrenceNotSupportedError } from '../src/schedule/every.js';
 
 const NOW = 1_758_000_000_000;
@@ -862,6 +863,11 @@ describe('kernel commands: dispatch.supersede', () => {
 });
 
 describe('kernel commands: occurrence.put-receipt', () => {
+  it('shares the portable command with the registry', () => {
+    assert.equal(workOccurrencePutReceiptCommand, portableOccurrencePutReceiptCommand);
+    assert.ok(WORK_SYSTEM_COMMANDS.includes(portableOccurrencePutReceiptCommand));
+  });
+
   it('inserts receipts once and replays duplicates', async () => {
     const ctx = fakeCtx(seed([]));
     const first = await workOccurrencePutReceiptCommand.stage(
