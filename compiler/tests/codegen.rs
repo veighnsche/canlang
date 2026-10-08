@@ -5508,27 +5508,18 @@ fn t15b_std_delivery_model_tags() {
 /// (T15b) Operation inputs for typed `std` receipts, end to end: a
 /// scenario taking a nullable `delivery(Mail.send)` emits (not omits)
 /// with a closed delivery input beside its ordinary T15a input.
-/// The two `E6008`s are the pre-existing T14c fail-closed §13 schema
-/// posture for `std` delivery values (runtime schema lowering, out
-/// of this descriptor slice): pinned here so this slice proves it
-/// changes no diagnostic.
+/// The checked owner join also lowers the canonical runtime field schema.
 /// TEST-ONLY artifact: see module docs.
 #[test]
 fn t15b_operation_input_delivery_end_to_end() {
     let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  Notice { recipient:email }\n  policy Notice read=members\n When\n  crud Notice by=members fields=recipient\n  scenario retry(note:text, attempt:delivery(Mail.send)?) by=members\n   do\n    let x = 1\n Then\n";
     let (_program, artifact, diags) = d03_emit(src);
-    let codes: Vec<&str> = diags.iter().map(|d| d.code).collect();
-    assert_eq!(
-        codes,
-        vec!["E6008", "E6008"],
-        "T14c posture only: {diags:?}"
-    );
-    for diag in &diags {
-        assert!(
-            diag.message.contains("delivery"),
-            "delivery-shaped E6008: {diag:?}"
-        );
-    }
+    assert!(diags.is_empty(), "joined delivery schema: {diags:?}");
+    assert!(artifact.modules.iter().any(|module| {
+        module
+            .js
+            .contains("attempt:{type:\"delivery\",operation:\"std.EmailV1.send\",nullable:true}")
+    }));
     let op = d03_operation(&artifact, "p.retry");
     // Ordinary input renders exactly per T15a beside the delivery one.
     let note = d03_input(op, "note");
@@ -5558,18 +5549,18 @@ fn t15b_operation_input_delivery_end_to_end() {
 
 /// (T15b) Stored `std` delivery fields, end to end: the model tag is
 /// the closed delivery descriptor with T15a nullability/requiredness
-/// beside it. Same pinned T14c `E6008` posture as the input test.
+/// beside it and the canonical runtime field schema.
 /// TEST-ONLY artifact: see module docs.
 #[test]
 fn t15b_model_delivery_end_to_end() {
     let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  Notice { recipient:email, delivery:delivery(Mail.send)? }\n  policy Notice read=members\n When\n  crud Notice by=members fields=recipient\n Then\n";
     let (_program, artifact, diags) = d03_emit(src);
-    let codes: Vec<&str> = diags.iter().map(|d| d.code).collect();
-    assert_eq!(
-        codes,
-        vec!["E6008", "E6008"],
-        "T14c posture only: {diags:?}"
-    );
+    assert!(diags.is_empty(), "joined delivery schema: {diags:?}");
+    assert!(artifact.modules.iter().any(|module| {
+        module
+            .js
+            .contains("delivery:{type:\"delivery\",operation:\"std.EmailV1.send\",nullable:true}")
+    }));
     let model = t15a_model(&artifact, "p.Notice");
     let recipient = t15a_field(model, "recipient");
     assert_eq!(recipient.field.to_json(), "{\"kind\":\"string\"}");
@@ -5715,16 +5706,23 @@ fn t15b_recipe_join_negatives_stay_shelled() {
 fn t15b_closed_kinds_with_delivery() {
     let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n use std {PaymentsV1 as Payments} from=deployment.payments\n use std {TextGenerationV1 as LLM} from=deployment.llm\n use std {ImagesV1 as Images} from=deployment.images\n Given\n  Notice { mail:delivery(Mail.send)?, pay:delivery(Payments.collect)?, text:delivery(LLM.generate)?, img:delivery(Images.submit)? }\n  policy Notice read=members\n When\n Then\n";
     let (_program, artifact, diags) = d03_emit(src);
-    // Pre-existing T14c `E6008` posture only (two per delivery field:
-    // the §13 field-schema and structural type-id positions); every
-    // message matches a known T14c template, so this slice adds none.
-    assert_eq!(diags.len(), 8, "two E6008 per field: {diags:?}");
-    for diag in &diags {
-        assert_eq!(diag.code, "E6008");
+    assert!(
+        diags.is_empty(),
+        "joined owning delivery schemas: {diags:?}"
+    );
+    for operation in [
+        "std.EmailV1.send",
+        "std.PaymentsV1.collect",
+        "std.TextGenerationV1.generate",
+        "std.ImagesV1.submit",
+    ] {
         assert!(
-            diag.message.contains("std delivery type id")
-                || diag.message.contains("std delivery values"),
-            "known T14c template: {diag:?}"
+            artifact
+                .modules
+                .iter()
+                .any(|module| module.js.contains(&format!(
+                    "type:\"delivery\",operation:\"{operation}\",nullable:true"
+                )))
         );
     }
     let json = artifact::to_json(&artifact);
@@ -5811,15 +5809,15 @@ fn t15b_closed_kinds_with_delivery() {
 fn t15b_no_regress_t15a_mixed() {
     let src = "app T uses=[p]\npackage p\n use std {EmailV1 as Mail} from=deployment.mail\n Given\n  Gadget { title:text, stock:int=0, tags:text[], delivery:delivery(Mail.send)? }\n  policy Gadget read=members\n  fixture attempt=Mail.send {request={to=\"a@b.test\",subject=\"Hi\",body=\"Yo\"}}\n When\n  crud Gadget by=members fields=title,stock,tags\n  scenario ping(note:text) by=members\n   do\n    let x = 1\n Then\n";
     let (_program, artifact, diags) = d03_emit(src);
-    // Only the stored delivery field's pre-existing T14c pair.
-    assert_eq!(diags.len(), 2, "field E6008 pair only: {diags:?}");
-    for diag in &diags {
-        assert_eq!(diag.code, "E6008");
-    }
     assert!(
-        diags.iter().all(|d| d.code != "E6006"),
-        "recipe joined: {diags:?}"
+        diags.is_empty(),
+        "joined delivery field and recipe: {diags:?}"
     );
+    assert!(artifact.modules.iter().any(|module| {
+        module
+            .js
+            .contains("delivery:{type:\"delivery\",operation:\"std.EmailV1.send\",nullable:true}")
+    }));
     // Ordinary model members, exactly per T15a.
     let model = t15a_model(&artifact, "p.Gadget");
     let title = t15a_field(model, "title");
