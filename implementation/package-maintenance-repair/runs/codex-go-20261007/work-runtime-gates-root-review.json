@@ -27,5 +27,18 @@
     "Already-admitted without receipt, broad in-flight/retention/periodic scheduler/actor/trusted admission profiles not qualified",
     "No external transport/native Cloudflare preparation/installed release/default adoption or parent completion"
   ],
-  "maintenance": "No copied claim lifecycle or new registry; one shared claim/reclaim write body. Due admission is a selected added capability, not counted as a replacement-only reduction."
+  "maintenance": "No copied claim lifecycle or new registry; one shared claim/reclaim write body. Due admission is a selected added capability, not counted as a replacement-only reduction.",
+  "authored_require_gate": {
+    "scope": "Defining authored false-require versus transient failure identity only",
+    "model": "Sol medium bounded defining exception contract; root direct source review/Git",
+    "source_sha256": {
+      "packages/state/src/effects/guards.ts": "fa0dabe474f7b80e0ab7bb220db5801bfea659475ad09ea83257b225b03e1c24",
+      "packages/state/test/effects/guards.test.ts": "7b549b785c378d7605625f8685c4a7a2625684c06c399b102876461fa70e794a"
+    },
+    "api": "@canlang/state/effects/guards AuthoredRequireFailure extends Error; isAuthoredRequireFailure(error:unknown) exact owning instanceof classifier",
+    "compatibility": "Same require truthiness, Error name and messages; unsupported hasRole/errors and other State errors unchanged. No structural/message classifier.",
+    "verification": "One State emit0; existing guard file5/5; generic same-message Error and forged shapes are false.",
+    "receipt_directory": "/private/tmp/canlang-repair-go-20261007/typed-authored-guard",
+    "limits": "Actual CF raw cause preservation/due terminal-vs-transient rollback and vendor module identity remain owning consumer gates, not proved by unit results."
+  }
 }

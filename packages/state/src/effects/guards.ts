@@ -6,10 +6,18 @@ export interface HandlerRoleContext {
   };
 }
 
-/** Guard assertion emitted as `require as check`; preserves the plain error message. */
+/** Source-owned refusal from an authored guard; preserves the plain Error contract. */
+export class AuthoredRequireFailure extends Error {}
+
+/** Recognize authored guard refusals by the owning class, without matching caller data. */
+export function isAuthoredRequireFailure(error: unknown): error is AuthoredRequireFailure {
+  return error instanceof AuthoredRequireFailure;
+}
+
+/** Guard assertion emitted as `require as check`; preserves truthiness and error messages. */
 export function require(condition: unknown, code = 'forbidden'): void {
   if (condition) return;
-  throw new Error(typeof code === 'string' && code !== '' ? code : 'forbidden');
+  throw new AuthoredRequireFailure(typeof code === 'string' && code !== '' ? code : 'forbidden');
 }
 
 /** Preserve the unsupported subject-form error without consulting caller roles. */
