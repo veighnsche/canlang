@@ -712,8 +712,8 @@ export type CanonicalOperationKind = 'read' | 'create' | 'update' | 'delete' | '
 /**
  * T04a scalar input kinds. Mirrors the non-`ref` members of
  * `ArtifactOperationField` (L1-owned); L1 emission and L3 intake share this
- * closed set. Richer kinds (date, duration, unions, nested contracts) are
- * T04b.
+ * closed set. Date inputs carry checked date associations beside the string kind;
+ * unions and nested contracts require a richer contract.
  */
 export type CanonicalScalarKind =
   | 'string'
@@ -721,6 +721,7 @@ export type CanonicalScalarKind =
   | 'decimal'
   | 'money'
   | 'datetime'
+  | 'duration'
   | 'boolean'
   | 'file'
   | 'enum';
@@ -764,7 +765,7 @@ export type CanonicalInputDef =
   | {
       readonly name: string;
       readonly kind: CanonicalScalarKind;
-      /** Checked int/datetime/text/bool/decimal/money association; absence carries no type claim. */
+      /** Checked int/datetime/text/bool/decimal/money/date/duration association; absence carries no type claim. */
       readonly valueType?: CanTypeId;
       readonly required: boolean;
       readonly enumValues?: ReadonlyArray<string>;
@@ -815,7 +816,7 @@ export interface FieldMachine {
 }
 
 export interface CanonicalFieldDef {
-  /** Checked int/datetime/text/bool/decimal/money association, with optional array and nullable container suffixes. */
+  /** Checked int/datetime/text/bool/decimal/money/date/duration association, with optional array and nullable container suffixes. */
   readonly valueType?: CanTypeId;
   /** Type-association metadata; engine-local nullableFields still owns omission fills. */
   readonly nullable?: boolean;
