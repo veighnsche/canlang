@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-08T07:17:58.700568+00:00",
+  "updated_utc": "2026-10-08T08:08:00.128032+00:00",
   "total": 67,
   "finished_at_recorded_scope": 53,
   "remaining_including_partial": 14,
@@ -80,7 +80,8 @@
     "ARCH-02",
     "S9-Q01",
     "S9-Q03",
-    "S9-Q06"
+    "S9-Q06",
+    "SEM-R08"
   ],
   "counting_policy": "Count canonical reference once. Reuse17previously accepted bounded references; add only full recorded finding/retention outcomes. Partial joins/components do not close their broader reference. Wider host/application and future-source requirements remain separately explicit. These references overlap and are not67independent implementations.",
   "suite": {
@@ -98,9 +99,9 @@
     }
   },
   "latest_component": {
-    "commit": "fdd44c2b",
-    "previous_component": "a0195386",
-    "outcome": "Checked send deployment-alias provenance and owning capability operation schemas released; existing native binding witness, direct effects control and strict library Clippy pass. Actual Work/Cloudflare staging consumer join remains in progress. Async preparation passed the actual built UI consumer at a0195386."
+    "commit": "01dc06512a79e9709629beb25f03c582405a3ee9",
+    "previous_component": "ab25b5c76eb2b9e88440f13a9028fe7ba90971c6",
+    "outcome": "Checked schedule/cancel declaring-package options and closed canonical event inputs released. Simple declared-event handler linkage and c,{event} execution pass the focused native producer case; actual Values ref/default/bound/trim/refusal controls, plain schedule golden and strict library Clippy pass. CF/D1 scheduling, replacement, cancellation and due-time admission remain owning consumer work."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -109,9 +110,13 @@
     "native-scalar-presentation/README.md",
     "operation-result-producer/facts.md",
     "../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md",
-    "../../docs/research/compiler-library-audit-20261006/resumption/audit-costs-and-oracles.md"
+    "../../docs/research/compiler-library-audit-20261006/resumption/audit-costs-and-oracles.md",
+    "../../compiler/tests/selected_calls.rs",
+    "../../compiler/tests/effects.rs",
+    "../../compiler/tests/default_parameter_runtime.rs",
+    "../../compiler/tests/schedule_binding_runtime.rs"
   ],
-  "current_source_work": "SYN-R04 original empty-order semantic-loss duty is complete by explicit E6008/no-module refusal at 65199fa6, using accepted permanent simple/structured-order controls. Real structured ordering, S9-Q03 preference save/lifecycle and future runtime policy remain unfinished. Async form preparation and awaitable row rendering are qualified at the affected native UI producer/consumer boundary (a0195386). Active work joins fdd44c2b checked send bindings/capability schemas to the owner-native no-commit Work port and actual configured Cloudflare/D1 staging consumer; predicates remain gated and no staging/dispatch/protected workflow closure is claimed.",
+  "current_source_work": "SEQ019 producer01dc0651 publishes declaring ownerPackage with schedule/cancel, canonical event.inputs descriptors and checked non-cohort declared-event handler identity. CF/D1 owns verified scope, occurrence allocation, payload persistence, atomic replacement/cancellation, current record hydration and due-time eligibility. Selected compiled atomic send staging already passed its owning consumer at the recorded primitive unconditional scope; broader dispatch/provider/predicate gates remain. SEM-R08 bounded selected overload/nominal controls6f40ab67, executed direct-create field initializer dependency fixeab267ba and earlier-parameter derive/default-refusal control9f05fa5e pass; bytes owner and full handoffs keep the broader reference open. No new source omission policy, scenario computed-default availability or whole-application closure is claimed.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
