@@ -421,6 +421,31 @@ export type DerivedInputDefault =
   | { readonly kind: 'parent'; readonly path: string };
 
 /**
+ * Operation-owned optional candidate assistance. The read declaration owns
+ * the bounded model[] result and its schema; this binding copies neither.
+ * Each argument is rooted in an owning operation input (empty path selects
+ * that input directly). An absent draft prerequisite performs no lookup.
+ *
+ * Intake must explicitly reject unknown versions, unservable results,
+ * unsupported paths, unknown argument mappings, dependency cycles, and
+ * mutation/provider operations. Values must be scalar/ref compatible with
+ * the assisted input; label fields must be readable candidate model leaves.
+ * The picker assists an existing opaque input and preserves its original
+ * defaults and final canonical checks; this shape grants no authority.
+ * Grammar, checking and runtime intake are separate owning implementations.
+ */
+export interface InputChoiceBinding {
+  readonly version: 1;
+  readonly readOperation: FqOperationName;
+  readonly arguments: Readonly<Record<string, {
+    readonly input: string;
+    readonly path: readonly string[];
+  }>>;
+  readonly value: { readonly kind: 'record' } | { readonly kind: 'field'; readonly field: string };
+  readonly labels: readonly string[];
+}
+
+/**
  * T19a one derived writable input: a single caller-suppliable member of
  * an operation's closed envelope. `model`+`versioned` are present exactly
  * for `ref` (`versioned` selects the `MutationRef` `{id, version}` shape;
@@ -447,6 +472,8 @@ export interface DerivedWritableInput {
   readonly delivery?: DerivedDeliveryBinding;
   readonly file?: DerivedFileClaim;
   readonly description?: string;
+  /** Checked operation-owned assistance; input type/default admission remains unchanged. */
+  readonly choices?: InputChoiceBinding;
 }
 
 /**
