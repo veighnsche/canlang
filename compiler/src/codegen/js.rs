@@ -6767,6 +6767,14 @@ fn checked_value_profile(result: &ResolvedType) -> Option<&'static str> {
         (ResolvedType::Scalar(Scalar::Bool), false, true) => Some("bool?"),
         (ResolvedType::Scalar(Scalar::Bool), true, false) => Some("bool[]"),
         (ResolvedType::Scalar(Scalar::Bool), true, true) => Some("bool[]?"),
+        (ResolvedType::Scalar(Scalar::Decimal), false, false) => Some("decimal"),
+        (ResolvedType::Scalar(Scalar::Decimal), false, true) => Some("decimal?"),
+        (ResolvedType::Scalar(Scalar::Decimal), true, false) => Some("decimal[]"),
+        (ResolvedType::Scalar(Scalar::Decimal), true, true) => Some("decimal[]?"),
+        (ResolvedType::Scalar(Scalar::Money), false, false) => Some("money"),
+        (ResolvedType::Scalar(Scalar::Money), false, true) => Some("money?"),
+        (ResolvedType::Scalar(Scalar::Money), true, false) => Some("money[]"),
+        (ResolvedType::Scalar(Scalar::Money), true, true) => Some("money[]?"),
         _ => None,
     }
 }

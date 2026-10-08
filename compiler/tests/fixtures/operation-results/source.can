@@ -52,6 +52,22 @@ When
   do return value
  scenario optionalBooleans(value:bool[]?) read=true -> bool[]? by=members
   do return value
+ scenario decimalValue(value:decimal) read=true -> decimal by=members
+  do return value
+ scenario optionalDecimal(value:decimal?) read=true -> decimal? by=members
+  do return value
+ scenario decimals(value:decimal[]) read=true -> decimal[] by=members
+  do return value
+ scenario optionalDecimals(value:decimal[]?) read=true -> decimal[]? by=members
+  do return value
+ scenario moneyValue(value:money) read=true -> money by=members
+  do return value
+ scenario optionalMoney(value:money?) read=true -> money? by=members
+  do return value
+ scenario monies(value:money[]) read=true -> money[] by=members
+  do return value
+ scenario optionalMonies(value:money[]?) read=true -> money[]? by=members
+  do return value
  scenario specialized(value:email,link:url,language:locale,zone:timezone,code:currency,day:date,person:user,participant:member,secret:secret) read=true -> email by=members
   do return value
  scenario hidden(value:int) read=true -> int by=members expose=none

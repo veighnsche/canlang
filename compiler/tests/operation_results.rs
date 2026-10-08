@@ -67,6 +67,14 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
         ("Client.nullableBoolean", "bool?"),
         ("Client.booleans", "bool[]"),
         ("Client.optionalBooleans", "bool[]?"),
+        ("Client.decimalValue", "decimal"),
+        ("Client.optionalDecimal", "decimal?"),
+        ("Client.decimals", "decimal[]"),
+        ("Client.optionalDecimals", "decimal[]?"),
+        ("Client.moneyValue", "money"),
+        ("Client.optionalMoney", "money?"),
+        ("Client.monies", "money[]"),
+        ("Client.optionalMonies", "money[]?"),
     ] {
         assert_eq!(
             operation(&artifact, name)["result"],
@@ -163,6 +171,32 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
     {
         assert_eq!(input["field"]["kind"], "boolean");
         assert!(input.get("valueType").is_none(), "{input}");
+    }
+    for (name, ty, kind) in [
+        ("Client.decimalValue", "decimal", "decimal"),
+        ("Client.optionalDecimal", "decimal?", "decimal"),
+        ("Client.decimals", "decimal[]", "decimal"),
+        ("Client.optionalDecimals", "decimal[]?", "decimal"),
+        ("Client.moneyValue", "money", "money"),
+        ("Client.optionalMoney", "money?", "money"),
+        ("Client.monies", "money[]", "money"),
+        ("Client.optionalMonies", "money[]?", "money"),
+    ] {
+        let input = &operation(&artifact, name)["inputs"]["fields"][0];
+        assert_eq!(input["field"]["kind"], kind, "{name}: {input}");
+        if ty == "decimal" || ty == "money" {
+            assert!(input.get("valueType").is_none(), "{name}: {input}");
+        }
+        assert_eq!(
+            input["nullable"] == true,
+            ty.ends_with('?'),
+            "{name}: {input}"
+        );
+        assert_eq!(
+            input.get("array").is_some(),
+            ty.contains("[]"),
+            "{name}: {input}"
+        );
     }
     for (name, ty) in [
         ("title", "text"),
