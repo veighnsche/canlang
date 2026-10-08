@@ -1,4 +1,5 @@
 app TypedKeyedSchedule
+use std {EmailV1 as Mail} from=deployment.mail
 Given
  Entry { label:text, eligible:bool=true, fired:int=0, observedVersion:int=0 }
  event Due { entry:Entry }
@@ -28,5 +29,6 @@ When
    require operation.source=="schedule"
    ## Progress stays provisional until current eligibility succeeds.
    set event.entry {fired=event.entry.fired+1,observedVersion=event.entry.version}
+   send Mail.send {to="schedule@example.test",subject=operation.id,body=team.id} as notice
    require event.entry.eligible
 Then
