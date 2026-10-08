@@ -680,3 +680,17 @@ rollback and role-loss checks are reused within the same changed native case.
 Full S9-Q02/Q08, metadata and computed ordering remain open. Completion remains
 **58/67**, with **9 open** references; Work owns Cloudflare/fixture capture and
 the coordinator owns DECISIONS/index joins.
+
+The human-priority preferences placement slice is implemented and its focused
+native source case is qualified. Preferences schemas and their own invariants
+now belong in `Then`; `Given` preferences schemas fail E1200. The focused
+`preferences_placement.rs` case passes **1/1** (0.10s) through the production
+CLI, installed catalog, generated `canApp` metadata and UI render: defaults,
+positive/negative validation and page preference references are preserved.
+Its initial run exposed only the test fixture's missing required model read
+policy; adding the authored `read=members` policy made the same case pass. A
+focused parser/preferences `--no-run` build passes (11.12s), with the corrected
+case rebuild at 0.78s. Shared owner, empty/duplicate/export guards remain, as
+do nested bare UI preference panels. This does not qualify saved preference
+admission, browser/read lifecycle or full S9-Q03, and earns no reference-count
+credit; completion remains **58/67**, with **9 open** references.
