@@ -354,3 +354,6 @@ Static nominal Interfaces responsibility remains one MCP/HTTP renderer and argum
 
 
 Released bounded-query qualification keeps Compiler query/bound/order lowering and State canonical provisional mutation/receipt ownership unchanged. One real compiled-source Memory case demonstrates rollback/commit and overflow pre-write refusal; original receipt/fence/diagnostic policy is retained. Static source notes and the original finite tab/order acceptance are reconciled without adding implementation. Async/hook/outbound/D1/full references and accumulated complete checkpoint review remain separate.
+
+
+Runtime-choice source prerequisite: the defining CanonicalValueTypes inventory now carries bounded text aliases and request-local candidate array constraints; Values owns enforcement and receiving refinements. Unsupported prepared TS/native profiles refuse this metadata explicitly. Services borrows that same inventory to freeze the complete original union; State receipts retain original candidate membership. Compiler producer and the same native consumer remain owning joins, and acknowledged-original delivery lookup remains held. This is an added required capability, not replacement-only savings or full Task46 acceptance; the complete filetree checkpoint remains open/unadvanced.
