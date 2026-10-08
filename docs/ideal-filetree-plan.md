@@ -375,3 +375,6 @@ Selected overload trials now keep contextual literal retypes local and commit on
 
 
 Released native mutation filters reuse State’s existing viewer-projected read selection. Cloudflare owns query-time staged snapshots and fresh commit guards; State retains admission/projection and mutation fence ownership. The same compiled D1 consumer qualifies numeric filters, secret omission, own provisional updates, rollback and surviving-member read-role revocation without callback replay. Source ordering remains Compiler E6008/unqualified; private owner decision queries, public replay disclosure, full SEQ042/S9 and complete checkpoint review remain open.
+
+
+Mutation query ordering now forwards existing checked model metadata to State’s canonical read producer, retaining its numeric comparison and unreadable-path refusal. The same compiled D1 consumer qualifies ascending/descending int values beyond Number precision. Compiler owns the separate field/member ordering producer release; no new comparator or State API. Private decision authority, full SEQ042 and complete checkpoint review remain open.
