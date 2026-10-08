@@ -6213,6 +6213,63 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    /// Shared omission gate: scalar profiles plus one checked stored-model
+    /// copy from an earlier required parameter of this mutation.
+    fn scenario_computed_default_supported(&self, param_id: SymbolId) -> bool {
+        let Some(param) = self.ir.items.get(param_id.0 as usize) else {
+            return false;
+        };
+        let IrItemKind::Param {
+            owner,
+            index,
+            ty,
+            default: Some(IrDefault::Computed { expr, .. }),
+            default_copy_source,
+            ..
+        } = &param.kind
+        else {
+            return false;
+        };
+        if scenario_default_omission_supported(ty) {
+            return true;
+        }
+        let IrType::Known(ResolvedType::Record {
+            symbol: model,
+            stored: true,
+        }) = ty
+        else {
+            return false;
+        };
+        if !matches!(
+            self.ir.items.get(owner.0 as usize).map(|item| &item.kind),
+            Some(IrItemKind::Scenario {
+                trusted: false,
+                read: false,
+                hook: None,
+                ..
+            })
+        ) || !matches!(
+            self.ir.items.get(model.0 as usize).map(|item| &item.kind),
+            Some(IrItemKind::Model { .. })
+        ) {
+            return false;
+        }
+        let Some(seed) = default_copy_source.and_then(|id| self.ir.items.get(id.0 as usize)) else {
+            return false;
+        };
+        matches!(
+            &seed.kind,
+            IrItemKind::Param {
+                owner: seed_owner,
+                index: seed_index,
+                ty: IrType::Known(ResolvedType::Record { symbol: seed_model, stored: true }),
+                default: None,
+                ..
+            } if seed_owner == owner && seed_index < index && seed_model == model
+        ) && matches!(&expr.expr, IrExpr::Name(name) if name == &seed.name)
+            && matches!(&expr.ty, ResolvedType::Record { symbol, stored: true } if symbol == model)
+    }
+
     /// Emit `name:{schema}` entries for scenario/capability parameters,
     /// with labels and literal defaults.
     fn emit_params_schema(&mut self, params: &[SymbolId], computed_defaults: bool) -> String {
@@ -6273,7 +6330,8 @@ impl<'a> Emitter<'a> {
                             members.push_str(&format!(",default:{}", self.lower_default(default)));
                         }
                         IrDefault::Computed { .. }
-                            if computed_defaults && scenario_default_omission_supported(ty) =>
+                            if computed_defaults
+                                && self.scenario_computed_default_supported(*param_id) =>
                         {
                             members.push_str(",computedDefault:true");
                         }
@@ -6668,7 +6726,7 @@ impl<'a> Emitter<'a> {
                                 array_required: is_array.then_some(false),
                                 computed_default: hook.is_none()
                                     && matches!(default, Some(IrDefault::Computed { .. }))
-                                    && scenario_default_omission_supported(ty),
+                                    && self.scenario_computed_default_supported(*param_id),
                                 default: match default {
                                     Some(IrDefault::Computed { .. }) => None,
                                     _ => js_field_default(default.as_ref(), None),
@@ -7792,16 +7850,9 @@ impl<'a> Emitter<'a> {
                     self.enter_scope();
                     let observes_defaults = !*trusted
                         && !*read
-                        && params.iter().any(|id| {
-                            matches!(
-                                &self.ir.items[id.0 as usize].kind,
-                                IrItemKind::Param {
-                                    ty,
-                                    default: Some(IrDefault::Computed { .. }),
-                                    ..
-                                } if scenario_default_omission_supported(ty)
-                            )
-                        });
+                        && params
+                            .iter()
+                            .any(|id| self.scenario_computed_default_supported(*id));
                     let mut default_observer = None;
                     let signature = if *trusted {
                         let mut bindings = vec![format!("event:{}", self.bind("event"))];
@@ -7852,7 +7903,6 @@ impl<'a> Emitter<'a> {
                         for id in params {
                             let param = self.ir.items[id.0 as usize].clone();
                             if let IrItemKind::Param {
-                                ty,
                                 default: Some(default),
                                 ..
                             } = &param.kind
@@ -7868,7 +7918,7 @@ impl<'a> Emitter<'a> {
                                 };
                                 let report = match (&default_observer, default) {
                                     (Some(observer), IrDefault::Computed { .. })
-                                        if scenario_default_omission_supported(ty) =>
+                                        if self.scenario_computed_default_supported(*id) =>
                                     {
                                         format!(
                                             "{observer}?.({},{});",

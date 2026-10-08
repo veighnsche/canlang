@@ -276,6 +276,8 @@ pub enum IrItemKind {
         ty: IrType,
         /// `=` default, when one is authored (G1/G6/G7).
         default: Option<IrDefault>,
+        /// Exact parameter identity of an authored bare-name default.
+        default_copy_source: Option<SymbolId>,
         /// `label=` caption (G1/G6/G7).
         label: Option<IrMessage>,
         /// Checked description source text, when authored (D03: the one
@@ -2029,7 +2031,8 @@ impl<'a> Cx<'a> {
                 }
             }
             SymbolKind::Param { owner, index, .. } => {
-                let (default, label, description) = self.decode_param(symbol, *owner);
+                let (default, default_copy_source, label, description) =
+                    self.decode_param(symbol, *owner);
                 let choices = self
                     .program
                     .types
@@ -2069,6 +2072,7 @@ impl<'a> Cx<'a> {
                     index: *index,
                     ty: lookup_symbol_type(self.program, symbol, "declared type", &mut self.diags),
                     default,
+                    default_copy_source,
                     label,
                     description,
                     choices,
@@ -5302,11 +5306,32 @@ impl<'a> Cx<'a> {
         &mut self,
         symbol: &crate::analysis::resolve::Symbol,
         owner: SymbolId,
-    ) -> (Option<IrDefault>, Option<IrMessage>, Option<String>) {
+    ) -> (
+        Option<IrDefault>,
+        Option<SymbolId>,
+        Option<IrMessage>,
+        Option<String>,
+    ) {
         let data = self.param_data(owner, symbol.id);
         let Some(data) = data else {
-            return (None, None, None);
+            return (None, None, None, None);
         };
+        let default_copy_source = data.default.as_ref().and_then(|key| {
+            let node = self.node(key)?;
+            if node.kind != SyntaxKind::NameRef {
+                return None;
+            }
+            let seed = self
+                .program
+                .types
+                .param_default_copy_sources
+                .get(&symbol.id)?;
+            matches!(
+                self.program.symbols[seed.0 as usize].kind,
+                SymbolKind::Param { .. }
+            )
+            .then_some(*seed)
+        });
         let scope = Scope::module(symbol.module);
         let default = data.default.as_ref().map(|key| {
             let expr = self.decode_anchored(&scope, key, "parameter default");
@@ -5331,7 +5356,7 @@ impl<'a> Cx<'a> {
             .description_source(&data.node)
             .map(str::to_string)
             .or(data.description.clone());
-        (default, label, description)
+        (default, default_copy_source, label, description)
     }
 
     /// `ParamData` for `param` of `owner` (scenario, capability op,
