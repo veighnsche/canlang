@@ -1,0 +1,12 @@
+app ModelReferenceDefaults
+Given
+ StoredModel { count:int=1 }
+ policy StoredModel read=public
+When
+ crud StoredModel by=members fields=count
+ ## Copy the admitted stored-model binding, then read its owning native field.
+ scenario selected(seed:StoredModel,copied:StoredModel=seed) -> int by=members
+  do
+   require seed==copied
+   return copied.count
+Then
