@@ -392,9 +392,15 @@ defaults, raw-input conflicts, replay without re-execution, and a newly revoked
 member being denied. Supplied-input hashing and receipt-first replay policy are
 unchanged; replay does not reauthorize current membership. Receipt witnesses
 qualify finite enums and the narrow direct stored-model profile through
-canonical CF/State Memory. Nullable-enum and enum-array computed defaults,
-other stored-model forms, nonnullable actor defaults and trusted/null actor
-workflows, D1 and full-application paths remain open.
+canonical CF/State Memory. The
+[nullable/array enum-default check](../../compiler/tests/enum_default_shapes.rs)
+also qualifies earlier-parameter copies through `enum(a,b)?`, `enum(a,b)[]`
+and `enum(a,b)[]?`, including null, empty and ordered arrays, supplied
+overrides and exact receipt defaults. These profiles require the explicit
+checked enum type claim and its complete owning codec. Required enum arrays,
+element-nullable/nested defaults, other stored-model forms, nonnullable actor
+defaults and trusted/null actor workflows, D1 and full applications remain
+separate.
 
 Published operation enum inputs carry an explicit canonical `valueType` such
 as `enum(a,b)`, `enum(a,b)?` or `enum(a,b)[]`, derived from their checked case
@@ -407,7 +413,8 @@ defaults and hostile case/carrier/null refusals through canonical Memory.
 Codec failures retain rejected receipts with empty default maps; earlier
 array-shape admission failures create no receipt. Legacy descriptors without
 the claim retain their historical presence-only behavior. Nullable/array
-computed-default support and wider CRUD/private/D1 workflows remain separate.
+computed defaults use the same complete checked codec; wider CRUD/private/D1
+workflows remain separate.
 
 Optional operation-owned input assistance is authored on the parameter, for example `assignee:user choices={read=reviewer_choices(document=submission.parent),value="user",labels=["name","role","home"]}` or `region:Region choices={read=region_choices(country=country),labels=["name"]}`. The compiler derives the canonical owning read, checked input paths, candidate value and labels from declarations, and publishes version 1 metadata on the existing input descriptor. A checked read returning a nonnullable one-dimensional stored-model collection publishes its canonical model-array result, such as `approve.Employee[]`; each value keeps the existing model-reference wire representation. Choices grant no authority, execute no read themselves and change no final input, default or server guard. Artifacts carrying choices require `interfaces.input-choices@1`; a consumer must support that feature before admitting the artifact. Viewer-authorized read execution, current draft binding, cancellation, stale-response fencing and form controls retain their owning consumer scopes. Labels preserve declared reference identities; they introduce no directory or file enrichment.
 

@@ -437,3 +437,18 @@ owns its dynamic type string; existing scalar claims stay identical.
 Prior actor/reference/replay checks were reused. Nullable/array computed
 enum defaults, wider CRUD/private/D1 consumers and full S9-Q02 remain open.
 Canonical completion remains **57/67**, with **10** remaining.
+
+The [nullable/array enum-default case](../../compiler/tests/enum_default_shapes.rs)
+passes **1/1** after the released State intake and Cloudflare observer join.
+Nine genuine canonical Memory calls preserve copied defaults through
+`enum(a,b)?`, `enum(a,b)[]` and `enum(a,b)[]?`, including null, empty and
+ordered arrays, explicit overrides and exact ordered receipt values. Boolean
+results exercise the native copied values without claiming enum result-carrier
+support. The source gate admits only the supported wrappers and retains the
+nonempty enum-array refusal. An initial build found an incorrect field name
+in the gate edit; it was corrected to `nonempty`, then the affected case
+compiled and passed on its first actual execution. Previous input-claim,
+actor/reference, scalar/User and replay checks were reused. Required enum
+arrays, element-nullable/nested defaults, wider read/private/CRUD/D1 consumers
+and full S9-Q02 remain separate. Canonical completion remains **57/67**, with
+**10** remaining.
