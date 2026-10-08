@@ -166,6 +166,7 @@ pub enum JsMcpField {
     Money,
     Datetime,
     Duration,
+    User,
     Boolean,
     File,
     /// Anonymous enum: case spellings in declaration order.
@@ -805,6 +806,7 @@ impl Serialize for JsMcpField {
             Self::Money => FieldTag::Money,
             Self::Datetime => FieldTag::Datetime,
             Self::Duration => FieldTag::Duration,
+            Self::User => FieldTag::User,
             Self::Boolean => FieldTag::Boolean,
             Self::File => FieldTag::File,
             Self::Enum { values } => FieldTag::Enum { values },
@@ -5698,13 +5700,13 @@ impl<'a> Emitter<'a> {
                     | Scalar::Currency
                     | Scalar::Secret
                     | Scalar::Date
-                    | Scalar::User
                     | Scalar::Member => JsMcpField::String,
                     Scalar::Int => JsMcpField::Integer,
                     Scalar::Decimal => JsMcpField::Decimal,
                     Scalar::Money => JsMcpField::Money,
                     Scalar::Datetime => JsMcpField::Datetime,
                     Scalar::Duration => JsMcpField::Duration,
+                    Scalar::User => JsMcpField::User,
                     Scalar::Bool => JsMcpField::Boolean,
                     Scalar::File => JsMcpField::File,
                     Scalar::Json | Scalar::Bytes => return None,
@@ -6841,6 +6843,10 @@ fn checked_value_profile(result: &ResolvedType) -> Option<&'static str> {
         (ResolvedType::Scalar(Scalar::Duration), false, true) => Some("duration?"),
         (ResolvedType::Scalar(Scalar::Duration), true, false) => Some("duration[]"),
         (ResolvedType::Scalar(Scalar::Duration), true, true) => Some("duration[]?"),
+        (ResolvedType::Scalar(Scalar::User), false, false) => Some("user"),
+        (ResolvedType::Scalar(Scalar::User), false, true) => Some("user?"),
+        (ResolvedType::Scalar(Scalar::User), true, false) => Some("user[]"),
+        (ResolvedType::Scalar(Scalar::User), true, true) => Some("user[]?"),
         _ => None,
     }
 }

@@ -87,6 +87,10 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
         ("Client.optionalMoney", "money?"),
         ("Client.monies", "money[]"),
         ("Client.optionalMonies", "money[]?"),
+        ("Client.copyUser", "user"),
+        ("Client.copyOptionalUser", "user?"),
+        ("Client.copyUsers", "user[]"),
+        ("Client.copyOptionalUsers", "user[]?"),
     ] {
         assert_eq!(
             operation(&artifact, name)["result"],
@@ -220,6 +224,9 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
         } else {
             assert!(input.get("valueType").is_none(), "{input}");
         }
+        if input["name"] == "person" {
+            assert_eq!(input["field"], json!({"kind":"user"}), "{input}");
+        }
     }
     for input in operation(&artifact, "Client.booleans")["inputs"]["fields"]
         .as_array()
@@ -253,6 +260,38 @@ fn checked_results_follow_owning_declarations_and_shared_publication() {
             ty.contains("[]"),
             "{name}: {input}"
         );
+    }
+    for (scenario, field, ty) in [
+        ("Client.copyUser", "person", "user"),
+        ("Client.copyOptionalUser", "optionalPerson", "user?"),
+        ("Client.copyUsers", "people", "user[]"),
+        ("Client.copyOptionalUsers", "maybePeople", "user[]?"),
+    ] {
+        let model_field = model["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|item| item["name"] == field)
+            .unwrap();
+        let scenario_input = &operation(&artifact, scenario)["inputs"]["fields"][0];
+        for descriptor in [model_field, scenario_input] {
+            assert_eq!(descriptor["field"], json!({"kind":"user"}), "{descriptor}");
+            assert!(descriptor.get("valueType").is_none(), "{descriptor}");
+            assert_eq!(descriptor["nullable"] == true, ty.ends_with('?'));
+            assert_eq!(descriptor.get("array").is_some(), ty.contains("[]"));
+        }
+        for name in ["Client.Item.create", "Client.Item.update"] {
+            let input = operation(&artifact, name)["inputs"]["fields"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|item| item["name"] == field)
+                .unwrap();
+            assert_eq!(input["field"], json!({"kind":"user"}), "{name}: {input}");
+            assert!(input.get("valueType").is_none(), "{name}: {input}");
+            assert_eq!(input["nullable"] == true, ty.ends_with('?'));
+            assert_eq!(input.get("array").is_some(), ty.contains("[]"));
+        }
     }
     for (name, ty) in [
         ("title", "text"),
