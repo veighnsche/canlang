@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T21:30:52.576964+00:00",
+  "updated_utc": "2026-10-08T21:35:39.216121+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2811,6 +2811,14 @@
       "contracts": "Runtime marker must be options=runtime; omitted authored map omits options property, explicit empty authored map refuses. Shared bounded aliases/candidate arrays retain receiving intersections. Fresh read authority validates all projected predicate dependencies without source replay, including false candidates and nested empty domains.",
       "limits": "No full Task46/S9, positive canonical hooks, structured-order/mutation-filter/D1 read qualification or held original outbox Task22 completion. No broader installed/backend adoption/retirement.",
       "source_outputs_handles_released": true,
+      "counts_unchanged": true,
+      "commit": "6589c41e6512766cb9a0e44c36aee759dda17048"
+    },
+    "trusted_schedule_send_attribution": {
+      "status": "Released focused trusted-source attribution fix captured",
+      "contract": "Deferred sends retain actorUserId or original admitted trustedSource, matching adjacent effect attribution; anonymous remains last fallback.",
+      "verification": "Owner actual CLI0, CF selective emit0/8 outputs and one changed native due-handler case1/1 in4.343s. Root exact4-file review reuses results.",
+      "limits": "Queued dispatch attribution/operation/team/occurrence, rollback, response-loss/reopen only; no provider delivery/full10/hook/held scope acceptance.",
       "counts_unchanged": true
     }
   },

@@ -3803,7 +3803,7 @@ async function runScenarioSeam(
           operationId: call.context.operationId, source, occurrenceIndex: sendIndex++,
           request: boundRequest, originOccurrence: due?.occurrenceId ?? cohort?.occurrenceId ?? null,
         }, {
-          actor: actorUserId ?? 'anonymous', now: admittedNow, operation: scope.operation,
+          actor: actorUserId ?? call.context.trustedSource ?? 'anonymous', now: admittedNow, operation: scope.operation,
           load: overlay.load.bind(overlay), query: overlay.query.bind(overlay),
         });
         for (const intent of stagedSend.effects.outbox ?? []) queuedDeliveries.set(intent.intentId, intent);
