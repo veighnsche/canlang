@@ -14,7 +14,7 @@
  * (structural control/document types) with injected fetch for tests.
  */
 
-import { CSRF_FIELD } from "@canlang/contracts";
+import { CSRF_FIELD, SOURCE_FORM_BINDING_FIELD } from "@canlang/contracts";
 import type { FormMode } from "@canlang/contracts";
 import type {
   BusinessError,
@@ -696,10 +696,13 @@ export async function submitGeneratedForm(
   } catch (error) {
     throw projectionError(error);
   }
-  const envelope: MutationEnvelope = {
+  const envelope: MutationEnvelope & { readonly form_binding?: string } = {
     operation: input.derived.operation,
     operation_id: operationId,
     inputs,
+    ...(input.flat[SOURCE_FORM_BINDING_FIELD] === undefined ? {} : {
+      [SOURCE_FORM_BINDING_FIELD]: input.flat[SOURCE_FORM_BINDING_FIELD],
+    }),
   };
   let response: SubmitFetchResponse;
   try {

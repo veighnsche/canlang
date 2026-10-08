@@ -13,6 +13,7 @@
 
 import {
   CSRF_FIELD,
+  SOURCE_FORM_BINDING_FIELD,
   GENERATED_FORM_TYPE_FOR_KIND,
   GENERATED_REF_VERSION_SUFFIX,
 } from "@canlang/contracts";
@@ -677,10 +678,10 @@ function needsMultipart(fields: readonly FormFieldDef[] | undefined): boolean {
   return fields.some((field) => field.control === "file_input");
 }
 
-function formOpenTag(action: string, multipart: boolean, derived?: DerivedOperationInputs, renderedInputs?: readonly string[]): string {
+function formOpenTag(action: string, multipart: boolean, derived?: DerivedOperationInputs, renderedInputs?: readonly string[], bindingIdentity?: string): string {
   const encoding = multipart ? ` enctype="multipart/form-data"` : "";
   const projection = derived === undefined ? ""
-    : ` data-can-generated-form="${escapeAttr(JSON.stringify({ derived, mode: derived.kind, renderedInputs }))}"`;
+    : ` data-can-generated-form="${escapeAttr(JSON.stringify({ derived, mode: derived.kind, renderedInputs, bindingIdentity }))}"`;
   return `<form action="${escapeAttr(safeHref(action))}" method="post"${encoding}${projection}>`;
 }
 
@@ -922,12 +923,12 @@ export async function form(props: FormProps): Promise<string> {
   const fieldsHtml = rendered.join("");
   const submitLabel = escapeHtml(resolveCaption(props.submit, props.context));
   const renderedForm = (
-    formOpenTag(props.action, needsMultipart(props.fields), props.derived, props.fields.map(field => field.path)) +
+    formOpenTag(props.action, needsMultipart(props.fields), props.derived, props.fields.map(field => field.path), props.sourceBindingIdentity) +
     hidden("operation", props.operation) +
     hidden("operation_id", props.operationId) +
     hidden(CSRF_FIELD, props.context.csrfToken) +
     hidden("timezone", props.timeZone) +
-    recordHiddens(props.record) +
+    (props.sourceBinding === undefined ? recordHiddens(props.record) : hidden(SOURCE_FORM_BINDING_FIELD, props.sourceBinding)) +
     outcomeBanner(props.outcome, props.fields, props.context, props.timeZone) +
     unmatchedAlert(unmatched, props.context) +
     (props.derived === undefined ? "" : '<div data-can-form-feedback role="alert" aria-live="polite" hidden></div>') +
