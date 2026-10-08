@@ -82,6 +82,8 @@ import type {
   BusinessError,
   BusinessErrorCode,
   CompileArtifact,
+  ClosedInputs,
+  DerivedOperationInputs,
   ConflictCurrent,
   ContentCheck,
   FinalizeResult,
@@ -330,7 +332,27 @@ export interface IngressSink {
  * invoker, catalog, logger, clock, and identity (see
  * `handleOperationRequest`), so the stubs never execute there.
  */
+/** Structural mirror of the owning Interfaces source-form binding port. */
+export interface SourceFormBindingContext {
+  readonly appId: string;
+  readonly sessionToken: string;
+  readonly identity: ResolvedIdentity;
+  readonly derived: DerivedOperationInputs;
+  readonly operationId: string;
+  readonly nowMs: number;
+}
+export interface SourceFormBindingProof {
+  readonly token: string;
+  readonly identity: string;
+  readonly draftIdentity: string;
+}
+export interface SourceFormBindings {
+  seal(context: SourceFormBindingContext, bound: ClosedInputs, editable: readonly string[]): Promise<SourceFormBindingProof>;
+  restore(context: SourceFormBindingContext, token: string, inputs: ClosedInputs): Promise<ClosedInputs | null>;
+}
+
 export interface HttpDeps {
+  readonly formBindings?: SourceFormBindings;
   readonly app: AppInfo;
   readonly pages: PageRegistry;
   readonly invoker: OperationInvoker;
@@ -375,6 +397,7 @@ export type HttpOperationHandlerFactory = (
  */
 /** Narrow defining page-handler dependencies (Interfaces PageHttpDeps). */
 export interface PageHttpDeps {
+  readonly formBindings?: SourceFormBindings;
   readonly app: AppInfo;
   readonly pages: PageRegistry;
   readonly catalog?: SchemaCatalog;
@@ -386,6 +409,7 @@ export interface PageHttpDeps {
 export type HttpPageHandlerFactory = (deps: PageHttpDeps) => (request: Request) => Promise<Response>;
 
 export interface HttpJoin {
+  readonly formBindings?: SourceFormBindings;
   readonly createPageHandler?: HttpPageHandlerFactory;
   readonly createOperationHandler?: HttpOperationHandlerFactory;
   /** C1 deploy-baked E1 channel, shared verbatim with the MCP path. */
@@ -1302,6 +1326,7 @@ async function handleHttpOperationRequest(
     throw new Error(`assembly: ${family} is unbound until its join lands (unreachable on the op route)`);
   };
   const deps: HttpDeps = {
+    ...(ctx.http?.formBindings === undefined ? {} : { formBindings: ctx.http.formBindings }),
     app: ctx.app,
     pages: { descriptors: (): readonly PageDescriptor[] => [] },
     invoker: buildInvoker(ctx.artifact, ctx.asm, ctx.store, {
@@ -1646,6 +1671,7 @@ export async function assembleWorker(
       typeof import("../runtime/invoke.js").queryPageRowsCanonical
     >("../runtime/invoke.js", "runtime/invoke.ts", "queryPageRowsCanonical");
     pageHandler = deps.http.createPageHandler({
+      ...(deps.http.formBindings === undefined ? {} : { formBindings: deps.http.formBindings }),
       app: appInfo, pages: { descriptors: () => descriptors },
       catalog: createArtifactCatalog(artifact, deps.http.derivedInputs),
       logger: httpLogger,

@@ -71,6 +71,7 @@ import type {
   HttpPageHandlerFactory,
   McpHandlerFactory,
   McpPermissions,
+  SourceFormBindings,
 } from "./assembly.js";
 import type { WorkerApp, WorkerAppOptions } from "./entry.js";
 
@@ -176,7 +177,10 @@ export type WorkerFetch = (request: Request, env: Record<string, unknown>) => Pr
  * bundle, production deps, grant route) while keeping the REAL
  * entry/assembly siblings.
  */
+export type CreateSourceFormBindingsFn = (key: Uint8Array | string, revision: string) => Promise<SourceFormBindings>;
+
 export interface MainLoaders {
+  readonly loadSourceFormBindingsFactory?: () => Promise<CreateSourceFormBindingsFn>;
   readonly loadEntry?: () => Promise<CreateWorkerAppFn>;
   readonly loadAssembleWorker?: () => Promise<AssembleWorkerFn>;
   readonly loadStagedDeployment?: () => Promise<StagedDeployment>;
@@ -440,6 +444,22 @@ async function defaultLoadHttpOperationsFactory(): Promise<HttpOperationHandlerF
   return ((deps) => (req, op) => handle(deps, req, op)) as HttpOperationHandlerFactory;
 }
 
+async function defaultLoadSourceFormBindingsFactory(): Promise<CreateSourceFormBindingsFn> {
+  return loadSiblingFn<CreateSourceFormBindingsFn>(
+    HTTP_OPERATIONS_SPECIFIER, "interfaces/http/operations", "createSourceFormBindings",
+  );
+}
+
+/** Source provenance only; the defining service hashes this stable revision. */
+function sourceFormRevision(artifact: CompileArtifact): string {
+  return JSON.stringify({
+    artifact_version: artifact.artifact_version,
+    language_version: artifact.language_version,
+    sources: artifact.sources.map(({ path, sha256 }) => ({ path, sha256 }))
+      .sort((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : left.sha256 < right.sha256 ? -1 : left.sha256 > right.sha256 ? 1 : 0),
+  });
+}
+
 async function defaultLoadHttpPageFactory(): Promise<HttpPageHandlerFactory | undefined> {
   let mod: unknown;
   try { mod = await import(HTTP_OPERATIONS_SPECIFIER); }
@@ -577,6 +597,7 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
   const loadDerived = loaders.loadDerivedInputs ?? defaultLoadDerivedInputs;
   const loadHttpOps = loaders.loadHttpOperationsFactory ?? defaultLoadHttpOperationsFactory;
   const loadHttpPages = loaders.loadHttpPageFactory ?? defaultLoadHttpPageFactory;
+  const loadFormBindings = loaders.loadSourceFormBindingsFactory ?? defaultLoadSourceFormBindingsFactory;
 
   const prodDepsByEnv = new WeakMap<object, Promise<ProductionDeps>>();
   const workerByEnv = new WeakMap<object, Promise<AssembledWorker>>();
@@ -592,6 +613,7 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
   const getDerivedInputs = memoize(() => loadDerived());
   const getHttpOpsFactory = memoize(() => loadHttpOps());
   const getHttpPageFactory = memoize(() => loadHttpPages());
+  const getFormBindingsFactory = memoize(() => loadFormBindings());
   const getAssemble = memoize(() => loadAssemble());
 
   function prodDepsFor(env: Record<string, unknown>): Promise<ProductionDeps> {
@@ -603,13 +625,23 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
     // for a deploy whose payload never staged.
     const staged = await getStaged();
     validateStagedDeployment(staged);
+    let formBindings: SourceFormBindings | undefined;
+    if (env["CAN_FORM_BINDING_KEY"] !== undefined) {
+      const key = env["CAN_FORM_BINDING_KEY"];
+      if (typeof key !== "string" && !(key instanceof Uint8Array)) {
+        throw new Error("deploy main: CAN_FORM_BINDING_KEY must be a 32-byte key or its canonical base64url encoding");
+      }
+      const createFormBindings = await getFormBindingsFactory();
+      try { formBindings = await createFormBindings(key, sourceFormRevision(staged.artifact)); }
+      catch { throw new Error("deploy main: invalid CAN_FORM_BINDING_KEY configuration"); }
+    }
     const deps = await prodDepsFor(env);
     const factory = await getMcpFactory();
     const httpFactory = await getHttpOpsFactory();
     const pageFactory = await getHttpPageFactory();
     const permFactory = factory === undefined ? undefined : await getPermsFactory();
     const derivedInputs =
-      factory === undefined && httpFactory === undefined ? undefined : await getDerivedInputs();
+      factory === undefined && httpFactory === undefined && pageFactory === undefined ? undefined : await getDerivedInputs();
     const assembleWorker = await getAssemble();
     const browserAssets = staged.browserAssets;
     const assemblyDeps: AssemblyDeps = {
@@ -630,6 +662,7 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
         ? null
         : {
             http: {
+              ...(formBindings === undefined ? {} : { formBindings }),
               ...(httpFactory === undefined ? {} : { createOperationHandler: httpFactory }),
               ...(pageFactory === undefined ? {} : { createPageHandler: pageFactory }),
               ...(derivedInputs === undefined ? null : { derivedInputs }),

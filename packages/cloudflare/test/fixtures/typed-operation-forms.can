@@ -10,7 +10,7 @@ When
    set entry {label=newLabel,count=entry.count+delta}
    return entry.count
 Then
- page / title="Canonical forms"
+ page / title="Canonical forms" poll=1s
   require members
   ## Required writable inputs appear once, and the managed owner has no widget.
   form Entry.create display=inline submit="Add entry"
@@ -25,3 +25,7 @@ Then
    form rename arguments={entry=row} fields=newLabel,delta display=inline submit="Save changes"
     input newLabel
     input delta
+   ## Update controls start from the authorized row; cleared optional count stays unchanged.
+   form Entry.update arguments={record=row} fields=label,count display=inline submit="Update entry"
+    input label
+    input count

@@ -166,6 +166,7 @@ export const MCP_BUNDLE_MARKERS: readonly string[] = [
  */
 export const HTTP_BUNDLE_MARKERS: readonly string[] = [
   "handleOperationRequest",
+  "createSourceFormBindings",
   "IdentityError",
 ];
 
@@ -698,7 +699,7 @@ export function buildHttpOperationsBundle(_repoRoot?: string): string {
   try {
     writeFileSync(
       entryFile,
-      `export { handleOperationRequest } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n` +
+      `export { handleOperationRequest, createSourceFormBindings } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n` +
       `export { handlePageRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "pages.js")))};\n` +
       `export { checkArtifactOperation, checkedToMcpInputSchema } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "mcp", "schemas.js")))};\n`,
       "utf8",
