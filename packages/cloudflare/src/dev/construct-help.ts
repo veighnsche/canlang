@@ -107,6 +107,47 @@ export interface QualifiedCandidateSet {
   readonly cards: readonly ConstructHelpCard[];
 }
 
+/** Source attestations for optional ranking, not profile qualification or provider advice. */
+export interface CompilerConstructRankingContext {
+  readonly version: 1;
+  /** Normalized owning diagnostic branch ID; never the diagnostic's prose. */
+  readonly messageKind: string;
+  readonly section: "Given" | "When" | "Then" | "root";
+  /** Exact identifier at the captured primary span; no literal or source line. */
+  readonly guess: string;
+  readonly exactSourceSpan: boolean;
+  readonly structuralRecovery: boolean;
+  readonly recoveryComplete: boolean;
+  readonly nameFilterComplete: boolean;
+  readonly materialIntentChoice: boolean;
+  readonly evidenceSufficient: boolean;
+  readonly unsupportedBehaviorProven: boolean;
+}
+
+const RANKING_CONTEXT_FLAGS = ["exactSourceSpan", "structuralRecovery", "recoveryComplete",
+  "nameFilterComplete", "materialIntentChoice", "evidenceSufficient", "unsupportedBehaviorProven"] as const;
+const RANKING_CONTEXT_KEYS = new Set<string>(["version", "messageKind", "section", "guess", ...RANKING_CONTEXT_FLAGS]);
+
+/** Shape validation cannot establish the truth of the compiler's source attestations. */
+function parseRankingContext(value: unknown): CompilerConstructRankingContext | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const entry = value as Record<string, unknown>;
+  if (Object.keys(entry).some(key => !RANKING_CONTEXT_KEYS.has(key)) || entry["version"] !== 1 ||
+      typeof entry["messageKind"] !== "string" || !/^[a-z][a-z0-9_]{0,63}$/.test(entry["messageKind"]) || /[\r\n]/.test(entry["messageKind"]) ||
+      !["Given", "When", "Then", "root"].includes(entry["section"] as string) ||
+      typeof entry["guess"] !== "string" || !/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(entry["guess"]) || /[\r\n]/.test(entry["guess"]) ||
+      RANKING_CONTEXT_FLAGS.some(key => typeof entry[key] !== "boolean")) return undefined;
+  return Object.freeze({ version: 1, messageKind: entry["messageKind"],
+    section: entry["section"] as CompilerConstructRankingContext["section"], guess: entry["guess"],
+    exactSourceSpan: entry["exactSourceSpan"] as boolean,
+    structuralRecovery: entry["structuralRecovery"] as boolean,
+    recoveryComplete: entry["recoveryComplete"] as boolean,
+    nameFilterComplete: entry["nameFilterComplete"] as boolean,
+    materialIntentChoice: entry["materialIntentChoice"] as boolean,
+    evidenceSufficient: entry["evidenceSufficient"] as boolean,
+    unsupportedBehaviorProven: entry["unsupportedBehaviorProven"] as boolean });
+}
+
 /** The compiler's optional diagnostic routing extension, normalized at the JSON boundary. */
 export interface CompilerConstructCandidates {
   readonly version: 1;
@@ -114,6 +155,8 @@ export interface CompilerConstructCandidates {
   readonly slot: string | null;
   readonly ids: readonly string[];
   readonly complete: boolean;
+  /** Retained only for complete exact routing; each attestation remains a separate eligibility gate. */
+  readonly context?: CompilerConstructRankingContext;
 }
 
 export interface RoutedConstructHelp extends QualifiedCandidateSet {
@@ -141,8 +184,11 @@ export function parseCompilerConstructCandidates(value: unknown): CompilerConstr
   if (disposition === "exact" && (slot === null || ids.length === 0)) return UNKNOWN_ROUTING;
   if (disposition !== "exact" && ids.length !== 0) return UNKNOWN_ROUTING;
   if ((disposition === "structural" || disposition === "unknown") && entry["complete"] !== false) return UNKNOWN_ROUTING;
+  const context = disposition === "exact" && entry["complete"] === true
+    ? parseRankingContext(entry["context"]) : undefined;
   return Object.freeze({ version: 1, disposition, slot: slot as string | null,
-    ids: Object.freeze(ids as string[]), complete: entry["complete"] as boolean });
+    ids: Object.freeze(ids as string[]), complete: entry["complete"] as boolean,
+    ...(context === undefined ? {} : { context }) });
 }
 
 /** Join exact compiler IDs to captured cards; only source-current proofs may qualify them. */
