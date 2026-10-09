@@ -1,13 +1,26 @@
 import { mkdtempSync, mkdirSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   captureIsCurrent,
   captureSingleFileSource,
   verifyCompilerSources,
   type SingleFileCaptureRequest,
 } from "../src/dev/source-capture.js";
+
+const installedInventory = vi.hoisted(() => ({
+  packageInputPaths: [] as Array<{ name: string; path: string }>,
+  extraInputPaths: [] as Array<{ name: string; path: string }>,
+  stale: false,
+}));
+vi.mock("../src/dev/preview-inputs.js", () => ({
+  installedLocalPreviewInputInventory: () => {
+    if (installedInventory.stale) throw new Error("installed outputs are older than source");
+    return { packageInputPaths: installedInventory.packageInputPaths,
+      extraInputPaths: installedInventory.extraInputPaths };
+  },
+}));
 
 function fixture(): SingleFileCaptureRequest {
   const checkoutRoot = mkdtempSync(join(tmpdir(), "can-source-capture-"));
@@ -100,5 +113,40 @@ describe("one-file source capture", () => {
     expect(capture.inputs.find(input => input.name === "compiler")?.requestedPath)
       .toBe(join(capture.root, "compiler"));
     expect(await captureIsCurrent(capture)).toBe(true);
+  });
+
+  it("rediscovers installed output and source membership, including additions and removals", async () => {
+    const request = fixture();
+    const sourcePath = join(request.checkoutRoot, "runtime.ts");
+    writeFileSync(sourcePath, "source A");
+    installedInventory.packageInputPaths = [...request.packageInputPaths];
+    installedInventory.extraInputPaths = [{ name: "source:runtime", path: sourcePath }];
+    installedInventory.stale = false;
+    try {
+      const installedRequest = { ...request, extraInputPaths: installedInventory.extraInputPaths,
+        inputInventory: "installed-local-preview" as const };
+      const first = await captureSingleFileSource(installedRequest);
+      expect(await captureIsCurrent(first)).toBe(true);
+      const addedPath = join(request.checkoutRoot, "new-runtime.js");
+      writeFileSync(addedPath, "new output");
+      installedInventory.packageInputPaths = [...request.packageInputPaths, { name: "new", path: addedPath }];
+      expect(await captureIsCurrent(first)).toBe(false);
+      await expect(captureSingleFileSource(installedRequest)).rejects.toThrow(/membership changed/);
+      const withAddition = await captureSingleFileSource({ ...installedRequest,
+        packageInputPaths: installedInventory.packageInputPaths });
+      expect(withAddition.epochMaterial).not.toBe(first.epochMaterial);
+      installedInventory.packageInputPaths = [];
+      expect(await captureIsCurrent(withAddition)).toBe(false);
+      installedInventory.packageInputPaths = [...request.packageInputPaths];
+      installedInventory.extraInputPaths = [];
+      expect(await captureIsCurrent(first)).toBe(false);
+      installedInventory.extraInputPaths = [{ name: "source:runtime", path: sourcePath }];
+      installedInventory.stale = true;
+      expect(await captureIsCurrent(first)).toBe(false);
+    } finally {
+      installedInventory.packageInputPaths = [];
+      installedInventory.extraInputPaths = [];
+      installedInventory.stale = false;
+    }
   });
 });

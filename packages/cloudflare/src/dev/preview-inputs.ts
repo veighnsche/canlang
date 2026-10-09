@@ -12,6 +12,7 @@ const OWNED_EXPORTS = [
   "@canlang/state/distribution", "@canlang/ui/distribution",
   "@canlang/stdlib/distribution", "@canlang/values/distribution",
   "@canlang/work/distribution", "@canlang/services/distribution",
+  "@canlang/testkit",
 ] as const;
 const EXTERNAL_IMPORTS = [
   ["@modelcontextprotocol/sdk", "@canlang/interfaces/distribution"],
@@ -222,11 +223,28 @@ export function assertInstalledCatalog(checkoutRoot: string, selectedPath: strin
   }
 }
 
+/** Re-discover the same finite inventory used by preparation and currency checks. */
+export function installedLocalPreviewInputInventory(checkoutRoot: string, compilerPath: string): {
+  packageInputPaths: readonly NamedInputPath[];
+  extraInputPaths: readonly NamedInputPath[];
+} {
+  const grammar = join(realpathSync(checkoutRoot), "docs", "specification", "GRAMMAR.md");
+  if (!statSync(grammar).isFile()) throw new Error("preview inputs: installed grammar reference is unavailable");
+  return {
+    packageInputPaths: installedPortableBundleInputs(),
+    extraInputPaths: [
+      { name: "bun", path: bunExecutable() },
+      { name: "grammar", path: grammar },
+      ...installedOwnedSourceInputs(),
+      ...compilerSourceInputs(checkoutRoot, compilerPath),
+    ],
+  };
+}
+
 /** Derive the capture manifest from installed producers; callers select only source/tool paths. */
 export function prepareLocalPreviewCapture(options: PrepareLocalPreviewCaptureOptions): SingleFileCaptureRequest {
   assertInstalledCatalog(options.checkoutRoot, options.catalogPath);
-  const grammar = join(realpathSync(options.checkoutRoot), "docs", "specification", "GRAMMAR.md");
-  if (!statSync(grammar).isFile()) throw new Error("preview inputs: installed grammar reference is unavailable");
+  const inventory = installedLocalPreviewInputInventory(options.checkoutRoot, options.compilerPath);
   return {
     checkoutRoot: options.checkoutRoot,
     appPath: options.appPath,
@@ -234,13 +252,8 @@ export function prepareLocalPreviewCapture(options: PrepareLocalPreviewCaptureOp
     compilerPath: options.compilerPath,
     catalogPath: options.catalogPath,
     helpIndexPath: options.helpIndexPath,
-    packageInputPaths: installedPortableBundleInputs(),
-    extraInputPaths: [
-      { name: "bun", path: bunExecutable() },
-      { name: "grammar", path: grammar },
-      ...installedOwnedSourceInputs(),
-      ...compilerSourceInputs(options.checkoutRoot, options.compilerPath),
-    ],
+    ...inventory,
+    inputInventory: "installed-local-preview",
     ...(options.semanticOptions === undefined ? {} : { semanticOptions: options.semanticOptions }),
   };
 }
