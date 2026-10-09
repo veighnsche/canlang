@@ -745,9 +745,12 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
       if (!isRecord(definition) || typeof definition["id"] !== "string" || definition["id"] === "") {
         throw new Error("example runner: canonical app definition is missing");
       }
-      ownerProfile = { artifact, asm, app: definition["id"] };
+      ownerProfile = { artifact: moduleArtifact, asm, app: definition["id"] };
     }
-    const runtimeHooks = input.hooks ?? canonicalExampleHooks(artifact, asm);
+    // Canonical source verification consumes the same complete artifact that
+    // issued this assembly, including the actual compiled test modules. The
+    // original compiler bytes still own the report digest and row inventory.
+    const runtimeHooks = input.hooks ?? canonicalExampleHooks(moduleArtifact, asm);
     const loadSuite = input.testkit.loadExampleSuite as (
       moduleUrl: string,
       bindings: { self: unknown; other: unknown; imported: unknown },

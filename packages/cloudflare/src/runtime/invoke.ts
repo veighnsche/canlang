@@ -1239,6 +1239,9 @@ interface StateInvokeProducer {
   readonly projectScenarioReceipt?: typeof import('@canlang/state/invocation').projectScenarioReceipt;
   readonly beginScenarioReceiptMutation?: typeof import('@canlang/state/invocation').beginScenarioReceiptMutation;
   readonly observeScenarioInputComputedDefault?: typeof import('@canlang/state/invocation').observeScenarioInputComputedDefault;
+  readonly bindScenarioReceiptFrameworkProducer?: typeof import('@canlang/state/invocation').bindScenarioReceiptFrameworkProducer;
+  readonly stageScenarioReceiptSend?: typeof import('@canlang/state/invocation').stageScenarioReceiptSend;
+  readonly stageScenarioReceiptDelivery?: typeof import('@canlang/state/invocation').stageScenarioReceiptDelivery;
   projectGeneratedCrudReceipt?(input: {
     readonly receipt: Receipt;
     readonly registry: ReadonlyMap<string, unknown>;
@@ -1556,6 +1559,15 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
       }),
       ...(typeof scenarioMod['observeScenarioInputComputedDefault'] !== 'function' ? {} : {
         observeScenarioInputComputedDefault: scenarioMod['observeScenarioInputComputedDefault'] as NonNullable<StateInvokeProducer['observeScenarioInputComputedDefault']>,
+      }),
+      ...(typeof scenarioMod['bindScenarioReceiptFrameworkProducer'] !== 'function' ? {} : {
+        bindScenarioReceiptFrameworkProducer: scenarioMod['bindScenarioReceiptFrameworkProducer'] as NonNullable<StateInvokeProducer['bindScenarioReceiptFrameworkProducer']>,
+      }),
+      ...(typeof scenarioMod['stageScenarioReceiptSend'] !== 'function' ? {} : {
+        stageScenarioReceiptSend: scenarioMod['stageScenarioReceiptSend'] as NonNullable<StateInvokeProducer['stageScenarioReceiptSend']>,
+      }),
+      ...(typeof scenarioMod['stageScenarioReceiptDelivery'] !== 'function' ? {} : {
+        stageScenarioReceiptDelivery: scenarioMod['stageScenarioReceiptDelivery'] as NonNullable<StateInvokeProducer['stageScenarioReceiptDelivery']>,
       }),
       ...(typeof invokeMod['projectGeneratedCrudReceipt'] !== 'function' ? {} : {
         projectGeneratedCrudReceipt: invokeMod['projectGeneratedCrudReceipt'] as NonNullable<StateInvokeProducer['projectGeneratedCrudReceipt']>,
@@ -2593,6 +2605,70 @@ async function collectUnsupportedHookOperations(asm: AssembledModules, artifact:
   return targets;
 }
 
+/** Bind framework authority only from the original checked source module and
+ * literal installed producers. Request options cannot supply these ports. */
+async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: CompileArtifact,
+  registry: ReadonlyMap<string, unknown>, producers: CanonicalStateProducers): Promise<void> {
+  const deliveryFields = artifact.models?.some(model => model.fields.some(field => field.field.kind === 'delivery')) === true;
+  for (const value of registry.values()) {
+    const def = generatedScenarioDef({ def: value }), plan = def?.descriptor.result?.disclosure;
+    if (def === undefined || plan === undefined) continue;
+    const callable = artifact.callables.find(entry => entry.kind === 'operation' && entry.id === def.name &&
+      entry.module === plan.source.module);
+    if (callable === undefined) throw new AssemblyCorrespondenceError('Scenario framework source lacks its exact owning callable.');
+    const module = await importVerifiedAssemblyModule(asm, callable.module, artifact);
+    const where = `Scenario framework ${JSON.stringify(def.name)}`;
+    const own = (value: unknown, key: string): unknown =>
+      isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
+    const definition = own(module, 'appDefinition'), rawBindings = own(definition, 'bindings');
+    if (rawBindings !== undefined && !isUnknownRecord(rawBindings)) {
+      throw new AssemblyCorrespondenceError('Scenario framework has an invalid source binding inventory.');
+    }
+    const names = Object.keys(rawBindings ?? {});
+    // A pure saved scenario does not acquire a new Work prerequisite.
+    if (names.length === 0 && !deliveryFields) continue;
+    const app = own(definition, 'id');
+    if (typeof app !== 'string' || app === '') throw new AssemblyCorrespondenceError('Scenario framework lacks its owning app identity.');
+    const bind = producers.invoke.bindScenarioReceiptFrameworkProducer;
+    if (bind === undefined) throw new AssemblyCorrespondenceError('Installed State framework binder is unavailable.');
+    const work = await import('@canlang/work/kernel/dispatch-staging');
+    const tables = await import('@canlang/work/kernel/tables');
+    if (typeof work.stageCanonicalSend !== 'function' || typeof work.readCanonicalSendStaging !== 'function' ||
+        typeof tables.dispatchGenerationTargetProfile !== 'function') {
+      throw new AssemblyCorrespondenceError('Installed Work framework producers are unavailable.');
+    }
+    const bindings = names.map(binding => {
+      const declaration = own(rawBindings, binding), from = own(declaration, 'from');
+      const capability = own(declaration, 'capability'), judgment = own(declaration, 'judgment');
+      if (typeof from !== 'string' || from === '' ||
+          (typeof capability === 'string') === (typeof judgment === 'string') || capability === '' || judgment === '') {
+        throw new AssemblyCorrespondenceError('Scenario framework has an invalid source binding identity.');
+      }
+      let sources: string[];
+      if (typeof judgment === 'string') {
+        if (!isUnknownRecord(own(own(definition, 'judgments'), judgment))) {
+          throw new AssemblyCorrespondenceError('Scenario framework lacks its owning judgment declaration.');
+        }
+        sources = [`${judgment}.evaluate`];
+      } else {
+        const operations = own(own(own(definition, 'capabilities'), capability as string), 'operations');
+        if (!isUnknownRecord(operations)) throw new AssemblyCorrespondenceError('Scenario framework lacks its owning capability operations.');
+        sources = Object.keys(operations).map(operation => {
+          if (!isUnknownRecord(own(operations, operation))) throw new AssemblyCorrespondenceError('Scenario framework has an invalid capability operation.');
+          return `${capability}.${operation}`;
+        });
+      }
+      return Object.freeze({ binding, from, targets: Object.freeze(sources.map(source => {
+        const profile = tables.dispatchGenerationTargetProfile(source);
+        return Object.freeze({ source, correlation: profile === null ? null :
+          profile.role === 'original' ? 'value' as const : 'arguments' as const });
+      })) });
+    });
+    bind(def, Object.freeze({ source: Object.freeze({ ...plan.source }), app, bindings: Object.freeze(bindings),
+      stage: work.stageCanonicalSend, read: work.readCanonicalSendStaging }));
+  }
+}
+
 export async function loadCanonicalDescriptors(
   asm: AssembledModules,
   artifact: CompileArtifact,
@@ -2744,6 +2820,7 @@ export async function loadCanonicalDescriptors(
     ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }),
   };
   if (ownerPolicyControl !== undefined) localOwnerPolicyControls.set(canonical, ownerPolicyControl);
+  await bindScenarioFrameworkProducers(asm, artifact, loaded.registry, producers);
   if (scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact, scenarioAssembly);
   canonicalCache.set(artifact, { loaded: canonical, ...(scenarioAssembly === undefined ? {} : { scenarioAssembly }) });
   return canonical;
@@ -4114,7 +4191,7 @@ async function runScenarioSeam(
     if ((effects.outboxAck?.length ?? 0) !== 0) {
       throw new Error('Canonical deferred effects cannot stage outbox acknowledgements.');
     }
-    if (ownerSession !== undefined && ((effects.writes?.length ?? 0) !== 0 ||
+    if (ownerSession !== undefined && ((effects.writes?.length ?? 0) !== 0 || (effects.outbox?.length ?? 0) !== 0 ||
         (effects.history?.length ?? 0) !== 0 || (effects.uniqueClaims?.length ?? 0) !== 0 ||
         (effects.uniqueReleases?.length ?? 0) !== 0)) {
       refuseRecordBinding('Saved scenario deferred domain effects require their defining owner-session join.');
@@ -4134,6 +4211,14 @@ async function runScenarioSeam(
         if (field.field.kind !== "delivery" || !Object.hasOwn(data, field.name)) continue;
         if (call.checkpoint === undefined) {
           throw new StateError("validation", "Delivery association needs an admitted owner checkpoint.");
+        }
+        if (ownerSession !== undefined) {
+          const stage = loaded.producers.invoke.stageScenarioReceiptDelivery;
+          if (stage === undefined) {
+            return refuseRecordBinding('Saved scenario delivery requires its installed State framework producer.');
+          }
+          await stage(call as AdmittedCall, receiptStore!, { model: modelName as ModelName, row, field: field.name });
+          continue;
         }
         appendDeferredEffects(await stageAuthoredDelivery({
           model, recordId: row.id, field: field.name,
@@ -4237,7 +4322,7 @@ async function runScenarioSeam(
       const id = `${call.context.operationId}#create:${createIndex++}`;
       const row = await scope.stageWrite({ op: "create", model, id, data });
       if (row === null) throw new StateError("validation", "Create staged no record.");
-      await stageDeliveryAssignments(model, row, data);
+      if (ownerSession === undefined) await stageDeliveryAssignments(model, row, data);
       await ownerNavigation.prepare(model, row);
       return recordView(model, row);
     },
@@ -4247,7 +4332,7 @@ async function runScenarioSeam(
       if (binding === undefined) return refuseRecordBinding("Set needs a record bound in this operation.");
       const row = await scope.stageWrite({ op: "update", ...binding, data });
       if (row === null) throw new StateError("validation", "Set staged no record.");
-      await stageDeliveryAssignments(binding.model, row, data);
+      if (ownerSession === undefined) await stageDeliveryAssignments(binding.model, row, data);
       await ownerNavigation.prepare(binding.model, row);
       return recordView(binding.model, row);
     },
@@ -4313,7 +4398,9 @@ async function runScenarioSeam(
             const split = key.indexOf('\0');
             await readOwnerRow(key.slice(0, split) as ModelName, key.slice(split + 1) as RecordId);
           }
-          return ownerRows.get(stagedKey(write.model, write.id)) ?? null;
+          const row = ownerRows.get(stagedKey(write.model, write.id)) ?? null;
+          if (row !== null && data !== undefined) await stageDeliveryAssignments(write.model, row, data);
+          return row;
         }
         const result = await loaded.producers.pipeline.runMutationWrites({
           table: loaded.table,
@@ -4686,6 +4773,13 @@ async function runScenarioSeam(
           }
           boundRequest = { binding: bindingKey, from, arguments: args };
         }
+        if (ownerSession !== undefined) {
+          const stage = loaded.producers.invoke.stageScenarioReceiptSend;
+          if (stage === undefined) {
+            return refuseRecordBinding('Saved scenario send requires its installed State framework producer.');
+          }
+          return await stage(call as AdmittedCall, receiptStore!, { source, request: boundRequest });
+        }
         const producer = await loadProducerModule('@canlang/work/kernel/dispatch-staging', 'work canonical send producer');
         const stage = requireProducerFn(producer, 'stageCanonicalSend', 'work canonical send producer') as
           typeof import('@canlang/work/kernel/dispatch-staging').stageCanonicalSend;
@@ -4846,7 +4940,7 @@ async function runScenarioSeam(
       uniqueClaims: finalized.uniqueClaims, uniqueReleases: finalized.uniqueReleases,
       resolvedDefaults: finalized.resolvedDefaults,
       schedules: [...finalized.schedules, ...extraSchedules],
-      outbox: deferredEffects.flatMap(effects => effects.outbox ?? []), result,
+      outbox: finalized.outbox ?? [], result,
       fileAssignments: [...fileAssignments.values()].filter(assignment => finalized.writes.some(write =>
         (write.kind === 'insert' || write.kind === 'update') && write.model === assignment.model &&
         write.row.id === assignment.recordId)),
