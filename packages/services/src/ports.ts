@@ -36,6 +36,7 @@ import { randomUUID } from 'node:crypto';
 import http from 'node:http';
 import { readTextBody, sendBody } from './internal/controlled-http.js';
 import type { Socket } from 'node:net';
+import type { MailScript } from './internal/scenario-admission.js';
 import type { FrozenJudgmentSource } from './judgments/specification.js';
 
 export type MailAttachmentRef = EmailSendInput['attachments'][number];
@@ -330,21 +331,7 @@ export function fixedAttachmentSizes(
  * - `drip`: 200 headers immediately on POST /send, body delayed by
  *   `delayMs` (covers header-then-drip timeouts).
  */
-export type ControlledScenario =
-  | { readonly kind: 'accept' }
-  | { readonly kind: 'reject'; readonly status: number; readonly body: unknown }
-  | { readonly kind: 'flaky-then-accept'; readonly failures: number }
-  | { readonly kind: 'invalid-schema'; readonly body: unknown }
-  | {
-      readonly kind: 'hang';
-      readonly reconcile: 'accepted' | 'rejected' | 'pending';
-    }
-  | {
-      readonly kind: 'redirect';
-      readonly status: number;
-      readonly location: string;
-    }
-  | { readonly kind: 'drip'; readonly delayMs: number };
+export type ControlledScenario = MailScript;
 
 export interface ControlledRequestLog {
   readonly method: string;
