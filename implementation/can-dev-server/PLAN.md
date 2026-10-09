@@ -6,6 +6,8 @@ This plan does not replace the [seven-lane platform plan](../PLAN.md). Its paths
 
 ## Current checkpoint
 
+The model-free actual native consumer passes1/1 through installed global D1 preflight/serving activation, protected single-use bootstrap, ordinary member auth/team/CSRF selection and generated HTML/bootstrap/style/polling bytes. Its producer inventory remains current through disposal. This closes the live model-free serving repair, not Office/G2. Full owning TypeScript re-emission was required after incremental emit left older unchanged output timestamps; no freshness gate was bypassed.
+
 Joined native rebuild passes and the actual generated delete/replay/security consumer passes1/1. The released compiler context now also passes one actual captured native-to-private-session/socket check: exact exported-When IDs/span/hash/context are retained, unqualified help remains unknown and default construct.rank stays local with zero provider calls. Runtime-evidence flags remain false; working profile qualification and eligible live ambiguity are still Compiler/host prerequisites, not supplied by this check.
 
 Preview ownership now follows validated model containment roots: app-only and model-free artifacts use existing global D1; team-only artifacts retain separate owner stores. Duplicate/missing/cyclic/contradictory roots refuse before activation/allocation. Focused orchestration18/18 passes; actual app-only consumption remains due. **Blocked mixed-owner profile:** the Cloudflare invocation/page boundary currently selects one team store without model/operation context. A released context-aware storage-selection API and cross-owner semantics are required before mixed app/team serving; no team/global fallback or duplicate router is introduced.

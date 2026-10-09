@@ -3791,3 +3791,7 @@ Classify authoritative model containment roots before activating or allocating w
 ### Validation: real compiler context and generated delete joins
 
 The joined native build and real generated delete/replay/security consumer pass1/1. An actual captured native diagnostic traverses the private socket with exact exported-When IDs, primary keyword bytes/hash/span and accepted context; unqualified cards remain unknown/nonworking and default ranking performs zero provider calls (1/1). This supplies producer-to-consumer evidence while retaining false runtime-evidence flags and missing working-profile/live-ambiguity prerequisites.
+
+### Validation: actual model-free global preview
+
+The real native artifact and public installed preview pass1/1 on local D1: preflight/serving activation, protected single-use bootstrap, ordinary login/team/CSRF and generated HTML/assets all succeed, with current captured inputs through disposal. Force the owning TypeScript re-emission when incremental outputs fail conservative freshness rather than changing that gate. This qualifies the bounded model-free path, leaving Office/G2 open.
