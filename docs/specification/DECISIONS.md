@@ -3557,3 +3557,7 @@ A copied artifact/Worker rerun requires its installed execution producers, not a
 ### 2026-10-09 — Cancel example lifetimes before releasing their queue
 
 Pass socket and daemon-stop cancellation to the real row adapter, which aborts phases and awaits active row disposal before rejecting. Queued work checks cancellation before admission; no late result enters retention. Rerun request signals stay outside recipes, and the coordinator awaits the cancellation-aware selected producer rather than racing its cleanup. Verify runtime availability again after a rerun; analysis changes alone do not invalidate its copied recipe.
+
+### 2026-10-09 — Preserve declared producer access in affected checks
+
+Use owning UI/Values root exports for public client types and catalogs. Keep the frozen evaluator fixture reads and native catalog join intact while their exact shared guard allowance/generated catalog export remains an owning prerequisite. Do not replace exported self-reference imports to work around the shared resolver mismatch. Constraint validation's temporary structural wrapper chooses a fresh name across the full nominal namespace.

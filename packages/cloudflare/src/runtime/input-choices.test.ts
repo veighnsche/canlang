@@ -14,9 +14,7 @@ import { buildSessionCookie, createD1IdentityStore, deriveCsrfToken, ensureIdent
 import { catalogFromArtifactOperations, handleOperationRequest, INPUT_CHOICES_VERSION } from '@canlang/interfaces/http/operations';
 import type { HttpDeps } from '@canlang/interfaces';
 import { generatedForm } from '@canlang/ui';
-import type { BrowserClientOptions } from '../../../ui/dist/src/browser/bootstrap.js';
-import type { SubmitFetchInit } from '../../../ui/dist/src/client.js';
-import type { HTMLInputElement, HTMLSelectElement } from '../../../ui/node_modules/happy-dom/lib/index.js';
+import type { SubmitFetch, SubmitFetchInit } from '@canlang/ui';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { assembleWorker } from '@canlang/cloudflare/worker/assembly';
 
@@ -146,7 +144,7 @@ test('genuine dependent choices use current native D1 grants and the original ge
       corrupt(field); assert.throws(() => catalogFromArtifactOperations(malformed));
     }
 
-    const { Window } = createRequire(import.meta.resolve('@canlang/ui'))('happy-dom') as typeof import('../../../ui/node_modules/happy-dom/lib/index.js');
+    const { Window } = createRequire(import.meta.resolve('@canlang/ui'))('happy-dom');
     const { startBrowserClient } = await import(new URL('./browser/bootstrap.js', import.meta.resolve('@canlang/ui')).href);
     const window = new Window({ url: 'https://test.invalid/form' });
     const context: PresentationContext = { preferredLocales: [], appDefaultLocale: 'en',
@@ -165,7 +163,7 @@ test('genuine dependent choices use current native D1 grants and the original ge
     const releases: Array<() => void> = [];
     const signals: Array<NonNullable<SubmitFetchInit['signal']>> = [];
     let choiceRequests = 0;
-    const fetchImpl: BrowserClientOptions['fetchImpl'] = async (url, init) => {
+    const fetchImpl: SubmitFetch = async (url, init) => {
       if (url.includes('/choices/')) {
         choiceRequests++; assert.ok(init.signal); signals.push(init.signal);
       }
@@ -174,7 +172,7 @@ test('genuine dependent choices use current native D1 grants and the original ge
       if (hold && url.includes('/choices/')) await new Promise<void>(resolve => releases.push(resolve));
       return response;
     };
-    let client = startBrowserClient({ window: window as unknown as BrowserClientOptions['window'], fetchImpl });
+    let client = startBrowserClient({ window, fetchImpl });
     const wait = async (condition: () => boolean) => {
       for (let attempt = 0; attempt < 300; attempt++) {
         if (condition()) return;
@@ -183,7 +181,7 @@ test('genuine dependent choices use current native D1 grants and the original ge
       assert.ok(condition(), 'native DOM/worker interaction completed');
     };
     const form = window.document.querySelector('form')!;
-    const control = (name: string) => Array.from(form.elements).find(element => 'name' in element && element.name === `inputs[${name}]`) as import('../../../ui/node_modules/happy-dom/lib/index.js').HTMLInputElement;
+    const control = (name: string) => Array.from(form.elements).find(element => 'name' in element && element.name === `inputs[${name}]`) as HTMLInputElement;
     const regionSelect = form.querySelector('select[data-can-choices-select]') as HTMLSelectElement;
     const userForm = window.document.querySelectorAll('form')[1]!;
     const userSelect = userForm.querySelector('select[data-can-choices-select]') as HTMLSelectElement;
