@@ -9,7 +9,10 @@ package Results
   export contract Flat {title:text,count:int,ready:bool,state:enum(open,closed)}
   export contract Nested {summary:Flat,alternatives:Flat[],optional:Flat?}
   export contract Scalars {day:date,at:datetime,elapsed:duration,amount:decimal,total:money}
+  export Archive {flat:Flat,nested:Nested}
+  policy Archive read=members fields=flat,nested
  When
+  crud Archive by=members fields=flat,nested delete=none
   export scenario flat(count:int) read=true -> Flat by=members
    do
     return Flat {title="Task",count,ready=true,state=open}
@@ -110,6 +113,7 @@ const require=createRequire(resolve(root,'package.json'));
 const load=specifier=>import(pathToFileURL(require.resolve(specifier)));
 const {assembleModules}=await load('@canlang/cloudflare/runtime/modules');
 const {buildInvoker}=await load('@canlang/cloudflare/worker/assembly');
+const {queryPageRowsCanonical}=await load('@canlang/cloudflare/runtime/invoke');
 const {createTestMemoryStorage}=await load('@canlang/state/storage/memory');
 const {FIXED_NOW,createMemoryIdentityStore,seedMember,makeIdentity,uuidv7}=await load('@canlang/state/testing/invocation/fixtures');
 const artifact=JSON.parse(readFileSync(resolve(base,'ordinary.json'),'utf8'));
@@ -121,6 +125,10 @@ assert.deepEqual(entry.appDefinition.contracts['Results.Nested'].fields,{
  summary:{type:'Results.Flat'},alternatives:{type:'Results.Flat[]'},optional:{type:'Results.Flat?'}});
 assert.deepEqual(entry.appDefinition.contracts['Results.Scalars'].fields,{
  day:{type:'date'},at:{type:'datetime'},elapsed:{type:'duration'},amount:{type:'decimal'},total:{type:'money'}});
+assert.deepEqual(entry.appDefinition.models['Results.Archive'].fields,{
+ flat:{type:'Results.Flat'},nested:{type:'Results.Nested'}});
+assert.deepEqual(entry.appDefinition.operations['Results.Archive.create'].inputs,{
+ fields:['flat','nested']});
 const {store}=createTestMemoryStorage(),memberships=createMemoryIdentityStore();
 const member=await seedMember(memberships,{isOwner:false});
 const identity=makeIdentity({membership:member.membership,email:member.user.email});
@@ -149,12 +157,48 @@ const saved=await store.readReceipt({app:'ContractApp',owner:identity.team.team_
  principal:identity.actor.user_id,operation:request.operation,operationId:request.operation_id});
 assert.equal(saved.outcome.status,'committed');
 assert.deepEqual(saved.outcome.result,expected);
+const model='Results.Archive';
+const create={operation:model+'.create',operation_id:uuidv7(FIXED_NOW,2),inputs:{flat,nested:expected}};
+const created=await invoker.invokeMutation(create,identity);
+assert.ok('result' in created,JSON.stringify(created));
+assert.equal(created.result.status,'committed');
+assert.equal(created.result.records.length,1);
+const row=created.result.records[0];
+assert.deepEqual(row.data,{flat,nested:expected});
+const persisted=await store.load(model,row.id);
+assert.deepEqual(persisted.data,{flat,nested:expected});
+const projection=await queryPageRowsCanonical({asm,artifact,model,args:{},identity,store,memberships});
+assert.equal(projection.rows.length,1);
+assert.equal(projection.rows[0].id,row.id);
+assert.deepEqual(projection.rows[0].fields,{flat,nested:expected});
+const historyBeforeInvalid=await store.historyFor(model,row.id);
+for(const [index,bad] of [
+ {...flat,count:'not-int'},
+ {...flat,state:'unknown'},
+ {...flat,undeclared:true},
+ {title:'Task',count,ready:true},
+].entries()){
+ const invalidRequest={operation:model+'.create',operation_id:uuidv7(FIXED_NOW,3+index),inputs:{flat:bad,nested:expected}};
+ const refused=await invoker.invokeMutation(invalidRequest,identity);
+ assert.ok('error' in refused,JSON.stringify(refused));
+ assert.equal(refused.error.code,'validation');
+ const rejectedReceipt=await store.readReceipt({app:'ContractApp',owner:identity.team.team_id,
+  principal:identity.actor.user_id,operation:invalidRequest.operation,operationId:invalidRequest.operation_id});
+ assert.equal(rejectedReceipt.outcome.status,'rejected');
+ assert.equal(rejectedReceipt.outcome.code,'validation');
+}
+const badNested=await invoker.invokeMutation({operation:model+'.create',operation_id:uuidv7(FIXED_NOW,7),inputs:{flat,nested:{...expected,alternatives:[{...flat,count:'not-int'}]}}},identity);
+assert.ok('error' in badNested,JSON.stringify(badNested));
+assert.equal(badNested.error.code,'validation');
+assert.deepEqual(await store.load(model,row.id),persisted);
+assert.deepEqual(await store.historyFor(model,row.id),historyBeforeInvalid);
+assert.equal((await queryPageRowsCanonical({asm,artifact,model,args:{},identity,store,memberships})).rows.length,1);
 const malformed=await invoker.invokeRead({operation:'Results.flat',inputs:{count:'not-int'}},identity);
 assert.ok('error' in malformed);assert.equal(malformed.error.code,'validation');
 const outsider=makeIdentity({userId:'nonmember',team:member.team,membership:null});
 const denied=await invoker.invokeRead({operation:'Results.flat',inputs:{count}},outsider);
 assert.ok('error' in denied);assert.equal(denied.error.code,'forbidden');
-console.log('ordinary contracts: canonical schemas, native nested/enum reads and first saved mutation, input and live admission checks passed');
+console.log('ordinary contracts: canonical schemas, native nested/enum reads, first saved mutation, generated CRUD persistence/projection and malformed contract refusals passed');
 "#).unwrap();
     let output = Command::new("node").arg(runner).arg(root).output().unwrap();
     assert!(
