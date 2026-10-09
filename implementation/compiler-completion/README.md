@@ -129,6 +129,13 @@ and CLI check/compile JSON **4/4**, carrier **9/9** and independent finite revie
 pass. Evidence/proven-unsupported flags remain false; no runtime profile or
 live ranking acceptance follows from grammar inventory.
 
+**Local correction — query-local example fixture binders, 2026-10-09.**
+Codex **4232218845** is corrected at the fixture rewrite producer. Bases and
+outer clauses keep fixture scope; where/select binders shadow same-named
+fixture aliases. New native value-query and model-row producer controls pass
+**2/2**, and the four unchanged BDD native cases pass. This fixes lexical
+identity without reopening the separate held BDD consumer-policy work.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed

@@ -302,17 +302,26 @@ fn rewrite_fixture_names(expr: &mut TypedExpr, aliases: &HashMap<String, String>
             if let IrQueryDomain::Value { base, .. } = &mut query.domain {
                 rewrite_fixture_names(base, aliases);
             }
-            for value in [
-                &mut query.parent,
-                &mut query.where_pred,
-                &mut query.limit,
-                &mut query.archived,
-                &mut query.select,
-            ]
-            .into_iter()
-            .flatten()
+            for value in [&mut query.parent, &mut query.limit, &mut query.archived]
+                .into_iter()
+                .flatten()
             {
                 rewrite_fixture_names(value, aliases);
+            }
+            if let Some(predicate) = &mut query.where_pred {
+                let mut visible = aliases.clone();
+                visible.remove(match &query.domain {
+                    IrQueryDomain::Value { alias, .. } => alias.as_str(),
+                    IrQueryDomain::Model(_) => "row",
+                });
+                rewrite_fixture_names(predicate, &visible);
+            }
+            if let Some(projection) = &mut query.select {
+                let mut visible = aliases.clone();
+                if let Some(param) = &query.select_param {
+                    visible.remove(param);
+                }
+                rewrite_fixture_names(projection, &visible);
             }
         }
         IrExpr::Message(message) => {
