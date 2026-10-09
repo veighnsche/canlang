@@ -201,6 +201,51 @@ describe("development session revision lifecycle", () => {
     }
   });
 
+  it("discovers post-replacement edits through the reattached native watcher before any fallback audit", async () => {
+    const root = await mkdtemp(join(tmpdir(), "can-session-native-watch-"));
+    const watched = join(root, "watched"), old = join(root, "old");
+    const app = join(watched, "App.can");
+    await mkdir(watched);
+    await writeFile(app, "first");
+    const auditMs = 60_000, started = Date.now();
+    let captures = 0;
+    const session = new DevSessionCore({
+      capture: async () => {
+        captures++;
+        const sourceRevision = await readFile(app, "utf8");
+        return { sourceRevision, inputDigest: sourceRevision };
+      },
+      check: async inputs => ({ complete: true, passed: true, detail: inputs.inputDigest }),
+      preparePreview: async inputs => preview(inputs.inputDigest, []),
+    }, { debounceMs: 5, reconcileMs: 20, auditMs });
+    try {
+      // Capture before starting polling: lastCaptureAt must not begin overdue.
+      expect(await session.check()).toMatchObject({ revision: "r1", preview: "ready" });
+      session.watchDirectories([watched]);
+      await rename(watched, old);
+      await mkdir(watched);
+      await writeFile(app, "replacement");
+      await until(() => session.status().sourceRevision === "replacement");
+      // Let directory-identity reconciliation and its capture finish before
+      // the next edit. Stable idle polls must not capture file contents.
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const replacementCaptures = captures;
+      await new Promise(resolve => setTimeout(resolve, 100));
+      expect(captures).toBe(replacementCaptures);
+      expect(session.status().sourceRevision).toBe("replacement");
+      // No check, refresh or markDirty follows this edit. The replacement
+      // inode stays the same, so identity polling cannot discover its bytes.
+      await writeFile(app, "native-later");
+      await until(() => session.status().sourceRevision === "native-later");
+      expect(captures).toBeGreaterThan(replacementCaptures);
+      expect(session.status()).toMatchObject({ sourceRevision: "native-later", servingRevision: "r1", stale: true });
+      expect(Date.now() - started).toBeLessThan(auditMs);
+    } finally {
+      await session.stop();
+      await rm(root, { recursive: true, force: true });
+    }
+  }, 6_000);
+
   it("avoids full captures on idle identity polls but eventually audits a missed event", async () => {
     const root = await mkdtemp(join(tmpdir(), "can-session-idle-"));
     let source = "first";
