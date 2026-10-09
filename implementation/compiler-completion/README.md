@@ -31,16 +31,18 @@ repair, including its newly introduced Rust field source-compatibility change;
 strict all-target Clippy now passes after the alias source corrections. Actual
 CLI thin-entry compatibility checks also pass **2/2**.
 
-Current corpus qualification is blocked on the upstream draft gitlink
-**5a12eb9e**: its remote rejects that exact commit as unavailable. The existing
-clean draft checkout at **a55a0f7** is preserved; its counts cannot qualify the
-new gitlink. The affected current run reports **159 passed, 2 failed**:
-`effects` 48/48, `check` 37/37, `foundation` 8/8, `analysis` 36/37 and
-`authoring` 30/31. The failing draft outcome and explain round-trip checks need
-the required draft revision; expectations and parser gates are not weakened.
-The coordinator/draft publisher owns this prerequisite. Upstream's
-anonymous-message, query and helper releases supersede the pre-sync leads;
-the duplicate unvalidated anonymous producer is retained only in local branch
+The draft publisher has released the exact pinned source
+**5a12eb9ebb136ffa4e5ce352663f92affba25bc2**; the clean checkout now matches
+the unchanged gitlink. The first affected run reports **169 passed, 4 failed,
+0 ignored** across analysis, authoring, b4_examples, format and syntax.
+All **59 syntax checks** pass. The stale aggregate diagnostic pins and retired
+CanShift/CanVolunteer parser exceptions are corrected; the three affected
+analysis/authoring/format cases each pass, retaining all 52 diagnostic-count
+inputs and all 55 format/reparse/idempotence inputs. Judgment positive-claim
+controls remain an **unfinished** test correction: the exact header-fact lookup
+is still failing and must be reconciled with its owning checked representation.
+No whole-suite or broader-reference acceptance follows. The pre-sync duplicate
+anonymous producer remains only in local branch
 `codex/compiler-anonymous-unfinished-checkpoint`, without acceptance credit.
 
 The current compiler alias leaf retains checked descriptor provenance through
@@ -65,8 +67,8 @@ This is a bounded compiler leaf, with no broader reference/count completion.
 Codex review of **37695f6d** requested deferring the corpus authoring correction
 until the required draft is available. That edit is withdrawn alongside the
 historical diagnostic-count pins; the currently reproduced authoring failure
-is the old draft's Given-preferences E1200. The corpus prerequisite remains
-visible rather than broadening parser exceptions. Latest-revision Codex review
+is the old draft's Given-preferences E1200. That deferral was required then; the exact prerequisite is now released and
+the affected checks above supersede the unavailable-source blocker. Latest-revision Codex review
 remains required after the next coherent PR update.
 
 The next ready preference leaf separates the exact receiving Preferences field
@@ -153,12 +155,13 @@ canonical disclosed `records` while requiring a null business result; Judgment
 descriptors retain the checked source locale. The independent source-map codec
 resolves its declared owning workspace under Bun's isolated linker, and omitted
 list `empty` wording reaches the shared UI default beside the authored caption.
-Five corpus checks remain blocked on the unchanged unavailable draft revision;
-no passing whole-suite or full-plan acceptance is claimed.
+At that historical source, five corpus checks were blocked on the draft revision;
+the released-source qualification above now replaces that prerequisite.
+No passing whole-suite or full-plan acceptance is claimed.
 The integrated **bbd541af** run reports **1,263 passed, 8 failed**, with no
 reported skips. Three additional setup fixtures now consume exact disclosed
 CRUD records and pass **3/3**, retaining their genuine scenario/default/rollback
-results and controls. The five corpus failures keep the same draft prerequisite.
+results and controls. Those historical corpus failures preceded the exact draft release above.
 Codex's **7db23906** review identified ordinary-text descriptor escapes;
 its later **bbd541af** code/security reviews completed without additional findings.
 The correction now gives anonymous descriptors a distinct inferred
@@ -177,8 +180,8 @@ skips. All five failures are the unchanged draft-dependent corpus checks above;
 no current whole-suite acceptance follows. Codex review of the newly published
 revision remains external and pending; earlier reviews do not qualify it.
 
-GitHub CI at **2db9200b** confirms B1 passes; Rust/Tools checkout still
-rejects unpublished draft5a12eb9e. Capability released **697022af** for the
+GitHub CI at **2db9200b** confirmed B1 passed; its Rust/Tools checkout failure
+predates publication of draft5a12eb9e. Capability released **697022af** for the
 Contracts ES2022 workflow and runtime-only optional Testkit import. Its narrow
 source/workflow patches are consumed here; the actual Contracts command and
 Cloudflare owning build pass. These two prerequisites are released, not
