@@ -386,7 +386,7 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
   try {
     scope = await deps.createReadScope?.(identity);
   } catch (err) {
-    return internalResponse(deps, err, pathname);
+    return renderThrowResponse(deps, err, pathname);
   }
   const query = bindRowQueryRunner(deps, identity, scope?.query ?? deps.query);
   if (partial) {
@@ -400,6 +400,7 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
       principal: identity,
       source,
       query,
+      ...(scope?.readRecords === undefined ? {} : { readRecords: scope.readRecords }),
       ...(scope?.observeDelivery === undefined ? {} : { observeDelivery: scope.observeDelivery }),
       ...(deps.catalog === undefined ? {} : { catalog: deps.catalog }),
       ...(deps.formBindings === undefined ? {} : { formBindings: deps.formBindings }),
@@ -462,6 +463,7 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
     principal: identity,
     source,
     query,
+    ...(scope?.readRecords === undefined ? {} : { readRecords: scope.readRecords }),
     ...(scope?.observeDelivery === undefined ? {} : { observeDelivery: scope.observeDelivery }),
     ...(deps.catalog === undefined ? {} : { catalog: deps.catalog }),
     ...(deps.formBindings === undefined ? {} : { formBindings: deps.formBindings }),
