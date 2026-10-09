@@ -5135,3 +5135,14 @@ The complete native profile reaches bundle construction but the State-owned rece
 Node24 Cloudflare producer graph22/22 passes9.763s. Two exact affected existing installed/link/real workerd-D1 cases2/2 pass2.034s;28 unrelated cases are unselected. Actual installed leaf and compatibility imports reference the identical function, owning emitted body survives import relocation, exact portable reexport and complete-map link/loadability checks pass, and removing the real leaf still refuses its dangling import. Existing real D1 bundle boot preserves unauthenticated MCP/grant401 and exact inactive500 refusal, with both owned disposals successful. Source bytes of State authored-delivery and scenario ledger remain identical to the released input; unchanged producer results are reused.
 
 Preserve local e66bf0b3 and incoming decision histories during the exact reviewed intake. State/Dev source remains at its declared unfinished qualification scope, including Dev's separate optional-loader compatibility correction. Coordinator immediate exact manual release to Dev/Capability and their original complete41/native Text workflows remain; no wholeTask44 rerun, fixture narrowing, parent acceptance or native/publication hold release follows.
+
+## 2026-10-10 — select the declared Office user in its owning example
+
+Use the existing named-user fixture caller mechanism in the complete 41-card
+Office source: add a `person` update row with name/quantity expectations while
+preserving the prior member, outsider and rename examples. Actual emitted
+functions preserve the canonical reviewer role and link that row to its exact
+user recipe; owning compiler target6/6 passes. This supplies the missing source
+prerequisite for Dev's genuine Identity/member journey, not runtime acceptance
+or a change to held BDD3 policy. Reuse unchanged compiler/native results; Dev
+owns current-profile capture and execution, Packages the shared bundle gate.

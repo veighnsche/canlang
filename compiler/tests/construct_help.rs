@@ -532,6 +532,51 @@ fn first_profile_compiler_cards_have_checked_source_and_emitted_owners() {
             "missing emitted fixture recipe {fixture}"
         );
     }
+    let update = tests
+        .iter()
+        .find(|test| test["scope"] == "HelpOffice.Supply.update")
+        .expect("compiled update suite");
+    let scratch = tempfile::tempdir().unwrap();
+    std::fs::write(
+        scratch.path().join("update.mjs"),
+        update["module"]["js"].as_str().unwrap(),
+    )
+    .unwrap();
+    let runner = scratch.path().join("selected-person.mjs");
+    std::fs::write(
+        &runner,
+        r#"
+import assert from 'node:assert/strict';
+import {exampleFixtures} from './update.mjs';
+const other={account:'other'};
+const suite=exampleFixtures({self:{account:'self'},other,imported:{}});
+const personRecipe=suite.fixtures.person;
+assert.deepEqual(await personRecipe.user({},{}),{roles:['HelpOffice.reviewer']});
+const table=suite.examples[0];
+assert.equal(table.operation,'HelpOffice.Supply.update');
+assert.deepEqual(table.selectors,['as','changes.name','changes.quantity']);
+assert.equal(table.rows.length,3);
+const person={account:'selected-person'};
+const scope={person,editable:{name:'Reviewed paper',quantity:6n}};
+const selected=table.rows[1];
+assert.deepEqual(selected.dependencies,[personRecipe]);
+assert.deepEqual(await selected.values({},scope),[person,'Reviewed paper',6n]);
+assert.deepEqual(await selected.expected({},scope),['Reviewed paper',6n]);
+assert.deepEqual(await Promise.all(table.observations.map(read=>read({},scope))),['Reviewed paper',6n]);
+assert.deepEqual(await table.rows[0].values({},scope),[other,'A4 paper',8n]);
+assert.deepEqual(await table.rows[0].expected({},scope),['A4 paper',8n]);
+assert.deepEqual(await table.rows[2].values({},scope),['outsider','Private change',9n]);
+assert.equal(table.rows[2].error,'forbidden');
+"#,
+    )
+    .unwrap();
+    let executed = Command::new("node").arg(runner).output().unwrap();
+    assert!(
+        executed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&executed.stdout),
+        String::from_utf8_lossy(&executed.stderr)
+    );
     assert!(
         !js.contains("exampleFixtures"),
         "test-only fixtures stay outside production modules"
