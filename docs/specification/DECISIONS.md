@@ -3795,3 +3795,7 @@ The joined native build and real generated delete/replay/security consumer pass1
 ### Validation: actual model-free global preview
 
 The real native artifact and public installed preview pass1/1 on local D1: preflight/serving activation, protected single-use bootstrap, ordinary login/team/CSRF and generated HTML/assets all succeed, with current captured inputs through disposal. Force the owning TypeScript re-emission when incremental outputs fail conservative freshness rather than changing that gate. This qualifies the bounded model-free path, leaving Office/G2 open.
+
+### Validation: current local Generation shared joins
+
+Adapt the two preserved probes in place to captured local native compilation and public installed producers. Actual ordinary Identity/member host, canonical HTTP create, MCP queue/read, signed-in page, exact bundled assets and rule/Public denial snapshots pass; all three authored rows execute/pass3/3 in isolated scopes without serving-store changes. Fresh native MCP create/read and physical owner readback also pass. Preserve the frozen source and G1 engineering scope; this is not Office or full-plan acceptance.
