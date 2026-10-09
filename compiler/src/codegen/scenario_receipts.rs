@@ -652,6 +652,7 @@ impl<'a> Sites<'a> {
                 owner: declared_owner,
                 index: declared_index,
                 default,
+                default_node,
                 ..
             } = &param.kind
             else {
@@ -664,7 +665,14 @@ impl<'a> Sites<'a> {
                 if owning_module(ir, expr.span)?.id != owner.module {
                     return None;
                 }
-                let mut site = Walk::default().site(expr.span);
+                let node = (*default_node)?;
+                if node.file != expr.span.file
+                    || node.start > expr.span.start
+                    || node.end < expr.span.end
+                {
+                    return None;
+                }
+                let mut site = Walk::default().site(node_span(node));
                 site.default_selection = true;
                 if out
                     .decisions

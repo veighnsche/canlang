@@ -141,12 +141,12 @@ When
   do
    if selected
     transition job.status idle -> ready
- scenario private_defaults(job:Job,selected:bool=job.private_choice) -> int by=public
+ scenario private_defaults(job:Job,selected:bool=((job.private_choice))) -> int by=public
   do
    if selected
     transition job.status idle -> ready
    return 7
- scenario public_defaults(job:Job,selected:bool=job.public_choice ?? false) -> int by=public
+ scenario public_defaults(job:Job,selected:bool=(job.public_choice ?? false)) -> int by=public
   do
    if selected
     transition job.status idle -> ready

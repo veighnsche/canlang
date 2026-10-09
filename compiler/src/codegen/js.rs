@@ -9346,6 +9346,7 @@ impl<'a> Emitter<'a> {
                             let param = self.ir.items[id.0 as usize].clone();
                             if let IrItemKind::Param {
                                 default: Some(default),
+                                default_node,
                                 ..
                             } = &param.kind
                             {
@@ -9356,7 +9357,11 @@ impl<'a> Emitter<'a> {
                                     expr,
                                     "formatted scenario parameter default",
                                 );
-                                let mut default_site = self.receipt_site(expr.span);
+                                let mut default_site = self.receipt_site(
+                                    default_node
+                                        .map(|node| Span::new(node.file, node.start, node.end))
+                                        .unwrap_or(expr.span),
+                                );
                                 default_site.default_selection = true;
                                 let evaluated = self
                                     .receipt_choice_at(default_site.clone(), "default-evaluated");
