@@ -157,3 +157,20 @@ describe("bounded construct ranking", () => {
     expect(ranker.lookup(pending.state === "pending" ? pending.ref : "")).toEqual({ state: "ranking_unavailable", reason: "timeout" });
   });
 });
+
+it("cancels bounded retained calls on eviction and closes without awaiting an uncooperative transport", async () => {
+  const signals: AbortSignal[] = [];
+  const ranker = new ConstructRanker({ choose: (_request, signal) => {
+    signals.push(signal); return new Promise(() => {});
+  } }, { allowExternal: () => true, isCurrent: () => true, inlineBudgetMs: 1, providerDeadlineMs: 10000, maxCache: 1 });
+  const first = await ranker.rank(occurrence);
+  const second = await ranker.rank({ ...occurrence, ref: "s1/r1/d1" });
+  expect(first.state).toBe("pending");
+  expect(second.state).toBe("pending");
+  expect(signals[0]!.aborted).toBe(true);
+  expect(ranker.lookup(first.state === "pending" ? first.ref : "")).toMatchObject({ state: "ranking_unavailable", reason: "invalid_response" });
+  ranker.close();
+  expect(signals[1]!.aborted).toBe(true);
+  expect(ranker.lookup(second.state === "pending" ? second.ref : "")).toMatchObject({ state: "ranking_unavailable", reason: "cancelled" });
+  expect(await ranker.rank(occurrence)).toMatchObject({ state: "ranking_unavailable", reason: "cancelled" });
+});

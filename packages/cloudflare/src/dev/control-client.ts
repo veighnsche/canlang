@@ -13,7 +13,7 @@ import {
 } from "./session-socket.js";
 
 const COMMANDS = [
-  "start", "discover", "status", "check", "diagnostics", "diagnostic.detail", "construct.help", "failure.lookup", "failure.detail", "failures",
+  "start", "discover", "status", "check", "diagnostics", "diagnostic.detail", "construct.help", "construct.rank", "rank.lookup", "failure.lookup", "failure.detail", "failures",
   "preview.status", "preview.open", "example.run", "example.rerun", "stop",
 ] as const;
 type Command = typeof COMMANDS[number];
@@ -43,6 +43,7 @@ function help(): DevControlEnvelope {
     start: ["--source PATH or --capture PATH"], discover: [], status: [], check: [],
     diagnostics: ["--revision rN"], "diagnostic.detail": ["--revision rN", "--index N"],
     "construct.help": ["--revision rN", "--id can.v1.CONSTRUCT"],
+    "construct.rank": ["--revision rN", "--index N"], "rank.lookup": ["--revision rN", "--ref SHA256"],
     "failure.lookup": ["--ref SESSION/rN/dN"], "failure.detail": ["--ref SESSION/rN/dN"],
     failures: ["--revision rN"],
     "preview.status": [], "preview.open": [], stop: [],
@@ -62,6 +63,7 @@ function help(): DevControlEnvelope {
         diagnostics: ["--revision", "--after", "--limit"],
         "diagnostic.detail": ["--revision", "--index"],
         "construct.help": ["--revision", "--id"],
+        "construct.rank": ["--revision", "--index"], "rank.lookup": ["--revision", "--ref"],
         "failure.lookup": ["--ref"],
         "failure.detail": ["--ref"],
         failures: ["--revision", "--after", "--limit"],
@@ -144,9 +146,10 @@ export async function runDevControlArgv(argv: readonly string[], deps: ControlCl
     : ["--root", "--session", "--app", "--profile"]);
   if (selected === "check" || selected === "example.run") allowed.add("--expected-revision");
   if (selected === "example.run") { allowed.add("--operation"); allowed.add("--row"); }
-  if (selected === "diagnostics" || selected === "diagnostic.detail" || selected === "construct.help" || selected === "failures") allowed.add("--revision");
+  if (selected === "diagnostics" || selected === "diagnostic.detail" || selected === "construct.help" || selected === "construct.rank" || selected === "rank.lookup" || selected === "failures") allowed.add("--revision");
   if (selected === "diagnostics" || selected === "failures") { allowed.add("--after"); allowed.add("--limit"); }
-  if (selected === "diagnostic.detail") allowed.add("--index");
+  if (selected === "diagnostic.detail" || selected === "construct.rank") allowed.add("--index");
+  if (selected === "rank.lookup") allowed.add("--ref");
   if (selected === "construct.help") allowed.add("--id");
   if (selected === "failure.lookup" || selected === "failure.detail" || selected === "example.rerun") allowed.add("--ref");
   if ([...values.keys()].some(flag => !allowed.has(flag))) {
@@ -154,7 +157,7 @@ export async function runDevControlArgv(argv: readonly string[], deps: ControlCl
   }
   const revision = values.get("--revision");
   const expectedRevision = values.get("--expected-revision");
-  if ((selected === "diagnostics" || selected === "diagnostic.detail" || selected === "construct.help" || selected === "failures") && !/^r[1-9][0-9]*$/.test(revision ?? "")) {
+  if ((selected === "diagnostics" || selected === "diagnostic.detail" || selected === "construct.help" || selected === "construct.rank" || selected === "rank.lookup" || selected === "failures") && !/^r[1-9][0-9]*$/.test(revision ?? "")) {
     return fail(command, "REVISION_REQUIRED", "revisioned lookup needs --revision rN");
   }
   const constructId = values.get("--id");
@@ -178,11 +181,14 @@ export async function runDevControlArgv(argv: readonly string[], deps: ControlCl
       !/^[A-Za-z0-9_-]{1,64}\/r[1-9][0-9]*\/(?:d(?:0|[1-9][0-9]*)|[A-Za-z0-9_-]{1,64}\/f[0-9]+(?:_[0-9]+)?)$/.test(ref ?? "")) {
     return fail(command, "FAILURE_REF_REQUIRED", "failure lookup needs a retained compiler or example ref");
   }
+  if (selected === "rank.lookup" && !/^[0-9a-f]{64}$/.test(ref ?? "")) {
+    return fail(command, "RANK_REF_REQUIRED", "rank lookup needs a pending SHA256 ref");
+  }
   const index = values.get("--index") === undefined ? null : parseInteger(values.get("--index"), 0);
   const afterRaw = values.get("--after");
   const after = afterRaw === undefined ? null : afterRaw === "-1" ? -1 : parseInteger(afterRaw, 0);
   const limit = values.get("--limit") === undefined ? null : parseInteger(values.get("--limit"), 1);
-  if ((selected === "diagnostic.detail" && index === null) ||
+  if (((selected === "diagnostic.detail" || selected === "construct.rank") && index === null) ||
       (values.has("--after") && after === null) || (values.has("--limit") && (limit === null || limit > 25))) {
     return fail(command, "INVALID_ARGUMENTS", "diagnostic index/cursor/limit is invalid");
   }
@@ -240,7 +246,8 @@ export async function runDevControlArgv(argv: readonly string[], deps: ControlCl
       : selected === "check" && expectedRevision !== undefined
       ? { expectedRevision }
       : selected === "diagnostics" || selected === "failures" ? { revision, ...(after === null ? {} : { after }), ...(limit === null ? {} : { limit }) }
-      : selected === "diagnostic.detail" ? { revision, index }
+      : selected === "diagnostic.detail" || selected === "construct.rank" ? { revision, index }
+      : selected === "rank.lookup" ? { revision, ref }
       : selected === "construct.help" ? { revision, id: constructId }
       : selected === "failure.lookup" || selected === "failure.detail" || selected === "example.rerun" ? { ref }
       : undefined;
