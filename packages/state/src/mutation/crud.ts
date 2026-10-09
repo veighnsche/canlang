@@ -18,7 +18,7 @@ import type {
 } from '@canlang/contracts';
 import type { StoragePort } from '../storage/port.js';
 import type { AdmittedCall } from '../invocation/admission.js';
-import type { ExecutionEffects } from '../invocation/invoke.js';
+import type { ExecutionEffects, GeneratedCrudReceiptAssociation } from '../invocation/invoke.js';
 import type { GeneratedOperationDef, InterimOperationDef } from '../invocation/registry.js';
 import { isGeneratedOperationDef } from '../invocation/registry.js';
 import { validateByPredicate, type ByPredicate } from '../policy/roles.js';
@@ -318,6 +318,21 @@ export interface GeneratedCrudExecuteInput {
   readonly store: StoragePort;
   /** Existing late pipeline conversion for checked field associations. */
   readonly encodeField?: MutationWritesInput['encodeField'];
+  /** Checked defining model metadata supplied by trusted host wiring. */
+  readonly secretFields?: ReadonlyMap<ModelName, readonly string[]>;
+}
+
+function generatedCrudAssociation(
+  first: ExecutionEffects['writes'][number],
+  secretFields: GeneratedCrudExecuteInput['secretFields'],
+): GeneratedCrudReceiptAssociation {
+  const fields = secretFields?.get(first.model);
+  return {
+    kind: 'generated-crud/v1',
+    model: first.model,
+    record: first.kind === 'remove' ? null : { id: first.row.id, version: first.row.version },
+    ...(fields === undefined ? {} : { secretFields: [...fields] }),
+  };
 }
 
 /**
@@ -393,7 +408,7 @@ function generatedRecordInput(def: GeneratedOperationDef): Extract<
 export function generatedCrudExecute(
   input: GeneratedCrudExecuteInput,
 ): (call: AdmittedCall) => Promise<ExecutionEffects> {
-  const { table, store, encodeField } = input;
+  const { table, store, encodeField, secretFields } = input;
   return async (call: AdmittedCall): Promise<ExecutionEffects> => {
     const def = call.def;
     if (!isGeneratedOperationDef(def)) {
@@ -455,6 +470,7 @@ export function generatedCrudExecute(
         uniqueReleases: effects.uniqueReleases,
         resolvedDefaults: effects.resolvedDefaults,
         result: first.kind === 'remove' ? null : first.row,
+        generatedCrud: generatedCrudAssociation(first, secretFields),
       };
     }
 
@@ -511,6 +527,7 @@ export function generatedCrudExecute(
         uniqueReleases: effects.uniqueReleases,
         resolvedDefaults: effects.resolvedDefaults,
         result: first.kind === 'remove' ? null : first.row,
+        generatedCrud: generatedCrudAssociation(first, secretFields),
       };
     }
 

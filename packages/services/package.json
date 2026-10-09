@@ -25,7 +25,9 @@
     "dist/"
   ],
   "dependencies": {
-    "@canlang/contracts": "workspace:*"
+    "@canlang/contracts": "workspace:*",
+    "@canlang/values": "workspace:*",
+    "@noble/hashes": "2.4.0"
   },
   "exports": {
     ".": {
@@ -99,6 +101,10 @@
     "./scenario-admission": {
       "types": "./dist/src/internal/scenario-admission.d.ts",
       "default": "./dist/src/internal/scenario-admission.js"
+    },
+    "./judgments/specification": {
+      "types": "./dist/src/judgments/specification.d.ts",
+      "default": "./dist/src/judgments/specification.js"
     }
   }
 }

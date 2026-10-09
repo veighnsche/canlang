@@ -242,6 +242,11 @@ export interface ReceiptResultContext {
   readonly declaredResult: import('./state.js').CanonicalNominalResult;
   /** Frozen business request identity, distinct from the receipt owner checkpoint. */
   readonly request?: { readonly source: string; readonly revision: string };
+  /** Original source-owned static Judgment specification and checked result inventory. */
+  readonly judgment?: {
+    readonly specification: import('./services.js').JudgmentSpec;
+    readonly valueTypes: import('./state.js').CanonicalValueTypes;
+  };
 }
 
 /**

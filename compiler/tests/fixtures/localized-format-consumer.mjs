@@ -20,6 +20,186 @@ registerHooks({resolve(specifier, context, next) {
 const load = path => import(pathToFileURL(resolve(root, path)));
 const {loadArtifactFile} = await load('packages/cloudflare/src/runtime/artifact.ts');
 const {assembleModules} = await load('packages/cloudflare/src/runtime/modules.ts');
+
+if (process.argv.includes('--presentation')) {
+  const source=`app Presented uses=[Shared]
+context
+ locale default="es"
+package Shared source="FR"
+ Given
+  export message zero(n:int,word:text) = "{n,plural,one {un {word}} other {autres {word}}}"@{nl="{n,plural,one {een {word}} other {andere {word}}}"}
+  export derive presented():text = format(zero(0,"<em>{literal}مرحبا &</em>"),locale="es")
+ When
+ Then
+  page /localized title="Localized"
+   text zero(0,"<em>{literal}مرحبا &</em>")
+   text presented()
+`;
+  const compileSource=(name,text)=>{
+    const file=resolve(scratch,name+'.can');
+    writeFileSync(file,text);
+    return spawnSync(can,['compile','--format=json','--catalog',resolve(root,'packages/values/dist/catalog.json'),file],{encoding:'utf8',timeout:15000});
+  };
+  const compiled=compileSource('Presented',source);
+  assert.equal(compiled.status,0,compiled.stdout+'\n'+compiled.stderr);
+  const artifactPath=resolve(scratch,'Presented.json');
+  writeFileSync(artifactPath,compiled.stdout);
+  const loaded=loadArtifactFile(artifactPath);
+  const uiUrl=import.meta.resolve('@canlang/ui');
+  const asm=await assembleModules(loaded,{workDir:resolve(scratch,'Presented'),stdlibUrl:import.meta.resolve('@canlang/stdlib'),uiUrl});
+  const generated=await import(asm.entryUrl);
+  const registry=generated.canApp();
+  const context={formatting:{appDefault:'es'},team:null,appDefaultLocale:'es',preferredLocales:['es']};
+  const formatted=await registry['Shared.presented'](context);
+  assert.deepEqual(formatted,{text:'un <em>{literal}مرحبا &</em>',locale:'fr'});
+  assert.equal(Object.isFrozen(formatted),true);
+  const page=generated.appDefinition.pages[0];
+  const bindings=await page.admit(context);
+  const french='<span lang="fr" dir="auto">\u2068un &lt;em&gt;{literal}مرحبا &amp;&lt;/em&gt;\u2069</span>';
+  const html=await page.render(context,bindings);
+  assert.equal(html.split(french).length-1,2,'direct message and formatted derive retain French zero grammar and safe language markup');
+  assert.ok(!html.includes('<em>'),'message parameters remain escaped text');
+  const dutch={...context,preferredLocales:['nl']};
+  const changed=await page.render(dutch,await page.admit(dutch));
+  assert.ok(changed.includes('<span lang="nl" dir="auto">\u2068andere &lt;em&gt;{literal}مرحبا &amp;&lt;/em&gt;\u2069</span>'));
+  assert.equal(changed.split(french).length-1,1,'explicit formatted output is not re-resolved for another viewer');
+
+  const ui=await import(uiUrl);
+  assert.equal(ui.renderTextValue(formatted,dutch),french,'complete formatter carrier reaches the public display boundary unchanged');
+  for(const invalid of [{text:formatted.text},{...formatted,extra:true},{...formatted,locale:'FR'},{...formatted,locale:'bad tag'}]) {
+    assert.throws(()=>ui.renderTextValue(invalid,dutch),'malformed final pairs cannot enter display');
+  }
+  const legacy=ui.message('{n,plural,one {un} other {autres}}',{}, {n:{type:'int',value:0n}});
+  assert.equal(Object.hasOwn(legacy,'sourceLocale'),false);
+  assert.equal(ui.formatMessage(legacy,{preferredLocales:[],appDefaultLocale:'es',sourceLocale:'fr'}),'un','legacy explicit source-locale option remains supported');
+  const carried=ui.message('Source',{},undefined,'FR');
+  assert.equal(carried.sourceLocale,'fr');
+  assert.equal(Object.isFrozen(carried),true);
+  assert.throws(()=>ui.resolveMessage(carried,{preferredLocales:[],appDefaultLocale:'es',sourceLocale:'de'}),/disagrees/);
+
+  // An older three-argument UI constructor is simulated at its public module
+  // boundary; the compiled module and all positive runtime bodies are intact.
+  const oldUi=resolve(scratch,'old-ui.mjs');
+  writeFileSync(oldUi,`export * from ${JSON.stringify(uiUrl)};\nimport {message as current} from ${JSON.stringify(uiUrl)};\nexport const message=(source,variants,params)=>current(source,variants,params);\n`);
+  await assert.rejects(async()=>{
+    const old=await assembleModules(loaded,{workDir:resolve(scratch,'OldPresented'),stdlibUrl:import.meta.resolve('@canlang/stdlib'),uiUrl:pathToFileURL(oldUi).href});
+    const module=await import(old.entryUrl);
+    const descriptor=module.appDefinition.pages[0];
+    await descriptor.render(context,await descriptor.admit(context));
+  },error=>error.code==='invalid-construction' && /message constructor must preserve checked source locale/.test(error.message));
+  const refused=compileSource('UnclassifiedPresented',source.replace('text presented()','badge presented()'));
+  assert.equal(refused.status,10,refused.stdout+'\n'+refused.stderr);
+  const response=JSON.parse(refused.stdout);
+  assert.ok(response.diagnostics.some(diagnostic=>diagnostic.code==='E6008'));
+  assert.equal(response.modules,undefined,'unclassified formatted UI sink stays refused');
+  console.log('localized presentation: genuine imported source language, French zero grammar, final literal carrier, escaping/bidi/lang, changed viewer, legacy call and incompatible constructor refusal passed');
+  process.exit(0);
+}
+
+if (process.argv.includes('--label-parameter')) {
+  const source=`app LabelParameter uses=[Labels]
+context
+ locale default="en"
+package Labels source="en"
+ Given
+  message caption = "Actual caption"@{}
+  message greet(seed:text="S",label:text=seed,tail:text="T" label=caption) = "{seed}|{label}|{tail}"@{}
+  export derive render(seed:text):text = format(greet(seed=seed),locale=null)
+  export derive explicit(label:text):text = format(greet(seed="S",label=label),locale=null)
+ When
+ Then
+`;
+  const compileSource=(name,text)=>{
+    const file=resolve(scratch,name+'.can');
+    writeFileSync(file,text);
+    return spawnSync(can,['compile','--format=json','--catalog',resolve(root,'packages/values/dist/catalog.json'),file],{encoding:'utf8',timeout:15000});
+  };
+  const compiled=compileSource('LabelParameter',source);
+  assert.equal(compiled.status,0,compiled.stdout+'\n'+compiled.stderr);
+  const artifactPath=resolve(scratch,'LabelParameter.json');
+  writeFileSync(artifactPath,compiled.stdout);
+  const loaded=loadArtifactFile(artifactPath);
+  const asm=await assembleModules(loaded,{workDir:resolve(scratch,'LabelParameter'),stdlibUrl:import.meta.resolve('@canlang/stdlib'),uiUrl:import.meta.resolve('@canlang/ui')});
+  const registry=(await import(asm.entryUrl)).canApp();
+  const context={formatting:{appDefault:'en'},team:null};
+  assert.deepEqual(await registry['Labels.render'](context,'Ready'),{text:'Ready|Ready|T',locale:'en'});
+  assert.deepEqual(await registry['Labels.explicit'](context,'Bound'),{text:'S|Bound|T',locale:'en'});
+  const refused=compileSource('InvalidLabelCaption',source.replace('message caption = "Actual caption"','message caption(value:text) = "Actual {value}"'));
+  assert.equal(refused.status,10,refused.stdout+'\n'+refused.stderr);
+  const response=JSON.parse(refused.stdout);
+  assert.equal(response.diagnostics.length,1,refused.stdout);
+  assert.equal(response.diagnostics[0].code,'E3016');
+  assert.equal(response.diagnostics[0].message,"label cannot reference 'caption'; parameterized messages need call syntax");
+  assert.equal(response.modules,undefined,'invalid actual caption cannot publish modules');
+  console.log('localized contextual label parameter: dependent default and explicit binding execute through generated formatter; invalid actual parameter caption refuses E3016');
+  process.exit(0);
+}
+
+if (process.argv.includes('--branch-options')) {
+  // One source-owned case crosses production compilation, artifact loading,
+  // generated imports and the installed formatter facade. This is an
+  // expression host with explicit app scope, not a State handler proof.
+  const source=`app BranchOptions uses=[Branches]
+context
+ locale default="en"
+package Branches source="en"
+ Given
+  contract Choice { mode:enum(primary,secondary) }
+  contract Input { n:int, mode:Choice.mode, target:locale? }
+  export message summary(n:int,mode:Choice.mode,flag:bool,word:text,rank:int) = "{mode,select,primary {{n,plural,=0 {none} one {one {word}} other {{flag,select,true {# {word}} false {# paused} other {# unknown}}}}} other {fallback {word}}}|{rank,selectordinal,one {#st} two {#nd} few {#rd} other {#th}}"@{fr="{mode,select,primary {{n,plural,=0 {aucun} one {un {word}} other {{flag,select,true {# {word}} false {# pause} other {# inconnu}}}}} other {repli {word}}}|{rank,selectordinal,one {#er} other {#e}}"}
+  export message exact(amount:decimal) = "{amount,plural,=9007199254740993.125 {exact {amount,number}} one {one #} other {other #}}"@{fr="{amount,plural,=9007199254740993.125 {exact {amount,number}} one {un #} other {autres #}}"}
+  export derive render(n:int,mode:Choice.mode,flag:bool,word:text,rank:int,target:locale?):text = format(summary(n,mode,flag,word,rank),locale=target)
+  export derive positional(v:Input):text = format(summary(v.n,v.mode,true,"ready",21),locale=v.target)
+  export derive reordered(v:Input):text = format(locale=v.target,descriptor=summary(rank=12,word="done",flag=false,mode=v.mode,n=v.n))
+  export derive decimal(amount:decimal,target:locale?):text = format(exact(amount),locale=target)
+ When
+ Then
+`;
+  const file=resolve(scratch,'BranchOptions.can');
+  writeFileSync(file,source);
+  const compiled=spawnSync(can,['compile','--format=json','--catalog',resolve(root,'packages/values/dist/catalog.json'),file],{encoding:'utf8',timeout:15000});
+  assert.equal(compiled.status,0,compiled.stdout+'\n'+compiled.stderr);
+  const artifactPath=resolve(scratch,'BranchOptions.json');
+  writeFileSync(artifactPath,compiled.stdout);
+  const loaded=loadArtifactFile(artifactPath);
+  const asm=await assembleModules(loaded,{workDir:resolve(scratch,'BranchOptions'),stdlibUrl:import.meta.resolve('@canlang/stdlib'),uiUrl:import.meta.resolve('@canlang/ui')});
+  const registry=(await import(asm.entryUrl)).canApp();
+  const context={formatting:{appDefault:'en'},team:null};
+  const call=(name,...args)=>registry['Branches.'+name](context,...args);
+  assert.deepEqual(await call('render',0n,'primary',true,'ready',1n,null),{text:'none|1st',locale:'en'});
+  assert.deepEqual(await call('render',1n,'primary',true,'ready',2n,'en-GB'),{text:'one ready|2nd',locale:'en'});
+  assert.deepEqual(await call('render',2n,'primary',true,'ready',3n,null),{text:'2 ready|3rd',locale:'en'});
+  assert.deepEqual(await call('render',2n,'primary',false,'ready',12n,'de'),{text:'2 paused|12th',locale:'en'});
+  assert.deepEqual(await call('render',2n,'secondary',true,'done',11n,null),{text:'fallback done|11th',locale:'en'});
+  assert.deepEqual(await call('render',2n,'primary',false,'ready',1n,'fr-CA'),{text:'2 pause|1er',locale:'fr'});
+
+  // The chosen whole-message locale owns category selection, including
+  // requested-tag fallback: French zero is cardinal one; English is other.
+  assert.deepEqual(await call('decimal',parseDecimal('0'),'fr-CA'),{text:'un 0',locale:'fr'});
+  assert.deepEqual(await call('decimal',parseDecimal('0'),'de'),{text:'other 0',locale:'en'});
+  assert.deepEqual(await call('decimal',parseDecimal('9007199254740993.125'),null),{text:'exact 9,007,199,254,740,993.125',locale:'en'});
+  await assert.rejects(call('decimal',parseDecimal('9007199254740993.126'),null),error=>error.code==='out-of-range' && error.message==='plural selection needs a safe-range operand; this magnitude cannot select exactly');
+  await assert.rejects(call('render',9007199254740992n,'primary',true,'ready',1n,null),error=>error.code==='out-of-range' && error.message==='plural selection needs a safe-range int; this magnitude cannot select exactly');
+
+  for (const [name,order,text] of [
+    ['positional',['n','mode','target'],'2 ready|21st'],
+    ['reordered',['target','mode','n'],'2 paused|12th'],
+  ]) {
+    const trace=[];
+    const input={get n(){trace.push('n');return 2n},get mode(){trace.push('mode');return 'primary'},get target(){trace.push('target');return null}};
+    assert.deepEqual(await call(name,input),{text,locale:'en'});
+    assert.deepEqual(trace,order,name+': written arguments evaluated once in source order');
+    trace.length=0;
+    const sentinel=new Error(name+': first argument');
+    const failing=Object.fromEntries(['n','mode','target'].map(key=>[key,null]));
+    for (const key of ['n','mode','target']) Object.defineProperty(failing,key,{get(){trace.push(key);throw key===order[0]?sentinel:new Error('later argument was evaluated')}});
+    await assert.rejects(call(name,failing),error=>error===sentinel);
+    assert.deepEqual(trace,[order[0]],name+': first failure preserves identity and skips later arguments');
+  }
+  console.log('localized branch options: generated nested select/plural/ordinal, exact decimal, locale fallback, argument order and failure identity passed');
+  process.exit(0);
+}
+
 const {buildInvoker} = await load('packages/cloudflare/src/worker/assembly.ts');
 
 const shared = `package Shared source="fr"

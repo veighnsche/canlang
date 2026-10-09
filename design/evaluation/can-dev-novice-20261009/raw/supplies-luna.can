@@ -1,0 +1,57 @@
+Given OfficeSupplies
+  team: Team
+  supplies: Supply[]
+
+Given Supply
+  name: Text required
+  quantity: Number optional
+  status: available | needingRestock = available
+
+When member adds a supply
+  require member belongs to OfficeSupplies.team
+  create Supply with status available
+
+When member edits a supply
+  require member belongs to OfficeSupplies.team
+  update its name and quantity
+
+When member marks a supply as needing restock
+  require member belongs to OfficeSupplies.team
+  set its status to needingRestock
+
+When member marks a supply as available
+  require member belongs to OfficeSupplies.team
+  set its status to available
+
+When member removes a supply
+  require member belongs to OfficeSupplies.team
+  delete it
+
+Then Office Supplies
+  visible to members of OfficeSupplies.team
+
+  search supplies by name
+
+  view all supplies
+  view available supplies
+  view supplies needing restock
+
+  show count of supplies in the current view
+
+  show a create form for name and optional quantity
+
+  show each supply's name, quantity, and status
+  allow members to edit, change status, and remove each supply
+
+  when the current view has no supplies
+    show "No supplies here yet. Add a supply to get started."
+
+## Behavior example: a successful edit
+## Given a team member edits "Printer paper" and sets quantity to 12
+## When the edit is submitted
+## Then "Printer paper" has quantity 12
+
+## Behavior example: a nonmember is denied
+## Given a person who is not a member of the team
+## When they try to view or change its supplies
+## Then access is denied

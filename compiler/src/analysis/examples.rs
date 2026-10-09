@@ -248,13 +248,28 @@ impl<'a> Checker<'a> {
             let Some(text) = file_text(self.db, *file) else {
                 continue;
             };
-            let bound_inline = self.inline_format_descriptors(tree);
+            let mut bound_inline = self.inline_format_descriptors(tree);
+            let mut schemas = HashMap::new();
+            for binding in self.types.anonymous_messages.values() {
+                if binding.descriptor.file == *file {
+                    bound_inline.insert(binding.descriptor);
+                    schemas.insert(
+                        binding.descriptor,
+                        binding
+                            .arguments
+                            .iter()
+                            .map(|(name, _, ty)| (name.clone(), IcuType::of(ty)))
+                            .collect::<HashMap<_, _>>(),
+                    );
+                }
+            }
             let empty = HashMap::new();
             for descriptor in tree
                 .descendants()
                 .filter(|node| bound_inline.contains(&NodeKey::of(node)))
             {
-                self.check_message_value(text, descriptor, Some(&empty), true);
+                let params = schemas.get(&NodeKey::of(descriptor)).unwrap_or(&empty);
+                self.check_message_value(text, descriptor, Some(params), true);
             }
             self.check_inline_patterns(text, tree, &bound_inline);
         }
@@ -3044,7 +3059,7 @@ fn navigable_unknown(ty: &ResolvedType) -> bool {
 
 /// Whether a message parameter type is admissible: a nonnullable
 /// text-like, bool, enum, int, decimal, money, date or datetime value.
-fn message_param_ok(ty: &ResolvedType) -> bool {
+pub(crate) fn message_param_ok(ty: &ResolvedType) -> bool {
     matches!(
         ty,
         ResolvedType::Scalar(

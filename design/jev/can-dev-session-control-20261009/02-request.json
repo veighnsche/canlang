@@ -1,0 +1,23 @@
+{
+  "state": "The proposed agent development loop needs one long-lived local session per checkout, immutable source revisions, compact errors and help, a preview, and selected inline checks. Today the language toolchain has JSON command output and source-hashed diagnostics; its worker helper has no TCP listener, while a test fixture proves loopback serving. A production development control API has not been built. Application MCP is an authenticated business interface, not the control channel. The present test command does not execute its emitted rows; a narrower fixture adapter exists without a complete record of identity, time, provider replies and storage needed to recreate an outcome. The first design should be simple for unfamiliar coding agents, prevent cross-worktree mixups, use bounded output, and never call a fresh attempt an exact reproduction. Assess all alternatives using these same outcomes, including discovery, access control, maintenance and implementation cost.",
+  "questions": {
+    "first_transport": {
+      "type": "choice",
+      "instructions": "Select the first interface an agent should use to control the local development session.",
+      "criteria": {
+        "json_cli": "A JSON CLI connects through private local IPC to an explicitly named session, and preview HTTP remains separate. It follows existing JSON commands and works from ordinary agent shells, with weaker built-in tool discovery and command startup overhead.",
+        "dev_mcp": "A dedicated development MCP service exposes typed, discoverable session tools from the outset. It supports persistent calls, while requiring client registration, endpoint access rules and another protocol before the underlying preview/example gaps are solved.",
+        "both_initially": "Build the CLI and MCP adapters at the same time around shared state. This maximizes client choice but doubles initial public transport, access and compatibility work."
+      }
+    },
+    "replay_boundary": {
+      "type": "choice",
+      "instructions": "Choose the first-slice policy for repeating a failed authored example.",
+      "criteria": {
+        "exact_replay_first": "Require full capture and restoration of the revision, artifact, fixtures, caller, time, storage and provider responses before shipping repetition, and advertise exact replay only then. Highest fidelity with substantial delay.",
+        "isolated_rerun": "Run the same revision's example again with a new local data scope and identify it as a new run; withhold exact replay unless every relevant input is pinned and restored. Retains useful checking while showing uncertainty.",
+        "no_rerun_first": "Defer both repeat-run and replay controls until deterministic restoration is complete. It minimizes early surface area but slows agent debugging after a row failure."
+      }
+    }
+  }
+}

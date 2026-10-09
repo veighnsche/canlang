@@ -1,0 +1,77 @@
+## Supplementary finite complete country/region witness for SEQ-007. No production adoption claim.
+app CountryRegion uses=[geography]
+
+package geography
+ Given
+  role geography_manager
+  Country { name:text trim min=1 max=100, allowed:user[], active:bool=true }
+  Region in Country { name:text trim min=1 max=100, active:bool=true }
+  Address { owner:user server=actor, country:Country, region:Region, street:text trim min=1 max=200, notes:text? }
+  policy Country read=members where=actor in row.allowed fields=name,allowed,active
+  policy Country read=geography_manager
+  policy Region read=members where=actor in row.parent.allowed fields=parent,name,active
+  policy Region read=geography_manager
+  policy Address read=members where=row.owner==actor
+  unique Region fields=name
+  lock Address fields=owner,country,region,street,notes
+  fixture alpha=Country {name="Alpha",allowed=[self]}
+  fixture beta=Country {name="Beta",allowed=[self]}
+  fixture hidden=Country {name="Hidden",allowed=[other]}
+  fixture north=Region {parent=alpha,name="North"}
+  fixture south=Region {parent=alpha,name="South"}
+  fixture west=Region {parent=beta,name="West"}
+  fixture hidden_region=Region {parent=hidden,name="Hidden region"}
+ When
+  crud Country by=geography_manager fields=name,allowed,active create_fields=name,allowed delete=none
+  crud Region by=geography_manager fields=name,active create_fields=name delete=none
+  ## Owning authorized reads; finite output fails explicitly rather than truncating a larger candidate set.
+  scenario country_choices() read=true -> Country[] by=members
+   do
+    let choices=Country as country where country.active and actor in country.allowed order=country.name
+    require count(choices)<=100
+    return choices
+  scenario region_choices(country:Country) read=true -> Region[] by=members
+   require country.active and actor in country.allowed
+   do
+    let choices=country.Region as region where region.active order=region.name
+    require count(choices)<=100
+    return choices
+  ## Final server authority remains independent of any previously displayed candidates.
+  scenario save(country:Country,region:Region,street:Address.street,notes:Address.notes=null) by=members -> Address
+   require country.active and region.active and region.parent==country and actor in country.allowed
+   do
+    create Address {country,region,street,notes} as address
+    return address
+   examples country=alpha region=north street="One Street" notes=null
+    as,alpha.active,north.active -> result.country,result.region
+    self,true,true -> alpha,north
+    self,false,true -> error(rule_failed)
+    self,true,false -> error(rule_failed)
+    public,true,true -> error(forbidden)
+   examples country=alpha street="One Street" notes=null
+    region -> result.country,result.region
+    north -> alpha,north
+    west -> error(rule_failed)
+ Then
+  page /address title="Choose an address"@{nl="Kies een adres"}
+   require members
+   breadcrumbs
+   ## PROPOSED: generated Country reference lookup plus region choices from current typed input.country.
+   ## The JSON sketch is comparison-only; these comments implement no dependent behavior.
+   form save
+    select country
+    select region
+    input street
+    textarea notes
+   table Address columns=country,region,street,notes empty="No saved addresses"@{nl="Geen opgeslagen adressen"}
+    pagination
+  page /address/catalog title="Address catalog"@{nl="Adrescatalogus"}
+   require geography_manager
+   form Country.create
+   list Country as country
+    pagination
+    edit
+    form Region.create arguments={parent=country}
+    table row.Region columns=name,active
+     pagination
+     edit

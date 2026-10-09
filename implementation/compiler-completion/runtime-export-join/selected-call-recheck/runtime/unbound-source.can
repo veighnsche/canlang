@@ -1,5 +1,0 @@
-app T
-Given
- derive g():text = lower(value=missing)
-When
-Then

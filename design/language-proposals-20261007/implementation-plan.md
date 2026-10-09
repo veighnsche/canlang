@@ -65,6 +65,39 @@ Run focused parser/checker/emitter tests for source changes, state/interface tes
 
 **Acceptance:** concurrent admissions cannot overspend; replay cannot double debit or settle; stale/mismatched/forged usage is rejected; amount overflow and changed currencies/units fail; late usage settles once; unknown acceptance retains the appropriate commitment. Crash tests cover both same-owner commit and any deliberately staged cross-owner handshake.
 
+### Task 41: selected units and owner boundary
+
+The concrete pilots are Chat's token allowance and Knowledge's two unfinished questions per account. This is a design-stage selection; tasks 42–43 still implement and qualify admission and settlement. Use ordinary operations at each application's resolved team State owner. The account identifies the beneficiary, not a separate transaction owner. A package name alone does not establish shared storage. Do not add an accounting DSL or shared mutating package API.
+
+| Pilot and source | Resource and admission maximum | Authoritative state |
+| --- | --- | --- |
+| [Chat](../../draft/CanChat.can), `Allowance`, `ask`, `reply_progressed` | Integer tokens. Freeze `R = input_tokens + output_tokens`: default 10,240, maximum 40,960 under the current profile constraints. Admit only when `spent + held + R <= cap`; `cap` has no additional source maximum beyond the integer type. Checked arithmetic must reject overflow before effects. | The selected app/team store owns Allowance, Run, Turn and the outbox. One fenced commit reserves R, creates the run/user turn and stages its request. Preserve the separate existing parallel and branch limits. |
+| [Knowledge](../../draft/CanKnowledge.can), `ask`, `stop`, `release_skipped`, `progressed` | One unfinished Question; maximum two per account across topics in that app/team. Retain the existing authoritative count rather than introduce a second writable counter. | The same owner contains Question, topic DailyUsage and outbox. Count/admission, daily charge, Question creation and request staging share one fenced commit. DailyUsage remains a separate per-topic UTC-day charge and is not refunded when a concurrency slot is released. |
+
+Both pilots retain current caller/topic/profile policy. They do not pool capacity across applications or teams. Any mutable dependency under a different owner must be refused by this local path or handled through an explicitly staged protocol; it cannot be copied into a reservation mirror and treated as authoritative. Runtime implementation still needs the original declared-rule and authority-query prerequisites.
+
+**Usage and release.** Chat freezes the request's original operation source, revision, profile/policy and token limits. Only the current associated delivery's verified source/revision/ordered progress can supply usage. For one previously unsettled run, measured `u` must be nonnegative and no greater than R; settlement subtracts R from held and adds u to spent exactly once. The run's immutable used amount prevents a later contradictory observation from charging again. Terminal success, failure or cancellation releases the running slot once; missing usage keeps the token hold. Unknown acceptance, a stop request or a local timeout releases neither by itself. An authoritative never-dispatched skipped receipt with absent progress can release both and record zero usage. No automatic hold expiry or replenishment is authored.
+
+Knowledge releases the unfinished slot only through its associated terminal state or authoritative skipped delivery. Stop acknowledgement, unknown progress and elapsed time are insufficient. Late usage does not consume a second slot or refund the separately counted daily request. Replay and late completion stay bound to the original Question, never a replacement request.
+
+These units are not money. Services requires deployment-owned input tokenization and forwards the requested output limit; the bound text adapter can publish the measured final token sum. That does not establish a universal remote-provider hard ceiling. Missing or over-reservation evidence remains unresolved without fabricated usage or a refund. The image adapter currently emits `charged_jobs=null`, so it cannot establish image-charge settlement. Dollar caps require an enforceable price/cap contract. [Loyalty](../../draft/CanLoyalty.can) deliberately permits evidence-backed negative reversals; its balance semantics must not inherit these allowance invariants.
+
+**Same outcomes, two alternatives.** Local composition gives one admission result and one atomic hold/job/outbox commit at the existing owner. Its limitation is scope: it provides no global resource pool. A separate accounting owner can preserve the same limits only with a durable reservation keyed to the original app/owner/request, followed by confirmed admission at the app owner before dispatch. Lost acknowledgements must recover that reservation, not allocate another. If reservation commits but app admission does not, recovery must prove no request can still dispatch before releasing it. If app commit may have happened, retain the uncertain hold until correlated reconciliation resolves it. This alternative adds intermediate states and recovery duties; it cannot claim immediate cross-owner atomic admission. No present pilot requires that extra owner, so select local composition. Reconsider staged ownership when an actual consumer requires a separately authoritative shared pool.
+
+Expected direct implementation cases, retained here rather than a separate verification packet:
+
+| Boundary | Required outcome |
+| --- | --- |
+| Concurrent exact-cap requests / last free slot | Only the fitting admission commits; the loser re-evaluates current owner state. No orphan hold, Question, Turn or send. |
+| Overflow, negative/wrong units, foreign owner, stale version, revoked authority, late authored failure | Refuse and preserve all prior accounting/business state; no outbox request. Lowering cap/parallel must not erase existing commitments. |
+| Replay; crash before commit; response lost after commit | No effect before commit; after commit reuse original receipt, hold/job and outbox identity without duplicate provider submission. |
+| Duplicate, reordered, forged or wrong-attempt progress | No double settlement/release and no mutation of a replacement run. Preserve the defining progress contract's rejection/replay behavior. |
+| Terminal with null usage, then valid late usage | Free the slot once, retain the token hold, then settle that hold once; preserve terminal state and the Knowledge daily charge. |
+| Unknown/cancel request/deadline; proved skipped | Unknown retains commitments; request intent is not provider termination. Only authoritative skipped evidence permits the declared never-dispatched release. |
+| Restart or incompatible upgrade | Preserve admission/evidence identity and pending commitments. Unsupported version changes refuse; same-version restart is not upgrade acceptance. |
+
+[Three JEV consultations](jev/accounting-owner-selection.json) select the local boundary with choice probabilities .99/1/1 and confidence .98/1/1. They agree on the choice; the confidence values remain uncalibrated advice, not evidence that the application or accounting implementation works. Current source/contracts support this owner mapping. Provider limits, full rule/query execution, concurrent races, upgrades and tasks 42–43 remain open; original approval holds are unchanged.
+
 ## 6 Durable bulk authoring
 
 **Selected path:** qualify current cohort/CSV interface first, then a thin derived surface if useful. Owners: compiler descriptors, interfaces/UI, existing state/work cohorts. Dependencies: T19/T20/T24/T33/T34 and FP.CSV, current authority/fence contracts. T33's accepted decision is reused; no second scheduler is proposed.

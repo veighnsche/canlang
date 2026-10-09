@@ -18,10 +18,12 @@ fn delivery() -> JsDeliveryDescriptor {
                 JsNominalLeaf {
                     name: "z".into(),
                     declared: "text?".into(),
+                    constraints: JsValueConstraints::default(),
                 },
                 JsNominalLeaf {
                     name: "a".into(),
                     declared: "file[]".into(),
+                    constraints: JsValueConstraints::default(),
                 },
             ],
         },

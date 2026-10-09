@@ -27,6 +27,10 @@ export function createOperationFormPreparer(
 ): OperationFormPreparer {
   let occurrence = 0;
   return request => {
+    if (Object.hasOwn(request, 'occurrence') && (typeof request.occurrence !== 'string' ||
+        !/^(?:[^\uD800-\uDFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF])+$/.test(request.occurrence))) {
+      throw new TypeError('Operation form occurrence must be a nonempty well-formed string.');
+    }
     const unavailable = (reason: string) => ({ status: 'unavailable' as const, message: reason });
     const derived = catalog?.derivedFor?.(request.operation);
     if (derived === undefined || derived === null) return unavailable('Operation form is unavailable.');
@@ -89,7 +93,8 @@ export function createOperationFormPreparer(
     if (writable.some(input => selectedNames.has(input.name) && !renderedNames.has(input.name) && input.required && input.default === undefined)) {
       return unavailable('Authored form omits a required control.');
     }
-    const idPrefix = `operation-form-${++occurrence}`;
+    const idPrefix = request.occurrence === undefined ? `operation-form-${++occurrence}` :
+      `operation-form-source-${Array.from(new TextEncoder().encode(request.occurrence), byte => byte.toString(16).padStart(2, '0')).join('')}`;
     const timeZone = context.team?.timezone ?? 'UTC';
     const renderedFields = authored === undefined ? fields : authored.map(name => generated.get(name)!);
     const prepared = {
@@ -110,7 +115,8 @@ export function createOperationFormPreparer(
     } as const;
     if (!hasBindings || protection === undefined) return prepared;
     return protection.service.seal({ appId: protection.appId, sessionToken: protection.sessionToken,
-      identity: protection.identity, derived, operationId: prepared.props.operationId, nowMs: clock.nowMs() },
+      identity: protection.identity, derived, operationId: prepared.props.operationId, nowMs: clock.nowMs(),
+      ...(request.occurrence === undefined ? {} : { occurrence: request.occurrence }) },
       bound, [...renderedNames]).then(proof => ({
         ...prepared, props: { ...prepared.props, sourceBinding: proof.token, sourceBindingIdentity: proof.identity,
           sourceBindingDraftIdentity: proof.draftIdentity },

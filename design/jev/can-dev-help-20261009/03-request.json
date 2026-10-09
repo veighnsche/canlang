@@ -1,0 +1,15 @@
+{
+  "state": "The Can dev workflow should let a coding agent follow one link from a syntax error to the correct v1 construct. Existing owners are split: normative grammar syntax, design semantics, compiler-position completion, a finite UI design catalog, and a builtin function catalog. Availability must distinguish source syntax, checked compiler support and chosen local runtime resources; an approved proposal is not automatically a working suggestion. A reviewable pre-plan deliverable is needed now, with one signature, meaning, example, availability and stable link per eligible construct. Compare equivalent approaches for one authoritative agent-help surface and low ongoing drift.",
+  "questions": {
+    "help_ownership": {
+      "type": "choice",
+      "instructions": "Select the best source arrangement for durable, context-eligible Can help cards, considering present effort and future dev-server use.",
+      "criteria": {
+        "dynamic_completion": "Build help at request time from live parser/completion plus references. It follows current syntax directly, but lacks durable authored meanings/examples and may produce unstable links or IDs.",
+        "compiler_registry": "Maintain a versioned structured registry next to compiler completion with authored card fields and profile availability, using explicit consistency checks with source owners. Machine-readable immediately, though some metadata repeats the docs.",
+        "documentation_registry": "Publish one anchored Markdown table of cards and statuses first and defer machine extraction. Easy to inspect and link today, but shipping code later needs careful conversion and synchronization.",
+        "derived_sources": "Attach card fields to the grammar and component/builtin owners and generate a merged index with profile support. Canonical fields remain near their owners, at the price of a multi-source generator and delivery metadata join."
+      }
+    }
+  }
+}

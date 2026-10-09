@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -164,91 +164,77 @@ describe("can-platform CLI (L1 IR-03 delegation target)", () => {
   );
 });
 
-// Exercise the actual CLI dispatch without starting workerd. Acquisitions and
-// failures are controlled at their owning boundaries; scratch is real on disk.
-const cleanup = vi.hoisted(() => ({
-  directories: [] as string[],
+// Exercise actual dispatch and preserve upstream capture/activation/execution
+// ownership. The example runner owns scratch and row-scope cleanup internally.
+const examples = vi.hoisted(() => ({
   events: [] as string[],
   failures: new Map<string, unknown>(),
+  result: { ok: true, executed: 3, report: { summary: { total: 3 } } },
   emitted: undefined as ((value: unknown) => void) | undefined,
 }));
-vi.mock("node:fs/promises", async (original) => {
-  const fs = await original<typeof import("node:fs/promises")>();
-  return {
-    ...fs,
-    access: async () => {},
-    mkdtemp: async (prefix: string) => {
-      cleanup.events.push("acquire");
-      if (cleanup.failures.has("acquire")) throw cleanup.failures.get("acquire");
-      const directory = await fs.mkdtemp(prefix);
-      cleanup.directories.push(directory);
-      return directory;
-    },
-    rm: async (directory: string, options: { recursive: boolean; force: boolean }) => {
-      cleanup.events.push("remove");
-      expect(options).toEqual({ recursive: true, force: true });
-      if (cleanup.failures.has("remove")) throw cleanup.failures.get("remove");
-      await fs.rm(directory, options);
-    },
-  };
-});
-vi.mock("node:fs", async (original) => {
-  const fs = await original<typeof import("node:fs")>();
-  return {
-    ...fs,
-    readFileSync: (file: Parameters<typeof fs.readFileSync>[0], options: unknown) => {
-      if (file instanceof URL && file.pathname.includes("can-platform-test-")) {
-        cleanup.events.push("read");
-        if (cleanup.failures.has("read")) throw cleanup.failures.get("read");
-      }
-      return fs.readFileSync(file, options as "utf8");
-    },
-  };
-});
-vi.mock("../src/runtime/artifact.js", () => ({
-  loadArtifactFile: () => ({ artifact: { modules: [{ path: "worker.mjs" }], tests: [] } }),
-}));
-vi.mock("../src/dev/zero-config.js", () => ({
-  resolveLocalDefaults: () => ({ workerName: "cleanup-worker", compatibilityDate: "2026-10-09" }),
-  assertDistReady: async () => {},
-}));
-vi.mock("../src/runtime/modules.js", () => ({
-  assembleModules: async (_loaded: unknown, options: { workDir: string }) => {
-    cleanup.events.push("assemble");
-    writeFileSync(join(options.workDir, "worker.mjs"), "export default {};\n");
-    if (cleanup.failures.has("assemble")) throw cleanup.failures.get("assemble");
-    return { moduleUrls: { "worker.mjs": new URL(`file://${join(options.workDir, "worker.mjs")}`).href } };
+function exampleStage(stage: string): void {
+  examples.events.push(stage);
+  if (examples.failures.has(stage)) throw examples.failures.get(stage);
+}
+vi.mock("node:fs/promises", async (original) => ({
+  ...await original<typeof import("node:fs/promises")>(),
+  access: async () => {},
+  readFile: async (file: string) => {
+    exampleStage("read");
+    expect(file).toBe("/artifact.json");
+    return new Uint8Array([1, 2, 3]);
   },
 }));
-vi.mock("../src/dev/row-scope.js", () => ({
-  createLocalRowScope: async () => {
-    cleanup.events.push("create");
-    if (cleanup.failures.has("create")) throw cleanup.failures.get("create");
-    return {
-      snapshot: async () => {
-        cleanup.events.push("snapshot");
-        if (cleanup.failures.has("snapshot")) throw cleanup.failures.get("snapshot");
-      },
-      dispose: async () => {
-        cleanup.events.push("dispose");
-        if (cleanup.failures.has("dispose")) throw cleanup.failures.get("dispose");
-      },
-    };
+vi.mock("../src/runtime/artifact.js", () => ({
+  loadArtifactFile: () => ({ artifact: { modules: [{ path: "worker.mjs" }], tests: [{}], sources: [{ path: "app.can" }] } }),
+}));
+vi.mock("../src/dev/zero-config.js", () => ({
+  resolveLocalDefaults: () => ({ workerName: "example-worker", compatibilityDate: "2026-10-09" }),
+}));
+vi.mock("../src/dev/preview-inputs.js", () => ({
+  prepareLocalPreviewCapture: (input: { appPath: string }) => {
+    exampleStage("request");
+    expect(input.appPath).toBe("app.can");
+    return { appPath: input.appPath };
+  },
+}));
+vi.mock("../src/dev/source-capture.js", () => ({
+  captureSingleFileSource: async () => { exampleStage("capture"); return { sourceRevision: "revision" }; },
+  verifyCompilerSources: () => { exampleStage("verify"); return { ok: true }; },
+}));
+vi.mock("../src/dev/preview-host.js", () => ({
+  preflightLocalPreviewActivation: async () => { exampleStage("activate"); return { active: true }; },
+  produceInstalledPortableBundle: async () => {
+    exampleStage("bundle");
+    return { bundle: { mainModule: "worker.mjs", modules: { "worker.mjs": "export default {};" }, binaries: {} } };
+  },
+}));
+vi.mock("../src/dev/example-runner.js", () => ({
+  MissingExampleTestkitError: class extends Error {},
+  loadInstalledExampleTestkit: async () => { exampleStage("testkit"); return "testkit-port"; },
+  runCompiledExamples: async (input: unknown) => {
+    exampleStage("execute");
+    expect(input).toEqual({
+      artifactBytes: new Uint8Array([1, 2, 3]), artifactLabel: "/artifact.json", sourceRevision: "revision",
+      worker: { mainModule: "worker.mjs", modules: { "worker.mjs": "export default {};" }, binaryModules: {} },
+      workerName: "example-worker", compatibilityDate: "2026-10-09", d1Binding: "DB", testkit: "testkit-port",
+    });
+    return examples.result;
   },
 }));
 vi.mock("../src/preparation/host.js", async (original) => ({
   ...await original<typeof import("../src/preparation/host.js")>(),
-  emit: (value: unknown) => cleanup.emitted?.(value),
+  emit: (value: unknown) => examples.emitted?.(value),
 }));
 
-describe("test CLI owned scratch lifecycle", () => {
+describe("test CLI compiled example execution", () => {
+  const stages = ["request", "capture", "verify", "activate", "bundle", "testkit", "read", "execute"];
   afterEach(() => {
     vi.restoreAllMocks();
-    for (const directory of cleanup.directories) rmSync(directory, { recursive: true, force: true });
-    cleanup.directories = [];
-    cleanup.events = [];
-    cleanup.failures.clear();
-    cleanup.emitted = undefined;
+    examples.events = [];
+    examples.failures.clear();
+    examples.result = { ok: true, executed: 3, report: { summary: { total: 3 } } };
+    examples.emitted = undefined;
   });
 
   async function invokeTest(): Promise<Record<string, unknown>> {
@@ -257,51 +243,37 @@ describe("test CLI owned scratch lifecycle", () => {
     vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
     const result = new Promise<Record<string, unknown>>((resolve) => {
-      cleanup.emitted = (value) => resolve(value as Record<string, unknown>);
+      examples.emitted = (value) => resolve(value as Record<string, unknown>);
     });
     await import("../src/cli/platform.js");
     return result;
   }
 
-  it("reports success only after disposing the scope and removing scratch", async () => {
-    expect(await invokeTest()).toMatchObject({ ok: true, command: "test", executed: 0 });
-    expect(cleanup.events).toEqual(["acquire", "assemble", "read", "create", "snapshot", "dispose", "remove"]);
-    expect(cleanup.directories).toHaveLength(1);
-    expect(existsSync(cleanup.directories[0]!)).toBe(false);
+  it("executes compiled rows with the verified source and portable worker, then reports exact results", async () => {
+    expect(await invokeTest()).toEqual({ ok: true, command: "test", executed: 3, report: examples.result.report });
+    expect(examples.events).toEqual(stages);
   });
 
-  it.each(["acquire", "assemble", "read", "create", "snapshot", "dispose", "remove"])(
-    "preserves the %s failure and cleans every acquired resource", async (stage) => {
-      cleanup.failures.set(stage, new Error(`${stage} sentinel`));
-      expect(await invokeTest()).toEqual({ ok: false, command: null, code: "internal", detail: `${stage} sentinel` });
-      const all = ["acquire", "assemble", "read", "create", "snapshot", "dispose", "remove"];
-      const expected = all.slice(0, all.indexOf(stage) + 1);
-      if (stage !== "acquire" && stage !== "remove") {
-        if (stage === "snapshot") expected.push("dispose");
-        expected.push("remove");
-      }
-      expect(cleanup.events).toEqual(expected);
-      expect(cleanup.directories).toHaveLength(stage === "acquire" ? 0 : 1);
-      for (const directory of cleanup.directories) expect(existsSync(directory)).toBe(stage === "remove");
-    },
-  );
+  it.each(stages)("preserves the %s failure before demanding later stages", async (stage) => {
+    examples.failures.set(stage, new Error(`${stage} sentinel`));
+    expect(await invokeTest()).toEqual({ ok: false, command: null, code: "internal", detail: `${stage} sentinel` });
+    expect(examples.events).toEqual(stages.slice(0, stages.indexOf(stage) + 1));
+  });
 
-  it.each([new Error("operation sentinel"), "scalar sentinel", undefined, null])(
-    "retains operative failure %s when both cleanup steps also fail", async (failure) => {
-      cleanup.failures.set("snapshot", failure);
-      cleanup.failures.set("dispose", new Error("dispose sentinel"));
-      cleanup.failures.set("remove", new Error("remove sentinel"));
-      expect(await invokeTest()).toEqual({
-        ok: false, command: null, code: "internal", detail: failure instanceof Error ? failure.message : String(failure),
-      });
-      expect(cleanup.events).toEqual(["acquire", "assemble", "read", "create", "snapshot", "dispose", "remove"]);
-    },
-  );
+  it.each(["scalar sentinel", undefined, null])("retains operative thrown value %s", async (failure) => {
+    examples.failures.set("execute", failure);
+    expect(await invokeTest()).toEqual({ ok: false, command: null, code: "internal", detail: String(failure) });
+    expect(examples.events).toEqual(stages);
+  });
 
-  it("retains disposal failure if removal also fails", async () => {
-    cleanup.failures.set("dispose", new Error("dispose sentinel"));
-    cleanup.failures.set("remove", new Error("remove sentinel"));
-    expect(await invokeTest()).toMatchObject({ ok: false, detail: "dispose sentinel" });
-    expect(cleanup.events).toEqual(["acquire", "assemble", "read", "create", "snapshot", "dispose", "remove"]);
+  it("reports failed rows honestly and sets exitCode", async () => {
+    examples.result.ok = false;
+    const priorExitCode = process.exitCode;
+    try {
+      expect(await invokeTest()).toEqual({ ok: false, command: "test", executed: 3, report: examples.result.report });
+      expect(process.exitCode).toBe(1);
+    } finally {
+      process.exitCode = priorExitCode;
+    }
   });
 });

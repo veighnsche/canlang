@@ -53,6 +53,7 @@ export const message: MessageFactory = (
   source: string,
   variants: MessageVariantMap = {},
   params?: MessageParams,
+  sourceLocale?: string,
 ): MessageDescriptor => {
   if (typeof source !== "string") {
     throw new TypeError("message source must be a string");
@@ -60,9 +61,13 @@ export const message: MessageFactory = (
   if (variants === null || typeof variants !== "object" || Array.isArray(variants)) {
     throw new TypeError("message variants must be an object");
   }
+  const owningLocale = sourceLocale === undefined ? undefined : normalizeTag(sourceLocale);
   const checked: MessageVariantMap = {};
   for (const key of Object.keys(variants)) {
     const canonical = normalizeTag(key);
+    if (canonical === owningLocale) {
+      throw new RangeError(`source locale duplicates message variant: ${canonical}`);
+    }
     if (Object.hasOwn(checked, canonical)) {
       throw new RangeError(`duplicate canonical locale variant: ${canonical}`);
     }
@@ -72,15 +77,56 @@ export const message: MessageFactory = (
     }
     checked[canonical] = value;
   }
-  const descriptor: MessageDescriptor = { source, variants: checked };
+  const descriptor: MessageDescriptor = {
+    source,
+    variants: Object.freeze(checked),
+    ...(owningLocale === undefined ? {} : { sourceLocale: owningLocale }),
+  };
   if (params !== undefined) {
     if (params === null || typeof params !== "object" || Array.isArray(params)) {
       throw new TypeError("message params must be an object");
     }
-    return { ...descriptor, params: { ...params } };
+    const copied: MessageParams = {};
+    for (const name of Object.keys(params)) {
+      const param = params[name];
+      if (param === null || typeof param !== "object" || Array.isArray(param)) {
+        throw new TypeError(`message argument "${name}" must be {type, value}`);
+      }
+      Object.defineProperty(copied, name, {
+        value: Object.freeze({ type: param.type, value: param.value }),
+        enumerable: true,
+      });
+    }
+    return Object.freeze({ ...descriptor, params: Object.freeze(copied) });
   }
-  return descriptor;
+  return Object.freeze(descriptor);
 };
+
+/** Recognize an already resolved display value without resolving or parsing it. */
+export function resolvedText(value: unknown): ResolvedMessage | undefined {
+  if (value === null || (typeof value !== "object" && typeof value !== "function")) {
+    return undefined;
+  }
+  if (!Object.hasOwn(value, "text") && !Object.hasOwn(value, "locale")) {
+    return undefined;
+  }
+  const keys = Reflect.ownKeys(value);
+  if (typeof value !== "object" || Array.isArray(value) || keys.length !== 2 ||
+      !keys.includes("text") || !keys.includes("locale")) {
+    throw new TypeError("resolved text must contain exactly text and locale");
+  }
+  const pair = value as { text: unknown; locale: unknown };
+  const text = pair.text;
+  const rawLocale = pair.locale;
+  if (typeof text !== "string" || typeof rawLocale !== "string") {
+    throw new TypeError("resolved text and locale must be strings");
+  }
+  const locale = normalizeTag(rawLocale);
+  if (locale !== rawLocale) {
+    throw new RangeError("resolved text locale must be canonical");
+  }
+  return Object.freeze({ text, locale });
+}
 
 function isAncestorOrEqual(available: string, request: string): boolean {
   return request === available || request.startsWith(`${available}-`);
@@ -131,22 +177,39 @@ export function resolveMessage(
     throw new TypeError("descriptor must be a message descriptor");
   }
   const appDefault = normalizeTag(options.appDefaultLocale);
-  const sourceLocale = normalizeTag(options.sourceLocale ?? "en");
+  const carriedLocale = descriptor.sourceLocale === undefined
+    ? undefined : normalizeTag(descriptor.sourceLocale);
+  const explicitLocale = options.sourceLocale === undefined
+    ? undefined : normalizeTag(options.sourceLocale);
+  if (carriedLocale !== undefined && explicitLocale !== undefined && carriedLocale !== explicitLocale) {
+    throw new RangeError("resolver source locale disagrees with message descriptor");
+  }
+  const sourceLocale = carriedLocale ?? explicitLocale ?? "en";
   const available = Object.keys(descriptor.variants).filter(
     (tag) => descriptor.variants[tag] !== null,
   );
+  if (carriedLocale !== undefined) {
+    if (Object.hasOwn(descriptor.variants, carriedLocale)) {
+      throw new RangeError(`source locale duplicates message variant: ${carriedLocale}`);
+    }
+    available.push(carriedLocale);
+  }
+  const selected = (locale: string): ResolvedMessage => Object.freeze({
+    text: locale === carriedLocale ? descriptor.source : descriptor.variants[locale] as string,
+    locale,
+  });
   for (const preferred of options.preferredLocales) {
     const request = normalizeTag(preferred);
     const match = lookupOne(available, request, appDefault);
     if (match !== null) {
-      return { text: descriptor.variants[match] as string, locale: match };
+      return selected(match);
     }
   }
   const fallback = lookupOne(available, appDefault, appDefault);
   if (fallback !== null) {
-    return { text: descriptor.variants[fallback] as string, locale: fallback };
+    return selected(fallback);
   }
-  return { text: descriptor.source, locale: sourceLocale };
+  return Object.freeze({ text: descriptor.source, locale: sourceLocale });
 }
 
 // ---------------------------------------------------------------------------
@@ -775,6 +838,13 @@ export function formatMessage(
   pattern: string | MessageDescriptor,
   options: FormatOptions = {},
 ): string {
+  return formatMessageResult(pattern, options).text;
+}
+
+export function formatMessageResult(
+  pattern: string | MessageDescriptor,
+  options: FormatOptions = {},
+): ResolvedMessage {
   let text: string;
   let locale: string;
   // Explicit args win; otherwise a descriptor supplies its own bound params.
@@ -818,7 +888,7 @@ export function formatMessage(
     pluralStack: [],
     pattern: text,
   };
-  return renderNodes(nodes, state);
+  return Object.freeze({ text: renderNodes(nodes, state), locale });
 }
 
 function operandOf(state: FormatState, name: string): ScalarOperand {

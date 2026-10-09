@@ -1,0 +1,104 @@
+{
+  "task": "SEQ-041",
+  "scope": "Design-stage owner selection for Chat token allowance and Knowledge concurrency slots; not runtime acceptance.",
+  "shared_verified_context": "Task41 is a design-stage selection, not implementation acceptance. Can already requires one authoritative State storage owner for each atomic mutation; imported packages do not create cross-owner atomicity. Existing runtime has fenced same-owner domain writes plus outbox staging. Complete draft rule/query/provider workflows are not yet qualified and some original prerequisites remain held; this consultation does not change or release them.\nVerified source: draft/CanChat.can9-14 defines per-account Allowance and Run in the selected app/team owner. ask72-82 checks active/current authority, reserves input_tokens+output_tokens (default10240, declared maximum40960), creates Run/Turn and stages send; cap has only the exact integer type upper bound. reply_progressed153-165 settles original associated measured usage once and separately releases running count on succeeded/failed/cancelled. Unknown retains both; terminal missing usage releases slot but retains token hold; stop request alone releases neither. release_skipped requires authoritative skipped and absent progress. No allowance expiry/replenishment is authored.\nVerified contrasting source: draft/CanKnowledge.can147-160 admits one Question only if fewer than2 unfinished Questions for the account across topics in the SAME selected app/team; DailyUsage is separately charged per topic/UTC day. Creation, daily charge and send occur in the owner transaction. stop208-214 retains unfinished; release_skipped231-234 clears it only after authoritative skipped. progressed235-240 clears once on matching associated terminal state. DailyUsage is not refunded by slot release. A simple count currently expresses this; no need for a second counter unless measured runtime limits demand it.\nImplementation facts: Services Ollama install requires deployment-owned exact input tokenization before transport and forwards an output cap, but a universal provider hard ceiling is not established. CF bound-text-generation emits source/revision/sequence and optional final token sum; missing usage remains null. CF bound-images currently emits charged_jobs=null, so image charge settlement is not a substitute. No monetary pricing guarantee exists. These are unit admission policies, not a promise that an arbitrary remote provider cannot overrun or charge more.\nBoth alternative designs must preserve the SAME selected scope and limits, fresh authorization, exact arithmetic/overflow refusal, original operation+delivery+source/revision identity, duplicate/stale/late observations, no release on unknown, durable crash recovery, and no duplicate provider request. App-wide cross-team/global resource sharing is NOT a requirement. Models marked in-app/root or elsewhere could require a staged protocol later; owning the same package name is insufficient. draft/CanLoyalty.can32,56,149 permits negative evidence-backed reversal balances: do not apply universal nonnegative ledger rules. No new syntax/shared mutating accounting API is authorized by this choice.\nEvaluate next pilot ownership, given these facts and gaps. Both designs still require owning implementation/direct qualification before acceptance.",
+  "consultations": [
+    {
+      "questions": {
+        "ownership": {
+          "type": "choice",
+          "instructions": "Which ownership strategy should the next two concrete accounting pilots adopt?",
+          "criteria": {
+            "same_owner": "Keep each pilot inside its already resolved app/team State owner; atomically admit, hold/create the job and stage its outbox. Settle/release later through existing original-associated verified events. Reject any caller spanning owners. This preserves immediate local admission but provides no global pool.",
+            "staged_owner": "Move the same scoped policy to a distinct accounting owner. Persist reservation, then confirm it at the app owner before dispatch; correlate retries and explicitly reconcile uncertain or abandoned reservations. Preserve all stated limits/outcomes, accepting additional intermediate states and recovery bookkeeping."
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "ownership": {
+            "type": "choice",
+            "choice": "same_owner",
+            "confidence": 0.98,
+            "probabilities": {
+              "staged_owner": 0.01,
+              "same_owner": 0.99
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 1052,
+          "output_tokens": 35
+        }
+      }
+    },
+    {
+      "questions": {
+        "ownership": {
+          "type": "choice",
+          "instructions": "For the stated Chat token budget and Knowledge question slots, which boundary best supports the next implementation while preserving every listed failure and accounting outcome?",
+          "criteria": {
+            "same_owner": "Use ordinary app-owned operations at one verified State owner per selected team. One fenced commit couples admission/hold or counted Question with its outbox; subsequent verified associated evidence settles resources. Refuse foreign-owner composition; no global quota claim.",
+            "staged_owner": "Use a separate quota authority even for these currently local policies. A durable reserve/confirm protocol gates app dispatch and records uncertain holds, with explicit recovery for each cross-owner crash window; never pretend both commits are atomic."
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "ownership": {
+            "type": "choice",
+            "choice": "same_owner",
+            "confidence": 1.0,
+            "probabilities": {
+              "staged_owner": 0.0,
+              "same_owner": 1.0
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 1048,
+          "output_tokens": 35
+        }
+      }
+    },
+    {
+      "questions": {
+        "ownership": {
+          "type": "choice",
+          "instructions": "Choose between these implementations of the same two pilot policies, weighing current source ownership, simplicity, truthful uncertainty and recovery rather than hypothetical global requirements.",
+          "criteria": {
+            "same_owner": "Retain local allowance and unfinished-question authority within each actual app/team store. Admit the request and its resource commitment together, then use original-correlated events for idempotent later settlement or release. Scope checks disallow crossing owners.",
+            "staged_owner": "Establish an independent resource store and implement durable admission, app acknowledgement and reconciliation across both stores. Send only after confirmed reservation; retain unknown commitments and handle duplicate/late messages without duplicate work. Global extensibility costs extra protocol state for the present local policies."
+          }
+        }
+      },
+      "response": {
+        "model": "jev-1.13.0",
+        "answers": {
+          "ownership": {
+            "type": "choice",
+            "choice": "same_owner",
+            "confidence": 1.0,
+            "probabilities": {
+              "staged_owner": 0.0,
+              "same_owner": 1.0
+            }
+          }
+        },
+        "usage": {
+          "input_tokens": 1063,
+          "output_tokens": 35
+        }
+      }
+    }
+  ],
+  "assessment": "All three independently worded equivalent choices select same_owner (probability .99/1/1; confidence .98/1/1). There is no choice disagreement to resolve. These self-reported probabilities are advice, not calibrated implementation evidence. The decision follows the actual local ownership and absence of global-pool requirements. Staged cross-owner recovery remains a distinct future alternative, not an atomic shortcut.",
+  "remaining_uncertainty": [
+    "Actual full draft rule/query/provider workflows and concurrent admission remain unqualified.",
+    "Deployment input tokenization exists, but an arbitrary provider hard usage/cost ceiling is not established.",
+    "No live upgrade or retained schedule/cohort compatibility acceptance is implied.",
+    "Existing exact consultation/release holds remain unchanged."
+  ]
+}

@@ -23,7 +23,8 @@
 //! re-diagnosed. Deferred to PR5: handler sources, effect arguments,
 //! example cells/sequences, UI shape rules, migrations.
 
-use super::catalog::{Catalog, is_t13a_nominal, is_t13b_nominal, std_capability};
+use super::catalog::{Catalog, is_t13a_nominal, is_t13b_nominal, nominal_schema, std_capability};
+use super::types::{ResolvedType, Scalar, std_schema_type};
 use super::{
     NodeKey, attribute_parts, attribute_value, file_text, is_name, is_punct, kids, name_text,
     path_segments,
@@ -364,7 +365,8 @@ pub enum TypeRef {
         fields: Vec<SymbolId>,
         consumed: usize,
     },
-    /// Bound import from an external provider: opaque structural type.
+    /// Bound external import; published std nominal schemas are consumed
+    /// by the types pass, while other external types remain opaque.
     External,
 }
 
@@ -385,6 +387,12 @@ pub struct UnresolvedMember {
 /// every resolution the types pass and PR5 consume.
 #[derive(Debug, Clone, Default)]
 pub struct ResolveTables {
+    /// Same-module presentation declarations, separate from executable symbols.
+    pub views: HashMap<(ModuleId, String), NodeKey>,
+    /// Checked required stored-model row parameter for each view.
+    pub view_models: HashMap<NodeKey, SymbolId>,
+    /// Local presentation target selected by each show use.
+    pub show_views: HashMap<NodeKey, NodeKey>,
     /// Modules in `(file, span)` order.
     pub modules: Vec<Module>,
     /// Symbols in declaration order.
@@ -420,11 +428,71 @@ pub struct ResolveTables {
     pub children_of: HashMap<SymbolId, Vec<SymbolId>>,
     /// Fixture reference edges (fixture id to referenced fixture ids).
     pub fixture_edges: HashMap<SymbolId, Vec<SymbolId>>,
-    /// `judgment` declarations: registered as fieldless contracts so
-    /// the name resolves package-wide, while every use position maps
-    /// to the silent opaque treatment (the derived evaluate/result
-    /// interface is unimplemented, DESIGN:897).
+    /// Source judgment owners.
     pub judgments: HashSet<SymbolId>,
+    /// Source descriptors; the types pass releases checked descriptors.
+    pub judgment_declarations: HashMap<SymbolId, CheckedJudgment>,
+    /// Derived symbols are checker facts, never separately authored schemas.
+    pub judgment_generated_symbols: HashSet<SymbolId>,
+    /// Declared generated field/parameter types, seeded before ordinary checking.
+    pub judgment_types: HashMap<SymbolId, ResolvedType>,
+    /// Associated enums have type identities independent of result field lookup.
+    pub judgment_type_paths: HashMap<String, SymbolId>,
+    /// Shared catalog-owned nominal identities used by static judgments.
+    pub judgment_standard_records: HashMap<String, SymbolId>,
+    /// Required-array presence is field metadata, independent of array values.
+    pub judgment_required_arrays: HashSet<SymbolId>,
+    /// Derived value restrictions, kept separate from scalar type identity.
+    pub judgment_value_constraints: HashMap<SymbolId, CheckedValueConstraints>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct CheckedValueConstraints {
+    pub min: Option<i64>,
+    pub max: Option<i64>,
+    pub format: Option<String>,
+    pub distinct_by: Option<String>,
+    pub excluded_ids: Vec<String>,
+    /// Owning bounded scalar alias, rather than a fabricated enum identity.
+    pub alias: Option<SymbolId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CheckedJudgmentKind {
+    Noul,
+    Choice,
+    Score,
+}
+
+#[derive(Debug, Clone)]
+pub struct CheckedJudgmentOption {
+    pub id: String,
+    pub description: NodeKey,
+}
+
+#[derive(Debug, Clone)]
+pub struct CheckedJudgmentQuestion {
+    pub name: String,
+    pub kind: CheckedJudgmentKind,
+    pub runtime: bool,
+    pub instructions: NodeKey,
+    pub yes: Option<NodeKey>,
+    pub no: Option<NodeKey>,
+    pub options: Vec<CheckedJudgmentOption>,
+    pub levels: Vec<CheckedJudgmentOption>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CheckedJudgment {
+    pub node: NodeKey,
+    pub version: i64,
+    pub questions: Vec<CheckedJudgmentQuestion>,
+    pub evaluate: SymbolId,
+    pub state: SymbolId,
+    pub options: Option<SymbolId>,
+    pub evaluate_options: Option<SymbolId>,
+    pub specification: Option<SymbolId>,
+    pub specification_options: Option<SymbolId>,
 }
 
 impl ResolveTables {
@@ -923,6 +991,29 @@ impl<'a> Resolver<'a> {
                         match marker {
                             "Given" => self.index_given(*file, text, module, item, diags)?,
                             "When" => self.index_when(*file, text, module, item, diags)?,
+                            "Then" if item.kind == SyntaxKind::Preferences => {
+                                self.index_preferences(text, module, item, diags)?;
+                            }
+                            "Then" if item.kind == SyntaxKind::View && !has_error(item) => {
+                                if let Some(name) = kids(item)
+                                    .iter()
+                                    .filter_map(|n| name_text(n, text))
+                                    .find(|name| *name != "view")
+                                {
+                                    let key = (module, name.to_string());
+                                    if let std::collections::hash_map::Entry::Vacant(entry) =
+                                        self.tables.views.entry(key)
+                                    {
+                                        entry.insert(NodeKey::of(item));
+                                    } else {
+                                        diags.push(Diagnostic::error(
+                                            "E2002",
+                                            format!("duplicate view '{name}'"),
+                                            item.span,
+                                        ));
+                                    }
+                                }
+                            }
                             _ => {}
                         }
                     }
@@ -987,6 +1078,7 @@ impl<'a> Resolver<'a> {
                     diags,
                 )? {
                     self.tables.judgments.insert(id);
+                    self.index_judgment(text, id, node, diags)?;
                 }
             }
             SyntaxKind::Message => self.index_message(text, module, node, diags)?,
@@ -998,6 +1090,708 @@ impl<'a> Resolver<'a> {
             _ => {}
         }
         Ok(())
+    }
+
+    /// Allocate derived shapes through the ordinary symbol table. Their types
+    /// are fixed by the source descriptor, without synthetic source/CST text.
+    fn judgment_symbol(
+        &mut self,
+        owner: SymbolId,
+        path: &str,
+        name: &str,
+        kind: SymbolKind,
+        node: &SyntaxNode,
+    ) -> Result<SymbolId, Diagnostic> {
+        let module = self.tables.symbols[owner.0 as usize].module;
+        let id = SymbolId(semantic_index(
+            self.tables.symbols.len(),
+            "symbol",
+            node.span,
+        )?);
+        let canonical = format!(
+            "{}.{}",
+            self.tables.symbols[owner.0 as usize].canonical, path
+        );
+        if !matches!(kind, SymbolKind::Field { .. } | SymbolKind::Param { .. }) {
+            self.tables.by_canonical.insert(canonical.clone(), id);
+        }
+        self.tables.symbols.push(Symbol {
+            id,
+            canonical,
+            name: name.to_string(),
+            kind,
+            module,
+            span: node.span,
+            exported: false,
+        });
+        self.tables.judgment_generated_symbols.insert(id);
+        Ok(id)
+    }
+
+    fn judgment_field(
+        &mut self,
+        declaration: SymbolId,
+        record: SymbolId,
+        path: &str,
+        name: &str,
+        ty: ResolvedType,
+        node: &SyntaxNode,
+    ) -> Result<SymbolId, Diagnostic> {
+        let id = self.judgment_symbol(
+            declaration,
+            path,
+            name,
+            SymbolKind::Field {
+                owner: record,
+                type_node: NodeKey::of(node),
+            },
+            node,
+        )?;
+        self.tables.judgment_types.insert(id, ty);
+        if let SymbolKind::Contract { fields } = &mut self.tables.symbols[record.0 as usize].kind {
+            fields.push(id);
+        }
+        Ok(id)
+    }
+
+    fn judgment_runtime_marker(item: &SyntaxNode, text: &str) -> bool {
+        kids(item).windows(3).any(|parts| {
+            is_name(parts[0], text, "options")
+                && is_punct(parts[1], text, "=")
+                && is_name(parts[2], text, "runtime")
+        })
+    }
+
+    fn index_judgment(
+        &mut self,
+        text: &str,
+        owner: SymbolId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        self.ensure_judgment_standard_records(
+            self.tables.symbols[owner.0 as usize].module,
+            node.span,
+        )?;
+        let items: Vec<_> = kids(node)
+            .into_iter()
+            .filter(|n| n.kind == SyntaxKind::JudgmentItem)
+            .collect();
+        let has_runtime = items
+            .iter()
+            .any(|item| Self::judgment_runtime_marker(item, text));
+        let options_record = if has_runtime {
+            let record = self.judgment_symbol(
+                owner,
+                "options",
+                "options",
+                SymbolKind::Contract { fields: Vec::new() },
+                node,
+            )?;
+            self.tables.judgment_type_paths.insert(
+                format!(
+                    "{}.options",
+                    self.tables.symbols[owner.0 as usize].canonical
+                ),
+                record,
+            );
+            Some(record)
+        } else {
+            None
+        };
+        let version = attribute_value(node, "version", text)
+            .and_then(|n| {
+                (n.kind == SyntaxKind::Literal)
+                    .then(|| {
+                        kids(n).into_iter().find_map(|leaf| {
+                            (leaf.kind == SyntaxKind::Integer)
+                                .then(|| {
+                                    text.get(leaf.span.start as usize..leaf.span.end as usize)
+                                        .unwrap_or("")
+                                        .replace('_', "")
+                                        .parse::<i64>()
+                                        .ok()
+                                })
+                                .flatten()
+                        })
+                    })
+                    .flatten()
+            })
+            .unwrap_or(0);
+        for (name, scalar) in [
+            ("specification_revision", Scalar::Text),
+            ("model", Scalar::Text),
+            ("input_tokens", Scalar::Int),
+            ("output_tokens", Scalar::Int),
+        ] {
+            self.judgment_field(owner, owner, name, name, ResolvedType::Scalar(scalar), node)?;
+        }
+        let mut questions = Vec::new();
+        let mut seen = HashSet::new();
+        for item in items {
+            let parts = kids(item);
+            let names: Vec<_> = parts.iter().filter_map(|n| name_text(n, text)).collect();
+            let Some(name) = names.first().copied() else {
+                continue;
+            };
+            if !seen.insert(name.to_string())
+                || (has_runtime && ["options", "evaluate", "specification"].contains(&name))
+                || [
+                    "specification_revision",
+                    "model",
+                    "input_tokens",
+                    "output_tokens",
+                ]
+                .contains(&name)
+            {
+                diags.push(Diagnostic::error(
+                    "E2002",
+                    format!("duplicate or reserved judgment question '{name}'"),
+                    item.span,
+                ));
+                continue;
+            }
+            let kind = match names.get(1).copied() {
+                Some("noul") => CheckedJudgmentKind::Noul,
+                Some("choice") => CheckedJudgmentKind::Choice,
+                Some("score") => CheckedJudgmentKind::Score,
+                _ => continue,
+            };
+            let runtime =
+                kind == CheckedJudgmentKind::Choice && Self::judgment_runtime_marker(item, text);
+            let captions: Vec<_> = parts
+                .iter()
+                .copied()
+                .filter(|n| {
+                    matches!(
+                        n.kind,
+                        SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path
+                    )
+                })
+                .collect();
+            let Some(instructions) = captions.first() else {
+                continue;
+            };
+            let options: Vec<_> = parts
+                .iter()
+                .filter(|n| n.kind == SyntaxKind::JudgmentOption)
+                .filter_map(|option| {
+                    let parts = kids(option);
+                    let id = parts.iter().find_map(|n| name_text(n, text))?;
+                    let description = parts.iter().find(|n| {
+                        matches!(
+                            n.kind,
+                            SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path
+                        )
+                    })?;
+                    Some(CheckedJudgmentOption {
+                        id: id.to_string(),
+                        description: NodeKey::of(description),
+                    })
+                })
+                .collect();
+            let answer = self.judgment_symbol(
+                owner,
+                name,
+                name,
+                SymbolKind::Contract { fields: Vec::new() },
+                item,
+            )?;
+            self.judgment_field(
+                owner,
+                owner,
+                name,
+                name,
+                ResolvedType::Record {
+                    symbol: answer,
+                    stored: true,
+                },
+                item,
+            )?;
+            let decimal = ResolvedType::Scalar(Scalar::Decimal);
+            if kind == CheckedJudgmentKind::Noul {
+                self.judgment_field(
+                    owner,
+                    answer,
+                    &format!("{name}.probability"),
+                    "probability",
+                    decimal,
+                    item,
+                )?;
+            } else {
+                let enum_name = if kind == CheckedJudgmentKind::Choice {
+                    "choice"
+                } else {
+                    "level"
+                };
+                let enum_path = format!("{name}.{enum_name}");
+                let enum_field = self.judgment_symbol(
+                    owner,
+                    &enum_path,
+                    enum_name,
+                    SymbolKind::Field {
+                        owner: answer,
+                        type_node: NodeKey::of(item),
+                    },
+                    item,
+                )?;
+                let enumeration = if runtime {
+                    ResolvedType::Scalar(Scalar::Text)
+                } else {
+                    ResolvedType::Enum {
+                        cases: options.iter().map(|o| o.id.clone()).collect(),
+                        owner: Some(enum_field),
+                    }
+                };
+                if runtime {
+                    let constraints = CheckedValueConstraints {
+                        min: Some(1),
+                        max: Some(80),
+                        format: Some("name".to_string()),
+                        alias: Some(enum_field),
+                        ..Default::default()
+                    };
+                    self.tables
+                        .judgment_value_constraints
+                        .insert(enum_field, constraints.clone());
+                    let option_path = format!("{name}.option");
+                    let option_record = self.judgment_symbol(
+                        owner,
+                        &option_path,
+                        "option",
+                        SymbolKind::Contract { fields: Vec::new() },
+                        item,
+                    )?;
+                    self.tables.judgment_type_paths.insert(
+                        format!(
+                            "{}.{}",
+                            self.tables.symbols[owner.0 as usize].canonical, option_path
+                        ),
+                        option_record,
+                    );
+                    let id = self.judgment_field(
+                        owner,
+                        option_record,
+                        &format!("{option_path}.id"),
+                        "id",
+                        ResolvedType::Scalar(Scalar::Text),
+                        item,
+                    )?;
+                    self.tables
+                        .judgment_value_constraints
+                        .insert(id, constraints);
+                    let description = self.judgment_field(
+                        owner,
+                        option_record,
+                        &format!("{option_path}.description"),
+                        "description",
+                        ResolvedType::Scalar(Scalar::Text),
+                        item,
+                    )?;
+                    self.tables.judgment_value_constraints.insert(
+                        description,
+                        CheckedValueConstraints {
+                            min: Some(1),
+                            max: Some(2000),
+                            ..Default::default()
+                        },
+                    );
+                    for field in [id, description] {
+                        self.tables.judgment_type_paths.insert(
+                            self.tables.symbols[field.0 as usize].canonical.clone(),
+                            field,
+                        );
+                    }
+                    let options_path = format!("options.{name}");
+                    let count = options.len() as i64;
+                    let candidates = self.judgment_field(
+                        owner,
+                        options_record.expect("runtime options owner"),
+                        &options_path,
+                        name,
+                        ResolvedType::Array {
+                            element: Box::new(ResolvedType::Record {
+                                symbol: option_record,
+                                stored: true,
+                            }),
+                            ordered: true,
+                            nonempty: count < 2,
+                        },
+                        item,
+                    )?;
+                    self.tables.judgment_required_arrays.insert(candidates);
+                    self.tables.judgment_value_constraints.insert(
+                        candidates,
+                        CheckedValueConstraints {
+                            min: Some((2 - count).max(0)),
+                            max: Some(26 - count),
+                            distinct_by: Some("id".to_string()),
+                            excluded_ids: options.iter().map(|option| option.id.clone()).collect(),
+                            ..Default::default()
+                        },
+                    );
+                    self.tables.judgment_type_paths.insert(
+                        format!(
+                            "{}.{}",
+                            self.tables.symbols[owner.0 as usize].canonical, options_path
+                        ),
+                        candidates,
+                    );
+                }
+                self.tables
+                    .judgment_types
+                    .insert(enum_field, enumeration.clone());
+                self.tables.judgment_type_paths.insert(
+                    format!(
+                        "{}.{}",
+                        self.tables.symbols[owner.0 as usize].canonical, enum_path
+                    ),
+                    enum_field,
+                );
+                if kind == CheckedJudgmentKind::Choice {
+                    if let SymbolKind::Contract { fields } =
+                        &mut self.tables.symbols[answer.0 as usize].kind
+                    {
+                        fields.push(enum_field);
+                    }
+                } else {
+                    self.judgment_field(
+                        owner,
+                        answer,
+                        &format!("{name}.score"),
+                        "score",
+                        decimal.clone(),
+                        item,
+                    )?;
+                }
+                let distribution = if kind == CheckedJudgmentKind::Choice {
+                    "probabilities"
+                } else {
+                    "levels"
+                };
+                let element_path = format!("{name}.{distribution}.item");
+                let element = self.judgment_symbol(
+                    owner,
+                    &element_path,
+                    "item",
+                    SymbolKind::Contract { fields: Vec::new() },
+                    item,
+                )?;
+                let identity = if kind == CheckedJudgmentKind::Choice {
+                    "option"
+                } else {
+                    "level"
+                };
+                let identity_field = self.judgment_field(
+                    owner,
+                    element,
+                    &format!("{element_path}.{identity}"),
+                    identity,
+                    enumeration,
+                    item,
+                )?;
+                if runtime {
+                    let constraints = self.tables.judgment_value_constraints[&enum_field].clone();
+                    self.tables
+                        .judgment_value_constraints
+                        .insert(identity_field, constraints);
+                }
+                if kind == CheckedJudgmentKind::Score {
+                    self.judgment_field(
+                        owner,
+                        element,
+                        &format!("{element_path}.index"),
+                        "index",
+                        ResolvedType::Scalar(Scalar::Int),
+                        item,
+                    )?;
+                    self.judgment_field(
+                        owner,
+                        element,
+                        &format!("{element_path}.description"),
+                        "description",
+                        ResolvedType::Scalar(Scalar::Text),
+                        item,
+                    )?;
+                }
+                self.judgment_field(
+                    owner,
+                    element,
+                    &format!("{element_path}.probability"),
+                    "probability",
+                    decimal.clone(),
+                    item,
+                )?;
+                let distribution_field = self.judgment_field(
+                    owner,
+                    answer,
+                    &format!("{name}.{distribution}"),
+                    distribution,
+                    ResolvedType::Array {
+                        element: Box::new(ResolvedType::Record {
+                            symbol: element,
+                            stored: true,
+                        }),
+                        ordered: true,
+                        nonempty: true,
+                    },
+                    item,
+                )?;
+                self.tables
+                    .judgment_required_arrays
+                    .insert(distribution_field);
+                self.judgment_field(
+                    owner,
+                    answer,
+                    &format!("{name}.confidence"),
+                    "confidence",
+                    decimal,
+                    item,
+                )?;
+            }
+            questions.push(CheckedJudgmentQuestion {
+                name: name.to_string(),
+                kind,
+                runtime,
+                instructions: NodeKey::of(instructions),
+                yes: (kind == CheckedJudgmentKind::Noul)
+                    .then(|| captions.get(1).map(|n| NodeKey::of(n)))
+                    .flatten(),
+                no: (kind == CheckedJudgmentKind::Noul)
+                    .then(|| captions.get(2).map(|n| NodeKey::of(n)))
+                    .flatten(),
+                options: if kind == CheckedJudgmentKind::Choice {
+                    options.clone()
+                } else {
+                    Vec::new()
+                },
+                levels: if kind == CheckedJudgmentKind::Score {
+                    options
+                } else {
+                    Vec::new()
+                },
+            });
+        }
+        let evaluate = self.judgment_symbol(
+            owner,
+            "evaluate",
+            "evaluate",
+            SymbolKind::CapabilityOp {
+                params: Vec::new(),
+                result_node: NodeKey::of(node),
+            },
+            node,
+        )?;
+        let state = self.judgment_symbol(
+            owner,
+            "evaluate.state",
+            "state",
+            SymbolKind::Param {
+                owner: evaluate,
+                index: 0,
+                type_node: NodeKey::of(node),
+            },
+            node,
+        )?;
+        self.tables
+            .judgment_types
+            .insert(state, ResolvedType::Scalar(Scalar::Text));
+        if let SymbolKind::CapabilityOp { params, .. } =
+            &mut self.tables.symbols[evaluate.0 as usize].kind
+        {
+            params.push(state);
+        }
+        let mut evaluate_options = None;
+        let mut specification = None;
+        let mut specification_options = None;
+        if let Some(options) = options_record {
+            let options_type = ResolvedType::Record {
+                symbol: options,
+                stored: true,
+            };
+            let parameter = self.judgment_symbol(
+                owner,
+                "evaluate.options",
+                "options",
+                SymbolKind::Param {
+                    owner: evaluate,
+                    index: 1,
+                    type_node: NodeKey::of(node),
+                },
+                node,
+            )?;
+            self.tables
+                .judgment_types
+                .insert(parameter, options_type.clone());
+            if let SymbolKind::CapabilityOp { params, .. } =
+                &mut self.tables.symbols[evaluate.0 as usize].kind
+            {
+                params.push(parameter);
+            }
+            evaluate_options = Some(parameter);
+            let function = self.judgment_symbol(
+                owner,
+                "specification",
+                "specification",
+                SymbolKind::DeriveFn {
+                    params: Vec::new(),
+                    result_node: NodeKey::of(node),
+                },
+                node,
+            )?;
+            let parameter = self.judgment_symbol(
+                owner,
+                "specification.options",
+                "options",
+                SymbolKind::Param {
+                    owner: function,
+                    index: 0,
+                    type_node: NodeKey::of(node),
+                },
+                node,
+            )?;
+            self.tables.judgment_types.insert(parameter, options_type);
+            if let SymbolKind::DeriveFn { params, .. } =
+                &mut self.tables.symbols[function.0 as usize].kind
+            {
+                params.push(parameter);
+            }
+            specification = Some(function);
+            specification_options = Some(parameter);
+        }
+        self.tables.judgment_declarations.insert(
+            owner,
+            CheckedJudgment {
+                node: NodeKey::of(node),
+                version,
+                questions,
+                evaluate,
+                state,
+                options: options_record,
+                evaluate_options,
+                specification,
+                specification_options,
+            },
+        );
+        Ok(())
+    }
+
+    /// The five accepted standard shapes retain a single catalog identity.
+    /// They are checked records, but their schemas are emitted by std's owner.
+    fn ensure_judgment_standard_records(
+        &mut self,
+        module: ModuleId,
+        span: Span,
+    ) -> Result<(), Diagnostic> {
+        if !self.tables.judgment_standard_records.is_empty() {
+            return Ok(());
+        }
+        let names = [
+            "JudgmentOption",
+            "NoulQuestion",
+            "ChoiceQuestion",
+            "ScoreQuestion",
+            "JudgmentSpec",
+        ];
+        let schemas: Vec<_> = names
+            .iter()
+            .map(|name| {
+                nominal_schema(name).ok_or_else(|| {
+                    Diagnostic::error(
+                        "E6006",
+                        format!("static judgments require the consumed std.{name} schema"),
+                        span,
+                    )
+                })
+            })
+            .collect::<Result<_, _>>()?;
+        let key = NodeKey {
+            file: span.file,
+            start: span.start,
+            end: span.end,
+            kind: SyntaxKind::NamedType as u8,
+        };
+        for schema in &schemas {
+            let id = SymbolId(semantic_index(self.tables.symbols.len(), "symbol", span)?);
+            let canonical = format!("std.{}", schema.name);
+            self.tables.by_canonical.insert(canonical.clone(), id);
+            self.tables.symbols.push(Symbol {
+                id,
+                canonical,
+                name: schema.name.to_string(),
+                kind: SymbolKind::Contract { fields: Vec::new() },
+                module,
+                span,
+                exported: false,
+            });
+            self.tables.judgment_generated_symbols.insert(id);
+            self.tables
+                .judgment_standard_records
+                .insert(schema.name.to_string(), id);
+        }
+        for schema in schemas {
+            let owner = self.tables.judgment_standard_records[schema.name];
+            for (name, declared) in schema.fields {
+                let ty = self.judgment_standard_type(declared).ok_or_else(|| Diagnostic::error("E6006",
+                    format!("static judgment standard field std.{}.{name} has no consumed checked type", schema.name), span))?;
+                let id = SymbolId(semantic_index(self.tables.symbols.len(), "symbol", span)?);
+                let canonical = format!("std.{}.{name}", schema.name);
+                self.tables.by_canonical.insert(canonical.clone(), id);
+                self.tables.symbols.push(Symbol {
+                    id,
+                    canonical,
+                    name: name.to_string(),
+                    kind: SymbolKind::Field {
+                        owner,
+                        type_node: key,
+                    },
+                    module,
+                    span,
+                    exported: false,
+                });
+                self.tables.judgment_generated_symbols.insert(id);
+                self.tables.judgment_types.insert(id, ty);
+                if declared.ends_with("[]!") {
+                    self.tables.judgment_required_arrays.insert(id);
+                }
+                if let SymbolKind::Contract { fields } =
+                    &mut self.tables.symbols[owner.0 as usize].kind
+                {
+                    fields.push(id);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn judgment_standard_type(&self, declared: &str) -> Option<ResolvedType> {
+        if let Some(inner) = declared.strip_suffix('?') {
+            return self
+                .judgment_standard_type(inner)
+                .map(|ty| ResolvedType::Nullable(Box::new(ty)));
+        }
+        if let Some(element) = declared
+            .strip_suffix("[]!")
+            .or_else(|| declared.strip_suffix("[]"))
+        {
+            return self
+                .judgment_standard_type(element)
+                .map(|ty| ResolvedType::Array {
+                    element: Box::new(ty),
+                    ordered: true,
+                    nonempty: false,
+                });
+        }
+        std_schema_type(declared).or_else(|| {
+            self.tables
+                .judgment_standard_records
+                .get(declared.strip_prefix("std.").unwrap_or(declared))
+                .copied()
+                .map(|symbol| ResolvedType::Record {
+                    symbol,
+                    stored: true,
+                })
+        })
     }
 
     fn index_when(
@@ -1897,8 +2691,7 @@ impl<'a> Resolver<'a> {
         Ok(())
     }
 
-    /// Whether this symbol is a `judgment` declaration (registered as
-    /// a fieldless contract; use positions treat it as opaque).
+    /// Whether this symbol owns a source judgment result/interface.
     fn is_judgment(&self, id: SymbolId) -> bool {
         self.tables.judgments.contains(&id)
     }
@@ -1998,6 +2791,22 @@ impl<'a> Resolver<'a> {
     }
 
     fn resolve_import(&mut self, module: &Module, import: &Import, diags: &mut Vec<Diagnostic>) {
+        if import.provider == "std"
+            && import.members.iter().any(|member| {
+                [
+                    "JudgmentOption",
+                    "NoulQuestion",
+                    "ChoiceQuestion",
+                    "ScoreQuestion",
+                    "JudgmentSpec",
+                ]
+                .contains(&member.name.as_str())
+            })
+            && let Err(error) = self.ensure_judgment_standard_records(module.id, import.span)
+        {
+            diags.push(error);
+            return;
+        }
         let bound = import.from.is_some();
         if let Some(from) = &import.from {
             let head = from.split('.').next().unwrap_or("");
@@ -2045,6 +2854,10 @@ impl<'a> Resolver<'a> {
                     if std_capability(&member.name).is_some()
                         || is_t13a_nominal(&member.name)
                         || is_t13b_nominal(&member.name)
+                        || self
+                            .tables
+                            .judgment_standard_records
+                            .contains_key(&member.name)
                     {
                         self.bind_import_alias(
                             module.id,
@@ -2471,15 +3284,7 @@ impl<'a> Resolver<'a> {
         for (name, scoped) in names {
             let binding = match scoped {
                 ScopedName::Local(id) | ScopedName::Imported { target: id, .. } => {
-                    if self.is_judgment(id) {
-                        // Judgment names resolve, but their derived
-                        // evaluate/result interface is untyped
-                        // (DESIGN:897): poison the binding so uses
-                        // stay silent instead of erroring as values.
-                        Binding::Error
-                    } else {
-                        Binding::Symbol(id)
-                    }
+                    Binding::Symbol(id)
                 }
                 ScopedName::External { provider, name } => Binding::External { provider, name },
             };
@@ -2587,6 +3392,19 @@ impl<'a> Resolver<'a> {
     ) -> Result<(), Diagnostic> {
         let root = self.module_root(module, node.span)?;
         self.resolve_description_refs(text, module, node, diags);
+        // Resolve declaration-owned view scopes before any page use, including
+        // views written later in the same Then section.
+        for section in kids(node)
+            .into_iter()
+            .filter(|n| n.kind == SyntaxKind::Section)
+        {
+            for view in kids(section)
+                .into_iter()
+                .filter(|n| n.kind == SyntaxKind::View)
+            {
+                self.resolve_view(text, module, root, view, diags)?;
+            }
+        }
         for child in kids(node) {
             match child.kind {
                 SyntaxKind::Attribute => {
@@ -2762,11 +3580,6 @@ impl<'a> Resolver<'a> {
                 return None;
             }
         };
-        if self.is_judgment(current) {
-            // Caption paths rooted at a judgment resolve the name but
-            // stay opaque (derived members are untyped, DESIGN:897).
-            return None;
-        }
         for (i, segment) in segments.iter().enumerate().skip(1) {
             let found = self.tables.symbols[current.0 as usize]
                 .fields_of()
@@ -2950,14 +3763,6 @@ impl<'a> Resolver<'a> {
             return Ok(());
         }
         match node.kind {
-            SyntaxKind::Preferences => {
-                for field in node.children.iter().filter(|c| c.kind == SyntaxKind::Field) {
-                    self.resolve_field_parts(text, module, root, None, field, true, diags)?;
-                }
-                if let Some(label) = attribute_value(node, "label", text) {
-                    self.resolve_caption(text, module, label, diags);
-                }
-            }
             SyntaxKind::Model => {
                 let name = Self::decl_name(text, node, &["export"]).map(|(n, _)| n);
                 let model = name.as_deref().and_then(|n| self.lookup_prod(module, n));
@@ -3009,48 +3814,96 @@ impl<'a> Resolver<'a> {
             }
             SyntaxKind::Fixture => self.resolve_fixture(text, module, root, node, diags)?,
             SyntaxKind::Capability => self.resolve_capability(text, module, root, node, diags)?,
+            SyntaxKind::Judgment => {
+                for item in kids(node)
+                    .into_iter()
+                    .filter(|n| n.kind == SyntaxKind::JudgmentItem)
+                {
+                    for part in kids(item) {
+                        if matches!(
+                            part.kind,
+                            SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path
+                        ) {
+                            self.resolve_caption(text, module, part, diags);
+                        } else if part.kind == SyntaxKind::JudgmentOption {
+                            for caption in kids(part).into_iter().filter(|n| {
+                                matches!(
+                                    n.kind,
+                                    SyntaxKind::Literal
+                                        | SyntaxKind::MessageValue
+                                        | SyntaxKind::Path
+                                )
+                            }) {
+                                self.resolve_caption(text, module, caption, diags);
+                            }
+                        }
+                    }
+                }
+            }
             SyntaxKind::Message => self.resolve_message(text, module, root, node, diags)?,
             SyntaxKind::Policy | SyntaxKind::Unique | SyntaxKind::Lock | SyntaxKind::Retain => {
                 self.resolve_rule(text, module, root, node, diags)?;
             }
             SyntaxKind::Invariant => {
-                let inv_parts = kids(node);
-                let target = inv_parts.iter().find(|n| n.kind == SyntaxKind::Path);
-                let mut row_scope =
-                    self.with_facts(root, ActorKind::Nullable, true, true, node.span)?;
-                if let Some(target) = target {
-                    let segments = path_segments(target, text);
-                    // `invariant preferences:` validates the owner's
-                    // preferences row (DESIGN §9); preferences live
-                    // outside the production namespace.
-                    let prefs = if segments == ["preferences"] {
-                        self.tables
-                            .symbols
-                            .iter()
-                            .find(|s| {
-                                s.module == module
-                                    && matches!(s.kind, SymbolKind::Preferences { .. })
-                            })
-                            .map(|s| s.id)
-                    } else {
-                        None
-                    };
-                    if let Some(prefs) = prefs {
-                        self.tables.node_symbol.insert(NodeKey::of(target), prefs);
-                        row_scope = self.with_row(row_scope, prefs, node.span)?;
-                    } else if let Some(model) =
-                        self.resolve_model_path(module, &segments, target, text, diags)
-                    {
-                        row_scope = self.with_row(row_scope, model, node.span)?;
-                    }
-                }
-                for child in kids(node) {
-                    if is_expression(child.kind) {
-                        self.walk_expr(module, row_scope, child, text, ExprCtx::bare(), diags)?;
-                    }
-                }
+                self.resolve_invariant(text, module, root, node, false, diags)?;
             }
             _ => {}
+        }
+        Ok(())
+    }
+
+    fn resolve_invariant(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        root: ScopeId,
+        node: &SyntaxNode,
+        in_then: bool,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        let target = kids(node).into_iter().find(|n| n.kind == SyntaxKind::Path);
+        let mut row_scope = self.with_facts(root, ActorKind::Nullable, true, true, node.span)?;
+        if let Some(target) = target {
+            let segments = path_segments(target, text);
+            let prefs = (segments == ["preferences"])
+                .then(|| {
+                    self.tables
+                        .symbols
+                        .iter()
+                        .find(|s| {
+                            s.module == module && matches!(s.kind, SymbolKind::Preferences { .. })
+                        })
+                        .map(|s| s.id)
+                })
+                .flatten();
+            if let Some(prefs) = prefs {
+                if !in_then {
+                    diags.push(Diagnostic::error(
+                        "E1200",
+                        "preferences validation belongs in Then".into(),
+                        node.span,
+                    ));
+                    return Ok(());
+                }
+                self.tables.node_symbol.insert(NodeKey::of(target), prefs);
+                row_scope = self.with_row(row_scope, prefs, node.span)?;
+            } else if in_then {
+                diags.push(Diagnostic::error(
+                    "E1200",
+                    "Then invariants must validate the owning preferences schema".into(),
+                    target.span,
+                ));
+                return Ok(());
+            } else if let Some(model) =
+                self.resolve_model_path(module, &segments, target, text, diags)
+            {
+                row_scope = self.with_row(row_scope, model, node.span)?;
+            }
+        }
+        for child in kids(node) {
+            if is_expression(child.kind) {
+                self.walk_expr(module, row_scope, child, text, ExprCtx::bare(), diags)?;
+            }
         }
         Ok(())
     }
@@ -3263,12 +4116,17 @@ impl<'a> Resolver<'a> {
                     self.walk_expr(module, scope, part, text, ExprCtx::bare(), diags)?;
                 } else if part.kind == SyntaxKind::DescriptionValue {
                     self.resolve_description_value(text, module, part, diags);
-                } else if is_name(part, text, "label") {
+                } else if is_name(part, text, "label")
+                    && parts.peek().is_some_and(|next| is_punct(next, text, "="))
+                {
                     break;
                 }
             }
             for (j, part) in kids(param_node).iter().enumerate() {
                 if is_name(part, text, "label")
+                    && kids(param_node)
+                        .get(j + 1)
+                        .is_some_and(|next| is_punct(next, text, "="))
                     && let Some(caption) = kids(param_node).get(j + 2)
                 {
                     self.resolve_caption(text, module, caption, diags);
@@ -3532,10 +4390,19 @@ impl<'a> Resolver<'a> {
             }
         };
         if self.is_judgment(head) {
-            // `Judge.evaluate` names the derived evaluate operation:
-            // resolved but opaque (delivery/send/fixture consumers
-            // treat the missing symbol as an untypable-but-valid
-            // target, like an external operation).
+            if segments.len() == 2 && segments[1] == "evaluate" {
+                return self
+                    .tables
+                    .judgment_declarations
+                    .get(&head)
+                    .map(|j| j.evaluate);
+            }
+            self.tables.unresolved_members.push(UnresolvedMember {
+                node: NodeKey::of(node),
+                span: node.span,
+                base: self.tables.symbols[head.0 as usize].name.clone(),
+                name: segments[1..].join("."),
+            });
             return None;
         }
         if segments.len() == 1 {
@@ -3774,17 +4641,6 @@ impl<'a> Resolver<'a> {
                 return Some(typeref);
             }
             match self.lookup_prod(module, segments[0]) {
-                Some(ScopedName::Local(id) | ScopedName::Imported { target: id, .. })
-                    if self.is_judgment(id) =>
-                {
-                    // A judgment in type position resolves the name but
-                    // stays opaque: no `TypeRef`, so the types pass
-                    // treats the shape as unknowable (like an external
-                    // import) while the derived interface is
-                    // unimplemented (DESIGN:897).
-                    self.tables.node_symbol.insert(NodeKey::of(node), id);
-                    return None;
-                }
                 Some(ScopedName::Local(id) | ScopedName::Imported { target: id, .. }) => {
                     self.tables.node_symbol.insert(NodeKey::of(node), id);
                     let typeref = TypeRef::Symbol(id);
@@ -3793,8 +4649,15 @@ impl<'a> Resolver<'a> {
                         .insert(NodeKey::of(node), typeref.clone());
                     return Some(typeref);
                 }
-                Some(ScopedName::External { .. }) => {
-                    let typeref = TypeRef::External;
+                Some(ScopedName::External { provider, name }) => {
+                    let typeref = if provider == "std"
+                        && let Some(id) = self.tables.judgment_standard_records.get(&name).copied()
+                    {
+                        self.tables.node_symbol.insert(NodeKey::of(node), id);
+                        TypeRef::Symbol(id)
+                    } else {
+                        TypeRef::External
+                    };
                     self.tables
                         .node_typeref
                         .insert(NodeKey::of(node), typeref.clone());
@@ -3823,12 +4686,33 @@ impl<'a> Resolver<'a> {
         if self.tables.module_by_name.contains_key(segments[0]) {
             return self.resolve_qualified_type(module, segments, node, text, diags);
         }
+        if let Some(ScopedName::External { provider, name }) = self.lookup_prod(module, segments[0])
+            && provider == "std"
+            && !self.tables.judgment_standard_records.contains_key(&name)
+            && nominal_schema(&name).is_some()
+        {
+            self.tables
+                .node_typeref
+                .insert(NodeKey::of(node), TypeRef::External);
+            return Some(TypeRef::External);
+        }
         let head = self.resolve_type_head(module, segments, node, text, diags)?;
-        if self.is_judgment(head) {
-            // `Judgment.question.aspect` paths name derived-interface
-            // members: resolved but opaque (see the single-segment
-            // arm above).
-            return None;
+        if self.is_judgment(head)
+            && let Some(field) = self
+                .tables
+                .judgment_type_paths
+                .get(&format!(
+                    "{}.{}",
+                    self.tables.symbols[head.0 as usize].canonical,
+                    segments[1..].join(".")
+                ))
+                .copied()
+        {
+            let typeref = TypeRef::Symbol(field);
+            self.tables
+                .node_typeref
+                .insert(NodeKey::of(node), typeref.clone());
+            return Some(typeref);
         }
         let mut fields = Vec::new();
         if let Some(field) = self.tables.symbols[head.0 as usize]
@@ -3902,11 +4786,22 @@ impl<'a> Resolver<'a> {
                 return None;
             }
         };
-        if self.is_judgment(head) {
-            // Package-qualified judgment paths resolve the name but
-            // stay opaque (see `resolve_type_path`).
-            self.tables.node_symbol.insert(NodeKey::of(node), head);
-            return None;
+        if self.is_judgment(head)
+            && let Some(field) = self
+                .tables
+                .judgment_type_paths
+                .get(&format!(
+                    "{}.{}",
+                    self.tables.symbols[head.0 as usize].canonical,
+                    segments[2..].join(".")
+                ))
+                .copied()
+        {
+            let typeref = TypeRef::Symbol(field);
+            self.tables
+                .node_typeref
+                .insert(NodeKey::of(node), typeref.clone());
+            return Some(typeref);
         }
         if segments.len() == 2 {
             self.tables.node_symbol.insert(NodeKey::of(node), head);
@@ -3965,6 +4860,9 @@ impl<'a> Resolver<'a> {
         }
         match self.lookup_prod(module, segments[0]) {
             Some(ScopedName::Local(id) | ScopedName::Imported { target: id, .. }) => Some(id),
+            Some(ScopedName::External { provider, name }) if provider == "std" => {
+                self.tables.judgment_standard_records.get(&name).copied()
+            }
             Some(ScopedName::External { .. }) => None,
             None => {
                 diags.push(Diagnostic::error(
@@ -4868,6 +5766,76 @@ impl<'a> Resolver<'a> {
 impl<'a> Resolver<'a> {
     // --- Pass 5d: Then ------------------------------------------------------
 
+    fn resolve_view(
+        &mut self,
+        text: &'a str,
+        module: ModuleId,
+        root: ScopeId,
+        node: &SyntaxNode,
+        diags: &mut Vec<Diagnostic>,
+    ) -> Result<(), Diagnostic> {
+        if has_error(node) {
+            return Ok(());
+        }
+        let params: Vec<_> = kids(node)
+            .into_iter()
+            .filter(|n| n.kind == SyntaxKind::Parameter)
+            .collect();
+        let model = if let [param] = params.as_slice() {
+            let parts = kids(param);
+            let name = parts.iter().find_map(|n| name_text(n, text));
+            let ty = parts.iter().find(|n| is_type_node(n.kind)).copied();
+            if let Some(ty) = ty.filter(|ty| {
+                name == Some("row")
+                    && ty.kind == SyntaxKind::NamedType
+                    && parts.len() == 3
+                    && is_punct(parts[1], text, ":")
+            }) {
+                self.resolve_type(text, module, ty, diags);
+                kids(ty)
+                    .into_iter()
+                    .find(|n| n.kind == SyntaxKind::Path)
+                    .and_then(|path| self.tables.node_symbol.get(&NodeKey::of(path)).copied())
+                    .filter(|id| {
+                        matches!(
+                            self.tables.symbols[id.0 as usize].kind,
+                            SymbolKind::Model { .. }
+                        )
+                    })
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let Some(model) = model else {
+            diags.push(Diagnostic::error(
+                "E3001",
+                "view requires exactly one required nonnullable stored-model parameter named row"
+                    .to_string(),
+                node.span,
+            ));
+            return Ok(());
+        };
+        self.tables.view_models.insert(NodeKey::of(node), model);
+        // A module root supplies owning declarations, never caller variables,
+        // page preferences/result/route facts, or actor/now context captures.
+        let scope = self.with_row(root, model, node.span)?;
+        self.tables.expr_scope.insert(NodeKey::of(node), scope);
+        if node.descendants().any(|n| n.kind == SyntaxKind::Show) {
+            diags.push(Diagnostic::error(
+                "E6008",
+                "nested show in a view is unsupported by the typed-row pilot".to_string(),
+                node.span,
+            ));
+            return Ok(());
+        }
+        for child in kids(node).into_iter().filter(|n| is_ui_child(n.kind)) {
+            self.walk_ui(text, module, scope, child, diags)?;
+        }
+        Ok(())
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn resolve_then(
         &mut self,
@@ -4878,7 +5846,22 @@ impl<'a> Resolver<'a> {
         node: &SyntaxNode,
         diags: &mut Vec<Diagnostic>,
     ) -> Result<(), Diagnostic> {
-        if has_error(node) || node.kind != SyntaxKind::Page {
+        if has_error(node) {
+            return Ok(());
+        }
+        if node.kind == SyntaxKind::Preferences {
+            for field in node.children.iter().filter(|c| c.kind == SyntaxKind::Field) {
+                self.resolve_field_parts(text, module, root, None, field, true, diags)?;
+            }
+            if let Some(label) = attribute_value(node, "label", text) {
+                self.resolve_caption(text, module, label, diags);
+            }
+            return Ok(());
+        }
+        if node.kind == SyntaxKind::Invariant {
+            return self.resolve_invariant(text, module, root, node, true, diags);
+        }
+        if node.kind != SyntaxKind::Page {
             return Ok(());
         }
         let mut scope = self.with_facts(root, ActorKind::Nullable, true, true, node.span)?;
@@ -5103,6 +6086,29 @@ impl<'a> Resolver<'a> {
             return Ok(());
         }
         match node.kind {
+            SyntaxKind::Show => {
+                let name = kids(node)
+                    .into_iter()
+                    .filter_map(|n| name_text(n, text))
+                    .find(|name| *name != "show");
+                if let Some(target) = name
+                    .and_then(|name| self.tables.views.get(&(module, name.to_string())).copied())
+                {
+                    self.tables.show_views.insert(NodeKey::of(node), target);
+                } else {
+                    diags.push(Diagnostic::error(
+                        "E2001",
+                        "show must name a view declared in the same module".to_string(),
+                        node.span,
+                    ));
+                }
+                for args in kids(node)
+                    .into_iter()
+                    .filter(|n| n.kind == SyntaxKind::Object)
+                {
+                    self.walk_object_values(module, scope, args, text, diags)?;
+                }
+            }
             SyntaxKind::Card | SyntaxKind::Details => {
                 for child in kids(node) {
                     if is_expression(child.kind) {
@@ -5740,6 +6746,7 @@ fn is_ui_child(kind: SyntaxKind) -> bool {
     matches!(
         kind,
         SyntaxKind::Card
+            | SyntaxKind::Show
             | SyntaxKind::Details
             | SyntaxKind::Tabs
             | SyntaxKind::Tab

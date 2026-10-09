@@ -1,0 +1,834 @@
+{
+  "task": "SEQ-007",
+  "kind": "observed source diagnostics only; no product/runtime tests",
+  "tool_snapshot_source_pin": "db57c3794d386fcd27f17f54b199272d58106a81 (SEQ-008/F1 snapshot tool)",
+  "binary": "/private/tmp/canlang-f1-metadata-target/debug/can",
+  "binary_sha256": "84a9770fc652968a960713281c116a868491a068d66881b3ea05ccca906845f2",
+  "catalog": "/private/tmp/canlang-roadmap-f1-db57c379/packages/values/dist/catalog.json",
+  "catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+  "current_tool_not_rebuilt": true,
+  "records": [
+    {
+      "name": "approval-original",
+      "mode": "check",
+      "argv": [
+        "/private/tmp/canlang-f1-metadata-target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/private/tmp/canlang-roadmap-f1-db57c379/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/originals/CanApprove.can",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/originals/shared/Employees.can",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/originals/shared/Locations.can"
+      ],
+      "exit": 10,
+      "stdout": "diagnostics/approval-original-check.json",
+      "stderr": "diagnostics/approval-original-check.stderr",
+      "source_hashes": {
+        "originals/CanApprove.can": "515648eb449308363023ed6fe7cc986c0eceba58ba5fa5f88a6c30cf7a0fc981",
+        "originals/shared/Employees.can": "64b941f4e3db0afe499903642585e362482d6aa39f679b3b1e688dc912d3b7f4",
+        "originals/shared/Locations.can": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a"
+      },
+      "summary": {
+        "envelope_keys": [
+          "tool",
+          "tool_version",
+          "language_version",
+          "schema_version",
+          "sources",
+          "complete",
+          "diagnostics",
+          "omitted"
+        ],
+        "errors": 5,
+        "diagnostics": 5,
+        "first_five": [
+          {
+            "code": "E3001",
+            "message": "derived field: expected {opaque}, found {opaque}",
+            "primary": {
+              "file": 0,
+              "start": 2427,
+              "end": 2447
+            }
+          },
+          {
+            "code": "E2013",
+            "message": "unknown member 'parent.location' on model Submission",
+            "primary": {
+              "file": 0,
+              "start": 31231,
+              "end": 31246
+            }
+          },
+          {
+            "code": "E2013",
+            "message": "unknown member 'parent.category' on model Submission",
+            "primary": {
+              "file": 0,
+              "start": 31247,
+              "end": 31262
+            }
+          },
+          {
+            "code": "E3010",
+            "message": "derived function value must be pure; 'active_member' is not allowed here",
+            "primary": {
+              "file": 1,
+              "start": 1336,
+              "end": 1362
+            }
+          },
+          {
+            "code": "E3010",
+            "message": "derived function value must be pure; 'active_member' is not allowed here",
+            "primary": {
+              "file": 1,
+              "start": 1477,
+              "end": 1503
+            }
+          }
+        ],
+        "compiled_artifact_observed": false
+      },
+      "limits": "Full original source bytes retained. Rent imports beyond selected shared source are intentionally not linked in this diagnostic group; unresolved dependencies are not a proposed-binding diagnostic. Proposed comments/shells implement no binding."
+    },
+    {
+      "name": "approval-original",
+      "mode": "compile",
+      "argv": [
+        "/private/tmp/canlang-f1-metadata-target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/private/tmp/canlang-roadmap-f1-db57c379/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/originals/CanApprove.can",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/originals/shared/Employees.can",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/originals/shared/Locations.can"
+      ],
+      "exit": 10,
+      "stdout": "diagnostics/approval-original-compile.json",
+      "stderr": "diagnostics/approval-original-compile.stderr",
+      "source_hashes": {
+        "originals/CanApprove.can": "515648eb449308363023ed6fe7cc986c0eceba58ba5fa5f88a6c30cf7a0fc981",
+        "originals/shared/Employees.can": "64b941f4e3db0afe499903642585e362482d6aa39f679b3b1e688dc912d3b7f4",
+        "originals/shared/Locations.can": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a"
+      },
+      "summary": {
+        "envelope_keys": [
+          "tool",
+          "tool_version",
+          "language_version",
+          "schema_version",
+          "sources",
+          "complete",
+          "diagnostics",
+          "omitted"
+        ],
+        "errors": 5,
+        "diagnostics": 5,
+        "first_five": [
+          {
+            "code": "E3001",
+            "message": "derived field: expected {opaque}, found {opaque}",
+            "primary": {
+              "file": 0,
+              "start": 2427,
+              "end": 2447
+            }
+          },
+          {
+            "code": "E2013",
+            "message": "unknown member 'parent.location' on model Submission",
+            "primary": {
+              "file": 0,
+              "start": 31231,
+              "end": 31246
+            }
+          },
+          {
+            "code": "E2013",
+            "message": "unknown member 'parent.category' on model Submission",
+            "primary": {
+              "file": 0,
+              "start": 31247,
+              "end": 31262
+            }
+          },
+          {
+            "code": "E3010",
+            "message": "derived function value must be pure; 'active_member' is not allowed here",
+            "primary": {
+              "file": 1,
+              "start": 1336,
+              "end": 1362
+            }
+          },
+          {
+            "code": "E3010",
+            "message": "derived function value must be pure; 'active_member' is not allowed here",
+            "primary": {
+              "file": 1,
+              "start": 1477,
+              "end": 1503
+            }
+          }
+        ],
+        "compiled_artifact_observed": false
+      },
+      "limits": "Full original source bytes retained. Rent imports beyond selected shared source are intentionally not linked in this diagnostic group; unresolved dependencies are not a proposed-binding diagnostic. Proposed comments/shells implement no binding."
+    },
+    {
+      "name": "approval-proposed-shell",
+      "mode": "check",
+      "argv": [
+        "/private/tmp/canlang-f1-metadata-target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/private/tmp/canlang-roadmap-f1-db57c379/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/approval/proposed-binding-shell-full.can",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/originals/shared/Employees.can",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/originals/shared/Locations.can"
+      ],
+      "exit": 10,
+      "stdout": "diagnostics/approval-proposed-shell-check.json",
+      "stderr": "diagnostics/approval-proposed-shell-check.stderr",
+      "source_hashes": {
+        "approval/proposed-binding-shell-full.can": "8caa787c97cc566449aea0912b6e21f3aaa290eb002bbdd0e3192ed1150b170d",
+        "originals/shared/Employees.can": "64b941f4e3db0afe499903642585e362482d6aa39f679b3b1e688dc912d3b7f4",
+        "originals/shared/Locations.can": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a"
+      },
+      "summary": {
+        "envelope_keys": [
+          "tool",
+          "tool_version",
+          "language_version",
+          "schema_version",
+          "sources",
+          "complete",
+          "diagnostics",
+          "omitted"
+        ],
+        "errors": 5,
+        "diagnostics": 5,
+        "first_five": [
+          {
+            "code": "E3001",
+            "message": "derived field: expected {opaque}, found {opaque}",
+            "primary": {
+              "file": 0,
+              "start": 2427,
+              "end": 2447
+            }
+          },
+          {
+            "code": "E2013",
+            "message": "unknown member 'parent.location' on model Submission",
+            "primary": {
+              "file": 0,
+              "start": 31148,
+              "end": 31163
+            }
+          },
+          {
+            "code": "E2013",
+            "message": "unknown member 'parent.category' on model Submission",
+            "primary": {
+              "file": 0,
+              "start": 31164,
+              "end": 31179
+            }
+          },
+          {
+            "code": "E3010",
+            "message": "derived function value must be pure; 'active_member' is not allowed here",
+            "primary": {
+              "file": 1,
+              "start": 1336,
+              "end": 1362
+            }
+          },
+          {
+            "code": "E3010",
+            "message": "derived function value must be pure; 'active_member' is not allowed here",
+            "primary": {
+              "file": 1,
+              "start": 1477,
+              "end": 1503
+            }
+          }
+        ],
+        "compiled_artifact_observed": false
+      },
+      "limits": "Full original source bytes retained. Rent imports beyond selected shared source are intentionally not linked in this diagnostic group; unresolved dependencies are not a proposed-binding diagnostic. Proposed comments/shells implement no binding."
+    },
+    {
+      "name": "approval-proposed-shell",
+      "mode": "compile",
+      "argv": [
+        "/private/tmp/canlang-f1-metadata-target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/private/tmp/canlang-roadmap-f1-db57c379/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/approval/proposed-binding-shell-full.can",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/originals/shared/Employees.can",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/originals/shared/Locations.can"
+      ],
+      "exit": 10,
+      "stdout": "diagnostics/approval-proposed-shell-compile.json",
+      "stderr": "diagnostics/approval-proposed-shell-compile.stderr",
+      "source_hashes": {
+        "approval/proposed-binding-shell-full.can": "8caa787c97cc566449aea0912b6e21f3aaa290eb002bbdd0e3192ed1150b170d",
+        "originals/shared/Employees.can": "64b941f4e3db0afe499903642585e362482d6aa39f679b3b1e688dc912d3b7f4",
+        "originals/shared/Locations.can": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a"
+      },
+      "summary": {
+        "envelope_keys": [
+          "tool",
+          "tool_version",
+          "language_version",
+          "schema_version",
+          "sources",
+          "complete",
+          "diagnostics",
+          "omitted"
+        ],
+        "errors": 5,
+        "diagnostics": 5,
+        "first_five": [
+          {
+            "code": "E3001",
+            "message": "derived field: expected {opaque}, found {opaque}",
+            "primary": {
+              "file": 0,
+              "start": 2427,
+              "end": 2447
+            }
+          },
+          {
+            "code": "E2013",
+            "message": "unknown member 'parent.location' on model Submission",
+            "primary": {
+              "file": 0,
+              "start": 31148,
+              "end": 31163
+            }
+          },
+          {
+            "code": "E2013",
+            "message": "unknown member 'parent.category' on model Submission",
+            "primary": {
+              "file": 0,
+              "start": 31164,
+              "end": 31179
+            }
+          },
+          {
+            "code": "E3010",
+            "message": "derived function value must be pure; 'active_member' is not allowed here",
+            "primary": {
+              "file": 1,
+              "start": 1336,
+              "end": 1362
+            }
+          },
+          {
+            "code": "E3010",
+            "message": "derived function value must be pure; 'active_member' is not allowed here",
+            "primary": {
+              "file": 1,
+              "start": 1477,
+              "end": 1503
+            }
+          }
+        ],
+        "compiled_artifact_observed": false
+      },
+      "limits": "Full original source bytes retained. Rent imports beyond selected shared source are intentionally not linked in this diagnostic group; unresolved dependencies are not a proposed-binding diagnostic. Proposed comments/shells implement no binding."
+    },
+    {
+      "name": "country-current-nested",
+      "mode": "check",
+      "argv": [
+        "/private/tmp/canlang-f1-metadata-target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/private/tmp/canlang-roadmap-f1-db57c379/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/supplementary/CountryRegion-current-nested-full.can"
+      ],
+      "exit": 0,
+      "stdout": "diagnostics/country-current-nested-check.json",
+      "stderr": "diagnostics/country-current-nested-check.stderr",
+      "source_hashes": {
+        "supplementary/CountryRegion-current-nested-full.can": "a8370f1c8b2579515d4bf35d51773fbe746df2a4352dee95179cee164feafbd2"
+      },
+      "summary": {
+        "envelope_keys": [
+          "tool",
+          "tool_version",
+          "language_version",
+          "schema_version",
+          "sources",
+          "complete",
+          "diagnostics",
+          "omitted"
+        ],
+        "errors": 0,
+        "diagnostics": 0,
+        "first_five": [],
+        "compiler_output_stage": "check/compile output only; no proposed binding metadata consumed or runtime execution"
+      },
+      "limits": "Complete supplementary source. Proposed/custom shells do not consume sidecar JSON; a clean source compile would not implement dependent binding or custom reads."
+    },
+    {
+      "name": "country-current-nested",
+      "mode": "compile",
+      "argv": [
+        "/private/tmp/canlang-f1-metadata-target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/private/tmp/canlang-roadmap-f1-db57c379/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/supplementary/CountryRegion-current-nested-full.can"
+      ],
+      "exit": 10,
+      "stdout": "diagnostics/country-current-nested-compile.json",
+      "stderr": "diagnostics/country-current-nested-compile.stderr",
+      "source_hashes": {
+        "supplementary/CountryRegion-current-nested-full.can": "a8370f1c8b2579515d4bf35d51773fbe746df2a4352dee95179cee164feafbd2"
+      },
+      "summary": {
+        "envelope_keys": [
+          "tool",
+          "tool_version",
+          "language_version",
+          "schema_version",
+          "sources",
+          "complete",
+          "diagnostics",
+          "omitted"
+        ],
+        "errors": 5,
+        "diagnostics": 5,
+        "first_five": [
+          {
+            "code": "E6008",
+            "message": "cannot lower expression query order: no \u00a713 lowering exists",
+            "primary": {
+              "file": 0,
+              "start": 1604,
+              "end": 1691
+            }
+          },
+          {
+            "code": "E6008",
+            "message": "cannot lower value query order: ordering has no array lowering",
+            "primary": {
+              "file": 0,
+              "start": 1896,
+              "end": 1958
+            }
+          },
+          {
+            "code": "E6008",
+            "message": "cannot lower pagination: pagination is valid only inside a collection",
+            "primary": {
+              "file": 0,
+              "start": 3065,
+              "end": 3081
+            }
+          },
+          {
+            "code": "E6008",
+            "message": "cannot lower pagination: pagination is valid only inside a collection",
+            "primary": {
+              "file": 0,
+              "start": 3235,
+              "end": 3253
+            }
+          },
+          {
+            "code": "E6008",
+            "message": "cannot lower pagination: pagination is valid only inside a collection",
+            "primary": {
+              "file": 0,
+              "start": 3754,
+              "end": 3770
+            }
+          }
+        ],
+        "compiler_output_stage": "check/compile output only; no proposed binding metadata consumed or runtime execution"
+      },
+      "limits": "Complete supplementary source. Proposed/custom shells do not consume sidecar JSON; a clean source compile would not implement dependent binding or custom reads."
+    },
+    {
+      "name": "country-proposed-shell",
+      "mode": "check",
+      "argv": [
+        "/private/tmp/canlang-f1-metadata-target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/private/tmp/canlang-roadmap-f1-db57c379/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/supplementary/CountryRegion-proposed-binding-shell-full.can"
+      ],
+      "exit": 0,
+      "stdout": "diagnostics/country-proposed-shell-check.json",
+      "stderr": "diagnostics/country-proposed-shell-check.stderr",
+      "source_hashes": {
+        "supplementary/CountryRegion-proposed-binding-shell-full.can": "38627aecfc199ab5b5fcc47821896b96bcea473e6c04fd3d29b91cca550966ee"
+      },
+      "summary": {
+        "envelope_keys": [
+          "tool",
+          "tool_version",
+          "language_version",
+          "schema_version",
+          "sources",
+          "complete",
+          "diagnostics",
+          "omitted"
+        ],
+        "errors": 0,
+        "diagnostics": 0,
+        "first_five": [],
+        "compiler_output_stage": "check/compile output only; no proposed binding metadata consumed or runtime execution"
+      },
+      "limits": "Complete supplementary source. Proposed/custom shells do not consume sidecar JSON; a clean source compile would not implement dependent binding or custom reads."
+    },
+    {
+      "name": "country-proposed-shell",
+      "mode": "compile",
+      "argv": [
+        "/private/tmp/canlang-f1-metadata-target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/private/tmp/canlang-roadmap-f1-db57c379/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/supplementary/CountryRegion-proposed-binding-shell-full.can"
+      ],
+      "exit": 10,
+      "stdout": "diagnostics/country-proposed-shell-compile.json",
+      "stderr": "diagnostics/country-proposed-shell-compile.stderr",
+      "source_hashes": {
+        "supplementary/CountryRegion-proposed-binding-shell-full.can": "38627aecfc199ab5b5fcc47821896b96bcea473e6c04fd3d29b91cca550966ee"
+      },
+      "summary": {
+        "envelope_keys": [
+          "tool",
+          "tool_version",
+          "language_version",
+          "schema_version",
+          "sources",
+          "complete",
+          "diagnostics",
+          "omitted"
+        ],
+        "errors": 3,
+        "diagnostics": 3,
+        "first_five": [
+          {
+            "code": "E6008",
+            "message": "cannot lower expression query order: no \u00a713 lowering exists",
+            "primary": {
+              "file": 0,
+              "start": 1604,
+              "end": 1691
+            }
+          },
+          {
+            "code": "E6008",
+            "message": "cannot lower value query order: ordering has no array lowering",
+            "primary": {
+              "file": 0,
+              "start": 1896,
+              "end": 1958
+            }
+          },
+          {
+            "code": "E6008",
+            "message": "cannot lower pagination: pagination is valid only inside a collection",
+            "primary": {
+              "file": 0,
+              "start": 3624,
+              "end": 3640
+            }
+          }
+        ],
+        "compiler_output_stage": "check/compile output only; no proposed binding metadata consumed or runtime execution"
+      },
+      "limits": "Complete supplementary source. Proposed/custom shells do not consume sidecar JSON; a clean source compile would not implement dependent binding or custom reads."
+    },
+    {
+      "name": "country-custom-shell",
+      "mode": "check",
+      "argv": [
+        "/private/tmp/canlang-f1-metadata-target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/private/tmp/canlang-roadmap-f1-db57c379/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/supplementary/CountryRegion-custom-composition-shell-full.can"
+      ],
+      "exit": 0,
+      "stdout": "diagnostics/country-custom-shell-check.json",
+      "stderr": "diagnostics/country-custom-shell-check.stderr",
+      "source_hashes": {
+        "supplementary/CountryRegion-custom-composition-shell-full.can": "ac985851ab89662e2775fbf78e510c8826f28102469a27eb26d1e5eb7cd1eaf1"
+      },
+      "summary": {
+        "envelope_keys": [
+          "tool",
+          "tool_version",
+          "language_version",
+          "schema_version",
+          "sources",
+          "complete",
+          "diagnostics",
+          "omitted"
+        ],
+        "errors": 0,
+        "diagnostics": 0,
+        "first_five": [],
+        "compiler_output_stage": "check/compile output only; no proposed binding metadata consumed or runtime execution"
+      },
+      "limits": "Complete supplementary source. Proposed/custom shells do not consume sidecar JSON; a clean source compile would not implement dependent binding or custom reads."
+    },
+    {
+      "name": "country-custom-shell",
+      "mode": "compile",
+      "argv": [
+        "/private/tmp/canlang-f1-metadata-target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/private/tmp/canlang-roadmap-f1-db57c379/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/supplementary/CountryRegion-custom-composition-shell-full.can"
+      ],
+      "exit": 10,
+      "stdout": "diagnostics/country-custom-shell-compile.json",
+      "stderr": "diagnostics/country-custom-shell-compile.stderr",
+      "source_hashes": {
+        "supplementary/CountryRegion-custom-composition-shell-full.can": "ac985851ab89662e2775fbf78e510c8826f28102469a27eb26d1e5eb7cd1eaf1"
+      },
+      "summary": {
+        "envelope_keys": [
+          "tool",
+          "tool_version",
+          "language_version",
+          "schema_version",
+          "sources",
+          "complete",
+          "diagnostics",
+          "omitted"
+        ],
+        "errors": 3,
+        "diagnostics": 3,
+        "first_five": [
+          {
+            "code": "E6008",
+            "message": "cannot lower expression query order: no \u00a713 lowering exists",
+            "primary": {
+              "file": 0,
+              "start": 1604,
+              "end": 1691
+            }
+          },
+          {
+            "code": "E6008",
+            "message": "cannot lower value query order: ordering has no array lowering",
+            "primary": {
+              "file": 0,
+              "start": 1896,
+              "end": 1958
+            }
+          },
+          {
+            "code": "E6008",
+            "message": "cannot lower pagination: pagination is valid only inside a collection",
+            "primary": {
+              "file": 0,
+              "start": 3625,
+              "end": 3641
+            }
+          }
+        ],
+        "compiler_output_stage": "check/compile output only; no proposed binding metadata consumed or runtime execution"
+      },
+      "limits": "Complete supplementary source. Proposed/custom shells do not consume sidecar JSON; a clean source compile would not implement dependent binding or custom reads."
+    },
+    {
+      "name": "rent-original-limited-closure",
+      "mode": "check",
+      "argv": [
+        "/private/tmp/canlang-f1-metadata-target/debug/can",
+        "check",
+        "--format=json",
+        "--catalog",
+        "/private/tmp/canlang-roadmap-f1-db57c379/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/originals/CanRent.can",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/originals/shared/Employees.can",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/originals/shared/Locations.can"
+      ],
+      "exit": 10,
+      "stdout": "diagnostics/rent-original-limited-closure-check.json",
+      "stderr": "diagnostics/rent-original-limited-closure-check.stderr",
+      "source_hashes": {
+        "originals/CanRent.can": "38122784280f5bc9e32cd4b62e7b236eb3bf3f51121a75751cfb087b25960654",
+        "originals/shared/Employees.can": "64b941f4e3db0afe499903642585e362482d6aa39f679b3b1e688dc912d3b7f4",
+        "originals/shared/Locations.can": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a"
+      },
+      "summary": {
+        "envelope_keys": [
+          "tool",
+          "tool_version",
+          "language_version",
+          "schema_version",
+          "sources",
+          "complete",
+          "diagnostics",
+          "omitted"
+        ],
+        "errors": 521,
+        "diagnostics": 521,
+        "first_five": [
+          {
+            "code": "E2005",
+            "message": "app 'Workspace' selects unknown member 'CanMember'",
+            "primary": {
+              "file": 0,
+              "start": 593,
+              "end": 602
+            }
+          },
+          {
+            "code": "E2005",
+            "message": "app 'Workspace' selects unknown member 'CanReport'",
+            "primary": {
+              "file": 0,
+              "start": 593,
+              "end": 602
+            }
+          },
+          {
+            "code": "E2005",
+            "message": "import provider 'customer' names no known app or package",
+            "primary": {
+              "file": 0,
+              "start": 3357,
+              "end": 3365
+            }
+          },
+          {
+            "code": "E2005",
+            "message": "import provider 'invoice' names no known app or package",
+            "primary": {
+              "file": 0,
+              "start": 3456,
+              "end": 3463
+            }
+          },
+          {
+            "code": "E2005",
+            "message": "import provider 'propose' names no known app or package",
+            "primary": {
+              "file": 0,
+              "start": 3703,
+              "end": 3710
+            }
+          }
+        ],
+        "compiled_artifact_observed": false
+      },
+      "limits": "Full original source bytes retained. Rent imports beyond selected shared source are intentionally not linked in this diagnostic group; unresolved dependencies are not a proposed-binding diagnostic. Proposed comments/shells implement no binding."
+    },
+    {
+      "name": "rent-original-limited-closure",
+      "mode": "compile",
+      "argv": [
+        "/private/tmp/canlang-f1-metadata-target/debug/can",
+        "compile",
+        "--format=json",
+        "--catalog",
+        "/private/tmp/canlang-roadmap-f1-db57c379/packages/values/dist/catalog.json",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/originals/CanRent.can",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/originals/shared/Employees.can",
+        "/Users/vince/Projects/canlang/implementation/capability-roadmap-20261008/dependent-input-comparison/originals/shared/Locations.can"
+      ],
+      "exit": 10,
+      "stdout": "diagnostics/rent-original-limited-closure-compile.json",
+      "stderr": "diagnostics/rent-original-limited-closure-compile.stderr",
+      "source_hashes": {
+        "originals/CanRent.can": "38122784280f5bc9e32cd4b62e7b236eb3bf3f51121a75751cfb087b25960654",
+        "originals/shared/Employees.can": "64b941f4e3db0afe499903642585e362482d6aa39f679b3b1e688dc912d3b7f4",
+        "originals/shared/Locations.can": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a"
+      },
+      "summary": {
+        "envelope_keys": [
+          "tool",
+          "tool_version",
+          "language_version",
+          "schema_version",
+          "sources",
+          "complete",
+          "diagnostics",
+          "omitted"
+        ],
+        "errors": 521,
+        "diagnostics": 521,
+        "first_five": [
+          {
+            "code": "E2005",
+            "message": "app 'Workspace' selects unknown member 'CanMember'",
+            "primary": {
+              "file": 0,
+              "start": 593,
+              "end": 602
+            }
+          },
+          {
+            "code": "E2005",
+            "message": "app 'Workspace' selects unknown member 'CanReport'",
+            "primary": {
+              "file": 0,
+              "start": 593,
+              "end": 602
+            }
+          },
+          {
+            "code": "E2005",
+            "message": "import provider 'customer' names no known app or package",
+            "primary": {
+              "file": 0,
+              "start": 3357,
+              "end": 3365
+            }
+          },
+          {
+            "code": "E2005",
+            "message": "import provider 'invoice' names no known app or package",
+            "primary": {
+              "file": 0,
+              "start": 3456,
+              "end": 3463
+            }
+          },
+          {
+            "code": "E2005",
+            "message": "import provider 'propose' names no known app or package",
+            "primary": {
+              "file": 0,
+              "start": 3703,
+              "end": 3710
+            }
+          }
+        ],
+        "compiled_artifact_observed": false
+      },
+      "limits": "Full original source bytes retained. Rent imports beyond selected shared source are intentionally not linked in this diagnostic group; unresolved dependencies are not a proposed-binding diagnostic. Proposed comments/shells implement no binding."
+    }
+  ]
+}

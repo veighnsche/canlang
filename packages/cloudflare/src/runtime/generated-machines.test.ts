@@ -73,7 +73,7 @@ test('compiled flat machines compose staged transitions and integer writes with 
     assert.deepEqual(world.artifact.operations!.find((operation) => operation.name === `${APP}.start`)?.result, { type: 'int' });
     const create = async (label: string) => committed(await world.invoker.invokeMutation(
       envelope('Job.create', { label }), world.identity,
-    )).result as { id: string; version: number; data: Record<string, unknown> };
+    )).records![0] as { id: string; version: number; data: Record<string, unknown> };
     const first = await create('first');
     assert.deepEqual(first.data, { label: 'first', attempts: '0', status: 'idle' });
     assert.equal(first.version, 1);
@@ -130,7 +130,7 @@ test('compiled Match arm write rolls back on later failure and commits once on r
   try {
     const created = committed(await world.invoker.invokeMutation(envelope('Job.create', {
       label: 'match rollback',
-    }), world.identity)).result as { id: string; version: number };
+    }), world.identity)).records![0] as { id: string; version: number };
     const job = { id: created.id, version: String(created.version) };
     const before = await world.store.load(MODEL, asId(created.id));
     const beforeHistory = await world.store.historyFor(MODEL, asId(created.id));
@@ -172,7 +172,7 @@ test('synthetic handler bypass cannot set a managed machine field through canoni
   try {
     const created = committed(await world.invoker.invokeMutation(envelope('Job.create', {
       label: 'protected',
-    }), world.identity)).result as { id: string };
+    }), world.identity)).records![0] as { id: string };
     const before = await world.store.load(MODEL, asId(created.id));
     const history = await world.store.historyFor(MODEL, asId(created.id));
     const error = rejected(await world.invoker.invokeMutation(envelope('start', {

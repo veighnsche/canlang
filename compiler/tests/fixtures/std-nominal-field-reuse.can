@@ -1,0 +1,12 @@
+app NominalFieldReuse
+use std {DeliveryResult as Report}
+use std {EmailV1 as Mail} from=deployment.mail
+Given
+ Entry {state:Report.status label="Delivery status",notification:delivery(Mail.send)?}
+ policy Entry read=members fields=state,notification.status
+ derive copy(value:Report.status):Report.status = value
+ derive delivery_state(entry:Entry):Report.status? = entry.notification?.status
+When
+ scenario accept(state:Report.status) -> bool by=members
+  do return true
+Then

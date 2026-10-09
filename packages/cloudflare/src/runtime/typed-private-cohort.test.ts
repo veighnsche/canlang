@@ -1,18 +1,23 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { mkdtemp, readFile, realpath, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
 import type { CompileArtifact, ReceiptIdentity, StoragePort, StoredRow } from '@canlang/contracts';
+import { CONTRACTS_VERSION } from '@canlang/contracts';
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { createD1OwnerRouter } from '@canlang/state/storage/owner-router';
 import { createSystemRegistry } from '@canlang/state/ports/system';
 import { asId, asModel, FIXED_NOW, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
 import { FANOUT_NAVIGATION_MODEL, FANOUT_OWNER_SCAN_MODEL, fanoutNavigationRowId, fanoutOwnerScanRowId,
   readFanoutNavigationRow, readFanoutOwnerScanRow } from '@canlang/state/fanout/navigation';
-import { createD1IdentityStore, ensureIdentitySchema, resolveIdentity, sha256HexText } from '@canlang/identity';
+import { buildSessionCookie, createD1IdentityStore, deriveCsrfToken, ensureIdentitySchema,
+  resolveIdentity, sha256HexText } from '@canlang/identity';
+import { checkActivationInventory } from '@canlang/state/migration/activate';
+import { buildWorkInventory } from '@canlang/work/recovery';
 import { workSchedulePutCommand } from '@canlang/work/kernel/schedule-staging';
 import { WORK_HANDLER_OCCURRENCE_MODEL, readHandlerOccurrenceRow } from '@canlang/work/kernel/handler-occurrence';
 import { WORK_SCHEDULE_MODEL, WORK_OCCURRENCE_MODEL, readScheduleRow, readOccurrenceRow } from '@canlang/work/kernel/tables';
@@ -23,6 +28,11 @@ import { createCanonicalDueCohortBody, invokeDueScheduleCanonical, invokeDueSour
   runFanoutSchedulerTurn, T34F7_FANOUT_INTENT_MODEL, T34F7_FANOUT_CHECKPOINT_MODEL,
   T34F7_FANOUT_CHILD_MODEL, releaseStaleFanoutClaims, claimFanoutChild, runRetainedFanoutSchedulerTurn } from './invoke.js';
 import type { CanonicalDueScheduleOpts, FanoutSchedulerBodyPort, FanoutSchedulerTurnResult } from './invoke.js';
+import { createBoundCohortTick } from './cohort-tick.js';
+import { activate } from '../deploy/activate.js';
+import { probeInstalledRuntime } from '../deploy/installed.js';
+import { buildDeployBundle, writeDeployBundle } from '../deploy/bundle.js';
+import type { DeployBundle } from '../deploy/bundle.js';
 
 const APP = 'CohortJourney';
 const ENTRY = asModel(`${APP}.Entry`);
@@ -36,7 +46,7 @@ function outcomeStatus(value: unknown): string {
 
 test('declared private cohorts freeze sibling handlers and retain checked events across native restart', async () => {
   const artifact = JSON.parse(await readFile(fixturePath, 'utf8')) as CompileArtifact;
-  const dir = await mkdtemp(join(tmpdir(), 'can-private-cohort-'));
+  const dir = await mkdtemp(join(await realpath(tmpdir()), 'can-private-cohort-'));
   let mf: Miniflare | undefined;
   let ownerMf: Miniflare | undefined;
   let now = FIXED_NOW;
@@ -53,7 +63,7 @@ test('declared private cohorts freeze sibling handlers and retain checked events
   };
   try {
     const asm = await assembleModules({ artifact, sourcePath: fixturePath }, {
-      workDir: join(dir, 'modules'), stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
+      workDir: join(dir, 'modules'), stdlibUrl: new URL('./stdlib.js', import.meta.url).href,
       uiUrl: import.meta.resolve('@canlang/ui'),
     });
     let storage = await open();
@@ -71,7 +81,8 @@ test('declared private cohorts freeze sibling handlers and retain checked events
         await resolveIdentity(storage.identity, { session_token: token }, { clock }));
       assert.ok('result' in result, JSON.stringify(result));
       assert.equal(result.result.status, 'committed');
-      return result.result.result as { id: string; version: number };
+      assert.equal(result.result.result, null);
+      return result.result.records![0] as { id: string; version: number };
     };
     const firstParent = await mutate('Container.create', { name: 'selected' });
     const otherParent = await mutate('Container.create', { name: 'other' });
@@ -550,16 +561,25 @@ test('declared private cohorts freeze sibling handlers and retain checked events
 
     // Normal and trusted calls share one real owner resolver. Identity has its
     // own database; each team's State database receives its own durable pin.
-    const openOwners = async () => {
-      ownerMf = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
-        script: 'export default { fetch() { return new Response("ok"); } }',
-        d1Databases: { IDENTITY: 'private-owner-identity', OWNER_A: 'private-owner-a', OWNER_B: 'private-owner-b' },
+    const openOwners = async (installed?: { bundle: DeployBundle; owner: string }) => {
+      ownerMf = new Miniflare({ compatibilityDate: '2026-07-15',
+        ...(installed === undefined ? {
+          modules: true as const,
+          script: 'export default { fetch() { return new Response("ok"); } }',
+          d1Databases: { IDENTITY: 'private-owner-identity', OWNER_A: 'private-owner-a', OWNER_B: 'private-owner-b' },
+        } : {
+          modules: [installed.bundle.mainModule, ...Object.keys(installed.bundle.modules)
+            .filter(path => path !== installed.bundle.mainModule)].map(path =>
+            ({ path, type: 'ESModule' as const, contents: installed.bundle.modules[path]! })),
+          bindings: { CAN_STATE_OWNER: installed.owner },
+          d1Databases: { DB: 'private-owner-identity', OWNER_A: 'private-owner-a', STATE_DB: 'private-owner-b' },
+        }),
         d1Persist: join(dir, 'owners') });
-      const identityDb = await ownerMf.getD1Database('IDENTITY') as unknown as D1Database;
+      const identityDb = await ownerMf.getD1Database(installed === undefined ? 'IDENTITY' : 'DB') as unknown as D1Database;
       await ensureIdentitySchema(identityDb);
       return { identities: createD1IdentityStore(identityDb, { clock }),
         a: await ownerMf.getD1Database('OWNER_A') as unknown as D1Database,
-        b: await ownerMf.getD1Database('OWNER_B') as unknown as D1Database };
+        b: await ownerMf.getD1Database(installed === undefined ? 'OWNER_B' : 'STATE_DB') as unknown as D1Database };
     };
     let owners = await openOwners();
     const ownerA = await owners.identities.createTeam({ timezone: 'UTC' });
@@ -598,8 +618,8 @@ test('declared private cohorts freeze sibling handlers and retain checked events
     const parentBResult = await ownerInvoker.invokeMutation(parentBEnvelope, await identityFor(tokenB));
     assert.ok('result' in parentAResult); assert.ok('result' in parentBResult);
     assert.equal(parentAResult.result.status, 'committed'); assert.equal(parentBResult.result.status, 'committed');
-    const parentARef = parentAResult.result.result as { id: string };
-    const parentBRef = parentBResult.result.result as { id: string };
+    const parentARef = parentAResult.result.records![0] as { id: string };
+    const parentBRef = parentBResult.result.records![0] as { id: string };
     const entryAEnvelope = { operation: `${APP}.Entry.create`, operation_id: nextId(),
       inputs: { label: 'only A record', parent: { id: parentARef.id } } };
     const entryBEnvelope = { operation: `${APP}.Entry.create`, operation_id: nextId(),
@@ -608,8 +628,8 @@ test('declared private cohorts freeze sibling handlers and retain checked events
     const createdB = await ownerInvoker.invokeMutation(entryBEnvelope, await identityFor(tokenB));
     assert.ok('result' in createdA); assert.ok('result' in createdB);
     assert.equal(createdA.result.status, 'committed'); assert.equal(createdB.result.status, 'committed');
-    const entryA = createdA.result.result as { id: string; version: number };
-    const entryB = createdB.result.result as { id: string; version: number };
+    const entryA = createdA.result.records![0] as { id: string; version: number };
+    const entryB = createdB.result.records![0] as { id: string; version: number };
     for (const [sessionToken, expectedId] of [[tokenA, entryA.id], [tokenB, entryB.id]] as const) {
       const read = await ownerInvoker.invokeRead({ operation: `${APP}.Entry.read`, inputs: {} }, await identityFor(sessionToken));
       assert.ok('result' in read);
@@ -679,7 +699,8 @@ test('declared private cohorts freeze sibling handlers and retain checked events
     const ownerReopenedRevision = await trustedA.store.readRevision();
     const ownerReplay = await ownerInvoker.invokeMutation(entryAEnvelope, await identityFor(tokenA));
     assert.ok('result' in ownerReplay); assert.equal(ownerReplay.result.status, 'replayed');
-    assert.deepEqual(ownerReplay.result.result, createdA.result.result);
+    assert.equal(ownerReplay.result.result, null);
+    assert.deepEqual(ownerReplay.result.records, createdA.result.records);
     assert.equal(outcomeStatus(await invokeRetainedHandlerOccurrenceCanonical(ownerHandlerOpts())), 'replayed');
     assert.equal(outcomeStatus(await invokeDueSourceRoutingCanonical(ownerDueOpts())), 'replayed');
     assert.equal(await trustedA.store.readRevision(), ownerReopenedRevision);
@@ -689,5 +710,127 @@ test('declared private cohorts freeze sibling handlers and retain checked events
     assert.deepEqual(await owners.a.prepare('SELECT app, owner FROM state_owner_pin WHERE id = 1').first(), pinA);
     assert.deepEqual(await owners.b.prepare('SELECT app, owner FROM state_owner_pin WHERE id = 1').first(), pinB);
     assert.equal(fallbackCalls, 0);
-  } finally { await ownerMf?.dispose(); await mf?.dispose(); await rm(dir, { recursive: true, force: true }); }
+
+    // The actual default factory and generated deploy main now share B's
+    // selected physical store. All sessions, schedules and claims use real time.
+    const liveToken = 'installed-owner-b-session';
+    const liveNow = Date.now();
+    await owners.identities.createSession({ user_id: ownerUser.user_id, token_sha256: await sha256HexText(liveToken),
+      expires_at: new Date(liveNow + 3600_000).toISOString(), last_team_id: ownerB.team_id });
+    const liveCookie = buildSessionCookie(liveToken, { maxAgeSeconds: 3600 }).split(';')[0]!;
+    const liveCsrf = await deriveCsrfToken(liveToken);
+    const liveOccurrence = uuidv7(liveNow, ++sequence);
+    const liveEntry = await trustedB.store.load(ENTRY, asId(entryB.id)); assert.ok(liveEntry);
+    await registry.run('work.schedule.put', { key: liveOccurrence, scope: scopeB, occurrenceId: liveOccurrence,
+      event: `${APP}.Mixed`, at: liveNow,
+      payload: { entry: { id: liveEntry.id, version: String(liveEntry.version) }, marker: 'default installed tick' } },
+    { actor: ownerUser.user_id, operation: 'work.schedule.put', operationId: uuidv7(Date.now(), ++sequence), now: liveNow },
+    { store: trustedB.store });
+    const defaultTick = await createBoundCohortTick({ artifact, asm, identities: owners.identities,
+      ownerStorage: boundary, scope: scopeB, now: Date.now });
+    await defaultTick.tick();
+    const liveSource = readOccurrenceRow((await trustedB.store.load(WORK_OCCURRENCE_MODEL, asId(liveOccurrence)))!);
+    assert.equal(liveSource.status, 'completed');
+    const liveRoutes = await trustedB.store.query({ model: WORK_HANDLER_OCCURRENCE_MODEL, authority: 'owner', limit: 2 });
+    assert.equal(liveRoutes.length, 1); assert.equal(readHandlerOccurrenceRow(liveRoutes[0]!).state, 'completed');
+    const liveIntents = await trustedB.store.query({ model: T34F7_FANOUT_INTENT_MODEL, authority: 'owner', limit: 2 });
+    assert.equal(liveIntents.length, 1);
+    assert.deepEqual(producers.tables.readFanoutIntentRow(liveIntents[0]!).members, [entryB.id]);
+    const liveAfter = await trustedB.store.load(ENTRY, liveEntry.id); assert.ok(liveAfter);
+    assert.equal(liveAfter.data.label, 'default installed tick');
+    const liveHistory = await trustedB.store.historyFor(ENTRY, liveEntry.id);
+    assert.equal(liveAfter.version, liveEntry.version + 2, 'Independent ordinary and cohort bodies each commit once.');
+
+    const fixtureBytes = await readFile(fixturePath);
+    const artifactDigest = createHash('sha256').update(fixtureBytes).digest('hex');
+    const sourceIdentity = artifact.sources[0]; assert.ok(sourceIdentity);
+    const bindings = [{ binding: 'DB', kind: 'd1' as const, logicalName: 'private-owner-identity' },
+      { binding: 'STATE_DB', kind: 'd1' as const, logicalName: 'private-owner-b' }];
+    const capabilities = [...new Set(['d1-batch', ...artifact.requires.map(requirement => requirement.capability)])];
+    assert.deepEqual(await trustedB.store.outboxPending(), []);
+    const verdict = await activate({ artifact,
+      descriptor: { identity: { appName: APP, sourceRevision: sourceIdentity.sha256,
+        languageVersion: artifact.language_version, compilerVersion: artifact.tool_version,
+        contractsVersion: CONTRACTS_VERSION, artifactDigest },
+      requiredCapabilities: capabilities, resourceBindings: bindings, secrets: [], schedules: [] },
+      environment: { environment: 'native-installed', resources: bindings.map(requirement =>
+        ({ requirement, resourceId: requirement.logicalName })), secretsPresent: [], vars: { CAN_STATE_OWNER: ownerB.team_id } },
+      installed: probeInstalledRuntime({}, { contractsVersion: CONTRACTS_VERSION, runtimeVersion: artifact.tool_version,
+        knownLanguageVersions: [artifact.language_version], capabilities, supportsSchedules: true }),
+      store: trustedB.store, inventory: { outboxItems: [], handlerContractFor: () => null,
+        plan: { migrationId: 'native-installed-cohort', invalidates: [] } },
+      gates: { buildWorkInventory, checkActivationInventory: (store, plan, inventory) =>
+        checkActivationInventory(store, plan as Parameters<typeof checkActivationInventory>[1], inventory) } });
+    assert.equal(verdict.active, true, JSON.stringify(verdict));
+    const deployment = buildDeployBundle(artifact, { verdict });
+    writeDeployBundle(deployment, join(dir, 'installed-cohort'));
+    // The real generated module map executes inside workerd, including its
+    // native Identity comparison and default fetch/scheduled event handlers.
+    await ownerMf!.dispose(); ownerMf = undefined;
+    owners = await openOwners({ bundle: deployment, owner: ownerB.team_id }); boundary = await ownerBoundary();
+    trustedA = await boundary.forTrustedScope(scopeA, Date.now());
+    trustedB = await boundary.forTrustedScope(scopeB, Date.now());
+    const emptyParentEnvelope = { operation_id: uuidv7(Date.now(), ++sequence), inputs: { name: 'zero-member installed parent' } };
+    const emptyParentUrl = `https://installed.invalid/api/operations/${APP}.Container.create`;
+    const emptyParentRequest = () => ({
+      method: 'POST', headers: { 'content-type': 'application/json', cookie: liveCookie, 'x-csrf-token': liveCsrf },
+      body: JSON.stringify(emptyParentEnvelope) });
+    const emptyParentResponse = await ownerMf!.dispatchFetch(emptyParentUrl, emptyParentRequest());
+    assert.equal(emptyParentResponse.status, 200, await emptyParentResponse.clone().text());
+    const emptyParentResult = await emptyParentResponse.json() as { status: string; result: null; records: Array<{ id: string; version: number }> };
+    assert.equal(emptyParentResult.status, 'committed');
+    assert.equal(emptyParentResult.result, null);
+    const emptyParent = emptyParentResult.records[0]!;
+    assert.equal(await trustedA.store.load(asModel(`${APP}.Container`), asId(emptyParent.id)), null);
+    // The caller can discard the committed HTTP response and retry the same
+    // genuine envelope; neither business writes nor history may repeat.
+    const beforeHttpReplay = await trustedB.store.readRevision();
+    const replayHttp = await ownerMf!.dispatchFetch(emptyParentUrl, emptyParentRequest());
+    assert.equal(replayHttp.status, 200);
+    const replayHttpBody = await replayHttp.json() as { status: string; result: null; records: unknown[] };
+    assert.equal(replayHttpBody.status, 'replayed'); assert.equal(replayHttpBody.result, null);
+    assert.deepEqual(replayHttpBody.records, emptyParentResult.records);
+    assert.equal(await trustedB.store.readRevision(), beforeHttpReplay);
+    const zeroAt = Date.now();
+    const zeroOccurrence = uuidv7(zeroAt, ++sequence);
+    await registry.run('work.schedule.put', { key: zeroOccurrence, scope: scopeB, occurrenceId: zeroOccurrence,
+      event: `${APP}.Scoped`, at: zeroAt,
+      payload: { container: { id: emptyParent.id, version: String(emptyParent.version) },
+        marker: 'zero-member source' } },
+    { actor: ownerUser.user_id, operation: 'work.schedule.put', operationId: uuidv7(Date.now(), ++sequence), now: zeroAt },
+    { store: trustedB.store });
+    let scheduledTurns = 0;
+    const scheduledTurn = async () => {
+      const worker = await ownerMf!.getWorker();
+      const result = await worker.scheduled({ scheduledTime: new Date(), cron: '* * * * *' });
+      assert.equal(result.outcome, 'ok'); scheduledTurns += 1;
+    };
+    await scheduledTurn();
+    assert.equal(readOccurrenceRow((await trustedB.store.load(WORK_OCCURRENCE_MODEL, asId(zeroOccurrence)))!).status, 'completed');
+    const zeroIntents = await trustedB.store.query({ model: T34F7_FANOUT_INTENT_MODEL, authority: 'owner',
+      where: { op: 'eq', field: 'sourceOccurrence', value: zeroOccurrence }, limit: 2 });
+    assert.equal(zeroIntents.length, 1);
+    assert.deepEqual(producers.tables.readFanoutIntentRow(zeroIntents[0]!).members, []);
+    const zeroNavigationId = asId(fanoutNavigationRowId(ownerB.team_id, zeroIntents[0]!.id));
+    const zeroNavigation = await trustedB.store.load(asModel(FANOUT_NAVIGATION_MODEL), zeroNavigationId); assert.ok(zeroNavigation);
+    assert.equal(readFanoutNavigationRow(zeroNavigation, { owner: ownerB.team_id, intentRow: zeroIntents[0]! }).lastVisitedChildId, null);
+    await scheduledTurn();
+    const liveScanId = asId(fanoutOwnerScanRowId(ownerB.team_id));
+    const wrappedOwnerScan = await trustedB.store.load(asModel(FANOUT_OWNER_SCAN_MODEL), liveScanId); assert.ok(wrappedOwnerScan);
+    assert.equal(readFanoutOwnerScanRow(wrappedOwnerScan, ownerB.team_id).lastVisitedIntentId, null);
+    await ownerMf!.dispose(); ownerMf = undefined;
+    owners = await openOwners({ bundle: deployment, owner: ownerB.team_id }); boundary = await ownerBoundary();
+    trustedB = await boundary.forTrustedScope(scopeB, Date.now());
+    for (let turn = 0; turn < 4; turn += 1) await scheduledTurn();
+    assert.equal(scheduledTurns, 6);
+    assert.deepEqual(await trustedB.store.load(ENTRY, liveEntry.id), liveAfter);
+    assert.deepEqual(await trustedB.store.historyFor(ENTRY, liveEntry.id), liveHistory);
+    assert.deepEqual(readOccurrenceRow((await trustedB.store.load(WORK_OCCURRENCE_MODEL, asId(liveOccurrence)))!), liveSource);
+    assert.deepEqual(await owners.b.prepare('SELECT app, owner FROM state_owner_pin WHERE id = 1').first(), pinB);
+    const reopenedHttp = await ownerMf!.dispatchFetch(emptyParentUrl, emptyParentRequest());
+    assert.equal(reopenedHttp.status, 200);
+    assert.equal((await reopenedHttp.json() as { status: string }).status, 'replayed');
+  } finally {
+    await ownerMf?.dispose(); await mf?.dispose(); await rm(dir, { recursive: true, force: true });
+  }
 });

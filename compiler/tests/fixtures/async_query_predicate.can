@@ -1,0 +1,14 @@
+app AsyncQueryPredicate
+Given
+ Entry {enabled:bool,divisor:int,count:int=0}
+ Probe {value:int=1}
+ policy Entry read=members fields=enabled,divisor,count
+ policy Probe read=members fields=value
+ derive eligible(divisor:int):bool = count(Probe)>0 and 10%divisor==0
+When
+ crud Entry by=members fields=enabled,divisor,count
+ crud Probe by=members fields=value
+ scenario selected() read=true -> Entry[] by=members
+  do
+   return Entry as candidate where candidate.enabled and eligible(candidate.divisor)
+Then

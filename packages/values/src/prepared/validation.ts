@@ -251,6 +251,7 @@ function fieldMatches(
 ): void {
   const mismatch = (detail: string): PlanError =>
     new PlanError("unknown-plan", `validatePreparedValue abstains: schema/plan mismatch at ${where} (${detail})`);
+  if (["format", "distinctBy", "excludedIds"].some(key => Object.hasOwn(schemaField, key))) throw mismatch("unsupported field constraints");
   if (schemaField["typeId"] !== planField.typeId) throw mismatch("typeId");
   if (schemaField["required"] !== planField.required) throw mismatch("required");
   if (schemaField["hasDefault"] !== planField.hasDefault) throw mismatch("hasDefault");
@@ -393,6 +394,7 @@ function crossCheckSchema(owner: unknown, plan: PreparedValidationPlan, schema: 
   if (!isRecord(schema.contracts) || !isRecord(schema.enums) || !isRecord(schema.operations)) {
     throw mismatch("section shape");
   }
+  if (Object.hasOwn(schema, "aliases")) throw mismatch("unsupported aliases");
   const contracts = schema.contracts as Record<string, unknown>;
   const enums = schema.enums as Record<string, unknown>;
   const operations = schema.operations as Record<string, unknown>;

@@ -1,6 +1,0 @@
-app T
-Given
- message m="Hi"@{}
- derive g():text = format(descriptor=m,locale=null)
-When
-Then

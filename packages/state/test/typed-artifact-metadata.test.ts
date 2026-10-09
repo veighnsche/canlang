@@ -176,15 +176,18 @@ test('ordinary singular model results require a declared qualified nonnullable m
       assert.deepEqual(checked, { type: model });
       assert.ok(Object.isFrozen(checked));
     }
+    const inline = check('enum(a,b)', kind);
+    assert.deepEqual(descriptor(inline.artifact()).result, { type: 'enum(a,b)' });
+    assert.deepEqual(descriptor(inline.direct()).result, { type: 'enum(a,b)' });
     for (const type of [`${model}?`, `${model}[][]`, `${model}[]!`, `${model}|Example.Other`,
-      `ref ${model}`, 'Example.Unknown', 'Example.Contract', 'enum(a,b)', 'Job',
+      `ref ${model}`, 'Example.Unknown', 'Example.Contract', 'Job',
       'Example..Job', 'Example.Job ', 'member', 'json']) {
       const rejected = check(type, kind);
       incompatible(rejected.artifact);
       incompatible(rejected.direct);
     }
-    // Even membership cannot turn a bare name or an enum into a qualified model.
-    for (const type of ['Job', 'enum(a,b)']) {
+    // Membership cannot turn a bare name into a qualified model.
+    for (const type of ['Job']) {
       const rejected = check(type, kind, type as ModelName);
       incompatible(rejected.artifact);
       incompatible(rejected.direct);
@@ -200,7 +203,7 @@ test('ordinary singular model results require a declared qualified nonnullable m
 test('model array result claims refuse nullable/required/union/ref/unknown and non-read profiles', () => {
   for (const type of [`${model}?`, `${model}[]?`, `${model}[]!`, `${model}?[]`,
     `${model}[][]`, `${model}|${model}[]`, `ref ${model}[]`, 'ref(Example.Job)[]',
-    'Example.Unknown[]', 'Example.Contract[]', 'enum(a,b)[]', ' Job[]', 'Job[]',
+    'Example.Unknown[]', 'Example.Contract[]', ' Job[]', 'Job[]',
     'Example..Job[]', 'Example.Job []', 'member[]', 'json[]']) {
     const raw = artifact();
     raw.operations![0]!.kind = 'read';
@@ -211,6 +214,14 @@ test('model array result claims refuse nullable/required/union/ref/unknown and n
     incompatible(() => loadArtifactDescriptors(raw, opts));
     incompatible(() => loadExecutionDescriptorSet(direct, opts));
   }
+  const inline = artifact();
+  inline.operations![0]!.kind = 'read';
+  inline.operations![0]!.result = { type: 'enum(a,b)[]' };
+  assert.deepEqual(descriptor(loadArtifactDescriptors(inline, opts)).result, { type: 'enum(a,b)[]' });
+  const inlineSet = intake();
+  assert.deepEqual(descriptor(loadExecutionDescriptorSet({ ...inlineSet, operations: [
+    { ...inlineSet.operations[0]!, kind: 'read', result: { type: 'enum(a,b)[]' } },
+  ] }, opts)).result, { type: 'enum(a,b)[]' });
   // Membership alone does not admit an unqualified spelling.
   const unqualified = artifact();
   unqualified.models![0]!.name = 'Job';
@@ -767,4 +778,121 @@ test('checked File claims reject mismatched kinds and malformed scalar container
     incompatible(() => loadExecutionDescriptorSet({ ...direct,
       operations: [{ ...direct.operations[0]!, result: { type } }] }, opts));
   }
+});
+
+
+function nominalArtifact(): ArtifactDescriptorSlice {
+  const raw = artifact();
+  raw.valueTypes = { contracts: [
+    { name: 'Example.Request', fields: [{ name: 'count', type: 'int' }] },
+    { name: 'Example.Decision', fields: [{ name: 'status', type: 'Example.Status' }] },
+  ], enums: [{ name: 'Example.Status', cases: ['accept', 'refuse'] }] };
+  raw.models![0]!.fields.push({ name: 'requests', field: { kind: 'nominal', name: 'Example.Request' },
+    valueType: 'Example.Request[]!', array: { required: true }, required: true, serverOnly: false, nullable: false });
+  raw.operations![0]!.inputs.fields.push({ name: 'request', field: { kind: 'nominal', name: 'Example.Request' },
+    valueType: 'Example.Request?', nullable: true, required: false });
+  raw.operations![0]!.result = { type: 'Example.Decision' };
+  return raw;
+}
+
+test('source nominal inventory reaches operation intake and the final model table', () => {
+  const raw = nominalArtifact();
+  const loaded = loadArtifactDescriptors(raw, opts);
+  assert.ok(loaded.valueSchema);
+  assert.ok(loaded.valueTypes);
+  assert.notEqual(loaded.valueTypes, raw.valueTypes);
+  assert.ok(Object.isFrozen(loaded.valueTypes.contracts));
+  assert.equal(descriptor(loaded).inputs[0]!.kind, 'nominal');
+  assert.equal(descriptor(loaded).result!.type, 'Example.Decision');
+  const table = buildModelTableFromCanonical(loaded.models, { valueSchema: loaded.valueSchema });
+  assert.equal(table.get(model)!.fields.requests!.valueType, 'Example.Request[]!');
+  assert.equal(table.get(model)!.fields.requests!.nullable, false);
+  assert.throws(() => buildModelTableFromCanonical(loaded.models), /Invalid valueType/);
+  assert.throws(() => buildModelTable([...table.values()]), /Invalid valueType/);
+  assert.throws(() => buildModelTable([...table.values()], { valueSchema: {
+    kind: 'normalized-schema', contracts: {}, enums: {}, operations: {},
+  } }), /Invalid valueType/);
+  assert.ok(buildModelTable([...table.values()], { valueSchema: loaded.valueSchema }).has(model));
+  assert.ok(Object.isFrozen(loaded.valueSchema.contracts['Example.Request']));
+});
+
+test('nominal intake refuses dangling declarations and contradictory own wrappers', () => {
+  for (const change of [
+    (raw: ArtifactDescriptorSlice) => { delete raw.valueTypes; },
+    (raw: ArtifactDescriptorSlice) => { raw.models![0]!.fields[1]!.field = { kind: 'nominal', name: 'Example.Missing' }; },
+    (raw: ArtifactDescriptorSlice) => { raw.models![0]!.fields[1]!.valueType = 'Example.Request[]'; },
+    (raw: ArtifactDescriptorSlice) => { raw.models![0]!.fields[1]!.array = { required: false }; },
+    (raw: ArtifactDescriptorSlice) => { raw.models![0]!.fields[1]!.nullable = true; },
+    (raw: ArtifactDescriptorSlice) => { raw.operations![0]!.inputs.fields[0]!.valueType = 'Example.Decision?'; },
+    (raw: ArtifactDescriptorSlice) => { raw.operations![0]!.result = { type: 'Example.Missing' }; },
+  ]) {
+    const raw = nominalArtifact(); change(raw);
+    assert.throws(() => loadArtifactDescriptors(raw, opts), IncompatibleArtifactError);
+  }
+});
+
+test('value inventory rejects duplicates, malformed fields and dangling leaf types', () => {
+  const invalid = [
+    { contracts: [{ name: 'Example.Dup', fields: [] }, { name: 'Example.Dup', fields: [] }] },
+    { contracts: [{ name: 'Example.Dup', fields: [] }], enums: [{ name: 'Example.Dup', cases: ['yes'] }] },
+    { contracts: [{ name: 'Example.Value', fields: [{ name: 'x', type: 'int' }, { name: 'x', type: 'text' }] }] },
+    { contracts: [{ name: 'Example.Value', fields: [{ name: 'x', type: 'Example.Missing' }] }] },
+    { contracts: [{ name: 'Example.Value', fields: [{ name: 'x', type: 'int []' }] }] },
+    { contracts: [], enums: [{ name: 'Example.Status', cases: ['yes', 'yes'] }] },
+    { contracts: [{ name: 'Example.Value', fields: null }] },
+    { contracts: [{ name: 'Example.Bad?', fields: [] }] },
+    { contracts: [{ name: 'int', fields: [] }] },
+  ];
+  for (const [index, valueTypes] of invalid.entries()) {
+    const raw = { ...artifact(), valueTypes } as unknown as ArtifactDescriptorSlice;
+    const expected = index < 3 ? 'duplicate_name' : index === 3 ? 'dangling_reference' : 'malformed_descriptor';
+    const mapped = (error: unknown) => error instanceof IncompatibleArtifactError && error.reason === expected;
+    assert.throws(() => loadArtifactDescriptors(raw, opts), mapped);
+    assert.throws(() => loadExecutionDescriptorSet({ ...intake(), valueTypes } as unknown as ExecutionDescriptorSet, opts), mapped);
+  }
+});
+
+test('direct nominal input needs inventory and an exact required-array marker', () => {
+  const set: ExecutionDescriptorSet = { ...intake(), valueTypes: { contracts: [{ name: 'Example.Request', fields: [] }] },
+    operations: [{ name: operation, kind: 'scenario', inputs: [{ name: 'request', kind: 'nominal', valueType: 'Example.Request[]!', required: true }] }] };
+  const loaded = loadExecutionDescriptorSet(set, { ...opts, inputArrays: { [operation]: { request: { required: true } } } });
+  assert.equal(descriptor(loaded).inputs[0]!.kind, 'nominal');
+  assert.throws(() => loadExecutionDescriptorSet(set, opts), IncompatibleArtifactError);
+  assert.throws(() => loadExecutionDescriptorSet(set, { ...opts, inputArrays: { [operation]: { request: { required: false } } } }), IncompatibleArtifactError);
+  const missing = { ...set }; delete missing.valueTypes;
+  assert.throws(() => loadExecutionDescriptorSet(missing, { ...opts, inputArrays: { [operation]: { request: { required: true } } } }), IncompatibleArtifactError);
+});
+
+test('source Judgment deliveries preserve exact int64 versions and checked result leaves', () => {
+  const raw = nominalArtifact();
+  raw.models![0]!.fields.push({ name: 'decision', required: false, serverOnly: false, field: {
+    kind: 'delivery', judgment: true, capability: 'Example.Decision', operation: 'evaluate', version: '9223372036854775807',
+    result: { name: 'Example.Decision', fields: [{ name: 'status', type: 'Example.Status' }] },
+  } });
+  assert.ok(loadArtifactDescriptors(raw, opts).deliveryFields.get(model)!.has('decision'));
+  for (const version of ['01', '-1', '9223372036854775808', '9'.repeat(20), 1]) {
+    const changed = structuredClone(raw);
+    (changed.models![0]!.fields[2]!.field as unknown as Record<string, unknown>).version = version;
+    assert.throws(() => loadArtifactDescriptors(changed, opts), IncompatibleArtifactError);
+  }
+  const wrongOwner = structuredClone(raw);
+  (wrongOwner.models![0]!.fields[2]!.field as unknown as Record<string, unknown>).capability = 'Example.Request';
+  incompatible(() => loadArtifactDescriptors(wrongOwner, opts));
+  const changed = structuredClone(raw);
+  (changed.models![0]!.fields[2]!.field as unknown as { result: { fields: unknown[] } }).result.fields = [{ name: 'status', type: 'text' }];
+  assert.throws(() => loadArtifactDescriptors(changed, opts), IncompatibleArtifactError);
+});
+
+
+test('named enums reuse ordered-case checks and checked nominal array requirements', () => {
+  const raw = nominalArtifact();
+  raw.operations![0]!.inputs.fields = [{ name: 'statuses', field: { kind: 'enum', values: ['accept', 'refuse'] },
+    valueType: 'Example.Status[]!', array: { required: true }, nullable: false, required: true }];
+  const loaded = loadArtifactDescriptors(raw, opts);
+  assert.equal((descriptor(loaded).inputs[0] as { valueType: string }).valueType, 'Example.Status[]!');
+  const changed = structuredClone(raw);
+  changed.operations![0]!.inputs.fields[0]!.array = { required: false };
+  assert.throws(() => loadArtifactDescriptors(changed, opts), IncompatibleArtifactError);
+  changed.operations![0]!.inputs.fields[0]!.field = { kind: 'enum', values: ['refuse', 'accept'] };
+  assert.throws(() => loadArtifactDescriptors(changed, opts), IncompatibleArtifactError);
 });

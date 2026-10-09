@@ -17,6 +17,7 @@ import {
   STD_TEXT_GENERATION_V1_CONTRACT,
   deliveryResultLeaves,
 } from '@canlang/contracts';
+import type { NormalizedField } from '@canlang/values';
 import type {
   ArtifactOperation,
   BusinessError,
@@ -28,8 +29,9 @@ import type {
   DerivedOperationInputs,
   DerivedWritableInput,
   InputChoiceBinding,
+  CanonicalValueTypes,
 } from '@canlang/contracts';
-import { INT64_MAX, INT64_MIN, SchemaError, ValueError, decodeValue, parseDecimal, parseTypeId } from '@canlang/values';
+import { INT64_MAX, INT64_MIN, SchemaError, ValueError, decodeValue, normalizeValueTypes, parseDecimal, parseTypeId, validateValue } from '@canlang/values';
 import type {
   McpInputSchema,
   McpNamedField,
@@ -85,6 +87,8 @@ export function isMutationKind(kind: McpOperationKind): boolean {
 
 function fieldSchema(field: McpSchemaField): Record<string, unknown> {
   switch (field.kind) {
+    case 'nominal':
+      return nominalSchema(field.name, field.valueTypes);
     case 'string':
       return { type: 'string' };
     case 'integer':
@@ -131,6 +135,83 @@ function fieldSchema(field: McpSchemaField): Record<string, unknown> {
   }
 }
 
+/** Render only the same checked declaration inventory used by Values admission. */
+function nominalSchema(name: string, inventory: CanonicalValueTypes): Record<string, unknown> {
+  const { valueSchema } = normalizeValueTypes(inventory);
+  const definitions: Record<string, unknown> = Object.create(null);
+  const visited = new Set<string>();
+  const shape = (parsed: ReturnType<typeof parseTypeId>, type: string, descriptor?: NormalizedField): Record<string, unknown> => {
+    const base = parsed.base;
+    let element: Record<string, unknown>;
+    if (base.kind === 'nominal') {
+      visit(base.path);
+      element = { $ref: `#/$defs/${base.path.replaceAll('~', '~0').replaceAll('/', '~1')}` };
+    } else if (base.kind === 'scalar') {
+      if (!['text', 'bool', 'int', 'decimal', 'money', 'date', 'datetime', 'duration', 'email', 'url'].includes(base.name)) {
+        failDescriptor('malformed_descriptor', `Unsupported nominal schema scalar ${JSON.stringify(base.name)}.`);
+      }
+      element = base.name === 'bool' ? { type: 'boolean' }
+        : base.name === 'money' ? fieldSchema({ kind: 'money' }) : { type: 'string' };
+    } else if (base.kind === 'stringlike') element = { type: 'string' };
+    else if (base.kind === 'user' || base.kind === 'file') element = fieldSchema({ kind: base.kind });
+    else if (base.kind === 'enum') element = { type: 'string', enum: [...base.cases] };
+    else failDescriptor('malformed_descriptor', `Unsupported nominal schema type ${JSON.stringify(type)}.`);
+    let array: Record<string, unknown> = parsed.array ? { type: 'array', items: element } : element;
+    if (descriptor !== undefined) {
+      const min = parsed.array ? 'minItems' : 'minLength';
+      const max = parsed.array ? 'maxItems' : 'maxLength';
+      if (descriptor.lengthMin !== undefined) array[min] = descriptor.lengthMin;
+      if (descriptor.lengthMax !== undefined) array[max] = descriptor.lengthMax;
+      if (descriptor.format === 'name') array['pattern'] = '^[A-Za-z_][A-Za-z0-9_]*$';
+      if (descriptor.distinctBy === 'id') {
+        array['description'] = 'Each item must have a distinct id.';
+        if (descriptor.excludedIds !== undefined && descriptor.excludedIds.length !== 0) {
+          array['items'] = { allOf: [element, { properties: { id: { not: { enum: [...descriptor.excludedIds] } } } }] };
+        }
+      }
+    }
+    return parsed.nullable ? { anyOf: [array, { type: 'null' }] } : array;
+  };
+  const visit = (key: string): void => {
+    if (visited.has(key)) return;
+    visited.add(key);
+    const contract = valueSchema.contracts[key];
+    const enumeration = valueSchema.enums[key];
+    const alias = valueSchema.aliases?.[key];
+    if (contract !== undefined) {
+      const properties: Record<string, unknown> = Object.create(null);
+      for (const [field, descriptor] of Object.entries(contract.fields)) properties[field] = shape(descriptor.type, descriptor.typeId, descriptor);
+      definitions[key] = { type: 'object', properties, required: Object.keys(properties), additionalProperties: false };
+    } else if (enumeration !== undefined) definitions[key] = { type: 'string', enum: [...enumeration.cases] };
+    else if (alias !== undefined) definitions[key] = shape(alias.type, alias.typeId, alias);
+    else failDescriptor('malformed_descriptor', `Nominal ${JSON.stringify(key)} lacks a checked declaration.`);
+  };
+  visit(name);
+  return { $ref: `#/$defs/${name.replaceAll('~', '~0').replaceAll('/', '~1')}`, $defs: definitions };
+}
+
+/** Nominal references resolve at the actual tool root, including anyOf branches. */
+function hoistDefinitions(root: Record<string, unknown>): void {
+  const definitions: Record<string, unknown> = Object.create(null);
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) { value.forEach(visit); return; }
+    if (!isDescriptorRecord(value)) return;
+    const local = value['$defs'];
+    if (isDescriptorRecord(local)) {
+      for (const [name, definition] of Object.entries(local)) {
+        if (Object.hasOwn(definitions, name) && JSON.stringify(definitions[name]) !== JSON.stringify(definition)) {
+          failDescriptor('malformed_descriptor', `Conflicting checked nominal schema ${JSON.stringify(name)}.`);
+        }
+        definitions[name] = definition;
+      }
+      delete value['$defs'];
+    }
+    Object.values(value).forEach(visit);
+  };
+  visit(root);
+  if (Object.keys(definitions).length !== 0) root['$defs'] = definitions;
+}
+
 /**
  * One property schema: the closed field shape plus the authored
  * `@{desc}` text when present (MCP P4). Absent descriptions render no
@@ -147,6 +228,7 @@ export function toJsonSchema(inputs: McpInputSchema): {
   properties: Record<string, unknown>;
   required: string[];
   additionalProperties: false;
+  $defs?: Record<string, unknown>;
 } {
   const properties: Record<string, unknown> = {};
   const required: string[] = [];
@@ -154,7 +236,9 @@ export function toJsonSchema(inputs: McpInputSchema): {
     properties[named.name] = propertySchema(named);
     if (named.required) required.push(named.name);
   }
-  return { type: 'object', properties, required, additionalProperties: false };
+  const root = { type: 'object' as const, properties, required, additionalProperties: false as const };
+  hoistDefinitions(root);
+  return root;
 }
 
 /**
@@ -192,7 +276,9 @@ export function toToolInputSchema(descriptor: OperationDescriptor): Record<strin
   };
   // `type: 'object'` root: MCP requires object-rooted inputSchema; both
   // branches are objects so the wrapper is semantically identical.
-  return { type: 'object', anyOf: [withOpId, handleMode] };
+  const root = { type: 'object', anyOf: [withOpId, handleMode], ...(ordinary.$defs === undefined ? {} : { $defs: ordinary.$defs }) };
+  hoistDefinitions(root);
+  return root;
 }
 
 /* ------------------------------------------------------------------ */
@@ -334,6 +420,8 @@ export interface ArtifactOperationSlice {
   readonly operations?: unknown;
   /** Required only for full-context choices intake; otherwise left to owning model consumers. */
   readonly models?: unknown;
+  /** Actual owning nominal inventory; never inferred from model spelling. */
+  readonly valueTypes?: unknown;
 }
 
 /**
@@ -353,6 +441,7 @@ const CHECKED_OPERATION_KINDS: ReadonlySet<string> = new Set([
 ]);
 
 const CHECKED_INPUT_KINDS: ReadonlySet<string> = new Set([
+  'nominal',
   'ref',
   'string',
   'integer',
@@ -489,12 +578,44 @@ function checkMoneyLiteral(value: unknown): string | null {
  * reject `malformed_descriptor` (an incomplete result is not a real
  * emission). Anything failing rejects the whole descriptor.
  */
-function checkArtifactDeliveryDescriptor(value: unknown, what: string): DerivedDeliveryBinding {
+function checkArtifactDeliveryDescriptor(value: unknown, what: string, inventory?: CanonicalValueTypes): DerivedDeliveryBinding {
   if (!isDescriptorRecord(value)) {
     failDescriptor('malformed_descriptor', `Invalid ${what}: delivery inputs carry a descriptor object.`);
   }
+  if ('judgment' in value) {
+    const required = ['kind', 'judgment', 'capability', 'operation', 'version', 'result'];
+    if (Object.keys(value).length !== required.length || required.some(key => {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      return descriptor === undefined || !Object.hasOwn(descriptor, 'value');
+    })) failDescriptor('malformed_descriptor', `Invalid ${what}: judgment descriptor must be closed own data.`);
+  }
   const capability = value['capability'];
   const operation = value['operation'];
+  if ('judgment' in value) {
+    if (value['judgment'] !== true || typeof capability !== 'string' || capability === '' || operation !== 'evaluate' ||
+        typeof value['version'] !== 'string' || inventory === undefined) {
+      failDescriptor('malformed_descriptor', `Invalid ${what}: judgment delivery requires its checked nominal inventory and exact string version.`);
+    }
+    try {
+      const decoded = decodeValue('int', value['version']);
+      if (typeof decoded !== 'bigint' || decoded < 0n || decoded.toString() !== value['version']) throw new Error('version');
+    }
+    catch { failDescriptor('version_mismatch', `Invalid ${what}: canonical judgment version required.`); }
+    const declared = inventory.contracts.find(contract => contract.name === capability);
+    const result = value['result'];
+    const rawLeaves = isDescriptorRecord(result) ? result['fields'] : undefined;
+    if (declared === undefined || !isDescriptorRecord(result) || result['name'] !== capability || !Array.isArray(rawLeaves) ||
+        rawLeaves.length !== declared.fields.length) failDescriptor('undeclared_result', `Invalid ${what}: undeclared judgment result.`);
+    const leaves = declared.fields.map((field, index) => {
+      const leaf = rawLeaves[index];
+      if (!isDescriptorRecord(leaf) || leaf['name'] !== field.name || leaf['type'] !== field.type) {
+        failDescriptor('undeclared_leaf', `Invalid ${what}: judgment result leaves disagree with the checked inventory.`);
+      }
+      return Object.freeze({ name: field.name, type: field.type });
+    });
+    return Object.freeze({ judgment: true as const, capability, operation: 'evaluate' as const, version: value['version'],
+      result: Object.freeze({ name: capability, leaves: Object.freeze(leaves) }), recipe: `delivery:${capability}.evaluate` });
+  }
   if (typeof capability !== 'string' || capability === '' || typeof operation !== 'string' || operation === '') {
     failDescriptor(
       'malformed_descriptor',
@@ -686,11 +807,23 @@ function checkArtifactDefault(
 }
 
 /** Check one input element tag against the closed T04a pilot vocabulary. */
-function checkArtifactFieldTag(value: unknown, what: string): McpSchemaField {
+function checkArtifactFieldTag(value: unknown, what: string, inventory?: CanonicalValueTypes): McpSchemaField {
   if (!isDescriptorRecord(value) || typeof value['kind'] !== 'string') {
     failDescriptor('malformed_descriptor', `Invalid ${what}: input fields need a kind tag.`);
   }
   const kind = value['kind'];
+  if (kind === 'nominal') {
+    if (['kind', 'name'].some(key => {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      return descriptor === undefined || !Object.hasOwn(descriptor, 'value');
+    })) failDescriptor('malformed_descriptor', `Invalid ${what}: nominal claims must be own data.`);
+    const name = value['name'];
+    if (typeof name !== 'string' || inventory === undefined ||
+        ![...inventory.contracts, ...(inventory.enums ?? []), ...(inventory.aliases ?? [])].some(declaration => declaration.name === name)) {
+      failDescriptor('malformed_descriptor', `Invalid ${what}: nominal inputs require the full checked valueTypes inventory.`);
+    }
+    return { kind: 'nominal', name, valueTypes: inventory };
+  }
   if (!CHECKED_INPUT_KINDS.has(kind)) {
     failDescriptor(
       'unknown_input_kind',
@@ -758,6 +891,8 @@ function checkArtifactInputChannels(
   value: Record<string, unknown>,
   what: string,
   fieldKind: string,
+  nominalName?: string,
+  enumValues?: readonly string[],
 ): CheckedInputChannels {
   if (typeof value['required'] !== 'boolean') {
     failDescriptor('malformed_descriptor', `Invalid ${what}: required must be a boolean.`);
@@ -792,9 +927,10 @@ function checkArtifactInputChannels(
       if (!(err instanceof ValueError)) throw err;
       failDescriptor('malformed_descriptor', `Invalid ${what}: valueType must declare a supported scalar profile.`);
     }
-    const base = type.base.kind === 'scalar' ? type.base.name
-      : type.base.kind === 'user' || type.base.kind === 'file' ? type.base.kind : undefined;
-    if (base === undefined || type.requiredArray) {
+    const base = type.base.kind === 'nominal' && nominalName === type.base.path ? 'nominal'
+      : type.base.kind === 'scalar' ? type.base.name
+      : type.base.kind === 'user' || type.base.kind === 'file' || type.base.kind === 'enum' ? type.base.kind : undefined;
+    if (base === undefined || (type.requiredArray && fieldKind !== 'nominal')) {
       failDescriptor('malformed_descriptor', `Invalid ${what}: valueType must declare a supported scalar profile.`);
     }
     const expectedKind = base === 'int' ? 'integer' : base === 'bool' ? 'boolean'
@@ -802,8 +938,16 @@ function checkArtifactInputChannels(
     if (expectedKind !== fieldKind) {
       failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with input kind.`);
     }
+    if (type.base.kind === 'enum' && (enumValues === undefined ||
+        type.base.cases.length !== enumValues.length ||
+        type.base.cases.some((entry, index) => entry !== enumValues[index]))) {
+      failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with enum cases.`);
+    }
     if (type.array !== (array !== undefined)) {
       failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with array marker.`);
+    }
+    if (fieldKind === 'nominal' && type.requiredArray !== (array?.required === true)) {
+      failDescriptor('malformed_descriptor', `Invalid ${what}: valueType disagrees with required array marker.`);
     }
     if ((Object.hasOwn(value, 'nullable') && typeof value['nullable'] !== 'boolean') ||
         type.nullable !== (value['nullable'] === true)) {
@@ -825,7 +969,7 @@ function checkArtifactInputChannels(
  * Check one operation input: shape, closed kind (caller-supplied or
  * bound receipt), documented default, additive channels.
  */
-function checkArtifactInput(value: unknown, opName: string): CheckedArtifactInput {
+function checkArtifactInput(value: unknown, opName: string, inventory?: CanonicalValueTypes): CheckedArtifactInput {
   if (!isDescriptorRecord(value) || typeof value['name'] !== 'string' || value['name'] === '') {
     failDescriptor(
       'malformed_descriptor',
@@ -836,11 +980,18 @@ function checkArtifactInput(value: unknown, opName: string): CheckedArtifactInpu
   const what = `input ${JSON.stringify(name)} on operation ${JSON.stringify(opName)}`;
   const tag = value['field'];
   if (isDescriptorRecord(tag) && tag['kind'] === 'delivery') {
-    const delivery = checkArtifactDeliveryDescriptor(tag, what);
+    const delivery = checkArtifactDeliveryDescriptor(tag, what, inventory);
     return { name, delivery, ...checkArtifactInputChannels(value, what, 'delivery') };
   }
-  const field = checkArtifactFieldTag(tag, what);
-  return { name, field, ...checkArtifactInputChannels(value, what, field.kind) };
+  const field = checkArtifactFieldTag(tag, what, inventory);
+  const channels = checkArtifactInputChannels(value, what, field.kind,
+    field.kind === 'nominal' ? field.name : undefined, field.kind === 'enum' ? field.values : undefined);
+  if (field.kind === 'nominal' && channels.default?.kind === 'literal') {
+    const type = channels.valueType ?? `${field.name}${channels.array === undefined ? '' : channels.array.required ? '[]!' : '[]'}${channels.nullable ? '?' : ''}`;
+    try { validateValue(normalizeValueTypes(field.valueTypes).valueSchema, type, channels.default.value, 'create'); }
+    catch { failDescriptor('malformed_descriptor', `Invalid ${what}: nominal literal default fails its owning schema.`); }
+  }
+  return { name, field, ...channels };
 }
 
 /**
@@ -848,7 +999,7 @@ function checkArtifactInput(value: unknown, opName: string): CheckedArtifactInpu
  * unknown kind, server-owned input, duplicate input, or malformed member
  * rejects the WHOLE descriptor — nothing derives partially.
  */
-function checkArtifactOperationBase(raw: unknown): CheckedArtifactOperation {
+function checkArtifactOperationBase(raw: unknown, inventory?: CanonicalValueTypes): CheckedArtifactOperation {
   if (!isDescriptorRecord(raw) || typeof raw['name'] !== 'string' || raw['name'] === '') {
     failDescriptor('malformed_descriptor', 'Invalid operation descriptor: operations need non-empty names.');
   }
@@ -877,7 +1028,7 @@ function checkArtifactOperationBase(raw: unknown): CheckedArtifactOperation {
   const seen = new Set<string>();
   const fields: CheckedArtifactInput[] = [];
   for (const entry of inputs['fields']) {
-    const checked = checkArtifactInput(entry, name);
+    const checked = checkArtifactInput(entry, name, inventory);
     if (seen.has(checked.name)) {
       failDescriptor(
         'duplicate_name',
@@ -1162,13 +1313,23 @@ export function checkArtifactSliceVersion(slice: ArtifactOperationSlice): void {
  */
 export function checkArtifactOperations(slice: ArtifactOperationSlice): CheckedArtifactOperation[] {
   checkArtifactSliceVersion(slice);
+  const inventoryDescriptor = Object.getOwnPropertyDescriptor(slice, 'valueTypes');
+  if (inventoryDescriptor === undefined && 'valueTypes' in slice) failDescriptor('malformed_descriptor', 'valueTypes must be own data.');
+  if (inventoryDescriptor !== undefined && !Object.hasOwn(inventoryDescriptor, 'value')) {
+    failDescriptor('malformed_descriptor', 'valueTypes must be own data.');
+  }
+  let inventory: CanonicalValueTypes | undefined;
+  if (inventoryDescriptor !== undefined) {
+    try { inventory = normalizeValueTypes(inventoryDescriptor.value).valueTypes; }
+    catch (error) { failDescriptor('malformed_descriptor', error instanceof Error ? error.message : 'Invalid valueTypes inventory.'); }
+  }
   const raw: unknown = slice.operations;
   if (raw === undefined || raw === null) return [];
   if (!Array.isArray(raw)) {
     failDescriptor('malformed_descriptor', 'Invalid descriptor slice: operations must be an array.');
   }
   const seen = new Set<string>();
-  const checked = raw.map((entry) => checkArtifactOperationBase(entry));
+  const checked = raw.map((entry) => checkArtifactOperationBase(entry, inventory));
   for (const operation of checked) {
     if (seen.has(operation.name)) {
       failDescriptor('duplicate_name', `Duplicate operation descriptor: ${JSON.stringify(operation.name)}.`);
@@ -1221,7 +1382,7 @@ function checkedPropertySchema(checked: CheckedArtifactField): Record<string, un
   const shape: Record<string, unknown> = checked.array === undefined
     ? element
     : { type: 'array', items: element };
-  const schema = checked.field.kind === 'user' && checked.nullable === true
+  const schema = (checked.field.kind === 'user' || checked.field.kind === 'nominal' || checked.field.kind === 'enum') && checked.nullable === true
     ? { anyOf: [shape, { type: 'null' }] }
     : shape;
   return checked.description === undefined ? schema : { ...schema, description: checked.description };
@@ -1246,7 +1407,7 @@ export function checkedToToolInputSchema(checked: CheckedArtifactOperation): Rec
     if (named.required) required.push(named.name);
   }
   const ordinary = { type: 'object', properties, required, additionalProperties: false };
-  if (!isMutationKind(checked.kind)) return ordinary;
+  if (!isMutationKind(checked.kind)) { hoistDefinitions(ordinary); return ordinary; }
   const withOpId: Record<string, unknown> = {
     type: 'object',
     properties: { ...ordinary.properties, operation_id: { type: 'string' } },
@@ -1267,7 +1428,9 @@ export function checkedToToolInputSchema(checked: CheckedArtifactOperation): Rec
     required: ['action_handle', 'operation_id'],
     additionalProperties: false,
   };
-  return { type: 'object', anyOf: [withOpId, handleMode] };
+  const root = { type: 'object', anyOf: [withOpId, handleMode] };
+  hoistDefinitions(root);
+  return root;
 }
 
 /** Checked-derivation entry: one artifact operation to its full tool input schema. */
@@ -1332,6 +1495,8 @@ function checkBoundElement(
   path: string,
 ): BusinessError | null {
   switch (input.kind) {
+    case 'nominal':
+      return bindingError(path, 'Nominal bindings require the complete owning value validation.');
     case 'delivery':
       return bindingError(
         path,
@@ -1411,6 +1576,11 @@ function checkBoundElement(
  * concerns, never checked here.
  */
 export function checkBoundArgument(input: DerivedWritableInput, value: unknown): BusinessError | null {
+  if (input.kind === 'nominal') {
+    if (input.valueTypes === undefined || input.valueType === undefined) return bindingError(`/${input.name}`, 'Nominal input lacks its checked owning inventory.');
+    try { validateValue(normalizeValueTypes(input.valueTypes).valueSchema, input.valueType, value, 'create'); return null; }
+    catch (error) { return bindingError(`/${input.name}`, error instanceof Error ? error.message : 'Invalid nominal value.'); }
+  }
   const path = `/${input.name}`;
   if (input.kind === 'user') {
     // The owning codec validates the complete profile, including array element nulls.

@@ -1,0 +1,66 @@
+{
+  "task": "SEQ-007",
+  "kind": "current source boundaries observed by read, not executed runtime tests",
+  "gates": [
+    {
+      "id": "G-READ-SCENARIO",
+      "source": "packages/state/src/invocation/invoke.ts",
+      "lines": [
+        431,
+        436,
+        439,
+        477,
+        480
+      ],
+      "observed_source_fact": "invokeRead refuses nongenerated operation definitions and generated read descriptors carrying inputs without serving vocabulary; queryRecords serves viewer whole-model reads.",
+      "comparison_consequence": "No executed reviewer_choices/region_choices/available read-scenario serving is established by nested source or proposed metadata; custom alternative must not add a second privileged invocation backend.",
+      "sha256": "37f76500d8b0ed9959cf0110c70b0750263b9c0134fc19194229db1924ca4670"
+    },
+    {
+      "id": "G-ASSEMBLY-READ",
+      "source": "packages/cloudflare/src/runtime/invoke.ts",
+      "lines": [
+        3643,
+        3648,
+        3651,
+        3668
+      ],
+      "observed_source_fact": "invokeReadCanonical special-cases Receipt.read, otherwise routes loaded canonical reads through state createReadInvoker.",
+      "comparison_consequence": "Receipt.read is a narrow separate selected-receipt seam, not proof of custom dependent read scenarios.",
+      "sha256": "6b135086c8d0c904008f2100ed0930fd8ebfed60769e73efc8944bed45f50997"
+    },
+    {
+      "id": "G-GENERATED-FORM",
+      "source": "packages/ui/src/forms.ts",
+      "lines": [
+        1057,
+        1061,
+        1066
+      ],
+      "observed_source_fact": "assertGeneratedMode comments explicitly exclude read/delete derivations from generated forms; mismatch throws. Existing mutation form generation uses source-derived fields.",
+      "comparison_consequence": "Original read-form source and new partial read-input lifecycle remain distinct UI handoff gates; single mutation form shell alone implements neither.",
+      "sha256": "6b53fc1fb2bbc794476b1d922fdd9225d16e45c69da5e1d93c5609e94e662674"
+    },
+    {
+      "id": "G-COLLECTION-READ",
+      "source": "packages/interfaces/src/http/pages.ts",
+      "lines": [
+        73,
+        76,
+        79,
+        88
+      ],
+      "observed_source_fact": "row query runner maps model queries to canonical model.list with collection limits/filters; declared source comments acknowledge handoff.",
+      "comparison_consequence": "Authorized bounded model collections cannot be substituted for original reviewer eligibility/custom read result semantics without preserving canonical guards.",
+      "sha256": "f0c29777fd6be3be69561e1c309f3feb1ef49a04a1943b983512ad4bdca26238"
+    },
+    {
+      "id": "G-ORIGINAL-DIAGNOSTICS",
+      "source": "implementation/capability-roadmap-20261008/dependent-input-comparison/compiler-observations.json",
+      "lines": [],
+      "observed_source_fact": "Pinned snapshot compiler records full unchanged approval+selected shared check/compile exit10; original CanRent limited closure exit10. Supplementary sources check0 but compilation reports query-order and collection-pagination lowerings.",
+      "comparison_consequence": "This packet produces no deployed/generated complete workflow or dependent metadata. Diagnostic-count differences from removing UI nodes are not dependent-binding compiler success.",
+      "sha256": "9368199c4522ef772fc03e0953379517ae9d43aa6790164f00f50fe5af9b5dae"
+    }
+  ]
+}

@@ -566,6 +566,44 @@ fn cli_thin_entries_passthrough_args_and_exit_codes() {
     assert!(result.stderr.contains("E7004"), "{}", result.stderr);
 }
 
+#[test]
+#[cfg(unix)]
+fn cli_dev_delegates_verbatim_to_the_json_session_client() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let _locked = ENV_LOCK.lock().unwrap();
+    let script = TempFile::new(
+        "can-dev",
+        "#!/bin/sh\necho \"$@\" > \"$CAN_DEV_ARGS_FILE\"\nexit \"${CAN_DEV_EXIT_CODE:-0}\"\n",
+    );
+    std::fs::set_permissions(&script.path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let capture = TempFile::new("dev-args.txt", "");
+    let mut env = EnvGuard::set(&[
+        ("CAN_DEV_BIN", &script.arg()),
+        ("CAN_DEV_ARGS_FILE", &capture.arg()),
+        ("CAN_DEV_EXIT_CODE", "0"),
+    ]);
+
+    let result = dispatch(&argv(&["dev", "check", "--expected-revision", "r2"]));
+    assert_eq!(result.code, 0);
+    assert!(result.stdout.is_empty());
+    assert_eq!(
+        std::fs::read_to_string(&capture.path).unwrap().trim_end(),
+        "check --expected-revision r2"
+    );
+    let help = dispatch(&argv(&["dev", "--help"]));
+    assert_eq!(help.code, 0);
+    assert_eq!(std::fs::read_to_string(&capture.path).unwrap().trim_end(), "--help");
+
+    env.set_one("CAN_DEV_EXIT_CODE", "1");
+    assert_eq!(dispatch(&argv(&["dev", "status"])).code, 1);
+    env.set_one("CAN_DEV_BIN", "/nonexistent-dir-xyz/can-dev");
+    let missing = dispatch(&argv(&["dev", "status"]));
+    assert_eq!(missing.code, exit::TOOL_FAILURE);
+    assert!(missing.stderr.contains("E7004"), "{}", missing.stderr);
+    assert!(missing.stderr.contains("can-dev"), "{}", missing.stderr);
+}
+
 /// M8: analyzer returning one error diagnostic, exercising the exit-10
 /// path through the `dispatch_with` seam. [`StubAnalyzer`] behavior is
 /// unchanged (the envelope-mechanics test above pins it explicitly).

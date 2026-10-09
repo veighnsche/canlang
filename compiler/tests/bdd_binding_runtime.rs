@@ -4,6 +4,125 @@
 
 #[cfg(unix)]
 #[test]
+fn generation_table_binds_same_named_fixture_before_row_evaluation() {
+    use std::path::PathBuf;
+    use std::process::Command;
+
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let scratch = tempfile::tempdir().unwrap();
+    let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(root.join("examples/Generation.can"))
+        .output()
+        .unwrap();
+    assert!(compiled.status.success(), "{}\n{}", String::from_utf8_lossy(&compiled.stdout), String::from_utf8_lossy(&compiled.stderr));
+    let artifact: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
+    let suite = artifact["tests"].as_array().unwrap().iter()
+        .find(|test| test["scope"] == "Generation.queue").expect("queue suite");
+    assert_eq!(suite["fixtures"], serde_json::json!(["Generation.job"]));
+    let js = suite["module"]["js"].as_str().unwrap();
+    assert!(js.contains("inputs:async(c,s)=>({job:s.job})"), "{js}");
+    assert!(js.contains("observations:[async(c,s)=>s.job.status]"), "{js}");
+    let module = scratch.path().join("suite.mjs");
+    std::fs::write(&module, js).unwrap();
+    let check = scratch.path().join("check.mjs");
+    std::fs::write(&check, r#"
+import assert from 'node:assert/strict';
+import { exampleFixtures } from './suite.mjs';
+const suite=exampleFixtures({self:'self',other:'other',imported:{}});
+assert.deepEqual(Object.keys(suite.fixtures),['job']);
+const recipe=suite.fixtures.job;
+assert.equal(recipe.model,'Generation.Job');
+assert.deepEqual(await recipe.value({},new Map()),{prompt:'A misty forest'});
+const table=suite.examples[0];
+assert.equal(table.dependencies[0],recipe);
+const stored={id:'job-1',version:1n,prompt:'A misty forest',status:'idle'};
+assert.equal((await table.inputs({}, {job:stored})).job,stored);
+assert.deepEqual(await Promise.all(table.observations.map(observe=>observe({}, {job:stored}))),['idle']);
+assert.deepEqual(await table.rows[0].expected({}, {job:stored}),['queued']);
+"#).unwrap();
+    let outcome = Command::new("node").arg(check).output().unwrap();
+    assert!(outcome.status.success(), "{}\n{}", String::from_utf8_lossy(&outcome.stdout), String::from_utf8_lossy(&outcome.stderr));
+}
+
+#[cfg(unix)]
+#[test]
+fn imported_example_helpers_use_actual_production_registry() {
+    use std::path::PathBuf;
+    use std::process::Command;
+
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let scratch = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(
+        root.join("node_modules"),
+        scratch.path().join("node_modules"),
+    )
+    .unwrap();
+    let source = root
+        .join("implementation/compiler-completion/bdd-facts/independent-review/sequence-alias.can");
+    let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(&source)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&compiled.stdout),
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    std::fs::write(scratch.path().join("artifact.json"), compiled.stdout).unwrap();
+    let runner = scratch.path().join("imported-helpers.mjs");
+    std::fs::write(
+        &runner,
+        r#"
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+import {resolve,dirname} from 'node:path';
+import {fileURLToPath,pathToFileURL} from 'node:url';
+import {loadExampleSuite,createExampleHooks} from '@canlang/testkit';
+const base=dirname(fileURLToPath(import.meta.url));
+const artifact=JSON.parse(readFileSync(resolve(base,'artifact.json'),'utf8'));
+assert.equal(artifact.tests.length,1);
+// Preserve the production entry/package imports and example import paths.
+// No generated body, registry or native helper is replaced.
+for(const module of [...artifact.modules,...artifact.tests.map(test=>test.module)]){
+ const path=resolve(base,module.path);
+ mkdirSync(dirname(path),{recursive:true});writeFileSync(path,module.js);
+}
+let dispatched=0;
+const hooks=createExampleHooks({
+ dispatch:async()=>{dispatched++;return {ok:true};},
+ readLive:()=>undefined,
+});
+const context={formatting:{appDefault:'en'},team:null};
+const bindings={self:context,other:context,imported:null};
+const suite=await loadExampleSuite(pathToFileURL(resolve(base,artifact.tests[0].module.path)).href,bindings,hooks);
+assert.equal(suite.rows.length,1);
+const row=suite.rows[0],scope={snapshot:async()=>null,dispose:async()=>{}};
+await row.setup(scope);
+await row.invoke(scope);
+assert.equal(dispatched,1,'the authored echo step runs before the imported helper observation');
+assert.deepEqual(await row.observe(scope),[]);
+console.log('Actual production registry helper executed through unchanged emitted sequence and installed testkit');
+"#,
+    )
+    .unwrap();
+    let executed = Command::new("node").arg(runner).output().unwrap();
+    assert!(
+        executed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&executed.stdout),
+        String::from_utf8_lossy(&executed.stderr)
+    );
+    eprint!("{}", String::from_utf8_lossy(&executed.stdout));
+}
+
+#[cfg(unix)]
+#[test]
 fn authored_sequence_requests_reach_the_dispatch_adapter() {
     use std::path::PathBuf;
     use std::process::Command;

@@ -1,0 +1,15 @@
+{
+  "state": "A local development preview for a source-defined team app uses its normal Identity store on fresh isolated D1. Activation passes, but fresh D1 has no accounts. Self-registration currently needs a mail provider and returns unavailable locally. The first app check needs two members of one team, a member of a different team, a signed-in nonmember, and an anonymous caller. A private owner-only Unix control socket can return bounded secrets; the preview URL itself is protected. Browser and business calls must still use actual login, selected team, CSRF, and policy. Compare ways to make a reproducible local browser check with low setup burden while keeping developer fixtures out of production and keeping credentials out of status and URLs.",
+  "questions": {
+    "local_identity_bootstrap": {
+      "type": "choice",
+      "instructions": "Choose the first local identity bootstrap for this development profile. State the main uncertainty and whether any option should be ruled out.",
+      "criteria": {
+        "mail_sink": "Run a local mail sink and ordinary registration, then create users and teams through app flows. Exercises registration too, but adds mail lifecycle and setup before every preview reset.",
+        "private_seed": "Create real Identity users and memberships in the fresh D1 with random per-preview passwords, and return credentials only through the owner-only control command. Browser and business requests still authenticate normally; local fixture setup bypasses registration only.",
+        "explicit_env": "Require the developer to supply local account credentials and seed data through environment variables or a setup file. Keeps control responses free of passwords, but expands manual setup and secret handling outside the session owner.",
+        "auth_shortcut": "Treat the protected preview bootstrap as an app session and skip ordinary account login for local checks. Simplifies setup, but does not exercise the app authorization path required by the check."
+      }
+    }
+  }
+}
