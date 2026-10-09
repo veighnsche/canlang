@@ -1,25 +1,53 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
-import { readFile, writeFile, realpath, stat } from 'node:fs/promises';
+import { cp, mkdir, readFile, writeFile, realpath, rm, stat, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 const execute = promisify(execFile);
-const root = await realpath('/workspace/.canlang-env/dev-server-life-a');
+const installed = await realpath(fileURLToPath(new URL('../../../../', import.meta.url)));
+const root = join(installed, 'test-results/can-dev-server/failures-root');
 const sourcePath = join(root, 'tests/integration/can-dev-server/OfficeSupplies.can');
 const native = join(root, 'compiler/target/debug/can');
-const control = '/workspace/canlang/packages/cloudflare/dist/dev/control-cli.js';
-const output = '/workspace/.canlang-env/logs/dev-server-failures/result.json';
+const control = join(installed, 'packages/cloudflare/dist/dev/control-cli.js');
+const catalog = join(installed, 'packages/values/dist/catalog.json');
+const output = join(installed, 'test-results/can-dev-server/failures-result.json');
+const runtime = join(await realpath(tmpdir()), `cv-${process.getuid()}`);
+const descriptorPath = join(runtime, createHash('sha256').update(root).digest('hex').slice(0, 24), 'descriptor.json');
+
+async function prepareRoot() {
+  const hasDescriptor = await stat(descriptorPath).then(() => true, error => {
+    if (error.code === 'ENOENT') return false;
+    throw error;
+  });
+  assert.equal(hasDescriptor, false, 'private failure root has an existing owner descriptor; refuse replacement');
+  await rm(root, { recursive: true, force: true });
+  await mkdir(root, { recursive: true, mode: 0o700 });
+  for (const path of ['package.json', 'compiler/Cargo.toml', 'compiler/Cargo.lock',
+    'compiler/src', 'compiler/target/debug/can', 'docs/specification/GRAMMAR.md',
+    'docs/specification/CONSTRUCT-HELP.md', 'docs/specification/DESIGN.md',
+    'design/UI-COMPONENTS.md', 'packages/ui/src/catalog.ts', 'packages/values/src/catalog.ts',
+    'tests/integration/can-dev-server/OfficeSupplies.can']) {
+    const target = join(root, path);
+    await mkdir(dirname(target), { recursive: true });
+    await cp(join(installed, path), target, { recursive: true, preserveTimestamps: true });
+  }
+  await symlink(join(installed, 'node_modules'), join(root, 'node_modules'));
+}
+
+await prepareRoot();
 const original = await readFile(sourcePath, 'utf8');
 const originalSha = createHash('sha256').update(original).digest('hex');
 const replacementFrom = 'other,"A4 paper",8 -> "A4 paper",8';
 const replacementTo = 'other,"A4 paper",8 -> "Deliberately wrong",8';
 assert.equal(original.split(replacementFrom).length, 2);
-const runtime = join(await realpath(tmpdir()), `cv-${process.getuid()}`);
-const descriptorPath = join(runtime, createHash('sha256').update(root).digest('hex').slice(0, 24), 'descriptor.json');
-const result = { producerCommit: 'd478ee36', nativeProducerCommit: '890ed600',
+const result = { schema: 'can-dev-failures-local.v1',
+  compilerSha256: createHash('sha256').update(await readFile(native)).digest('hex'),
+  controlSha256: createHash('sha256').update(await readFile(control)).digest('hex'),
+  catalogSha256: createHash('sha256').update(await readFile(catalog)).digest('hex'),
   sourceOriginalSha: originalSha, outcome: 'incomplete' };
 let ownSession = null;
 let edited = false;
@@ -61,9 +89,9 @@ async function changedRevision(previous) {
 
 try {
   const before = await run('discover', ['--app', 'OfficeSupplies', '--profile', 'local-d1-identity'], null);
-  assert.equal(before.ok, false, 'life-A already has a live owner; refuse attachment');
+  assert.equal(before.ok, false, 'private failure root already has a live owner; refuse attachment');
   const started = await run('start', ['--source', 'tests/integration/can-dev-server/OfficeSupplies.can',
-    '--catalog', '/workspace/canlang/packages/values/dist/catalog.json',
+    '--catalog', catalog,
     '--help-index', join(root, 'docs/specification/CONSTRUCT-HELP.md')], null);
   assert.equal(started.ok, true, `start: ${started.code ?? 'unknown'} ${started.detail ?? ''}`);
   assert.equal(started.result.attached, false);
