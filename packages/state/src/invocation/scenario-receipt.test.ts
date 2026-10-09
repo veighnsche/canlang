@@ -316,6 +316,29 @@ describe('execution-associated saved scenario disclosure', () => {
     assert.equal(getterCalls, 0);
   });
 
+  it('refuses inherited disclosure claims in both loaders without evaluating prototype accessors and preserves unclaimed legacy results', () => {
+    const legacy = artifact();
+    legacy.operations![0]!.result = { type: 'text' as CanTypeId };
+    const loaded = loadArtifactDescriptors(legacy, { by: 'members' });
+    const def = [...loaded.registry.values()][0]!;
+    assert.ok('descriptor' in def);
+    assert.deepEqual(def.descriptor.result, { type: 'text' });
+    assert.doesNotThrow(() => loadExecutionDescriptorSet({ contractVersion: 1, models: loaded.models,
+      operations: [def.descriptor] }, { by: 'members' }));
+    let getterCalls = 0;
+    const getterPrototype = Object.defineProperty({}, 'disclosure', {
+      get: () => { getterCalls++; throw new Error('Inherited disclosure getter must not execute'); },
+    });
+    for (const prototype of [{ disclosure: plan() }, getterPrototype]) {
+      const result = Object.assign(Object.create(prototype) as { type: CanTypeId }, { type: 'text' as CanTypeId });
+      const slice = artifact(); slice.operations![0]!.result = result;
+      assert.throws(() => loadArtifactDescriptors(slice, { by: 'members' }), /disclosure requires own data/);
+      assert.throws(() => loadExecutionDescriptorSet({ contractVersion: 1, models: loaded.models,
+        operations: [{ ...def.descriptor, result }] }, { by: 'members' }), /disclosure requires own data/);
+    }
+    assert.equal(getterCalls, 0);
+  });
+
   it('checks every imported site origin and refuses query/absent-reference influence instead of treating empty observations as proof', async () => {
     const slice = artifact();
     slice.sources!.push({ path: 'callee.can', sha256: 'b'.repeat(64) });
