@@ -3541,3 +3541,7 @@ Treat a parsed Linux zombie/dead process as unable to own a live control socket,
 ### 2026-10-09 — Refuse example evidence after a producer race
 
 Revalidate exact captured runtime inputs around Testkit loading and row execution before publishing results or allocating retained failure recipes. A changed producer invalidates the run; a late swallowed refresh cannot repair its provenance. Original captured source bytes remain valid for isolated reruns under unchanged runtime inputs.
+
+### 2026-10-09 — Carry source field modifiers into canonical writes
+
+Add optional flat trim/min/max model-field claims to the artifact and canonical contracts, with bounds in Values' wire form. State validates claims through Values and normalizes caller/default/hook candidates at its shared write checkpoints, before unique claims and persistence, preserving authorization order. Absent claims remain absent; appDefinition metadata is not a guessed substitute. The compiler emission remains an explicit producer prerequisite for the frozen Office check.

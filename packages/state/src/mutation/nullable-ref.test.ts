@@ -115,3 +115,86 @@ describe('direct pipeline null boundaries (hand-built controls)', () => {
     assert.equal(await store.readRevision(), 0);
   });
 });
+
+describe('checked stored-field modifiers', () => {
+  it('rejects malformed artifact bounds at descriptor load', () => {
+    const artifact = slice();
+    const validModels = artifact.models!.map(model => model.name === JOB ? {
+      ...model, fields: [{ name: 'title', field: { kind: 'string' as const },
+        required: true, serverOnly: false, valueType: 'text', trim: true, min: 1, max: 3 }],
+    } : model);
+    const loaded = loadArtifactDescriptors({ ...artifact, models: validModels }, { by: 'members' });
+    const title = loaded.models.find(model => model.name === JOB)?.fields['title'];
+    assert.equal(title?.trim, true);
+    assert.equal(buildModelTableFromCanonical(loaded.models).get(asModel(JOB))?.fields['title']?.max, 3);
+    for (const change of [
+      { trim: 'yes' }, { min: -1 }, { min: 3, max: 2 }, { min: '1' },
+    ]) {
+      const models = artifact.models!.map(model => model.name === JOB ? {
+        ...model, fields: [{ name: 'title', field: { kind: 'string' as const },
+          required: true, serverOnly: false, valueType: 'text', ...change }],
+      } : model);
+      assert.throws(() => loadArtifactDescriptors({ ...artifact, models } as ArtifactDescriptorSlice,
+        { by: 'members' }), /Invalid field "title"/);
+    }
+  });
+
+  it('normalizes before hooks and bounds, then validates hook changes and update patches', async () => {
+    const { store } = createTestMemoryStorage();
+    const seen: string[] = [];
+    const table = buildModelTable([modelDef(JOB, { fields: {
+      title: { required: true, serverOnly: false, valueType: 'text', trim: true, min: 1, max: 3 },
+    }, hooks: [{ name: 'observe', ops: ['create', 'update'], run: (candidate) => {
+      seen.push(candidate.title as string);
+      return candidate;
+    } }] })]);
+    const context = buildContext({ identity: makeIdentity(), operation: asOperation(`${JOB}.create`),
+      operationId: nextId(), app: 'modifier-test', source: 'test', now: FIXED_NOW });
+    const create = (title: string) => runMutationWrites({ table, store, context,
+      writes: [{ op: 'create', model: asModel(JOB), id: asId(nextId()), data: { title } }] });
+    const rejected = await captureStateError(create('   '));
+    assert.equal(rejected.code, 'validation');
+    assert.equal((await store.query({ model: asModel(JOB), authority: 'owner' })).length, 0);
+    const effects = await create('  🧰  ');
+    assert.deepEqual(seen, ['🧰']);
+    assert.equal(effects.writes[0]?.kind, 'insert');
+    if (effects.writes[0]?.kind !== 'insert') throw new Error('expected insert');
+    assert.equal(effects.writes[0].row.data.title, '🧰');
+    const chainedId = asId(nextId());
+    const unchanged = await runMutationWrites({ table, store, context,
+      writes: [
+        { op: 'create', model: asModel(JOB), id: chainedId, data: { title: '  a  ' } },
+        { op: 'update', model: asModel(JOB), id: chainedId, data: {} },
+      ] });
+    const last = unchanged.writes.at(-1);
+    assert.equal(last?.kind, 'update');
+    if (last?.kind !== 'update') throw new Error('expected update');
+    assert.equal(last.row.data.title, 'a');
+    const invalidId = asId(nextId());
+    const invalidPatch = await captureStateError(runMutationWrites({ table, store, context,
+      writes: [
+        { op: 'create', model: asModel(JOB), id: invalidId, data: { title: 'ok' } },
+        { op: 'update', model: asModel(JOB), id: invalidId, data: { title: '   ' } },
+      ] }));
+    assert.equal(invalidPatch.code, 'validation');
+  });
+
+  it('records normalized defaults and refuses hook-produced invalid values', async () => {
+    const { store } = createTestMemoryStorage();
+    const context = buildContext({ identity: makeIdentity(), operation: asOperation(`${JOB}.create`),
+      operationId: nextId(), app: 'modifier-test', source: 'test', now: FIXED_NOW });
+    const field = { required: false, serverOnly: false, valueType: 'text', trim: true, min: 1, max: 3 } as const;
+    const accepted = buildModelTable([modelDef(JOB, { fields: { title: { ...field, default: '  ok  ' } } })]);
+    const run = (table: ReturnType<typeof buildModelTable>) => runMutationWrites({ table, store, context,
+      writes: [{ op: 'create', model: asModel(JOB), id: asId(nextId()), data: {} }] });
+    const effects = await run(accepted);
+    assert.equal(effects.writes[0]?.kind, 'insert');
+    if (effects.writes[0]?.kind !== 'insert') throw new Error('expected insert');
+    assert.equal(effects.writes[0].row.data.title, 'ok');
+    assert.equal(effects.resolvedDefaults.title, 'ok');
+    const invalid = buildModelTable([modelDef(JOB, { fields: { title: { ...field, default: 'ok' } },
+      hooks: [{ name: 'invalidate', ops: ['create'], run: candidate => ({ ...candidate, title: '   ' }) }] })]);
+    const rejection = await captureStateError(run(invalid));
+    assert.equal(rejection.code, 'validation');
+  });
+});
