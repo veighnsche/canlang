@@ -148,6 +148,13 @@ export interface InstalledTextGeneration {
     readonly model: string;
     readonly maxInputTokens: number;
     readonly maxOutputTokens: number;
+    /**
+     * Installed generation ceiling. A host may also cap a distinct persisted
+     * control-observation window with this ceiling, anchored once at creation.
+     * The host preserves it across retries and bounds the complete await,
+     * including durable progress. This never renews generation or proves
+     * provider cessation/resume.
+     */
     readonly maxDurationMs: number;
     readonly inputTokenization: 'deployment' | 'unsupported';
     readonly attachments: 'unsupported';
