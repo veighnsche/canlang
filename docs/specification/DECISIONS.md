@@ -3655,3 +3655,8 @@ Reuse the saved InlineMessage equality for generic choose instead of duplicating
 ## 2026-10-09 — consume owning workspace Chromium prerequisite
 
 Consume only Packages c99159501cab7420001999f046c110292f80ee26's workspace CI Chromium/system dependency installation for actual browser consumers. Preserve branch-specific compiler decisions and the existing foreign package ledger instead of importing owner execution claims. The published patch is reused; consuming-head Linux execution remains due.
+
+
+## 2026-10-09 — consume matching real-producer manual gate plan
+
+Consume only Packages 040d38e3a2d7524fff913f01210ad2f169442230's .github/ci/gate-plan.mjs and turbo.json together: real catalog/compiler/browser prerequisites and CAN_COMPLETION_REQUIRE_ENGINES transport. Preserve gate plan version2 and use its matching gate-tools checkout for receipts; do not revive retired workflows. Owner runner/receipt checks are reused at their unchanged scope; compiler consuming-head and Linux execution remain due.
