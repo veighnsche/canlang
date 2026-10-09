@@ -261,10 +261,19 @@ Owning build **6/6** and consuming ordinary-contract native **2/2** pass; the
 owner's unchanged **47 Memory/preservation + 2 D1/SQLite-DO reopen** results are
 reused at their exact release scope. The one intake import conflict retains
 only the new receipt imports, preserving this branch's field constraints.
-Compiler complete return-closure/path analysis and artifact/native markers are
-being implemented. Dev owns the genuine native context/row/registered-store
-bridge and lifetime. No source/native workflow, broader reference or separate
-BDD3 returned/as/live/context/disclosure/input policy release follows.
+Compiler now retains bounded checked return-specific data/control closures and
+actual evaluation recipes in IR. Private source/IR **7/7** and four analyzer
+cases qualify immutable aliases, imported/defaulted derives, branch/short-
+circuit order, exact source identities and whole-decline/resource boundaries.
+Review corrected argument/return chronology, authority-dependent values and
+stored bounded-alias identity. These are private facts: canonical plan emission
+and genuine evaluated read/return capture remain unfinished. Derive sites and
+mutation/query/composite profiles must stay unpublished until their complete
+lowering and observation joins exist. Dev owns the genuine native context/row/
+registered-store bridge and lifetime. No source/native workflow, broader
+reference or separate BDD3 returned/as/live/context/disclosure/input policy
+release follows. Corrected shared baseline **3204bca9** is consumed with affected
+dependency/Cloudflare build **22/22**; unchanged owner checks retain their scopes.
 
 **Unfinished native activation — generated CRUD owner entry, 2026-10-09.**
 Exact local Capability **7df9683e** source/test unit is consumed. Generated CRUD
