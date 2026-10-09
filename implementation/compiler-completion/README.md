@@ -280,10 +280,17 @@ the published fixture supplies those exact hashes without broad normalization.
 Consolidated CI at **8aa7eaee / 37946299707** passes Compiler/editor and Language
 tools, including the real completion and LSP checks. Workspace boundaries pass;
 workspace typechecking fails in Cloudflare test Headers/JSON import/DOM/request
-and current runtime-signature inputs. The local root check confirms **39/40**
-tasks pass. Cloudflare's package/test owner must release those exact consumer
-corrections; browser pilot/handbuilt source inputs retain their application
-owners. Codex's completed **8aa7eaee** review identifies an actionable compiler
+and current runtime-signature inputs. Published Packages **be2bc253** supplies
+the exact five test-consumer corrections, including genuine native metadata
+and canonical invocation scope. After consuming those source hunks, local root
+typechecking passes **40/40**, the branch guard has **zero violations**, and
+four affected runtime/preview/import/MCP targets pass **151/151**. The page
+target's three native-browser cases stop at unavailable Chrome paths, including
+a hardcoded macOS application path; its fourth Images profile lacks the selected
+artifact and explicitly skips. Cloudflare's package/test owner must release
+portable real-engine startup and the selected page input before those cases
+qualify. Browser pilot/handbuilt source inputs retain their application owners.
+Codex's completed **8aa7eaee** review identifies an actionable compiler
 UI admission gap for ownerless-enum descriptor parameters, whose UI consumer
 remains unsupported. Its owning caption correction is in progress; no passing
 whole CI or broader-reference acceptance follows.
