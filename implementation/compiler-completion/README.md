@@ -50,6 +50,15 @@ Affected codegen **117/117**, slots **6/6**, selected calls **7/7** and UI adapt
 profile remains owner-blocked and fails before artifact publication. These
 finite checks supersede the shutdown failures, without broader completion.
 
+
+**Local prerequisite — example replay identity, 2026-10-09.** Sequence
+`request.operation_id` now admits top-level text, including malformed/stale text
+for runtime validation examples, while nontext literals, unknown keys and nested
+identity overrides refuse E5006. Reused/grouped sequence nonce bindings keep the
+existing runner-owned dynamic typing. The five affected sequence checks pass;
+independent finite review accepts that scope. UUIDv7/freshness, replay execution
+and unknown dynamic values remain with the actual canonical runner/invoker.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed
