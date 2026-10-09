@@ -322,10 +322,17 @@ async function capturedHelpIndex(capture: SingleFileCapture): Promise<ConstructH
     capturedCatalog(capture, "packages/ui/dist/src/catalog.js", "UI_CATALOG",
       /^package:@canlang\/ui@[^/]+\/dist\/src\/catalog\.js$/),
   ]);
+  const profileGuards = ['compiler-check','preview-builder'].map(name => capture.inputs.filter(input =>
+    new RegExp(`^package:@canlang/cloudflare@[^/]+/dist/dev/${name}\\.js$`).test(input.name) &&
+    input.state === 'present' && typeof input.sha256 === 'string'));
+  const profilePolicy = profileGuards.every(inputs => inputs.length === 1)
+    ? { sha256: createHash('sha256').update(JSON.stringify(profileGuards.map(inputs => inputs[0]!.sha256))).digest('hex') }
+    : undefined;
   return loadConstructHelpIndex(capture.root, {
     languageVersion: "1.0", compiler: { sha256: compiler.sha256 }, grammar: { sha256: grammar.sha256 },
     values: { sha256: values.sha256, entries: valuesEntries },
     ui: { sha256: ui.sha256, entries: uiEntries },
+    ...(profilePolicy === undefined ? {} : { profilePolicy }),
   }, help.sha256);
 }
 
@@ -822,8 +829,9 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
           diagnostic: diagnostics[payload.index],
           construct_help: checkedHelp.has(revision)
             ? joinCompilerConstructCandidates(checkedHelp.get(revision)!,
-              diagnostics[payload.index]!.construct_candidates, options.capture.profile)
-            : { disposition: "unknown", slot: null, candidateCoverage: "unknown", cards: [],
+              diagnostics[payload.index]!.construct_candidates, FIRST_PROFILE,
+              checkedCaptures.has(revision) ? qualification(checkedCaptures.get(revision)!, checkedHelp.get(revision)!)?.proofs ?? [] : [])
+            : { disposition: "unknown", slot: null, grammarCoverage: "unknown", candidateCoverage: "unknown", cards: [], classification: [],
               reason: "captured help index is unavailable" },
           evidence: { source_excerpt: "unavailable", trace: "unavailable" },
         };
