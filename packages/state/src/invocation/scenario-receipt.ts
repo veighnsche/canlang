@@ -2,7 +2,7 @@
  * closure; the native host reports only actually evaluated private bindings.
  * Capture is available only during invoke, never from a request envelope.
  * This version supports scalar Values profiles, declared scalar fields and
- * two explicitly checked admitted intrinsics (operation id/original ref version).
+ * explicitly checked admitted intrinsics (operation id/primitive input/original ref version).
  * Nominal/model/container/File/Delivery, query influence and absent-reference
  * claims require their defining joins. Empty field observations prove none of
  * those facts. Every site is scoped by its checked source return/digest/module.
@@ -132,11 +132,15 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
     for (const item of list(Object.hasOwn(returned, 'intrinsics') ? returned['intrinsics'] : [])) {
       const kind = (item as Record<string, unknown>)?.['kind'];
       const dependency = object(item, ['id', 'source', 'role', 'type', 'kind',
-        ...(kind === 'admitted-reference-version' ? ['parameter', 'model'] : [])]);
+        ...(kind === 'admitted-reference-version' ? ['parameter', 'model'] : kind === 'admitted-input' ? ['parameter'] : [])]);
       origin(dependency['source']); const depId = text(dependency['id']);
       if (dependency['role'] !== 'data' && dependency['role'] !== 'control') return invalid('unknown intrinsic role.');
       if (kind === 'operation-id') {
         if (dependency['type'] !== 'text') return invalid('operation identity requires text wire.');
+      } else if (kind === 'admitted-input') {
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(text(dependency['parameter'])) || !primitiveInputType(dependency['type'])) {
+          return invalid('admitted input requires a direct parameter and supported primitive type.');
+        }
       } else if (kind === 'admitted-reference-version') {
         text(dependency['model']);
         if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(text(dependency['parameter'])) || dependency['type'] !== 'int') {
@@ -197,10 +201,31 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
     if (dep.kind === 'admitted-reference-version' && (!inventory.has(dep.model) || !versionedReferenceInput(def, dep))) {
       return invalid('original version requires its declared required singular versioned reference input.');
     }
+    if (dep.kind === 'admitted-input' && !primitiveInput(def, dep)) return invalid('intrinsic input disagrees with its required singular primitive declaration.');
   }
   boundPlans.set(def, { plan, type, models: inventory, inputs: deepFreeze(dataCopy(def.descriptor.inputs)),
     arrays: deepFreeze(dataCopy(def.inputArrays)), nullableRefs: deepFreeze(dataCopy(def.inputNullableRefs ?? {})),
     valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle });
+}
+
+function primitiveInputType(type: unknown): type is CanTypeId {
+  return typeof type === 'string' && /^(text|bool|int|date|datetime|decimal|money|duration|user)$/.test(type);
+}
+
+function primitiveInput(def: GeneratedOperationDef, dependency: ScenarioReceiptIntrinsicDependency): boolean {
+  if (dependency.kind !== 'admitted-input') return false;
+  const input = def.descriptor.inputs.find(field => field.name === dependency.parameter);
+  if (input === undefined || input.kind === 'ref' || input.kind === 'nominal' || input.kind === 'delivery' ||
+      !input.required || input.default !== undefined || input.computedDefault === true ||
+      def.inputArrays[dependency.parameter] !== undefined) return false;
+  const types: Partial<Record<typeof input.kind, string>> = { string: 'text', boolean: 'bool', integer: 'int',
+    datetime: 'datetime', decimal: 'decimal', money: 'money', duration: 'duration', user: 'user' };
+  // A collapsed legacy string tag proves neither text nor nullability.
+  // Artifact intake derives unambiguous builtin associations, while canonical
+  // producers must supply the exact owning checked type for this new claim.
+  const base = types[input.kind], type = input.valueType;
+  return base !== undefined && primitiveInputType(type) && type === dependency.type &&
+    (type === base || input.kind === 'string' && type === 'date');
 }
 
 function versionedReferenceInput(def: GeneratedOperationDef, dependency: ScenarioReceiptIntrinsicDependency): boolean {
@@ -549,6 +574,8 @@ export async function observeScenarioReceiptDependency(call: AdmittedCall, store
 export type ScenarioReceiptIntrinsicInput = {
   readonly dependencyId: string; readonly kind: 'operation-id'; readonly wire: string;
 } | {
+  readonly dependencyId: string; readonly kind: 'admitted-input'; readonly wire: unknown;
+} | {
   readonly dependencyId: string; readonly kind: 'admitted-reference-version'; readonly wire: string;
   /** Exact original admitted slot, selected only after the host checks its
    * private native binding. Copies and current-stage rows are not this slot. */
@@ -580,6 +607,15 @@ export async function observeScenarioReceiptIntrinsic(call: AdmittedCall, store:
     if (dependency.kind === 'operation-id') {
       if (observed.wire !== call.context.operationId) return invalid('intrinsic identity differs from the admitted operation.');
       observation = { dependencyId: dependency.id, kind: dependency.kind, wire: call.context.operationId };
+    } else if (dependency.kind === 'admitted-input') {
+      const member = Object.getOwnPropertyDescriptor(call.inputs, dependency.parameter);
+      if (member === undefined || !('value' in member) || !member.enumerable) return invalid('intrinsic input must be an own supplied admitted slot.');
+      const wire = dataCopy(member.value); scalarWire(dependency.type, wire);
+      if (stableStringify(wire) !== stableStringify(observed.wire) ||
+          stableStringify(encodeValue(dependency.type, decodeValue(dependency.type, wire))) !== stableStringify(wire)) {
+        return invalid('intrinsic input differs from its original canonical admitted wire.');
+      }
+      observation = { dependencyId: dependency.id, kind: dependency.kind, wire };
     } else {
       const member = Object.getOwnPropertyDescriptor(input, 'reference');
       const reference = call.recordRefs.find(ref => ref.param === dependency.parameter);
@@ -737,6 +773,9 @@ export function readScenarioReceiptAssociation(receipt: Receipt): ScenarioReceip
     scalarWire(dependency.type, observation['wire']);
     if (kind === 'operation-id') {
       if (observation['wire'] !== receipt.identity.operationId) return invalid('saved intrinsic identity differs from its receipt.');
+    } else if (kind === 'admitted-input') {
+      if (stableStringify(encodeValue(dependency.type, decodeValue(dependency.type, observation['wire']))) !==
+          stableStringify(observation['wire'])) return invalid('invalid saved canonical input wire.');
     } else {
       const row = checkedRow(observation['row']); paths(observation['secretFields']);
       if (dependency.kind !== 'admitted-reference-version' || dependency.model !== observation['model'] ||
@@ -830,6 +869,10 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       // Operation id belongs to this exact retained invocation and current
       // operation authority above; it does not confer business-row access.
       if (observation.kind === 'operation-id') continue;
+      if (observation.kind === 'admitted-input') {
+        if (!primitiveInput(def as GeneratedOperationDef, dependency)) dependenciesReadable = false;
+        continue;
+      }
       if (!versionedReferenceInput(def as GeneratedOperationDef, dependency)) { dependenciesReadable = false; continue; }
       const projection = await savedProjection(observation.model, observation.row, observation.secretFields, []);
       if (projection === null || String(projection.version) !== observation.wire) dependenciesReadable = false;
