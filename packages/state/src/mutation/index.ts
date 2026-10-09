@@ -19,7 +19,17 @@ export {
   type ModelTable,
 } from './models.js';
 export {
+  assertOwnerMutationHookContext,
+  beginOwnerMutation,
   runMutationWrites,
+  type OwnerMutationChange,
+  type OwnerMutationHookContext,
+  type OwnerMutationInput,
+  type OwnerMutationQuery,
+  type OwnerMutationReadView,
+  type OwnerMutationSession,
+  type OwnerMutationStageOptions,
+  type OwnerMutationViews,
   type MutationWrite,
   type MutationWritesInput,
   type MutationWritesResult,
@@ -33,3 +43,13 @@ export {
   type CrudExecuteInput,
   type CrudOperationDef,
 } from './crud.js';
+export {
+  bindOwnerModelPolicies,
+  assertCheckedOwnerModelPolicies,
+  type CheckedOwnerModelPolicies,
+  type OwnerModelChange,
+  type OwnerModelReadView,
+  type OwnerModelPolicyViews,
+  type OwnerModelPolicyBinding,
+  type OwnerRuleContext,
+} from './model-policies.js';

@@ -374,7 +374,12 @@ export function modelFieldConstraintSchema(field: Pick<InterimFieldDef, 'valueTy
     ...(Object.hasOwn(field, 'max') ? { max: field.max } : {}),
   } } } } });
   const normalized = checked.contracts[name]!.fields['value']!;
-  const contractName = schema !== undefined && Object.hasOwn(schema.contracts, name) ? `${name}_` : name;
+  let contractName = name;
+  while (schema !== undefined && (
+    Object.hasOwn(schema.contracts, contractName) ||
+    Object.hasOwn(schema.enums, contractName) ||
+    (schema.aliases !== undefined && Object.hasOwn(schema.aliases, contractName))
+  )) contractName += '_';
   const actual = parsed.base.kind === 'nominal' ? {
     ...normalized, type: parsed, typeId: field.valueType,
   } : normalized;

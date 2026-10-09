@@ -8094,6 +8094,31 @@ impl<'a> Typer<'a> {
             // Catalog positional domains are expressions, like leaf
             // domains; `NAME=word` options stay untyped (PR5 words).
             SyntaxKind::CatalogItem => {
+                if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("stat")
+                    && let Some(value) = attribute_value(node, "description", cx.text)
+                {
+                    let ty = self.expr(cx, value, None);
+                    if !matches!(
+                        ty,
+                        ResolvedType::Scalar(Scalar::Text)
+                            | ResolvedType::InlineMessage
+                            | ResolvedType::Message(_)
+                            | ResolvedType::Error
+                    ) {
+                        self.diags.push(Diagnostic::error(
+                            "E3001",
+                            "stat description needs text or a message descriptor".to_string(),
+                            tight_span(cx.text, value),
+                        ));
+                    }
+                    for (name, span) in self.effectful_calls(value, cx.text) {
+                        self.diags.push(Diagnostic::error(
+                            "E3010",
+                            format!("stat description must be pure; '{name}' is not allowed here"),
+                            span,
+                        ));
+                    }
+                }
                 if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("count") {
                     if parent != SyntaxKind::Collection {
                         self.diags.push(Diagnostic::error(
