@@ -45,6 +45,15 @@ async function verify(capability: AssemblyCapability, expectedArtifact?: Compile
   matchesArtifact();
 }
 
+/** Verify the existing issuer and complete captured closure without running a module. */
+export async function verifyAssemblerModuleCapability(
+  asm: AssembledModules, expectedArtifact: CompileArtifact,
+): Promise<void> {
+  const capability = capabilities.get(asm);
+  if (capability === undefined) throw new Error("importVerifiedAssemblyModule: assembly is not assembler-owned");
+  await verify(capability, expectedArtifact);
+}
+
 /** Import only an assembler-owned, unchanged staged module and its checked closure. */
 export async function importVerifiedAssemblyModule(
   asm: AssembledModules, path: string, expectedArtifact?: CompileArtifact,
