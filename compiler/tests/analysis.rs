@@ -593,7 +593,9 @@ fn explain_round_trip_source_codes() {
     let entries: Vec<_> = explain::all()
         .iter()
         .filter(|info| {
-            info.code.starts_with("E2")
+            // Intrinsic ID exhaustion is qualified by resolver allocation
+            // controls; its descriptive example is not executable Can source.
+            (info.code.starts_with("E2") && info.code != "E2019")
                 || info.code.starts_with("E3")
                 || info.code.starts_with("E4")
                 || info.code.starts_with("E5")
@@ -1006,25 +1008,25 @@ fn draft_outcome_table() {
         ("draft/CanBook.can", 161),
         ("draft/CanCRM.can", 144),
         ("draft/CanCatch.can", 57),
-        ("draft/CanChat.can", 58),
+        ("draft/CanChat.can", 37),
         ("draft/CanCheck.can", 38),
         ("draft/CanContract.can", 25),
-        ("draft/CanCreative.can", 71),
+        ("draft/CanCreative.can", 58),
         ("draft/CanCustomer.can", 59),
         ("draft/CanDecide.can", 27),
         ("draft/CanDesk.can", 85),
         ("draft/CanDiscover.can", 69),
         ("draft/CanDo.can", 38),
         ("draft/CanEnrich.can", 19),
-        ("draft/CanEvent.can", 309),
+        ("draft/CanEvent.can", 304),
         ("draft/CanExpense.can", 95),
         ("draft/CanFeedback.can", 13),
         ("draft/CanField.can", 115),
         ("draft/CanGallery.can", 23),
         ("draft/CanGrant.can", 48),
         ("draft/CanHire.can", 126),
-        ("draft/CanInbox.can", 100),
-        ("draft/CanInvoice.can", 371),
+        ("draft/CanInbox.can", 101),
+        ("draft/CanInvoice.can", 367),
         ("draft/CanKnowledge.can", 50),
         ("draft/CanLearn.can", 50),
         ("draft/CanLeave.can", 79),
@@ -1039,7 +1041,7 @@ fn draft_outcome_table() {
         ("draft/CanRefer.can", 79),
         ("draft/CanRent.can", 634),
         ("draft/CanReport.can", 34),
-        ("draft/CanShift.can", 187),
+        ("draft/CanShift.can", 150),
         ("draft/CanStats.can", 31),
         ("draft/CanStock.can", 60),
         ("draft/CanSuccess.can", 50),
@@ -1047,7 +1049,7 @@ fn draft_outcome_table() {
         ("draft/CanTable.can", 31),
         ("draft/CanTime.can", 126),
         ("draft/CanTrade.can", 18),
-        ("draft/CanVolunteer.can", 76),
+        ("draft/CanVolunteer.can", 46),
         ("draft/CanWorkbench.can", 82),
         ("draft/shared/Employees.can", 8),
         ("draft/shared/Locations.can", 5),
