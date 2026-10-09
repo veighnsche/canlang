@@ -145,6 +145,34 @@ test('FP.EXPORT: column subset honored; unknown column rejects; limit bounds enf
   assert.equal(capped.truncated, true);
 });
 
+test('FP.EXPORT: empty declaration evidence grants no export or print columns', async () => {
+  const result: ListQueryResult = { rows: [], columns: [], emptyDeclarations: [
+    { field: 'customer', type: 'text' }, { field: 'total', type: 'money' },
+  ] };
+  const t = await exportDeps({ [OPERATION]: () => ({ result }) });
+  const requested = await handleExportRequest(t.deps,
+    postExport(t.identity.cookie, t.csrf, { operation: OPERATION, columns: ['customer'] }));
+  assert.equal(requested.status, 400);
+  const refusal = await requested.json() as { code: string; message: string };
+  assert.equal(refusal.code, 'validation');
+  assert.match(refusal.message, /Unknown export column/);
+
+  const body = await exportOk(t, { operation: OPERATION });
+  assert.equal(body.row_count, 0);
+  assert.equal(body.csv, 'id,version\n');
+  assert.deepEqual(body.columns, [{ field: 'id', label: 'ID' }, { field: 'version', label: 'Version' }]);
+  assert.doesNotMatch(JSON.stringify(body), /customer|total|emptyDeclarations/);
+
+  const print = await handlePrintRequest(t.deps, VIEWS,
+    testRequest('/print/invoice-register', { method: 'GET', cookie: t.identity.cookie }));
+  assert.equal(print.status, 400);
+  const printRefusal = await print.json() as { code: string; message: string };
+  assert.equal(printRefusal.code, 'validation');
+  assert.match(printRefusal.message, /Unknown print column/);
+  assert.equal(t.invoker.reads.length, 3);
+  assert.ok(t.invoker.reads.every(read => read.identity.actor?.user_id === t.identity.userId));
+});
+
 test('FP.EXPORT: truncated reads stay complete=false with cursor + download descriptor', async () => {
   const t = await exportDeps({ [OPERATION]: () => ({ result: listResult(TWO_ROWS.rows, 'cur-9') }) });
   const before = Date.now();

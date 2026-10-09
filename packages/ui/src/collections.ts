@@ -247,7 +247,10 @@ export async function table(props: TableProps): Promise<string> {
   for (const column of result.columns) {
     byField.set(column.field, column);
   }
-  const missing = props.columns.filter((field) => !byField.has(field));
+  // Empty declaration evidence validates source names; it grants no rendered metadata.
+  const validationFields = result.rows.length === 0 && result.emptyDeclarations !== undefined
+    ? new Set(result.emptyDeclarations.map((column) => column.field)) : new Set(byField.keys());
+  const missing = props.columns.filter((field) => !validationFields.has(field));
   if (missing.length > 0) {
     throw new Error(`table "${props.model}": missing columns: ${missing.join(", ")}`);
   }
@@ -929,16 +932,18 @@ export async function board(props: BoardProps): Promise<string> {
   for (const column of result.columns) {
     byField.set(column.field, column);
   }
-  const byMeta = byField.get(props.by);
-  if (byMeta === undefined) {
+  const validationMetadata = result.rows.length === 0 && result.emptyDeclarations !== undefined
+    ? new Map(result.emptyDeclarations.map((column) => [column.field, column])) : byField;
+  const groupDeclaration = validationMetadata.get(props.by);
+  if (groupDeclaration === undefined) {
     throw new Error(`board "${props.model}": missing group field: ${props.by}`);
   }
-  if (!isEnumTypeId(byMeta.type)) {
+  if (!isEnumTypeId(groupDeclaration.type)) {
     throw new Error(
-      `board "${props.model}": group field "${props.by}" needs an enum type, got ${JSON.stringify(byMeta.type)}`,
+      `board "${props.model}": group field "${props.by}" needs an enum type, got ${JSON.stringify(groupDeclaration.type)}`,
     );
   }
-  const missing = props.columns.filter((field) => !byField.has(field));
+  const missing = props.columns.filter((field) => !validationMetadata.has(field));
   if (missing.length > 0) {
     throw new Error(`board "${props.model}": missing columns: ${missing.join(", ")}`);
   }
@@ -948,6 +953,7 @@ export async function board(props: BoardProps): Promise<string> {
     }
     return wrapWithControls(props.controls, await emptyBody(props.controls, props), props);
   }
+  const byMeta = byField.get(props.by)!;
   const metas: ColumnMeta[] = [];
   for (const field of props.columns) {
     const meta = byField.get(field);
