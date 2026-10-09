@@ -311,8 +311,8 @@
       ],
       "next_gate": [],
       "conditional_gates": [],
-      "acceptance_scope": "Actual compiled supported Images variant (explicit empty caption only), genuine production session/team canonical HTTP create/advance/finish, public anonymous Chrome with served assets/bootstrap and 2s HX polling Generating\u2192Image ready, canonical D1 ready version3/history1,2,2,3 and anonymous mutation403/no effects passed1/1. Prior producer correspondence reused. Forms/actions are not prerequisites; broad producer completion is not a gate. Extended SAME native readonly source case passed1/1 (~9s): empty/idle, Generating\u2192ready, cancellation of late HX response after navigation and same-directory D1 restart with unchanged row/history. Public anonymous policy makes logout/revocation inapplicable for this selected source; no wider private-policy claim.",
-      "acceptance_summary": "Original selected public read-only compiled Images page, real installed bundle/worker/assets/session/D1 rendering and polling qualify. SAME owning native case1/1 passed using installed Chrome disposable profile/public connectOverCDP noDefaults/default context: actual sibling-tab visibility visible\u2192hidden, HX polling pauses beyond2s cadence, authenticated canonical finish while hidden emits noHX, visible restoration resumes actual ready HX. Existing empty/idle/navigation-late-response/restart/public anonymous mutation403 criteria remain in the same case. Playwright default focus emulation was the actual harness cause; no synthetic property/event/visibility override. Source-specific public anonymous policy makes logout/revocation inapplicable, as previously accepted. Actual missing35 module/export/import bundle links corrected and routes pass. Original task15 selected installed read-only scope complete; private policy/forms/actions/Images provider/progress/model-rule and wider package/release scopes remain separate.",
+      "acceptance_scope": "Actual compiled supported Images variant (explicit empty caption only), genuine production session/team canonical HTTP create/advance/finish, public anonymous Chrome with served assets/bootstrap and 2s HX polling Generating→Image ready, canonical D1 ready version3/history1,2,2,3 and anonymous mutation403/no effects passed1/1. Prior producer correspondence reused. Forms/actions are not prerequisites; broad producer completion is not a gate. Extended SAME native readonly source case passed1/1 (~9s): empty/idle, Generating→ready, cancellation of late HX response after navigation and same-directory D1 restart with unchanged row/history. Public anonymous policy makes logout/revocation inapplicable for this selected source; no wider private-policy claim.",
+      "acceptance_summary": "Original selected public read-only compiled Images page, real installed bundle/worker/assets/session/D1 rendering and polling qualify. SAME owning native case1/1 passed using installed Chrome disposable profile/public connectOverCDP noDefaults/default context: actual sibling-tab visibility visible→hidden, HX polling pauses beyond2s cadence, authenticated canonical finish while hidden emits noHX, visible restoration resumes actual ready HX. Existing empty/idle/navigation-late-response/restart/public anonymous mutation403 criteria remain in the same case. Playwright default focus emulation was the actual harness cause; no synthetic property/event/visibility override. Source-specific public anonymous policy makes logout/revocation inapplicable, as previously accepted. Actual missing35 module/export/import bundle links corrected and routes pass. Original task15 selected installed read-only scope complete; private policy/forms/actions/Images provider/progress/model-rule and wider package/release scopes remain separate.",
       "current_work": {
         "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
         "status": "Original installed read-only task accepted; source frozen and released to package Git owner. Actual changed visibility case reused once after harness/bundle correction."
@@ -390,7 +390,7 @@
       "runtime_owner": "01a10c5a-0fb5-7343-9659-c3efab311c0c",
       "consumer_owner": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
       "current_scope": "Services type-only installed-mail port3f8c1d91 emitted/released directly to roadmap. Exact operative handoff remains in package run installed-bound-provider-handoff.json; finite selected EmailV1/owned localhost+D1 consumer is pending, with no external email/paid call/native preparation/publication authority.",
-      "acceptance_scope": "Original selected provider producer\u2192outbox\u2192installed dispatcher trace qualified by actual Node/nativeD1/D1Identity/ownedlocalhost Email journey. Stable identity through claim/crash/retry/reconcile, unknown acceptance no blind resend, authoritative result association+ack accepted in81dbe2e9 after concrete replay/transient defects repaired. Existing direct outcomes reused; no different provider or whole-F4 qualification.",
+      "acceptance_scope": "Original selected provider producer→outbox→installed dispatcher trace qualified by actual Node/nativeD1/D1Identity/ownedlocalhost Email journey. Stable identity through claim/crash/retry/reconcile, unknown acceptance no blind resend, authoritative result association+ack accepted in81dbe2e9 after concrete replay/transient defects repaired. Existing direct outcomes reused; no different provider or whole-F4 qualification.",
       "claim_gate_release": "Work8addb074bfceea3ec15e49b6bb050f2065f26fca emitted;22 affected checks and emit0 pass. Owning claim factory retains one lifecycle owner and invokes availability callback before claim writes; direct exact handoff reached roadmap. Actual installed-provider consumer remains unqualified.",
       "actual_consumer_result": "Selected native Node installed Email/runtime + owned localhost HTTP + persistent D1 + genuine compiled send case1/1 and CF normal emit0 pass. Missing/mismatched installation refuses before claim writes/dynamic ports. Postclaim interruption/reopen/stale recovery preserves original intent ID; malformed response remains uncertain; real404 reconcile does not blindly retry; second reopen confirmed reconcile retains ID and ack attempts1. Exact five-path frozen slice sent directly to package owner for scoped acceptance/commit. No remote provider/default workerd/multicapability/receipt-observer claim; completed count stays13 pending owner acceptance.",
       "current_acceptance_blocker": "None at accepted selected original Email provider scope; broader scopes remain separate.",
@@ -446,7 +446,7 @@
       "current_scope": "Genuine typed-delivery-observer.can lowering released in compiler bdab357663c446d4ce0e88577cc4d935b0e6a7fc with final rebuilt can. Existing Values delivery(std.EmailV1.send), nullable app-field profile and shared delivery helper pass actual frozen source and affected checks. Release routed to roadmap for actual runtime consumer. Reserved Receipt.read producer metadata is compiler work in progress; no fabricated consumer artifact.",
       "association_owner_findings": "Existing Work applyReceiptProgress and State receipt/association constructors/join located by package owner; no runtime persistence caller. Missing checked source/current-admission recordModel/id, declared delivery field/source and revision binding must be resolved rather than inferred from provider reference. Exact port findings routed to roadmap; source lowering preparation remains active, observer/disclosure original gates unfinished.",
       "producer_release": "bdab357663c446d4ce0e88577cc4d935b0e6a7fc; final can build after this and decoder c0a633b2 completed. Existing native delivery-field1/1, four affected T15b4/4 and strict library Clippy pass. Actual selected provider association/authorized observer/disclosure gates remain unfinished.",
-      "receipt_read_producer_release": "f1d63d0a31a4906bcc368aa4e8c7cb0ef2f51161 released/routed: genuine joined singular delivery fields emit existing Receipt.read required recordId:text, field:text, selected:text[] (array.required:false), appDefinition kind:read/read:true/by:public and matching canApp metadata. Actual frozen source\u2192installed State loader native1/1 and strict library Clippy pass; source canonical collision refuses E6008/no modules. Local/unjoined/array route not advertised. Final can build succeeded; ready /Users/vince/Projects/canlang/compiler/target/debug/can release routed to consumer. Actual association/current grants/authorized observer remains unfinished; no full Task20 credit.",
+      "receipt_read_producer_release": "f1d63d0a31a4906bcc368aa4e8c7cb0ef2f51161 released/routed: genuine joined singular delivery fields emit existing Receipt.read required recordId:text, field:text, selected:text[] (array.required:false), appDefinition kind:read/read:true/by:public and matching canApp metadata. Actual frozen source→installed State loader native1/1 and strict library Clippy pass; source canonical collision refuses E6008/no modules. Local/unjoined/array route not advertised. Final can build succeeded; ready /Users/vince/Projects/canlang/compiler/target/debug/can release routed to consumer. Actual association/current grants/authorized observer remains unfinished; no full Task20 credit.",
       "source_ownership_release": "Package owner directly released invoke.ts/bundle.ts after due commitde3cd6938a19ec5bab80188c8190c6d252d15225 for finite020 integration; root did not duplicate direct handoff. Existing Work command/State receipt composition remains one authoritative expectedRevision commit with dispatch+receipt assertions, no new public factory/API; actual association/observer remains unfinished.",
       "active_consumer": "Final scoped consumer accepted/committed81dbe2e9; defining and affected outcomes reused. Deeper generation result projection is independent021 work.",
       "consumer_commit": "81dbe2e9",
@@ -606,7 +606,7 @@
       "worker_update": {
         "state": "source_preparation_ready_execution_prerequisites_open",
         "prerequisite": "Original task-specific rule/context or preceding whole-workflow output; existing upstream task prerequisites retained. Exact parent-required draft5a12eb9e is now available; source preparation is ready.",
-        "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker\u2019s task."
+        "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker’s task."
       }
     },
     {
@@ -624,7 +624,7 @@
       "worker_update": {
         "state": "source_preparation_ready_execution_prerequisites_open",
         "prerequisite": "Original task-specific rule/context or preceding whole-workflow output; existing upstream task prerequisites retained. Exact parent-required draft5a12eb9e is now available; source preparation is ready.",
-        "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker\u2019s task."
+        "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker’s task."
       }
     },
     {
@@ -692,7 +692,7 @@
         "compiler_commit": "24b7e91d5ae5a440f9e4ca99ec89b5d334155557",
         "commit": "737fdf1a9f1081262796e8628a7ece5c9bc17f3e"
       },
-      "acceptance_scope": "Original emitted finite-handler/evaluation/effect stage accepted by joining released24b7e91d once-subject/one-branch/scoped-bindings/returns outcomes with owning generated-machines changed native rollback case1/1, genuine source compiled by current released CLI/private CFemit0. Match\u2192set\u2192later require failure preserves domain record/version/history/outbox; existing rejection receipt advances global revision once and replay adds nothing. Paired success writes once/replays unchanged. Original scenarios preserved, no State production edit, failed revision expectation corrected to original receipt contract. Canonical Node/State memory scope only; no D1/durable/whole proposal acceptance and no repeated unchanged cases."
+      "acceptance_scope": "Original emitted finite-handler/evaluation/effect stage accepted by joining released24b7e91d once-subject/one-branch/scoped-bindings/returns outcomes with owning generated-machines changed native rollback case1/1, genuine source compiled by current released CLI/private CFemit0. Match→set→later require failure preserves domain record/version/history/outbox; existing rejection receipt advances global revision once and replay adds nothing. Paired success writes once/replays unchanged. Original scenarios preserved, no State production edit, failed revision expectation corrected to original receipt contract. Canonical Node/State memory scope only; no D1/durable/whole proposal acceptance and no repeated unchanged cases."
     },
     {
       "id": "SEQ-031",
@@ -866,7 +866,7 @@
       "worker_update": {
         "state": "unfinished_two_full_composition_source_checkpoint_cloud_stopped",
         "prerequisite": "Two complete ordinary expense/image-revision approval compositions and package/template comparison can now be authored from exact draft5a12eb9e; explicit reviewer/quorum/expiry domain policies remain required. Executed self/duplicate/ineligible/stale/revoked/concurrent controls retain task11 rule/context prerequisites.",
-        "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker\u2019s task.",
+        "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker’s task.",
         "selected_policy": "JEV3 recommends named_roster (.99/.99/.97; confidence .98/.98/.95), advisory only. Expense keeps assigned primary and eligible distinct secondary; Creative owner requests two other current managers. Explicit deadlines, rejection veto, superseding reset votes, exact frozen evidence/current eligibility and original separately authorized finalizers required.",
         "remaining": "Both full source drafts/cases/pages preserved04490bdc. README package/template comparison unwritten, direct original-vs-authored findings and rule/grant/context execution gates in cloud_shutdown_handoff. No acceptance or task credit.",
         "deliverables": "approval-compositions/ExpenseReview.can, CreativeRevisionReview.can and README.md comparison; finite writer active, no task credit."
@@ -890,7 +890,7 @@
       "worker_update": {
         "state": "source_preparation_ready_execution_prerequisites_open",
         "prerequisite": "Original task-specific rule/context or preceding whole-workflow output; existing upstream task prerequisites retained. Exact parent-required draft5a12eb9e is now available; source preparation is ready.",
-        "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker\u2019s task."
+        "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker’s task."
       }
     },
     {
@@ -926,7 +926,7 @@
       "worker_update": {
         "state": "source_preparation_ready_execution_prerequisites_open",
         "prerequisite": "Complete original CanApprove rules/current access and task23 file/delivery-reference consumers; published source contains no protected invocation value, so task39 is conditional and is not an unconditional gate.",
-        "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker\u2019s task."
+        "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker’s task."
       }
     },
     {
@@ -1011,7 +1011,7 @@
       "worker_update": {
         "state": "blocked_targeted_recovery_dependency",
         "prerequisite": "Released Task22 exact-ID retained outbox carrier and original stop/reconcile join before validating second-consumer reuse with existing keyed schedules.",
-        "owner": "State/Contracts retained outbox producer, then this worker\u2019s Cloudflare/application consumers."
+        "owner": "State/Contracts retained outbox producer, then this worker’s Cloudflare/application consumers."
       }
     },
     {
@@ -1108,11 +1108,11 @@
       "current_work": {
         "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
         "status": "Genuine ordinary and declared-event private cohort components directly qualified. Five released private-cohort paths frozen for Package capture; no duplicate validation. Continue original full task through default installed Worker cohort fulfillment and mixed ordinary/cohort event intake; preserve broader original matrix and explicit unsupported trigger gates.",
-        "accepted_component": "Ordinary genuine compiled public-child/nativeD1 case1/1 and four affected version/fresh/fence/claim cases4/4 pass. Full admitted call/guards/readings/unique/default/result and checkpoint share existing State unit; authored postwrite rollback, frozen late-insert exclusion/2+1bounded turns, actual lost response\u2192D1 reopen/no repeat, owner revocation and real role guard race qualify. Compiler private each source-event admission remains required; no full48 credit.",
+        "accepted_component": "Ordinary genuine compiled public-child/nativeD1 case1/1 and four affected version/fresh/fence/claim cases4/4 pass. Full admitted call/guards/readings/unique/default/result and checkpoint share existing State unit; authored postwrite rollback, frozen late-insert exclusion/2+1bounded turns, actual lost response→D1 reopen/no repeat, owner revocation and real role guard race qualify. Compiler private each source-event admission remains required; no full48 credit.",
         "producer_release": "Compiler genuine declared-event producer captured b40a5390/own followup7126ef6f; current installed target requirement retained. Declared events/model/nonnull anchored collection only; hook/Every/progress E6008 remain. No new compiler producer or second State engine is needed for the accepted component.",
         "accepted_private_component": "Current CLI0/CF emit0; same owning genuine D1 private case1/1 (~8.1s) after exact retained schedule:event trustedSource pin, wrong-principal refusal with no domain/history writes. All matching sweep/unbound cohort handlers initialize in the same source-receipt revision; frozen payload/bounds/membership survive reopen. Null actor/current owner/private registry/child source forwarding/body effects/receipt/rollback/late exclusion/fair turns/replay/typed parent reload qualified. Two unchanged affected ordinary/private-due cases2/2 reused. Exact internal state.cohorts@1 constructor only; default Worker does not fulfill globally, mixed ordinary/cohort source currently refuses. Full48 remains open.",
         "defining_owner_prerequisites": "Package State/Work owns durable bounded execution cursor and intent-scan resume/rotation; checkpoint.cursor presently admission admit/N, scheduler cursor caller-owned, so restart-at-null fairness is unqualified. Mixed intake needs an actual retained source-to-handler routing/admission producer and selector, with atomic routing/cohort intake but independent ordinary handler executions/receipts. State ordinary private admission and existing trusted guard-revalidation limits remain explicit. No second engine/unbounded substitution.",
-        "mixed_handler_semantics": "Defining Package worker confirms DESIGN\u00a76 independent handler occurrence/receipt; later handler cannot reject already committed event source. Source-atomic ordinary body grouping withdrawn. Atomic durable routing/admission creates independent handler occurrences/cohort intents; each body/outcome remains separate. Existing Work lacks retained source-to-handler routing/admission/stored selector. Balanced preauthorized JEV3 addresses consequential new minimal producer/cursor design, preserving accepted semantics; no worker/resource hold."
+        "mixed_handler_semantics": "Defining Package worker confirms DESIGN§6 independent handler occurrence/receipt; later handler cannot reject already committed event source. Source-atomic ordinary body grouping withdrawn. Atomic durable routing/admission creates independent handler occurrences/cohort intents; each body/outcome remains separate. Existing Work lacks retained source-to-handler routing/admission/stored selector. Balanced preauthorized JEV3 addresses consequential new minimal producer/cursor design, preserving accepted semantics; no worker/resource hold."
       },
       "worker_update": {
         "state": "implemented_tested_installed_boundary_component",
@@ -1586,6 +1586,11 @@
         ],
         "validation": "Frozen installation passes; owning Cloudflare dependency build22/22, actual boundary check0 violations, affected Vitest44/44 and original nativeD1/Chromium/MCP choice case1/1 (45.70s) pass. Loader preserves application-installed optional producer identity and initialization/export errors.",
         "unconsumed_prerequisites": "992 State collision loop requires complete792d8161 checked field-modifier producer;242 owner-context controls require complete2b0f5f48 runner/row-scope producer and inherited b65c0312/24ef7359/8ea86d53 behavior. Owners State/Contracts and Dev respectively; no checkpoint-only transplant."
+      },
+      "values_consumer_intake": {
+        "state": "saved_component_tested_locally",
+        "source_checkpoint": "d3f4fa65",
+        "scope": "Exact released four-donor source correspondence and prepared-hook consumer assertions preserved. Local frozen installation and owning dependency build22/22 pass; changed prepared-hook/string-escape cases10/10 pass. Reuse broader unchanged results; no full Values or roadmap acceptance."
       }
     },
     "compiler_consumer_integration": {
