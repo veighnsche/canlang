@@ -12,7 +12,7 @@ import {
   clearFormBindings,
   registerFormBinding,
 } from '../src/http/formErrors.js';
-import { handleOperationRequest } from '../src/http/operations.js';
+import { FORM_REFUSAL_HEADER, handleOperationRequest } from '../src/http/operations.js';
 import {
   parseCollectionQuery,
   parseFormBody,
@@ -84,12 +84,12 @@ function bindOrderForm(): void {
   });
 }
 
-async function setupFailing() {
+async function setupFailing(code: 'rule_failed' | 'busy' = 'rule_failed') {
   const t = await createTestDeps({
     shapes: SHAPES,
     mutations: {
       [OP]: () => ({
-        error: buildBusinessError('rule_failed', 'Too many ordered.', {
+        error: buildBusinessError(code, 'Too many ordered.', {
           fields: [{ path: '/qty', code: 'rule_failed', message: 'Too many ordered.' }],
         }),
       }),
@@ -397,6 +397,9 @@ test('B3-I5: Accept text/html re-renders the failed POST as a full page with dra
     assert.equal(res.status, 422);
     assert.ok((res.headers.get('content-type') ?? '').startsWith('text/html'));
     assert.ok((res.headers.get('vary') ?? '').includes('Accept'));
+    assert.deepEqual(JSON.parse(res.headers.get(FORM_REFUSAL_HEADER)!), {
+      version: 1, code: 'rule_failed', retryable: false,
+    });
     const html = await res.text();
     assert.ok(html.startsWith('<!DOCTYPE html>'), 'full-page branch');
     assert.ok(html.includes('Too many ordered.'), 'inline field error');
@@ -427,10 +430,32 @@ test('B3-I5: HX-Request re-renders a bare fragment without the document shell', 
     );
     assert.equal(res.status, 422);
     assert.ok((res.headers.get('content-type') ?? '').startsWith('text/html'));
+    assert.deepEqual(JSON.parse(res.headers.get(FORM_REFUSAL_HEADER)!), {
+      version: 1, code: 'rule_failed', retryable: false,
+    });
     const html = await res.text();
     assert.ok(!html.includes('<html'), 'fragment branch: no document shell');
     assert.ok(html.includes('id="order-form-form"'), 'stable swap target');
     assert.ok(html.includes('Too many ordered.'), 'inline field error');
+  } finally {
+    clearFormBindings();
+  }
+});
+
+test('HTML refusals expose only closed code and retryability, with no prose or draft data', async () => {
+  const t = await setupFailing('busy');
+  bindOrderForm();
+  try {
+    const res = await handleOperationRequest(t.deps, opRequest({
+      cookie: t.identity.cookie, csrf: t.csrf, contentType: 'application/json', accept: 'text/html',
+      body: jsonOpBody({ inputs: { qty: 9, label: 'private-draft-value' } }),
+    }), OP);
+    assert.equal(res.status, 503);
+    const fact = res.headers.get(FORM_REFUSAL_HEADER)!;
+    assert.deepEqual(JSON.parse(fact), { version: 1, code: 'busy', retryable: true });
+    assert.ok(!fact.includes('private-draft-value'));
+    assert.ok(!fact.includes('Too many ordered.'));
+    assert.ok((await res.text()).includes('private-draft-value'), 'normal form redisplay is preserved');
   } finally {
     clearFormBindings();
   }
@@ -454,6 +479,7 @@ test('B3-I5: JSON stays the default without HTML headers, even with a binding', 
       );
       assert.equal(res.status, 422, `accept=${accept ?? '(absent)'}`);
       assert.ok((res.headers.get('content-type') ?? '').startsWith('application/json'));
+      assert.equal(res.headers.get(FORM_REFUSAL_HEADER), null);
       assert.equal((await res.json() as { code: string }).code, 'rule_failed');
     }
   } finally {
