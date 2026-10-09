@@ -331,6 +331,8 @@ describe("deploy bundle (P-B)", () => {
     const ops = bundle.modules[HTTP_OPERATIONS_MODULE] as string;
     for (const marker of [
       "handleOperationRequest",
+      "handlePageRequest",
+      "handlePagePreferencePost",
       "IdentityError",
     ]) {
       expect(ops, `HTTP bundle must contain ${marker}`).toContain(marker);

@@ -21,17 +21,24 @@
  * modules are temp `.mjs` files holding hand-written descriptors (the
  * `assembly.test.ts` precedent).
  */
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { timingSafeEqual } from "node:crypto";
+import { afterEach, describe, expect, it, onTestFinished } from "vitest";
 import type {
   ActivationVerdict,
   CompileArtifact,
   StoragePort,
 } from "@canlang/contracts";
 import { handlePageRequest } from "@canlang/interfaces";
+import type { PagePreferenceKey, PagePreferenceStore } from "@canlang/interfaces";
+import { createIdentityFixture } from "@canlang/interfaces/testing";
+import { deriveCsrfToken } from "@canlang/identity";
+import ts from "typescript";
+import { buildHttpOperationsBundle } from "../src/deploy/bundle.js";
+import { createWorkerApp } from "../src/worker/entry.js";
 import workerMain, {
   createMainFetch,
   REQUIRED_BINDINGS,
@@ -169,7 +176,7 @@ describe("deploy worker main", () => {
         resolve = input.resolveBinding;
         return { ownerScopedStoragePort: async () => stubStore() };
       },
-      loadOwnerStorageFactory: async () => input => {
+      loadOwnerStorageFactory: async () => async input => {
         routed = true;
         expect(input.app).toBe("TeamTasks");
         return { app: input.app, forIdentity: async () => stubStore(),
@@ -234,6 +241,103 @@ describe("deploy worker main", () => {
     const gated = await fetch(new Request("http://localhost/"), {});
     expect(gated.status).toBe(500);
     expect(((await gated.json()) as { code: string }).code).toBe("missing-binding");
+  });
+
+  it("loads the real HTTP bundle and saves bound preferences through the deployed page route", async () => {
+    // The browser-targeted bundle selects Identity's workerd comparator.
+    // Supply that native host extension with Node's real primitive here;
+    // CSRF derivation and verification still run through the owning bundle.
+    const subtle = globalThis.crypto.subtle;
+    const comparison = Object.getOwnPropertyDescriptor(subtle, 'timingSafeEqual');
+    Object.defineProperty(subtle, 'timingSafeEqual', { configurable: true, value: timingSafeEqual });
+    onTestFinished(() => {
+      if (comparison === undefined) Reflect.deleteProperty(subtle, 'timingSafeEqual');
+      else Object.defineProperty(subtle, 'timingSafeEqual', comparison);
+    });
+    const dir = tempDir();
+    // Privately transpile current main source so its unoverridden default
+    // loader resolves the real deployed sibling, without writing shared dist.
+    const main = ts.transpileModule(readFileSync(new URL('../src/worker/main.ts', import.meta.url), 'utf8'), {
+      compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+    }).outputText;
+    writeFileSync(join(dir, 'package.json'), '{"type":"module"}');
+    writeFileSync(join(dir, 'http-operations.js'), buildHttpOperationsBundle());
+    const url = writeModule(dir, 'main.mjs', main);
+    const deployed = await import(/* @vite-ignore */ url) as typeof import('../src/worker/main.js');
+    const identity = await createIdentityFixture();
+    const teamB = await identity.store.createTeam({});
+    await identity.store.createMembership({ team_id: teamB.team_id, user_id: identity.userId, is_owner: true, roles: [] });
+    const deniedTeam = await identity.store.createTeam({});
+    await identity.store.createMembership({ team_id: deniedTeam.team_id, user_id: identity.userId, is_owner: false, roles: [] });
+    const rows = new Map<string, { value: string; version: string }>();
+    const keyOf = (key: PagePreferenceKey) => JSON.stringify({ appId: key.appId, actorUserId: key.actorUserId,
+      teamId: key.teamId, owner: key.owner, field: key.field });
+    const preferences: PagePreferenceStore = {
+      async read(key) { return rows.get(keyOf(key)) ?? null; },
+      async save(input) {
+        const key = keyOf(input);
+        if ((rows.get(key)?.version ?? '0') !== input.expectedVersion) return false;
+        rows.set(key, { value: input.value, version: String(BigInt(input.expectedVersion) + 1n) });
+        return true;
+      },
+    };
+    const pageUrl = writeModule(dir, 'preference-page.mjs', `export const home = {
+      owner: "fixture", path: "/", title: "Preferences",
+      preferenceFields: [{ name: "view", options: ["all", "available", "restock"], defaultValue: "all" }],
+      admit: async source => {
+        if (!source.canonical.builtinRoles.includes("owner")) throw { code: "forbidden", message: "Owner required.", retryable: false };
+        return {};
+      },
+      render: async context => "<p>" + context.preferences.fixture.view + ":" + context.preferenceVersions.fixture.view + "</p>",
+    };`);
+    const staged: StagedDeployment = { artifact: fixtureArtifact([
+      { owner: 'fixture', path: '/', module: 'preference-page.mjs', export: 'home' },
+    ], []), modules: stubAsm(dir, { 'preference-page.mjs': pageUrl }), verdict: ACTIVE_VERDICT };
+    const fetch = deployed.createMainFetch({
+      loadEntry: async () => createWorkerApp,
+      loadAssembleWorker: async () => assembleWorker,
+      loadStagedDeployment: async () => staged,
+      loadProductionDeps: async () => ({ store: stubStore(), identityStore: identity.store, preferences }),
+    });
+    const env = { ...fullEnv(), CAN_FORM_BINDING_KEY: new Uint8Array(32) };
+    const path = (team = identity.teamId) => `/?team=${team}&q=paper`;
+    const get = (team = identity.teamId, method = 'GET') => new Request(`http://localhost${path(team)}`, {
+      method, headers: { cookie: identity.cookie, 'hx-request': 'true' },
+    });
+    const csrf = await deriveCsrfToken(identity.sessionToken);
+    const post = (value: string, version: string, opts: { team?: string; csrf?: string; cookie?: string; extra?: string } = {}) =>
+      new Request(`http://localhost${path(opts.team)}`, { method: 'POST', headers: {
+        cookie: opts.cookie ?? identity.cookie, 'content-type': 'application/x-www-form-urlencoded',
+      }, body: new URLSearchParams({ _csrf: opts.csrf ?? csrf, _version: version, view: value }).toString() + (opts.extra ?? '') });
+    const initial = await fetch(get(), env);
+    expect(initial.status).toBe(200);
+    expect(await initial.text()).toContain('<p>all:0</p>');
+    expect((await fetch(post('available', '0', { csrf: 'bad' }), env)).status).toBe(403);
+    expect((await fetch(post('available', '0', { cookie: '' }), env)).status).toBe(403);
+    expect((await fetch(post('available', '0', { extra: '&_version=0' }), env)).status).toBe(400);
+    expect((await fetch(post('foreign', '0'), env)).status).toBe(400);
+    expect(rows.size).toBe(0);
+    const saved = await fetch(post('available', '0'), env);
+    expect(saved.status).toBe(303);
+    expect(saved.headers.get('location')).toBe(path());
+    expect(await (await fetch(get(), env)).text()).toContain('<p>available:1</p>');
+    const head = await fetch(get(identity.teamId, 'HEAD'), env);
+    expect(head.status).toBe(200);
+    expect(await head.text()).toBe('');
+    expect(await (await fetch(get(teamB.team_id), env)).text()).toContain('<p>all:0</p>');
+    expect((await fetch(post('restock', '0', { team: teamB.team_id }), env)).status).toBe(303);
+    expect(rows.get(keyOf({ appId: 'TeamTasks', actorUserId: identity.userId,
+      teamId: identity.teamId, owner: 'fixture', field: 'view' }))).toEqual({ value: 'available', version: '1' });
+    expect(await (await fetch(get(teamB.team_id), env)).text()).toContain('<p>restock:1</p>');
+    const beforeRefusals = [...rows];
+    expect((await fetch(post('restock', '0'), env)).status).toBe(409);
+    expect((await fetch(post('available', '0', { team: deniedTeam.team_id }), env)).status).toBe(403);
+    const membership = await identity.store.findMembership(identity.teamId, identity.userId);
+    expect(membership).not.toBeNull();
+    await identity.store.removeMembership(membership!.membership_id);
+    expect((await fetch(post('restock', '1'), env)).status).toBe(403);
+    expect([...rows]).toEqual(beforeRefusals);
+    expect((await fetch(get(teamB.team_id, 'PUT'), env)).status).toBe(404);
   });
 
   it("/mcp without createHandler answers the assembly interim 501, exactly as today", async () => {
