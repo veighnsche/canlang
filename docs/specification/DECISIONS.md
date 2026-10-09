@@ -3647,3 +3647,7 @@ Keep the closed public schema export assertion and include the actual released `
 ## 2026-10-09 — Keep Worker boundaries aligned with real portable producers
 
 Move the physical-owner component test out of production src/worker ownership. Preserve its four ordered real D1/admission/revocation scenarios using the native installed portable assembly export; no accessor-metadata guard is bypassed. Keep strict Worker no-Node/type-only checks. Pin the two existing worker-safe D1 leaves in the env join and only the example runner’s three declared portable assembly bindings at the Node boundary; serving entry/main remain forbidden. Boundary 3/3, physical consumer 1/1 and owning/root noEmit pass; the obsolete dist test-presence assertion is removed while bundle test exclusion remains checked.
+
+## 2026-10-09 — Normalize receiving aliases before base encoding
+
+Correct Codex’s current-head alias finding through the Values-owned Unicode trim producer before the model field’s deployed encoder. Run the existing alias and receiving-schema checks afterward, preserving NAME rules, both bounds, defaults and post-hook validation. The 12 affected State cases pass, including padded valid text, direct bare-alias rejection and invalid normalized name/bounds with no writes or revision changes.

@@ -181,6 +181,38 @@ describe('checked stored-field modifiers', () => {
     assert.equal(invalidPatch.code, 'validation');
   });
 
+  it('trims before the receiving alias codec while preserving alias and receiving bounds', async () => {
+    const valueSchema = normalizeSchema({ aliases: {
+      'Test.AliceName': { type: 'text', min: 1, max: 20, format: 'name' },
+    } });
+    const encodeField = (type: string, value: unknown) =>
+      encodeValue(type, validateValue(valueSchema, type, value, 'create') as CanValue);
+    assert.throws(() => encodeField('Test.AliceName', '  Alice  '),
+      'direct alias validation keeps rejecting untrimmed text');
+
+    const { store } = createTestMemoryStorage();
+    const context = buildContext({ identity: makeIdentity(), operation: asOperation(`${JOB}.create`),
+      operationId: nextId(), app: 'modifier-test', source: 'test', now: FIXED_NOW });
+    const table = buildModelTable([modelDef(JOB, { fields: {
+      title: { required: true, serverOnly: false, valueType: 'Test.AliceName', trim: true, min: 3, max: 8 },
+    } })], { valueSchema });
+    const create = (title: string) => runMutationWrites({ table, store, context, encodeField,
+      writes: [{ op: 'create', model: asModel(JOB), id: asId(nextId()), data: { title } }] });
+    const accepted = await create(' \tAlice\u2003');
+    assert.equal(accepted.writes[0]?.kind, 'insert');
+    if (accepted.writes[0]?.kind !== 'insert') throw new Error('expected insert');
+    assert.equal(accepted.writes[0].row.data.title, 'Alice');
+
+    const rows = await store.query({ model: asModel(JOB), authority: 'owner' });
+    const revision = await store.readRevision();
+    for (const title of ['  A  ', ' Alice Smith ', ' ThisNameIsTooLong ']) {
+      const error = await captureStateError(create(title));
+      assert.equal(error.code, 'validation');
+      assert.deepEqual(await store.query({ model: asModel(JOB), authority: 'owner' }), rows);
+      assert.equal(await store.readRevision(), revision);
+    }
+  });
+
   it('records normalized defaults and refuses hook-produced invalid values', async () => {
     const { store } = createTestMemoryStorage();
     const context = buildContext({ identity: makeIdentity(), operation: asOperation(`${JOB}.create`),
