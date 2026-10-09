@@ -3660,3 +3660,8 @@ Consume only Packages c99159501cab7420001999f046c110292f80ee26's workspace CI Ch
 ## 2026-10-09 — consume matching real-producer manual gate plan
 
 Consume only Packages 040d38e3a2d7524fff913f01210ad2f169442230's .github/ci/gate-plan.mjs and turbo.json together: real catalog/compiler/browser prerequisites and CAN_COMPLETION_REQUIRE_ENGINES transport. Preserve gate plan version2 and use its matching gate-tools checkout for receipts; do not revive retired workflows. Owner runner/receipt checks are reused at their unchanged scope; compiler consuming-head and Linux execution remain due.
+
+
+## 2026-10-09 — inherit preference captions from checked immediate reuse
+
+Retain immediate field reuse identities in the checked type table. Compose Tabs case captions through each declared source with nearest and receiving overrides; inherit text only along same-name edges. Keep receiving preference identity/default/version/save ownership. Actual adapter8/8 and generated HTTP/UI lifecycle1/1 pass, including bilingual rendering and existing authorization/CSRF/case/stale controls; independent finite review accepts the boundary. No source-name reconstruction or foreign API is added.
