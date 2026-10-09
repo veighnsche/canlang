@@ -238,6 +238,24 @@ function refValuesEqual(oldValue: unknown, newValue: unknown): boolean {
   return typeof oldId === 'string' && oldId !== '' && oldId === newId;
 }
 
+/** Cloned hook inputs do not make an unchanged stored field a new write. */
+function fieldDataEqual(left: unknown, right: unknown, seen = new WeakMap<object, object>()): boolean {
+  if (Object.is(left, right)) return true;
+  if (typeof left !== 'object' || left === null || typeof right !== 'object' || right === null ||
+      Array.isArray(left) !== Array.isArray(right)) return false;
+  if (Array.isArray(left) && left.length !== (right as unknown[]).length) return false;
+  if (!Array.isArray(left) && (Object.getPrototypeOf(left) !== Object.prototype ||
+      Object.getPrototypeOf(right) !== Object.prototype)) return false;
+  const previous = seen.get(left);
+  if (previous !== undefined) return previous === right;
+  seen.set(left, right);
+  const keys = Object.keys(left);
+  if (keys.length !== Object.keys(right).length) return false;
+  return keys.every(key => Object.hasOwn(right, key) && fieldDataEqual(
+    (left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key], seen,
+  ));
+}
+
 /**
  * Evaluate an ordered batch of mutation writes. Per-write order: resolve the
  * model def, load `before` (provisional-aware), build the candidate, run
@@ -362,7 +380,8 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     target: Record<string, unknown>,
     data: Record<string, unknown>,
     def: InterimModelDef,
-  ): void => {
+  ): Set<string> => {
+    const applied = new Set<string>();
     for (const [field, value] of Object.entries(data)) {
       const fieldDef = def.fields[field];
       if (fieldDef === undefined) {
@@ -386,7 +405,9 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
         );
       }
       safeSet(target, field, jsonClone(value, `Field ${JSON.stringify(field)}`));
+      applied.add(field);
     }
+    return applied;
   };
 
   /**
@@ -419,6 +440,8 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     defaultWriter?: string,
     constrainedFields?: ReadonlySet<string>,
   ): void => {
+    // This post-hook pass validates the row only. Recorded defaults were
+    // normalized before hooks and must retain that original resolution.
     normalizeConstraints(candidate, def, constrainedFields ?? new Set(Object.keys(candidate)));
     if (input.encodeField !== undefined) {
       for (const [field, value] of Object.entries(candidate)) {
@@ -1213,7 +1236,7 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
         safeSet(candidate, field, structuredClone(value));
       }
       // Updates apply NO defaults: only the patch lands on before.data.
-      applyCallerData(candidate, asDataObject(write.data, 'Update patch'), def);
+      const changedFields = applyCallerData(candidate, asDataObject(write.data, 'Update patch'), def);
       if (write.transition !== undefined) {
         const edge = write.transition;
         if (typeof edge !== 'object' || edge === null || Array.isArray(edge) ||
@@ -1235,9 +1258,9 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
           throw new StateError('rule_failed', 'Transition source state does not match.');
         }
         safeSet(candidate, edge.field, edge.to);
+        changedFields.add(edge.field);
       }
       checkRequired(candidate, def);
-      const changedFields = new Set(Object.keys(write.data ?? {}));
       normalizeConstraints(candidate, def, changedFields);
       const beforeHook = jsonClone(candidate, 'Update before hooks');
       // T31 (Rule A): staged writes skip hooks (flat, no cascade); every
@@ -1249,7 +1272,7 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
       checkKnownFields(hooked, def);
       checkRequired(hooked, def);
       for (const [field, value] of Object.entries(hooked)) {
-        if (value !== beforeHook[field]) changedFields.add(field);
+        if (!fieldDataEqual(value, beforeHook[field])) changedFields.add(field);
       }
       checkJsonSafe(hooked, def, undefined, changedFields);
       checkWhen(write.when, {

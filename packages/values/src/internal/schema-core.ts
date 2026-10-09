@@ -740,7 +740,7 @@ function validateContractValue(
       continue;
     }
     const before = ctx.violations.length;
-    const decoded = validateNode(schema, field.type, raw, fieldPath, ctx, options);
+    const decoded = validateNode(schema, field.type, raw, fieldPath, ctx, options, field.trim === true);
     if (decoded === FAIL) {
       ok = false;
       continue;
@@ -844,6 +844,7 @@ function validateNode(
   path: Path,
   ctx: Collector,
   options: NodeOptions,
+  receivingTrim = false,
 ): NodeOut {
   if (wire === null) {
     if (ast.nullable) {
@@ -889,8 +890,12 @@ function validateNode(
         const before = ctx.violations.length;
         const decoded = validateNode(schema, alias.type, wire, path, ctx, options);
         if (decoded === FAIL || decoded === UPDATE_OMITTED) return decoded;
-        if (decoded !== null && hasBounds(alias) && ctx.violations.length === before) checkBounds(alias, decoded as CanValue, path, ctx);
-        return ctx.violations.length === before ? decoded : FAIL;
+        // The receiving field normalizes decoded text before both declared
+        // alias constraints and its own constraints; direct alias reads retain
+        // their declared validation without receiving-field normalization.
+        const stored = receivingTrim && typeof decoded === "string" ? trimText(decoded) : decoded;
+        if (stored !== null && hasBounds(alias) && ctx.violations.length === before) checkBounds(alias, stored as CanValue, path, ctx);
+        return ctx.violations.length === before ? stored : FAIL;
       }
       const contract = schema.contracts[base.path];
       if (contract !== undefined) {
@@ -1168,7 +1173,7 @@ function normalizeField(
         actualWire(trimRaw),
       );
     } else if (ast !== null) {
-      const base = ast.base;
+      const base = ast.base.kind === "nominal" ? aliases[ast.base.path]?.type.base ?? ast.base : ast.base;
       const trimmable =
         !ast.array && ((base.kind === "scalar" && base.name === "text") || base.kind === "stringlike");
       if (!trimmable) {
@@ -1870,6 +1875,7 @@ export function normalizeSchema(descriptor: unknown): NormalizedSchema {
       path,
       ctx,
       { nesting: "explicit", requireVersion: false },
+      field.trim === true,
     );
     if (raw === FAIL || raw === UPDATE_OMITTED) {
       continue;
@@ -2042,7 +2048,7 @@ export function validateOperationInputTsCore(
       continue;
     }
     const before = ctx.violations.length;
-    const decoded = validateNode(schema, field.type, raw, [name], ctx, options);
+    const decoded = validateNode(schema, field.type, raw, [name], ctx, options, field.trim === true);
     if (decoded === FAIL) {
       ok = false;
       continue;
