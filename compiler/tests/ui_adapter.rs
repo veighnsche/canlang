@@ -67,12 +67,24 @@ fn bound_tabs_emit_source_options_and_request_owned_save_route() {
         .env_remove("CAN_CATALOG")
         .output()
         .unwrap();
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stdout));
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
     let compiled: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     let js = compiled["modules"][0]["js"].as_str().unwrap();
-    assert!(js.contains("preferenceFields:[{name:\"view\",options:[\"all\",\"finished\"],defaultValue:\"all\"}]"), "{js}");
+    assert!(
+        js.contains(
+            "preferenceFields:[{name:\"view\",options:[\"all\",\"finished\"],defaultValue:\"all\"}]"
+        ),
+        "{js}"
+    );
     assert!(js.contains("postTo:c.pollUrl ?? c.path"), "{js}");
-    assert!(js.contains("version:c.preferenceVersions.BoundUi.view"), "{js}");
+    assert!(
+        js.contains("version:c.preferenceVersions.BoundUi.view"),
+        "{js}"
+    );
     assert!(js.contains("current:preferences.view"), "{js}");
 }
 
