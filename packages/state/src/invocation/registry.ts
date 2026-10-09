@@ -55,6 +55,7 @@ import {
 } from '@canlang/contracts';
 import type {
   ArtifactModel,
+  ArtifactCallable,
   ArtifactOperation,
   ArtifactSource,
   CanTypeId,
@@ -1690,7 +1691,18 @@ export function loadArtifactDescriptors(
   }, converted);
   for (const def of loaded.registry.values()) {
     if (!isGeneratedOperationDef(def) || def.descriptor.result?.disclosure === undefined) continue;
-    try { bindScenarioReceiptPlan(def, artifact.models ?? []); }
+    try {
+      const callable = Array.prototype.find.call(artifact.callables ?? [], (item: ArtifactCallable) =>
+        item.kind === 'operation' && item.id === def.name &&
+        item.module === def.descriptor.result!.disclosure!.source.module) as ArtifactCallable | undefined;
+      const style = callable === undefined ? undefined : Object.getOwnPropertyDescriptor(callable, 'inputStyle');
+      if ((callable !== undefined && 'inputStyle' in callable && style === undefined) ||
+          (style !== undefined && (!('value' in style) || !style.enumerable || style.value !== 'parameters'))) {
+        fail('malformed_descriptor', 'Scenario default callable input style requires own parameter-style data.');
+      }
+      bindScenarioReceiptPlan(def, artifact.models ?? [], { parameterStyle: style?.value === 'parameters',
+        ...(converted.valueSchema !== undefined ? { valueSchema: converted.valueSchema } : {}) });
+    }
     catch (error) { fail('malformed_descriptor', error instanceof Error ? error.message : 'Invalid scenario disclosure inventory.'); }
   }
   const refs: Map<ModelName, ReadonlyArray<InterimRefDef>> = new Map();

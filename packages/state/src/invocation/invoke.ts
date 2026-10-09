@@ -283,7 +283,37 @@ const scenarioExecutions = new WeakMap<AdmittedCall, {
   readonly store: StoragePort; readonly def: AdmittedCall['def'];
   readonly context: AdmittedCall['context']; readonly revision: Revision;
   readonly contextSnapshot: AdmittedCall['context']; readonly checkpointSnapshot: AdmittedCall['checkpoint'];
+  readonly inputs: AdmittedCall['inputs']; readonly inputsSnapshot: AdmittedCall['inputs'];
+  readonly recordRefs: AdmittedCall['recordRefs']; readonly recordRefsSnapshot: AdmittedCall['recordRefs'];
+  readonly inputHash: string;
 }>();
+
+/** Keep the accepted plain/null own-data prototypes. structuredClone erases
+ * null prototypes, which would make an unchanged admitted value look stale.
+ */
+function snapshotExecutionInputs<T>(value: T): T {
+  const seen = new Set<object>();
+  const copy = (part: unknown): unknown => {
+    if (typeof part !== 'object' || part === null) return part;
+    const prototype = Object.getPrototypeOf(part);
+    if (seen.has(part) || (!Array.isArray(part) && prototype !== Object.prototype && prototype !== null)) {
+      throw new StateError('validation', 'Scenario admission requires acyclic own-data inputs and references.');
+    }
+    seen.add(part);
+    const out = Array.isArray(part) ? [] : Object.create(prototype);
+    if (Array.isArray(part)) Object.setPrototypeOf(out, prototype);
+    for (const key of Reflect.ownKeys(part)) {
+      const member = Object.getOwnPropertyDescriptor(part, key);
+      if (member === undefined || !('value' in member)) {
+        throw new StateError('validation', 'Scenario admission cannot snapshot an input or reference accessor.');
+      }
+      if (Array.isArray(part) && key === 'length') { out.length = member.value; continue; }
+      Object.defineProperty(out, key, { value: copy(member.value), enumerable: member.enumerable === true, configurable: true });
+    }
+    seen.delete(part); return out;
+  };
+  return copy(value) as T;
+}
 
 function sameExecutionData(value: unknown, saved: unknown): boolean {
   if (typeof saved !== 'object' || saved === null) return Object.is(value, saved);
@@ -293,6 +323,7 @@ function sameExecutionData(value: unknown, saved: unknown): boolean {
   return keys.every(key => {
     const current = Object.getOwnPropertyDescriptor(value, key), original = Object.getOwnPropertyDescriptor(saved, key);
     return current !== undefined && 'value' in current && original !== undefined && 'value' in original &&
+      current.enumerable === original.enumerable &&
       sameExecutionData(current.value, original.value);
   });
 }
@@ -308,8 +339,10 @@ export function assertScenarioReceiptExecution(call: AdmittedCall, store: Storag
       active.def !== member('def') || active.context !== member('context') || active.revision !== member('revision') || member('replay') !== null) {
     throw new StateError('forbidden', 'Scenario observation requires its active admitted invocation and owning store.');
   }
-  if (!sameExecutionData(member('context'), active.contextSnapshot) || !sameExecutionData(member('checkpoint'), active.checkpointSnapshot)) {
-    throw new StateError('forbidden', 'Scenario observation requires unchanged admitted scope and checkpoint.');
+  if (!sameExecutionData(member('context'), active.contextSnapshot) || !sameExecutionData(member('checkpoint'), active.checkpointSnapshot) ||
+      active.inputs !== member('inputs') || active.recordRefs !== member('recordRefs') || active.inputHash !== member('inputHash') ||
+      !sameExecutionData(member('inputs'), active.inputsSnapshot) || !sameExecutionData(member('recordRefs'), active.recordRefsSnapshot)) {
+    throw new StateError('forbidden', 'Scenario observation requires unchanged admitted scope, checkpoint, inputs, references and raw hash.');
   }
 }
 
@@ -445,6 +478,9 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
         ? { conflictServerOnly: input.conflictServerOnly }
         : {}),
     });
+    // Receipt identity always retains the original raw admission hash, even
+    // when caught executor drift is subsequently recorded as a rejection.
+    const admittedInputHash = call.inputHash;
     if (call.replay !== null) {
       const outcome = call.replay.outcome;
       if (outcome.status === 'rejected') {
@@ -466,9 +502,13 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
     try {
       let raw: ExecutionEffects;
       activeAdmittedExecutions.add(call);
-      scenarioExecutions.set(call, { store: input.store, def: call.def, context: call.context, revision: call.revision,
-        contextSnapshot: structuredClone(call.context), checkpointSnapshot: structuredClone(call.checkpoint) });
       try {
+        const claimed = isGeneratedOperationDef(def) && def.descriptor.result?.disclosure !== undefined;
+        scenarioExecutions.set(call, { store: input.store, def: call.def, context: call.context, revision: call.revision,
+          contextSnapshot: structuredClone(call.context), checkpointSnapshot: structuredClone(call.checkpoint),
+          inputs: call.inputs, inputsSnapshot: claimed ? snapshotExecutionInputs(call.inputs) : structuredClone(call.inputs),
+          recordRefs: call.recordRefs, recordRefsSnapshot: claimed ? snapshotExecutionInputs(call.recordRefs) : structuredClone(call.recordRefs),
+          inputHash: call.inputHash });
         raw = await input.execute(call);
         if (isGeneratedOperationDef(def) && def.descriptor.result?.disclosure !== undefined) {
           assertScenarioReceiptExecution(call, input.store);
@@ -531,7 +571,7 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
       }
       const rejected: Receipt = {
         identity: receiptIdentityFor(context),
-        inputHash: call.inputHash,
+        inputHash: admittedInputHash,
         resolvedDefaults: {},
         outcome: { status: 'rejected', code: error.code, message: error.message },
         committedRevision: (call.revision + 1) as Revision,
@@ -597,7 +637,7 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
     }
     const receipt: Receipt & { readonly outcome: CommittedReceiptOutcome } = {
       identity: receiptIdentityFor(context),
-      inputHash: call.inputHash,
+      inputHash: admittedInputHash,
       resolvedDefaults: effects.resolvedDefaults,
       outcome: {
         status: 'committed',
