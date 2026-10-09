@@ -354,7 +354,8 @@ function stageWorkerDist(workerDistDir: string): Record<string, string> {
     if (!entry.endsWith(".js")) continue;
     const full = join(workerDistDir, entry);
     if (!statSync(full).isFile()) continue;
-    staged[`worker/${entry}`] = readFileSync(full, "utf8");
+    const key = `worker/${entry}`;
+    staged[key] = rewriteRuntimeImports(readFileSync(full, "utf8"), key);
   }
   return staged;
 }
