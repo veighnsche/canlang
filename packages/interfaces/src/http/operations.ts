@@ -38,7 +38,7 @@ import type {
 } from '@canlang/contracts';
 import { IdentityError, assertCredentialLive, deriveCsrfToken, sha256HexText } from '@canlang/identity';
 import { SOURCE_FORM_BINDING_FIELD } from '@canlang/contracts';
-import { projectGeneratedInputs } from '@canlang/ui';
+import { NATIVE_BOOLEAN_PRESENCE_PREFIX, projectGeneratedInputs } from '@canlang/ui';
 export { createSourceFormBindings } from './form-binding.js';
 import type { HttpDeps, OperationInputShape, SchemaCatalog } from '../ports.js';
 import { checkArtifactOperation, checkArtifactOperations, checkBoundArguments, isDeliveryField } from '../mcp/schemas.js';
@@ -188,6 +188,7 @@ function projectNativeForm(derived: DerivedOperationInputs | null, form: Record<
     throw new IdentityError('validation', 'Native forms require a declared mutation operation.');
   }
   const controls = new Map<string, string>();
+  const presence = new Map<string, string | null>();
   const root = (name: string) => derived.kind === 'update' ? `inputs[changes][${name}]` : `inputs[${name}]`;
   for (const input of derived.inputs) {
     if (input.kind === 'delivery') continue;
@@ -197,7 +198,11 @@ function projectNativeForm(derived: DerivedOperationInputs | null, form: Record<
       continue;
     }
     controls.set(root(input.name), input.name);
-    if (input.nullable === true) controls.set(root(`${input.name}__null`), input.name);
+    if (input.nullable === true) {
+      controls.set(root(`${input.name}__null`), input.name);
+      presence.set(NATIVE_BOOLEAN_PRESENCE_PREFIX + root(`${input.name}__null`), null);
+    }
+    if (input.kind === 'boolean') presence.set(NATIVE_BOOLEAN_PRESENCE_PREFIX + root(input.name), input.name);
     if (input.array !== undefined) continue;
     if (input.kind === 'ref' && input.versioned === true) controls.set(root(`${input.name}__version`), input.name);
     if (input.kind === 'money') controls.set(root(`${input.name}__currency`), input.name);
@@ -206,6 +211,12 @@ function projectNativeForm(derived: DerivedOperationInputs | null, form: Record<
   const transport = new Set(['operation', 'operation_id', CSRF_FIELD, SOURCE_FORM_BINDING_FIELD, 'timezone']);
   const rendered = new Set<string>();
   for (const name of Object.keys(form)) {
+    const boolean = presence.get(name);
+    if (boolean !== undefined) {
+      if (form[name] !== 'true') throw new IdentityError('validation', 'Invalid boolean presence marker.');
+      if (boolean !== null) rendered.add(boolean);
+      continue;
+    }
     const owner = controls.get(name);
     if (owner !== undefined) rendered.add(owner);
     else if (!transport.has(name)) throw new IdentityError('validation', 'Unknown native form field.');
@@ -268,7 +279,7 @@ export async function handleOperationRequest(
     } else if (mediaType === FORM_CONTENT_TYPE) {
       const form = await readOperationForm(request);
       if (Object.hasOwn(form, 'inputs')) {
-        if (Object.keys(form).some(name => name.startsWith('inputs['))) {
+        if (Object.keys(form).some(name => name.startsWith('inputs[') || name.startsWith(NATIVE_BOOLEAN_PRESENCE_PREFIX))) {
           throw new IdentityError('validation', 'Mixed form input encodings.');
         }
         body = coerceFormBody(form);

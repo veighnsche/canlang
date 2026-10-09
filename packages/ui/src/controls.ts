@@ -59,6 +59,7 @@ import {
   fieldInputId,
   fieldInputName,
   formatDatetimeLocal,
+  nativeBooleanPresence,
   pointerToFieldName,
 } from "./forms.js";
 import {
@@ -339,7 +340,8 @@ export async function checkbox(props: CheckboxProps): Promise<string> {
   return unit(
     props,
     unitCtx,
-    `<input type="checkbox" name="${escapeAttr(unitCtx.name)}" id="${escapeAttr(unitCtx.id)}" value="true"${checked ? " checked" : ""} class="${cls}"${unitCtx.common}>`,
+    `<input type="checkbox" name="${escapeAttr(unitCtx.name)}" id="${escapeAttr(unitCtx.id)}" value="true"${checked ? " checked" : ""} class="${cls}"${unitCtx.common}>` +
+      nativeBooleanPresence(field, unitCtx.name),
     checked ? "true" : "false",
   );
 }
@@ -360,7 +362,8 @@ export async function toggle(props: ToggleProps): Promise<string> {
   return unit(
     props,
     unitCtx,
-    `<input type="checkbox" name="${escapeAttr(unitCtx.name)}" id="${escapeAttr(unitCtx.id)}" value="true"${checked ? " checked" : ""} class="${cls}"${unitCtx.common}>`,
+    `<input type="checkbox" name="${escapeAttr(unitCtx.name)}" id="${escapeAttr(unitCtx.id)}" value="true"${checked ? " checked" : ""} class="${cls}"${unitCtx.common}>` +
+      nativeBooleanPresence(field, unitCtx.name),
     checked ? "true" : "false",
   );
 }

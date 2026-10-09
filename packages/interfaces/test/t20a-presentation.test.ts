@@ -50,6 +50,9 @@ import {
   generatedFields,
   generatedForm,
   form,
+  checkbox,
+  toggle,
+  NATIVE_BOOLEAN_PRESENCE_PREFIX,
   projectGeneratedInputs,
 } from '@canlang/ui';
 
@@ -467,6 +470,84 @@ test('protected source update submits only editable values and restores its exac
   const override = new URLSearchParams(native); override.set('inputs[record][id]', 'other');
   assert.equal((await nativeSubmit(override)).status, 403);
   assert.equal(calls.length, 3, 'native source bindings retain protected-ref refusal');
+});
+
+test('native boolean presence distinguishes checked, unchecked and unrendered protected inputs', async () => {
+  const calls: MutationEnvelope[] = [];
+  const operation = 'Store.Gadget.update';
+  const op: ArtifactOperation = { name: operation, kind: 'update', description: '', inputs: { fields: [
+    { name: 'record', field: { kind: 'ref', model: 'Store.Gadget', requireVersion: true }, required: true },
+    { name: 'enabled', field: { kind: 'boolean' }, required: false, nullable: true },
+    { name: 'unrendered', field: { kind: 'boolean' }, required: false },
+    { name: 'note', field: { kind: 'string' }, required: false, nullable: true },
+    { name: 'flags', field: { kind: 'boolean' }, required: false, array: { required: false } },
+  ] } };
+  const t = await createTestDeps({ mutations: { [operation]: envelope => {
+    calls.push(envelope); return { result: { status: 'committed', operation_id: envelope.operation_id, result: null } };
+  } } });
+  const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: [op] });
+  const formBindings = await createSourceFormBindings(new Uint8Array(32).fill(94), 'native-bool-revision');
+  const session = await t.identity.store.findSessionByTokenHash(await sha256HexText(t.identity.sessionToken));
+  assert.ok(session); await t.identity.store.setSessionTeam(session.session_id, t.identity.teamId);
+  const { identity: principal } = await resolveRequestIdentity(t.identity.store,
+    testRequest('/forms', { cookie: t.identity.cookie }), { clock: t.deps.clock });
+  const context = buildPresentationContext({ request: testRequest('/forms'), pathname: '/forms', isPartial: false,
+    appDefaultLocale: 'en', csrfToken: await deriveCsrfToken(t.identity.sessionToken), principal,
+    query: async () => ({ rows: [], columns: [] }), catalog, clock: t.deps.clock, formBindings,
+    appId: t.deps.app.appId, sessionToken: t.identity.sessionToken,
+  });
+  const successfulControls = (html: string) => new URLSearchParams([...html.matchAll(/<input\b[^>]*>/g)]
+    .filter(([tag]) => !/\sdisabled(?:\s|>)/.test(tag) && (!/type="checkbox"/.test(tag) || /\schecked(?:\s|>)/.test(tag)))
+    .flatMap(([tag]) => { const name = /name="([^"]*)"/.exec(tag), value = /value="([^"]*)"/.exec(tag);
+      return name !== null && value !== null ? [[name[1]!, value[1]!]] : []; }));
+  const submit = (params: URLSearchParams) => handleOperationRequest({ ...t.deps, catalog, formBindings },
+    testRequest('/forms', { method: 'POST', cookie: t.identity.cookie,
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: params.toString() }), operation);
+  for (const widget of ['default', 'checkbox', 'toggle'] as const) {
+    for (const enabled of [false, true]) {
+      const prepared = await context.prepareForm!({ operation, fields: ['enabled'], arguments: { record: { id: 'g1', version: 7n, enabled } } });
+      assert.equal(prepared.status, 'ready'); if (prepared.status !== 'ready') throw new Error('expected protected boolean form');
+      const child = widget === 'default' ? undefined : await (widget === 'checkbox' ? checkbox : toggle)(prepared.field('enabled'));
+      const params = successfulControls(await form({ ...prepared.props, ...(child === undefined ? {} : { children: [child] }) }));
+      const marker = NATIVE_BOOLEAN_PRESENCE_PREFIX + 'inputs[changes][enabled]';
+      assert.deepEqual(params.getAll(marker), ['true']); assert.equal(params.has('inputs[changes][enabled]'), enabled);
+      assert.equal(params.has(NATIVE_BOOLEAN_PRESENCE_PREFIX + 'inputs[changes][unrendered]'), false);
+      const before = calls.length;
+      for (const change of [
+        (p: URLSearchParams) => p.append(marker, 'true'),
+        (p: URLSearchParams) => p.set(marker, 'false'),
+        (p: URLSearchParams) => p.set(NATIVE_BOOLEAN_PRESENCE_PREFIX + 'inputs[changes][missing]', 'true'),
+        (p: URLSearchParams) => p.set(NATIVE_BOOLEAN_PRESENCE_PREFIX + 'inputs[enabled]', 'true'),
+        (p: URLSearchParams) => p.set('inputs', '{}'),
+      ]) {
+        const invalid = new URLSearchParams(params); change(invalid); assert.equal((await submit(invalid)).status, 400);
+      }
+      const outside = new URLSearchParams(params); outside.set(NATIVE_BOOLEAN_PRESENCE_PREFIX + 'inputs[changes][unrendered]', 'true');
+      assert.equal((await submit(outside)).status, 403, 'presence never expands signed editable selection');
+      const badCsrf = new URLSearchParams(params); badCsrf.set('_csrf', 'bad'); assert.equal((await submit(badCsrf)).status, 403);
+      assert.equal(calls.length, before);
+      assert.equal((await submit(params)).status, 200);
+      assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1)!.inputs)), { enabled, record: { id: 'g1', version: '7' } });
+      if (widget === 'default' && !enabled) {
+        const companionOnly = new URLSearchParams(params); companionOnly.delete(marker);
+        assert.equal((await submit(companionOnly)).status, 200);
+        assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1)!.inputs)), { record: { id: 'g1', version: '7' } }, 'unchecked null companion cannot synthesize an unrendered boolean');
+        companionOnly.set('inputs[changes][enabled__null]', 'true');
+        assert.equal((await submit(companionOnly)).status, 200);
+        assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1)!.inputs)), { enabled: null, record: { id: 'g1', version: '7' } });
+      }
+    }
+  }
+  const omitted = await context.prepareForm!({ operation, fields: [], arguments: { record: { id: 'g1', version: 7n } } });
+  assert.equal(omitted.status, 'ready'); if (omitted.status !== 'ready') throw new Error('expected empty partial');
+  assert.equal((await submit(successfulControls(await form(omitted.props)))).status, 200);
+  assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1)!.inputs)), { record: { id: 'g1', version: '7' } });
+  const nullable = await context.prepareForm!({ operation, fields: ['note'], arguments: { record: { id: 'g1', version: 7n } } });
+  assert.equal(nullable.status, 'ready'); if (nullable.status !== 'ready') throw new Error('expected nullable partial');
+  const nullParams = successfulControls(await form(nullable.props));
+  assert.equal(nullParams.get(NATIVE_BOOLEAN_PRESENCE_PREFIX + 'inputs[changes][note__null]'), 'true');
+  assert.equal((await submit(nullParams)).status, 200);
+  assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1)!.inputs)), { record: { id: 'g1', version: '7' } }, 'unchecked nullable companion does not manufacture null');
 });
 
 test('bindingFromDerived pins the operation and checks mode agreement', () => {
