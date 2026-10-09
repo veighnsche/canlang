@@ -4580,3 +4580,18 @@ Merge exact reviewed integrated4c063189/Dev4877 compiler-check caller and its ge
 ## 2026-10-09 — qualify generated public saved-scenario recovery
 
 Extend the existing genuine compiler/native fixture, preserving31success paths plus ordinary replay, to the released public retained entry at age16minutes with real StoragePort commit and file-access tripwires. Exact saved scalar/array values survive current updates without changing any physical receipt/domain/history/outbox/schedule state. Real generated CRUD archive withholds saved values through ordinary and dedicated public projection; revoked membership refuses recovery, while internal State projection separately returns its documented empty result. Keep private association metadata outside public output. Actual target1/1, changed-fixture strict Clippy and formatting pass; the fixture's explicit archive-default E3009 was corrected by omission rather than a production workaround. Producer0b79 remains unchanged. Dev owns its existing genuine portable D1 witness; consume the released owner result, without a parallel harness or broader hold/task acceptance.
+
+## 2026-10-09 — preserve native default replay under current authorization
+
+Treat only bare/grouped checked Actor parameter defaults as the canonical
+default producer's frozen user input, with exact checked `user`/`user?` types
+and a finite group bound. Body Actor values, properties and derive-wrapped
+defaults remain outside the disclosure profile. Actual State replay fixtures
+select native emission and require its descriptor; revoked membership withholds
+public saved results while leaving physical receipt/defaults and handler traces
+unchanged. Five native targets5/5 and checked closure12/12 pass; strict
+all-target Clippy and formatting pass. The joined a291 full run failed on its
+old generic fixture, so historical95d whole qualification does not qualify this
+changed source. Transition write provenance and the exact Dev portable release
+remain separate prerequisites; no empty mutation proof or original-reference
+acceptance follows.
