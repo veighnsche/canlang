@@ -3807,3 +3807,7 @@ The actual native/public installed Office journey passes36 business/auth observa
 ### Validation: real app-owned preview CRUD and replay
 
 One actual native app-owned model passes1/1 through installed activation/preview and ordinary Identity/CSRF: HTTP create and saved-outcome replay, MCP read/update shared across two selected teams, HTTP deletion and generated page readback. Preserve real source currency and disposal. The declared app root shares one app store; this check does not establish separate app-state databases or mixed-owner routing.
+
+### Unfinished checkpoint: actual rendered Office delete correspondence
+
+Use a fresh protected one-use URL for Ben and refuse replacing roots with existing owner descriptors. The full real browser passes17 checks through shared edit/tab/search/availability restoration, then deletion fails. Two finite actual delete diagnoses retain only status/content type/closed code/control names: HTTP400 application/json validation, no refusal header. UI/native bracket record controls need the owning Interfaces canonical form decoder; do not introduce bridge-side decoding. Isolated stops succeed; earlier full-run stop timeout leaves a dead-owner stale endpoint to handle through verified recovery. Preserve unresolved browser/lifecycle and Office/G2 qualification.
