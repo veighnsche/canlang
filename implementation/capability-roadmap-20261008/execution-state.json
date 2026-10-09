@@ -4,7 +4,7 @@
   "plan_source": "/Users/vince/Projects/canlang/design/language-proposals-20261007/task-sequence.json",
   "plan_sha256_at_start": "c0852b1f31e503003b08d0ecee5561288345e7baf99fa561e13280979472f391",
   "initial_head": "c718517a5aae8481a8b548a7eb299b8c5377dee6",
-  "status": "active",
+  "status": "paused_by_emergency_human_cloud_shutdown_unfinished_local_continuation",
   "git_and_shared_bookkeeping_owner": "package implementer retains scoped Git/DECISIONS/filetree; cross-chat coordination released to 01a11903-6033-78b3-b682-ee7f97196adf",
   "goal_authorizes_implementation": true,
   "conditional_and_original_gates_retained": true,
@@ -845,7 +845,7 @@
         "state": "implemented_tested_finite_component_not_full_acceptance",
         "implemented": "Existing genuine fixture final region/reviewer guards and real Chromium-served generated controls; direct Values any binding and State-declared singular-reference decoding joined to mutation views. Bound projected model aliases and decoded singular fields share the defining private identity/Values canonical reference-write boundary. Declared containment parents now use bounded exact-ID viewer projection/current revalidation or staged owner fields, keeping link identity private and available under denied target reads. Actual grant-authenticated worker /mcp uses the same artifact registry, typed refs, production member permissions and current D1 Identity/State assignment handler as browser/HTTP.",
         "validation": "Current compiler source built after exact4cb5c55d repair consumed as2561c9b8; fixture regenerated with that rebuilt CLI/current Values catalog. Owning runtime build22/22, protected sealed-form Chromium1/1 and existing dependent-choice nativeD1/happyDOM/realChromium case1/1 pass. Actual candidates, native final FormData, typed-reference guards, forged/stale/revoked/correctable submissions, nonce/version retention, default omission/null, cancellation/current-response fencing, asset bytes and persistent reopen verified. After Codex findings, regenerated copySite/bindSite actual set workflows pass in the same affected case1/1 (31.6s): exact {id} links, one next version/history, original-nonce replay and later-guard rollback. Updated owning emit22/22 passes; Chromium executable selection and acquisition cleanup corrected. Owning emission22/22 and expanded affected existing nativeD1/happyDOM/realChromium case1/1 (46.03s) pass: original nonnull assign, parent/site changes, null/missing-parent short circuit, stale submission/live membership, ordered staged parent success/replay/rollback, source-declared partial/owner-only parent permissions, link equality, business kind and actual underscore copy_site route. Readonly controls use actual canonical read port; mutation POST setup failure corrected before pass. After current Compiler producer integration the original artifact regenerates byte-identically; owning CF emission passes and expanded existing native-D1/happyDOM/Chromium/MCP case1/1 (47.89s) passes, with exact original nonnull assign success/replay, wrong model/site/parent, missing-parent nullable short-circuit, parent change, stale version, live membership revocation, session-token audience, foreign-team and revoked-grant refusals. Owning boundary correction exposes the existing real UI bootstrap/assets through typed package exports and preserves all native-D1/browser/MCP assertions: CF build22/22 and affected case1/1 (48.88s) pass. The first browser acquisition used the wrong environment variable; corrected CANLANG_CHROME_EXECUTABLE selects actual installed Chromium. After released Dev declared happy-dom/public catalog and complete optional Testkit intake, owning dependency build22/22, branch boundaries0 violations and original actual nativeD1/Chromium/MCP case1/1 (45.70s) pass with every previous assertion retained.",
-        "remaining": "Finite actor-role grant/direct-parent browser/HTTP/MCP profile implemented and tested. Original CountryRegion/CanApprove conditional row grants, model rules/subject roles and complete two-witness source-navigation/authoring comparison remain required. Exact draft5a12eb9e is now available for that comparison. Checked readSelectorFacts/transcribeReadFacts support owning actor-role facts; source where grants refuse as ruled models, so Compiler/Contracts must release their exact checked row-grant producer. Full37 not accepted."
+        "remaining": "Finite actor-role grant/direct-parent browser/HTTP/MCP profile implemented and tested. Original CountryRegion/CanApprove conditional row grants, model rules/subject roles and complete two-witness source-navigation/authoring comparison remain required. Exact draft5a12eb9e is now available for that comparison. Checked readSelectorFacts/transcribeReadFacts support owning actor-role facts; source where grants refuse as ruled models, so Compiler/Contracts must release their exact checked row-grant producer. Full37 not accepted. Source annotations762c50d4 and transport lifecycleb33bbb92 preserved unfinished at emergency shutdown; owning affected checks remain due locally."
       }
     },
     {
@@ -864,11 +864,11 @@
       ],
       "conditional_gates": [],
       "worker_update": {
-        "state": "unfinished_concrete_expense_authoring_checkpoint_creative_and_comparison_pending",
+        "state": "unfinished_two_full_composition_source_checkpoint_cloud_stopped",
         "prerequisite": "Two complete ordinary expense/image-revision approval compositions and package/template comparison can now be authored from exact draft5a12eb9e; explicit reviewer/quorum/expiry domain policies remain required. Executed self/duplicate/ineligible/stale/revoked/concurrent controls retain task11 rule/context prerequisites.",
         "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker\u2019s task.",
         "selected_policy": "JEV3 recommends named_roster (.99/.99/.97; confidence .98/.98/.95), advisory only. Expense keeps assigned primary and eligible distinct secondary; Creative owner requests two other current managers. Explicit deadlines, rejection veto, superseding reset votes, exact frozen evidence/current eligibility and original separately authorized finalizers required.",
-        "remaining": "ExpenseReview.can retains full original and authors named review/evidence/finalization/unpaid recovery; checkpoint remains unfinished. Direct current CLI reports2 inherited Employee E3010 and5 new E3001 order=-round alias errors to fix. Full authored controls/presentation, CreativeRevisionReview.can and README comparison remain in progress; Task11/grant/current-owner execution still required. No testing/acceptance or task credit.",
+        "remaining": "Both full source drafts/cases/pages preserved04490bdc. README package/template comparison unwritten, direct original-vs-authored findings and rule/grant/context execution gates in cloud_shutdown_handoff. No acceptance or task credit.",
         "deliverables": "approval-compositions/ExpenseReview.can, CreativeRevisionReview.can and README.md comparison; finite writer active, no task credit."
       }
     },
@@ -1631,6 +1631,28 @@
       "state": "complete_selected_source_consumer_intake_implemented_tested",
       "scope": "Contracts trim/min/max metadata, registry checked claims, complete State schema admission/cache and mutation normalization/bounds before hooks plus post-hook/update validation; canonical normalized defaults and nominal-array codecs retained. Private native reference/navigation and durable owner transaction behavior preserved.",
       "validation": "Owning State dependency build6/6 and existing affected mutation/registry controls105/105 pass. This does not supply Task11 checked rules/hooks or close whole typed workflow qualification."
+    },
+    "cloud_shutdown_handoff": {
+      "instruction": "Human stopped all cloud implementation, tests, builds, reviews and polling; only preservation commits/push authorized. No cloud resumption or replacement task.",
+      "local_checkout": "/Users/vince/.codex/worktrees/cloud-capability-roadmap/canlang",
+      "branch": "codex/capability-roadmap-20261009",
+      "pr": "https://github.com/veighnsche/canlang/pull/134",
+      "source_checkpoints": {
+        "d9ea5d8d": "Complete released checked field-modifier intake; already recorded State build6/6 and mutation/registry105/105 before stop, no Task11 or full-workflow acceptance.",
+        "d3f4fa65": "Unfinished Values consumer/source-correspondence checkpoint. Exact released5910445b four-donor fixture entries plus e00098bc/e5b7038e test changes preserved; prior failed string check passed2/2 after exact released input, unchanged prepared checks passed. No later qualification.",
+        "b33bbb92": "Unfinished real dependent-choice transport hold/drain/first-error lifecycle correction from51697025; no affected build or native case after this edit.",
+        "762c50d4": "Unfinished complete CanApprove/CountryRegion implemented choice annotations and comparison update; no source-current check after edits.",
+        "04490bdc": "Unfinished full ExpenseReview and CreativeRevisionReview compositions/cases/presentation. Comparison README remains unwritten; no execution qualification."
+      },
+      "remaining_prerequisites": [
+        "Codex4231482661 parent delivery observations: finite private navigation/view resolution proposed; interrupted before any runtime/test/fixture edits. Must correct both viewer and mutation seams with genuine generated-parent/current-field/withheld/revoked controls. Existing owning typed-delivery-observer source/JSON unchanged.",
+        "Task38 last direct check: Expense retains2 inherited Employee E3010 plus8 operation_id request E5006; Creative retains5 original diagnostics plus6 request E5006. Runtime example adapter accepts operation_id but compiler example validation refuses; no checker change made. Existing full original rules/conditional grants/current-context execution prerequisites remain.",
+        "Released Compiler c4376ab8b92be5dd7daf6da766bda2dae7d3dc49 Zsh completion repair, published through59632d33, was announced but not fetched/consumed before emergency stop.",
+        "Dev complete2b0f5f48 owner-context producer and inherited b65c0312/24ef7359/8ea86d53 remain unconsumed. Existing explicit Task11, retained-carrier API and production-provider gates remain in their task records.",
+        "Pushed preservation head has no current-head CI/Codex acceptance; human explicitly forbids waiting or reviewing during shutdown."
+      ],
+      "nested_and_ignored_sources": "draft clean at exact required5a12eb9ebb136ffa4e5ce352663f92affba25bc2; no nested source edits/gitlink change or ignored repository task source candidates. Dependencies/build caches/logs/credentials excluded.",
+      "temporary_linux_playwright_wrapper": "import base from \"/workspace/canlang/playwright.config.ts\"; export default {...base,testDir:\"/workspace/canlang/tests/e2e\",workers:2,use:{...base.use,launchOptions:{executablePath:\"/usr/bin/chromium\"}}}; (temporary external wrapper only; adapt to local host if needed)"
     }
   },
   "live_handoffs": {
