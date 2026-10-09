@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { it } from 'node:test';
-import type { ActivationVerdict, ClosedInputs, CompileArtifact } from '@canlang/contracts';
+import type { ActivationVerdict, ArtifactModelField, ClosedInputs, CompileArtifact } from '@canlang/contracts';
 import type { D1Database } from '@cloudflare/workers-types';
 import { createD1IdentityStore, deriveCsrfToken } from '@canlang/identity';
 import { hashInputs } from '@canlang/state/invocation/replay';
@@ -28,7 +28,7 @@ function operationId(): string {
   const time = Date.now().toString(16).padStart(12, '0'), random = randomBytes(10).toString('hex');
   return `${time.slice(0,8)}-${time.slice(8)}-7${random.slice(0,3)}-8${random.slice(4,7)}-${random.slice(7,19)}`;
 }
-interface ItemData { quantity: string; label: string; available: boolean }
+interface ItemData { quantity: string; label: string; available: boolean; values: string[] | null; flags: boolean[]; names: string[] }
 interface Projection { id: string; data: ItemData }
 interface MutationWire { status?: string; code?: string; result?: unknown; records?: Projection[] }
 interface McpWire { error?: { code: number | string }; result?: { isError?: boolean; structuredContent?: { records?: Projection[] } } }
@@ -46,8 +46,15 @@ function word(value: unknown): string { assert.equal(typeof value, 'string'); re
 function projection(value: unknown): Projection {
   const row = object(value), data = object(row.data);
   assert.equal(typeof data.available, 'boolean');
+  assert.ok(data.values === null || Array.isArray(data.values));
+  assert.ok(Array.isArray(data.flags)); assert.ok(Array.isArray(data.names));
+  const values = data.values === null ? null : (data.values as unknown[]).map(value => {
+    const integer = word(value); assert.match(integer, /^-?(0|[1-9][0-9]*)$/); return integer;
+  });
+  const flags = (data.flags as unknown[]).map(value => { assert.equal(typeof value, 'boolean'); return value as boolean; });
+  const names = (data.names as unknown[]).map(word);
   return { id: word(row.id), data: { quantity: word(data.quantity), label: word(data.label),
-    available: data.available as boolean } };
+    available: data.available as boolean, values, flags, names } };
 }
 function mutationWire(value: unknown): MutationWire {
   const body = object(value);
@@ -71,7 +78,7 @@ function mcpWire(value: unknown): McpWire {
 }
 type Actor = { cookie: string; csrf: string; owner: string | null; principal: string; grant?: string };
 
-it('consumes captured native saved scalar scenarios through real portable owner D1, auth and MCP', { timeout: 180000 }, async () => {
+it('consumes captured native saved scalar and primitive-array scenarios through real portable owner D1, auth and MCP', { timeout: 180000 }, async () => {
   let worker: LocalDev | undefined, bridge: ProtectedPreview | undefined, provisioning: LocalDev | undefined;
   let persistence: string | undefined;
   let capture: Awaited<ReturnType<typeof captureSingleFileSource>> | undefined;
@@ -83,15 +90,28 @@ it('consumes captured native saved scalar scenarios through real portable owner 
     assert.equal(await captureIsCurrent(capture), true);
     const compiled = await compileCapturedSingleFile(capture);
     assert.equal(compiled.kind, 'artifact', compiled.kind === 'diagnostics' ? JSON.stringify(compiled.envelope.diagnostics) : compiled.kind);
-    if (compiled.kind !== 'artifact') throw new Error('Native saved scalar fixture did not compile');
+    if (compiled.kind !== 'artifact') throw new Error('Native saved scenario fixture did not compile');
     const artifact: CompileArtifact = compiled.artifact;
     assert.equal(verifyCompilerSources(capture, { complete: true, sources: artifact.sources }).ok, true);
     assert.equal(artifact.pages.length, 0, 'fixture has no page; no page readiness is claimed');
     assert.equal(artifact.models?.find(item => item.name === model)?.deleteMode, 'archive');
-    const descriptors = ['quantity', 'availability'].map(name => {
+    const itemModel = artifact.models?.find(item => item.name === model); assert.ok(itemModel);
+    for (const name of ['values', 'flags', 'names']) {
+      const field: ArtifactModelField | undefined = itemModel.fields.find(field => field.name === name); assert.ok(field);
+      assert.deepEqual(field.array, { required: false });
+      if (name === 'values') { assert.equal(field.field.kind, 'integer'); assert.equal(field.nullable, true); }
+    }
+    const descriptorFields = ['quantity', 'available', 'values', 'flags', 'names'];
+    const descriptorTypes = ['int', 'bool', 'int[]?', 'bool[]', 'text[]'];
+    const descriptors = ['quantity', 'availability', 'values', 'flags', 'names'].map((name, index) => {
       const op = artifact.operations?.find(item => item.name === `NativeSavedScenario.${name}`); assert.ok(op);
       const plan = op.result?.disclosure;
-      assert.ok(plan, 'requires actual Compiler95d flag in owning capture compiler adapter');
+      assert.ok(plan, 'requires actual native primitive-array compiler in owning capture adapter');
+      assert.equal(op.result?.type, descriptorTypes[index]);
+      for (const returned of plan.returns) for (const dependency of returned.dependencies) {
+        assert.equal(dependency.model, model); assert.equal(dependency.field, descriptorFields[index]);
+        assert.equal(dependency.type, descriptorTypes[index]);
+      }
       assert.equal(plan.version, 1);
       const callable = artifact.callables.find(item => item.id === op.name); assert.ok(callable);
       for (const origin of [plan.source, ...plan.returns.flatMap(returned =>
@@ -104,7 +124,7 @@ it('consumes captured native saved scalar scenarios through real portable owner 
         'actual emitted framework marker imports');
       assert.match(module.js, /await[^;]*observeScenarioReceiptDependency/, 'actual awaited field marker');
       assert.deepEqual([...new Set(plan.returns.flatMap(returned => returned.dependencies.map(dep => dep.field)))],
-        [name === 'quantity' ? 'quantity' : 'available']);
+        [descriptorFields[index]]);
       return op;
     });
     const preflight = await preflightLocalPreviewActivation(artifact, capture);
@@ -279,36 +299,65 @@ it('consumes captured native saved scalar scenarios through real portable owner 
       assert.equal(stored.app,'NativeSavedScenario'); assert.equal(stored.owner,ava.owner); assert.equal(stored.principal,ava.principal);
       return stored;
     }
-    const id=operationId(); await commit(ava,`${model}.create`,{quantity:'17',label:'saved scalar'},id);
+    const id=operationId(); await commit(ava,`${model}.create`,{quantity:'17',label:'saved values',values:null,flags:[],names:[]},id);
     const initial=await row(id); assert.ok(initial);
     // Provision a genuine grant before purity snapshots; reads then own no writes.
     assert.equal((await read(ben))[0]?.data.quantity,'17'); assert.deepEqual(await read(cal),[]);
+    const arrayInput = artifact.operations?.find(op => op.name === 'NativeSavedScenario.array_input'); assert.ok(arrayInput);
+    assert.equal(arrayInput.result?.type, 'int[]?'); assert.ok(arrayInput.result?.disclosure);
+    assert.ok(arrayInput.result.disclosure.returns.every(returned => returned.dependencies.length === 0));
+    // The real public HTTP transport validates both array shape and elements
+    // before canonical State admission; neither refusal writes a receipt.
+    for (const values of [42, ['not-int']]) {
+      const before = await resources(), operation_id = operationId();
+      const inputs = { values }, rejected = await mutation(ava, arrayInput.name, inputs, operation_id);
+      assert.equal(rejected.body.code, 'validation'); assert.ok(rejected.response.status >= 400);
+      assert.deepEqual(await resources(), before, 'public malformed array admission changes no table');
+      assert.equal(await cedar.prepare('SELECT * FROM receipts WHERE operation_id=?').bind(operation_id).first(), null);
+    }
     const saved=[];
-    for(const [index, inputs, expected] of [
-      [0,{item:{id,version:String(initial.version)}},'17'],
-      [1,{item:{id,version:String(initial.version)}},true],
-    ] as const) {
-      const descriptor=descriptors[index]!, operation_id=operationId();
-      const envelope={operation:descriptor.name,operation_id,inputs};
-      const fresh=await commit(ava,envelope.operation,inputs,operation_id);
-      assert.equal(fresh.body.result,expected); assert.deepEqual(fresh.body.records,[]);
-      const physical=await receipt(operation_id); assert.equal(physical.operation,descriptor.name);
-      assert.equal(physical.input_hash,await hashInputs(inputs));
-      const outcome=object(JSON.parse(physical.outcome)), association=object(outcome.scenario);
-      assert.equal(outcome.result,expected); assert.equal(association.kind,'scenario-result/v1');
-      assert.deepEqual(association.plan,descriptor.result!.disclosure);
-      assert.ok(Array.isArray(association.observations)); assert.equal(association.observations.length,1);
-      const observation=object(association.observations[0]); assert.equal(observation.model,model);
-      const capturedRow=object(observation.row); assert.equal(capturedRow.id,id); assert.equal(capturedRow.version,initial.version);
-      assert.deepEqual(capturedRow.data,initial.data); assert.deepEqual(association.changed,[]);
-      const before=await resources();
-      const ordinary=await mutation(ava,envelope.operation,inputs,operation_id);
-      assert.equal(ordinary.body.status,'replayed'); assert.equal(ordinary.body.result,expected); assert.deepEqual(ordinary.body.records,[]);
-      const retained=await recovery(ava,envelope); const replay=object(retained.result);
-      assert.equal(replay.status,'replayed'); assert.equal(replay.result,expected); assert.deepEqual(replay.records,[]);
-      assert.deepEqual(await resources(),before); assert.deepEqual(await receipt(operation_id),physical);
-      assert.equal(JSON.stringify({ordinary:ordinary.body,retained}).includes('scenario-result/v1'),false);
-      saved.push({envelope,physical,expected});
+    for (const [shapeIndex, shape] of [
+      { values: null, flags: [], names: [] },
+      { values: [], flags: [], names: [] },
+      { values: ['9223372036854775807','-2'], flags: [true,false], names: ['saved','original'] },
+    ].entries()) {
+      let captured = await row(id); assert.ok(captured);
+      if (shapeIndex > 0) {
+        await commit(ben, `${model}.update`, { record: { id, version: String(captured.version) }, ...shape });
+        captured = await row(id); assert.ok(captured);
+      }
+      assert.deepEqual((await read(ben))[0]?.data, captured.data);
+      const cases: Array<readonly [number, ClosedInputs, unknown]> = [];
+      if (shapeIndex === 0) cases.push([0,{item:{id,version:String(captured.version)}},'17'],
+        [1,{item:{id,version:String(captured.version)}},true]);
+      cases.push(
+        [2,{item:{id,version:String(captured.version)}},shape.values],
+        [3,{item:{id,version:String(captured.version)}},shape.flags],
+        [4,{item:{id,version:String(captured.version)}},shape.names],
+      );
+      for(const [index, inputs, expected] of cases) {
+        const descriptor=descriptors[index]!, operation_id=operationId();
+        const envelope={operation:descriptor.name,operation_id,inputs};
+        const fresh=await commit(ava,envelope.operation,inputs,operation_id);
+        assert.deepEqual(fresh.body.result,expected); assert.deepEqual(fresh.body.records,[]);
+        const physical=await receipt(operation_id); assert.equal(physical.operation,descriptor.name);
+        assert.equal(physical.input_hash,await hashInputs(inputs));
+        const outcome=object(JSON.parse(physical.outcome)), association=object(outcome.scenario);
+        assert.deepEqual(outcome.result,expected); assert.equal(association.kind,'scenario-result/v1'); assert.equal(association.resultType,descriptor.result!.type);
+        assert.deepEqual(association.plan,descriptor.result!.disclosure);
+        assert.ok(Array.isArray(association.observations)); assert.equal(association.observations.length,1);
+        const observation=object(association.observations[0]); assert.equal(observation.model,model);
+        const capturedRow=object(observation.row); assert.equal(capturedRow.id,id); assert.equal(capturedRow.version,captured.version);
+        assert.deepEqual(capturedRow.data,captured.data); assert.deepEqual(association.changed,[]);
+        const before=await resources();
+        const ordinary=await mutation(ava,envelope.operation,inputs,operation_id);
+        assert.equal(ordinary.body.status,'replayed'); assert.deepEqual(ordinary.body.result,expected); assert.deepEqual(ordinary.body.records,[]);
+        const retained=await recovery(ava,envelope); const replay=object(retained.result);
+        assert.equal(replay.status,'replayed'); assert.deepEqual(replay.result,expected); assert.deepEqual(replay.records,[]);
+        assert.deepEqual(await resources(),before); assert.deepEqual(await receipt(operation_id),physical);
+        assert.equal(JSON.stringify({ordinary:ordinary.body,retained}).includes('scenario-result/v1'),false);
+        saved.push({envelope,physical,expected});
+      }
     }
     for(const actor of [cal,dee,null]) {
       const before=await resources(), denied=await recovery(actor,saved[0]!.envelope);
@@ -324,16 +373,18 @@ it('consumes captured native saved scalar scenarios through real portable owner 
       assert.deepEqual(await resources(),before);
     }
     const current=await row(id); assert.ok(current);
-    await commit(ben,`${model}.update`,{record:{id,version:String(current.version)},quantity:'99',available:false});
-    assert.equal((await read(ben))[0]?.data.quantity,'99');
+    await commit(ben,`${model}.update`,{record:{id,version:String(current.version)},quantity:'99',available:false,values:['11'],flags:[false],names:['changed']});
+    const updated = (await read(ben))[0]; assert.ok(updated);
+    assert.equal(updated.data.quantity,'99'); assert.deepEqual(updated.data.values,['11']);
+    assert.deepEqual(updated.data.flags,[false]); assert.deepEqual(updated.data.names,['changed']);
     const beforeReplay=await resources();
     for(const value of saved) {
       const ordinary=await mutation(ava,value.envelope.operation,value.envelope.inputs,value.envelope.operation_id);
-      assert.equal(ordinary.body.status,'replayed'); assert.equal(ordinary.body.result,value.expected);
-      const retained=await recovery(ava,value.envelope); assert.equal(object(retained.result).result,value.expected);
+      assert.equal(ordinary.body.status,'replayed'); assert.deepEqual(ordinary.body.result,value.expected);
+      const retained=await recovery(ava,value.envelope); assert.deepEqual(object(retained.result).result,value.expected);
       assert.deepEqual(await receipt(value.envelope.operation_id),value.physical);
-      // Fresh source would now return 99/false; old input refs are also stale.
-      // Original scalar plus identical full stores proves no fresh execution or commit.
+      // Fresh source would now return changed scalar/array values; old refs are stale.
+      // Exact original wire values and full stores prove no fresh execution or commit.
     }
     assert.deepEqual(await resources(),beforeReplay);
     for(const value of saved) for(const control of ['issuer-copy','source-change','js-change','map-change']) {
