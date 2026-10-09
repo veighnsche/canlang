@@ -16,7 +16,7 @@ export interface ExampleRerunArtifact {
   readonly revision: string;
   readonly fixtureRecipeId: string;
   readonly runtimeProfileId: string;
-  readonly input: Omit<CompiledExampleInput, "selectedRow" | "runId">;
+  readonly input: Omit<CompiledExampleInput, "selectedRow" | "runId" | "signal">;
 }
 
 export interface RetainedExampleRef {
@@ -74,7 +74,7 @@ export type ExampleRerunResult =
 
 interface RetainedArtifact {
   readonly ref: RetainedExampleRef;
-  readonly input: Omit<CompiledExampleInput, "selectedRow" | "runId">;
+  readonly input: Omit<CompiledExampleInput, "selectedRow" | "runId" | "signal">;
   readonly fixtureRecipeId: string;
   readonly runtimeProfileId: string;
   readonly size: number;
@@ -166,6 +166,33 @@ function refusal(code: Extract<ExampleRerunResult, { ok: false }>["code"], detai
     ...(rerun === undefined ? {} : { rerun: structuredClone(rerun) }), replay };
 }
 
+function abortError(signal?: AbortSignal): Error {
+  const reason: unknown = signal?.reason;
+  return reason instanceof Error && reason.name === "AbortError"
+    ? reason : new DOMException("Example rerun was canceled.", "AbortError");
+}
+
+function assertNotAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw abortError(signal);
+}
+
+/** A readiness callback may be waiting on I/O; cancellation must release the caller. */
+async function awaitAbortable<T>(start: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  assertNotAborted(signal);
+  if (signal === undefined) return start();
+  let onAbort: (() => void) | undefined;
+  try {
+    return await new Promise<T>((resolve, reject) => {
+      onAbort = () => reject(abortError(signal));
+      signal.addEventListener("abort", onAbort, { once: true });
+      try { Promise.resolve(start()).then(resolve, reject); }
+      catch (error) { reject(error); }
+    });
+  } finally {
+    if (onAbort !== undefined) signal.removeEventListener("abort", onAbort);
+  }
+}
+
 /**
  * Session-local bounded retention. It pins exact artifact and Worker bytes;
  * generated IDs, fresh D1 and ambient inputs still make this a rerun, not a
@@ -234,9 +261,12 @@ export class ExampleRerunCoordinator {
       artifactRef: randomUUID(), revision: pinned.revision,
       sourceRevision: input.sourceRevision, artifactDigest: digest(bytes),
     });
+    // A request signal and selection/run metadata are never part of an immutable recipe.
+    const { signal: _signal, selectedRow: _selectedRow, runId: _runId, ...recipe } =
+      input as CompiledExampleInput & { readonly signal?: AbortSignal };
     const retained: RetainedArtifact = {
       ref,
-      input: { ...input, artifactBytes: bytes,
+      input: { ...recipe, artifactBytes: bytes,
         worker: { mainModule: input.worker.mainModule, modules,
           ...(binaries === undefined ? {} : { binaryModules: binaries }) } },
       fixtureRecipeId: pinned.fixtureRecipeId,
@@ -284,31 +314,37 @@ export class ExampleRerunCoordinator {
     return structuredClone(record);
   }
 
-  async rerun(failureRef: string): Promise<ExampleRerunResult> {
+  async rerun(failureRef: string, signal?: AbortSignal): Promise<ExampleRerunResult> {
+    assertNotAborted(signal);
     this.assertOpen();
     this.prune();
     const failure = this.failures.get(failureRef);
     if (failure === undefined) return refusal("failure_unavailable", "failure reference is no longer retained");
     const retained = this.artifacts.get(failure.artifact.artifactRef);
     if (retained === undefined) return refusal("artifact_unavailable", "exact artifact was evicted or expired", failure.original);
+    const checkResources = () => awaitAbortable(() => this.ports.resourcesReady({
+      revision: retained.ref.revision,
+      sourceRevision: retained.ref.sourceRevision,
+      artifactDigest: retained.ref.artifactDigest,
+      fixtureRecipeId: retained.fixtureRecipeId,
+      runtimeProfileId: retained.runtimeProfileId,
+    }), signal);
     let available: Awaited<ReturnType<ExampleRerunPorts["resourcesReady"]>>;
     try {
-      available = await this.ports.resourcesReady({
-        revision: retained.ref.revision,
-        sourceRevision: retained.ref.sourceRevision,
-        artifactDigest: retained.ref.artifactDigest,
-        fixtureRecipeId: retained.fixtureRecipeId,
-        runtimeProfileId: retained.runtimeProfileId,
-      });
+      available = await checkResources();
     } catch (error) {
+      if (signal?.aborted || (error instanceof Error && error.name === "AbortError")) throw abortError(signal);
       return refusal("resource_unavailable", error instanceof Error ? error.message : String(error), failure.original);
     }
+    assertNotAborted(signal);
     if (!available.available) return refusal("resource_unavailable", available.reason, failure.original);
 
     const runId = randomUUID();
     let result: ExampleAttemptResult;
     try {
       const runSelected = this.ports.runSelected ?? runCompiledExamples;
+      // The selected-run producer owns its row scope. Await its abort-aware
+      // promise through cleanup before releasing the session's serial queue.
       result = await runSelected({
         ...retained.input,
         artifactBytes: Uint8Array.from(retained.input.artifactBytes),
@@ -318,10 +354,21 @@ export class ExampleRerunCoordinator {
           ) }) },
         selectedRow: failure.selector,
         runId,
+        ...(signal === undefined ? {} : { signal }),
       });
     } catch (error) {
+      if (signal?.aborted || (error instanceof Error && error.name === "AbortError")) throw abortError(signal);
       return refusal("rerun_incomplete", error instanceof Error ? error.message : String(error), failure.original);
     }
+    assertNotAborted(signal);
+    try {
+      available = await checkResources();
+    } catch (error) {
+      if (signal?.aborted || (error instanceof Error && error.name === "AbortError")) throw abortError(signal);
+      return refusal("resource_unavailable", error instanceof Error ? error.message : String(error), failure.original);
+    }
+    assertNotAborted(signal);
+    if (!available.available) return refusal("resource_unavailable", available.reason, failure.original);
     const row = oneRow(result.report, failure.selector);
     if (result.report.artifact.digest !== retained.ref.artifactDigest ||
         result.report.artifact.sourceRevision !== retained.ref.sourceRevision ||

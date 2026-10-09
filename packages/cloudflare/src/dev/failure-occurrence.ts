@@ -263,6 +263,7 @@ export function projectBusinessRefusal(input: {
   requestId: string;
   error: BusinessError;
   status: number;
+  transport?: "mcp";
   phase: "admission" | "invoke" | "commit" | "unknown";
   mapped?: MappedPosition;
   /** The owning policy must release operation identity for this effective actor. */
@@ -272,7 +273,8 @@ export function projectBusinessRefusal(input: {
     project: (viewer: ResolvedCaller, effectiveActor: ResolvedCaller | null) => string | null;
   };
 }): FailureProjection {
-  if (!Number.isInteger(input.status) || input.status < 400 || input.status > 599) {
+  if (!Number.isInteger(input.status) || (input.transport === "mcp"
+    ? input.status !== 200 : input.status < 400 || input.status > 599)) {
     throw new Error("business refusal needs a failure HTTP status");
   }
   const requestId = refPart(input.requestId, "request");
@@ -288,11 +290,13 @@ export function projectBusinessRefusal(input: {
     phase: input.phase,
     code: input.error.code,
     summary: PUBLIC_ERROR_MESSAGES[input.error.code],
-    owner_ref: { request_id: requestId, status: input.status },
+    owner_ref: { request_id: requestId, status: input.status,
+      ...(input.transport === undefined ? {} : { transport: input.transport }) },
     ...(at === undefined ? {} : { at }),
     evidence: evidence([
       ...(at === undefined ? ["source_mapping_unavailable"] : []),
       "trace_unavailable",
+      ...(operation === null ? ["operation_identity_withheld"] : []),
       ...(input.error.code === "delivery_unknown" ? ["external_effect_uncertain"] : []),
     ]),
   };
@@ -301,6 +305,7 @@ export function projectBusinessRefusal(input: {
     detail: {
       ref: occurrence.ref,
       status: input.status,
+      ...(input.transport === undefined ? {} : { transport: input.transport }),
       retryable: input.error.retryable ?? false,
       ...(operation === null ? {} : { operation: boundedText(operation) }),
     },

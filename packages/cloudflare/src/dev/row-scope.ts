@@ -1,5 +1,5 @@
 import { startLocalDev, type LocalDev } from "./local-run.js";
-import type { ReportValue } from "@canlang/contracts";
+import { BUSINESS_ERROR_CODES, type ReportValue, type StateErrorCode } from "@canlang/contracts";
 
 export interface LocalRowScopeOptions {
   workerName: string;
@@ -13,6 +13,8 @@ export interface LocalRowScopeOptions {
   binaryModules?: Readonly<Record<string, Uint8Array>>;
   /** D1 binding the snapshotter reads. */
   d1Binding: string;
+  /** Additional physical stores for profiles with more than one owner. */
+  additionalD1Databases?: readonly { readonly binding: string; readonly id: string }[];
 }
 
 export interface LocalRowScope {
@@ -45,6 +47,10 @@ function toReportValue(value: unknown): ReportValue {
   throw new Error(`snapshot cannot encode value of type ${typeof value}`);
 }
 
+function isStateErrorCode(value: unknown): value is StateErrorCode {
+  return typeof value === "string" && (BUSINESS_ERROR_CODES as readonly string[]).includes(value);
+}
+
 async function snapshotD1(dev: LocalDev, binding: string): Promise<ReportValue> {
   const db = await dev.getD1Database(binding);
   const tables = await db
@@ -55,14 +61,41 @@ async function snapshotD1(dev: LocalDev, binding: string): Promise<ReportValue> 
   const snapshot: Record<string, ReportValue> = {};
   for (const table of tables.results) {
     // D1's _cf_ metadata is protected from SQL reads. A canonical denial
-    // may advance the engine fence and write a rejection receipt; those
-    // are admission evidence, not an authored domain write or effect intent.
+    // may advance the engine fence; that is admission bookkeeping.
     if (table.name.startsWith("_cf_") || table.name === "fence" ||
-        table.name === "fence_log" || table.name === "receipts") continue;
+        table.name === "fence_log") continue;
     const quoted = `"${table.name.replace(/"/g, '""')}"`;
     // WITHOUT ROWID tables fail ORDER BY rowid loudly; no silent fallback.
     const rows = await db.prepare(`SELECT * FROM ${quoted} ORDER BY rowid`).all();
-    snapshot[table.name] = toReportValue(rows.results);
+    if (table.name === "receipts") {
+      // Only a canonical rejection receipt is bookkeeping. A committed
+      // receipt is durable evidence of business work and must fail the
+      // no-effects comparison even if no model row happened to change.
+      snapshot[table.name] = toReportValue(rows.results.filter((row) => {
+        const outcome = (row as Record<string, unknown>)["outcome"];
+        if (typeof outcome !== "string") throw new Error("snapshot: receipt outcome is unavailable");
+        let parsed: unknown;
+        try { parsed = JSON.parse(outcome); }
+        catch { throw new Error("snapshot: receipt outcome is invalid JSON"); }
+        if (typeof parsed !== "object" || parsed === null ||
+            !Object.hasOwn(parsed, "status") ||
+            ((parsed as { status: unknown }).status !== "committed" &&
+             (parsed as { status: unknown }).status !== "rejected")) {
+          throw new Error("snapshot: receipt outcome has an unknown status");
+        }
+        if ((parsed as { status: string }).status === "rejected") {
+          const rejection = parsed as Record<string, unknown>;
+          if (Object.keys(rejection).length !== 3 || !isStateErrorCode(rejection["code"]) ||
+              typeof rejection["message"] !== "string") {
+            throw new Error("snapshot: rejection receipt is not canonical");
+          }
+          return false;
+        }
+        return true;
+      }));
+    } else {
+      snapshot[table.name] = toReportValue(rows.results);
+    }
   }
   return snapshot;
 }
@@ -71,26 +104,37 @@ async function snapshotD1(dev: LocalDev, binding: string): Promise<ReportValue> 
  * Default row scope: one fresh local workerd instance (own D1 namespace via
  * `d1Id`) per row. Snapshots dump every effect-capable D1 table's full
  * contents ordered by `rowid`, so any leaked domain/effect write fails an
- * expected rejection. Cloudflare metadata and engine fence/receipt rows
- * remain in D1 and are excluded from the effect comparison. Other
- * bindings (R2/queues/DO) are isolated by the fresh instance but not
- * snapshotted; leak detection for those joins with their fixtures.
+ * expected rejection. Cloudflare metadata, engine fence rows, and canonical
+ * rejected receipts remain in D1 but do not count as business effects.
+ * This first profile admits only the local D1 binding; a resource requiring
+ * R2, queues, or Durable Objects must be refused before using this scope.
  */
 export async function createLocalRowScope(
   d1Id: string,
   options: LocalRowScopeOptions,
 ): Promise<LocalRowScope> {
+  const databases = [{ binding: options.d1Binding, id: d1Id }, ...(options.additionalD1Databases ?? [])];
+  if (databases.some(database => database.binding.length === 0 || database.id.length === 0) ||
+      new Set(databases.map(database => database.binding)).size !== databases.length ||
+      new Set(databases.map(database => database.id)).size !== databases.length) {
+    throw new Error("row scope: D1 bindings and physical IDs must be distinct and nonempty");
+  }
   const dev = await startLocalDev({
     workerName: options.workerName,
     compatibilityDate: options.compatibilityDate,
     mainModule: options.mainModule,
     modules: options.modules,
     ...(options.binaryModules !== undefined ? { binaryModules: options.binaryModules } : {}),
-    d1Databases: [{ binding: options.d1Binding, id: d1Id }],
+    d1Databases: databases,
   });
   return {
     dev,
-    snapshot: () => snapshotD1(dev, options.d1Binding),
+    snapshot: async () => {
+      if (databases.length === 1) return snapshotD1(dev, options.d1Binding);
+      const snapshots: Record<string, ReportValue> = {};
+      for (const database of databases) snapshots[database.binding] = await snapshotD1(dev, database.binding);
+      return snapshots;
+    },
     dispose: () => dev.dispose(),
   };
 }

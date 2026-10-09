@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
-import { afterEach, describe, expect, it } from "vitest";
-import type { ExampleReport, TableRowResult } from "@canlang/contracts";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { loadInstalledExampleTestkit, MissingExampleTestkitError, type CompiledExampleInput } from "../src/dev/example-runner.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ExampleReport, TableRowResult } from "@canlang/contracts";
+import { loadInstalledExampleTestkit, MissingExampleTestkitError, runCompiledExamples, type CompiledExampleInput } from "../src/dev/example-runner.js";
 import { ExampleRerunCoordinator, ExampleRerunError, type ExampleAttemptResult } from "../src/dev/example-rerun.js";
 
 const caller = { account: "u-1", team: "current" as const, roles: ["members"], authenticated: true };
@@ -82,6 +82,114 @@ function input(bytes: Uint8Array): Omit<CompiledExampleInput, "selectedRow" | "r
 }
 
 describe("revision-pinned isolated example rerun", () => {
+  it("cancels hung readiness, never invokes a row, and keeps the recipe usable", async () => {
+    const bytes = Uint8Array.from(Buffer.from("ready-cancellation-artifact"));
+    const stale = new AbortController();
+    const recipe = { ...input(bytes), signal: stale.signal };
+    let checks = 0;
+    let runs = 0;
+    const coordinator = new ExampleRerunCoordinator({
+      resourcesReady: async () => {
+        checks += 1;
+        if (checks === 1) return new Promise<never>(() => {});
+        return { available: true };
+      },
+      runSelected: async received => {
+        runs += 1;
+        expect(received.signal).not.toBe(stale.signal);
+        return failedResult(received.artifactBytes, received.sourceRevision, "fresh result");
+      },
+    });
+    const artifact = coordinator.retainArtifact({ revision: "r17", fixtureRecipeId: "recipe",
+      runtimeProfileId: "profile", input: recipe });
+    const failure = coordinator.recordFailure({ artifactRef: artifact.artifactRef, selector,
+      runId: "original", result: failedResult(bytes, "source-17", "original") });
+    const canceled = new AbortController();
+    const pending = coordinator.rerun(failure.failureRef, canceled.signal);
+    await vi.waitFor(() => expect(checks).toBe(1));
+    canceled.abort();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(runs).toBe(0);
+    stale.abort();
+    const fresh = new AbortController();
+    expect((await coordinator.rerun(failure.failureRef, fresh.signal)).ok).toBe(true);
+    expect(runs).toBe(1);
+    coordinator.close();
+  });
+
+  it("propagates an in-flight run abort and accepts a later fresh attempt", async () => {
+    const bytes = Uint8Array.from(Buffer.from("run-cancellation-artifact"));
+    let runs = 0;
+    let receivedSignal: AbortSignal | undefined;
+    let releaseCleanup: (() => void) | undefined;
+    const cleanup = new Promise<void>(resolve => { releaseCleanup = resolve; });
+    const coordinator = new ExampleRerunCoordinator({
+      resourcesReady: async () => ({ available: true }),
+      runSelected: async received => {
+        runs += 1;
+        receivedSignal = received.signal;
+        if (runs === 1) {
+          await new Promise<void>(resolve => {
+            received.signal?.addEventListener("abort", () => resolve(), { once: true });
+          });
+          await cleanup; // Owner finishes disposing its row scope before rejecting.
+          throw new DOMException("row canceled", "AbortError");
+        }
+        return failedResult(received.artifactBytes, received.sourceRevision, "fresh run");
+      },
+    });
+    const artifact = coordinator.retainArtifact({ revision: "r17", fixtureRecipeId: "recipe",
+      runtimeProfileId: "profile", input: input(bytes) });
+    const failure = coordinator.recordFailure({ artifactRef: artifact.artifactRef, selector,
+      runId: "original", result: failedResult(bytes, "source-17", "original") });
+    const canceled = new AbortController();
+    const pending = coordinator.rerun(failure.failureRef, canceled.signal);
+    let settled = false;
+    void pending.then(() => { settled = true; }, () => { settled = true; });
+    await vi.waitFor(() => expect(runs).toBe(1));
+    expect(receivedSignal).toBe(canceled.signal);
+    canceled.abort();
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    releaseCleanup?.();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(settled).toBe(true);
+    const fresh = new AbortController();
+    const result = await coordinator.rerun(failure.failureRef, fresh.signal);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.rerun.runId).not.toBe(failure.original.runId);
+    expect(runs).toBe(2);
+    coordinator.close();
+  });
+
+  it("refuses a completed row if its runtime producer changed during execution", async () => {
+    const bytes = Uint8Array.from(Buffer.from("post-run-change-artifact"));
+    let current = true;
+    let checks = 0;
+    let runs = 0;
+    const coordinator = new ExampleRerunCoordinator({
+      resourcesReady: async () => { checks += 1; return current
+        ? { available: true } : { available: false, reason: "runtime producer changed" }; },
+      runSelected: async received => {
+        runs += 1;
+        if (runs === 1) current = false;
+        return failedResult(received.artifactBytes, received.sourceRevision, "observed");
+      },
+    });
+    const artifact = coordinator.retainArtifact({ revision: "r17", fixtureRecipeId: "recipe",
+      runtimeProfileId: "profile", input: input(bytes) });
+    const failure = coordinator.recordFailure({ artifactRef: artifact.artifactRef, selector,
+      runId: "original", result: failedResult(bytes, "source-17", "original") });
+    expect(await coordinator.rerun(failure.failureRef)).toMatchObject({ ok: false,
+      code: "resource_unavailable", detail: "runtime producer changed" });
+    expect(checks).toBe(2);
+    current = true;
+    const result = await coordinator.rerun(failure.failureRef);
+    expect(result.ok).toBe(true);
+    expect(runs).toBe(2);
+    coordinator.close();
+  });
+
   it("uses copied artifact bytes, a new run ID and a single selected row; classifies a saved receipt", async () => {
     const sourceBytes = Uint8Array.from(Buffer.from("original compiled artifact"));
     const originalInput = input(sourceBytes);
@@ -162,5 +270,107 @@ describe("revision-pinned isolated example rerun", () => {
     expect(() => coordinator.recordFailure({ artifactRef: artifact.artifactRef, selector,
       runId: "original", result: failure })).toThrowError(ExampleRerunError);
     coordinator.close();
+  });
+});
+
+const scratch = vi.hoisted(() => ({
+  directories: [] as string[], events: [] as string[], failures: new Map<string, unknown>(), createScope: false,
+}));
+vi.mock("node:fs/promises", async (original) => {
+  const fs = await original<typeof import("node:fs/promises")>();
+  return {
+    ...fs,
+    mkdtemp: async (prefix: string) => {
+      scratch.events.push("acquire");
+      if (scratch.failures.has("acquire")) throw scratch.failures.get("acquire");
+      const directory = await fs.mkdtemp(prefix); scratch.directories.push(directory); return directory;
+    },
+    rm: async (directory: string, options: { force: boolean; recursive: boolean }) => {
+      scratch.events.push("remove");
+      if (scratch.failures.has("remove")) throw scratch.failures.get("remove");
+      await fs.rm(directory, options);
+    },
+  };
+});
+vi.mock("../src/runtime/artifact.js", async (original) => ({
+  ...await original<typeof import("../src/runtime/artifact.js")>(),
+  parseArtifactText: () => ({ artifact: { modules: [{ path: "worker.js" }], tests: [{ scope: "Office.supplies", fixtures: [], module: { path: "examples.js" } }] } }),
+}));
+vi.mock("../src/runtime/modules.js", async (original) => ({
+  ...await original<typeof import("../src/runtime/modules.js")>(),
+  assembleModules: async () => {
+    scratch.events.push("assemble");
+    if (scratch.failures.has("assemble")) throw scratch.failures.get("assemble");
+    return { moduleUrls: { "examples.js": "file:///examples.js" } };
+  },
+}));
+vi.mock("../src/dev/row-scope.js", () => ({
+  createLocalRowScope: async () => {
+    scratch.events.push("scope");
+    if (scratch.failures.has("scope")) throw scratch.failures.get("scope");
+    return {
+      dev: { getD1Database: async () => {
+        scratch.events.push("database");
+        throw scratch.failures.get("database");
+      } },
+      dispose: async () => {
+        scratch.events.push("dispose");
+        if (scratch.failures.has("dispose")) throw scratch.failures.get("dispose");
+      },
+    };
+  },
+}));
+
+describe("compiled example producer scratch lifetime", () => {
+  afterEach(() => {
+    for (const directory of scratch.directories) rmSync(directory, { recursive: true, force: true });
+    scratch.directories = []; scratch.events = []; scratch.failures.clear(); scratch.createScope = false;
+  });
+  function run(): ReturnType<typeof runCompiledExamples> {
+    const received = input(new Uint8Array([1, 2, 3]));
+    const stage = (name: string) => {
+      scratch.events.push(name);
+      if (scratch.failures.has(name)) throw scratch.failures.get(name);
+    };
+    return runCompiledExamples({ ...received, testkit: {
+      loadExampleSuite: async () => { stage("suite"); return {
+        rows: [{ rowIndex: 1, caller: { kind: "public" }, seed: [], setup() {}, invoke() {}, observe() {} }], userFixtures: [],
+      }; },
+      runTable: async (spec: { createScope(row: number): Promise<unknown> }) => {
+        stage("table");
+        if (scratch.createScope) await spec.createScope(1);
+        return { kind: "table", rows: [{}] };
+      },
+      createReport: () => ({ addCase() {}, build: () => {
+        stage("report"); return { summary: { total: 1, failed: 0, setupFailed: 0, unsupported: 0 } };
+      } }),
+      fixtureValuesOf() {},
+    } });
+  }
+  it("returns only after removing acquired scratch", async () => {
+    expect(await run()).toMatchObject({ ok: true, executed: 1 });
+    expect(scratch.events).toEqual(["acquire", "assemble", "suite", "table", "report", "remove"]);
+    expect(existsSync(scratch.directories[0]!)).toBe(false);
+  });
+  it.each(["acquire", "assemble", "suite", "table", "report", "remove"])("preserves %s failure and attempts owned cleanup", async stage => {
+    const failure = new Error(`${stage} sentinel`); scratch.failures.set(stage, failure);
+    await expect(run()).rejects.toBe(failure);
+    const phases = ["acquire", "assemble", "suite", "table", "report", "remove"];
+    const expected = phases.slice(0, phases.indexOf(stage) + 1);
+    if (stage !== "acquire" && stage !== "remove") expected.push("remove");
+    expect(scratch.events).toEqual(expected);
+  });
+  it("retains body failure when removal also fails", async () => {
+    const failure = new Error("suite sentinel"); scratch.failures.set("suite", failure);
+    scratch.failures.set("remove", new Error("cleanup sentinel"));
+    await expect(run()).rejects.toBe(failure);
+    expect(scratch.events).toEqual(["acquire", "assemble", "suite", "remove"]);
+  });
+  it("disposes an acquired row scope after database provisioning failure", async () => {
+    scratch.createScope = true;
+    const failure = new Error("database sentinel"); scratch.failures.set("database", failure);
+    scratch.failures.set("dispose", new Error("dispose sentinel"));
+    await expect(run()).rejects.toBe(failure);
+    expect(scratch.events).toEqual(["acquire", "assemble", "suite", "table", "scope", "database", "dispose", "remove"]);
   });
 });
