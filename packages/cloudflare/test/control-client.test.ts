@@ -89,3 +89,18 @@ it("forwards only the initial negative list cursor and keeps other numeric bound
     .toMatchObject({ ok: false, code: "INVALID_ARGUMENTS" });
   expect(discoveries).toBe(4);
 });
+
+it("pins construct ranking and pending lookups and accepts no caller evidence", async () => {
+  let calls = 0;
+  const deps = { cwd: "/repo", discover: async () => { calls++; return owner; } };
+  const ref = "a".repeat(64);
+  expect(await runDevControlArgv(["construct.rank", "--revision", "r3", "--index", "0"], deps))
+    .toMatchObject({ ok: true, result: { command: "construct.rank", payload: { revision: "r3", index: 0 } } });
+  expect(await runDevControlArgv(["rank.lookup", "--revision", "r3", "--ref", ref], deps))
+    .toMatchObject({ ok: true, result: { command: "rank.lookup", payload: { revision: "r3", ref } } });
+  expect(await runDevControlArgv(["construct.rank", "--index", "0"], deps)).toMatchObject({ ok: false, code: "REVISION_REQUIRED" });
+  expect(await runDevControlArgv(["construct.rank", "--revision", "r3"], deps)).toMatchObject({ ok: false, code: "INVALID_ARGUMENTS" });
+  expect(await runDevControlArgv(["rank.lookup", "--revision", "r3", "--ref", "arbitrary"], deps)).toMatchObject({ ok: false, code: "RANK_REF_REQUIRED" });
+  expect(await runDevControlArgv(["construct.rank", "--revision", "r3", "--index", "0", "--context", "{}"], deps)).toMatchObject({ ok: false, code: "INVALID_ARGUMENTS" });
+  expect(calls).toBe(2);
+});

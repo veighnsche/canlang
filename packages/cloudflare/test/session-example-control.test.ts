@@ -1,12 +1,14 @@
 import { createHash } from "node:crypto";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import type { BusinessError, CompileArtifact, ExampleReport, ObservationMismatch, OperationId, TableRowResult } from "@canlang/contracts";
 import type { CompiledExampleInput } from "../src/dev/example-runner.js";
 import type { PreviewRefusal } from "../src/dev/preview-bridge.js";
-import { attachDevSessionService, startDevSessionService } from "../src/dev/session-service.js";
+import { attachDevSessionService, startDevSessionService, type SessionConstructRankingOptions, type SessionConstructQualificationRequest } from "../src/dev/session-service.js";
+import { FIRST_PROFILE } from "../src/dev/construct-help.js";
+import type { JevChoiceRequest, RankResult } from "../src/dev/jev-ranker.js";
 import { runDevControlArgv, type DevControlEnvelope } from "../src/dev/control-client.js";
 
 function controlResult<T>(envelope: DevControlEnvelope): T {
@@ -14,12 +16,12 @@ function controlResult<T>(envelope: DevControlEnvelope): T {
   return envelope.result as T;
 }
 
-const producer = vi.hoisted(() => ({ calls: [] as unknown[], routing: undefined as unknown, passed: false }));
+const producer = vi.hoisted(() => ({ calls: [] as unknown[], routing: undefined as unknown, passed: false, primary: undefined as { start: number; end: number } | undefined, omitted: 0, complete: true }));
 vi.mock("../src/dev/compiler-check.js", () => ({
   compileCapturedSingleFile: async (capture: { compilerOperand: string; sourceSha256: string }) => producer.routing !== undefined ? {
     kind: "diagnostics", envelope: { tool: "can", tool_version: "test-compiler", language_version: "1.0", schema_version: 1,
-      sources: [{ id: 0, path: capture.compilerOperand, sha256: capture.sourceSha256 }], complete: true, omitted: 0,
-      diagnostics: [{ code: "E1001", severity: "error", message: "source error", primary: { file: 0, start: 0, end: 1 },
+      sources: [{ id: 0, path: capture.compilerOperand, sha256: capture.sourceSha256 }], complete: producer.complete, omitted: producer.omitted,
+      diagnostics: [{ code: "E1001", severity: "error", message: "source error", primary: { file: 0, ...(producer.primary ?? { start: 0, end: 1 }) },
         related: [], tags: [], construct_candidates: producer.routing }] },
   } : ({
     kind: "artifact", capture,
@@ -58,6 +60,9 @@ afterEach(() => {
   producer.calls.length = 0;
   producer.routing = undefined;
   producer.passed = false;
+  producer.primary = undefined;
+  producer.omitted = 0;
+  producer.complete = true;
   for (const path of scratch.splice(0)) rmSync(path, { recursive: true, force: true });
 });
 
@@ -67,6 +72,8 @@ it("retains compiler routing by revision without turning unqualified grammar IDs
     producer.routing = { version: 1, disposition: "structural", ids: [], complete: false };
     const first = await fixture.client.request({ command: "check" }) as { revision: string; state: string };
     expect(first.state).toBe("errors");
+    expect(await fixture.client.request({ command: "construct.rank", payload: { revision: first.revision, index: 0 } }))
+      .toMatchObject({ result: { state: "structural" } });
     const query = async (revision: string) => fixture.client.request({ command: "diagnostic.detail", payload: { revision, index: 0 } });
     expect(await query(first.revision)).toMatchObject({ diagnostic: { construct_candidates: {
       disposition: "structural", complete: false,
@@ -74,6 +81,8 @@ it("retains compiler routing by revision without turning unqualified grammar IDs
     writeFileSync(fixture.app, "app Office\nGiven\nWhen\nThen\n## exact slot\n");
     producer.routing = { version: 1, disposition: "exact", slot: "given_type", ids: ["can.v1.type.builtin.text"], complete: true };
     const second = await fixture.client.request({ command: "check" }) as { revision: string };
+    expect(await fixture.client.request({ command: "construct.rank", payload: { revision: second.revision, index: 0 } }))
+      .toMatchObject({ result: { state: "candidate_coverage_unknown" } });
     expect(await query(second.revision)).toMatchObject({ diagnostic: { construct_candidates: {
       disposition: "exact", ids: ["can.v1.type.builtin.text"],
     } }, construct_help: { candidateCoverage: "unknown", cards: [] } });
@@ -81,7 +90,7 @@ it("retains compiler routing by revision without turning unqualified grammar IDs
   } finally { await fixture.owner.stop(); }
 });
 
-async function ownerFixture() {
+async function ownerFixture(constructRanking?: SessionConstructRankingOptions, realHelp = false) {
   const base = mkdtempSync(join(tmpdir(), "can-example-control-"));
   scratch.push(base);
   const root = join(base, "checkout");
@@ -93,14 +102,30 @@ async function ownerFixture() {
   writeFileSync(app, "app Office\nGiven\nWhen\nThen\n");
   for (const name of ["compiler", "catalog.json", "help.md"]) writeFileSync(join(root, name), name);
   writeFileSync(runtime, "runtime v1");
+  const capturedPaths = ["docs/specification/CONSTRUCT-HELP.md", "docs/specification/GRAMMAR.md",
+    "docs/specification/DESIGN.md", "design/UI-COMPONENTS.md", "packages/values/src/catalog.ts",
+    "packages/ui/src/catalog.ts", "packages/values/dist/src/catalog.js", "packages/ui/dist/src/catalog.js"];
+  if (realHelp) {
+    const repository = resolve(import.meta.dirname, "../../..");
+    for (const path of capturedPaths) {
+      mkdirSync(dirname(join(root, path)), { recursive: true });
+      copyFileSync(join(repository, path), join(root, path));
+    }
+    writeFileSync(join(root, "package.json"), '{"type":"module"}');
+  }
   let admittedBytes: Uint8Array | null = null;
   const refusalObservers = new Set<(event: PreviewRefusal) => void>();
   let unobserves = 0;
   const owner = await startDevSessionService({
     selectedApp: "Office", runtimeDir,
+    ...(constructRanking === undefined ? {} : { constructRanking }),
     capture: { checkoutRoot: root, appPath: "Office.can", profile: "local-d1-identity",
-      compilerPath: "compiler", catalogPath: "catalog.json", helpIndexPath: "help.md",
-      packageInputPaths: [{ name: "runtime", path: "runtime.js" }] },
+      compilerPath: "compiler", catalogPath: "catalog.json", helpIndexPath: realHelp ? "docs/specification/CONSTRUCT-HELP.md" : "help.md",
+      packageInputPaths: [{ name: "runtime", path: "runtime.js" }, ...(realHelp ? [
+        { name: "values-catalog", path: "packages/values/dist/src/catalog.js" },
+        { name: "ui-catalog", path: "packages/ui/dist/src/catalog.js" }] : [])],
+      ...(realHelp ? { extraInputPaths: capturedPaths.filter(path => !path.endsWith(".js") &&
+        !path.endsWith("CONSTRUCT-HELP.md")).map(path => ({ name: path.endsWith("GRAMMAR.md") ? "grammar" : path, path })) } : {}) },
     previewBuilder: async (_artifact: CompileArtifact, capture, artifactBytes) => {
       admittedBytes = artifactBytes;
       return { id: `build-${capture.sourceSha256.slice(0, 12)}`, dispose: async () => undefined,
@@ -309,4 +334,232 @@ it("keeps failure cursors stable when bounded retention evicts older occurrences
     await expect(fixture.client.request({ command: "failure.lookup", payload: { ref: first.failures[0]!.ref } }))
       .rejects.toMatchObject({ code: "FAILURE_UNAVAILABLE" });
   } finally { await fixture.owner.stop(); }
+});
+
+const rankIds = ["can.v1.then.text", "can.v1.ui.stat"];
+const rankSource = "app Office\nGiven\nWhen\nThen\nwidgit\n";
+function rankingContext() {
+  return { version: 1, messageKind: "synthetic_unknown_page_item", section: "Then", guess: "widgit",
+    exactSourceSpan: true, structuralRecovery: false, recoveryComplete: true, nameFilterComplete: true,
+    materialIntentChoice: false, evidenceSufficient: true, unsupportedBehaviorProven: false };
+}
+function rankRouting(ids = rankIds, context: unknown = rankingContext()) {
+  return { version: 1, disposition: "exact", slot: "then.page_item", ids, complete: true, context };
+}
+/** Component-only evidence. These names establish no actual compiler/runtime pass. */
+function syntheticQualification(request: SessionConstructQualificationRequest) {
+  expect(Object.isFrozen(request)).toBe(true);
+  expect(Object.isFrozen(request.inputs)).toBe(true);
+  expect(request.producerInputsDigest).toBe(createHash("sha256").update(JSON.stringify(request.inputs)).digest("hex"));
+  expect(JSON.stringify(request)).not.toContain("widgit");
+  const { inputs: _inputs, ...binding } = request;
+  return Object.freeze({ ...binding, messageKinds: Object.freeze(["synthetic_unknown_page_item"]),
+    proofs: Object.freeze(rankIds.map(id => Object.freeze({ id, indexRevision: request.indexRevision,
+      compilerSha256: request.compilerSha256, profile: FIRST_PROFILE,
+      compilerCheck: "synthetic-component-only-compiler", runtimeCheck: "synthetic-component-only-runtime" }))) });
+}
+function rankAnswer(request: JevChoiceRequest, choice: string) {
+  const ids = Object.keys(request.questions.construct_for_occurrence.criteria);
+  return { model: "jev-component-fake", answers: { construct_for_occurrence: {
+    type: "choice", choice, confidence: 0.9,
+    probabilities: Object.fromEntries(ids.map(id => [id, id === choice ? 0.85 : 0.15 / (ids.length - 1)])),
+  } }, usage: { input_tokens: 20, output_tokens: 3 }, prose: "PRIVATE_PROVIDER_PROSE" };
+}
+/** Native watcher hints can supersede a check even when the authored bytes are stable.
+ * Let the actual write event/debounce settle, then require an admitted captured check.
+ * Retry only a reported superseded attempt; never treat it as retained diagnostics.
+ */
+async function settledRankingCheck(fixture: Pick<Awaited<ReturnType<typeof ownerFixture>>, "client">,
+  expectedState: "errors" | "limited" | "incomplete" = "errors") {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const checked = await fixture.client.request({ command: "check" }) as { revision: string; state: string; current: boolean;
+      evidence: { capture_complete: boolean; analysis_complete: boolean } };
+    if (checked.state === "superseded") continue;
+    expect(checked.state).toBe(expectedState);
+    expect(checked.evidence.capture_complete).toBe(true);
+    expect(checked.evidence.analysis_complete).toBe(expectedState !== "incomplete");
+    expect(checked.current).toBe(true);
+    return checked;
+  }
+  throw new Error("authored component fixture did not settle into captured diagnostics");
+}
+
+async function rankingFixture(config?: SessionConstructRankingOptions) {
+  const fixture = await ownerFixture(config, true);
+  const original = await fixture.client.request({ command: "check" }) as { revision: string };
+  writeFileSync(fixture.app, rankSource);
+  producer.primary = { start: rankSource.indexOf("widgit"), end: rankSource.indexOf("widgit") + 6 };
+  producer.routing = rankRouting();
+  const checked = await settledRankingCheck(fixture);
+  const control = (args: string[]) => runDevControlArgv(args, { cwd: fixture.root, discover: async () => fixture.client });
+  const rank = async (revision = checked.revision) => controlResult<{ result: RankResult }>(await control([
+    "construct.rank", "--revision", revision, "--index", "0",
+  ])).result;
+  return { ...fixture, original, checked, control, rank };
+}
+
+it("ranks only captured qualified cards through private CLI/socket control and preserves diagnostics/preview", async () => {
+  let choice = rankIds[0]!;
+  let calls = 0;
+  const inputDigests: string[] = [];
+  const fixture = await rankingFixture({ qualify: request => { inputDigests.push(request.producerInputsDigest); return syntheticQualification(request); }, allowExternal: () => true,
+    transport: { choose: async request => { calls++; return rankAnswer(request, choice); } } });
+  try {
+    expect(await fixture.rank()).toMatchObject({ state: "likely", card: { id: rankIds[0] } });
+    const first = await fixture.client.request({ command: "diagnostic.detail", payload: { revision: fixture.checked.revision, index: 0 } });
+    expect(first).toMatchObject({ diagnostic: { message: "source error" } });
+    expect(await fixture.client.request({ command: "preview.status" })).toMatchObject({ state: "ready", serving_revision: fixture.original.revision, stale: true });
+    for (const next of ["none", "unclear"]) {
+      choice = next;
+      writeFileSync(fixture.app, `${rankSource}## ${next}\n`);
+      const { revision } = await settledRankingCheck(fixture);
+      expect(await fixture.rank(revision)).toMatchObject({ state: next === "unclear" ? "intent_unclear" : "none" });
+    }
+    expect(calls).toBe(3);
+    expect(new Set(inputDigests).size).toBe(1);
+    await expect(fixture.client.request({ command: "construct.rank", payload: {
+      revision: fixture.checked.revision, index: 0, context: rankingContext(), proofs: [], cards: [],
+    } })).rejects.toMatchObject({ code: "INVALID_REQUEST" });
+    expect(JSON.stringify(await fixture.rank())).not.toContain("PRIVATE_PROVIDER_PROSE");
+  } finally { await fixture.owner.stop(); }
+});
+
+it("keeps structural/none/unknown local and refuses omitted or malformed context and unbound qualification", async () => {
+  let qualificationMode = "valid";
+  let calls = 0;
+  const fixture = await rankingFixture({ allowExternal: () => true, qualify: request => {
+    const bundle = syntheticQualification(request);
+    if (qualificationMode === "missing") return null;
+    if (qualificationMode === "mutable") return { ...bundle };
+    if (qualificationMode === "branch") return Object.freeze({ ...bundle, messageKinds: Object.freeze(["different_branch"]) });
+    if (qualificationMode === "profile") return Object.freeze({ ...bundle, resourceProfile: "other-resource-profile" });
+    if (qualificationMode === "producer") return Object.freeze({ ...bundle, producerInputsDigest: "0".repeat(64) });
+    if (qualificationMode === "help") return Object.freeze({ ...bundle, indexRevision: "0".repeat(64) });
+    if (qualificationMode === "compiler") return Object.freeze({ ...bundle, compilerSha256: "0".repeat(64) });
+    return bundle;
+  }, transport: { choose: async () => { calls++; throw new Error("unexpected provider"); } } });
+  try {
+    let edit = 0;
+    const changed = async (routing: unknown, expected: string, checkState: "errors" | "limited" | "incomplete" = "errors") => {
+      producer.routing = routing;
+      writeFileSync(fixture.app, `${rankSource}## context ${edit++}\n`);
+      const { revision } = await settledRankingCheck(fixture, checkState);
+      expect(await fixture.rank(revision)).toMatchObject({ state: expected });
+    };
+    await changed({ version: 1, disposition: "structural", ids: [], complete: false }, "structural");
+    await changed({ version: 1, disposition: "none", ids: [], complete: true }, "none");
+    const { context: _context, ...withoutContext } = rankRouting();
+    await changed(withoutContext, "candidate_coverage_unknown");
+    for (const context of [null, { ...rankingContext(), extra: "bad" }, { ...rankingContext(), version: 2 }]) {
+      await changed(rankRouting(rankIds, context), "candidate_coverage_unknown");
+    }
+    for (const flag of ["exactSourceSpan", "recoveryComplete", "nameFilterComplete"]) {
+      await changed(rankRouting(rankIds, { ...rankingContext(), [flag]: false }), "ineligible");
+    }
+    await changed(rankRouting(rankIds, { ...rankingContext(), guess: "wrong" }), "ineligible");
+    for (const mode of ["missing", "mutable", "profile", "producer", "help", "compiler", "branch"]) {
+      qualificationMode = mode;
+      await changed(rankRouting(), "candidate_coverage_unknown");
+    }
+    qualificationMode = "valid";
+    for (const line of ['"widgit"', "# widgit", "## widgit"]) {
+      const source = `app Office\nGiven\nWhen\nThen\n${line}\n`;
+      producer.routing = rankRouting();
+      producer.primary = { start: source.indexOf("widgit"), end: source.indexOf("widgit") + 6 };
+      writeFileSync(fixture.app, source);
+      const { revision } = await settledRankingCheck(fixture);
+      expect(await fixture.rank(revision)).toMatchObject({ state: "ineligible" });
+    }
+    producer.primary = { start: rankSource.indexOf("widgit"), end: rankSource.indexOf("widgit") + 6 };
+    producer.omitted = 1;
+    await changed(rankRouting(), "ineligible", "limited");
+    producer.omitted = 0;
+    producer.complete = false;
+    await changed(rankRouting(), "ineligible", "incomplete");
+    producer.complete = true;
+    await changed(rankRouting(rankIds, { ...rankingContext(), materialIntentChoice: true }), "intent_required");
+    await changed(rankRouting(rankIds, { ...rankingContext(), evidenceSufficient: false }), "intent_unclear");
+    expect(calls).toBe(0);
+  } finally { await fixture.owner.stop(); }
+});
+
+it("defaults to no disclosure, permits a deterministic single card, and reports absent provider", async () => {
+  const fixture = await rankingFixture({ qualify: syntheticQualification });
+  try {
+    expect(await fixture.rank()).toMatchObject({ state: "ranking_disallowed" });
+    producer.routing = rankRouting([rankIds[0]!]);
+    writeFileSync(fixture.app, `${rankSource}## single\n`);
+    const { revision } = await settledRankingCheck(fixture);
+    expect(await fixture.rank(revision)).toMatchObject({ state: "deterministic", card: { id: rankIds[0] } });
+  } finally { await fixture.owner.stop(); }
+  producer.routing = undefined;
+  const noProvider = await rankingFixture({ qualify: syntheticQualification, allowExternal: () => true });
+  try { expect(await noProvider.rank()).toEqual({ state: "ranking_unavailable", reason: "no_provider" }); }
+  finally { await noProvider.owner.stop(); }
+});
+
+it("pins pending lookup to the captured revision, checks help currency, and aborts owned work on stop", async () => {
+  let signal: AbortSignal | undefined;
+  let request: JevChoiceRequest | undefined;
+  let finish: ((value: unknown) => void) | undefined;
+  const fixture = await rankingFixture({ qualify: syntheticQualification, allowExternal: () => true,
+    inlineBudgetMs: 1, providerDeadlineMs: 1000,
+    transport: { choose: (value, nextSignal) => { request = value; signal = nextSignal; return new Promise(resolve => { finish = resolve; }); } } });
+  try {
+    const pending = await fixture.rank();
+    expect(pending.state).toBe("pending");
+    if (pending.state !== "pending") throw new Error("missing pending ref");
+    const lookup = () => fixture.control(["rank.lookup", "--revision", fixture.checked.revision, "--ref", pending.ref]);
+    expect(await lookup()).toMatchObject({ ok: true, result: { result: { state: "pending" } } });
+    expect(await fixture.control(["rank.lookup", "--revision", "r999", "--ref", pending.ref]))
+      .toMatchObject({ ok: false, code: "RANK_UNAVAILABLE" });
+    finish?.(rankAnswer(request!, rankIds[0]!));
+    await new Promise(resolve => setTimeout(resolve, 5));
+    expect(await lookup()).toMatchObject({ ok: true, result: { result: { state: "likely" } } });
+    writeFileSync(join(fixture.root, "docs/specification/CONSTRUCT-HELP.md"), "changed help");
+    expect(await lookup()).toMatchObject({ ok: true, result: { result: { state: "stale" } } });
+  } finally { await fixture.owner.stop(); }
+  expect(signal?.aborted).toBe(true);
+
+  producer.routing = undefined;
+  let cancelled = false;
+  const hanging = await rankingFixture({ qualify: syntheticQualification, allowExternal: () => true,
+    inlineBudgetMs: 1, providerDeadlineMs: 10000, transport: { choose: (_request, nextSignal) => {
+      nextSignal.addEventListener("abort", () => { cancelled = true; }); return new Promise(() => {});
+    } } });
+  expect(await hanging.rank()).toMatchObject({ state: "pending" });
+  await hanging.owner.stop();
+  expect(cancelled).toBe(true);
+});
+
+it("keeps serving preview and captured diagnostics when provider work times out or fails, and refuses a raced source", async () => {
+  for (const mode of ["timeout", "failure", "invalid", "source-race", "unqualified"]) {
+    producer.routing = undefined;
+    let fixture: Awaited<ReturnType<typeof rankingFixture>>;
+    fixture = await rankingFixture({ ...(mode === "unqualified" ? {} : { qualify: syntheticQualification }),
+      allowExternal: () => true, inlineBudgetMs: 1, providerDeadlineMs: 15, transport: { choose: async request => {
+        if (mode === "timeout") return new Promise(() => {});
+        if (mode === "failure") throw new Error("PRIVATE_PROVIDER_SECRET");
+        if (mode === "invalid") return { prose: "PRIVATE_PROVIDER_SECRET" };
+        if (mode === "source-race") writeFileSync(fixture.app, `${rankSource}## raced source\n`);
+        return rankAnswer(request, rankIds[0]!);
+      } } });
+    try {
+      let result = await fixture.rank();
+      if (result.state === "pending") {
+        await new Promise(resolve => setTimeout(resolve, 25));
+        result = controlResult<{ result: RankResult }>(await fixture.control([
+          "rank.lookup", "--revision", fixture.checked.revision, "--ref", result.ref,
+        ])).result;
+      }
+      expect(result).toMatchObject(mode === "source-race" ? { state: "stale" }
+        : mode === "unqualified" ? { state: "candidate_coverage_unknown" }
+        : { state: "ranking_unavailable", reason: mode === "timeout" ? "timeout" : mode === "invalid" ? "invalid_response" : "transport_error" });
+      expect(JSON.stringify(result)).not.toContain("PRIVATE_PROVIDER_SECRET");
+      expect(await fixture.client.request({ command: "diagnostic.detail", payload: { revision: fixture.checked.revision, index: 0 } }))
+        .toMatchObject({ diagnostic: { message: "source error", code: "E1001" } });
+      expect(await fixture.client.request({ command: "preview.status" })).toMatchObject({ state: "ready", serving_revision: fixture.original.revision });
+    } finally { await fixture.owner.stop(); }
+  }
 });
