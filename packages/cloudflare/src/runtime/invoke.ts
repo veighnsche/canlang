@@ -110,8 +110,10 @@ import { retainCommittedFiles, stageFileReferences } from './file-staging.js';
 import { bindNativeRecord } from './native-records.js';
 import type { CanonicalFileBinding, FileAttachment } from './file-staging.js';
 import type { IdentityStore } from "@canlang/identity";
+import { sha256HexText, timingSafeEqualHex } from '@canlang/identity';
 import type { GeneratedOperationDef } from "@canlang/state/invocation/registry";
 import type { AdmittedReadScenarioCall, ReadScenarioResult } from "@canlang/state/invocation/invoke";
+import type { BoundReadPageInvoker } from '@canlang/state/ports/transact';
 import type {
   CanonicalEffectsScope,
   CanonicalReadQuery,
@@ -127,6 +129,8 @@ import { stageAuthoredDelivery } from "./receipt-staging.js";
 import { freezeBoundJudgmentRequest } from './bound-judgment.js';
 import { freezeJudgmentSource } from '@canlang/services/judgments/specification';
 import type { StaticJudgmentDescriptor } from '@canlang/services';
+import type { PageReadsBinding } from './page-cursor.js';
+import type { PageCursorDecoded } from './page-cursor.js';
 
 export type { AssembledModules } from "./modules.js";
 export type { HandlerContext } from "./context.js";
@@ -1282,6 +1286,14 @@ interface StateErrorsProducer {
 
 /** T17b: structural view of the state transaction-port module (bound read port). */
 interface StateTransactProducer {
+  createReadPageInvoker?(input: {
+    readonly registry: ReadonlyMap<string, unknown>;
+    readonly models: ReadonlyArray<CanonicalModelDescriptor>;
+    readonly containment: ReadonlyMap<string, unknown>;
+    readonly policy: unknown;
+    readonly store: StoragePort;
+    readonly memberships: CanonicalMembershipReader;
+  }): BoundReadPageInvoker;
   createReadScenarioInvoker?(input: {
     readonly registry: ReadonlyMap<string, unknown>;
     readonly policy: unknown;
@@ -1517,6 +1529,9 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
     errors: StateError as unknown as StateErrorsProducer,
     transact: {
       createReadInvoker: createReadInvoker as StateTransactProducer["createReadInvoker"],
+      ...(typeof transactMod['createReadPageInvoker'] !== 'function' ? {} : {
+        createReadPageInvoker: transactMod['createReadPageInvoker'] as NonNullable<StateTransactProducer['createReadPageInvoker']>,
+      }),
       ...(typeof transactMod['createReadScenarioInvoker'] !== 'function' ? {} : {
         createReadScenarioInvoker: transactMod['createReadScenarioInvoker'] as NonNullable<StateTransactProducer['createReadScenarioInvoker']>,
       }),
@@ -5519,6 +5534,11 @@ export interface CanonicalReadOpts {
   readonly observer?: SelectedReceiptObserverBinding;
 }
 
+/** Page-only checked host facts; ordinary operation reads retain their existing options. */
+export interface CanonicalPageReadOpts extends Omit<CanonicalReadOpts, 'operation' | 'inputs' | 'selection'> {
+  readonly pageReads?: PageReadsBinding;
+}
+
 /** Source reads have no direct storage access and cannot stage any effect. */
 async function runReadScenarioSeam(
   loaded: LoadedCanonicalDescriptors, opts: CanonicalReadOpts, call: AdmittedReadScenarioCall,
@@ -5762,10 +5782,75 @@ export async function invokeReadCanonical(
 
 /** Page collections retain generated read admission and the defining viewer executor. */
 export async function queryPageRowsCanonical(
-  opts: Omit<CanonicalReadOpts, "operation" | "inputs"> & { readonly model: string; readonly args: ListQueryArgs },
+  opts: CanonicalPageReadOpts & { readonly model: string; readonly args: ListQueryArgs },
 ): Promise<ListQueryResult> {
   const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
   const StateError = loaded.producers.errors;
+  if (opts.args.page !== undefined && opts.args.page !== true) {
+    throw new StateError('validation', 'Collection page mode must be explicitly enabled.');
+  }
+  if (opts.args.page === true) {
+    assertCanonicalStore(opts.store, `${opts.model}.read`);
+    assertCanonicalMemberships(opts.memberships, `${opts.model}.read`);
+    if (loaded.ruledModels.has(opts.model)) throw ruledReadRefusal(StateError, opts.model);
+    const occurrence = opts.args.occurrence;
+    const binding = opts.pageReads;
+    if (typeof occurrence !== 'string' || occurrence === '' || binding === undefined ||
+        typeof binding.sourceIdentity !== 'string' || binding.sourceIdentity === '' ||
+        typeof binding.scope?.app !== 'string' || binding.scope.app === '' ||
+        typeof binding.scope.owner !== 'string' || binding.scope.owner === '' ||
+        typeof binding.scope.ownerPackage !== 'string' || binding.scope.ownerPackage === '') {
+      throw new StateError('validation', 'Paged collections require a stable occurrence and checked host binding.');
+    }
+    const scope = [binding.scope.app, binding.scope.owner, binding.scope.ownerPackage, binding.sourceIdentity];
+    const cursors = binding.cursors;
+    let decoded: Extract<PageCursorDecoded, { status: 'valid' }> | undefined;
+    if (opts.args.cursor !== undefined) {
+      if (cursors === undefined) throw new StateError('validation', 'Collection pagination is unavailable.');
+      const proof = await cursors.decode(opts.args.cursor, (opts.now ?? Date.now)());
+      if (proof.status === 'valid') decoded = proof;
+      else throw new StateError(proof.status === 'stale' ? 'conflict' : 'validation', proof.status === 'stale'
+        ? 'Collection cursor expired; restart from the first page.' : 'Invalid collection cursor.');
+    }
+    const createReader = loaded.producers.transact.createReadPageInvoker;
+    if (createReader === undefined) throw new Error('State producer has no finite viewer page invoker.');
+    const reader = createReader({ registry: loaded.registry, models: loaded.models, containment: loaded.containment,
+      policy: loaded.policy, store: opts.store, memberships: opts.memberships });
+    const parentModel = opts.artifact.models?.find(model => model.name === opts.model)?.parent;
+    return reader({ envelope: { operation: `${opts.model}.read`, inputs: {} }, identity: opts.identity,
+      selection: {
+        ...(opts.args.where === undefined ? {} : { where: opts.args.where as QueryPredicate }),
+        ...(opts.args.limit === undefined ? {} : { limit: opts.args.limit }),
+        ...(opts.args.parent === undefined ? {} : { parent: {
+          model: (parentModel ?? '') as ModelName, id: opts.args.parent.id as RecordId,
+        } }),
+        ...(decoded === undefined ? {} : { continuation: {
+          revision: decoded.position.revision as Revision, after: decoded.position.after as RecordId,
+        } }),
+      },
+    }, async page => {
+      // State constructs this closed tuple after admission; no caller object is hashed.
+      const bindingDigest = await sha256HexText(JSON.stringify([
+        ...scope, opts.model, opts.identity.actor?.user_id ?? null, opts.identity.team?.team_id ?? null,
+        occurrence, page.queryDefinition,
+      ]));
+      if (decoded !== undefined && !timingSafeEqualHex(decoded.bindingDigest, bindingDigest)) {
+        throw new StateError('conflict', 'Collection query or context changed; restart from the first page.');
+      }
+      if (page.continuation !== null && cursors === undefined) {
+        throw new StateError('validation', 'Collection pagination is unavailable.');
+      }
+      const nextCursor = page.continuation === null ? undefined :
+        await cursors!.encode(bindingDigest, page.continuation, (opts.now ?? Date.now)());
+      // The owning State invoker rechecks current authority and revision after this transform.
+      const visible = new Set(page.records.flatMap(record => Object.keys(record.data)));
+      return {
+        rows: page.records.map(record => ({ id: record.id, version: String(record.version), fields: record.data })),
+        columns: (loaded.collectionColumns.get(opts.model) ?? []).filter(column => visible.has(column.field)),
+        ...(nextCursor === undefined ? {} : { nextCursor }),
+      };
+    });
+  }
   // The outer selection is a plain stable value. State reads these two fields
   // only after generated read admission, live membership and closed inputs.
   const selection: CanonicalReadSelection = {
@@ -5818,7 +5903,7 @@ function sourceReceiptProjection(
 
 /** One page render observes only its admitted rows at one readonly checkpoint. */
 export function createPageReadScopeCanonical(
-  opts: Omit<CanonicalReadOpts, 'operation' | 'inputs' | 'selection'>,
+  opts: CanonicalPageReadOpts,
 ): PageReadScope {
   const bindings = new Map<string, Set<string>>();
   let revision: number | undefined;

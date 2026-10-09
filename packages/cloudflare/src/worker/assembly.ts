@@ -108,6 +108,7 @@ import type { WorkScope } from '@canlang/contracts';
 import type { createD1OwnerRouter } from '@canlang/state/storage/owner-router';
 import type { HandlerContext } from "../runtime/context.js";
 import type { CanonicalFileBinding } from '../runtime/file-staging.js';
+import type { PageReadsBinding } from '../runtime/page-cursor.js';
 import type {
   CanonicalMembershipReader,
   CanonicalMutationOpts,
@@ -596,6 +597,8 @@ export interface AssemblyDeps {
   now?: () => number;
   cohorts?: CohortTickBinding;
   ownerStorage?: TeamOwnerStorageBoundary;
+  /** Explicit qualified host page binding; the production owner routing gate still applies. */
+  pageReads?: PageReadsBinding;
   /** Installed owning Work observer for generated selected delivery reads. */
   selectedReceiptObserver?: SelectedReceiptObserverBinding;
   /**
@@ -1831,11 +1834,13 @@ export async function assembleWorker(
       createReadScope: identity => createReadScope({
         asm, artifact, identity, store: deps.store,
         memberships: deps.identityStore as CanonicalMembershipReader, now,
+        ...(deps.pageReads === undefined ? {} : { pageReads: deps.pageReads }),
         ...(deps.selectedReceiptObserver === undefined ? {} : { observer: deps.selectedReceiptObserver }),
       }),
       query: async (invocation, model, args) => {
         return queryRows({ asm, artifact, model, args, identity: invocation as ResolvedIdentity,
-          store: deps.store, memberships: deps.identityStore as CanonicalMembershipReader });
+          store: deps.store, memberships: deps.identityStore as CanonicalMembershipReader, now,
+          ...(deps.pageReads === undefined ? {} : { pageReads: deps.pageReads }) });
       },
     });
   }
