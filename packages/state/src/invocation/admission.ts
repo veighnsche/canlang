@@ -5,9 +5,10 @@
  *
  * Order is load-bearing per DESIGN §7: read the revision first, then hash
  * inputs and check the receipt before age, authorization, shape, version,
- * or business evaluation. A matching receipt replays the saved outcome
- * even though its submitted versions are now stale; a mismatched hash on
- * the same identity is a conflict.
+ * or business evaluation. Ordinary admission replays a matching receipt even
+ * though its submitted versions are now stale; retained-receipt-only recovery
+ * also checks current operation authority and refuses unseen identities.
+ * A mismatched hash on the same identity is a conflict.
  */
 
 import type {
@@ -16,6 +17,7 @@ import type {
   CanonicalOperationKind,
   InvocationContext,
   ModelName,
+  MutationAdmissionMode,
   Receipt,
   ReceiptIdentity,
   RecordId,
@@ -61,6 +63,95 @@ export interface AdmittedCall {
    * `revalidateCommitForFence` when a checkpoint is present.
    */
   checkpoint?: FenceCheckpoint;
+}
+
+interface AdmittedExecutionProvenance {
+  readonly store: StoragePort;
+  readonly context: InvocationContext;
+  readonly contextSnapshot: InvocationContext;
+  readonly checkpoint: FenceCheckpoint;
+  readonly checkpointSnapshot: FenceCheckpoint;
+  readonly revision: Revision;
+}
+
+// Admission supplies provenance; an object with the same public fields does
+// not. Only invoke's executor lifetime activates it, and no grant flag or
+// manufactured caller context can stand in for that lifetime.
+const admittedExecutions = new WeakMap<AdmittedCall, AdmittedExecutionProvenance>();
+
+function immutableAdmissionSnapshot<T>(value: T): T {
+  const copy = structuredClone(value);
+  const freeze = (part: unknown): void => {
+    if (typeof part !== 'object' || part === null) return;
+    for (const child of Object.values(part)) freeze(child);
+    Object.freeze(part);
+  };
+  freeze(copy);
+  return copy;
+}
+
+function sameAdmissionSnapshot(value: unknown, snapshot: unknown): boolean {
+  if (typeof snapshot !== 'object' || snapshot === null) return Object.is(value, snapshot);
+  if (typeof value !== 'object' || value === null ||
+      Object.getPrototypeOf(value) !== Object.getPrototypeOf(snapshot)) return false;
+  const keys = Reflect.ownKeys(snapshot);
+  if (Reflect.ownKeys(value).length !== keys.length) return false;
+  return keys.every(key => {
+    const member = Object.getOwnPropertyDescriptor(value, key);
+    const expected = Object.getOwnPropertyDescriptor(snapshot, key);
+    return member !== undefined && 'value' in member && expected !== undefined &&
+      'value' in expected && sameAdmissionSnapshot(member.value, expected.value);
+  });
+}
+
+function admittedMember(call: AdmittedCall, key: keyof AdmittedCall): unknown {
+  const member = Object.getOwnPropertyDescriptor(call, key);
+  return member !== undefined && 'value' in member ? member.value : undefined;
+}
+
+function rememberAdmittedExecution(call: AdmittedCall, store: StoragePort): AdmittedCall {
+  if (call.checkpoint === undefined) throw new Error('admission: missing owner checkpoint');
+  admittedExecutions.set(call, {
+    store, context: call.context, contextSnapshot: immutableAdmissionSnapshot(call.context),
+    checkpoint: call.checkpoint, checkpointSnapshot: immutableAdmissionSnapshot(call.checkpoint),
+    revision: call.revision,
+  });
+  return call;
+}
+
+function unchangedAdmittedExecution(call: AdmittedCall): AdmittedExecutionProvenance {
+  const provenance = admittedExecutions.get(call);
+  if (provenance === undefined || admittedMember(call, 'context') !== provenance.context ||
+      admittedMember(call, 'checkpoint') !== provenance.checkpoint ||
+      admittedMember(call, 'revision') !== provenance.revision ||
+      admittedMember(call, 'replay') !== null ||
+      !sameAdmissionSnapshot(provenance.context, provenance.contextSnapshot) ||
+      !sameAdmissionSnapshot(provenance.checkpoint, provenance.checkpointSnapshot)) {
+    throw new StateError('forbidden', 'Owner receipt observation requires an unchanged admitted call.');
+  }
+  return provenance;
+}
+
+/**
+ * Internal receipt admission authority. The host still proves verified source and
+ * native locator/version correspondence; this check grants no authority to
+ * a copied call or another store. Invoke separately requires its private active
+ * execution lifetime; this assertion cannot open or reopen that lifetime.
+ */
+export function assertOwnerReceiptAdmission(
+  call: AdmittedCall, store: StoragePort, fence: FenceScope,
+): void {
+  const provenance = unchangedAdmittedExecution(call);
+  const context = provenance.contextSnapshot, checkpoint = provenance.checkpointSnapshot;
+  if (provenance.store !== store || context.kind !== 'trusted' ||
+      context.actor !== null || typeof context.trustedSource !== 'string' ||
+      context.trustedSource.trim().length === 0 || context.app.length === 0 ||
+      checkpoint.owner.trim().length === 0 ||
+      checkpoint.owner !== (context.team?.teamId ?? context.app) ||
+      checkpoint.revision !== provenance.revision || fence.owner !== checkpoint.owner ||
+      fence.revision !== checkpoint.revision) {
+    throw new StateError('forbidden', 'Owner receipt observation requires the active trusted owner execution and its store checkpoint.');
+  }
 }
 
 /** Derive the receipt identity for a context (single home for the mapping). */
@@ -313,6 +404,8 @@ export async function admit(input: {
   context: InvocationContext;
   store: StoragePort;
   memberships: MembershipReader;
+  /** Host-only recovery selection; it does not alter caller authority or business inputs. */
+  admissionMode?: MutationAdmissionMode;
   /**
    * B2 (Q3): serverOnly exclusions for denial currents (see
    * `ConflictServerOnly`). Absent reads as unknown: stale-ref denials
@@ -321,6 +414,10 @@ export async function admit(input: {
   conflictServerOnly?: ConflictServerOnly;
 }): Promise<AdmittedCall> {
   const { def, inputs, context, store, memberships } = input;
+  if (input.admissionMode !== undefined && input.admissionMode !== 'execute-or-replay' &&
+      input.admissionMode !== 'retained-receipt-only') {
+    throw new StateError('validation', 'Invalid mutation admission mode.');
+  }
   // DESIGN §7 step 1: read the primary revision BEFORE all other
   // state-dependent reads (receipt, membership, rows), so the commit-time
   // fence assertion covers everything admission observed.
@@ -331,11 +428,28 @@ export async function admit(input: {
   const scope = openFenceScope(revision, context.team?.teamId ?? context.app);
   const inputHash = await hashInputs(inputs);
 
+  const authorize = async (): Promise<void> => {
+    if (context.kind === 'trusted') return;
+    const actorUserId = context.actor?.userId ?? null;
+    const teamId = context.team?.teamId ?? null;
+    const membership = actorUserId !== null && teamId !== null
+      ? await memberships.findMembership(teamId, actorUserId) : null;
+    if (actorUserId !== null && teamId !== null) {
+      scope.enroll({ kind: 'membership', teamId, userId: actorUserId });
+    }
+    if (!await evaluateBy(def.by, { actorUserId, teamId, membership, memberships })) {
+      throw new StateError('forbidden', 'This operation is not permitted for the caller.');
+    }
+  };
+
   const existing = await store.readReceipt(receiptIdentityFor(context));
   if (existing !== null) {
     if (existing.inputHash !== inputHash) {
       throw new StateError('conflict', 'Conflicting reuse of this operation identity.');
     }
+    // Recovery proves current operation authority; the host still owns
+    // current grant/secret-aware projection of the retained outcome.
+    if (input.admissionMode === 'retained-receipt-only') await authorize();
     return {
       context,
       def,
@@ -348,25 +462,15 @@ export async function admit(input: {
     };
   }
 
+  if (input.admissionMode === 'retained-receipt-only') {
+    throw new StateError('not_found', 'No retained receipt matches this operation identity.');
+  }
+
   // DESIGN §7: age applies to UNSEEN identities only — a live receipt
   // above already replayed regardless of identity age.
   assertOperationIdAge(context.operationId, context.now);
 
-  if (context.kind !== 'trusted') {
-    const actorUserId = context.actor?.userId ?? null;
-    const teamId = context.team?.teamId ?? null;
-    const membership =
-      actorUserId !== null && teamId !== null
-        ? await memberships.findMembership(teamId, actorUserId)
-        : null;
-    if (actorUserId !== null && teamId !== null) {
-      scope.enroll({ kind: 'membership', teamId, userId: actorUserId });
-    }
-    const allowed = await evaluateBy(def.by, { actorUserId, teamId, membership, memberships });
-    if (!allowed) {
-      throw new StateError('forbidden', 'This operation is not permitted for the caller.');
-    }
-  }
+  await authorize();
 
   // T17a: one validation entry — generated defs validate against the
   // canonical descriptor (the normalized copy, with ordinary-array fills,
@@ -383,7 +487,7 @@ export async function admit(input: {
     ...(input.conflictServerOnly !== undefined ? { conflictServerOnly: input.conflictServerOnly } : {}),
   });
 
-  return {
+  return rememberAdmittedExecution({
     context,
     def,
     inputs: admittedInputs,
@@ -392,7 +496,7 @@ export async function admit(input: {
     revision,
     replay: null,
     checkpoint: scope.snapshot(),
-  };
+  }, store);
 }
 
 /** Resolve refs in descriptor order with the shared stale-before-archive rule. */

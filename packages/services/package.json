@@ -98,6 +98,10 @@
       "types": "./dist/src/distribution.d.ts",
       "default": "./dist/src/distribution.js"
     },
+    "./scenario-admission": {
+      "types": "./dist/src/internal/scenario-admission.d.ts",
+      "default": "./dist/src/internal/scenario-admission.js"
+    },
     "./judgments/specification": {
       "types": "./dist/src/judgments/specification.d.ts",
       "default": "./dist/src/judgments/specification.js"

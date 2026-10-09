@@ -195,6 +195,7 @@ export function withDispatchProducer(
     commit: (batch) => commitWithDispatchRows(inner, batch, originOccurrence, meta),
     readReceipt: (identity) => inner.readReceipt(identity),
     outboxPending: () => inner.outboxPending(),
+    outboxGet: (intentId) => inner.outboxGet(intentId),
     scheduleGet: (key) => inner.scheduleGet(key),
     schedulesDue: (now, limit) => inner.schedulesDue(now, limit),
     historyFor: (model, recordId) => inner.historyFor(model, recordId),

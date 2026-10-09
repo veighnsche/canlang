@@ -12,6 +12,7 @@ import type {
   OutboxIntent,
   QueryPredicate,
   Receipt,
+  RetainedOutboxIntent,
   RecordId,
   RecordParent,
   RecordVersion,
@@ -253,6 +254,12 @@ export type OutboxRow = {
 export const OUTBOX_COLUMNS =
   'intent_id, operation, operation_id, target, arguments, occurrence_index, dispatch_guard, ' +
   'handler_contract';
+
+export type RetainedOutboxRow = OutboxRow & { readonly status: RetainedOutboxIntent['status'] };
+
+export function toRetainedOutboxIntent(row: RetainedOutboxRow): RetainedOutboxIntent {
+  return { intent: toOutboxIntent(row), status: row.status };
+}
 
 export function toOutboxIntent(row: OutboxRow): OutboxIntent {
   return {

@@ -10,7 +10,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { invoke } from '../../src/invocation/invoke.js';
+import { invoke, invokeRetainedReceiptOnly } from '../../src/invocation/invoke.js';
 import type { ExecuteHandler, ExecutionEffects } from '../../src/invocation/invoke.js';
 import { admit, receiptIdentityFor } from '../../src/invocation/admission.js';
 import type { AdmittedCall } from '../../src/invocation/admission.js';
@@ -120,6 +120,86 @@ function approveExecute(capture?: { readonly now: number[]; calls: number }): Ex
 }
 
 describe('invoke', () => {
+  it('retained-receipt-only refuses unseen and mismatched identities without execution or commit', async () => {
+    const { store, memberships, alice } = await setup();
+    const def = makeDef({ inputs: { marker: { type: 'scalar', required: true } } });
+    const other = { ...def, name: asOperation('Acme.other') };
+    const envelope = makeEnvelope(OPERATION, uuidv7(FIXED_NOW, 801), { marker: 'original' });
+    const base = { app: 'acme-app', registry: new Map([[def.name, def], [other.name, other]]),
+      identity: identityFor(alice), source: 'test', store, memberships,
+      clock: { nowMs: () => FIXED_NOW }, envelope, execute: async () => bareEffects({ result: { saved: true } }),
+    };
+    await invoke(base);
+    const revision = await store.readRevision();
+    let executed = 0, committed = 0;
+    const recovery = { ...base, admissionMode: 'retained-receipt-only' as const,
+      store: { ...store, commit: async (batch: Parameters<typeof store.commit>[0]) => {
+        committed += 1; return store.commit(batch);
+      } }, execute: async () => { executed += 1; return bareEffects(); },
+    };
+    for (const override of [
+      { envelope: { ...envelope, operation_id: uuidv7(FIXED_NOW, 802) } },
+      { envelope: { ...envelope, operation_id: uuidv7(FIXED_NOW - 25 * 60 * 60 * 1000, 803) } },
+      { app: 'foreign-app' },
+      { identity: makeIdentity({ team: base.identity.team, userId: 'foreign-user' }) },
+      { identity: makeIdentity({ actor: base.identity.actor, teamId: 'foreign-team' }) },
+      { envelope: { ...envelope, operation: other.name } },
+    ]) {
+      const error = await captureStateError(invokeRetainedReceiptOnly({ ...recovery, ...override }));
+      assert.equal(error.code, 'not_found');
+    }
+    const conflict = await captureStateError(invokeRetainedReceiptOnly({ ...recovery,
+      envelope: { ...envelope, inputs: { marker: 'changed' } },
+    }));
+    assert.equal(conflict.code, 'conflict');
+    const invalid = await captureStateError(invoke({ ...recovery, admissionMode: 'unknown' as never }));
+    assert.equal(invalid.code, 'validation');
+    const forced = await captureStateError(invokeRetainedReceiptOnly({ ...recovery,
+      admissionMode: 'execute-or-replay',
+      envelope: { ...envelope, operation_id: uuidv7(FIXED_NOW, 806) },
+    } as Parameters<typeof invokeRetainedReceiptOnly>[0]));
+    assert.equal(forced.code, 'not_found');
+    assert.equal(executed, 0);
+    assert.equal(committed, 0);
+    assert.equal(await store.readRevision(), revision);
+  });
+
+  it('retained-receipt-only recovers saved outcomes at 16 minutes and 24 hours under current authority', async () => {
+    const { store, memberships, alice } = await setup();
+    const envelope = makeEnvelope(OPERATION, uuidv7(FIXED_NOW, 804));
+    const base = { app: 'acme-app', registry: registryFor(makeDef()), identity: identityFor(alice),
+      source: 'test', store, memberships, clock: { nowMs: () => FIXED_NOW }, envelope,
+      execute: async () => bareEffects({ result: { marker: 'original' } }),
+    };
+    const first = await invoke(base);
+    const rejectionEnvelope = makeEnvelope(OPERATION, uuidv7(FIXED_NOW, 805));
+    const rejection = await captureStateError(invoke({ ...base, envelope: rejectionEnvelope,
+      execute: async () => { throw new StateError('rule_failed', 'Original rejection.'); },
+    }));
+    const revision = await store.readRevision();
+    let executed = 0, committed = 0;
+    const recovery = { ...base, admissionMode: 'retained-receipt-only' as const,
+      store: { ...store, commit: async (batch: Parameters<typeof store.commit>[0]) => {
+        committed += 1; return store.commit(batch);
+      } }, execute: async () => { executed += 1; return bareEffects(); },
+    };
+    for (const elapsed of [16 * 60 * 1000, 24 * 60 * 60 * 1000]) {
+      const replay = await invokeRetainedReceiptOnly({ ...recovery, clock: { nowMs: () => FIXED_NOW + elapsed } });
+      assert.equal(replay.status, 'replayed');
+      assert.deepEqual(replay.result, first.result);
+    }
+    const rejected = await captureStateError(invokeRetainedReceiptOnly({ ...recovery, envelope: rejectionEnvelope }));
+    assert.equal(rejected.code, rejection.code);
+    assert.equal(rejected.message, rejection.message);
+    const denied = registryFor(makeDef({ by: 'owner' }));
+    assert.equal((await captureStateError(invokeRetainedReceiptOnly({ ...recovery, registry: denied }))).code, 'forbidden');
+    await memberships.removeMembership(alice.membership.membership_id);
+    assert.equal((await captureStateError(invokeRetainedReceiptOnly(recovery))).code, 'forbidden');
+    assert.equal(executed, 0);
+    assert.equal(committed, 0);
+    assert.equal(await store.readRevision(), revision);
+  });
+
   it('rejects an unknown operation with validation', async () => {
     const { store, memberships, alice } = await setup();
     const operationId = uuidv7(FIXED_NOW);

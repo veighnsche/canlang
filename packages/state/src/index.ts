@@ -26,6 +26,7 @@ export type {
   OperationName,
   ModelName,
   AdmissionKind,
+  MutationAdmissionMode,
   Principal,
   TeamScope,
   InvocationContext,
@@ -42,6 +43,7 @@ export type {
   DomainWrite,
   HistoryEntry,
   OutboxIntent,
+  RetainedOutboxIntent,
   ScheduleOp,
   CommitBatch,
   CommitResult,
@@ -145,7 +147,7 @@ export type { MembershipReader } from './policy/roles.js';
 export type { PolicyTable } from './policy/grants.js';
 export type { OperationRegistry } from './invocation/registry.js';
 export type { ClockPort } from './invocation/context.js';
-export type { ExecuteHandler } from './invocation/invoke.js';
+export { invokeRetainedReceiptOnly, type ExecuteHandler } from './invocation/invoke.js';
 export {
   activate,
   canonicalUniqueValue,

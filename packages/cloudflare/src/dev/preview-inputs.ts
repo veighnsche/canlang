@@ -12,6 +12,7 @@ const OWNED_EXPORTS = [
   "@canlang/state/distribution", "@canlang/ui/distribution",
   "@canlang/stdlib/distribution", "@canlang/values/distribution",
   "@canlang/work/distribution", "@canlang/services/distribution",
+  "@canlang/testkit",
 ] as const;
 const EXTERNAL_IMPORTS = [
   ["@modelcontextprotocol/sdk", "@canlang/interfaces/distribution"],
@@ -80,7 +81,7 @@ function walkFiles(root: string, base: string, append: (path: string) => void, a
 }
 
 /** Recompute this exact installed output closure before a bundle is accepted. */
-export function installedPortableBundleInputs(): readonly NamedInputPath[] {
+export function installedPortableBundleInputs(applicationRoot = process.cwd()): readonly NamedInputPath[] {
   const selected = new Map<string, string>();
   const seenPackages = new Set<string>();
   const externalQueue: Array<{ specifier: string; from: string }> = [];
@@ -106,7 +107,10 @@ export function installedPortableBundleInputs(): readonly NamedInputPath[] {
       }
     }
   };
-  for (const specifier of OWNED_EXPORTS) addPackage(require.resolve(specifier), true);
+  for (const specifier of OWNED_EXPORTS) {
+    const entry = resolveOwned(specifier, applicationRoot);
+    if (entry !== null) addPackage(entry, true);
+  }
   for (const [specifier, owner] of EXTERNAL_IMPORTS) {
     externalQueue.push({ specifier, from: packageRoot(require.resolve(owner)).root });
   }
@@ -118,12 +122,26 @@ export function installedPortableBundleInputs(): readonly NamedInputPath[] {
 }
 
 /** Source membership is captured too, so a checkout edit invalidates old dist evidence. */
-export function installedOwnedSourceInputs(): readonly NamedInputPath[] {
+function resolveOwned(specifier: string, applicationRoot: string): string | null {
+  if (specifier !== "@canlang/testkit") return require.resolve(specifier);
+  try { return createRequire(resolve(applicationRoot, "package.json")).resolve(specifier); }
+  catch (error) {
+    // Only absence of the optional package is admitted. Broken exports or an
+    // installed package's missing entry remain actionable producer errors.
+    if (error instanceof Error && (error as NodeJS.ErrnoException).code === "MODULE_NOT_FOUND" &&
+        error.message.split("\n", 1)[0] === `Cannot find module '${specifier}'`) return null;
+    throw error;
+  }
+}
+
+export function installedOwnedSourceInputs(applicationRoot = process.cwd()): readonly NamedInputPath[] {
   const paths = new Map<string, string>();
   const seen = new Set<string>();
-  const installed = installedPortableBundleInputs();
+  const installed = installedPortableBundleInputs(applicationRoot);
   for (const specifier of OWNED_EXPORTS) {
-    const pkg = packageRoot(require.resolve(specifier));
+    const entry = resolveOwned(specifier, applicationRoot);
+    if (entry === null) continue;
+    const pkg = packageRoot(entry);
     if (seen.has(pkg.root)) continue;
     seen.add(pkg.root);
     const sourceDirectories = pkg.name === "@canlang/values"
@@ -222,11 +240,28 @@ export function assertInstalledCatalog(checkoutRoot: string, selectedPath: strin
   }
 }
 
+/** Re-discover the same finite inventory used by preparation and currency checks. */
+export function installedLocalPreviewInputInventory(checkoutRoot: string, compilerPath: string): {
+  packageInputPaths: readonly NamedInputPath[];
+  extraInputPaths: readonly NamedInputPath[];
+} {
+  const grammar = join(realpathSync(checkoutRoot), "docs", "specification", "GRAMMAR.md");
+  if (!statSync(grammar).isFile()) throw new Error("preview inputs: installed grammar reference is unavailable");
+  return {
+    packageInputPaths: installedPortableBundleInputs(checkoutRoot),
+    extraInputPaths: [
+      { name: "bun", path: bunExecutable() },
+      { name: "grammar", path: grammar },
+      ...installedOwnedSourceInputs(checkoutRoot),
+      ...compilerSourceInputs(checkoutRoot, compilerPath),
+    ],
+  };
+}
+
 /** Derive the capture manifest from installed producers; callers select only source/tool paths. */
 export function prepareLocalPreviewCapture(options: PrepareLocalPreviewCaptureOptions): SingleFileCaptureRequest {
   assertInstalledCatalog(options.checkoutRoot, options.catalogPath);
-  const grammar = join(realpathSync(options.checkoutRoot), "docs", "specification", "GRAMMAR.md");
-  if (!statSync(grammar).isFile()) throw new Error("preview inputs: installed grammar reference is unavailable");
+  const inventory = installedLocalPreviewInputInventory(options.checkoutRoot, options.compilerPath);
   return {
     checkoutRoot: options.checkoutRoot,
     appPath: options.appPath,
@@ -234,13 +269,8 @@ export function prepareLocalPreviewCapture(options: PrepareLocalPreviewCaptureOp
     compilerPath: options.compilerPath,
     catalogPath: options.catalogPath,
     helpIndexPath: options.helpIndexPath,
-    packageInputPaths: installedPortableBundleInputs(),
-    extraInputPaths: [
-      { name: "bun", path: bunExecutable() },
-      { name: "grammar", path: grammar },
-      ...installedOwnedSourceInputs(),
-      ...compilerSourceInputs(options.checkoutRoot, options.compilerPath),
-    ],
+    ...inventory,
+    inputInventory: "installed-local-preview",
     ...(options.semanticOptions === undefined ? {} : { semanticOptions: options.semanticOptions }),
   };
 }

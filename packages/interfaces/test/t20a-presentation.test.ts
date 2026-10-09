@@ -31,7 +31,7 @@ import type { MutationOutcome } from '../src/ports.js';
 import { buildBusinessError } from '../src/errors/envelope.js';
 import { UUID_V7_PATTERN, extractUuidV7Ms, validateOperationId } from '../src/envelope/validate.js';
 import { deriveOperationInputs, catalogFromArtifactOperations } from '../src/http/operations.js';
-import { handleOperationRequest } from '../src/http/operations.js';
+import { FORM_REFUSAL_HEADER, handleOperationRequest } from '../src/http/operations.js';
 import { createSourceFormBindings } from '../src/http/form-binding.js';
 import { csrfTokenForSession, mintOperationId, resolveRequestIdentity } from '../src/http/context.js';
 import { buildPresentationContext } from '../src/http/presentation.js';
@@ -50,6 +50,10 @@ import {
   generatedFields,
   generatedForm,
   form,
+  input as renderInput,
+  checkbox,
+  toggle,
+  NATIVE_BOOLEAN_PRESENCE_PREFIX,
   projectGeneratedInputs,
 } from '@canlang/ui';
 
@@ -392,6 +396,36 @@ test('source form preparation scopes typed controls and refuses unavailable bind
   ]) assert.equal((await prepare(request)).status, 'unavailable');
 });
 
+test('authored create controls render a nullable integer without inventing its clear checkbox', async () => {
+  const create: ArtifactOperation = {
+    name: 'OfficeSupplies.Supply.create', kind: 'create', description: '', inputs: { fields: [
+      { name: 'name', field: { kind: 'string' }, valueType: 'text', required: true },
+      { name: 'quantity', field: { kind: 'integer' }, required: false, nullable: true },
+    ] },
+  };
+  const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: [create] });
+  const { deps, identity } = await createTestDeps();
+  const { identity: principal } = await resolveRequestIdentity(deps.identity.store,
+    testRequest('/forms', { cookie: identity.cookie }), { clock: deps.clock, teamId: identity.teamId });
+  const context = buildPresentationContext({ request: testRequest('/forms', { cookie: identity.cookie }),
+    pathname: '/forms', isPartial: false, appDefaultLocale: 'en',
+    csrfToken: await deriveCsrfToken(identity.sessionToken), principal,
+    query: async () => ({ rows: [], columns: [] }), catalog, clock: deps.clock });
+  const prepared = await context.prepareForm!({ operation: create.name,
+    fields: ['name', 'quantity'], authoredFields: ['name', 'quantity'], display: 'inline' });
+  assert.equal(prepared.status, 'ready');
+  if (prepared.status !== 'ready') throw new Error('expected authored nullable form');
+  assert.deepEqual(prepared.props.fields.map(field => field.path), ['name', 'quantity']);
+  const html = await form({ ...prepared.props,
+    children: () => [renderInput(prepared.field('name')), renderInput(prepared.field('quantity'))] });
+  assert.match(html, /name="inputs\[name\]"/);
+  assert.match(html, /name="inputs\[quantity\]"/);
+  assert.doesNotMatch(html, /quantity__null/);
+  assert.deepEqual(projectGeneratedInputs(prepared.derived, 'create', {
+    'inputs[name]': 'Paper', 'inputs[quantity]': '',
+  }, prepared.props.fields.map(field => field.path)), { name: 'Paper' });
+});
+
 test('protected source update submits only editable values and restores its exact record through HTTP', async () => {
   const calls: MutationEnvelope[] = [];
   const { deps, identity } = await createTestDeps({ mutations: {
@@ -456,6 +490,241 @@ test('protected source update submits only editable values and restores its exac
   assert.deepEqual(JSON.parse(JSON.stringify(calls[0]!.inputs)), { title: 'Edited', record: { id: 'g1', version: '7' } });
   assert.equal((await submit(envelope)).status, 200);
   assert.deepEqual(calls[1]!.inputs, calls[0]!.inputs, 'retry retains exact canonical inputs');
+  const native = new URLSearchParams([...html.matchAll(/<input\b[^>]*name="([^"]*)"[^>]*value="([^"]*)"[^>]*>/g)]
+    .map(match => [match[1]!, match[2]!]));
+  native.set('inputs[changes][title]', 'Native edit');
+  const nativeSubmit = (fields: URLSearchParams) => handleOperationRequest(protectedDeps,
+    testRequest('/forms', { method: 'POST', cookie: identity.cookie,
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: fields.toString() }), STORE_UPDATE_OP.name);
+  assert.equal((await nativeSubmit(native)).status, 200);
+  assert.deepEqual(JSON.parse(JSON.stringify(calls[2]!.inputs)), { title: 'Native edit', record: { id: 'g1', version: '7' } });
+  const override = new URLSearchParams(native); override.set('inputs[record][id]', 'other');
+  assert.equal((await nativeSubmit(override)).status, 403);
+  assert.equal(calls.length, 3, 'native source bindings retain protected-ref refusal');
+});
+
+test('native boolean presence distinguishes checked, unchecked and unrendered protected inputs', async () => {
+  const calls: MutationEnvelope[] = [];
+  const operation = 'Store.Gadget.update';
+  const op: ArtifactOperation = { name: operation, kind: 'update', description: '', inputs: { fields: [
+    { name: 'record', field: { kind: 'ref', model: 'Store.Gadget', requireVersion: true }, required: true },
+    { name: 'enabled', field: { kind: 'boolean' }, required: false, nullable: true },
+    { name: 'unrendered', field: { kind: 'boolean' }, required: false },
+    { name: 'note', field: { kind: 'string' }, required: false, nullable: true },
+    { name: 'flags', field: { kind: 'boolean' }, required: false, array: { required: false } },
+  ] } };
+  const t = await createTestDeps({ mutations: { [operation]: envelope => {
+    calls.push(envelope); return { result: { status: 'committed', operation_id: envelope.operation_id, result: null } };
+  } } });
+  const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: [op] });
+  const formBindings = await createSourceFormBindings(new Uint8Array(32).fill(94), 'native-bool-revision');
+  const session = await t.identity.store.findSessionByTokenHash(await sha256HexText(t.identity.sessionToken));
+  assert.ok(session); await t.identity.store.setSessionTeam(session.session_id, t.identity.teamId);
+  const { identity: principal } = await resolveRequestIdentity(t.identity.store,
+    testRequest('/forms', { cookie: t.identity.cookie }), { clock: t.deps.clock });
+  const context = buildPresentationContext({ request: testRequest('/forms'), pathname: '/forms', isPartial: false,
+    appDefaultLocale: 'en', csrfToken: await deriveCsrfToken(t.identity.sessionToken), principal,
+    query: async () => ({ rows: [], columns: [] }), catalog, clock: t.deps.clock, formBindings,
+    appId: t.deps.app.appId, sessionToken: t.identity.sessionToken,
+  });
+  const successfulControls = (html: string) => new URLSearchParams([...html.matchAll(/<input\b[^>]*>/g)]
+    .filter(([tag]) => !/\sdisabled(?:\s|>)/.test(tag) && (!/type="checkbox"/.test(tag) || /\schecked(?:\s|>)/.test(tag)))
+    .flatMap(([tag]) => { const name = /name="([^"]*)"/.exec(tag), value = /value="([^"]*)"/.exec(tag);
+      return name !== null && value !== null ? [[name[1]!, value[1]!]] : []; }));
+  const submit = (params: URLSearchParams) => handleOperationRequest({ ...t.deps, catalog, formBindings },
+    testRequest('/forms', { method: 'POST', cookie: t.identity.cookie,
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: params.toString() }), operation);
+  for (const widget of ['default', 'checkbox', 'toggle'] as const) {
+    for (const enabled of [false, true]) {
+      const prepared = await context.prepareForm!({ operation, fields: ['enabled'], arguments: { record: { id: 'g1', version: 7n, enabled } } });
+      assert.equal(prepared.status, 'ready'); if (prepared.status !== 'ready') throw new Error('expected protected boolean form');
+      const child = widget === 'default' ? undefined : await (widget === 'checkbox' ? checkbox : toggle)(prepared.field('enabled'));
+      const params = successfulControls(await form({ ...prepared.props, ...(child === undefined ? {} : { children: [child] }) }));
+      const marker = NATIVE_BOOLEAN_PRESENCE_PREFIX + 'inputs[changes][enabled]';
+      assert.deepEqual(params.getAll(marker), ['true']); assert.equal(params.has('inputs[changes][enabled]'), enabled);
+      assert.equal(params.has(NATIVE_BOOLEAN_PRESENCE_PREFIX + 'inputs[changes][unrendered]'), false);
+      const before = calls.length;
+      for (const change of [
+        (p: URLSearchParams) => p.append(marker, 'true'),
+        (p: URLSearchParams) => p.set(marker, 'false'),
+        (p: URLSearchParams) => p.set(NATIVE_BOOLEAN_PRESENCE_PREFIX + 'inputs[changes][missing]', 'true'),
+        (p: URLSearchParams) => p.set(NATIVE_BOOLEAN_PRESENCE_PREFIX + 'inputs[enabled]', 'true'),
+        (p: URLSearchParams) => p.set('inputs', '{}'),
+      ]) {
+        const invalid = new URLSearchParams(params); change(invalid); assert.equal((await submit(invalid)).status, 400);
+      }
+      const outside = new URLSearchParams(params); outside.set(NATIVE_BOOLEAN_PRESENCE_PREFIX + 'inputs[changes][unrendered]', 'true');
+      assert.equal((await submit(outside)).status, 403, 'presence never expands signed editable selection');
+      const badCsrf = new URLSearchParams(params); badCsrf.set('_csrf', 'bad'); assert.equal((await submit(badCsrf)).status, 403);
+      assert.equal(calls.length, before);
+      assert.equal((await submit(params)).status, 200);
+      assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1)!.inputs)), { enabled, record: { id: 'g1', version: '7' } });
+      if (widget === 'default' && !enabled) {
+        const companionOnly = new URLSearchParams(params); companionOnly.delete(marker);
+        assert.equal((await submit(companionOnly)).status, 200);
+        assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1)!.inputs)), { record: { id: 'g1', version: '7' } }, 'unchecked null companion cannot synthesize an unrendered boolean');
+        companionOnly.set('inputs[changes][enabled__null]', 'true');
+        assert.equal((await submit(companionOnly)).status, 200);
+        assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1)!.inputs)), { enabled: null, record: { id: 'g1', version: '7' } });
+      }
+    }
+  }
+  const omitted = await context.prepareForm!({ operation, fields: [], arguments: { record: { id: 'g1', version: 7n } } });
+  assert.equal(omitted.status, 'ready'); if (omitted.status !== 'ready') throw new Error('expected empty partial');
+  assert.equal((await submit(successfulControls(await form(omitted.props)))).status, 200);
+  assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1)!.inputs)), { record: { id: 'g1', version: '7' } });
+  const nullable = await context.prepareForm!({ operation, fields: ['note'], arguments: { record: { id: 'g1', version: 7n } } });
+  assert.equal(nullable.status, 'ready'); if (nullable.status !== 'ready') throw new Error('expected nullable partial');
+  const nullParams = successfulControls(await form(nullable.props));
+  assert.equal(nullParams.get(NATIVE_BOOLEAN_PRESENCE_PREFIX + 'inputs[changes][note__null]'), 'true');
+  assert.equal((await submit(nullParams)).status, 200);
+  assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1)!.inputs)), { record: { id: 'g1', version: '7' } }, 'unchecked nullable companion does not manufacture null');
+});
+
+test('native projection refusals retain valid text and ref drafts in rendered HTML', async () => {
+  clearFormBindings();
+  const operation = 'Store.Gadget.update';
+  const op: ArtifactOperation = { name: operation, kind: 'update', description: '', inputs: { fields: [
+    { name: 'record', field: { kind: 'ref', model: 'Store.Gadget', requireVersion: true }, required: true },
+    { name: 'title', field: { kind: 'string' }, required: false },
+    { name: 'owner', field: { kind: 'ref', model: 'Store.Gadget', requireVersion: true }, required: false },
+    { name: 'tags', field: { kind: 'string' }, required: false, array: { required: false } },
+    { name: 'enabled', field: { kind: 'boolean' }, required: false },
+  ] } };
+  const calls: MutationEnvelope[] = [];
+  const t = await createTestDeps({ mutations: { [operation]: envelope => {
+    calls.push(envelope); return { result: { status: 'committed', operation_id: envelope.operation_id, result: null } };
+  } } });
+  const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: [op] });
+  const derived = deriveOperationInputs(op);
+  const formBindings = await createSourceFormBindings(new Uint8Array(32).fill(95), 'native-draft-revision');
+  const session = await t.identity.store.findSessionByTokenHash(await sha256HexText(t.identity.sessionToken));
+  assert.ok(session); await t.identity.store.setSessionTeam(session.session_id, t.identity.teamId);
+  const { identity: principal } = await resolveRequestIdentity(t.identity.store,
+    testRequest('/forms', { cookie: t.identity.cookie }), { clock: t.deps.clock });
+  const context = buildPresentationContext({ request: testRequest('/forms'), pathname: '/forms', isPartial: false,
+    appDefaultLocale: 'en', csrfToken: await deriveCsrfToken(t.identity.sessionToken), principal,
+    query: async () => ({ rows: [], columns: [] }), catalog, clock: t.deps.clock, formBindings,
+    appId: t.deps.app.appId, sessionToken: t.identity.sessionToken,
+  });
+  registerFormBinding(bindingFromDerived({ derived, mode: 'update', action: '/forms',
+    fields: generatedFields(derived, 'update'), submit: 'Save', idPrefix: 'native-drafts', timeZone: 'UTC' }));
+  const successfulControls = (html: string) => new URLSearchParams([...html.matchAll(/<input\b[^>]*>/g)]
+    .filter(([tag]) => !/\sdisabled(?:\s|>)/.test(tag) && (!/type="checkbox"/.test(tag) || /\schecked(?:\s|>)/.test(tag)))
+    .flatMap(([tag]) => { const name = /name="([^"]*)"/.exec(tag), value = /value="([^"]*)"/.exec(tag);
+      return name !== null && value !== null ? [[name[1]!, value[1]!]] : []; }));
+  const submit = (params: URLSearchParams) => handleOperationRequest({ ...t.deps, catalog, formBindings },
+    testRequest('/forms', { method: 'POST', cookie: t.identity.cookie,
+      headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'text/html', 'HX-Request': 'true' },
+      body: params.toString() }), operation);
+  try {
+    for (const protectedForm of [false, true]) {
+      const prepared = await context.prepareForm!({ operation, fields: ['title', 'owner', 'tags', 'enabled'],
+        arguments: { record: { id: 'g1', version: 7n, title: 'Original', enabled: true } } });
+      assert.equal(prepared.status, 'ready'); if (prepared.status !== 'ready') throw new Error('expected protected draft form');
+      const { sourceBinding: _binding, ...ordinaryProps } = prepared.props;
+      const html = await form(protectedForm ? prepared.props : {
+        ...ordinaryProps, record: { id: 'g1', version: '7' },
+      });
+      const original = successfulControls(html);
+      original.set('inputs[changes][title]', 'true');
+      original.set('inputs[changes][owner]', 'chosen-owner');
+      original.set('inputs[changes][owner__version]', '9');
+      original.set('inputs[changes][tags]', '["good"]');
+      for (const [name, value] of [['tags', '{}'], ['enabled', 'maybe']]) {
+        const invalid = new URLSearchParams(original); invalid.set(`inputs[changes][${name}]`, value!);
+        const response = await submit(invalid);
+        assert.equal(response.status, 400);
+        assert.match(response.headers.get('content-type')!, /^text\/html/);
+        assert.deepEqual(JSON.parse(response.headers.get(FORM_REFUSAL_HEADER)!), { version: 1, code: 'validation', retryable: false });
+        const rendered = successfulControls(await response.text());
+        assert.equal(rendered.get('inputs[changes][title]'), 'true', 'text remains text beside a malformed typed sibling');
+        assert.equal(rendered.get('inputs[changes][owner]'), 'chosen-owner');
+        assert.equal(rendered.get('inputs[changes][owner__version]'), '9');
+        assert.equal(rendered.get('inputs[record][id]'), 'g1');
+        assert.equal(rendered.get('inputs[record][version]'), '7');
+      }
+      if (protectedForm) {
+        const invalidProof = new URLSearchParams(original);
+        invalidProof.set('form_binding', `${invalidProof.get('form_binding')}x`);
+        invalidProof.set('inputs[changes][tags]', '{}');
+        const denied = await submit(invalidProof);
+        assert.equal(denied.status, 400, 'typed projection still owns the first refusal');
+        assert.match(denied.headers.get('content-type')!, /^application\/json/, 'unverified bound refs cannot restore an update shell');
+      }
+    }
+    assert.equal(calls.length, 0, 'draft recovery never reaches canonical mutation');
+  } finally { clearFormBindings(); }
+});
+
+test('expired signed CRUD forms dispatch only the dedicated retained mutation path', async () => {
+  const t = await createTestDeps({});
+  const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: [STORE_UPDATE_OP] });
+  const formBindings = await createSourceFormBindings(new Uint8Array(32).fill(96), 'retained-form-revision');
+  const session = await t.identity.store.findSessionByTokenHash(await sha256HexText(t.identity.sessionToken));
+  assert.ok(session); await t.identity.store.setSessionTeam(session.session_id, t.identity.teamId);
+  const { identity: principal } = await resolveRequestIdentity(t.identity.store,
+    testRequest('/forms', { cookie: t.identity.cookie }), { clock: t.deps.clock });
+  const csrf = await deriveCsrfToken(t.identity.sessionToken);
+  const nowMs = t.deps.clock.nowMs();
+  let ordinary = 0, retained = 0;
+  let retainedError: 'not_found' | 'conflict' | null = null;
+  const invoker = { ...t.deps.invoker,
+    async invokeMutation(envelope: MutationEnvelope) {
+      ordinary++; return { result: { status: 'committed' as const, operation_id: envelope.operation_id, result: null } };
+    },
+    async invokeRetainedMutation(envelope: MutationEnvelope) {
+      retained++;
+      assert.deepEqual(JSON.parse(JSON.stringify(envelope.inputs)), { title: 'Exact retry', record: { id: 'g1', version: '7' } });
+      if (retainedError !== null) return { error: buildBusinessError(retainedError, 'Retained receipt unavailable.') };
+      return { result: { status: 'committed' as const, operation_id: envelope.operation_id, result: null } };
+    },
+  };
+  for (const age of [0, 16 * 60 * 1000, 24 * 60 * 60 * 1000 + 1]) {
+    const context = buildPresentationContext({ request: testRequest('/forms'), pathname: '/forms', isPartial: false,
+      appDefaultLocale: 'en', csrfToken: csrf, principal, query: async () => ({ rows: [], columns: [] }),
+      catalog, clock: { nowMs: () => nowMs - age }, formBindings, appId: t.deps.app.appId, sessionToken: t.identity.sessionToken,
+    });
+    const prepared = await context.prepareForm!({ operation: STORE_UPDATE_OP.name, fields: ['title'],
+      arguments: { record: { id: 'g1', version: 7n, title: 'Exact retry' } } });
+    assert.equal(prepared.status, 'ready'); if (prepared.status !== 'ready') throw new Error('expected signed form');
+    const native = new URLSearchParams([...((await form(prepared.props)).matchAll(/<input\b[^>]*name="([^"]*)"[^>]*value="([^"]*)"[^>]*>/g))]
+      .map(match => [match[1]!, match[2]!]));
+    const json = { operation: STORE_UPDATE_OP.name, operation_id: prepared.props.operationId,
+      form_binding: prepared.props.sourceBinding, inputs: { title: 'Exact retry' } };
+    const submit = (nativeBody: boolean, selectedInvoker = invoker, selectedBindings = formBindings) =>
+      handleOperationRequest({ ...t.deps, catalog, formBindings: selectedBindings, invoker: selectedInvoker,
+        clock: { nowMs: () => nowMs } }, testRequest('/forms', { method: 'POST', cookie: t.identity.cookie,
+        headers: { 'content-type': nativeBody ? 'application/x-www-form-urlencoded' : 'application/json', 'x-csrf-token': csrf },
+        body: nativeBody ? native.toString() : JSON.stringify(json) }), STORE_UPDATE_OP.name);
+    for (const nativeBody of [false, true]) {
+      const response = await submit(nativeBody);
+      assert.equal(response.status, 200);
+      assert.equal((await response.json() as { operation_id: string }).operation_id, prepared.props.operationId);
+      if (age > 0) {
+        const before = ordinary + retained;
+        const { invokeRetainedMutation: _retained, ...withoutInvoker } = invoker;
+        const { restoreRetained: _restore, ...withoutRestore } = formBindings;
+        assert.equal((await submit(nativeBody, withoutInvoker as typeof invoker)).status, 403);
+        assert.equal((await submit(nativeBody, invoker, withoutRestore)).status, 403);
+        for (const unavailable of [null, false, 'not-callable', {}]) {
+          assert.equal((await submit(nativeBody, { ...invoker, invokeRetainedMutation: unavailable } as unknown as typeof invoker)).status, 403);
+          assert.equal((await submit(nativeBody, invoker,
+            { ...formBindings, restoreRetained: unavailable } as unknown as typeof formBindings)).status, 403);
+        }
+        assert.equal(ordinary + retained, before, 'missing either owner method refuses without ordinary fallback');
+        for (const code of ['not_found', 'conflict'] as const) {
+          retainedError = code;
+          const denied = await submit(nativeBody);
+          assert.equal(denied.status, code === 'not_found' ? 404 : 409);
+          assert.equal((await denied.json() as { code: string }).code, code);
+        }
+        retainedError = null;
+      }
+    }
+  }
+  assert.equal(ordinary, 2, 'only the fresh JSON/native forms use ordinary invocation');
+  assert.equal(retained, 12, 'expired JSON/native successes and receipt refusals use only retained invocation');
 });
 
 test('bindingFromDerived pins the operation and checks mode agreement', () => {
@@ -1032,14 +1301,12 @@ test('framing and business denials re-render with safe messages via dispatch', a
   assert.equal(store.rows.size, 0, 'no denied submit changed state');
 });
 
-test('bracket field names are never expanded: the projection is the form step', async () => {
+test('native bracket fields project through the owning catalog and refuse extras', async () => {
   const store = createPilotStore();
   const t = await createTestDeps({ mutations: store.handlers });
   const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: PILOT_OPS });
   const deps = { ...t.deps, catalog };
   const csrf = await deriveCsrfToken(t.identity.sessionToken);
-  // A literal urlencoded dump of rendered bracket names carries no
-  // `inputs` member, so framing rejects it — clients project first.
   const soup = new URLSearchParams({
     operation_id: mintOperationId(),
     'inputs[title]': 'wrench',
@@ -1050,9 +1317,14 @@ test('bracket field names are never expanded: the projection is the form step', 
     opRequest({ cookie: t.identity.cookie, contentType: 'application/x-www-form-urlencoded', body: soup.toString() }),
     'Store.Gadget.create',
   );
-  assert.equal(res.status, 400);
-  assert.equal((await res.json() as { message: string }).message, 'Invalid inputs.');
-  assert.equal(t.invoker.mutations.length, 0);
+  assert.equal(res.status, 200);
+  assert.deepEqual(t.invoker.mutations[0]!.envelope.inputs, { title: 'wrench' });
+  soup.set('inputs[undeclared]', 'extra');
+  const refused = await handleOperationRequest(deps,
+    opRequest({ cookie: t.identity.cookie, contentType: 'application/x-www-form-urlencoded', body: soup.toString() }),
+    'Store.Gadget.create');
+  assert.equal(refused.status, 400);
+  assert.equal(t.invoker.mutations.length, 1);
 });
 
 test('scenario submits dispatch with projected arrays and defaults omitted', async () => {

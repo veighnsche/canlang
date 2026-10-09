@@ -79,3 +79,15 @@ it("uses canonical business code message and withholds raw conflict/current valu
     error: { code: "forbidden", message: "no" },
   })).toThrow(/serving build/);
 });
+
+it("retains MCP transport status without accepting ordinary HTTP success as a refusal", () => {
+  const input = { context: runtime, requestId: "mcp1", phase: "unknown" as const, status: 200,
+    error: { code: "busy" as const, message: "PRIVATE_MCP_VALUES", retryable: true } };
+  expect(() => projectBusinessRefusal(input)).toThrow(/failure HTTP status/);
+  const projection = projectBusinessRefusal({ ...input, transport: "mcp" });
+  expect(projection.occurrence.owner_ref).toEqual({ request_id: "mcp1", status: 200, transport: "mcp" });
+  expect(projection.detail).toMatchObject({ status: 200, transport: "mcp", retryable: true });
+  expect(JSON.stringify(projection)).not.toContain("PRIVATE_MCP_VALUES");
+  expect(() => projectBusinessRefusal({ ...input, status: 204, transport: "mcp" }))
+    .toThrow(/failure HTTP status/);
+});

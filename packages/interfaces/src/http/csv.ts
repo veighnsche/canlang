@@ -65,7 +65,7 @@ import { CsvGrammarError, parseCsvGrammar } from '@canlang/ui/csv/grammar';
 import { checkCsvHeader, mapCsvCells } from '@canlang/ui';
 import { decodeValue, encodeValue, isDecimal, SchemaError } from '@canlang/values';
 import type { HttpDeps, OperationInputShape } from '../ports.js';
-import { validateOperationId } from '../envelope/validate.js';
+import { validateOperationId, validateOperationIdShape } from '../envelope/validate.js';
 import { prepareHttpPlan, runPreparedHttpPlan } from '../envelope/prepared.js';
 import { buildBusinessError, fromUnknown, toHttpResponse } from '../errors/envelope.js';
 import { logBusinessError, logInternalError } from '../errors/logging.js';
@@ -503,7 +503,10 @@ export async function handleCsvRequest(deps: HttpDeps, request: Request): Promis
         continue;
       }
       const idError = validateOperationId(selection.operation_id, deps.clock);
-      if (idError !== null) {
+      // Scenarios retain their age gate until their disclosure owner joins
+      // current authority. Checked CRUD delegates retained/unseen age to State.
+      if (idError !== null && (validateOperationIdShape(selection.operation_id) !== null ||
+          (derived.kind !== 'create' && derived.kind !== 'update' && derived.kind !== 'delete'))) {
         rows.push({ index: selection.index, operation_id: selection.operation_id, status: 'failed', error: idError });
         continue;
       }

@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "contract": "n01.rust-str-escape.v1",
   "engine": {
-    "node": "v24.21.0",
-    "v8": "13.6.233.17-node.53",
-    "platform": "darwin",
-    "arch": "arm64",
-    "execPath": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node"
+    "node": "v24.19.0",
+    "v8": "13.6.233.17-node.51",
+    "platform": "linux",
+    "arch": "x64",
+    "execPath": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node"
   },
   "source": {
     "frozenPath": "implementation/rust-port-orchestration/contracts-20261007/oracles/frozen-oracle.json.gz",
@@ -17,14 +17,14 @@
       "packages/values/src/catalog.ts": "443ec55fb59c161a2984850d058f39925e930591b194bd85090776b8557098eb",
       "packages/values/src/currency-data.ts": "a2e9aae51760cf23a76f3bd73a3caea3dfa2bc5d76b69020baf84c2f7f008c48",
       "packages/values/src/decimal.ts": "e4056e2849f928106b36f534ee72f3416fed9550c19da914dc9e02d4c14f592e",
-      "packages/values/src/distribution.ts": "d42f490fe465f366cef6be65adc2514bcf6e7a0e3ff6c5a3bc85cb03cdae94fb",
+      "packages/values/src/distribution.ts": "ff3b122b7b675af01e7ea0b29607e899aa5f3f34376380a44a53ea6a57e6e176",
       "packages/values/src/equality.ts": "3903807b4dc38bc5777e7a2758bc351041820d20bd500bb0100dfe411943fafb",
       "packages/values/src/errors.ts": "a9a518f181e92d3b69be7ef8bb36d7e1001e276849a5ff9e976eef81fee569e8",
       "packages/values/src/icu.ts": "07a1cfc94cf0a0a338cf1a7307648db211479a9da0a3b4cae7d5d99030a9b70e",
       "packages/values/src/index.ts": "d92ac7192a8739ddbfaf32ccc64e0aeba7fb30726e7bf40d7e81eb9a239d61c4",
       "packages/values/src/int.ts": "e85ea2cf5d6dc70793ed1347676b935f07c9650747eaf4a5006ea0adbf3e496d",
       "packages/values/src/internal/gregorian.ts": "99142cba4caf04ca931e445f03b073afc0336542e1a79a346c36acce15f0320f",
-      "packages/values/src/internal/schema-core.ts": "7fbca1a3d31a45d5d16f7b9b77a0d02506e6a52e2051d96853255112dbf975e5",
+      "packages/values/src/internal/schema-core.ts": "74ebfa5015f81593c93890d18eff91ffa6da36408257f1bef8d75a82a20f87bb",
       "packages/values/src/internal/violations.ts": "a314a8545c1aebdadf8a512121d75e29cd4fdef71af3674e56e1aa289eb25ef2",
       "packages/values/src/internal/wire-core.ts": "9b0a8abc935d43f657246897128ae163ab895ac456c8f9efb8d18b322c4dc9ea",
       "packages/values/src/kinds.ts": "73885ccd5d2262b74d2d7fdca124835b1280062a63b445dfee58b758f5afe4ad",

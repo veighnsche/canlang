@@ -32,6 +32,7 @@ import { digestGraph } from "@canlang/services/media/mapping";
 import { startControlledComfyServer } from "@canlang/services/media/harness";
 import {
   SCENARIO_TABLES,
+  ScenarioTableError,
   checkJudgmentsScript,
   checkMailScript,
   checkModelsScript,
@@ -675,6 +676,34 @@ describe("playback fail-loud", () => {
       );
       expect(response.status).toBe(500);
     }
+  });
+
+  it("preserves owning first errors and distinct base64 decode profiles", () => {
+    const cases = [
+      { provider: "mail", script: { kind: "nope", extra: true }, message: 'mail script has an unknown kind "nope".' },
+      { provider: "mail", script: { kind: "reject", status: 99, extra: true }, message: 'mail script has an unknown key "extra".' },
+      { provider: "mail", script: { kind: "reject", status: 99, body: NaN }, message: 'mail script.body must be finite JSON.' },
+      { provider: "models", script: { kind: "stream", lines: [], lineDelayMs: -1 }, message: 'models stream lineDelayMs must be a finite delay >= 0.' },
+      { provider: "judgments", script: { kind: "reject", status: 99 }, message: 'judgments reject status must be an integer HTTP status.' },
+      { provider: "media", script: { kind: "reject-prompt", status: 99, cancelStatus: 99 }, message: 'media cancelStatus must be an integer HTTP status.' },
+    ];
+    for (const { provider, script, message } of cases) {
+      const table = { provider, scenario: "bad-profile", script };
+      expect(() => parseScenarioTable(table)).toThrowError(new ScenarioTableError(message));
+      expect(() => createPlaybackHandler([table])).toThrowError(new PlaybackScriptError(message));
+      try { parseScenarioTable(table); } catch (error) { expect(error).toBeInstanceOf(ScenarioTableError); }
+      try { createPlaybackHandler([table]); } catch (error) { expect(error).toBeInstanceOf(PlaybackScriptError); }
+    }
+    const script = { kind: "accept", filesBase64: { "a.png": "A===" } };
+    // This alphabet mismatch is caught before either owning decoder runs.
+    expect(() => decodeMediaScript(script)).toThrowError('must be base64');
+    expect(() => createPlaybackHandler([{ provider: "media", scenario: "bad-base64", script }])).toThrowError('must be base64');
+    const noncanonical = { kind: "accept", filesBase64: { "a.png": "AB==" } };
+    expect(() => decodeMediaScript(noncanonical)).toThrowError('must be canonical base64');
+    expect(() => createPlaybackHandler([{ provider: "media", scenario: "bad-base64", script: noncanonical }])).toThrowError('must be canonical base64');
+    const misplaced = { kind: "accept", filesBase64: { "a.png": "AA==" } };
+    expect(decodeMediaScript(misplaced).scenario.kind).toBe("accept");
+    expect(() => createPlaybackHandler([{ provider: "media", scenario: "base64-ok", script: misplaced }])).not.toThrow();
   });
 
   it("throws PlaybackScriptError on invalid scripts", () => {
