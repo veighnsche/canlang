@@ -167,12 +167,13 @@ skips. All five failures are the unchanged draft-dependent corpus checks above;
 no current whole-suite acceptance follows. Codex review of the newly published
 revision remains external and pending; earlier reviews do not qualify it.
 
-GitHub CI inspection at **c3c12531** distinguishes three external failures:
-recursive checkout rejects draft5a12eb9e; the Contracts workflow's TypeScript
-invocation lacks ES2022 support for its current `Object.hasOwn`; and clean
-Cloudflare builds cannot resolve the optional Testkit declaration import in
-`src/dev/example-runner.ts`. The draft publisher, Contracts workflow owner and
-Cloudflare/package-boundary owner respectively own these prerequisites.
+GitHub CI at **2db9200b** confirms B1 passes; Rust/Tools checkout still
+rejects unpublished draft5a12eb9e. Capability released **697022af** for the
+Contracts ES2022 workflow and runtime-only optional Testkit import. Its narrow
+source/workflow patches are consumed here; the actual Contracts command and
+Cloudflare owning build pass. These two prerequisites are released, not
+unavailable-owner blockers. The coordinator owns the shared package-boundary
+script correction; exported self-references are preserved while it is prepared.
 The ready Compiler CI repair reconciles B1's stale three-diagnostic pin to the
 seven exact current tooltip/collapse/breadcrumb/edit/filter refusals, retaining
 exit10, complete diagnostics, zero other codes and no published artifact.
