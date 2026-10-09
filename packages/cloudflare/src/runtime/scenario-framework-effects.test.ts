@@ -39,7 +39,15 @@ function artifact(): ArtifactDescriptorSlice {
         default: { kind: 'literal', value: 'model default' } },
       { name: 'token', field: { kind: 'secret' }, required: false, serverOnly: true,
         default: { kind: 'server', init: 'random_secret' } },
-      { name: 'run', field: { kind: 'delivery', capability: 'std.TextGenerationV1', operation: 'generate', version: 1 },
+      // Original owning TextRun declaration from typed-generation-progress.json.
+      { name: 'run', field: { kind: 'delivery', capability: 'std.TextGenerationV1', operation: 'generate', version: 1,
+        result: { name: 'TextRun', fields: [
+          { name: 'source', type: 'text' as CanTypeId }, { name: 'revision', type: 'int' as CanTypeId },
+          { name: 'sequence', type: 'int' as CanTypeId },
+          { name: 'state', type: 'enum(queued,running,succeeded,failed,unknown,cancelled)' as CanTypeId },
+          { name: 'content', type: 'text' as CanTypeId }, { name: 'used_tokens', type: 'int?' as CanTypeId },
+          { name: 'detail', type: 'text?' as CanTypeId },
+        ] } },
         nullable: true, required: false, serverOnly: false },
     ] }],
     operations: [{ name: OP, kind: 'scenario', description: '', inputs: { fields: [
@@ -204,6 +212,29 @@ test('existing association replacement and clear use original pre-batch version 
   for (const attempt of [first.delivery, second]) assert.ok(await w.physical.load(RECEIPTS, asId(attempt.id)));
 });
 
+test('clearing and recreating an existing association preserves genuine creation metadata and storage order', async () => {
+  const w = await world(), first = await save(w);
+  const previous = await w.physical.load(ASSOCIATIONS, ASSOCIATION); assert.ok(previous);
+  const envelope = { ...w.envelope, operation_id: uuidv7(FIXED_NOW, ++sequence) };
+  let replacement: DeliveryRef | undefined;
+  await invoke({ ...w, envelope, clock: { nowMs: () => FIXED_NOW + 1000 }, execute: async call => {
+    const session = await begin(call, w);
+    await assign(call, w, session, null);
+    replacement = await send(call, w, request('10'));
+    await assign(call, w, session, replacement);
+    return finish(call, w, session);
+  } });
+  assert.ok(replacement);
+  const writes = w.commits[1]!.writes.filter(write => write.model === ASSOCIATIONS);
+  assert.equal(writes.length, 2);
+  assert.deepEqual(writes[0], { kind: 'remove', model: ASSOCIATIONS, id: previous.id, expectedVersion: previous.version });
+  assert.equal(writes[1]!.kind, 'insert');
+  const current = await w.physical.load(ASSOCIATIONS, ASSOCIATION); assert.ok(current);
+  assert.equal(current.created, FIXED_NOW + 1000); assert.equal(current.version, 1);
+  assert.equal(readAssociationRow(current).deliveryId, replacement.id);
+  for (const attempt of [first.delivery, replacement]) assert.ok(await w.physical.load(RECEIPTS, asId(attempt.id)));
+});
+
 test('tampering executor outbox, domain writes, defaults, history or unique claims rejects the whole joined transaction', async () => {
   for (const mode of ['outbox', 'domain', 'defaults', 'history', 'unique'] as const) {
     const w = await world(), before = await snapshot(w), revision = await w.physical.readRevision();
@@ -313,7 +344,8 @@ test('concurrent genuine sends, finite owner budgets and physical revision movem
   await assert.rejects(invoke({ ...w, execute: async call => {
     await begin(call, w); await send(call, w);
     throw new Error('a send beyond its admitted revision must refuse');
-  } }), error => error instanceof StateError && error.code === 'conflict');
+  } }), error => error instanceof StateError && error.code === 'busy' &&
+    error.message === 'Write contention; retry the identical envelope.' && error.retryable === true);
   assert.equal(moves, MAX_ADMISSION_ATTEMPTS); assert.equal(original.commits.length, 0, 'no scenario effects or receipt cross the stale fence');
   assert.equal(await original.physical.readRevision(), revision + moves); assert.deepEqual(await snapshot(original), before);
 });
