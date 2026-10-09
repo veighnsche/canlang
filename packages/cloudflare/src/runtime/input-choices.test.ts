@@ -303,8 +303,8 @@ test('genuine dependent choices use current native D1 grants and the original ge
     // This separate client uses Chromium's native fetch/FormData and the
     // installed, served bootstrap. Only the transport response is delayed;
     // every candidate and final request executes the original assembled Worker.
-    const browserSaveNonce = id(); const browserUserNonce = id();
-    const html = await renderPage(context, {
+    const browserSaveNonce = id(); let browserUserNonce = id();
+    const renderBrowserPage = async () => renderPage(context, {
       owner: 'InputChoices', path: '/form', title: message('Dependent choices'),
       admit: async () => ({}), render: async () => '',
     }, [await render(save, browserSaveNonce, 'browser-save', {
@@ -314,6 +314,7 @@ test('genuine dependent choices use current native D1 grants and the original ge
       routes: { signIn: '/auth/sign-in', signOut: '/auth/sign-out', switchTeam: '/auth/switch-team' },
       account: { authenticated: false, teams: [] }, settings: { sections: [] },
     });
+    let html = await renderBrowserPage();
     type Traffic = { path: string; inputs: Record<string, unknown>; operationId: string;
       status: number; body: { code?: string; message?: string; result?: unknown; choices?: Array<{ value: unknown; labels: string[] }> } };
     const traffic: Traffic[] = [];
@@ -478,6 +479,20 @@ test('genuine dependent choices use current native D1 grants and the original ge
       assert.deepEqual(traffic.filter(row => row.path.endsWith('InputChoices.save') && row.operationId === browserSaveNonce).at(-1)?.inputs,
         { country: { id: countries[0], version: '1' }, region: { id: regions[0], version: '2' }, note: 'Retained Chromium draft' });
 
+      const selectedReviewer = await submitBrowser('submit', browserReviewer);
+      assert.deepEqual(selectedReviewer.result, { id: reviewer.user_id });
+      assert.deepEqual(traffic.find(row => row.path.endsWith('InputChoices.submit') && row.operationId === browserUserNonce)?.inputs,
+        { document: { id: document, version: '1' }, assignee: { id: reviewer.user_id } });
+      const reviewerReceipt = await storage.state.readReceipt({ app: 'InputChoices', owner: team.team_id, principal: user.user_id,
+        operation: asOperation(submit.operation), operationId: asOperationId(browserUserNonce) });
+      assert.equal(reviewerReceipt?.outcome.status, 'committed');
+
+      // A fresh rendered form has its own server-issued operation identity;
+      // rejection checks must not replay the committed reviewer submission.
+      browserUserNonce = id(); html = await renderBrowserPage();
+      await page.reload(); await waitBrowser(reviewerFeedback, '1 choices available.');
+      await assignee.selectOption('0');
+
       // Eligibility can disappear without changing the bound document version.
       // The already selected user is refused by the source predicate, and a
       // fresh candidate lookup reflects the current Employee/site relationship.
@@ -497,7 +512,7 @@ test('genuine dependent choices use current native D1 grants and the original ge
       await storage.identity.removeMembership(membership.membership_id);
       const revisionBeforeDenied = await storage.state.readRevision();
       const deniedLookup = await direct('submit/choices/assignee', { document: { id: document, version: '1' } });
-      assert.equal(deniedLookup.status, 403); assert.equal(deniedLookup.body.code, 'forbidden');
+      assert.equal(deniedLookup.status, 404); assert.equal(deniedLookup.body.code, 'not_found');
       assert.equal(deniedLookup.body.choices, undefined);
       const deniedMutation = await direct('save', { country: { id: countries[0], version: '1' }, region: { id: regions[0], version: '2' } });
       assert.equal(deniedMutation.status, 403); assert.equal(deniedMutation.body.code, 'forbidden');
