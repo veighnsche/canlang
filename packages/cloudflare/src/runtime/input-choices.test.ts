@@ -18,7 +18,7 @@ import { createMcpHandler } from '@canlang/interfaces/mcp/server';
 import type { HttpDeps, McpDeps } from '@canlang/interfaces';
 import { resolveRequestIdentity } from '@canlang/interfaces';
 import { generatedForm, message, renderPage } from '@canlang/ui';
-import type { SubmitFetchInit } from '@canlang/ui';
+import type { SubmitFetch, SubmitFetchInit } from '@canlang/ui';
 import { startBrowserClient, type BrowserClientOptions } from '@canlang/ui/browser/bootstrap';
 import { Window, type HTMLInputElement, type HTMLSelectElement } from 'happy-dom';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
@@ -204,9 +204,9 @@ test('genuine dependent choices use current native D1 grants and the original ge
     let hold = false;
     const releases: Array<() => void> = [];
     const signals: Array<NonNullable<SubmitFetchInit['signal']>> = [];
-    const transports = new Set<ReturnType<BrowserClientOptions['fetchImpl']>>();
+    const transports = new Set<ReturnType<SubmitFetch>>();
     let choiceRequests = 0;
-    const fetchImpl: BrowserClientOptions['fetchImpl'] = async (url, init) => {
+    const fetchImpl: SubmitFetch = async (url, init) => {
       if (url.includes('/choices/')) {
         choiceRequests++; assert.ok(init.signal);
         if (url.endsWith('/choices/region')) signals.push(init.signal);

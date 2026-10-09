@@ -3,8 +3,10 @@
  * owner decides when to start/stop this bridge and supplies its disposable
  * LocalDev instance. This bridge never grants application identity.
  */
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import type { BusinessError } from "@canlang/contracts";
+import { buildBusinessError, FORM_REFUSAL_HEADER, isBusinessErrorCode } from "@canlang/interfaces";
 import type { LocalDev } from "./local-run.js";
 
 const BOOTSTRAP_PATH = "/_can_dev/preview/bootstrap";
@@ -13,6 +15,15 @@ const DEFAULT_BOOTSTRAP_TTL_MS = 30_000;
 const DEFAULT_COOKIE_TTL_MS = 15 * 60_000;
 const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
 const MAX_COOKIES = 8;
+const MAX_OBSERVED_ERROR_BYTES = 8 * 1024;
+
+export interface PreviewRefusal {
+  readonly requestId: string;
+  readonly status: number;
+  readonly error: BusinessError;
+  /** MCP tool errors retain their actual successful HTTP transport status. */
+  readonly transport?: "mcp";
+}
 
 /** Node and Fetch manage these headers; they must not be copied verbatim. */
 const REQUEST_HOP_HEADERS = new Set([
@@ -34,7 +45,64 @@ export interface ProtectedPreview {
   readonly url: string;
   /** Mint a one-use access URL. Never include it in ordinary status output. */
   issueOpenUrl(): string;
+  observeRefusals(handler: (event: PreviewRefusal) => void): () => void;
   close(): Promise<void>;
+}
+
+/** Project the closed code and boolean retry policy; response prose and values are untrusted. */
+function observedError(response: Response, body: Buffer, request: {
+  method: string; pathname: string; body: Buffer;
+}): { error: BusinessError; transport?: "mcp" } | null {
+  const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
+  if (response.status >= 400 && request.method === "POST" &&
+      request.pathname.startsWith("/api/operations/") && contentType.startsWith("text/html")) {
+    // HTML may contain the user's draft and credential-bearing controls. Only
+    // the owning handler's bounded metadata is eligible for observation.
+    const raw = response.headers.get(FORM_REFUSAL_HEADER);
+    if (raw === null || Buffer.byteLength(raw, "utf8") > 256) return null;
+    let metadata: unknown;
+    try { metadata = JSON.parse(raw); } catch { return null; }
+    if (metadata === null || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+    const fields = metadata as Record<string, unknown>;
+    if (Object.keys(fields).sort().join(",") !== "code,retryable,version" || fields.version !== 1 ||
+        !isBusinessErrorCode(fields.code) || typeof fields.retryable !== "boolean") return null;
+    return { error: buildBusinessError(fields.code, undefined, { retryable: fields.retryable }) };
+  }
+  if (body.length === 0 || body.length > MAX_OBSERVED_ERROR_BYTES ||
+      !contentType.startsWith("application/json")) return null;
+  let parsed: unknown;
+  try { parsed = JSON.parse(body.toString("utf8")); } catch { return null; }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+  const root = parsed as Record<string, unknown>;
+  let candidate: unknown;
+  let transport: "mcp" | undefined;
+  if (response.status >= 400) candidate = root.error ?? root;
+  else {
+    // Success values and protocol errors are not business refusals. Match the
+    // owning tools/call envelope rather than interpreting arbitrary JSON.
+    if (response.status !== 200 || request.method !== "POST" || request.pathname !== "/mcp" ||
+        root.jsonrpc !== "2.0" || root.error !== undefined) return null;
+    let call: Record<string, unknown>;
+    try {
+      const raw: unknown = JSON.parse(request.body.toString("utf8"));
+      if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+      call = raw as Record<string, unknown>;
+    } catch { return null; }
+    if (call.jsonrpc !== "2.0" || call.method !== "tools/call" ||
+        (typeof call.id !== "string" && !(typeof call.id === "number" && Number.isSafeInteger(call.id))) ||
+        root.id !== call.id) return null;
+    const result = root.result;
+    if (result === null || typeof result !== "object" || Array.isArray(result) ||
+        (result as Record<string, unknown>).isError !== true) return null;
+    candidate = (result as Record<string, unknown>).structuredContent;
+    transport = "mcp";
+  }
+  if (candidate === null || typeof candidate !== "object" || Array.isArray(candidate)) return null;
+  const error = candidate as Record<string, unknown>;
+  if (!isBusinessErrorCode(error.code) || typeof error.message !== "string") return null;
+  return { error: buildBusinessError(error.code, undefined,
+    typeof error.retryable === "boolean" ? { retryable: error.retryable } : undefined),
+    ...(transport === undefined ? {} : { transport }) };
 }
 
 function positiveLimit(value: number, name: string): number {
@@ -124,7 +192,7 @@ function whileOpen<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
   });
 }
 
-function relay(reply: ServerResponse, workerResponse: Response, body: Buffer): void {
+function relay(reply: ServerResponse, workerResponse: Response, body: Buffer): boolean {
   const headers: Record<string, string | string[]> = {};
   workerResponse.headers.forEach((value, name) => {
     if (name.toLowerCase() !== "set-cookie") headers[name] = value;
@@ -134,11 +202,12 @@ function relay(reply: ServerResponse, workerResponse: Response, body: Buffer): v
   // including the application's Identity session, retain their own bytes.
   if (setCookies.some(cookie => cookie.split("=", 1)[0]?.trim() === PREVIEW_COOKIE)) {
     sendRefusal(reply, 502, "preview_cookie_conflict");
-    return;
+    return false;
   }
   if (setCookies.length > 0) headers["set-cookie"] = setCookies;
   reply.writeHead(workerResponse.status, headers);
   reply.end(body);
+  return true;
 }
 
 /**
@@ -157,6 +226,7 @@ export async function startProtectedPreview(
   let pending: { hash: string; expiresAt: number } | null = null;
   const cookies = new Map<string, number>();
   const active = new Set<AbortController>();
+  const refusalObservers = new Set<(event: PreviewRefusal) => void>();
   let closed = false;
   let origin = "";
 
@@ -246,7 +316,16 @@ export async function startProtectedPreview(
       if (controller.signal.aborted) return;
       const responseBody = await whileOpen(workerResponse.arrayBuffer(), controller.signal);
       if (controller.signal.aborted) return;
-      relay(reply, workerResponse, Buffer.from(responseBody));
+      const bytes = Buffer.from(responseBody);
+      if (relay(reply, workerResponse, bytes) && refusalObservers.size > 0) {
+        const observation = observedError(workerResponse, bytes, { method, pathname: url.pathname, body });
+        if (observation !== null) {
+          const event = { requestId: randomUUID(), status: workerResponse.status, ...observation };
+          for (const observer of refusalObservers) {
+            try { observer(event); } catch { /* Observation cannot affect the response. */ }
+          }
+        }
+      }
     })().catch(() => {
       if (closed || controller.signal.aborted || reply.destroyed) reply.destroy();
       else if (!reply.headersSent) sendRefusal(reply, 502, "preview_dispatch_failed");
@@ -282,11 +361,17 @@ export async function startProtectedPreview(
       pending = { hash: digest(token), expiresAt: now() + bootstrapTtlMs };
       return `${origin}${BOOTSTRAP_PATH}?token=${token}`;
     },
+    observeRefusals(handler): () => void {
+      if (closed) return () => undefined;
+      refusalObservers.add(handler);
+      return () => { refusalObservers.delete(handler); };
+    },
     close(): Promise<void> {
       if (closing !== null) return closing;
       closed = true;
       pending = null;
       cookies.clear();
+      refusalObservers.clear();
       for (const controller of active) controller.abort();
       closing = new Promise<void>((resolve, reject) => {
         server.close(error => error === undefined ? resolve() : reject(error));

@@ -6231,6 +6231,12 @@ impl<'a> Resolver<'a> {
                 }
             }
             SyntaxKind::CatalogItem => {
+                // The stat description is a caption expression, not catalog vocabulary.
+                if kids(node).iter().find_map(|n| name_text(n, text)) == Some("stat")
+                    && let Some(value) = attribute_value(node, "description", text)
+                {
+                    self.walk_expr(module, scope, value, text, ExprCtx::bare(), diags)?;
+                }
                 for child in kids(node) {
                     if is_expression(child.kind) {
                         // M6 extension (PR6): a bare-word header position

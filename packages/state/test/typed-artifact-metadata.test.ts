@@ -836,7 +836,7 @@ test('bounded nominal alias fields retain the owning alias through both loaders 
     [candidate => { delete candidate.valueTypes; }, 'dangling_reference'],
     [candidate => { candidate.models![0]!.fields[0]!.valueType = 'ChangeReview.other.choice'; }, 'dangling_reference'],
     [candidate => { candidate.models![0]!.fields[0]!.min = 7; candidate.models![0]!.fields[0]!.max = 8; }, 'malformed_descriptor'],
-    [candidate => { candidate.models![0]!.fields[0]!.trim = true; }, 'malformed_descriptor'],
+    [candidate => { (candidate.models![0]!.fields[0]! as unknown as Record<string, unknown>).trim = 'yes'; }, 'malformed_descriptor'],
   ];
   for (const [change, reason] of changes) {
     const candidate = structuredClone(raw); change(candidate);

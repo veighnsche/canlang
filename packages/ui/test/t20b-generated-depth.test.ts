@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { SchemaError } from "@canlang/values";
 import type {
   FormFieldDef,
   PresentationContext,
@@ -357,7 +358,7 @@ describe("T20b depth rendering", () => {
     assert.ok(html.includes('name="inputs[changes][doc]" value="file-opaque-9"'));
   });
 
-  it("rejects non-string file drafts loudly", async () => {
+  it("rejects malformed file drafts with canonical violations and field context", async () => {
     await assert.rejects(
       form({
         context: makeContext(),
@@ -370,7 +371,24 @@ describe("T20b depth rendering", () => {
         submit: "Save",
         idPrefix: "f1",
       }),
-      /field "doc": type file needs an opaque file id string/,
+      (error: unknown) => {
+        assert.ok(error instanceof SchemaError);
+        assert.equal(error.kind, "schema");
+        assert.equal(error.message, 'field "doc": schema validation failed with 1 violation(s)');
+        assert.deepEqual(error.violations, [{
+          path: [], code: "type", message: "file has the wrong wire type", expected: "{id}", actual: "number 5",
+        }]);
+        const cause = error.cause;
+        assert.ok(cause instanceof SchemaError);
+        assert.equal(cause.kind, "schema");
+        assert.equal(cause.message, "schema validation failed with 1 violation(s)");
+        assert.deepEqual(error.violations, cause.violations);
+        assert.equal(error.violations[0], cause.violations[0]);
+        assert.deepEqual(Object.getOwnPropertyDescriptor(error, "cause"), {
+          value: cause, writable: true, enumerable: false, configurable: true,
+        });
+        return true;
+      },
     );
   });
 });
@@ -447,6 +465,51 @@ describe("T20b wall-to-instant resolution", () => {
 });
 
 describe("T20b depth projection", () => {
+  it("preserves declared prototype-named inputs as own envelope data", () => {
+    const derived: DerivedOperationInputs = {
+      operation: "Shop.Entry.submit", kind: "scenario", artifactVersion: 1,
+      inputs: [
+        { name: "__proto__", kind: "boolean", required: true },
+        { name: "constructor", kind: "ref", model: "Shop.Entry", versioned: true, required: true },
+      ],
+    };
+    const projected = projectGeneratedInputs(derived, "scenario", {
+      "inputs[__proto__]": "true", "inputs[constructor]": "entry-1",
+      "inputs[constructor__version]": "9007199254740993",
+    }, ["__proto__", "constructor"]);
+    assert.equal(Object.getPrototypeOf(projected), Object.prototype);
+    assert.deepEqual(Object.keys(projected), ["__proto__", "constructor"]);
+    assert.deepEqual(Object.getOwnPropertyDescriptor(projected, "__proto__"), {
+      value: true, enumerable: true, writable: true, configurable: true,
+    });
+    assert.deepEqual(Object.getOwnPropertyDescriptor(projected, "constructor"), {
+      value: { id: "entry-1", version: "9007199254740993" },
+      enumerable: true, writable: true, configurable: true,
+    });
+    const envelope = JSON.parse(JSON.stringify({ operation: derived.operation, inputs: projected }));
+    assert.equal(Object.hasOwn(envelope.inputs, "__proto__"), true);
+    assert.equal(envelope.inputs["__proto__"], true);
+    assert.deepEqual(envelope.inputs.constructor, { id: "entry-1", version: "9007199254740993" });
+    assert.equal(Object.getPrototypeOf(envelope.inputs), Object.prototype);
+    const cases: Array<{ input: DerivedOperationInputs["inputs"][number]; form: Record<string, string>; expected: unknown }> = [
+      { input: { name: "__proto__", kind: "ref", model: "Shop.Entry", versioned: true, required: true },
+        form: { "inputs[__proto__]": "entry-2", "inputs[__proto____version]": "7" }, expected: { id: "entry-2", version: "7" } },
+      { input: { name: "__proto__", kind: "string", required: true },
+        form: { "inputs[__proto__]": "text" }, expected: "text" },
+      { input: { name: "__proto__", kind: "boolean", required: false, nullable: true },
+        form: { "inputs[__proto____null]": "true" }, expected: null },
+      { input: { name: "__proto__", kind: "string", required: true, array: { required: true } },
+        form: { "inputs[__proto__]": '["first","second"]' }, expected: ["first", "second"] },
+    ];
+    for (const { input, form: submitted, expected } of cases) {
+      const result = projectGeneratedInputs({ ...derived, inputs: [input] }, "scenario", submitted, ["__proto__"]);
+      assert.equal(Object.getPrototypeOf(result), Object.prototype);
+      assert.equal(Object.hasOwn(result, "__proto__"), true);
+      assert.deepEqual(result["__proto__"], expected);
+      assert.deepEqual(Object.keys(result), ["__proto__"]);
+    }
+  });
+
   it("never emits delivery members, even under tampering", () => {
     assert.deepEqual(
       projectGeneratedInputs(RETRY, "scenario", {
@@ -598,19 +661,19 @@ describe("T20b depth projection", () => {
     );
   });
 
-  it("carries file ids verbatim and omits absent slots", () => {
+  it("projects canonical file wire ids and omits absent slots", () => {
     assert.deepEqual(
       projectGeneratedInputs(LEDGER_CREATE, "create", {
         "inputs[title]": "t",
         "inputs[doc]": "file-opaque-1",
       }),
-      { title: "t", doc: "file-opaque-1" },
+      { title: "t", doc: { id: "file-opaque-1" } },
     );
     assert.deepEqual(projectGeneratedInputs(LEDGER_UPDATE, "update", {}), {});
     // A cleared required slot travels for the bound checker to judge.
     assert.deepEqual(
       projectGeneratedInputs(LEDGER_CREATE, "create", { "inputs[title]": "t", "inputs[doc]": "" }),
-      { title: "t", doc: "" },
+      { title: "t", doc: { id: "" } },
     );
   });
 });

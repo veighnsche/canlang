@@ -26,6 +26,7 @@ import { Miniflare } from "miniflare";
 import type { D1Database } from "@cloudflare/workers-types";
 import type {
   ModelName,
+  OperationId,
   RecordId,
   ResolvedIdentity,
   RetryPolicy,
@@ -816,7 +817,7 @@ function restartSuite(kind: SubstrateKind, label: string): void {
       }
     });
 
-    it("stale running claim resumes after restart (release + re-drive)", async () => {
+    it("terminal prefix cannot strand a later stale claim at pageLimit1 after restart", async () => {
       const dir = await mkdtemp(join(tmpdir(), "t34-f7-stale-"));
       try {
         const rt = await openRestartable(kind, dir);
@@ -825,15 +826,22 @@ function restartSuite(kind: SubstrateKind, label: string): void {
         {
           const store = await rt.start();
           const world = await setupWorld(store);
-          await seedDomain(store, MODEL, ["c1"]);
+          await seedDomain(store, MODEL, ["c1", "c2"]);
           const joined = await triggerJoin(world, source);
           assert.equal(joined.ok, true);
           if (!joined.ok) throw new Error("unreachable");
           fanoutId = joined.fanoutId;
+          // Commit the first child before the next worker dies holding c2.
+          const first = await runFanoutSchedulerTurn(
+            turnOpts(world, fanoutId, null, { pageLimit: 1, maxDrives: 1 }, countingBody()),
+          );
+          assert.equal(first.status, "turn");
+          assert.equal((await drainChildren(store, fanoutId))[0]?.id,
+            producers.tables.fanoutChildRowId(source, HANDLER, "c1"));
           // A claim whose worker died with it: old stamp, never recorded.
           const won = await claimFanoutChild({
             store,
-            child: { parentOccurrence: source, handler: HANDLER, recordId: "c1" },
+            child: { parentOccurrence: source, handler: HANDLER, recordId: "c2" },
             snapshotVersion: null,
             guard: { predicate: null },
             frozenInputs: null,
@@ -849,26 +857,112 @@ function restartSuite(kind: SubstrateKind, label: string): void {
         {
           const store = await rt.start();
           const world = await setupWorld(store);
-          const result = await runFanoutSchedulerTurn(
-            turnOpts(world, fanoutId, null, { pageLimit: 10, maxDrives: 10 }, countingBody()),
-          );
-          assert.equal(result.status, "turn");
-          if (result.status !== "turn") throw new Error("unreachable");
-          assert.equal(result.released.length, 1);
-          assert.equal(result.driven.length, 1);
-          const only = result.driven[0];
-          assert.ok(only !== undefined);
-          assert.equal(only.status, "recorded");
-          assert.equal(only.detail, "completed");
-          const domain = await store.load(asModel(MODEL), asId("c1"));
-          assert.ok(domain !== null);
-          assert.equal((domain.data as Record<string, unknown>)["count"], 1);
+          const released: string[] = [], driven: string[] = [];
+          await sweepToTerminal(async cursor => turnOpts(world, fanoutId, cursor,
+            { pageLimit: 1, maxDrives: 1 }, async (...args) => {
+              driven.push(args[0].recordId);
+              return countingBody()(...args);
+            }, {
+              // Observe each release through the actual owner commit without
+              // replacing the storage implementation or its transaction.
+              store: { ...store, commit: async batch => {
+                for (const write of batch.writes) if (write.model === T34F7_FANOUT_CHILD_MODEL &&
+                    write.kind === 'update' && producers.tables.readFanoutChildRow(write.row).state === 'pending') {
+                  released.push(write.id as string);
+                }
+                return store.commit(batch);
+              } },
+            }));
+          assert.deepEqual(driven, ["c2"]);
+          assert.deepEqual(released, [producers.tables.fanoutChildRowId(source, HANDLER, "c2")]);
+          for (const id of ["c1", "c2"]) {
+            const domain = await store.load(asModel(MODEL), asId(id));
+            assert.ok(domain !== null);
+            assert.equal(domain.data["count"], 1);
+          }
+          const checkpoint = await store.load(T34F7_FANOUT_CHECKPOINT_MODEL, fanoutId as RecordId);
+          assert.ok(checkpoint !== null);
+          assert.deepEqual(producers.tables.readFanoutCheckpointRow(checkpoint).completed, ["c1", "c2"]);
           await rt.kill();
         }
       } finally {
         await rm(dir, { recursive: true, force: true });
       }
     });
+
+    for (const timing of ["before-admission", "fence-retry"] as const) {
+      it(`fresh admitted B drives independent effects (${timing}) and survives restart`, async () => {
+        const dir = await mkdtemp(join(tmpdir(), "t34-f7-facts-"));
+        const rt = await openRestartable(kind, dir);
+        const source = `occ-facts-${timing}`;
+        let fanoutId: string;
+        try {
+          const store = await rt.start(), world = await setupWorld(store);
+          await seedDomain(store, MODEL, ["c1"]);
+          const joined = await triggerJoin(world, source);
+          assert.equal(joined.ok, true);
+          if (!joined.ok) throw new Error("unreachable");
+          fanoutId = joined.fanoutId;
+          const effectModel = asModel("Acme.FreshEffect"), seen: string[] = [];
+          let changed = false, armed = false;
+          const changeToB = async () => {
+            changed = true;
+            const row = await store.load(asModel(MODEL), asId("c1"));
+            assert.ok(row !== null);
+            await store.commit(makeBatch(await store.readRevision(), { writes: [{
+              kind: "update", model: asModel(MODEL), id: row.id, expectedVersion: row.version,
+              row: { ...row, version: (row.version + 1) as StoredRow["version"], data: { label: "B" } },
+            }] }));
+          };
+          const observed: StoragePort = { ...store, readRevision: async () => {
+            if (timing === "before-admission" && armed && !changed) await changeToB();
+            return store.readRevision();
+          } };
+          const body: FanoutSchedulerBodyPort = async (_child, row, attempt) => {
+            const label = row.data["label"] as string;
+            seen.push(label);
+            if (timing === "fence-retry" && !changed) await changeToB();
+            return {
+              // Effects deliberately have no source-row expectedVersion that
+              // could mask stale A reuse by rejecting an A domain mutation.
+              writes: [{ kind: "insert", model: effectModel,
+                row: makeRow({ id: "effect", data: { label } }) }], history: [],
+              outbox: [{ intentId: `${attempt.operationId}#0`, operation: asOperation(CHILD_OP),
+                operationId: attempt.operationId as OperationId, target: "Acme.deliver",
+                arguments: { label }, occurrenceIndex: 0 }],
+              schedules: [{ op: "replace", key: "fresh-effect", at: NOW,
+                event: asOperation("Acme.due"), payload: { label } }],
+              result: { kind: "completed" },
+            };
+          };
+          const opts = turnOpts(world, fanoutId, null, { pageLimit: 1, maxDrives: 1 }, body);
+          const result = await runFanoutSchedulerTurn({ ...opts, store: observed,
+            invoke: { ...opts.invoke, operationIdFor: () => { armed = true; return nextOpId(); } } });
+          assert.equal(result.status, "turn");
+          if (result.status !== "turn") throw new Error("unreachable");
+          assert.equal(result.driven[0]?.status, "recorded");
+          assert.deepEqual(seen, timing === "before-admission" ? ["B"] : ["c1", "B"]);
+          await rt.kill();
+          const restored = await rt.start(), restartedWorld = await setupWorld(restored);
+          assert.equal((await restored.load(effectModel, asId("effect")))?.data["label"], "B");
+          assert.deepEqual((await restored.outboxPending()).map(intent => intent.arguments["label"]), ["B"]);
+          assert.equal((await restored.scheduleGet("fresh-effect"))?.payload["label"], "B");
+          const child = (await drainChildren(restored, fanoutId))[0];
+          assert.ok(child !== undefined);
+          assert.equal(producers.tables.readFanoutChildRow(child).state, "completed");
+          const checkpoint = await restored.load(T34F7_FANOUT_CHECKPOINT_MODEL, fanoutId as RecordId);
+          assert.ok(checkpoint !== null);
+          assert.deepEqual(producers.tables.readFanoutCheckpointRow(checkpoint).completed, ["c1"]);
+          const revision = await restored.readRevision();
+          await runFanoutSchedulerTurn(turnOpts(restartedWorld, fanoutId, null,
+            { pageLimit: 1, maxDrives: 1 }, () => { throw new Error("terminal body re-executed"); }));
+          assert.equal(await restored.readRevision(), revision);
+        } finally {
+          await rt.kill();
+          await rm(dir, { recursive: true, force: true });
+        }
+      });
+    }
 
     it("retry horizon enforces from durable truth across restart", async () => {
       const dir = await mkdtemp(join(tmpdir(), "t34-f7-horizon-"));

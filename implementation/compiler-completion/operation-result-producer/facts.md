@@ -1,5 +1,14 @@
 # Bounded checked operation result producer
 
+The initial scalar-only scope below is historical. Current shared
+`checked_operation_result` also publishes checked nominal identities,
+stored-model results for reads and mutations, read-model arrays and admitted
+enum results. `valueTypes` and model descriptors carry their existing owning
+schema inventories. These are result type associations, not a complete
+saved-result disclosure dependency graph: E4011 only rejects direct secret
+types, and data/control/derive/local-call provenance remains unimplemented
+pending the defining State/Contracts plan ABI and completeness semantics.
+
 The shared `operations_json` serializer publishes optional `result: {type}`.
 Selected checked Scenario declarations publish the closed
 `int`/`datetime`/`text`/`bool`/`decimal`/`money`/`date`/`duration`

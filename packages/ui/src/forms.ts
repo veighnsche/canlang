@@ -17,7 +17,7 @@ import {
   GENERATED_FORM_TYPE_FOR_KIND,
   GENERATED_REF_VERSION_SUFFIX,
 } from "@canlang/contracts";
-import { decodeValue, encodeValue, isFileValue } from "@canlang/values";
+import { decodeValue, encodeValue, isFileValue, SchemaError } from "@canlang/values";
 import {
   isValidDate,
   stringFieldValue,
@@ -314,6 +314,7 @@ interface FieldRenderContext {
 }
 
 interface WidgetAttrs {
+  readonly name: string;
   readonly nameAttr: string;
   readonly idAttr: string;
   readonly common: string;
@@ -355,8 +356,15 @@ function fileFieldValue(field: FormFieldDef): string | null {
   }
   // Draft controls retain id text; canonical record values carry wire {id}.
   if (typeof value === "string") return value;
-  const wire = encodeValue("file", isFileValue(value) ? value : decodeValue("file", value));
-  return (wire as { id: string }).id;
+  try {
+    const wire = encodeValue("file", isFileValue(value) ? value : decodeValue("file", value));
+    return (wire as { id: string }).id;
+  } catch (error) {
+    if (!(error instanceof SchemaError)) throw error;
+    const contextual = new SchemaError(error.violations, `field "${field.path}": ${error.message}`);
+    Object.defineProperty(contextual, "cause", { value: error, writable: true, configurable: true });
+    throw contextual;
+  }
 }
 
 /**
@@ -420,12 +428,22 @@ function decimalWidget(field: FormFieldDef, attrs: WidgetAttrs): WidgetResult {
   };
 }
 
+/** Native-only transport evidence; the business control name remains unique. */
+export const NATIVE_BOOLEAN_PRESENCE_PREFIX = "can_boolean_present:";
+
+/** Render-time reuse by explicit controls preserves the forms/controls ESM cycle. */
+export function nativeBooleanPresence(field: FormFieldDef, controlName: string): string {
+  return field.type === "bool" && field.readonly !== true
+    ? hidden(NATIVE_BOOLEAN_PRESENCE_PREFIX + controlName, "true") : "";
+}
+
 function boolWidget(field: FormFieldDef, attrs: WidgetAttrs): WidgetResult {
   const checked = boolFieldValue(field);
   return {
     html:
       `<input type="checkbox" name="${attrs.nameAttr}" id="${attrs.idAttr}" value="true"` +
-      `${checked ? " checked" : ""} class="toggle"${attrs.common}>`,
+      `${checked ? " checked" : ""} class="toggle"${attrs.common}>` +
+      nativeBooleanPresence(field, attrs.name),
     submitValue: checked ? "true" : "false",
   };
 }
@@ -605,7 +623,7 @@ async function renderField(field: FormFieldDef, ctx: FieldRenderContext): Promis
   const disabled = field.readonly === true ? " disabled" : "";
   const widget = renderWidget(
     field,
-    { nameAttr: escapeAttr(name), idAttr, common: `${requiredAttr}${invalid}${describedBy}${disabled}` },
+    { name, nameAttr: escapeAttr(name), idAttr, common: `${requiredAttr}${invalid}${describedBy}${disabled}` },
     ctx.context,
     ctx.timeZone,
   );
@@ -962,7 +980,8 @@ export async function edit(props: EditProps): Promise<string> {
 
 /**
  * Archive/remove confirmation card: item heading, confirm copy, and a POST
- * form carrying the record, operation, CSRF token and mode.
+ * form carrying the record and request controls. Mode selects presentation;
+ * the declared operation owns archive/remove behavior.
  */
 export async function deleteRecord(props: DeleteProps): Promise<string> {
   const heading = escapeHtml(resolveCaption(props.itemLabel, props.context));
@@ -984,7 +1003,6 @@ export async function deleteRecord(props: DeleteProps): Promise<string> {
     hidden(CSRF_FIELD, props.context.csrfToken) +
     hidden("timezone", props.timeZone ?? "UTC") +
     recordHiddens(props.record) +
-    hidden("inputs[mode]", props.mode) +
     `<div class="flex gap-4"><button type="submit" class="btn ${tone}">${submitLabel}</button>${cancelLink(props.cancelHref, props.context)}</div>` +
     `</form></div></section>`
   );
@@ -1769,6 +1787,9 @@ export function projectGeneratedInputs(
   const rendered = renderedInputs === undefined ? undefined : new Set(renderedInputs);
   const timeZone = resolveProjectionZone(derived, mode, form, root, rendered);
   const out: Record<string, unknown> = {};
+  const setProjected = (name: string, value: unknown): void => {
+    Object.defineProperty(out, name, { value, enumerable: true, writable: true, configurable: true });
+  };
   for (const input of derived.inputs) {
     if (isBoundRecord(input, mode)) {
       const id = form["inputs[record][id]"];
@@ -1776,10 +1797,10 @@ export function projectGeneratedInputs(
       if (id === undefined && version === undefined) {
         continue;
       }
-      out[input.name] = {
+      setProjected(input.name, {
         ...(id === undefined ? {} : { id }),
         ...(version === undefined ? {} : { version }),
-      };
+      });
       continue;
     }
     if (input.kind === "delivery" || (rendered !== undefined && !rendered.has(input.name))) {
@@ -1793,7 +1814,7 @@ export function projectGeneratedInputs(
     ) {
       // Explicit null wins over the value widget. A `__null` mark on a
       // non-nullable input is ignored above (never enters the envelope).
-      out[input.name] = null;
+      setProjected(input.name, null);
       continue;
     }
     if (input.kind === "ref") {
@@ -1803,12 +1824,12 @@ export function projectGeneratedInputs(
       }
       if (input.versioned === true) {
         const version = form[root(`${input.name}${GENERATED_REF_VERSION_SUFFIX}`)];
-        out[input.name] = {
+        setProjected(input.name, {
           id: id ?? "",
           ...(version === undefined ? {} : { version }),
-        };
+        });
       } else {
-        out[input.name] = { id: id ?? "" };
+        setProjected(input.name, { id: id ?? "" });
       }
       continue;
     }
@@ -1816,17 +1837,17 @@ export function projectGeneratedInputs(
     if (input.array !== undefined) {
       const projected = projectArrayValue(derived, input, raw);
       if (!projected.omit) {
-        out[input.name] = projected.value;
+        setProjected(input.name, projected.value);
       }
       continue;
     }
     if (input.kind === "boolean") {
       if (raw === undefined) {
-        out[input.name] = false;
+        setProjected(input.name, false);
       } else if (raw === "true") {
-        out[input.name] = true;
+        setProjected(input.name, true);
       } else if (raw === "false") {
-        out[input.name] = false;
+        setProjected(input.name, false);
       } else {
         throw projectionFailure(
           derived,
@@ -1842,15 +1863,15 @@ export function projectGeneratedInputs(
       if (raw === "") {
         // Cleared travels verbatim for the engine to judge, like every
         // other cleared scalar.
-        out[input.name] = "";
+        setProjected(input.name, "");
         continue;
       }
       try {
-        out[input.name] = wallToInstant(
+        setProjected(input.name, wallToInstant(
           raw,
           timeZone,
           form[root(`${input.name}${GENERATED_DATETIME_FOLD_SUFFIX}`)],
-        );
+        ));
       } catch (error) {
         throw projectionFailure(
           derived,
@@ -1866,7 +1887,7 @@ export function projectGeneratedInputs(
       if (raw === undefined || (input.kind === "user" && raw === "" && !input.required)) {
         continue;
       }
-      out[input.name] = { id: raw };
+      setProjected(input.name, { id: raw });
       continue;
     }
     if (input.kind === "money") {
@@ -1877,7 +1898,7 @@ export function projectGeneratedInputs(
       // Verbatim minor + caller-supplied currency: the exact-keys
       // `{minor, currency}` wire shape. ISO membership is judged at
       // the L2 values boundary, never invented here.
-      out[input.name] = { minor: raw ?? "", currency: currency ?? "" };
+      setProjected(input.name, { minor: raw ?? "", currency: currency ?? "" });
       continue;
     }
     if (raw === undefined || raw === "") {
@@ -1888,7 +1909,7 @@ export function projectGeneratedInputs(
         continue;
       }
     }
-    out[input.name] = raw;
+    setProjected(input.name, raw);
   }
   return out;
 }

@@ -405,3 +405,27 @@ test('removal revokes pending invitations for the member address', async () => {
   const surviving = await store.findInvitationById(invitation_id);
   assert.equal(surviving?.revoked_at, null);
 });
+
+test('active team page joins live teams, filters actor and status, and bounds cursor lookahead', async () => {
+  const { store, owner, team } = await ownerWithTeam();
+  const expected = [{ team_id: team.team_id, timezone: team.timezone }];
+  for (let index = 0; index < 101; index += 1) {
+    const row = await store.createTeam({ timezone: 'Europe/Brussels' });
+    await store.createMembership({ team_id: row.team_id, user_id: owner.user_id, is_owner: false, roles: [] });
+    expected.push({ team_id: row.team_id, timezone: row.timezone });
+  }
+  const removedTeam = await store.createTeam({});
+  const removed = await store.createMembership({ team_id: removedTeam.team_id, user_id: owner.user_id, is_owner: false, roles: [] });
+  await store.removeMembership(removed.membership_id);
+  await store.createMembership({ team_id: '00000000-0000-4000-8000-000000000000', user_id: owner.user_id, is_owner: false, roles: [] });
+  const foreign = await store.createUser({ email: 'other-page@test.example', password_hash: 'unused', email_verified: true });
+  const foreignTeam = await store.createTeam({});
+  await store.createMembership({ team_id: foreignTeam.team_id, user_id: foreign.user_id, is_owner: false, roles: [] });
+  expected.sort((a, b) => a.team_id < b.team_id ? -1 : a.team_id > b.team_id ? 1 : 0);
+  const first = await store.listActiveUserTeamsPage(owner.user_id, null);
+  assert.equal(first.length, 101);
+  assert.deepEqual(first, expected.slice(0, 101));
+  const second = await store.listActiveUserTeamsPage(owner.user_id, first[99]!.team_id);
+  assert.deepEqual(second, expected.slice(100));
+  assert.deepEqual(await store.listActiveUserTeamsPage(owner.user_id, expected.at(-1)!.team_id), []);
+});

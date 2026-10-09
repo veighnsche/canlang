@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { LocalDev } from "../src/dev/local-run.js";
 import { startProtectedPreview } from "../src/dev/preview-bridge.js";
+import { FORM_REFUSAL_HEADER, toMcpError } from "@canlang/interfaces";
 
 function cookieOf(response: Response): string {
   const raw = response.headers.get("set-cookie");
@@ -119,6 +120,176 @@ describe("protected local preview", () => {
     }
   });
 
+  it("observes dispatched business refusals without changing bytes or exposing response secrets", async () => {
+    const secret = "member-secret-and-row-value";
+    const body = JSON.stringify({ error: { code: "forbidden", message: secret, fields: [{ path: "/private", message: secret }] } });
+    const dev: Pick<LocalDev, "dispatchUrl"> = {
+      dispatchUrl: async url => new Response(url.endsWith("/big") ? `${body}${" ".repeat(8 * 1024)}` : body, {
+        status: 401, headers: { "content-type": "application/json; charset=utf-8", "x-secret": secret },
+      }) as Awaited<ReturnType<LocalDev["dispatchUrl"]>>,
+    };
+    const preview = await startProtectedPreview(dev);
+    const events: unknown[] = [];
+    const unsubscribe = preview.observeRefusals(event => { events.push(event); throw new Error("observer failed"); });
+    try {
+      // Bridge authentication is not a business refusal.
+      expect((await fetch(`${preview.url}/mcp`)).status).toBe(401);
+      expect(events).toHaveLength(0);
+      const bootstrap = await fetch(preview.issueOpenUrl(), { redirect: "manual" });
+      const cookie = cookieOf(bootstrap);
+      const response = await fetch(`${preview.url}/mcp`, { headers: { cookie, authorization: `Bearer ${secret}` } });
+      expect(response.status).toBe(401);
+      expect(await response.text()).toBe(body);
+      expect(response.headers.get("x-secret")).toBe(secret);
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({ status: 401, error: { code: "forbidden" } });
+      expect((events[0] as { requestId: string }).requestId).toMatch(/^[0-9a-f-]{36}$/);
+      expect(JSON.stringify(events)).not.toContain(secret);
+      expect(Object.keys((events[0] as { error: object }).error)).toEqual(["code", "message", "retryable"]);
+      const large = await fetch(`${preview.url}/big`, { headers: { cookie } });
+      expect((await large.text()).length).toBeGreaterThan(8 * 1024);
+      expect(events).toHaveLength(1);
+      unsubscribe();
+      await fetch(`${preview.url}/mcp`, { headers: { cookie } });
+      expect(events).toHaveLength(1);
+    } finally {
+      await preview.close();
+    }
+  });
+
+  it("keeps the Worker's retryable fact in a safe observation without changing HTTP bytes", async () => {
+    const secret = "secret-worker-message-and-field";
+    const bodies = {
+      busy: JSON.stringify({ error: { code: "busy", message: secret, retryable: true,
+        operation_id: "private.operation", fields: [{ path: "/secret", message: secret }] } }),
+      override: JSON.stringify({ error: { code: "busy", message: secret, retryable: false } }),
+      default: JSON.stringify({ error: { code: "delivery_unknown", message: secret } }),
+    };
+    const dev: Pick<LocalDev, "dispatchUrl"> = {
+      dispatchUrl: async url => new Response(
+        url.endsWith("/override") ? bodies.override : url.endsWith("/default") ? bodies.default : bodies.busy,
+        { status: 503, headers: { "content-type": "application/json", "x-worker-secret": secret } },
+      ) as Awaited<ReturnType<LocalDev["dispatchUrl"]>>,
+    };
+    const preview = await startProtectedPreview(dev);
+    const events: Array<{ error: { code: string; message: string; retryable?: boolean } }> = [];
+    const unsubscribe = preview.observeRefusals(event => events.push(event));
+    try {
+      const bootstrap = await fetch(preview.issueOpenUrl(), { redirect: "manual" });
+      const cookie = cookieOf(bootstrap);
+      for (const [path, expectedBody, retryable] of [
+        ["busy", bodies.busy, true], ["override", bodies.override, false], ["default", bodies.default, true],
+      ] as const) {
+        const response = await fetch(`${preview.url}/${path}`, { headers: { cookie } });
+        expect(response.status).toBe(503);
+        expect(await response.text()).toBe(expectedBody);
+        expect(response.headers.get("x-worker-secret")).toBe(secret);
+        expect(events.at(-1)?.error).toMatchObject({ retryable });
+      }
+      expect(events).toHaveLength(3);
+      expect(JSON.stringify(events)).not.toContain(secret);
+      expect(JSON.stringify(events)).not.toContain("private.operation");
+      expect(JSON.stringify(events)).not.toContain("/secret");
+      expect(events.map(event => Object.keys(event.error))).toEqual([
+        ["code", "message", "retryable"], ["code", "message", "retryable"], ["code", "message", "retryable"],
+      ]);
+    } finally {
+      unsubscribe();
+      await preview.close();
+    }
+  });
+
+  it("observes owning HTML form metadata without reading draft values or changing response bytes", async () => {
+    const secret = "PRIVATE_DRAFT_AND_CSRF";
+    const body = `<form><input name="_csrf" value="${secret}"></form>${" ".repeat(9 * 1024)}`;
+    let metadata = JSON.stringify({ version: 1, code: "limit", retryable: true });
+    let status = 429;
+    const dev: Pick<LocalDev, "dispatchUrl"> = { dispatchUrl: async () => new Response(body, {
+      status, headers: { "content-type": "text/html; charset=utf-8", [FORM_REFUSAL_HEADER]: metadata },
+    }) as Awaited<ReturnType<LocalDev["dispatchUrl"]>> };
+    const preview = await startProtectedPreview(dev);
+    const events: unknown[] = [];
+    preview.observeRefusals(event => events.push(event));
+    try {
+      const cookie = cookieOf(await fetch(preview.issueOpenUrl(), { redirect: "manual" }));
+      const submit = async (path = "/api/operations/Office.Supply.create") => fetch(preview.url + path, {
+        method: "POST", headers: { cookie, origin: preview.url }, body: secret,
+      });
+      const response = await submit();
+      expect(response.status).toBe(429);
+      expect(await response.text()).toBe(body);
+      expect(response.headers.get(FORM_REFUSAL_HEADER)).toBe(metadata);
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({ status: 429, error: { code: "limit", retryable: true } });
+      expect(JSON.stringify(events)).not.toContain(secret);
+      for (metadata of ["invalid", JSON.stringify({ version: 2, code: "limit", retryable: true }),
+        JSON.stringify({ version: 1, code: "unknown", retryable: true }),
+        JSON.stringify({ version: 1, code: "limit", retryable: "true" }),
+        JSON.stringify({ version: 1, code: "limit", retryable: true, message: secret }),
+        " ".repeat(257)]) await submit();
+      metadata = JSON.stringify({ version: 1, code: "limit", retryable: true });
+      await submit("/page");
+      status = 200;
+      await submit();
+      expect(events).toHaveLength(1);
+    } finally { await preview.close(); }
+  });
+
+  it("observes only matched MCP tool business errors while relaying the real HTTP 200 response", async () => {
+    const secret = "PRIVATE_TOOL_VALUES";
+    const canonical = toMcpError({ code: "busy", message: secret, retryable: true,
+      fields: [{ path: "/PRIVATE_FIELD", code: "PRIVATE_CODE", message: secret }] });
+    let result: unknown = canonical;
+    let id: unknown = 7;
+    let protocolError = false;
+    let oversized = false;
+    const dev: Pick<LocalDev, "dispatchUrl"> = {
+      dispatchUrl: async () => new Response(JSON.stringify({ jsonrpc: "2.0", id,
+        ...(protocolError ? { error: { code: -32602, message: secret } } : { result }) }) +
+        (oversized ? " ".repeat(8 * 1024) : ""), {
+        headers: { "content-type": "application/json", "x-worker-secret": secret },
+      }) as Awaited<ReturnType<LocalDev["dispatchUrl"]>>,
+    };
+    const preview = await startProtectedPreview(dev);
+    const events: unknown[] = [];
+    preview.observeRefusals(event => events.push(event));
+    try {
+      const cookie = cookieOf(await fetch(preview.issueOpenUrl(), { redirect: "manual" }));
+      const call = async (path = "/mcp", method = "tools/call") => fetch(preview.url + path, {
+        method: "POST", headers: { cookie, origin: preview.url, "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 7, method,
+          params: { name: "PRIVATE_OPERATION", arguments: { secret } } }),
+      });
+      const response = await call();
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ jsonrpc: "2.0", id: 7, result: canonical });
+      expect(response.headers.get("x-worker-secret")).toBe(secret);
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({ status: 200, transport: "mcp",
+        error: { code: "busy", retryable: true } });
+      expect(JSON.stringify(events)).not.toMatch(/PRIVATE_/);
+
+      // Ordinary success may contain error-looking business values.
+      result = { ...canonical, isError: false };
+      await call();
+      result = canonical;
+      id = 8;
+      await call();
+      id = 7;
+      await call("/other");
+      await call("/mcp", "tools/list");
+      protocolError = true;
+      await call();
+      protocolError = false;
+      result = { ...canonical, structuredContent: { code: "unknown", message: secret } };
+      await call();
+      result = canonical;
+      oversized = true;
+      await call();
+      expect(events).toHaveLength(1);
+    } finally { await preview.close(); }
+  });
+
   it.each(["dispatch", "response body"] as const)(
     "closes an active preview when the Worker %s never settles",
     async stage => {
@@ -127,12 +298,13 @@ describe("protected local preview", () => {
       let signal: AbortSignal | null | undefined;
       const dev: Pick<LocalDev, "dispatchUrl"> = {
         dispatchUrl: async (_url, init) => {
-          signal = init?.signal;
+          signal = init?.signal ?? undefined;
           if (stage === "dispatch") {
             entered();
             return new Promise<Awaited<ReturnType<LocalDev["dispatchUrl"]>>>(() => {});
           }
           const response = new Response("unused");
+          // Install the intentionally nonsettling body reader on this fixture only.
           Object.defineProperty(response, "arrayBuffer", { value: () => {
             entered();
             return new Promise<ArrayBuffer>(() => {});

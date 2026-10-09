@@ -2,8 +2,9 @@
 // never regenerated from either candidate. All mutable output stays private.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, readdirSync } from 'node:fs';
-import { resolve, dirname, join } from 'node:path';
+import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, readdirSync, existsSync, realpathSync } from 'node:fs';
+import { resolve, dirname, join, basename, relative, isAbsolute, sep } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
@@ -11,10 +12,24 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, '../../..');
 const args = process.argv.slice(2);
 assert.equal(args.length, 1, 'usage: registered-differential.mjs PRIVATE_ROOT; external emitted JS is not admitted');
-const [privateRoot] = args;
-assert.ok(privateRoot, 'private output root required');
-assert.ok(resolve(privateRoot).startsWith('/private/tmp/'), 'mutable output must be private');
-mkdirSync(privateRoot, { recursive: true });
+const [requestedRoot] = args;
+assert.ok(requestedRoot, 'private output root required');
+let existing = resolve(requestedRoot);
+const missing = [];
+while (!existsSync(existing)) {
+  missing.unshift(basename(existing));
+  existing = dirname(existing);
+}
+const privateRoot = resolve(realpathSync(existing), ...missing);
+const below = (file, root) => {
+  const tail = relative(root, file);
+  return tail !== '' && tail !== '..' && !tail.startsWith(`..${sep}`) && !isAbsolute(tail);
+};
+const temporaryRoots = [tmpdir(), '/private/tmp'].filter(existsSync).map(root => realpathSync(root));
+assert.ok(temporaryRoots.some(root => below(privateRoot, root)), 'mutable output must be private');
+assert.ok(privateRoot !== realpathSync(repo) && !below(privateRoot, realpathSync(repo)), 'mutable output must stay outside the checkout');
+mkdirSync(privateRoot, { recursive: true, mode: 0o700 });
+assert.equal(realpathSync(privateRoot), privateRoot, 'private output root changed during creation');
 const hash = path => createHash('sha256').update(readFileSync(path)).digest('hex');
 // Original independent donor captures. A mismatch is a gate failure, never a
 // new expected result or a newly accepted digest from the current checkout.

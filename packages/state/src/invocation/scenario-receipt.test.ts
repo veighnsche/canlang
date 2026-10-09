@@ -143,6 +143,42 @@ describe('execution-associated saved scenario disclosure', () => {
     assert.deepEqual(await projectScenarioReceipt({ ...w, receipt }), { result: null, records: [] });
   });
 
+  it('withholds saved values when live membership is revoked during the second projection load without a State revision change', async () => {
+    const w = await world(); const receipt = await save(w);
+    // Built-in members grants use the sampled caller membership, so both
+    // projections remain equal when Identity changes during the second pass.
+    const policy = buildPolicyTable([{ model: MODEL, secretFields: [],
+      grants: [{ by: 'members', fields: ['visible', 'private', 'token'] }] }]);
+    const authorized = await projectScenarioReceipt({ ...w, policy, receipt });
+    assert.equal(authorized.result, 'original visible');
+    assert.equal(authorized.records[0]!.data['visible'], 'committed visible');
+    const revision = await w.store.readRevision();
+    const row = await w.store.load(MODEL, w.row.id);
+    const sampledStatuses: (string | null)[] = [];
+    const memberships = { ...w.memberships, findMembership: async (team: string, user: string) => {
+      const member = await w.memberships.findMembership(team, user);
+      sampledStatuses.push(member?.status ?? null);
+      return member;
+    } };
+    let loads = 0;
+    const store: StoragePort = { ...w.store, load: async (model, id) => {
+      const current = await w.store.load(model, id);
+      // Each pass loads the original dependency and committed changed row.
+      if (++loads === 3) {
+        assert.deepEqual(sampledStatuses, ['active', 'active']);
+        await w.memberships.removeMembership(w.member.membership.membership_id);
+      }
+      return current;
+    } };
+    assert.deepEqual(await projectScenarioReceipt({ ...w, policy, store, memberships, receipt }),
+      { result: null, records: [] });
+    assert.equal(loads, 4);
+    assert.deepEqual(sampledStatuses, ['active', 'active', 'removed']);
+    assert.equal(await w.store.readRevision(), revision);
+    assert.deepEqual(await w.store.load(MODEL, w.row.id), row);
+    assert.deepEqual(await w.store.readReceipt(receipt.identity), receipt);
+  });
+
   it('accepts final provisional own-row reads and refuses intermediate or uncaptured reads before domain commit', async () => {
     for (const mode of ['final', 'intermediate', 'missing'] as const) {
       const w = await world();

@@ -39,17 +39,23 @@ function readRows(result: unknown): ReadRow[] {
   return root.records;
 }
 
-function disclosedRow(result: MutationResult): ReadRow {
-  expect(result.result).toBeNull();
-  expect(result.records).toHaveLength(1);
-  const row = result.records![0] as { id: unknown; version: unknown; data: unknown };
-  if (typeof row.id !== "string" || typeof row.version !== "number") {
-    throw new Error(`compiled journey: bad disclosed record ${JSON.stringify(result.records)}`);
+function changedRow(result: MutationResult): ReadRow {
+  if (result.result !== null || !Array.isArray(result.records) || result.records.length !== 1) {
+    throw new Error(`compiled journey: expected one authorized changed record ${JSON.stringify(result)}`);
   }
-  if (typeof row.data !== "object" || row.data === null || Array.isArray(row.data)) {
-    throw new Error(`compiled journey: bad disclosed data ${JSON.stringify(result.records)}`);
+  const row: unknown = result.records[0];
+  if (typeof row !== "object" || row === null || Array.isArray(row)) {
+    throw new Error(`compiled journey: bad changed record ${JSON.stringify(row)}`);
   }
-  return { id: row.id, version: row.version, data: row.data as Record<string, unknown> };
+  const record = row as { id: unknown; version: unknown; data: unknown };
+  if (typeof record.id !== "string" || record.id === "" || typeof record.version !== "number" ||
+      !Number.isSafeInteger(record.version) || record.version < 1) {
+    throw new Error(`compiled journey: bad changed identity ${JSON.stringify(row)}`);
+  }
+  if (typeof record.data !== "object" || record.data === null || Array.isArray(record.data)) {
+    throw new Error(`compiled journey: bad changed data ${JSON.stringify(row)}`);
+  }
+  return { id: record.id, version: record.version, data: record.data as Record<string, unknown> };
 }
 
 test.describe("compiled journey", () => {
@@ -99,10 +105,19 @@ test.describe("compiled journey", () => {
     if (!("result" in created)) throw new Error(`compiled journey: create failed ${JSON.stringify(created)}`);
     expect(created.result.status).toBe("committed");
     expect(created.result.operation_id).toBe(createOpId);
-    const row = disclosedRow(created.result);
+    const row = changedRow(created.result);
+    expect(row.id).toBe(createOpId);
     expect(row.version).toBe(1);
     expect(row.data).toEqual({ title });
-    const revisionAfterCreate = await island.store.readRevision();
+    const createReceiptIdentity = {
+      app: appDefinition.id, owner: seed.teamId, principal: seed.memberId,
+      operation: CREATE as OperationName, operationId: createOpId as OperationId,
+    };
+    const createRevision = await island.store.readRevision();
+    const savedCreate = await island.store.readReceipt(createReceiptIdentity);
+    const savedRow = await island.store.load(MODEL as ModelName, row.id as RecordId);
+    const createHistory = await island.store.historyFor(MODEL as ModelName, row.id as RecordId);
+    expect(savedCreate?.outcome.status).toBe("committed");
 
     // -- duplicate create replays without re-executing ----------------
     const replayed = await invoker.invokeMutation(
@@ -116,9 +131,12 @@ test.describe("compiled journey", () => {
     if (!("result" in replayed)) throw new Error(`compiled journey: replay failed ${JSON.stringify(replayed)}`);
     expect(replayed.result.status).toBe("replayed");
     expect(replayed.result.operation_id).toBe(createOpId);
-    expect(disclosedRow(replayed.result)).toEqual(row);
+    expect(changedRow(replayed.result)).toEqual(row);
     expect(replayed.result.records).toEqual(created.result.records);
-    expect(await island.store.readRevision()).toBe(revisionAfterCreate);
+    expect(await island.store.readRevision()).toBe(createRevision);
+    expect(await island.store.load(MODEL as ModelName, row.id as RecordId)).toEqual(savedRow);
+    expect(await island.store.historyFor(MODEL as ModelName, row.id as RecordId)).toEqual(createHistory);
+    expect(await island.store.readReceipt(createReceiptIdentity)).toEqual(savedCreate);
 
     // -- read serves the created row ----------------------------------
     const readBack = await invoker.invokeRead({ operation: READ, inputs: {} }, seed.identity);
@@ -141,7 +159,7 @@ test.describe("compiled journey", () => {
     if (!("result" in updated)) throw new Error(`compiled journey: update failed ${JSON.stringify(updated)}`);
     expect(updated.result.status).toBe("committed");
     expect(updated.result.operation_id).toBe(updateOpId);
-    const updatedRow = disclosedRow(updated.result);
+    const updatedRow = changedRow(updated.result);
     expect(updatedRow.id).toBe(row.id);
     expect(updatedRow.version).toBe(2);
     expect(updatedRow.data).toEqual({ title: updatedTitle });
@@ -162,7 +180,7 @@ test.describe("compiled journey", () => {
       {
         operation: DELETE as OperationName,
         operation_id: deleteOpId as OperationId,
-        inputs: { record: { id: row.id, version: String(updatedRow.version) } },
+        inputs: { record: { id: updatedRow.id, version: String(updatedRow.version) } },
       },
       seed.identity,
     );
@@ -180,10 +198,6 @@ test.describe("compiled journey", () => {
 
     // -- receipts + history via a FRESH handle (persist proof) ----------
     const fresh = island.freshStore();
-    const archived = await fresh.load(MODEL as ModelName, row.id as RecordId);
-    expect(archived?.version).toBe(3);
-    expect(archived?.data).toEqual({ title: updatedTitle });
-    expect(typeof archived?.archivedAt).toBe("number");
     for (const [operation, operationId, version] of [
       [CREATE, createOpId, 1],
       [UPDATE, updateOpId, 2],
@@ -204,6 +218,11 @@ test.describe("compiled journey", () => {
         expect(receipt.outcome.recordVersions).toEqual([{ model: MODEL, id: row.id, version }]);
       }
     }
+    expect(await fresh.readReceipt(createReceiptIdentity)).toEqual(savedCreate);
+    const archived = await fresh.load(MODEL as ModelName, row.id as RecordId);
+    expect(archived?.version).toBe(3);
+    expect(archived?.archivedAt).toBe(seed.now);
+    expect(archived?.data).toEqual({ title: updatedTitle });
     const trail = await fresh.historyFor(MODEL as ModelName, row.id as RecordId);
     expect(trail.map((entry) => [entry.change, entry.version, entry.operationId])).toEqual([
       ["create", 1, createOpId],

@@ -16,6 +16,7 @@
 //! panels, `edit` suites and generic catalog component items.
 //! Diagnostics use codes E1200–E1216 (see `syntax::mod` catalog).
 
+use super::construct_help::Branch;
 use crate::diagnostic::Diagnostic;
 use crate::source::{SourceId, Span};
 use crate::syntax::cst::{SyntaxKind, SyntaxNode};
@@ -27,6 +28,7 @@ struct Fail {
     code: &'static str,
     message: String,
     span: Span,
+    construct: Option<Branch>,
 }
 
 impl Fail {
@@ -35,11 +37,19 @@ impl Fail {
             code,
             message: message.into(),
             span,
+            construct: None,
         }
     }
 
     fn diag(self) -> Diagnostic {
-        Diagnostic::error(self.code, self.message, self.span)
+        let mut diagnostic = Diagnostic::error(self.code, self.message, self.span);
+        diagnostic.construct_candidates = self.construct.map(|branch| Box::new(branch.seed()));
+        diagnostic
+    }
+
+    fn construct(mut self, branch: Branch) -> Self {
+        self.construct = Some(branch);
+        self
     }
 }
 
@@ -734,7 +744,8 @@ pub fn parse_program(
                 "E1211",
                 "expected app, package or migration".to_string(),
                 line.tokens[0].span,
-            );
+            )
+            .construct(Branch::Root);
             parser.recover(&mut kids, line, fail);
             index += 1;
         }
@@ -2169,11 +2180,16 @@ impl<'a> Parser<'a> {
                 LabelShape::Scalar => false,
             };
             if !allowed {
-                return Err(Fail::new(
+                let fail = Fail::new(
                     "E1214",
                     format!("unsupported label slot `{word}`"),
                     key.span,
-                ));
+                );
+                return Err(if shape == LabelShape::Field {
+                    fail.construct(Branch::FieldLabel)
+                } else {
+                    fail
+                });
             }
             if seen.contains(&word) {
                 return Err(Fail::new(
@@ -4433,7 +4449,18 @@ impl<'a> Parser<'a> {
                 "CRUD declarations cannot be exported".to_string(),
                 prelude[0].span,
             )),
-            _ => cursor.err("E1200", "expected scenario or crud declaration"),
+            _ => {
+                let span = cursor.peek().map(|token| token.span).unwrap_or(cursor.eof);
+                Err(
+                    Fail::new("E1200", "expected scenario or crud declaration", span).construct(
+                        if prelude.is_empty() {
+                            Branch::When
+                        } else {
+                            Branch::ExportedWhen
+                        },
+                    ),
+                )
+            }
         }
     }
 

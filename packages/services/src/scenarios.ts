@@ -30,6 +30,7 @@
  * script. Binary travels as standard base64 (`filesBase64`); strict
  * key allowlists reject typos such as harness-shaped `files`.
  */
+import { createScenarioAdmission } from './internal/scenario-admission.js';
 import type { ControlledScenario } from './ports.js';
 import type { ControlledOllamaScenario } from './models/harness.js';
 import type { ControlledSystemOneScenario } from './judgments/harness.js';
@@ -93,277 +94,23 @@ const PROVIDERS: ReadonlySet<string> = new Set([
   'media',
 ]);
 
-/** Deep JSON-safety: tables must survive a JSON round-trip intact. */
-function checkJsonSafe(value: unknown, what: string): void {
-  const seen = new Set<object>();
-  const visit = (node: unknown, path: string): void => {
-    if (node === null) return;
-    switch (typeof node) {
-      case 'string':
-      case 'boolean':
-        return;
-      case 'number':
-        if (!Number.isFinite(node)) {
-          throw new ScenarioTableError(`${what}${path} must be finite JSON.`);
-        }
-        return;
-      case 'undefined':
-      case 'function':
-      case 'symbol':
-      case 'bigint':
-        throw new ScenarioTableError(`${what}${path} is not JSON-safe.`);
-      case 'object': {
-        if (seen.has(node)) {
-          throw new ScenarioTableError(`${what}${path} is cyclic.`);
-        }
-        seen.add(node);
-        if (Array.isArray(node)) {
-          node.forEach((entry, index) => visit(entry, `${path}[${index}]`));
-          return;
-        }
-        for (const [key, entry] of Object.entries(node)) {
-          visit(entry, `${path}.${key}`);
-        }
-        return;
-      }
-    }
-  };
-  visit(value, '');
-}
-
-function checkRecord(value: unknown, what: string): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    throw new ScenarioTableError(`${what} must be an object.`);
-  }
-  return value as Record<string, unknown>;
-}
-
-function checkKind(
-  record: Record<string, unknown>,
-  what: string,
-  kinds: ReadonlySet<string>,
-): string {
-  if (typeof record['kind'] !== 'string' || !kinds.has(record['kind'])) {
-    throw new ScenarioTableError(
-      `${what} has an unknown kind ${JSON.stringify(record['kind'])}.`,
-    );
-  }
-  return record['kind'];
-}
-
-/** Strict allowlist: unknown keys are typos, never passed through. */
-function checkKeys(
-  record: Record<string, unknown>,
-  what: string,
-  allowed: ReadonlySet<string>,
-): void {
-  for (const key of Object.keys(record)) {
-    if (!allowed.has(key)) {
-      throw new ScenarioTableError(`${what} has an unknown key ${JSON.stringify(key)}.`);
-    }
-  }
-}
-
-function checkStatus(value: unknown, what: string): number {
-  if (
-    typeof value !== 'number' ||
-    !Number.isInteger(value) ||
-    value < 100 ||
-    value > 599
-  ) {
-    throw new ScenarioTableError(`${what} must be an integer HTTP status.`);
-  }
-  return value;
-}
-
-function checkDelay(value: unknown, what: string): number {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-    throw new ScenarioTableError(`${what} must be a finite delay >= 0.`);
-  }
-  return value;
-}
-
-const MAIL_KINDS: ReadonlySet<string> = new Set([
-  'accept',
-  'reject',
-  'flaky-then-accept',
-  'invalid-schema',
-  'hang',
-  'redirect',
-  'drip',
-]);
-
-const MAIL_KEYS: Readonly<Record<string, ReadonlySet<string>>> = {
-  'accept': new Set(['kind']),
-  'reject': new Set(['kind', 'status', 'body']),
-  'flaky-then-accept': new Set(['kind', 'failures']),
-  'invalid-schema': new Set(['kind', 'body']),
-  'hang': new Set(['kind', 'reconcile']),
-  'redirect': new Set(['kind', 'status', 'location']),
-  'drip': new Set(['kind', 'delayMs']),
-};
-
-const MAIL_RECONCILE: ReadonlySet<string> = new Set([
-  'accepted',
-  'rejected',
-  'pending',
-]);
+const admission = createScenarioAdmission(ScenarioTableError);
+const { checkRecord, checkKeys, checkStatus, checkMediaScript } = admission;
 
 /** Validate a mail transport script; JSON-safe and harness-identical. */
 export function checkMailScript(script: unknown): ControlledScenario {
-  const record = checkRecord(script, 'mail script');
-  const kind = checkKind(record, 'mail script', MAIL_KINDS);
-  checkKeys(record, 'mail script', MAIL_KEYS[kind] ?? new Set(['kind']));
-  checkJsonSafe(record, 'mail script');
-  switch (kind) {
-    case 'reject':
-      checkStatus(record['status'], 'mail reject status');
-      if (!('body' in record)) {
-        throw new ScenarioTableError('mail reject needs a body.');
-      }
-      break;
-    case 'flaky-then-accept': {
-      const failures = record['failures'];
-      if (
-        typeof failures !== 'number' ||
-        !Number.isInteger(failures) ||
-        failures < 0
-      ) {
-        throw new ScenarioTableError('mail flaky failures must be an integer >= 0.');
-      }
-      break;
-    }
-    case 'invalid-schema':
-      if (!('body' in record)) {
-        throw new ScenarioTableError('mail invalid-schema needs a body.');
-      }
-      break;
-    case 'hang':
-      if (
-        typeof record['reconcile'] !== 'string' ||
-        !MAIL_RECONCILE.has(record['reconcile'])
-      ) {
-        throw new ScenarioTableError(
-          'mail hang reconcile must be accepted, rejected or pending.',
-        );
-      }
-      break;
-    case 'redirect':
-      checkStatus(record['status'], 'mail redirect status');
-      if (
-        typeof record['location'] !== 'string' ||
-        record['location'] === ''
-      ) {
-        throw new ScenarioTableError('mail redirect needs a location.');
-      }
-      break;
-    case 'drip':
-      checkDelay(record['delayMs'], 'mail drip delayMs');
-      break;
-  }
-  return record as unknown as ControlledScenario;
+  return admission.checkMailScript(script);
 }
-
-const MODELS_KINDS: ReadonlySet<string> = new Set([
-  'final',
-  'stream',
-  'reject',
-  'hang',
-  'invalid-schema',
-]);
-
-const MODELS_KEYS: Readonly<Record<string, ReadonlySet<string>>> = {
-  'final': new Set(['kind', 'body']),
-  'stream': new Set(['kind', 'lines', 'lineDelayMs']),
-  'reject': new Set(['kind', 'status', 'body']),
-  'hang': new Set(['kind']),
-  'invalid-schema': new Set(['kind', 'body']),
-};
 
 /** Validate a models transport script; JSON-safe and harness-identical. */
 export function checkModelsScript(script: unknown): ControlledOllamaScenario {
-  const record = checkRecord(script, 'models script');
-  const kind = checkKind(record, 'models script', MODELS_KINDS);
-  checkKeys(record, 'models script', MODELS_KEYS[kind] ?? new Set(['kind']));
-  checkJsonSafe(record, 'models script');
-  switch (kind) {
-    case 'final':
-    case 'invalid-schema':
-      if (!('body' in record)) {
-        throw new ScenarioTableError(`models ${kind} needs a body.`);
-      }
-      break;
-    case 'stream':
-      if (!Array.isArray(record['lines'])) {
-        throw new ScenarioTableError('models stream needs a lines array.');
-      }
-      if (record['lineDelayMs'] !== undefined) {
-        checkDelay(record['lineDelayMs'], 'models stream lineDelayMs');
-      }
-      break;
-    case 'reject':
-      checkStatus(record['status'], 'models reject status');
-      if (!('body' in record)) {
-        throw new ScenarioTableError('models reject needs a body.');
-      }
-      break;
-  }
-  return record as unknown as ControlledOllamaScenario;
+  return admission.checkModelsScript(script);
 }
-
-const JUDGMENTS_KINDS: ReadonlySet<string> = new Set([
-  'accept',
-  'reject',
-  'hang',
-  'invalid-schema',
-]);
-
-const JUDGMENTS_KEYS: Readonly<Record<string, ReadonlySet<string>>> = {
-  'accept': new Set(['kind', 'body']),
-  'reject': new Set(['kind', 'status', 'body']),
-  'hang': new Set(['kind']),
-  'invalid-schema': new Set(['kind', 'body']),
-};
 
 /** Validate a judgments transport script; JSON-safe and harness-identical. */
-export function checkJudgmentsScript(
-  script: unknown,
-): ControlledSystemOneScenario {
-  const record = checkRecord(script, 'judgments script');
-  const kind = checkKind(record, 'judgments script', JUDGMENTS_KINDS);
-  checkKeys(
-    record,
-    'judgments script',
-    JUDGMENTS_KEYS[kind] ?? new Set(['kind']),
-  );
-  checkJsonSafe(record, 'judgments script');
-  if (kind === 'accept' || kind === 'invalid-schema') {
-    if (!('body' in record)) {
-      throw new ScenarioTableError(`judgments ${kind} needs a body.`);
-    }
-  }
-  if (kind === 'reject') {
-    checkStatus(record['status'], 'judgments reject status');
-    if (!('body' in record)) {
-      throw new ScenarioTableError('judgments reject needs a body.');
-    }
-  }
-  return record as unknown as ControlledSystemOneScenario;
+export function checkJudgmentsScript(script: unknown): ControlledSystemOneScenario {
+  return admission.checkJudgmentsScript(script);
 }
-
-const MEDIA_KINDS: ReadonlySet<string> = new Set([
-  'accept',
-  'reject-prompt',
-  'hang-submit',
-  'hang-all',
-]);
-
-const MEDIA_KEYS: Readonly<Record<string, ReadonlySet<string>>> = {
-  'accept': new Set(['kind', 'history', 'filesBase64', 'promptBody', 'cancelStatus']),
-  'reject-prompt': new Set(['kind', 'status', 'body', 'cancelStatus']),
-  'hang-submit': new Set(['kind', 'history', 'filesBase64', 'cancelStatus']),
-  'hang-all': new Set(['kind', 'cancelStatus']),
-};
 
 const BASE64_PATTERN = /^[A-Za-z0-9+/]*={0,2}$/;
 
@@ -402,10 +149,7 @@ export function encodeMediaBytes(files: Readonly<Record<string, Uint8Array>>): R
  * harness `files` form. `cancelStatus` defaults downstream (200).
  */
 export function decodeMediaScript(script: unknown): DecodedMediaScript {
-  const record = checkRecord(script, 'media script');
-  const kind = checkKind(record, 'media script', MEDIA_KINDS);
-  checkKeys(record, 'media script', MEDIA_KEYS[kind] ?? new Set(['kind']));
-  checkJsonSafe(record, 'media script');
+  const { record, kind } = checkMediaScript(script);
   if (record['history'] !== undefined) {
     checkRecord(record['history'], 'media history');
   }

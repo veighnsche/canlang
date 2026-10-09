@@ -52,6 +52,12 @@ export function extractUuidV7Ms(id: string): number | null {
   return Number.isSafeInteger(ms) ? ms : null;
 }
 
+/** Strict lexical admission; retained receipt age belongs to canonical State. */
+export function validateOperationIdShape(id: unknown): BusinessError | null {
+  return typeof id === 'string' && UUID_V7_PATTERN.test(id)
+    ? null : buildBusinessError('validation', 'Invalid operation_id.');
+}
+
 /**
  * Validate an `operation_id` for shape and time plausibility.
  *
@@ -65,11 +71,10 @@ export function validateOperationId(
   id: unknown,
   clock: InterfacesClock = systemInterfacesClock,
 ): BusinessError | null {
-  if (typeof id !== 'string' || !UUID_V7_PATTERN.test(id)) {
-    return buildBusinessError('validation', 'Invalid operation_id.');
-  }
+  const shapeError = validateOperationIdShape(id);
+  if (shapeError !== null) return shapeError;
   // Non-null: the pattern already matched; guarded defensively (never throw).
-  const issued = extractUuidV7Ms(id);
+  const issued = extractUuidV7Ms(id as string);
   if (issued === null) {
     return buildBusinessError('validation', 'Invalid operation_id.');
   }

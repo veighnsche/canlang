@@ -121,6 +121,47 @@ test('source binding fences current app, session, actor, team, operation, schema
   assert.equal(await service.restore(context, forged.token, {}), null, 'knowing the session cannot sign source bindings');
 });
 
+test('retained source restoration accepts only expired checked CRUD claims under the original signed context', async () => {
+  const service = await createSourceFormBindings(hostKey, revision);
+  const { token } = await service.seal(context, bound, ['title']);
+  const expiry = context.nowMs + 15 * 60 * 1000;
+  for (const malformed of [null, undefined, {}, { ...context, derived: null }, { ...context, derived: undefined }]) {
+    assert.equal(await service.restoreRetained!(malformed as unknown as SourceFormBindingContext, token, {}), null);
+  }
+  assert.equal(await service.restoreRetained!({ ...context, nowMs: expiry - 1 }, token, {}), null);
+  assert.equal(await service.restore({ ...context, nowMs: expiry }, token, {}), null);
+  for (const nowMs of [expiry, context.nowMs + 24 * 60 * 60 * 1000 + 1]) {
+    const expired = { ...context, nowMs };
+    assert.deepEqual(JSON.parse(JSON.stringify(await service.restoreRetained!(expired, token, { title: 'Retry' }))),
+      { title: 'Retry', record: { id: 'entry-1', version: '7' } });
+    for (const mismatch of [
+      { ...expired, appId: 'Other' }, { ...expired, sessionToken: 'Other' },
+      { ...expired, identity: { ...identity, actor: { ...identity.actor!, user_id: 'other' } } },
+      { ...expired, identity: { ...identity, team: { ...identity.team!, team_id: 'other' } } },
+      { ...expired, operationId: 'other' },
+      { ...expired, derived: { ...derived, inputs: derived.inputs.slice(0, 1) } },
+      { ...expired, derived: { ...derived, operation: 'Other.update' } },
+    ]) assert.equal(await service.restoreRetained!(mismatch, token, {}), null);
+    for (const inputs of [{ unselected: 'extra' }, { record: { id: 'entry-1', version: '7' } }]) {
+      assert.equal(await service.restoreRetained!(expired, token, inputs), null);
+    }
+    assert.equal(await service.restoreRetained!(expired, `${token}x`, {}), null);
+    assert.equal(await (await createSourceFormBindings(hostKey, 'changed')).restoreRetained!(expired, token, {}), null);
+    assert.equal(await (await createSourceFormBindings(new Uint8Array(32).fill(78), revision)).restoreRetained!(expired, token, {}), null);
+  }
+  const scenario = { ...context, derived: { ...derived, kind: 'scenario' as const } };
+  const scenarioProof = await service.seal(scenario, bound, ['title']);
+  assert.ok(await service.restore(scenario, scenarioProof.token, {}));
+  assert.equal(await service.restoreRetained!({ ...scenario, nowMs: expiry }, scenarioProof.token, {}), null);
+  const payload = JSON.parse(new TextDecoder().decode(base64UrlToBytes(token.split('.')[0]!)!)) as Record<string, unknown>;
+  payload['expires'] = expiry - 1;
+  const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  const key = await crypto.subtle.importKey('raw', hostKey, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const signature = new Uint8Array(await crypto.subtle.sign('HMAC', key, bytes));
+  assert.equal(await service.restoreRetained!({ ...context, nowMs: expiry },
+    `${bytesToBase64Url(bytes)}.${bytesToBase64Url(signature)}`, {}), null, 'even a signed altered lease span is refused');
+});
+
 test('source binding admits only normalized singular versioned refs and preserves own prototype-named inputs', async () => {
   const service = await createSourceFormBindings(hostKey, revision);
   for (const occurrence of ['', undefined, null, 1, '\uD800', '\uDC00']) {

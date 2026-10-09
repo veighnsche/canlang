@@ -6,7 +6,9 @@ import { CATALOG } from "@canlang/values";
 import { UI_CATALOG } from "@canlang/ui";
 import {
   createConstructHelpIndex,
+  joinCompilerConstructCandidates,
   loadConstructHelpIndex,
+  parseCompilerConstructCandidates,
   type ConstructHelpInputs,
   type QualifiedConstructProof,
 } from "../src/dev/construct-help.js";
@@ -111,5 +113,98 @@ describe("captured construct help", () => {
     expect(index.exactType("Text", "office-supplies-local-v1")?.status).toBe("unavailable");
     expect(index.exactType("Text", "office-supplies-local-v1", proof("can.v1.type.builtin.text", index.revision, index.compilerSha256))?.status)
       .toBe("working");
+  });
+
+  it("preserves structural and no-suggestion compiler routing", async () => {
+    const index = createConstructHelpIndex(await inputs());
+    const structural = { version: 1, disposition: "structural", ids: [], complete: false };
+    expect(joinCompilerConstructCandidates(index, structural, "office-supplies-local-v1"))
+      .toMatchObject({ disposition: "structural", candidateCoverage: "unknown", cards: [] });
+    const none = { version: 1, disposition: "none", slot: "given.rule", ids: [], complete: true };
+    expect(joinCompilerConstructCandidates(index, none, "office-supplies-local-v1"))
+      .toMatchObject({ disposition: "none", candidateCoverage: "complete", cards: [] });
+    expect(joinCompilerConstructCandidates(index, { ...none, complete: false }, "office-supplies-local-v1"))
+      .toMatchObject({ disposition: "none", candidateCoverage: "unknown", cards: [] });
+  });
+
+  it("bounds and validates compiler IDs before joining captured proof-gated cards", async () => {
+    const index = createConstructHelpIndex(await inputs());
+    const exact = { version: 1, disposition: "exact", slot: "given.rule", ids: ["can.v1.policy"], complete: true };
+    expect(joinCompilerConstructCandidates(index, exact, "office-supplies-local-v1"))
+      .toMatchObject({ disposition: "exact", candidateCoverage: "unknown", cards: [{ id: "can.v1.policy", status: "unavailable" }] });
+    expect(joinCompilerConstructCandidates(index, { ...exact, complete: false }, "office-supplies-local-v1"))
+      .toMatchObject({ disposition: "exact", candidateCoverage: "unknown", cards: [] });
+    expect(joinCompilerConstructCandidates(index, exact, "office-supplies-local-v1",
+      [proof("can.v1.policy", index.revision, index.compilerSha256)]))
+      .toMatchObject({ disposition: "exact", candidateCoverage: "complete", cards: [{ id: "can.v1.policy", status: "working" }] });
+    expect(joinCompilerConstructCandidates(index, exact, "office-supplies-local-v1",
+      [proof("can.v1.policy", hash("old"), index.compilerSha256)]).candidateCoverage).toBe("unknown");
+    for (const bad of [
+      null, { ...exact, version: 2 }, { ...exact, slot: "" }, { ...exact, ids: [] },
+      { ...exact, ids: ["can.v1.policy", "can.v1.policy"] },
+      { ...exact, ids: Array(9).fill("can.v1.policy") },
+      { ...exact, ids: [`can.v1.${"x".repeat(100)}`] },
+      { ...exact, disposition: "structural" }, { ...exact, disposition: "unknown" },
+      { ...exact, disposition: "none" }, { ...exact, complete: "true" },
+      { version: 1, disposition: "structural", ids: [], complete: true },
+    ]) {
+      expect(parseCompilerConstructCandidates(bad).disposition).toBe("unknown");
+      expect(joinCompilerConstructCandidates(index, bad, "office-supplies-local-v1"))
+        .toMatchObject({ disposition: "unknown", candidateCoverage: "unknown", cards: [] });
+    }
+  });
+
+  it("retains bounded source attestations without qualifying compiler candidates", async () => {
+    const context = { version: 1, messageKind: "unrecognized_keyword", section: "Given", guess: "rules",
+      exactSourceSpan: true, structuralRecovery: false, recoveryComplete: true, nameFilterComplete: true,
+      materialIntentChoice: false, evidenceSufficient: true, unsupportedBehaviorProven: false };
+    const exact = { version: 1, disposition: "exact", slot: "given.rule", ids: ["can.v1.policy"], complete: true, context };
+    const parsed = parseCompilerConstructCandidates(exact);
+    expect(parsed.context).toEqual(context);
+    expect(Object.isFrozen(parsed.context)).toBe(true);
+    for (const section of ["Given", "When", "Then", "root"]) {
+      expect(parseCompilerConstructCandidates({ ...exact, context: { ...context, section } }).context?.section).toBe(section);
+    }
+    const unreliable = { ...context, recoveryComplete: false, nameFilterComplete: false,
+      exactSourceSpan: false, structuralRecovery: true, materialIntentChoice: true, evidenceSufficient: false };
+    expect(parseCompilerConstructCandidates({ ...exact, context: unreliable }).context).toEqual(unreliable);
+    const index = createConstructHelpIndex(await inputs());
+    expect(joinCompilerConstructCandidates(index, exact, "office-supplies-local-v1"))
+      .toMatchObject({ disposition: "exact", candidateCoverage: "unknown", cards: [{ status: "unavailable" }] });
+  });
+
+  it("discards malformed ranking context while preserving deterministic routing", () => {
+    const context = { version: 1, messageKind: "unrecognized_keyword", section: "Given", guess: "rules",
+      exactSourceSpan: true, structuralRecovery: false, recoveryComplete: true, nameFilterComplete: true,
+      materialIntentChoice: false, evidenceSufficient: true, unsupportedBehaviorProven: false };
+    const exact = { version: 1, disposition: "exact", slot: "given.rule", ids: ["can.v1.policy"], complete: true };
+    const malformed = [undefined, null, [], {}, { ...context, version: 2 }, { ...context, extra: true },
+      { ...context, messageKind: "expected a rule" }, { ...context, messageKind: "a".repeat(65) },
+      { ...context, messageKind: "E1200" }, { ...context, section: "given" }, { ...context, section: "Unknown" },
+      { ...context, guess: "" }, { ...context, guess: "rule(name)" }, { ...context, guess: '"secret"' },
+      { ...context, guess: "a".repeat(65) }, { ...context, guess: "rules\n" }];
+    for (const key of ["exactSourceSpan", "structuralRecovery", "recoveryComplete", "nameFilterComplete",
+      "materialIntentChoice", "evidenceSufficient", "unsupportedBehaviorProven"]) {
+      malformed.push({ ...context, [key]: undefined }, { ...context, [key]: "true" });
+    }
+    for (const value of malformed) {
+      expect(parseCompilerConstructCandidates({ ...exact, context: value })).toEqual(exact);
+    }
+  });
+
+  it("does not retain ranking context on structural, none, unknown or incomplete routing", () => {
+    const context = { version: 1, messageKind: "unrecognized_keyword", section: "Given", guess: "rules",
+      exactSourceSpan: true, structuralRecovery: false, recoveryComplete: true, nameFilterComplete: true,
+      materialIntentChoice: false, evidenceSufficient: true, unsupportedBehaviorProven: true };
+    for (const disposition of ["structural", "none", "unknown"]) {
+      const parsed = parseCompilerConstructCandidates({ version: 1, disposition, slot: "given.rule", ids: [],
+        complete: disposition === "none", context });
+      expect(parsed.disposition).toBe(disposition);
+      expect(parsed.context).toBeUndefined();
+    }
+    expect(parseCompilerConstructCandidates({ version: 1, disposition: "exact", slot: "given.rule",
+      ids: ["can.v1.policy"], complete: false, context }).context).toBeUndefined();
+    expect(parseCompilerConstructCandidates({ version: 1, disposition: "exact", slot: "given.rule",
+      ids: [], complete: true, context }).context).toBeUndefined();
   });
 });
