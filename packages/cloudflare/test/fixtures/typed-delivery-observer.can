@@ -15,6 +15,8 @@ When
  ## A parent delivery uses the actual current association, even when its wire field is projected away.
  scenario parentStatus(child:Child) by=members read=true -> bool
   do return child.parent.notification?.status==succeeded
+ scenario parentLabel(child:Child) by=members read=true -> text
+  do return child.parent.label
  scenario recordParentStatus(child:Child) by=members -> bool
   do
    let successful=child.parent.notification?.status==succeeded
@@ -32,6 +34,34 @@ When
    require count(matching)>0
    set child {label="Observed"}
    return "Observed"
+ ## Navigated references stay private while joining the same ordered owner mutation.
+ scenario renameParent(child:Child,label:text,accept:bool) by=members -> text
+  do
+   set child.parent {label}
+   require child.parent.label==label
+   require accept
+   return child.parent.label
+ scenario renameQueriedParent(child:Child,label:text,accept:bool) by=members -> text
+  do
+   let matching=Child as candidate where candidate==child and candidate.parent.notification?.status==succeeded
+   require count(matching)==1
+   for candidate in matching limit=1
+    set candidate.parent {label}
+   require child.parent.label==label
+   require accept
+   return child.parent.label
+ ## Declared archive deletion is supported through direct and query parent navigation.
+ scenario archiveParent(child:Child,accept:bool) by=members
+  do
+   delete child.parent
+   require accept
+ scenario archiveQueriedParent(child:Child,accept:bool) by=members
+  do
+   let matching=Child as candidate where candidate==child
+   require count(matching)==1
+   for candidate in matching limit=1
+    delete candidate.parent
+   require accept
  ## The new association and send share a commit; refusal keeps the prior attempt.
  scenario notify(entry:Entry,to:email,accept:bool) by=members
   do
