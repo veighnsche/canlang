@@ -331,6 +331,8 @@ describe("deploy bundle (P-B)", () => {
     const ops = bundle.modules[HTTP_OPERATIONS_MODULE] as string;
     for (const marker of [
       "handleOperationRequest",
+      "handlePageRequest",
+      "handlePagePreferencePost",
       "IdentityError",
     ]) {
       expect(ops, `HTTP bundle must contain ${marker}`).toContain(marker);
@@ -556,9 +558,14 @@ describe("deploy bundle (P-B)", () => {
 
   it("boots the REAL P-A entry from the bundle: binding gate answers missing-binding", async () => {
     const bundle = buildDeployBundle(testArtifact(), { repoRoot, verdict: ACTIVE_VERDICT });
+    const workerDist = resolve(repoRoot, "packages/cloudflare/dist/worker");
+    const emittedUnitTests = readdirSync(workerDist).filter(entry => entry.endsWith(".test.js"));
+    for (const entry of emittedUnitTests) expect(bundle.modules[`worker/${entry}`]).toBeUndefined();
     expect(bundle.modules["worker/main.js"]).toContain("createMainFetch");
     expect(bundle.modules["worker/entry.js"]).toContain("createWorkerApp");
     expect(bundle.modules["worker/assembly.js"]).toContain("assembleWorker");
+    expect(bundle.modules["runtime/env-assembly.js"]).toContain("buildProductionDeps");
+    expect(bundle.modules["vendor/state/storage/owner-router.js"]).toContain("createD1OwnerRouter");
     const dev = await startLocalDev({
       workerName: "deploy-join",
       compatibilityDate: "2026-07-15",

@@ -5,16 +5,16 @@ import { encodeValue } from '@canlang/values';
 import type { StoredRow } from '@canlang/contracts';
 import { loadArtifactDescriptors, type ArtifactDescriptorSlice } from '../invocation/registry.js';
 import { buildModelTable, buildModelTableFromCanonical, type InterimFieldDef } from './models.js';
-import { generatedCrudExecute } from './crud.js';
+import { crudExecute, generatedCrudExecute } from './crud.js';
 import { runMutationWrites } from './pipeline.js';
 import { invoke } from '../invocation/invoke.js';
 import { buildContext } from '../invocation/context.js';
 import { createTestMemoryStorage } from '../storage/memory.js';
 import { FIXED_NOW, asId, asModel, asOperation, captureStateError, createMemoryIdentityStore,
   makeEnvelope, makeIdentity, seedMember, uuidv7 } from '../../test/invocation/fixtures.js';
+import { crudCreate, modelDef, readCrudReceipt, seedStoredRow, setupMutation } from '../../test/mutation/fixtures.js';
 import { encodeValue, normalizeSchema, validateValue } from '@canlang/values';
 import type { CanValue } from '@canlang/contracts/values';
-import { modelDef, seedStoredRow } from '../../test/mutation/fixtures.js';
 
 const ACCOUNT = 'Null.Account', JOB = 'Null.Job';
 let sequence = 9000;
@@ -268,12 +268,12 @@ describe('checked stored-field modifiers', () => {
     const changedWrite = changed.writes[0];
     assert.ok(changedWrite?.kind === 'update');
     assert.deepEqual(changedWrite.row.data, { ...legacy, title: 'ok' });
-    assert.deepEqual(encoded, ['  ok  ', 'ok']);
+    assert.deepEqual(encoded, ['ok', 'ok'], 'receiving trim precedes the installed field codec');
     const revision = await store.readRevision();
     const error = await captureStateError(run('   '));
     assert.equal(error.code, 'validation');
     assert.match(error.message, /Invalid field "title"/);
-    assert.deepEqual(encoded, ['  ok  ', 'ok', '   ']);
+    assert.deepEqual(encoded, ['ok', 'ok', '']);
     assert.equal(await store.readRevision(), revision);
     assert.deepEqual((await store.load(asModel(JOB), id))?.data, legacy);
     assert.equal((await store.load(asModel(JOB), id))?.archivedAt, null);
@@ -423,6 +423,38 @@ describe('checked stored-field modifiers', () => {
     assert.equal(invalidPatch.code, 'validation');
   });
 
+  it('trims before the receiving alias codec while preserving alias and receiving bounds', async () => {
+    const valueSchema = normalizeSchema({ aliases: {
+      'Test.AliceName': { type: 'text', min: 1, max: 20, format: 'name' },
+    } });
+    const encodeField = (type: string, value: unknown) =>
+      encodeValue(type, validateValue(valueSchema, type, value, 'create') as CanValue);
+    assert.throws(() => encodeField('Test.AliceName', '  Alice  '),
+      'direct alias validation keeps rejecting untrimmed text');
+
+    const { store } = createTestMemoryStorage();
+    const context = buildContext({ identity: makeIdentity(), operation: asOperation(`${JOB}.create`),
+      operationId: nextId(), app: 'modifier-test', source: 'test', now: FIXED_NOW });
+    const table = buildModelTable([modelDef(JOB, { fields: {
+      title: { required: true, serverOnly: false, valueType: 'Test.AliceName', trim: true, min: 3, max: 8 },
+    } })], { valueSchema });
+    const create = (title: string) => runMutationWrites({ table, store, context, encodeField,
+      writes: [{ op: 'create', model: asModel(JOB), id: asId(nextId()), data: { title } }] });
+    const accepted = await create(' \tAlice\u2003');
+    assert.equal(accepted.writes[0]?.kind, 'insert');
+    if (accepted.writes[0]?.kind !== 'insert') throw new Error('expected insert');
+    assert.equal(accepted.writes[0].row.data.title, 'Alice');
+
+    const rows = await store.query({ model: asModel(JOB), authority: 'owner' });
+    const revision = await store.readRevision();
+    for (const title of ['  A  ', ' Alice Smith ', ' ThisNameIsTooLong ']) {
+      const error = await captureStateError(create(title));
+      assert.equal(error.code, 'validation');
+      assert.deepEqual(await store.query({ model: asModel(JOB), authority: 'owner' }), rows);
+      assert.equal(await store.readRevision(), revision);
+    }
+  });
+
   it('records normalized defaults and refuses hook-produced invalid values', async () => {
     const { store } = createTestMemoryStorage();
     const context = buildContext({ identity: makeIdentity(), operation: asOperation(`${JOB}.create`),
@@ -440,6 +472,167 @@ describe('checked stored-field modifiers', () => {
       hooks: [{ name: 'invalidate', ops: ['create'], run: candidate => ({ ...candidate, title: '   ' }) }] })]);
     const rejection = await captureStateError(run(invalid));
     assert.equal(rejection.code, 'validation');
+  });
+
+  it('retains the pre-hook normalized default in committed receipts and replay', async () => {
+    for (const withEncoder of [false, true]) {
+      const seen: unknown[] = [];
+      const world = await setupMutation([modelDef(JOB, { fields: {
+        title: { required: true, serverOnly: false, valueType: 'text', trim: true, min: 1, max: 3, default: '  ok  ' },
+      }, hooks: [{ name: 'adjust', ops: ['create'], run: candidate => {
+        seen.push(candidate.title);
+        return { ...candidate, title: '  new  ' };
+      } }] })]);
+      const active = { ...world, execute: crudExecute({ table: world.table, store: world.store, model: asModel(JOB),
+        ...(withEncoder ? { encodeField: (_type: string, value: unknown) => value } : {}),
+      }) };
+      const created = await crudCreate(active, JOB, { id: 'defaulted' });
+      assert.equal(created.out.status, 'committed');
+      assert.equal((created.out.result as StoredRow).data.title, 'new');
+      const saved = await readCrudReceipt(active, { operation: `${JOB}.create`, operationId: created.operationId });
+      assert.ok(saved);
+      assert.deepEqual(saved.resolvedDefaults, { title: 'ok' });
+      const revision = await world.store.readRevision();
+      const history = await world.store.historyFor(asModel(JOB), asId('defaulted'));
+      const replay = await crudCreate(active, JOB, { id: 'defaulted', operationId: created.operationId });
+      assert.equal(replay.out.status, 'replayed');
+      assert.deepEqual(replay.out.result, created.out.result);
+      assert.deepEqual(seen, ['ok']);
+      assert.equal(await world.store.readRevision(), revision);
+      assert.deepEqual(await world.store.historyFor(asModel(JOB), asId('defaulted')), history);
+      assert.deepEqual(await readCrudReceipt(active, { operation: `${JOB}.create`, operationId: created.operationId }), saved);
+    }
+  });
+
+  it('keeps ignored legacy fields unchanged but validates real patches and hook changes', async () => {
+    for (const title of ['  ok  ', '   ']) {
+      const { store } = createTestMemoryStorage();
+      const fields = {
+        title: { required: true, serverOnly: false, valueType: 'text', trim: true, min: 1, max: 3 },
+        tags: { required: false, serverOnly: false, valueType: 'text[]', array: { required: false }, max: 1 },
+        note: { required: false, serverOnly: false },
+      } as const;
+      const observed: unknown[] = [];
+      const table = buildModelTable([modelDef(JOB, { fields,
+        hooks: [{ name: 'unchanged', ops: ['update'], run: candidate => { observed.push(candidate.title); return candidate; } }],
+      })]);
+      await seedStoredRow(store, asModel(JOB), { id: 'legacy', data: { title, tags: ['old', 'legacy'], note: 'before' } });
+      const context = buildContext({ identity: makeIdentity(), operation: asOperation(`${JOB}.update`),
+        operationId: nextId(), app: 'modifier-test', source: 'test', now: FIXED_NOW });
+      let reads = 0;
+      const patch = { tags: undefined, note: 'after', get title() { reads += 1; return undefined; } };
+      const writes = [{ op: 'update' as const, model: asModel(JOB), id: asId('legacy'), data: patch }];
+      const effects = await runMutationWrites({ table, store, context, writes });
+      const write = effects.writes[0];
+      assert.ok(write?.kind === 'update');
+      assert.deepEqual(write.row.data, { title, tags: ['old', 'legacy'], note: 'after' });
+      assert.deepEqual(effects.history[0]?.after, write.row.data);
+      assert.deepEqual(effects.resolvedDefaults, {});
+      assert.equal(reads, 1);
+      assert.deepEqual(observed, [title]);
+      const invalidPatch = await captureStateError(runMutationWrites({ table, store, context,
+        writes: [{ ...writes[0]!, data: { title: '   ' } }] }));
+      assert.equal(invalidPatch.code, 'validation');
+      const changedByHook = buildModelTable([modelDef(JOB, { fields,
+        hooks: [{ name: 'change', ops: ['update'], run: candidate => ({ ...candidate, title: '  new  ', tags: ['new'] }) }],
+      })]);
+      const adjusted = await runMutationWrites({ table: changedByHook, store, context, writes });
+      if (adjusted.writes[0]?.kind !== 'update') throw new Error('expected update');
+      assert.deepEqual(adjusted.writes[0].row.data, { title: 'new', tags: ['new'], note: 'after' });
+      const invalidHook = buildModelTable([modelDef(JOB, { fields,
+        hooks: [{ name: 'invalid', ops: ['update'], run: candidate => ({ ...candidate, tags: ['too', 'many', 'items'] }) }],
+      })]);
+      const refusedHook = await captureStateError(runMutationWrites({ table: invalidHook, store, context, writes }));
+      assert.equal(refusedHook.code, 'validation');
+      assert.deepEqual((await store.load(asModel(JOB), asId('legacy')))?.data, { title, tags: ['old', 'legacy'], note: 'before' });
+      assert.deepEqual(await store.historyFor(asModel(JOB), asId('legacy')), []);
+    }
+  });
+
+  it('validates an applied machine transition before hooks (hand-built text control)', async () => {
+    const { store } = createTestMemoryStorage();
+    const operation = asOperation(`${JOB}.advance`);
+    const machine = { initial: 'draft', states: ['draft', 'done', 'finished'], transitions: [
+      { from: 'draft', to: 'done', operation }, { from: 'draft', to: 'finished', operation },
+      { from: 'done', to: 'finished', operation },
+    ] };
+    const field = { required: false, serverOnly: false, default: 'draft', machine, valueType: 'text', max: 5 } as const;
+    const seen: unknown[] = [];
+    const table = buildModelTable([modelDef(JOB, { fields: { status: field }, hooks: [
+      { name: 'observe', ops: ['update'], run: candidate => { seen.push(candidate.status); return candidate; } },
+    ] })]);
+    await seedStoredRow(store, asModel(JOB), { id: 'draft', data: { status: 'draft' } });
+    const context = buildContext({ identity: makeIdentity(), operation, operationId: nextId(),
+      app: 'modifier-test', source: 'test', now: FIXED_NOW });
+    const run = (from: string, to: string) => runMutationWrites({ table, store, context,
+      writes: [{ op: 'update', model: asModel(JOB), id: asId('draft'), transition: { field: 'status', from, to } }],
+    });
+    const accepted = await run('draft', 'done');
+    if (accepted.writes[0]?.kind !== 'update') throw new Error('expected update');
+    assert.deepEqual(accepted.writes[0].row.data, { status: 'done' });
+    assert.deepEqual(seen, ['done']);
+    assert.equal((await captureStateError(run('draft', 'finished'))).code, 'validation');
+    assert.equal((await captureStateError(run('done', 'finished'))).code, 'rule_failed');
+    assert.deepEqual(seen, ['done']);
+    assert.deepEqual((await store.load(asModel(JOB), asId('draft')))?.data, { status: 'draft' });
+    // Canonical enum machine fields cannot claim text-length constraints.
+    assert.throws(() => buildModelTable([modelDef(JOB, { fields: { status: {
+      ...field, valueType: 'enum(draft,done,finished)',
+    } } })]), /Invalid constraints/);
+  });
+
+  it('loads declared text aliases and preserves NAME plus intersecting receiving bounds in real writes', async () => {
+    const artifact = { artifact_version: 1, valueTypes: { contracts: [], aliases: [
+      { name: 'Test.Title', type: 'text', min: 2, max: 8, format: 'name' },
+      { name: '_CanModelConstraint', type: 'text', min: 1, max: 80, format: 'name' },
+    ] }, models: [{ name: JOB, deleteMode: 'archive', fields: [{ name: 'title',
+      field: { kind: 'nominal', name: 'Test.Title' }, valueType: 'Test.Title', required: true,
+      serverOnly: false, trim: true, min: 3, max: 5,
+    }] }], operations: [{ name: `${JOB}.create`, kind: 'create', description: '', inputs: {
+      fields: [{ name: 'title', field: { kind: 'nominal', name: 'Test.Title' }, required: true }],
+    } }] } satisfies ArtifactDescriptorSlice;
+    const loaded = loadArtifactDescriptors(artifact, { by: 'members' });
+    const table = buildModelTableFromCanonical(loaded.models, { valueSchema: loaded.valueSchema! });
+    const { store } = createTestMemoryStorage();
+    const memberships = createMemoryIdentityStore();
+    const member = await seedMember(memberships, { isOwner: false });
+    const identity = makeIdentity({ membership: member.membership });
+    const context = buildContext({ identity, operation: asOperation(`${JOB}.create`), operationId: nextId(),
+      app: 'modifier-test', source: 'test', now: FIXED_NOW });
+    const run = (title: string) => runMutationWrites({ table, store, context,
+      writes: [{ op: 'create', model: asModel(JOB), id: asId(nextId()), data: { title } }] });
+    const padded = await run('  Alice  ');
+    if (padded.writes[0]?.kind !== 'insert') throw new Error('expected insert');
+    assert.equal(padded.writes[0].row.data.title, 'Alice');
+    const call = (title: string) => invoke({ app: 'modifier-test', source: 'test', store, memberships, identity,
+      clock: { nowMs: () => FIXED_NOW }, registry: loaded.registry, execute: generatedCrudExecute({ table, store }),
+      envelope: makeEnvelope(`${JOB}.create`, nextId(), { title }),
+    });
+    const accepted = await call('Alice');
+    assert.equal(accepted.status, 'committed');
+    assert.equal((accepted.result as StoredRow).data.title, 'Alice');
+    const rows = await store.query({ model: asModel(JOB), authority: 'owner' });
+    const history = await store.historyFor(asModel(JOB), (accepted.result as StoredRow).id);
+    for (const title of ['Bo', 'Alphabet', 'A B']) {
+      assert.equal((await captureStateError(call(title))).code, 'validation');
+      // Business refusals may commit rejected receipts, but never domain writes.
+      assert.deepEqual(await store.query({ model: asModel(JOB), authority: 'owner' }), rows);
+      assert.deepEqual(await store.historyFor(asModel(JOB), (accepted.result as StoredRow).id), history);
+    }
+    for (const bounds of [{ min: 9, max: 10 }, { min: 0, max: 1 }]) {
+      assert.throws(() => loadArtifactDescriptors({ ...artifact, models: [{ ...artifact.models[0]!, fields: [
+        { ...artifact.models[0]!.fields[0]!, ...bounds },
+      ] }] }, { by: 'members' }), /Invalid field "title"/);
+    }
+    const wider = loadArtifactDescriptors({ ...artifact, models: [{ ...artifact.models[0]!, fields: [
+      { ...artifact.models[0]!.fields[0]!, min: 0, max: 10 },
+    ] }] }, { by: 'members' });
+    const widerTable = buildModelTableFromCanonical(wider.models, { valueSchema: wider.valueSchema! });
+    const revision = await store.readRevision();
+    const error = await captureStateError(runMutationWrites({ table: widerTable, store, context,
+      writes: [{ op: 'create', model: asModel(JOB), id: asId(nextId()), data: { title: 'Alphabets' } }] }));
+    assert.equal(error.code, 'validation');
+    assert.equal(await store.readRevision(), revision);
   });
 
   it('bounds nominal contract arrays without losing codec shape or colliding with schema names', async () => {

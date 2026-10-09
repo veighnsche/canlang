@@ -228,6 +228,26 @@ function pidAlive(pid: number): boolean {
   }
 }
 
+/** /proc stat keeps the command in parentheses; it may itself contain spaces or ')'. */
+function procStatFields(entry: string, pid: number): string[] | null {
+  const close = entry.lastIndexOf(")");
+  if (close < 0 || !entry.startsWith(`${pid} (`)) return null;
+  const fields = entry.slice(close + 1).trim().split(/\s+/);
+  return fields.length >= 20 && /^[A-Za-z]$/.test(fields[0] ?? "") && /^\d+$/.test(fields[19] ?? "")
+    ? fields : null;
+}
+
+async function linuxProcessDead(pid: number): Promise<boolean> {
+  if (process.platform !== "linux") return false;
+  try {
+    const fields = procStatFields(await readFile(`/proc/${pid}/stat`, "utf8"), pid);
+    // A missing/restricted/malformed proc entry cannot authorize reclaim.
+    return fields?.[0] === "Z" || fields?.[0] === "X";
+  } catch {
+    return false;
+  }
+}
+
 async function processBirth(pid: number, format?: "proc" | "ps"): Promise<string | null> {
   if (!Number.isSafeInteger(pid) || pid <= 0) return null;
   if (process.platform === "linux" && format !== "ps") {
@@ -236,8 +256,7 @@ async function processBirth(pid: number, format?: "proc" | "ps"): Promise<string
         readFile(`/proc/${pid}/stat`, "utf8"),
         readFile("/proc/sys/kernel/random/boot_id", "utf8"),
       ]);
-      const fields = entry.slice(entry.lastIndexOf(")") + 1).trim().split(/\s+/);
-      const startTicks = fields[19]; // /proc stat field 22, after pid and comm.
+      const startTicks = procStatFields(entry, pid)?.[19]; // /proc stat field 22, after pid and comm.
       if (startTicks && /^\d+$/.test(startTicks) && bootId.trim()) {
         return `proc:${bootId.trim()}:${startTicks}`;
       }
@@ -257,6 +276,7 @@ async function processBirth(pid: number, format?: "proc" | "ps"): Promise<string
 
 async function claimProcessAlive(claim: StoredClaim): Promise<boolean> {
   if (!pidAlive(claim.pid)) return false;
+  if (await linuxProcessDead(claim.pid)) return false;
   const format = claim.processBirth?.startsWith("proc:") ? "proc"
     : claim.processBirth?.startsWith("ps:") ? "ps" : undefined;
   if (!format) return true;

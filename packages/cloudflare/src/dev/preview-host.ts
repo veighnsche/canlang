@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type { D1Database } from "@cloudflare/workers-types";
 import { CONTRACTS_VERSION, type ActivationVerdict, type CompileArtifact, type CompatibilityDescriptor, type EnvironmentSelection } from "@canlang/contracts";
 import { createD1Storage, ensureSchema } from "@canlang/state/storage/d1";
+import { createD1OwnerRouter } from "@canlang/state/storage/owner-router";
 import { createD1IdentityStore, ensureIdentitySchema, hashPassword } from "@canlang/identity";
 import { checkActivationInventory } from "@canlang/state/migration/activate";
 import { buildWorkInventory } from "@canlang/work/recovery";
@@ -57,8 +58,12 @@ function activationInput(artifact: CompileArtifact, capture: SingleFileCapture, 
 
 /** Check the actual D1 store with all four installed activation gates. */
 export async function localPreviewActivationVerdict(
-  artifact: CompileArtifact, capture: SingleFileCapture, db: D1Database, databaseId: string,
+  artifact: CompileArtifact, capture: SingleFileCapture, db: D1Database, databaseId: string, owner?: string, identityDb?: D1Database,
 ): Promise<ActivationVerdict> {
+  if (owner !== undefined && (identityDb === undefined || identityDb === db ||
+      await createD1IdentityStore(identityDb).findTeamById(owner) === null)) {
+    throw new PreviewAdmissionError("IDENTITY_UNAVAILABLE", "serving owner must exist in its separate real Identity database");
+  }
   const { descriptor, environment } = activationInput(artifact, capture, databaseId);
   await ensureSchema(db);
   const row = await db.prepare("SELECT COUNT(*) AS count FROM outbox").first<{ count: number }>();
@@ -71,7 +76,7 @@ export async function localPreviewActivationVerdict(
     return { active: false, reasons: [{ code: "blocked-work", detail: "local preview D1 contains outstanding work" }] };
   }
   const store = createD1Storage(db);
-  return activate({
+  const verdict = await activate({
     artifact, descriptor, environment,
     installed: probeInstalledRuntime({}, {
       contractsVersion: CONTRACTS_VERSION, runtimeVersion: RELEASE_VERSION,
@@ -86,6 +91,13 @@ export async function localPreviewActivationVerdict(
       ),
     },
   });
+  if (verdict.active && owner !== undefined) {
+    const app = appName(capture);
+    const router = createD1OwnerRouter({ resolveBinding: requested => requested.app === app && requested.owner === owner
+      ? { app, owner, db, initializeFresh: true } : null });
+    await router.ownerScopedStoragePort({ app, owner });
+  }
+  return verdict;
 }
 
 /** The prebuild gate runs on a real, isolated local D1 binding. */
@@ -112,7 +124,7 @@ export async function preflightLocalPreviewActivation(
 }
 
 function checkedInstalledInputs(capture: SingleFileCapture): PortableBundleEvidence["consumedInputs"] {
-  const expected = installedPortableBundleInputs();
+  const expected = installedPortableBundleInputs(capture.root);
   const captured = capture.inputs.filter(input => input.name.startsWith("package:"));
   if (expected.length !== captured.length) {
     throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", "captured package inventory differs from installed producer closure");
@@ -133,7 +145,7 @@ function checkedInstalledInputs(capture: SingleFileCapture): PortableBundleEvide
   if (grammar?.state !== "present" || grammar.canonicalPath !== realpathSync(join(capture.root, "docs/specification/GRAMMAR.md"))) {
     throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", "installed grammar reference was not captured");
   }
-  const sourceInputs = installedOwnedSourceInputs();
+  const sourceInputs = installedOwnedSourceInputs(capture.root);
   const capturedSources = capture.inputs.filter(input => input.name.startsWith("extra:source:"));
   if (sourceInputs.length !== capturedSources.length) {
     throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", "captured package sources differ from installed producer closure");
@@ -213,7 +225,11 @@ export async function seedLocalPreviewActors(db: D1Database): Promise<LocalPrevi
       teams: Object.freeze([...profile.teams]) }));
   }
   const ava = actors[0]!;
-  return { actors: Object.freeze(actors), probe: { email: ava.email, password: ava.password, teamId: cedar.team_id } };
+  return { actors: Object.freeze(actors), probe: { email: ava.email, password: ava.password, teamId: cedar.team_id },
+    owners: Object.freeze([
+      Object.freeze({ owner: cedar.team_id, binding: "STATE_CEDAR_DB" }),
+      Object.freeze({ owner: oak.team_id, binding: "STATE_OAK_DB" }),
+    ]) };
 }
 
 /** Host hook injected into the session owner; no caller can supply `active:true`. */
@@ -227,5 +243,6 @@ export function createInstalledLocalPreviewBuilder() {
     confirmRunningActivation: localPreviewActivationVerdict,
     produceBundle: produceInstalledPortableBundle,
     seedLocalActors: seedLocalPreviewActors,
+    workerVarsForOrigin: () => ({ CAN_FORM_BINDING_KEY: randomBytes(32).toString("base64url") }),
   });
 }
