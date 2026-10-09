@@ -3655,3 +3655,7 @@ Correct Codex’s current-head alias finding through the Values-owned Unicode tr
 ## 2026-10-09 — Admit the documented initial failure cursor
 
 Accept exact `-1` only for the supported diagnostics/failures after cursor, keeping nonnegative indexes and bounded page sizes. The real CLI/client/private socket check lists the first failure page with that payload. Run the package’s declared installed can-dev entry for standalone Node envelope assertions, preserving its resource/dependency layout rather than relocating bundled public package resources. All 8 owning cases and Cloudflare noEmit pass; source-current installed cursor validation follows the normal owning rebuild.
+
+## 2026-10-09 — Consume authorized CRUD records in the compiled browser journey
+
+Under the human’s finite shared consumer assignment, keep the real compiled Store.Gadget source and separate nullable declared return from authorized changed-record projection. The browser helper validates its single records projection, model visibility, id/version/data and replay identity. Receipt scope uses the source-declared Lobby app identity. Readback, update/delete, fresh D1 receipts and history assertions remain active. The actual Chrome journey passes 2/2 and e2e noEmit passes; no synthetic return, handwritten artifact or whole-app acceptance is introduced.

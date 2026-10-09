@@ -26,11 +26,8 @@ const READ = "Store.Gadget.read";
 const UPDATE = "Store.Gadget.update";
 const DELETE = "Store.Gadget.delete";
 const MODEL = "Store.Gadget";
-// Receipt `app` pin: the worker assembly derives the app id from the
-// artifact source stem (`interimAppInfo`), so the compiled-shop fixture
-// receipts under "compiled-shop" (same rule the T17b harness pins as
-// "TeamTasks" for its fixture).
-const RECEIPT_APP = "compiled-shop";
+// The first compiled entry's appDefinition owns receipt identity.
+const RECEIPT_APP = "Lobby";
 
 interface ReadRow {
   readonly id: string;
@@ -44,13 +41,23 @@ function readRows(result: unknown): ReadRow[] {
   return root.records;
 }
 
-function createdRow(result: MutationResult): { id: string; version: number; data: Record<string, unknown> } {
-  const row = result.result as { id: unknown; version: unknown; data: unknown };
-  if (typeof row.id !== "string" || typeof row.version !== "number") {
-    throw new Error(`compiled journey: bad create result ${JSON.stringify(result.result)}`);
+function mutationRow(result: MutationResult): ReadRow {
+  // Generated CRUD has no declared return. Its authorized changed-record
+  // projections live in records, and this operation changes one Gadget.
+  if (result.result !== null || !Array.isArray(result.records) || result.records.length !== 1) {
+    throw new Error(`compiled journey: expected one visible CRUD record ${JSON.stringify(result)}`);
+  }
+  const record: unknown = result.records[0];
+  if (typeof record !== "object" || record === null || Array.isArray(record)) {
+    throw new Error(`compiled journey: bad CRUD record ${JSON.stringify(record)}`);
+  }
+  const row = record as Record<string, unknown>;
+  if (typeof row.id !== "string" || row.id === "" ||
+      typeof row.version !== "number" || !Number.isSafeInteger(row.version) || row.version < 1) {
+    throw new Error(`compiled journey: bad CRUD record identity ${JSON.stringify(record)}`);
   }
   if (typeof row.data !== "object" || row.data === null || Array.isArray(row.data)) {
-    throw new Error(`compiled journey: bad create data ${JSON.stringify(result.result)}`);
+    throw new Error(`compiled journey: bad CRUD data ${JSON.stringify(record)}`);
   }
   return { id: row.id, version: row.version, data: row.data as Record<string, unknown> };
 }
@@ -95,7 +102,7 @@ test.describe("compiled journey", () => {
     );
     if (!("result" in created)) throw new Error(`compiled journey: create failed ${JSON.stringify(created)}`);
     expect(created.result.status).toBe("committed");
-    const row = createdRow(created.result);
+    const row = mutationRow(created.result);
     expect(row.version).toBe(1);
     expect(row.data).toEqual({ title });
 
@@ -110,7 +117,7 @@ test.describe("compiled journey", () => {
     );
     if (!("result" in replayed)) throw new Error(`compiled journey: replay failed ${JSON.stringify(replayed)}`);
     expect(replayed.result.status).toBe("replayed");
-    expect(createdRow(replayed.result).id).toBe(row.id);
+    expect(mutationRow(replayed.result)).toEqual(row);
 
     // -- read serves the created row ----------------------------------
     const readBack = await invoker.invokeRead({ operation: READ, inputs: {} }, seed.identity);
@@ -131,7 +138,8 @@ test.describe("compiled journey", () => {
     );
     if (!("result" in updated)) throw new Error(`compiled journey: update failed ${JSON.stringify(updated)}`);
     expect(updated.result.status).toBe("committed");
-    const updatedRow = createdRow(updated.result);
+    const updatedRow = mutationRow(updated.result);
+    expect(updatedRow.id).toBe(row.id);
     expect(updatedRow.version).toBe(2);
     expect(updatedRow.data).toEqual({ title: updatedTitle });
 
