@@ -33,7 +33,9 @@ it('starts a source-current native model-free preview through actual global D1 a
   const preview = await createInstalledLocalPreviewBuilder()(compiled.artifact, capture, compiled.artifactBytes);
   try {
     expect(await captureIsCurrent(capture)).toBe(true);
-    const opened = preview.issueOpenUrl();
+    const issueOpenUrl = preview.issueOpenUrl;
+    if (typeof issueOpenUrl !== 'function') throw new Error('installed preview has no protected-open producer');
+    const opened = issueOpenUrl();
     const origin = new URL(opened).origin;
     expect(new URL(origin).hostname).toBe('127.0.0.1');
     const cookies = new Map<string, string>();

@@ -3815,3 +3815,7 @@ Use a fresh protected one-use URL for Ben and refuse replacing roots with existi
 ### Intake: defining owner mutation session and retained admission
 
 Join only the released cf4be765/bf112697/198c3813 Contracts/State source/tests. Resolve pipeline conflicts by retaining local trim/native bound handling with incoming stable writer defaults and owner/cause/hook guards; keep effective patch/transition, structural clone comparison and unchanged-field archive behavior in their correct branches. Contracts→State rebuild and72 affected checks pass; real retained-only memory/projection/D1/DO5/5 pass. Full Cloudflare activation waits for the defining artifact/native binding carrier and native emission; retained-only forwarding needs positive runtime availability and safe outcome projection. No common gate rewrite or inferred working profile is included.
+
+### Validation: require installed protected-open test producer
+
+Fix the two branch-owned native integration checks' optional-method type errors with explicit installed protected-open availability guards. Root noEmit passes; prior actual behavior checks retain their source scope. Shared genuine/patched CanDo pilot failures stay with Packages, preserving meaningful CI and its four-job consolidation.
