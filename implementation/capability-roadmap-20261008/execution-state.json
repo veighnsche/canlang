@@ -489,7 +489,13 @@
           ],
           "reason": "A targeted stop alone does not require keyed scheduling."
         }
-      ]
+      ],
+      "worker_update": {
+        "state": "blocked_defining_retained_carrier_read_port",
+        "prerequisite": "State StoragePort exact-intent-ID read of the existing outbox carrier including dispatched status, with durable adapter implementation. D1 retains original target/arguments/operation identity after acknowledgement but the released port exposes only pending rows; no new table or unbounded scan is needed.",
+        "owner": "Defining State/Contracts durable outbox producer, then Cloudflare stop/reconcile consumer.",
+        "ready_consumer": "Use actual retained original carrier joined to exact-ID work.dispatch row, original attempt/owner/principal/source identity and current authority before existing Images cancel/reconcile. Existing pre-ack cancellation is reused; post-ack workflow is not qualified."
+      }
     },
     {
       "id": "SEQ-023",
@@ -526,6 +532,12 @@
         "scope": "Existing ImagesV1/ComfyUI full ImageRequest producer and finite ImageRun/result-array admission; original output correlation/policy gates retained.",
         "status": "Services installed Images component committed: emit0, changed owning7/7 and relevant existing3/3 accepted. Full ImageRun/receiving Files/consumer/current policy qualification remains open.",
         "services_commit": "c35fc990"
+      },
+      "worker_update": {
+        "state": "implemented_tested_fenced_images_recovery_component",
+        "implemented": "Reuse current actual installed Images/receiving Files/nativeD1 join. Fresh nonterminal-to-terminal recovery consumes actual host owner/guard admission and retains full checked SystemStaging (including progress occurrence schedules) in the original Work acknowledgement fence; no new table/lifecycle/side channel.",
+        "validation": "Owning CF emission22/22 and affected existing source/localHTTP/real receivingSQLite/nativeD1 case1/1 (20.58s) pass: terminal response loss/restart, unknown/running/terminal original-job recovery, missing/inherited/revoked admission, revocation after file finalize prevents progress/ack, re-admission reuses file, original checked notification schedule/replay, durable no repeated domain/history/files/notice effects. Unchanged prior controls reused.",
+        "remaining": "Full current CanCreative/CanChat ImageRun policy/correlation/product/provider qualification remains open; source06b release and complete original rules/read-grant producer gates retain defining owners. Post-ack stop/reconcile is separateSEQ-022 retained-carrier port prerequisite."
       }
     },
     {

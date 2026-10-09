@@ -7462,13 +7462,18 @@ export interface RecoverySweepOpts {
   readonly planRecoveryScan: DispatchRecoveryPlanner;
   /** Injected reconcile-evidence reader (provider-evidence plumbing). */
   readonly readEvidence: DispatchEvidenceReader;
-  /** Installed provider receipt writes share the original reconcile fence. */
+  /** Installed provider receipt staging shares the original reconcile fence. */
   readonly stageReconciledReceipt?: (input: {
     readonly intentId: string;
     readonly evidence: Exclude<DispatchReconcileEvidence, { readonly kind: 'not-found' }>;
     readonly revision: number;
     readonly context: SystemCommandContext;
-  }) => Promise<readonly import('@canlang/contracts').DomainWrite[]>;
+  }) => Promise<readonly import('@canlang/contracts').DomainWrite[] | SystemStaging>;
+  /** Recheck the original owner admission after staging, immediately before commit. */
+  readonly revalidateReconciledReceipt?: (input: {
+    readonly intentId: string;
+    readonly revision: number;
+  }) => Promise<void>;
 }
 
 /** T24b: one requeue act outcome (retry and dead lists alike). */
@@ -7576,6 +7581,7 @@ async function commitReconcile(input: {
   readonly intentId: string;
   readonly evidence: DispatchReconcileEvidence;
   readonly stageReconciledReceipt?: RecoverySweepOpts['stageReconciledReceipt'];
+  readonly revalidateReconciledReceipt?: RecoverySweepOpts['revalidateReconciledReceipt'];
 }): Promise<{ readonly reconciled: true; readonly state: string } | { readonly reconciled: false; readonly reason: string }> {
   const revision = await input.store.readRevision();
   const row = await input.store.load(T24B_WORK_DISPATCH_MODEL, input.intentId as RecordId);
@@ -7598,11 +7604,15 @@ async function commitReconcile(input: {
           errorCode: input.evidence.code,
           errorMessage: input.evidence.message,
         };
-  const receiptWrites = await input.stageReconciledReceipt?.({
+  const stagedReceipt = await input.stageReconciledReceipt?.({
     intentId: input.intentId, evidence: input.evidence, revision: revision + 1,
     context: { actor: input.actor, now: input.now, operation: input.operation,
       load: input.store.load.bind(input.store), query: input.store.query.bind(input.store) },
-  }) ?? [];
+  }) ?? {};
+  // Keep the full defining staging result: progress occurrences may schedule
+  // their original handlers. Legacy receipt-only consumers still return writes.
+  const receiptStaging: SystemStaging = Array.isArray(stagedReceipt)
+    ? { writes: stagedReceipt } : stagedReceipt as SystemStaging;
   // Attempts UNCHANGED (reconcile parity with `reconcileUncertain` —
   // reconcile resolves ambiguity, it is not an attempt); failed
   // evidence carries no classification, so `retryClass` stays null
@@ -7623,16 +7633,17 @@ async function commitReconcile(input: {
           data: { ...nextData },
         },
       },
-      ...receiptWrites,
+      ...(receiptStaging.writes ?? []),
     ],
-    history: [],
+    history: receiptStaging.history ?? [],
     receipt: null,
-    outbox: [],
-    schedules: [],
-    uniqueClaims: [],
-    uniqueReleases: [],
-    outboxAck: [input.intentId],
+    outbox: receiptStaging.outbox ?? [],
+    schedules: receiptStaging.schedules ?? [],
+    uniqueClaims: receiptStaging.uniqueClaims ?? [],
+    uniqueReleases: receiptStaging.uniqueReleases ?? [],
+    outboxAck: [...new Set([input.intentId, ...(receiptStaging.outboxAck ?? [])])],
   };
+  await input.revalidateReconciledReceipt?.({ intentId: input.intentId, revision });
   await input.joinPort.commitJoin(batch);
   return { reconciled: true, state: input.evidence.kind };
 }
@@ -7808,6 +7819,7 @@ export async function runRecoverySweep(opts: RecoverySweepOpts): Promise<Recover
       intentId,
       evidence: current,
       ...(opts.stageReconciledReceipt === undefined ? {} : { stageReconciledReceipt: opts.stageReconciledReceipt }),
+      ...(opts.revalidateReconciledReceipt === undefined ? {} : { revalidateReconciledReceipt: opts.revalidateReconciledReceipt }),
     });
     if (outcome.reconciled) {
       reconciled.push({ intentId, state: outcome.state });
