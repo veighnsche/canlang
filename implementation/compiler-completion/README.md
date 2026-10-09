@@ -1929,3 +1929,23 @@ Strict all-target Clippy/format pass; independent finite review finds no defect.
 Final changed-source whole qualification remains due; historical83/1325 is reused
 only at its source scope. Existing Dev portable grouped-default journey1/1 at
 f4365702 is consumed and reused. Broader nine refs and precise holds remain.
+
+
+**Admitted intrinsic compiler producer — unfinished native/whole join, 2026-10-10.**
+Exact reviewed State4396/078cac74 is consumed. The SAME original generation
+source now emits complete operation-id, original required job.version, prompt
+DATA and late accept CONTROL attribution, alongside its existing Send/Set proofs.
+Actual checked occurrences preserve aliases, grouping, derive origins and
+authored once-only evaluation. Generated markers use the Dev-accepted private
+facade; native descriptors carry exact checked primitive valueType. Shorthand
+keys now retain the checker's actual lexical type and source anchor through IR,
+so required scalar Set/Send shorthand publishes the same complete plan. Reused
+field types, optional/default/array/enum inputs retain their separate profiles;
+nullable/versionless/default reference metadata and other context still decline.
+Source23/23, existing facts15/15, actual CLI intrinsic output1/1 and SAME original
+generation output1/1 pass; strict all-target Clippy and formatting pass. A type-
+reuse admission mistake and a shorthand type/anchor gap were corrected before
+these results. This qualifies the compiler producer/output only. Dev's exact
+private native observer release, actual original Text workflow and final changed-
+source whole qualification remain required. No 67-reference or Task44 completion
+is inferred; historical83/1325 and all precise holds retain their scopes.

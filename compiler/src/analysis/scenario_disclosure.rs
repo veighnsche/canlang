@@ -41,6 +41,33 @@ pub struct DisclosureDependency {
     pub type_id: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DisclosureIntrinsicKind {
+    OperationId,
+    AdmittedInput {
+        parameter: SymbolId,
+        parameter_name: String,
+    },
+    AdmittedReferenceVersion {
+        parameter: SymbolId,
+        parameter_name: String,
+        model: SymbolId,
+        model_name: String,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct DisclosureIntrinsic {
+    pub id: String,
+    pub source: DisclosureSource,
+    pub node: NodeKey,
+    pub calls: Vec<NodeKey>,
+    pub role: DependencyRole,
+    pub kind: DisclosureIntrinsicKind,
+    pub ty: ResolvedType,
+    pub type_id: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InfluenceKind {
     QueryExistence,
@@ -85,6 +112,7 @@ pub struct DisclosureReturn {
     pub node: NodeKey,
     pub decisions: Vec<DisclosureDecision>,
     pub dependencies: Vec<DisclosureDependency>,
+    pub intrinsics: Vec<DisclosureIntrinsic>,
     pub influences: Vec<DisclosureInfluence>,
 }
 
@@ -193,6 +221,37 @@ pub fn analyze_scenario_disclosure(
                     )
                 {
                     supplied.record = Some(*symbol);
+                    if !scenario.read && param.default.is_none() {
+                        let parameter =
+                            resolve.symbols.get(param.param.0 as usize).ok_or_else(|| {
+                                cx.fail(param.node, "missing admitted parameter declaration")
+                            })?;
+                        let model = resolve.symbols.get(symbol.0 as usize).ok_or_else(|| {
+                            cx.fail(param.node, "missing admitted parameter model")
+                        })?;
+                        supplied.reference =
+                            Some(DisclosureIntrinsicKind::AdmittedReferenceVersion {
+                                parameter: param.param,
+                                parameter_name: parameter.name.clone(),
+                                model: *symbol,
+                                model_name: model.canonical.clone(),
+                            });
+                    }
+                }
+                if let ResolvedType::Scalar(scalar) = ty
+                    && primitive_type(ty)
+                    && param.default.is_none()
+                    && cx.direct_builtin_parameter_type(param.type_node, *scalar)
+                    && !types
+                        .value_constraints
+                        .get(&param.param)
+                        .is_some_and(|value| value.alias.is_some())
+                {
+                    let parameter =
+                        resolve.symbols.get(param.param.0 as usize).ok_or_else(|| {
+                            cx.fail(param.node, "missing admitted primitive parameter")
+                        })?;
+                    supplied.input = Some((param.param, parameter.name.clone(), *scalar));
                 }
                 let mut next = Vec::new();
                 for flow in flows {
@@ -205,9 +264,11 @@ pub fn analyze_scenario_disclosure(
                         _ => None,
                     };
                     if let Some((default, alternatives)) = alternatives
-                        && alternatives
-                            .iter()
-                            .any(|value| !value.reads.is_empty() || !value.decisions.is_empty())
+                        && alternatives.iter().any(|value| {
+                            !value.reads.is_empty()
+                                || !value.intrinsics.is_empty()
+                                || !value.decisions.is_empty()
+                        })
                     {
                         let provided = DisclosureDecision {
                             node: default,
@@ -331,9 +392,12 @@ type Env = HashMap<Local, ValuePath>;
 #[derive(Debug, Clone, Default)]
 struct ValuePath {
     reads: Vec<DisclosureDependency>,
+    intrinsics: Vec<DisclosureIntrinsic>,
     observed: Vec<(NodeKey, Vec<NodeKey>)>,
     decisions: Vec<DisclosureDecision>,
     record: Option<SymbolId>,
+    reference: Option<DisclosureIntrinsicKind>,
+    input: Option<(SymbolId, String, Scalar)>,
     members: Option<Vec<(String, ValuePath)>>,
     schema: Option<String>,
     delivery: Option<ResolvedType>,
@@ -351,6 +415,11 @@ impl ValuePath {
                 self.reads.push(read.clone());
             }
         }
+        for intrinsic in &other.intrinsics {
+            if !self.intrinsics.iter().any(|prior| prior.id == intrinsic.id) {
+                self.intrinsics.push(intrinsic.clone());
+            }
+        }
         for decision in &other.decisions {
             if !self.decisions.contains(decision) {
                 self.decisions.push(decision.clone());
@@ -366,6 +435,8 @@ struct Flow {
     /// Dependencies of writes already executed on this path survive a common
     /// postdominator even when its scalar return no longer depends on a branch.
     writes: ValuePath,
+    effect_guards: ValuePath,
+    executed_effect: bool,
     evaluated: Vec<DisclosureDecision>,
     observed: Vec<(NodeKey, Vec<NodeKey>)>,
 }
@@ -619,6 +690,14 @@ impl<'a> Closure<'a> {
             read.role = DependencyRole::Control;
             read.id = self.opaque("read-control", read.node, &self.call_stamp(&read.calls)?)?;
         }
+        for intrinsic in &mut value.intrinsics {
+            intrinsic.role = DependencyRole::Control;
+            intrinsic.id = self.opaque(
+                "intrinsic-control",
+                intrinsic.node,
+                &self.call_stamp(&intrinsic.calls)?,
+            )?;
+        }
         Ok(value)
     }
 
@@ -744,11 +823,13 @@ impl<'a> Closure<'a> {
                             "stored model query domain",
                         ))
                     }
-                    Some(Binding::Symbol(id)) => env
-                        .get(&Local::Symbol(*id))
-                        .cloned()
-                        .map(|p| vec![p])
-                        .ok_or_else(|| self.fail(key, "unaccounted symbol value")),
+                    Some(Binding::Symbol(id)) => {
+                        let value = env
+                            .get(&Local::Symbol(*id))
+                            .cloned()
+                            .ok_or_else(|| self.fail(key, "unaccounted symbol value"))?;
+                        Ok(vec![self.input_value(key, module, calls, value)?])
+                    }
                     Some(Binding::Let { node }) => env
                         .get(&Local::Let(*node))
                         .cloned()
@@ -918,6 +999,7 @@ impl<'a> Closure<'a> {
                             });
                             selected.join(rhs);
                             selected.record = None;
+                            selected.reference = None;
                             out.push(selected);
                         }
                     }
@@ -961,6 +1043,24 @@ impl<'a> Closure<'a> {
                             .get(n.span.start as usize..n.span.end as usize)
                     })
                     .ok_or_else(|| self.fail(key, "missing member identity"))?;
+                if matches!(
+                    self.types.node_types.get(&base_key),
+                    Some(ResolvedType::OperationContext)
+                ) {
+                    if field_name != "id"
+                        || *ty != ResolvedType::Scalar(Scalar::Text)
+                        || !self.operation_context(base_key)
+                    {
+                        return Err(self.fail(key, "unsupported operation intrinsic"));
+                    }
+                    return Ok(vec![self.intrinsic(
+                        key,
+                        module,
+                        calls,
+                        DisclosureIntrinsicKind::OperationId,
+                        Scalar::Text,
+                    )?]);
+                }
                 let mut values = self.expr(base_key, module, env, calls)?;
                 for value in &mut values {
                     if let Some(members) = &value.members {
@@ -1004,6 +1104,26 @@ impl<'a> Closure<'a> {
                     let model = value
                         .record
                         .ok_or_else(|| self.fail(key, "non-direct stored field traversal"))?;
+                    if field_name == "version" {
+                        if *ty != ResolvedType::Scalar(Scalar::Int) {
+                            return Err(self.fail(key, "unestablished intrinsic version type"));
+                        }
+                        let kind = value.reference.clone().ok_or_else(|| {
+                            self.fail(
+                                key,
+                                "version needs required original versioned scenario reference",
+                            )
+                        })?;
+                        if !matches!(&kind, DisclosureIntrinsicKind::AdmittedReferenceVersion {model: original,..} if *original == model)
+                        {
+                            return Err(self.fail(key, "original reference model mismatch"));
+                        }
+                        let intrinsic = self.intrinsic(key, module, calls, kind, Scalar::Int)?;
+                        value.join(&intrinsic);
+                        value.record = None;
+                        value.reference = None;
+                        continue;
+                    }
                     let owner = self
                         .resolve
                         .symbols
@@ -1047,6 +1167,7 @@ impl<'a> Closure<'a> {
                     });
                     value.observed.push((key, calls.to_vec()));
                     value.record = None;
+                    value.reference = None;
                 }
                 Ok(values)
             }
@@ -1098,6 +1219,8 @@ impl<'a> Closure<'a> {
                 let mut merged = lhs.clone();
                 merged.join(rhs);
                 merged.record = None;
+                merged.reference = None;
+                merged.input = None;
                 out.push(merged);
             }
         }
@@ -1269,6 +1392,7 @@ impl<'a> Closure<'a> {
                     .into_iter()
                     .map(|(mut value, _)| {
                         value.record = None;
+                        value.reference = None;
                         value
                     })
                     .collect())
@@ -1282,6 +1406,96 @@ impl<'a> Closure<'a> {
             }
             _ => Err(self.fail(key, "unsupported callable closure")),
         }
+    }
+
+    fn direct_builtin_parameter_type(&self, key: NodeKey, scalar: Scalar) -> bool {
+        let Some(node) = self.nodes.get(&key) else {
+            return false;
+        };
+        if node.kind != SyntaxKind::NamedType {
+            return false;
+        }
+        let mut paths = node
+            .children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::Path);
+        let Some(path) = paths.next() else {
+            return false;
+        };
+        paths.next().is_none()
+            && matches!(self.resolve.node_typeref.get(&NodeKey::of(path)),
+            Some(TypeRef::Scalar(name)) if name == scalar.as_str())
+    }
+
+    fn input_value(
+        &self,
+        key: NodeKey,
+        module: ModuleId,
+        calls: &[NodeKey],
+        mut value: ValuePath,
+    ) -> Result<ValuePath, DisclosureDecline> {
+        if let Some((parameter, parameter_name, scalar)) = value.input.take() {
+            let intrinsic = self.intrinsic(
+                key,
+                module,
+                calls,
+                DisclosureIntrinsicKind::AdmittedInput {
+                    parameter,
+                    parameter_name,
+                },
+                scalar,
+            )?;
+            value.join(&intrinsic);
+        }
+        Ok(value)
+    }
+
+    fn operation_context(&self, mut key: NodeKey) -> bool {
+        for _ in 0..64 {
+            let Some(node) = self.nodes.get(&key) else {
+                return false;
+            };
+            if node.kind != SyntaxKind::Group {
+                return node.kind == SyntaxKind::NameRef
+                    && matches!(
+                        self.resolve.node_binding.get(&key),
+                        Some(Binding::Context(ContextVar::Operation))
+                    );
+            }
+            let mut children = node.children.iter().filter(|child| expression(child.kind));
+            let Some(child) = children.next() else {
+                return false;
+            };
+            if children.next().is_some() {
+                return false;
+            }
+            key = NodeKey::of(child);
+        }
+        false
+    }
+
+    fn intrinsic(
+        &self,
+        node: NodeKey,
+        module: ModuleId,
+        calls: &[NodeKey],
+        kind: DisclosureIntrinsicKind,
+        scalar: Scalar,
+    ) -> Result<ValuePath, DisclosureDecline> {
+        Ok(ValuePath {
+            intrinsics: vec![DisclosureIntrinsic {
+                id: self.opaque("intrinsic-data", node, &self.call_stamp(calls)?)?,
+                source: self.source(module, node)?,
+                node,
+                calls: calls.to_vec(),
+                role: DependencyRole::Data,
+                kind,
+                ty: ResolvedType::Scalar(scalar),
+                type_id: scalar.as_str().to_string(),
+            }],
+            observed: vec![(node, calls.to_vec())],
+            ..ValuePath::default()
+        })
     }
 
     fn word(&self, node: &SyntaxNode) -> Option<&'a str> {
@@ -1300,7 +1514,13 @@ impl<'a> Closure<'a> {
 
     /// Shorthand entries have a checked lexical binding on their key token,
     /// rather than an invented expression node/type.
-    fn lexical(&self, key: NodeKey, env: &Env) -> Result<Vec<ValuePath>, DisclosureDecline> {
+    fn lexical(
+        &self,
+        key: NodeKey,
+        module: ModuleId,
+        env: &Env,
+        calls: &[NodeKey],
+    ) -> Result<Vec<ValuePath>, DisclosureDecline> {
         if self.types.resolved_cases.contains(&key)
             && matches!(
                 self.types.node_types.get(&key),
@@ -1318,10 +1538,11 @@ impl<'a> Closure<'a> {
             }
             _ => return Err(self.fail(key, "unsupported shorthand binding")),
         };
-        env.get(&local)
+        let value = env
+            .get(&local)
             .cloned()
-            .map(|value| vec![value])
-            .ok_or_else(|| self.fail(key, "missing shorthand provenance"))
+            .ok_or_else(|| self.fail(key, "missing shorthand provenance"))?;
+        Ok(vec![self.input_value(key, module, calls, value)?])
     }
 
     fn object(
@@ -1364,7 +1585,7 @@ impl<'a> Closure<'a> {
             let value = entry.children.iter().find(|child| expression(child.kind));
             let alternatives = match value {
                 Some(value) => self.expr(NodeKey::of(value), module, env, calls)?,
-                None => self.lexical(NodeKey::of(key_node), env)?,
+                None => self.lexical(NodeKey::of(key_node), module, env, calls)?,
             };
             if alternatives
                 .iter()
@@ -1521,7 +1742,7 @@ impl<'a> Closure<'a> {
             }
             let values = match arg.value {
                 Some(value) => self.expr(value, module, env, calls)?,
-                None => self.lexical(arg.key_node, env)?,
+                None => self.lexical(arg.key_node, module, env, calls)?,
             };
             if values.iter().any(|value| {
                 if delivery {
@@ -1705,7 +1926,7 @@ impl<'a> Closure<'a> {
             }
             let values = match arg.value {
                 Some(value) => self.expr(value, module, env, calls)?,
-                None => self.lexical(arg.key_node, env)?,
+                None => self.lexical(arg.key_node, module, env, calls)?,
             };
             if values
                 .iter()
@@ -1897,6 +2118,15 @@ impl<'a> Closure<'a> {
                 .position(|entry| entry.0 == read.node && entry.1 == read.calls)
                 .unwrap_or(usize::MAX)
         });
+        merged.intrinsics.sort_by_key(|intrinsic| {
+            observed
+                .iter()
+                .position(|entry| entry.0 == intrinsic.node && entry.1 == intrinsic.calls)
+                .unwrap_or(usize::MAX)
+        });
+        if merged.reads.len() + merged.intrinsics.len() > 200 {
+            return Err(self.fail(node, "return dependency bound"));
+        }
         let mut decisions = flow.evaluated;
         for decision in merged.decisions {
             if !decisions.contains(&decision) {
@@ -1910,6 +2140,7 @@ impl<'a> Closure<'a> {
             node,
             decisions: merged.decisions,
             dependencies: merged.reads,
+            intrinsics: merged.intrinsics,
             influences: Vec::new(),
         })
     }
@@ -1984,13 +2215,32 @@ impl<'a> Closure<'a> {
                             .ok_or_else(|| self.fail(effect.node, "missing checked requirement"))?;
                         let alternatives =
                             self.authorization_expr(cond, module, &flow.env, calls)?;
-                        // Business-check failure does not disclose a successful
-                        // independent return. Do not add guard reads as control.
+                        // Preserve independent-return authorization pruning. Required
+                        // primitive guard values control successful effects,
+                        // while stored guard reads retain their existing policy.
                         for value in alternatives {
                             if !compatible(&flow.evaluated, &value.decisions) {
                                 continue;
                             }
                             let mut path = flow.clone();
+                            let admitted_guard = self.control(ValuePath {
+                                intrinsics: value
+                                    .intrinsics
+                                    .iter()
+                                    .filter(|intrinsic| {
+                                        matches!(
+                                            intrinsic.kind,
+                                            DisclosureIntrinsicKind::AdmittedInput { .. }
+                                        )
+                                    })
+                                    .cloned()
+                                    .collect(),
+                                ..ValuePath::default()
+                            })?;
+                            path.effect_guards.join(&admitted_guard);
+                            if path.executed_effect {
+                                path.writes.join(&admitted_guard);
+                            }
                             for read in &value.observed {
                                 if !path.observed.contains(read) {
                                     path.observed.push(read.clone());
@@ -2019,9 +2269,11 @@ impl<'a> Closure<'a> {
                                 continue;
                             }
                             let mut path = flow.clone();
+                            path.executed_effect = true;
+                            path.writes.join(&flow.effect_guards);
                             path.writes.join(&flow.controls);
                             path.writes.join(&evaluated);
-                            if path.writes.reads.len() > 200 {
+                            if path.writes.reads.len() + path.writes.intrinsics.len() > 200 {
                                 return Err(self.fail(effect.node, "effect write dependency bound"));
                             }
                             for read in &evaluated.observed {
@@ -2059,9 +2311,11 @@ impl<'a> Closure<'a> {
                                 continue;
                             }
                             let mut path = flow.clone();
+                            path.executed_effect = true;
+                            path.writes.join(&flow.effect_guards);
                             path.writes.join(&flow.controls);
                             path.writes.join(&write);
-                            if path.writes.reads.len() > 200 {
+                            if path.writes.reads.len() + path.writes.intrinsics.len() > 200 {
                                 return Err(
                                     self.fail(effect.node, "transition write dependency bound")
                                 );
@@ -2185,7 +2439,8 @@ impl<'a> Closure<'a> {
                                 path.env = flow.env.clone();
                                 if selects_writes {
                                     path.writes.join(&path.controls);
-                                    if path.writes.reads.len() > 200 {
+                                    if path.writes.reads.len() + path.writes.intrinsics.len() > 200
+                                    {
                                         return Err(self.fail(
                                             effect.node,
                                             "transition write dependency bound",
@@ -2347,6 +2602,166 @@ mod tests {
     }
 
     #[test]
+    fn admitted_intrinsics_keep_original_parameter_through_groups_aliases_and_derives() {
+        let source = "app Bounds\nGiven\n Item {value:int}\n policy Item read=members\n derive original(record:Item):int=(record).version\n derive nested(record:Item):int=original(record)\nWhen\n scenario probe(item:Item) -> int by=members\n  do\n   let alias=(item)\n   return nested(alias)+item.version\nThen\n";
+        let ScenarioDisclosure::Complete(plan) = checked(source) else {
+            panic!("checked original reference alias")
+        };
+        let path = &plan.returns[0];
+        assert!(path.dependencies.is_empty());
+        assert_eq!(path.intrinsics.len(), 2);
+        assert_eq!(path.intrinsics[0].calls.len(), 2);
+        assert!(path.intrinsics[1].calls.is_empty());
+        assert_ne!(path.intrinsics[0].id, path.intrinsics[1].id);
+        for intrinsic in &path.intrinsics {
+            assert_eq!(intrinsic.type_id, "int");
+            assert_eq!(intrinsic.ty, ResolvedType::Scalar(Scalar::Int));
+            assert_eq!(intrinsic.role, DependencyRole::Data);
+            assert!(
+                matches!(&intrinsic.kind,DisclosureIntrinsicKind::AdmittedReferenceVersion {parameter_name,model_name,..}
+                if parameter_name=="item" && model_name=="Bounds.Item")
+            );
+        }
+    }
+
+    #[test]
+    fn operation_intrinsic_is_checked_text_and_alias_data_is_return_specific() {
+        let source = "app Bounds\nGiven\n derive identity():text=(operation).id\nWhen\n scenario probe() -> text by=members\n  do\n   let ignored=operation.id\n   let saved=identity()\n   return saved\nThen\n";
+        let ScenarioDisclosure::Complete(plan) = checked(source) else {
+            panic!("checked operation identity")
+        };
+        assert_eq!(plan.returns[0].intrinsics.len(), 1);
+        let intrinsic = &plan.returns[0].intrinsics[0];
+        assert_eq!(intrinsic.type_id, "text");
+        assert_eq!(intrinsic.calls.len(), 1);
+        assert!(matches!(
+            intrinsic.kind,
+            DisclosureIntrinsicKind::OperationId
+        ));
+    }
+
+    #[test]
+    fn intrinsic_control_and_default_selection_preserve_evaluation_roles() {
+        let source = "app Bounds\nGiven\n Item {value:int}\n policy Item read=members\nWhen\n scenario probe(item:Item,selected:int=item.version) -> int by=members\n  do\n   if selected>0\n    return 1\n   else\n    return 0\nThen\n";
+        let ScenarioDisclosure::Complete(plan) = checked(source) else {
+            panic!("versioned reference default scalar")
+        };
+        assert_eq!(plan.returns.len(), 4);
+        for path in &plan.returns {
+            let provided = path
+                .decisions
+                .iter()
+                .any(|decision| decision.choice == DisclosureChoice::DefaultProvided);
+            assert_eq!(path.intrinsics.len(), usize::from(!provided));
+            if !provided {
+                assert_eq!(path.intrinsics[0].role, DependencyRole::Control);
+            }
+        }
+        let op = "app Bounds\nGiven\nWhen\n scenario probe(selected:text=operation.id) -> text by=members\n  do return selected\nThen\n";
+        let ScenarioDisclosure::Complete(plan) = checked(op) else {
+            panic!("operation default identity")
+        };
+        assert_eq!(plan.returns.len(), 2);
+        assert!(plan.returns.iter().any(|path| path.intrinsics.is_empty()
+            && path.decisions[0].choice == DisclosureChoice::DefaultProvided));
+        assert!(plan.returns.iter().any(|path| path.intrinsics.len() == 1
+            && path.decisions[0].choice == DisclosureChoice::DefaultEvaluated));
+    }
+
+    #[test]
+    fn nonoriginal_optional_default_and_versionless_metadata_decline() {
+        let prefix = "app Bounds\nGiven\n Other {value:int}\n Item {value:int,other:Other?}\n policy Other read=members\n policy Item read=members\nWhen\n";
+        for scenario in [
+            " scenario probe(item:Item?) -> int by=members\n  do\n   require item!=null\n   return item.version\n",
+            " scenario probe(original:Item,item:Item=original) -> int by=members\n  do return item.version\n",
+            " scenario probe(item:Item) read=true -> int by=members\n  do return item.version\n",
+            " scenario probe(item:Item) -> int by=members\n  do\n   require item.other!=null\n   return item.other.version\n",
+            " scenario probe() -> text by=members\n  do return operation.source\n",
+        ] {
+            assert!(matches!(
+                checked(&format!("{prefix}{scenario}Then\n")),
+                ScenarioDisclosure::Declined(_)
+            ));
+        }
+    }
+
+    #[test]
+    fn admitted_primitive_inputs_observe_only_actual_once_bound_evaluations() {
+        let source = "app Bounds\nGiven\n derive doubled(value:int):int=value+value\nWhen\n scenario probe(value:int,unused:text) -> int by=members\n  do\n   let alias=value\n   return doubled(alias)\nThen\n";
+        let ScenarioDisclosure::Complete(plan) = checked(source) else {
+            panic!("required builtin input")
+        };
+        assert_eq!(plan.returns[0].intrinsics.len(), 1);
+        let input = &plan.returns[0].intrinsics[0];
+        assert!(input.calls.is_empty());
+        assert_eq!(input.type_id, "int");
+        assert!(
+            matches!(&input.kind,DisclosureIntrinsicKind::AdmittedInput {parameter_name,..} if parameter_name=="value")
+        );
+        for ty in [
+            "text", "bool", "int", "date", "datetime", "decimal", "money", "duration", "user",
+        ] {
+            let source = format!(
+                "app Bounds\nGiven\nWhen\n scenario probe(value:{ty}) -> {ty} by=members\n  do return value\nThen\n"
+            );
+            let ScenarioDisclosure::Complete(plan) = checked(&source) else {
+                panic!("required primitive {ty}")
+            };
+            assert_eq!(plan.returns[0].intrinsics.len(), 1);
+            assert_eq!(plan.returns[0].intrinsics[0].type_id, ty);
+        }
+    }
+
+    #[test]
+    fn primitive_success_require_controls_effects_but_not_independent_returns() {
+        let base = "app Bounds\nGiven\n Item {value:int}\n policy Item read=members\nWhen\n scenario probe(item:Item,accept:bool) -> int by=members\n  do\n";
+        for body in [
+            "   require accept\n   set item {value=1}\n   return 9\n",
+            "   set item {value=1}\n   require accept\n   return 9\n",
+        ] {
+            let ScenarioDisclosure::Complete(plan) = checked(&format!("{base}{body}Then\n")) else {
+                panic!("successful primitive effect guard")
+            };
+            assert_eq!(plan.returns[0].intrinsics.len(), 1);
+            assert_eq!(plan.returns[0].intrinsics[0].role, DependencyRole::Control);
+            assert!(matches!(&plan.returns[0].intrinsics[0].kind,
+                DisclosureIntrinsicKind::AdmittedInput {parameter_name,..} if parameter_name=="accept"));
+        }
+        let ScenarioDisclosure::Complete(plan) =
+            checked(&format!("{base}   require accept\n   return 9\nThen\n"))
+        else {
+            panic!("independent guard policy")
+        };
+        assert!(plan.returns[0].intrinsics.is_empty());
+    }
+
+    #[test]
+    fn optional_default_alias_enum_and_array_inputs_preserve_separate_frozen_profile() {
+        for signature in [
+            "value:int?",
+            "value:int=1",
+            "value:int[]",
+            "value:Choice.kind",
+        ] {
+            let source = format!(
+                "app Bounds\nGiven\n Choice {{kind:text min=1 max=80}}\n policy Choice read=members\nWhen\n scenario probe({signature}) -> bool by=members\n  do return value==value\nThen\n"
+            );
+            let ScenarioDisclosure::Complete(plan) = checked(&source) else {
+                panic!("existing frozen profile {signature}")
+            };
+            assert!(
+                plan.returns[0].intrinsics.is_empty(),
+                "unexpected admitted-input for {signature}"
+            );
+        }
+        let source = "app Bounds\nGiven\n Choice {kind:enum(a,b)}\n policy Choice read=members\nWhen\n scenario probe(value:Choice.kind) -> bool by=members\n  do return value==a\nThen\n";
+        let ScenarioDisclosure::Complete(plan) = checked(source) else {
+            panic!("existing enum input profile")
+        };
+        assert!(plan.returns[0].intrinsics.is_empty());
+    }
+
+    #[test]
     fn scalar_sets_retain_read_data_and_literal_effect_selectors() {
         let source = "app Bounds\nGiven\n Item {available:bool,value:int,note:text?}\n policy Item read=members\nWhen\n scenario probe(item:Item) by=members\n  do\n   if item.available\n    set item {value=7}\n   set item {value=item.value+1,note=null}\nThen\n";
         let ScenarioDisclosure::Complete(plan) = checked(source) else {
@@ -2435,10 +2850,30 @@ mod tests {
             assert_eq!(plan.effects[1].source.module, "TypedGenerationProgress");
             assert!(source.contains(&format!("set job {{{field}}}")));
         }
+        let ScenarioDisclosure::Complete(generate) =
+            checked_named(source, "TypedGenerationProgress.generate")
+        else {
+            panic!("released operation/reference intrinsics close original generate source")
+        };
+        assert_eq!(generate.effects.len(), 2);
+        assert_eq!(generate.returns.len(), 1);
+        assert_eq!(generate.returns[0].intrinsics.len(), 4);
         assert!(matches!(
-            checked_named(source, "TypedGenerationProgress.generate"),
-            ScenarioDisclosure::Declined(_)
+            generate.returns[0].intrinsics[0].kind,
+            DisclosureIntrinsicKind::OperationId
         ));
+        assert!(matches!(&generate.returns[0].intrinsics[1].kind,
+            DisclosureIntrinsicKind::AdmittedReferenceVersion {parameter_name,model_name,..}
+                if parameter_name == "job" && model_name == "TypedGenerationProgress.Job"));
+        assert!(matches!(&generate.returns[0].intrinsics[2].kind,
+            DisclosureIntrinsicKind::AdmittedInput {parameter_name,..} if parameter_name=="prompt"));
+        assert_eq!(generate.returns[0].intrinsics[2].role, DependencyRole::Data);
+        assert!(matches!(&generate.returns[0].intrinsics[3].kind,
+            DisclosureIntrinsicKind::AdmittedInput {parameter_name,..} if parameter_name=="accept"));
+        assert_eq!(
+            generate.returns[0].intrinsics[3].role,
+            DependencyRole::Control
+        );
     }
 
     #[test]
@@ -2469,12 +2904,11 @@ mod tests {
     }
 
     #[test]
-    fn delivery_inspection_and_frozen_native_metadata_remain_whole_declined() {
+    fn delivery_inspection_and_unreleased_metadata_remain_whole_declined() {
         let base = "app Bounds\nuse std {TextGenerationV1 as LLM} from=deployment.llm\nGiven\n Item {source:text,revision:int,stop:delivery(LLM.cancel)?,saved:text}\n policy Item read=members fields=source,revision,saved\nWhen\n scenario probe(item:Item) by=members\n  do\n   send LLM.cancel {source=item.source,revision=item.revision} as stop\n   set item {stop}\n";
         for tail in [
             "   require stop.status==pending\nThen\n",
-            "   set item {saved=operation.id}\nThen\n",
-            "   set item {revision=item.version}\nThen\n",
+            "   set item {saved=operation.source}\nThen\n",
         ] {
             assert!(matches!(
                 checked(&format!("{base}{tail}")),

@@ -152,10 +152,13 @@ When
 Then
 "#;
 fn compile(scratch: &Path, native: bool) -> Value {
+    compile_source(scratch, native, SOURCE)
+}
+fn compile_source(scratch: &Path, native: bool, contents: &str) -> Value {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let source = scratch.join("native-receipts.can");
     let library = scratch.join("receiptlib.can");
-    std::fs::write(&source, SOURCE).unwrap();
+    std::fs::write(&source, contents).unwrap();
     std::fs::write(&library, LIBRARY).unwrap();
     let mut command = Command::new(env!("CARGO_BIN_EXE_can"));
     command
@@ -195,6 +198,300 @@ fn operation<'a>(artifact: &'a Value, name: &str) -> &'a Value {
         .iter()
         .find(|op| op["name"] == format!("NativeReceipts.{name}"))
         .unwrap()
+}
+#[test]
+fn intrinsic_compile_output_keeps_admitted_identity_distinct_from_row_fields() {
+    // Compiler output qualification only: native invocation awaits the defining
+    // adapter's released intrinsic capture, without fabricating observations.
+    let (body, then) = SOURCE.rsplit_once("\nThen").unwrap();
+    let body = body.replacen(
+        "app NativeReceipts\n",
+        "app NativeReceipts\nuse std {TextGenerationV1 as LLM} from=deployment.llm\n",
+        1,
+    );
+    let source = format!(
+        "{body}\n{}\nThen{then}",
+        r#"
+ scenario operation_id() -> text by=members
+  do return operation.id
+ scenario original_version(item:Item) -> int by=members
+  do return item.version
+ scenario alias_version(item:Item) -> int by=members
+  do
+   let alias=item
+   return (alias.version)
+ scenario post_write_version(item:Item) -> int by=members
+  do
+   set item {value=2}
+   return item.version
+ scenario private_version(item:WriteItem) -> int by=members
+  do
+   if item.private_choice
+    return item.version
+   else
+    return 0
+ scenario nullable_version(item:Item?) -> int? by=members
+  do return item?.version
+ scenario body_actor() -> user? by=members
+  do return actor
+ scenario primitive_int(value:int,unused:text) -> int by=members
+  do return value
+ scenario primitive_text(value:text) -> text by=members
+  do
+   let alias=value
+   return (alias)
+ scenario primitive_bool(value:bool) -> bool by=members
+  do return value
+ scenario primitive_control(selected:bool,value:int) -> int by=members
+  do
+   if selected
+    return value
+   else
+    return 0
+ scenario frozen_optional(value:int?) -> int? by=members
+  do return value
+ scenario frozen_default(value:int=4) -> int by=members
+  do return value
+ scenario frozen_array(value:int[]) -> int[] by=members
+  do return value
+ scenario frozen_enum(value:Item.state) -> Item.state by=members
+  do return value
+ scenario shorthand_set(item:Item,value:int) -> int by=members
+  do
+   set item {value}
+   return 1
+ scenario shorthand_send(source:text,revision:int) by=members
+  do send LLM.cancel {source,revision} as stop
+"#
+    );
+    let scratch = tempfile::tempdir().unwrap();
+    let default = compile_source(scratch.path(), false, &source);
+    let artifact = compile_source(scratch.path(), true, &source);
+    for (name, kind, ty, parameter, model) in [
+        ("operation_id", "operation-id", "text", None, None),
+        (
+            "original_version",
+            "admitted-reference-version",
+            "int",
+            Some("item"),
+            Some("NativeReceipts.Item"),
+        ),
+        (
+            "alias_version",
+            "admitted-reference-version",
+            "int",
+            Some("item"),
+            Some("NativeReceipts.Item"),
+        ),
+        (
+            "post_write_version",
+            "admitted-reference-version",
+            "int",
+            Some("item"),
+            Some("NativeReceipts.Item"),
+        ),
+    ] {
+        assert!(
+            operation(&default, name)["result"]
+                .get("disclosure")
+                .is_none()
+        );
+        let op = operation(&artifact, name);
+        let plan = &op["result"]["disclosure"];
+        assert_eq!(plan["version"], 1, "{name}");
+        let returns = plan["returns"].as_array().unwrap();
+        assert_eq!(returns.len(), 1, "{name}");
+        assert_eq!(
+            returns[0]["dependencies"],
+            serde_json::json!([]),
+            "intrinsics must not pretend to be stored fields"
+        );
+        let intrinsics = returns[0]["intrinsics"].as_array().unwrap();
+        assert_eq!(intrinsics.len(), 1, "{name}");
+        let intrinsic = &intrinsics[0];
+        assert_eq!(intrinsic["kind"], kind);
+        assert_eq!(intrinsic["type"], ty);
+        assert_eq!(intrinsic["role"], "data");
+        assert!(!intrinsic["id"].as_str().unwrap().is_empty());
+        assert_eq!(
+            intrinsic.get("parameter").and_then(Value::as_str),
+            parameter
+        );
+        assert_eq!(intrinsic.get("model").and_then(Value::as_str), model);
+        assert_eq!(intrinsic["source"], plan["source"]);
+        assert!(intrinsic.get("field").is_none());
+    }
+    let private = &operation(&artifact, "private_version")["result"]["disclosure"];
+    let paths = private["returns"].as_array().unwrap();
+    assert_eq!(paths.len(), 2);
+    for path in paths {
+        assert_eq!(path["dependencies"].as_array().unwrap().len(), 1);
+        assert_eq!(path["dependencies"][0]["field"], "private_choice");
+        assert_eq!(path["dependencies"][0]["role"], "control");
+    }
+    assert_eq!(
+        paths
+            .iter()
+            .filter(|path| path["intrinsics"]
+                .as_array()
+                .is_some_and(|values| !values.is_empty()))
+            .count(),
+        1
+    );
+    for (name, ty) in [
+        ("primitive_int", "int"),
+        ("primitive_text", "text"),
+        ("primitive_bool", "bool"),
+    ] {
+        let op = operation(&artifact, name);
+        let plan = &op["result"]["disclosure"];
+        assert_eq!(plan["version"], 1);
+        let intrinsics = plan["returns"][0]["intrinsics"].as_array().unwrap();
+        assert_eq!(
+            intrinsics.len(),
+            1,
+            "unused required slots have no fabricated evaluation: {name}"
+        );
+        assert_eq!(intrinsics[0]["kind"], "admitted-input");
+        assert_eq!(intrinsics[0]["parameter"], "value");
+        assert_eq!(intrinsics[0]["type"], ty);
+        assert_eq!(intrinsics[0]["role"], "data");
+        assert_eq!(intrinsics[0]["source"], plan["source"]);
+        assert!(intrinsics[0].get("model").is_none() && intrinsics[0].get("field").is_none());
+        let input = op["inputs"]["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|input| input["name"] == "value")
+            .unwrap();
+        assert_eq!(
+            input["valueType"], ty,
+            "native descriptor binds exact admitted primitive"
+        );
+        assert_eq!(input["required"], true);
+        let generic_input = operation(&default, name)["inputs"]["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|input| input["name"] == "value")
+            .unwrap();
+        assert_eq!(
+            generic_input.get("valueType").and_then(Value::as_str),
+            (ty == "text").then_some("text"),
+            "generic primitive input ABI stays unchanged"
+        );
+    }
+    let control = &operation(&artifact, "primitive_control")["result"]["disclosure"];
+    let paths = control["returns"].as_array().unwrap();
+    assert_eq!(paths.len(), 2);
+    let mut lengths = Vec::new();
+    for path in paths {
+        assert_eq!(path["dependencies"], serde_json::json!([]));
+        let intrinsics = path["intrinsics"].as_array().unwrap();
+        lengths.push(intrinsics.len());
+        assert_eq!(intrinsics[0]["parameter"], "selected");
+        assert_eq!(intrinsics[0]["kind"], "admitted-input");
+        assert_eq!(intrinsics[0]["type"], "bool");
+        assert_eq!(intrinsics[0]["role"], "control");
+        if intrinsics.len() == 2 {
+            assert_eq!(intrinsics[1]["parameter"], "value");
+            assert_eq!(intrinsics[1]["role"], "data");
+            assert_eq!(intrinsics[1]["type"], "int");
+        }
+    }
+    lengths.sort();
+    assert_eq!(
+        lengths,
+        [1, 2],
+        "nonselected return input is never eagerly observed"
+    );
+    for name in [
+        "frozen_optional",
+        "frozen_default",
+        "frozen_array",
+        "frozen_enum",
+    ] {
+        let op = operation(&artifact, name);
+        assert_eq!(
+            op["result"]["type"],
+            operation(&default, name)["result"]["type"]
+        );
+        let plan = &op["result"]["disclosure"];
+        assert_eq!(
+            plan["version"], 1,
+            "existing frozen-input profile stays qualified: {name}"
+        );
+        for path in plan["returns"].as_array().unwrap() {
+            assert!(
+                path["intrinsics"]
+                    .as_array()
+                    .is_none_or(|values| values.is_empty()),
+                "distinct frozen profile cannot claim required primitive intrinsic: {name}"
+            );
+        }
+    }
+    for (name, expected) in [
+        ("shorthand_set", vec![("value", "int")]),
+        (
+            "shorthand_send",
+            vec![("source", "text"), ("revision", "int")],
+        ),
+    ] {
+        let op = operation(&artifact, name);
+        let plan = &op["result"]["disclosure"];
+        assert_eq!(
+            plan["version"], 1,
+            "shorthand keeps exact checked source closure: {name}"
+        );
+        let paths = plan["returns"].as_array().unwrap();
+        assert_eq!(paths.len(), 1);
+        assert_eq!(paths[0]["dependencies"], serde_json::json!([]));
+        let intrinsics = paths[0]["intrinsics"].as_array().unwrap();
+        assert_eq!(intrinsics.len(), expected.len());
+        for (intrinsic, (parameter, ty)) in intrinsics.iter().zip(expected) {
+            assert_eq!(intrinsic["kind"], "admitted-input");
+            assert_eq!(intrinsic["parameter"], parameter);
+            assert_eq!(intrinsic["type"], ty);
+            assert_eq!(intrinsic["role"], "data");
+            assert_eq!(intrinsic["source"], plan["source"]);
+            assert!(intrinsic.get("field").is_none() && intrinsic.get("model").is_none());
+            assert_eq!(
+                op["inputs"]["fields"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|input| input["name"] == parameter)
+                    .unwrap()["valueType"],
+                ty
+            );
+        }
+    }
+    for name in ["nullable_version", "body_actor"] {
+        assert!(
+            operation(&artifact, name)["result"]
+                .get("disclosure")
+                .is_none(),
+            "unsupported context remains whole omitted: {name}"
+        );
+    }
+    let js = artifact["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|module| module["js"].as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(js.contains("await observeScenarioReceiptIntrinsic(c,"));
+    assert!(js.contains("await set(c,") && js.contains("await send(c,"));
+    assert!(js.contains("binding:\"NativeReceipts.LLM\""));
+    for module in default["modules"].as_array().unwrap() {
+        assert!(
+            !module["js"]
+                .as_str()
+                .unwrap()
+                .contains("observeScenarioReceiptIntrinsic")
+        );
+    }
 }
 #[test]
 fn original_generation_controls_publish_checked_send_set_closure_only() {
@@ -243,20 +540,81 @@ fn original_generation_controls_publish_checked_send_set_closure_only() {
             "send request addressing must retain its actual stored-field influences: {plan}"
         );
     }
-    for name in [
-        "generate",
-        "visible",
-        "measured",
-        "sequence",
-        "wholeSequence",
+    let generate = operations
+        .iter()
+        .find(|op| op["name"] == "TypedGenerationProgress.generate")
+        .unwrap();
+    let plan = &generate["result"]["disclosure"];
+    assert_eq!(plan["version"], 1);
+    let returns = plan["returns"].as_array().unwrap();
+    assert_eq!(returns.len(), 1);
+    assert_eq!(
+        returns[0]["dependencies"],
+        serde_json::json!([]),
+        "invocation metadata is never a fabricated stored field"
+    );
+    let intrinsics = returns[0]["intrinsics"].as_array().unwrap();
+    assert_eq!(
+        intrinsics.len(),
+        4,
+        "original source request and successful admission require complete intrinsic closure"
+    );
+    for (kind, parameter, ty, role) in [
+        ("operation-id", None, "text", "data"),
+        ("admitted-reference-version", Some("job"), "int", "data"),
+        ("admitted-input", Some("prompt"), "text", "data"),
+        ("admitted-input", Some("accept"), "bool", "control"),
     ] {
+        let intrinsic = intrinsics
+            .iter()
+            .find(|value| {
+                value["kind"] == kind && value.get("parameter").and_then(Value::as_str) == parameter
+            })
+            .unwrap();
+        assert_eq!(intrinsic["type"], ty);
+        assert_eq!(intrinsic["role"], role);
+        assert_eq!(intrinsic["source"], plan["source"]);
+        assert!(intrinsic.get("field").is_none());
+        if kind == "admitted-reference-version" {
+            assert_eq!(intrinsic["model"], "TypedGenerationProgress.Job");
+        } else {
+            assert!(intrinsic.get("model").is_none());
+        }
+    }
+    let callable = artifact["callables"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|call| call["id"] == generate["name"])
+        .unwrap();
+    assert_eq!(plan["source"]["module"], callable["module"]);
+    assert!(
+        artifact["sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|source| source["path"] == plan["source"]["path"]
+                && source["sha256"] == plan["source"]["sha256"])
+    );
+    for (parameter, ty) in [("prompt", "text"), ("accept", "bool")] {
+        assert_eq!(
+            generate["inputs"]["fields"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|input| input["name"] == parameter)
+                .unwrap()["valueType"],
+            ty
+        );
+    }
+    for name in ["visible", "measured", "sequence", "wholeSequence"] {
         let operation = operations
             .iter()
             .find(|op| op["name"] == format!("TypedGenerationProgress.{name}"))
             .unwrap();
         assert!(
             operation["result"].get("disclosure").is_none(),
-            "metadata and nullable delivery readers remain unqualified: {name}"
+            "nullable delivery readers remain unqualified: {name}"
         );
     }
     let js = artifact["modules"]
@@ -270,6 +628,11 @@ fn original_generation_controls_publish_checked_send_set_closure_only() {
     assert!(js.matches("await set(c,").count() >= 3);
     assert!(js.contains("TextGenerationV1") && js.contains("deployment.llm"));
     assert!(js.contains("binding:\"TypedGenerationProgress.LLM\""));
+    assert!(
+        js.matches("await observeScenarioReceiptIntrinsic(c,")
+            .count()
+            >= 4
+    );
     assert!(
         artifact["sources"]
             .as_array()

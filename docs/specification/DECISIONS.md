@@ -4939,3 +4939,22 @@ The coordinator confirms unchanged Task44's required prompt:text and accept:bool
 State requires an own supplied admitted slot, validates/round-trips its owning Values wire, compares the actual reported encoded binding and rechecks unchanged private invoke/store/context/inputs/references/hash lifetime after awaiting the admitted revision. Keep original whitespace/empty text/false exactly; save only selected intrinsic sites. Recovery verifies exact retained receipt/caller/current operation authority and matching current input type/profile, without native execution or row authority from caller input. Existing row influence/secrecy/lifetime and revision/membership refusals remain. Dev owns actual evaluated native binding attestation; Compiler owns complete roles/source closure and matching typed metadata.
 
 New owning graph6/6 and final State emission pass. Five affected Memory cases5/5 pass182ms with exact empty/false wires,16minute execute0 recovery, changed raw-input hash conflicts, no inferred row grant, current type drift, required/profile/source/copy/spoof/unknown legacy/malformed actual wire and awaited tamper/poison refusals. Extend the same actual D1/SQLiteDO owner cases2/2 pass1.56s with original whitespace/newline prompt and false after provisional staging, persisted/reopened exact intrinsic carriers and later original-version recovery. Actual public root/invocation exports agree; unchanged41 earlier State outcomes reused. Checked handbuilt metadata qualifies the State producer, not original compiled Task44 or broader input families. Coordinator manual release and actual Compiler/Dev source/native consumer remain necessary; native-preparation and local-only holds unchanged.
+
+
+## 2026-10-10 — emit checked admitted intrinsic capture at actual evaluation sites
+
+Use the defining additive State intrinsic contract for operation identity, original
+required versioned reference metadata and explicitly supplied required builtin
+scalar inputs. Preserve declaration/parameter/call-chain/source identities; do not
+substitute model fields, current staged versions or nominally reused scalar types.
+Evaluate each original expression once before the private awaited Dev facade.
+Successful primitive requirements influence effects before or after writes while
+existing independent-return/stored-guard authorization policy remains unchanged.
+Native input descriptors name the exact checked primitive type; generic ABI is
+unchanged. The checker publishes actual shorthand lexical types at their key
+nodes and IR retains those anchors rather than inventing Unknown assignments.
+
+Source23/23, facts15/15, actual intrinsic CLI1/1 and unchanged original generation
+CLI1/1, strict lint/format pass. The four original generation facts are now
+complete in compiler output. Native adapter/original workflow and whole changed-
+source acceptance remain unfinished; broader refs and precise holds stay open.
