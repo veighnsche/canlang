@@ -344,6 +344,17 @@ activation unit; exact reviewed source intake and its affected Node cases remain
 due. No passing rule activation, rejection receipt or fence change is claimed. Original
 **58/67**, nine open references, BDD3 and outbox holds remain unchanged.
 
+**Reviewed native activation intake, 2026-10-09.** Coordinator-released
+local main **fdd03cb7** supplies the actual owner-session producer, real Node
+fixture, complete portable State subpath mapping and cache/whole JS-map closure
+revalidation. It replaces the Vitest fixture without relaxing accessor refusal.
+Owning dependency/Cloudflare/Testkit build **24/24** passes; the actual Node
+native target is due at the current compiler-source boundary. The release's
+**6/6** covers original behavior plus copied/swapped/changed-assembly zero-commit
+refusals. Preserve the separate saved-result ABI intake and unfinished private
+marker bridge, hook carriers, BDD3 and outbox holds. No unchanged Rust rerun or
+broader reference credit follows this exact source intake.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed

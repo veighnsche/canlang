@@ -1,25 +1,26 @@
 /** Actual native compile and canonical memory consumer; no whole-app or D1 claim. */
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { beforeAll, afterAll, it } from 'vitest';
+import { before, after, it } from 'node:test';
 import type { CommitBatch, CompileArtifact, ModelName, MutationResult, OperationId, OperationName, RecordId, StoragePort } from '@canlang/contracts';
 import { resolveIdentity, sha256HexText } from '@canlang/identity';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { hashInputs } from '@canlang/state/invocation/replay';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { distribution } from '@canlang/values/distribution';
-import { prepareLocalPreviewCapture } from '../src/dev/preview-inputs.js';
-import { captureIsCurrent, captureSingleFileSource } from '../src/dev/source-capture.js';
-import { compileCapturedSingleFile } from '../src/dev/compiler-check.js';
-import { assembleModules, type AssembledModules } from '../src/runtime/modules.js';
-import { buildInvoker } from '../src/worker/assembly.js';
+import { prepareLocalPreviewCapture } from '../dev/preview-inputs.js';
+import { captureIsCurrent, captureSingleFileSource } from '../dev/source-capture.js';
+import { compileCapturedSingleFile } from '../dev/compiler-check.js';
+import { assembleModules, type AssembledModules } from './modules.js';
+import { buildInvoker } from '../worker/assembly.js';
+import { loadCanonicalDescriptors } from './invoke.js';
 
-const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
+const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
 const require = createRequire(join(root, 'package.json'));
 const source = 'tests/integration/can-dev-server/NativeLocalRules.can';
 const model = 'NativeLocalRules.Item' as ModelName;
@@ -29,7 +30,7 @@ function operationId(at: number): OperationId {
   const time = at.toString(16).padStart(12, '0'), random = randomBytes(10).toString('hex');
   return `${time.slice(0,8)}-${time.slice(8)}-7${random.slice(0,3)}-8${random.slice(4,7)}-${random.slice(7,19)}` as OperationId;
 }
-beforeAll(async () => {
+before(async () => {
   capture = await captureSingleFileSource(prepareLocalPreviewCapture({ checkoutRoot: root,
     appPath: join(root, source), compilerPath: join(root, 'compiler/target/debug/can'),
     catalogPath: fileURLToPath(distribution.catalog), helpIndexPath: join(root, 'docs/specification/CONSTRUCT-HELP.md') }));
@@ -53,13 +54,13 @@ beforeAll(async () => {
   staging = await mkdtemp(join(tmpdir(), 'can-native-local-rules-'));
   asm = await assembleModules({ artifact, sourcePath: source }, { workDir: staging,
     stdlibUrl: pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href });
-}, 120000);
-afterAll(async () => {
+}, { timeout: 120000 });
+after(async () => {
   try { if (capture) assert.equal(await captureIsCurrent(capture), true, 'consumer must finish source-current'); }
   finally { if (staging) await rm(staging, { recursive: true, force: true }); }
 });
 
-async function fixture() {
+async function fixture(selectedAssembly: AssembledModules = asm) {
   const now = Date.now(), clock = createFrozenClock(now), identities = createMemoryIdentityStore({ clock });
   const team = await identities.createTeam({});
   const user = await identities.createUser({ email: 'member@native-local-rules.test', password_hash: 'unused', email_verified: true });
@@ -71,7 +72,7 @@ async function fixture() {
   const { store: backing, probe } = createTestMemoryStorage();
   const batches: CommitBatch[] = [];
   const store: StoragePort = { ...backing, commit: async batch => { batches.push(batch); return backing.commit(batch); } };
-  const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => now });
+  const invoker = buildInvoker(artifact, selectedAssembly, store, { memberships: identities, now: () => now });
   const invoke = (kind: string, inputs: Record<string, unknown>, id = operationId(now)) =>
     invoker.invokeMutation({ operation: `${model}.${kind}`, operation_id: id, inputs }, identity);
   const rows = () => store.query({ model, authority: 'owner', archived: 'include' });
@@ -170,4 +171,68 @@ it('enforces entry locks while allowing unrelated and same-value writes, then un
   row = await f.record(id);
   await f.commit('delete', { record: { id, version: String(row.version) } });
   assert.equal(await f.store.load(model, id as unknown as RecordId), null, 'unlocked hard removal deletes the actual stored row');
+});
+
+
+it('refuses loss of the dedicated installed owner-session producer without legacy execution or receipt writes', async () => {
+  const f = await fixture();
+  const loaded = await loadCanonicalDescriptors(asm, artifact);
+  const original = loaded.producers.crud.generatedCrudExecuteOwnerSession;
+  assert.equal(typeof original, 'function', 'actual positive installed producer');
+  const producer = loaded.producers.crud as { generatedCrudExecuteOwnerSession?: typeof original };
+  delete producer.generatedCrudExecuteOwnerSession;
+  try {
+    const result = await f.invoke('create', { quantity: '1', label: 'must refuse' });
+    assert.ok('error' in result, JSON.stringify(result));
+    assert.equal(result.error.code, 'validation');
+    assert.equal(f.batches.length, 0, 'no legacy executor or canonical rejection batch is selected');
+    assert.equal(await f.store.readRevision(), 0);
+    assert.deepEqual(await f.store.query({ model, authority: 'owner', archived: 'include' }), []);
+  } finally { if (original !== undefined) producer.generatedCrudExecuteOwnerSession = original; }
+});
+
+it('refuses copied and swapped assemblies after native policy descriptors are cached', async () => {
+  const loaded = await loadCanonicalDescriptors(asm, artifact);
+  const copied: AssembledModules = { ...asm, moduleUrls: { ...asm.moduleUrls } };
+  const swapped = await assembleModules({ artifact, sourcePath: source }, {
+    workDir: join(staging, 'swapped'),
+    stdlibUrl: pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href,
+  });
+  for (const [label, selected] of [['copied', copied], ['swapped', swapped]] as const) {
+    await assert.rejects(loadCanonicalDescriptors(selected, artifact), /original verified assembly/, label);
+    const f = await fixture(selected);
+    const result = await f.invoke('create', { quantity: '1', label: `must refuse ${label}` });
+    assert.ok('error' in result, label);
+    assert.equal(result.error.code, 'validation', label);
+    assert.equal(f.batches.length, 0, `${label}: no execution or rejection batch`);
+    assert.equal(await f.store.readRevision(), 0, label);
+    assert.deepEqual(await f.store.query({ model, authority: 'owner', archived: 'include' }), [], label);
+    assert.deepEqual(f.probe.outboxAll(), [], label);
+  }
+  assert.strictEqual(await loadCanonicalDescriptors(asm, artifact), loaded, 'current original assembly still reuses descriptors');
+});
+
+it('refuses changed staged JS and maps on native cache hits and canonical invocation', async () => {
+  const loaded = await loadCanonicalDescriptors(asm, artifact);
+  const path = artifact.modules[0]!.path;
+  const js = asm.moduleUrls[path], map = asm.mapUrls?.[path];
+  assert.equal(typeof js, 'string', 'actual assembler JS URL');
+  assert.equal(typeof map, 'string', 'actual assembler map URL');
+  const f = await fixture();
+  for (const [label, url] of [['JS', js!], ['map', map!]] as const) {
+    const file = fileURLToPath(url), original = await readFile(file);
+    try {
+      // Even semantically neutral drift invalidates exact captured bytes.
+      await writeFile(file, Buffer.concat([original, Buffer.from('\n')]));
+      await assert.rejects(loadCanonicalDescriptors(asm, artifact), /captured artifact or module closure/, label);
+      const result = await f.invoke('create', { quantity: '1', label: `must refuse stale ${label}` });
+      assert.ok('error' in result, label);
+      assert.equal(result.error.code, 'validation', label);
+      assert.equal(f.batches.length, 0, `${label}: no execution or rejection batch`);
+      assert.equal(await f.store.readRevision(), 0, label);
+      assert.deepEqual(await f.store.query({ model, authority: 'owner', archived: 'include' }), [], label);
+      assert.deepEqual(f.probe.outboxAll(), [], label);
+    } finally { await writeFile(file, original); }
+    assert.strictEqual(await loadCanonicalDescriptors(asm, artifact), loaded, `${label}: restored current assembly reuses descriptors`);
+  }
 });
