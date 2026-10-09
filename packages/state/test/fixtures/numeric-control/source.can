@@ -1,0 +1,10 @@
+## Separate complete bounded control for typed arithmetic on an integer model default.
+app NumericControl
+Given
+ Job { count:int=1 }
+ policy Job read=public
+When
+ crud Job by=public fields=count
+ scenario increment(job:Job) by=public -> int
+  do return job.count+1
+Then
