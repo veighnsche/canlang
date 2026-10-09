@@ -119,6 +119,208 @@ describe('direct pipeline null boundaries (hand-built controls)', () => {
 });
 
 describe('checked stored-field modifiers', () => {
+  it('updates unrelated fields without revalidating hook-cloned legacy arrays and objects', async () => {
+    const { store } = createTestMemoryStorage();
+    const id = asId(nextId());
+    const legacy = { tags: ['a', 'b'], total: { minor: '99', currency: 'USD' }, note: 'before' };
+    await seedStoredRow(store, asModel(JOB), { id, data: legacy });
+    const context = buildContext({ identity: makeIdentity(), operation: asOperation(`${JOB}.update`),
+      operationId: nextId(), app: 'modifier-test', source: 'test', now: FIXED_NOW });
+    const fields = {
+      tags: { required: false, serverOnly: false, valueType: 'text[]', array: { required: false }, max: 1 },
+      total: { required: false, serverOnly: false, valueType: 'money', max: { minor: '10', currency: 'USD' } },
+      note: { required: false, serverOnly: false, valueType: 'text' },
+    } as const;
+    for (const hooks of [[],
+      [{ name: 'noop', ops: ['update' as const], run: (candidate: Record<string, unknown>) => candidate }],
+      [{ name: 'clone', ops: ['update' as const], run: (candidate: Record<string, unknown>) => structuredClone(candidate) }],
+    ]) {
+      const encoded: unknown[] = [];
+      const table = buildModelTable([modelDef(JOB, { fields, hooks })]);
+      const result = await runMutationWrites({ table, store, context,
+        writes: [{ op: 'update', model: asModel(JOB), id, data: { note: 'after' } }],
+        encodeField: (type, value) => { encoded.push([type, value]); return value; },
+      });
+      const write = result.writes[0];
+      assert.ok(write?.kind === 'update');
+      assert.deepEqual(write.row.data, { ...legacy, note: 'after' });
+      assert.deepEqual(result.history[0]?.before, legacy);
+      assert.deepEqual(result.history[0]?.after, write.row.data);
+      assert.deepEqual(encoded, [['text[]', legacy.tags], ['money', legacy.total], ['text', 'after']]);
+      for (const data of [{ tags: legacy.tags }, { total: legacy.total }]) {
+        const error = await captureStateError(runMutationWrites({ table, store, context,
+          writes: [{ op: 'update', model: asModel(JOB), id, data }] }));
+        assert.equal(error.code, 'validation');
+        assert.match(error.message, /Invalid field "(?:tags|total)"/);
+      }
+    }
+    assert.deepEqual((await store.load(asModel(JOB), id))?.data, legacy);
+  });
+
+  it('validates actual array/object hook mutations and rolls back the complete update batch', async () => {
+    const { store } = createTestMemoryStorage();
+    const id = asId(nextId()), stagedId = asId(nextId());
+    const legacy = { tags: ['a', 'b'], total: { minor: '99', currency: 'USD' }, note: 'before' };
+    await seedStoredRow(store, asModel(JOB), { id, data: legacy });
+    const context = buildContext({ identity: makeIdentity(), operation: asOperation(`${JOB}.update`),
+      operationId: nextId(), app: 'modifier-test', source: 'test', now: FIXED_NOW });
+    const fields = {
+      tags: { required: false, serverOnly: false, valueType: 'text[]', array: { required: false }, max: 1 },
+      total: { required: false, serverOnly: false, valueType: 'money', max: { minor: '10', currency: 'USD' } },
+      note: { required: false, serverOnly: false, valueType: 'text' },
+    } as const;
+    const revision = await store.readRevision();
+    for (const field of ['tags', 'total']) {
+      const table = buildModelTable([modelDef(JOB, { fields, uniqueKeys: ['note'], hooks: [{
+        name: 'change', ops: ['update'], run: candidate => {
+          if (field === 'tags') (candidate.tags as string[]).push('c');
+          else (candidate.total as { minor: string }).minor = '100';
+          return candidate;
+        },
+      }] })]);
+      const error = await captureStateError(runMutationWrites({ table, store, context, writes: [
+        { op: 'create', model: asModel(JOB), id: stagedId, data: { tags: [], total: { minor: '0', currency: 'USD' }, note: 'staged' } },
+        { op: 'update', model: asModel(JOB), id, data: { note: 'after' } },
+      ] }));
+      assert.equal(error.code, 'validation');
+      assert.match(error.message, new RegExp(`Invalid field "${field}"`));
+      assert.equal(await store.readRevision(), revision);
+      assert.deepEqual((await store.load(asModel(JOB), id))?.data, legacy);
+      assert.equal(await store.load(asModel(JOB), stagedId), null);
+      assert.deepEqual(await store.historyFor(asModel(JOB), id), []);
+      assert.deepEqual(await store.historyFor(asModel(JOB), stagedId), []);
+    }
+  });
+
+  it('archives unchanged legacy fields without normalization and validates only remove-hook changes', async () => {
+    const { store } = createTestMemoryStorage();
+    const id = asId(nextId());
+    const legacy = { title: '  legacy title outside current bounds  ', count: '99', tags: ['legacy', 'data'] };
+    await seedStoredRow(store, asModel(JOB), { id, data: legacy });
+    const context = buildContext({ identity: makeIdentity(), operation: asOperation(`${JOB}.remove`),
+      operationId: nextId(), app: 'modifier-test', source: 'test', now: FIXED_NOW });
+    const fields = {
+      title: { required: true, serverOnly: false, valueType: 'text', trim: true, min: 1, max: 3 },
+      count: { required: true, serverOnly: false, valueType: 'int', min: '0', max: '10' },
+      tags: { required: false, serverOnly: false, valueType: 'text[]', array: { required: false }, max: 1 },
+    } as const;
+    const encoded: unknown[] = [];
+    const run = (change?: string) => runMutationWrites({
+      table: buildModelTable([modelDef(JOB, { fields, hooks: [{ name: 'archive-note', ops: ['remove'],
+        run: candidate => change === undefined ? candidate : { ...candidate, title: change },
+      }] })]), store, context, writes: [{ op: 'remove', model: asModel(JOB), id }],
+      encodeField: (type, value) => {
+        assert.equal(type, 'text', 'unchanged legacy int/array must bypass encoding');
+        assert.notEqual(value, legacy.title, 'unchanged legacy text must bypass encoding');
+        encoded.push(value);
+        return value;
+      },
+    });
+    const unchanged = await run();
+    assert.deepEqual(encoded, []);
+    const write = unchanged.writes[0];
+    assert.ok(write?.kind === 'update');
+    assert.deepEqual(write.row.data, legacy);
+    assert.equal(write.row.archivedAt, FIXED_NOW);
+    assert.deepEqual(unchanged.history[0]?.before, legacy);
+    assert.deepEqual(unchanged.history[0]?.after, legacy);
+    const changed = await run('  ok  ');
+    const changedWrite = changed.writes[0];
+    assert.ok(changedWrite?.kind === 'update');
+    assert.deepEqual(changedWrite.row.data, { ...legacy, title: 'ok' });
+    assert.deepEqual(encoded, ['ok', 'ok'], 'receiving trim precedes the installed field codec');
+    const revision = await store.readRevision();
+    const error = await captureStateError(run('   '));
+    assert.equal(error.code, 'validation');
+    assert.match(error.message, /Invalid field "title"/);
+    assert.deepEqual(encoded, ['ok', 'ok', '']);
+    assert.equal(await store.readRevision(), revision);
+    assert.deepEqual((await store.load(asModel(JOB), id))?.data, legacy);
+    assert.equal((await store.load(asModel(JOB), id))?.archivedAt, null);
+    assert.deepEqual(await store.historyFor(asModel(JOB), id), []);
+  });
+
+  it('preserves constrained native ints for create/update hook arithmetic and default receipts', async () => {
+    const { store } = createTestMemoryStorage();
+    const seen: unknown[] = [];
+    const table = buildModelTable([modelDef(JOB, { fields: {
+      count: { required: true, serverOnly: false, valueType: 'int', min: '0', max: '10', default: 2n },
+    }, hooks: [{ name: 'increment', ops: ['create', 'update'], run: candidate => {
+      seen.push(candidate.count);
+      assert.equal(typeof candidate.count, 'bigint');
+      return { ...candidate, count: (candidate.count as bigint) + 1n };
+    } }] })]);
+    const context = buildContext({ identity: makeIdentity(), operation: asOperation(`${JOB}.create`),
+      operationId: nextId(), app: 'modifier-test', source: 'test', now: FIXED_NOW });
+    const id = asId(nextId());
+    const encodeField = (type: Parameters<typeof encodeValue>[0], value: unknown) =>
+      typeof value === 'bigint' ? encodeValue(type, value) : value;
+    const created = await runMutationWrites({ table, store, context, encodeField,
+      writes: [{ op: 'create', model: asModel(JOB), id, data: {} }] });
+    const commit = async (effects: typeof created) => store.commit({
+      expectedRevision: await store.readRevision(), writes: effects.writes, history: effects.history,
+      uniqueClaims: effects.uniqueClaims, uniqueReleases: effects.uniqueReleases,
+      schedules: effects.schedules, receipt: null, outbox: [],
+    });
+    assert.equal(created.resolvedDefaults.count, '2');
+    await commit(created);
+    assert.equal((await store.load(asModel(JOB), id))?.data.count, '3');
+    const patch = { count: 7n };
+    const updated = await runMutationWrites({ table, store, context, encodeField,
+      writes: [{ op: 'update', model: asModel(JOB), id, data: patch }] });
+    await commit(updated);
+    assert.deepEqual(seen, [2n, 7n]);
+    assert.equal(patch.count, 7n);
+    assert.equal((await store.load(asModel(JOB), id))?.data.count, '8');
+    assert.equal(updated.history[0]?.after?.count, '8');
+    assert.deepEqual(updated.resolvedDefaults, {});
+    assert.doesNotThrow(() => JSON.stringify([created, updated]));
+  });
+
+  it('retains pre-hook int bounds and rolls back hook-produced bound failures', async () => {
+    const { store } = createTestMemoryStorage();
+    const seen: unknown[] = [];
+    const table = buildModelTable([modelDef(JOB, { fields: {
+      count: { required: true, serverOnly: false, valueType: 'int', min: '0', max: '10' },
+    }, uniqueKeys: ['count'], hooks: [{ name: 'increment', ops: ['create', 'update'], run: candidate => {
+      seen.push(candidate.count);
+      return { ...candidate, count: (candidate.count as bigint) + 1n };
+    } }] })]);
+    const context = buildContext({ identity: makeIdentity(), operation: asOperation(`${JOB}.create`),
+      operationId: nextId(), app: 'modifier-test', source: 'test', now: FIXED_NOW });
+    const first = asId(nextId()), second = asId(nextId());
+    const revision = await store.readRevision();
+    const run = (writes: Parameters<typeof runMutationWrites>[0]['writes']) => runMutationWrites({
+      table, store, context, writes,
+      encodeField: (type, value) => typeof value === 'bigint' ? encodeValue(type, value) : value,
+    });
+    for (const count of [-1n, 11n]) {
+      const error = await captureStateError(run([{ op: 'create', model: asModel(JOB), id: first, data: { count } }]));
+      assert.equal(error.code, 'validation');
+      assert.match(error.message, /Invalid field "count"/);
+    }
+    assert.deepEqual(seen, []);
+    for (const op of ['create', 'update'] as const) {
+      const error = await captureStateError(run([
+        { op: 'create', model: asModel(JOB), id: first, data: { count: 1n } },
+        { op, model: asModel(JOB), id: op === 'create' ? second : first, data: { count: 10n } },
+      ]));
+      assert.equal(error.code, 'validation');
+      assert.match(error.message, /Invalid field "count"/);
+      assert.equal(await store.readRevision(), revision);
+      for (const id of [first, second]) {
+        assert.equal(await store.load(asModel(JOB), id), null);
+        assert.deepEqual(await store.historyFor(asModel(JOB), id), []);
+      }
+    }
+    assert.deepEqual(seen, [1n, 10n, 1n, 10n]);
+    const recovered = await run([{ op: 'create', model: asModel(JOB), id: first, data: { count: 1n } }]);
+    await store.commit({ expectedRevision: revision, writes: recovered.writes, history: recovered.history,
+      uniqueClaims: recovered.uniqueClaims, uniqueReleases: recovered.uniqueReleases,
+      schedules: recovered.schedules, receipt: null, outbox: [] });
+    assert.equal((await store.load(asModel(JOB), first))?.data.count, '2');
+  });
+
   it('rejects malformed artifact bounds at descriptor load', () => {
     const artifact = slice();
     const validModels = artifact.models!.map(model => model.name === JOB ? {

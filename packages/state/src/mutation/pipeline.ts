@@ -439,12 +439,14 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     def: InterimModelDef,
     defaultWriter?: string,
     constrainedFields?: ReadonlySet<string>,
+    encodedFields?: ReadonlySet<string>,
   ): void => {
     // This post-hook pass validates the row only. Recorded defaults were
     // normalized before hooks and must retain that original resolution.
     normalizeConstraints(candidate, def, constrainedFields ?? new Set(Object.keys(candidate)));
     if (input.encodeField !== undefined) {
       for (const [field, value] of Object.entries(candidate)) {
+        if (encodedFields !== undefined && !encodedFields.has(field)) continue;
         const type = def.fields[field]?.valueType;
         if (type !== undefined && value !== undefined) {
           safeSet(candidate, field, jsonClone(input.encodeField(type, value), `Field ${JSON.stringify(field)}`));
@@ -495,7 +497,10 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
         const receiving = fieldDef.trim === true && typeof value === 'string' ? trim(value) : value;
         const wire = input.encodeField?.(fieldDef.valueType, receiving) ?? receiving;
         const normalized = validateValue(constraint.schema, constraint.type, { value: wire }, 'create') as Readonly<Record<string, unknown>>;
-        const stored = encodeValue(fieldDef.valueType, normalized['value'] as Parameters<typeof encodeValue>[1]);
+        // Validate bounds through the wire view while retaining native hook inputs.
+        const stored = fieldDef.trim === true
+          ? encodeValue(fieldDef.valueType, normalized['value'] as Parameters<typeof encodeValue>[1])
+          : value;
         safeSet(candidate, field, jsonClone(stored, `Field ${JSON.stringify(field)}`));
         if (defaultWriter !== undefined && defaultWriters.get(field) === defaultWriter) {
           safeSet(resolvedDefaults, field, jsonClone(stored, `Resolved default ${JSON.stringify(field)}`));
@@ -1381,7 +1386,14 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     if (mode === 'archive') {
       checkKnownFields(hooked, def);
       checkRequired(hooked, def);
-      checkJsonSafe(hooked, def);
+      // Archiving keeps unchanged legacy data intact. Hook candidates are
+      // cloned, so compare their wire contents rather than object identity;
+      // newly native or non-JSON values must still pass the changed-field gate.
+      const changedFields = new Set(Object.keys(hooked).filter(field => {
+        try { return JSON.stringify(hooked[field]) !== JSON.stringify(before.data[field]); }
+        catch { return true; }
+      }));
+      checkJsonSafe(hooked, def, undefined, changedFields, changedFields);
       checkWhen(write.when, {
         id,
         version: (before.version + 1) as RecordVersion,
