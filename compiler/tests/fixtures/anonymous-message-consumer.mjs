@@ -29,6 +29,9 @@ package Wording source="fr"
  Given
   contract Booking {location:text,resource:text,from:datetime,until:datetime,arrival:text,terms:text}
   contract Counts {n:int,word:text,extra:text}
+  contract Choice {mode:enum(one,two)}
+  derive selectedMode():Choice.mode=one
+  message enumCaption(mode:Choice.mode,n:int)="{mode}|{n}"@{nl="{mode,select,one {Eén} other {Twee}}:{n}"}
   export message body(location:text,resource:text,from:datetime,until:datetime,arrival:text,terms:text) = "${wording}"@{nl="${wording}"}
   export derive anonymous(value:Booking):text = format("${wording}"@{nl="${wording}"}(until=value.until,resource=value.resource,location=value.location,from=value.from,arrival=value.arrival,terms=value.terms),locale=null)
   export derive named(value:Booking):text = format(body(location=value.location,resource=value.resource,from=value.from,until=value.until,arrival=value.arrival,terms=value.terms),locale=null)
@@ -64,6 +67,13 @@ package Wording source="fr"
     let final=((alias))
     let formatted=format(final,locale=null)
     return count([final])
+  export scenario enumAliased(mode:OperationOutcome.state) -> text by=members
+   do
+    let descriptor="{mode}"@{}(mode=mode)
+    let alias=((descriptor))
+    let final=alias
+    let formatted=format(final,locale=null)
+    return "formatted"
  Then
   page /captions title="Captions"
    card "{n} cards"@{nl="{n} kaarten"}(n=1)
@@ -94,6 +104,11 @@ package Wording source="fr"
    tabs
     tab ((staticCaption))
      text "Static tab body"
+   card enumCaption(mode=one,n=6)
+    text "Named enum body"
+   stat 1 description=(("{mode}|{n}"@{nl="{mode,select,one {Eén} other {Twee}}:{n}"}(mode=selectedMode(),n=9)))
+   details (("{mode}|{n}"@{nl="{mode,select,one {Eén} other {Twee}}:{n}"}(mode=selectedMode(),n=7)))
+    text "Inferred named enum body"
 `;
 const file = resolve(scratch, 'AnonymousMessages.can');
 writeFileSync(file, source);
@@ -128,6 +143,7 @@ for(const caption of ['1 kaarten','2 details nl','3 scheidingen','Page:Page','Pr
 }
 assert.equal(captionHtml.match(/Statisch bijschrift/g)?.length,6,'zero-parameter bare/grouped captions render through all five actual UI factories and a valid producer');
 for(const body of ['Static card body','Static details body','Static fieldset body','Static tab body']) assert.ok(captionHtml.includes(body),body);
+for(const caption of ['Eén:6','Eén:7','Eén:9','Named enum body','Inferred named enum body']) assert.ok(captionHtml.includes(caption),caption);
 const memberContext={memberships:['members']};
 const values = {
   location:'Brussels', resource:'Meeting room',
@@ -174,6 +190,12 @@ for (const appDefault of ['nl','es']) {
   assert.equal(formatMessage(descriptors[0],{preferredLocales:[],appDefaultLocale:appDefault}),appDefault==='nl'?'tasks:tasks':'tasks|tasks');
   for(const state of ['pending','released']) {
     const outcome={source:'request',revision:1n,state};
+    const enumTrace=[];
+    descriptors.length=0;
+    assert.equal(await registry['Wording.enumAliased']({...context,...memberContext},{get mode(){enumTrace.push('mode');return state}}),'formatted');
+    assert.deepEqual(enumTrace,['mode'],'Values formatting of immutable ownerless-enum aliases preserves captured operands');
+    assert.equal(descriptors.length,1);
+    assert.equal(descriptors[0].params.mode.type,'enum(pending,confirmed,unavailable,failed,unknown,released)');
     const named=await registry['Wording.enumNamed'](context,outcome);
     descriptors.length=0;
     assert.deepEqual(await registry['Wording.enumAnonymous'](context,outcome),named,'ownerless enum presentation uses real Values formatting');
