@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { CATALOG } from "../../values/src/catalog.js";
-import { UI_CATALOG } from "../../ui/src/catalog.js";
+import { CATALOG } from "@canlang/values";
+import { UI_CATALOG } from "@canlang/ui";
 import {
   createConstructHelpIndex,
   loadConstructHelpIndex,

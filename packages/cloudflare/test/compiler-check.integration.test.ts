@@ -5,13 +5,14 @@ import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
+import { distribution as valuesDistribution } from "@canlang/values/distribution";
 import { captureSingleFileSource, type SingleFileCaptureRequest } from "../src/dev/source-capture.js";
 import { compileCapturedSingleFile } from "../src/dev/compiler-check.js";
 
 const repo = resolve(fileURLToPath(new URL("../../../", import.meta.url)));
 const witness = join(repo, "tests/integration/can-dev-server/OfficeSupplies.can");
 const realCompiler = join(repo, "compiler/target/debug/can");
-const catalog = join(repo, "packages/values/dist/catalog.json");
+const catalog = fileURLToPath(valuesDistribution.catalog);
 const helpIndex = join(repo, "docs/specification/CONSTRUCT-HELP.md");
 const packageOutput = join(repo, "packages/cloudflare/dist/runtime/artifact.js");
 
