@@ -3119,3 +3119,7 @@ Accepted: retain remote 9693b00c history through tree-preserving merge 8f0cc8da.
 ## 2026-10-08 — admit generated enum results through canonical callers
 
 Accepted narrow result join: compiler public operation profiles reuse existing checked enum case identity; State admits canonical inline enums with one ordinary array and outer nullability; Cloudflare compares the defining ordered cases and wrappers with the public type using the existing Values parser/printer. Keep existing result encoding and ordinary scalar/model behavior. The genuine generated enum_result_runtime consumer passed 1/1 on canonical Memory mutation/read calls with ordered wire values and membership denial. Its initial failure came from full-artifact read validation rejecting a cases field in normalizeSchema; correct only that read-coherence branch and reuse the same compiled consumer. Source checks and actual producer publication passed. This does not close installed/native/host qualification, broad validation packets or the complete file-tree checkpoint.
+
+## 2026-10-09 — restore checked enum result helper imports
+
+Accepted bounded correction: Cloudflare checked enum result validation now imports the existing Values parser and printer that its current branch invokes. This resolves the committed missing-name compilation failure without changing the type or result contract. Current State and Cloudflare TypeScript checks pass; compiler and broader runtime qualification remain at their existing evidence scope.
