@@ -3,7 +3,6 @@ import { test } from 'node:test';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { createRequire } from 'node:module';
 import type { D1Database } from '@cloudflare/workers-types';
 import { Miniflare } from 'miniflare';
 import type { CompileArtifact, DerivedOperationInputs, PresentationContext, StoragePort } from '@canlang/contracts';
@@ -14,9 +13,9 @@ import { buildSessionCookie, createD1IdentityStore, deriveCsrfToken, ensureIdent
 import { catalogFromArtifactOperations, handleOperationRequest, INPUT_CHOICES_VERSION } from '@canlang/interfaces/http/operations';
 import type { HttpDeps } from '@canlang/interfaces';
 import { generatedForm } from '@canlang/ui';
-import type { BrowserClientOptions } from '../../../ui/dist/src/browser/bootstrap.js';
-import type { SubmitFetchInit } from '../../../ui/dist/src/client.js';
-import type { HTMLInputElement, HTMLSelectElement } from '../../../ui/node_modules/happy-dom/lib/index.js';
+import type { SubmitFetch, SubmitFetchInit } from '@canlang/ui';
+import { startBrowserClient, type BrowserClientOptions } from '@canlang/ui/browser/bootstrap';
+import { Window, type HTMLInputElement, type HTMLSelectElement } from 'happy-dom';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { assembleWorker } from '@canlang/cloudflare/worker/assembly';
 
@@ -29,6 +28,10 @@ test('genuine dependent choices use current native D1 grants and the original ge
   let sequence = 100;
   const id = () => uuidv7(FIXED_NOW, ++sequence);
   let miniflare: Miniflare | undefined;
+  let failure: { value: unknown } | undefined;
+  const cleanup = async (release: () => unknown | Promise<unknown>) => {
+    try { await release(); } catch (error) { failure ??= { value: error }; }
+  };
   const open = async () => {
     miniflare = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
       script: 'export default { fetch() { return new Response("ok"); } }',
@@ -146,8 +149,6 @@ test('genuine dependent choices use current native D1 grants and the original ge
       corrupt(field); assert.throws(() => catalogFromArtifactOperations(malformed));
     }
 
-    const { Window } = createRequire(import.meta.resolve('@canlang/ui'))('happy-dom') as typeof import('../../../ui/node_modules/happy-dom/lib/index.js');
-    const { startBrowserClient } = await import(new URL('./browser/bootstrap.js', import.meta.resolve('@canlang/ui')).href);
     const window = new Window({ url: 'https://test.invalid/form' });
     const context: PresentationContext = { preferredLocales: [], appDefaultLocale: 'en',
       theme: { mode: 'light', accent: 'blue', density: 'comfortable' }, path: '/form', pollContext: 'choices/member/team',
@@ -164,15 +165,24 @@ test('genuine dependent choices use current native D1 grants and the original ge
     let hold = false;
     const releases: Array<() => void> = [];
     const signals: Array<NonNullable<SubmitFetchInit['signal']>> = [];
+    const transports = new Set<ReturnType<SubmitFetch>>();
     let choiceRequests = 0;
-    const fetchImpl: BrowserClientOptions['fetchImpl'] = async (url, init) => {
+    const fetchImpl: SubmitFetch = async (url, init) => {
       if (url.includes('/choices/')) {
         choiceRequests++; assert.ok(init.signal); signals.push(init.signal);
       }
-      const response = await worker.fetch(new Request(new URL(url, 'https://test.invalid'), {
-        ...init, body: init.body as string, headers: { ...init.headers, cookie } }));
-      if (hold && url.includes('/choices/')) await new Promise<void>(resolve => releases.push(resolve));
-      return response;
+      // Bind the hold to this request's phase before the real worker yields.
+      const held = hold && url.includes('/choices/')
+        ? new Promise<void>(resolve => releases.push(resolve)) : undefined;
+      const transport = (async () => {
+        const response = await worker.fetch(new Request(new URL(url, 'https://test.invalid'), {
+          ...init, body: init.body as string, headers: { ...init.headers, cookie } }));
+        await held;
+        return response;
+      })();
+      transports.add(transport);
+      void transport.then(() => transports.delete(transport), () => transports.delete(transport));
+      return transport;
     };
     let client = startBrowserClient({ window: window as unknown as BrowserClientOptions['window'], fetchImpl });
     const wait = async (condition: () => boolean) => {
@@ -183,7 +193,7 @@ test('genuine dependent choices use current native D1 grants and the original ge
       assert.ok(condition(), 'native DOM/worker interaction completed');
     };
     const form = window.document.querySelector('form')!;
-    const control = (name: string) => Array.from(form.elements).find(element => 'name' in element && element.name === `inputs[${name}]`) as import('../../../ui/node_modules/happy-dom/lib/index.js').HTMLInputElement;
+    const control = (name: string) => Array.from(form.elements).find(element => 'name' in element && element.name === `inputs[${name}]`) as HTMLInputElement;
     const regionSelect = form.querySelector('select[data-can-choices-select]') as HTMLSelectElement;
     const userForm = window.document.querySelectorAll('form')[1]!;
     const userSelect = userForm.querySelector('select[data-can-choices-select]') as HTMLSelectElement;
@@ -281,12 +291,31 @@ test('genuine dependent choices use current native D1 grants and the original ge
           await wait(() => regionSelect.children.length === 2);
         }
       }
-    } finally { client.stop(); await window.happyDOM.close(); }
+    } catch (error) {
+      failure ??= { value: error };
+    } finally {
+      await cleanup(() => client.stop());
+      for (const release of releases) await cleanup(release);
+      // Cancellation may be ignored by the transport; keep real ports open
+      // until every worker request and its released hold gate have settled.
+      await cleanup(async () => {
+        const settled = await Promise.allSettled([...transports]);
+        for (const result of settled) if (result.status === 'rejected') throw result.reason;
+      });
+      await cleanup(() => window.happyDOM.close());
+    }
+    if (failure !== undefined) throw failure.value;
     const beforeReopen = await storage.state.readRevision();
     await miniflare!.dispose(); miniflare = undefined; storage = await open(); worker = await assemble();
     const reopened = await choices('assign/choices/assignee', { submission: { id: submission, version: '1' } });
     assert.equal(reopened.status, 200, JSON.stringify(reopened));
     assert.deepEqual(reopened.body.choices?.[0]?.value, { id: reviewer.user_id });
     assert.equal(await storage.state.readRevision(), beforeReopen);
-  } finally { await miniflare?.dispose(); await rm(dir, { recursive: true, force: true }); }
+  } catch (error) {
+    failure ??= { value: error };
+  } finally {
+    await cleanup(() => miniflare?.dispose());
+    await cleanup(() => rm(dir, { recursive: true, force: true }));
+  }
+  if (failure !== undefined) throw failure.value;
 });

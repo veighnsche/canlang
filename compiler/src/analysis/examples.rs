@@ -585,6 +585,17 @@ impl<'a> Checker<'a> {
                 };
                 descriptor = inner;
             }
+            if let Some(origin) = self
+                .types
+                .message_descriptor_references
+                .get(&NodeKey::of(descriptor))
+            {
+                let Some(authored) = tree.descendants().find(|node| NodeKey::of(node) == *origin)
+                else {
+                    continue;
+                };
+                descriptor = authored;
+            }
             if descriptor.kind == SyntaxKind::MessageValue {
                 descriptors.insert(NodeKey::of(descriptor));
             }

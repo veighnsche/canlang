@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const CLI = new URL("../dist/cli/platform.js", import.meta.url);
 
@@ -162,4 +162,122 @@ describe("can-platform CLI (L1 IR-03 delegation target)", () => {
       expect(typeof body["detail"]).toBe("string");
     },
   );
+});
+
+// Exercise actual dispatch and preserve upstream capture/activation/execution
+// ownership. The example runner owns scratch and row-scope cleanup internally.
+const examples = vi.hoisted(() => ({
+  events: [] as string[],
+  failures: new Map<string, unknown>(),
+  result: { ok: true, executed: 3, report: { summary: { total: 3 } } },
+  emitted: undefined as ((value: unknown) => void) | undefined,
+}));
+function exampleStage(stage: string): void {
+  examples.events.push(stage);
+  if (examples.failures.has(stage)) throw examples.failures.get(stage);
+}
+vi.mock("node:fs/promises", async (original) => ({
+  ...await original<typeof import("node:fs/promises")>(),
+  access: async () => {},
+  readFile: async (file: string) => {
+    exampleStage("read");
+    expect(file).toBe("/artifact.json");
+    return new Uint8Array([1, 2, 3]);
+  },
+}));
+vi.mock("../src/runtime/artifact.js", () => ({
+  loadArtifactFile: () => ({ artifact: { modules: [{ path: "worker.mjs" }], tests: [{}], sources: [{ path: "app.can" }] } }),
+}));
+vi.mock("../src/dev/zero-config.js", () => ({
+  resolveLocalDefaults: () => ({ workerName: "example-worker", compatibilityDate: "2026-10-09" }),
+}));
+vi.mock("../src/dev/preview-inputs.js", () => ({
+  prepareLocalPreviewCapture: (input: { appPath: string }) => {
+    exampleStage("request");
+    expect(input.appPath).toBe("app.can");
+    return { appPath: input.appPath };
+  },
+}));
+vi.mock("../src/dev/source-capture.js", () => ({
+  captureSingleFileSource: async () => { exampleStage("capture"); return { sourceRevision: "revision" }; },
+  verifyCompilerSources: () => { exampleStage("verify"); return { ok: true }; },
+}));
+vi.mock("../src/dev/preview-host.js", () => ({
+  preflightLocalPreviewActivation: async () => { exampleStage("activate"); return { active: true }; },
+  produceInstalledPortableBundle: async () => {
+    exampleStage("bundle");
+    return { bundle: { mainModule: "worker.mjs", modules: { "worker.mjs": "export default {};" }, binaries: {} } };
+  },
+}));
+vi.mock("../src/dev/example-runner.js", () => ({
+  MissingExampleTestkitError: class extends Error {},
+  loadInstalledExampleTestkit: async (applicationRoot: string) => {
+    expect(applicationRoot).toBe(process.cwd());
+    exampleStage("testkit");
+    return "testkit-port";
+  },
+  runCompiledExamples: async (input: unknown) => {
+    exampleStage("execute");
+    expect(input).toEqual({
+      artifactBytes: new Uint8Array([1, 2, 3]), artifactLabel: "/artifact.json", sourceRevision: "revision",
+      worker: { mainModule: "worker.mjs", modules: { "worker.mjs": "export default {};" }, binaryModules: {} },
+      workerName: "example-worker", compatibilityDate: "2026-10-09", d1Binding: "DB", testkit: "testkit-port",
+    });
+    return examples.result;
+  },
+}));
+vi.mock("../src/preparation/host.js", async (original) => ({
+  ...await original<typeof import("../src/preparation/host.js")>(),
+  emit: (value: unknown) => examples.emitted?.(value),
+}));
+
+describe("test CLI compiled example execution", () => {
+  const stages = ["request", "capture", "verify", "activate", "bundle", "testkit", "read", "execute"];
+  afterEach(() => {
+    vi.restoreAllMocks();
+    examples.events = [];
+    examples.failures.clear();
+    examples.result = { ok: true, executed: 3, report: { summary: { total: 3 } } };
+    examples.emitted = undefined;
+  });
+
+  async function invokeTest(): Promise<Record<string, unknown>> {
+    vi.resetModules();
+    vi.spyOn(process, "argv", "get").mockReturnValue([process.execPath, "platform", "test", "--artifact", "/artifact.json"]);
+    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+    const result = new Promise<Record<string, unknown>>((resolve) => {
+      examples.emitted = (value) => resolve(value as Record<string, unknown>);
+    });
+    await import("../src/cli/platform.js");
+    return result;
+  }
+
+  it("executes compiled rows with the verified source and portable worker, then reports exact results", async () => {
+    expect(await invokeTest()).toEqual({ ok: true, command: "test", executed: 3, report: examples.result.report });
+    expect(examples.events).toEqual(stages);
+  });
+
+  it.each(stages)("preserves the %s failure before demanding later stages", async (stage) => {
+    examples.failures.set(stage, new Error(`${stage} sentinel`));
+    expect(await invokeTest()).toEqual({ ok: false, command: null, code: "internal", detail: `${stage} sentinel` });
+    expect(examples.events).toEqual(stages.slice(0, stages.indexOf(stage) + 1));
+  });
+
+  it.each(["scalar sentinel", undefined, null])("retains operative thrown value %s", async (failure) => {
+    examples.failures.set("execute", failure);
+    expect(await invokeTest()).toEqual({ ok: false, command: null, code: "internal", detail: String(failure) });
+    expect(examples.events).toEqual(stages);
+  });
+
+  it("reports failed rows honestly and sets exitCode", async () => {
+    examples.result.ok = false;
+    const priorExitCode = process.exitCode;
+    try {
+      expect(await invokeTest()).toEqual({ ok: false, command: "test", executed: 3, report: examples.result.report });
+      expect(process.exitCode).toBe(1);
+    } finally {
+      process.exitCode = priorExitCode;
+    }
+  });
 });
