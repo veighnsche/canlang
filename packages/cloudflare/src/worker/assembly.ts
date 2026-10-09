@@ -1569,8 +1569,12 @@ function buildInterimFetch(
     if (pathname.startsWith("/auth/")) {
       const config = ctx.http?.auth;
       const join = ctx.http?.authHandler;
-      if (join === undefined || config === undefined || typeof config.limiter?.check !== 'function') {
-        return interimUnavailable("auth routes need the defining handler and an explicit host auth limiter/origin/cookie configuration");
+      if (join === undefined) {
+        return interimUnavailable('auth routes need the defining handleAuthRequest join');
+      }
+      if (config === undefined || typeof config.limiter?.check !== 'function') {
+        return jsonResponse({ code: 'auth-configuration',
+          message: 'Authentication requires CAN_AUTH_ORIGIN or explicit trusted host auth configuration.' }, 500);
       }
       let origin: URL;
       try { origin = new URL(config.origin); }

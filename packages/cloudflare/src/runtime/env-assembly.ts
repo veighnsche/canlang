@@ -56,6 +56,8 @@ import type {
   UserId,
 } from "@canlang/contracts";
 import type { D1Database } from '@cloudflare/workers-types';
+import type { HttpAuthConfiguration } from '../worker/assembly.js';
+import { createD1AuthRateLimiter } from './auth-rate-limiter.js';
 
 /** Trusted host assignment; never populated from request inputs. */
 export interface StateTeamBinding {
@@ -337,7 +339,7 @@ async function loadIdentityD1(): Promise<IdentityD1Producer> {
  */
 export async function buildProductionDeps(
   env: Record<string, unknown>,
-): Promise<{ store: StoragePort; identityStore: IdentityStore; stateTeam?: StateTeamBinding }> {
+): Promise<{ store: StoragePort; identityStore: IdentityStore; stateTeam?: StateTeamBinding; auth?: HttpAuthConfiguration }> {
   const db: unknown = env["DB"];
   if (!isD1Binding(db)) {
     // Self-identifying (module + function): P-A's worker main surfaces
@@ -347,6 +349,18 @@ export async function buildProductionDeps(
       "mcp-deploy: buildProductionDeps (../runtime/env-assembly.js) requires env.DB " +
         "(a D1 database binding with prepare/exec/batch); bind a D1 database as DB or the worker cannot serve",
     );
+  }
+  // Optional for non-auth consumers; auth serving requires explicit trusted host configuration.
+  let origin: URL | undefined;
+  if (Object.hasOwn(env, 'CAN_AUTH_ORIGIN')) {
+    const value = env['CAN_AUTH_ORIGIN'];
+    try {
+      if (typeof value !== 'string') throw new Error();
+      origin = new URL(value);
+      if (origin.origin !== value || !['http:', 'https:'].includes(origin.protocol)) throw new Error();
+    } catch {
+      throw new Error('auth-configuration: CAN_AUTH_ORIGIN must be a canonical absolute http(s) origin without path, query or credentials');
+    }
   }
   const selectedOwner = env['CAN_STATE_OWNER'];
   if (selectedOwner === undefined && (env['STATE_DB'] !== undefined || env['CAN_STATE_INITIALIZE_FRESH'] !== undefined)) {
@@ -366,7 +380,9 @@ export async function buildProductionDeps(
     }
     const identity = await loadIdentityD1();
     await identity.ensureIdentitySchema(db);
-    return { store: unavailableGlobalStore(), identityStore: identity.createD1IdentityStore(db),
+    const auth = origin === undefined ? undefined : { origin: origin.origin, secureCookies: origin.protocol === 'https:',
+      limiter: await createD1AuthRateLimiter(db as unknown as D1Database, { scope: origin.origin, clock: { nowMs: Date.now } }) };
+    return { ...(auth === undefined ? {} : { auth }), store: unavailableGlobalStore(), identityStore: identity.createD1IdentityStore(db),
       stateTeam: { owner: selectedOwner, db: stateDb as unknown as D1Database,
         ...(fresh === undefined ? {} : { initializeFresh: true }) } };
   }
@@ -374,7 +390,10 @@ export async function buildProductionDeps(
   const identity = await loadIdentityD1();
   await state.ensureSchema(db);
   await identity.ensureIdentitySchema(db);
+  const auth = origin === undefined ? undefined : { origin: origin.origin, secureCookies: origin.protocol === 'https:',
+    limiter: await createD1AuthRateLimiter(db as unknown as D1Database, { scope: origin.origin, clock: { nowMs: Date.now } }) };
   return {
+    ...(auth === undefined ? {} : { auth }),
     store: state.createD1Storage(db),
     identityStore: identity.createD1IdentityStore(db),
   };
