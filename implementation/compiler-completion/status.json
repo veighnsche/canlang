@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-09T21:03:00Z",
+  "updated_utc": "2026-10-09T21:04:07Z",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -102,10 +102,10 @@
     "reused_results": "Unchanged editor/client/real LSP results reused. Full current95d outside-sandbox run includes actual mode4750 permission body, no skip. Exact coordinator integrated00a changed alias/CSV fixture2/2 reused; installed dependencies rebuilt26/26 zero cached."
   },
   "latest_component": {
-    "base_commit": "bde01621db214c7d70a833542660f3797f928dfd",
-    "state": "gated_native_transition_prepared_private_no_write_control_correction_required",
-    "outcome": "Actual Transition IR sites, exact own machine-enum inventory joins and once-only old-state markers prepared behind explicit all-transition publication gate. Existing actual CLI fixture compilation/gate refusal assertions execute; Node24 public runtime phase fails actual State snapshot omission of CF fileAssignments carrier, including[]. Strict all-targetClippy passes after mechanical lint correction. Earlier private14/14 result does not address coordinator no-write branch-control review finding.",
-    "remaining": "Correct private no-write branch control paths before acceptance. Dev/Capability must release actual closed effect envelope including real fileAssignments and session/raw-row/finalization consumer. Omitted-default mutation has separate State/Dev frozen input-default contribution prerequisite. Combined original-source replay and current whole qualification remain due;58/67 and exact holds unchanged."
+    "base_commit": "854aaa73824872d9b01b709bfd284c098bf34da8",
+    "state": "checked_transition_no_write_control_correction_passed_native_join_unfinished",
+    "outcome": "Coordinator no-write branch finding corrected: every outcome of a branch that can transition retains write-existence selector controls; wholly readonly branches retain pruning. Exact source15/15, strict all-targetClippy/fmt and finite independent review pass. Actual CLI confirms transition/standalone-machine-read/unrelated-mutation gates plus six existing scalar/derive plans. Own machine enum adaptation restricted to actual transition recipes. Native publication remains gated; Node24 genuine runtime phase remains blocked on real fileAssignments effect envelope.",
+    "remaining": "Dev/Capability actual closed effect envelope including real fileAssignments and genuine session/raw-row/finalization adapter must release. Omitted-default mutation has separate frozen input-default contribution prerequisite. Then activate/qualify genuine compiler transitions including changed-record and private-control/no-write outcomes and preserved original replay; current whole qualification due. Original58/67 and exact holds unchanged."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -448,7 +448,7 @@
     "delivery_progress_correction": "Existing real public int64 export forwarded in isolated compiler test stdlib; actual same target1/1 passes.",
     "remaining_failure": {
       "target": "state_machines::compiled_lifecycle_runs_through_canonical_runtime_and_state_driven_ui",
-      "prerequisite": "Reviewed State b94917a2 actual owner-session provenance and conservative changed-record dependency withholding are released and consumed. Dev genuine native session stage/read/finalize with issued raw-row identity remains required; compiler native transition capture/inventory and original-source combined replay qualification follow. Private checked transition/write-control facts pass14/14 but native transition emission still declines.",
+      "prerequisite": "Reviewed State b94917a2 owner-session source consumed, but closed effect snapshot excludes actual Cloudflare fileAssignments (even[]), blocking unchanged genuine no-write native scenarios. Capability owns exact correction; Dev owns genuine session stage/read/finalize and issued-row identity adapter. Compiler checked transition/control/no-write facts pass15/15; native collector/emitter prepared and gated. Omitted-default mutation requires separate frozen input-default contribution release. Combined original replay/current whole qualification remains due.",
       "owner": "Compiler checked lineage; State defining observation/projection ABI; coordinator has exact evidence.",
       "state": "blocked; real replay assertion preserved"
     },

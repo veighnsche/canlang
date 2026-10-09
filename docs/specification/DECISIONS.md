@@ -4723,3 +4723,14 @@ refusal controls execute, but Node24 runtime fails the actual fileAssignments
 effect-envelope owner contract; strict Clippy passes. Coordinator's no-write
 branch-control finding against the earlier private source is a required
 correction, not accepted behavior. No workflow/state contract bypass follows.
+
+## 2026-10-09 — retain optional-write selectors on no-write outcomes
+
+When any continuing branch adds a transition dependency, retain branch controls
+on every sibling, including the outcome without a write. This prevents private
+selectors from changing public changed-record existence or result withholding
+under an empty proof. Preserve read-only postdominator pruning and existing
+bounds. Source15/15, strict Clippy/formatting and finite review pass. Restrict
+prepared own-machine enum adaptation to recipes with actual Transition sites;
+actual CLI refusal/unchanged-plan controls pass. Native activation and full
+qualification remain unfinished on the recorded State/Dev release contracts.
