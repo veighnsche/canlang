@@ -1,0 +1,55 @@
+{
+  "request": {
+    "state": "The desired Can authoring loop lets an AI agent guess plausible DSL syntax and learn the closest supported construct without an automatic source rewrite. The compiler owns errors and has source-hashed positions, while its present CST can lose the intended shape after recovery and completion can return a broad superset. A proposed 278-card v1 help reference records syntax, semantics and availability; Jev can only choose finite IDs with typed probabilities, and Can must supply the displayed card. Real novice drafts include obvious type spelling differences, ambiguous permissions and unsupported transaction shorthand. A source-sharing boundary should keep secrets and full application data away from the external ranking provider. Evaluate default routing and evidence size at this pre-implementation stage, preserving deterministic behavior on provider failure.",
+    "questions": {
+      "ranking_trigger": {
+        "type": "choice",
+        "instructions": "Which policy best decides whether an invalid Can source occurrence is sent to Jev for construct ranking?",
+        "criteria": {
+          "ambiguous_after_deterministic": "Use parser/known-card facts first, then rank only a finite complete list of at least two context-valid meanings on a reliable occurrence; skip direct spelling/signature cases and still offer explicit deeper lookup. Requires eligibility work but targets ambiguity.",
+          "all_eligible_errors": "Rank every occurrence with any viable card, including direct matches. It may surface assistance automatically for more errors, at the cost of extra requests and plausible-looking advice on weak recovery evidence.",
+          "request_only": "Never call Jev as part of check; ask only when the coding agent requests ranking. It bounds disclosure/cost most tightly but makes the normal correction loop take another step."
+        }
+      },
+      "ranking_context": {
+        "type": "choice",
+        "instructions": "Select the default evidence scope for the typed Jev Choice request.",
+        "criteria": {
+          "full_context": "Forward the full file, checked declaration graph and task text. This can preserve distant clues but raises disclosure, token and latency costs.",
+          "structured_only": "Forward only diagnostics, parsed section/role and candidate ID descriptions. It is compact and private, but may leave the guessed word's meaning invisible.",
+          "bounded_context": "Forward structured compiler facts and balanced candidate descriptions plus a short scrubbed source neighborhood and optional sanitized task-intent sentence. It supports meaning ranking with controlled exposure but needs precise redaction and source-revision pinning."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "ranking_trigger": {
+        "type": "choice",
+        "choice": "ambiguous_after_deterministic",
+        "confidence": 0.74,
+        "probabilities": {
+          "ambiguous_after_deterministic": 0.83,
+          "all_eligible_errors": 0.01,
+          "request_only": 0.16
+        }
+      },
+      "ranking_context": {
+        "type": "choice",
+        "choice": "structured_only",
+        "confidence": 0.33,
+        "probabilities": {
+          "full_context": 0.0,
+          "structured_only": 0.55,
+          "bounded_context": 0.45
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 779,
+      "output_tokens": 98
+    }
+  }
+}

@@ -1,0 +1,150 @@
+Given ExpenseReimbursement
+  team: Team
+  viewer: Member
+  viewer belongs to team
+  statusFilter: Draft | Submitted | Approved | Rejected | All = All
+  currencyFilter: Currency = USD
+
+Given Expense
+  team: Team
+  submitter: Member
+  purpose: Text
+  amount: Money
+  status: Draft | Submitted | Approved | Rejected = Draft
+  submittedAt: DateTime?
+  decidedBy: Member?
+  decidedAt: DateTime?
+  rejectionExplanation: Text?
+
+  rule amount.value > 0
+  rule purpose.trim() is not blank
+  rule submitter belongs to team
+  rule purpose and amount may change only while status is Draft
+
+Given Reviewer
+  member: Member
+  team: Team
+
+Given visibleExpenses
+  Expense where team is ExpenseReimbursement.team
+    and (
+      submitter is viewer
+      or Reviewer exists where member is viewer and team is ExpenseReimbursement.team
+    )
+
+Given filteredExpenses
+  visibleExpenses where
+    (statusFilter is All or status is statusFilter)
+    and amount.currency is currencyFilter
+
+Given visibleCount
+  count(filteredExpenses)
+
+Given visibleTotal
+  sum(filteredExpenses.amount, currency: currencyFilter)
+
+When createDraft(purpose: Text, amount: Money)
+  permit viewer belongs to team
+  require purpose.trim() is not blank
+  require amount.value > 0
+  do
+    create Expense
+      team: team
+      submitter: viewer
+      purpose: purpose.trim()
+      amount: amount
+      status: Draft
+
+When editDraft(expense: Expense, purpose: Text, amount: Money)
+  permit expense.team is team
+    and expense.submitter is viewer
+    and expense.status is Draft
+  require purpose.trim() is not blank
+  require amount.value > 0
+  do
+    expense.purpose = purpose.trim()
+    expense.amount = amount
+
+When submit(expense: Expense)
+  permit expense.team is team
+    and expense.submitter is viewer
+    and expense.status is Draft
+  require expense.purpose.trim() is not blank
+  require expense.amount.value > 0
+  do
+    expense.status = Submitted
+    expense.submittedAt = now
+
+When approve(expense: Expense)
+  permit expense.team is team
+    and Reviewer exists where member is viewer and team is expense.team
+    and expense.submitter is not viewer
+    and expense.status is Submitted
+  do atomically
+    expense.status = Approved
+    expense.decidedBy = viewer
+    expense.decidedAt = now
+    expense.rejectionExplanation = none
+
+When reject(expense: Expense, explanation: Text)
+  permit expense.team is team
+    and Reviewer exists where member is viewer and team is expense.team
+    and expense.submitter is not viewer
+    and expense.status is Submitted
+  require explanation.trim() is not blank
+  do atomically
+    expense.status = Rejected
+    expense.decidedBy = viewer
+    expense.decidedAt = now
+    expense.rejectionExplanation = explanation.trim()
+
+Then Expenses
+  title "Team expenses"
+
+  form "Draft an expense"
+    field purpose: Text
+    field amount: Money
+    action "Save draft" calls createDraft(purpose, amount)
+
+  select "Status" binds statusFilter
+  select "Currency" binds currencyFilter
+
+  text "Expenses: {visibleCount}"
+  text "Total: {visibleTotal}"
+
+  table filteredExpenses
+    column purpose
+    column amount
+    column status
+    column submitter
+    column submittedAt
+    column decidedBy
+    column decidedAt
+    column rejectionExplanation
+
+    form "Edit draft" when editDraft is permitted
+      field purpose: Text = expense.purpose
+      field amount: Money = expense.amount
+      action "Save changes" calls editDraft(expense, purpose, amount)
+
+    action "Submit" calls submit(expense) when permitted
+    action "Approve" calls approve(expense) when permitted
+
+    form "Reject" when reject is permitted
+      field explanation: Text required
+      action "Reject expense" calls reject(expense, explanation)
+
+## Submission: Alice submits her own Draft expense for USD 25.
+## It becomes Submitted; its purpose and amount can no longer be edited.
+##
+## Approval: Bob, a team reviewer, approves Alice's Submitted expense.
+## It becomes Approved and records Bob and the decision time.
+##
+## Unauthorized review: Alice cannot approve or reject her own expense,
+## even if she is a reviewer. A member without the reviewer role cannot decide it.
+##
+## Invalid amount: Creating or editing a draft with USD 0 or USD -5 fails
+## without creating an expense or changing an existing draft.
+##
+## Invalid repeat decision: Approving or rejecting an Approved or Rejected
+## expense fails and preserves the original decision, actor, and timestamp.

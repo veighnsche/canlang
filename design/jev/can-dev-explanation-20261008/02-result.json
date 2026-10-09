@@ -1,0 +1,38 @@
+{
+  "request": {
+    "state": "A future can dev should let a coding agent inspect one failed build, example or request and know which source revision was exercised. Today's Rust diagnostic result reports codes, byte spans, revision hashes, completeness and truncation; a separate explain command documents each code in general. JavaScript emission includes source maps, but local workerd dispatch does not return a unified source-linked failure record. HTTP/MCP business messages deliberately withhold internal detail. Jev has been selected for optional decision support inside can dev; its judgment must not become proof of compiler or runtime behavior. The first change should improve useful answers per token without reproducing Can policy in another layer.",
+    "questions": {
+      "initial_work": {
+        "type": "choice",
+        "instructions": "For the initial debugging capability, which route gives the strongest practical tradeoff among correctness, useful context, engineering effort, and compact agent output?",
+        "criteria": {
+          "catalog": "Improve code-wide explanation entries and repair guidance in the current catalog, a contained task that does not itself describe the current failure instance.",
+          "context": "Build an explanation for the current occurrence from checked diagnostics, implicated declarations and source-mapped runtime events, pinned to the build; this joins several existing components.",
+          "jev": "Ask Jev to rank hypotheses and follow-up checks from a bounded failure packet; it can be tried quickly but relies on remote probabilistic advice.",
+          "session": "First deliver the existing compiler and runtime outputs together via the dev session, with little added analysis but with the current context still fragmented."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "initial_work": {
+        "type": "choice",
+        "choice": "context",
+        "confidence": 0.61,
+        "probabilities": {
+          "catalog": 0.08,
+          "context": 0.7,
+          "jev": 0.09,
+          "session": 0.13
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 597,
+      "output_tokens": 46
+    }
+  }
+}

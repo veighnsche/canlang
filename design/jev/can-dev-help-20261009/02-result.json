@@ -1,0 +1,38 @@
+{
+  "request": {
+    "state": "An unfamiliar agent receives only a tiny Can Given/When/Then primer and may invent plausible source words. Can must return a compact closest working construct card, not silently normalize source. The parser knows syntactic positions, GRAMMAR.md defines v1 forms, DESIGN.md defines behavior, existing UI and builtin catalogs own larger finite vocabularies, and delivery varies by compiler/runtime profile. The requested card includes exact signature, short meaning, minimal example, availability and a stable deep link. Some specification caveats lag implementation. Evaluate a catalog owner that can support abstention, context filtering and versioned responses without overstating support.",
+    "questions": {
+      "help_ownership": {
+        "type": "choice",
+        "instructions": "Where should the definitive mapping from Can construct ID to help card live at this design stage?",
+        "criteria": {
+          "derived_sources": "Enrich each owning grammar/design/UI/builtin source with help metadata and generate a single index including compiled availability. Fewer copied signatures, at the cost of generator and cross-source coordination.",
+          "documentation_registry": "Use a dedicated anchored Markdown reference containing every card and status, while later tooling extracts or ports it. Reviewable now, though a separate server representation can diverge.",
+          "compiler_registry": "Store the cards in a typed, versioned compiler registry and check them against grammar, docs, parser support and catalogs. Direct machine contract and stable IDs, but intentionally duplicates some written syntax/semantics.",
+          "dynamic_completion": "Derive card contents only when queried from parser context and completion plus documentation lookup. Low upfront catalog maintenance, but exact examples, stable IDs and complete meanings may be unreliable."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "help_ownership": {
+        "type": "choice",
+        "choice": "documentation_registry",
+        "confidence": 0.15,
+        "probabilities": {
+          "derived_sources": 0.33,
+          "documentation_registry": 0.36,
+          "compiler_registry": 0.3,
+          "dynamic_completion": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 622,
+      "output_tokens": 54
+    }
+  }
+}

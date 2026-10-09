@@ -1,0 +1,15 @@
+{
+  "state": "The planned coding-agent development service must help a novice go from a minimal Given/When/Then card to a valid and working application, with bounded errors, relevant keyword documentation, local page and resource execution, isolated example checks and truthful failure details. Current infrastructure offers source-hashed diagnostics, compilation, an in-process worker and JSON output, but not the long-lived control service. A compiled lifecycle viewer loads anonymously through a test-only localhost bridge; generated authentication and its inline test setup are not working. A simpler complete business benchmark is a one-file team item tracker needing authenticated CRUD, a create page, list controls and two behavioral assertions. More complex scheduling and expense benchmarks exist but exercise additional roles and value types. Decide the first thing that may be called supported, separating an engineering smoke milestone from the product release. Judge all choices by whether agents can finish the declared task, dependency burden, wrong-permission risk, and measurable token/turn benefit. These are proposed targets, not existing APIs.",
+  "questions": {
+    "first_supported_slice": {
+      "type": "choice",
+      "instructions": "Choose the first supported release boundary for this agent development loop.",
+      "criteria": {
+        "authoring_only": "Stop after a reliable revisioned compiler/help service. It can teach source words early but leaves browser state and inline behavior untested, so a working app is not yet the release claim.",
+        "lifecycle_app": "Qualify only the existing lifecycle viewer, including real auth and its inline checks, as the first release. This closes one vertical runtime path with limited UI, while the smallest novice business task remains unfinished.",
+        "team_tracker": "First use the lifecycle viewer to repair shared runtime seams, then release a bounded one-file team tracker profile with real member CRUD, page form/list controls and independent success/refusal examples. Requires more focused work but supports the first complete novice task.",
+        "broad_suite": "Wait for team tracking, scheduler roles and expense review to all work before declaring a first slice. Gives broader coverage at the cost of many extra semantics and a later feedback milestone."
+      }
+    }
+  }
+}
