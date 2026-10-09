@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-09T21:46:44Z",
+  "updated_utc": "2026-10-09T22:34:24.208834+00:00",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -103,9 +103,9 @@
   },
   "latest_component": {
     "base_commit": "2e4d647116fc39fdb4499f3e684c1fedaa2cdee2",
-    "state": "send_set_affected_qualified_whole_pending",
-    "outcome": "Source8/8, originalnative4/4 Node24.19 including literal defaults, nested private-field defaults and grouped public coalesce, supplied override skip, physical defaults/raw conflicts/private withholding/aged recovery, lint/fmt0. T04 actualcompilerhalf6/6 for41cards qualified; actualbuild26/26 currentcatalog59/15. Historical83whole1325 retained at exactscope.",
-    "remaining": "Generate metadata source/native join to exact released State intrinsic producer plus pending required primitive prompt/accept contract and genuine Dev adapter/wholeoriginalworkflow; finalwhole compiler. Held/broadrefs unchanged. T04 Dev runtime/example/provider and precise holds remain."
+    "state": "intrinsic_producer_output_qualified_native_whole_pending",
+    "outcome": "Current intrinsic source23/23, facts15/15, actualCLI2/2 and lint/fmt0. Originalgenerate complete4facts; native execution and whole changed-source results pending.",
+    "remaining": "Dev exact private observer release and actual original Text workflow; changed-source whole compiler qualification. Broader nine refs/precise holds unchanged."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -485,5 +485,16 @@
     "format_exit": 0,
     "scope": "Actual ownscalar/nullable-null/computed/conditional private-public Set, complete checked boundSend/TextRequest/TextMessage/deliverycarrier source proofs; exactactualIRbijection; write/no-write controls and replay/currentgrant/archive invariance. Original cancel/reconcile compile plans/bindings qualify.",
     "remaining": "Generate metadata source/native join to exact released State intrinsic producer plus pending required primitive prompt/accept contract and genuine Dev adapter/wholeoriginalworkflow; finalwhole compiler. Held/broadrefs unchanged."
+  },
+  "scenario_intrinsics": {
+    "state": "compiler_producer_output_qualified_native_and_whole_unfinished",
+    "reviewed_state_intake": "078cac74fc4dd7859e55933f2ffeb2b10f57e1ef",
+    "source_checks": "23/23",
+    "facts_target": "15/15",
+    "actual_cli_output": "2/2 individually selected current-source cases, native execution not included",
+    "strict_clippy_exit": 0,
+    "format_exit": 0,
+    "scope": "Exact operation-id/original required reference version/required builtin input identities; actual once-only markers; original generate four facts; checked scalar shorthand lexical type/key anchors; native-only exact primitive valueType.",
+    "remaining": "Dev exact private observer release and actual original Text workflow; changed-source whole compiler qualification. Broader nine refs/precise holds unchanged."
   }
 }
