@@ -2700,6 +2700,13 @@ impl<'a> Cx<'a> {
         }
         let expr = match node.kind {
             SyntaxKind::Literal => self.decode_literal(node),
+            SyntaxKind::MessageValue => self
+                .decode_message_node(scope.module, node)
+                .map(IrExpr::Message)
+                .unwrap_or_else(|| IrExpr::Unsupported {
+                    what: "inline message descriptor".to_string(),
+                    why: "authored descriptor text is unavailable".to_string(),
+                }),
             SyntaxKind::NameRef => self.decode_name_ref(scope, node, &ty),
             SyntaxKind::Group => {
                 return match kids(node).iter().find(|n| is_expression(n.kind)) {
@@ -2949,6 +2956,16 @@ impl<'a> Cx<'a> {
         if let Some(fixture) = scope.bindings.get(&name) {
             let fixture_name = self.local_name(*fixture);
             return member_of("s", &fixture_name, &self.fixture_type(*fixture), node.span);
+        }
+        // These reads refer to checked immutable descriptor lets. Keep their
+        // captured value even when a module message/fixture shares the name.
+        if self
+            .program
+            .types
+            .message_descriptor_references
+            .contains_key(&key)
+        {
+            return IrExpr::Name(name);
         }
         if is_enum_ty(ty) && self.program.types.bound_names.contains(&key) {
             return IrExpr::Name(name);
@@ -3754,12 +3771,20 @@ impl<'a> Cx<'a> {
         // Inline descriptors have no declared parameters. Their syntax supplies
         // text only; the owning checked module supplies source language.
         let inline = descriptor_node.kind == SyntaxKind::MessageValue;
-        let anonymous = self
+        // Resolve only schema provenance. The argument below still lowers the
+        // authored local read, retaining its already evaluated descriptor.
+        let descriptor_key = NodeKey::of(&descriptor_node);
+        let origin = self
             .program
             .types
-            .anonymous_messages
-            .get(&NodeKey::of(&descriptor_node))
-            .cloned();
+            .message_descriptor_references
+            .get(&descriptor_key)
+            .copied()
+            .unwrap_or(descriptor_key);
+        let origin_inline = self
+            .node(&origin)
+            .is_some_and(|node| node.kind == SyntaxKind::MessageValue);
+        let anonymous = self.program.types.anonymous_messages.get(&origin).cloned();
         let args: Vec<_> = arguments
             .iter()
             .enumerate()
@@ -3798,7 +3823,7 @@ impl<'a> Cx<'a> {
                 }
                 (data.source_lang.clone(), params)
             }
-            ResolvedType::Scalar(Scalar::Text) if inline || anonymous.is_some() => {
+            ResolvedType::Scalar(Scalar::Text) if origin_inline || anonymous.is_some() => {
                 let Some(module) = self.program.effects.modules.get(&scope.module) else {
                     return unsupported("checked inline descriptor module is unavailable");
                 };
@@ -3840,7 +3865,7 @@ impl<'a> Cx<'a> {
                 | Scalar::Currency,
             ) => Some("text"),
             ResolvedType::Scalar(Scalar::Bool) => Some("bool"),
-            ResolvedType::Enum { owner: Some(_), .. } => Some("enum"),
+            ResolvedType::Enum { .. } => Some("enum"),
             ResolvedType::Scalar(Scalar::Int) => Some("int"),
             ResolvedType::Scalar(Scalar::Decimal) => Some("decimal"),
             ResolvedType::Scalar(Scalar::Money) => Some("money"),
@@ -3861,6 +3886,7 @@ impl<'a> Cx<'a> {
             ResolvedType::Enum {
                 owner: Some(id), ..
             } => self.canonical(*id),
+            ResolvedType::Enum { owner: None, cases } => format!("enum({})", cases.join(",")),
             ResolvedType::Record { symbol, .. }
             | ResolvedType::Message(symbol)
             | ResolvedType::Operation(symbol) => self.canonical(*symbol),
