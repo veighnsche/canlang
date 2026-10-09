@@ -276,6 +276,21 @@ entry, not native Can hydration. Dev's private adapter and compiler hook/live
 view join remain unfinished. Unchanged earlier checks are reused at their
 recorded scope; no remote publication or reference completion follows.
 
+**Local correction — ordinary contract schema publication, 2026-10-09.**
+Supported checked ordinary contracts now publish their owning `valueTypes`
+inventory and result associations without an unrelated Judgment declaration.
+Complete nested contract closures retain canonical identity even where reused
+field types carry `stored:true`; unsupported model/secret/cyclic/unknown
+closures acquire no new claim or unused-declaration diagnostics. Existing
+Judgment collection behavior remains. Actual CLI/emitted definition/native
+Cloudflare+State **2/2** pass: flat/nested contracts, enums, arrays/nulls, eight
+scalar codecs, unrelated-Judgment equality, live input/admission controls,
+first genuine mutation and its persisted receipt. Unknown source type refuses
+E2001 without modules. Independent finite source review reports no findings.
+Current changed-source whole compiler/lint checks are running; saved-result
+replay disclosure, BDD3 and broader nominal/model-container workflows remain
+unfinished. No original reference count closes from this finite correction.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed
