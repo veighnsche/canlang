@@ -76,7 +76,7 @@ pub struct Diagnostic {
     pub tags: Vec<String>,
     /// Optional source-derived construct routing, absent when the compiler
     /// cannot establish a useful authoring slot.
-    pub construct_candidates: Option<ConstructCandidates>,
+    pub construct_candidates: Option<Box<ConstructCandidates>>,
 }
 
 impl Diagnostic {
@@ -252,7 +252,7 @@ impl serde::Serialize for DiagnosticResult {
                         })
                         .collect(),
                     tags: &diagnostic.tags,
-                    construct_candidates: diagnostic.construct_candidates.as_ref(),
+                    construct_candidates: diagnostic.construct_candidates.as_deref(),
                 })
                 .collect(),
             omitted: self.omitted,

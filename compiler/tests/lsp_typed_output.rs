@@ -264,7 +264,7 @@ fn enum_match_tooling_uses_real_lsp_completion_tokens_and_arm_diagnostics() {
     let mut line = 0;
     let mut column = 0;
     let mut decoded = Vec::new();
-    for token in data.chunks_exact(5) {
+    for token in data.as_chunks::<5>().0 {
         if token[0] == 0 {
             column += token[1];
         } else {
