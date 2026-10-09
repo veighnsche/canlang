@@ -17,6 +17,7 @@ import type {
   DomainWrite,
   ModelName,
   RecordId,
+  RecordVersion,
   StoragePort,
 } from '@canlang/contracts';
 import type { JudgmentSpec, ReceiptProperty } from '@canlang/contracts';
@@ -24,8 +25,11 @@ import { DELIVERY_RESULT_LEAVES } from '@canlang/contracts';
 import { StateError } from '@canlang/state/errors';
 import {
   openFenceScope,
+  admit,
   revalidateCommitForFence,
+  type AdmittedCall,
 } from '@canlang/state/invocation/admission';
+import { invoke, type ExecutionEffects, type InvokeMutationInput } from '@canlang/state/invocation/invoke';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import {
   FIXED_NOW,
@@ -33,6 +37,9 @@ import {
   asModel,
   makeBatch,
   makeRow,
+  makeEnvelope,
+  makeIdentity,
+  uuidv7,
 } from '@canlang/state/testing/invocation/fixtures';
 import type { SeededMember } from '@canlang/state/testing/invocation/fixtures';
 import {
@@ -69,6 +76,8 @@ import {
 } from '@canlang/state/invocation/registry';
 import {
   observeSelectedReceiptJoin,
+  observeOwnerSelectedReceiptJoin,
+  type OwnerSelectedReceiptJoinInput,
   type SelectedReceiptJoinInput,
   type SelectedReceiptJoinOutcome,
 } from '@canlang/state/receipt/join';
@@ -197,6 +206,42 @@ interface AssociateOpts {
   readonly error?: ReceiptRowData['error'];
   readonly contentRef?: string | null;
   readonly resultExpiresAtMs?: number | null;
+}
+
+const OWNER_PROGRESS = 'Acme.owner_progress';
+let ownerInvocationSequence = 900;
+
+async function invokeOwnerProgress(
+  world: World, execute: (call: AdmittedCall) => Promise<void>,
+  overrides: Partial<InvokeMutationInput> = {},
+): Promise<void> {
+  const loaded = loadArtifactDescriptors({ ...DELIVERY_SLICE,
+    operations: [{ name: OWNER_PROGRESS, kind: 'scenario', description: 'Observe owning receipt progress.', inputs: { fields: [] } }],
+  }, { by: 'public' });
+  await invoke({
+    app: 'receipt-test', registry: loaded.registry,
+    envelope: makeEnvelope(OWNER_PROGRESS, uuidv7(FIXED_NOW, ++ownerInvocationSequence)),
+    identity: makeIdentity({ actor: null, teamId: world.teamId }), source: 'handler',
+    kind: 'trusted', trustedSource: `${SOURCE}.progress`, store: world.store,
+    memberships: { findMembership: async () => { throw new Error('owner observation must not manufacture viewer membership'); } },
+    clock: { nowMs: () => FIXED_NOW },
+    execute: async call => {
+      await execute(call);
+      return { writes: [], history: [], outbox: [], schedules: [], uniqueClaims: [],
+        uniqueReleases: [], resolvedDefaults: {}, result: null } satisfies ExecutionEffects;
+    },
+    ...overrides,
+  });
+}
+
+async function ownerJoinInput(world: World, call: AdmittedCall): Promise<OwnerSelectedReceiptJoinInput> {
+  const row = await world.store.load(ITEM_MODEL, asId('item-1'));
+  assert.ok(row !== null && call.checkpoint !== undefined);
+  return { call, recordVersion: row.version,
+    locator: { record: row, field: 'notification' }, selected: ['status'],
+    model: ITEM_MODEL, schema: world.schema, declaredSource: SOURCE,
+    store: world.store, nowMs: FIXED_NOW, observeSelected: fns.observeSelectedReceipt,
+    fence: openFenceScope(call.checkpoint.revision, call.checkpoint.owner) };
 }
 
 /** Persist one association + receipt pair through the join port. */
@@ -1498,5 +1543,177 @@ describe('t25 join: pinned static Judgment declaration context', () => {
       /malformed declared Judgment context/);
     await assert.rejects(observeSelectedReceiptJoin({ ...input, declaredResult: { ...result, fields: [...result.fields].reverse() } }),
       /declared context disagrees/);
+  });
+});
+
+describe('t25 join: actual trusted owner execution', () => {
+  it('observes exact selected leaves with retained expiry and null association, without viewer membership', async () => {
+    const world = await setupWorld();
+    await seedOwner(world.store);
+    await invokeOwnerProgress(world, async call => {
+      const input = await ownerJoinInput(world, call);
+      assert.equal((await observeOwnerSelectedReceiptJoin(input)).outcome, 'null-association');
+      assert.deepEqual(input.fence.dependencies, []);
+    });
+    await associate(world.store);
+    await progress(world.store, { revision: 1, status: 'succeeded', result: { reference: 'saved' },
+      contentRef: 'content-1', resultExpiresAtMs: FIXED_NOW + 1000 });
+    await invokeOwnerProgress(world, async call => {
+      const input = await ownerJoinInput(world, call);
+      const live = await observeOwnerSelectedReceiptJoin({ ...input, selected: ['status', 'result'] });
+      assertObserved(live);
+      assert.deepEqual(live.projection, { status: 'succeeded', result: { reference: 'saved' } });
+      const expired = await observeOwnerSelectedReceiptJoin({ ...input,
+        selected: ['status', 'result'], nowMs: FIXED_NOW + 1000 });
+      assertObserved(expired);
+      assert.deepEqual(expired.projection, { status: 'succeeded', result: null });
+      assert.ok(input.fence.dependencies.some(dependency =>
+        dependency.kind === 'record' && dependency.model === RECEIPT_MODEL && dependency.id === 'del_1'));
+      await assert.rejects(observeOwnerSelectedReceiptJoin({ ...input, selected: [] }), /must not be empty/);
+    });
+  });
+
+  it('refuses copied, forged, and closed calls, including after executor failure', async () => {
+    const world = await setupWorld();
+    await seedOwner(world.store);
+    await associate(world.store);
+    const saved: { input?: OwnerSelectedReceiptJoinInput } = {};
+    await invokeOwnerProgress(world, async call => {
+      const input = saved.input = await ownerJoinInput(world, call);
+      for (const copy of [{ ...call }, structuredClone(call)]) {
+        await assert.rejects(observeOwnerSelectedReceiptJoin({ ...input, call: copy }),
+          /active trusted owner execution/);
+      }
+      const merelyAdmitted = await admit({ def: call.def, inputs: call.inputs,
+        context: { ...call.context }, store: world.store, memberships: world.memberships });
+      await assert.rejects(observeOwnerSelectedReceiptJoin({ ...input, call: merelyAdmitted }),
+        /active trusted owner execution/);
+      assert.equal((await observeOwnerSelectedReceiptJoin(input)).outcome, 'observed');
+    });
+    assert.ok(saved.input !== undefined);
+    await assert.rejects(observeOwnerSelectedReceiptJoin(saved.input), /active trusted owner execution/);
+    const failure = new Error('executor failed');
+    await assert.rejects(invokeOwnerProgress(world, async call => {
+      saved.input = await ownerJoinInput(world, call);
+      throw failure;
+    }), error => error === failure);
+    await assert.rejects(observeOwnerSelectedReceiptJoin(saved.input), /active trusted owner execution/);
+    const rejected = new StateError('validation', 'business rejection');
+    await assert.rejects(invokeOwnerProgress(world, async call => {
+      saved.input = await ownerJoinInput(world, call);
+      throw rejected;
+    }), error => error === rejected);
+    await assert.rejects(observeOwnerSelectedReceiptJoin(saved.input), /active trusted owner execution/);
+  });
+
+  it('refuses a store alias, foreign owner, stale native version, and nontrusted execution', async () => {
+    const world = await setupWorld();
+    await seedOwner(world.store);
+    await associate(world.store);
+    await invokeOwnerProgress(world, async call => {
+      const input = await ownerJoinInput(world, call);
+      for (const changed of [
+        { store: { ...world.store } },
+        { fence: openFenceScope(input.fence.revision, 'foreign-owner') },
+        { fence: openFenceScope((input.fence.revision + 1) as typeof input.fence.revision, world.teamId) },
+        { recordVersion: (input.recordVersion + 1) as RecordVersion },
+        { locator: { record: { id: 'missing-owner' }, field: 'notification' } },
+      ]) {
+        await assert.rejects(observeOwnerSelectedReceiptJoin({ ...input, ...changed }),
+          error => error instanceof StateError);
+      }
+    });
+    await invokeOwnerProgress(world, async call => {
+      await assert.rejects(observeOwnerSelectedReceiptJoin(await ownerJoinInput(world, call)),
+        /active trusted owner execution/);
+    }, { kind: 'user', identity: makeIdentity({ actor: null, teamId: world.teamId }) });
+    await invokeOwnerProgress(world, async call => {
+      await assert.rejects(observeOwnerSelectedReceiptJoin(await ownerJoinInput(world, call)),
+        /active trusted owner execution/);
+    }, { trustedSource: '   ' });
+  });
+
+  it('refuses replacement and mutation of the original context, revision, and checkpoint without executing accessors', async () => {
+    const world = await setupWorld();
+    await seedOwner(world.store);
+    await associate(world.store);
+    await invokeOwnerProgress(world, async call => {
+      const input = await ownerJoinInput(world, call);
+      const context = call.context, checkpoint = call.checkpoint, revision = call.revision;
+      call.context = { ...context };
+      await assert.rejects(observeOwnerSelectedReceiptJoin(input), /unchanged admitted call/);
+      call.context = context;
+      call.checkpoint = { ...checkpoint! };
+      await assert.rejects(observeOwnerSelectedReceiptJoin(input), /unchanged admitted call/);
+      call.checkpoint = checkpoint;
+      call.revision = (revision + 1) as typeof revision;
+      await assert.rejects(observeOwnerSelectedReceiptJoin(input), /unchanged admitted call/);
+      call.revision = revision;
+      const original = Object.getOwnPropertyDescriptor(context, 'trustedSource')!;
+      let evaluated = 0;
+      Object.defineProperty(context, 'trustedSource', { configurable: true,
+        get: () => { evaluated += 1; return original.value; } });
+      await assert.rejects(observeOwnerSelectedReceiptJoin(input), /unchanged admitted call/);
+      assert.equal(evaluated, 0);
+      Object.defineProperty(context, 'trustedSource', original);
+      Object.defineProperty(checkpoint!, 'owner', { value: 'foreign-owner', configurable: true, writable: true });
+      await assert.rejects(observeOwnerSelectedReceiptJoin(input), /unchanged admitted call/);
+      Object.defineProperty(checkpoint!, 'owner', { value: world.teamId, configurable: true, writable: true });
+      assert.equal((await observeOwnerSelectedReceiptJoin(input)).outcome, 'observed');
+    });
+  });
+
+  it('refuses archived owners and current delivery correspondence failures through the same join', async () => {
+    for (const archived of [true, false]) {
+      const world = await setupWorld();
+      await seedOwner(world.store);
+      await associate(world.store);
+      const row = await world.store.load(ITEM_MODEL, asId('item-1'));
+      assert.ok(row !== null);
+      await world.store.commit(makeBatch(await world.store.readRevision() as number, {
+        writes: [{ kind: 'update', model: ITEM_MODEL, id: row.id, expectedVersion: row.version,
+          row: { ...row, version: (row.version + 1) as RecordVersion,
+            ...(archived ? { archivedAt: FIXED_NOW } : {
+              data: { ...row.data, notification: { id: 'foreign-delivery', operation: SOURCE } },
+            }) } }],
+      }));
+      await invokeOwnerProgress(world, async call => {
+        await assert.rejects(observeOwnerSelectedReceiptJoin(await ownerJoinInput(world, call)),
+          archived ? /Archived records/ : /disagrees with the stored association/);
+      });
+    }
+  });
+
+  it('refuses checkpoints that move before and during observation, without returning a projection', async () => {
+    for (const during of [false, true]) {
+      const world = await setupWorld();
+      await seedOwner(world.store);
+      await associate(world.store);
+      const stop = new Error('stop after fenced refusal');
+      await assert.rejects(invokeOwnerProgress(world, async call => {
+        const input = await ownerJoinInput(world, call);
+        const originalLoad = world.store.load;
+        if (during) {
+          let advanced = false;
+          world.store.load = async (model, id) => {
+            const row = await originalLoad.call(world.store, model, id);
+            if (!advanced && model === RECEIPT_MODEL) {
+              advanced = true;
+              await progress(world.store, { revision: 1, status: 'succeeded', result: { reference: 'new' } });
+            }
+            return row;
+          };
+        } else {
+          await progress(world.store, { revision: 1, status: 'succeeded', result: { reference: 'new' } });
+        }
+        try {
+          await assert.rejects(observeOwnerSelectedReceiptJoin(input),
+            error => error instanceof StateError && error.code === 'conflict');
+        } finally {
+          world.store.load = originalLoad;
+        }
+        throw stop;
+      }), error => error === stop);
+    }
   });
 });
