@@ -8,6 +8,7 @@ import { access } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { admitSingleAppProfile } from "./compiler-check.js";
 import { createInstalledLocalPreviewBuilder } from "./preview-host.js";
+import { createInstalledFirstProfileQualification } from "./first-profile-qualification.js";
 import { attachDevSessionService, startDevSessionService, type SessionServiceOwner, type SessionServiceStatus } from "./session-service.js";
 import {
   captureIsCurrent,
@@ -331,6 +332,7 @@ export async function serveDevDaemonProcess(): Promise<void> {
       selectedApp: request.selectedApp,
       capture: request.capture,
       previewBuilder: createInstalledLocalPreviewBuilder(),
+      constructRanking: { qualify: createInstalledFirstProfileQualification() },
       ...(request.runtimeDir === undefined ? {} : { runtimeDir: request.runtimeDir }),
     });
     if (terminationRequested) {

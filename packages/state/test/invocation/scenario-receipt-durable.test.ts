@@ -15,7 +15,7 @@ import { buildModelTableFromCanonical } from '../../src/mutation/models.js';
 import { runMutationWrites } from '../../src/mutation/pipeline.js';
 import { loadArtifactDescriptors, type ArtifactDescriptorSlice } from '../../src/invocation/registry.js';
 import { invoke, invokeRetainedReceiptOnly } from '../../src/invocation/invoke.js';
-import { beginScenarioReceiptMutation, observeScenarioReceiptDependency, selectScenarioReceiptReturn,
+import { beginScenarioReceiptMutation, observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, selectScenarioReceiptReturn,
   readScenarioReceiptAssociation, projectScenarioReceipt } from '../../src/invocation/scenario-receipt.js';
 import { FIXED_NOW, asModel, createMemoryIdentityStore, makeBatch, makeIdentity, makeEnvelope,
   seedMember, seedRow, uuidv7 } from './fixtures.js';
@@ -187,9 +187,18 @@ for (const substrate of ['d1', 'do'] as const) {
       const member = await seedMember(memberships, { isOwner: false, roles: ['Shop.reader'] });
       const identity = makeIdentity({ userId: member.user.user_id, team: member.team, membership: member.membership });
       const slice = artifact();
+      slice.operations![0]!.inputs.fields.push(
+        { name: 'prompt', field: { kind: 'string' }, valueType: 'text' as CanTypeId, required: true },
+        { name: 'accept', field: { kind: 'boolean' }, valueType: 'bool' as CanTypeId, required: true });
       slice.operations![0]!.result = { type: 'void' as CanTypeId, disclosure: { version: 1, source: origin(), returns: [
         { id: 'queued-control', source: origin(), influences: [], dependencies: [
           { id: 'queued', source: origin(), role: 'control', model: MODEL, field: 'visible', type: 'text' as CanTypeId },
+        ], intrinsics: [
+          { id: 'operation', source: origin(), role: 'data', kind: 'operation-id', type: 'text' as CanTypeId },
+          { id: 'original-version', source: origin(), role: 'data', kind: 'admitted-reference-version',
+            parameter: 'record', model: MODEL, type: 'int' as CanTypeId },
+          { id: 'prompt', source: origin(), role: 'data', kind: 'admitted-input', parameter: 'prompt', type: 'text' as CanTypeId },
+          { id: 'accept', source: origin(), role: 'control', kind: 'admitted-input', parameter: 'accept', type: 'bool' as CanTypeId },
         ] },
       ] } };
       const loaded = loadArtifactDescriptors(slice, { by: 'members' });
@@ -199,7 +208,8 @@ for (const substrate of ['d1', 'do'] as const) {
       } });
       const original = await store.load(MODEL, 'owner-session-row' as import('@canlang/contracts').RecordId); assert.ok(original);
       const input = { registry: loaded.registry, app: APP, identity, memberships, source: 'test',
-        envelope: makeEnvelope(OP, uuidv7(FIXED_NOW, 9711), { record: { id: original.id, version: String(original.version) } }),
+        envelope: makeEnvelope(OP, uuidv7(FIXED_NOW, 9711), { record: { id: original.id, version: String(original.version) },
+          prompt: '  original prompt\n', accept: false }),
         clock: { nowMs: () => FIXED_NOW } };
       let receipt: Receipt | undefined;
       await invoke({ ...input, store, execute: async call => {
@@ -207,6 +217,13 @@ for (const substrate of ['d1', 'do'] as const) {
         await session.stage({ op: 'update', model: MODEL, id: original.id, data: { visible: 'queued' } }, { cause: 'scenario' });
         const queued = await session.read(MODEL, original.id); assert.ok(queued);
         assert.equal(queued.data.visible, 'queued'); assert.equal(queued.version, original.version + 1);
+        // Actual admitted metadata remains original despite the owner stage.
+        await observeScenarioReceiptIntrinsic(call, store, { dependencyId: 'operation', kind: 'operation-id',
+          wire: call.context.operationId });
+        await observeScenarioReceiptIntrinsic(call, store, { dependencyId: 'original-version', kind: 'admitted-reference-version',
+          reference: call.recordRefs[0]!, wire: String(call.recordRefs[0]!.row.version) });
+        await observeScenarioReceiptIntrinsic(call, store, { dependencyId: 'prompt', kind: 'admitted-input', wire: call.inputs['prompt'] });
+        await observeScenarioReceiptIntrinsic(call, store, { dependencyId: 'accept', kind: 'admitted-input', wire: call.inputs['accept'] });
         await observeScenarioReceiptDependency(call, store, { dependencyId: 'queued', model: MODEL, row: queued, field: 'visible' });
         selectScenarioReceiptReturn(call, store, 'queued-control');
         await session.stage({ op: 'update', model: MODEL, id: original.id, data: { visible: 'generating' } }, { cause: 'scenario' });
@@ -220,12 +237,21 @@ for (const substrate of ['d1', 'do'] as const) {
       }, observeCommittedReceipt: value => { receipt = value; } });
       assert.ok(receipt); const retained = receipt;
       const association = readScenarioReceiptAssociation(retained); assert.ok(association);
+      assert.deepEqual(association.intrinsics, [
+        { dependencyId: 'operation', kind: 'operation-id', wire: input.envelope.operation_id },
+        { dependencyId: 'original-version', kind: 'admitted-reference-version', wire: String(original.version),
+          model: MODEL, row: original, secretFields: ['token'] },
+        { dependencyId: 'prompt', kind: 'admitted-input', wire: input.envelope.inputs['prompt'] },
+        { dependencyId: 'accept', kind: 'admitted-input', wire: false },
+      ]);
       assert.equal(association.observations[0]!.row.data.visible, 'queued');
       assert.equal(association.changed[0]!.row.data.visible, 'generating');
       assert.equal(association.changed[0]!.row.version, original.version + 1);
       assert.equal((await store.historyFor(MODEL, original.id)).length, 1);
       store = await native.reopen();
       assert.deepEqual(await store.readReceipt(retained.identity), retained);
+      assert.deepEqual(readScenarioReceiptAssociation((await store.readReceipt(retained.identity))!)!.intrinsics,
+        association.intrinsics);
       assert.deepEqual(await store.load(MODEL, original.id), association.changed[0]!.row);
       let executes = 0, commits = 0;
       const recoveryStore: StoragePort = { ...store, commit: async batch => { commits++; return store.commit(batch); } };
@@ -242,6 +268,8 @@ for (const substrate of ['d1', 'do'] as const) {
       ] }]);
       const projected = await projectScenarioReceipt({ ...input, store, policy, receipt: retained });
       assert.deepEqual(projected.records[0]!.data, { visible: 'generating', private: 'private choice' });
+      assert.equal((await store.load(MODEL, original.id))!.version, original.version + 2);
+      assert.equal(association.intrinsics![1]!.wire, String(original.version));
 
       // Original secrets remain protected after declassification; new current
       // secrecy also masks saved final values independently of the void result.

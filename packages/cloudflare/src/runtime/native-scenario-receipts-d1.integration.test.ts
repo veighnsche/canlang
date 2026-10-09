@@ -6,10 +6,11 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { it } from 'node:test';
-import type { ActivationVerdict, ArtifactModelField, ClosedInputs, CompileArtifact } from '@canlang/contracts';
+import type { ActivationVerdict, ArtifactModelField, ClosedInputs, CompileArtifact, ModelName, RecordId } from '@canlang/contracts';
 import type { D1Database } from '@cloudflare/workers-types';
 import { createD1IdentityStore, deriveCsrfToken } from '@canlang/identity';
 import { hashInputs } from '@canlang/state/invocation/replay';
+import { createD1Storage } from '@canlang/state/storage/d1';
 import { distribution } from '@canlang/values/distribution';
 import { prepareLocalPreviewCapture } from '../dev/preview-inputs.js';
 import { captureIsCurrent, captureSingleFileSource, verifyCompilerSources } from '../dev/source-capture.js';
@@ -23,6 +24,9 @@ import { PINNED_COMPATIBILITY_DATE } from '../dev/zero-config.js';
 
 const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
 const model = 'NativeSavedScenario.Item';
+const jobModel = 'NativeSavedScenario.Job';
+const jobModelName = jobModel as ModelName;
+const asRecordId = (value: string) => value as RecordId;
 const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 function operationId(): string {
   const time = Date.now().toString(16).padStart(12, '0'), random = randomBytes(10).toString('hex');
@@ -30,7 +34,8 @@ function operationId(): string {
 }
 interface ItemData { quantity: string; label: string; available: boolean; optional: string | null; values: string[] | null; flags: boolean[]; names: string[] }
 interface Projection { id: string; data: ItemData }
-interface MutationWire { status?: string; code?: string; result?: unknown; records?: Projection[] }
+interface JobProjection { id: string; data: { status: string } }
+interface MutationWire { status?: string; code?: string; result?: unknown; records?: Array<Projection | JobProjection> }
 interface McpWire { error?: { code: number | string }; result?: { isError?: boolean; structuredContent?: { records?: Projection[] } } }
 interface StoredRow { id: string; version: number; data: string }
 interface ReceiptRow { app: string; owner: string; principal: string; operation: string; operation_id: string;
@@ -61,7 +66,13 @@ function mutationWire(value: unknown): MutationWire {
   if (body.records !== undefined) assert.ok(Array.isArray(body.records));
   return { result: body.result, ...(body.status === undefined ? {} : { status: word(body.status) }),
     ...(body.code === undefined ? {} : { code: word(body.code) }),
-    ...(body.records === undefined ? {} : { records: (body.records as unknown[]).map(projection) }) };
+    ...(body.records === undefined ? {} : { records: (body.records as unknown[]).map(value => {
+      const row = object(value), data = object(row.data);
+      if (Object.hasOwn(data, 'quantity')) return projection(value);
+      assert.deepEqual(Object.keys(data), ['status'], 'Job read grant withholds its private selector');
+      const status = word(data.status); assert.ok(['idle','queued','generating','ready'].includes(status));
+      return { id: word(row.id), data: { status } };
+    }) }) };
 }
 function mcpWire(value: unknown): McpWire {
   const body = object(value), result: McpWire = {};
@@ -78,7 +89,7 @@ function mcpWire(value: unknown): McpWire {
 }
 type Actor = { cookie: string; csrf: string; owner: string | null; principal: string; grant?: string };
 
-it('consumes captured native saved scalar, primitive-array and local-derive scenarios through real portable owner D1, auth and MCP', { timeout: 180000 }, async () => {
+it('consumes captured native saved scalar, array, derive and machine scenarios through real portable owner D1, auth and MCP', { timeout: 180000 }, async () => {
   let worker: LocalDev | undefined, bridge: ProtectedPreview | undefined, provisioning: LocalDev | undefined;
   let persistence: string | undefined;
   let capture: Awaited<ReturnType<typeof captureSingleFileSource>> | undefined;
@@ -129,6 +140,48 @@ it('consumes captured native saved scalar, primitive-array and local-derive scen
       if (index < 5) assert.deepEqual([...new Set(plan.returns.flatMap(returned => returned.dependencies.map(dep => dep.field)))],
         [descriptorFields[index]]);
       if (name === 'derived_override') assert.ok(plan.returns.every(returned => returned.dependencies.length === 0));
+      return op;
+    });
+    const machine = artifact.models?.find(item => item.name === jobModel)?.fields.find(field => field.name === 'status')?.machine;
+    assert.ok(machine); assert.equal(machine.initial, 'idle');
+    assert.deepEqual(machine.states, ['idle','queued','generating','ready']);
+    assert.ok(artifact.requires.some(requirement => requirement.capability === 'state.machines' && requirement.min_version === 1));
+    assert.deepEqual(machine.transitions,[
+      {from:'idle',to:'queued',operation:'NativeSavedScenario.advance'},
+      {from:'queued',to:'generating',operation:'NativeSavedScenario.advance'},
+      {from:'generating',to:'ready',operation:'NativeSavedScenario.finish'},
+      {from:'idle',to:'queued',operation:'NativeSavedScenario.rollback'},
+      {from:'idle',to:'ready',operation:'NativeSavedScenario.optional'},
+      {from:'idle',to:'ready',operation:'NativeSavedScenario.optional_scalar'},
+      {from:'idle',to:'ready',operation:'NativeSavedScenario.default_scalar'},
+      {from:'idle',to:'ready',operation:'NativeSavedScenario.computed_scalar'},
+      {from:'idle',to:'ready',operation:'NativeSavedScenario.default_reference'},
+      {from:'idle',to:'ready',operation:'NativeSavedScenario.stored_private_scalar'},
+      {from:'idle',to:'ready',operation:'NativeSavedScenario.stored_public_scalar'},
+    ]);
+    const transitions = ['advance','finish','rollback','optional','optional_scalar',
+      'default_scalar','computed_scalar','default_reference','stored_private_scalar','stored_public_scalar'].map(name => {
+      const op = artifact.operations?.find(item => item.name === `NativeSavedScenario.${name}`); assert.ok(op);
+      const plan = op.result?.disclosure; assert.ok(plan, 'actual native machine capture must be published');
+      assert.equal(op.result?.type, name.endsWith('_scalar') ? 'int' : 'void');
+      const callable = artifact.callables.find(item => item.id === op.name); assert.ok(callable);
+      const emitted = artifact.modules.find(item => item.path === callable.module); assert.ok(emitted);
+      assert.match(emitted.js, /await[^;]*observeScenarioReceiptDependency/);
+      for (const returned of plan.returns) for (const dependency of returned.dependencies) {
+        assert.equal(dependency.role, 'control');
+        if (dependency.model === model) {
+          assert.equal(name,'stored_public_scalar'); assert.equal(dependency.field,'optional'); assert.equal(dependency.type,'int?');
+        } else {
+          assert.equal(dependency.model,jobModel);
+          assert.equal(dependency.type, dependency.field === 'status' ? 'enum(idle,queued,generating,ready)' : 'bool');
+          assert.ok(['status','private_choice'].includes(dependency.field));
+        }
+      }
+      for (const origin of [plan.source, ...plan.returns.flatMap(returned =>
+        [returned.source, ...returned.dependencies.map(dependency => dependency.source)])]) {
+        assert.equal(origin.module, callable.module);
+        assert.ok(artifact.sources.some(source => source.path === origin.path && source.sha256 === origin.sha256));
+      }
       return op;
     });
     const preflight = await preflightLocalPreviewActivation(artifact, capture);
@@ -303,6 +356,19 @@ it('consumes captured native saved scalar, primitive-array and local-derive scen
       assert.equal(stored.app,'NativeSavedScenario'); assert.equal(stored.owner,ava.owner); assert.equal(stored.principal,ava.principal);
       return stored;
     }
+    async function readJobs(actor: Actor) {
+      if (!actor.grant) await read(actor);
+      const response = await request(actor, '/mcp', { jsonrpc:'2.0', id:2, method:'tools/call',
+        params:{ name:`${jobModel}.read`, arguments:{} } }, actor.grant);
+      assert.equal(response.status, 200);
+      const content = object(object(object(await response.json()).result).structuredContent);
+      assert.ok(Array.isArray(content.records));
+      return content.records.map(value => {
+        const record = object(value), data = object(record.data);
+        assert.deepEqual(Object.keys(data), ['status'], 'actual MCP read never discloses private_choice');
+        return { id: word(record.id), data: { status: word(data.status) } };
+      });
+    }
     const id=operationId(); await commit(ava,`${model}.create`,{quantity:'17',label:'saved values',optional:null,values:null,flags:[],names:[]},id);
     const initial=await row(id); assert.ok(initial);
     // Provision a genuine grant before purity snapshots; reads then own no writes.
@@ -384,6 +450,261 @@ it('consumes captured native saved scalar, primitive-array and local-derive scen
         saved.push({envelope,physical,expected,rowDependent:selected.dependencies.length > 0});
       }
     }
+    assert.equal(saved.length,19,'retain every qualified scalar/array/derive case');
+    const jobs = createD1Storage(cedar);
+    const machineSaved: Array<{ envelope:{operation:string;operation_id:string;inputs:ClosedInputs}; physical:ReceiptRow;
+      records:NonNullable<MutationWire['records']>; expected:unknown; jobId:string; rowDependent:boolean }> = [];
+    async function machineCall(name: string, jobId: string, supplied?:ClosedInputs, expectedDefaults:Record<string,unknown>={}) {
+      const descriptor = transitions.find(op => op.name === `NativeSavedScenario.${name}`); assert.ok(descriptor);
+      const entry = await jobs.load(jobModelName,asRecordId(jobId)); assert.ok(entry);
+      const before = await resources(), history = await jobs.historyFor(jobModelName,asRecordId(jobId));
+      const fence = await cedar.prepare('SELECT * FROM fence').first<{id:number;revision:number}>(); assert.ok(fence);
+      const envelope = { operation:descriptor.name, operation_id:operationId(), inputs:supplied ?? {job:{id:jobId,version:String(entry.version)}} };
+      const itemRef = envelope.inputs.item === undefined ? null : object(envelope.inputs.item);
+      const itemEntry = itemRef ? await jobs.load(model as ModelName,asRecordId(word(itemRef.id))) : null;
+      if (itemRef) { assert.ok(itemEntry); assert.equal(String(itemEntry.version),itemRef.version); }
+      const fresh = await commit(ava,envelope.operation,envelope.inputs,envelope.operation_id);
+      const physical = await receipt(envelope.operation_id), outcome = object(JSON.parse(physical.outcome));
+      const association = object(outcome.scenario), plan = descriptor.result!.disclosure!;
+      assert.equal(physical.operation,envelope.operation); assert.equal(physical.input_hash,await hashInputs(envelope.inputs));
+      assert.deepEqual(JSON.parse(physical.resolved_defaults),expectedDefaults);
+      assert.equal(outcome.status,'committed'); assert.equal(association.kind,'scenario-result/v1');
+      assert.equal(association.resultType,descriptor.result!.type); assert.deepEqual(association.plan,plan);
+      const selected = plan.returns.find(returned => returned.id === association.returnId); assert.ok(selected);
+      assert.ok(Array.isArray(association.observations) && Array.isArray(association.changed));
+      const observations = association.observations.map(object), changed = association.changed.map(object);
+      assert.deepEqual(observations.map(value => value.dependencyId),selected.dependencies.map(value => value.id));
+      for (const observation of observations) {
+        if (observation.model === model) { assert.ok(itemEntry); assert.deepEqual(observation.row,itemEntry); }
+        else { assert.equal(observation.model,jobModel); assert.equal(object(observation.row).id,jobId); }
+      }
+      const final = await jobs.load(jobModelName,asRecordId(jobId)); assert.ok(final);
+      assert.equal(changed.length,final.version === entry.version ? 0 : 1);
+      if (changed.length) { assert.equal(changed[0]!.model,jobModel); assert.deepEqual(changed[0]!.row,final); }
+      const after = await resources(), ownerKey = `owner:${ava.owner}`;
+      for (const key of Object.keys(before)) if (key !== ownerKey) assert.deepEqual(after[key],before[key]);
+      const ownerBefore = before[ownerKey]!, ownerAfter = after[ownerKey]!;
+      for (const table of Object.keys(ownerBefore)) {
+        if (['receipts','fence','fence_log',...(changed.length ? ['records','history'] : [])].includes(table)) continue;
+        assert.deepEqual(ownerAfter[table],ownerBefore[table],`transition leaves ${table} unchanged`);
+      }
+      assert.equal(ownerAfter.records!.count,ownerBefore.records!.count);
+      assert.equal(ownerAfter.history!.count,ownerBefore.history!.count+changed.length);
+      assert.equal(ownerAfter.receipts!.count,ownerBefore.receipts!.count+1);
+      assert.equal(ownerAfter.fence_log!.count,ownerBefore.fence_log!.count+1);
+      assert.equal(physical.committed_revision,fence.revision+1);
+      assert.deepEqual(await cedar.prepare('SELECT * FROM fence').first(),{...fence,revision:physical.committed_revision});
+      assert.deepEqual(await cedar.prepare('SELECT * FROM fence_log WHERE revision=?').bind(physical.committed_revision).first(),
+        {revision:physical.committed_revision,operation:physical.operation,at:physical.created_at});
+      const oldReceipts = (await cedar.prepare('SELECT * FROM receipts').all()).results.filter(value => value.operation_id !== envelope.operation_id);
+      assert.equal(digest(oldReceipts.map(value => JSON.stringify(value)).sort()),ownerBefore.receipts!.digest);
+      const oldFenceLog = (await cedar.prepare('SELECT * FROM fence_log').all()).results.filter(value => value.revision !== physical.committed_revision);
+      assert.equal(digest(oldFenceLog.map(value => JSON.stringify(value)).sort()),ownerBefore.fence_log!.digest);
+      const finalHistory = await jobs.historyFor(jobModelName,asRecordId(jobId));
+      assert.deepEqual(finalHistory.slice(0,history.length),history);
+      assert.equal(finalHistory.length,history.length+changed.length);
+      if (changed.length) {
+        const net = finalHistory.at(-1)!;
+        assert.equal(net.operation,envelope.operation); assert.equal(net.operationId,envelope.operation_id);
+        assert.equal(net.actor,ava.principal); assert.equal(net.version,entry.version+1);
+        assert.deepEqual(net.before,entry.data); assert.deepEqual(net.after,final.data);
+      }
+      assert.equal(JSON.stringify(fresh.body).includes('scenario-result/v1'),false);
+      machineSaved.push({envelope,physical,records:fresh.body.records!,expected:fresh.body.result,jobId,rowDependent:selected.dependencies.length>0});
+      return {entry,final,fresh,physical,outcome,association,selected,observations,changed};
+    }
+    // Two real stages expose the issued intermediate snapshot and one final
+    // owner write/version/history entry through this same portable execution.
+    const advancedId = operationId(); await commit(ava,`${jobModel}.create`,{private_choice:false},advancedId);
+    const advanced = await machineCall('advance',advancedId);
+    assert.equal(advanced.entry.data.status,'idle'); assert.equal(advanced.final.data.status,'generating');
+    assert.equal(advanced.final.version,2); assert.equal(advanced.changed.length,1);
+    assert.equal(advanced.selected.dependencies.length,2);
+    assert.equal(new Set(advanced.selected.dependencies.map(value => value.id)).size,2);
+    assert.ok(advanced.selected.dependencies.every(value => value.field === 'status' && value.role === 'control'));
+    assert.deepEqual(advanced.observations.map(value => object(object(value.row).data).status),['idle','queued']);
+    assert.deepEqual(advanced.observations.map(value => object(value.row).version),[1,2]);
+    assert.deepEqual(advanced.observations[0]!.row,advanced.entry);
+    assert.equal(advanced.fresh.body.result,null);
+    assert.deepEqual(advanced.fresh.body.records,[{id:advancedId,data:{status:'generating'}}]);
+    assert.equal((await readJobs(ben)).find(value => value.id === advancedId)?.data.status,'generating');
+    assert.deepEqual(await readJobs(cal),[]);
+    // A fresh stale reference refuses; the original receipt still recovers.
+    const staleBefore = await resources();
+    const stale = await mutation(ava,'NativeSavedScenario.finish',{job:{id:advancedId,version:'1'}});
+    assert.equal(stale.body.code,'conflict'); assert.ok(stale.response.status>=400);
+    assert.deepEqual(await resources(),staleBefore);
+    await machineCall('finish',advancedId);
+    assert.equal((await jobs.load(jobModelName,asRecordId(advancedId)))?.data.status,'ready');
+    assert.equal((await readJobs(ben)).find(value => value.id === advancedId)?.data.status,'ready');
+    // The failed second transition discards the first stage. Only the actual
+    // canonical rejected receipt/fence is allowed to change.
+    const rollbackId = operationId(); await commit(ava,`${jobModel}.create`,{private_choice:false},rollbackId);
+    const rollbackBefore = await resources(), rollbackRow = await jobs.load(jobModelName,asRecordId(rollbackId));
+    const rollbackHistory = await jobs.historyFor(jobModelName,asRecordId(rollbackId)), rollbackOperation = operationId();
+    const rollbackFence = await cedar.prepare('SELECT * FROM fence').first<{id:number;revision:number}>(); assert.ok(rollbackFence);
+    const rollbackInputs = {job:{id:rollbackId,version:'1'}};
+    const rolledBack = await mutation(ava,'NativeSavedScenario.rollback',rollbackInputs,rollbackOperation);
+    assert.equal(rolledBack.body.code,'rule_failed'); assert.equal(rolledBack.response.status,422);
+    assert.deepEqual(await jobs.load(jobModelName,asRecordId(rollbackId)),rollbackRow);
+    assert.deepEqual(await jobs.historyFor(jobModelName,asRecordId(rollbackId)),rollbackHistory);
+    const rollbackAfter = await resources(), ownerKey = `owner:${ava.owner}`;
+    for (const key of Object.keys(rollbackBefore)) if (key !== ownerKey) assert.deepEqual(rollbackAfter[key],rollbackBefore[key]);
+    for (const table of Object.keys(rollbackBefore[ownerKey]!)) if (!['receipts','fence','fence_log'].includes(table))
+      assert.deepEqual(rollbackAfter[ownerKey]![table],rollbackBefore[ownerKey]![table]);
+    assert.equal(rollbackAfter[ownerKey]!.receipts!.count,rollbackBefore[ownerKey]!.receipts!.count+1);
+    assert.equal(rollbackAfter[ownerKey]!.fence_log!.count,rollbackBefore[ownerKey]!.fence_log!.count+1);
+    const rejected = await receipt(rollbackOperation);
+    assert.equal(rejected.operation,'NativeSavedScenario.rollback'); assert.equal(rejected.input_hash,await hashInputs(rollbackInputs));
+    assert.deepEqual(JSON.parse(rejected.resolved_defaults),{});
+    assert.equal(object(JSON.parse(rejected.outcome)).status,'rejected');
+    assert.equal(object(JSON.parse(rejected.outcome)).code,'rule_failed');
+    assert.equal(rejected.committed_revision,rollbackFence.revision+1);
+    assert.deepEqual(await cedar.prepare('SELECT * FROM fence').first(),{...rollbackFence,revision:rejected.committed_revision});
+    assert.deepEqual(await cedar.prepare('SELECT * FROM fence_log WHERE revision=?').bind(rejected.committed_revision).first(),
+      {revision:rejected.committed_revision,operation:rejected.operation,at:rejected.created_at});
+    const priorReceipts = (await cedar.prepare('SELECT * FROM receipts').all()).results.filter(value => value.operation_id !== rollbackOperation);
+    assert.equal(digest(priorReceipts.map(value => JSON.stringify(value)).sort()),rollbackBefore[ownerKey]!.receipts!.digest);
+    const priorFenceLog = (await cedar.prepare('SELECT * FROM fence_log').all()).results.filter(value => value.revision !== rejected.committed_revision);
+    assert.equal(digest(priorFenceLog.map(value => JSON.stringify(value)).sort()),rollbackBefore[ownerKey]!.fence_log!.digest);
+    // The private control is required on both write/no-write paths, for void
+    // and scalar returns. Protected receipts retain facts; public output hides
+    // the scalar and every changed record rather than revealing that choice.
+    for (const name of ['optional','optional_scalar']) for (const choice of [true,false]) {
+      const jobId = operationId(); await commit(ava,`${jobModel}.create`,{private_choice:choice},jobId);
+      const optional = await machineCall(name,jobId);
+      assert.equal(optional.final.data.status,choice?'ready':'idle'); assert.equal(optional.final.version,choice?2:1);
+      assert.equal(optional.selected.dependencies.length,choice?2:1);
+      assert.equal(optional.selected.dependencies[0]!.field,'private_choice');
+      assert.equal(object(object(optional.observations[0]!.row).data).private_choice,choice);
+      assert.deepEqual(optional.observations[0]!.row,optional.entry);
+      assert.equal(optional.changed.length,choice?1:0);
+      assert.equal(optional.outcome.result,name==='optional_scalar'?'7':null);
+      assert.equal(optional.fresh.body.result,null); assert.deepEqual(optional.fresh.body.records,[]);
+    }
+    // State owns the admitted literal/null/computed union. Generated callbacks
+    // contribute only after actual native value/reference checks; overrides
+    // do not become defaults. These use the same source, capture and stores.
+    for (const omitted of [true,false]) {
+      const jobId=operationId(); await commit(ava,`${jobModel}.create`,{private_choice:false},jobId);
+      const inputs={job:{id:jobId,version:'1'},...(omitted?{}:{selected:false,optional:null})};
+      const outcome=await machineCall('default_scalar',jobId,inputs,omitted?{selected:true,optional:null}:{});
+      assert.equal(outcome.final.data.status,omitted?'ready':'idle'); assert.equal(outcome.final.version,omitted?2:1);
+      assert.equal(outcome.fresh.body.result,'7'); assert.equal(outcome.selected.dependencies.length,omitted?1:0);
+      assert.equal(outcome.fresh.body.records!.length,omitted?1:0);
+    }
+    for (const [choice,override] of [[true,undefined],[false,undefined],[false,true]] as const) {
+      const jobId=operationId(); await commit(ava,`${jobModel}.create`,{private_choice:false},jobId);
+      const inputs={job:{id:jobId,version:'1'},choice,...(override===undefined?{}:{selected:override})};
+      const outcome=await machineCall('computed_scalar',jobId,inputs,override===undefined?{selected:choice}:{});
+      const selected=override ?? choice;
+      assert.equal(outcome.final.data.status,selected?'ready':'idle'); assert.equal(outcome.final.version,selected?2:1);
+      assert.equal(outcome.fresh.body.result,'7'); assert.equal(outcome.selected.dependencies.length,selected?1:0);
+      assert.equal(outcome.fresh.body.records!.length,selected?1:0);
+    }
+    for (const omitted of [true,false]) {
+      const jobId=operationId(); await commit(ava,`${jobModel}.create`,{private_choice:false},jobId);
+      const ref={id:jobId,version:'1'}, inputs={seed:ref,...(omitted?{}:{job:ref})};
+      const outcome=await machineCall('default_reference',jobId,inputs,omitted?{job:ref}:{});
+      assert.equal(outcome.final.data.status,'ready'); assert.equal(outcome.final.version,2);
+      assert.equal(outcome.fresh.body.result,null); assert.equal(outcome.selected.dependencies.length,1);
+      assert.deepEqual(outcome.observations[0]!.row,outcome.entry);
+      assert.deepEqual(outcome.fresh.body.records,[{id:jobId,data:{status:'ready'}}]);
+    }
+    // Grouped stored reads execute in declaration order before prior default
+    // bindings are consumed. Private influence withholds BOTH branches;
+    // explicit prior/final overrides never read that private field.
+    for (const choice of [true,false]) for (const mode of ['omitted','prior','both'] as const) {
+      const jobId=operationId(); await commit(ava,`${jobModel}.create`,{private_choice:choice},jobId);
+      const selected=mode==='omitted'?choice:!choice;
+      const inputs={job:{id:jobId,version:'1'},...(mode==='omitted'?{}:{first:selected}),...(mode==='both'?{selected}: {})};
+      const defaults=mode==='omitted'?{first:choice,selected:choice}:mode==='prior'?{selected}:{};
+      const outcome=await machineCall('stored_private_scalar',jobId,inputs,defaults);
+      assert.equal(outcome.final.data.status,selected?'ready':'idle'); assert.equal(outcome.final.version,selected?2:1);
+      const fields=[...(mode==='omitted'?['private_choice']:[]),...(selected?['status']:[])];
+      assert.deepEqual(outcome.selected.dependencies.map(value => value.field),fields);
+      assert.deepEqual(outcome.observations.map(value => value.row),fields.map(() => outcome.entry));
+      assert.equal(outcome.outcome.result,'7'); assert.equal(outcome.changed.length,selected?1:0);
+      assert.equal(outcome.fresh.body.result,mode==='omitted'?null:'7');
+      assert.deepEqual(outcome.fresh.body.records,mode!=='omitted'&&selected?[{id:jobId,data:{status:'ready'}}]:[]);
+    }
+    const publicDefaultReturns: string[]=[];
+    for (const optional of [null,'2','0']) {
+      const current=await row(id); assert.ok(current);
+      await commit(ben,`${model}.update`,{record:{id,version:String(current.version)},optional});
+      const admitted=await row(id); assert.ok(admitted);
+      const jobId=operationId(); await commit(ava,`${jobModel}.create`,{private_choice:false},jobId);
+      const selected=optional??'0', inputs={job:{id:jobId,version:'1'},item:{id,version:String(admitted.version)}};
+      const outcome=await machineCall('stored_public_scalar',jobId,inputs,{first:selected,selected});
+      const writes=selected!=='0';
+      assert.equal(outcome.final.data.status,writes?'ready':'idle'); assert.equal(outcome.final.version,writes?2:1);
+      assert.equal(outcome.fresh.body.result,'7'); assert.equal(outcome.changed.length,writes?1:0);
+      assert.deepEqual(outcome.fresh.body.records,writes?[{id:jobId,data:{status:'ready'}}]:[]);
+      assert.deepEqual(outcome.selected.dependencies.map(value => value.field),['optional',...(writes?['status']:[])]);
+      assert.equal(object(object(outcome.observations[0]!.row).data).optional,optional);
+      publicDefaultReturns.push(outcome.selected.id);
+    }
+    assert.notEqual(publicDefaultReturns[0],publicDefaultReturns[2],'coalesce RHS and skipped RHS have distinct source-carried paths');
+    for (const supplied of [{first:'3'},{first:'9',selected:'0'}]) {
+      const admitted=await row(id); assert.ok(admitted);
+      const jobId=operationId(); await commit(ava,`${jobModel}.create`,{private_choice:false},jobId);
+      const inputs={job:{id:jobId,version:'1'},item:{id,version:String(admitted.version)},...supplied};
+      const selected=supplied.selected??supplied.first;
+      const outcome=await machineCall('stored_public_scalar',jobId,inputs,supplied.selected===undefined?{selected}:{});
+      const writes=selected!=='0';
+      assert.equal(outcome.final.data.status,writes?'ready':'idle'); assert.equal(outcome.final.version,writes?2:1);
+      assert.equal(outcome.fresh.body.result,'7');
+      assert.deepEqual(outcome.selected.dependencies.map(value => value.field),writes?['status']:[],
+        'explicit header bypasses the stored read, while only omitted later defaults contribute');
+      assert.deepEqual(outcome.observations.map(value => value.row),writes?[outcome.entry]:[]);
+    }
+    assert.equal(machineSaved.length,24,'retain six transitions, seven previous defaults and eleven stored-read/default overrides');
+    const defaultWitnesses = ['default_scalar','computed_scalar','default_reference','stored_private_scalar','stored_public_scalar'].map(name => {
+      const witness=machineSaved.find(value => value.envelope.operation === `NativeSavedScenario.${name}`); assert.ok(witness);
+      return witness;
+    });
+    for (const witness of defaultWitnesses) {
+      const defaults=object(JSON.parse(witness.physical.resolved_defaults));
+      const supplied={...witness.envelope.inputs,...defaults};
+      const before=await resources();
+      const ordinary=await mutation(ava,witness.envelope.operation,supplied,witness.envelope.operation_id);
+      assert.equal(ordinary.body.code,'conflict'); assert.ok(ordinary.response.status>=400);
+      const retained=await recovery(ava,{...witness.envelope,inputs:supplied});
+      assert.equal(object(retained.error).code,'conflict','same resolved value never erases original raw omission');
+      assert.deepEqual(await resources(),before); assert.deepEqual(await receipt(witness.envelope.operation_id),witness.physical);
+    }
+    // Later physical changes invalidate the original supplied refs. Recovery
+    // must use the frozen receipt/default observations without fresh execution.
+    for (const witness of machineSaved.filter(value => value.envelope.operation.includes('.stored_'))) {
+      const current=await jobs.load(jobModelName,asRecordId(witness.jobId)); assert.ok(current);
+      await commit(ben,`${jobModel}.update`,{record:{id:witness.jobId,version:String(current.version)},private_choice:!current.data.private_choice});
+    }
+    const beforeMachineReplay = await resources();
+    for (const value of machineSaved) {
+      const ordinary = await mutation(ava,value.envelope.operation,value.envelope.inputs,value.envelope.operation_id);
+      assert.equal(ordinary.body.status,'replayed'); assert.deepEqual(ordinary.body.result,value.expected);
+      assert.deepEqual(ordinary.body.records,value.records);
+      const retained = await recovery(ava,value.envelope), replay = object(retained.result);
+      assert.equal(replay.status,'replayed'); assert.deepEqual(replay.result,value.expected);
+      // Dedicated recovery returns the full public record metadata; compare
+      // its declared visible data against the actual HTTP projection.
+      assert.ok(Array.isArray(replay.records));
+      assert.deepEqual(replay.records.map(value => {const record=object(value);return {id:record.id,data:record.data};}),value.records);
+      assert.equal(JSON.stringify({ordinary:ordinary.body,retained}).includes('scenario-result/v1'),false);
+      assert.deepEqual(await receipt(value.envelope.operation_id),value.physical);
+    }
+    assert.deepEqual(await resources(),beforeMachineReplay);
+    const machineWitness = machineSaved[0]!;
+    for (const actor of [cal,dee,null]) {
+      const before = await resources(), denied = await recovery(actor,machineWitness.envelope);
+      assert.ok(denied.error); assert.deepEqual(await resources(),before);
+      const refused = await mutation(actor,machineWitness.envelope.operation,machineWitness.envelope.inputs);
+      assert.ok(refused.response.status>=400); assert.deepEqual(await resources(),before);
+    }
+    for (const control of ['issuer-copy','source-change','js-change','map-change']) {
+      const before = await resources(), refused = await recovery(ava,machineWitness.envelope,control);
+      assert.ok(refused.error); assert.deepEqual(await resources(),before);
+    }
     const derivedWitness = saved.find(value => value.envelope.operation === 'NativeSavedScenario.nested'); assert.ok(derivedWitness);
     const authorityWitnesses = [saved[0]!,derivedWitness];
     for(const witness of authorityWitnesses) for(const actor of [cal,dee,null]) {
@@ -427,11 +748,22 @@ it('consumes captured native saved scalar, primitive-array and local-derive scen
     const live=await row(id); assert.ok(live);
     await commit(ava,`${model}.delete`,{record:{id,version:String(live.version)}});
     assert.deepEqual(await read(ben),[]);
+    for (const jobId of new Set(machineSaved.map(value => value.jobId))) {
+      const current = await jobs.load(jobModelName,asRecordId(jobId)); assert.ok(current);
+      await commit(ava,`${jobModel}.delete`,{record:{id:jobId,version:String(current.version)}});
+    }
     const beforeWithheld=await resources();
     for(const value of saved) {
       const ordinary=await mutation(ava,value.envelope.operation,value.envelope.inputs,value.envelope.operation_id);
       assert.equal(ordinary.body.status,'replayed'); assert.deepEqual(ordinary.body.result,value.rowDependent ? null : value.expected); assert.deepEqual(ordinary.body.records,[]);
       const retained=await recovery(ava,value.envelope); assert.deepEqual(object(retained.result).result,value.rowDependent ? null : value.expected);
+      assert.deepEqual(await receipt(value.envelope.operation_id),value.physical);
+    }
+    for (const value of machineSaved) {
+      const ordinary = await mutation(ava,value.envelope.operation,value.envelope.inputs,value.envelope.operation_id);
+      assert.equal(ordinary.body.status,'replayed'); assert.deepEqual(ordinary.body.result,value.rowDependent?null:value.expected); assert.deepEqual(ordinary.body.records,[]);
+      const retained = await recovery(ava,value.envelope), replay = object(retained.result);
+      assert.equal(replay.status,'replayed'); assert.deepEqual(replay.result,value.rowDependent?null:value.expected); assert.deepEqual(replay.records,[]);
       assert.deepEqual(await receipt(value.envelope.operation_id),value.physical);
     }
     assert.deepEqual(await resources(),beforeWithheld);
@@ -440,7 +772,7 @@ it('consumes captured native saved scalar, primitive-array and local-derive scen
     await identityStore.removeMembership(membership.membership_id);
     const beforeRevoked=await resources();
     const pureOverride = saved.find(value => value.envelope.operation === 'NativeSavedScenario.derived_override'); assert.ok(pureOverride);
-    for (const witness of [...authorityWitnesses, pureOverride]) {
+    for (const witness of [...authorityWitnesses, pureOverride, machineWitness, ...defaultWitnesses]) {
       const revoked=await recovery(ava,witness.envelope); assert.equal(object(revoked.error).code,'forbidden');
     }
     assert.deepEqual(await resources(),beforeRevoked);

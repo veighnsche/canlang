@@ -538,10 +538,7 @@
       "root_read_released": true,
       "commit_pending": false,
       "commit": "89d885a9",
-      "remaining_prerequisite": {
-        "prerequisite": "Checked CRUD first/replay disclosure and compiled expired signed-form consumer are qualified at recorded scopes. Remaining scenario producing-origin/dependency provenance/current disclosure and logical lifetime/physical owner correspondence require defining releases. Multi-member current authority additionally requires the Identity-owned coherent bounded snapshot prerequisite recorded in REPLAY-IP07; repeated equal singular observations do not close it.",
-        "owner": "Capability scenario provenance/current disclosure; Identity coherent membership snapshot contract; Cloudflare/Interfaces supported consumers"
-      }
+      "remaining_prerequisite": "Finite State operation-id/original admitted-reference-version producer8de8 manually accepted into local main4396bff4; required primitive prompt/accept source producer now implemented/tested in current_goal_turn_actions.replay_result_contract_dependency.admitted_input_join, pending coordinator review/release. Compiler complete source/lowering and Dev genuine native binding/session/final-effects adoption are next original Task44 prerequisites. Existing general model/nominal/File/Delivery/query/absence/current authority/physical lifetime and Identity coherent membership snapshot scopes plus native preparation HOLD remain."
     },
     "TECH-S03": {
       "planning_status": "blocked",
@@ -3330,9 +3327,125 @@
       "status": "Existing prepared CRUD/replay contract consultation requires specific human approval; no retransmission attempted",
       "requests": "/private/tmp/canlang-repair-go-20261007/crud-public-contract/request-{1,2,3}.json",
       "scope": "~20.8KB factual architecture/security alternatives; new result provenance, old/missing carrier posture and current disclosure authorization. Prior metadata choice does not authorize guessed object projection or blanket null.",
-      "source_check": "Existing durable receipt recordVersions contains only insert/update writes, not result dependency provenance; singular scenario model results retain real admitted view binding only before receipt. No supported current-source release resolves the legacy origin policy.",
+      "source_check": "Released current State saved scalar-field and bounded admitted intrinsic producers exist at their recorded narrow scopes. Existing prepared broader legacy CRUD/public model/nominal/File/Delivery provenance/disclosure consultation remains specifically held; do not reuse a narrower payload approval or invent legacy provenance.",
       "permission_question": "Re-presented existing pending specific-payload approval asynchronously; unrelated work continues.",
-      "counts_unchanged": true
+      "counts_unchanged": true,
+      "intrinsic_dependency_decision": {
+        "stage": "Finite operation-id/original admitted-reference-version producer manually reviewed/accepted by coordinator as8de8a10678bfc7fc87785409aa2bc5280da44d11 into LOCAL main4396bff4aceed7292f0c91243caf7cb047117f6b; existing scoped6/41/2results reused. Compiler/Dev workflow adoption remains.",
+        "destination": "https://api.typesafe.ai/v1/systemone",
+        "model": "jev-latest",
+        "payload_scope": "Repository-derived source facts and balanced alternatives below. No source code, credentials or private app data. Configured TYPESAFE_API_KEY only as Authorization.",
+        "state": {
+          "verified_current_facts": [
+            "A checked scenario creates a generation request from admitted operation identity and the original singular model reference version, sends it, then stages correlation fields. Its implicit void receipt still needs the complete saved dependency closure; Compiler owns source/lowering and host owns actual native binding capture.",
+            "State currently binds saved dependencies only to declared scalar business fields. The native host separately freezes operation identity from admitted invocation context and exposes original record version as bigint while business getters follow provisional rows. The corresponding int wire is a decimal string.",
+            "State invocation already privately opens one actual execution/store lifetime and checks unchanged definition, context, checkpoint, raw input hash, inputs and loaded original reference slots. Copy/foreign/outside-lifetime calls cannot open it.",
+            "Saved recovery verifies exact retained receipt scope and current operation authority. Row projection separately verifies current readable, nonarchived row, immutable creation and parent lifetime, current version at least original, revision stability and at most one distinct membership authority subject.",
+            "Existing plans are exact source path/digest/module/callable-bound. Legacy declared-field plans and behavior must remain supported. No requirement asks for timestamps, actor metadata, parent metadata, arrays, nullable/default references or versionless inputs in this finite prerequisite."
+          ],
+          "required_outcomes": [
+            "Genuine admitted identity and original reference version correspondence, never a fabricated business field or provisional/current version substitution",
+            "Typed finite checked source closure, actual native binding observation and unchanged admission/execution lifetime",
+            "Exact retained recovery with current operation authority and record readability/lifetime, no reexecution or effects",
+            "Preserve current declared-field security behavior/refusals and smallest sufficient owner contract"
+          ]
+        },
+        "question_type": "choice",
+        "question_name": "saved_intrinsic_boundary",
+        "criteria": {
+          "bounded_intrinsics": "Add explicit operation-id and admitted-reference-version dependency/observation variants only. Bind version to exact required singular versioned reference parameter/model, observe actual original admitted slot and matching int wire during active execution. Operation identity matches admitted context. Recovery checks receipt identity/current operation authority, and reference version uses original saved row under current readability/lifetime. Keep declared-field plans unchanged. Other metadata needs a later owning join.",
+          "general_metadata": "Add a general invocation/record metadata dependency profile covering identity, version, timestamps, actor identities and parent metadata. Define exact type/capture and current disclosure/lifetime for every supported member, while version still binds to original admitted reference and operation identity to context. Preserves finite checked source/lifetime and current-authority rules but introduces broader rules/API beyond the two present requirements."
+        },
+        "equivalent_instructions": [
+          "Which owning dependency boundary should serve the two verified intrinsic reads now while preserving complete capture, original reference correspondence and recovery security?",
+          "Choose between two explicit intrinsic variants and a general metadata profile for the same stated workflow. Weigh equivalent correctness/security outcomes, defining ownership and only necessary implementation scope.",
+          "For this source-bound saved scenario prerequisite, which contract is sufficient and simpler without inventing business fields or replacing the originally admitted nonce/version during recovery?"
+        ],
+        "approval_status": "Human explicitly approved these three exact recorded requests to this destination in the current chat after automatic-review rejection; no prior Services approval reused.",
+        "calls": [
+          {
+            "variant": 1,
+            "http_status": 200,
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "saved_intrinsic_boundary": {
+                  "type": "choice",
+                  "choice": "bounded_intrinsics",
+                  "confidence": 1.0,
+                  "probabilities": {
+                    "bounded_intrinsics": 1.0,
+                    "general_metadata": 0.0
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 846,
+                "output_tokens": 42
+              }
+            }
+          },
+          {
+            "variant": 2,
+            "http_status": 200,
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "saved_intrinsic_boundary": {
+                  "type": "choice",
+                  "choice": "bounded_intrinsics",
+                  "confidence": 1.0,
+                  "probabilities": {
+                    "bounded_intrinsics": 1.0,
+                    "general_metadata": 0.0
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 854,
+                "output_tokens": 42
+              }
+            }
+          },
+          {
+            "variant": 3,
+            "http_status": 200,
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "saved_intrinsic_boundary": {
+                  "type": "choice",
+                  "choice": "bounded_intrinsics",
+                  "confidence": 1.0,
+                  "probabilities": {
+                    "bounded_intrinsics": 1.0,
+                    "general_metadata": 0.0
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 852,
+                "output_tokens": 42
+              }
+            }
+          }
+        ],
+        "prior_automatic_review_rejection": "Rejected before execution: repository-derived internal State facts to external Typesafe require this specific payload/destination approval; earlier approval covered only different Services payload. No request transmitted or workaround attempted before human approval.",
+        "choice": "Bounded intrinsic variants; JEV3 unanimously advised1.0 probability/confidence. No rationale returned; source/owning checks are correctness evidence, advice does not establish acceptance.",
+        "implementation": "Optional returns[].intrinsics leaves unchanged field-only plans/association shapes intact. Exact source/id/role/type; operation-id/text admitted context; admitted-reference-version/int required singular nonnullable versioned parameter/model and exact original admitted reference slot, never provisional version. New observeScenarioReceiptIntrinsic exported by root/invocation; accepts actual evaluated wire and State derives admitted value, retains only selected closure. Complete lifetime/store/context/input/ref/hash, pending/poison/return, physical original row/revision and combined finite budgets preserved.",
+        "recovery": "Saved operation identity matches exact retained receipt scope/current operation authority. Reference version additionally requires current input inventory, readable nonarchived row, unchanged creation/creator/parent lifetime and current>=original version. Original remains saved; existing zero/single membership/revision guards, field secrecy and composite/query/absence refusals remain.",
+        "validation": "Node24 owning graph6/6 and final State emission0. Existing Memory receipt/owner/default suites initial38/41 pass; three new refusal fixtures corrected to actual rejected receipt +one fence revision and canonical physical parent:null, then focused3/3 pass70ms; unchanged38 reused, cumulative41qualified. Seven added intrinsic cases include source/type/profile/shape/forgery/closed/tamper/default isolation/current permission/lifetime/16m execute0 recovery. Existing real D1/SQLiteDO owner case extended2/2 pass1.45s: genuine provisional stage differs from original captured version, exact intrinsic receipt serialization/reopen,16m execute0/commit0 and currentv+2 saved projection. Handbuilt checked State metadata is not Compiler/native-source acceptance.",
+        "remaining_prerequisite": "Coordinator review/release; Compiler complete original Task44 source/lowering/Send/Set/composite influence capture; Dev genuine frozen operation/private native original-ref binding/session/final-effects observer adoption. Explicit required primitive prompt/accept join identified by Dev/coordinator is next coherent State unit. No native-preparation/push/release hold lifted or broader workflow/parent48 acceptance."
+      },
+      "admitted_input_join": {
+        "stage": "Required primitive input producer implemented and affected local checks passed; coordinator manual review/release and Compiler/Dev adoption pending.",
+        "assignment": "Coordinator explicitly identifies unchanged Task44 required prompt:text and accept:bool attribution as necessary State-owned prerequisite, alongside operation-id/original admitted version. Compiler owns exact complete source/lowering; Dev actual private binding/session/final effects.",
+        "contract": "Same optional returns[].intrinsics adds kind:admitted-input with exact id/source/role/parameter/type; no model or fake field. Bind only declared required singular primitive and exact checked valueType/kind, no nullable/arrays/default/computed/nominal/enum/File/ref/Delivery or unknown legacy string. Artifact loader derives unambiguous builtin types; canonical producer must supply checked association. API observeScenarioReceiptIntrinsic(call,store,{dependencyId,kind:admitted-input,wire:actualencodedbinding}); State chooses source parameter, requires exact own supplied slot, owning Values decode/encode canonical wire, report equality and unchanged private admitted call/store/input/ref/hash/scope before/after await. Saves selected wire; implicitvoid cannot omit it.",
+        "recovery": "Exact retained receipt/raw input hash and caller app/owner/principal/current operation authority. Current required primitive parameter/type inventory must match; source-controlled defaults never enter. No business-row grant from caller data; existing field/reference/current changed-row secrecy/lifetime and zero/single membership/revision guards preserved. Native actual binding attestation remains Dev responsibility; State cannot infer evaluation from equal values.",
+        "validation": "Node24 new producer graph6/6 and final State emission0;5new Memory cases5/5pass182ms. Exact text/boolean wires including empty/false,16m execute0 replay, changed prompt/accept raw-hash conflicts, current text-to-date withholding, no row grant, omitted implicitvoid/profile/source/unknown legacy/nullable/array/default/computed/nominal/enum/File/copy/spoof refusal, malformed actual echo codec refusal, caught tamper poison/rejection fence pass. Existing2real D1/SQLiteDO owner cases extended with whitespace/newline prompt and false wire:2/2pass1.56s after actualstage, exact serialization/reopen/16m recovery/currentv+2. Public root/invocation exports are the identical actual function. Unchanged41earlier cases reused; defining checked handbuilt State metadata only, not native source acceptance.",
+        "decision_scope": "Routine required primitive extension of accepted bounded ownership pattern after coordinator exact assignment; prior JEV3 payload/results advise only its recorded two-intrinsic choice, not a new external consultation or broader input policy. No additional transmission or approval reuse.",
+        "remaining_prerequisite": "Coordinator exact source review/release; Compiler complete original Task44 Send/Set/composite/source capture and owning checked primitive type metadata; Dev genuine evaluated primitive/operation/original ref observer, same protected session/store/final-effects and first-failure latch. Task44 native workflow, general input/composite/query/absence/File/Delivery/Identity multi-subject/lifetime gates and exact native-preparation HOLD remain."
+      }
     },
     "choose_selected_overload_consumer": {
       "status": "Released actual facade consumer and finite overload trial leak correction captured",
@@ -3747,6 +3860,19 @@
       "draft_commit": "c5f48ba5d473e2973ee517a51d47bd62cfee3b3d",
       "validation": "One changed-source complete=true omitted=0 graph190\u2192182 Contract3\u21920 Success3\u21921 Expense5\u21924 Purchase8\u21927 Field14\u219213.",
       "limits": "Stock original order restored under authority design, its source design issue remains; nested UI propagation and public identities held with owners. Full task counts unchanged."
+    },
+    "presentation_viewer_read_join": {
+      "state": "Finite Interfaces producer implemented and tested locally; coordinator manual release and Dev canonical consumer pending",
+      "trigger": "Actual complete Compiler construct-help-first-profile.can installed native page GET / failed at count(Supply): source.canonical had roles only; stdlib.records needs a genuine scoped readRecords/readModel.",
+      "contract": "Additive Contracts PageRecordsQuery/PageRecordsReader and optional PageReadScope.readRecords. Interfaces forwards the exact admitted request reader onto render-only canonical.readRecords in full/partial paths, preserving roles and selected receipt observer. No renderer identity parameter, mutation/store exposure, RowView conversion, collection pagination/defaults or fake count. Keep every authored selector for owner service/refusal; owner authority cannot become a page grant.",
+      "refusals": "Missing native reader explicitly returns validation. Reader and scope-factory business denials retain forbidden/conflict/validation codes. Page admission/discovery retain their source facts without native readers; operation refusal redisplay receives only the explicit unavailable reader.",
+      "validation": "Owning Interfaces producer graph10/10 and final emission0; existing HTTP pages/presentation51/51pass4.17s and existing seven operation refusal redisplay cases7/7pass2.02s. Six new cases cover exact closure/native object identity, full/partial,130 native rows without collection fallback, resolved real user/team and no extra-argument authority, selectors/error meanings, missing reader, admission/invalid-session zero reads, roles/observer preservation and frozen canonical scope. Narrow injected-reader tests qualify Interfaces dispatch only; Dev owns real generated count/projection/storage acceptance.",
+      "remaining_prerequisite": {
+        "owner": "Dev canonical page consumer via coordinator",
+        "prerequisite": "Implement genuine native projected readRecords in createPageReadScopeCanonical/PageReadsBinding, forward through lazy worker assembly, reuse the same checked source/physical owner/current viewer and before-after authority/revision checks as collection/receipt reads. Preserve unsupported selectors and permission refusals; qualify the unchanged complete source/page on actual installed local D1/Identity/session path. No direct-store/static count or source narrowing."
+      },
+      "lifecycle_limit": "Existing page scope checks before/after individual reads. No final render-close or server request-abort port is supplied by this finite carrier; browser polling supersession evidence is not backend cancellation acceptance.",
+      "parent_limit": "T04 native page, full first profile, Task44 and original48/333 parent scope remain unfinished. State bb3429 producer is manually integrated on LOCAL main078cac74; owning5/2/6 reused, no native/full claim. Native preparation and local publication holds remain."
     }
   },
   "live_finite_packets": [],
@@ -4534,14 +4660,14 @@
   "current_worker": {
     "role": "Packages implementation",
     "workspace": "/Users/vince/Projects/canlang/.worktrees/packages",
-    "source_base": "fdd03cb74217f48cdef071fe9a5db3faf856c825",
+    "source_base": "6b1a641ad65796c651964c4d4013cfb6c67efe01",
     "authorization": "Human local continuation from ebd2ad08; sole shared CI/common gate owner; existing48packet scope and native preparation HOLD preserved.",
     "coordination": "Human-appointed coordinator01a11e6b-f4e1-7603-b47d-9d3210c9c6de; actionable exact prerequisite and shared repair handoffs through existing local chat.",
     "examined_queue": "All48existing one-per-packet dispositions examined; historical20finished/15partial/12open-or-blocked/1human-held accounting preserved. Ready shared gates and exact released State/UI/Interfaces/Compiler/Identity joins implemented and checked at their recorded scopes. Remaining28parent identities retain defining producer/contract/host prerequisites or the preparation HOLD; no original333duty closure claim.",
-    "delivery": "Released Compilerb2 alias/CSV and exact writer/common fixture units remain qualified. TECH-SV02 finite Services installed-ceiling control verdict implemented/tested after explicitly approvedJEV3; coordinator review and Roadmap compiled Work/Cloudflare creation/nonrenewal/full-await qualification remain. No new Services ABI/foreignconsumer duplication, remote/main write/deployment/cloud execution; original48parent prerequisites and precise holds retained.",
-    "last_upstream_sync": "Safe ff-only/no-recurse remote pull already up to date. Consumed coordinator-released local mainfdd03cb7 at clean committed846d6a20 boundary, retaining date/ordinary Contract CSV records and common fixtures. Defining Dev40222c25 source and57479053 cache verification remain owning releases; inherited native CRUD unit remains unfinished with recipient HOLD. No source conflict, remote publication, foreign producer duplication or worker main write.",
+    "delivery": "State admitted identity/ref/input producers integrated by coordinator at their owning scopes. Finite Interfaces native viewer reader implemented/tested locally; exact Dev readscope/assembly/full-source consumer remains pending. No additional ready Packages implementation found in existing48 allocation; named producer/contract/host prerequisites and native/local publication holds remain.",
+    "last_upstream_sync": "Clean committed8de8 boundary inspected: local branch ahead380/behind0, clean. Safe ff-only/no-recurse pull already up to date. Coordinator-reviewed6b intake retained; no remote/main write or reset/divergent import.",
     "review_process": "Actual Codex bf6517e1review5472554211: native update clone4232157232fixedad3856a9; missing Compiler modifier4232157221fixed owning8f4release consumedb3d06edf. Actual01a6review5472670410: ignored undefined patch4232259618fixed8521ccfa. Earlier alias/chained caption/InlineMessage/Chromium/zsh findings corrected at recorded scopes. Pending/older reviews never qualify the current head; CodeRabbit/CodeRebits ignored.",
-    "filetree_reconciliation": "Reuse coordinator source registry57479053: accumulated net predecessor/successor paths of current staged Packages/mainfdd03cb7 merge are registered, zero missing; newer date/CSV records use existing registered paths. Prior owners/allocations/history-only/open semantic scopes retained, complete82493427checkpoint unadvanced. No recursive bookkeeping or full acceptance.",
+    "filetree_reconciliation": "Reused coordinator registry docs/ideal-filetree-plan/state-machines-20261007.json endpointaba11b3f: all10810 accumulated staged net predecessor/successor paths since complete82493427 are registered, zero missing. Prior owner/allocations/history-only/scoped results retained; complete semantic checkpoint unadvanced. No recursive bookkeeping or full acceptance.",
     "pull_request": "https://github.com/veighnsche/canlang/pull/135",
     "ci_prerequisites": [
       {

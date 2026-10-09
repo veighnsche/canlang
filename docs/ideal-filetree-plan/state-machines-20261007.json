@@ -1,23 +1,23 @@
 {
-  "date": "2026-10-09",
-  "integrated_source_pin": "eec2a0445172636dcd4a97805aed69571c706d7a",
-  "base": "146990c9ba16c442f0f485cd56d27207862a06e8",
+  "date": "2026-10-10",
+  "integrated_source_pin": "d392097e729355ba7f978066d86f5b1d15a8c6ea",
+  "base": "0eabf76239b28c40b2c687a643d8df9c7303538b",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 1447,
-    "net_path_deltas": 10779,
-    "history_touched_paths": 11323,
+    "commit_count_since_checkpoint": 1497,
+    "net_path_deltas": 10781,
+    "history_touched_paths": 11325,
     "history_only_paths": 513,
     "released_feature_paths": 78,
     "new_target_leaves": 30,
-    "inherited_paths_without_prior_target_allocation": 9277,
-    "scope": "Capability worker intake of coordinator-reviewed LOCAL eec2a0445172636dcd4a97805aed69571c706d7a onto committed unfinished State defaults 146990c9ba16c442f0f485cd56d27207862a06e8; actual staged tree and both parent histories since complete 8249342707d3280e88e39e8c911b7e457828f31f. Prior defining owners/scopes/allocations, accepted bounded outcomes, retirement/task gates and precise holds retained. Seven new State-default consultation/test paths are registered with exact target allocation still pending. No full source/target or original workflow acceptance; checkpoint unadvanced. Genuine Dev session/Compiler transition and immutable existing Services Text ceiling are released owner prerequisites; actual input-default consumer and Text observation window remain unfinished."
+    "inherited_paths_without_prior_target_allocation": 9279,
+    "scope": "Capability worker intake of exact coordinator-reviewed LOCAL d392097e729355ba7f978066d86f5b1d15a8c6ea onto preserved unfinished Text controls 0eabf76239b28c40b2c687a643d8df9c7303538b; actual staged tree and both parent histories since complete 8249342707d3280e88e39e8c911b7e457828f31f. Existing defining owners, per-path scopes/allocations, scoped accepted outcomes and retirement/task gates preserved. Complete Compiler generate Send/Set intrinsic capture and actual Dev native facade are released prerequisites; same original native Text workflow must now be freshly compiled and executed. No full workflow or source/target acceptance, no remote publication; complete checkpoint unadvanced."
   },
   "methods": [
     "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z 8249342707d3280e88e39e8c911b7e457828f31f (actual staged worker merge tree before bookkeeping self-update)",
-    "git log --full-history -m --format= --name-only --no-renames eec2a0445172636dcd4a97805aed69571c706d7a 146990c9ba16c442f0f485cd56d27207862a06e8 ^8249342707d3280e88e39e8c911b7e457828f31f",
-    "Both rename endpoints excluded from history-only; prior owners/scopes/allocations and retirement/task gates preserved. Similarity renames are bookkeeping, not semantic successor authority."
+    "git log --full-history -m --format= --name-only --no-renames d392097e729355ba7f978066d86f5b1d15a8c6ea 0eabf76239b28c40b2c687a643d8df9c7303538b ^8249342707d3280e88e39e8c911b7e457828f31f",
+    "Both rename endpoints excluded from history-only; both parent ledgers preserve prior defining owners/scopes/allocations and retirement/task gates. Similarity renames are bookkeeping, not semantic successor authority."
   ],
   "row_schema": "[status, path, owner, scope] or [rename_status, predecessor, successor, successor_owner, scope]",
   "review_scopes": {
@@ -915,6 +915,12 @@
     [
       "A",
       "compiler/tests/fixtures/completion-contract/zsh.py",
+      "compiler",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "compiler/tests/fixtures/construct-help-first-profile.can",
       "compiler",
       "inherited-unallocated"
     ],
@@ -58976,6 +58982,12 @@
     ],
     [
       "A",
+      "packages/cloudflare/src/dev/first-profile-qualification.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "packages/cloudflare/src/dev/identity-team-discovery.test.ts",
       "packages/cloudflare",
       "inherited-unallocated"
@@ -67310,7 +67322,7 @@
     ]
   ],
   "pending_target_allocation": {
-    "count": 9277,
+    "count": 9279,
     "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
   },
   "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -67324,5 +67336,5 @@
   "lanes": "Existing four local worktrees continue their assigned plans; only committed snapshots are integrated here. Open edits and recipient-specific holds are preserved. Coordinator alone serializes local main merges/manual review; no remote publication or PR review gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Capability worker intake of coordinator-reviewed LOCAL eec2a0445172636dcd4a97805aed69571c706d7a onto committed unfinished State defaults 146990c9ba16c442f0f485cd56d27207862a06e8; actual staged tree and both parent histories since complete 8249342707d3280e88e39e8c911b7e457828f31f. Prior defining owners/scopes/allocations, accepted bounded outcomes, retirement/task gates and precise holds retained. Seven new State-default consultation/test paths are registered with exact target allocation still pending. No full source/target or original workflow acceptance; checkpoint unadvanced. Genuine Dev session/Compiler transition and immutable existing Services Text ceiling are released owner prerequisites; actual input-default consumer and Text observation window remain unfinished."
+  "current_maintenance_summary": "Capability worker intake of exact coordinator-reviewed LOCAL d392097e729355ba7f978066d86f5b1d15a8c6ea onto preserved unfinished Text controls 0eabf76239b28c40b2c687a643d8df9c7303538b; actual staged tree and both parent histories since complete 8249342707d3280e88e39e8c911b7e457828f31f. Existing defining owners, per-path scopes/allocations, scoped accepted outcomes and retirement/task gates preserved. Complete Compiler generate Send/Set intrinsic capture and actual Dev native facade are released prerequisites; same original native Text workflow must now be freshly compiled and executed. No full workflow or source/target acceptance, no remote publication; complete checkpoint unadvanced."
 }

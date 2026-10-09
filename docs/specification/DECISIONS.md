@@ -4777,21 +4777,6 @@ Intake exact coordinator-reviewed LOCAL `bde01621db214c7d70a833542660f3797f928df
 
 At joined local merge `3a848ddd`, Node24.14.0 installed Cloudflare producer build22/22 and current Values catalog5/5 pass (59entries/15features). Existing State saved-scenario14/14 cases pass, including actual empty carrier receipt/replay/projection and eight nonempty/malformed/accessor/hidden refusals with no getter execution/domain effects. The exact unchanged whole `cargo test --locked --manifest-path compiler/Cargo.toml --test native_scenario_receipts -- --nocapture` passes1/1 against genuine generated/imported Compiler and Dev producers. All selected-path, scalar/derive/array, replay, current authority and public/captured transport assertions remain. This fixture uses memory storage; prior distinct D1/SQLiteDO scope is reused, not attributed to it. Native mutation/default-owner workflow acceptance remains unfinished and source/current authority gates remain intact. Resume the separately checkpointed defining input/default contribution contract. Local commits only; no remote push/review waits or common gate repair.
 
-
-## 2026-10-09 — implement admitted input/default slots (workflow unfinished)
-
-Implementation choice: State `observeScenarioInputComputedDefault(call, exactStore, {name,wire})` receives one real generated-observer contribution, with private loader-bound ordered default/type/array/ref facts, same-load branded immutable Values schema and own parameter-style callable association. Actual Invoke now snapshots input/ref identities, own data and original raw inputHash; reports and eventual retention refuse drift without rehashing normalized inputs. Eligible default slots survive normalized admission as omissions; supplied values including explicit null and ordinary defaultless admission-filled arrays contribute none. State derives actual typed literal/null defaults, validates ordered/unique/complete computed wires with owning Values type/schema, preserves legacy enum membership and requires an earlier admitted singular nonnullable same-model ID/version for references. Dev must retain actual expression/source/native-reference proof; State wire checking does not attest arithmetic. The actual finalized owner effects are copied/frozen and their default map is a collision-refusing input/model union; Invoke retains exact full correspondence, with no arbitrary executor map exception. Legacy envelope callables do not acquire automatic parameter defaults.
-
-Three equivalent independently worded JEV choice calls compare the admitted-slot producer, a new State-called checked-expression ABI, and precise default-mutation deferral. All advise admitted slots: two probability/confidence1, third probability.98/confidence.97 and .02 deferral. Full requests/responses saved in the existing roadmap as `scenario-input-default-{request,response}-{1,2,3}.json`; no preferred-choice disagreement. Advice is not acceptance, and new expression execution could be valid if its real missing Compiler/Dev ABI were supplied.
-
-Owning dependency build6/6 and affected actual owner-session9/9 memory plus2/2 D1/SQLiteDO intermediate cases pass; default cases remain pending. Exact superseding coordinator LOCAL `d194f63b` includes real Dev State-session consumption and first engine-failure latch but holds omitted-default effects pending this export. The coordinator is running the genuine current native fixture, so no duplicate run is authorized here. Preserve the current source/test unit before its exact intake; complete default consumer/native workflow remains unfinished. Local-only/push holds and Packages common-gate ownership remain.
-
-
-## 2026-10-09 — qualify defining State input/default contribution API
-
-Installed State dependency build6/6 passes.11new defining cases qualify:10initial passes, then2focused passes after extending success with raw omitted/supplied/null conflict assertions and adding actual input/model default key collision; nine unchanged cases reused. Actual canonical model literal/server defaults keep prefixed identities alongside scalar/nullable-array/enum/nominal/earlier-ref input defaults in one frozen final carrier. Supplied/null/ordinary-filled-array exclusion, complete ordered reporting, type/schema/shape/copy/foreign/closed/caught/accessor refusal, raw-hash success/rejected execute0 replay, collision and exact executor-map correspondence pass. New own/inherited callable-style and callable-array find accessors never execute; legitimate null-prototype admitted nominal/ref objects retain unchanged provenance. Corrected fixture uses actual loader refs/server-init/schema channels and refuses secret token grant. Existing9owner memory and2D1/SQLiteDO intermediate outcomes retain their unchanged frozen-owner scope. These are checked handbuilt metadata plus actual State/Values producers, not Compiler arithmetic/native-reference or original native-default workflow acceptance.
-
-Release this exact positive API through the coordinator. Dev must require its root/invocation export, open the same genuine session for supported omitted-default scenarios, forward individual wire contributions after its real generated/native binding checks, remove precise held default-path refusals only with the actual consumer, and return actual finalized resolvedDefaults without merging a host map; preserve the first caught-engine-failure latch. Coordinator-reviewed LOCAL `eec2a044` now supplies actual generated transition/default consumer and the Services56008fac Task44 ceiling verdict. Preserve this coherent unit before intake/reconciliation; complete checkpoint and original workflow acceptance remain open, local-only/push holds unchanged.
 ## 2026-10-09 — reuse the installed Text ceiling for distinct control observation
 
 Choose the existing InstalledTextGeneration.profile.maxDurationMs as the upper bound for one distinct persisted control-observation window, anchored once at control creation. Work/Cloudflare owns its original deadline, retry nonrenewal and complete await including durable progress; the Services generation deadline/model/transcript/token accounting stays unchanged. Add no observation ABI or separately configured value when no defining requirement needs one. Expired observation means uncertainty, never provider cessation or a rewritten saved success; restart reconciliation remains unknown/no_run_resume.
@@ -4813,6 +4798,33 @@ format and finite review pass. Current whole and distinct portable mutation
 qualification remain due. Existing incoming living registry/checkpoint coverage
 is retained; no checkpoint advancement or broader reference acceptance.
 
+## 2026-10-09 — qualify native machine receipts on the existing portable D1 journey
+
+Consume exact coordinator-reviewed local maineec2a044/Compiler83f4f137 after safe fast-forward. Extend only NativeSavedScenario.can and its existing real captured/public/portable Identity+two-ownerD1 test with a separate source-owned Job machine and restricted read grant. Retain all19scalar/array/derive cases; add six real transition outcomes, ordered old/intermediate/final row assertions, immutable alias requirements, one net version/history/write, exact rollback rejected receipt/fence, and private-selector void/scalar write/no-write withholding. The physical receipt retains actual source-bound observations and changed snapshots while public output follows current access; no handbuilt plan, alternate harness or default-mutating workaround is added.
+
+The whole existing D1 journey1/1 passes47.49s with ordinary replay and dedicated16minute recovery after final changes/stale refs, actual commit/file tripwires, exact physical receipt/history/full-resource invariance, current archive/membership/owner/Public refusals and copied issuer/source/JS/map correspondence. Owned cleanup passes. Owning13-package closure26/26 and current native build, Values catalog59/15, CF emit, root noEmit and boundaries889files/1189expressions/zero violations pass. No production runtime correction was needed. Reuse unchanged direct18/18 and Compiler's own original memory/full checks at their declared scopes. This completes the distinct bounded portable transition consumer, not broader workflow or Office/G2–G3 acceptance. Capability146990c9's separate admitted default API awaits the coordinator-reviewed exact release before consumer intake; broader File/query/owner/hook and help qualification remain open. Reconcile accumulated living coverage with complete checkpoint unadvanced; local commits/manual integration and all precise holds remain.
+
+## 2026-10-09 — implement admitted input/default slots (workflow unfinished)
+
+Implementation choice: State `observeScenarioInputComputedDefault(call, exactStore, {name,wire})` receives one real generated-observer contribution, with private loader-bound ordered default/type/array/ref facts, same-load branded immutable Values schema and own parameter-style callable association. Actual Invoke now snapshots input/ref identities, own data and original raw inputHash; reports and eventual retention refuse drift without rehashing normalized inputs. Eligible default slots survive normalized admission as omissions; supplied values including explicit null and ordinary defaultless admission-filled arrays contribute none. State derives actual typed literal/null defaults, validates ordered/unique/complete computed wires with owning Values type/schema, preserves legacy enum membership and requires an earlier admitted singular nonnullable same-model ID/version for references. Dev must retain actual expression/source/native-reference proof; State wire checking does not attest arithmetic. The actual finalized owner effects are copied/frozen and their default map is a collision-refusing input/model union; Invoke retains exact full correspondence, with no arbitrary executor map exception. Legacy envelope callables do not acquire automatic parameter defaults.
+
+Three equivalent independently worded JEV choice calls compare the admitted-slot producer, a new State-called checked-expression ABI, and precise default-mutation deferral. All advise admitted slots: two probability/confidence1, third probability.98/confidence.97 and .02 deferral. Full requests/responses saved in the existing roadmap as `scenario-input-default-{request,response}-{1,2,3}.json`; no preferred-choice disagreement. Advice is not acceptance, and new expression execution could be valid if its real missing Compiler/Dev ABI were supplied.
+
+Owning dependency build6/6 and affected actual owner-session9/9 memory plus2/2 D1/SQLiteDO intermediate cases pass; default cases remain pending. Exact superseding coordinator LOCAL `d194f63b` includes real Dev State-session consumption and first engine-failure latch but holds omitted-default effects pending this export. The coordinator is running the genuine current native fixture, so no duplicate run is authorized here. Preserve the current source/test unit before its exact intake; complete default consumer/native workflow remains unfinished. Local-only/push holds and Packages common-gate ownership remain.
+
+## 2026-10-09 — qualify defining State input/default contribution API
+
+Installed State dependency build6/6 passes.11new defining cases qualify:10initial passes, then2focused passes after extending success with raw omitted/supplied/null conflict assertions and adding actual input/model default key collision; nine unchanged cases reused. Actual canonical model literal/server defaults keep prefixed identities alongside scalar/nullable-array/enum/nominal/earlier-ref input defaults in one frozen final carrier. Supplied/null/ordinary-filled-array exclusion, complete ordered reporting, type/schema/shape/copy/foreign/closed/caught/accessor refusal, raw-hash success/rejected execute0 replay, collision and exact executor-map correspondence pass. New own/inherited callable-style and callable-array find accessors never execute; legitimate null-prototype admitted nominal/ref objects retain unchanged provenance. Corrected fixture uses actual loader refs/server-init/schema channels and refuses secret token grant. Existing9owner memory and2D1/SQLiteDO intermediate outcomes retain their unchanged frozen-owner scope. These are checked handbuilt metadata plus actual State/Values producers, not Compiler arithmetic/native-reference or original native-default workflow acceptance.
+
+Release this exact positive API through the coordinator. Dev must require its root/invocation export, open the same genuine session for supported omitted-default scenarios, forward individual wire contributions after its real generated/native binding checks, remove precise held default-path refusals only with the actual consumer, and return actual finalized resolvedDefaults without merging a host map; preserve the first caught-engine-failure latch. Coordinator-reviewed LOCAL `eec2a044` now supplies actual generated transition/default consumer and the Services56008fac Task44 ceiling verdict. Preserve this coherent unit before intake/reconciliation; complete checkpoint and original workflow acceptance remain open, local-only/push holds unchanged.
+
+## 2026-10-09 — consume admitted defaults in the actual scenario owner session
+
+Consume coordinator-reviewed bbbcf43b/State146990c9 on committed Dev3dea, preserving both histories and the same genuine stage/read/finalize session. Begin that session before generated parameter/default reports, let State derive loader-bound literal/null omissions, and forward only individually validated generated computed reports after existing native value and private earlier-reference checks. Return State's exact immutable finalized input/model-default union; no host map merge or weaker correspondence follows. Missing contribution producer refuses before generated execution, copied refs remain refused even after earlier staging, and the first caught-engine latch prevents partial success. Legacy unclaimed/envelope behavior keeps its scope.
+
+Full direct installed State/Identity/public19/19 passes actual omitted read-only/mutations, report/override semantics, private copied-reference rollback, missing producer, exact history/default/receipt effects and both no-execution/commit/file recovery paths. The same genuine single-file captured/native/public/portable Identity+two-ownerD1 whole journey1/1 passes54.36s: retain19scalar/array/derive and six machine outcomes, add seven literal/null/pure computed bool-copy/earlier-ref default and override outcomes. Actual transitions retain exact native source/plan/observation/current-stage rows, one net version/history, physical defaults, raw omission-versus-supply conflicts and original saved recovery after final changes/stale refs. Complete resources/current archive/membership/owner/Public and copied issuer/source/JS/map controls, private write/no-write withholding and owned cleanup remain. Closure26/26/current CF emit/catalog59/15/root noEmit/boundaries890files/1189expressions/zero violations pass; reuse the unchanged native build and defining State/Compiler checks.
+
+This qualifies the bounded generated default-to-mutation consumer. Compiler still refuses stored-read parameter defaults (scenario_disclosure.rs, state-dependent parameter default); broadening that complete source closure stays Compiler-owned, and its original memory fixture's old omitted-default refusal expectation must consume this released behavior. File/query/hook/owner and T04/T11/Office/G2–G3 remain unfinished. Reconcile the existing accumulated registry without advancing the complete checkpoint; local commits/manual integration and all precise holds remain.
 
 ## 2026-10-09 — reconcile current local producer intake for defaults and Text controls
 
@@ -4824,3 +4836,164 @@ Preserve unfinished State-default unit `146990c9ba16c442f0f485cd56d27207862a06e8
 - **Behavior:** Initial live cancellation may request cancellation once. Recovery observes the exact original without recancelling or starting generation. Expiry leaves the original alive; saved/late genuine success remains usable. Exact Services no_run_resume is absence of evidence, so it returns uncertainty without inventing ordered progress or notices. Existing pending-stop/current authority/association/fence and both-family Work semantics are preserved. No new Services ABI or timer is introduced.
 - **Validation:** Node24 installed Cloudflare graph22/22 passes. One whole genuine compiled/nativeD1/localHTTP Text case fails10.85s at the unchanged original generate replay before controls: Saved scenario has no supported execution association (invoke.ts5058). Fresh current CLI native emission of unchanged source SHA a075716ff96aab0517e07aaaaf2b80d1021daab3a433d703d831f07c77a9e7cf still supplies no checked send/write/control execution association; analyzer scenario_disclosure.rs1529 declines that closure. No fixture/source/replay/permission assertion is weakened. Extended actual case preserves existing assertions and adds pending/claimed stops, immutable expired windows after reopen and real success racing cancellation while durable progress stalls; these remain unexecuted. Unchanged Work115/115, Services3actual controls and Images full case1/1 retain their prior producer/consumer scopes.
 - **Remaining dependency/uncertainty:** Compiler must implement complete actual send/write/control influence and native capture for this original workflow; Dev must adopt its real session/send/write consumer. Exact prerequisite evidence sent to their owners and coordinator. Complete Task44, original CanChat rules/attachments/current guards and deployed profile qualification remain open. Implementation/build evidence is not workflow acceptance. The human's LOCAL-only/no-remote-push hold remains.
+
+## 2026-10-09 — keep deterministic grammar help independent of ambiguous intent evidence
+
+A complete current source/profile-qualified single construct card is deterministic help and needs no evidence that distinguishes multiple author intents. Move that evidence gate after source/structural/material-intent/candidate/valid-card/currentness and single-card routing; preserve actual ambiguity abstention, permission/effect intent refusal and provider disclosure requirements. Never promote the compiler's forwarded false evidenceSufficient from profile/test success. Affected ranker9/9 passes with one-card false evidence, retained material-intent refusal, multi-card false-evidence abstention and zero external calls for deterministic/unsafe routing. Production trusted qualification, explicit outside-profile classification and actual live ambiguous/trial evidence remain separate unfinished joins; no T04/T11/Office/G2–G3 acceptance or external packet transmission follows.
+
+## 2026-10-09 — distinguish complete grammar cards from exact profile qualification
+
+Add independent grammarCoverage and per-card included/outside/unknown plus qualified/unqualified classifications, retaining every exact grammar card and the conservative existing candidateCoverage contract. The included first authoring set declares intent only; absence from it cannot mean outside or unsupported. Explicit composition/package/import and periodic exclusions come from real existing single-app/preview guards, require captured installed guard identities and enter the help revision. Missing guards or proofs stay unknown/unqualified; stale classification cannot supply completeness. Diagnostic help joins the authoring profile and exact trusted proof bundle, never the resource-profile name. Preserve exact/structural/none dispositions and every false source/ranking attestation.
+
+Help10/10 and ranker9/9 pass, including mixed qualified/unqualified/outside/unknown inventory, captured/missing/stale policy, fake IDs and structural refusal. The existing genuine captured native diagnostic→private local session1/1 passes with all five grammar cards retained, included user/unqualified, explicit periodic outside, cohort unknown, false distinguishing evidence, zero provider calls and unavailable preview. CF emit/root noEmit/boundaries890files/1191expressions/zero violations pass. No production per-card qualification source is invented: Compiler still owes its current real first-profile fixture half; Dev then joins genuine current runtime/examples and installed producer identities through SessionConstructQualification. Live ambiguous ranking/external trials, Task44 native send/write capture and Office/G2–G3 remain unfinished. Reuse unchanged scope results, preserve exact holds and local-only integration.
+
+## 2026-10-09 — T04 first-profile compiler evidence
+
+The finite `office-supplies-local-v1` compiler half uses one complete checked
+Office source and exact mappings to the existing 41 card IDs. Checked CST
+ownership plus emitted model, policy, operation, UI and example artifacts
+establish compiler support; they do not establish runtime/example execution or
+author-intent evidence. The selected table uses canonical columns; authored
+row children without an owning render profile explicitly refuse. The existing
+construct-help target passes6/6. Dev owns exact-current qualification/provider
+and runtime/example joins; broader T04 acceptance remains unfinished.
+
+## 2026-10-09 — retain original changed-row snapshots after later writes
+
+Keep the same generated machine consumer and assert original saved changed-row
+projection after actual finish/update, then current-archive withholding on both
+ordinary and aged public recovery. Require unchanged physical resources and
+commit/file tripwires. Affected1/1 passes; production source remains83f4f137,
+whose required whole129targets1325/0/0/0/no-skips result and strict checks are
+reused. T04 compiler-half checks may qualify only declared source fixtures;
+Dev owns complete profile classification/runtime/example proof and genuinely
+distinguishing ranking evidence. Grammar inventory completeness never changes
+into runtime-working or parser evidence=true through source-only checks.
+
+## 2026-10-09 — capture stored-read scenario parameter defaults
+
+Omitted scenario defaults carry their complete checked influencing read closure
+into subsequent parameters, selectors, writes and returned values. Supplied
+inputs remain frozen and skip default evaluation. Exact source-expression sites
+own internal omission choices; native site identity separates omission from a
+coalesce decision sharing that same expression span. Actual generated evaluation
+records choice/read observations before the existing typed default observer
+forwards each value to the genuine State owner session. Public dependency ABI is
+unchanged. The original native machine consumer passes4/4 with private withholding,
+nullable/public defaults, explicit overrides, physical default values and aged
+recovery/conflicts. Source checks8/8, lint/format pass; whole qualification is
+pending for this changed source. Broader mutations/sends and held profiles remain
+unimplemented rather than silently acquiring coverage.
+
+
+## 2026-10-10 — preserve parameter default anchors through grouping
+
+Parameter IR retains its exact checked default source node alongside the lowered
+expression. Native omission choices use this anchor so ordinary parentheses do
+not drop the execution association when expression lowering removes Group. Inner
+field and coalesce decisions keep their actual expression sites. The original
+consumer passes4/4 with nested grouping, with source8/8 and strict lint/format;
+final whole qualification remains pending.
+
+## 2026-10-10 — qualify stored-read defaults in the same portable D1 workflow
+
+Consume exact coordinator-reviewed LOCAL main763d277b and Compiler8947510c/f302e506 grouped-default anchors, preserving the same native source, portable public HTTP/MCP and actual Identity/two-owner D1 journey. Add grouped private stored reads and nullable public int/coalesce defaults, followed by a later default using the prior binding. Explicit prior/final values bypass stored observations and contribute only genuinely omitted slots. Keep complete source/choice/read order, exact finalized physical defaults, original raw omission-versus-supply conflicts and private withholding on both write/no-write outcomes. Later physical changes make admitted refs stale; ordinary and aged dedicated recovery retain original receipt results/records with exact resources and commit/file tripwires, then obey current archive/revoked/foreign-owner/nonmember/Public and issuer/source/JS/map controls.
+
+The unchanged whole harness passes1/1 in63.24s with19 original scalar/array/derive plus24 machine/default fresh outcomes, including eleven new stored-read/override cases; cleanup succeeds. Current native build and CF emit, root noEmit and boundaries890files/1191expressions/zero violations pass. No runtime or shared gate repair was needed. Reuse unchanged State/direct/package/catalog checks at their scopes; Compiler still owns final whole qualification for its changed source. General Set/Send/composite/effect capture and T04/T11/Office/G2–G3 remain unfinished. Preserve complete checkpoint and local-only/manual integration holds.
+
+
+## 2026-10-10 — checked Send and scalar Set receipt provenance
+
+The bounded native profile retains actual ordered read influence for checked
+own scalar Set and bound capability Send, using private source/target/field
+proofs matched exhaustively to emitted IR. Delivery carriers remain typed
+source-owned values rather than invented stored-field reads. Closed std request
+composites retain member-specific provenance and authored evaluation order. A
+private effect-existence counter preserves selectors on both conditional
+effect/no-effect paths, including read-free writes/sends. Metadata, nullable
+delivery inspection, dispatch guards, foreign/reference writes and unsupported
+effects still refuse this profile. Source16/16, facts15/15, actualnative2/2 and
+strict lint/format pass; the original cancel/reconcile compiler join is covered.
+Original generate execution awaits the State intrinsic/primitive-input and Dev
+consumer joins; no broader application or Task44 acceptance follows.
+## 2026-10-10 — consume the reviewed saved scenario prerequisite locally
+
+At clean Packages56008fac, merge only coordinator-reviewed local main6b1a641a without conflicts, preserving installed Text observation ceiling, checked CSV and shared writer fixtures. Reuse source registryaba11b3f: all10810 staged net predecessor/successor paths since complete82493427 are registered. Retain original owner allocations, unfinished source/consumer qualifications, exact native and local-only holds, and unadvanced complete checkpoint. No fresh runtime validation or parent acceptance is inferred from intake. State owns the finite admitted operation identity/original reference version dependency contract; Compiler owns actual source closure/lowering and Dev owns the private native observer.
+
+## 2026-10-10 — retain admitted scenario intrinsics separately from business fields
+
+Choose a finite additive `returns[].intrinsics` profile in the existing source-bound scenario plan, preserving unchanged `dependencies` and legacy association shapes. Support only `operation-id` (`text`) and `admitted-reference-version` (`int`, decimal-string wire), with exact source/id/role and a required singular nonnullable versioned reference parameter/model. Original reference metadata belongs to the admitted slot even when its business getters follow a provisional owner stage. Do not invent model fields or substitute staged/committed/current versions. Timestamps, actor/parent metadata, optional/default/versionless/nullable/array references and general metadata are separate defining joins.
+
+The new State observation producer requires the actual private invoke/store lifetime, complete checked site, unchanged admitted inputs/context/reference/hash, and the host's matching encoded value. Reference observation additionally requires the exact original admitted reference object and unchanged stored original row at the admitted revision. State derives the saved identity/version from admission; the generated host still owns actual evaluated operation/native-reference binding correspondence. Return selection and retention require every selected intrinsic, including implicit void paths; caught malformed or unfinished reports poison capture. Registry includes intrinsic origins in its existing source digest/module/callable checks.
+
+Saved operation identity projects only under the exact retained receipt caller scope and current operation authority. Saved reference version additionally needs its current eligible input inventory and the existing readable, nonarchived row with unchanged creation/creator/parent lifetime. Later legitimate versions do not replace the saved original. Existing revision and zero/single-membership authority guards, field secrecy and broader unsupported influence refusals remain. These rules grant no row access from invocation identity.
+
+JEV3 was sent only after the human explicitly approved the three exact recorded requests to `https://api.typesafe.ai/v1/systemone`; prior automatic rejection transmitted nothing and earlier Services approval was not reused. All three jev-1.13.0 choice responses prefer bounded intrinsics, probability/confidence1.0, input846/854/852 and output42 each. Raw shared facts/criteria/instructions/responses are retained once in the existing State replay contract record. No rationale was returned; unanimity is advice, not correctness evidence. State owns this producer; Compiler owns complete source closure/lowering and Dev the actual generated/native observer. Task44 native workflow and broader receipt/lifetime acceptance remain pending those owners.
+
+Owning graph6/6 and final State emission pass. Existing Memory receipt/owner/default suites38initial passes plus3focused passes after correcting the new refusal fixtures to actual rejection receipt/one fence revision and canonical physical parent:null qualify41outcomes cumulatively; unchanged38reused. Seven new intrinsic cases cover exact recovery, current authority/lifetime, copied/foreign/closed/tamper/shape/type/source/profile refusal and required implicit void capture. Two changed real D1/SQLiteDO owner-session cases pass1.45s with original metadata after real provisional writes, exact receipt serialization/reopen,16minute execute0/commit0 recovery and later currentv+2 projection. Handbuilt checked State plans qualify the producer only. Coordinator additionally confirms required primitive prompt/accept attribution is a necessary next finite join in the unchanged source; no unsupported defaults/composites or wider acceptance follows.
+
+## 2026-10-10 — attribute required primitive scenario input wires
+
+The coordinator confirms unchanged Task44's required prompt:text and accept:bool are necessary saved dependencies. Apply the accepted bounded ownership pattern through explicit `admitted-input` intrinsic sites with exact parameter/source/id/role/type. This routine extension does not reinterpret the earlier JEV payload as advice about additional input policy. Bind only required singular primitives with checked owning valueType/kind; collapsed legacy string tags do not prove text or nullability. Preserve source defaults/computed values as their separate producer, and refuse nullable/array/nominal/enum/File/ref/Delivery inputs. Artifact intake derives unambiguous builtin associations; canonical producers must include the exact checked type.
+
+State requires an own supplied admitted slot, validates/round-trips its owning Values wire, compares the actual reported encoded binding and rechecks unchanged private invoke/store/context/inputs/references/hash lifetime after awaiting the admitted revision. Keep original whitespace/empty text/false exactly; save only selected intrinsic sites. Recovery verifies exact retained receipt/caller/current operation authority and matching current input type/profile, without native execution or row authority from caller input. Existing row influence/secrecy/lifetime and revision/membership refusals remain. Dev owns actual evaluated native binding attestation; Compiler owns complete roles/source closure and matching typed metadata.
+
+New owning graph6/6 and final State emission pass. Five affected Memory cases5/5 pass182ms with exact empty/false wires,16minute execute0 recovery, changed raw-input hash conflicts, no inferred row grant, current type drift, required/profile/source/copy/spoof/unknown legacy/malformed actual wire and awaited tamper/poison refusals. Extend the same actual D1/SQLiteDO owner cases2/2 pass1.56s with original whitespace/newline prompt and false after provisional staging, persisted/reopened exact intrinsic carriers and later original-version recovery. Actual public root/invocation exports agree; unchanged41 earlier State outcomes reused. Checked handbuilt metadata qualifies the State producer, not original compiled Task44 or broader input families. Coordinator manual release and actual Compiler/Dev source/native consumer remain necessary; native-preparation and local-only holds unchanged.
+
+
+## 2026-10-10 — emit checked admitted intrinsic capture at actual evaluation sites
+
+Use the defining additive State intrinsic contract for operation identity, original
+required versioned reference metadata and explicitly supplied required builtin
+scalar inputs. Preserve declaration/parameter/call-chain/source identities; do not
+substitute model fields, current staged versions or nominally reused scalar types.
+Evaluate each original expression once before the private awaited Dev facade.
+Successful primitive requirements influence effects before or after writes while
+existing independent-return/stored-guard authorization policy remains unchanged.
+Native input descriptors name the exact checked primitive type; generic ABI is
+unchanged. The checker publishes actual shorthand lexical types at their key
+nodes and IR retains those anchors rather than inventing Unknown assignments.
+
+Source23/23, facts15/15, actual intrinsic CLI1/1 and unchanged original generation
+CLI1/1, strict lint/format pass. The four original generation facts are now
+complete in compiler output. Native adapter/original workflow and whole changed-
+source acceptance remain unfinished; broader refs and precise holds stay open.
+
+
+## 2026-10-10 — retain all admitted intrinsic requirements on successful effects
+
+Correct the finite guard closure identified in manual review: every supported
+intrinsic kind controls successful effects, whether the requirement precedes or
+follows the effect. Preserve the established independent-return/stored-guard
+policy. Six direct source paths1/1 and actual output1/1 with four effect guards
+pass; strict lint/format pass. The existing native fixture extension remains
+prepared and unexecuted until the exact released Dev observer is consumed.
+## 2026-10-10 — connect real profile execution to private help qualification (unfinished)
+
+Use the existing frozen SessionConstructQualification carrier through an awaitable daemon-owned provider, never socket-supplied flags. Capture the existing Compiler first-profile fixture/test and current installed compiler/help/runtime/resource inputs. Execute the exact fixture through ordinary local D1/Identity/HTTP/MCP and owning authored-row APIs before adding any corresponding card. Preserve missing UI/user/scenario/example halves as unqualified. Empty diagnostic branch inventory can supply help proofs only; parser intent flags and live ranking remain unchanged. Full producer currency is independent of app edits, checked before/after each join; refresh actual source before ranking. Abort private work on request/session cancellation, wait for its owned cleanup and discard late outcomes. Bound completed tuple caching includes honest unknown refusals; cancellation/source races cache nothing.
+
+The required actual native profile/socket case fails at its source-declared page probe with500, TypeError scope.readModel is not a function: Interfaces presentation canonical context has roles but no viewer read port for generated stat count(Supply). Keep the exact failing positive test and no accepted card claims. Packages owns the defining presentation read/query producer; Dev must consume genuine canonical PageReadsBinding/current authority/source snapshot rather than direct store, fake count or a narrowed fixture. The proposed23-card business/example assertions remain unexecuted. Actual native diagnostic1/1, affected source/private-control28/28, CF emit/root noEmit and zero-violation boundaries pass; one existing superseded watcher case uses its already existing settled-current check. Remaining Set/rename example and unused person fixture need owning complete capture/actual caller recipe; UI and whole profile gates stay open. This source/test checkpoint is unfinished, not T04/T11/Office/G2–G3 or complete file-tree acceptance; local/manual integration holds remain.
+
+## 2026-10-10 — recheck source after diagnostic help qualification
+
+Awaited producer qualification cannot make a retained diagnostic current after the app changes. Refresh the real source before diagnostic.detail projection, keep the original diagnostic/source binding and admit working proofs only while the exact checked revision remains current and the request is live. A controlled edit during qualification with watcher hints suppressed passes alongside the existing private socket controls16/16; CF emission passes. Producer currency remains independent of app bytes. The initial default temporary-root run refused overlong macOS socket paths before executing cases; the short local root permits the actual checks. This correction grants no T04 card, compiled profile or whole-plan acceptance.
+
+## 2026-10-10 — bind page source records to the admitted viewer scope
+
+The unchanged complete first-profile page fails at `count(Supply)` because presentation canonical facts expose roles but no source-expression reader. Reuse the existing canonical native-record callable shape through additive `PageRecordsQuery`/`PageRecordsReader` and optional `PageReadScope.readRecords`. Interfaces forwards that exact request-scoped closure into full and partial rendering, preserving builtin roles and receipt observation. Collection `RowView` queries retain their own bounds/cursors; they cannot substitute for the source expression's full viewer domain. Keep opaque authored selectors for the canonical owner to serve or refuse, including owner-authority requests that cannot grant page access. Expose no mutation or storage scope and accept no renderer identity parameter.
+
+Admission and discovery still receive source facts without readers. Missing rendering bindings explicitly refuse with validation; native reads and scope creation retain safe forbidden/conflict/validation meanings. Operation refusal redisplay receives no authorized native reader. Dev owns the genuine projected native reader from `createPageReadScopeCanonical`/`PageReadsBinding`, its lazy worker-assembly forwarding, and unchanged full-source installed D1/Identity/session qualification. Bind collection/native/receipt reads to the same checked source, physical owner and current viewer/revision checks. Existing individual-read checkpoints do not establish a final render-close check or server request cancellation; browser supersession retains its separate scope.
+
+Owning Interfaces graph10/10 and final emission pass; existing page/presentation suites51/51 pass4.17s and existing operation refusal redisplay cases7/7 pass2.02s. Six new injected-reader cases qualify exact closure/native object and selector forwarding, full/partial dispatch,130 native rows without collection fallback, real resolved user/team facts, safe/missing-reader refusals, zero reads after admission/session denial, preserved roles/observer and frozen canonical facts. These are Interfaces producer checks, not actual generated count, State projection or durable/native workflow acceptance. State primitive bb3429 is separately reviewed/integrated on LOCAL main078cac74; reuse owning5/2/6. No additional ready implementation exists in the current48 allocation; named defining owner prerequisites, complete filetree checkpoint and native/local publication holds remain.
+
+## 2026-10-10 — bind actual admitted intrinsic values privately (unfinished)
+
+Implement the agreed generated observer facade over the exact State invoke/store frame. Values encodes the actual once-evaluated native expression; original reference-version observations additionally recover the exact original admitted slot by checked parameter and genuine native view. Keep these slots separate from staged row resolvers, including two parameter names sharing the same cached view. State validates owning plan, type, parameter, original inputs/context/reference/hash, revision and retention; Compiler must emit complete source-bound closure rather than synthesize model fields. Any caught or pending/closed observation failure remains terminal and discards earlier owner stages.
+
+Declaration-labelled installed canonical/frame consumers pass24/24 with exact original identity, seven intrinsic sites, required text/false values, two shared-view references before/after real stages, finalized net write/history, ordinary/aged recovery after later physical updates and exact rejected bookkeeping on caught altered input. CF emission/root noEmit and sequential complete-output boundaries pass. Native public D1 regression is pending at this checkpoint; compiled Task44 awaits owning Compiler closure and broader effects are unqualified. The transient boundary failure while emission removed dist is an execution-order issue; no shared gate repair is made.
+
+### 2026-10-10 — LOCAL original Text native prerequisite intake (unfinished)
+
+- **Choice/rationale:** Take only coordinator-reviewed `d392097e729355ba7f978066d86f5b1d15a8c6ea` onto own `0eabf76239b28c40b2c687a643d8df9c7303538b`, preserving original source, approval work, recorded producer dependencies and unfinished Text controls. Compiler complete intrinsic Send/Set/operation-id/data/control capture and actual Dev facade are defining released prerequisites; use fresh current bin/catalog output of the same original .can and execute the entire native case. No narrow replacement or synthesized plan.
+- **Coverage:** Reconcile actual staged tree and both parent histories since complete `8249342707d3280e88e39e8c911b7e457828f31f`: 1497 commits, 10781 net deltas, 11325 historical paths, 513 history-only, 9279 pending target allocations. Preserve both ledgers' owners/scopes/allocations and retirement/task gates; checkpoint unadvanced. Bookkeeping does not confer source/workflow acceptance or authorize other implementation.
+- **Remaining qualification:** Same original native D1/localHTTP workflow, current permissions/replay/cancel/progress/history/reopen assertions remain required. Released owner test results stay at their original scopes. LOCAL/no-push and all recipient-specific human holds remain.
