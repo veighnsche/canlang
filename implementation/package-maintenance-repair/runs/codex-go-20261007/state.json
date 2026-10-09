@@ -4399,6 +4399,12 @@
       "completion_engines": "CAN_COMPLETION_REQUIRE_ENGINES explicitly passes strict Turbo environment to existing native compiler test entry; automatic CI direct Cargo already retained it.",
       "remaining": "Current-head Linux/Codex review and foreign producer fixes remain required."
     },
-    "stdlib_gate": "CurrentCI ebd2ad08 failed explicit141export surface because existing owning choose was omitted from140inventory. Add only choose; preserve exact equality and producer binding identity. Owning emit/assembly4/4 pass; existing Values choose behavior controls reused."
+    "stdlib_gate": "CurrentCI ebd2ad08 failed explicit141export surface because existing owning choose was omitted from140inventory. Add only choose; preserve exact equality and producer binding identity. Owning emit/assembly4/4 pass; existing Values choose behavior controls reused.",
+    "canonical_delete_form": {
+      "state": "implemented and affected checks passed",
+      "source": "Existing compiler Delete descriptor accepts record only; archive/remove behavior belongs to declared operation.",
+      "correction": "DeleteProps.mode remains presentation caption/tone; hidden fields are exactly operation, unchanged caller operation_id, CSRF, timezone and record{id,version}. Remove undeclared inputs[mode].",
+      "validation": "UI TypeScript emit and94existing forms cases pass onNode24/Bun1.4.2, no skips; parsed exact payload assertions and escaping preserved. Dev owns generated requestUUIDv7 producer/e2e qualification."
+    }
   }
 }
