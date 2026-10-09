@@ -3680,3 +3680,7 @@ Consume exactly Packages1704023b478d00f0452ee68f8bb36706beb290fc's UI forms sour
 ## 2026-10-09 — qualify unchanged compiler source and corrected delete consumer
 
 The22903771 compiler source passes1,281Rust tests under actual Node24/catalog/draft inputs and required completion engines, strict all-target Clippy/format and real editor type/LSP checks. The sandbox mode4750 body skip is separately qualified by its exact existing test outside the sandbox. Consume the released UI1704023b form projection; rebuilt owning output and generated nonce/all-business-input canonical commit/replay1/1 pass, preserving explicit extra-mode refusal. Reuse unchanged compiler results rather than repeat the whole suite. Codex229's portable page-query-serving browser finding is a verified Packages/Cloudflare consumer prerequisite; later heads still require current review/CI. Original58/67 completion and recipient-specific holds remain unchanged.
+
+## 2026-10-09 — consume released portable browser fixture unit
+
+Consume Dev3c45c18c1f20830b6693f0e9a469a4aa502dbe74's finite page-query-serving Chromium unit: both managed launches use the installed browser, and native CDP polling spawns Playwright's executable headlessly. Preserve this branch's existing native assertions and type fixes; do not import absent foreign session fixtures or obsolete workflows. Source intake is implemented; consuming-head browser qualification is still due.
