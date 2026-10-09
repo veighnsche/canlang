@@ -59,6 +59,15 @@ existing runner-owned dynamic typing. The five affected sequence checks pass;
 independent finite review accepts that scope. UUIDv7/freshness, replay execution
 and unknown dynamic values remain with the actual canonical runner/invoker.
 
+
+**Local prerequisite — generic descriptor self-unification, 2026-10-09.**
+The retained reflexive InlineMessage equality also supplies generic `choose`'s
+same-T binding. The permanent actual CLI/native array target passes **3/3**
+with both booleans, eager once-only argument order, first-failure identity and
+mixed text/named-schema refusals. No extra production type patch is needed.
+Formatting a computed anonymous descriptor still needs checked schema provenance;
+this witness claims only generic choice/array consumption, not that wider sink.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed

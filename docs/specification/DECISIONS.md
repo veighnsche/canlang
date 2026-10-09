@@ -3645,3 +3645,8 @@ Retain the saved sink-specific ownerless-enum refusal while admitting supported 
 ## 2026-10-09 — admit sequence replay identities through the owning runner
 
 Treat top-level example request.operation_id as text, matching the actual examples runner. Admit malformed/stale text so error(validation) nonce cases reach the canonical invoker; reject nontext literals, unknown keys and nested identity overrides. Dynamic unanchored sequence expressions retain existing runner typing. The five affected sequence checks pass and independent finite review accepts this boundary; UUIDv7/freshness and execution remain runtime-owned.
+
+
+## 2026-10-09 — qualify generic inline-descriptor self-unification
+
+Reuse the saved InlineMessage equality for generic choose instead of duplicating a type special case. Extend the actual native array target with both booleans, eager argument order, first-failure identity and text/named-schema refusals; it passes3/3. Computed anonymous-descriptor formatting remains a separate checked-schema provenance prerequisite, with no API or broader-reference expansion.

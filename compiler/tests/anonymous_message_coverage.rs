@@ -114,6 +114,10 @@ fn anonymous_descriptor_arrays_refuse_text_and_named_schema_mixing() {
         "derive shown():int=count([\"literal\",\"Hi\"@{}])",
         "derive shown(n:int):int=count([\"{n}\"@{}(n=n),\"literal\"])",
         "derive shown():int=count([named,\"Hi\"@{}])",
+        "derive shown():int=count([choose(true,\"Hi\"@{},\"literal\")])",
+        "derive shown():int=count([choose(false,\"literal\",\"Hi\"@{})])",
+        "derive shown():int=count([choose(true,named,\"Hi\"@{})])",
+        "derive shown():int=count([choose(false,\"Hi\"@{},named)])",
         "derive shown():text[]=[\"Hi\"@{},\"Bye\"@{}]",
         "derive shown(n:int):text[]=[\"Hi\"@{},\"{n}\"@{}(n=n)]",
     ] {
@@ -134,9 +138,14 @@ fn anonymous_descriptor_arrays_refuse_text_and_named_schema_mixing() {
         assert!(output.get("modules").is_none(), "{declaration}: {output}");
         let diagnostics = output["diagnostics"].as_array().unwrap();
         assert!(
-            diagnostics
-                .iter()
-                .any(|diagnostic| diagnostic["code"] == "E3001"),
+            diagnostics.iter().any(|diagnostic| {
+                diagnostic["code"]
+                    == if declaration.contains("choose(") {
+                        "E3005"
+                    } else {
+                        "E3001"
+                    }
+            }),
             "{declaration}: {output}"
         );
         assert!(
@@ -165,6 +174,7 @@ Given
  export derive businessLabelCount():int=count(businessLabels())
  export derive rawSame():int=count(["Hi"@{},"Hi"@{}])
  export derive rawDifferent():int=count(["Hi"@{},"Bye"@{nl="Dag"}])
+ export derive chosen(condition:bool,value:Inputs):int=count([choose(condition,"{n}"@{}(n=value.n),"{label}"@{}(label=value.label))])
  export derive rawGrouped():int=count([(("Hi"@{})),("Bye"@{nl="Dag"})])
  export derive boundSame(value:Inputs):int=count(["{n}"@{}(n=value.n),"{n}"@{}(n=value.n)])
  export derive boundDifferent(value:Inputs):int=count(["{n}"@{}(n=value.n),"{label}"@{}(label=value.label)])
@@ -235,11 +245,21 @@ assert.equal(await registry['DescriptorArrays.repeatedRaw'](context,{}),3n);
 trace.length=0;
 assert.equal(await registry['DescriptorArrays.repeatedBound'](context,{value}),3n);
 assert.deepEqual(trace,['label','n'],'repeated immutable reads do not rebind their captured operands');
+for(const condition of [true,false]) {
+ trace.length=0;
+ assert.equal(await registry['DescriptorArrays.chosen'](context,condition,value),1n);
+ assert.deepEqual(trace,['n','label'],'choose captures both authored descriptor arguments once in order');
+}
 trace.length=0;
 const first=new Error('first descriptor operand');
 const broken={get n(){trace.push('n');throw first},get label(){trace.push('label');return 'unreached'}};
 await assert.rejects(registry['DescriptorArrays.boundDifferent'](context,broken),error=>error===first);
 assert.deepEqual(trace,['n'],'an earlier descriptor failure skips the later array construction');
+for(const condition of [true,false]) {
+ trace.length=0;
+ await assert.rejects(registry['DescriptorArrays.chosen'](context,condition,broken),error=>error===first);
+ assert.deepEqual(trace,['n'],'first choose argument failure skips its later descriptor argument');
+}
 console.log('descriptor arrays: exact counts, authored construction order, repeated captured aliases and first failure passed');
 "#;
     let result = Command::new("node")
