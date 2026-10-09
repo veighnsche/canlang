@@ -3732,3 +3732,7 @@ Produce the pinned modelPolicies/modelPolicyBindings ABI from exact IR origins a
 ## 2026-10-09 — consume released common refusal/deadline fixture corrections locally
 
 Consume exact Packages9a635da8e079d7aa1948050364b3124a56258f5f's B3 malformed-delivery assertion and6ac7e2983466436550fc2bad01e422f3bb428ac4's original-deadline expiry setup. Retain nominal error, aggregate deadline and exact request-count assertions. Owning build8/8,B3 5/5 and selected real local HTTP deadline1/1 pass; unchanged cases/results are reused. No independent common repair, remote publication or whole acceptance follows.
+
+## 2026-10-09 — consume checked policy transport without claiming native activation
+
+Consume exact Capability f46730974d25482c7071240be6c1f47bf59f37c2 Contracts/State transport plus required d9ea5d8d/3bfaed1f checked field/alias artifact adapters. Preserve immutable ordered JSON policy metadata separately from source-verified module callbacks and strict identity/ABI/accessor refusals. Exclude retained-receipt/outbox/public invocation seams. Owning build6/6 and affected whole State unit1038/1038 pass with zero skips, including actual D1/DO. Native Can callback hydration, genuine live hook views and reverse selectors remain unfinished defining-owner prerequisites; local source metadata and raw State callback binding alone do not qualify activation. Keep local commits only and original58/67 coverage.

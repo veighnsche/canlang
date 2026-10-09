@@ -1,5 +1,8 @@
+import { StateError } from '../errors.js';
+import { checkOwnerModelPolicyDescriptors } from '../mutation/model-policies.js';
 import { checkFieldMachine } from '../internal/machine.js';
 import { normalizeValueTypes, ValueTypesError, parseTypeId, printTypeId, type NormalizedSchema } from '@canlang/values';
+import { modelFieldConstraintSchema } from '../mutation/models.js';
 /**
  * Lane 03 T16a: operation registry — INTERIM engine-local defs plus the
  * generated-descriptor join.
@@ -39,6 +42,7 @@ import {
   type CanonicalFieldDefault,
   type CanonicalInputDef,
   type CanonicalModelDescriptor,
+  type CanonicalOwnerModelPolicies,
   type CanonicalOperationDescriptor,
   type CanonicalOperationKind,
   type CanonicalScalarKind,
@@ -207,7 +211,7 @@ export interface LoadedDescriptorSet {
 export type ArtifactDescriptorSlice = Pick<
   CompileArtifact,
   'artifact_version' | 'operations' | 'models'
-> & Partial<Pick<CompileArtifact, 'sources' | 'valueTypes'>>;
+> & Partial<Pick<CompileArtifact, 'sources' | 'valueTypes' | 'modelPolicies' | 'modules'>>;
 
 /**
  * T18 engine-resolvable server initializer (closed subset of L1
@@ -231,6 +235,7 @@ export type ServerInitKind = 'actor' | 'now' | 'random_secret';
  * `delivery` field tags; the receipt join's schema source).
  */
 export interface ConvertedArtifactDescriptors {
+  readonly modelPolicies?: readonly CanonicalOwnerModelPolicies[];
   readonly sources?: ReadonlyArray<Readonly<ArtifactSource>>;
   readonly set: ExecutionDescriptorSet;
   readonly valueSchema?: NormalizedSchema;
@@ -249,6 +254,8 @@ export interface ConvertedArtifactDescriptors {
 
 /** Fully loaded artifact: registry + models + engine-local model attachments. */
 export interface LoadedArtifactDescriptors extends LoadedDescriptorSet {
+  /** Immutable checked JSON metadata; owning native callbacks remain separate. */
+  readonly modelPolicies?: readonly CanonicalOwnerModelPolicies[];
   /** Copied compilation inputs identify this load; they confer no authority. */
   readonly sources?: ReadonlyArray<Readonly<ArtifactSource>>;
   readonly refs: ReadonlyMap<ModelName, ReadonlyArray<InterimRefDef>>;
@@ -530,6 +537,31 @@ function checkSources(artifact: Record<string, unknown>): ReadonlyArray<Readonly
   }));
 }
 
+/** A policy claim must name actual emitted production paths, never logical modules.
+ * Inspect own data without executing module/path/array accessors. */
+function artifactPolicyModulePaths(artifact: Record<string, unknown>): readonly string[] {
+  const inventory = Object.getOwnPropertyDescriptor(artifact, 'modules');
+  if (inventory === undefined || !('value' in inventory) || !Array.isArray(inventory.value)
+    || Object.getPrototypeOf(inventory.value) !== Array.prototype) fail('malformed_descriptor', 'Model policies require an own emitted module inventory.');
+  const modules = inventory.value as unknown[];
+  if (Reflect.ownKeys(modules).some(key => key !== 'length' && (typeof key !== 'string' || !/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= modules.length))) fail('malformed_descriptor', 'Invalid emitted module inventory member.');
+  const paths: string[] = [];
+  for (let i = 0; i < modules.length; i++) {
+    const entry = Object.getOwnPropertyDescriptor(modules, String(i));
+    if (entry === undefined || !('value' in entry) || !isRecord(entry.value)
+      || (Object.getPrototypeOf(entry.value) !== Object.prototype && Object.getPrototypeOf(entry.value) !== null)) fail('malformed_descriptor', 'Invalid emitted module inventory element.');
+    const module = Object.getOwnPropertyDescriptors(entry.value);
+    if (Reflect.ownKeys(module).some(key => typeof key !== 'string' || !['path', 'js', 'map'].includes(key)
+      || !('value' in module[key]!))) fail('malformed_descriptor', 'Invalid emitted module member or accessor.');
+    const path = module['path'];
+    if (path === undefined || !('value' in path) || typeof path.value !== 'string' || path.value === ''
+      || module['js'] === undefined || typeof module['js'].value !== 'string'
+      || module['map'] === undefined || !isRecord(module['map'].value)) fail('malformed_descriptor', 'Invalid emitted module inventory.');
+    paths.push(path.value);
+  }
+  return paths;
+}
+
 /** Load-time dot-path check: non-empty with no empty segments. */
 function checkLoadDotPath(path: string, what: string): void {
   if (path === '' || path.split('.').some((segment) => segment === '')) {
@@ -720,6 +752,23 @@ function checkCanonicalInput(
 }
 
 /** Validate one canonical model descriptor; returns the model name. */
+function checkFieldConstraints(field: Record<string, unknown>, type: CanTypeId | undefined, what: string, valueSchema?: NormalizedSchema): void {
+  if (!['trim', 'min', 'max'].some(key => Object.hasOwn(field, key))) return;
+  if (type === undefined) fail('malformed_descriptor', `Invalid ${what}: constraints require a checked valueType.`);
+  for (const key of ['trim', 'min', 'max']) {
+    if (Object.hasOwn(field, key) && (field[key] === undefined || field[key] === null)) {
+      fail('malformed_descriptor', `Invalid ${what}: ${key} cannot be absent or null when claimed.`);
+    }
+  }
+  try {
+    modelFieldConstraintSchema({ valueType: type,
+      ...(Object.hasOwn(field, 'trim') ? { trim: field['trim'] as boolean } : {}),
+      ...(Object.hasOwn(field, 'min') ? { min: field['min'] as NonNullable<CanonicalModelDescriptor['fields'][string]['min']> } : {}),
+      ...(Object.hasOwn(field, 'max') ? { max: field['max'] as NonNullable<CanonicalModelDescriptor['fields'][string]['max']> } : {}),
+    }, valueSchema);
+  } catch (error) { fail('malformed_descriptor', `Invalid ${what}: ${String(error)}`); }
+}
+
 function checkCanonicalModel(value: unknown, valueSchema?: NormalizedSchema): CanonicalModelDescriptor {
   if (!isRecord(value) || typeof value['name'] !== 'string' || value['name'] === '') {
     fail('malformed_descriptor', 'Invalid model descriptor: models need non-empty names.');
@@ -765,9 +814,13 @@ function checkCanonicalModel(value: unknown, valueSchema?: NormalizedSchema): Ca
       }
     }
     const valueType = checkValueType(fieldValue, what, valueSchema);
+    checkFieldConstraints(fieldValue, valueType, what, valueSchema);
     checkNominalArray(valueType, array, what, valueSchema);
     fields[fieldName] = {
       ...(valueType !== undefined ? { valueType } : {}),
+      ...(Object.hasOwn(fieldValue, 'trim') ? { trim: fieldValue['trim'] as boolean } : {}),
+      ...(Object.hasOwn(fieldValue, 'min') ? { min: fieldValue['min'] as NonNullable<CanonicalModelDescriptor['fields'][string]['min']> } : {}),
+      ...(Object.hasOwn(fieldValue, 'max') ? { max: fieldValue['max'] as NonNullable<CanonicalModelDescriptor['fields'][string]['max']> } : {}),
       ...(valueType !== undefined && Object.hasOwn(fieldValue, 'nullable') ? { nullable: fieldValue['nullable'] as boolean } : {}),
       required: fieldValue['required'] as boolean,
       serverOnly: fieldValue['serverOnly'] as boolean,
@@ -1130,6 +1183,11 @@ export function artifactToDescriptorSet(
         `does not match the required artifact contract ${T04A_PINNED_VERSIONS.artifact}.`,
     );
   }
+  const policyClaim = Object.getOwnPropertyDescriptor(artifact, 'modelPolicies');
+  if ((policyClaim === undefined && 'modelPolicies' in artifact) || (policyClaim !== undefined && !('value' in policyClaim))) {
+    fail('malformed_descriptor', 'Model policies require an own data claim.');
+  }
+  const policyModules = policyClaim === undefined ? undefined : artifactPolicyModulePaths(artifact);
   const sources = checkSources(artifact);
   const { valueTypes, valueSchema } = checkValueTypes(artifact);
   const rawOperations: unknown[] =
@@ -1221,8 +1279,12 @@ export function artifactToDescriptorSet(
       }
       const tag: unknown = field.field;
       const valueType = artifactValueType(field as unknown as Record<string, unknown>, what, false, valueSchema);
+      checkFieldConstraints(field as unknown as Record<string, unknown>, valueType, what, valueSchema);
       fields[field.name] = {
         ...(valueType !== undefined ? { valueType } : {}),
+        ...(Object.hasOwn(field, 'trim') ? { trim: field.trim } : {}),
+        ...(Object.hasOwn(field, 'min') ? { min: field.min } : {}),
+        ...(Object.hasOwn(field, 'max') ? { max: field.max } : {}),
         ...(valueType !== undefined && Object.hasOwn(field, 'nullable') ? { nullable: field.nullable! } : {}),
         required: field.required,
         serverOnly: field.serverOnly,
@@ -1549,9 +1611,20 @@ export function artifactToDescriptorSet(
   // them). `createDeliverySchema` is the shared builder: its
   // validation doubles as this conversion's whole-set guard.
   const deliveryFields = createDeliverySchema(deliveryEntries);
+  let modelPolicies: readonly CanonicalOwnerModelPolicies[] | undefined;
+  if (policyClaim !== undefined) {
+    try {
+      modelPolicies = checkOwnerModelPolicyDescriptors({ descriptors: policyClaim.value,
+        models: new Map(models.map(model => [model.name, model])), modules: policyModules! });
+    } catch (error) {
+      if (error instanceof StateError && error.code === 'validation') fail('malformed_descriptor', error.message);
+      throw error;
+    }
+  }
   return {
     ...(valueSchema !== undefined ? { valueSchema } : {}),
     set, refs, inputArrays, inputNullableRefs, serverInits, nullableFields, secretFields, containment, deliveryFields,
+    ...(modelPolicies !== undefined ? { modelPolicies } : {}),
     ...(sources !== undefined ? { sources } : {}),
   };
 }
@@ -1600,6 +1673,7 @@ export function loadArtifactDescriptors(
     ...(loaded.valueSchema !== undefined ? { valueSchema: loaded.valueSchema } : {}),
     ...(loaded.valueTypes !== undefined ? { valueTypes: loaded.valueTypes } : {}),
     ...(converted.sources !== undefined ? { sources: converted.sources } : {}),
+    ...(converted.modelPolicies !== undefined ? { modelPolicies: converted.modelPolicies } : {}),
     refs,
     serverInits,
     nullableFields,
