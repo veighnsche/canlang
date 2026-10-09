@@ -4483,8 +4483,8 @@ impl<'a> Emitter<'a> {
                         })
                         .collect::<String>();
                     // Match the checked old-state anchor before the genuine
-                    // transition; the collector gates this until its State
-                    // session consumer can attest intermediate own-write rows.
+                    // transition through the released State session consumer
+                    // attesting intermediate own-write rows.
                     return vec![(
                         format!(
                             "{pad}{{const $receiptRow={record};{observations}await transition(c,{},$receiptRow.id,{},{},{});}}",

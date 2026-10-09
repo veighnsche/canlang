@@ -226,6 +226,7 @@ fn opt_in_native_capture_retains_selected_paths_replays_and_current_state_projec
         "derived_override",
         "derived_lazy",
         "derived_match",
+        "machine",
     ] {
         let op = operation(&artifact, name);
         let plan = &op["result"]["disclosure"];
@@ -285,7 +286,6 @@ fn opt_in_native_capture_retains_selected_paths_replays_and_current_state_projec
         "required_array",
         "model",
         "changed",
-        "machine",
         "machine_read",
     ] {
         assert!(
