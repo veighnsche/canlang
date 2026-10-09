@@ -105,8 +105,35 @@ export function readDispatchImageCorrelation(value: object): DispatchImageCorrel
   return Object.freeze(Object.fromEntries(DISPATCH_IMAGE_CORRELATION_FIELDS.map(field => [field, data[field]]))) as unknown as DispatchImageCorrelation;
 }
 
+/** Immutable original submit and independent observation window for one Images control. */
+export interface DispatchImageControlPin {
+  readonly originalIntentId: string;
+  readonly observationStartedAtMs: number;
+  readonly observationDeadlineMs: number;
+}
+const IMAGE_CONTROL_PIN_FIELDS = ['originalIntentId', 'observationStartedAtMs', 'observationDeadlineMs'] as const;
+
+/** Legacy/unpinned controls omit all fields; partial or renewed pins are unusable. */
+export function readDispatchImageControlPin(value: object): DispatchImageControlPin | null {
+  const data = value as Readonly<Record<string, unknown>>;
+  const present = IMAGE_CONTROL_PIN_FIELDS.filter(field => Object.hasOwn(data, field));
+  if (present.length === 0) return null;
+  if (present.length !== IMAGE_CONTROL_PIN_FIELDS.length || present.some(field => {
+    const descriptor = Object.getOwnPropertyDescriptor(data, field);
+    return descriptor === undefined || !('value' in descriptor);
+  })) throw new KernelTableError('Incomplete original Images control pin.');
+  const originalIntentId = data['originalIntentId'], startedAt = data['observationStartedAtMs'], deadline = data['observationDeadlineMs'];
+  if (typeof originalIntentId !== 'string' || originalIntentId === '' ||
+      typeof startedAt !== 'number' || !Number.isSafeInteger(startedAt) || startedAt < 0 ||
+      typeof deadline !== 'number' || !Number.isSafeInteger(deadline) || deadline <= startedAt ||
+      deadline - startedAt > 2_147_483_647) {
+    throw new KernelTableError('Original Images control pin requires an exact identity and finite supported window.');
+  }
+  return Object.freeze({ originalIntentId, observationStartedAtMs: startedAt, observationDeadlineMs: deadline });
+}
+
 /** Claim lifecycle per staged intent. Flat for store querying. */
-export interface DispatchRowData extends Partial<DispatchImageCorrelation> {
+export interface DispatchRowData extends Partial<DispatchImageCorrelation>, Partial<DispatchImageControlPin> {
   readonly intentId: OutboxId;
   readonly operationId: string;
   readonly source: string;
@@ -324,8 +351,16 @@ export function readDispatchRow(row: StoredRow): DispatchRowData {
       'work.dispatch.retryClass must be transient, terminal or null.',
     );
   }
+  const correlation = readDispatchImageCorrelation(data);
+  const controlPin = readDispatchImageControlPin(data);
+  if (controlPin !== null && (correlation === null ||
+      (data['source'] !== 'std.ImagesV1.cancel' && data['source'] !== 'std.ImagesV1.reconcile') ||
+      controlPin.originalIntentId === row.id || controlPin.observationStartedAtMs !== row.created)) {
+    throw new KernelTableError('Original Images control pin disagrees with its retained control row.');
+  }
   return {
-    ...(readDispatchImageCorrelation(data) ?? {}),
+    ...(correlation ?? {}),
+    ...(controlPin ?? {}),
     intentId: checkString(data, 'intentId', 'work.dispatch'),
     operationId: checkString(data, 'operationId', 'work.dispatch'),
     source: checkString(data, 'source', 'work.dispatch'),
