@@ -221,6 +221,9 @@ pub enum ResolvedType {
     Record { symbol: SymbolId, stored: bool },
     /// Message descriptor value (a bare message reference).
     Message(SymbolId),
+    /// Anonymous message descriptor. Its checked schema and immutable local
+    /// provenance live in the message tables; it never inhabits plain text.
+    InlineMessage,
     /// `action(op,…)` value over canonical user mutations.
     /// `bound` names the inputs pre-bound at construction (`Some`
     /// from the `action()` constructor, `None` for values whose
@@ -319,6 +322,7 @@ impl ResolvedType {
             ResolvedType::Message(id) => {
                 format!("message {}", record_name(tables, module, *id))
             }
+            ResolvedType::InlineMessage => "anonymous message descriptor".to_string(),
             ResolvedType::Action {
                 targets, external, ..
             } => {
@@ -5533,7 +5537,9 @@ impl<'a> Typer<'a> {
         // General expressions: accept text or message results.
         let ty = self.expr(cx, node, None);
         match ty {
-            ResolvedType::Scalar(Scalar::Text) | ResolvedType::Message(_) => {}
+            ResolvedType::Scalar(Scalar::Text)
+            | ResolvedType::Message(_)
+            | ResolvedType::InlineMessage => {}
             ResolvedType::Error | ResolvedType::Unknown | ResolvedType::Opaque(_) => {}
             other => {
                 self.diags.push(Diagnostic::error(
@@ -9436,8 +9442,8 @@ fn push_slot(slots: &mut Vec<String>, name: String) {
 
 /// Whether `node` is an inline message descriptor (`"… "@{…}`),
 /// through groups. Per DESIGN §9.1 a suffixed string is a message
-/// descriptor, not ordinary text — even though `expr` types it
-/// `text` (inline descriptors declare no `Message` symbol).
+/// descriptor, not ordinary text. Inline descriptors declare no `Message`
+/// symbol and retain their own checked value type.
 fn is_message_descriptor(node: &SyntaxNode) -> bool {
     message_descriptor_node(node).is_some()
 }
@@ -11345,7 +11351,7 @@ impl<'a> Typer<'a> {
         }
         let ty = match node.kind {
             SyntaxKind::Literal => self.type_literal(cx, node, expect.as_ref()),
-            SyntaxKind::MessageValue => ResolvedType::Scalar(Scalar::Text),
+            SyntaxKind::MessageValue => ResolvedType::InlineMessage,
             SyntaxKind::NameRef => self.type_nameref(cx, node, expect.as_ref()),
             SyntaxKind::Member => self.type_member(cx, node),
             SyntaxKind::Call => self.type_call(cx, node),
@@ -15598,10 +15604,9 @@ impl<'a> Typer<'a> {
             return;
         }
         // Message overload: first argument is a message (a declared
-        // message value or an inline `"…"@{…}` descriptor, which
-        // `expr` types `text`).
+        // message value or a checked anonymous descriptor).
         let first_is_message = matches!(typed.first(), Some(ResolvedType::Message(_)))
-            || (matches!(typed.first(), Some(ResolvedType::Scalar(Scalar::Text)))
+            || (matches!(typed.first(), Some(ResolvedType::InlineMessage))
                 && self.is_checked_message_descriptor(args[0].value));
         if first_is_message {
             return;
@@ -15811,7 +15816,7 @@ impl<'a> Typer<'a> {
                 arguments,
             },
         );
-        ResolvedType::Scalar(Scalar::Text)
+        ResolvedType::InlineMessage
     }
 
     /// Call a named message, preserving its declared signature.
@@ -16313,7 +16318,7 @@ impl<'a> Typer<'a> {
                 matches!(
                     actual,
                     ResolvedType::Message(_) | ResolvedType::Unknown | ResolvedType::Opaque(_)
-                ) || (matches!(actual, ResolvedType::Scalar(Scalar::Text))
+                ) || (matches!(actual, ResolvedType::InlineMessage)
                     && self.is_checked_message_descriptor(arg.value))
             }
             SigType::ActionTarget => self.match_action_target(cx, arg, actual, trial),
