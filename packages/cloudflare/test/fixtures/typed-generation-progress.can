@@ -2,10 +2,10 @@ app TypedGenerationProgress
 use std {TextMessage,TextRequest}
 use std {TextGenerationV1 as LLM} from=deployment.llm
 Given
- Job { label:text="Generation", request:delivery(LLM.generate)? }
+ Job { label:text="Generation", request:delivery(LLM.generate)?, request_source:text?, request_revision:int?, stop:delivery(LLM.cancel)?, probe:delivery(LLM.reconcile)? }
  ProgressNotice { delivery:text }
  ## Progress is visible only through the current member grant.
- policy Job read=members fields=label,request.progress.content,request.progress.state,request.progress.sequence,request.progress.used_tokens
+ policy Job read=members fields=label,request_source,request_revision,request.progress.content,request.progress.state,request.progress.sequence,request.progress.used_tokens,stop.result.state,stop.result.content,stop.result.used_tokens,probe.result.state,probe.result.content,probe.result.used_tokens
  policy Job read=owner fields=request.result
 When
  ## Every admitted original progress occurrence records its actual delivery id.
@@ -27,8 +27,25 @@ When
   do
    let value=TextRequest {source=operation.id,revision=job.version,profile="local-chat",policy_revision="policy-1",messages=[TextMessage {role=user,content=prompt,attachments=[]}],max_input_tokens=1024,max_output_tokens=128,max_duration=30s}
    send LLM.generate {value} as attempt
-   set job {request=attempt}
+   set job {request=attempt,request_source=value.source,request_revision=value.revision}
    require accept
+ ## Later controls preserve the original request correlation across calls.
+ scenario cancel(job:Job) by=members
+  do
+   let source=job.request_source ?? ""
+   let revision=job.request_revision ?? -1
+   require source!=""
+   require revision>=0
+   send LLM.cancel {source,revision} as stop
+   set job {stop}
+ scenario reconcile(job:Job) by=members
+  do
+   let source=job.request_source ?? ""
+   let revision=job.request_revision ?? -1
+   require source!=""
+   require revision>=0
+   send LLM.reconcile {source,revision} as probe
+   set job {probe}
 Then
  page / title="Generation progress" poll=1s
   require members
