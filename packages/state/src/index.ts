@@ -151,8 +151,12 @@ export { invokeRetainedReceiptOnly, type ExecuteHandler } from './invocation/inv
 export {
   observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, type ScenarioReceiptIntrinsicInput, selectScenarioReceiptReturn,
   beginScenarioReceiptMutation, observeScenarioInputComputedDefault, type ScenarioReceiptMutationInput,
+  bindScenarioReceiptFrameworkProducer, stageScenarioReceiptSend, stageScenarioReceiptDelivery,
+  type ScenarioReceiptFrameworkProducer, type ScenarioReceiptSendProducerInput, type ScenarioReceiptSendStaging,
+  type ScenarioReceiptMutationEffects, type ScenarioReceiptMutationSession,
   readScenarioReceiptAssociation, projectScenarioReceipt, type ProjectScenarioReceiptInput,
 } from './invocation/scenario-receipt.js';
+export { stageAuthoredDelivery, type AuthoredDeliveryInput } from './receipt/authored-delivery.js';
 export type { ScenarioReceiptSourceOrigin, ScenarioReceiptIntrinsicDependency, ScenarioResultDisclosurePlan, ScenarioReceiptAssociation } from '@canlang/contracts';
 export {
   activate,
