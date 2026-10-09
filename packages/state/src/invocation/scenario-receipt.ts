@@ -7,7 +7,7 @@
  * claims require their defining joins. Empty field observations prove none of
  * those facts. Every site is scoped by its checked source return/digest/module.
  */
-import type { ArtifactModel, CanonicalInputDef, CanTypeId, ModelName, ProjectedRecord,
+import type { ArtifactModel, BoundCapabilityRequest, CanonicalInputDef, CanonicalValueTypes, CanTypeId, DeliveryRef, DomainWrite, ModelName, OutboxIntent, ProjectedRecord, RecordId,
   Receipt, ScenarioReceiptAssociation, ScenarioReceiptIntrinsicDependency, ScenarioResultDisclosurePlan, StoragePort, StoredRow } from '@canlang/contracts';
 import { decodeValue, encodeValue, parseTypeId, printTypeId, validateValue, type NormalizedSchema } from '@canlang/values';
 import { StateError } from '../errors.js';
@@ -22,6 +22,9 @@ import { beginOwnerMutation, type OwnerMutationInput, type OwnerMutationReadView
   type OwnerMutationSession, type MutationWritesResult } from '../mutation/pipeline.js';
 import type { GeneratedOperationDef, OperationRegistry } from './registry.js';
 import { stableStringify } from './replay.js';
+import type { SystemCommandContext, SystemStaging } from '../ports/system.js';
+import { stageAuthoredDelivery } from '../receipt/authored-delivery.js';
+import { RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL } from '../receipt/tables.js';
 
 const MAX_ITEMS = 200;
 const invalid = (message: string): never => { throw new StateError('validation', `Saved scenario: ${message}`); };
@@ -166,12 +169,14 @@ interface BoundPlan {
   readonly inputs: readonly CanonicalInputDef[];
   readonly arrays: GeneratedOperationDef['inputArrays']; readonly nullableRefs: NonNullable<GeneratedOperationDef['inputNullableRefs']>;
   readonly valueSchema: NormalizedSchema | undefined; readonly parameterStyle: boolean;
+  readonly artifactModels: ReadonlyMap<ModelName, ArtifactModel>; readonly valueTypes: CanonicalValueTypes | undefined;
 }
 const boundPlans = new WeakMap<GeneratedOperationDef, BoundPlan>();
+const invokedPlans = new WeakSet<GeneratedOperationDef>();
 
 /** Registry-owned registration after exact artifact source/callable checking. */
 export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: readonly ArtifactModel[],
-  defaults: { readonly parameterStyle: boolean; readonly valueSchema?: NormalizedSchema }): void {
+  defaults: { readonly parameterStyle: boolean; readonly valueSchema?: NormalizedSchema; readonly valueTypes?: CanonicalValueTypes }): void {
   const claim = def.descriptor.result?.disclosure;
   if (claim === undefined) return;
   if (def.kind !== 'scenario') return invalid('dependency plans belong to mutation scenarios.');
@@ -205,7 +210,56 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   }
   boundPlans.set(def, { plan, type, models: inventory, inputs: deepFreeze(dataCopy(def.descriptor.inputs)),
     arrays: deepFreeze(dataCopy(def.inputArrays)), nullableRefs: deepFreeze(dataCopy(def.inputNullableRefs ?? {})),
-    valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle });
+    valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle,
+    artifactModels: new Map(models.map(model => [model.name as ModelName, deepFreeze(dataCopy(model))])),
+    valueTypes: defaults.valueTypes === undefined ? undefined : deepFreeze(dataCopy(defaults.valueTypes)) });
+}
+
+/** Dev's verified loader binds these literal installed exports, never request
+ * callbacks. State validates and freezes transport correspondence; it does not
+ * attest JavaScript bytes from the shape of this port (as with model policies).
+ * Work's original carrier proves its producer, not this invocation's lifetime.
+ */
+export interface ScenarioReceiptFrameworkProducer {
+  readonly source: ScenarioResultDisclosurePlan['source'];
+  readonly app: string;
+  readonly bindings: readonly { readonly binding: string; readonly from: string;
+    readonly targets: readonly { readonly source: string; readonly correlation: 'value' | 'arguments' | null }[] }[];
+  readonly stage: (input: ScenarioReceiptSendProducerInput, context: SystemCommandContext) => Promise<ScenarioReceiptSendStaging>;
+  readonly read: (value: unknown, input: ScenarioReceiptSendProducerInput, context: SystemCommandContext) => ScenarioReceiptSendStaging | null;
+}
+export interface ScenarioReceiptSendProducerInput {
+  readonly operationId: string; readonly source: string; readonly occurrenceIndex: number;
+  readonly request: BoundCapabilityRequest; readonly originOccurrence: null;
+  readonly correlation?: { readonly requestSource: string; readonly requestRevision: string;
+    readonly requestBinding: string; readonly requestFrom: string; readonly requestApp: string; readonly requestOwner: string };
+}
+export interface ScenarioReceiptSendStaging { readonly effects: SystemStaging; readonly delivery: DeliveryRef }
+const frameworkProducers = new WeakMap<GeneratedOperationDef, ScenarioReceiptFrameworkProducer>();
+export function bindScenarioReceiptFrameworkProducer(def: GeneratedOperationDef, producer: ScenarioReceiptFrameworkProducer): void {
+  const bound = boundPlans.get(def);
+  if (bound === undefined || frameworkProducers.has(def) || invokedPlans.has(def)) return invalid('framework producer requires one checked source binding before execution.');
+  if (typeof producer !== 'object' || producer === null || Array.isArray(producer) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(producer)) ||
+      Reflect.ownKeys(producer).length !== 5 || ['source', 'app', 'bindings', 'stage', 'read'].some(key => {
+        const member = Object.getOwnPropertyDescriptor(producer, key);
+        return member === undefined || !('value' in member) || !member.enumerable;
+      }) || typeof producer.stage !== 'function' || typeof producer.read !== 'function') return invalid('own closed loader producer required.');
+  const metadata = dataCopy({ source: producer.source, app: producer.app, bindings: producer.bindings });
+  origin(metadata.source); text(metadata.app);
+  if (stableStringify(metadata.source) !== stableStringify(bound.plan.source)) return invalid('framework producer source differs from its checked plan.');
+  const names = new Set<string>();
+  for (const value of list(metadata.bindings)) {
+    const binding = object(value, ['binding', 'from', 'targets']); const name = text(binding['binding']); text(binding['from']);
+    if (names.has(name)) return invalid('duplicate framework binding.'); names.add(name);
+    const targets = new Set<string>();
+    for (const value of list(binding['targets'])) {
+      const target = object(value, ['source', 'correlation']); const source = text(target['source']);
+      if (targets.has(source) || ![null, 'value', 'arguments'].includes(target['correlation'] as null | string)) return invalid('invalid framework target inventory.');
+      targets.add(source);
+    }
+  }
+  frameworkProducers.set(def, Object.freeze({ ...deepFreeze(metadata), stage: producer.stage, read: producer.read }));
 }
 
 function primitiveInputType(type: unknown): type is CanTypeId {
@@ -253,6 +307,7 @@ function capture(call: AdmittedCall, store: StoragePort): Capture {
     assertScenarioReceiptExecution(call, store);
     const bound = boundPlans.get(call.def as GeneratedOperationDef);
     if (bound === undefined) return invalid('no loader-verified source dependency plan.');
+    invokedPlans.add(call.def as GeneratedOperationDef);
     let value = captures.get(call);
     if (value === undefined) { value = { bound, returnId: null, poisoned: false, pending: 0, observations: [], intrinsics: [] }; captures.set(call, value); }
     if (value.poisoned) return invalid('capture is poisoned.');
@@ -264,6 +319,15 @@ function capture(call: AdmittedCall, store: StoragePort): Capture {
 }
 
 export type ScenarioReceiptMutationInput = Omit<OwnerMutationInput, 'context' | 'store' | 'trigger' | 'gateArchivedTargets'>;
+export interface ScenarioReceiptMutationEffects extends MutationWritesResult { readonly outbox?: OutboxIntent[] }
+export interface ScenarioReceiptMutationSession extends OwnerMutationSession { finalize(): Promise<ScenarioReceiptMutationEffects> }
+interface FrameworkRow { readonly model: ModelName; readonly before: StoredRow | null; current: StoredRow | null; recreated: boolean }
+interface FrameworkLedger {
+  readonly producer: ScenarioReceiptFrameworkProducer;
+  readonly rows: Map<string, FrameworkRow>;
+  readonly queued: Map<string, OutboxIntent>;
+  ordinal: number;
+}
 interface ReceiptOwnerSession {
   readonly call: AdmittedCall;
   readonly store: StoragePort;
@@ -272,6 +336,10 @@ interface ReceiptOwnerSession {
   busy: boolean;
   closed: boolean;
   finalized: MutationWritesResult | null;
+  commitEffects: ScenarioReceiptMutationEffects | null;
+  readonly framework: FrameworkLedger | null;
+  consumeWork: ((amount?: number) => void) | null;
+  readonly maxRows: number;
   readonly inputDefaults: Record<string, unknown>;
   readonly computedDefaults: readonly CanonicalInputDef[];
   computedIndex: number;
@@ -280,6 +348,182 @@ const ownerSessions = new WeakMap<AdmittedCall, ReceiptOwnerSession>();
 const ownerRows = new WeakMap<StoredRow, {
   readonly session: ReceiptOwnerSession; readonly stage: number; readonly model: ModelName;
 }>();
+
+const DISPATCH_MODEL = 'work.dispatch' as ModelName;
+const receiptModels = [RECEIPT_MODEL, RECEIPT_ASSOCIATION_MODEL] as readonly string[];
+function frameworkKey(model: ModelName, id: RecordId): string { return `${model}\0${id}`; }
+function frameworkOwner(call: AdmittedCall, store: StoragePort): ReceiptOwnerSession {
+  const owner = ownerSessions.get(call);
+  try {
+    capture(call, store);
+    if (owner === undefined || owner.store !== store || owner.framework === null) return invalid('framework stage requires its actual bound owner session.');
+    ownerHealthy(owner); return owner;
+  } catch (error) {
+    if (owner !== undefined) owner.capture.poisoned = true;
+    const state = captures.get(call); if (state !== undefined) state.poisoned = true;
+    throw error;
+  }
+}
+function frameworkContext(owner: ReceiptOwnerSession, models: readonly string[]): { context: SystemCommandContext; close(): void } {
+  let live = true; let reading = false;
+  const healthy = () => {
+    ownerHealthy(owner);
+    if (!live || !owner.busy) return invalid('framework reader is outside its actual producer stage.');
+  };
+  const context: SystemCommandContext = Object.freeze({
+    actor: owner.call.context.actor?.userId ?? owner.call.context.trustedSource ?? 'anonymous',
+    now: owner.call.context.now, operation: owner.call.context.operation,
+    load: async (model: ModelName, id: RecordId) => {
+      try {
+        healthy();
+        if (reading || typeof model !== 'string' || !models.includes(model) || typeof id !== 'string' || id === '' ||
+            owner.capture.bound.models.has(model)) return invalid('framework reader requires its producer-owned model and record identity.');
+        reading = true; owner.consumeWork!(1);
+        const ledger = owner.framework!, key = frameworkKey(model, id);
+        let row = ledger.rows.get(key);
+        if (row === undefined) {
+          if (ledger.rows.size >= owner.maxRows) return invalid('framework reads exceed the owner row budget.');
+          const loaded = await owner.store.load(model, id); healthy();
+          const revision = await owner.store.readRevision(); healthy();
+          if (revision !== owner.call.revision) throw new StateError('conflict', 'Framework read moved beyond its admitted revision.');
+          const before = loaded === null ? null : deepFreeze(checkedRow(dataCopy(loaded)));
+          if (before !== null && before.id !== id) return invalid('framework stored row identity differs from its read.');
+          row = { model, before, current: before, recreated: false }; ledger.rows.set(key, row);
+        }
+        return row.current;
+      } catch (error) { owner.capture.poisoned = true; throw error; }
+      finally { reading = false; }
+    },
+    // Neither genuine producer uses query. A broader producer must supply its
+    // defining finite query/lifetime join before this reader can authorize it.
+    query: async () => { owner.capture.poisoned = true; return invalid('framework producer query is unsupported.'); },
+  });
+  return { context, close: () => { live = false; if (reading) owner.capture.poisoned = true; } };
+}
+
+async function appendFrameworkWrites(owner: ReceiptOwnerSession, effects: SystemStaging,
+  context: SystemCommandContext, send?: ScenarioReceiptSendProducerInput): Promise<void> {
+  const copied = dataCopy(effects);
+  const allowed = send === undefined ? ['writes'] : ['writes', 'outbox', 'result'];
+  if (typeof copied !== 'object' || copied === null || Array.isArray(copied) ||
+      Object.keys(copied).some(key => !allowed.includes(key))) return invalid('framework producer emitted unrelated effects.');
+  for (const value of list(copied.writes ?? [])) {
+    const write = value as DomainWrite;
+    if (write.kind !== 'insert' && write.kind !== 'update' && write.kind !== 'remove') return invalid('unknown framework write.');
+    const model = text(write.model) as ModelName;
+    if (owner.capture.bound.models.has(model) || (send === undefined ? !receiptModels.includes(model) : model !== DISPATCH_MODEL)) {
+      return invalid('framework write is outside its genuine producer inventory.');
+    }
+    const id = text(write.kind === 'insert' ? write.row.id : write.id) as RecordId;
+    await context.load(model, id);
+    const row = owner.framework!.rows.get(frameworkKey(model, id))!;
+    owner.consumeWork!(1);
+    if (write.kind === 'insert') {
+      if (row.current !== null) return invalid('framework insert duplicates a current identity.');
+      const next = checkedRow(write.row);
+      if (next.id !== id || next.version !== 1) return invalid('framework insert lacks its original row identity/version.');
+      if (row.before !== null) row.recreated = true;
+      row.current = deepFreeze(next);
+    } else {
+      if (row.current === null || write.expectedVersion !== row.current.version) return invalid('framework write differs from its current staged version.');
+      if (write.kind === 'remove') row.current = null;
+      else {
+        const next = checkedRow(write.row);
+        if (next.id !== id || next.version !== row.current.version + 1) return invalid('framework replacement lacks its next staged version.');
+        row.current = deepFreeze(next);
+      }
+    }
+  }
+  for (const value of list(copied.outbox ?? [])) {
+    const intent = value as OutboxIntent;
+    if (send === undefined || intent.operationId !== send.operationId || intent.operation !== context.operation ||
+        intent.target !== send.source || stableStringify(intent.arguments) !== stableStringify(send.request) ||
+        owner.framework!.queued.has(text(intent.intentId))) return invalid('framework outbox differs from its actual checked send.');
+    if (owner.framework!.queued.size >= MAX_ITEMS) return invalid('framework outbox budget exceeded.');
+    owner.framework!.queued.set(intent.intentId, deepFreeze(intent));
+  }
+}
+
+/** Allocate and stage at the actual source Send evaluation point. Only the
+ * once-bound installed producer can contribute framework effects. */
+export async function stageScenarioReceiptSend(call: AdmittedCall, store: StoragePort,
+  report: { readonly source: string; readonly request: BoundCapabilityRequest }): Promise<DeliveryRef> {
+  const owner = frameworkOwner(call, store);
+  return ownerOperation(owner, async () => {
+    const received = object(dataCopy(report), ['source', 'request']);
+    const source = text(received['source']);
+    const request = object(received['request'], ['binding', 'from', 'arguments',
+      ...(typeof received['request'] === 'object' && received['request'] !== null &&
+        Object.hasOwn(received['request'], 'judgment') ? ['judgment'] : [])]) as unknown as BoundCapabilityRequest;
+    const ledger = owner.framework!, producer = ledger.producer;
+    const binding = producer.bindings.find(value => value.binding === request.binding);
+    const target = binding?.targets.find(value => value.source === source);
+    if (producer.app !== call.context.app || binding === undefined || target === undefined || request.from !== binding.from ||
+        typeof request.arguments !== 'object' || request.arguments === null || Array.isArray(request.arguments)) return invalid('send differs from its owning app/binding/target route.');
+    if (ledger.ordinal >= MAX_ITEMS) return invalid('send occurrence budget exceeded.');
+    let correlation: ScenarioReceiptSendProducerInput['correlation'];
+    if (target.correlation !== null) {
+      const value = target.correlation === 'value' ? request.arguments['value'] : request.arguments;
+      if (call.checkpoint === undefined || typeof value !== 'object' || value === null || Array.isArray(value)) return invalid('generation send requires its original owner checkpoint and request correlation.');
+      const args = value as Record<string, unknown>;
+      correlation = { requestSource: text(args['source']), requestRevision: text(args['revision']), requestBinding: binding.binding,
+        requestFrom: binding.from, requestApp: call.context.app, requestOwner: call.checkpoint.owner };
+    }
+    const input = deepFreeze({ operationId: call.context.operationId, source, occurrenceIndex: ledger.ordinal++, request,
+      originOccurrence: null, ...(correlation === undefined ? {} : { correlation }) });
+    const reader = frameworkContext(owner, [DISPATCH_MODEL]);
+    try {
+      const original = await producer.stage(input, reader.context); ownerHealthy(owner);
+      const sealed = producer.read(original, input, reader.context); ownerHealthy(owner);
+      if (sealed === null) return invalid('send lacks its genuine original one-shot Work carrier.');
+      await appendFrameworkWrites(owner, sealed.effects, reader.context, input);
+      if (sealed.delivery.operation !== source || !owner.framework!.queued.has(sealed.delivery.id)) return invalid('send delivery lacks its actual queued intent.');
+      return sealed.delivery;
+    } finally { reader.close(); }
+  });
+}
+
+/** Associate only the current row issued by this real owner session. No host
+ * record locator, queued-intent map, model descriptor or write DTO is trusted. */
+export async function stageScenarioReceiptDelivery(call: AdmittedCall, store: StoragePort,
+  report: { readonly model: ModelName; readonly row: StoredRow; readonly field: string }): Promise<void> {
+  const owner = frameworkOwner(call, store);
+  return ownerOperation(owner, async () => {
+    if (typeof report !== 'object' || report === null || Array.isArray(report) ||
+        ![Object.prototype, null].includes(Object.getPrototypeOf(report)) || Reflect.ownKeys(report).length !== 3 ||
+        ['model', 'row', 'field'].some(key => {
+          const member = Object.getOwnPropertyDescriptor(report, key);
+          return member === undefined || !('value' in member) || !member.enumerable;
+        })) return invalid('own closed delivery assignment required.');
+    const issued = ownerRows.get(report.row);
+    if (issued?.session !== owner || issued.stage !== owner.stage || issued.model !== report.model) return invalid('delivery requires this session current-stage row.');
+    const model = owner.capture.bound.artifactModels.get(report.model), field = model?.fields.find(value => value.name === report.field);
+    if (model === undefined || field?.field.kind !== 'delivery' || !Object.hasOwn(report.row.data, report.field) ||
+        call.checkpoint === undefined) return invalid('delivery requires its owning declared field and checkpoint.');
+    const value = decodeValue(`delivery(${field.field.capability}.${field.field.operation})${field.nullable === true ? '?' : ''}`,
+      report.row.data[report.field]) as DeliveryRef | null;
+    const reader = frameworkContext(owner, receiptModels);
+    try {
+      const effects = await stageAuthoredDelivery({ model, recordId: report.row.id, field: report.field, value,
+        queued: owner.framework!.queued, operationId: call.context.operationId, revision: call.checkpoint.revision + 1,
+        ...(owner.capture.bound.valueTypes === undefined ? {} : { valueTypes: owner.capture.bound.valueTypes }),
+        ...(owner.capture.bound.valueSchema === undefined ? {} : { valueSchema: owner.capture.bound.valueSchema }) }, reader.context);
+      ownerHealthy(owner); await appendFrameworkWrites(owner, effects, reader.context);
+    } finally { reader.close(); }
+  });
+}
+
+function frameworkNetWrites(ledger: FrameworkLedger): DomainWrite[] {
+  const writes: DomainWrite[] = [];
+  for (const { model, before, current, recreated } of ledger.rows.values()) {
+    if (before === current) continue;
+    if (before !== null && (current === null || recreated)) writes.push({ kind: 'remove', model, id: before.id, expectedVersion: before.version });
+    if (current === null) continue;
+    if (before === null || recreated) writes.push({ kind: 'insert', model, row: current });
+    else writes.push({ kind: 'update', model, id: before.id, expectedVersion: before.version, row: current });
+  }
+  return writes;
+}
 
 function inputDefaultWire(bound: BoundPlan, field: CanonicalInputDef, wire: unknown): unknown {
   const saved = dataCopy(wire);
@@ -395,7 +639,7 @@ async function ownerOperation<T>(owner: ReceiptOwnerSession, execute: () => Prom
  * intermediate provenance. Its actual finalized effects must reach Invoke.
  */
 export async function beginScenarioReceiptMutation(call: AdmittedCall, store: StoragePort,
-  input: ScenarioReceiptMutationInput): Promise<OwnerMutationSession> {
+  input: ScenarioReceiptMutationInput): Promise<ScenarioReceiptMutationSession> {
   const state = capture(call, store);
   try {
     if (ownerSessions.has(call) || state.pending !== 0 || state.observations.length !== 0 || state.intrinsics.length !== 0 || state.returnId !== null) return invalid('one owner session must begin before scenario observations/return completion.');
@@ -407,12 +651,18 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
     const bounds = object(dataCopy(input.bounds), ['maxWork', 'maxRows']);
     if (!Number.isSafeInteger(bounds['maxRows']) || (bounds['maxRows'] as number) < 1 ||
         (bounds['maxRows'] as number) > MAX_ITEMS) return invalid('owner row bound exceeds the saved disclosure budget.');
+    const producer = frameworkProducers.get(call.def as GeneratedOperationDef);
+    if (producer !== undefined && (producer.app !== call.context.app ||
+        [DISPATCH_MODEL, ...receiptModels].some(model => state.bound.models.has(model as ModelName)))) return invalid('framework owner inventory collides with its app or business models.');
     const owner: ReceiptOwnerSession = { call, store, capture: state, stage: 0, busy: false, closed: false, finalized: null,
+      commitEffects: null, consumeWork: null, maxRows: bounds['maxRows'] as number,
+      framework: producer === undefined ? null : { producer, rows: new Map(), queued: new Map(), ordinal: 0 },
       ...inputDefaultSlots(call, state.bound), computedIndex: 0 };
     ownerSessions.set(call, owner);
     const session = await ownerOperation(owner, () => beginOwnerMutation({ ...input, context: call.context, store,
       trigger: { revision: call.revision, owner: call.checkpoint?.owner ?? call.context.team?.teamId ?? call.context.app },
       gateArchivedTargets: true }));
+    owner.consumeWork = session.views.consumeWork;
     const issue = (model: ModelName, row: StoredRow | null): StoredRow | null => {
       if (row !== null) ownerRows.set(row, { session: owner, stage: owner.stage, model });
       return row;
@@ -442,7 +692,7 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
         } catch (error) { state.poisoned = true; throw error; }
       },
     });
-    return Object.freeze<OwnerMutationSession>({ views, read: final.get,
+    return Object.freeze<ScenarioReceiptMutationSession>({ views, read: final.get,
       stage: (writes, options) => ownerOperation(owner, async () => {
         if (options?.cause !== 'scenario') return invalid('receipt owner staging requires the actual scenario cause.');
         await session.stage(writes, options);
@@ -456,7 +706,9 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
           // The actual seal must not alias mutable output from the ordinary
           // model pipeline; both consumer and retention receive this copy.
           owner.finalized = deepFreeze(dataCopy({ ...result, resolvedDefaults: finalizedDefaults(owner, result.resolvedDefaults) }));
-          return owner.finalized;
+          owner.commitEffects = owner.framework === null ? owner.finalized : deepFreeze(dataCopy({ ...owner.finalized,
+            writes: [...owner.finalized.writes, ...frameworkNetWrites(owner.framework)], outbox: [...owner.framework.queued.values()] }));
+          return owner.commitEffects;
         } catch (error) { state.poisoned = true; throw error; }
       },
     });
@@ -682,13 +934,16 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
   let state = captures.get(call); captures.delete(call);
   const owner = ownerSessions.get(call); ownerSessions.delete(call);
   if (owner !== undefined) {
-    if (!owner.closed || owner.finalized === null || owner.capture.poisoned || owner.capture.pending !== 0) {
+    if (!owner.closed || owner.finalized === null || owner.commitEffects === null || owner.capture.poisoned || owner.capture.pending !== 0) {
       return invalid('owner session must finalize successfully inside its actual execution.');
     }
     for (const key of ['writes', 'history', 'uniqueClaims', 'uniqueReleases', 'resolvedDefaults'] as const) {
-      if (stableStringify(dataCopy(effects[key])) !== stableStringify(owner.finalized[key])) {
+      if (stableStringify(dataCopy(effects[key])) !== stableStringify(owner.commitEffects[key])) {
         return invalid(`executor ${key} differ from the actual finalized owner effects.`);
       }
+    }
+    if (owner.framework !== null && stableStringify(dataCopy(effects.outbox)) !== stableStringify(owner.commitEffects.outbox)) {
+      return invalid('executor outbox differs from its actual finalized framework effects.');
     }
     // Duplicate schedule keys use last-operation-wins semantics. An extra
     // cancel/replacement on an owned key would override actual owner effects.
@@ -696,7 +951,7 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
     const owned = effects.schedules.filter(schedule => keys.has(schedule.key));
     if (stableStringify(owned) !== stableStringify(owner.finalized.schedules)) return invalid('executor omitted, changed or overrode an owned schedule.');
   }
-  const { writes, result } = effects;
+  const writes = owner?.finalized?.writes ?? effects.writes, result = effects.result;
   const bound = boundPlans.get(call.def as GeneratedOperationDef);
   if (bound === undefined) return undefined;
   // One checked empty path permits the ordinary implicit void return. Its
