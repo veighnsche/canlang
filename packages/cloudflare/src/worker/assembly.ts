@@ -102,7 +102,7 @@ import type {
   VerifiedIngressEnvelope,
 } from "@canlang/contracts";
 import type { AssembledModules } from "../runtime/modules.js";
-import type { InputChoiceLookup } from '@canlang/interfaces';
+import type { InputChoiceLookup, PagePreferenceStore } from '@canlang/interfaces';
 import type { IdentityStore } from '@canlang/identity';
 import type { WorkScope } from '@canlang/contracts';
 import type { createD1OwnerRouter } from '@canlang/state/storage/owner-router';
@@ -409,6 +409,7 @@ export type VersionedHttpOperationHandlerFactory = HttpOperationHandlerFactory &
 /** Narrow defining page-handler dependencies (Interfaces PageHttpDeps). */
 export interface PageHttpDeps {
   readonly formBindings?: SourceFormBindings;
+  readonly preferences?: PagePreferenceStore;
   readonly app: AppInfo;
   readonly pages: PageRegistry;
   readonly catalog?: SchemaCatalog;
@@ -445,6 +446,7 @@ export interface HttpJoin {
   readonly auth?: HttpAuthConfiguration;
   readonly authHandler?: HttpAuthJoin;
   readonly formBindings?: SourceFormBindings;
+  readonly preferences?: PagePreferenceStore;
   readonly createPageHandler?: HttpPageHandlerFactory;
   readonly createOperationHandler?: VersionedHttpOperationHandlerFactory;
   /** C1 deploy-baked E1 channel, shared verbatim with the MCP path. */
@@ -1875,6 +1877,7 @@ export async function assembleWorker(
     >("../runtime/invoke.js", "runtime/invoke.ts", "createPageReadScopeCanonical");
     pageHandler = deps.http.createPageHandler({
       ...(deps.http.formBindings === undefined ? {} : { formBindings: deps.http.formBindings }),
+      ...(deps.http.preferences === undefined ? {} : { preferences: deps.http.preferences }),
       app: appInfo, pages: { descriptors: () => descriptors },
       catalog: createArtifactCatalog(artifact, deps.http.derivedInputs),
       logger: httpLogger,

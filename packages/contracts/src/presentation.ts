@@ -167,6 +167,10 @@ export interface PageSourceContext {
   readonly actorFacts: { readonly email: string; readonly email_verified: boolean } | null;
   readonly team: { readonly id: string; readonly timezone: string } | null;
   readonly memberships: readonly string[];
+  /** Dispatcher-loaded saved values, scoped to this resolved actor and team. */
+  readonly preferences?: Readonly<Record<string, Readonly<Record<string, string>>>>;
+  /** Version of each saved value (`0` means no saved row yet). */
+  readonly preferenceVersions?: Readonly<Record<string, Readonly<Record<string, string>>>>;
   readonly canonical: {
     readonly builtinRoles: readonly string[];
     readonly observeDelivery?: PageDeliveryObserver;
@@ -188,6 +192,8 @@ export interface PresentationContext extends Partial<PageSourceContext> {
   readonly pollContext?: string;
   /** Current same-app pathname plus query, preserving team selection and filters. */
   readonly pollUrl?: string;
+  /** Validated request-local collection search text; source fields stay compiler-owned. */
+  readonly searchQuery?: string;
   /** URL occurrence → row-id locators; select only from the current authorized collection result. */
   readonly collectionSelections?: ReadonlyMap<string, string>;
   /** True for HTMX partial requests; false for full page GET. */
@@ -234,6 +240,12 @@ export interface PageDescriptor {
   readonly order?: bigint;
   readonly group?: MessageValue;
   readonly nav?: "none";
+  /** Source-owned enum selectors that this page can save for its current actor/team. */
+  readonly preferenceFields?: readonly {
+    readonly name: string;
+    readonly options: readonly string[];
+    readonly defaultValue: string;
+  }[];
   readonly admit: AdmitFn;
   readonly render: RenderFn;
 }
@@ -410,6 +422,12 @@ export interface ColumnMeta {
 export interface ListQueryArgs {
   readonly parent?: { readonly id: string };
   readonly where?: unknown;
+  /** Source-checked signed selectors; the authorized query owner applies ordering. */
+  readonly order?: readonly string[];
+  /** Source-checked searchable fields plus the accepted request query. */
+  readonly search?: { readonly fields: readonly string[]; readonly query: string };
+  /** Ask the authorized query owner for the matched total before pagination. */
+  readonly includeCount?: true;
   /** Explicit finite page profile; omission retains ordinary read overflow refusal. */
   readonly page?: true;
   /** Stable collection identity for cursor binding; required by the page profile. */
@@ -426,6 +444,8 @@ export interface ListQueryResult {
   readonly rows: readonly RowView[];
   readonly nextCursor?: string;
   readonly columns: readonly ColumnMeta[];
+  /** Authorized where+search total before limit/cursor, when requested. */
+  readonly totalCount?: number;
 }
 
 /**
@@ -509,6 +529,10 @@ export interface ListProps {
   readonly model: string;
   readonly parent?: { readonly id: string };
   readonly where?: unknown;
+  readonly order?: readonly string[];
+  readonly search?: readonly string[];
+  /** One source-owned list summary, outside renderRow. */
+  readonly count?: { readonly label: MessageValue };
   readonly limit?: number;
   readonly cursor?: string;
   /** Explicit finite page read, independent of presentation layout. */
@@ -1692,6 +1716,8 @@ export interface TabsBinding {
   readonly name: string;
   readonly options: readonly TabsOption[];
   readonly current?: string;
+  /** Saved snapshot version; sent with a bound save for compare-and-set. */
+  readonly version?: string;
   /** Caller-owned persistence path; the form POSTs name=<value> + CSRF. */
   readonly postTo: string;
 }
