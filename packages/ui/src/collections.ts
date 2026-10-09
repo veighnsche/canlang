@@ -91,14 +91,14 @@ async function splitBody(props: Pick<ListProps, "context" | "model" | "parent">,
   const caption = escapeHtml(resolveCaption(DETAILS, props.context));
   const open = escapeHtml(resolveCaption(OPEN_DETAILS, props.context));
   const close = escapeHtml(resolveCaption(CLOSE_DETAILS, props.context));
-  return `<div class="drawer drawer-end lg:drawer-open">` +
+  return `<div class="drawer drawer-end lg:drawer-open" data-can-split>` +
     `<input id="${toggle}" type="checkbox" class="drawer-toggle" aria-label="${caption}" aria-controls="${panel}"${selected === undefined ? "" : " checked"}>` +
     `<div class="drawer-content">${summaries}` +
     `<label for="${toggle}" class="btn drawer-button lg:hidden" aria-controls="${panel}">${open}</label></div>` +
     `<div class="drawer-side"><label for="${toggle}" class="drawer-overlay" aria-label="${close}"></label>` +
-    `<section id="${panel}" aria-labelledby="${title}" class="bg-base-100 min-h-full w-80 p-4" style="max-width:90vw">` +
+    `<dialog open data-can-split-panel id="${panel}" aria-labelledby="${title}" class="bg-base-100 min-h-full w-80 p-4" style="max-width:90vw;margin:0;position:relative">` +
     `<div class="flex gap-2"><h2 id="${title}">${caption}</h2>` +
-    `<label for="${toggle}" class="btn lg:hidden" aria-controls="${panel}">${close}</label></div>${body}</section></div></div>`;
+    `<button type="button" class="btn lg:hidden" data-can-split-close aria-controls="${panel}">${close}</button></div>${body}</dialog></div></div>`;
 }
 
 /** Scalar cell types rendered through formatScalar; see renderCell. */
