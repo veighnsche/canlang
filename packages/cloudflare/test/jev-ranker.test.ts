@@ -79,6 +79,26 @@ describe("bounded construct ranking", () => {
     expect(await ranker.rank({ ...occurrence, cards: [cards[0]!] })).toMatchObject({ state: "stale" });
   });
 
+  it("accepts compiler slot spelling and bounds without weakening local eligibility", async () => {
+    let calls = 0;
+    const ranker = new ConstructRanker({ choose: async () => { calls++; throw new Error("unexpected"); } }, {
+      allowExternal: () => false, isCurrent: () => true,
+    });
+    for (const slot of ["given.rule", "given-rule", "page_item", `a${"b".repeat(95)}`]) {
+      expect(await ranker.rank({ ...occurrence, slot, cards: [cards[0]!] }))
+        .toMatchObject({ state: "deterministic", card: cards[0] });
+      expect(await ranker.rank({ ...occurrence, slot })).toMatchObject({ state: "ranking_disallowed" });
+    }
+    for (const slot of [null, "", ".given", "-given", "Given.rule", "given/rule", "given rule", "given\nrule", `a${"b".repeat(96)}`]) {
+      expect(await ranker.rank({ ...occurrence, slot, cards: [cards[0]!] })).toMatchObject({ state: "structural" });
+    }
+    expect(await ranker.rank({ ...occurrence, slot: "given.rule", structuralRecovery: true }))
+      .toMatchObject({ state: "structural" });
+    expect(await ranker.rank({ ...occurrence, slot: "given.rule", cards: [], unsupportedBehaviorProven: true }))
+      .toMatchObject({ state: "none" });
+    expect(calls).toBe(0);
+  });
+
   it("sends only bounded structured evidence, validates a rank, and caches it", async () => {
     let calls = 0;
     const ranker = new ConstructRanker({ choose: async (request) => {
