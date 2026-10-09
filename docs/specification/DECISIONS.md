@@ -4635,3 +4635,21 @@ The final full portable journey passes1/1 in53.18s; owning CF emit, root noEmit 
 ## 2026-10-09 — consume released portable primitive-array receipt journey
 
 Merge exact reviewed b9ecfd06/Devd8bc2a5a onto the portable scalar intake, retaining compiler66b defaults and65cb actual whole-run failures/correction. Reuse the genuine public canonical/portable D1 scalar and nullable/empty/populated primitive-array journey1/1 in53.18s at the owner’s declared source; changed derive profiles still require their own qualification. Existing accumulated paths and both decision histories are retained, complete semantic/target checkpoint unadvanced. No competing harness or broader reference/held-policy acceptance follows.
+
+## 2026-10-09 — capture checked derives at their native invocation sites
+
+Join complete checked derive call chains to actual IR bodies/defaults and exact
+emitted field inventories. Specialize only opted-in native handler calls into
+private async closures with fresh parameter scopes, preserving global derives,
+exports and ordinary UI/generic output. Render authored arguments in the caller
+before entering the callee chain; preserve slot mapping, declaration-ordered
+defaults, explicit override skipping and original lazy operators. Private
+choice keys derive from checked source identities/canonical authored anchors;
+wire dependency origins retain imported path/digest and actual entry transport.
+Bound recursion/depth/sites and omit the whole plan when matching fails.
+Actual CLI/native/public Memory1/1 covers43successpaths+replay, including separate
+import files, repeated/nested/defaulted/lazy reads and saved derived recovery
+under current access; source closure12/12, strict all-targetClippy/fmt and finite
+independent review pass. This uses released State/Dev markers without widening
+mutation/query/composite or held profiles. Changed-source whole qualification
+and transition write provenance remain required; no original-reference credit.

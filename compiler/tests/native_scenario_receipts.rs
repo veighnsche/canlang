@@ -3,12 +3,28 @@
 #![cfg(unix)]
 use serde_json::Value;
 use std::{path::Path, process::Command};
+const LIBRARY: &str = r#"package receiptlib
+ Given
+  export Shared {value:int}
+  policy Shared read=members
+  export derive caption(shared:Shared):int = shared.value
+ When
+  crud Shared by=members fields=value
+ Then
+"#;
 const SOURCE: &str = r#"app NativeReceipts
+use receiptlib {Shared,caption}
 Given
  Item {value:int,enabled:bool,optional:int?,state:enum(a,b)=a,values:int[]?,required:int[]!}
  contract Packet {value:int}
  policy Item read=members
  derive value(item:Item):int = item.value
+ derive nested_value(item:Item):int = value(item)+1
+ derive difference(first:int,second:int):int = first-second
+ derive default_value(item:Item,total:int=item.value):int = total
+ derive fallback_value(item:Item):int = item.optional ?? value(item)
+ derive enabled(item:Item):bool = item.enabled
+ derive choice(value:Item.state):Item.state = value
 When
  crud Item by=members fields=value,enabled,optional,values,required
  scenario literal() -> int by=members
@@ -78,6 +94,32 @@ When
   do return item
  scenario derived(item:Item) -> int by=members
   do return value(item)
+ scenario imported(shared:Shared) -> int by=members
+  do return caption(shared)
+ scenario nested(item:Item) -> int by=members
+  do return nested_value(item)
+ scenario repeated(item:Item) -> int by=members
+  do return value(item)+value(item)
+ scenario reordered(item:Item) -> int by=members
+  do return difference(second=value(item),first=fallback_value(item))
+ scenario derived_default(item:Item) -> int by=members
+  do return default_value(item)
+ scenario derived_override(item:Item) -> int by=members
+  do return default_value(item,total=42)
+ scenario derived_lazy(item:Item) -> int by=members
+  do
+   let selected=fallback_value(item)
+   if enabled(item)
+    return selected
+   else
+    return selected
+ scenario derived_match(item:Item,selected:Item.state) -> int by=members
+  do
+   match choice(selected)
+    case a
+     return value(item)
+    case b
+     return nested_value(item)
  scenario changed(item:Item) -> int by=members
   do
    set item {value=2}
@@ -87,7 +129,9 @@ Then
 fn compile(scratch: &Path, native: bool) -> Value {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let source = scratch.join("native-receipts.can");
+    let library = scratch.join("receiptlib.can");
     std::fs::write(&source, SOURCE).unwrap();
+    std::fs::write(&library, LIBRARY).unwrap();
     let mut command = Command::new(env!("CARGO_BIN_EXE_can"));
     command
         .args(["compile", "--format=json", "--catalog"])
@@ -97,6 +141,7 @@ fn compile(scratch: &Path, native: bool) -> Value {
     }
     let output = command
         .arg(source)
+        .arg(library)
         .env_remove("CAN_CATALOG")
         .output()
         .unwrap();
@@ -165,6 +210,15 @@ fn opt_in_native_capture_retains_selected_paths_replays_and_current_state_projec
         "stored_array",
         "literal_array",
         "named_result",
+        "derived",
+        "imported",
+        "nested",
+        "repeated",
+        "reordered",
+        "derived_default",
+        "derived_override",
+        "derived_lazy",
+        "derived_match",
     ] {
         let op = operation(&artifact, name);
         let plan = &op["result"]["disclosure"];
@@ -206,6 +260,16 @@ fn opt_in_native_capture_retains_selected_paths_replays_and_current_state_projec
             operation(&default, name)["result"]["type"]
         );
     }
+    let imported = &operation(&artifact, "imported")["result"]["disclosure"];
+    let imported_origin = &imported["returns"][0]["dependencies"][0]["source"];
+    assert!(
+        imported_origin["path"]
+            .as_str()
+            .unwrap()
+            .ends_with("receiptlib.can")
+    );
+    assert_ne!(imported_origin["path"], imported["source"]["path"]);
+    assert_ne!(imported_origin["sha256"], imported["source"]["sha256"]);
     for name in [
         "query",
         "absent",
@@ -213,7 +277,6 @@ fn opt_in_native_capture_retains_selected_paths_replays_and_current_state_projec
         "model_array",
         "required_array",
         "model",
-        "derived",
         "changed",
     ] {
         assert!(
@@ -272,7 +335,10 @@ const create=async data=>{const req=request('Item.create',data);const result=awa
 const yes=await create({value:'17',enabled:true,optional:null,values:null,required:[]});
 const no=await create({value:'-3',enabled:false,optional:'9',values:[],required:[]});
 const populated=await create({value:'5',enabled:true,optional:null,values:['9223372036854775807','-2'],required:[]});
-const rows=new Map([yes,no,populated].map(row=>[row.id,row]));
+const sharedRequest={...request('unused',{value:'23'}),operation:'receiptlib.Shared.create'};
+const sharedResult=await committed(sharedRequest);assert.equal(sharedResult.records.length,1);
+const shared=sharedResult.records[0];
+const rows=new Map([yes,no,populated,shared].map(row=>[row.id,row]));
 const ref=row=>({id:row.id,version:String(row.version)});
 const saved=[];
 for(const [name,inputs,expected,fields] of [
@@ -290,6 +356,12 @@ for(const [name,inputs,expected,fields] of [
  ['stored_array',{item:ref(yes)},null,['values']],['stored_array',{item:ref(no)},[],['values']],['stored_array',{item:ref(populated)},['9223372036854775807','-2'],['values']],
  ['literal_array',{item:ref(yes)},['17','17'],['value','optional']],['literal_array',{item:ref(no)},['-3','9'],['value','optional']],
  ['named_result',{value:'a'},'a',[]],['named_result',{value:'b'},'b',[]],
+ ['derived',{item:ref(yes)},'17',['value']],['imported',{shared:ref(shared)},'23',['value']],
+ ['nested',{item:ref(yes)},'18',['value']],['repeated',{item:ref(yes)},'34',['value']],
+ ['reordered',{item:ref(yes)},'0',['value','optional']],['reordered',{item:ref(no)},'12',['value','optional']],
+ ['derived_default',{item:ref(yes)},'17',['value']],['derived_override',{item:ref(yes)},'42',[]],
+ ['derived_lazy',{item:ref(yes)},'17',['optional','value','enabled']],['derived_lazy',{item:ref(no)},'9',['optional','enabled']],
+ ['derived_match',{item:ref(yes),selected:'a'},'17',['value']],['derived_match',{item:ref(yes),selected:'b'},'18',['value']],
 ]){
  const req=request(name,inputs),result=await committed(req),receipt=await receiptFor(req);
  assert.deepEqual(result.result,expected);assert.deepEqual(receipt.outcome.result,expected);
@@ -309,7 +381,21 @@ for(const [name,inputs,expected,fields] of [
  }
  if(name==='stored_array')assert.equal(path.dependencies[0].type,'int[]?');
  if(name==='reused')assert.equal(new Set(path.dependencies.map(dep=>dep.field)).size,1,'one checked field reused across data/control');
- for(const observation of association.observations){assert.equal(observation.model,'NativeReceipts.Item');assert.equal(observation.row.id,inputs.item.id);assert.deepEqual(observation.row.data,rows.get(inputs.item.id).data);}
+ if(['derived','imported','nested','repeated','reordered','derived_default','derived_override','derived_lazy','derived_match'].includes(name)){
+  assert.deepEqual(association.observations.map(observation=>observation.dependencyId),path.dependencies.map(dep=>dep.id),'derive markers preserve actual evaluation chronology');
+ }
+ if(name==='repeated'){
+  assert.equal(path.dependencies.length,2,'two calls read the same defining callee member twice');
+  assert.notEqual(path.dependencies[0].id,path.dependencies[1].id,'checked callchains distinguish repeated callee sites');
+  assert.equal(new Set(association.observations.map(observation=>observation.dependencyId)).size,2);
+ }
+ if(name==='reordered'){
+  assert.deepEqual(path.dependencies.map(dep=>dep.field),inputs.item.id===yes.id?['value','optional','optional','value']:['value','optional','optional'],'source arguments execute before declaration-slot reorder');
+ }
+ if(name==='derived_default')assert.equal(path.dependencies.length,1,'omitted source default evaluates one stored read');
+ if(name==='derived_override')assert.deepEqual(association.observations,[],'explicit argument skips the source default');
+ if(name==='derived_lazy')assert.equal(path.dependencies.filter(dep=>dep.field==='value').length,inputs.item.id===yes.id?1:0,'derive fallback keeps its RHS lazy');
+ for(const observation of association.observations){const input=name==='imported'?inputs.shared:inputs.item;assert.equal(observation.model,name==='imported'?'receiptlib.Shared':'NativeReceipts.Item');assert.equal(observation.row.id,input.id);assert.deepEqual(observation.row.data,rows.get(input.id).data);}
  const revision=await store.readRevision(),count=commits,history=await store.historyFor('NativeReceipts.Item',yes.id);
  const replay=await invoke(req);assert.ok('result' in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');assert.deepEqual(replay.result.result,expected);
  assert.equal(commits,count);assert.equal(await store.readRevision(),revision);assert.deepEqual(await receiptFor(req),receipt);assert.deepEqual(await store.historyFor('NativeReceipts.Item',yes.id),history);
@@ -341,6 +427,9 @@ const replay=await invoke(field.req);assert.ok('result' in replay,JSON.stringify
 assert.equal(commits,before.commits);assert.equal(await store.readRevision(),before.revision);
 assert.equal((await projectScenarioReceipt({receipt:field.receipt,registry:loaded.registry,policy:loaded.policy,app:'NativeReceipts',identity,store,memberships})).result,'17');
 const originalArray=saved.find(value=>value.req.operation==='NativeReceipts.stored_array'&&value.req.inputs.item.id===populated.id);
+const originalDerived=saved.find(value=>value.req.operation==='NativeReceipts.nested');
+const derivedReplay=await invoke(originalDerived.req);assert.ok('result' in derivedReplay,JSON.stringify(derivedReplay));
+assert.equal(derivedReplay.result.status,'replayed');assert.equal(derivedReplay.result.result,'18','nested derive does not reread the current value 99');
 const arrayReplay=await invoke(originalArray.req);assert.ok('result' in arrayReplay,JSON.stringify(arrayReplay));
 assert.equal(arrayReplay.result.status,'replayed');assert.deepEqual(arrayReplay.result.result,['9223372036854775807','-2']);
 assert.deepEqual(readScenarioReceiptAssociation(await receiptFor(originalArray.req)).observations[0].row.data.values,['9223372036854775807','-2']);
@@ -351,12 +440,13 @@ let retainedCommits=0,fileReads=0;
 const readonlyStore={...store,commit:async()=>{retainedCommits++;throw new Error('retained commit tripwire');}};
 const fileTripwire=new Proxy({},{get(){fileReads++;throw new Error('retained file metadata tripwire');}});
 const retainedInvoker=buildInvoker(artifact,asm,readonlyStore,{memberships,now:()=>FIXED_NOW+16*60000,files:fileTripwire});
-const snapshot=async()=>({receipts:await Promise.all([field,originalArray].map(value=>receiptFor(value.req))),
+const retainedCases=[field,originalArray,originalDerived];
+const snapshot=async()=>({receipts:await Promise.all(retainedCases.map(value=>receiptFor(value.req))),
  revision:await store.readRevision(),rows:await store.query({model:'NativeReceipts.Item',authority:'owner',archived:'include'}),
  history:await Promise.all([yes,no,populated].map(row=>store.historyFor('NativeReceipts.Item',row.id))),
  outbox:probe.outboxAll(),schedules:await store.schedulesDue(Number.MAX_SAFE_INTEGER,100)});
 let retainedBefore=await snapshot();
-for(const value of [field,originalArray]){
+for(const value of retainedCases){
  const replay=await retainedInvoker.invokeRetainedMutation(value.req,identity);
  assert.ok('result' in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');
  assert.deepEqual(replay.result.result,value.expected);assert.deepEqual(replay.result.records,[]);
@@ -388,7 +478,7 @@ for(const row of [yes,populated]){
  assert.notEqual((await store.load('NativeReceipts.Item',row.id)).archivedAt,null);
 }
 retainedBefore=await snapshot();
-for(const value of [field,originalArray]){
+for(const value of retainedCases){
  for(const dedicated of [false,true]){
   const replay=await (dedicated?retainedInvoker.invokeRetainedMutation(value.req,identity):invoke(value.req));
   assert.ok('result' in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');
@@ -401,7 +491,7 @@ const afterArchive={revision:await store.readRevision(),commits};
 // Revocation is checked by the released State projection over that exact native receipt.
 await memberships.removeMembership(member.membership.membership_id);
 for(const value of saved){assert.deepEqual(await projectScenarioReceipt({receipt:value.receipt,registry:loaded.registry,policy:loaded.policy,app:'NativeReceipts',identity,store,memberships}),{result:null,records:[]});}
-for(const value of [field,originalArray]){
+for(const value of retainedCases){
  const denied=await retainedInvoker.invokeRetainedMutation(value.req,identity);
  assert.ok('error' in denied,JSON.stringify(denied));assert.equal(denied.error.code,'forbidden');
  assert.equal(JSON.stringify(denied).includes('scenario-result/v1'),false);
