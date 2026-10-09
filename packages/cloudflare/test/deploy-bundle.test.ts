@@ -242,8 +242,8 @@ describe("deploy bundle (P-B)", () => {
     for (const name of [
       "runtime/context.js",
       "runtime/stdlib.js",
-      "runtime/assembly-verification.js",
       "runtime/invoke.js",
+      "runtime/assembly-verification.js",
       "runtime/sourcemap.js",
       "runtime/mcp-registry.js",
       "runtime/env-assembly.js",
