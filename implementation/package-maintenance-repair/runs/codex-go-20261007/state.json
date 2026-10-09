@@ -1898,7 +1898,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-09T17:26:40.758278Z",
+  "updated_utc": "2026-10-09T17:31:20.471406Z",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -4441,6 +4441,12 @@
           "behavior": "UI default/explicit checkbox/toggle emit one distinct can_boolean_present: marker with fixedtrue only at editable render sites. Interfaces allows exact declaration-owned boolean/nullable companion marker names. Checkedtrue/uncheckedfalse/unrenderedomit remain distinct; nullable companion presence alone never manufactures false/null. Boolean array presence never becomes scalarfalse; array wire validation remains. JSON/client projection unchanged, no provenance cache or duplicate business controls.",
           "validation": "UI then Interfaces emits pass.10affected UI boolean/readonly cases pass, including real happy-dom successfulFormData;2affected HTTP/presentation cases pass across default/checkbox/toggle, protected partial selection, duplicate/malformed/unknown/wrongmode/mixed/CSRF refusals, nullable-only omission/checkednull and optional/required boolean-array wire boundaries. Prior46unchanged HTTP results reused.",
           "limit": "Exact scalar boolean/native HTTP closure only; broader boolean-array widget, full Office/browser/installed and parent qualification remain open. Subsequent work stays local for coordinator integration."
+        },
+        "prototype_named_inputs": {
+          "state": "implemented and affected local checks passed",
+          "correction": "Concrete emitted projection lost declared __proto__ bool (ownfalse/JSON{}). Every UI projection output now defines own enumerable writable/configurable data properties, keeping ordinary Object.prototype and value/evaluation semantics across all branches.",
+          "validation": "UI emit and existing T20b depth suite29/29pass zero skips onNode24. Declared __proto__ bool/ref/string/null/array and constructor versioned ref survive own-key/JSON envelope checks with exact version text and unchanged prototype.",
+          "limit": "Finite canonical field-name preservation; wider own-key/browser/installed and parent gates remain open. Local commit only."
         }
       }
     },
