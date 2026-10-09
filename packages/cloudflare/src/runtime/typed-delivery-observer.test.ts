@@ -28,6 +28,7 @@ import type { FenceAttemptDispatchFn } from './invoke.js';
 
 const APP = 'TypedDeliveryObserver';
 const MODEL = asModel(`${APP}.Entry`);
+const CHILD_MODEL = asModel(`${APP}.Child`);
 const fixturePath = resolve('packages/cloudflare/test/fixtures/typed-delivery-observer.json');
 
 test('authored delivery association serves current localhost provider results through native MCP and reopened D1', async () => {
@@ -88,8 +89,10 @@ test('authored delivery association serves current localhost provider results th
     const team = await storage.identity.createTeam({ timezone: 'Europe/Brussels' });
     const user = await storage.identity.createUser({ email: 'delivery-member@example.test',
       password_hash: 'unused', email_verified: true });
+    const observerRoles = ['viewer', 'delivery_reader'].map(role => ({ role: `${APP}.${role}`,
+      granted_at: new Date(now).toISOString(), granted_by: user.user_id }));
     const membership = await storage.identity.createMembership({ team_id: team.team_id,
-      user_id: user.user_id, is_owner: false, roles: [] });
+      user_id: user.user_id, is_owner: false, roles: observerRoles });
     const grant = await issueMcpGrant(storage.identity, { user_id: user.user_id,
       team_id: team.team_id, client_id: 'delivery-observer' }, { clock });
     const observer = { observeSelectedReceipt: (input: unknown) =>
@@ -123,6 +126,23 @@ test('authored delivery association serves current localhost provider results th
     const creation = await mutate('Entry.create');
     assert.equal(committed(creation), null);
     const created = (creation.body['records'] as Array<{ id: string }>)[0]!;
+    const childCreation = await mutate('Child.create', { parent: { id: created.id } });
+    committed(childCreation);
+    const child = (childCreation.body['records'] as Array<{ id: string }>)[0]!;
+    const parentStatus = (bearer = grant.token) =>
+      mcp(`${APP}.parentStatus`, { child: { id: child.id } }, bearer);
+    const recordParentStatus = async (bearer = grant.token, op = 'recordParentStatus') => {
+      const current = await storage.state.load(CHILD_MODEL, asId(child.id)); assert.ok(current);
+      return mcp(`${APP}.${op}`, { operation_id: operationId(),
+        child: { id: child.id, version: String(current.version) } }, bearer);
+    };
+    const assertParentStatus = async (succeeded: boolean) => {
+      const read = await parentStatus();
+      assert.equal(read.status, 200, JSON.stringify(read));
+      assert.equal(read.body['result'], succeeded, JSON.stringify(read));
+      assert.equal(committed(await recordParentStatus()), succeeded);
+      assert.equal((await storage.state.load(CHILD_MODEL, asId(child.id)))?.data['label'], 'Observed');
+    };
     const readReceipt = (selected = ['status', 'result'], id = created.id, bearer = grant.token) =>
       mcp('Receipt.read', { recordId: id, field: 'notification', selected }, bearer);
     const notify = async (accept: boolean) => {
@@ -131,6 +151,7 @@ test('authored delivery association serves current localhost provider results th
         to: 'recipient@example.test', accept });
     };
     assert.equal((await readReceipt()).body['outcome'], 'null-association');
+    await assertParentStatus(false);
     const beforeRejected = await storage.state.load(MODEL, asId(created.id));
     const rejected = await notify(false);
     assert.equal(rejected.body['code'], 'rule_failed', JSON.stringify(rejected));
@@ -179,6 +200,7 @@ test('authored delivery association serves current localhost provider results th
     const first = (await storage.state.outboxPending())[0]!;
     assert.equal((await storage.state.outboxPending()).length, 1);
     assert.deepEqual((await readReceipt()).body['projection'], { status: 'pending', result: null });
+    await assertParentStatus(false);
     const priorAssociation = await readReceipt();
     const rejectedReplacement = await notify(false);
     assert.equal(rejectedReplacement.body['code'], 'rule_failed');
@@ -220,6 +242,8 @@ test('authored delivery association serves current localhost provider results th
     assert.equal((await drive(latest.intentId)).status, 'recorded');
     const successful = { status: 'succeeded', result: { reference: `accepted-${latest.intentId}` } };
     assert.deepEqual((await readReceipt()).body['projection'], successful);
+    await assertParentStatus(true);
+    assert.equal(committed(await recordParentStatus(grant.token, 'recordQueriedParentStatus')), 'Observed');
     assert.deepEqual((await readReceipt(['status'])).body['projection'], { status: 'succeeded' });
     assert.deepEqual((await readReceipt(['result'])).body['projection'], { result: successful.result });
     assert.equal((await storage.state.outboxPending()).length, 0);
@@ -227,6 +251,14 @@ test('authored delivery association serves current localhost provider results th
     assert.equal(denied.body['outcome'], 'denied', JSON.stringify(denied));
     assert.deepEqual(denied.body['denied'], ['id']);
     assert.equal(JSON.stringify(denied).includes(latest.intentId), false);
+    const childBeforeDeniedId = await storage.state.load(CHILD_MODEL, asId(child.id));
+    for (const response of [await mcp(`${APP}.parentId`, { child: { id: child.id } }),
+      await recordParentStatus(grant.token, 'recordParentId')]) {
+      assert.equal(response.body['code'], 'forbidden', JSON.stringify(response));
+      assert.equal(JSON.stringify(response).includes(latest.intentId), false);
+      assert.equal(Object.hasOwn(response.body, 'result'), false);
+    }
+    assert.deepEqual(await storage.state.load(CHILD_MODEL, asId(child.id)), childBeforeDeniedId);
 
     // Fault injection through the real D1 fence: change only the owning wire
     // field while retaining its actual protected association and receipt.
@@ -253,6 +285,13 @@ test('authored delivery association serves current localhost provider results th
     assert.equal(staleId.body['outcome'], 'denied', JSON.stringify(staleId));
     assert.deepEqual(staleId.body['denied'], ['id']);
     assert.equal(JSON.stringify(staleId).includes(latest.intentId), false);
+    const childBeforeStale = await storage.state.load(CHILD_MODEL, asId(child.id));
+    for (const response of [await parentStatus(), await recordParentStatus()]) {
+      assert.notEqual(response.body['status'], 'committed', JSON.stringify(response));
+      assert.equal(Object.hasOwn(response.body, 'result'), false, JSON.stringify(response));
+      assert.equal(JSON.stringify(response).includes(`accepted-${latest.intentId}`), false);
+    }
+    assert.deepEqual(await storage.state.load(CHILD_MODEL, asId(child.id)), childBeforeStale);
     await writeOwnerNotification(selectedOwner.data['notification']);
     assert.deepEqual((await readReceipt()).body['projection'], successful);
 
@@ -274,6 +313,77 @@ test('authored delivery association serves current localhost provider results th
     await miniflare!.dispose(); miniflare = undefined;
     storage = await open(); worker = await assemble(); dispatcher = await dispatcherFor();
     assert.deepEqual((await readReceipt()).body['projection'], reconciled);
+    await assertParentStatus(true);
+    // Removing only receipt grants leaves a readable parent label. Its omitted
+    // delivery wire field must refuse, rather than turning into optional null.
+    await storage.identity.setMembershipRoles(membership.membership_id, observerRoles.slice(0, 1));
+    const childBeforeWithheld = await storage.state.load(CHILD_MODEL, asId(child.id));
+    for (const response of [await parentStatus(), await recordParentStatus(),
+      await recordParentStatus(grant.token, 'recordQueriedParentStatus')]) {
+      assert.equal(response.body['code'], 'forbidden', JSON.stringify(response));
+      assert.equal(JSON.stringify(response).includes(uncertain.intentId), false);
+      assert.equal(Object.hasOwn(response.body, 'result'), false);
+    }
+    assert.deepEqual(await storage.state.load(CHILD_MODEL, asId(child.id)), childBeforeWithheld);
+    await storage.identity.setMembershipRoles(membership.membership_id, observerRoles);
+    await assertParentStatus(true);
+    // Revoke a receipt grant after its initial resolution but before the real
+    // receipt is loaded. Final read grants and mutation guards must refuse.
+    for (const mutation of [false, true]) {
+      const currentState = storage.state;
+      const childBeforeRevocation = await currentState.load(CHILD_MODEL, asId(child.id));
+      const historyBeforeRevocation = await currentState.historyFor(CHILD_MODEL, asId(child.id));
+      let revokeAtReceipt = true;
+      storage.state = { ...currentState, load: async (model, id) => {
+        if (model === RECEIPT_MODEL && revokeAtReceipt) {
+          revokeAtReceipt = false;
+          await storage.identity.setMembershipRoles(membership.membership_id, observerRoles.slice(0, 1));
+        }
+        return currentState.load(model, id);
+      } };
+      worker = await assemble();
+      const response = mutation ? await recordParentStatus() : await parentStatus();
+      assert.equal(revokeAtReceipt, false);
+      assert.equal(response.body['code'], 'forbidden', JSON.stringify(response));
+      assert.equal(JSON.stringify(response).includes(uncertain.intentId), false);
+      assert.equal(Object.hasOwn(response.body, 'result'), false);
+      assert.deepEqual(await currentState.load(CHILD_MODEL, asId(child.id)), childBeforeRevocation);
+      assert.deepEqual(await currentState.historyFor(CHILD_MODEL, asId(child.id)), historyBeforeRevocation);
+      storage.state = currentState;
+      await storage.identity.setMembershipRoles(membership.membership_id, observerRoles);
+      worker = await assemble();
+    }
+    // A granted Child link can outlive its target. Exercise the stored current
+    // link through D1, keeping the protected association and receipt untouched.
+    const changeChildParent = async (parentId: string) => {
+      const current = await storage.state.load(CHILD_MODEL, asId(child.id)); assert.ok(current);
+      await storage.state.commit({ expectedRevision: await storage.state.readRevision(),
+        writes: [{ kind: 'update', model: CHILD_MODEL, id: current.id, expectedVersion: current.version,
+          row: { ...current, version: (current.version + 1) as typeof current.version,
+            parent: { model: MODEL, id: asId(parentId) } } }],
+        history: [], receipt: null, outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [],
+      });
+    };
+    await changeChildParent('missing-parent');
+    const childBeforeMissing = await storage.state.load(CHILD_MODEL, asId(child.id));
+    const missingParent = await parentStatus();
+    assert.equal(missingParent.body['code'], 'not_found', JSON.stringify(missingParent));
+    const missingMutation = await recordParentStatus();
+    assert.equal(missingMutation.body['code'], 'not_found', JSON.stringify(missingMutation));
+    assert.deepEqual(await storage.state.load(CHILD_MODEL, asId(child.id)), childBeforeMissing);
+    await changeChildParent(created.id);
+    await storage.identity.setMembershipRoles(membership.membership_id, []);
+    const hiddenParent = await parentStatus();
+    assert.deepEqual(hiddenParent, missingParent);
+    const childBeforeHidden = await storage.state.load(CHILD_MODEL, asId(child.id));
+    const historyBeforeHidden = await storage.state.historyFor(CHILD_MODEL, asId(child.id));
+    const hiddenMutation = await recordParentStatus();
+    assert.equal(hiddenMutation.body['code'], 'not_found', JSON.stringify(hiddenMutation));
+    assert.equal(JSON.stringify(hiddenMutation).includes(uncertain.intentId), false);
+    assert.equal(Object.hasOwn(hiddenMutation.body, 'result'), false);
+    assert.deepEqual(await storage.state.load(CHILD_MODEL, asId(child.id)), childBeforeHidden);
+    assert.deepEqual(await storage.state.historyFor(CHILD_MODEL, asId(child.id)), historyBeforeHidden);
+    await storage.identity.setMembershipRoles(membership.membership_id, observerRoles);
     assert.equal((await storage.state.outboxPending()).length, 0);
     const outsider = await storage.identity.createUser({ email: 'delivery-outsider@example.test',
       password_hash: 'unused', email_verified: true });
@@ -288,6 +398,11 @@ test('authored delivery association serves current localhost provider results th
     assert.equal(revoked.status, 401, JSON.stringify(revoked));
     assert.equal(JSON.stringify(revoked).includes(uncertain.intentId), false);
     assert.equal(JSON.stringify(revoked).includes('reference'), false);
+    for (const response of [await parentStatus(), await recordParentStatus()]) {
+      assert.equal(response.status, 401, JSON.stringify(response));
+      assert.equal(JSON.stringify(response).includes(uncertain.intentId), false);
+      assert.equal(Object.hasOwn(response.body, 'result'), false);
+    }
   } finally {
     await miniflare?.dispose();
     await rm(dir, { recursive: true, force: true });
