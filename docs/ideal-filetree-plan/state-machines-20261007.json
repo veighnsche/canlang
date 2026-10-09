@@ -1,18 +1,18 @@
 {
   "date": "2026-10-09",
-  "integrated_source_pin": "4877dbc89cd6ca741fc2d6721e82821a28807aac",
+  "integrated_source_pin": "da7f5b14e32531068d24465dc5da70bc3759b1af",
   "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 1402,
-    "net_path_deltas": 10763,
-    "history_touched_paths": 11307,
+    "commit_count_since_checkpoint": 1410,
+    "net_path_deltas": 10765,
+    "history_touched_paths": 11309,
     "history_only_paths": 513,
     "released_feature_paths": 78,
     "new_target_leaves": 30,
-    "inherited_paths_without_prior_target_allocation": 9261,
-    "scope": "Local main integration of committed source 4877dbc89cd6ca741fc2d6721e82821a28807aac onto 1d0b350dd2d4726c3cb29ae1ef9aa23cb3316c6a; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced."
+    "inherited_paths_without_prior_target_allocation": 9263,
+    "scope": "Local main integration of committed source da7f5b14e32531068d24465dc5da70bc3759b1af onto c8ab39f3b05fe4087bbe10f9170e751c71dc9497; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced. Compiler exact reviewed ec4f79ba/Devda7f5b14 intake retains local native/default and full-run failure records; six incoming paths are registered, original source/target checkpoint remains unadvanced."
   },
   "methods": [
     "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z checkpoint (actual staged local merge tree; incoming integrated_source_pin onto current main parent)",
@@ -59300,6 +59300,12 @@
     ],
     [
       "A",
+      "packages/cloudflare/src/runtime/native-scenario-receipts-d1.integration.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "packages/cloudflare/src/runtime/page-cursor.test.ts",
       "packages/cloudflare",
       "inherited-unallocated"
@@ -64611,6 +64617,12 @@
     ],
     [
       "A",
+      "tests/integration/can-dev-server/NativeSavedScenario.can",
+      "build",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "tests/integration/can-dev-server/OfficeSupplies.can",
       "build",
       "inherited-unallocated"
@@ -67214,7 +67226,7 @@
     ]
   ],
   "pending_target_allocation": {
-    "count": 9261,
+    "count": 9263,
     "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
   },
   "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -67228,5 +67240,5 @@
   "lanes": "Existing four local worktrees continue their assigned plans; only committed snapshots are integrated here. Open edits and recipient-specific holds are preserved. Coordinator alone serializes local main merges/manual review; no remote publication or PR review gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Local main integration of committed source 4877dbc89cd6ca741fc2d6721e82821a28807aac onto 1d0b350dd2d4726c3cb29ae1ef9aa23cb3316c6a; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced. Compiler worker merges exact reviewed4c063189 onto committed26efe0ac, preserving primitive-array/public histories. All six incoming paths and changed existing compiler paths already registered; no new target allocation/checkpoint acceptance. Native captured caller released; source-generated public/portable qualification remains separate."
+  "current_maintenance_summary": "Local main integration of committed source da7f5b14e32531068d24465dc5da70bc3759b1af onto c8ab39f3b05fe4087bbe10f9170e751c71dc9497; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced."
 }
