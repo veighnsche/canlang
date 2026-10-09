@@ -1611,7 +1611,7 @@
         "identity_default_discovery": "accepted 13 unique emitted source/test files; private actual default 92/92 and root source-test 12/12",
         "work_default_resources": "accepted original oracle/fixture staged byte-equally; private actual default 464/464 and root numeric 74/74; missing fixture refuses",
         "values_string_contract": "accepted source/emitted owning recipe with current donor provenance; existing semantic assertions and frozen oracle unchanged",
-        "full_native_observer": "open original gate, not executed",
+        "full_native_observer": "Existing finite registered observer executed successfully93/93 on genuineRust1.99/Node24 after scratch-path portability correction; frozen fixtures and source/emit stability unchanged. Unsampled cases and native fault details/own-key/StateError envelope gaps remain explicit; no complete native/default/Wasm/installed acceptance.",
         "identity_work_commit": "e29ff90"
       },
       "values_slice": {
@@ -1647,6 +1647,13 @@
         "file": "packages/values/test/prepared-hook.test.ts",
         "behavior": "Explicit exact public schema inventory includes intentionally released ValueTypesError and normalizeValueTypes; all internal-authority exclusions and semantic assertions unchanged.",
         "validation": "Current private Values compilation and owning emitted prepared-hook test8/8 pass, no skips; full907-test CI result not rerun or claimed."
+      },
+      "registered_native_observer": {
+        "file": "packages/work-kernel/conformance/registered-differential.mjs",
+        "state": "finite existing qualification passed; original broader gates remain open",
+        "private_result": "/tmp/can-packages-work-registered-differential/registered-differential.json",
+        "validation": "Fresh strict owning TS emit and offline locked registeredRust observer compare93original frozen cases, including faults/random demand and existing detection controls; fixture/source/emit guards pass. Checkout output refusal verified before writes.",
+        "limits": "Original unsampled coverage, full native fault details/own-key/StateError identity, parser/provenance/transport/ref lifecycle and Wasm/default/installed consumers remain unqualified."
       }
     },
     "TECH-V02-violations": {
@@ -4312,7 +4319,7 @@
     "examined_queue": "All48 existing packet identities/progress preserved. Human prioritizes blocking affected PR gates. Released nominal preference producer1ee1239d/dac8596f consumed asfe32dea1/c52722e6, with matching published strictB1 test/workflow corrections1a6c7633/2db9200b; Capability697022af ES2022 standalone target consumed. Next ready fixture/State gate corrections continue; native preparation HOLD retained.",
     "delivery": "ExistingPR135 coherent sharedCIeac25 and consolidation1644published; exacthashes reported here, no confirmed coordinator receipt. Related sourceState2742/TeamTasksclosureb11/releasedCompiler6f807+146aca coherent andvalidated at their stated scope. Full48queue original obligations/333identities preserved; external/held remainder explicit; ownbranchonly no merge/mainpush/deploy.",
     "last_upstream_sync": "Main9ecb2759 integrated at5910445b; source146aca and exactCI1644 taskboundary fetch/merge alreadyuptodate. Pinned draft5a fetched/restored with priora55preserved and no pointer/sourcechange.",
-    "review_process": "Only Codex automation counts. Actual7a55code/security complete without newfindings. New4230855724 registry omission corrected through finalsource1644after required CIpublication; current later revision requires its own relevant completed review/CI, no older or pending acceptance.",
+    "review_process": "Actualbc377548Codex code/security completed. Historical registry findings4230509661/4230855724 assessed/corrected. New actionable4230912689 identifies chained enum preference caption overrides lost through root enum owner; Compiler owning published correction required/being inspected. New Work source revision requires its own relevant review, no older acceptance.",
     "filetree_reconciliation": "Codex4230855724 assessed/corrected: prior dec38944 endpoint omitted newer fixtures/source and CI. Existing complete structural inventory now through final published1644cd4a2e3f63c06615869d784830560a2f8bb8 AFTER exact coordinator consolidation:1054commits/10673net deltas/11215historical paths/511history-only. All allocations/targets/review flags preserved,7new paths classified by existing owner rules. JSON/count/history/net/ancestry/preserved-scope checks pass. Complete82493427 semantic checkpoint remains unadvanced; no recursive registration of bookkeeping.",
     "pull_request": "https://github.com/veighnsche/canlang/pull/135",
     "ci_prerequisites": [
@@ -4333,7 +4340,7 @@
       "prerequisite": "Consume relevant Codex code/security review after this coherent released dependency/gate update;740ab20b completed without new findings.",
       "owner": "Codex automated reviewer; Packages consumes revision findings"
     },
-    "ci_observed_revision": "At7a55 actual B1CIpasses after published owning source/test/workflow corrections. At eac25 current full guard confirms6realDev-owned bypasses, State violation gone. LocalTeamTasks consumer15/15 and e2eTypeScriptpass; draft pilots15fail at explicit source/provenance profiles. Real fullRustgate now runs and reports formatter/Clippy/effects visibility compilation prerequisites. Coordinator handoff26build/16guard/tools3+37 reused unchanged. No E2E/fullRust/workspace acceptance.",
+    "ci_observed_revision": "Actual new consolidatedCI1644 run37941358998: language tools pass; packagebuilds and compilerformat/lint prerequisites pass; workspace fails exact6Dev-boundaries, browser30pass/15pilot-source/provenancefail, compiler reaches36analysispass/1retaineddraft-outcome-fail after other early suites. Matches local defining blockers; no blanketLinux/fullworkspace/Rust/app acceptance. Work finite observer93passes locally outside held preparation.",
     "released_compiler_dependency": {
       "release": "Compiler PR1334cb5c55d04afe0c8d4641e9fe9501465baec8f96 cherry-picked with provenance asd2788779cee855bc940cf212208e0c049d9abd99; source delta exactly absent module declaration/two calls. Conflicting documentation retained at its owning historical scope.",
       "validation": "Rust1.99 locked offline B1 actual-catalog joins2/2, zeroSKIP; actual nominal generated/public Interfaces/UI/Identity Memory preference consumer1/1. Fresh locked compiler build passes and exact released workflow block provesTeamTasks exit10, seven precise errorE6008 profiles, complete diagnostic JSON/omitted0/no artifact fields. Unsupported source profiles remain refused; no whole-app/help/corpus acceptance.",
@@ -4365,6 +4372,7 @@
       "release": "Human-authorized coordinator publication of EXISTING tracked5a12eb9ebb136ffa4e5ce352663f92affba25bc2 to canlang-drafts codex/ci-corpus-20261009 fetched; exact detached pinned checkout restored. Prior clean a55a0f7 HEAD preserved at draft branch codex/packages-preserved-draft-20261009; no local edits discarded, pointer/main/source unchanged.",
       "validation": "Changed prerequisite consumed once in existing pristine/patched pilot checks and real full Rust fmt/Clippy/test commands; actual source/compilation failures recorded separately."
     },
-    "workflow_consolidation_owner": "Coordinator exact50e28439 payload consumed and published as1644cd4a2e3f63c06615869d784830560a2f8bb8 AFTER source146aca0d; one4jobci.yml,exact10deletions,READMEparagraph/decisionappend. release.yml andts-gates.yml unchanged. Unchanged officialactionlint1.7.12/YAML/fresh exactdraftcheckout+26build/16guard/40tools results reused; actualnewLinuxgraph remains unaccepted. Prior guard source remains byteidentical toeac25release. Old finite reservation ends; future conflicts route through coordinator."
+    "workflow_consolidation_owner": "Coordinator exact50e28439 payload consumed and published as1644cd4a2e3f63c06615869d784830560a2f8bb8 AFTER source146aca0d; one4jobci.yml,exact10deletions,READMEparagraph/decisionappend. release.yml andts-gates.yml unchanged. Unchanged officialactionlint1.7.12/YAML/fresh exactdraftcheckout+26build/16guard/40tools results reused; actualnewLinuxgraph remains unaccepted. Prior guard source remains byteidentical toeac25release. Old finite reservation ends; future conflicts route through coordinator.",
+    "work_registered_observer": "VERIFY-TV01 existing registered observer now runs in private platformtemp root (canonical ancestor/symlink containment; checkout refused). GenuineNode24/Rust1.99 frozen TS/native93case comparison and existing controls pass. No oracle changes, held preparation activation or parent/fullnative acceptance."
   }
 }
