@@ -21,6 +21,7 @@ import {
   edit,
   form,
   formatDatetimeLocal,
+  NATIVE_BOOLEAN_PRESENCE_PREFIX,
   pointerToFieldName,
 } from "../src/forms.js";
 
@@ -403,6 +404,15 @@ describe("form field widgets", () => {
     assert.ok(html.includes('type="checkbox" name="inputs[on]" id="f1-on" value="true" checked'));
     assert.ok(html.includes('class="toggle"'));
     assert.ok(!html.includes('name="inputs[off]" id="f1-off" value="true" checked'));
+    const page = await loadHtml(html);
+    try {
+      const data = new page.window.FormData(page.document.querySelector('form')!);
+      assert.deepEqual(data.getAll('inputs[on]'), ['true']);
+      assert.deepEqual(data.getAll('inputs[off]'), []);
+      assert.deepEqual(data.getAll(NATIVE_BOOLEAN_PRESENCE_PREFIX + 'inputs[on]'), ['true']);
+      assert.deepEqual(data.getAll(NATIVE_BOOLEAN_PRESENCE_PREFIX + 'inputs[off]'), ['true']);
+      assert.equal(data.has(NATIVE_BOOLEAN_PRESENCE_PREFIX + 'inputs[unrendered]'), false);
+    } finally { await page.close(); }
     await assert.rejects(
       form(makeFormProps({ fields: [field("b", { type: "bool", value: "yes" })] })),
       /type bool needs a boolean value/,
@@ -584,6 +594,7 @@ describe("required and readonly fields", () => {
     );
     assert.ok(html.includes('<input type="hidden" name="inputs[on]" value="true">'));
     assert.ok(html.includes('<input type="hidden" name="inputs[off]" value="false">'));
+    assert.ok(!html.includes(NATIVE_BOOLEAN_PRESENCE_PREFIX));
   });
 
   it("disables readonly selects and duplicates the selection", async () => {
