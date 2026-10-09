@@ -89,9 +89,16 @@ const trace=[];globalThis.asyncQueryTrace=trace;let sequence=0;
 async function mutate(operation,inputs,who=identity){
  return invoker.invokeMutation({operation,operation_id:uuidv7(FIXED_NOW,++sequence),inputs},who);
 }
-function committed(outcome){
+function committed(outcome,expectedRecords=1){
  assert.ok('result' in outcome,JSON.stringify(outcome));assert.equal(outcome.result.status,'committed');
- return outcome.result.result;
+ assert.equal(outcome.result.result,null,'generated CRUD has no declared business result');
+ assert.equal(outcome.result.records.length,expectedRecords,'exact disclosed changed records');
+ if(expectedRecords===0)return null;
+ const row=outcome.result.records[0];
+ assert.deepEqual(Object.keys(row).sort(),['archivedAt','created','createdBy','data','id','parent','updated','updatedBy','version']);
+ assert.equal(typeof row.id,'string');assert.ok(row.id.length>0);
+ assert.ok(Number.isSafeInteger(row.version)&&row.version>0);
+ return row;
 }
 const probeRow=committed(await mutate(`${probe}.create`,{}));
 const entries=[];
@@ -176,7 +183,7 @@ assert.deepEqual(await snapshot(),beforeRevocation,'fresh grant refusal has no w
 // an empty nested viewer domain, so all source candidates return false.
 committed(await mutate(`${probe}.delete`,{
  record:{id:probeRow.id,version:String(probeRow.version)},
-},anotherIdentity));
+},anotherIdentity),0);
 const beforeEmpty=await snapshot();
 assert.notEqual(beforeEmpty.rows[0].archivedAt,null);
 const empty=await read(anotherIdentity);assert.ok('result' in empty,JSON.stringify(empty));

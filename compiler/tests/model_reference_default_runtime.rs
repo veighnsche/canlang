@@ -130,12 +130,18 @@ function committed(outcome,status='committed'){
  assert.equal(outcome.result.result,'1');return outcome.result;
 }
 function rejected(outcome,code){assert.ok('error' in outcome,JSON.stringify(outcome));assert.equal(outcome.error.code,code);}
-// Obtain references from the real canonical create result, without seeding
+// Obtain references from the real canonical disclosed create record, without seeding
 // raw rows or fabricating native views. This is the existing CRUD prerequisite.
 async function created(){
  const outcome=await invoke(envelope({},`${model}.create`));
  assert.ok('result' in outcome,JSON.stringify(outcome));assert.equal(outcome.result.status,'committed');
- const row=outcome.result.result;assert.equal(row.data.count,'1');assert.equal(row.version,1);
+ assert.equal(outcome.result.result,null,'generated CRUD has no business result');
+ assert.equal(outcome.result.records.length,1,'exact disclosed created record');
+ const row=outcome.result.records[0];
+ assert.deepEqual(Object.keys(row).sort(),['archivedAt','created','createdBy','data','id','parent','updated','updatedBy','version']);
+ assert.equal(typeof row.id,'string');assert.ok(row.id.length>0);
+ assert.ok(Number.isSafeInteger(row.version)&&row.version>0);
+ assert.equal(row.data.count,'1');assert.equal(row.version,1);
  return {id:row.id,version:String(row.version)};
 }
 const seed=await created(),other=await created();assert.notEqual(seed.id,other.id);

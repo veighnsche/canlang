@@ -148,7 +148,7 @@ const entry=await import(assembled.entryUrl);
 assert.equal(typeof entry.canApp,'function');assert.equal(typeof entry.appDefinition,'object');
 const definition=entry.appDefinition;
 assert.deepEqual(Object.keys(definition.judgments),['StaticJudgment.Triage','StaticJudgment.ChangeReview']);
-function message(source,nl){return {source,variants:{nl}};}
+function message(source,nl){return {source,variants:{nl},sourceLocale:'en'};}
 assert.deepEqual(definition.judgments['StaticJudgment.Triage'],{
  sourceLanguage:'en',
  version:1n,
