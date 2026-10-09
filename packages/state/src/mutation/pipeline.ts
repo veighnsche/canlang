@@ -1256,7 +1256,14 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
       checkKnownFields(hooked, def);
       checkRequired(hooked, def);
       for (const [field, value] of Object.entries(hooked)) {
-        if (value !== beforeHook[field]) changedFields.add(field);
+        if (value === beforeHook[field]) continue;
+        // Hook inputs/results are clones: unchanged arrays and objects keep
+        // their wire contents, even though their identities differ.
+        try {
+          if (JSON.stringify(value) !== JSON.stringify(beforeHook[field])) changedFields.add(field);
+        } catch {
+          changedFields.add(field);
+        }
       }
       checkJsonSafe(hooked, def, undefined, changedFields);
       checkWhen(write.when, {
