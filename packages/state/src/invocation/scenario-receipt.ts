@@ -317,7 +317,7 @@ export function closeScenarioReceiptExecution(call: AdmittedCall): void {
 export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: ExecutionEffects): ExecutionEffects {
   if (!boundPlans.has(call.def as GeneratedOperationDef)) return effects;
   const required = ['writes', 'history', 'outbox', 'schedules', 'uniqueClaims', 'uniqueReleases', 'resolvedDefaults', 'result'];
-  const allowed = [...required, 'generatedCrud', 'guards', 'readings'];
+  const allowed = [...required, 'generatedCrud', 'guards', 'readings', 'fileAssignments'];
   const snapshot: Record<string, unknown> = {};
   if (typeof effects !== 'object' || effects === null || Array.isArray(effects) ||
       ![Object.prototype, null].includes(Object.getPrototypeOf(effects)) ||
@@ -327,8 +327,11 @@ export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: Exec
     if (typeof key !== 'string' || !allowed.includes(key) || !('value' in member) || !member.enumerable) {
       return invalid('execution effects require own enumerable data and cannot supply a scenario association.');
     }
-    if (member.value === undefined && !required.includes(key)) continue;
-    if (key === 'guards') {
+    if (member.value === undefined && !required.includes(key) && key !== 'fileAssignments') continue;
+    if (key === 'fileAssignments') {
+      if (!Array.isArray(member.value) || member.value.length !== 0) return invalid('file assignments require the defining File/lifetime join.');
+      snapshot[key] = dataCopy(member.value);
+    } else if (key === 'guards') {
       const guards = list(member.value);
       if (Reflect.ownKeys(guards).length !== guards.length + 1) return invalid('own dense guard array required.');
       snapshot[key] = Array.from({ length: guards.length }, (_, index) => {

@@ -11,7 +11,7 @@ import { buildPolicyTable } from '../policy/grants.js';
 import { loadArtifactDescriptors, loadExecutionDescriptorSet, type ArtifactDescriptorSlice } from './registry.js';
 import { invoke, invokeRetainedReceiptOnly, type ExecutionEffects } from './invoke.js';
 import { observeScenarioReceiptDependency, selectScenarioReceiptReturn,
-  readScenarioReceiptAssociation, projectScenarioReceipt } from './scenario-receipt.js';
+  readScenarioReceiptAssociation, projectScenarioReceipt, snapshotScenarioReceiptEffects } from './scenario-receipt.js';
 import { FIXED_NOW, asModel, asVersion, createMemoryIdentityStore, makeIdentity, makeEnvelope,
   seedMember, seedRow, updateRow, uuidv7 } from '../../test/invocation/fixtures.js';
 
@@ -75,6 +75,72 @@ async function save(w: Awaited<ReturnType<typeof world>>, changed = true): Promi
 }
 
 describe('execution-associated saved scenario disclosure', () => {
+  it('preserves an own empty file assignment carrier through scalar receipt snapshot, replay and projection', async () => {
+    const w = await world(); let receipt: Receipt | undefined; let executes = 0;
+    const assignments: unknown[] = [];
+    const input = { ...w, execute: async (call: Parameters<typeof observeScenarioReceiptDependency>[0]) => {
+      executes++;
+      const original = call.recordRefs[0]!.row;
+      await observeScenarioReceiptDependency(call, w.store, { dependencyId: 'value', model: MODEL,
+        row: original, field: 'visible' });
+      selectScenarioReceiptReturn(call, w.store, 'record-result');
+      const raw: ExecutionEffects = { ...emptyEffects(original.data['visible']), fileAssignments: assignments,
+        writes: [{ kind: 'update', model: MODEL, id: original.id, expectedVersion: original.version,
+          row: { ...original, version: asVersion(original.version + 1),
+            data: { ...original.data, visible: 'committed visible' } } }] };
+      const snapshot = snapshotScenarioReceiptEffects(call, raw);
+      assert.ok(Object.hasOwn(snapshot, 'fileAssignments'));
+      assert.deepEqual(snapshot.fileAssignments, []);
+      assert.notEqual(snapshot.fileAssignments, assignments);
+      assert.ok(Object.isFrozen(snapshot.fileAssignments));
+      return raw;
+    }, observeCommittedReceipt: (value: Receipt) => { receipt = value; } };
+    assert.equal((await invoke(input)).status, 'committed'); assert.ok(receipt);
+    const originalReceipt = receipt;
+    const projected = await projectScenarioReceipt({ ...w, receipt });
+    assert.equal(projected.result, 'original visible');
+    assert.equal(projected.records[0]!.data['visible'], 'committed visible');
+    assert.equal(Object.hasOwn(projected.records[0]!.data, 'token'), false);
+    const revision = await w.store.readRevision(), row = await w.store.load(MODEL, w.row.id);
+    const history = await w.store.historyFor(MODEL, w.row.id);
+    assert.equal((await invoke(input)).status, 'replayed'); assert.equal(executes, 1);
+    assert.deepEqual(receipt, originalReceipt);
+    assert.deepEqual(await projectScenarioReceipt({ ...w, receipt }), projected);
+    assert.equal(await w.store.readRevision(), revision);
+    assert.deepEqual(await w.store.load(MODEL, w.row.id), row);
+    assert.deepEqual(await w.store.historyFor(MODEL, w.row.id), history);
+    assert.deepEqual(await w.store.outboxPending(), []);
+  });
+
+  it('refuses unsupported or accessor-bearing file assignment carriers without evaluating getters or committing domain effects', async () => {
+    for (const mode of ['nonempty', 'malformed', 'member-getter', 'member-hidden', 'array-extra',
+      'array-hidden', 'array-getter', 'array-index-getter'] as const) {
+      const w = await world(), row = await w.store.load(MODEL, w.row.id);
+      const history = await w.store.historyFor(MODEL, w.row.id);
+      let getterCalls = 0;
+      await assert.rejects(invoke({ ...w, execute: async call => {
+        selectScenarioReceiptReturn(call, w.store, 'literal-result');
+        const raw: ExecutionEffects = { ...emptyEffects('literal'), fileAssignments: [],
+          writes: [{ kind: 'update', model: MODEL, id: w.row.id, expectedVersion: w.row.version,
+            row: { ...w.row, version: asVersion(w.row.version + 1), data: { ...w.row.data, visible: 'must not commit' } } }] };
+        const getter = () => { getterCalls++; return []; };
+        if (mode === 'nonempty') raw.fileAssignments = [{ model: MODEL, recordId: w.row.id, field: 'attachment' }];
+        else if (mode === 'malformed') Object.defineProperty(raw, 'fileAssignments', { enumerable: true, value: {} });
+        else if (mode === 'member-getter') Object.defineProperty(raw, 'fileAssignments', { enumerable: true, get: getter });
+        else if (mode === 'member-hidden') Object.defineProperty(raw, 'fileAssignments', { enumerable: false, value: [] });
+        else Object.defineProperty(raw.fileAssignments!, mode === 'array-index-getter' ? '0' : 'extra',
+          mode === 'array-getter' || mode === 'array-index-getter' ? { enumerable: true, get: getter }
+            : { enumerable: mode !== 'array-hidden', value: 'unsupported property' });
+        return raw;
+      } }), validation);
+      assert.equal(getterCalls, 0);
+      assert.deepEqual(await w.store.load(MODEL, w.row.id), row);
+      assert.deepEqual(await w.store.historyFor(MODEL, w.row.id), history);
+      assert.deepEqual(await w.store.outboxPending(), []);
+      assert.deepEqual(await w.store.schedulesDue(FIXED_NOW, 10), []);
+    }
+  });
+
   it('retains original dependencies and final changed snapshots, recovers at 16 minutes without execution and projects saved values', async () => {
     const w = await world(); const receipt = await save(w);
     const association = readScenarioReceiptAssociation(receipt); assert.ok(association);
