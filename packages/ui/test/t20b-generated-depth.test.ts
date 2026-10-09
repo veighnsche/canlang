@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { SchemaError } from "@canlang/values";
 import type {
   FormFieldDef,
   PresentationContext,
@@ -357,7 +358,7 @@ describe("T20b depth rendering", () => {
     assert.ok(html.includes('name="inputs[changes][doc]" value="file-opaque-9"'));
   });
 
-  it("rejects non-string file drafts loudly", async () => {
+  it("rejects malformed file drafts with canonical violations and field context", async () => {
     await assert.rejects(
       form({
         context: makeContext(),
@@ -370,7 +371,24 @@ describe("T20b depth rendering", () => {
         submit: "Save",
         idPrefix: "f1",
       }),
-      /field "doc": type file needs an opaque file id string/,
+      (error: unknown) => {
+        assert.ok(error instanceof SchemaError);
+        assert.equal(error.kind, "schema");
+        assert.equal(error.message, 'field "doc": schema validation failed with 1 violation(s)');
+        assert.deepEqual(error.violations, [{
+          path: [], code: "type", message: "file has the wrong wire type", expected: "{id}", actual: "number 5",
+        }]);
+        const cause = error.cause;
+        assert.ok(cause instanceof SchemaError);
+        assert.equal(cause.kind, "schema");
+        assert.equal(cause.message, "schema validation failed with 1 violation(s)");
+        assert.deepEqual(error.violations, cause.violations);
+        assert.equal(error.violations[0], cause.violations[0]);
+        assert.deepEqual(Object.getOwnPropertyDescriptor(error, "cause"), {
+          value: cause, writable: true, enumerable: false, configurable: true,
+        });
+        return true;
+      },
     );
   });
 });
@@ -598,19 +616,19 @@ describe("T20b depth projection", () => {
     );
   });
 
-  it("carries file ids verbatim and omits absent slots", () => {
+  it("projects canonical file wire ids and omits absent slots", () => {
     assert.deepEqual(
       projectGeneratedInputs(LEDGER_CREATE, "create", {
         "inputs[title]": "t",
         "inputs[doc]": "file-opaque-1",
       }),
-      { title: "t", doc: "file-opaque-1" },
+      { title: "t", doc: { id: "file-opaque-1" } },
     );
     assert.deepEqual(projectGeneratedInputs(LEDGER_UPDATE, "update", {}), {});
     // A cleared required slot travels for the bound checker to judge.
     assert.deepEqual(
       projectGeneratedInputs(LEDGER_CREATE, "create", { "inputs[title]": "t", "inputs[doc]": "" }),
-      { title: "t", doc: "" },
+      { title: "t", doc: { id: "" } },
     );
   });
 });

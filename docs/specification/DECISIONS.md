@@ -3704,3 +3704,7 @@ Consume exactly Packages e5b7038ed7594986971cde7773b584cfae8e3bb4's prepared-hoo
 ## 2026-10-09 — qualify the combined local compiler producers
 
 Compiler source e9a46221aa62c5c26d044d1c5b6c6266bab345ce passes1,291Rust tests with actual catalog/draft/Node24 and real completion engines required, strict all-target Clippy/format and editor type/LSP checks. The sandbox mode4750 body skip is separately qualified outside the sandbox at that source. Exact-head CI37960370295 passes compiler/editor and language-tools; common UI catalog/messages/shell/file assertions and pilot application source remain defining-owner blockers. Record those prerequisites and current-head Codex review pending rather than weaken language rules, reproduce shared fixes or claim broader58/67 completion. No merge or filetree checkpoint advancement occurs.
+
+## 2026-10-09 — consume qualified owning UI FileRef and assertion unit
+
+Consume only Packages ebd2ad084eb3b5608dbb335b125c085a58d52c47's forms source and catalog/messages/shell/t20b-generated-depth tests, qualified by its later a22ebc65 release. Preserve prior declared-delete inputs. Canonical file objects/clear/absent values, nominal SchemaError violations/cause and field context, captured message operands and exactly one trusted bootstrap are retained. Actual consuming build6/6 and126/126 cases pass with zero skips. Compiler source is unchanged, so reuse its1,291/lint/editor results. Later-head CI/Codex and defining Dev/browser/application prerequisites remain separate; no shared implementation is recreated.

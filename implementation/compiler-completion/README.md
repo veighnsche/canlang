@@ -150,6 +150,15 @@ fails. Current-head Codex review is pending. Original **58/67** coverage and
 the nine owner-dependent references remain; these source checks do not
 establish whole application, live ranking or browser acceptance.
 
+**Subsequent owning UI intake, 2026-10-09.** Exact Packages **ebd2ad08** source
+and four test files are consumed, excluding foreign records and preserving the
+prior declared-delete-input correction. Canonical FileRef projection and
+SchemaError violations/cause, captured message wrappers and trusted bootstrap
+assertions pass actual owning build **6/6** and **126/126** cases with no skips.
+Compiler source and its **1,291** results are unchanged and reused; later-head
+whole CI/Codex, readonly CDP bootstrap and selected application profiles remain
+separate prerequisites.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed
@@ -466,7 +475,7 @@ compiler leaves:
 | Dev T04/T11 | Compiler supplies the finite originating parser producer against verified published Dev4d3da681 context shape; source/CLI4/4 and carrier9/9 pass. Dev owns source/profile/card evidence and runtime/example qualification. Evidence flags remain false, so grammar inventory does not establish live ranking or working availability. |
 | Workspace browser gate | Exact Dev3c45c18c portable Chromium unit is consumed. Actual local native forms/browser2/2 pass; readonly CDP bootstrap times out, and selected Images profile skips without its artifact. Dev owns the lifecycle/selected-artifact prerequisite. No workflows or foreign session fixtures change. |
 | Shared Values gate | Exact Packages e5b7038e released export-list test correction is consumed. Owning build4/4 and prepared-hook8/8 pass, preserving hidden-authority/wire/arity controls; consuming-head CI remains separate. |
-| Shared UI gate | Packages sole common-repair owner: exact-head CI e9a46221 fails owning catalog/messages/shell/file assertions, including native file object versus old string expectation and SchemaError versus old prose. Actionable run37960370295/job113921381371 evidence is sent to coordinator; consume the exact released correction without rewriting common gates locally. |
+| Shared UI gate | Exact Packages ebd2ad08 source/four-test unit is consumed, preserving prior delete input projection and excluding foreign records. Owning build6/6 and126/126 cases pass with zero skips; unchanged compiler results are reused. Later-head CI/Codex remains separate. |
 | Pilot browser gate | Defining pilot/app owner: CI7fe7fe35 challenge source fails expected user versus user? and impure active_member derives; patched-site assertion also drifted (30 passed/15 failed). Packages owns shared gate coordination. No language rule weakening or duplicate application repair is authorized here. |
 
 The user has authorized finishing the remaining compiler tasks. Use the [recorded work/review settings](../../docs/research/compiler-library-audit-20261006/resumption/model-allocation.md); overlapping references share work and completed receipts are reused at matching scope. Current completion joins append to the canonical coverage ledger; historical source pins remain unchanged.
