@@ -1739,3 +1739,23 @@ observation join is required; a void result cannot establish an empty proof.
 The coordinator has the exact State/Cloudflare/emitter evidence. Historical
 whole successes remain scoped to their source. Checked derive call-chain
 capture is the next independent compiler implementation unit.
+
+**Native checked derive capture (unfinished wider join), 2026-10-09.** Complete
+checked call chains now match actual native derive bodies and omitted defaults.
+Each opted-in handler uses private async specializations with fresh parameter
+scopes; global derives and exports keep their existing ABI. Authored arguments
+evaluate once before slot reordering, omitted defaults execute in declaration
+order, explicit arguments skip defaults, and lazy choices keep their original
+evaluation sites. Call-chain/site identities distinguish repeated and nested
+calls; imported fields retain their separate authored path/digest and actual
+entry-module transport. Recursive, unmatched and unsupported closures omit
+the whole plan. The actual CLI/public/State Memory target passes **1/1**, with
+all **43 success paths plus replay**, separate-file imported origins, exact
+observation order and original derived recovery after update/archive/revocation.
+Checked closure facts pass **12/12**, independent finite review finds no
+actionable defect, and strict all-target Clippy/formatting pass. A mechanical
+boxed-expression iterator compile error was corrected before native execution.
+Exact reviewed portable scalar/array **b9ecfd06/Dev d8bc2a5a** is consumed;
+its owning genuine D1 journey **1/1** (53.18s) is reused at the unchanged direct
+scalar/array scope. Source-current whole qualification is next; transition
+write provenance and original **58/67** owner/held duties remain open.

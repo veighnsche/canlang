@@ -1830,6 +1830,7 @@ pub struct Emitter<'a> {
     formatted_derives: BTreeSet<String>,
     native_receipts: HashMap<SymbolId, super::scenario_receipts::NativeScenarioReceipt>,
     receipt_capture: Option<super::scenario_receipts::NativeScenarioReceipt>,
+    receipt_calls: Vec<Span>,
 }
 
 /// Hook lowering state: the trigger model. (The staged-id counter lives
@@ -1878,6 +1879,7 @@ impl<'a> Emitter<'a> {
             formatted_derives: BTreeSet::new(),
             native_receipts: HashMap::new(),
             receipt_capture: None,
+            receipt_calls: Vec::new(),
         };
         // Derive outputs retain presentation provenance across shared calls,
         // including wrappers declared before the formatting owner.
@@ -2838,19 +2840,33 @@ impl<'a> Emitter<'a> {
     /// identity and `equalValue(canonicalTypeId, a, b)` structural
     /// equality. Unlowerable combinations are `E6008` plus a throwing
     /// placeholder.
+    fn receipt_site(&self, span: Span) -> super::scenario_receipts::NativeSite {
+        super::scenario_receipts::NativeSite {
+            calls: self.receipt_calls.clone(),
+            span,
+        }
+    }
+
     fn receipt_decision(&self, span: Span) -> bool {
         self.receipt_capture
             .as_ref()
-            .is_some_and(|recipe| recipe.decisions.contains_key(&span))
+            .is_some_and(|recipe| recipe.decisions.contains_key(&self.receipt_site(span)))
     }
 
     fn receipt_choice(&self, span: Span, choice: &str) -> String {
         if !self.receipt_decision(span) {
             return String::new();
         }
+        let Some(key) = self
+            .receipt_capture
+            .as_ref()
+            .and_then(|recipe| recipe.decision_keys.get(&self.receipt_site(span)))
+        else {
+            return String::new();
+        };
         format!(
             "$receiptChoices.set({},{});",
-            js_string(&format!("{}:{}", span.start, span.end)),
+            js_string(key),
             js_string(choice),
         )
     }
@@ -2899,7 +2915,7 @@ impl<'a> Emitter<'a> {
                     };
                     format!(
                         "$receiptChoices.get({})==={}",
-                        js_string(&format!("{}:{}", anchor.start, anchor.end)),
+                        js_string(anchor),
                         js_string(choice),
                     )
                 })
@@ -2943,7 +2959,7 @@ impl<'a> Emitter<'a> {
             && let Some(dependencies) = self
                 .receipt_capture
                 .as_ref()
-                .and_then(|recipe| recipe.dependencies.get(&span))
+                .and_then(|recipe| recipe.dependencies.get(&self.receipt_site(span)))
                 .cloned()
         {
             self.stdlib
@@ -3261,6 +3277,72 @@ impl<'a> Emitter<'a> {
         )
     }
 
+    /// Specialize only an exact native handler call. Arguments were already
+    /// lowered in their caller context; defaults/body run in a fresh callee
+    /// scope while sharing the actual handler capture and ambient c.
+    fn lower_receipt_derive(
+        &mut self,
+        canonical: &str,
+        parts: &[String],
+        span: Span,
+        await_result: bool,
+    ) -> Option<String> {
+        let expected = self
+            .receipt_capture
+            .as_ref()?
+            .calls
+            .get(&self.receipt_site(span))?;
+        if expected != canonical {
+            return None;
+        }
+        let item = self
+            .ir
+            .items
+            .get(*self.by_canonical.get(canonical)?)?
+            .clone();
+        let IrItemKind::DeriveFn {
+            params,
+            expr: Some(expr),
+            ..
+        } = item.kind
+        else {
+            return None;
+        };
+        if params.len() != parts.len() || self.receipt_calls.len() >= 64 {
+            return None;
+        }
+        self.enter_scope();
+        self.receipt_calls.push(span);
+        let names: Vec<_> = params
+            .iter()
+            .map(|id| self.bind(&self.ir.items[id.0 as usize].name.clone()))
+            .collect();
+        let mut defaults = String::new();
+        for (id, name) in params.iter().zip(&names) {
+            if let IrItemKind::Param {
+                default: Some(default),
+                ..
+            } = self.ir.items[id.0 as usize].kind.clone()
+            {
+                let value = match default {
+                    IrDefault::Literal(expr) | IrDefault::Computed { expr, .. } => {
+                        self.lower_business_expr(&expr, "formatted derive parameter default")
+                    }
+                };
+                defaults.push_str(&format!("if({name}===undefined){{{name}={value};}}"));
+            }
+        }
+        let body = self.lower_expr(&expr);
+        self.receipt_calls.pop();
+        self.exit_scope();
+        Some(format!(
+            "{}(async({})=>{{{defaults}return {body};}})({})",
+            if await_result { "await " } else { "" },
+            names.join(","),
+            parts.join(",")
+        ))
+    }
+
     fn lower_call_rendered(
         &mut self,
         target: &IrCallTarget,
@@ -3307,6 +3389,11 @@ impl<'a> Emitter<'a> {
                 }
             }
             IrCallTarget::DeriveFn(canonical) => {
+                if let Some(specialized) =
+                    self.lower_receipt_derive(canonical, parts, span, await_result)
+                {
+                    return specialized;
+                }
                 if self.in_hook() {
                     return self.hook_gap(
                         "hook derive call",
@@ -9191,6 +9278,7 @@ impl<'a> Emitter<'a> {
                         self.exit_scope();
                         continue;
                     }
+                    self.receipt_calls.clear();
                     self.receipt_capture = self.native_receipts.get(&item.id).cloned();
                     out.push(
                         item.span,
@@ -9260,6 +9348,7 @@ impl<'a> Emitter<'a> {
                         );
                     }
                     self.receipt_capture = None;
+                    self.receipt_calls.clear();
                     out.push(item.span, Some(item.canonical.clone()), "},");
                     self.exit_scope();
                 }
