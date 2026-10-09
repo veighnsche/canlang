@@ -1584,7 +1584,7 @@
       "source_form_replay_prerequisite": {
         "state": "blocked; no expiry bypass implemented",
         "prerequisite": "Canonical retained-receipt-only admission that refuses absentreceipt before execution/commit, trusted Cloudflare forwarding and Interfaces expired immutable signed-claim restoration only through thatmode. ExistingOperationInvoker has no suchcontract; tokenlease15min is shorter than unseenUUIDv7age24h.",
-        "owner": "State/Cloudflare/Interfaces defining security contract/producer owner, routed to coordinator for exact release.",
+        "owner": "Capability owns State/Contracts retained-receipt-only API underSEQ-005/009/014; Dev owns trusted Cloudflare canonical/assembly forwarding; Packages owns subsequent Interfaces expired signed-claim restoration. Coordinator released these finite owner assignments; producer/API/forwarding publication pending.",
         "preserved": "Signature/canonicalbytes/revision/schema/nonce/app/session/actor/team/editableclaims, freshlease, scenarioage/lease, current credential/disclosure and no new mutation from expiredtoken. Greater-than24h-only workaround skipped as incomplete."
       }
     },
@@ -4438,6 +4438,12 @@
       "source": "Consumed exact published f1c84d322e2958d3537e61832a4667c3d3494db5 four source/test files; owning Types immediate reuse identity and IR nearest/receiving caption composition preserved.",
       "validation": "Rust1.99 locked/offline ui_adapter8/8 and actual nominal_preference_runtime1/1pass; generated HTTP/UI preference lifecycle preserves receiving identity/default/version/save and existing refusals.",
       "limit": "No unrelated feature checkpoint or full-plan acceptance; current-head review required."
+    },
+    "state_alias_constraint": {
+      "state": "implemented and affected checks passed",
+      "correction": "State registry and model constraint factory retain the exact owning normalized nominal alias type/bounds/format rather than constructing a dangling freshschema. Receiving bounds and wrong/unowned-alias/unsupportedtrim refusals remain.",
+      "validation": "Stateowningemit and4targeted artifact/direct-loader/native mutation/ownership controls pass, no skips. Prior native hook/archive controls unchanged and reused.",
+      "limit": "Complete alias/nominal/CSV/host qualification remains separate; no broad exemption or original parent closure."
     }
   }
 }
