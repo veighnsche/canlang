@@ -1896,3 +1896,14 @@ the actual consumer prerequisites. Whole83f4/1325 remains historical until the
 changed-source full run completes. Task44 original generation sends/assignments
 remain the next compiler prerequisite; frozen operation/reference metadata needs
 Packages' defining State dependency contract. Existing broad refs and holds remain.
+
+
+**Related default-anchor correction, 2026-10-10.** Grouping was erased before
+native default-site correspondence, so a grouped stored-read default compiled
+without its association. IR now preserves the checked default source node; the
+collector and actual header use that same anchor while inner reads/coalesce
+retain their own sites. The same original native target passes4/4 with nested
+private-field grouping and grouped public coalesce; source8/8, all-target lint
+and formatting pass. The earlier changed-source full run was interrupted for
+this confirmed gap and supplies no whole acceptance. Final source qualification
+remains due; historical83f4/1325 is unchanged.
