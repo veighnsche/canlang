@@ -4776,3 +4776,18 @@ Intake exact coordinator-reviewed LOCAL `bde01621db214c7d70a833542660f3797f928df
 ## 2026-10-09 — qualify actual empty native carrier compatibility
 
 At joined local merge `3a848ddd`, Node24.14.0 installed Cloudflare producer build22/22 and current Values catalog5/5 pass (59entries/15features). Existing State saved-scenario14/14 cases pass, including actual empty carrier receipt/replay/projection and eight nonempty/malformed/accessor/hidden refusals with no getter execution/domain effects. The exact unchanged whole `cargo test --locked --manifest-path compiler/Cargo.toml --test native_scenario_receipts -- --nocapture` passes1/1 against genuine generated/imported Compiler and Dev producers. All selected-path, scalar/derive/array, replay, current authority and public/captured transport assertions remain. This fixture uses memory storage; prior distinct D1/SQLiteDO scope is reused, not attributed to it. Native mutation/default-owner workflow acceptance remains unfinished and source/current authority gates remain intact. Resume the separately checkpointed defining input/default contribution contract. Local commits only; no remote push/review waits or common gate repair.
+
+## 2026-10-09 — activate exact native machine receipts on the released session
+
+Consume reviewed8b6e8d40 genuine Dev session and State empty-carrier sources/
+scoped qualifications. Activate only checked literal transitions through exact
+own field/enum/edge inventory, retaining original canonical private identities
+and genuine old-state markers before each stage. Original compiled lifecycle
+and replay1/1 now pass with preserved rollback/UI and extended ordinary/aged
+read-only recovery plus private-selector write/no-write withholding. Explicit
+slots work; omitted-default mutations remain refused pending the defining State
+contribution contract. Standalone machine reads and unsupported mutations do
+not widen. Reuse unchanged source15/15 and distinct owner results; strict lint/
+format and finite review pass. Current whole and distinct portable mutation
+qualification remain due. Existing incoming living registry/checkpoint coverage
+is retained; no checkpoint advancement or broader reference acceptance.
