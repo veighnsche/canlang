@@ -3678,3 +3678,7 @@ Enforce DESIGN1010 at the ordinary message-value producer: a parameterized decla
 ## 2026-10-09 — unfinished integration of current native review and CI producers
 
 Consume the published anonymous-descriptor and bound-caption corrections (`c3c12531`, `3082eae1`) rather than duplicate their type rules. Keep authored field modifiers and the existing dev dispatch. Apply only the compiler source/test hunks from Packages’ `146aca0d` formatter/wired-consumer handoff with `37695f6d`; current rustfmt passes. Joined native and newly released corpus validation remain due. This checkpoint imports no workflow replacement or other worker’s completion records and establishes no whole-app acceptance.
+
+## 2026-10-09 — join the published standard duration fixture type
+
+Map only the published CanDuration nominal leaf to Scalar::Duration, matching the existing generated Contracts field and native/wire30000n/"30000" consumer. Complete TextRequest fixtures now type-check without accepting generic opaque equality; DatetimeValue/WorkflowField and other leaves remain opaque. Complete construction, invalid whole-field/duration and known-member refusals qualify282 existing semantic cases (281 reused, corrected fixture1/1); native nominal construction1/1 passes. Independent review accepts this exact scalar join; broader nominal profiles remain open.

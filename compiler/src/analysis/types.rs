@@ -701,11 +701,15 @@ fn completion_status_type() -> ResolvedType {
 /// (transcribed refinements such as `amount: money` arrive
 /// already refined); transcribed nominal refs nest their closed
 /// object (the frozen tables are acyclic: requests nest messages,
-/// runs nest outputs, nothing nests back); lane-2 named refs
-/// (`CanDuration`, `DatetimeValue`), nested non-nominals
-/// (`WorkflowField`) and anything else stay opaque — transcribed,
+/// runs nest outputs, nothing nests back). The published `CanDuration`
+/// contract uses the duration scalar. Other lane-2 named refs
+/// (`DatetimeValue`), nested non-nominals (`WorkflowField`) and anything
+/// else stay opaque — transcribed,
 /// never reinterpreted, never guessed.
 fn std_nominal_leaf_type(declared: &str) -> ResolvedType {
+    if declared == "CanDuration" {
+        return ResolvedType::Scalar(Scalar::Duration);
+    }
     if let Some(ty) = std_schema_type(declared) {
         return ty;
     }
