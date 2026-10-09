@@ -119,6 +119,16 @@ their exact wire spelling. Unsafe lengths and nonliteral bounds refuse E6008.
 Affected codegen **19/19** and typed artifact/descriptor **8/8** pass. Current
 compiler whole qualification and application/State consumption are separate.
 
+**Local prerequisite — originating construct-help context, 2026-10-09.**
+Verified local Dev **4d3da681** supplies the optional version1 context contract;
+its publication is separate. Three originating parser branches now supply
+complete root **4**, When **6**, exported-When **5** and field-label **1** card
+inventories. Lexer/layout/CST and local recovery checks qualify exact bounded
+identifier/section facts; ambiguous recovery has no IDs/context. Actual parser
+and CLI check/compile JSON **4/4**, carrier **9/9** and independent finite review
+pass. Evidence/proven-unsupported flags remain false; no runtime profile or
+live ranking acceptance follows from grammar inventory.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed
@@ -432,7 +442,7 @@ compiler leaves:
 | S9-Q08, OR-06, OUT-R05 | Page admission/current-row disclosure/browser serving, migrations/durable ingestion, installed applications and real GUI/map navigation: Cloudflare, Interfaces, UI, State migration/deployment, application/release and editor/GUI owners. Native map production is already supplied. |
 | Office delete workflow | Compiler nonce and Packages1704023b declared-input projection are released and pass the actual native join. Dev owns full HTTP/D1/browser Office qualification. Deliberately added raw mode remains refused. |
 | Rule/hook producer join | Capability SEQ-011 defines State/Contracts finalization, dependency/lock selectors and native context carriers; compiler consumes the concrete defining release. Current design notes are a prerequisite, not a human hold. |
-| Dev T04/T11 | Dev owns the finite qualified candidate/card/profile contract; compiler supplies checked diagnostic facts after that release. The optional carrier alone does not establish a producer or profile admission. |
+| Dev T04/T11 | Compiler supplies the finite originating parser producer against verified local Dev4d3da681 context shape; source/CLI4/4 and carrier9/9 pass. Dev owns exact consumer publication, source/profile/card evidence and runtime/example qualification. Evidence flags remain false, so grammar inventory does not establish live ranking or working availability. |
 | Workspace browser gate | The exact portable-browser fixture unit from published Dev3c45c18c is consumed: bundled Chromium launches and executable path, preserving this branch's stronger native assertions/type repairs. No workflow edits or foreign session fixtures are imported. Consuming-head native browser qualification remains due. |
 
 The user has authorized finishing the remaining compiler tasks. Use the [recorded work/review settings](../../docs/research/compiler-library-audit-20261006/resumption/model-allocation.md); overlapping references share work and completed receipts are reused at matching scope. Current completion joins append to the canonical coverage ledger; historical source pins remain unchanged.
