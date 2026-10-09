@@ -3675,3 +3675,7 @@ Accepted finite Interfaces contract: FORM_REFUSAL_HEADER exports can-form-refusa
 ## 2026-10-09 — consume qualified inline descriptor choice producers
 
 Consume exact owning Compiler57573511self-unification source/test prerequisite together with0769125einline descriptor array IR ande40b2901generic choose witness. The unfinished checkpoint label establishes preservation only; the later released controls qualify this finite slice. After genuine catalog emission, owning Rust1.99locked/offline anonymous-message3/3cases pass: both choose conditions, eager authored capture order, native identity/counts, first-failure identity and text/named mixing refusals execute. No unrelated UI checkpoint or computed-format provenance profile is imported; full compiler/product and current-head review remain separate.
+
+## 2026-10-09 — consume immediate reused-field preference captions
+
+Consume exact owning Compilerf1c84d32Types/IR and matching adapter/generated preference lifecycle controls. Checked immediate reuse identity composes captions through the nearest declaration and receiving override while retaining receiving default/save/version identity and refusals. Owning Rust1.99locked/offline adapter8/8and actual generated HTTP/UI nominal preference1/1pass. This closes the reported chained-caption prerequisite at its finite source/consumer scope; full-plan and current-head review remain separate.

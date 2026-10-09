@@ -481,6 +481,8 @@ pub struct TypeTable {
     pub cohort_child_references: HashMap<NodeKey, SymbolId>,
     /// Exact checked bare-role value references, preserving lexical collisions.
     pub role_references: HashMap<NodeKey, SymbolId>,
+    /// Immediate checked field reuse source, preserving declaration-owned labels.
+    pub(crate) field_reuse_sources: HashMap<SymbolId, SymbolId>,
     /// Receiving preference fields, independent of a borrowed enum's owner.
     pub(crate) preference_field_references: HashMap<NodeKey, SymbolId>,
     /// Optional checked assistance; final input typing/defaults/grants are unchanged.
@@ -10822,6 +10824,7 @@ impl<'a> Typer<'a> {
     ) -> ResolvedType {
         if let Some(owner) = owner {
             self.field_reuse_edges.push((owner, field, span));
+            self.types.field_reuse_sources.insert(owner, field);
         }
         self.inherit_value_constraints(owner, field);
         self.decl_type(field)
