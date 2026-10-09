@@ -55,6 +55,7 @@ import {
   readDispatchRow,
   readDispatchImageCorrelation,
   readDispatchImageControlPin,
+  dispatchGenerationTargetProfile,
   DISPATCH_IMAGE_CORRELATION_FIELDS,
   readEverySlotRow,
 } from './tables.js';
@@ -172,7 +173,7 @@ export function createWorkDispatchClaimCommand(
 export const workDispatchClaimCommand: SystemCommandDef = createWorkDispatchClaimCommand();
 
 /**
- * Stop an ORIGINAL Images submit before its first queued receipt commits.
+ * Stop an ORIGINAL Images submit or TextGeneration generate before its first queued receipt commits.
  * The caller joins these effects, the current association and control outcome
  * in its existing owner fence. `revision` is that batch's owner checkpoint.
  * A held provider claim is revoked; its later progress cannot hold the claim.
@@ -196,13 +197,14 @@ export const workDispatchStopPendingCommand: SystemCommandDef = {
     if (Reflect.ownKeys(expected).length !== DISPATCH_IMAGE_CORRELATION_FIELDS.length ||
         Reflect.ownKeys(expected).some(key => typeof key !== 'string' ||
           !DISPATCH_IMAGE_CORRELATION_FIELDS.includes(key as typeof DISPATCH_IMAGE_CORRELATION_FIELDS[number]))) {
-      throw new KernelTableError(`${what}: requires exactly the original Images correlation.`);
+      throw new KernelTableError(`${what}: requires exactly the original generation correlation.`);
     }
     const correlation = readDispatchImageCorrelation(expected);
     const { row, data } = await loadDispatchRow(ctx, intentId, what);
     const retained = readDispatchImageCorrelation(data);
+    const profile = dispatchGenerationTargetProfile(data.source);
     if (row.id !== intentId || data.intentId !== intentId || row.archivedAt !== null ||
-        data.source !== 'std.ImagesV1.submit' || correlation === null || retained === null ||
+        profile?.role !== 'original' || correlation === null || retained === null ||
         DISPATCH_IMAGE_CORRELATION_FIELDS.some(field => correlation[field] !== retained[field])) {
       throw new KernelTableError(`${what}: original submit identity or retained correlation disagrees.`);
     }
@@ -212,7 +214,7 @@ export const workDispatchStopPendingCommand: SystemCommandDef = {
     }
     const context: ReceiptResultContext = {
       source: data.source,
-      declaredResult: { name: 'ImageRun', fields: DELIVERY_RESULT_LEAVES['ImageRun']! },
+      declaredResult: { name: profile.resultName, fields: DELIVERY_RESULT_LEAVES[profile.resultName]! },
       request: { source: retained.requestSource, revision: retained.requestRevision },
     };
     const stored = readReceiptRow(receiptRow, context);
@@ -270,7 +272,7 @@ export const workDispatchPinImageControlCommand: SystemCommandDef = {
     if (Reflect.ownKeys(expected).length !== DISPATCH_IMAGE_CORRELATION_FIELDS.length ||
         Reflect.ownKeys(expected).some(key => typeof key !== 'string' ||
           !DISPATCH_IMAGE_CORRELATION_FIELDS.includes(key as typeof DISPATCH_IMAGE_CORRELATION_FIELDS[number]))) {
-      throw new KernelTableError(`${what}: requires exactly the original Images correlation.`);
+      throw new KernelTableError(`${what}: requires exactly the original generation correlation.`);
     }
     const correlation = readDispatchImageCorrelation(expected);
     const observation = argRecord(args, 'observation', what);
@@ -288,15 +290,16 @@ export const workDispatchPinImageControlCommand: SystemCommandDef = {
     const controlCorrelation = readDispatchImageCorrelation(data);
     const original = await loadDispatchRow(ctx, originalIntentId, what);
     const originalCorrelation = readDispatchImageCorrelation(original.data);
+    const profile = dispatchGenerationTargetProfile(data.source);
     if (intentId === originalIntentId || row.id !== intentId || data.intentId !== intentId || row.archivedAt !== null ||
-        !['std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(data.source) ||
+        profile?.role !== 'control' ||
         original.row.id !== originalIntentId || original.data.intentId !== originalIntentId || original.row.archivedAt !== null ||
-        original.data.source !== 'std.ImagesV1.submit' || correlation === null || controlCorrelation === null || originalCorrelation === null ||
+        original.data.source !== profile.originalSource || correlation === null || controlCorrelation === null || originalCorrelation === null ||
         DISPATCH_IMAGE_CORRELATION_FIELDS.some(field => correlation[field] !== controlCorrelation[field] || correlation[field] !== originalCorrelation[field])) {
       throw new KernelTableError(`${what}: retained control/original identities and correlation disagree.`);
     }
     if (data.state !== 'claimed' || data.claimId !== claimId || data.claimedAtMs === null) {
-      throw new KernelTableError(`${what}: claim does not hold the original Images control.`);
+      throw new KernelTableError(`${what}: claim does not hold the original generation control.`);
     }
     const retained = readDispatchImageControlPin(data);
     if (pin === null || pin.observationStartedAtMs !== row.created) {
