@@ -70,7 +70,7 @@ it("retains compiler routing by revision without turning unqualified grammar IDs
   const fixture = await ownerFixture();
   try {
     producer.routing = { version: 1, disposition: "structural", ids: [], complete: false };
-    const first = await fixture.client.request({ command: "check" }) as { revision: string; state: string };
+    const first = await settledRankingCheck(fixture);
     expect(first.state).toBe("errors");
     expect(await fixture.client.request({ command: "construct.rank", payload: { revision: first.revision, index: 0 } }))
       .toMatchObject({ result: { state: "structural" } });
@@ -80,7 +80,7 @@ it("retains compiler routing by revision without turning unqualified grammar IDs
     } }, construct_help: { candidateCoverage: "unknown", cards: [] } });
     writeFileSync(fixture.app, "app Office\nGiven\nWhen\nThen\n## exact slot\n");
     producer.routing = { version: 1, disposition: "exact", slot: "given_type", ids: ["can.v1.type.builtin.text"], complete: true };
-    const second = await fixture.client.request({ command: "check" }) as { revision: string };
+    const second = await settledRankingCheck(fixture);
     expect(await fixture.client.request({ command: "construct.rank", payload: { revision: second.revision, index: 0 } }))
       .toMatchObject({ result: { state: "candidate_coverage_unknown" } });
     expect(await query(second.revision)).toMatchObject({ diagnostic: { construct_candidates: {
@@ -359,8 +359,10 @@ function syntheticQualification(request: SessionConstructQualificationRequest) {
   expect(Object.isFrozen(request)).toBe(true);
   expect(Object.isFrozen(request.inputs)).toBe(true);
   expect(request.producerInputsDigest).toBe(createHash("sha256").update(JSON.stringify(request.inputs)).digest("hex"));
-  expect(JSON.stringify(request)).not.toContain("widgit");
-  const { inputs: _inputs, ...binding } = request;
+  expect(Object.isFrozen(request.capture)).toBe(true);
+  expect(request.capture.sourceText).toContain("widgit");
+  const { inputs: _inputs, capture: _capture, ...binding } = request;
+  expect(JSON.stringify(binding)).not.toContain("widgit");
   return Object.freeze({ ...binding, messageKinds: Object.freeze(["synthetic_unknown_page_item"]),
     proofs: Object.freeze(rankIds.map(id => Object.freeze({ id, indexRevision: request.indexRevision,
       compilerSha256: request.compilerSha256, profile: FIRST_PROFILE,
@@ -490,6 +492,53 @@ it("keeps structural/none/unknown local and refuses omitted or malformed context
     await changed(rankRouting(rankIds, { ...rankingContext(), evidenceSufficient: false }), "intent_unclear");
     expect(calls).toBe(0);
   } finally { await fixture.owner.stop(); }
+});
+
+it("awaits card qualification without granting a ranking branch and refuses an edited source before disclosure", async () => {
+  let calls=0, release: (() => void) | undefined, entered: (() => void) | undefined;
+  let gate: Promise<void> | undefined;
+  const fixture=await rankingFixture({ allowExternal: () => true,
+    qualify: async request => {
+      if (gate) { entered?.(); await gate; }
+      return Object.freeze({...syntheticQualification(request),messageKinds:Object.freeze([])});
+    }, transport:{choose:async request=>{calls++;return rankAnswer(request,rankIds[0]!);}} });
+  try {
+    const detail=await fixture.client.request({command:"diagnostic.detail",payload:{revision:fixture.checked.revision,index:0}});
+    expect(detail).toMatchObject({construct_help:{candidateCoverage:"complete",
+      classification:rankIds.map(id=>({id,profile:"included",working:"qualified"}))}});
+    expect(await fixture.rank()).toMatchObject({state:"candidate_coverage_unknown"});
+    let started!: () => void;
+    const starting=new Promise<void>(resolve=>{started=resolve;}); entered=started;
+    gate=new Promise<void>(resolve=>{release=resolve;});
+    const pending=fixture.rank(); await starting;
+    writeFileSync(fixture.app,`${rankSource}## Changed while actual qualification was pending.\n`);
+    release!();
+    expect(await pending).toMatchObject({state:"stale"});
+    expect(calls).toBe(0);
+  } finally {release?.();await fixture.owner.stop();}
+});
+
+it("stop aborts and waits for private qualification cleanup without retaining its late bundle", async () => {
+  let entered!: () => void, aborted!: () => void, cleanup!: () => void;
+  const started=new Promise<void>(resolve=>{entered=resolve;});
+  const cancelled=new Promise<void>(resolve=>{aborted=resolve;});
+  const disposal=new Promise<void>(resolve=>{cleanup=resolve;});
+  let disposed=false, calls=0;
+  const fixture=await rankingFixture({allowExternal:()=>true,
+    qualify:async(request,signal)=>{
+      expect(signal).toBeDefined(); entered();
+      await new Promise<void>(resolve=>signal!.addEventListener("abort",()=>{aborted();resolve();},{once:true}));
+      await disposal; disposed=true;
+      return syntheticQualification(request);
+    },transport:{choose:async request=>{calls++;return rankAnswer(request,rankIds[0]!);}}});
+  try {
+    const pending=fixture.rank().then(()=>"completed",()=>"cancelled"); await started;
+    let stopped=false;
+    const stopping=fixture.owner.stop().then(()=>{stopped=true;});
+    await cancelled; expect(stopped).toBe(false); expect(disposed).toBe(false);
+    cleanup(); await stopping;
+    expect(disposed).toBe(true); expect(await pending).toBe("cancelled"); expect(calls).toBe(0);
+  } finally {cleanup();await fixture.owner.stop();}
 });
 
 it("defaults to no disclosure, permits a deterministic single card, and reports absent provider", async () => {
