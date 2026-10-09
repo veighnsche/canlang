@@ -6,7 +6,7 @@
  * claims require their defining joins. Empty field observations prove none of
  * those facts. Every site is scoped by its checked source return/digest/module.
  */
-import type { ArtifactModel, CanTypeId, DomainWrite, ModelName, ProjectedRecord,
+import type { ArtifactModel, CanTypeId, ModelName, ProjectedRecord,
   Receipt, ScenarioReceiptAssociation, ScenarioResultDisclosurePlan, StoragePort, StoredRow } from '@canlang/contracts';
 import { decodeValue, parseTypeId, printTypeId } from '@canlang/values';
 import { StateError } from '../errors.js';
@@ -16,7 +16,9 @@ import { evaluateBy, type MembershipReader } from '../policy/roles.js';
 import { projectSavedRecordForViewer } from '../query/engine.js';
 import type { ResolvedIdentity } from '@canlang/contracts';
 import type { AdmittedCall } from './admission.js';
-import { assertScenarioReceiptExecution } from './invoke.js';
+import { assertScenarioReceiptExecution, type ExecutionEffects } from './invoke.js';
+import { beginOwnerMutation, type OwnerMutationInput, type OwnerMutationReadView,
+  type OwnerMutationSession, type MutationWritesResult } from '../mutation/pipeline.js';
 import type { GeneratedOperationDef, OperationRegistry } from './registry.js';
 import { stableStringify } from './replay.js';
 
@@ -171,45 +173,234 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
 interface Capture {
   readonly bound: BoundPlan;
   returnId: string | null;
-  readonly observations: Array<ScenarioReceiptAssociation['observations'][number] & { readonly stored: boolean }>;
+  poisoned: boolean;
+  pending: number;
+  readonly observations: Array<ScenarioReceiptAssociation['observations'][number] & {
+    readonly stored: boolean; readonly ownerSession: boolean;
+  }>;
 }
 const captures = new WeakMap<AdmittedCall, Capture>();
 function capture(call: AdmittedCall, store: StoragePort): Capture {
-  assertScenarioReceiptExecution(call, store);
-  const bound = boundPlans.get(call.def as GeneratedOperationDef);
-  if (bound === undefined) return invalid('no loader-verified source dependency plan.');
-  let value = captures.get(call);
-  if (value === undefined) { value = { bound, returnId: null, observations: [] }; captures.set(call, value); }
-  return value;
+  try {
+    assertScenarioReceiptExecution(call, store);
+    const bound = boundPlans.get(call.def as GeneratedOperationDef);
+    if (bound === undefined) return invalid('no loader-verified source dependency plan.');
+    let value = captures.get(call);
+    if (value === undefined) { value = { bound, returnId: null, poisoned: false, pending: 0, observations: [] }; captures.set(call, value); }
+    if (value.poisoned) return invalid('capture is poisoned.');
+    return value;
+  } catch (error) {
+    const state = captures.get(call); if (state !== undefined) state.poisoned = true;
+    throw error;
+  }
 }
 
-/** Native host supplies its actual protected binding, not a wire reference.
- * Store-matching reads and final own-write snapshots are supported. Intermediate
- * provisional snapshots require the defining owner-session observation join.
+export type ScenarioReceiptMutationInput = Omit<OwnerMutationInput, 'context' | 'store' | 'trigger' | 'gateArchivedTargets'>;
+interface ReceiptOwnerSession {
+  readonly call: AdmittedCall;
+  readonly store: StoragePort;
+  readonly capture: Capture;
+  stage: number;
+  busy: boolean;
+  closed: boolean;
+  finalized: MutationWritesResult | null;
+}
+const ownerSessions = new WeakMap<AdmittedCall, ReceiptOwnerSession>();
+const ownerRows = new WeakMap<StoredRow, {
+  readonly session: ReceiptOwnerSession; readonly stage: number; readonly model: ModelName;
+}>();
+
+function ownerHealthy(owner: ReceiptOwnerSession): void {
+  assertScenarioReceiptExecution(owner.call, owner.store);
+  if (owner.closed || owner.finalized !== null || owner.capture.poisoned) return invalid('owner session is closed, finalized or poisoned.');
+}
+async function ownerOperation<T>(owner: ReceiptOwnerSession, execute: () => Promise<T>): Promise<T> {
+  let acquired = false;
+  try {
+    ownerHealthy(owner);
+    if (owner.busy || owner.capture.pending !== 0) return invalid('concurrent owner session operations are forbidden.');
+    owner.busy = true; acquired = true;
+    const result = await execute();
+    ownerHealthy(owner);
+    const revision = await owner.store.readRevision();
+    ownerHealthy(owner);
+    if (revision !== owner.call.revision) throw new StateError('conflict', 'Scenario owner session moved beyond its admitted revision.');
+    return result;
+  } catch (error) { owner.capture.poisoned = true; throw error; }
+  finally { if (acquired) owner.busy = false; }
+}
+
+/** Positive producer for one real admitted scenario execution. The physical
+ * store, context and trigger come from Invoke; no overlay or proof token is
+ * accepted. Only this session's current-stage immutable reads can establish
+ * intermediate provenance. Its actual finalized effects must reach Invoke.
+ */
+export async function beginScenarioReceiptMutation(call: AdmittedCall, store: StoragePort,
+  input: ScenarioReceiptMutationInput): Promise<OwnerMutationSession> {
+  const state = capture(call, store);
+  try {
+    if (ownerSessions.has(call) || state.pending !== 0 || state.observations.length !== 0 || state.returnId !== null) return invalid('one owner session must begin before scenario observations/return completion.');
+    if (typeof input !== 'object' || input === null || Array.isArray(input) ||
+        ![Object.prototype, null].includes(Object.getPrototypeOf(input)) ||
+        Reflect.ownKeys(input).some(key => typeof key !== 'string' || !['table', 'bounds', 'policies', 'encodeField'].includes(key) ||
+          !('value' in Object.getOwnPropertyDescriptor(input, key)!))) return invalid('owner session accepts only its defining mutation options.');
+    if (typeof input.bounds !== 'object' || input.bounds === null || Array.isArray(input.bounds)) return invalid('owner session requires finite bounds.');
+    const bounds = object(dataCopy(input.bounds), ['maxWork', 'maxRows']);
+    if (!Number.isSafeInteger(bounds['maxRows']) || (bounds['maxRows'] as number) < 1 ||
+        (bounds['maxRows'] as number) > MAX_ITEMS) return invalid('owner row bound exceeds the saved disclosure budget.');
+    const owner: ReceiptOwnerSession = { call, store, capture: state, stage: 0, busy: false, closed: false, finalized: null };
+    ownerSessions.set(call, owner);
+    const session = await ownerOperation(owner, () => beginOwnerMutation({ ...input, context: call.context, store,
+      trigger: { revision: call.revision, owner: call.checkpoint?.owner ?? call.context.team?.teamId ?? call.context.app },
+      gateArchivedTargets: true }));
+    const issue = (model: ModelName, row: StoredRow | null): StoredRow | null => {
+      if (row !== null) ownerRows.set(row, { session: owner, stage: owner.stage, model });
+      return row;
+    };
+    const view = (source: OwnerMutationReadView, current: boolean): OwnerMutationReadView => Object.freeze<OwnerMutationReadView>({
+      get: (model, id) => ownerOperation(owner, async () => {
+        const row = await source.get(model, id);
+        return current ? issue(model, row) : row;
+      }),
+      // Query influence remains unsupported by disclosure v1. Individual
+      // current rows still come from the real bounded owner read.
+      query: spec => ownerOperation(owner, async () => {
+        const selection = deepFreeze(dataCopy(spec));
+        const rows = await source.query(selection);
+        if (current) for (const row of rows) issue(selection.model, row);
+        return rows;
+      }),
+    });
+    const final = view(session.views.final, true);
+    const views = Object.freeze({ context: session.views.context, maxRows: session.views.maxRows,
+      entry: view(session.views.entry, false), final,
+      consumeWork: (amount?: number) => {
+        try {
+          ownerHealthy(owner);
+          if (owner.busy || state.pending !== 0) return invalid('concurrent owner session operations are forbidden.');
+          session.views.consumeWork(amount);
+        } catch (error) { state.poisoned = true; throw error; }
+      },
+    });
+    return Object.freeze<OwnerMutationSession>({ views, read: final.get,
+      stage: (writes, options) => ownerOperation(owner, async () => {
+        if (options?.cause !== 'scenario') return invalid('receipt owner staging requires the actual scenario cause.');
+        await session.stage(writes, options);
+        owner.stage += 1;
+      }),
+      finalize: async () => {
+        const result = await ownerOperation(owner, () => session.finalize());
+        if (result.writes.length > MAX_ITEMS) { state.poisoned = true; return invalid('changed snapshot budget exceeded.'); }
+        owner.finalized = result;
+        return result;
+      },
+    });
+  } catch (error) { state.poisoned = true; throw error; }
+}
+
+/** Invoke closes carriers even when the executor throws or returns early. */
+export function closeScenarioReceiptExecution(call: AdmittedCall): void {
+  const owner = ownerSessions.get(call);
+  if (owner !== undefined) {
+    owner.closed = true;
+    if (owner.busy || owner.finalized === null) owner.capture.poisoned = true;
+  }
+  const state = captures.get(call);
+  if (state !== undefined && state.pending !== 0) state.poisoned = true;
+}
+
+/** Snapshot the claimed scenario's own effects once while execution is live.
+ * Receipt correspondence and the eventual commit consume this same immutable
+ * carrier. Guard evaluators remain callbacks; their identity/name are captured
+ * without evaluating accessors or retaining mutable effect arrays.
+ */
+export function snapshotScenarioReceiptEffects(call: AdmittedCall, effects: ExecutionEffects): ExecutionEffects {
+  if (!boundPlans.has(call.def as GeneratedOperationDef)) return effects;
+  const required = ['writes', 'history', 'outbox', 'schedules', 'uniqueClaims', 'uniqueReleases', 'resolvedDefaults', 'result'];
+  const allowed = [...required, 'generatedCrud', 'guards', 'readings'];
+  const snapshot: Record<string, unknown> = {};
+  if (typeof effects !== 'object' || effects === null || Array.isArray(effects) ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(effects)) ||
+      required.some(key => !Object.hasOwn(effects, key))) return invalid('own complete execution effects required.');
+  for (const key of Reflect.ownKeys(effects)) {
+    const member = Object.getOwnPropertyDescriptor(effects, key)!;
+    if (typeof key !== 'string' || !allowed.includes(key) || !('value' in member) || !member.enumerable) {
+      return invalid('execution effects require own enumerable data and cannot supply a scenario association.');
+    }
+    if (member.value === undefined && !required.includes(key)) continue;
+    if (key === 'guards') {
+      const guards = list(member.value);
+      if (Reflect.ownKeys(guards).length !== guards.length + 1) return invalid('own dense guard array required.');
+      snapshot[key] = Array.from({ length: guards.length }, (_, index) => {
+        const entry = Object.getOwnPropertyDescriptor(guards, String(index));
+        if (entry === undefined || !('value' in entry) || !entry.enumerable) return invalid('guard array cannot contain accessors or holes.');
+        const value: unknown = entry.value;
+        if (typeof value !== 'object' || value === null || Array.isArray(value) ||
+            ![Object.prototype, null].includes(Object.getPrototypeOf(value)) ||
+            Reflect.ownKeys(value).length !== 2 || !Object.hasOwn(value, 'name') || !Object.hasOwn(value, 'evaluate')) {
+          return invalid('own closed guard carrier required.');
+        }
+        const name = Object.getOwnPropertyDescriptor(value, 'name')!, evaluate = Object.getOwnPropertyDescriptor(value, 'evaluate')!;
+        if (!('value' in name) || !('value' in evaluate) || !name.enumerable || !evaluate.enumerable ||
+            typeof evaluate.value !== 'function') return invalid('guard callbacks cannot be accessors.');
+        return Object.freeze({ name: text(name.value), evaluate: evaluate.value as () => boolean | Promise<boolean> });
+      });
+    } else snapshot[key] = dataCopy(member.value);
+  }
+  return deepFreeze(snapshot) as unknown as ExecutionEffects;
+}
+
+/** Native host supplies its actual protected binding. For a receipt owner
+ * session it must preserve the exact issued row, including its stage. Copies,
+ * host overlays and final-row coincidence cannot establish intermediate proof.
  */
 export async function observeScenarioReceiptDependency(call: AdmittedCall, store: StoragePort, input: {
   readonly dependencyId: string; readonly model: ModelName; readonly row: StoredRow; readonly field: string;
 }): Promise<void> {
-  const state = capture(call, store);
-  if (state.returnId !== null) return invalid('observation cannot follow the selected return.');
-  const observed = dataCopy(input);
-  object(observed, ['dependencyId', 'model', 'row', 'field']);
-  const dependency = state.bound.plan.returns.flatMap(entry => entry.dependencies).find(dep => dep.id === observed.dependencyId);
-  if (dependency === undefined || dependency.model !== observed.model || dependency.field !== observed.field) return invalid('native observation disagrees with its checked dependency.');
-  if (state.observations.length >= MAX_ITEMS) return invalid('observation budget exceeded.');
-  const row = checkedRow(observed.row); scalarWire(dependency.type, getDataPath(row.data, dependency.field));
-  if (row.archivedAt !== null) return invalid('cannot observe an archived row.');
-  const current = await store.load(observed.model, row.id);
-  capture(call, store);
-  const revision = await store.readRevision();
-  capture(call, store);
-  if (state.returnId !== null) return invalid('observation must complete before return selection.');
-  if (revision !== call.revision) throw new StateError('conflict', 'Scenario observation moved beyond its admitted revision.');
-  const secrets = state.bound.models.get(observed.model)!.secrets;
-  if (secrets.length > MAX_ITEMS) return invalid('original secrecy inventory exceeds its finite budget.');
-  state.observations.push({ dependencyId: dependency.id, model: observed.model, row,
-    secretFields: [...secrets],
-    stored: current !== null && stableStringify(current) === stableStringify(row) });
+  let state: Capture;
+  try { state = capture(call, store); }
+  catch (error) {
+    const carrier = typeof input === 'object' && input !== null ? Object.getOwnPropertyDescriptor(input, 'row') : undefined;
+    if (carrier !== undefined && 'value' in carrier) {
+      const issuing = ownerRows.get(carrier.value as StoredRow);
+      if (issuing !== undefined) issuing.session.capture.poisoned = true;
+    }
+    throw error;
+  }
+  const owner = ownerSessions.get(call);
+  let acquired = false;
+  try {
+    if (state.pending !== 0) return invalid('concurrent observations are forbidden.');
+    if (state.returnId !== null) return invalid('observation cannot follow the selected return.');
+    const observed = dataCopy(input);
+    object(observed, ['dependencyId', 'model', 'row', 'field']);
+    const dependency = state.bound.plan.returns.flatMap(entry => entry.dependencies).find(dep => dep.id === observed.dependencyId);
+    if (dependency === undefined || dependency.model !== observed.model || dependency.field !== observed.field) return invalid('native observation disagrees with its checked dependency.');
+    if (state.observations.length >= MAX_ITEMS) return invalid('observation budget exceeded.');
+    const row = checkedRow(observed.row); scalarWire(dependency.type, getDataPath(row.data, dependency.field));
+    if (row.archivedAt !== null) return invalid('cannot observe an archived row.');
+    if (owner !== undefined) {
+      ownerHealthy(owner);
+      const issued = ownerRows.get(input.row);
+      if (owner.busy || issued?.session !== owner || issued.stage !== owner.stage || issued.model !== observed.model) {
+        return invalid('observation requires the actual current-stage owner row.');
+      }
+      owner.busy = true;
+    }
+    state.pending += 1; acquired = true;
+    const current = await store.load(observed.model, row.id);
+    capture(call, store);
+    const revision = await store.readRevision();
+    capture(call, store);
+    if (state.returnId !== null) return invalid('observation must complete before return selection.');
+    if (revision !== call.revision) throw new StateError('conflict', 'Scenario observation moved beyond its admitted revision.');
+    const secrets = state.bound.models.get(observed.model)!.secrets;
+    if (secrets.length > MAX_ITEMS) return invalid('original secrecy inventory exceeds its finite budget.');
+    state.observations.push({ dependencyId: dependency.id, model: observed.model, row,
+      secretFields: [...secrets],
+      stored: current !== null && stableStringify(current) === stableStringify(row), ownerSession: owner !== undefined });
+  } catch (error) { state.poisoned = true; throw error; }
+  finally { if (acquired) { state.pending -= 1; if (owner !== undefined) owner.busy = false; } }
 }
 
 /** The emitted selected return path determines required reads; unrelated private
@@ -217,12 +408,15 @@ export async function observeScenarioReceiptDependency(call: AdmittedCall, store
  */
 export function selectScenarioReceiptReturn(call: AdmittedCall, store: StoragePort, returnId: string): void {
   const state = capture(call, store);
-  const returned = state.bound.plan.returns.find(entry => entry.id === returnId);
-  if (state.returnId !== null || returned === undefined) return invalid('one actual checked return path required.');
-  if (returned.dependencies.some(dep => !state.observations.some(entry => entry.dependencyId === dep.id))) {
-    return invalid('required observations must complete before selecting the actual return.');
-  }
-  state.returnId = returnId;
+  try {
+    if (state.pending !== 0 || ownerSessions.get(call)?.busy === true) { state.poisoned = true; return invalid('return selection cannot precede pending owner reads/observations.'); }
+    const returned = state.bound.plan.returns.find(entry => entry.id === returnId);
+    if (state.returnId !== null || returned === undefined) return invalid('one actual checked return path required.');
+    if (returned.dependencies.some(dep => !state.observations.some(entry => entry.dependencyId === dep.id))) {
+      return invalid('required observations must complete before selecting the actual return.');
+    }
+    state.returnId = returnId;
+  } catch (error) { state.poisoned = true; throw error; }
 }
 
 function checkedRow(value: unknown): StoredRow {
@@ -238,17 +432,35 @@ function checkedRow(value: unknown): StoredRow {
 }
 
 /** Invoke alone calls this after execution; no executor-supplied association is accepted. */
-export function retainScenarioReceipt(call: AdmittedCall, writes: readonly DomainWrite[], result: unknown): ScenarioReceiptAssociation | undefined {
+export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffects): ScenarioReceiptAssociation | undefined {
   let state = captures.get(call); captures.delete(call);
+  const owner = ownerSessions.get(call); ownerSessions.delete(call);
+  if (owner !== undefined) {
+    if (!owner.closed || owner.finalized === null || owner.capture.poisoned || owner.capture.pending !== 0) {
+      return invalid('owner session must finalize successfully inside its actual execution.');
+    }
+    for (const key of ['writes', 'history', 'uniqueClaims', 'uniqueReleases', 'resolvedDefaults'] as const) {
+      if (stableStringify(dataCopy(effects[key])) !== stableStringify(owner.finalized[key])) {
+        return invalid(`executor ${key} differ from the actual finalized owner effects.`);
+      }
+    }
+    // Duplicate schedule keys use last-operation-wins semantics. An extra
+    // cancel/replacement on an owned key would override actual owner effects.
+    const keys = new Set(owner.finalized.schedules.map(schedule => schedule.key));
+    const owned = effects.schedules.filter(schedule => keys.has(schedule.key));
+    if (stableStringify(owned) !== stableStringify(owner.finalized.schedules)) return invalid('executor omitted, changed or overrode an owned schedule.');
+  }
+  const { writes, result } = effects;
   const bound = boundPlans.get(call.def as GeneratedOperationDef);
   if (bound === undefined) return undefined;
   // One checked empty path permits the ordinary implicit void return. Its
   // success receipt carries no business result and still saves changed rows.
   if (bound.type === 'void' && bound.plan.returns.length === 1 && bound.plan.returns[0]!.dependencies.length === 0) {
-    state ??= { bound, returnId: null, observations: [] };
+    state ??= { bound, returnId: null, poisoned: false, pending: 0, observations: [] };
     state.returnId ??= bound.plan.returns[0]!.id;
   }
   if (state === undefined || state.returnId === null) return invalid('checked scenario omitted its actual return capture.');
+  if (state.poisoned || state.pending !== 0) return invalid('capture is poisoned or unfinished.');
   scalarWire(bound.type, dataCopy(result));
   const returned = bound.plan.returns.find(entry => entry.id === state.returnId)!;
   const required = new Set(returned.dependencies.map(dep => dep.id));
@@ -270,12 +482,12 @@ export function retainScenarioReceipt(call: AdmittedCall, writes: readonly Domai
       withheldFields: [...new Set([...model.withheld, ...Object.keys(row.data).filter(field => !model.fields.has(field))])],
       fieldTypes: Object.fromEntries(model.fields) });
   }
-  for (const entry of observed) if (!entry.stored && !changed.some(change => change.model === entry.model &&
+  for (const entry of observed) if (!entry.stored && !entry.ownerSession && !changed.some(change => change.model === entry.model &&
       stableStringify(change.row) === stableStringify(entry.row))) {
     return invalid('provisional read is not the final committed own-row snapshot; owner-session join required.');
   }
   return deepFreeze(dataCopy({ kind: 'scenario-result/v1' as const, plan: bound.plan, resultType: bound.type,
-    returnId: state.returnId, observations: observed.map(({ stored: _stored, ...entry }) => entry), changed }));
+    returnId: state.returnId, observations: observed.map(({ stored: _stored, ownerSession: _ownerSession, ...entry }) => entry), changed }));
 }
 
 /** Legacy receipts are unassociated; malformed recognized metadata refuses. */
@@ -319,8 +531,9 @@ export interface ProjectScenarioReceiptInput {
 }
 
 /** Current authority masks saved values, without re-execution or substitution.
- * Missing required access withholds the entire typed result as null; changed
- * records are independently projected. Unknown current inventory fails closed.
+ * Missing required influence access withholds result and changed records. This
+ * version has no field-level influence map; readable changes cannot launder
+ * private data/control. Unknown current inventory fails closed.
  */
 export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput): Promise<{
   readonly result: unknown; readonly records: readonly ProjectedRecord[];
@@ -366,14 +579,14 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       return projectSavedRecordForViewer({ policy: input.policy.get(model), context, current, saved,
         originalSecretFields: [...originalSecrets, ...blocked, ...inventory.secrets, ...inventory.withheld] });
     };
-    let readable = association.resultType === currentBound.type;
+    let dependenciesReadable = true;
     const returned = association.plan.returns.find(entry => entry.id === association.returnId)!;
     for (const observation of association.observations) {
       const dependency = returned.dependencies.find(dep => dep.id === observation.dependencyId)!;
       const projection = await savedProjection(observation.model, observation.row, observation.secretFields, []);
       if (currentBound.models.get(observation.model)?.fields.get(dependency.field) !== dependency.type || projection === null ||
           !Object.hasOwn(projection.data, dependency.field) ||
-          stableStringify(projection.data[dependency.field]) !== stableStringify(observation.row.data[dependency.field])) readable = false;
+          stableStringify(projection.data[dependency.field]) !== stableStringify(observation.row.data[dependency.field])) dependenciesReadable = false;
     }
     const records: ProjectedRecord[] = [];
     for (const changed of association.changed) {
@@ -381,9 +594,10 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       const drifted = Object.keys(changed.row.data).filter(field =>
         !Object.hasOwn(changed.fieldTypes, field) || fields?.get(field) !== changed.fieldTypes[field]);
       const record = await savedProjection(changed.model, changed.row, changed.secretFields, [...changed.withheldFields, ...drifted]);
-      if (record !== null) records.push(record);
+      if (record !== null && dependenciesReadable) records.push(record);
     }
-    return { result: readable && receipt.outcome.status === 'committed' ? dataCopy(receipt.outcome.result) : null, records };
+    return { result: dependenciesReadable && association.resultType === currentBound.type && receipt.outcome.status === 'committed'
+      ? dataCopy(receipt.outcome.result) : null, records };
   };
   const first = await project(live);
   // Individual Identity reads cannot certify a jointly authorized point for
