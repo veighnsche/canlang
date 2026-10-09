@@ -66,15 +66,17 @@ async function stageGenerationProgress(input: TextGenerationProgressInput | Imag
     return { ...staged, writes: [...staged.writes ?? [], ...events.writes ?? []],
       schedules: [...staged.schedules ?? [], ...events.schedules ?? []] };
   };
-  const target = PROFILES[profile].target;
+  const target = profile === 'image' && ['std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(intent.target)
+    ? intent.target : PROFILES[profile].target;
   if (intent.target !== target || intent.intentId === '' || context.source !== target ||
       !PROFILES[profile].context(context) || context.request === undefined ||
       !Number.isSafeInteger(revision) || revision < 0) refuse(profile);
   const carrier = intent.arguments;
   if (!record(carrier) || Object.keys(carrier).length !== 3 || typeof carrier.binding !== 'string' ||
       carrier.binding === '' || typeof carrier.from !== 'string' || carrier.from === '' ||
-      !record(carrier.arguments) || !record(carrier.arguments.value)) refuse(profile);
-  const request = carrier.arguments.value;
+      !record(carrier.arguments)) refuse(profile);
+  const request = target === PROFILES[profile].target ? carrier.arguments.value : carrier.arguments;
+  if (!record(request)) refuse(profile);
   if (request.source !== context.request.source || request.revision !== context.request.revision ||
       encodeValue('int', decodeValue('int', request.revision)) !== context.request.revision) refuse(profile);
   const receiptRow = await ctx.load(RECEIPT_MODEL as ModelName, intent.intentId as RecordId);
@@ -135,14 +137,16 @@ async function readRetainedGenerationReceipt(
   ctx: SystemCommandContext, profile: GenerationProfile,
 ): Promise<AssociatedReceipt | null> {
   const { intent, context } = input;
-  const target = PROFILES[profile].target;
+  const target = profile === 'image' && ['std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(intent.target)
+    ? intent.target : PROFILES[profile].target;
   if (intent.target !== target || intent.intentId === '' || context.source !== target ||
       !PROFILES[profile].context(context) || context.request === undefined) refuse(profile);
   const carrier = intent.arguments;
   if (!record(carrier) || Object.keys(carrier).length !== 3 || typeof carrier.binding !== 'string' ||
       carrier.binding === '' || typeof carrier.from !== 'string' || carrier.from === '' ||
-      !record(carrier.arguments) || !record(carrier.arguments.value)) refuse(profile);
-  const request = carrier.arguments.value;
+      !record(carrier.arguments)) refuse(profile);
+  const request = target === PROFILES[profile].target ? carrier.arguments.value : carrier.arguments;
+  if (!record(request)) refuse(profile);
   if (request.source !== context.request.source || request.revision !== context.request.revision ||
       encodeValue('int', decodeValue('int', request.revision)) !== context.request.revision) refuse(profile);
   const row = await ctx.load(RECEIPT_MODEL as ModelName, intent.intentId as RecordId);
