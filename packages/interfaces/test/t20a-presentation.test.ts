@@ -31,7 +31,7 @@ import type { MutationOutcome } from '../src/ports.js';
 import { buildBusinessError } from '../src/errors/envelope.js';
 import { UUID_V7_PATTERN, extractUuidV7Ms, validateOperationId } from '../src/envelope/validate.js';
 import { deriveOperationInputs, catalogFromArtifactOperations } from '../src/http/operations.js';
-import { handleOperationRequest } from '../src/http/operations.js';
+import { FORM_REFUSAL_HEADER, handleOperationRequest } from '../src/http/operations.js';
 import { createSourceFormBindings } from '../src/http/form-binding.js';
 import { csrfTokenForSession, mintOperationId, resolveRequestIdentity } from '../src/http/context.js';
 import { buildPresentationContext } from '../src/http/presentation.js';
@@ -548,6 +548,82 @@ test('native boolean presence distinguishes checked, unchecked and unrendered pr
   assert.equal(nullParams.get(NATIVE_BOOLEAN_PRESENCE_PREFIX + 'inputs[changes][note__null]'), 'true');
   assert.equal((await submit(nullParams)).status, 200);
   assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1)!.inputs)), { record: { id: 'g1', version: '7' } }, 'unchecked nullable companion does not manufacture null');
+});
+
+test('native projection refusals retain valid text and ref drafts in rendered HTML', async () => {
+  clearFormBindings();
+  const operation = 'Store.Gadget.update';
+  const op: ArtifactOperation = { name: operation, kind: 'update', description: '', inputs: { fields: [
+    { name: 'record', field: { kind: 'ref', model: 'Store.Gadget', requireVersion: true }, required: true },
+    { name: 'title', field: { kind: 'string' }, required: false },
+    { name: 'owner', field: { kind: 'ref', model: 'Store.Gadget', requireVersion: true }, required: false },
+    { name: 'tags', field: { kind: 'string' }, required: false, array: { required: false } },
+    { name: 'enabled', field: { kind: 'boolean' }, required: false },
+  ] } };
+  const calls: MutationEnvelope[] = [];
+  const t = await createTestDeps({ mutations: { [operation]: envelope => {
+    calls.push(envelope); return { result: { status: 'committed', operation_id: envelope.operation_id, result: null } };
+  } } });
+  const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: [op] });
+  const derived = deriveOperationInputs(op);
+  const formBindings = await createSourceFormBindings(new Uint8Array(32).fill(95), 'native-draft-revision');
+  const session = await t.identity.store.findSessionByTokenHash(await sha256HexText(t.identity.sessionToken));
+  assert.ok(session); await t.identity.store.setSessionTeam(session.session_id, t.identity.teamId);
+  const { identity: principal } = await resolveRequestIdentity(t.identity.store,
+    testRequest('/forms', { cookie: t.identity.cookie }), { clock: t.deps.clock });
+  const context = buildPresentationContext({ request: testRequest('/forms'), pathname: '/forms', isPartial: false,
+    appDefaultLocale: 'en', csrfToken: await deriveCsrfToken(t.identity.sessionToken), principal,
+    query: async () => ({ rows: [], columns: [] }), catalog, clock: t.deps.clock, formBindings,
+    appId: t.deps.app.appId, sessionToken: t.identity.sessionToken,
+  });
+  registerFormBinding(bindingFromDerived({ derived, mode: 'update', action: '/forms',
+    fields: generatedFields(derived, 'update'), submit: 'Save', idPrefix: 'native-drafts', timeZone: 'UTC' }));
+  const successfulControls = (html: string) => new URLSearchParams([...html.matchAll(/<input\b[^>]*>/g)]
+    .filter(([tag]) => !/\sdisabled(?:\s|>)/.test(tag) && (!/type="checkbox"/.test(tag) || /\schecked(?:\s|>)/.test(tag)))
+    .flatMap(([tag]) => { const name = /name="([^"]*)"/.exec(tag), value = /value="([^"]*)"/.exec(tag);
+      return name !== null && value !== null ? [[name[1]!, value[1]!]] : []; }));
+  const submit = (params: URLSearchParams) => handleOperationRequest({ ...t.deps, catalog, formBindings },
+    testRequest('/forms', { method: 'POST', cookie: t.identity.cookie,
+      headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'text/html', 'HX-Request': 'true' },
+      body: params.toString() }), operation);
+  try {
+    for (const protectedForm of [false, true]) {
+      const prepared = await context.prepareForm!({ operation, fields: ['title', 'owner', 'tags', 'enabled'],
+        arguments: { record: { id: 'g1', version: 7n, title: 'Original', enabled: true } } });
+      assert.equal(prepared.status, 'ready'); if (prepared.status !== 'ready') throw new Error('expected protected draft form');
+      const { sourceBinding: _binding, ...ordinaryProps } = prepared.props;
+      const html = await form(protectedForm ? prepared.props : {
+        ...ordinaryProps, record: { id: 'g1', version: '7' },
+      });
+      const original = successfulControls(html);
+      original.set('inputs[changes][title]', 'true');
+      original.set('inputs[changes][owner]', 'chosen-owner');
+      original.set('inputs[changes][owner__version]', '9');
+      original.set('inputs[changes][tags]', '["good"]');
+      for (const [name, value] of [['tags', '{}'], ['enabled', 'maybe']]) {
+        const invalid = new URLSearchParams(original); invalid.set(`inputs[changes][${name}]`, value!);
+        const response = await submit(invalid);
+        assert.equal(response.status, 400);
+        assert.match(response.headers.get('content-type')!, /^text\/html/);
+        assert.deepEqual(JSON.parse(response.headers.get(FORM_REFUSAL_HEADER)!), { version: 1, code: 'validation', retryable: false });
+        const rendered = successfulControls(await response.text());
+        assert.equal(rendered.get('inputs[changes][title]'), 'true', 'text remains text beside a malformed typed sibling');
+        assert.equal(rendered.get('inputs[changes][owner]'), 'chosen-owner');
+        assert.equal(rendered.get('inputs[changes][owner__version]'), '9');
+        assert.equal(rendered.get('inputs[record][id]'), 'g1');
+        assert.equal(rendered.get('inputs[record][version]'), '7');
+      }
+      if (protectedForm) {
+        const invalidProof = new URLSearchParams(original);
+        invalidProof.set('form_binding', `${invalidProof.get('form_binding')}x`);
+        invalidProof.set('inputs[changes][tags]', '{}');
+        const denied = await submit(invalidProof);
+        assert.equal(denied.status, 400, 'typed projection still owns the first refusal');
+        assert.match(denied.headers.get('content-type')!, /^application\/json/, 'unverified bound refs cannot restore an update shell');
+      }
+    }
+    assert.equal(calls.length, 0, 'draft recovery never reaches canonical mutation');
+  } finally { clearFormBindings(); }
 });
 
 test('bindingFromDerived pins the operation and checks mode agreement', () => {
