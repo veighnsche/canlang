@@ -865,11 +865,11 @@
       ],
       "conditional_gates": [],
       "worker_update": {
-        "state": "unfinished_two_full_composition_source_checkpoint_cloud_stopped",
+        "state": "complete_authored_comparison_execution_blocked",
         "prerequisite": "Two complete ordinary expense/image-revision approval compositions and package/template comparison can now be authored from exact draft5a12eb9e; explicit reviewer/quorum/expiry domain policies remain required. Executed self/duplicate/ineligible/stale/revoked/concurrent controls retain task11 rule/context prerequisites.",
         "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker\u2019s task.",
         "selected_policy": "JEV3 recommends named_roster (.99/.99/.97; confidence .98/.98/.95), advisory only. Expense keeps assigned primary and eligible distinct secondary; Creative owner requests two other current managers. Explicit deadlines, rejection veto, superseding reset votes, exact frozen evidence/current eligibility and original separately authorized finalizers required.",
-        "remaining": "Both full source drafts/cases/pages preserved04490bdc. README package/template comparison unwritten, direct original-vs-authored findings and rule/grant/context execution gates in cloud_shutdown_handoff. No acceptance or task credit.",
+        "remaining": "Both full source drafts/cases/pages04490bdc and complete ordinary/package/template comparison README retained. One bounded comparison confirms all original Expense10/Creative12 scenarios and pages, original body deltas restricted to decide/reimburse/publish. Current complete provider-closure checking: Expense original E3010x2, composition adds E5006x8 operation_id; Creative original7 diagnostics (E3010x5/E3001x1/E3004x1), composition adds E5006x6. Defining rule/grant/context and example-admission execution gates remain; no38/040 acceptance.",
         "deliverables": "approval-compositions/ExpenseReview.can, CreativeRevisionReview.can and README.md comparison; finite writer active, no task credit."
       }
     },
@@ -1627,6 +1627,11 @@
         "producer_head": "0f17f6f806babaf8a36c9cfeaa40357e5437aae7",
         "scope": "Consume coherent c3c12531 anonymous descriptor/effect/linkage producers and3082eae1 bound-caption producers with owning controls, plus current0f17f6f8 analysis/authoring/format/b4_examples consumers. Real1d6495d1 corpus,2ba8b526 claim controls andb1209ff6 parameter-domain/CanInbox parity underpin expectations; no count-only substitute. Ten affected source-current native targets pass529/529; cargo fmt --check and warnings-denied all-target Clippy pass. Existing105 native consumer results remain reusable where unchanged.",
         "remaining": "Original application conditional-grant/model-rule/current-context and provider qualification remain defining-owner prerequisites; current corpus mirrors and CanInbox header parity affected checks now pass. Same-name preference caption behavior retained per accepted DESIGN.md1018."
+      },
+      "zsh_completion_intake": {
+        "producer_revision": "c4376ab8b92be5dd7daf6da766bda2dae7d3dc49",
+        "file": "compiler/tests/fixtures/completion-contract/zsh.py",
+        "scope": "Exact released compinit -i audit/bootstrap guard/echo-safe sentinel consumed. Actual Bash/Zsh completion engine case1/1 passes with require-engines enabled (20.54s). Other compiler prerequisites retained."
       }
     },
     "model_field_modifiers": {
