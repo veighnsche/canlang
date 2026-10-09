@@ -3,7 +3,7 @@ import { transition as stateTransition } from '@canlang/state/effects/transition
 import { require as stateRequire, hasRole as stateHasRole } from '@canlang/state/effects/guards';
 /**
  * Lane 03 S8 stdlib assembly tests: the façade carries exactly lane-02's
- * requested surface plus invocation (140 runtime names verbatim + the barrel's 66 types),
+ * requested surface plus invocation and choose (141 runtime names verbatim + the barrel's 66 types),
  * every binding identical to the producer's, plus live-call smoke proving
  * the bindings execute. Any producer drift (rename/removal) or façade
  * omission fails loudly here; barrel additions stay out until requested.
@@ -15,9 +15,9 @@ import * as values from '@canlang/values';
 import type * as stdlibTypes from '../src/index.js';
 import type * as valuesTypes from '@canlang/values';
 
-/** Filed FACADE REQUEST plus the existing Values invocation constructor join. */
+/** Filed FACADE REQUEST plus the existing Values invocation and choose joins. */
 const EXPECTED_RUNTIME: ReadonlyArray<string> = [
-  // (a) Historical pure builtin list plus invocation.
+  // (a) Historical pure builtin list plus invocation and choose.
   'count',
   'flatten',
   'sum',
@@ -29,6 +29,7 @@ const EXPECTED_RUNTIME: ReadonlyArray<string> = [
   'group',
   'invocation',
   'at',
+  'choose',
   'abs',
   'round',
   'lower',
@@ -306,7 +307,7 @@ const TYPE_PINS: ReadonlyArray<true> = [
 
 describe('stdlib assembly', () => {
   it('exports exactly the requested surface plus the assembly version', () => {
-    assert.equal(EXPECTED_RUNTIME.length, 140);
+    assert.equal(EXPECTED_RUNTIME.length, 141);
     assert.equal(TYPE_PINS.length, 66);
     const actual = Object.keys(stdlib).sort();
     const expected = [...EXPECTED_RUNTIME, 'transition', 'delivery', 'require', 'hasRole', 'STDLIB_CONTRACT_VERSION'].sort();

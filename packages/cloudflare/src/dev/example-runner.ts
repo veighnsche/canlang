@@ -36,7 +36,7 @@ export class MissingExampleTestkitError extends Error {
   }
 }
 
-/** Resolve the optional producer from the invoking application, avoiding a package cycle. */
+/** The invoking application installs the optional producer, without a package cycle. */
 export async function loadInstalledExampleTestkit(applicationRoot: string): Promise<ExampleTestkitPort> {
   let entry: string;
   try {

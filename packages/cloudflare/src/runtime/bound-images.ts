@@ -5,6 +5,7 @@ import type { GeneratedImage, ImageRequest, ImageRun, OutboxIntent, ProviderBind
 import type { InstalledImages, InstalledImageOptions, ResolveInstalledImages } from '@canlang/services';
 import type { ProviderOutputOutcome } from '@canlang/files/finalize';
 import { deriveOutboxId } from '@canlang/work/intent';
+import type { DispatchImageCorrelation } from '@canlang/work/kernel/tables';
 import { decodeValue, encodeValue, normalizeSchema, validateOperationInput } from '@canlang/values';
 import type { SchemaDescriptor } from '@canlang/values';
 import { isImageRunReceiptPayload } from '@canlang/state/receipt/tables';
@@ -30,7 +31,7 @@ export interface BoundImagesOptions {
   readonly resolveInstalledImages: ResolveInstalledImages;
   /** Actual owning Files finalization, inside its durable byte/metadata transaction. */
   readonly finalizeOutput: (input: { readonly intent: OutboxIntent; readonly output: GeneratedImage;
-    readonly resultPath: string }) => Promise<ProviderOutputOutcome>;
+    readonly resultPath: string; readonly originalScope?: { readonly app: string; readonly owner: string; readonly principal: string } }) => Promise<ProviderOutputOutcome>;
 }
 
 export interface BoundImagesCallOptions {
@@ -41,6 +42,15 @@ export interface BoundImagesCallOptions {
   readonly onProgress: (progress: ImageRunWire) => Promise<void>;
   /** Latest retained receipt sequence, supplied by the owning fenced reader on recovery. */
   readonly sequence?: string;
+  readonly originalScope?: { readonly app: string; readonly owner: string; readonly principal: string };
+}
+
+export interface BoundImagesControlCallOptions extends BoundImagesCallOptions {
+  /** Original committed CONTROL row.created; never renewed by retry/recovery. */
+  readonly observation: { readonly startedAtMs: number; readonly deadlineMs: number };
+  readonly originalScope: { readonly app: string; readonly owner: string; readonly principal: string };
+  /** Recovery observes the original job; it never blindly repeats cancellation. */
+  readonly recovering?: boolean;
 }
 
 export interface BoundImagesAdapter {
@@ -49,6 +59,9 @@ export interface BoundImagesAdapter {
   callProvider(intent: OutboxIntent, options: BoundImagesCallOptions): Promise<DispatchProviderOutcome>;
   reconcile(intent: OutboxIntent, options: BoundImagesCallOptions): Promise<DispatchReconcileEvidence | null>;
   cancel(intent: OutboxIntent, options: BoundImagesCallOptions): Promise<DispatchProviderOutcome | null>;
+  controlCorrelation(intent: OutboxIntent, owner: string): DispatchImageCorrelation | null;
+  controlObservation(intent: OutboxIntent, startedAtMs: number): InstalledImageOptions['observation'] | null;
+  observeControl(control: OutboxIntent, original: OutboxIntent, options: BoundImagesControlCallOptions): Promise<DispatchProviderOutcome>;
 }
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -74,6 +87,47 @@ interface Resolved {
 
 export function createBoundImagesAdapter(options: BoundImagesOptions): BoundImagesAdapter {
   const expected = Object.freeze({ ...options.binding });
+  const resolveControl = (intent: OutboxIntent) => {
+    try {
+      if (!['std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(intent.target) || intent.intentId === '' ||
+          !closed(intent.arguments, ['binding', 'from', 'arguments'])) return null;
+      const carrier = intent.arguments;
+      if (typeof carrier.binding !== 'string' || carrier.from !== expected.deployment || !record(carrier.arguments)) return null;
+      const app = member(options.appDefinition, 'id');
+      const binding = member(member(options.appDefinition, 'bindings'), carrier.binding);
+      const capability = member(member(options.appDefinition, 'capabilities'), CAPABILITY);
+      const version = member(capability, 'version');
+      const operation = member(member(capability, 'operations'), intent.target.slice(`${CAPABILITY}.`.length));
+      const inputs = member(operation, 'inputs');
+      const contracts = member(options.appDefinition, 'contracts');
+      const enums = member(options.appDefinition, 'enums') ?? {};
+      const leaves = deliveryResultLeaves('ImageRun');
+      const fields = member(member(contracts, 'ImageRun'), 'fields');
+      if (typeof app !== 'string' || app === '' ||
+          member(member(options.appDefinition, 'operations'), intent.operation) === undefined ||
+          member(binding, 'capability') !== CAPABILITY || member(binding, 'from') !== carrier.from ||
+          expected.capability !== CAPABILITY || expected.capabilityVersion !== STD_IMAGES_V1_VERSION ||
+          expected.account === '' || expected.deployment === '' ||
+          (version !== STD_IMAGES_V1_VERSION && version !== BigInt(STD_IMAGES_V1_VERSION)) ||
+          member(member(operation, 'result'), 'type') !== 'ImageRun' || !record(inputs) ||
+          Object.keys(inputs).length !== 2 || member(member(inputs, 'source'), 'type') !== 'text' ||
+          member(member(inputs, 'revision'), 'type') !== 'int' || !record(contracts) || !record(enums) ||
+          leaves === null || !record(fields) || Object.keys(fields).length !== leaves.length ||
+          !leaves.every(leaf => member(member(fields, leaf.name), 'type') === leaf.type)) return null;
+      const schema = normalizeSchema({ contracts, enums, operations: { [intent.target]: { inputs } } } as SchemaDescriptor);
+      const checked = validateOperationInput(schema, intent.target, carrier.arguments);
+      if (typeof checked.source !== 'string' || checked.source === '') return null;
+      const revision = encodeValue('int', BigInt(safeInt(checked.revision, 0))) as string;
+      const installed = options.resolveInstalledImages(expected.deployment);
+      if (installed === null || installed.binding.deployment !== expected.deployment || installed.binding.account !== expected.account ||
+          installed.binding.capability !== CAPABILITY || installed.binding.capabilityVersion !== expected.capabilityVersion ||
+          !Number.isSafeInteger(installed.policy.maxObservationDurationMs) || installed.policy.maxObservationDurationMs <= 0 ||
+          typeof installed.images.cancel !== 'function' || typeof installed.images.reconcile !== 'function') return null;
+      return { app, binding: carrier.binding, from: carrier.from,
+        context: Object.freeze({ source: intent.target, declaredResult: Object.freeze({ name: 'ImageRun', fields: leaves }),
+          request: Object.freeze({ source: checked.source, revision }) }) satisfies ReceiptResultContext };
+    } catch { return null; }
+  };
   const resolve = (intent: OutboxIntent): Resolved | null => {
     try {
       if (intent.target !== TARGET || intent.intentId === '' || !closed(intent.arguments, ['binding', 'from', 'arguments'])) return null;
@@ -135,16 +189,27 @@ export function createBoundImagesAdapter(options: BoundImagesOptions): BoundImag
         request: Object.freeze({ source: input.source, revision: encodeValue('int', BigInt(input.revision)) as string }) }) };
     } catch { return null; }
   };
-  const lifecycle = (intent: OutboxIntent, resolved: Resolved, call: BoundImagesCallOptions): InstalledImageOptions => {
+  const lifecycle = (intent: OutboxIntent, resolved: Resolved, call: BoundImagesCallOptions,
+    retainedObservation?: InstalledImageOptions['observation']): InstalledImageOptions => {
     const duration = safeInt(resolved.input.max_duration, 1);
     const deadlineMs = call.stagedAtMs + duration;
     if (!Number.isSafeInteger(call.stagedAtMs) || call.stagedAtMs < 0 || !Number.isSafeInteger(deadlineMs) ||
-        deadlineMs <= Date.now()) throw new Error('Original image request deadline is unavailable or expired.');
+        (retainedObservation === undefined && deadlineMs <= Date.now())) throw new Error('Original image request deadline is unavailable or expired.');
+    let observation: InstalledImageOptions['observation'];
+    if (retainedObservation !== undefined) {
+      const { startedAtMs, deadlineMs: observationDeadline } = retainedObservation;
+      if (!Number.isSafeInteger(startedAtMs) || startedAtMs < 0 || startedAtMs > Date.now() ||
+          !Number.isSafeInteger(observationDeadline) || observationDeadline <= Date.now() ||
+          observationDeadline <= startedAtMs || observationDeadline - startedAtMs > resolved.installed.policy.maxObservationDurationMs) {
+        throw new Error('Original image control observation window is unavailable or expired.');
+      }
+      observation = Object.freeze({ startedAtMs, deadlineMs: observationDeadline });
+    }
     const hex = deriveOutboxId(intent.intentId, TARGET, 0).slice('obx_'.length, 'obx_'.length + 32);
     // UUIDv8 retains the pinned digest identity with RFC version/variant bits.
     const variant = ((parseInt(hex[16]!, 16) & 3) | 8).toString(16);
     const jobId = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-8${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20)}`;
-    return { deliveryId: intent.intentId, jobId, deadlineMs };
+    return { deliveryId: intent.intentId, jobId, deadlineMs, ...(observation === undefined ? {} : { observation }) };
   };
   const observe = async (intent: OutboxIntent, resolved: Resolved, original: InstalledImageOptions,
     call: BoundImagesCallOptions, method: 'reconcile' | 'cancel'): Promise<DispatchProviderOutcome> => {
@@ -173,12 +238,17 @@ export function createBoundImagesAdapter(options: BoundImagesOptions): BoundImag
       if (slots.has(slot)) return { kind: 'uncertain' };
       slots.add(slot);
       const resultPath = `outputs/${encodeURIComponent(output.node)}/${output.position}`;
-      const finalized = await options.finalizeOutput({ intent, output, resultPath });
+      const finalized = await options.finalizeOutput({ intent, output, resultPath,
+        ...(call.originalScope === undefined ? {} : { originalScope: call.originalScope }) });
       if (finalized.status !== 'finalized' && finalized.status !== 'repeated') return { kind: 'uncertain' };
       const file = finalized.file;
       if (file.id !== finalized.result.file || file.provenance.kind !== 'request' ||
           file.provenance.adapter !== expected.deployment || file.provenance.deliveryId !== intent.intentId ||
           file.provenance.resultPath !== resultPath || file.sizeBytes !== output.bytes.byteLength) return { kind: 'uncertain' };
+      if (call.originalScope !== undefined && (file.provenance.app !== call.originalScope.app ||
+          file.provenance.owner !== call.originalScope.owner || file.provenance.principal !== call.originalScope.principal)) {
+        return { kind: 'uncertain' };
+      }
       outputs.push({ position: encodeValue('int', BigInt(output.position)) as string,
         image: encodeValue('file', decodeValue('file', { id: finalized.result.file })) as { id: string } });
     }
@@ -193,8 +263,34 @@ export function createBoundImagesAdapter(options: BoundImagesOptions): BoundImag
     return status === 'succeeded' ? { kind: 'delivered', result: progress } : { kind: 'uncertain' };
   };
   return {
-    available: intent => resolve(intent) !== null,
-    resultContext: intent => resolve(intent)?.context ?? null,
+    available: intent => resolve(intent) !== null || resolveControl(intent) !== null,
+    resultContext: intent => resolve(intent)?.context ?? resolveControl(intent)?.context ?? null,
+    controlCorrelation(intent, owner) {
+      const control = resolveControl(intent);
+      if (control === null || typeof owner !== 'string' || owner === '') return null;
+      return Object.freeze({ requestSource: control.context.request!.source, requestRevision: control.context.request!.revision,
+        requestBinding: control.binding, requestFrom: control.from, requestApp: control.app, requestOwner: owner });
+    },
+    controlObservation(intent, startedAtMs) {
+      if (resolveControl(intent) === null) return null;
+      const installed = options.resolveInstalledImages(expected.deployment);
+      const deadlineMs = startedAtMs + installed!.policy.maxObservationDurationMs;
+      return Number.isSafeInteger(startedAtMs) && startedAtMs >= 0 && Number.isSafeInteger(deadlineMs)
+        ? Object.freeze({ startedAtMs, deadlineMs }) : null;
+    },
+    async observeControl(control, original, call) {
+      const invocation = resolveControl(control), resolved = resolve(original);
+      if (invocation === null || resolved === null || control.intentId === original.intentId ||
+          call.originalScope.app !== invocation.app || call.originalScope.owner === '' || call.originalScope.principal === '' ||
+          invocation.context.request!.source !== resolved.context.request!.source ||
+          invocation.context.request!.revision !== resolved.context.request!.revision ||
+          control.arguments['binding'] !== original.arguments['binding'] ||
+          control.arguments['from'] !== original.arguments['from']) return { kind: 'uncertain' };
+      try {
+        return await observe(original, resolved, lifecycle(original, resolved, call, call.observation), call,
+          control.target === 'std.ImagesV1.cancel' && call.recovering !== true ? 'cancel' : 'reconcile');
+      } catch { return { kind: 'uncertain' }; }
+    },
     async callProvider(intent, call) {
       const resolved = resolve(intent);
       if (resolved === null) return { kind: 'uncertain' };

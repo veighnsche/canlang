@@ -20,6 +20,25 @@ import { pageDirection, pageLocale, renderLogin, renderPage } from "../src/shell
 import { loadHtml } from "./harness.js";
 import { EXPENSE_FULL_PAGES, TEAMTASKS_FULL_PAGES } from "./fixtures/descriptors.js";
 
+async function assertTrustedBootstrap(html: string): Promise<void> {
+  const page = await loadHtml(html);
+  try {
+    const scripts = page.document.querySelectorAll("script");
+    assert.equal(scripts.length, 1);
+    const script = scripts[0]!;
+    assert.deepEqual(Array.from(script.attributes, attribute => [attribute.name, attribute.value]).sort(), [
+      ["src", "/assets/browser/bootstrap.js"],
+      ["type", "module"],
+    ]);
+    assert.equal(script.textContent, "");
+    assert.equal(script.parentElement, page.document.body);
+    assert.equal(page.document.body.lastElementChild, script);
+    assert.equal(page.document.querySelectorAll("main script").length, 0);
+  } finally {
+    await page.close();
+  }
+}
+
 function makeContext(
   overrides: Partial<PresentationContext> = {},
 ): PresentationContext {
@@ -121,7 +140,7 @@ describe("full-document structure", () => {
     assert.match(html, /<title>Team tasks — CanApp<\/title>/);
     assert.match(html, /<body class="density-compact">/);
     assert.match(html, /<main id="can-main"><p>hi<\/p><\/main>/);
-    assert.ok(!html.includes("<script"));
+    await assertTrustedBootstrap(html);
   });
 
   it("omits the brand suffix when title equals brand", async () => {
@@ -498,6 +517,7 @@ describe("XSS vectors", () => {
     assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
     assert.match(html, /value="t&quot; evil"/);
     assert.match(html, /data-settings-section="s&quot;x"/);
+    await assertTrustedBootstrap(html);
   });
 
   it("falls back javascript: entry paths", async () => {
