@@ -477,6 +477,8 @@ pub struct TypeTable {
     pub cohort_child_references: HashMap<NodeKey, SymbolId>,
     /// Exact checked bare-role value references, preserving lexical collisions.
     pub role_references: HashMap<NodeKey, SymbolId>,
+    /// Receiving preference fields, independent of a borrowed enum's owner.
+    pub(crate) preference_field_references: HashMap<NodeKey, SymbolId>,
     /// Optional checked assistance; final input typing/defaults/grants are unchanged.
     pub input_choices: HashMap<SymbolId, CheckedInputChoice>,
     /// Checked external and capability/operation declaration heads for sends.
@@ -12251,6 +12253,11 @@ impl<'a> Typer<'a> {
             .find(|f| self.tables.symbols[f.0 as usize].name == name)
             .copied()
         {
+            if matches!(record.kind, SymbolKind::Preferences { .. }) {
+                self.types
+                    .preference_field_references
+                    .insert(NodeKey::of(node), field);
+            }
             return Some(self.decl_type(field));
         }
         let is_model = matches!(record.kind, SymbolKind::Model { .. });
