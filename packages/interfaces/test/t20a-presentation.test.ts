@@ -657,6 +657,76 @@ test('native projection refusals retain valid text and ref drafts in rendered HT
   } finally { clearFormBindings(); }
 });
 
+test('expired signed CRUD forms dispatch only the dedicated retained mutation path', async () => {
+  const t = await createTestDeps({});
+  const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: [STORE_UPDATE_OP] });
+  const formBindings = await createSourceFormBindings(new Uint8Array(32).fill(96), 'retained-form-revision');
+  const session = await t.identity.store.findSessionByTokenHash(await sha256HexText(t.identity.sessionToken));
+  assert.ok(session); await t.identity.store.setSessionTeam(session.session_id, t.identity.teamId);
+  const { identity: principal } = await resolveRequestIdentity(t.identity.store,
+    testRequest('/forms', { cookie: t.identity.cookie }), { clock: t.deps.clock });
+  const csrf = await deriveCsrfToken(t.identity.sessionToken);
+  const nowMs = t.deps.clock.nowMs();
+  let ordinary = 0, retained = 0;
+  let retainedError: 'not_found' | 'conflict' | null = null;
+  const invoker = { ...t.deps.invoker,
+    async invokeMutation(envelope: MutationEnvelope) {
+      ordinary++; return { result: { status: 'committed' as const, operation_id: envelope.operation_id, result: null } };
+    },
+    async invokeRetainedMutation(envelope: MutationEnvelope) {
+      retained++;
+      assert.deepEqual(JSON.parse(JSON.stringify(envelope.inputs)), { title: 'Exact retry', record: { id: 'g1', version: '7' } });
+      if (retainedError !== null) return { error: buildBusinessError(retainedError, 'Retained receipt unavailable.') };
+      return { result: { status: 'committed' as const, operation_id: envelope.operation_id, result: null } };
+    },
+  };
+  for (const age of [0, 16 * 60 * 1000, 24 * 60 * 60 * 1000 + 1]) {
+    const context = buildPresentationContext({ request: testRequest('/forms'), pathname: '/forms', isPartial: false,
+      appDefaultLocale: 'en', csrfToken: csrf, principal, query: async () => ({ rows: [], columns: [] }),
+      catalog, clock: { nowMs: () => nowMs - age }, formBindings, appId: t.deps.app.appId, sessionToken: t.identity.sessionToken,
+    });
+    const prepared = await context.prepareForm!({ operation: STORE_UPDATE_OP.name, fields: ['title'],
+      arguments: { record: { id: 'g1', version: 7n, title: 'Exact retry' } } });
+    assert.equal(prepared.status, 'ready'); if (prepared.status !== 'ready') throw new Error('expected signed form');
+    const native = new URLSearchParams([...((await form(prepared.props)).matchAll(/<input\b[^>]*name="([^"]*)"[^>]*value="([^"]*)"[^>]*>/g))]
+      .map(match => [match[1]!, match[2]!]));
+    const json = { operation: STORE_UPDATE_OP.name, operation_id: prepared.props.operationId,
+      form_binding: prepared.props.sourceBinding, inputs: { title: 'Exact retry' } };
+    const submit = (nativeBody: boolean, selectedInvoker = invoker, selectedBindings = formBindings) =>
+      handleOperationRequest({ ...t.deps, catalog, formBindings: selectedBindings, invoker: selectedInvoker,
+        clock: { nowMs: () => nowMs } }, testRequest('/forms', { method: 'POST', cookie: t.identity.cookie,
+        headers: { 'content-type': nativeBody ? 'application/x-www-form-urlencoded' : 'application/json', 'x-csrf-token': csrf },
+        body: nativeBody ? native.toString() : JSON.stringify(json) }), STORE_UPDATE_OP.name);
+    for (const nativeBody of [false, true]) {
+      const response = await submit(nativeBody);
+      assert.equal(response.status, 200);
+      assert.equal((await response.json() as { operation_id: string }).operation_id, prepared.props.operationId);
+      if (age > 0) {
+        const before = ordinary + retained;
+        const { invokeRetainedMutation: _retained, ...withoutInvoker } = invoker;
+        const { restoreRetained: _restore, ...withoutRestore } = formBindings;
+        assert.equal((await submit(nativeBody, withoutInvoker as typeof invoker)).status, 403);
+        assert.equal((await submit(nativeBody, invoker, withoutRestore)).status, 403);
+        for (const unavailable of [null, false, 'not-callable', {}]) {
+          assert.equal((await submit(nativeBody, { ...invoker, invokeRetainedMutation: unavailable } as unknown as typeof invoker)).status, 403);
+          assert.equal((await submit(nativeBody, invoker,
+            { ...formBindings, restoreRetained: unavailable } as unknown as typeof formBindings)).status, 403);
+        }
+        assert.equal(ordinary + retained, before, 'missing either owner method refuses without ordinary fallback');
+        for (const code of ['not_found', 'conflict'] as const) {
+          retainedError = code;
+          const denied = await submit(nativeBody);
+          assert.equal(denied.status, code === 'not_found' ? 404 : 409);
+          assert.equal((await denied.json() as { code: string }).code, code);
+        }
+        retainedError = null;
+      }
+    }
+  }
+  assert.equal(ordinary, 2, 'only the fresh JSON/native forms use ordinary invocation');
+  assert.equal(retained, 12, 'expired JSON/native successes and receipt refusals use only retained invocation');
+});
+
 test('bindingFromDerived pins the operation and checks mode agreement', () => {
   clearFormBindings();
   const derived = deriveOperationInputs(STORE_CREATE_OP);
