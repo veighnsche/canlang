@@ -5002,6 +5002,17 @@ impl<'a> Emitter<'a> {
             } else {
                 self.lower_business_expr(value, "unclassified formatted UI prop")
             };
+            // Source rows retain native BigInt versions. The delete form owns
+            // a wire MutationRef, so capture its row once and encode only the
+            // protected identity/version at this presentation boundary.
+            let value = if node.factory == "deleteRecord" && key == "record" {
+                let record = binding_ident("r", "delete_record");
+                format!(
+                    "(({record})=>({{id:{record}.id,version:{record}.version.toString(10)}}))({value})"
+                )
+            } else {
+                value
+            };
             let value = if ((transient_tabs && key == "id")
                 || (view_scope
                     && matches!(
