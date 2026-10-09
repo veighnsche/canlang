@@ -145,6 +145,12 @@ resolves its declared owning workspace under Bun's isolated linker, and omitted
 list `empty` wording reaches the shared UI default beside the authored caption.
 Five corpus checks remain blocked on the unchanged unavailable draft revision;
 no passing whole-suite or full-plan acceptance is claimed.
+The integrated **bbd541af** run reports **1,263 passed, 8 failed**, with no
+reported skips. Three additional setup fixtures now consume exact disclosed
+CRUD records and pass **3/3**, retaining their genuine scenario/default/rollback
+results and controls. The five corpus failures keep the same draft prerequisite.
+Codex review of this revision identified ordinary-text descriptor escapes;
+that actionable type-boundary correction is still in progress.
 
 Current remaining prerequisites are recorded here without reopening accepted
 compiler leaves:
