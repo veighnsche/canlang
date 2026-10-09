@@ -1,20 +1,25 @@
 /** Private framework bridge. Only actual State invoke can open a lifetime.
- * Generated source receives the two facade functions, never this constructor.
+ * Generated source receives only observer/selection facades, never this constructor.
  */
-import type { ModelName, StoragePort, StoredRow } from '@canlang/contracts';
+import type { CanValue, ModelName, ScenarioReceiptIntrinsicDependency, StoragePort, StoredRow } from '@canlang/contracts';
 import type { AdmittedCall } from '@canlang/state/invocation';
 import { observeScenarioReceiptDependency as observeStateDependency,
+  observeScenarioReceiptIntrinsic as observeStateIntrinsic,
   selectScenarioReceiptReturn as selectStateReturn } from '@canlang/state/invocation';
+import { isGeneratedOperationDef } from '@canlang/state/invocation/registry';
 import { assertScenarioReceiptExecution } from '@canlang/state/invocation/invoke';
 import { StateError } from '@canlang/state/errors';
 import type { HandlerContext } from './context.js';
-import { bindNativeScenarioReceiptRow, captureNativeScenarioReceiptRow } from './native-records.js';
+import { encodeValue } from '@canlang/values';
+import { bindNativeScenarioReceiptRow, captureNativeScenarioReceiptRow,
+  bindNativeScenarioReceiptReference, captureNativeScenarioReceiptReference } from './native-records.js';
 
 interface Frame {
   readonly call: AdmittedCall;
   readonly store: StoragePort;
   readonly owner: object;
   readonly failure: (error: unknown) => void;
+  readonly intrinsics: ReadonlyMap<string, ScenarioReceiptIntrinsicDependency>;
   active: boolean;
   pending: number;
   failed: boolean;
@@ -46,6 +51,7 @@ function checked(c: HandlerContext): Frame {
 }
 export interface ScenarioReceiptFrame {
   bind(view: object, model: string, current: () => StoredRow | null | undefined): void;
+  bindAdmittedReference(view: object, reference: object): void;
   assertCompleted(): void;
   close(): void;
 }
@@ -56,7 +62,10 @@ export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
   store: StoragePort, failure: (error: unknown) => void): ScenarioReceiptFrame {
   assertScenarioReceiptExecution(call, store);
   if (frames.has(c) || framedCalls.has(call)) return refuse('Scenario receipt context or admitted attempt cannot be rebound.');
-  const frame: Frame = { call, store, failure, owner: Object.freeze({}), active: true, pending: 0, failed: false, error: undefined };
+  const intrinsics = new Map(isGeneratedOperationDef(call.def)
+    ? call.def.descriptor.result?.disclosure?.returns.flatMap(entry =>
+      (entry.intrinsics ?? []).map(dependency => [dependency.id, dependency] as const)) : []);
+  const frame: Frame = { call, store, failure, intrinsics, owner: Object.freeze({}), active: true, pending: 0, failed: false, error: undefined };
   frames.set(c, frame);
   framedCalls.add(call);
   return Object.freeze({
@@ -64,6 +73,14 @@ export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
       checked(c);
       try { bindNativeScenarioReceiptRow(view, frame.owner, model, current); }
       catch (error) { fail(frame, error); }
+    },
+    bindAdmittedReference(view: object, reference: object) {
+      checked(c);
+      try {
+        const original = call.recordRefs.find(candidate => candidate === reference);
+        if (original === undefined) return refuse('Scenario intrinsic requires the exact original admitted slot.');
+        bindNativeScenarioReceiptReference(view, frame.owner, original);
+      } catch (error) { fail(frame, error); }
     },
     assertCompleted() {
       checked(c);
@@ -93,6 +110,44 @@ export function observeScenarioReceiptDependency(c: HandlerContext, model: strin
   // Keep rejection visible to awaiting callers while owning detached failure
   // handling. Completion refuses pending/failed work even if source catches
   // or neglects to await a generated marker.
+  void operation.catch(() => {});
+  return operation;
+}
+
+/** Checked code evaluates the original expression once before awaiting this
+ * facade. Native source correspondence is owned by Compiler, while this host
+ * supplies its actual Values wire and private original parameter binding.
+ */
+export function observeScenarioReceiptIntrinsic(c: HandlerContext, dependencyId: string,
+  kind: ScenarioReceiptIntrinsicDependency['kind'], evaluated: unknown, nativeReference?: unknown): Promise<void> {
+  const operation = (async () => {
+    const frame = checked(c);
+    if (frame.pending !== 0) return fail(frame, new StateError('validation', 'Scenario dependency observations must run sequentially.'));
+    frame.pending += 1;
+    try {
+      const dependency = frame.intrinsics.get(dependencyId);
+      if (dependency === undefined || dependency.kind !== kind) return refuse('Scenario intrinsic disagrees with its checked dependency.');
+      let wire: unknown;
+      try { wire = encodeValue(dependency.type, evaluated as CanValue); }
+      catch { return refuse('Scenario intrinsic requires its actual typed native value.'); }
+      if (dependency.kind === 'admitted-reference-version') {
+        const reference = captureNativeScenarioReceiptReference(nativeReference, frame.owner, dependency.parameter);
+        if (reference.model !== dependency.model || evaluated !== BigInt(reference.row.version) || typeof wire !== 'string') {
+          return refuse('Scenario intrinsic version differs from its original admitted native binding.');
+        }
+        await observeStateIntrinsic(frame.call, frame.store, { dependencyId, kind: dependency.kind, wire, reference });
+      } else if (dependency.kind === 'operation-id') {
+        if (typeof wire !== 'string' || evaluated !== frame.call.context.operationId) {
+          return refuse('Scenario intrinsic identity differs from its admitted framework context.');
+        }
+        await observeStateIntrinsic(frame.call, frame.store, { dependencyId, kind: dependency.kind, wire });
+      } else {
+        await observeStateIntrinsic(frame.call, frame.store, { dependencyId, kind: dependency.kind, wire });
+      }
+      checked(c);
+    } catch (error) { fail(frame, error); }
+    finally { frame.pending -= 1; }
+  })();
   void operation.catch(() => {});
   return operation;
 }
