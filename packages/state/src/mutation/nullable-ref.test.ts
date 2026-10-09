@@ -12,6 +12,8 @@ import { createTestMemoryStorage } from '../storage/memory.js';
 import { FIXED_NOW, asId, asModel, asOperation, captureStateError, createMemoryIdentityStore,
   makeEnvelope, makeIdentity, seedMember, uuidv7 } from '../../test/invocation/fixtures.js';
 import { modelDef } from '../../test/mutation/fixtures.js';
+import { encodeValue, normalizeSchema, validateValue } from '@canlang/values';
+import type { CanValue } from '@canlang/contracts/values';
 
 const ACCOUNT = 'Null.Account', JOB = 'Null.Job';
 let sequence = 9000;
@@ -113,5 +115,113 @@ describe('direct pipeline null boundaries (hand-built controls)', () => {
     const protectedField = await captureStateError(run({ ...optional, nullable: true, serverOnly: true }));
     assert.match(protectedField.message, /server-only/);
     assert.equal(await store.readRevision(), 0);
+  });
+});
+
+describe('checked stored-field modifiers', () => {
+  it('rejects malformed artifact bounds at descriptor load', () => {
+    const artifact = slice();
+    const validModels = artifact.models!.map(model => model.name === JOB ? {
+      ...model, fields: [{ name: 'title', field: { kind: 'string' as const },
+        required: true, serverOnly: false, valueType: 'text', trim: true, min: 1, max: 3 }],
+    } : model);
+    const loaded = loadArtifactDescriptors({ ...artifact, models: validModels }, { by: 'members' });
+    const title = loaded.models.find(model => model.name === JOB)?.fields['title'];
+    assert.equal(title?.trim, true);
+    assert.equal(buildModelTableFromCanonical(loaded.models).get(asModel(JOB))?.fields['title']?.max, 3);
+    for (const change of [
+      { trim: 'yes' }, { min: -1 }, { min: 3, max: 2 }, { min: '1' },
+    ]) {
+      const models = artifact.models!.map(model => model.name === JOB ? {
+        ...model, fields: [{ name: 'title', field: { kind: 'string' as const },
+          required: true, serverOnly: false, valueType: 'text', ...change }],
+      } : model);
+      assert.throws(() => loadArtifactDescriptors({ ...artifact, models } as ArtifactDescriptorSlice,
+        { by: 'members' }), /Invalid field "title"/);
+    }
+  });
+
+  it('normalizes before hooks and bounds, then validates hook changes and update patches', async () => {
+    const { store } = createTestMemoryStorage();
+    const seen: string[] = [];
+    const table = buildModelTable([modelDef(JOB, { fields: {
+      title: { required: true, serverOnly: false, valueType: 'text', trim: true, min: 1, max: 3 },
+    }, hooks: [{ name: 'observe', ops: ['create', 'update'], run: (candidate) => {
+      seen.push(candidate.title as string);
+      return candidate;
+    } }] })]);
+    const context = buildContext({ identity: makeIdentity(), operation: asOperation(`${JOB}.create`),
+      operationId: nextId(), app: 'modifier-test', source: 'test', now: FIXED_NOW });
+    const create = (title: string) => runMutationWrites({ table, store, context,
+      writes: [{ op: 'create', model: asModel(JOB), id: asId(nextId()), data: { title } }] });
+    const rejected = await captureStateError(create('   '));
+    assert.equal(rejected.code, 'validation');
+    assert.equal((await store.query({ model: asModel(JOB), authority: 'owner' })).length, 0);
+    const effects = await create('  🧰  ');
+    assert.deepEqual(seen, ['🧰']);
+    assert.equal(effects.writes[0]?.kind, 'insert');
+    if (effects.writes[0]?.kind !== 'insert') throw new Error('expected insert');
+    assert.equal(effects.writes[0].row.data.title, '🧰');
+    const chainedId = asId(nextId());
+    const unchanged = await runMutationWrites({ table, store, context,
+      writes: [
+        { op: 'create', model: asModel(JOB), id: chainedId, data: { title: '  a  ' } },
+        { op: 'update', model: asModel(JOB), id: chainedId, data: {} },
+      ] });
+    const last = unchanged.writes.at(-1);
+    assert.equal(last?.kind, 'update');
+    if (last?.kind !== 'update') throw new Error('expected update');
+    assert.equal(last.row.data.title, 'a');
+    const invalidId = asId(nextId());
+    const invalidPatch = await captureStateError(runMutationWrites({ table, store, context,
+      writes: [
+        { op: 'create', model: asModel(JOB), id: invalidId, data: { title: 'ok' } },
+        { op: 'update', model: asModel(JOB), id: invalidId, data: { title: '   ' } },
+      ] }));
+    assert.equal(invalidPatch.code, 'validation');
+  });
+
+  it('records normalized defaults and refuses hook-produced invalid values', async () => {
+    const { store } = createTestMemoryStorage();
+    const context = buildContext({ identity: makeIdentity(), operation: asOperation(`${JOB}.create`),
+      operationId: nextId(), app: 'modifier-test', source: 'test', now: FIXED_NOW });
+    const field = { required: false, serverOnly: false, valueType: 'text', trim: true, min: 1, max: 3 } as const;
+    const accepted = buildModelTable([modelDef(JOB, { fields: { title: { ...field, default: '  ok  ' } } })]);
+    const run = (table: ReturnType<typeof buildModelTable>) => runMutationWrites({ table, store, context,
+      writes: [{ op: 'create', model: asModel(JOB), id: asId(nextId()), data: {} }] });
+    const effects = await run(accepted);
+    assert.equal(effects.writes[0]?.kind, 'insert');
+    if (effects.writes[0]?.kind !== 'insert') throw new Error('expected insert');
+    assert.equal(effects.writes[0].row.data.title, 'ok');
+    assert.equal(effects.resolvedDefaults.title, 'ok');
+    const invalid = buildModelTable([modelDef(JOB, { fields: { title: { ...field, default: 'ok' } },
+      hooks: [{ name: 'invalidate', ops: ['create'], run: candidate => ({ ...candidate, title: '   ' }) }] })]);
+    const rejection = await captureStateError(run(invalid));
+    assert.equal(rejection.code, 'validation');
+  });
+
+  it('bounds nominal contract arrays without losing codec shape or colliding with schema names', async () => {
+    const valueSchema = normalizeSchema({ contracts: {
+      _CanModelConstraint: { fields: { value: { type: 'text' } } },
+      'Test.Item': { fields: { id: { type: 'text' }, label: { type: 'text' } } },
+    }, enums: { _CanModelConstraint_: { cases: ['A'] } },
+    aliases: { _CanModelConstraint__: { type: 'text', min: 1, max: 3, format: 'name' } } });
+    const table = buildModelTable([modelDef(JOB, { fields: {
+      items: { required: false, serverOnly: false, valueType: 'Test.Item[]',
+        array: { required: false }, min: 1, max: 2 },
+    } })], { valueSchema });
+    const { store } = createTestMemoryStorage();
+    const context = buildContext({ identity: makeIdentity(), operation: asOperation(`${JOB}.create`),
+      operationId: nextId(), app: 'modifier-test', source: 'test', now: FIXED_NOW });
+    const run = (items: unknown[]) => runMutationWrites({ table, store, context,
+      encodeField: (type, value) => encodeValue(type, validateValue(valueSchema, type, value, 'create') as CanValue),
+      writes: [{ op: 'create', model: asModel(JOB), id: asId(nextId()), data: { items } }] });
+    const good = await run([{ id: 'item-1', label: 'one' }]);
+    if (good.writes[0]?.kind !== 'insert') throw new Error('expected insert');
+    assert.deepEqual(good.writes[0].row.data.items, [{ id: 'item-1', label: 'one' }]);
+    const missing = await captureStateError(run([{ id: 'item-1' }]));
+    assert.equal(missing.code, 'validation');
+    const tooMany = await captureStateError(run([{ id: '1', label: 'a' }, { id: '2', label: 'b' }, { id: '3', label: 'c' }]));
+    assert.equal(tooMany.code, 'validation');
   });
 });
