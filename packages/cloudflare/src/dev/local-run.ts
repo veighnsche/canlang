@@ -40,6 +40,8 @@ export interface LocalDevOptions {
    */
   binaryModules?: Readonly<Record<string, Uint8Array>>;
   d1Databases?: readonly LocalD1[];
+  /** Caller-owned private directory; permits a trusted provisioning handoff. */
+  d1Persist?: string;
   /** Plain (non-secret) vars exposed as JSON bindings. */
   vars?: Readonly<Record<string, unknown>>;
   /**
@@ -115,6 +117,7 @@ export async function startLocalDev(options: LocalDevOptions): Promise<LocalDev>
   const miniflare = new Miniflare({
     host: "127.0.0.1",
     port: 0,
+    ...(options.d1Persist === undefined ? {} : { d1Persist: options.d1Persist }),
     workers: [
       {
         name: `can-local-gateway-${randomBytes(8).toString("hex")}`,

@@ -1,0 +1,10 @@
+## Model-free preview qualification: pure operation and generated page only.
+app ModelFreePreview
+Given
+When
+ scenario echo(value:text) read=true -> text by=members
+  do
+   return value
+Then
+ page / title="Model-free preview"
+  text "Model-free generated page"

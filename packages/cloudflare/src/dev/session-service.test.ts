@@ -44,10 +44,10 @@ test("the frozen Office Supplies source gets revision-bound diagnostics and no i
     };
     assert.equal(help.schema, "can.dev.help.v1");
     assert.ok(help.commands.some(command => command.name === "check" && command.output === "can.dev.check.v1"));
-    assert.ok(!help.commands.some(command => command.name === "example.run"));
-    assert.ok(help.unavailable.some(command => command.name === "example.run" && command.code === "FEATURE_UNAVAILABLE"));
+    assert.ok(help.commands.some(command => command.name === "example.run"));
+    assert.deepEqual(help.unavailable, []);
     await assert.rejects(client.request({ command: "example.run" }), error =>
-      error instanceof SessionSocketError && error.code === "FEATURE_UNAVAILABLE");
+      error instanceof SessionSocketError && error.code === "REVISION_REQUIRED");
     const first = await client.request({ command: "check" }) as {
       revision: string; source_revision: string; state: string; preview: string;
       evidence: { diagnostics_reported: number }; focus: { ref: string } | null;

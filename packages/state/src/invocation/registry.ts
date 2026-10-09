@@ -62,7 +62,7 @@ import type {
 } from '@canlang/contracts';
 import { validateByPredicate, type ByPredicate } from '../policy/roles.js';
 import { validatePredicateShape } from '../policy/grants.js';
-import type { InterimContainment, InterimRefDef } from '../mutation/models.js';
+import { modelFieldConstraintSchema, type InterimContainment, type InterimRefDef } from '../mutation/models.js';
 import {
   createDeliverySchema,
   type DeliveryFieldSchema,

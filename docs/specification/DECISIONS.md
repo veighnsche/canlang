@@ -3487,7 +3487,6 @@ The compiler now keeps fixed `order=` and `search=` selectors as authored list p
 
 The list contract carries checked order/search fields and an optional count request. Interfaces bounds the request-local `q` input, UI forwards it with source fields and renders an ordinary GET search form. State validates those fields against the checked model, verifies grant coverage, then evaluates search and a trusted generated filter on per-row projected records before sort and page slicing. The optional total is the complete visible matched set at the same read checkpoint; the existing current-grant and revision rechecks run before it can reach UI. UI refuses a missing total rather than deriving one from a partial page. Focused State16/16 and UI107/107 checks pass, with Interfaces emission passing; the Cloudflare adapter and frozen Office Supplies app still need their owning integration check. Bound tab preference persistence is separate and the source still refuses E6008 there. The living filetree checkpoint is unchanged.
 
-
 ## 2026-10-09 — restore checked enum result helper imports
 
 Accepted bounded correction: Cloudflare checked enum result validation now imports the existing Values parser and printer that its current branch invokes. This resolves the committed missing-name compilation failure without changing the type or result contract. Current State and Cloudflare TypeScript checks pass; compiler and broader runtime qualification remain at their existing evidence scope.
@@ -3570,12 +3569,9 @@ Integrated current main into the worker branch, preserving newer upstream task s
 
 Use State’s existing checked singular-reference attachments and Values codecs for mutation parameter fields and projected business reads, as the read-scenario path already does. Only granted projected fields are decoded; this adds no stored-row lookup or disclosure. Bind real projected record identities through the existing private native-view owner, and return reference field writes to their canonical wire form before State validation. The genuine reviewer guard exposed the dropped association; source comparisons retain whole typed references instead of comparing untyped IDs. After consuming exact compiler repair4cb5c55d as2561c9b8, the current-source compiler build passes and its regenerated artifact drives the owning dependent-choice case1/1. The owning runtime build22/22 and current protected-form Chromium1/1 pass. Real native-D1/happyDOM/Chromium candidates and typed-reference final guards cover forged/stale/revoked/correctable inputs, original nonce/versions, defaults, cancellation, served assets and reopen. This finite unconditional-member/direct-document-site component is tested; nonnull assign parent.site hydration, original conditional ruled models, subject roles and full37 remain unqualified. Corrected the test’s region-response hold race and matched its revoked-bound-read404 nondisclosure contract; neither correction changes production authority.
 
-
 ## 2026-10-09 — restore compiler validation after producer releases
 
 Accepted bounded correction: use the wired public effects pass in its integration harness instead of including production code across crate visibility boundaries. Preserve all cohort and negative checks while removing the retired each= E1203 expectations, require the current corpus to parse clean, and exclude descriptive E2019 capacity examples from executable source round trips. Reconcile the seven stale draft counts against the retained setup failures; this records observed current diagnostics, without claiming a per-diagnostic historical explanation or broader compiler completion. The affected five effects, two analysis and one authoring checks pass; the other 43 effects checks are reused from the same harness run.
-
-## 2026-10-09 — restore checking without an unfinished diagnostic hook
 
 ## 2026-10-09 — retain optional diagnostic wire shape with bounded error layout
 
@@ -3605,6 +3601,106 @@ Prepare declared containment ancestors through bounded exact-ID State reads, wit
 
 Keep Testkit optional and late-bound through a string-valued import specifier, preserving its real resolution/four-export checks and missing-producer refusal without introducing the existing package cycle. The Cloudflare owning build22/22 passes, as does its direct typecheck with optional Testkit output temporarily absent and restored. Align the isolated Contracts CI command with the project's ES2022 target; that exact command passes. B1's current UI diagnostic/entrypoint expectations need the defining Compiler's published profile update, rather than restoring the absent diagnostic annotation module. Rust/Tools checkout still fails on unpublished draft5a12eb9e. Exact Git tree lookup confirms this is the integrated parent's required pin; earlier worker prose calling06b the current pin is corrected, without changing historical source registration or staging the older local checkout.
 
+## 2026-10-09 — restore checking without an unfinished diagnostic hook
+
+Accepted bounded repair: remove the dangling construct_candidates module declaration and two annotation calls introduced by upstream ce730102. No implementation exists in the published tree/history; Can Dev T04 still requires an exact compiler inventory and selected-profile proofs. Preserve the optional diagnostic carrier and implemented checking, sorting and failure pipeline, without a no-op producer or guessed candidates. Library/binary Cargo checking passes; independent review accepts the repair. The upstream draft gitlink 5a12eb9e is unavailable from its remote, so current corpus checks remain blocked on the coordinator/draft publisher. Prior diagnostic-count validation retains its 1527a249 scope.
+
+### 2026-10-09 — Source-current local Values consumer prerequisite
+
+The dev preview freshness gate exposed a stale tracked Values WASM binary. Regenerate through the owning pinned build-semantics producer and retain its binary/inventory together, then rebuild installed Values and emit its catalog after the final package build. Bootstrap checks pass 17/17; timestamps remain conservative admission evidence, while captured hashes identify the consumed bytes. This releases installed input preparation, not the app acceptance gates.
+
+### 2026-10-09 — Preserve setup-owned compiled example expectations
+
+The Cloudflare row adapter must read the expectation produced by the owning Testkit setup at assertion time. Forward that property through the row wrapper; do not retain its pre-setup placeholder or derive an oracle from the business result. A real Testkit/D1 success-and-denial regression passes, while actual Office/Generation reruns remain required after rebuilding the consumer.
+
+### 2026-10-09 — Retain failed rerun recipes and canonical retry guidance
+
+Passing/unsupported example runs do not allocate retained rerun artifacts, so routine successful checks cannot evict an earlier failed row. Safe HTTP failure projection preserves a validated retryable boolean or the owning closed-code default while withholding raw response details. These address the Codex review of 890ed600; bounded failed-artifact eviction remains explicit.
+
+### 2026-10-09 — Ordinary team discovery for local app sign-in
+
+Add authenticated GET /auth/teams to Interfaces using Identity memberships, returning only active existing teams for the session user. Cursor pagination keeps output bounded without making later memberships undiscoverable. Preview labels/credentials do not supply membership authority or replace normal CSRF-protected team selection; team names are not invented where the current Identity schema only owns UUID/timezone.
+
+### 2026-10-09 — Bound concurrent exact-input capture reads
+
+Use eight concurrent readers for the full declared input hash and membership scans, retaining stable identity order and waiting for every started reader before propagating failure. The native session check hit its request deadline with sequential scans during actual preview work; optimize the owning capture without reducing the producer inventory or weakening currency.
+
+### 2026-10-09 — Preserve the published application producer join
+
+Consume Packages source hunks 080efa8e and 1dfa261f: resolve optional Testkit from the invoking app and retain original failures during cleanup. Capture and preview evidence use the same app-resolved producer; help data resolves captured installed package paths across worktrees. Keep the setup-owned expectation getter. Because Node caches the service/Testkit transitive graph, changed package bytes require a session restart before admission; no new revision may claim old executable imports. Retention refreshes reused captures, failure listings require retained revisions, and only exact closed-code rejection receipts are bookkeeping.
+
+### 2026-10-09 — Recover dead Linux owners and bound cold preview checks
+
+Treat a parsed Linux zombie/dead process as unable to own a live control socket, preserving unknown-state refusal, process-birth checks and exclusive reclaim. Use the existing 60-second socket maximum for compiler/preview cold work; an earlier timeout cannot establish readiness or acceptance. Real worktree isolation and invalid/repaired lifecycle checks passed, while installed crash recovery and the new deadline remain affected checks after rebuild.
+
+### 2026-10-09 — Refuse example evidence after a producer race
+
+Revalidate exact captured runtime inputs around Testkit loading and row execution before publishing results or allocating retained failure recipes. A changed producer invalidates the run; a late swallowed refresh cannot repair its provenance. Original captured source bytes remain valid for isolated reruns under unchanged runtime inputs.
+
+### 2026-10-09 — Carry source field modifiers into canonical writes
+
+Add optional flat trim/min/max model-field claims to the artifact and canonical contracts, with bounds in Values' wire form. State validates claims through Values and normalizes caller/default/hook candidates at its shared write checkpoints, before unique claims and persistence, preserving authorization order. Absent claims remain absent; appDefinition metadata is not a guessed substitute. The compiler emission remains an explicit producer prerequisite for the frozen Office check.
+
+### 2026-10-09 — Join physically isolated verified-team preview storage
+
+Use a private D1 provisioning handoff for real Identity, then distinct Cedar/Oak State bindings through the existing owner router and persisted app/team pins. Trusted mapping is bounded and closed, with global State unavailable; request data cannot provision or select a foreign binding. Page checkpoints and example fixtures/invocation consume that boundary, preserving declared public/authenticated/member gates and normal revocation checks. Snapshots cover every row D1 binding and disposal removes the owned preview directory. Whole Office qualification remains due after the installed join.
+
+### 2026-10-09 — Distinguish retained runtime inputs from analysis inputs
+
+A copied artifact/Worker rerun requires its installed execution producers, not a later compiler, catalog, help index or grammar. Rederive runtime package/source membership independently while retaining full analysis checks for current capture publication. Both paths keep exact bytes, canonical paths and symlink identity.
+
+### 2026-10-09 — Cancel example lifetimes before releasing their queue
+
+Pass socket and daemon-stop cancellation to the real row adapter, which aborts phases and awaits active row disposal before rejecting. Queued work checks cancellation before admission; no late result enters retention. Rerun request signals stay outside recipes, and the coordinator awaits the cancellation-aware selected producer rather than racing its cleanup. Verify runtime availability again after a rerun; analysis changes alone do not invalidate its copied recipe.
+
+### 2026-10-09 — Preserve declared producer access in affected checks
+
+Use owning UI/Values root exports for public client types and catalogs. Keep the frozen evaluator fixture reads and native catalog join intact while their exact shared guard allowance/generated catalog export remains an owning prerequisite. Do not replace exported self-reference imports to work around the shared resolver mismatch. Constraint validation's temporary structural wrapper chooses a fresh name across the full nominal namespace.
+
+### 2026-10-09 — Keep Worker unit tests outside portable staging
+
+Apply the existing vendor test exclusion to flat Worker dist siblings as well. Unit tests are package checks, not production Worker modules; stage all real main/entry/assembly and lazy runtime dependencies and keep link/load validation. The actual installed test module exposed the gap before any app row or business call ran.
+
+### 2026-10-09 — Render authored nullable inputs without requiring an extra clear control
+
+Interfaces form preparation permits the generated optional explicit-null companion to be omitted from authored controls. A blank optional scalar still projects omission; canonical create resolves its null default. Required version, currency and datetime-fold companions retain their existing refusal, as do unknown/duplicate/non-writable authored controls. Office's two source-owned create controls remain the complete intended authoring surface; focused presentation checks pass 18/18, with the installed browser workflow still due.
+
+## 2026-10-09 — encode delete identity at the owning UI boundary
+
+Preserve native BigInt list-row versions and adapt only the generated delete control's record to the public MutationRef decimal-string contract. A local capture evaluates the authored record expression once in prop order and forwards only id/version; existing gates and canonical permissions remain. Actual UI hidden fields and canonical Memory archive/stale/revoked controls pass1/1, with separate exact presentation/native arithmetic above2^53 and no widened State version claim. The affected factory golden1/1 and focused strict Clippy pass; independent HIGH review accepts the finite correction. Dev's populated Office Supplies consumer can use this producer revision; full application acceptance is unestablished.
+
+### 2026-10-09 — Align affected CI assertions with owning wire and rejection contracts
+
+Keep the File MCP field as the actual closed object with one required nonempty id; no extra fields are admitted. The malformed delivery version test checks both malformed_descriptor and the owning standard/Source Judgment identity/version refusal. These repair stale test expectations while preserving the existing production validators and their negative cases; focused checks pass 8/8 and 5/5.
+
+### 2026-10-09 — Preserve applied fields and scalar alias constraints in canonical writes
+
+Derive constrained update fields from values actually applied, evaluating caller getters once and preserving omitted/undefined legacy data. Structural hook comparisons and explicit transitions still validate real changes. Resolve declared text aliases through the supplied schema across registry/model-table validation; receiving trim precedes both NAME/alias bounds and the receiving intersection. Direct alias validation retains its original semantics. The normalized pre-hook default remains the durable resolved-default receipt and replay value; its review finding did not reproduce. State affected checks pass 49/49, Values schema 110/110 and both source typechecks pass.
+
+### 2026-10-09 — Join declared test producers and anonymous row storage context
+
+Expose the existing UI browser bootstrap through its own package export and the generated Values catalog through its distribution locator. Cloudflare declares its Happy DOM test dependency, and checks resolve optional Testkit through the same application-owned loader as production, avoiding a reverse package cycle. Public rows select their isolated current team only for storage, retaining null actor/membership and canonical permission gates. Model-free canonical examples use the existing row-local store; model-backed rows still require the owner boundary. The owning build22/22, real Node/input-choice3/3 and captured compiler/expectation5/5 checks pass. These release producer/consumer prerequisites, not Office whole-app qualification.
+
+### 2026-10-09 — Provision protected source forms in each local preview
+
+Generate a host-private 32-byte canonical base64url signing key through the existing per-build Worker-variable callback. Its lifetime matches the fresh preview, so old protected forms do not survive resource reset; the existing selected auth origin is retained. The key stays out of actor metadata, capture, JSON control and preview.open. Real Chrome exposed the missing resource after creating three supplies; source typecheck passes, with the affected edit journey due after the installed rebuild.
+
+## 2026-10-09 — repair shared CI prerequisites without masking qualification
+
+Accepted bounded CI repair under the human's instruction to accelerate the four implementation PRs: admit ordinary exported owning-package self-references only when TypeScript reverses the declared output target to its configured source input; preserve exported target, ownership, cross-package shortcut and explicit source-alias checks. Register the two exact Office supplies evaluator reads as checkout inputs, without granting sibling module imports. Separate the draft-independent mocked JEV and selected parser boundary tests from the already informational draft prototype corpus job. E2E initializes its declared draft source; superseded integration/E2E PR runs are cancelled while main runs retain their execution.
+
+The pinned draft source remains unchanged. Its unavailable remote commit is an external prerequisite for genuine Rust and draft E2E qualification; publishing its existing history to the separate draft repository requires the human's scoped authorization. Runtime assertions, strict compiler joins, source witnesses and Codex review remain required at their owning scopes. Workflow YAML parses; the isolated locked workspace builds all 26 tasks and the draft-independent tools run 3 mocked JEV plus 37 selected parser cases successfully. Boundary validation and remaining real source bypasses are reported in the coherent implementation handoff; none of these checks establishes whole-plan acceptance.
+
+## 2026-10-09 — own the State NumericControl producer test input
+
+Accepted finite package-boundary correction: retain byte-exact released NumericControl source and artifact as State-owned test fixtures, preserving the artifact's original compiler provenance and every typed metadata assertion. Verify the fixture source SHA against its retained artifact stamp before consuming it; no foreign implementation path or boundary exception is needed. The owning State TypeScript build and existing affected metadata case pass. This does not qualify a newly compiled artifact or the remaining workspace consumers.
+
+## 2026-10-09 — consolidate current CI by behavior
+
+Accepted under the human's explicit CI/CD consolidation instruction: one automatic CI workflow runs four independent meaningful jobs for workspace/installed artifacts, compiler/editor, browser/security, and language tools. Replace the six historical package-lane workflows and separate integration, B1, B2 and E2E workflows. Root test:all already includes package/conformance suites and B2; cargo test retains actual B1 artifact/refusal assertions against the built catalog, with explicit skip refusal. Preserve boundaries, typechecks, native compiled/preparation producers, full tests, actual editor LSP, real browser/auth/security journeys, installed closure, deterministic outputs and Turbo restoration. Required completion engines are present rather than silently skipped.
+
+Remove obsolete muse lane triggers, redundant standalone two-file contract checks and regex boundaries, fixed shell test/refusal counts, empty-E2E success and the already informational drifting Python prototype corpus (the actual compiler recursively tests the pinned draft corpus). Keep supported-host release artifacts and the manual exact-source receipt service separate. Jobs remain independent rather than waiting behind unrelated validation failures; each builds its actual prerequisites. The human authorized publication of existing draft history to codex/ci-corpus-20261009, and the remote now advertises exact pinned5a12eb9e; no source pointer or main branch changed. Pinned actionlint1.7.12 and YAML validation pass for all three retained workflows; a fresh isolated submodule checkout fetched exact5a12eb9e successfully. Previously passed unchanged guard/build/tools results are reused; the full new Linux job graph still needs its PR run. Consolidation is not acceptance of failing source, stale fixture witnesses or incomplete implementation plans.
+
 
 ## 2026-10-09 — preserve captured message descriptor authority
 
@@ -3620,14 +3716,9 @@ The two affected goldens pass1/1 each with actual inline/borrowed tab payload an
 
 Codex review1ee1239d identified grouped-target field-identity loss. Unwrap only syntactic Groups for the existing checked preference lookup, retaining original expression decoding and diagnostic spans. Direct/single/nested inline and borrowed controls, grouped business-field refusal and the actual grouped HTTP/UI lifecycle pass; independent review accepts the finite correction. Other preference admission and runtime limits remain unchanged.
 
-
 ## 2026-10-09 — consume published B1 and standalone contract gate fixes
 
 Accepted narrow Packages gate integration: consume Compiler1ee1239d/dac8596f asfe32dea1/c52722e6, preserving real receiving-field/grouped nominal preference identity and owning tests before the matching1a6c7633 strict B1 assertions and2db9200b workflow refusal check. B1 actual-catalog joins pass2/2 without SKIP; actual generated/public preference consumer passes1/1. The freshly built CLI passes the exact released JSON gate: exit10, seven exact E6008 profiles, complete/omitted0 and no artifact. Capability697022af supplies the standalone ES2022 target, combined with established ES2023lib; its check passes. Existing Packages application-owned Testkit URL import already covers the optional-import fix; retain it and Dev’s joined producer without replacement. No help-data, unrelated compiler, whole-app/corpus or native-held acceptance. Codex740ab20b code/security reviews completed without new findings; newer pushes require their own relevant review. Coordinator owns the two boundary checker files and pending shared CI handoff; Packages continues exact ready consumer corrections.
-
-## 2026-10-09 — own the State NumericControl producer test input
-
-Accepted finite package-boundary correction: retain byte-exact released NumericControl source and artifact as State-owned test fixtures, preserving the artifact's original compiler provenance and every typed metadata assertion. Verify the fixture source SHA against its retained artifact stamp before consuming it; no foreign implementation path or boundary exception is needed. The owning State TypeScript build and existing affected metadata case pass. This does not qualify a newly compiled artifact or the remaining workspace consumers.
 
 ## 2026-10-09 — unfinished TeamTasks fixture correspondence checkpoint
 
@@ -3645,21 +3736,58 @@ Descriptor-only fixtures use supported text without waiving unsupported breadcru
 
 Map only the published CanDuration nominal leaf to Scalar::Duration, matching the existing generated Contracts field and native/wire30000n/"30000" consumer. Complete TextRequest fixtures now type-check without accepting generic opaque equality; DatetimeValue/WorkflowField and other leaves remain opaque. Complete construction, invalid whole-field/duration and known-member refusals qualify282 existing semantic cases (281 reused, corrected fixture1/1); native nominal construction1/1 passes. Independent review accepts this exact scalar join; broader nominal profiles remain open.
 
-## 2026-10-09 — encode delete identity at the owning UI boundary
-
-Preserve native BigInt list-row versions and adapt only the generated delete control's record to the public MutationRef decimal-string contract. A local capture evaluates the authored record expression once in prop order and forwards only id/version; existing gates and canonical permissions remain. Actual UI hidden fields and canonical Memory archive/stale/revoked controls pass1/1, with separate exact presentation/native arithmetic above2^53 and no widened State version claim. The affected factory golden1/1 and focused strict Clippy pass; independent HIGH review accepts the finite correction. Dev's populated Office Supplies consumer can use this producer revision; full application acceptance is unestablished.
-
 ## 2026-10-09 — preserve current compiler consumer qualification
 
 Rebuild the real public Services/Cloudflare closure after frozen dependency restoration. Canonical CRUD fixtures require null business results and exact disclosed records, retaining query once/fresh-grant, storage/history, replay/rollback and UI controls; static Judgment expectations retain checked sourceLocale. Resolve the declared independent source-map codec from its owning workspace under Bun's isolated linker. Qualify omitted list wording through the actual shared UI default and authored localized caption. All41 non-corpus failures from the5bb5a5f5 integration attempt now pass affected checks; the unchanged unavailable draft blocks five corpus checks. No dependency/consumer source, corpus pin, broad exception, whole-suite acceptance or reference count is changed.
 
 The bbd541af integrated run reports1263pass/8fail with no reported skips; three additional CRUD setup carrier corrections pass3/3 while preserving scenario/default/rollback results. Five corpus checks retain the draft prerequisite. Codex's7db23906 ordinary-text descriptor finding is addressed below; laterbbd541af code/security reviews completed without additional findings. No full-source acceptance follows.
 
+## 2026-10-09 — Consume released CI and strict compiler profile producers
+
+Accepted the coordinator’s final four-job CI and shared exported-self-reference resolver without recreating retired gates. Preserve the byte-exact NumericControl fixture in State ownership, Office evaluator registration and active Cloudflare assertions. The joined boundary check has zero violations; existing unchanged coordinator static checks are reused. B1 consumes published checked message aliases and receiving/grouped preference identities (`048a7383`, `1ee1239d`, `dac8596f`) with the exact `1a6c7633` test profile; the runtime/schema marker and exact unsupported-profile assertions remain strict. Joined compiler and newly released pinned-draft checks are due, and root test-fixture type errors remain open. Other workers’ progress records are preserved rather than replaced with their full branch history.
+
+## 2026-10-09 — Connect deployed page preference POSTs
+
+Accepted the existing Interfaces preference handler and canonical refusal mapper as the deployed page POST consumer. Export its helpers in the real HTTP bundle and dispatch POST in the Worker default factory, preserving GET/HEAD and full page deps. Actual default-loader checks pass 17/17, including CSRF, actor/team admission, owner isolation, stale versions and 400/403/409 responses; the bundle export check passes. The protected Office edit already persists; its full tab/delete/shared-view browser consumer remains due after the source rebuild.
+
+## 2026-10-09 — Keep affected Cloudflare CI fixtures on current contracts
+
+Accepted typed test-host/fixture corrections for current Undici fetch values, JSON import attributes, immutable runtime mocks and exact optional control/business-error fields. Runtime staging fixtures retain real entry bytes/hash, app policy and selector provenance. Browser cases use Playwright’s installed Chromium, including the unchanged native CDP visibility path. Root noEmit passes; bridge/control 13/13 and runtime stdlib 20/20 pass, MCP/module-import checks pass, and the three previously failed browser launches now pass their actual assertions. No checks are disabled and no production admission is widened.
+
+Local roadmap intake retains the installed-browser executable override and consumes only fixtures whose production APIs exist here. The incoming session-example-control test depends on Dev example.run/rerun producers absent on this branch; it remains with that owner pending an exact coherent release, rather than activating a fixture against an unavailable API.
+
+## 2026-10-09 — unfinished stored-field modifier producer join
+
+Checkpoint the T02 native artifact join for authored stored-field trim and literal bounds, using the current Contracts wire claims and exact numeric representation. Unrepresentable static claims refuse explicitly instead of disappearing. Required/null/default/server ownership remains separate; derived and unconstrained fields omit claims. The first affected build found an i128-to-JSON conversion error, now corrected through checked u64 conversion for bounded lengths; focused tests are running. This checkpoint is not validation or Office O01 acceptance.
+
+## 2026-10-09 — Validate the native modifier and released compiler consumer join
+
+The stored-field producer checkpoint now passes its actual text/decimal metadata and unsupported-bound cases. Consume the published codegen test corrections from `2db9200b` as a three-way hunk join, retaining the new modifier tests and exact descriptor closure/refusals. All 126 joined native checks pass (119 codegen, 2 strict real-catalog B1, 3 message aliases, and the actual delete/preference consumers). Formatting is applied to the owning changed files; the remaining compiler-wide formatter prerequisite and actual Office consumer are separate. This does not close G2 or qualify help cards.
+
+## 2026-10-09 — Reconcile affected Values CI producer fixtures
+
+Keep the closed public schema export assertion and include the actual released `ValueTypesError`/`normalizeValueTypes` exports. Regenerate the string-escape fixture through its owning oracle for current Values sources after the distribution locator and schema joins. All strings, 23 caller observations, route summaries, controls and oracle/frozen-source hashes remain unchanged; donor hashes and the actual Linux engine context reflect the current inputs. Both affected tests pass 10/10. This correspondence check does not qualify Office or replace hosted CI.
+
+## 2026-10-09 — Keep Worker boundaries aligned with real portable producers
+
+Move the physical-owner component test out of production src/worker ownership. Preserve its four ordered real D1/admission/revocation scenarios using the native installed portable assembly export; no accessor-metadata guard is bypassed. Keep strict Worker no-Node/type-only checks. Pin the two existing worker-safe D1 leaves in the env join and only the example runner’s three declared portable assembly bindings at the Node boundary; serving entry/main remain forbidden. Boundary 3/3, physical consumer 1/1 and owning/root noEmit pass; the obsolete dist test-presence assertion is removed while bundle test exclusion remains checked.
+
+## 2026-10-09 — Normalize receiving aliases before base encoding
+
+Correct Codex’s current-head alias finding through the Values-owned Unicode trim producer before the model field’s deployed encoder. Run the existing alias and receiving-schema checks afterward, preserving NAME rules, both bounds, defaults and post-hook validation. The 12 affected State cases pass, including padded valid text, direct bare-alias rejection and invalid normalized name/bounds with no writes or revision changes.
+
+## 2026-10-09 — Admit the documented initial failure cursor
+
+Accept exact `-1` only for the supported diagnostics/failures after cursor, keeping nonnegative indexes and bounded page sizes. The real CLI/client/private socket check lists the first failure page with that payload. Run the package’s declared installed can-dev entry for standalone Node envelope assertions, preserving its resource/dependency layout rather than relocating bundled public package resources. All 8 owning cases and Cloudflare noEmit pass; source-current installed cursor validation follows the normal owning rebuild.
+
+## 2026-10-09 — Consume authorized CRUD records in the compiled browser journey
+
+Under the human’s finite shared consumer assignment, keep the real compiled Store.Gadget source and separate nullable declared return from authorized changed-record projection. The browser helper validates its single records projection, model visibility, id/version/data and replay identity. Receipt scope uses the source-declared Lobby app identity. Readback, update/delete, fresh D1 receipts and history assertions remain active. The actual Chrome journey passes 2/2 and e2e noEmit passes; no synthetic return, handwritten artifact or whole-app acceptance is introduced.
+
+
 ## 2026-10-09 — distinguish anonymous descriptors from ordinary text
 
 Use inferred ResolvedType::InlineMessage for raw/bound anonymous messages, retaining their existing checked schema/provenance rather than treating descriptor objects as scalar text. Normal compatibility rejects direct/grouped/bound/chained descriptor escapes into business returns, create/set fields, text parameters and nested members; twenty real CLI cases refuse with E3001 and no artifacts. Checked Values formatting, immutable captured aliases and human UI captions remain descriptor-aware; machine region/target/open IDs require scalar text. Native alias/default/source-locale/once/order/failure controls and actual generated Card/Details/Divider/Fieldset/Tab rendering pass, along with UI adapters7/7 and strict all-target Clippy. Independent HIGH review accepts the corrected sinks after finding and resolving bound-caption refusal.
-
-This adds a public Rust enum variant, so exhaustive downstream ResolvedType matches must handle InlineMessage. It creates no authored business type or public anonymous wire schema; canonical business type IDs refuse it. Native fixtures observe the real owning message constructor and return supported business values, superseding their unsound descriptor-as-text results. Canonical ownerless-enum UI admission and broader reference completion remain external. Integration atc3c12531 reports1267pass/5fail/0ignored with no reported body skips; all failures are the unchanged unavailable-draft corpus prerequisites. Current published-head Codex review remains pending, without whole-suite or whole-plan acceptance.
 
 ## 2026-10-09: Consume released compiler profiles for strict application joins
 
@@ -3674,7 +3802,6 @@ Use the same generated artifact registry and canonical source handler through th
 ## 2026-10-09: Reconcile accumulated Capability integration paths
 
 Refresh the existing living registry against all changes since checkpoint82493427 at committed source66065e8a8ed8582185539afd818862c3204cafa0. Preserve every prior owner/target/review/retirement gate and register newly encountered compiler consumer fixtures without declaring semantic or target-allocation acceptance. The registry now names a commit for both diff and history traversal; its earlier merge-candidate tree could not identify commit history. Complete source review and the checkpoint remain unchanged. This maintenance does not recursively register itself or authorize additional implementation.
-
 
 ## 2026-10-09 — preserve the actual B1 refusal gate
 
@@ -3692,6 +3819,7 @@ Decode authored field-label parts with optional text and an independent case map
 
 Consume the published exact draft5a12eb9ebb136ffa4e5ce352663f92affba25bc2 without changing the main gitlink or draft source. The affected six-target run reports169pass/4fail/0ignored; syntax59/59 already passes. Replace stale aggregate count pins for all52 exact files and remove retired CanShift/CanVolunteer parser exceptions. The three corrected analysis/authoring/format cases each pass; all55 format inputs retain reparse, nontrivia CST and idempotence checks. The Judgment case now passes1/1 using its actual examples-owned header parameter/domain check and types-owned fixture claim, retaining exact foreign/opaque refusals; the earlier unfinished lookup checkpoint supplies no acceptance. No whole-suite or reference completion is inferred. This satisfies the earlier Codex requirement to wait for the exact source before revising corpus expectations.
 
+
 ## 2026-10-09 — require bound values for parameterized message captions
 
 Enforce DESIGN1010 at the ordinary message-value producer: a parameterized declaration is a callable schema, not a bare descriptor value (E3005). Reject object-style message construction (E3008), including complete/default/static forms, rather than introducing an unapproved descriptor carrier; use ordinary calls or direct zero-parameter references. Preserve message type annotations and model/contract/event construction. The UI decoder defensively refuses checked unbound origins without substituting or reevaluating captured values. Actual CLI/native7/7 includes20caption/15producer/27constructor refusals and real UI positives; nominal construction and owning message lowering1/1 each and strict all-target Clippy pass. Unchanged selected calls7/7, message slots6/6 and effects48/48 are reused. Independent HIGH review accepts the constructor delta; the actual e461c1e2 Codex P2 is addressed without full-plan acceptance.
@@ -3706,13 +3834,6 @@ The clean draft checkout now matches the parent-required5a12eb9ebb136ffa4e5ce352
 
 Update the genuine compiled Shop journey to consume current disclosed records while retaining result:null, exact operation IDs/versions, original replay rows, unchanged replay revision, durable receipt identity/history and archived delete state. Derive receipt app identity from the actual emitted entry (Lobby), preserving the real source-bound compiler artifact. The affected nativeD1 Playwright cases pass2/2 and direct E2E TypeScript passes; the unchanged owning E2E typecheck27/27 is reused. A concurrent package rebuild temporarily removed outputs during Rust consumers; settled-output BDD4/4, codegen117/117, cohort1/1 and collection1/1 pass on affected rerun. Bounded rollback still needs its already released consumer migration. Codex completed code/security reviews for prior pushed6e8692fe with no new findings; this correction requires its own review. Original policy/provider/source workflows and full roadmap acceptance remain open.
 
-
-## 2026-10-09 — repair shared CI prerequisites without masking qualification
-
-Accepted bounded CI repair under the human's instruction to accelerate the four implementation PRs: admit ordinary exported owning-package self-references only when TypeScript reverses the declared output target to its configured source input; preserve exported target, ownership, cross-package shortcut and explicit source-alias checks. Register the two exact Office supplies evaluator reads as checkout inputs, without granting sibling module imports. Separate the draft-independent mocked JEV and selected parser boundary tests from the already informational draft prototype corpus job. E2E initializes its declared draft source; superseded integration/E2E PR runs are cancelled while main runs retain their execution.
-
-The pinned draft source remains unchanged. Its unavailable remote commit is an external prerequisite for genuine Rust and draft E2E qualification; publishing its existing history to the separate draft repository requires the human's scoped authorization. Runtime assertions, strict compiler joins, source witnesses and Codex review remain required at their owning scopes. Workflow YAML parses; the isolated locked workspace builds all 26 tasks and the draft-independent tools run 3 mocked JEV plus 37 selected parser cases successfully. Boundary validation and remaining real source bypasses are reported in the coherent implementation handoff; none of these checks establishes whole-plan acceptance.
-
 ## 2026-10-09 — qualify the actual TeamTasks fixture dependency closures
 
 Accepted finite DEL-E02/DEL-R01 consumer correction: bundle the fixture's real public Identity/testing and UI APIs with their installed dependencies for workerd, using the existing MCP bundler's browser/ESM and first-error-preserving cleanup path. Identity's testing facade shares the same bundle instance; no producer, auth, CSRF, grant, typed codec or source witness is replaced. Existing scaffold/TeamTasks/MCP Chromium and real Worker cases pass15/15, and the owning e2e TypeScript check passes. The earlier correspondence checkpoint is now qualified within its explicit handbuilt fixture limits.
@@ -3722,14 +3843,6 @@ The exact coordinator CI patch is published as eac25ce3378009895968b44d29c710d59
 ## 2026-10-09 — consume the released compiler gate prerequisites
 
 Consume owning37695f6d diagnostic-layout/lint correction with provenance as6f807890; preserve its optional diagnostic wire shape, private helpers and existing tests. Apply exact published2db9200b formatter source hunks and3e5d2cd wired effects/explain harness corrections without importing historical draft outcome counts. The copied bound-tabs conflict assertion was stale: preserve the released zero-refusal assertion, and consume its matching5bb5a5f5 localized TeamTasks golden/catalog profile so admitted locale/context requirements remain explicit. RealRust1.99 formatting and all-target strict Clippy pass; affected effects48, diagnostic wire1, explain1 and TeamTasks golden1 pass. Previously genuine full Rust execution exposes a retained exact-draft outcome mismatch across38files; defining current-source/corpus qualification remains open, with no count-only substitution.
-
-
-## 2026-10-09 — consolidate current CI by behavior
-
-Accepted under the human's explicit CI/CD consolidation instruction: one automatic CI workflow runs four independent meaningful jobs for workspace/installed artifacts, compiler/editor, browser/security, and language tools. Replace the six historical package-lane workflows and separate integration, B1, B2 and E2E workflows. Root test:all already includes package/conformance suites and B2; cargo test retains actual B1 artifact/refusal assertions against the built catalog, with explicit skip refusal. Preserve boundaries, typechecks, native compiled/preparation producers, full tests, actual editor LSP, real browser/auth/security journeys, installed closure, deterministic outputs and Turbo restoration. Required completion engines are present rather than silently skipped.
-
-Remove obsolete muse lane triggers, redundant standalone two-file contract checks and regex boundaries, fixed shell test/refusal counts, empty-E2E success and the already informational drifting Python prototype corpus (the actual compiler recursively tests the pinned draft corpus). Keep supported-host release artifacts and the manual exact-source receipt service separate. Jobs remain independent rather than waiting behind unrelated validation failures; each builds its actual prerequisites. The human authorized publication of existing draft history to codex/ci-corpus-20261009, and the remote now advertises exact pinned5a12eb9e; no source pointer or main branch changed. Pinned actionlint1.7.12 and YAML validation pass for all three retained workflows; a fresh isolated submodule checkout fetched exact5a12eb9e successfully. Previously passed unchanged guard/build/tools results are reused; the full new Linux job graph still needs its PR run. Consolidation is not acceptance of failing source, stale fixture witnesses or incomplete implementation plans.
-
 
 ## 2026-10-09 — include final CI and source in the existing registry
 
@@ -3845,6 +3958,42 @@ Proposed approval policies remain separately labeled: two named eligible reviewe
 
 Accepted finite prerequisite intake: copy exact Compiler c4376ab8 Zsh fixture without reimplementing its insecure-path audit, bootstrap refusal or echo-safe readiness. Actual Bash/Zsh completion engines pass1/1 with engine presence required (20.54s). The change is independently qualified; broader compiler producer work remains with its owner.
 
+## 2026-10-09 — unfinished integration of current native review and CI producers
+
+Consume the published anonymous-descriptor and bound-caption corrections (`c3c12531`, `3082eae1`) rather than duplicate their type rules. Keep authored field modifiers and the existing dev dispatch. Apply only the compiler source/test hunks from Packages’ `146aca0d` formatter/wired-consumer handoff with `37695f6d`; current rustfmt passes. Joined native and newly released corpus validation remain due. This checkpoint imports no workflow replacement or other worker’s completion records and establishes no whole-app acceptance.
+
+## 2026-10-09 — Validate joined native corpus and consumers
+
+Consume the published Compiler test hunks through `0f17f6f8` with three-way joins, retaining authored field modifier checks and exact optional diagnostic/artifact shapes. Real CRUD test consumers observe authorized records separately from nullable declared results; the exact pinned draft corpus has no authoring-parser exemptions. All 1,277 native tests pass with required completion engines, zero ignored/skipped cases, current rustfmt and strict all-target Clippy. This validates the joined producer/consumer unit, not Office G2 or profile help proofs.
+
+## 2026-10-09 — Consume reviewed TeamTasks source and runtime correspondence
+
+Apply Packages’ `67aef2a8` witness correspondence and `b11cc7c8` public Identity/UI bundle closure together. The retained handbuilt witness keeps its explicit fixture limits and unchanged preferences moved from Given to Then; it remains distinct from compiled app qualification. Real public producer bundling resolves installed dependencies without handwritten substitutes. All 14 affected Chromium cases pass (TeamTasks 8, MCP 4, compiled journey 2), with e2e noEmit; full CRUD/replay/receipt/history assertions remain intact. The separate genuine/patched pilot failures remain open in their owning Packages work.
+
+## 2026-10-09 — Consume the released audited Zsh completion bootstrap
+
+Apply Compiler `c4376ab8`’s exact real-engine fixture correction. Audit fpath and remove insecure paths before ordinary compinit, retaining the audit and all emitted completion output assertions without interactive prompts. The unchanged prior full native suite passed locally; the two affected required-engine cases pass for this joined fixture. Hosted Linux compiler/editor qualification remains scoped to its actual head.
+
+## 2026-10-09 — unfinished emergency cloud preservation
+
+The human ended cloud execution for cost and limited remaining work to preservation. Preserve the unapplied T04 branch-local structural patch and reusable credential-free probe source in the dev-server handoff, together with the interrupted Office result. Do not treat this checkpoint as implemented, tested, accepted or a completed plan. The last partial Office browser run stopped at delete status; local continuation must resolve that seam and the remaining original task list. Preserve the clean exact draft pin; exclude private runtime credentials/captures, caches, dependencies and generated outputs. No further cloud implementation, review or CI waiting follows.
+
+### Implementation: local dev-server continuation and ranking slots
+
+The human resumed PR 132 locally in the existing assigned worktree and branch; cloud execution remains stopped. Preserve the unfinished Office/G2/G3 qualification and consume exact Compiler/Packages prerequisites through the coordinator. The bounded ranker now accepts the candidate carrier's existing dotted/hyphenated slot spelling and 96-character limit, allowing `given.rule` without relaxing source capture, qualification, material-intent or disclosure gates. Its direct checks pass 8/8. Live compiler inventory/ranking context and profile proofs remain absent; no external packet is sent and no acceptance follows from this repair.
+
+### Implementation: bound idle dev-session audits
+
+Keep directory identity polling at two seconds, while fallback full producer-byte audits and failed watcher retries default to thirty seconds. Watcher events and explicit checks still recapture exact inputs; missed events remain covered by the bounded fallback. This removes repeated full-closure reads from an idle session without treating watcher identity as proof of bytes. Focused lifecycle checks pass 7/7, including missed-event stale serving, replacement and owned-stop cleanup. Native successful watcher reattachment remains unverified in the sandbox that reports EMFILE; the fallback cases pass.
+
+### Implementation: model-free local preview resource admission
+
+Model-free artifacts now use the global serving D1 binding and must pass its actual activation verdict; model-backed artifacts retain distinct owner bindings and both owner activation gates. Missing optional Testkit no longer blocks preview capture. Only the exact absent-package resolution is admitted; broken exports/entries still refuse, and a later install changes the captured closure. Focused orchestration/inventory checks pass 8/8 and Cloudflare source typecheck passes. Worker startup is mocked in these checks; live local D1/browser qualification remains due.
+
+### Implementation: canonical MCP refusal observation
+
+The protected bridge now observes matched JSON-RPC tools/call results with isError and the owning structured business envelope. Match the request ID and endpoint, retain the actual HTTP200 plus MCP transport, and project only closed code and retryability with generic safe text. Protocol errors, success values, unmatched IDs and oversized bodies do not become business failures; response bytes and headers remain unchanged. The session retains the bounded occurrence and detail under the serving revision. Bridge7/7, failure projection4/4 and private-session7/7 checks pass; macOS Unix tests use a short temporary path. Actual Office MCP consumption remains due. Form HTML refusal metadata is still an Interfaces-owned prerequisite routed through the coordinator.
+
 
 ## 2026-10-09 — install the workspace browser test producer locally released CI
 
@@ -3857,6 +4006,7 @@ Accepted finite shared gate correction: receipt plan2 emits the Values catalog b
 ## 2026-10-09 — qualify preserved package checkpoints and current Stdlib surface
 
 Accepted finite local qualification: rebuild all26producer tasks and exercise the preserved UI contract corrections through126existing tests, zero skips. Exact package boundaries report0violations. Installed declarations pass170typed exports across13owners while retaining797third-party diagnostics; installed Worker passes its actual abs producer, installed-only resolution/no checkout reads, auth refusal, real workerd/Wasm ABI/arithmetic and missing/corrupt asset controls. Update the Stdlib explicit export inventory from140to141 for its already released choose producer; exact equality and verbatim binding identity remain required, and owning assembly4/4passes. These qualify the unfinished checkpoints at their stated scopes, with whole queue/product/security and current-head review still open.
+
 
 ## 2026-10-09 — submit only declared canonical delete inputs
 
@@ -3873,7 +4023,6 @@ Treat top-level example request.operation_id as text, matching the actual exampl
 ## 2026-10-09: define complete model-rule transaction semantics locally
 
 Accepted necessary contract choices for implementation: State owns one entry baseline/ordered provisional session and finalization, transaction-entry field locks, one reserved version and complete native CRUD before/input/after/removal context. Bind existing generated pure functions through exact checked owning ABI and Compiler-emitted reverse affected-row plans under one shared work bound. Three fresh equivalent JEV choice requests agree, with material confidence variation preserved in model-rule-contract.md and raw rules-machine responses. Native callbacks avoid a second expression interpreter; checked reverse plans must still handle absence/collection dependencies and explicit bounded global selectors. Source activation continues to refuse missing facts. These choices allocate the defining State/Contracts contract to this local worker and producer to Compiler; they do not accept partial/local-field or full SEQ-011 execution.
-
 
 ## 2026-10-09 — preserve constrained hook values and unchanged archive data
 
@@ -3912,7 +4061,6 @@ The low-level State result remains execution data, not a safe public projection.
 ## 2026-10-09: checkpoint the defining owner mutation session
 
 Implement the accepted Task11 State/Contracts lifecycle and exact checked native-binding ABI in the owning mutation package. Ordered provisional writes defer final integrity and affected-row invariants until one finalization; entry field locks, live CRUD contexts, reserved versions, bounded complete selectors and baseline-to-final effects share the same owner session. Preserve legacy batches and the existing scoped default receipt convention. The coherent source/tests are unfinished pending serialized qualification and exact Compiler/Cloudflare producer-consumer assembly. Missing source facts continue to refuse activation; this checkpoint does not establish Task11 acceptance.
-
 
 ## 2026-10-09 — retain bounded alias provenance during State constraint intake
 
@@ -4090,12 +4238,6 @@ Carry exact Effects owning model, declaring module, global ordinal, source NodeK
 
 Produce the pinned modelPolicies/modelPolicyBindings ABI from exact IR origins and a conservative typed-expression/stored-field profile, preserving canonical package/model/module identity and per-model Effects order. Conditional uniques do not become invariants. Native evaluate(c,row) callbacks reuse existing emitted predicates; Dev's private per-owner-session adapter owns genuine context/hydration before the State raw-row ABI. Unsupported dependency/context/derive/reference/metadata/hook declarations decline whole-unit coverage instead of acquiring empty dependencies. Keep lock targets in the same first nonnullable int/text/bool/inline-owned enum profile; broader raw wire comparison support remains a separately qualified extension. Actual CLI/native3/3,classifier6/6,artifact2/2,codegen121/121 and strict all-target Clippy/format pass; independent finite review's lock target finding is resolved with three owning refusal controls. Native activation and wider profiles remain unfinished. The human's revised local-only commit workflow assigns LOCAL main integration to the coordinator and stops remote publication/review waits.
 
-## 2026-10-09 — Keep affected Cloudflare CI fixtures on current contracts
-
-Accepted typed test-host/fixture corrections for current Undici fetch values, JSON import attributes, immutable runtime mocks and exact optional control/business-error fields. Runtime staging fixtures retain real entry bytes/hash, app policy and selector provenance. Browser cases use Playwright’s installed Chromium, including the unchanged native CDP visibility path. Root noEmit passes; bridge/control 13/13 and runtime stdlib 20/20 pass, MCP/module-import checks pass, and the three previously failed browser launches now pass their actual assertions. No checks are disabled and no production admission is widened.
-
-Local roadmap intake retains the installed-browser executable override and consumes only fixtures whose production APIs exist here. The incoming session-example-control test depends on Dev example.run/rerun producers absent on this branch; it remains with that owner pending an exact coherent release, rather than activating a fixture against an unavailable API.
-
 ## 2026-10-09: bind navigated parents for canonical mutations
 
 Accepted finite Codex4232261242 correction: scenario set/delete resolve genuine generated parent proxies through the same private owner/viewer containment binding used by current reads. Existing State stage admission and current fence remain authoritative; lookup confers no new grant. The genuine compiled native-D1/MCP parent case passes1/1 (20.89s), including direct/queried parent update/archive, unchanged child/delivery, replay, missing/archive/revoked authority and mid-execution membership rollback. Owning build22/22 passes. Native hook event.before.parent still needs the complete Task11 source producer; hard-removal and broader applications are not claimed by this archive fixture.
@@ -4111,6 +4253,7 @@ Accepted necessary Task22 choices: atomically retain the Values-checked arbitrar
 Installed Services cancel/reconcile now accept a separate safe startedAtMs/deadlineMs window capped by installation policy; submit rejects it. Original generation deadline/request/job/seed/graph/output budgets remain unchanged. The defining caller must persist control start and reuse its same finite window across retries; stateless Services cannot detect a reminted valid window. Current authored cleanup authority governs controls, rather than rerunning an original submit guard that cleanup deliberately invalidates; original principal/owner/file provenance and current association remain required.
 
 Owning build22/22 and73Work/Services portable/HTTP cases pass. Actual compiled native-D1/receiving SQLite Images lifecycle1/1 (7.91s) passes arbitrary source distinct from operation ID, pending/acknowledged lookup/reopen and exact ambiguity. A real recovery writer had discarded optional correlation through a planner projection; preserve the defining checked Work row, then its affected native rerun passes. Full cancel/reconcile transport, pending-versus-queued races, current cleanup authority, retained observation-window pinning and original CanCreative rules/guards remain the next consumer, not Task22/44 acceptance.
+
 
 ### Implementation: truthful runtime fixture producer joins
 

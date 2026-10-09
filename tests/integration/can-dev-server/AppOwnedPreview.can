@@ -1,0 +1,11 @@
+## App-owned local preview consumer fixture; not Office whole-app qualification.
+app AppOwnedPreview
+Given
+ Setting in app { name:text, enabled:bool=true }
+ policy Setting read=public
+When
+ crud Setting by=public fields=name,enabled
+Then
+ page / title="App-owned preview"
+  list Setting empty="No app settings"
+   text row.name,row.enabled
