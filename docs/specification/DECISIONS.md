@@ -3549,3 +3549,7 @@ Add optional flat trim/min/max model-field claims to the artifact and canonical 
 ### 2026-10-09 — Join physically isolated verified-team preview storage
 
 Use a private D1 provisioning handoff for real Identity, then distinct Cedar/Oak State bindings through the existing owner router and persisted app/team pins. Trusted mapping is bounded and closed, with global State unavailable; request data cannot provision or select a foreign binding. Page checkpoints and example fixtures/invocation consume that boundary, preserving declared public/authenticated/member gates and normal revocation checks. Snapshots cover every row D1 binding and disposal removes the owned preview directory. Whole Office qualification remains due after the installed join.
+
+### 2026-10-09 — Distinguish retained runtime inputs from analysis inputs
+
+A copied artifact/Worker rerun requires its installed execution producers, not a later compiler, catalog, help index or grammar. Rederive runtime package/source membership independently while retaining full analysis checks for current capture publication. Both paths keep exact bytes, canonical paths and symlink identity.

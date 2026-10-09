@@ -21,6 +21,14 @@ vi.mock("../src/dev/preview-inputs.js", () => ({
     return { packageInputPaths: installedInventory.packageInputPaths,
       extraInputPaths: installedInventory.extraInputPaths };
   },
+  installedPortableBundleInputs: () => {
+    if (installedInventory.stale) throw new Error("installed outputs are older than source");
+    return installedInventory.packageInputPaths;
+  },
+  installedOwnedSourceInputs: () => {
+    if (installedInventory.stale) throw new Error("installed outputs are older than source");
+    return installedInventory.extraInputPaths.filter(item => item.name.startsWith("source:"));
+  },
 }));
 
 function fixture(): SingleFileCaptureRequest {
@@ -51,6 +59,24 @@ describe("one-file source capture", () => {
     expect(await capturedRuntimeInputsAreCurrent(first)).toBe(true);
     writeFileSync(request.packageInputPaths[0]!.path, "changed installed producer");
     expect(await capturedRuntimeInputsAreCurrent(first)).toBe(false);
+  });
+  it("keeps runtime currency independent from analysis-only inputs", async () => {
+    const request = fixture();
+    const grammarPath = join(request.checkoutRoot, "grammar.json");
+    writeFileSync(grammarPath, "grammar A");
+    const capture = await captureSingleFileSource({
+      ...request,
+      extraInputPaths: [{ name: "grammar:main", path: grammarPath }],
+    });
+
+    writeFileSync(join(request.checkoutRoot, "app.can"), "app Office\n## Edited app.\n");
+    expect(await capturedRuntimeInputsAreCurrent(capture)).toBe(true);
+    for (const path of [request.compilerPath, request.catalogPath!, request.helpIndexPath, grammarPath]) {
+      writeFileSync(path, `analysis-only change ${path}`);
+      expect(await capturedRuntimeInputsAreCurrent(capture)).toBe(true);
+    }
+    writeFileSync(request.packageInputPaths[0]!.path, "changed runtime output");
+    expect(await capturedRuntimeInputsAreCurrent(capture)).toBe(false);
   });
   it("keeps exact source bytes and separates source from non-source revisions", async () => {
     const request = fixture();
@@ -148,19 +174,40 @@ describe("one-file source capture", () => {
   it("rediscovers installed output and source membership, including additions and removals", async () => {
     const request = fixture();
     const sourcePath = join(request.checkoutRoot, "runtime.ts");
+    const compilerSourcePath = join(request.checkoutRoot, "compiler-source.rs");
     writeFileSync(sourcePath, "source A");
+    writeFileSync(compilerSourcePath, "compiler source A");
     installedInventory.packageInputPaths = [...request.packageInputPaths];
-    installedInventory.extraInputPaths = [{ name: "source:runtime", path: sourcePath }];
+    installedInventory.extraInputPaths = [
+      { name: "source:runtime", path: sourcePath },
+      { name: "compiler-source:main", path: compilerSourcePath },
+    ];
     installedInventory.stale = false;
     try {
       const installedRequest = { ...request, extraInputPaths: installedInventory.extraInputPaths,
         inputInventory: "installed-local-preview" as const };
       const first = await captureSingleFileSource(installedRequest);
       expect(await captureIsCurrent(first)).toBe(true);
+      writeFileSync(sourcePath, "runtime source B");
+      expect(await capturedRuntimeInputsAreCurrent(first)).toBe(false);
+      writeFileSync(sourcePath, "source A");
+      const addedCompilerPath = join(request.checkoutRoot, "compiler-source-new.rs");
+      writeFileSync(addedCompilerPath, "compiler source B");
+      installedInventory.extraInputPaths = [
+        ...installedInventory.extraInputPaths,
+        { name: "compiler-source:new", path: addedCompilerPath },
+      ];
+      expect(await capturedRuntimeInputsAreCurrent(first)).toBe(true);
+      expect(await captureIsCurrent(first)).toBe(false);
+      installedInventory.extraInputPaths = [
+        { name: "source:runtime", path: sourcePath },
+        { name: "compiler-source:main", path: compilerSourcePath },
+      ];
       const addedPath = join(request.checkoutRoot, "new-runtime.js");
       writeFileSync(addedPath, "new output");
       installedInventory.packageInputPaths = [...request.packageInputPaths, { name: "new", path: addedPath }];
       expect(await captureIsCurrent(first)).toBe(false);
+      expect(await capturedRuntimeInputsAreCurrent(first)).toBe(false);
       await expect(captureSingleFileSource(installedRequest)).rejects.toThrow(/membership changed/);
       const withAddition = await captureSingleFileSource({ ...installedRequest,
         packageInputPaths: installedInventory.packageInputPaths });
@@ -170,9 +217,47 @@ describe("one-file source capture", () => {
       installedInventory.packageInputPaths = [...request.packageInputPaths];
       installedInventory.extraInputPaths = [];
       expect(await captureIsCurrent(first)).toBe(false);
-      installedInventory.extraInputPaths = [{ name: "source:runtime", path: sourcePath }];
+      installedInventory.extraInputPaths = [
+        { name: "source:runtime", path: sourcePath },
+        { name: "compiler-source:main", path: compilerSourcePath },
+      ];
+      const addedSourcePath = join(request.checkoutRoot, "runtime-source-new.ts");
+      writeFileSync(addedSourcePath, "source B");
+      installedInventory.extraInputPaths = [
+        ...installedInventory.extraInputPaths,
+        { name: "source:new", path: addedSourcePath },
+      ];
+      expect(await captureIsCurrent(first)).toBe(false);
+      expect(await capturedRuntimeInputsAreCurrent(first)).toBe(false);
       installedInventory.stale = true;
       expect(await captureIsCurrent(first)).toBe(false);
+    } finally {
+      installedInventory.packageInputPaths = [];
+      installedInventory.extraInputPaths = [];
+      installedInventory.stale = false;
+    }
+  });
+
+  it("refuses a retained source input after its installed symlink alias changes", async () => {
+    const request = fixture();
+    const firstTarget = join(request.checkoutRoot, "source-a.ts");
+    const nextTarget = join(request.checkoutRoot, "source-b.ts");
+    const alias = join(request.checkoutRoot, "runtime-source.ts");
+    writeFileSync(firstTarget, "same source bytes");
+    writeFileSync(nextTarget, "same source bytes");
+    symlinkSync(firstTarget, alias);
+    installedInventory.packageInputPaths = [...request.packageInputPaths];
+    installedInventory.extraInputPaths = [{ name: "source:runtime", path: alias }];
+    installedInventory.stale = false;
+    try {
+      const capture = await captureSingleFileSource({
+        ...request,
+        extraInputPaths: installedInventory.extraInputPaths,
+        inputInventory: "installed-local-preview",
+      });
+      unlinkSync(alias);
+      symlinkSync(nextTarget, alias);
+      expect(await capturedRuntimeInputsAreCurrent(capture)).toBe(false);
     } finally {
       installedInventory.packageInputPaths = [];
       installedInventory.extraInputPaths = [];
