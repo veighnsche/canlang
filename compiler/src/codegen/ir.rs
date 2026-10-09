@@ -7079,11 +7079,21 @@ impl<'a> Cx<'a> {
                 return None;
             }
         };
+        let mut identity_target = target;
+        while identity_target.kind == SyntaxKind::Group {
+            let Some(inner) = kids(identity_target)
+                .into_iter()
+                .find(|node| is_expression(node.kind))
+            else {
+                break;
+            };
+            identity_target = inner;
+        }
         let Some(field_id) = self
             .program
             .types
             .preference_field_references
-            .get(&NodeKey::of(target))
+            .get(&NodeKey::of(identity_target))
             .copied()
         else {
             self.diags.push(Diagnostic::error(
