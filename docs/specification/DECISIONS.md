@@ -4791,3 +4791,15 @@ not widen. Reuse unchanged source15/15 and distinct owner results; strict lint/
 format and finite review pass. Current whole and distinct portable mutation
 qualification remain due. Existing incoming living registry/checkpoint coverage
 is retained; no checkpoint advancement or broader reference acceptance.
+
+## 2026-10-09 — retain original changed-row snapshots after later writes
+
+Keep the same generated machine consumer and assert original saved changed-row
+projection after actual finish/update, then current-archive withholding on both
+ordinary and aged public recovery. Require unchanged physical resources and
+commit/file tripwires. Affected1/1 passes; production source remains83f4f137,
+whose required whole129targets1325/0/0/0/no-skips result and strict checks are
+reused. T04 compiler-half checks may qualify only declared source fixtures;
+Dev owns complete profile classification/runtime/example proof and genuinely
+distinguishing ranking evidence. Grammar inventory completeness never changes
+into runtime-working or parser evidence=true through source-only checks.
