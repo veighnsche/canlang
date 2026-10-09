@@ -282,6 +282,7 @@ pub(super) fn collect_native_scenario_receipt(
             let IrItemKind::Field {
                 owner: field_owner,
                 ty: IrType::Known(ty),
+                required_array,
                 ..
             } = &stored.kind
             else {
@@ -293,6 +294,7 @@ pub(super) fn collect_native_scenario_receipt(
                 || !fields.contains(&stored.id)
                 || owner.canonical != dependency.model_name
                 || stored.name != dependency.field_name
+                || *required_array
                 || ty != &dependency.ty
             {
                 return None;
@@ -398,24 +400,29 @@ fn native_result_type(ty: &ResolvedType) -> bool {
         ResolvedType::Nullable(inner) => inner.as_ref(),
         ty => ty,
     };
-    matches!(
-        base,
-        ResolvedType::Scalar(
-            Scalar::Int
-                | Scalar::Text
-                | Scalar::Bool
-                | Scalar::Decimal
-                | Scalar::Money
-                | Scalar::Date
-                | Scalar::Datetime
-                | Scalar::Duration
-                | Scalar::User
+    let primitive = |ty: &ResolvedType| {
+        matches!(
+            ty,
+            ResolvedType::Scalar(
+                Scalar::Int
+                    | Scalar::Text
+                    | Scalar::Bool
+                    | Scalar::Decimal
+                    | Scalar::Money
+                    | Scalar::Date
+                    | Scalar::Datetime
+                    | Scalar::Duration
+                    | Scalar::User
+            )
         )
-    ) || matches!(base, ResolvedType::Enum { cases, .. } if !cases.is_empty())
+    };
+    primitive(base)
+        || matches!(base, ResolvedType::Enum { cases, .. } if !cases.is_empty())
+        || matches!(base, ResolvedType::Array { element, .. } if primitive(element))
 }
 
 /// Exact first State scalar profile; nominal aliases never become text here.
-fn supported_type_id(type_id: &str) -> bool {
+pub(super) fn supported_type_id(type_id: &str) -> bool {
     let base = type_id.strip_suffix('?').unwrap_or(type_id);
     let base = base.strip_suffix("[]").unwrap_or(base);
     matches!(
@@ -432,6 +439,9 @@ fn supported_type_id(type_id: &str) -> bool {
 }
 
 fn inventory_type(field: &JsModelField) -> Option<String> {
+    if field.array_required == Some(true) {
+        return None;
+    }
     // Use the identical valueType-first contract as State's binder. The
     // alternate primitive tag never rescues an unsupported nominal claim.
     if let Some(type_id) = &field.value_type {
@@ -587,6 +597,12 @@ impl<'a> Sites<'a> {
                         }
                         pending.push(Visit::Expression(left));
                         pending.push(Visit::Expression(right));
+                    }
+                    IrExpr::Array(items) => {
+                        if !native_result_type(&expression.ty) {
+                            return None;
+                        }
+                        pending.extend(items.iter().map(Visit::Expression));
                     }
                     IrExpr::Unary { operand, .. } => pending.push(Visit::Expression(operand)),
                     IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } => {

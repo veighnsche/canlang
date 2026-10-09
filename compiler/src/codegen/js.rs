@@ -7941,7 +7941,9 @@ impl<'a> Emitter<'a> {
                         continue;
                     }
                     let published_result = self.checked_operation_result(result.as_ref(), *read);
-                    let disclosure = if published_result.is_some() {
+                    let disclosure = if published_result.as_deref().is_some_and(|type_id| {
+                        type_id == "void" || super::scenario_receipts::supported_type_id(type_id)
+                    }) {
                         self.native_receipts.get(&item.id).map(|recipe| {
                             serde_json::to_value(&recipe.plan)
                                 .expect("native disclosure JSON invariant")
