@@ -69,3 +69,23 @@ it("pins example runs and routes retained example and HTTP refs without loosenin
   expect(await runDevControlArgv(["failures", "--revision", "r3", "--limit", "2"], deps))
     .toMatchObject({ ok: true, result: { command: "failures", payload: { revision: "r3", limit: 2 } } });
 });
+
+it("forwards only the initial negative list cursor and keeps other numeric bounds", async () => {
+  let discoveries = 0;
+  const deps = { cwd: "/repo", discover: async () => { discoveries++; return owner; } };
+  for (const command of ["diagnostics", "failures"]) {
+    expect(await runDevControlArgv([command, "--revision", "r3", "--after", "-1"], deps))
+      .toMatchObject({ ok: true, result: { command, payload: { revision: "r3", after: -1 } } });
+    expect(await runDevControlArgv([command, "--revision", "r3", "--after", "0"], deps))
+      .toMatchObject({ ok: true, result: { command, payload: { revision: "r3", after: 0 } } });
+    for (const invalid of ["-2", "-0", "01", "1.5"]) {
+      expect(await runDevControlArgv([command, "--revision", "r3", "--after", invalid], deps))
+        .toMatchObject({ ok: false, code: "INVALID_ARGUMENTS" });
+    }
+  }
+  expect(await runDevControlArgv(["failures", "--revision", "r3", "--limit", "-1"], deps))
+    .toMatchObject({ ok: false, code: "INVALID_ARGUMENTS" });
+  expect(await runDevControlArgv(["diagnostic.detail", "--revision", "r3", "--index", "-1"], deps))
+    .toMatchObject({ ok: false, code: "INVALID_ARGUMENTS" });
+  expect(discoveries).toBe(4);
+});

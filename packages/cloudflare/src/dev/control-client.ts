@@ -179,7 +179,8 @@ export async function runDevControlArgv(argv: readonly string[], deps: ControlCl
     return fail(command, "FAILURE_REF_REQUIRED", "failure lookup needs a retained compiler or example ref");
   }
   const index = values.get("--index") === undefined ? null : parseInteger(values.get("--index"), 0);
-  const after = values.get("--after") === undefined ? null : parseInteger(values.get("--after"), 0);
+  const afterRaw = values.get("--after");
+  const after = afterRaw === undefined ? null : afterRaw === "-1" ? -1 : parseInteger(afterRaw, 0);
   const limit = values.get("--limit") === undefined ? null : parseInteger(values.get("--limit"), 1);
   if ((selected === "diagnostic.detail" && index === null) ||
       (values.has("--after") && after === null) || (values.has("--limit") && (limit === null || limit > 25))) {
