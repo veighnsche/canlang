@@ -451,7 +451,11 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     }
     await checkRevision();
     const cap = owner?.bounds.maxRows ?? spec.limit;
-    const base = await store.query({ ...spec, archived: 'include', limit: cap + 1 });
+    // Storage predicates/order only support a flat wire-field subset. Read
+    // the complete bounded model domain in deterministic identity order;
+    // the defining query producer applies the checked native selection.
+    const base = await store.query({ model: spec.model, authority: 'owner', archived: 'include',
+      order: [{ field: 'id', direction: 'asc' }], limit: cap + 1 });
     consumeWork(base.length);
     if (base.length > cap) throw new StateError('validation', 'Owner mutation query exceeds its row bound.');
     const merged = new Map<string, StoredRow>();
@@ -469,14 +473,13 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         else merged.delete(key);
       }
     }
-    const rows = [...merged.values()].filter(row =>
-      (spec.archived === 'include' || row.archivedAt === null) &&
-      (spec.parent === undefined || row.parent?.model === spec.parent.model && row.parent.id === spec.parent.id) &&
-      (spec.where === undefined || evalPredicateForRow(spec.where, row)));
-    if (rows.length > spec.limit) throw new StateError('validation', 'Owner mutation query exceeds its completeness limit.');
+    if (merged.size > cap) throw new StateError('validation', 'Owner mutation query exceeds its row bound.');
+    const rows = [...merged.values()];
     consumeWork(rows.length * (spec.order?.length ?? 1));
-    // The existing State query producer owns ordering, including native
-    // numeric comparison. It receives only this bounded merged snapshot.
+    // The existing State query producer owns the full predicate vocabulary
+    // (including nested reference identity paths), numeric ordering and
+    // completeness-limit refusal. Its storage seam receives only this
+    // bounded merged snapshot and applies storage archive/parent scoping.
     const fields: Record<string, CanonicalFieldDef> = Object.create(null);
     for (const [name, field] of Object.entries(table.get(spec.model)!.fields)) {
       fields[name] = { required: field.required, serverOnly: field.serverOnly,
@@ -487,7 +490,11 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       modelDescriptor: { name: spec.model, fields, deleteMode: table.get(spec.model)!.deleteMode },
       context: { actorUserId: context.actor?.userId ?? null, teamId: context.team?.teamId ?? null },
       memberships: { findMembership: async () => { throw new StateError('validation', 'Owner decision reads do not resolve viewer authority.'); } },
-      store: { ...store, query: async () => rows }, limit: spec.limit, archived: spec.archived ?? 'exclude',
+      store: { ...store, query: async selection => rows.filter(row =>
+        (selection.archived === 'include' || row.archivedAt === null) &&
+        (spec.parent === undefined || row.parent?.model === spec.parent.model && row.parent.id === spec.parent.id)) },
+      limit: spec.limit, archived: spec.archived ?? 'exclude',
+      ...(spec.where === undefined ? {} : { where: spec.where }),
       ...(spec.order === undefined ? {} : { order: spec.order }),
     });
     await checkRevision();
