@@ -3604,3 +3604,8 @@ Remove obsolete muse lane triggers, redundant standalone two-file contract check
 ## 2026-10-09: Consume published nominal duration checking
 
 Consume only Compiler PR133 e7d65ad9's owning nominal-duration type correction and complete b4_check fixtures. CanDuration uses the released duration scalar; valid complete TextRequest values remain accepted while wrong duration values and unknown members retain precise type/span refusals. The owning source-current suite passes282/282 and Cargo doc tests complete (zero cases). Existing unrelated corpus mirrors remain with Compiler validation; no opaque substitute or test removal is introduced.
+
+
+## 2026-10-09: Use owning APIs for the actual dependent-choice consumer
+
+Consume coordinator CI/boundary releases eac25ce3 and1644cd4a, plus Packages2742f700's State-owned NumericControl input; preserve current runtime/tests and reuse unchanged shared guard/tools/build/static validation. Replace five genuine sibling-output bypasses in the dependent-choice consumer with typed package exports of the existing UI bootstrap and Interfaces asset handler, using the already exported SubmitFetchInit. No duplicate implementation, shim or assertion removal. Owning CF build22/22 and the original nativeD1/happyDOM/served Chromium/MCP case1/1 (48.88s) pass. The first acquisition used the wrong executable variable; the corrected actual configured browser rerun passes. Current branch boundary validation leaves four Dev-owned consumers; the replaced historical job names are no longer current CI gates.

@@ -16,6 +16,10 @@
       "types": "./dist/src/distribution.d.ts",
       "default": "./dist/src/distribution.js"
     },
+    "./browser/bootstrap": {
+      "types": "./dist/src/browser/bootstrap.d.ts",
+      "default": "./dist/src/browser/bootstrap.js"
+    },
     "./browser/export": {
       "types": "./dist/src/browser/export.d.ts",
       "default": "./dist/src/browser/export.js"
