@@ -606,6 +606,13 @@
         "owner_contract": "Existing Work stageDueSchedule and occurrence receipt stage produce effects without commit; one revision-fenced owner batch admits every matching pure-cohort handler and its occurrence-wide source receipt",
         "limits": "Internal constructor only; default installed Worker fulfillment, mixed ordinary/cohort events and broader lifecycle/security/resource/installed parent gates remain open; no replacement reduction or root48 count credit",
         "commit": "fe35fc990822234822b3cdb2f489b72347313610"
+      },
+      "durable_restart_qualification": {
+        "state": "tested and root-reviewed finite current TS/D1/DO scheduler scope; broader packet remains partial",
+        "file": "packages/cloudflare/src/runtime/t34-f7-fanout-durable.test.ts",
+        "validation": "Fresh State and Cloudflare TypeScript emits pass; node --test --test-name-pattern=\"terminal prefix|fresh admitted B\" packages/cloudflare/dist/runtime/t34-f7-fanout-durable.test.js passes 6/6 with no skips.",
+        "coverage": "Completed first child cannot strand later stale child at pageLimit1 after restart; B admitted facts drive independent durable domain/outbox/schedule effects before admission and after fence retry, with atomic checkpoint and terminal replay.",
+        "limits": "Real D1/workerd DO fixtures; no installed/full source-app/native or global parent acceptance, no reduction credit."
       }
     },
     "TECH-W03": {
