@@ -285,13 +285,21 @@
       "title": "Qualify refresh with editable forms",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "medium",
-      "state": "not_started",
+      "state": "bounded_protected_form_refresh_tested_original_application_gates_open",
       "evidence": [],
       "next_gate": [
         "SEQ-014",
         "SEQ-015"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "date": "2026-10-09",
+        "implemented": "Worker modules reuse the existing producer import rewrite; native browser tests accept CANLANG_CHROME_EXECUTABLE.",
+        "tested": "Existing protected-form Chromium/default Worker/D1 case passed 1/1: sealed bindings, compatible draft/focus polling, stale conflict, fresh proof retry, CRUD patch omission and replay.",
+        "acceptance": "Direct selected Linux Chromium profile only; no new whole-task or original-app acceptance.",
+        "evidence": "../../packages/cloudflare/test/page-query-serving.test.ts",
+        "remaining": "Original registered apps and broader installed/provider/upgrade scope remain open."
+      }
     },
     {
       "id": "SEQ-017",
@@ -1123,7 +1131,9 @@
     "former_coordinator_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
     "former_coordinator_role": "implementation",
     "role": "cross-chat allocation, overlap prevention, resources and task status; no code review",
-    "validation": "one direct proportionate layer; no nested proof or review chains"
+    "validation": "one direct proportionate layer; no nested proof or review chains",
+    "current_coordinator_thread": "01a11e6b-f4e1-7603-b47d-9d3210c9c6de",
+    "worker_communication": "Current coordinator identified from the four starting prompts; no callable cross-chat send tool is exposed. Dependencies remain in this existing record; no receipt is inferred."
   },
   "live_handoffs": {
     "h1_typed_metadata": {
