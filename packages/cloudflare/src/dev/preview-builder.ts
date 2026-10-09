@@ -79,7 +79,7 @@ export interface LocalPreviewBuilderOptions {
   /** Trusted T06 producer runs the actual activation gates for this local build. */
   readonly activationVerdict?: (artifact: CompileArtifact, capture: SingleFileCapture) => Promise<ActivationVerdict>;
   /** Recheck the same gates on the serving Worker's actual DB before exposure. */
-  readonly confirmRunningActivation?: (artifact: CompileArtifact, capture: SingleFileCapture, db: D1Database, databaseId: string, owner: string, identities: D1Database) => Promise<ActivationVerdict>;
+  readonly confirmRunningActivation?: (artifact: CompileArtifact, capture: SingleFileCapture, db: D1Database, databaseId: string, owner?: string, identities?: D1Database) => Promise<ActivationVerdict>;
   /** Trusted installed-package producer. No provider means no ready preview. */
   readonly produceBundle?: (request: LocalPreviewBundleRequest) => Promise<PortableBundleEvidence>;
   /** T06 host configuration, called only after the protected loopback origin exists. */
@@ -418,7 +418,8 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
             !["STATE_CEDAR_DB", "STATE_OAK_DB"].includes(owner.binding))) {
         fail("IDENTITY_UNAVAILABLE", "real local Identity seed did not provide the expected isolated team matrix");
       }
-      const ownerDatabases = seed.owners.map(owner => ({ ...owner, id: `can-preview-owner-${randomUUID()}` }));
+      const ownerDatabases = (artifact.models === undefined || artifact.models.length === 0 ? [] : seed.owners)
+        .map(owner => ({ ...owner, id: `can-preview-owner-${randomUUID()}` }));
       worker = await startLocalDev({
         workerName: `can-preview-${randomUUID()}`,
         compatibilityDate: PINNED_COMPATIBILITY_DATE,
@@ -427,12 +428,19 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
         binaryModules: bundle.binaries,
         d1Databases: [{ binding: "DB", id: databaseId }, ...ownerDatabases.map(owner => ({ binding: owner.binding, id: owner.id }))],
         d1Persist: persistence,
-        vars: { ...vars, CAN_STATE_OWNERS: { version: 1, owners: ownerDatabases.map(owner => ({
+        vars: { ...vars, ...(ownerDatabases.length === 0 ? {} : { CAN_STATE_OWNERS: { version: 1, owners: ownerDatabases.map(owner => ({
           owner: owner.owner, binding: owner.binding, initializeFresh: true,
-        })) } },
+        })) } }) },
       });
       if (options.confirmRunningActivation === undefined) {
         fail("ACTIVATION_UNAVAILABLE", "serving D1 activation confirmation is unavailable");
+      }
+      if (ownerDatabases.length === 0) {
+        const runningVerdict = await options.confirmRunningActivation(artifact, capture,
+          await worker.getD1Database("DB"), databaseId);
+        if (runningVerdict.active !== true) {
+          fail("ACTIVATION_REFUSED", "serving global D1 activation gates refused this preview build");
+        }
       }
       for (const owner of ownerDatabases) {
         const runningVerdict = await options.confirmRunningActivation(artifact, capture,
