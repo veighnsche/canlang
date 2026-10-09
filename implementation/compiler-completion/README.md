@@ -20,6 +20,14 @@ checking pipeline; the optional diagnostic carrier remains. Library/binary
 bounded repair. Can Dev **T04's compiler inventory/help-data owner** must release
 the real producer and selected-profile proofs before enabling the hook.
 
+Strict all-target Clippy then exposed the new extension's enlarged diagnostic
+error layout and upstream CLI/BDD traversal lints. Boxing the optional extension
+preserves its wire shape; exact short-circuit/traversal rewrites and the LSP
+token chunk correction preserve behavior. Foundation **9/9**, typed LSP **9/9**
+and actual BDD bindings **4/4** pass. Independent review accepts the bounded
+repair, including its newly introduced Rust field source-compatibility change;
+final strict Clippy remains due after the ready alias source unit.
+
 Current corpus qualification is blocked on the upstream draft gitlink
 **5a12eb9e**: its remote rejects that exact commit as unavailable. The existing
 clean draft checkout at **a55a0f7** is preserved; its counts cannot qualify the
