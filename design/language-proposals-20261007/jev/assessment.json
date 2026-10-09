@@ -903,5 +903,220 @@
     },
     "implementation_accepted": false,
     "full_task_accepted": false
+  },
+  "viewer_pagination_direction": {
+    "task": "SEQ-052",
+    "stage": "selected architecture; exact admission/key/budget contract pending",
+    "shared_verified_context": {
+      "verified_facts": [
+        "New finite original52 defining viewer pagination/parent question; architecture facts only, no source excerpts, secrets or application data. Existing split URL selection is separate accepted bounded current-query locator, not authority.",
+        "Storage query supports exact parent model/id, predicate AST/ranges, ordering/id tiebreak and raw limit, but no seek/cursor/offset/historicalsnapshot API. Storage comparisons do not uniformly equal State typed projected comparisons.",
+        "State viewer query intentionally scans without raw storage predicate/limit, applies current model/row/field grants and secret projection before predicates, sorts projected typed values with id tiebreak, then rejects visible limit overflow. It currently lacks scan/byte budget and final authority/revision recheck. Ordinary reads must preserve existing overflow/refusal/order semantics.",
+        "CF canonical pagequery currently refuses parent/cursor/functionpredicates and lacks order channel. Page scope checks State revision pre/post, not an implemented shared500candidatecounter. Interfaces HTMLcap1MiB applies after queries. Real CanBook needs nested parent collections and bare next/prev pagination; disabled chrome or invented numbered totals do not complete it.",
+        "Authorized parent pattern already exists: native parent bindings via privateidentity and declared checked parentmodel relation, with current readability. A bare supplied id cannot confer parent authority.",
+        "Current membership/role facts may change independently of State revision. Every page must re-admit current by,parentreadability,row/fieldgrants and checkpoint; cursor carries no authority/store selection. Context/query/schema/checkpoint changes must not revive cachedrows or hiddenfields.",
+        "Existing host-private HMAC and randomtoken/digest primitives exist, but no cursor codec/store/port. Formseal service is an owning specific contract, not a reusable unchecked signingoracle. Artifactrelease identity is not forwarded into current reader. First selected page profile could be restricted to checked model+parent and AST predicate/order, with a defining exact querydescriptor revision; functionpredicates remain unadmitted until checked source identity/closure exists.",
+        "For stateless rescans a cursor can contain visibleposition only, never hidden sortkeys/recorddata. It requires dedicated versioned bounded token integrity/lifetime/key ownership, app/store/principal/team/querydefinition/checkpoint binding, currentrechecks and stale explicit restart. Cached/shared server cursorstore would add capacity,expiry/cleanup and crossWorker durability; processlocalstate insufficient.",
+        "Current partial alternatives must be evaluated on identical projectedauthority/error/order/rollback guarantees and real sourceworkflows. Finite budget excess should refuse explicitly rather than truncate silently; large/scalable seeking remains a separate accepted scope if needed. No implementation or wholeworkflow acceptance follows from advice."
+      ]
+    },
+    "consultations": [
+      {
+        "request": {
+          "model": "jev-latest",
+          "questions": {
+            "direction": {
+              "type": "choice",
+              "instructions": "Which defining initial viewer-page architecture best delivers real nested finite collection workflows with correct current authority and the smallest maintainable new surface?",
+              "criteria": {
+                "bounded_rescan": "Define explicit viewer page mode alongside unchanged ordinary read mode. Use exact authorized parent scope and declared finite candidate-work budget, existing projection/filter/typedorder, visible-position continuation. Dedicated signed stateless bounded token with exact checked querydefinition/context/checkpoint binding and expiry; every continuation re-admits current authority, final recheck; stalecontext/query/revision returns explicit restart. No hiddenvalues/cachedrows/rawowner bypass. Supports finite collections; functionpredicates/releasepin and scalable seek stay separately gated.",
+                "storage_seek": "First extend storage/viewer API with typed comparison-correct keyset seeking across durable and memory hosts, preserving grant-before-predicate and parentquery semantics. Define cursorintegrity/currentauthority/lifetime as above. Avoid full rescans but introduces larger storage/index/ordering surface and cannot assume rawstorage order matches projected State values.",
+                "durable_cursor_state": "Define shared durable opaque cursorstore with randomtoken/digest, exact querycontext/checkpoint/expiry and workbudget. Re-admit every page; never trust cachedrow projection. Hides position but adds store/capacity/cleanup/crossWorker upgrade duties absent today; use existing query stages for actual reads."
+              }
+            }
+          }
+        },
+        "response": {
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "verified_facts": [
+                "New finite original52 defining viewer pagination/parent question; architecture facts only, no source excerpts, secrets or application data. Existing split URL selection is separate accepted bounded current-query locator, not authority.",
+                "Storage query supports exact parent model/id, predicate AST/ranges, ordering/id tiebreak and raw limit, but no seek/cursor/offset/historicalsnapshot API. Storage comparisons do not uniformly equal State typed projected comparisons.",
+                "State viewer query intentionally scans without raw storage predicate/limit, applies current model/row/field grants and secret projection before predicates, sorts projected typed values with id tiebreak, then rejects visible limit overflow. It currently lacks scan/byte budget and final authority/revision recheck. Ordinary reads must preserve existing overflow/refusal/order semantics.",
+                "CF canonical pagequery currently refuses parent/cursor/functionpredicates and lacks order channel. Page scope checks State revision pre/post, not an implemented shared500candidatecounter. Interfaces HTMLcap1MiB applies after queries. Real CanBook needs nested parent collections and bare next/prev pagination; disabled chrome or invented numbered totals do not complete it.",
+                "Authorized parent pattern already exists: native parent bindings via privateidentity and declared checked parentmodel relation, with current readability. A bare supplied id cannot confer parent authority.",
+                "Current membership/role facts may change independently of State revision. Every page must re-admit current by,parentreadability,row/fieldgrants and checkpoint; cursor carries no authority/store selection. Context/query/schema/checkpoint changes must not revive cachedrows or hiddenfields.",
+                "Existing host-private HMAC and randomtoken/digest primitives exist, but no cursor codec/store/port. Formseal service is an owning specific contract, not a reusable unchecked signingoracle. Artifactrelease identity is not forwarded into current reader. First selected page profile could be restricted to checked model+parent and AST predicate/order, with a defining exact querydescriptor revision; functionpredicates remain unadmitted until checked source identity/closure exists.",
+                "For stateless rescans a cursor can contain visibleposition only, never hidden sortkeys/recorddata. It requires dedicated versioned bounded token integrity/lifetime/key ownership, app/store/principal/team/querydefinition/checkpoint binding, currentrechecks and stale explicit restart. Cached/shared server cursorstore would add capacity,expiry/cleanup and crossWorker durability; processlocalstate insufficient.",
+                "Current partial alternatives must be evaluated on identical projectedauthority/error/order/rollback guarantees and real sourceworkflows. Finite budget excess should refuse explicitly rather than truncate silently; large/scalable seeking remains a separate accepted scope if needed. No implementation or wholeworkflow acceptance follows from advice."
+              ]
+            },
+            "questions": {
+              "direction": {
+                "type": "choice",
+                "instructions": "Which defining initial viewer-page architecture best delivers real nested finite collection workflows with correct current authority and the smallest maintainable new surface?",
+                "criteria": {
+                  "bounded_rescan": "Define explicit viewer page mode alongside unchanged ordinary read mode. Use exact authorized parent scope and declared finite candidate-work budget, existing projection/filter/typedorder, visible-position continuation. Dedicated signed stateless bounded token with exact checked querydefinition/context/checkpoint binding and expiry; every continuation re-admits current authority, final recheck; stalecontext/query/revision returns explicit restart. No hiddenvalues/cachedrows/rawowner bypass. Supports finite collections; functionpredicates/releasepin and scalable seek stay separately gated.",
+                  "storage_seek": "First extend storage/viewer API with typed comparison-correct keyset seeking across durable and memory hosts, preserving grant-before-predicate and parentquery semantics. Define cursorintegrity/currentauthority/lifetime as above. Avoid full rescans but introduces larger storage/index/ordering surface and cannot assume rawstorage order matches projected State values.",
+                  "durable_cursor_state": "Define shared durable opaque cursorstore with randomtoken/digest, exact querycontext/checkpoint/expiry and workbudget. Re-admit every page; never trust cachedrow projection. Hides position but adds store/capacity/cleanup/crossWorker upgrade duties absent today; use existing query stages for actual reads."
+                }
+              }
+            }
+          },
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "direction": {
+                "type": "choice",
+                "choice": "bounded_rescan",
+                "confidence": 1.0,
+                "probabilities": {
+                  "bounded_rescan": 1.0,
+                  "storage_seek": 0.0,
+                  "durable_cursor_state": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1229,
+              "output_tokens": 46
+            }
+          }
+        }
+      },
+      {
+        "request": {
+          "model": "jev-latest",
+          "questions": {
+            "direction": {
+              "type": "choice",
+              "instructions": "Choose the bounded next pagination contract, weighing scan cost against storage or durable cursor ownership under identical refusal/order/privacy requirements.",
+              "criteria": {
+                "bounded_rescan": "Define explicit viewer page mode alongside unchanged ordinary read mode. Use exact authorized parent scope and declared finite candidate-work budget, existing projection/filter/typedorder, visible-position continuation. Dedicated signed stateless bounded token with exact checked querydefinition/context/checkpoint binding and expiry; every continuation re-admits current authority, final recheck; stalecontext/query/revision returns explicit restart. No hiddenvalues/cachedrows/rawowner bypass. Supports finite collections; functionpredicates/releasepin and scalable seek stay separately gated.",
+                "storage_seek": "First extend storage/viewer API with typed comparison-correct keyset seeking across durable and memory hosts, preserving grant-before-predicate and parentquery semantics. Define cursorintegrity/currentauthority/lifetime as above. Avoid full rescans but introduces larger storage/index/ordering surface and cannot assume rawstorage order matches projected State values.",
+                "durable_cursor_state": "Define shared durable opaque cursorstore with randomtoken/digest, exact querycontext/checkpoint/expiry and workbudget. Re-admit every page; never trust cachedrow projection. Hides position but adds store/capacity/cleanup/crossWorker upgrade duties absent today; use existing query stages for actual reads."
+              }
+            }
+          }
+        },
+        "response": {
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "verified_facts": [
+                "New finite original52 defining viewer pagination/parent question; architecture facts only, no source excerpts, secrets or application data. Existing split URL selection is separate accepted bounded current-query locator, not authority.",
+                "Storage query supports exact parent model/id, predicate AST/ranges, ordering/id tiebreak and raw limit, but no seek/cursor/offset/historicalsnapshot API. Storage comparisons do not uniformly equal State typed projected comparisons.",
+                "State viewer query intentionally scans without raw storage predicate/limit, applies current model/row/field grants and secret projection before predicates, sorts projected typed values with id tiebreak, then rejects visible limit overflow. It currently lacks scan/byte budget and final authority/revision recheck. Ordinary reads must preserve existing overflow/refusal/order semantics.",
+                "CF canonical pagequery currently refuses parent/cursor/functionpredicates and lacks order channel. Page scope checks State revision pre/post, not an implemented shared500candidatecounter. Interfaces HTMLcap1MiB applies after queries. Real CanBook needs nested parent collections and bare next/prev pagination; disabled chrome or invented numbered totals do not complete it.",
+                "Authorized parent pattern already exists: native parent bindings via privateidentity and declared checked parentmodel relation, with current readability. A bare supplied id cannot confer parent authority.",
+                "Current membership/role facts may change independently of State revision. Every page must re-admit current by,parentreadability,row/fieldgrants and checkpoint; cursor carries no authority/store selection. Context/query/schema/checkpoint changes must not revive cachedrows or hiddenfields.",
+                "Existing host-private HMAC and randomtoken/digest primitives exist, but no cursor codec/store/port. Formseal service is an owning specific contract, not a reusable unchecked signingoracle. Artifactrelease identity is not forwarded into current reader. First selected page profile could be restricted to checked model+parent and AST predicate/order, with a defining exact querydescriptor revision; functionpredicates remain unadmitted until checked source identity/closure exists.",
+                "For stateless rescans a cursor can contain visibleposition only, never hidden sortkeys/recorddata. It requires dedicated versioned bounded token integrity/lifetime/key ownership, app/store/principal/team/querydefinition/checkpoint binding, currentrechecks and stale explicit restart. Cached/shared server cursorstore would add capacity,expiry/cleanup and crossWorker durability; processlocalstate insufficient.",
+                "Current partial alternatives must be evaluated on identical projectedauthority/error/order/rollback guarantees and real sourceworkflows. Finite budget excess should refuse explicitly rather than truncate silently; large/scalable seeking remains a separate accepted scope if needed. No implementation or wholeworkflow acceptance follows from advice."
+              ]
+            },
+            "questions": {
+              "direction": {
+                "type": "choice",
+                "instructions": "Choose the bounded next pagination contract, weighing scan cost against storage or durable cursor ownership under identical refusal/order/privacy requirements.",
+                "criteria": {
+                  "bounded_rescan": "Define explicit viewer page mode alongside unchanged ordinary read mode. Use exact authorized parent scope and declared finite candidate-work budget, existing projection/filter/typedorder, visible-position continuation. Dedicated signed stateless bounded token with exact checked querydefinition/context/checkpoint binding and expiry; every continuation re-admits current authority, final recheck; stalecontext/query/revision returns explicit restart. No hiddenvalues/cachedrows/rawowner bypass. Supports finite collections; functionpredicates/releasepin and scalable seek stay separately gated.",
+                  "storage_seek": "First extend storage/viewer API with typed comparison-correct keyset seeking across durable and memory hosts, preserving grant-before-predicate and parentquery semantics. Define cursorintegrity/currentauthority/lifetime as above. Avoid full rescans but introduces larger storage/index/ordering surface and cannot assume rawstorage order matches projected State values.",
+                  "durable_cursor_state": "Define shared durable opaque cursorstore with randomtoken/digest, exact querycontext/checkpoint/expiry and workbudget. Re-admit every page; never trust cachedrow projection. Hides position but adds store/capacity/cleanup/crossWorker upgrade duties absent today; use existing query stages for actual reads."
+                }
+              }
+            }
+          },
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "direction": {
+                "type": "choice",
+                "choice": "bounded_rescan",
+                "confidence": 0.98,
+                "probabilities": {
+                  "bounded_rescan": 0.99,
+                  "storage_seek": 0.0,
+                  "durable_cursor_state": 0.01
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1228,
+              "output_tokens": 46
+            }
+          }
+        }
+      },
+      {
+        "request": {
+          "model": "jev-latest",
+          "questions": {
+            "direction": {
+              "type": "choice",
+              "instructions": "Given verified current query and storage limits, which first implementation direction is justified without silently changing ordinary reads or claiming unsupported scalable/function-predicate paging?",
+              "criteria": {
+                "bounded_rescan": "Define explicit viewer page mode alongside unchanged ordinary read mode. Use exact authorized parent scope and declared finite candidate-work budget, existing projection/filter/typedorder, visible-position continuation. Dedicated signed stateless bounded token with exact checked querydefinition/context/checkpoint binding and expiry; every continuation re-admits current authority, final recheck; stalecontext/query/revision returns explicit restart. No hiddenvalues/cachedrows/rawowner bypass. Supports finite collections; functionpredicates/releasepin and scalable seek stay separately gated.",
+                "storage_seek": "First extend storage/viewer API with typed comparison-correct keyset seeking across durable and memory hosts, preserving grant-before-predicate and parentquery semantics. Define cursorintegrity/currentauthority/lifetime as above. Avoid full rescans but introduces larger storage/index/ordering surface and cannot assume rawstorage order matches projected State values.",
+                "durable_cursor_state": "Define shared durable opaque cursorstore with randomtoken/digest, exact querycontext/checkpoint/expiry and workbudget. Re-admit every page; never trust cachedrow projection. Hides position but adds store/capacity/cleanup/crossWorker upgrade duties absent today; use existing query stages for actual reads."
+              }
+            }
+          }
+        },
+        "response": {
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "verified_facts": [
+                "New finite original52 defining viewer pagination/parent question; architecture facts only, no source excerpts, secrets or application data. Existing split URL selection is separate accepted bounded current-query locator, not authority.",
+                "Storage query supports exact parent model/id, predicate AST/ranges, ordering/id tiebreak and raw limit, but no seek/cursor/offset/historicalsnapshot API. Storage comparisons do not uniformly equal State typed projected comparisons.",
+                "State viewer query intentionally scans without raw storage predicate/limit, applies current model/row/field grants and secret projection before predicates, sorts projected typed values with id tiebreak, then rejects visible limit overflow. It currently lacks scan/byte budget and final authority/revision recheck. Ordinary reads must preserve existing overflow/refusal/order semantics.",
+                "CF canonical pagequery currently refuses parent/cursor/functionpredicates and lacks order channel. Page scope checks State revision pre/post, not an implemented shared500candidatecounter. Interfaces HTMLcap1MiB applies after queries. Real CanBook needs nested parent collections and bare next/prev pagination; disabled chrome or invented numbered totals do not complete it.",
+                "Authorized parent pattern already exists: native parent bindings via privateidentity and declared checked parentmodel relation, with current readability. A bare supplied id cannot confer parent authority.",
+                "Current membership/role facts may change independently of State revision. Every page must re-admit current by,parentreadability,row/fieldgrants and checkpoint; cursor carries no authority/store selection. Context/query/schema/checkpoint changes must not revive cachedrows or hiddenfields.",
+                "Existing host-private HMAC and randomtoken/digest primitives exist, but no cursor codec/store/port. Formseal service is an owning specific contract, not a reusable unchecked signingoracle. Artifactrelease identity is not forwarded into current reader. First selected page profile could be restricted to checked model+parent and AST predicate/order, with a defining exact querydescriptor revision; functionpredicates remain unadmitted until checked source identity/closure exists.",
+                "For stateless rescans a cursor can contain visibleposition only, never hidden sortkeys/recorddata. It requires dedicated versioned bounded token integrity/lifetime/key ownership, app/store/principal/team/querydefinition/checkpoint binding, currentrechecks and stale explicit restart. Cached/shared server cursorstore would add capacity,expiry/cleanup and crossWorker durability; processlocalstate insufficient.",
+                "Current partial alternatives must be evaluated on identical projectedauthority/error/order/rollback guarantees and real sourceworkflows. Finite budget excess should refuse explicitly rather than truncate silently; large/scalable seeking remains a separate accepted scope if needed. No implementation or wholeworkflow acceptance follows from advice."
+              ]
+            },
+            "questions": {
+              "direction": {
+                "type": "choice",
+                "instructions": "Given verified current query and storage limits, which first implementation direction is justified without silently changing ordinary reads or claiming unsupported scalable/function-predicate paging?",
+                "criteria": {
+                  "bounded_rescan": "Define explicit viewer page mode alongside unchanged ordinary read mode. Use exact authorized parent scope and declared finite candidate-work budget, existing projection/filter/typedorder, visible-position continuation. Dedicated signed stateless bounded token with exact checked querydefinition/context/checkpoint binding and expiry; every continuation re-admits current authority, final recheck; stalecontext/query/revision returns explicit restart. No hiddenvalues/cachedrows/rawowner bypass. Supports finite collections; functionpredicates/releasepin and scalable seek stay separately gated.",
+                  "storage_seek": "First extend storage/viewer API with typed comparison-correct keyset seeking across durable and memory hosts, preserving grant-before-predicate and parentquery semantics. Define cursorintegrity/currentauthority/lifetime as above. Avoid full rescans but introduces larger storage/index/ordering surface and cannot assume rawstorage order matches projected State values.",
+                  "durable_cursor_state": "Define shared durable opaque cursorstore with randomtoken/digest, exact querycontext/checkpoint/expiry and workbudget. Re-admit every page; never trust cachedrow projection. Hides position but adds store/capacity/cleanup/crossWorker upgrade duties absent today; use existing query stages for actual reads."
+                }
+              }
+            }
+          },
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "direction": {
+                "type": "choice",
+                "choice": "bounded_rescan",
+                "confidence": 1.0,
+                "probabilities": {
+                  "bounded_rescan": 1.0,
+                  "storage_seek": 0.0,
+                  "durable_cursor_state": 0.0
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 1232,
+              "output_tokens": 46
+            }
+          }
+        }
+      }
+    ],
+    "selection": "bounded_rescan",
+    "rationale": "Reuse the existing viewer projection/predicate/typed sort and add explicit bounded page mode with current read admission. Signed stateless visible-position continuation avoids a new durable cursor store; ordinary overflow semantics remain unchanged.",
+    "uncertainty": "Same-model three replies agree1/.98/1 confidence, no rationale. Exact scan budget, current membership recheck, checked querydefinition revision and cursor key/expiry ownership remain defining source gates; no implementation/runtime acceptance.",
+    "limits": "No raw owner/filter bypass, hidden sortkeys/cached rows, silent truncation, new function predicates, unproved artifactrelease identity or scalable keyset claim. Existing rendered500 budget is not a candidate scan budget; parent/current grants/checkpoint and fullCanBook qualify independently."
   }
 }
