@@ -125,6 +125,16 @@ plus valid/duplicate-each formatter controls, pass **5/5**. Released scalar and
 static-judgment/default/result controls pass **14/14**; their invalid-result,
 literal/overflow, nullable-reference and Corpus refusal gates remain intact.
 
+The populated-page delete handoff now adapts only DeleteProps.record to the
+public MutationRef: capture the row once and encode its protected version as
+a decimal string, preserving native BigInt row semantics and other consumers.
+The actual UI/canonical Memory case passes **1/1** for hidden fields, archive,
+stale versions, membership revocation and gated omission; presentation-only
+precision above 2^53 remains distinct from State's version domain. The affected
+factory golden passes **1/1**, focused strict Clippy passes and independent
+HIGH review accepts this boundary. Dev can consume the published PR revision;
+full Office Supplies/application acceptance remains with its owner.
+
 Current remaining prerequisites are recorded here without reopening accepted
 compiler leaves:
 

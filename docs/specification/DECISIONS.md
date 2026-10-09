@@ -3523,3 +3523,7 @@ Descriptor-only fixtures use supported text without waiving unsupported breadcru
 ## 2026-10-09 — join the published standard duration fixture type
 
 Map only the published CanDuration nominal leaf to Scalar::Duration, matching the existing generated Contracts field and native/wire30000n/"30000" consumer. Complete TextRequest fixtures now type-check without accepting generic opaque equality; DatetimeValue/WorkflowField and other leaves remain opaque. Complete construction, invalid whole-field/duration and known-member refusals qualify282 existing semantic cases (281 reused, corrected fixture1/1); native nominal construction1/1 passes. Independent review accepts this exact scalar join; broader nominal profiles remain open.
+
+## 2026-10-09 — encode delete identity at the owning UI boundary
+
+Preserve native BigInt list-row versions and adapt only the generated delete control's record to the public MutationRef decimal-string contract. A local capture evaluates the authored record expression once in prop order and forwards only id/version; existing gates and canonical permissions remain. Actual UI hidden fields and canonical Memory archive/stale/revoked controls pass1/1, with separate exact presentation/native arithmetic above2^53 and no widened State version claim. The affected factory golden1/1 and focused strict Clippy pass; independent HIGH review accepts the finite correction. Dev's populated Office Supplies consumer can use this producer revision; full application acceptance is unestablished.
