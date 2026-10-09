@@ -539,8 +539,8 @@
       "commit_pending": false,
       "commit": "89d885a9",
       "remaining_prerequisite": {
-        "prerequisite": "Checked CRUD first/replay provenance and current disclosure have landed and HTTP/CSV consumer is complete. Remaining legitimate scenario producing-origin/dependency provenance and current first/replay disclosure, logical lifetime/physical owner correspondence and remaining supported consumers. Expiredsourceform retainedCRUD replay additionally requires canonical retained-only admission; original completeHTTPclaim did not cover this lease join.",
-        "owner": "State/Cloudflare/Interfaces security owners; exact scenario producer"
+        "prerequisite": "Checked CRUD first/replay disclosure and compiled expired signed-form consumer are qualified at recorded scopes. Remaining scenario producing-origin/dependency provenance/current disclosure and logical lifetime/physical owner correspondence require defining releases. Multi-member current authority additionally requires the Identity-owned coherent bounded snapshot prerequisite recorded in REPLAY-IP07; repeated equal singular observations do not close it.",
+        "owner": "Capability scenario provenance/current disclosure; Identity coherent membership snapshot contract; Cloudflare/Interfaces supported consumers"
       }
     },
     "TECH-S03": {
@@ -1598,8 +1598,15 @@
       "blocker": "Remaining scenario retained replay lacks current authority/result provenance; its existing Interfaces age gate cannot safely be lifted.",
       "evidence": "security-joins.json",
       "remaining_prerequisite": {
-        "prerequisite": "Scenario execution-owned provenance/current-authority projection remains. Expired signed create/update recovery is implemented and owning/direct genuine compiled HTTP tested through the existing public runtime facade. Broader host/installed and original parent gates remain; no full packet acceptance.",
-        "owner": "Capability scenario provenance/current-authority producer; Dev broader host consumers; Packages existing Interfaces consumer"
+        "prerequisite": "Scenario execution-owned provenance/current-authority projection remains. Capability's zero/single-distinct membership finite slice is not yet released; multi-member authority needs Identity's coherent snapshot contract below. Expired signed create/update recovery is qualified through the owning runtime facade; broader host/installed and original parent gates remain. Keep scenario age gate; no full packet acceptance.",
+        "owner": "Capability scenario provenance/current-authority producer; Identity coherent membership snapshot contract; Dev broader host consumers; Packages existing Interfaces consumer"
+      },
+      "membership_snapshot_prerequisite": {
+        "state": "Blocked and skipped pending exact defining owner release; no Packages implementation",
+        "verified_source": "Identity ports.ts findMembership(team,user), State policy/roles.ts MembershipReader and Cloudflare runtime/invoke.ts mirror are singular. Identity storage/d1.ts uses one SELECT and separately atomic membership UPDATEs with clock-derived updated_at; its database port has no multi-member snapshot token or State revision association. Repeated equality and State revision checks do not establish simultaneous caller/subject AND authority.",
+        "prerequisite": "Identity must own/release a bounded coherent multi-member read/snapshot correspondence, consumed by State/Cloudflare current disclosure. Capability's reported finite zero/single-distinct identity projection remains an unpublished producer input; do not duplicate it or infer broader scenario replay admission.",
+        "owner": "Identity defining membership snapshot contract; Capability State/scenario projection; Dev Cloudflare producer; Packages Interfaces consumer",
+        "limit": "Read-only exact source verification and dependency record only. No new epoch/retry loop/protocol, Identity/State source change, extra proof tree or native preparation activation. Existing human holds remain."
       },
       "checked_crud_consumer": {
         "state": "implemented, tested, root-reviewed finite current producer/consumer join",
