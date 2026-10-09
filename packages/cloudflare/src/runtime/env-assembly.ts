@@ -73,7 +73,7 @@ function unavailableGlobalStore(): StoragePort {
     throw new Error('owner-storage: selected team State requires its owner boundary; global storage is unavailable');
   };
   return Object.freeze({ readRevision: refuse, load: refuse, query: refuse, commit: refuse,
-    readReceipt: refuse, outboxPending: refuse, scheduleGet: refuse, schedulesDue: refuse,
+    readReceipt: refuse, outboxPending: refuse, outboxGet: refuse, scheduleGet: refuse, schedulesDue: refuse,
     historyFor: refuse, readInstalledSnapshot: refuse, readMigrationProgress: refuse,
     readStagedRows: refuse, stageMigrationRows: refuse, publishMigrationChunk: refuse,
     flipInstalledSnapshot: refuse, readMigrationOutcomes: refuse, recordMigrationFailure: refuse, discardStagedRows: refuse,

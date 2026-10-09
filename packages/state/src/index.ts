@@ -42,6 +42,7 @@ export type {
   DomainWrite,
   HistoryEntry,
   OutboxIntent,
+  RetainedOutboxIntent,
   ScheduleOp,
   CommitBatch,
   CommitResult,

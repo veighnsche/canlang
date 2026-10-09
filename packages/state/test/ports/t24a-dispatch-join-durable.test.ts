@@ -131,6 +131,7 @@ function doProxy(): StoragePort {
     commit: (batch) => doCall('commit', batch),
     readReceipt: (identity) => doCall('readReceipt', identity),
     outboxPending: () => doCall('outboxPending'),
+    outboxGet: (intentId) => doCall('outboxGet', intentId),
     scheduleGet: (key) => doCall('scheduleGet', key),
     schedulesDue: (now, limit) => doCall('schedulesDue', now, limit),
     historyFor: (model, recordId) => doCall('historyFor', model, recordId),
