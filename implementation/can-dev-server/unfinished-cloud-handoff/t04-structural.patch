@@ -1,0 +1,124 @@
+--- a/compiler/src/syntax/parser.rs
++++ b/compiler/src/syntax/parser.rs
+@@ -16,7 +16,7 @@
+ //! panels, `edit` suites and generic catalog component items.
+ //! Diagnostics use codes E1200–E1216 (see `syntax::mod` catalog).
+ 
+-use crate::diagnostic::Diagnostic;
++use crate::diagnostic::{ConstructCandidates, Diagnostic};
+ use crate::source::{SourceId, Span};
+ use crate::syntax::cst::{SyntaxKind, SyntaxNode};
+ use crate::syntax::layout::{LayoutResult, LogicalLine, decode_description_set};
+--- a/compiler/src/syntax/parser.rs
++++ b/compiler/src/syntax/parser.rs
+@@ -735,7 +735,16 @@
+                 "expected app, package or migration".to_string(),
+                 line.tokens[0].span,
+             );
+-            parser.recover(&mut kids, line, fail);
++            let mut diagnostic = fail.diag();
++            diagnostic.construct_candidates = Some(Box::new(ConstructCandidates {
++                version: 1,
++                disposition: "structural",
++                slot: None,
++                ids: Vec::new(),
++                complete: false,
++            }));
++            parser.diags.push(diagnostic);
++            parser.error_for_line(&mut kids, line);
+             index += 1;
+         }
+     }
+--- a/compiler/src/syntax/layout.rs
++++ b/compiler/src/syntax/layout.rs
+@@ -11,7 +11,7 @@
+ 
+ use std::collections::HashSet;
+ 
+-use crate::diagnostic::Diagnostic;
++use crate::diagnostic::{ConstructCandidates, Diagnostic};
+ use crate::source::{SourceId, Span};
+ use crate::syntax::lexer::{PhysLine, Punct, Token, TokenKind, lex_fragment};
+ 
+--- a/compiler/src/syntax/layout.rs
++++ b/compiler/src/syntax/layout.rs
+@@ -203,11 +203,19 @@
+                 .first()
+                 .map(|t| t.span)
+                 .unwrap_or_else(|| Span::new(file, 0, 0));
+-            diagnostics.push(Diagnostic::error(
++            let mut diagnostic = Diagnostic::error(
+                 "E1103",
+                 "child block must add exactly one space".to_string(),
+                 span,
+-            ));
++            );
++            diagnostic.construct_candidates = Some(Box::new(ConstructCandidates {
++                version: 1,
++                disposition: "structural",
++                slot: None,
++                ids: Vec::new(),
++                complete: false,
++            }));
++            diagnostics.push(diagnostic);
+             if levels.is_empty() {
+                 roots.push(line);
+                 levels.push(roots.len() - 1);
+--- /dev/null
++++ b/compiler/tests/construct_candidates.rs
+@@ -0,0 +1,55 @@
++//! Source-derived structural construct routing for observed first drafts.
++//! The carrier does not claim a keyword candidate or a repaired program.
++
++use canlang_compiler::diagnostic::Diagnostic;
++use canlang_compiler::source::{SourceId, Span};
++use canlang_compiler::syntax::parse_source;
++
++fn assert_structural(diagnostic: &Diagnostic, code: &str, start: u32, end: u32) {
++    assert_eq!(diagnostic.code, code);
++    assert_eq!(diagnostic.primary, Span::new(SourceId(0), start, end));
++    let routing = diagnostic.construct_candidates.as_ref().expect("structural routing");
++    assert_eq!(routing.version, 1);
++    assert_eq!(routing.disposition, "structural");
++    assert_eq!(routing.slot, None);
++    assert!(routing.ids.is_empty());
++    assert!(!routing.complete);
++}
++
++#[test]
++fn six_observed_first_drafts_keep_first_code_span_and_structural_routing() {
++    let cases: [(&str, &str, u32, u32); 6] = [
++        (include_str!("../../design/evaluation/can-dev-novice-20261009/raw/expenses-luna.can"), "E1211", 46, 51),
++        (include_str!("../../design/evaluation/can-dev-novice-20261009/raw/expenses-sol.can"), "E1211", 0, 5),
++        (include_str!("../../design/evaluation/can-dev-novice-20261009/raw/shifts-luna.can"), "E1211", 0, 5),
++        (include_str!("../../design/evaluation/can-dev-novice-20261009/raw/shifts-sol.can"), "E1103", 29, 33),
++        (include_str!("../../design/evaluation/can-dev-novice-20261009/raw/supplies-luna.can"), "E1211", 0, 5),
++        (include_str!("../../design/evaluation/can-dev-novice-20261009/raw/supplies-sol.can"), "E1103", 28, 32),
++    ];
++    for (source, code, start, end) in cases {
++        let (tree, diagnostics) = parse_source(SourceId(0), source);
++        assert!(tree.verify_coverage(source.len() as u32).is_ok());
++        assert_structural(diagnostics.first().expect("first diagnostic"), code, start, end);
++    }
++}
++
++#[test]
++fn other_section_and_layout_errors_do_not_gain_unproven_routing() {
++    let (_, clean) = parse_source(SourceId(0), "app Demo\nGiven\nWhen\nThen\n");
++    assert!(clean.is_empty(), "valid scaffold needs no suggestion");
++
++    let (_, section) = parse_source(SourceId(0), "app Demo\nGiven\nWhen\nGiven\nThen\n");
++    let reordered = section.iter().find(|item| item.code == "E1211").expect("section order");
++    assert_eq!(reordered.message, "sections must appear once in Given/When/Then order");
++    assert!(reordered.construct_candidates.is_none());
++
++    let (_, layout) = parse_source(SourceId(0), " app Demo\nGiven\nWhen\nThen\n");
++    let first_line = layout.iter().find(|item| item.code == "E1103").expect("first-line indent");
++    assert_eq!(first_line.message, "top-level declaration must start in column 1");
++    assert!(first_line.construct_candidates.is_none());
++
++    let (_, unsupported) = parse_source(SourceId(0), "app Demo\nGiven\nWhen\n unknown_operation\nThen\n");
++    let unknown = unsupported.iter().find(|item| item.code == "E1200").expect("unknown When declaration");
++    assert_eq!(unknown.message, "expected scenario or crud declaration");
++    assert!(unknown.construct_candidates.is_none());
++}
