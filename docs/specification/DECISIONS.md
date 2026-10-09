@@ -3827,3 +3827,7 @@ Use explicit discover/status to attach the verified original owner; duplicate na
 ### Validation: observer cleanup after a current replacement
 
 Require a valid/current/ready publication before the session control checks replacement unsubscribe. Native watcher supersession correctly preserves the old serving preview/observer; the previous fixture accepted any changed revision and raced that contract. Retry only an explicitly superseded check, bounded to3 immediate checks, retaining all disposal/subscriber/failure assertions. The affected private-session suite passes12/12. No production cleanup defect or new wait policy is inferred.
+
+### Intake: declared native operation form controls
+
+Consume Interfaces3c846ee6's three defining source/test files while retaining local closed HTML refusal facts, strict operation age and source-form binding. Native controls project declared typed fields with exact scalar/ref strings; duplicate, mixed or undeclared controls refuse before invoke. Current source checks pass42/42 plus binding5/5. Keep the acknowledged partial-form absent-checkbox gap until an owning rendered-field transport fact exists; no blind false inference. The exact Services6ac7e298 test-only intake observes real expiry before retry refusal and passes its local HTTP case1/1. Joined compiled Office browser qualification remains due.
