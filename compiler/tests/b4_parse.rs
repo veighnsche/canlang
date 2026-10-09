@@ -1,8 +1,7 @@
 //! B4-F1 parser regression tests.
 //!
-//! * `each=` fan-out on trusted scenarios keeps its `E1203` proposal
-//!   marker but must still parse, so the enclosing package stays in the
-//!   module index and its body is checked (CanShift/CanVolunteer
+//! * `each=` fan-out on trusted scenarios parses cleanly, so the enclosing
+//!   package stays in the module index and its body is checked (CanShift/CanVolunteer
 //!   each-poisoning).
 //! * `delivery(...)`/`invocation(...)` type positions, `expose=` on crud,
 //!   page `refresh=` and form `import=csv`/`review=` must parse (B4
@@ -82,16 +81,11 @@ package probe
    list Members columns=name
 ";
 
-/// `each=` keeps exactly one `E1203` on the `each` word (proposal
-/// marker stays) while the scenario still parses: no `Error` node.
+/// `each=` parses cleanly while preserving the scenario and full source coverage.
 #[test]
-fn each_keeps_e1203_without_error_node() {
+fn each_parses_cleanly_without_error_node() {
     let (tree, diags) = syntax::parse_source(file(), EACH_SRC);
-    assert_eq!(codes(&diags), vec!["E1203"], "diags: {diags:?}");
-    assert_eq!(diags[0].message, "unsupported scenario attribute `each`");
-    let (start, _) = span_of(EACH_SRC, "each=Member", 1);
-    assert_eq!(diags[0].primary.start, start);
-    assert_eq!(diags[0].primary.end, start + "each".len() as u32);
+    assert!(diags.is_empty(), "diags: {diags:?}");
     assert_eq!(count_kind(&tree, SyntaxKind::Error), 0);
     assert_eq!(count_kind(&tree, SyntaxKind::Scenario), 1);
     assert!(tree.verify_coverage(EACH_SRC.len() as u32).is_ok());
@@ -115,11 +109,14 @@ fn each_package_body_still_checked() {
             .any(|d| d.code == "E2001" && d.message.contains("no_such_guard")),
         "body must be checked, got {diags:?}"
     );
-    assert!(has_code(&diags, "E1203"), "E1203 stays, got {diags:?}");
+    assert!(
+        !has_code(&diags, "E1203"),
+        "each is supported, got {diags:?}"
+    );
 }
 
 /// Dotted `event`-rooted `each=` source (CanVolunteer:178 shape) parses
-/// the same way: one `E1203`, no `Error` node.
+/// cleanly with no `Error` node.
 #[test]
 fn each_event_path_parses() {
     let src = "app Probe uses=[probe]
@@ -136,7 +133,7 @@ package probe
    list Members columns=name
 ";
     let (tree, diags) = syntax::parse_source(file(), src);
-    assert_eq!(codes(&diags), vec!["E1203"], "diags: {diags:?}");
+    assert!(diags.is_empty(), "diags: {diags:?}");
     assert_eq!(count_kind(&tree, SyntaxKind::Error), 0);
     assert!(tree.verify_coverage(src.len() as u32).is_ok());
     let full = check_all(src);
