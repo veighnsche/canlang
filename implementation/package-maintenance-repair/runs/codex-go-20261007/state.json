@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-09T00:54:10.502693+00:00",
+  "updated_utc": "2026-10-09T00:58:59.680462+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -3164,6 +3164,11 @@
       "status": "Released source reviewed, exported scenarios unchanged, locally committed",
       "validation": "Affected check complete=true/omitted0/no parseerrors,Rent50,total345,Book0,other providers unchanged. Diff verifies guards/captures before effects and unchanged public scenario headers.",
       "limits": "No runtime/workflow/full52 acceptance. Public no_show and remaining enum/optional compiler errors stay open."
+    },
+    "canrent_guarded_value_source": {
+      "status": "Released exact source reviewed and locally committed; scenario identities unchanged",
+      "validation": "One affected source check complete/omitted0,Rent26,total321,Book0,other providers unchanged;24 targeted nullable/filter diagnostics removed,none added.",
+      "limits": "Remaining26 explicitly open; no runtime/full52/root48 credit."
     }
   },
   "live_finite_packets": [
