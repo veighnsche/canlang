@@ -1,4 +1,4 @@
-import type { CanonicalOwnerModelPolicies, CanonicalValueTypes, FieldMachine } from "./state.js";
+import type { CanonicalOwnerModelPolicies, CanonicalValueTypes, FieldMachine, ScenarioResultDisclosurePlan } from "./state.js";
 import type { CanTypeId, WireValue } from "./values.js";
 import type { InputChoiceBinding } from "./wire.js";
 
@@ -396,7 +396,7 @@ export interface ArtifactOperation {
     fields: ArtifactOperationInput[];
   };
   /** Optional declared result; absence leaves legacy result typing unknown. */
-  result?: { readonly type: CanTypeId };
+  result?: { readonly type: CanTypeId; readonly disclosure?: ScenarioResultDisclosurePlan };
 }
 
 /**
