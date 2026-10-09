@@ -153,11 +153,15 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       {from:'idle',to:'queued',operation:'NativeSavedScenario.rollback'},
       {from:'idle',to:'ready',operation:'NativeSavedScenario.optional'},
       {from:'idle',to:'ready',operation:'NativeSavedScenario.optional_scalar'},
+      {from:'idle',to:'ready',operation:'NativeSavedScenario.default_scalar'},
+      {from:'idle',to:'ready',operation:'NativeSavedScenario.computed_scalar'},
+      {from:'idle',to:'ready',operation:'NativeSavedScenario.default_reference'},
     ]);
-    const transitions = ['advance','finish','rollback','optional','optional_scalar'].map(name => {
+    const transitions = ['advance','finish','rollback','optional','optional_scalar',
+      'default_scalar','computed_scalar','default_reference'].map(name => {
       const op = artifact.operations?.find(item => item.name === `NativeSavedScenario.${name}`); assert.ok(op);
       const plan = op.result?.disclosure; assert.ok(plan, 'actual native machine capture must be published');
-      assert.equal(op.result?.type, name === 'optional_scalar' ? 'int' : 'void');
+      assert.equal(op.result?.type, name.endsWith('_scalar') ? 'int' : 'void');
       const callable = artifact.callables.find(item => item.id === op.name); assert.ok(callable);
       const emitted = artifact.modules.find(item => item.path === callable.module); assert.ok(emitted);
       assert.match(emitted.js, /await[^;]*observeScenarioReceiptDependency/);
@@ -442,18 +446,18 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
     assert.equal(saved.length,19,'retain every qualified scalar/array/derive case');
     const jobs = createD1Storage(cedar);
     const machineSaved: Array<{ envelope:{operation:string;operation_id:string;inputs:ClosedInputs}; physical:ReceiptRow;
-      records:NonNullable<MutationWire['records']>; expected:unknown; jobId:string }> = [];
-    async function machineCall(name: string, jobId: string) {
+      records:NonNullable<MutationWire['records']>; expected:unknown; jobId:string; rowDependent:boolean }> = [];
+    async function machineCall(name: string, jobId: string, supplied?:ClosedInputs, expectedDefaults:Record<string,unknown>={}) {
       const descriptor = transitions.find(op => op.name === `NativeSavedScenario.${name}`); assert.ok(descriptor);
       const entry = await jobs.load(jobModelName,asRecordId(jobId)); assert.ok(entry);
       const before = await resources(), history = await jobs.historyFor(jobModelName,asRecordId(jobId));
       const fence = await cedar.prepare('SELECT * FROM fence').first<{id:number;revision:number}>(); assert.ok(fence);
-      const envelope = { operation:descriptor.name, operation_id:operationId(), inputs:{job:{id:jobId,version:String(entry.version)}} };
+      const envelope = { operation:descriptor.name, operation_id:operationId(), inputs:supplied ?? {job:{id:jobId,version:String(entry.version)}} };
       const fresh = await commit(ava,envelope.operation,envelope.inputs,envelope.operation_id);
       const physical = await receipt(envelope.operation_id), outcome = object(JSON.parse(physical.outcome));
       const association = object(outcome.scenario), plan = descriptor.result!.disclosure!;
       assert.equal(physical.operation,envelope.operation); assert.equal(physical.input_hash,await hashInputs(envelope.inputs));
-      assert.deepEqual(JSON.parse(physical.resolved_defaults),{});
+      assert.deepEqual(JSON.parse(physical.resolved_defaults),expectedDefaults);
       assert.equal(outcome.status,'committed'); assert.equal(association.kind,'scenario-result/v1');
       assert.equal(association.resultType,descriptor.result!.type); assert.deepEqual(association.plan,plan);
       const selected = plan.returns.find(returned => returned.id === association.returnId); assert.ok(selected);
@@ -495,7 +499,7 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
         assert.deepEqual(net.before,entry.data); assert.deepEqual(net.after,final.data);
       }
       assert.equal(JSON.stringify(fresh.body).includes('scenario-result/v1'),false);
-      machineSaved.push({envelope,physical,records:fresh.body.records!,expected:fresh.body.result,jobId});
+      machineSaved.push({envelope,physical,records:fresh.body.records!,expected:fresh.body.result,jobId,rowDependent:selected.dependencies.length>0});
       return {entry,final,fresh,physical,outcome,association,selected,observations,changed};
     }
     // Two real stages expose the issued intermediate snapshot and one final
@@ -566,6 +570,50 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       assert.equal(optional.changed.length,choice?1:0);
       assert.equal(optional.outcome.result,name==='optional_scalar'?'7':null);
       assert.equal(optional.fresh.body.result,null); assert.deepEqual(optional.fresh.body.records,[]);
+    }
+    // State owns the admitted literal/null/computed union. Generated callbacks
+    // contribute only after actual native value/reference checks; overrides
+    // do not become defaults. These use the same source, capture and stores.
+    for (const omitted of [true,false]) {
+      const jobId=operationId(); await commit(ava,`${jobModel}.create`,{private_choice:false},jobId);
+      const inputs={job:{id:jobId,version:'1'},...(omitted?{}:{selected:false,optional:null})};
+      const outcome=await machineCall('default_scalar',jobId,inputs,omitted?{selected:true,optional:null}:{});
+      assert.equal(outcome.final.data.status,omitted?'ready':'idle'); assert.equal(outcome.final.version,omitted?2:1);
+      assert.equal(outcome.fresh.body.result,'7'); assert.equal(outcome.selected.dependencies.length,omitted?1:0);
+      assert.equal(outcome.fresh.body.records!.length,omitted?1:0);
+    }
+    for (const [choice,override] of [[true,undefined],[false,undefined],[false,true]] as const) {
+      const jobId=operationId(); await commit(ava,`${jobModel}.create`,{private_choice:false},jobId);
+      const inputs={job:{id:jobId,version:'1'},choice,...(override===undefined?{}:{selected:override})};
+      const outcome=await machineCall('computed_scalar',jobId,inputs,override===undefined?{selected:choice}:{});
+      const selected=override ?? choice;
+      assert.equal(outcome.final.data.status,selected?'ready':'idle'); assert.equal(outcome.final.version,selected?2:1);
+      assert.equal(outcome.fresh.body.result,'7'); assert.equal(outcome.selected.dependencies.length,selected?1:0);
+      assert.equal(outcome.fresh.body.records!.length,selected?1:0);
+    }
+    for (const omitted of [true,false]) {
+      const jobId=operationId(); await commit(ava,`${jobModel}.create`,{private_choice:false},jobId);
+      const ref={id:jobId,version:'1'}, inputs={seed:ref,...(omitted?{}:{job:ref})};
+      const outcome=await machineCall('default_reference',jobId,inputs,omitted?{job:ref}:{});
+      assert.equal(outcome.final.data.status,'ready'); assert.equal(outcome.final.version,2);
+      assert.equal(outcome.fresh.body.result,null); assert.equal(outcome.selected.dependencies.length,1);
+      assert.deepEqual(outcome.observations[0]!.row,outcome.entry);
+      assert.deepEqual(outcome.fresh.body.records,[{id:jobId,data:{status:'ready'}}]);
+    }
+    assert.equal(machineSaved.length,13,'retain six transitions and seven default/override outcomes');
+    const defaultWitnesses = ['default_scalar','computed_scalar','default_reference'].map(name => {
+      const witness=machineSaved.find(value => value.envelope.operation === `NativeSavedScenario.${name}`); assert.ok(witness);
+      return witness;
+    });
+    for (const witness of defaultWitnesses) {
+      const defaults=object(JSON.parse(witness.physical.resolved_defaults));
+      const supplied={...witness.envelope.inputs,...defaults};
+      const before=await resources();
+      const ordinary=await mutation(ava,witness.envelope.operation,supplied,witness.envelope.operation_id);
+      assert.equal(ordinary.body.code,'conflict'); assert.ok(ordinary.response.status>=400);
+      const retained=await recovery(ava,{...witness.envelope,inputs:supplied});
+      assert.equal(object(retained.error).code,'conflict','same resolved value never erases original raw omission');
+      assert.deepEqual(await resources(),before); assert.deepEqual(await receipt(witness.envelope.operation_id),witness.physical);
     }
     const beforeMachineReplay = await resources();
     for (const value of machineSaved) {
@@ -649,9 +697,9 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
     }
     for (const value of machineSaved) {
       const ordinary = await mutation(ava,value.envelope.operation,value.envelope.inputs,value.envelope.operation_id);
-      assert.equal(ordinary.body.status,'replayed'); assert.equal(ordinary.body.result,null); assert.deepEqual(ordinary.body.records,[]);
+      assert.equal(ordinary.body.status,'replayed'); assert.deepEqual(ordinary.body.result,value.rowDependent?null:value.expected); assert.deepEqual(ordinary.body.records,[]);
       const retained = await recovery(ava,value.envelope), replay = object(retained.result);
-      assert.equal(replay.status,'replayed'); assert.equal(replay.result,null); assert.deepEqual(replay.records,[]);
+      assert.equal(replay.status,'replayed'); assert.deepEqual(replay.result,value.rowDependent?null:value.expected); assert.deepEqual(replay.records,[]);
       assert.deepEqual(await receipt(value.envelope.operation_id),value.physical);
     }
     assert.deepEqual(await resources(),beforeWithheld);
@@ -660,7 +708,7 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
     await identityStore.removeMembership(membership.membership_id);
     const beforeRevoked=await resources();
     const pureOverride = saved.find(value => value.envelope.operation === 'NativeSavedScenario.derived_override'); assert.ok(pureOverride);
-    for (const witness of [...authorityWitnesses, pureOverride, machineWitness]) {
+    for (const witness of [...authorityWitnesses, pureOverride, machineWitness, ...defaultWitnesses]) {
       const revoked=await recovery(ava,witness.envelope); assert.equal(object(revoked.error).code,'forbidden');
     }
     assert.deepEqual(await resources(),beforeRevoked);
