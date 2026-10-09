@@ -1571,11 +1571,12 @@
         "c3362272"
       ],
       "test_files": "Exact released codegen.rs at5bb5a5f51230bc9d7873b97f105881bce34d9686 and b1_join.rs at1a6c76337b419e6f0524dfc37141242dfda6f7f9; no unrelated compiler branch changes consumed.",
-      "validation": "Direct source-current Cargo checks pass: anonymous message semantic/native3/3, UI adapter7/7, generated nominal preference public HTTP/Identity/UI1/1, codegen117/117, B1 artifact joins2/2. Initial structural golden failure revealed omitted producer test dependency; exact released file consumed and affected suite passes. Conditional model-rule/read-grant/full application acceptance remains open.",
+      "validation": "Direct source-current Cargo checks pass: anonymous message semantic/native3/3, UI adapter7/7, generated nominal preference public HTTP/Identity/UI1/1, codegen117/117, B1 artifact joins2/2. Initial structural golden failure revealed omitted producer test dependency; exact released file consumed and affected suite passes. Conditional model-rule/read-grant/full application acceptance remains open. Published CanDuration leaf consumed from exact e7d65ad9: owning b4_check282/282 pass; Cargo doc tests complete with zero doc cases. Remaining unrelated corpus mirrors are not changed.",
       "additional_gate_producers": [
         "37695f6d7c7e7ca95abd0bae169a3768e1fae37c",
         "2db9200b3fa93d1fc90b2c9d18182568e1fb485e",
-        "compiler/tests/effects.rs at3e5d2cd034f89eebfee57d1e97cd38ecc6736b2b"
+        "compiler/tests/effects.rs at3e5d2cd034f89eebfee57d1e97cd38ecc6736b2b",
+        "e7d65ad9be0915fe74bd33dc0b7b7e0c38744ce2 (compiler/src/analysis/types.rs and compiler/tests/b4_check.rs)"
       ],
       "additional_consumed_commits": [
         "8f83740f",
