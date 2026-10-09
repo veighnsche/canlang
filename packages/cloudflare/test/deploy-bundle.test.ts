@@ -243,7 +243,6 @@ describe("deploy bundle (P-B)", () => {
       "runtime/context.js",
       "runtime/stdlib.js",
       "runtime/invoke.js",
-      "runtime/assembly-verification.js",
       "runtime/sourcemap.js",
       "runtime/mcp-registry.js",
       "runtime/env-assembly.js",
