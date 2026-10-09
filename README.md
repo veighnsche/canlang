@@ -87,7 +87,7 @@ bun run build:compiler
 
 Turbo schedules the 13 package producers through their declared dependencies. Builds use a local cache with verified host, Node and Bun identities; cleanup before restoration removes obsolete outputs. `bun run build --filter=@canlang/values` builds one owner's dependency closure, and `bun run build:uncached` executes producers with cache reads and writes disabled. [The scheduling and cache report](implementation/turbo-scheduling/README.md) records the proof and its limits.
 
-Use `bun run test` for the root integration suites, `bun run test:all` for those suites plus owning package and Cloudflare runtime tests, and `bun run test:compiler` for compiler tests. Test suites run uncached; `test:all` schedules them sequentially. Native builds and release verification also run uncached through explicit adapters. See [developer setup](docs/dev-setup.md), [compiler commands](compiler/README.md), and [installation](docs/install.md) for details. `can check`, `compile`, `lint`, `fmt`, `policy`, and `lsp` provide compiler and authoring services; platform commands delegate to `can-platform`.
+Use `bun run test` for the root integration suites, `bun run test:all` for those suites plus owning package and Cloudflare runtime tests, and `bun run test:compiler` for compiler tests. Test suites run uncached; `test:all` schedules them sequentially. Native builds and release verification also run uncached through explicit adapters. See [developer setup](docs/dev-setup.md), [compiler commands](compiler/README.md), and [installation](docs/install.md) for details. `can check`, `compile`, `lint`, `fmt`, `policy`, and `lsp` provide compiler and authoring services; platform commands delegate to `can-platform`, while `can dev` delegates to the owner-only JSON session client.
 
 `bun run release` validates the prepared package outputs. `bun run release:pack`
 also writes all 13 workspace tarballs, including private dependencies, to
@@ -106,6 +106,7 @@ The [VS Code-compatible extension](editors/vscode/README.md) provides highlighti
 - [Language design](docs/specification/DESIGN.md): semantics, defaults, permissions, operations, integrations, and interfaces.
 - [Grammar](docs/specification/GRAMMAR.md): exact syntax and layout rules, including one-space indentation.
 - [Decisions](docs/specification/DECISIONS.md): accepted choices, rationale, uncertainty, and superseded proposals.
+- [Can dev server design](design/can-dev-server.md): living proposal for agent onboarding through Jev-ranked keyword help, deterministic debugging, examples, and preview.
 - [Completed evaluation plan](design/evaluation/PLAN.md): the design study, its reports, frozen baseline, and verification limits.
 - [Living ideal file-tree plan](docs/ideal-filetree-plan.md): unified finished-product architecture, responsibility owners, required workflows, and future work. After every merge, its handler reconciles accumulated changes and advances the checkpoint only after complete review; plan maintenance does not authorize implementation.
 - [Approved UI vocabulary](design/UI-COMPONENTS.md): all 68 pinned daisyUI components, typed bindings, and the shared shell.

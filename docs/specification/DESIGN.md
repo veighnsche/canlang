@@ -1074,7 +1074,7 @@ Model list tools accept typed filters/order/cursor/limit constrained by readable
 
 ## 11. Compiler output and change ownership
 
-Compilation parses and type-checks, resolves names/ownership/permissions/effects, and emits one workerd application, generated interfaces, Cloudflare binding requirements, versioned schema/index migrations, and the inline-example test artifact. These are compiler phases, not app framework layers. Diagnostics identify file/declaration/field and one concrete error; unknown syntax is an error, not an AI interpretation opportunity.
+Compilation parses and type-checks, resolves names/ownership/permissions/effects, and emits one workerd application, generated interfaces, Cloudflare binding requirements, versioned schema/index migrations, and the inline-example test artifact. These are compiler phases, not app framework layers. Diagnostics identify file/declaration/field and one concrete error. Unknown syntax remains a compilation error. The development error may point to the closest context-eligible Can construct, with its grammar-owned signature, description and reference link. Jev may rank a finite supplied set of construct IDs with uncertainty; it does not author the syntax or make the guessed source executable. The agent revises and checks source again.
 
 Application source has no executable general-purpose escape hatch. Pure derivations compose expressions; scenarios compose canonical effects; integrations implement declared external contracts. The compiler does not invent business decisions, provider mappings, field names, or functions to make a source file appear complete.
 
