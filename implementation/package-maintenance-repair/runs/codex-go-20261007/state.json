@@ -1443,7 +1443,17 @@
         "prerequisite": "Selected entry source/lock/tool/emit/pack/actual supported-host consumer correspondence; native inventory remains held.",
         "owner": "Each owning package and delivery/release integrator"
       },
-      "current_validation_gap": "Workspace boundary gate retains 102 existing violations. Newly corrected catalog/contract-profile setup and fresh compiled D1 CRUD/browser/MCP consumers are finite checks; supported source/installed/packed correspondence and existing whole-release gates remain required."
+      "current_validation_gap": "Workspace boundary gate retains 102 existing violations. Newly corrected catalog/contract-profile setup and fresh compiled D1 CRUD/browser/MCP consumers are finite checks; supported source/installed/packed correspondence and existing whole-release gates remain required.",
+      "teamtasks_fixture_consumer": {
+        "state": "implemented and tested finite owning fixture consumer",
+        "files": [
+          "tests/e2e/fixtures/handbuilt/teamtasks.ts",
+          "tests/e2e/fixtures/artifact-loader.ts",
+          "tests/e2e/fixtures/handbuilt/identity-bundle-entry.js",
+          "tests/e2e/fixtures/handbuilt/ui-bundle-entry.js"
+        ],
+        "validation": "Existing15Chromium/workerd cases and e2e TypeScriptpass; realpublicIdentity/UIclosures, sourcecorrespondence review, auth/CSRF/permissions/D1/MCP assertions unchanged. Genuine draft/compiled/fullrelease remainder separatelyblocked."
+      }
     },
     "DEL-E02": {
       "planning_status": "blocked",
@@ -1533,6 +1543,16 @@
           ".github/workflows/e2e.yml",
           ".github/workflows/lane-01.yml"
         ]
+      },
+      "teamtasks_fixture_consumer": {
+        "state": "implemented and tested finite owning fixture consumer",
+        "files": [
+          "tests/e2e/fixtures/handbuilt/teamtasks.ts",
+          "tests/e2e/fixtures/artifact-loader.ts",
+          "tests/e2e/fixtures/handbuilt/identity-bundle-entry.js",
+          "tests/e2e/fixtures/handbuilt/ui-bundle-entry.js"
+        ],
+        "validation": "Existing15Chromium/workerd cases and e2e TypeScriptpass; realpublicIdentity/UIclosures, sourcecorrespondence review, auth/CSRF/permissions/D1/MCP assertions unchanged. Genuine draft/compiled/fullrelease remainder separatelyblocked."
       }
     },
     "REPLAY-IP07": {
@@ -4290,30 +4310,30 @@
     "authorization": "Vince current Packages starting prompt; worker-specific instructions remain confined to Packages.",
     "coordination": "Coordinator verified as local chat 01a11e6b-f4e1-7603-b47d-9d3210c9c6de; no callable send-message-to-thread capability. Dependencies recorded in packet_state.",
     "examined_queue": "All48 existing packet identities/progress preserved. Human prioritizes blocking affected PR gates. Released nominal preference producer1ee1239d/dac8596f consumed asfe32dea1/c52722e6, with matching published strictB1 test/workflow corrections1a6c7633/2db9200b; Capability697022af ES2022 standalone target consumed. Next ready fixture/State gate corrections continue; native preparation HOLD retained.",
-    "delivery": "PR135 ready; compiler dependency d2788779, source/profile record 6fd99e03 and coherent consumer/CI unit 5e13a5f5 committed/pushed and confirmed GitHub heads. Related current-producer qualification updates existing records; unfinished/external scope explicit. Own branch only, no merge/main push/deployment.",
-    "last_upstream_sync": "Current main9ecb2759 remains integrated at5910445b; all subsequent coherent boundaries up to published-a37 prerequisite check are already up to date. Draft5a12eb9e remote ref remains unavailable to CI; earlier recursive fetch additionally refused06b23b5d.",
-    "review_process": "Only Codex automation counts. Actual740ab20b code/security reviews completed without new findings; prior registry4230509661 assessed/corrected. New released dependency/gate revisions require their own relevant reviews; no CodeRabbit or whole-plan/security acceptance.",
+    "delivery": "PR135 includes published coherent released B1/capability gate7a55, Statefixture2742, unfinished reviewed witness67ae, and exact sharedCIeac25; now coherent real Identity/UI fixture closure qualification complete15/15. Fullqueue unfinished; own branch only, no merge/main push/deployment.",
+    "last_upstream_sync": "Main9ecb2759 integrated at5910445b; exact shared CItask boundary fetch/merge up to date. Pinned draft5a now released/fetched without pointer change; source prerequisites separately checked.",
+    "review_process": "Only Codex automation counts. Actual7a55bc4 code/security reviews completed without new findings. eac25ce review running at useful boundary; new consumer push requires its own relevant completed review. Prior corrected registry finding remains only observed historical finding.",
     "filetree_reconciliation": "Codex finding4230509661 assessed: its parallel-ancestry premise is false (local/GitHub parent chain confirms5910445b ancestor of5e13a5f5/dec38944), but the registry endpoint was stale. Existing complete structural inventory refreshed through actual dec3894411a73d863324a4e0525b71598fe162a6:1043commits/10667net deltas/11208historical paths/510history-only. Prior allocations/semantic limits retained; complete82493427checkpoint remains unadvanced, no recursive registration of this bookkeeping.",
     "pull_request": "https://github.com/veighnsche/canlang/pull/135",
     "ci_prerequisites": [
       {
-        "prerequisite": "Publish/provide tracked draft submodule5a12eb9ebb136ffa4e5ce352663f92affba25bc2; tools checkout refuses missing remote ref.",
-        "owner": "Draft submodule publisher/upstream coordinator"
+        "prerequisite": "Six real Cloudflare bypasses remain: input-choices test UI imports(3), compiler-check Values catalog path(1), construct-help Values/UI source imports(2). Exact owning release required before workspace boundary gate passes.",
+        "owner": "Dev server worker, coordinating through local chat01a11e6b-f4e1-7603-b47d-9d3210c9c6de"
       },
       {
-        "prerequisite": "Coordinator exact five-file shared CI patch released; State producer-fixture read repaired through byte-exact owning test inputs and affected check passes. Consume handoff before assessing current remaining real Dev-owned bypasses.",
-        "owner": "Packages consumes coordinator CI handoff; Dev owns six Cloudflare consumer bypasses"
+        "prerequisite": "Exact pinned draft5a now available. Pristine CanDo+Employees pilot failsE3001 nullable person and2E3010 active_member derive-purity; retained patched pilot406 provenance refuses changedCanDo and old source emitsE1200 Given preferences+4E2001 preferences/row. Existing15pilot cases all fail at these defining profiles; no skipped/missing-source substitution.",
+        "owner": "Draft/Compiler defining source and profile owners; Packages consumes released current-profile fixture/provenance contract"
       },
       {
-        "prerequisite": "Retained compiled pilots require tracked draft5a12eb9e publication and owning source profiles (active_member/datetime/preferences/Given-Then). TeamTasks fixture correspondence reviewed; actual loader now needs public Identity transitive dependency closure (@scure/base), repair in progress.",
-        "owner": "Draft publisher/coordinator and exact retained pilot producer owners; Packages fixture loader consumer"
+        "prerequisite": "Newly executable exact Rust1.99 full affected gate: formatter differences in9compiler/test files; Clippy65lib errors (including result_large_err/manual_flatten); cargo test effects target cannot compile due private delivery_progress_alias/std_delivery_result_type. Defining coherent Compiler gate release needed.",
+        "owner": "Compiler worker PR133; Packages consumes narrow published source/test fix"
       }
     ],
     "review_prerequisite": {
       "prerequisite": "Consume relevant Codex code/security review after this coherent released dependency/gate update;740ab20b completed without new findings.",
       "owner": "Codex automated reviewer; Packages consumes revision findings"
     },
-    "ci_observed_revision": "At dec38944 standalone contracts CI passes after the established ES2023 profile repair; Playwright produces the catalog and reaches15passed/21failed/9not-run, including the corrected complete compiled CRUD journey. Remaining failures are recorded retained pilot/draft/handbuilt source-profile prerequisites, not the former catalog omission. Prior same-source build/catalog, Values, contracts-conformance, B2 and Work/Services/Files pass; exact newer pushed results remain required. Draft checkout and existing102workspace boundaries remain externally owned.",
+    "ci_observed_revision": "At7a55 actual B1CIpasses after published owning source/test/workflow corrections. At eac25 current full guard confirms6realDev-owned bypasses, State violation gone. LocalTeamTasks consumer15/15 and e2eTypeScriptpass; draft pilots15fail at explicit source/provenance profiles. Real fullRustgate now runs and reports formatter/Clippy/effects visibility compilation prerequisites. Coordinator handoff26build/16guard/tools3+37 reused unchanged. No E2E/fullRust/workspace acceptance.",
     "released_compiler_dependency": {
       "release": "Compiler PR1334cb5c55d04afe0c8d4641e9fe9501465baec8f96 cherry-picked with provenance asd2788779cee855bc940cf212208e0c049d9abd99; source delta exactly absent module declaration/two calls. Conflicting documentation retained at its owning historical scope.",
       "validation": "Rust1.99 locked offline B1 actual-catalog joins2/2, zeroSKIP; actual nominal generated/public Interfaces/UI/Identity Memory preference consumer1/1. Fresh locked compiler build passes and exact released workflow block provesTeamTasks exit10, seven precise errorE6008 profiles, complete diagnostic JSON/omitted0/no artifact fields. Unsupported source profiles remain refused; no whole-app/help/corpus acceptance.",
@@ -4321,9 +4341,9 @@
       "followup": "Published Compiler1ee1239d/dac8596f receiving-field/grouped identity source and owning tests consumed with provenance asfe32dea1/c52722e6. Exact matching B1 source-test delta from1a6c7633 and workflow delta from2db9200b consumed; no unrelated compiler implementation or unfinished checkpoint adopted."
     },
     "pending_shared_boundary_handoff": {
-      "prerequisite": "Coordinator reports validated all26package builds and removal of93 false exported-self-reference diagnostics in isolated740ab20b; final exact Office fixture registrations and integration/e2e YAML release pending. Preserve only scripts/check-package-boundaries.mjs and directly relatedtest for coordinator; consume published coherent handoff whenavailable. Packages owns exact State numeric-control test producer-input diagnostic; Dev owns other explicitCF bypasses.",
-      "owner": "Coordinator existing local chat01a11e6b-f4e1-7603-b47d-9d3210c9c6de; published SHA stillrequired",
-      "status": "reported preparation, not yet consumed/validated on this branch"
+      "release": "Coordinator exact five-file patch7e114146 consumed via git apply --3way as eac25ce3378009895968b44d29c710d59c328c07 and pushed to PR135. All four code/workflow blob IDs match handoff; newer DECISIONS entries retained.",
+      "validation": "Reuse unchanged owning handoff: locked install,26build tasks,16guard cases,YAML,3mockedJEV+37parser cases. Actual current full guard now reports6Dev-ownedCloudflare bypasses; State fixture read fixed. No whole-workspace acceptance.",
+      "status": "consumed and published; exact SHA reported here, no confirmed coordinator receipt"
     },
     "capability_gate_input": {
       "release": "Capability697022afc62d06a4ec3d909eb78bacdf44ab0ff9 standaloneContracts targetES2022 consumed with existingES2023lib, matching tsconfig.base. Exact changed standalone checkpasses.",
@@ -4335,9 +4355,14 @@
       "validation": "Owning State TypeScript build passes; released NumericControl artifact retains integer metadata and unknown legacy result passes1/1. Full guard assessed after exact coordinator release."
     },
     "teamtasks_fixture_gate": {
-      "status": "unfinished checkpoint; source correspondence reviewed, consumer validation fails",
+      "status": "implemented; existing affected consumer qualification passed",
       "input": "Compared prior a4b52d51 source against current004a2b8e: only verbatim TeamTasks.view and TeamNotes.show_content declarations relocate Given to Then; all fixture-covered records/policies/CRUD/pages unchanged. Honest source witness/comment updated; no preference/Notes/Office completeness claim.",
-      "validation": "Existing15 scaffold/TeamTasks/MCP cases reach real Worker startup:6setup failures/9not-run from missing vendor/identity/sessions/@scure/base imported by actual Identity tokens. Owning fixture-loader dependency closure repair in progress; no passed app claim."
-    }
+      "validation": "Existing15 scaffold/TeamTasks/MCP Chromium/workerd cases pass after bundling real public Identity/testing and UI/Values installed closures; owning e2e TypeScript passes. Auth/session/CSRF/grant/denied projection/HTTP-MCP parity/D1 assertions retained. Fixture-only scope; no preferences/Notes/Office/complete compiled-app acceptance."
+    },
+    "draft_source_release": {
+      "release": "Human-authorized coordinator publication of EXISTING tracked5a12eb9ebb136ffa4e5ce352663f92affba25bc2 to canlang-drafts codex/ci-corpus-20261009 fetched; exact detached pinned checkout restored. Prior clean a55a0f7 HEAD preserved at draft branch codex/packages-preserved-draft-20261009; no local edits discarded, pointer/main/source unchanged.",
+      "validation": "Changed prerequisite consumed once in existing pristine/patched pilot checks and real full Rust fmt/Clippy/test commands; actual source/compilation failures recorded separately."
+    },
+    "workflow_consolidation_owner": "Coordinator reserved only integration/e2e/b1/b2/lane01-through06 YAML for authorized finite consolidation; prior exact CIpatch remains consumed. No further workflow edits by Packages."
   }
 }
