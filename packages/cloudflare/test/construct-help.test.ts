@@ -153,4 +153,58 @@ describe("captured construct help", () => {
         .toMatchObject({ disposition: "unknown", candidateCoverage: "unknown", cards: [] });
     }
   });
+
+  it("retains bounded source attestations without qualifying compiler candidates", async () => {
+    const context = { version: 1, messageKind: "unrecognized_keyword", section: "Given", guess: "rules",
+      exactSourceSpan: true, structuralRecovery: false, recoveryComplete: true, nameFilterComplete: true,
+      materialIntentChoice: false, evidenceSufficient: true, unsupportedBehaviorProven: false };
+    const exact = { version: 1, disposition: "exact", slot: "given.rule", ids: ["can.v1.policy"], complete: true, context };
+    const parsed = parseCompilerConstructCandidates(exact);
+    expect(parsed.context).toEqual(context);
+    expect(Object.isFrozen(parsed.context)).toBe(true);
+    for (const section of ["Given", "When", "Then", "root"]) {
+      expect(parseCompilerConstructCandidates({ ...exact, context: { ...context, section } }).context?.section).toBe(section);
+    }
+    const unreliable = { ...context, recoveryComplete: false, nameFilterComplete: false,
+      exactSourceSpan: false, structuralRecovery: true, materialIntentChoice: true, evidenceSufficient: false };
+    expect(parseCompilerConstructCandidates({ ...exact, context: unreliable }).context).toEqual(unreliable);
+    const index = createConstructHelpIndex(await inputs());
+    expect(joinCompilerConstructCandidates(index, exact, "office-supplies-local-v1"))
+      .toMatchObject({ disposition: "exact", candidateCoverage: "unknown", cards: [{ status: "unavailable" }] });
+  });
+
+  it("discards malformed ranking context while preserving deterministic routing", () => {
+    const context = { version: 1, messageKind: "unrecognized_keyword", section: "Given", guess: "rules",
+      exactSourceSpan: true, structuralRecovery: false, recoveryComplete: true, nameFilterComplete: true,
+      materialIntentChoice: false, evidenceSufficient: true, unsupportedBehaviorProven: false };
+    const exact = { version: 1, disposition: "exact", slot: "given.rule", ids: ["can.v1.policy"], complete: true };
+    const malformed = [undefined, null, [], {}, { ...context, version: 2 }, { ...context, extra: true },
+      { ...context, messageKind: "expected a rule" }, { ...context, messageKind: "a".repeat(65) },
+      { ...context, messageKind: "E1200" }, { ...context, section: "given" }, { ...context, section: "Unknown" },
+      { ...context, guess: "" }, { ...context, guess: "rule(name)" }, { ...context, guess: '"secret"' },
+      { ...context, guess: "a".repeat(65) }, { ...context, guess: "rules\n" }];
+    for (const key of ["exactSourceSpan", "structuralRecovery", "recoveryComplete", "nameFilterComplete",
+      "materialIntentChoice", "evidenceSufficient", "unsupportedBehaviorProven"]) {
+      malformed.push({ ...context, [key]: undefined }, { ...context, [key]: "true" });
+    }
+    for (const value of malformed) {
+      expect(parseCompilerConstructCandidates({ ...exact, context: value })).toEqual(exact);
+    }
+  });
+
+  it("does not retain ranking context on structural, none, unknown or incomplete routing", () => {
+    const context = { version: 1, messageKind: "unrecognized_keyword", section: "Given", guess: "rules",
+      exactSourceSpan: true, structuralRecovery: false, recoveryComplete: true, nameFilterComplete: true,
+      materialIntentChoice: false, evidenceSufficient: true, unsupportedBehaviorProven: true };
+    for (const disposition of ["structural", "none", "unknown"]) {
+      const parsed = parseCompilerConstructCandidates({ version: 1, disposition, slot: "given.rule", ids: [],
+        complete: disposition === "none", context });
+      expect(parsed.disposition).toBe(disposition);
+      expect(parsed.context).toBeUndefined();
+    }
+    expect(parseCompilerConstructCandidates({ version: 1, disposition: "exact", slot: "given.rule",
+      ids: ["can.v1.policy"], complete: false, context }).context).toBeUndefined();
+    expect(parseCompilerConstructCandidates({ version: 1, disposition: "exact", slot: "given.rule",
+      ids: [], complete: true, context }).context).toBeUndefined();
+  });
 });
