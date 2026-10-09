@@ -3767,3 +3767,7 @@ Join the released State a1319672/01a6d362/ad3856a9 source/tests to the branch's 
 ### Unfinished checkpoint: local compiled workflow probes
 
 Adapt the preserved Office browser/business, failure/rerun and two-owner lifecycle probes in place for the assigned local checkout. Use source-current captured native artifacts and real installed auth/D1/browser/MCP consumers, retaining shared-member CRUD, denial snapshots, exact allowed receipt bookkeeping, failure identity, isolated reruns, stale/reset/isolation and owned cleanup assertions. Private captures and redacted outcomes stay in ignored test-results. Syntax checks pass, while actual joined journeys remain due after stable producer outputs; no generated substitute, new proof tree, cloud execution or whole-plan acceptance is introduced.
+
+### Implementation: truthful runtime fixture producer joins
+
+Join the bounded Cloudflare fixtures to actual owning module hashes, declaration/read-selector provenance and canonical delivery/user values. Receipt association and owner locator agree; selected receipt observation remains a viewer read with its exact unbound-locator refusal, while effect bypasses still refuse. Stale update coverage explicitly submits both expected current fields. D3 receipt6/observer5/durable4 pass across affected runs, typed checks pass, T32 memory checks pass with only two final corrections rerun2/2, and real D1/DO6/6 pass. Preserve commit/revocation/retry/replay/history/cancellation assertions; label handbuilt artifacts honestly without compiled-app or whole-plan acceptance.
