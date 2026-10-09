@@ -141,6 +141,7 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
   "sourcemap.js",
   "mcp-registry.js",
   "env-assembly.js",
+  "auth-rate-limiter.js",
   "cohort-tick.js",
   "grant-route.js",
   "mcp-permissions.js",
@@ -176,6 +177,8 @@ export const MCP_BUNDLE_MARKERS: readonly string[] = [
  */
 export const HTTP_BUNDLE_MARKERS: readonly string[] = [
   "handleOperationRequest",
+  "handleAuthRequest",
+  "SESSION_EXPIRES_MS",
   "createSourceFormBindings",
   "IdentityError",
 ];
@@ -794,6 +797,8 @@ export function buildHttpOperationsBundle(_repoRoot?: string): string {
     writeFileSync(
       entryFile,
       `export { handleOperationRequest, createSourceFormBindings, catalogFromArtifactOperations, INPUT_CHOICES_VERSION } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n` +
+      `export { handleAuthRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "auth.js")))};\n` +
+      `export { SESSION_EXPIRES_MS } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(identityDistribution.modules), "accounts", "registration.js")))};\n` +
       `export { handlePageRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "pages.js")))};\n` +
       `export { checkArtifactOperation, checkArtifactOperations, checkBoundArgument, checkBoundArguments, checkedToMcpInputSchema } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "mcp", "schemas.js")))};\n`,
       "utf8",

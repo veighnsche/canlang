@@ -420,7 +420,30 @@ export interface PageHttpDeps {
 }
 export type HttpPageHandlerFactory = (deps: PageHttpDeps) => (request: Request) => Promise<Response>;
 
+/** Trusted host auth inputs; no request-derived origin or implicit limiter. */
+export interface HttpAuthConfiguration {
+  readonly limiter: RateLimiter;
+  readonly origin: string;
+  readonly secureCookies: boolean;
+  readonly mail?: MailPort;
+}
+export interface AuthHttpDeps {
+  readonly identity: Omit<IdentityDeps, 'mail'> & { readonly mail?: MailPort };
+  readonly limiter: RateLimiter;
+  readonly logger: Logger;
+  readonly clock: InterfacesClock;
+  readonly secureCookies: boolean;
+}
+export type HttpAuthHandlerFactory = (deps: AuthHttpDeps) => (request: Request) => Promise<Response>;
+export interface HttpAuthJoin {
+  readonly createHandler: HttpAuthHandlerFactory;
+  /** Owning Identity session lifetime, released by the same auth bundle. */
+  readonly sessionExpiresMs: number;
+}
+
 export interface HttpJoin {
+  readonly auth?: HttpAuthConfiguration;
+  readonly authHandler?: HttpAuthJoin;
   readonly formBindings?: SourceFormBindings;
   readonly createPageHandler?: HttpPageHandlerFactory;
   readonly createOperationHandler?: VersionedHttpOperationHandlerFactory;
@@ -1544,7 +1567,28 @@ function buildInterimFetch(
       return handleHttpOperationRequest(req, ctx, pathname);
     }
     if (pathname.startsWith("/auth/")) {
-      return interimUnavailable("auth routes need the interfaces join (handleAuthRequest)");
+      const config = ctx.http?.auth;
+      const join = ctx.http?.authHandler;
+      if (join === undefined || config === undefined || typeof config.limiter?.check !== 'function') {
+        return interimUnavailable("auth routes need the defining handler and an explicit host auth limiter/origin/cookie configuration");
+      }
+      let origin: URL;
+      try { origin = new URL(config.origin); }
+      catch { return jsonResponse({ code: 'auth-configuration', message: 'Invalid host authentication configuration.' }, 500); }
+      if (origin.origin !== config.origin || !['https:', 'http:'].includes(origin.protocol) ||
+          typeof config.secureCookies !== 'boolean' || (origin.protocol === 'https:' && !config.secureCookies) ||
+          !Number.isSafeInteger(join.sessionExpiresMs) || join.sessionExpiresMs <= 0) {
+        return jsonResponse({ code: 'auth-configuration', message: 'Invalid host authentication configuration.' }, 500);
+      }
+      return join.createHandler({
+        identity: { store: ctx.identityStore, clock: { nowMs: ctx.now },
+          ...(config.mail === undefined ? {} : { mail: config.mail }),
+          verifyBaseUrl: new URL('/auth/verify', origin).href,
+          recoveryBaseUrl: new URL('/auth/recover', origin).href,
+          inviteBaseUrl: new URL('/auth/invite', origin).href,
+          sessionMaxAgeSeconds: join.sessionExpiresMs / 1000 },
+        limiter: config.limiter, logger: httpLogger, clock: { nowMs: ctx.now }, secureCookies: config.secureCookies,
+      })(req);
     }
     if (pathname.startsWith("/files/")) {
       if (ctx.files?.fetch !== undefined) return ctx.files.fetch(req);
