@@ -1,0 +1,16 @@
+## PROPOSED, intentionally invalid non-enum match surface; uncompiled.
+app AdditionalTaggedVector
+Given
+ contract Approved {reason:text}
+ contract Rejected {reason:text}
+When
+ scenario inspect(outcome:Approved|Rejected) read=true -> text by=members
+  do
+   match outcome
+    case Approved {reason=note}
+     return note
+    case Rejected {reason=note}
+     return note
+Then
+ page / title="Tagged vector"
+  text "Unsupported proposed surface"

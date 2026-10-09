@@ -1,10 +1,46 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { Miniflare } from "miniflare";
+import { describe, expect, it, vi } from "vitest";
 import { startLocalDev } from "../src/dev/local-run.js";
 
 const smokeSource = readFileSync(new URL("./fixtures/smoke-worker.mjs", import.meta.url), "utf8");
 
 describe("local dev smoke", () => {
+  it("refuses direct access to Miniflare while preserving dispatched URLs", async () => {
+    const getReady = Object.getOwnPropertyDescriptor(Miniflare.prototype, "ready")?.get;
+    if (getReady === undefined) throw new Error("Miniflare.ready getter is unavailable");
+    let rawReady: Promise<URL> | undefined;
+    const readySpy = vi.spyOn(Miniflare.prototype, "ready", "get").mockImplementation(function (this: Miniflare) {
+      const ready = getReady.call(this) as Promise<URL>;
+      rawReady = ready;
+      return ready;
+    });
+    try {
+      const dev = await startLocalDev({
+        workerName: "guarded-smoke",
+        compatibilityDate: "2026-07-15",
+        mainModule: "worker.mjs",
+        modules: {
+          "worker.mjs": `export default { async fetch(request) {
+            return Response.json({ url: request.url, gate: request.headers.get("x-can-local-dispatch") });
+          } }`,
+        },
+      });
+      try {
+        const dispatched = await dev.dispatchUrl("http://preview.example.test/ping");
+        expect(dispatched.status).toBe(200);
+        expect(await dispatched.json()).toEqual({ url: "http://preview.example.test/ping", gate: null });
+        if (rawReady === undefined) throw new Error("Miniflare raw origin was not observed");
+        const direct = await fetch(new URL("/ping", await rawReady));
+        expect(direct.status).toBe(403);
+      } finally {
+        await dev.dispose();
+      }
+    } finally {
+      readySpy.mockRestore();
+    }
+  }, 120000);
+
   it("serves HTTP and round-trips D1 through the Worker binding", async () => {
     const dev = await startLocalDev({
       workerName: "smoke",

@@ -1,8 +1,8 @@
 /**
  * S4 page dispatch: route matching, admission, discovery, and rendering.
  *
- * GET/HEAD only; any other method answers `not_found` (authored mapping
- * for 405/unknown, mirroring routes.ts). Flow: strip a non-root trailing
+ * GET/HEAD render pages; a source-declared enum preference selector also
+ * admits a CSRF-checked POST to its own page path. Flow: strip a non-root trailing
  * slash with a 308 (query preserved), match the descriptor (exact path,
  * else `{Token}` segments with the FULL token as the binding key),
  * resolve the caller (a present-but-bad credential is `forbidden`, never
@@ -36,8 +36,9 @@ import type {
 } from '@canlang/contracts';
 import { deriveCsrfToken, parseSessionCookie } from '@canlang/identity';
 import { buildNavigation, renderPage, selectDiscoveryCandidates } from '@canlang/ui';
-import type { PageHttpDeps } from '../ports.js';
+import type { PageHttpDeps, PagePreferenceKey } from '../ports.js';
 import {
+  assertPostCsrf,
   caughtToBusinessError,
   isBusinessThrow,
   jsonErrorResponse,
@@ -46,6 +47,7 @@ import {
 import { buildBusinessError, fromUnknown, httpStatusFor } from '../errors/envelope.js';
 import { logInternalError } from '../errors/logging.js';
 import { isPartialRequest } from './fragments.js';
+import { readCappedBody } from './limits.js';
 import { buildPageSourceContext, buildPresentationContext } from './presentation.js';
 import { SIGN_IN_PATH, SIGN_OUT_PATH, SWITCH_TEAM_PATH } from './routes.js';
 
@@ -136,6 +138,110 @@ export function matchDescriptor(
   return null;
 }
 
+function checkedPreferenceFields(descriptor: PageDescriptor): NonNullable<PageDescriptor['preferenceFields']> {
+  const fields = descriptor.preferenceFields ?? [];
+  const names = new Set<string>();
+  for (const field of fields) {
+    if (typeof field.name !== 'string' || !/^[A-Za-z][A-Za-z0-9_]*$/u.test(field.name) ||
+        names.has(field.name) || !Array.isArray(field.options) || field.options.length === 0 ||
+        field.options.some(value => typeof value !== 'string' || value === '') ||
+        new Set(field.options).size !== field.options.length ||
+        !field.options.includes(field.defaultValue)) {
+      throw new Error('Invalid source preference descriptor.');
+    }
+    names.add(field.name);
+  }
+  return fields;
+}
+
+function checkedPreferenceVersion(value: string): boolean {
+  return /^(0|[1-9][0-9]*)$/u.test(value) && BigInt(value) <= BigInt(Number.MAX_SAFE_INTEGER);
+}
+
+/** Saved preference values are loaded only for this resolved active actor/team. */
+async function preferenceSource(
+  deps: PageHttpDeps, identity: ResolvedIdentity, descriptor: PageDescriptor,
+): Promise<PageSourceContext> {
+  const source = buildPageSourceContext(identity);
+  const fields = checkedPreferenceFields(descriptor);
+  if (fields.length === 0) return source;
+  if (identity.actor === null || identity.team === null || identity.membership === null ||
+      identity.membership.status !== 'active' ||
+      identity.membership.user_id !== identity.actor.user_id ||
+      identity.membership.team_id !== identity.team.team_id) {
+    throw buildBusinessError('forbidden', 'An active team membership is required.');
+  }
+  if (deps.preferences === undefined) throw new Error('Page preference persistence is not configured.');
+  const values: Record<string, string> = Object.create(null) as Record<string, string>;
+  const versions: Record<string, string> = Object.create(null) as Record<string, string>;
+  for (const field of fields) {
+    const key: PagePreferenceKey = {
+      appId: deps.app.appId, actorUserId: identity.actor.user_id,
+      teamId: identity.team.team_id, owner: descriptor.owner, field: field.name,
+    };
+    const saved = await deps.preferences.read(key);
+    if (saved !== null && (!field.options.includes(saved.value) || !checkedPreferenceVersion(saved.version) || saved.version === '0')) {
+      throw new Error('Invalid saved page preference.');
+    }
+    values[field.name] = saved?.value ?? field.defaultValue;
+    versions[field.name] = saved?.version ?? '0';
+  }
+  return {
+    ...source,
+    preferences: Object.freeze({ [descriptor.owner]: Object.freeze(values) }),
+    preferenceVersions: Object.freeze({ [descriptor.owner]: Object.freeze(versions) }),
+  };
+}
+
+/** Bound tabs save through their actual page route and return to that view. */
+export async function handlePagePreferencePost(deps: PageHttpDeps, request: Request): Promise<Response> {
+  if (request.method.toUpperCase() !== 'POST') return notFoundResponse();
+  const url = new URL(request.url);
+  const match = matchDescriptor(deps.pages.descriptors(), url.pathname);
+  if (match === null) return notFoundResponse();
+  const fields = checkedPreferenceFields(match.descriptor);
+  if (fields.length === 0) return notFoundResponse();
+  const mediaType = (request.headers.get('content-type') ?? '').split(';')[0]?.trim().toLowerCase();
+  if (mediaType !== 'application/x-www-form-urlencoded') {
+    throw buildBusinessError('validation', 'Invalid preference form.');
+  }
+  const body = new URLSearchParams(new TextDecoder().decode(await readCappedBody(request, 4096)));
+  const names = [...body.keys()];
+  const selected = fields.filter(field => body.has(field.name));
+  if (selected.length !== 1 || names.length !== 3 || new Set(names).size !== 3 ||
+      !body.has('_csrf') || !body.has('_version') ||
+      names.some(name => name !== '_csrf' && name !== '_version' && name !== selected[0]?.name)) {
+    throw buildBusinessError('validation', 'Invalid preference form.');
+  }
+  const field = selected[0]!;
+  const value = body.get(field.name)!;
+  const expectedVersion = body.get('_version')!;
+  if (!field.options.includes(value) || !checkedPreferenceVersion(expectedVersion)) {
+    throw buildBusinessError('validation', 'Invalid preference selection.');
+  }
+  const teamId = url.searchParams.get('team');
+  const resolved = await resolveRequestIdentity(deps.identity.store, request, {
+    clock: deps.clock, ...(teamId === null ? {} : { teamId }),
+  });
+  const { identity, sessionToken } = resolved;
+  if (sessionToken === null) throw buildBusinessError('forbidden', 'Authentication required.');
+  await assertPostCsrf({
+    sessionToken, headerValue: request.headers.get('x-csrf-token'), fieldValue: body.get('_csrf'),
+  });
+  const source = await preferenceSource(deps, identity, match.descriptor);
+  await match.descriptor.admit(source, match.routeBindings);
+  const currentVersion = source.preferenceVersions?.[match.descriptor.owner]?.[field.name];
+  if (currentVersion !== expectedVersion) throw buildBusinessError('conflict', 'Preference changed; reload the page.');
+  const key: PagePreferenceKey = {
+    appId: deps.app.appId, actorUserId: identity.actor!.user_id, teamId: identity.team!.team_id,
+    owner: match.descriptor.owner, field: field.name,
+  };
+  if (!await deps.preferences!.save({ ...key, value, expectedVersion })) {
+    throw buildBusinessError('conflict', 'Preference changed; reload the page.');
+  }
+  return new Response(null, { status: 303, headers: { location: `${url.pathname}${url.search}` } });
+}
+
 /** Switcher options: active memberships with a live team, id-prefix labels. */
 async function teamOptions(deps: PageHttpDeps, identity: ResolvedIdentity): Promise<TeamOption[]> {
   if (identity.actor === null) return [];
@@ -211,6 +317,12 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
   const url = new URL(request.url);
   const method = request.method.toUpperCase();
   if (method !== 'GET' && method !== 'HEAD') return notFoundResponse();
+  const searchValues = url.searchParams.getAll('q');
+  if (searchValues.length > 1 || searchValues.some(value => value.length > 200 || /[\u0000-\u001f\u007f]/u.test(value))) {
+    const error = buildBusinessError('validation', 'Invalid collection search.');
+    return jsonErrorResponse(error, httpStatusFor(error.code));
+  }
+  const searchQuery = searchValues[0] ?? '';
   const pathname = url.pathname;
   if (pathname.length > 1 && pathname.endsWith('/')) {
     const stripped = pathname.replace(/\/+$/, '');
@@ -247,7 +359,12 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
     return jsonErrorResponse(error, httpStatusFor(error.code));
   }
 
-  const source = buildPageSourceContext(identity);
+  let source: PageSourceContext;
+  try {
+    source = await preferenceSource(deps, identity, match.descriptor);
+  } catch (err) {
+    return renderThrowResponse(deps, err, pathname);
+  }
   let bindings: AdmittedBindings;
   try {
     bindings = await match.descriptor.admit(source, match.routeBindings);
@@ -276,6 +393,7 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
     const context = buildPresentationContext({
       request,
       pathname,
+      searchQuery,
       isPartial: true,
       appDefaultLocale: deps.app.appDefaultLocale,
       csrfToken,
@@ -337,6 +455,7 @@ export async function handlePageRequest(deps: PageHttpDeps, request: Request): P
   const context = buildPresentationContext({
     request,
     pathname,
+    searchQuery,
     isPartial: false,
     appDefaultLocale: deps.app.appDefaultLocale,
     csrfToken,

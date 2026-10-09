@@ -50,6 +50,7 @@
  */
 import type {
   CanValue,
+  JudgmentSpec,
   OrderTerm,
   ProjectedRecord,
   QueryPredicate,
@@ -63,12 +64,20 @@ import { sameNativeReference } from './native-records.js';
 
 // Generated pure helpers retain their Values producer identity.
 export {
-  int64, datetime, compareInstant, addDuration, all, at, sum, join, trim, compareScalar,
+  ValueError, int64, datetime, compareInstant, addDuration, all, at, sum, join, trim, compareScalar,
   parseDecimal, addDecimal, compareDecimal, money, addMoney, compareMoney,
   date, add_days, compareDate,
 } from '@canlang/values';
 export const same = sameNativeReference;
 export { delivery } from '@canlang/state/effects/delivery';
+
+/** Lowered static source constant: no provider call, storage read or additional authority. */
+export function judgmentSpecification(c: HandlerContext, qualifiedName: string, options?: unknown): JudgmentSpec {
+  if (typeof c.judgmentSpecification !== 'function') {
+    throw new Error('Judgment specification requires the pinned compiled source resolver.');
+  }
+  return c.judgmentSpecification(qualifiedName, options);
+}
 
 /** Pure checked equality, with compatibility for earlier c-first artifacts. */
 export function equalValue(typeId: string, a: CanValue, b: CanValue): boolean;

@@ -480,6 +480,7 @@ fn push(
             primary,
             related,
             tags: Vec::new(),
+            construct_candidates: None,
         },
         fix,
     });

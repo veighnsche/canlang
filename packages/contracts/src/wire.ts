@@ -406,6 +406,7 @@ export type DerivedInputKind =
   | 'boolean'
   | 'file'
   | 'enum'
+  | 'nominal'
   | 'delivery';
 
 /**
@@ -469,6 +470,9 @@ export interface DerivedWritableInput {
   readonly model?: string;
   readonly versioned?: boolean;
   readonly enumValues?: readonly string[];
+  /** Source-defined structural input resolved through the owning artifact inventory. */
+  readonly valueType?: import('./values.js').CanTypeId;
+  readonly valueTypes?: import('./state.js').CanonicalValueTypes;
   readonly delivery?: DerivedDeliveryBinding;
   readonly file?: DerivedFileClaim;
   readonly description?: string;
@@ -588,13 +592,15 @@ export interface DerivedDeliveryResult {
  * format, `state.ts`). Engine-resolved: documents what receipt the
  * engine supplies; the caller submits no value for it.
  */
-export interface DerivedDeliveryBinding {
+export type DerivedDeliveryBinding = {
   readonly capability: string;
   readonly operation: string;
-  readonly version: number;
   readonly result: DerivedDeliveryResult;
   readonly recipe: string;
-}
+} & (
+  | { readonly judgment?: false; readonly version: number }
+  | { readonly judgment: true; readonly version: string }
+);
 
 /**
  * T19b interface-claimable file boundary for one `file` input: the

@@ -87,7 +87,7 @@ test('actual installed Email dispatch preserves durable identity and reconciles 
     const invoker = buildInvoker(artifact, asm, d1.store, { memberships, now: () => FIXED_NOW });
     const mutate = (operation: string, inputs: MutationEnvelope['inputs']) =>
       invoker.invokeMutation({ operation: `${APP}.${operation}`, operation_id: operationId(), inputs }, identity);
-    const row = committed(await mutate('Entry.create', {})).result as { id: string; version: number };
+    const row = committed(await mutate('Entry.create', {})).records![0] as { id: string; version: number };
     const firstSend = committed(await mutate('deliver', { entry: { id: row.id, version: '1' }, to: 'recipient@example.test', accept: true }));
     assert.equal(firstSend.result, '1');
     const pending = await d1.store.outboxPending(); assert.equal(pending.length, 1);

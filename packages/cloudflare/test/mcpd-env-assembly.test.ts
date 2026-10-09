@@ -30,9 +30,12 @@
  * and a real `D1Database` satisfies the store's minimal D1 surface.
  */
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { createRequire } from "node:module";
+import { execFileSync } from "node:child_process";
+import { compileFunction, constants as vmConstants } from "node:vm";
+import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import type { D1Database } from "@cloudflare/workers-types";
@@ -51,11 +54,16 @@ import { createMcpHandler } from "@canlang/interfaces/mcp/server";
 import type { McpDeps as RealMcpDeps } from "@canlang/interfaces";
 import { startLocalDev, type LocalDev } from "../src/dev/local-run.js";
 import {
-  assembleWorker,
   type AssembledModules,
   type AssemblyDeps,
   type McpHandlerFactory,
 } from "../src/worker/assembly.js";
+// Native installed producer imports preserve ESM own-data metadata; Vitest proxies expose getters.
+const { assembleWorker } = await compileFunction("return import(url)", ["url"], {
+  importModuleDynamically: vmConstants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
+})(
+  pathToFileURL(createRequire(import.meta.url).resolve("@canlang/cloudflare/worker/assembly")).href,
+) as typeof import("../src/worker/assembly.js");
 import {
   buildProductionDeps,
   type IdentityStore as MirrorIdentityStore,
@@ -128,10 +136,9 @@ function fixtureArtifact(): CompileArtifact {
     artifact_version: 1,
     language_version: "mcpd-c-fixture/0 (hand-written; NOT compiler output)",
     tool_version: "mcpd-c-fixture/0",
-    sources: [{ path: "examples/TeamTasks.can", sha256: "fixture-not-a-digest" }],
-    modules: [],
+    sources: [{ path: "ops.mjs", sha256: createHash("sha256").update(OPS_SOURCE, "utf8").digest("hex") }],
+    modules: [{ path: "ops.mjs", js: OPS_SOURCE }],
     callables: [
-      { id: READ_OP, kind: "operation", module: "ops.mjs", export: "todoRead", member: ["todoRead"] },
       { id: MUT_OP, kind: "operation", module: "ops.mjs", export: "todoCreate", member: ["todoCreate"] },
     ],
     pages: [],
@@ -161,17 +168,30 @@ function fixtureArtifact(): CompileArtifact {
   } as unknown as CompileArtifact;
 }
 
-const OPS_SOURCE = `export function canApp() {
+// Source-owned canonical fixture; the activation-refusal fixture remains handwritten.
+const CANONICAL_SOURCE = `app acme
+Given
+ Todo { title:text }
+ policy Todo read=public
+When
+ crud Todo by=members fields=title delete=remove
+Then
+`;
+
+const OPS_SOURCE = `export const appDefinition = {
+  id: "acme",
+  policy: {
+    operations: { "acme.Todo.create": { by: ["members"] } },
+    models: { "acme.Todo": { read: ["Todo.read.1"], public: ["Todo.read.1"] } },
+  },
+};
+export function canApp() {
   return {
     // B7: the create declares its admission gate (absent entries
     // deny) and Todo carries explicit-public read provenance
     // (absent reads serve zero grants) so the member-grant pin
     // still commits (mcp-route pattern).
-    policy: {
-      operations: { "acme.Todo.create": { by: ["members"] } },
-      models: { "acme.Todo": { read: ["Todo.read.1"], public: ["Todo.read.1"] } },
-    },
-    todoRead: async (c, input) => ({ rows: [{ id: "t1", title: "fixture" }], caller: c.caller.userId, inputs: input.inputs }),
+    policy: appDefinition.policy,
     todoCreate: async (c, input) => ({ status: "committed", operation_id: input.operation_id, title: input.inputs.title, caller: c.caller.userId }),
   };
 }
@@ -185,7 +205,7 @@ function stubAsm(): AssembledModules {
   const dir = tempDir();
   const file = join(dir, "ops.mjs");
   writeFileSync(file, OPS_SOURCE);
-  return { dir, entryUrl: "fixture-entry", moduleUrls: { "ops.mjs": pathToFileURL(file).href } };
+  return { dir, entryUrl: pathToFileURL(file).href, moduleUrls: { "ops.mjs": pathToFileURL(file).href } };
 }
 
 async function seedSessionTeam(
@@ -237,17 +257,32 @@ async function assembleProductionMcp(opts: {
   artifact: CompileArtifact;
   asm: AssembledModules;
   verdict?: ActivationVerdict;
-}): Promise<(req: Request) => Promise<Response>> {
+}): Promise<((req: Request) => Promise<Response>) & { readonly artifact: CompileArtifact }> {
+  let artifact = opts.artifact;
+  let asm = opts.asm;
+  if (opts.verdict?.active !== false) {
+    const dir = tempDir();
+    const sourcePath = join(dir, "canonical.can");
+    writeFileSync(sourcePath, CANONICAL_SOURCE);
+    artifact = JSON.parse(execFileSync(resolve("compiler/target/debug/can"),
+      ["compile", "--format=json", sourcePath], { encoding: "utf8" })) as CompileArtifact;
+    const { assembleModules } = await compileFunction("return import(url)", ["url"], {
+      importModuleDynamically: vmConstants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
+    })(pathToFileURL(createRequire(import.meta.url).resolve("@canlang/cloudflare/runtime/modules")).href
+    ) as typeof import("../src/runtime/modules.js");
+    asm = await assembleModules({ artifact, sourcePath }, { workDir: join(dir, "compiled"),
+      stdlibUrl: pathToFileURL(createRequire(import.meta.url).resolve("@canlang/cloudflare/runtime/stdlib")).href });
+  }
   const deps: AssemblyDeps = {
     store: opts.store,
     identityStore: opts.identityStore,
     mcp: {
       createHandler: _factoryShape,
-      permissions: createMemberMcpPermissions(opts.artifact),
+      permissions: createMemberMcpPermissions(artifact),
     },
   };
-  const assembled = await assembleWorker(artifactSafe(opts.artifact), opts.asm, deps, opts.verdict ?? { active: true });
-  return assembled.fetch;
+  const assembled = await assembleWorker(artifactSafe(artifact), asm, deps, opts.verdict ?? { active: true });
+  return Object.assign(assembled.fetch, { artifact });
 }
 
 function artifactSafe(artifact: CompileArtifact): CompileArtifact {
@@ -356,7 +391,8 @@ describe("production grant through the assembled worker", () => {
     ).tools;
     // PINNED: deployed-but-dead (empty discovery) is a failure, not a pass.
     expect(tools.length).toBeGreaterThan(0);
-    expect(tools.map((tool) => tool.name).sort()).toEqual([MUT_OP, READ_OP].sort());
+    expect(tools.map((tool) => tool.name).sort()).toEqual(fetch.artifact.operations!.map(operation => operation.name).sort());
+    expect(tools.map(tool => tool.name)).toEqual(expect.arrayContaining([MUT_OP, READ_OP]));
 
     // T17c (rule a): was the interim bridge echo; now a canonical
     // CRUD create over the production D1 store (row id ===
@@ -379,12 +415,13 @@ describe("production grant through the assembled worker", () => {
     const committed = JSON.parse(payload.content[0]?.text ?? "null") as {
       status: string;
       operation_id: string;
-      result: { id: string; data: Record<string, unknown> };
+      result: null; records: Array<{ id: string; data: Record<string, unknown> }>;
     };
     expect(committed.status).toBe("committed");
+    expect(committed.result).toBeNull();
     expect(committed.operation_id).toBe(operationId);
-    expect(committed.result.id).toBe(operationId);
-    expect(committed.result.data).toEqual({ title: "via-grant" });
+    expect(committed.records[0]!.id).toBe(operationId);
+    expect(committed.records[0]!.data).toEqual({ title: "via-grant" });
   });
 
   it("401s unknown and revoked grants with the safe error shape", async () => {

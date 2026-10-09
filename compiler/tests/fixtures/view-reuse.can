@@ -1,0 +1,42 @@
+app ViewReuse source="FR"
+context
+ locale default="es"
+Given
+ Card {title:text label="Card title",flag:bool label="Card flag"}
+ Detail in Card {label:text label="Detail label"}
+ policy Card read=public
+ policy Detail read=public
+ derive chosen(value:Card):Card = value
+When
+ crud Card by=public fields=title,flag
+ crud Detail by=public fields=label
+ scenario save(note:text label="Authored note") by=public label="Save note"
+  do let supplied=note
+ scenario bind_card(visit:Card,note:text="Kept") by=public label="Bind card"
+  do let supplied=note
+ scenario recover_detail(attempt:Detail) by=public label="Recover detail"
+  do let supplied=attempt
+Then
+ page /views title="Views"
+  table Card columns=title,flag empty="No cards" display=split
+   pagination
+   show card_body {row=chosen(row)}
+   show card_body {row=chosen(row)}
+ view card_body(row:Card)
+  actions bind_card
+  status row.flag tone=success size=sm
+  text row.title
+  tabs
+   tab "Coordination"@{nl="Afstemming"}
+    text row.title
+    list row.Detail
+     pagination
+     text row.label
+     button action=recover_detail arguments={attempt=row}
+     edit fields=label
+    text row.title
+   tab "History"@{nl="Geschiedenis"}
+    text row.title
+  edit fields=title,flag
+  form save fields=note display=inline
+   input note

@@ -94,6 +94,7 @@ import { distribution as stdlibDistribution } from "@canlang/stdlib/distribution
 import { distribution as stateDistribution } from "@canlang/state/distribution";
 import { distribution as valuesDistribution } from "@canlang/values/distribution";
 import { distribution as interfacesDistribution } from "@canlang/interfaces/distribution";
+import { distribution as servicesDistribution } from "@canlang/services/distribution";
 import { dirname, join, posix, relative, resolve, sep } from "node:path";
 import type {
   ActivationVerdict,
@@ -133,12 +134,16 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
   "stdlib.js",
   "native-records.js",
   "invoke.js",
+  "bound-judgment.js",
   "input-choices.js",
   "receipt-staging.js",
   "file-staging.js",
   "sourcemap.js",
   "mcp-registry.js",
   "env-assembly.js",
+  "page-preferences.js",
+  "auth-rate-limiter.js",
+  "cohort-tick.js",
   "grant-route.js",
   "mcp-permissions.js",
 ];
@@ -173,6 +178,8 @@ export const MCP_BUNDLE_MARKERS: readonly string[] = [
  */
 export const HTTP_BUNDLE_MARKERS: readonly string[] = [
   "handleOperationRequest",
+  "handleAuthRequest",
+  "SESSION_EXPIRES_MS",
   "createSourceFormBindings",
   "IdentityError",
 ];
@@ -215,6 +222,9 @@ const BROWSER_DEPENDENCIES = [
   { owner: identityDistribution.modules, specifier: "cookie", name: "cookie", version: "2.0.1", entry: "dist/index.js", key: "vendor/cookie/index.js" },
   { owner: identityDistribution.modules, specifier: "@scure/base", name: "@scure/base", version: "2.4.0", entry: "index.js", key: "vendor/scure-base/index.js" },
   { owner: uiDistribution.modules, specifier: "csv-parse/browser/esm/sync", name: "csv-parse", version: "7.0.3", entry: "dist/esm/sync.js", key: "vendor/csv-parse/sync.js" },
+  // Exact synchronous judgment digest closure; never stage the provider tree.
+  { owner: servicesDistribution.modules, specifier: "@noble/hashes/sha2.js", name: "@noble/hashes", version: "2.4.0",
+    entry: "sha2.js", key: "vendor/noble-hashes/sha2.js", siblings: ["_md.js", "_u64.js", "utils.js"] },
 ] as const;
 
 function stageBrowserDependencies(): Record<string, string> {
@@ -228,6 +238,11 @@ function stageBrowserDependencies(): Record<string, string> {
       throw new Error(`deploy bundle: unexpected pinned browser entry for ${dependency.name}`);
     }
     modules[dependency.key] = readFileSync(entry, "utf8");
+    if ("siblings" in dependency) {
+      for (const sibling of dependency.siblings) {
+        modules[`vendor/noble-hashes/${sibling}`] = readFileSync(join(packageRoot, sibling), "utf8");
+      }
+    }
   }
   return modules;
 }
@@ -478,8 +493,10 @@ const STATE_RECEIPT_OBSERVER_SOURCE_SPECIFIER = "@canlang/state/receipt";
 const VALUES_SOURCE_SPECIFIER = "@canlang/values";
 /** Contracts version constants (`loadContractVersions` in pinned `invoke.js`). */
 const CONTRACTS_SOURCE_SPECIFIER = "@canlang/contracts";
+const JUDGMENT_SPECIFICATION_SOURCE_SPECIFIER = "@canlang/services/judgments/specification";
+const JUDGMENT_SPECIFICATION_VENDOR_ENTRY = "vendor/services/judgments/specification.js";
 
-/** Rewrite pinned-runtime producer imports to module-relative `vendor/` keys. */
+/** Rewrite worker/runtime producer imports to module-relative `vendor/` keys. */
 function rewriteRuntimeImports(js: string, moduleKey: string): string {
   const mapped = (spec: string): string => {
     if (spec === SOURCEMAP_CODEC_SPECIFIER) return relativeSpecifier(moduleKey, SOURCEMAP_CODEC_VENDOR_ENTRY);
@@ -492,10 +509,9 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
       return relativeSpecifier(moduleKey, STATE_RECEIPT_OBSERVER_VENDOR_ENTRY);
     }
     if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
+    if (spec === JUDGMENT_SPECIFICATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, JUDGMENT_SPECIFICATION_VENDOR_ENTRY);
     if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
-    if (spec === WORK_DISPATCH_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_DISPATCH_VENDOR_ENTRY);
-    if (spec === WORK_SCHEDULE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_SCHEDULE_VENDOR_ENTRY);
-    if (spec === WORK_OCCURRENCE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_OCCURRENCE_VENDOR_ENTRY);
+    if (spec.startsWith("@canlang/work/kernel/")) return relativeSpecifier(moduleKey, `vendor/work/kernel/${spec.slice("@canlang/work/kernel/".length)}.js`);
     if (spec === WORK_RECEIPT_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_RECEIPT_VENDOR_ENTRY);
     if (spec === WORK_ASSOCIATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_ASSOCIATION_VENDOR_ENTRY);
     if (spec === "@canlang/interfaces" || spec === "@canlang/interfaces/http/operations") {
@@ -525,13 +541,15 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     out = out.split(source).join(relativeSpecifier(moduleKey, entry));
   }
   out = out.replace(/[\'"](@canlang\/state\/([^\'"]+))[\'"]/g, (_full, _spec, sub) => JSON.stringify(relativeSpecifier(moduleKey, `vendor/state/${sub}.js`)));
+  out = out.replace(/[\'"](@canlang\/work\/kernel\/([^\'"]+))[\'"]/g, (_full, _spec, sub) => JSON.stringify(relativeSpecifier(moduleKey, `vendor/work/kernel/${sub}.js`)));
   return out;
 }
 
 /** Stage the public portable Work producers and deduplicate their relative closures. */
 function stageWorkStagingProducers(): Record<string, string> {
   const entries = [WORK_DISPATCH_SOURCE_SPECIFIER, WORK_SCHEDULE_SOURCE_SPECIFIER, WORK_OCCURRENCE_SOURCE_SPECIFIER,
-    WORK_RECEIPT_SOURCE_SPECIFIER, WORK_ASSOCIATION_SOURCE_SPECIFIER]
+    WORK_RECEIPT_SOURCE_SPECIFIER, WORK_ASSOCIATION_SOURCE_SPECIFIER,
+    "@canlang/work/kernel/tables", "@canlang/work/kernel/handler-occurrence"]
     .map(specifier => resolveProducerFile(specifier, "bun run --filter @canlang/work build"));
   const base = dirname(dirname(entries[0]!));
   const modules: Record<string, string> = {};
@@ -580,6 +598,9 @@ function rewriteVendorImports(js: string, moduleKey: string): string {
     if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
     if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
     if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
+    if (spec === "@noble/hashes/sha2.js" || spec === "@noble/hashes/utils.js") {
+      return relativeSpecifier(moduleKey, `vendor/noble-hashes/${spec.slice("@noble/hashes/".length)}`);
+    }
     if (spec === "@canlang/contracts/values") return relativeSpecifier(moduleKey, "vendor/contracts/values.js");
     if (spec === "@canlang/state/effects/transition") return relativeSpecifier(moduleKey, "vendor/state/effects/transition.js");
     if (spec === "@canlang/state/effects/guards") return relativeSpecifier(moduleKey, "vendor/state/effects/guards.js");
@@ -777,6 +798,8 @@ export function buildHttpOperationsBundle(_repoRoot?: string): string {
     writeFileSync(
       entryFile,
       `export { handleOperationRequest, createSourceFormBindings, catalogFromArtifactOperations, INPUT_CHOICES_VERSION } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n` +
+      `export { handleAuthRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "auth.js")))};\n` +
+      `export { SESSION_EXPIRES_MS } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(identityDistribution.modules), "accounts", "registration.js")))};\n` +
       `export { handlePageRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "pages.js")))};\n` +
       `export { checkArtifactOperation, checkArtifactOperations, checkBoundArgument, checkBoundArguments, checkedToMcpInputSchema } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "mcp", "schemas.js")))};\n`,
       "utf8",
@@ -963,6 +986,9 @@ export function buildDeployBundle(
   Object.assign(modules, stageWorkStagingProducers());
   Object.assign(modules, stageSourceMapCodec());
   Object.assign(modules, stageBrowserDependencies());
+  modules[JUDGMENT_SPECIFICATION_VENDOR_ENTRY] = rewriteVendorImports(readFileSync(
+    resolveProducerFile(JUDGMENT_SPECIFICATION_SOURCE_SPECIFIER, "bun run --filter @canlang/services build"), "utf8",
+  ), JUDGMENT_SPECIFICATION_VENDOR_ENTRY);
   modules[MCP_HANDLER_MODULE] = buildMcpBundle();
   modules[HTTP_OPERATIONS_MODULE] = buildHttpOperationsBundle();
   modules[ARTIFACT_MODULE] = renderStagedDeployment(

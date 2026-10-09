@@ -878,6 +878,7 @@ fn diag(code: &'static str, severity: Severity, file: u32, start: u32) -> Diagno
         primary: Span::new(SourceId(file), start, start + 1),
         related: Vec::new(),
         tags: Vec::new(),
+        construct_candidates: None,
     }
 }
 

@@ -85,7 +85,9 @@ test('actual compiled scenarios preserve typed staging, receipts and persisted D
     });
     const create = envelope('Counter.create', {});
     const born = committed(await invoker.invokeMutation(create, world.identity));
-    const row = born.result as { id: string; version: number; data: { count: string } };
+    assert.equal(born.result, null);
+    assert.equal(born.records?.length, 1);
+    const row = born.records![0] as { id: string; version: number; data: { count: string } };
     assert.equal(row.data.count, '1');
     assert.equal(row.version, 1);
     const ref = (version: number) => ({ id: row.id, version: String(version) });
@@ -95,8 +97,11 @@ test('actual compiled scenarios preserve typed staging, receipts and persisted D
     });
     const receipt = await d1.store.readReceipt(receiptIdentity(create));
     assert.equal(receipt?.resolvedDefaults['count'], '1');
-    const defaultCounter = committed(await invoker.invokeMutation(envelope('Counter.create', { count: '7' }), world.identity))
-      .result as { id: string; version: number };
+    const defaultCounterOutcome = committed(await invoker.invokeMutation(
+      envelope('Counter.create', { count: '7' }), world.identity));
+    assert.equal(defaultCounterOutcome.result, null);
+    assert.equal(defaultCounterOutcome.records?.length, 1);
+    const defaultCounter = defaultCounterOutcome.records![0] as { id: string; version: number };
     const boundRef = { id: defaultCounter.id, version: String(defaultCounter.version) };
     // Genuine compiler-emitted read handler: native projected refs/defaults,
     // closed wire arrays and live by admission, without mutation identity.

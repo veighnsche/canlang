@@ -7,6 +7,8 @@ import { makeMoney, makeRecordRef, makeUnionValue } from "../src/kinds.js";
 import {
   isUpdateOmitted,
   normalizeSchema,
+  normalizeValueTypes,
+  ValueTypesError,
   UPDATE_OMITTED,
   validateOperationInput,
   validateValue,
@@ -14,6 +16,8 @@ import {
   type UpdateContract,
 } from "../src/schema.js";
 import { decodeValue, encodeValue } from "../src/wire.js";
+import { createPlanOwner, PlanError, recordFactoryProvenance, registerValidationPlan } from "../src/prepared/plan.js";
+import { validatePreparedValue } from "../src/prepared/validation.js";
 
 function assertSchemaError(fn: () => unknown): Violation[] {
   try {
@@ -1052,5 +1056,152 @@ describe("B1 L3 creation agreement", () => {
     });
     const violations = assertSchemaError(() => validateValue(schema, "M", {}, "create"));
     assert.deepEqual(codesOf(violations), ['["f"]:"required"']);
+  });
+});
+
+
+function candidateInventory() {
+  const choice = "Review.pick.choice";
+  const candidate = "Review.pick.option";
+  const array = { type: `${candidate}[]!`, min: 0, max: 24, distinctBy: "id" as const,
+    excludedIds: ["none", "need_more_info"] };
+  return {
+    aliases: [{ name: choice, type: "text" as const, min: 1, max: 80, format: "name" as const }],
+    contracts: [
+      { name: candidate, fields: [{ name: "id", type: choice }, { name: "description", type: "text", min: 1, max: 2000 }] },
+      { name: "Review.options", fields: [{ name: "pick", ...array }] },
+      // Compiler-lowered field reuse preserves value constraints and refines max.
+      { name: "Synthesis", fields: [{ name: "choices", ...array, max: 8 }] },
+      { name: "Review.probability", fields: [{ name: "option", type: choice }] },
+      { name: "Review.result", fields: [{ name: "choice", type: choice }, { name: "options", type: "Review.probability[]!" }] },
+    ],
+  };
+}
+
+const candidateValue = (id: string, description = "An alternative") => ({ id, description });
+
+describe("checked runtime candidate value constraints", () => {
+  it("reuses candidate-array constraints and one bounded TEXT alias for every result key", () => {
+    const { valueSchema } = normalizeValueTypes(candidateInventory());
+    const choices = [candidateValue("change_b"), candidateValue("change_a")];
+    assert.deepEqual(validateValue(valueSchema, "Synthesis", { choices }, "create"), { choices });
+    assert.deepEqual(validateValue(valueSchema, "Review.options", { pick: choices }, "create"), { pick: choices });
+    assert.deepEqual(validateValue(valueSchema, "Review.result", {
+      choice: "none", options: [{ option: "change_a" }, { option: "none" }],
+    }, "create"), { choice: "none", options: [{ option: "change_a" }, { option: "none" }] });
+    assert.equal(validateValue(valueSchema, "Review.pick.choice", "change_a", "create"), "change_a");
+    assertSchemaError(() => validateValue(valueSchema, "Review.pick.choice", { id: "change_a" }, "create"));
+    assertSchemaError(() => validateValue(valueSchema, "Review.probability", { option: "not-a-NAME" }, "create"));
+    assert.equal(encodeValue("Review.pick.choice", "change_a"), "change_a");
+    assert.equal(decodeValue("Review.pick.choice", "change_a"), "change_a");
+  });
+
+  it("rejects duplicate and authored ids without deduplicating or changing order", () => {
+    const { valueSchema } = normalizeValueTypes(candidateInventory());
+    for (const choices of [
+      [candidateValue("change_a"), candidateValue("change_a", "Different wording")],
+      [candidateValue("none")], [candidateValue("need_more_info")],
+    ]) {
+      const violations = assertSchemaError(() => validateValue(valueSchema, "Synthesis", { choices }, "create"));
+      assert.ok(violations.some(violation => violation.code === "format" && violation.path.at(-1) === "id"));
+    }
+    // Distinctness does not impose NAME/length policy on an unrelated text id.
+    const textIds = normalizeSchema({ contracts: {
+      Item: { fields: { id: { type: "text" } } },
+      Items: { fields: { items: { type: "Item[]!", distinctBy: "id" } } },
+    } });
+    assert.deepEqual(validateValue(textIds, "Items", { items: [{ id: "not-a-NAME" }] }, "create"),
+      { items: [{ id: "not-a-NAME" }] });
+    // These are request-local constraints: the same id may appear in another validated value.
+    assert.deepEqual(validateValue(valueSchema, "Synthesis", { choices: [candidateValue("change_a")] }, "create"),
+      validateValue(valueSchema, "Synthesis", { choices: [candidateValue("change_a")] }, "create"));
+  });
+
+  it("enforces both combined-count bounds and the receiving max refinement", () => {
+    const raw = candidateInventory();
+    const { valueSchema } = normalizeValueTypes(raw);
+    assert.deepEqual(validateValue(valueSchema, "Synthesis", { choices: [] }, "create"), { choices: [] });
+    assertSchemaError(() => validateValue(valueSchema, "Synthesis", {}, "create"));
+    assertSchemaError(() => validateValue(valueSchema, "Synthesis", {
+      choices: Array.from({ length: 9 }, (_, index) => candidateValue(`change_${index}`)),
+    }, "create"));
+    assertSchemaError(() => validateValue(valueSchema, "Review.options", {
+      pick: Array.from({ length: 25 }, (_, index) => candidateValue(`change_${index}`)),
+    }, "create"));
+    // A runtime question with no authored choices requires at least two candidates.
+    Object.assign(raw.contracts[1]!.fields[0]!, { min: 2, max: 26, excludedIds: [] });
+    const dynamic = normalizeValueTypes(raw).valueSchema;
+    assertSchemaError(() => validateValue(dynamic, "Review.options", { pick: [candidateValue("change_a")] }, "create"));
+    assert.deepEqual(validateValue(dynamic, "Review.options", { pick: [candidateValue("a"), candidateValue("b")] }, "create"),
+      { pick: [candidateValue("a"), candidateValue("b")] });
+  });
+
+  it("validates NAME, 80-scalar ids and 2000-scalar descriptions through the same schema", () => {
+    const { valueSchema } = normalizeValueTypes(candidateInventory());
+    const accepted = candidateValue("a".repeat(80), "💡".repeat(2000));
+    assert.deepEqual(validateValue(valueSchema, "Synthesis", { choices: [accepted] }, "create"), { choices: [accepted] });
+    for (const candidate of [candidateValue("a".repeat(81)), candidateValue(""), candidateValue("bad-id"),
+      candidateValue("é"), candidateValue("good", ""), candidateValue("good", "💡".repeat(2001))]) {
+      assertSchemaError(() => validateValue(valueSchema, "Synthesis", { choices: [candidate] }, "create"));
+    }
+  });
+
+  it("detaches and freezes constraints and closes duplicate or dangling alias claims", () => {
+    const raw = candidateInventory();
+    const checked = normalizeValueTypes(raw);
+    raw.aliases[0]!.max = 1;
+    const array = raw.contracts[1]!.fields[0] as { excludedIds: string[] };
+    array.excludedIds[0] = "changed";
+    assert.equal(checked.valueTypes.aliases![0]!.max, 80);
+    assert.deepEqual(checked.valueTypes.contracts[1]!.fields[0]!.excludedIds, ["none", "need_more_info"]);
+    assert.ok(Object.isFrozen(checked.valueTypes.contracts[1]!.fields[0]!.excludedIds));
+    assert.ok(Object.isFrozen(checked.valueSchema.aliases!["Review.pick.choice"]));
+    assertSchemaError(() => validateValue(checked.valueSchema, "Review.options", { pick: [candidateValue("none")] }, "create"));
+    const duplicate = candidateInventory();
+    duplicate.aliases[0]!.name = "Review.options";
+    assert.throws(() => normalizeValueTypes(duplicate), (error: unknown) => error instanceof ValueTypesError && error.code === "duplicate");
+    const missing = candidateInventory();
+    missing.aliases = [];
+    assert.throws(() => normalizeValueTypes(missing), (error: unknown) => error instanceof ValueTypesError && error.code === "dangling");
+  });
+
+  it("rejects incompatible metadata and impossible receiving alias bounds", () => {
+    for (const descriptor of [
+      { contracts: { X: { fields: { value: { type: "int", format: "name" } } } } },
+      { contracts: { X: { fields: { value: { type: "text[]", distinctBy: "id" } } } } },
+      { contracts: { X: { fields: { value: { type: "text[]", excludedIds: ["none"] } } } } },
+      { contracts: { X: { fields: { id: { type: "int" } } }, Y: { fields: { xs: { type: "X[]", distinctBy: "id" } } } } },
+    ]) assertSchemaError(() => normalizeSchema(descriptor));
+    for (const excludedIds of [["bad-id"], ["x".repeat(81)], ["none", "none"]]) {
+      const raw = candidateInventory();
+      (raw.contracts[1]!.fields[0] as { excludedIds: string[] }).excludedIds = excludedIds;
+      assert.throws(() => normalizeValueTypes(raw), ValueTypesError);
+    }
+    const aliases = { Choice: { type: "text", min: 1, max: 80, format: "name" } };
+    assertSchemaError(() => normalizeSchema({ aliases, contracts: { Result: { fields: { option: { type: "Choice", min: 81 } } } } }));
+    const schema = normalizeSchema({ aliases, contracts: { Result: { fields: { option: { type: "Choice", min: 2, max: 3 } } } } });
+    assert.deepEqual(validateValue(schema, "Result", { option: "abc" }, "create"), { option: "abc" });
+    assertSchemaError(() => validateValue(schema, "Result", { option: "abcd" }, "create"));
+  });
+
+  it("preserves static defaults and explicitly refuses unsupported prepared profiles", () => {
+    const legacy = normalizeSchema({ contracts: { Legacy: { fields: {
+      count: { type: "int", default: "1" }, items: { type: "text[]" },
+    } } } });
+    assert.equal(Object.hasOwn(legacy, "aliases"), false);
+    assert.deepEqual(validateValue(legacy, "Legacy", {}, "create"), { count: 1n, items: [] });
+    const owner = createPlanOwner({ abiVersion: "v1", profileVersion: "validation/v1", backendId: "ts", ownerRevision: "candidate-test" });
+    recordFactoryProvenance(legacy, "candidate-test");
+    const plan = registerValidationPlan(owner, "validation/v1", legacy);
+    const constrained = normalizeValueTypes(candidateInventory()).valueSchema;
+    recordFactoryProvenance(constrained, "candidate-test");
+    assert.throws(() => registerValidationPlan(owner, "validation/v1", constrained),
+      (error: unknown) => error instanceof PlanError && error.code === "malformed-schema");
+    assert.throws(() => validatePreparedValue(owner, plan, constrained, "Legacy", {}, "create"),
+      (error: unknown) => error instanceof PlanError && error.code === "unknown-plan");
+    const formatOnly = normalizeSchema({ contracts: { Legacy: { fields: { id: { type: "text", format: "name" } } } } });
+    recordFactoryProvenance(formatOnly, "candidate-test");
+    assert.throws(() => registerValidationPlan(owner, "validation/v1", formatOnly),
+      (error: unknown) => error instanceof PlanError && error.code === "malformed-schema");
   });
 });

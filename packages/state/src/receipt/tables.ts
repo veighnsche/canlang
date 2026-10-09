@@ -31,9 +31,12 @@ import type {
   CanonicalNominalResult,
   TextRunResultLeaf,
   TextRunReceiptProperty,
+  CanonicalJudgmentDeliveryDescriptor,
+  CanonicalValueTypes,
+  JudgmentSpec,
 } from '@canlang/contracts';
 import { DELIVERY_RESULT_LEAVES, GENERATED_IMAGE_FIELDS } from '@canlang/contracts';
-import { decodeValue, encodeValue, normalizeSchema, validateValue } from '@canlang/values';
+import { decodeValue, encodeValue, normalizeSchema, normalizeValueTypes, parseTypeId, validateValue } from '@canlang/values';
 import type { CanValue } from '@canlang/values';
 import type {
   CommitBatch,
@@ -172,6 +175,215 @@ export function isTextRunReceiptPayload(status: unknown, result: unknown, error:
   if (state === 'queued' || state === 'running') return status === 'pending' && failure === null;
   if (state === 'unknown') return status === 'unknown' && (failure === null || isClosedErrorShape(failure));
   return status === 'succeeded' && failure === null;
+}
+
+/** Detach own data before schema/codec reads; accessors and inherited/extended arrays have no authority. */
+function snapshotJudgmentData(value: unknown, native = false, ancestors = new Set<object>(), depth = 0, path: readonly string[] = []): unknown {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean' ||
+      (typeof value === 'bigint' && native)) return value;
+  // Descriptor length bounds are JSON integers; runtime value scalars remain exact wire text/native bigint.
+  if (native && typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 &&
+      (path.at(-1) === 'min' || path.at(-1) === 'max') &&
+      (path[0] === 'valueTypes' || path[0] === 'declaredResult' ||
+        (path[0] === 'judgment' && path[1] === 'valueTypes') || (path[0] === 'delivery' && path[1] === 'result'))) return value;
+  if (typeof value !== 'object' || depth > 64 || ancestors.has(value)) throw new Error('invalid judgment data');
+  const array = Array.isArray(value);
+  const prototype = Object.getPrototypeOf(value);
+  if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null) {
+    throw new Error('invalid judgment prototype');
+  }
+  const keys = Reflect.ownKeys(value);
+  const out: Record<string, unknown> | unknown[] = array ? [] : Object.create(null) as Record<string, unknown>;
+  if (array && keys.length !== value.length + 1) throw new Error('invalid judgment array');
+  ancestors.add(value);
+  for (const key of keys) {
+    if (array && key === 'length') continue;
+    if (typeof key !== 'string' || (array && (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= value.length))) {
+      throw new Error('invalid judgment key');
+    }
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (descriptor === undefined || !Object.hasOwn(descriptor, 'value') || !descriptor.enumerable) {
+      throw new Error('invalid judgment accessor');
+    }
+    (out as Record<string, unknown>)[key] = snapshotJudgmentData(descriptor.value, native, ancestors, depth + 1, [...path, key]);
+  }
+  ancestors.delete(value);
+  return Object.freeze(out);
+}
+
+function exactJudgmentKeys(value: object, keys: readonly string[]): boolean {
+  const actual = Object.keys(value);
+  return actual.length === keys.length && keys.every(key => Object.hasOwn(value, key));
+}
+
+function checkedJudgmentContext(context: ReceiptResultContext | undefined) {
+  try {
+    if (context === undefined) return null;
+    const detached = snapshotJudgmentData(context, true) as ReceiptResultContext;
+    const spec = detached.judgment?.specification;
+    const inventory = detached.judgment?.valueTypes;
+    if (!spec || !inventory || !exactJudgmentKeys(detached.judgment!, ['specification', 'valueTypes']) ||
+        !exactJudgmentKeys(spec, ['declaration', 'version', 'revision', 'language', 'noul', 'choice', 'score']) ||
+        typeof spec.declaration !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/.test(spec.declaration) ||
+        typeof spec.version !== 'bigint' || spec.version < 0n || spec.version > 9223372036854775807n ||
+        typeof spec.revision !== 'string' || !/^sha256:[0-9a-f]{64}$/.test(spec.revision) ||
+        typeof spec.language !== 'string' || decodeValue('locale', spec.language) !== spec.language ||
+        detached.source !== `${spec.declaration}.evaluate` || detached.declaredResult?.name !== spec.declaration ||
+        !Array.isArray(spec.noul) || !Array.isArray(spec.choice) || !Array.isArray(spec.score) ||
+        !Array.isArray(inventory.contracts) || (inventory.enums !== undefined && !Array.isArray(inventory.enums)) ||
+        (inventory.aliases !== undefined && !Array.isArray(inventory.aliases)) ||
+        !exactJudgmentKeys(inventory, ['contracts', ...(Object.hasOwn(inventory, 'enums') ? ['enums'] : []),
+          ...(Object.hasOwn(inventory, 'aliases') ? ['aliases'] : [])])) return null;
+    const normalized = normalizeValueTypes(inventory);
+    const contracts = new Map(normalized.valueTypes.contracts.map(declaration => [declaration.name, declaration]));
+    const enums = new Map((normalized.valueTypes.enums ?? []).map(declaration => [declaration.name, declaration.cases]));
+    const aliases = new Map((normalized.valueTypes.aliases ?? []).map(declaration => [declaration.name, declaration]));
+    const runtimeChoices: JudgmentSpec['choice'][number][] = [];
+    const schema = normalized.valueSchema;
+    const root = contracts.get(spec.declaration);
+    if (!root || !exactJudgmentKeys(detached.declaredResult, ['name', 'fields']) ||
+        !Array.isArray(detached.declaredResult.fields) || root.fields.length !== detached.declaredResult.fields.length ||
+        !root.fields.every((field, index) => sameJudgmentWire(field, detached.declaredResult.fields[index]))) return null;
+    const fields = new Map(root.fields.map(field => [field.name, field.type]));
+    const fieldType = (name: string, field: string): string | undefined =>
+      contracts.get(name)?.fields.find(leaf => leaf.name === field)?.type;
+    const questions = new Set<string>();
+    const sameFields = (type: string | undefined, expected: Readonly<Record<string, string>>): boolean => {
+      if (!type) return false;
+      const parsed = parseTypeId(type);
+      if (parsed.array || parsed.nullable || parsed.base.kind !== 'nominal') return false;
+      const declaration = parsed.base.path;
+      const actual = contracts.get(declaration)?.fields;
+      return actual !== undefined && actual.length === Object.keys(expected).length &&
+        Object.entries(expected).every(([name, kind]) => fieldType(declaration, name) === kind);
+    };
+    const enumMatches = (type: string, ids: readonly string[], runtimeName?: string): boolean => {
+      const parsed = parseTypeId(type);
+      const cases = parsed.base.kind === 'enum' ? parsed.base.cases :
+        parsed.base.kind === 'nominal' ? enums.get(parsed.base.path) : undefined;
+      if (parsed.array || parsed.nullable) return false;
+      if (cases !== undefined) return cases.length === ids.length && cases.every((id, index) => id === ids[index]);
+      if (parsed.base.kind !== 'nominal' || parsed.base.path !== runtimeName) return false;
+      const alias = aliases.get(parsed.base.path);
+      return alias !== undefined && exactJudgmentKeys(alias, ['name', 'type', 'min', 'max', 'format']) &&
+        alias.type === 'text' && alias.min === 1 && alias.max === 80 && alias.format === 'name' &&
+        ids.every(id => id.length >= 1 && id.length <= 80 && /^[A-Za-z_][A-Za-z0-9_]*$/.test(id));
+    };
+    for (const [kind, entries] of [['noul', spec.noul], ['choice', spec.choice], ['score', spec.score]] as const) {
+      for (const question of entries) {
+        if (!exactJudgmentKeys(question, kind === 'noul' ? ['id', 'instructions', 'yes', 'no'] :
+            kind === 'choice' ? ['id', 'instructions', 'options'] : ['id', 'instructions', 'levels']) ||
+            typeof question.id !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(question.id) ||
+            questions.has(question.id) || ['specification_revision', 'model', 'input_tokens', 'output_tokens'].includes(question.id) ||
+            typeof question.instructions !== 'string' || question.instructions === '') return null;
+        questions.add(question.id);
+        const type = fields.get(question.id);
+        if (kind === 'noul') {
+          const q = question as JudgmentSpec['noul'][number];
+          if ((q.yes === null) !== (q.no === null) || (q.yes !== null &&
+              (typeof q.yes !== 'string' || q.yes === '' || typeof q.no !== 'string' || q.no === '')) ||
+              !sameFields(type, { probability: 'decimal' })) return null;
+          continue;
+        }
+        const entries = kind === 'choice' ? (question as JudgmentSpec['choice'][number]).options :
+          (question as JudgmentSpec['score'][number]).levels;
+        if (!Array.isArray(entries) || entries.length < 2 || entries.length > (kind === 'choice' ? 26 : 10) ||
+            entries.some(entry => !exactJudgmentKeys(entry, ['id', 'description']) || typeof entry.id !== 'string' ||
+              !/^[A-Za-z_][A-Za-z0-9_]*$/.test(entry.id) || typeof entry.description !== 'string' || entry.description === '') ||
+            new Set(entries.map(entry => entry.id)).size !== entries.length || !type) return null;
+        const parsed = parseTypeId(type);
+        if (parsed.array || parsed.nullable || parsed.base.kind !== 'nominal') return null;
+        const distribution = fieldType(parsed.base.path, kind === 'choice' ? 'probabilities' : 'levels');
+        if (!distribution) return null;
+        const array = parseTypeId(distribution);
+        if (!array.array || array.nullable || array.base.kind !== 'nominal') return null;
+        const identity = fieldType(array.base.path, kind === 'choice' ? 'option' : 'level');
+        if (!identity || !enumMatches(identity, entries.map(entry => entry.id), kind === 'choice' ? `${spec.declaration}.${question.id}.choice` : undefined) ||
+            !sameFields(array.base.path, kind === 'choice' ? { option: identity, probability: 'decimal' } :
+              { level: identity, index: 'int', description: 'text', probability: 'decimal' }) ||
+            !sameFields(type, kind === 'choice' ? { choice: identity, probabilities: distribution, confidence: 'decimal' } :
+              { score: 'decimal', levels: distribution, confidence: 'decimal' })) return null;
+        if (kind === 'choice' && aliases.has(identity)) runtimeChoices.push(question as JudgmentSpec['choice'][number]);
+      }
+    }
+    if (questions.size < 1 || questions.size > 32 ||
+        fields.size !== questions.size + 4 ||
+        fields.get('specification_revision') !== 'text' || fields.get('model') !== 'text' ||
+        fields.get('input_tokens') !== 'int' || fields.get('output_tokens') !== 'int') return null;
+    return { context: detached, schema, runtimeChoices };
+  } catch { return null; }
+}
+
+/** Original static source and exact checked schema inventory; no suffix-based authority. */
+export function isJudgmentReceiptContext(context: ReceiptResultContext | undefined): boolean {
+  return checkedJudgmentContext(context) !== null;
+}
+
+/** The delivery declaration defines the context; later caller mutation cannot rewrite it. */
+export function createJudgmentReceiptContext(
+  delivery: CanonicalJudgmentDeliveryDescriptor,
+  specification: JudgmentSpec,
+  valueTypes: CanonicalValueTypes,
+): ReceiptResultContext {
+  const detached = snapshotJudgmentData({ delivery, specification, valueTypes }, true) as {
+    delivery: CanonicalJudgmentDeliveryDescriptor; specification: JudgmentSpec; valueTypes: CanonicalValueTypes;
+  };
+  const d = detached.delivery, spec = detached.specification;
+  if (!exactJudgmentKeys(d, ['kind', 'judgment', 'capability', 'operation', 'version', 'result']) ||
+      d.kind !== 'delivery' || d.judgment !== true || d.capability !== spec.declaration || d.operation !== 'evaluate' ||
+      typeof spec.version !== 'bigint' || d.version !== spec.version.toString()) {
+    throw new ReceiptTableError('Invalid static Judgment delivery context.');
+  }
+  const context: ReceiptResultContext = Object.freeze({ source: `${d.capability}.${d.operation}`,
+    declaredResult: d.result, judgment: Object.freeze({ specification: spec, valueTypes: detached.valueTypes }) });
+  if (!isJudgmentReceiptContext(context)) throw new ReceiptTableError('Invalid static Judgment delivery context.');
+  return context;
+}
+
+function sameJudgmentWire(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || a === null || typeof b !== 'object' || b === null || Array.isArray(a) !== Array.isArray(b)) return false;
+  const left = a as Record<string, unknown>, right = b as Record<string, unknown>;
+  return exactJudgmentKeys(right, Object.keys(left)) && Object.keys(left).every(key => sameJudgmentWire(left[key], right[key]));
+}
+
+/** Decode exact nested declared types while preserving usage as int64 bigint. */
+export function readJudgmentResult(result: unknown, context: ReceiptResultContext | undefined): Readonly<Record<string, CanValue>> | null {
+  const checked = checkedJudgmentContext(context);
+  if (checked === null) return null;
+  try {
+    const wire = snapshotJudgmentData(result);
+    const value = validateValue(checked.schema, checked.context.declaredResult.name, wire, 'create');
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+    const resultValue = value as Readonly<Record<string, CanValue>>;
+    if (resultValue['specification_revision'] !== checked.context.judgment!.specification.revision ||
+        typeof resultValue['model'] !== 'string' || resultValue['model'] === '' ||
+        typeof resultValue['input_tokens'] !== 'bigint' || resultValue['input_tokens'] < 0n ||
+        typeof resultValue['output_tokens'] !== 'bigint' || resultValue['output_tokens'] < 0n ||
+        !sameJudgmentWire(wire, encodeValue(checked.context.declaredResult.name, value))) return null;
+    // Runtime aliases bound representation; the original frozen specification alone grants candidate membership.
+    for (const question of checked.runtimeChoices) {
+      const answer = resultValue[question.id] as Readonly<Record<string, CanValue>>;
+      const probabilities = answer['probabilities'];
+      if (!question.options.some(option => option.id === answer['choice']) || !Array.isArray(probabilities) ||
+          probabilities.length !== question.options.length || probabilities.some((entry, index) =>
+            (entry as Readonly<Record<string, CanValue>>)['option'] !== question.options[index]!.id)) return null;
+    }
+    return resultValue;
+  } catch { return null; }
+}
+
+/** Static Judgment receipts carry a checked result only on success, never rich progress. */
+export function isJudgmentReceiptPayload(status: unknown, result: unknown, error: unknown, context: ReceiptResultContext | undefined): boolean {
+  if (!isJudgmentReceiptContext(context)) return false;
+  const payload = result === undefined ? null : result, failure = error === undefined ? null : error;
+  if (status === 'succeeded') return failure === null && readJudgmentResult(payload, context) !== null;
+  if (payload !== null) return false;
+  let closedFailure = false;
+  try { closedFailure = isClosedErrorShape(snapshotJudgmentData(failure)); } catch { return false; }
+  if (status === 'failed') return closedFailure;
+  if (status === 'unknown') return failure === null || closedFailure;
+  return (status === 'pending' || status === 'skipped') && failure === null;
 }
 
 const GENERATED_IMAGE_SCHEMA = normalizeSchema({ contracts: { GeneratedImage: {
@@ -426,6 +638,9 @@ export function isStoredReceiptPayload(
 ): boolean {
   const payload = result === undefined ? null : result;
   const failure = error === undefined ? null : error;
+  if (context !== undefined && context !== null && 'judgment' in context) {
+    return isJudgmentReceiptPayload(status, payload, failure, context);
+  }
   // Explicit TextGeneration declaration context never falls through to an
   // untyped succeeded payload after a malformed rich result.
   if (payload !== null && context !== undefined && context.source.startsWith('std.TextGenerationV1.')) {
@@ -593,8 +808,9 @@ export function newAssociationRow(input: AssociationRowData, meta: NewRowMeta): 
 
 /** Producer-side insert: the retained receipt row for one delivery attempt. */
 export function newReceiptRow(input: ReceiptRowData, meta: NewRowMeta, context?: ReceiptResultContext): StoredRow {
-  if (input.result != null && context !== undefined && (context.source.startsWith('std.TextGenerationV1.') ||
-      ['std.ImagesV1.submit', 'std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(context.source)) &&
+  if (context !== undefined && context !== null && ('judgment' in context ||
+      (input.result != null && (context.source.startsWith('std.TextGenerationV1.') ||
+        ['std.ImagesV1.submit', 'std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(context.source)))) &&
       !isStoredReceiptPayload(input.status, input.result, input.error, context)) {
     throw new ReceiptTableError('work.receipt payload is inconsistent for its declared context.');
   }
@@ -632,8 +848,9 @@ export function withReceiptRowData(
   meta: NewRowMeta,
   context?: ReceiptResultContext,
 ): StoredRow {
-  if (data.result != null && context !== undefined && (context.source.startsWith('std.TextGenerationV1.') ||
-      ['std.ImagesV1.submit', 'std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(context.source)) &&
+  if (context !== undefined && context !== null && ('judgment' in context ||
+      (data.result != null && (context.source.startsWith('std.TextGenerationV1.') ||
+        ['std.ImagesV1.submit', 'std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(context.source)))) &&
       !isStoredReceiptPayload(data.status, data.result, data.error, context)) {
     throw new ReceiptTableError('work.receipt payload is inconsistent for its declared context.');
   }

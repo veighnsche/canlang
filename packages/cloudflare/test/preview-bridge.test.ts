@@ -1,0 +1,160 @@
+import { describe, expect, it } from "vitest";
+import type { LocalDev } from "../src/dev/local-run.js";
+import { startProtectedPreview } from "../src/dev/preview-bridge.js";
+
+function cookieOf(response: Response): string {
+  const raw = response.headers.get("set-cookie");
+  if (raw === null) throw new Error("bootstrap did not set an access cookie");
+  return raw.split(";", 1)[0]!;
+}
+
+describe("protected local preview", () => {
+  it("mints a one-use access URL and relays authorized bytes without passing bridge identity to the app", async () => {
+    const seen: Array<{ url: string; init: unknown }> = [];
+    const dev: Pick<LocalDev, "dispatchUrl"> = {
+      dispatchUrl: async (url, init) => {
+        seen.push({ url, init });
+        const headers = new Headers();
+        headers.append("set-cookie", "can_session=app-one; HttpOnly; Path=/");
+        headers.append("set-cookie", "app_pref=two; Path=/");
+        headers.set("content-type", "application/octet-stream");
+        headers.set("x-app-header", "kept");
+        return new Response(Buffer.from([0, 255, 1]), { status: 206, headers }) as unknown as Awaited<ReturnType<LocalDev["dispatchUrl"]>>;
+      },
+    };
+    const preview = await startProtectedPreview(dev, { maxBodyBytes: 4 });
+    try {
+      expect(new URL(preview.url).hostname).toBe("127.0.0.1");
+      expect(new URL(preview.url).port).not.toBe("0");
+      const unauthenticated = await fetch(`${preview.url}/app`);
+      expect(unauthenticated.status).toBe(401);
+      expect(seen).toHaveLength(0);
+
+      const openUrl = preview.issueOpenUrl();
+      const bootstrap = await fetch(openUrl, { redirect: "manual" });
+      expect(bootstrap.status).toBe(303);
+      expect(bootstrap.headers.get("location")).toBe("/");
+      expect(bootstrap.headers.get("cache-control")).toBe("no-store");
+      expect(bootstrap.headers.get("referrer-policy")).toBe("no-referrer");
+      const setCookie = bootstrap.headers.get("set-cookie")!;
+      expect(setCookie).toContain("HttpOnly");
+      expect(setCookie).toContain("SameSite=Strict");
+      expect(setCookie).not.toContain(new URL(openUrl).searchParams.get("token")!);
+      const accessCookie = cookieOf(bootstrap);
+      expect((await fetch(openUrl, { redirect: "manual" })).status).toBe(403);
+
+      const relayed = await fetch(`${preview.url}/asset?x=1`, {
+        headers: { cookie: `${accessCookie}; can_session=app-one` },
+      });
+      expect(relayed.status).toBe(206);
+      expect(Array.from(new Uint8Array(await relayed.arrayBuffer()))).toEqual([0, 255, 1]);
+      expect(relayed.headers.get("x-app-header")).toBe("kept");
+      expect(relayed.headers.getSetCookie()).toEqual([
+        "can_session=app-one; HttpOnly; Path=/",
+        "app_pref=two; Path=/",
+      ]);
+      expect(seen).toHaveLength(1);
+      expect(seen[0]!.url).toBe(`${preview.url}/asset?x=1`);
+      const sent = seen[0]!.init as { headers: Array<[string, string]>; redirect: string };
+      expect(new Headers(sent.headers).get("cookie")).toBe("can_session=app-one");
+      expect(sent.redirect).toBe("manual");
+
+      const missingOrigin = await fetch(`${preview.url}/write`, {
+        method: "POST", headers: { cookie: accessCookie }, body: "ok",
+      });
+      expect(missingOrigin.status).toBe(403);
+      const foreignOrigin = await fetch(`${preview.url}/write`, {
+        method: "POST", headers: { cookie: accessCookie, origin: "http://evil.invalid" }, body: "ok",
+      });
+      expect(foreignOrigin.status).toBe(403);
+      const tooLarge = await fetch(`${preview.url}/write`, {
+        method: "POST", headers: { cookie: accessCookie, origin: preview.url }, body: "12345",
+      });
+      expect(tooLarge.status).toBe(413);
+      const accepted = await fetch(`${preview.url}/write`, {
+        method: "POST", headers: { cookie: accessCookie, origin: preview.url }, body: "1234",
+      });
+      expect(accepted.status).toBe(206);
+      expect(seen).toHaveLength(2);
+      expect(seen[1]!.url).toBe(`${preview.url}/write`);
+      expect(Array.from((seen[1]!.init as { body: Buffer }).body)).toEqual([49, 50, 51, 52]);
+    } finally {
+      await preview.close();
+      await preview.close();
+    }
+    expect(() => preview.issueOpenUrl()).toThrow(/closed/);
+  });
+
+  it("expires bootstrap and access cookies and refuses app attempts to set the bridge cookie", async () => {
+    let now = 1_000;
+    let calls = 0;
+    const dev: Pick<LocalDev, "dispatchUrl"> = {
+      dispatchUrl: async () => {
+        calls += 1;
+        return new Response("app", { headers: { "set-cookie": "can_dev_preview=forged; Path=/" } }) as unknown as Awaited<ReturnType<LocalDev["dispatchUrl"]>>;
+      },
+    };
+    const preview = await startProtectedPreview(dev, {
+      now: () => now,
+      bootstrapTtlMs: 1000,
+      cookieTtlMs: 2000,
+    });
+    try {
+      const stale = preview.issueOpenUrl();
+      now += 1000;
+      expect((await fetch(stale, { redirect: "manual" })).status).toBe(403);
+      const openUrl = preview.issueOpenUrl();
+      const bootstrap = await fetch(openUrl, { redirect: "manual" });
+      expect(bootstrap.status).toBe(303);
+      const cookie = cookieOf(bootstrap);
+      const conflict = await fetch(`${preview.url}/`, { headers: { cookie } });
+      expect(conflict.status).toBe(502);
+      expect(await conflict.json()).toEqual({ code: "preview_cookie_conflict" });
+      expect(calls).toBe(1);
+      now += 2000;
+      expect((await fetch(`${preview.url}/`, { headers: { cookie } })).status).toBe(401);
+      expect(calls).toBe(1);
+    } finally {
+      await preview.close();
+    }
+  });
+
+  it.each(["dispatch", "response body"] as const)(
+    "closes an active preview when the Worker %s never settles",
+    async stage => {
+      let entered!: () => void;
+      const inWorker = new Promise<void>(resolve => { entered = resolve; });
+      let signal: AbortSignal | undefined;
+      const dev: Pick<LocalDev, "dispatchUrl"> = {
+        dispatchUrl: async (_url, init) => {
+          signal = init?.signal;
+          if (stage === "dispatch") {
+            entered();
+            return new Promise<Awaited<ReturnType<LocalDev["dispatchUrl"]>>>(() => {});
+          }
+          const response = new Response("unused");
+          response.arrayBuffer = () => {
+            entered();
+            return new Promise<ArrayBuffer>(() => {});
+          };
+          return response as Awaited<ReturnType<LocalDev["dispatchUrl"]>>;
+        },
+      };
+      const preview = await startProtectedPreview(dev);
+      try {
+        const bootstrap = await fetch(preview.issueOpenUrl(), { redirect: "manual" });
+        const pendingRequest = fetch(`${preview.url}/`, {
+          headers: { cookie: cookieOf(bootstrap) },
+        }).then(() => "fulfilled", () => "rejected");
+        await inWorker;
+        const closing = preview.close();
+        expect(preview.close()).toBe(closing);
+        await closing;
+        expect(signal?.aborted).toBe(true);
+        expect(await pendingRequest).toBe("rejected");
+      } finally {
+        await preview.close();
+      }
+    },
+  );
+});

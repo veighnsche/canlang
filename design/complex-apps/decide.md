@@ -1,6 +1,6 @@
 # CanDecide — generated alternatives, reviewed evidence, one judgment
 
-2026-10-04. Accepted draft runtime-choice contract; root owns shared contract adoption. No compiler, provider, renderer or example engine is implemented. The actual triplet is `draft/CanDecide.{can,md,mjs}`; source, desired target and inline expectations are drafts, not executed behavior.
+2026-10-04 contract, implementation stage updated 2026-10-08. The source compiler and shared value-constraint inventory now support the selected static/runtime Judgment primitive; the source freezer, controlled local HTTP provider and supplied-original-context receipt joins are qualified at their recorded bounded scopes. The same native invocation/dispatch workflow remains under qualification. The complete `draft/CanDecide.{can,md,mjs}` company workflow, renderer and inline expectations remain drafts, not an executed full application.
 
 ## Company workflow
 
@@ -58,7 +58,7 @@ The existing helper receives a third argument only for a runtime declaration; a 
 
 ## Required app/BDD boundaries
 
-The app must include a valid typed synthesizer receipt with generated state/options, a reviewed corrected snapshot, and a valid mixed judgment receipt with fixed NOUL/score plus complete dynamic-option distribution. An actual sequence should request synthesis, retain/review a supplied completed draft where supported by fixture semantics, explicitly evaluate, and record a human decision against that exact immutable review. Do not pretend a sequence mutates a provider receipt: preseeded completion witnesses and genuine user-call journeys have separate claims. Invalid candidate IDs/duplicates/collisions and mismatched judgment results fail typed setup/provider normalization; they cannot satisfy an ordinary business error. Valid stale/noncurrent review, revoked reviewer, pending/unknown result and changed selection are ordinary business guards with separately derived exact codes. Runtime adapter execution and dynamic grammar checking remain unimplemented.
+The app must include a valid typed synthesizer receipt with generated state/options, a reviewed corrected snapshot, and a valid mixed judgment receipt with fixed NOUL/score plus complete dynamic-option distribution. An actual sequence should request synthesis, retain/review a supplied completed draft where supported by fixture semantics, explicitly evaluate, and record a human decision against that exact immutable review. Do not pretend a sequence mutates a provider receipt: preseeded completion witnesses and genuine user-call journeys have separate claims. Invalid candidate IDs/duplicates/collisions and mismatched judgment results fail typed setup/provider normalization; they cannot satisfy an ordinary business error. Valid stale/noncurrent review, revoked reviewer, pending/unknown result and changed selection are ordinary business guards with separately derived exact codes. Selected runtime grammar/type checking, installed module assembly and the controlled local HTTP adapter are now qualified through the existing primitive fixture. Native dispatch, stored receipt and current-authority joins remain owning qualification gates; the complete application and its example engine are unqualified.
 
 ## Bounded independent review and application
 

@@ -43,7 +43,7 @@ import {
   selectTeam,
   verifyEmail,
 } from '@canlang/identity';
-import type { HttpDeps } from '../ports.js';
+import type { AuthHttpDeps } from '../ports.js';
 import { buildBusinessError, fromUnknown, toHttpResponse } from '../errors/envelope.js';
 import { logBusinessError, logInternalError } from '../errors/logging.js';
 import {
@@ -92,6 +92,10 @@ function descriptor(form: string, fields: readonly AuthFormField[], postTo: stri
   return { form, fields, postTo, csrfField: CSRF_FIELD };
 }
 
+function mailUnavailable(): Response {
+  return jsonErrorResponse(buildBusinessError('busy', 'Authentication mail is unavailable.', { retryable: true }), 503);
+}
+
 function jsonOk(body: unknown, headers?: Record<string, string>): Response {
   return new Response(JSON.stringify(body), {
     status: 200,
@@ -99,7 +103,7 @@ function jsonOk(body: unknown, headers?: Record<string, string>): Response {
   });
 }
 
-function deny(deps: HttpDeps, error: BusinessError, route: string): Response {
+function deny(deps: AuthHttpDeps, error: BusinessError, route: string): Response {
   logBusinessError(deps.logger, error, { route });
   const { status, body } = toHttpResponse(error);
   const retryAfterMs = retryAfterMsOf(error);
@@ -141,7 +145,7 @@ function requiredString(body: Record<string, unknown>, name: string): string {
 }
 
 async function withRateLimit(
-  deps: HttpDeps,
+  deps: AuthHttpDeps,
   route: string,
   request: Request,
 ): Promise<Response | null> {
@@ -149,7 +153,8 @@ async function withRateLimit(
   return limited === null ? null : deny(deps, limited, route);
 }
 
-async function handleRegister(deps: HttpDeps, request: Request): Promise<Response> {
+async function handleRegister(deps: AuthHttpDeps, request: Request): Promise<Response> {
+  if (deps.identity.mail === undefined) return mailUnavailable();
   const limited = await withRateLimit(deps, '/auth/register', request);
   if (limited !== null) return limited;
   const body = await readAuthBody(request);
@@ -162,7 +167,7 @@ async function handleRegister(deps: HttpDeps, request: Request): Promise<Respons
   return jsonOk({ ok: true });
 }
 
-async function handleVerifyPost(deps: HttpDeps, request: Request): Promise<Response> {
+async function handleVerifyPost(deps: AuthHttpDeps, request: Request): Promise<Response> {
   const limited = await withRateLimit(deps, '/auth/verify', request);
   if (limited !== null) return limited;
   const body = await readAuthBody(request);
@@ -174,14 +179,14 @@ async function handleVerifyPost(deps: HttpDeps, request: Request): Promise<Respo
   return jsonOk({ ok: true });
 }
 
-async function handleLoginDescriptor(deps: HttpDeps, request: Request): Promise<Response> {
+async function handleLoginDescriptor(deps: AuthHttpDeps, request: Request): Promise<Response> {
   const limited = await withRateLimit(deps, LOGIN_DESCRIPTOR_THROTTLE, request);
   if (limited !== null) return limited;
   const { token } = await mintPreSessionToken(deps.identity.store, { clock: deps.identity.clock });
   return jsonOk({ ...LOGIN_DESCRIPTOR(), preSessionToken: token }, { 'cache-control': 'no-store' });
 }
 
-async function handleLogin(deps: HttpDeps, request: Request): Promise<Response> {
+async function handleLogin(deps: AuthHttpDeps, request: Request): Promise<Response> {
   const limited = await withRateLimit(deps, '/auth/login', request);
   if (limited !== null) return limited;
   const body = await readAuthBody(request);
@@ -207,7 +212,7 @@ async function handleLogin(deps: HttpDeps, request: Request): Promise<Response> 
   );
 }
 
-async function handleLogout(deps: HttpDeps, request: Request): Promise<Response> {
+async function handleLogout(deps: AuthHttpDeps, request: Request): Promise<Response> {
   // Fully idempotent: unknown, revoked, or expired sessions clear the jar
   // and answer ok — double-logout and stale tabs never 403.
   let sessionToken: string | null;
@@ -231,7 +236,8 @@ async function handleLogout(deps: HttpDeps, request: Request): Promise<Response>
   return jsonOk({ ok: true }, { 'set-cookie': buildSessionClearCookie({ secure: deps.secureCookies }) });
 }
 
-async function handleRecoverPost(deps: HttpDeps, request: Request): Promise<Response> {
+async function handleRecoverPost(deps: AuthHttpDeps, request: Request): Promise<Response> {
+  if (deps.identity.mail === undefined) return mailUnavailable();
   const limited = await withRateLimit(deps, '/auth/recover', request);
   if (limited !== null) return limited;
   const body = await readAuthBody(request);
@@ -244,7 +250,7 @@ async function handleRecoverPost(deps: HttpDeps, request: Request): Promise<Resp
   return jsonOk({ ok: true });
 }
 
-async function handleRecoverConfirm(deps: HttpDeps, request: Request): Promise<Response> {
+async function handleRecoverConfirm(deps: AuthHttpDeps, request: Request): Promise<Response> {
   const limited = await withRateLimit(deps, '/auth/recover/confirm', request);
   if (limited !== null) return limited;
   const body = await readAuthBody(request);
@@ -256,7 +262,7 @@ async function handleRecoverConfirm(deps: HttpDeps, request: Request): Promise<R
   return jsonOk({ ok: true });
 }
 
-async function handleSelectTeam(deps: HttpDeps, request: Request): Promise<Response> {
+async function handleSelectTeam(deps: AuthHttpDeps, request: Request): Promise<Response> {
   const { sessionToken } = await resolveRequestIdentity(deps.identity.store, request, {
     clock: deps.clock,
   });
@@ -277,7 +283,7 @@ async function handleSelectTeam(deps: HttpDeps, request: Request): Promise<Respo
   return jsonOk({ ok: true, team_id });
 }
 
-async function handleSelectTeamClear(deps: HttpDeps, request: Request): Promise<Response> {
+async function handleSelectTeamClear(deps: AuthHttpDeps, request: Request): Promise<Response> {
   const { sessionToken } = await resolveRequestIdentity(deps.identity.store, request, {
     clock: deps.clock,
   });
@@ -329,7 +335,7 @@ const SELECT_TEAM_DESCRIPTOR = (): AuthFormDescriptor =>
  * side-effect-free); POSTs run the identity flows above. Anything
  * unmapped is `not_found` JSON.
  */
-export async function handleAuthRequest(deps: HttpDeps, request: Request): Promise<Response> {
+export async function handleAuthRequest(deps: AuthHttpDeps, request: Request): Promise<Response> {
   const pathname = new URL(request.url).pathname;
   const method = request.method;
   try {

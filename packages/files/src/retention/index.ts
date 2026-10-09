@@ -63,7 +63,9 @@ function compareStrings(a: string, b: string): number {
  * Run one retention pass: sweep expired intents (staging deleted),
  * orphan unattached objects past the horizon (bytes deleted), and expire
  * records past retention. The report lists every transition in stable
- * order; the pass is idempotent.
+ * order; the pass is idempotent. Terminal states are saved before byte
+ * deletion, and later passes retry cleanup of terminal records without
+ * reporting the same transition again.
  */
 export function runRetention(
   deps: RetentionDeps,
@@ -83,6 +85,10 @@ export function runRetention(
   const sweptIntents: UploadIntentId[] = [];
 
   for (const record of deps.intents.listAll()) {
+    if (record.state === 'expired') {
+      deps.blobs.remove(stagingKeyForIntent(record.intentId));
+      continue;
+    }
     if (
       (record.state === 'open' || record.state === 'complete') &&
       nowMs >= record.expiresAtMs
@@ -91,8 +97,8 @@ export function runRetention(
       record.receivedBytes = 0;
       record.bytesDigest = null;
       record.detectedType = null;
-      deps.blobs.remove(stagingKeyForIntent(record.intentId));
       deps.intents.put(record);
+      deps.blobs.remove(stagingKeyForIntent(record.intentId));
       sweptIntents.push(record.intentId);
     }
   }
@@ -106,22 +112,24 @@ export function runRetention(
         deps.files.put(stored);
         expired.push(stored.file.id);
       }
+      deps.blobs.remove(blobKeyForFile(stored.file.id));
       continue;
     }
     if (stored.state === 'expired') {
+      deps.blobs.remove(blobKeyForFile(stored.file.id));
       continue;
     }
     if (retentionElapsed) {
-      deps.blobs.remove(blobKeyForFile(stored.file.id));
       stored.state = 'expired';
       deps.files.put(stored);
+      deps.blobs.remove(blobKeyForFile(stored.file.id));
       expired.push(stored.file.id);
       continue;
     }
     if (stored.state === 'finalized' && horizonElapsed) {
-      deps.blobs.remove(blobKeyForFile(stored.file.id));
       stored.state = 'orphaned';
       deps.files.put(stored);
+      deps.blobs.remove(blobKeyForFile(stored.file.id));
       orphaned.push(stored.file.id);
     }
   }

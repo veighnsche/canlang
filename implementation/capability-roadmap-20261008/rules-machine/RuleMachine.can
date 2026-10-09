@@ -1,0 +1,39 @@
+## Selected rules/machine witness; it does not replace the registered complete applications.
+app RuleMachine
+Given
+ Job { title:text="valid", editable:bool=true, status:enum(idle,queued,ready)=idle machine }
+ invariant Job: row.title!="forbidden"
+ lock Job fields=title when=row.status==ready
+ policy Job read=public
+When
+ crud Job by=public fields=title,editable
+ ## Both guards failing must report disabled before blocked and leave the row unchanged.
+ scenario start(job:Job) by=public -> bool
+  require job.editable message="disabled"
+  require job.title!="blocked" message="blocked"
+  do
+   transition job.status idle -> queued
+   require job.status==queued message="staged_state_missing"
+   transition job.status queued -> ready
+   return true
+ ## A title change after ready must be refused by the declared lock.
+ scenario rename(job:Job,title:text) by=public -> bool
+  do
+   set job {title}
+   return true
+ ## This must be refused by the invariant, including any earlier staged changes.
+ scenario violate(job:Job) by=public -> bool
+  do
+   set job {editable=false}
+   set job {title="forbidden"}
+   return true
+ ## The second transition must fail and roll back the first transition.
+ scenario rollback(job:Job) by=public -> bool
+  do
+   transition job.status idle -> queued
+   transition job.status idle -> ready
+   return true
+Then
+ page / title="Rules and machines"
+  list Job
+   text row.title,row.status

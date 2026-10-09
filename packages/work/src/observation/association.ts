@@ -35,7 +35,8 @@ import type {
 } from '@canlang/contracts';
 import { isConsistentCompletion, isTerminalReceiptStatus } from '../receipt/index.js';
 import { isTextRunReceiptContext, isTextRunReceiptPayload, readTextRunResult,
-  isImageRunReceiptContext, isImageRunReceiptPayload, readImageRunResult } from '@canlang/state/receipt/tables';
+  isImageRunReceiptContext, isImageRunReceiptPayload, readImageRunResult,
+  isJudgmentReceiptContext, isJudgmentReceiptPayload } from '@canlang/state/receipt/tables';
 import { equalValue } from '@canlang/values';
 
 /**
@@ -351,6 +352,14 @@ function applyCorrelatedReceiptProgress(
   const status: unknown = envelope['status'];
   const result: unknown = envelope['result'];
   const error: unknown = envelope['error'];
+  const judgment = context !== undefined && context !== null && 'judgment' in context;
+  if (judgment) {
+    const declaredSource = Object.getOwnPropertyDescriptor(context!, 'source');
+    if (declaredSource && Object.hasOwn(declaredSource, 'value') && declaredSource.value !== source) {
+      throw new Error(`${caller}: declaration context disagrees with the trusted receipt source`);
+    }
+    if (!isJudgmentReceiptContext(context)) return { applied: false, reason: 'inconsistent-envelope' };
+  }
   const rich = context !== undefined && (context.source.startsWith('std.TextGenerationV1.') ||
     ['std.ImagesV1.submit', 'std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(context.source)) && result != null;
   if (context !== undefined && context.source !== source) {
@@ -359,9 +368,13 @@ function applyCorrelatedReceiptProgress(
   if (isImageRunReceiptContext(context) && receipt.result !== null && result == null) {
     return { applied: false, reason: 'inconsistent-envelope' };
   }
-  if (rich ? context?.request === undefined || !isSelectedRunPayload(status, result, error, context)
+  if (judgment ? !isJudgmentReceiptPayload(status, result, error, context)
+    : rich ? context?.request === undefined || !isSelectedRunPayload(status, result, error, context)
     : !isConsistentCompletion(status, result, error)) {
     return { applied: false, reason: 'inconsistent-envelope' };
+  }
+  if (judgment && !isJudgmentReceiptPayload(receipt.status, receipt.result, receipt.error, context)) {
+    throw new Error(`${caller}: stored Judgment receipt is malformed or disagrees with its original specification`);
   }
   const revision = (progress as AssociatedCompletion).revision;
   if (rich && receipt.result !== null) {
@@ -458,11 +471,11 @@ export function isKnownProgressRelation(target: unknown): target is string {
  * precedent); envelope-side relation claims are adversary input and
  * refuse with fixed reasons instead, never throwing.
  */
-export function assertKnownProgressRelation(relation: unknown, caller: string): string {
+export function assertKnownProgressRelation(relation: unknown, caller: string, context?: ReceiptResultContext): string {
   if (typeof relation !== 'string' || relation.length === 0) {
     throw new TypeError(`${caller}: relation must be a non-empty T13 delivery-observable target`);
   }
-  if (!KNOWN_PROGRESS_RELATIONS.has(relation)) {
+  if (!KNOWN_PROGRESS_RELATIONS.has(relation) && !(isJudgmentReceiptContext(context) && context!.source === relation)) {
     throw new RangeError(`${caller}: unknown progress relation ${JSON.stringify(relation)}`);
   }
   return relation;
@@ -540,8 +553,8 @@ export function applyRelatedProgress(
   context?: ReceiptResultContext,
 ): RelatedProgressOutcome {
   const caller = 'applyRelatedProgress';
-  const bound = assertKnownProgressRelation(relation, caller);
-  const routed = routeRelatedProgress(bound, progress);
+  const bound = assertKnownProgressRelation(relation, caller, context);
+  const routed = routeRelatedProgress(bound, progress, context);
   if (routed !== undefined) return { applied: false, reason: routed };
   if (context !== undefined && context.source !== bound) {
     throw new Error(`${caller}: original intent context disagrees with relation`);
@@ -565,8 +578,8 @@ export function applyRetainedRelatedProgress(
   context: ReceiptResultContext,
 ): RetainedRelatedProgressOutcome {
   const caller = 'applyRetainedRelatedProgress';
-  const bound = assertKnownProgressRelation(relation, caller);
-  const routed = routeRelatedProgress(bound, progress);
+  const bound = assertKnownProgressRelation(relation, caller, context);
+  const routed = routeRelatedProgress(bound, progress, context);
   if (routed !== undefined) return { applied: false, reason: routed };
   assertAssociatedReceipt(receipt, caller);
   if (context?.source !== bound) throw new Error(`${caller}: original intent context disagrees with relation`);
@@ -574,14 +587,14 @@ export function applyRetainedRelatedProgress(
   return finishRelatedReceiptProgress(bound, receipt, inner, context);
 }
 
-function routeRelatedProgress(bound: string, progress: unknown): RelatedProgressRefusal | undefined {
+function routeRelatedProgress(bound: string, progress: unknown, context?: ReceiptResultContext): RelatedProgressRefusal | undefined {
   const envelopeIsObject = typeof progress === 'object' && progress !== null;
   if (envelopeIsObject) {
     const claimed: unknown = (progress as Record<string, unknown>)['relation'];
     if (typeof claimed !== 'string' || claimed.length === 0) {
       return 'malformed-completion';
     }
-    if (!KNOWN_PROGRESS_RELATIONS.has(claimed)) {
+    if (!KNOWN_PROGRESS_RELATIONS.has(claimed) && !(isJudgmentReceiptContext(context) && context!.source === claimed)) {
       return 'unknown-relation';
     }
     if (claimed !== bound) {
@@ -637,6 +650,8 @@ function finishRelatedReceiptProgress(
 }
 
 export interface RelatedCancelInput {
+  /** Original checked declaration context for source-owned static relations. */
+  context?: ReceiptResultContext;
   /** Trusted relation binding for the association under cancellation. */
   relation: string;
   /** Store-supplied current association. */
@@ -672,7 +687,11 @@ export type RelatedCancelOutcome =
  */
 export function cancelRelatedProgress(input: RelatedCancelInput): RelatedCancelOutcome {
   const caller = 'cancelRelatedProgress';
-  const bound = assertKnownProgressRelation(input.relation, caller);
+  const bound = assertKnownProgressRelation(input.relation, caller, input.context);
+  if (input.context !== undefined &&
+      (input.context.source !== bound || input.association.source !== input.context.source)) {
+    throw new Error(`${caller}: original intent context disagrees with the trusted receipt source`);
+  }
   assertAssociation(input.association, caller);
   assertAssociatedReceipt(input.receipt, caller);
   if (input.association.deliveryId !== input.receipt.deliveryId) {
