@@ -1637,16 +1637,16 @@
       },
       "values_donor_parity_refresh": {
         "state": "implemented, tested, root-reviewed finite support",
-        "file": "packages/values/conformance/string-escape.json",
-        "change": "Initial plan-only donor refresh followed by four source-current donor hash replacements after upstream sync; full29-donor inventory and93strings/23callers/semantic oracle content unchanged.",
-        "validation": "Fresh source oracle observations equal unchanged corpus; source2/2 and private current-emitted2/2 pass after main; original negative controls reused at unchanged source-check scope.",
+        "file": "packages/values/test/string-escape.contract.test.ts",
+        "change": "Keep full frozen29-donor corpus unchanged; explicitly admit the reviewed distribution.ts successor adding only the owning catalog locator. Require exact current source correspondence before comparing all93strings/23callers and corruption controls with recorded observations.",
+        "validation": "Current owning Values TypeScript passes; source Bun1.4.2 and emitted Node24 existing string/prepared contract cases each10/10 pass, zero skips. Intentional ValueTypesError/normalizeValueTypes public inventory already present; every private-authority and runtime/string assertion retained.",
         "limits": "No production reduction, native/backend/default or whole Values acceptance."
       },
       "values_public_export_inventory": {
         "state": "implemented, tested, root-reviewed finite CI assertion repair",
         "file": "packages/values/test/prepared-hook.test.ts",
         "behavior": "Explicit exact public schema inventory includes intentionally released ValueTypesError and normalizeValueTypes; all internal-authority exclusions and semantic assertions unchanged.",
-        "validation": "Current private Values compilation and owning emitted prepared-hook test8/8 pass, no skips; full907-test CI result not rerun or claimed."
+        "validation": "Current owning Values TypeScript, source and emitted prepared-hook cases each8/8 pass; correct intentional ValueTypesError/normalizeValueTypes inventory already present, no assertion edit required. Full package/PR gate not claimed from these affected checks."
       },
       "registered_native_observer": {
         "file": "packages/work-kernel/conformance/registered-differential.mjs",
@@ -4374,6 +4374,7 @@
       "release": "Verified Dev992b3d0ae188d96941a387d538cba11a48692bdb plus2421f900e058ed45771a2a02338fa446ea0d8c4f consumed as narrow owning exports/distribution/manifests/happyDOMlock and three affected test inputs. Preserve unrelated CLIbin/runner implementation; final inputchoices test matches2421 public imports/types.",
       "validation": "Frozen Bun1.4.2 install and Values/Cloudflare TypeScript pass; actual full guard13packages/862JS-TS reports0violations. Existing constructhelp4/4 and real Office compilerconsumer4/4 pass after owning Values build. Genuine nativeD1/DOM inputchoices workflow now passes1/1: request-phase hold captured before worker yield; tracked real requests drain before ports close, preserving original failures and all auth/CSRF/grant/cancellation/invalidation/reopen assertions.",
       "limits": "Qualified finite owning boundary and actual choice lifecycle inputs; no guard relaxation, assertion removal or whole-workspace/app/release acceptance."
-    }
+    },
+    "values_gate_qualification": "Owning source and emitted string/prepared contracts each10/10 pass on genuine Bun1.4.2/Node24 after current TypeScript. Keep frozen corpus/oracle and semantic corruption controls; explicit reviewed distribution.ts catalog locator donor successor only. Public ValueTypesError inventory already complete. Dev consolidatedCI Values findings resolved at Packages owning source; no whole Values/native acceptance."
   }
 }
