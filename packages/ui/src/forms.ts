@@ -17,7 +17,7 @@ import {
   GENERATED_FORM_TYPE_FOR_KIND,
   GENERATED_REF_VERSION_SUFFIX,
 } from "@canlang/contracts";
-import { decodeValue, encodeValue, isFileValue } from "@canlang/values";
+import { decodeValue, encodeValue, isFileValue, SchemaError } from "@canlang/values";
 import {
   isValidDate,
   stringFieldValue,
@@ -355,8 +355,15 @@ function fileFieldValue(field: FormFieldDef): string | null {
   }
   // Draft controls retain id text; canonical record values carry wire {id}.
   if (typeof value === "string") return value;
-  const wire = encodeValue("file", isFileValue(value) ? value : decodeValue("file", value));
-  return (wire as { id: string }).id;
+  try {
+    const wire = encodeValue("file", isFileValue(value) ? value : decodeValue("file", value));
+    return (wire as { id: string }).id;
+  } catch (error) {
+    if (!(error instanceof SchemaError)) throw error;
+    const contextual = new SchemaError(error.violations, `field "${field.path}": ${error.message}`);
+    Object.defineProperty(contextual, "cause", { value: error, writable: true, configurable: true });
+    throw contextual;
+  }
 }
 
 /**

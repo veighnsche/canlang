@@ -34,8 +34,21 @@ describe("native scalar presentation join", () => {
       const options = { locale: "en", appDefaultLocale: "en", timeZone: "Europe/Brussels" };
       assert.equal(formatMessage(descriptor, options), expected);
       assert.equal(formatMessage(pattern, { ...options, args: { x: { type, value: encodeValue(type, value) } } }), expected);
-      assert.equal(descriptor.params?.x, params.x);
+      assert.notEqual(descriptor.params?.x, params.x);
+      assert.deepEqual(descriptor.params?.x, params.x);
+      assert.equal(Object.isFrozen(descriptor.params?.x), true);
       assert.equal(descriptor.params?.x?.value, value);
+      if (type === "date") {
+        // Caller wrapper changes cannot alter the captured type or native operand.
+        const caller = { type: "date", value };
+        const captured = message(pattern, {}, { x: caller });
+        caller.type = "text";
+        caller.value = date("2026-10-09");
+        assert.deepEqual(captured.params?.x, { type: "date", value });
+        assert.equal(captured.params?.x?.value, value);
+        assert.equal(Object.isFrozen(captured.params?.x), true);
+        assert.equal(formatMessage(captured, options), expected);
+      }
     }
     assert.equal(formatScalar({ type: "decimal", value: parseDecimal("1.50") }, { locale: "nl" }), "1,5");
   });
