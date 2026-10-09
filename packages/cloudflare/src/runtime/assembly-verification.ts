@@ -6,6 +6,11 @@
 import type { CompileArtifact } from "@canlang/contracts";
 import type { AssembledModules } from "./modules.js";
 
+/** Private infrastructure failure: never convert correspondence drift to a business receipt. */
+export class AssemblyCorrespondenceError extends Error {
+  constructor(message: string) { super(message); this.name = 'AssemblyCorrespondenceError'; }
+}
+
 interface AssemblyCapability {
   artifactJson: string;
   urls: ReadonlyMap<string, string>;
@@ -37,12 +42,17 @@ export function registerAssemblerModuleCapability(
 async function verify(capability: AssemblyCapability, expectedArtifact?: CompileArtifact): Promise<void> {
   const matchesArtifact = () => {
     if (expectedArtifact !== undefined && JSON.stringify(expectedArtifact) !== capability.artifactJson) {
-      throw new Error("importVerifiedAssemblyModule: artifact differs from assembled source");
+      throw new AssemblyCorrespondenceError("importVerifiedAssemblyModule: artifact differs from assembled source");
     }
   };
-  matchesArtifact();
-  await capability.verifyClosure();
-  matchesArtifact();
+  try {
+    matchesArtifact();
+    await capability.verifyClosure();
+    matchesArtifact();
+  } catch (error) {
+    if (error instanceof AssemblyCorrespondenceError) throw error;
+    throw new AssemblyCorrespondenceError(error instanceof Error ? error.message : String(error));
+  }
 }
 
 /** Verify the existing issuer and complete captured closure without running a module. */
@@ -50,7 +60,7 @@ export async function verifyAssemblerModuleCapability(
   asm: AssembledModules, expectedArtifact: CompileArtifact,
 ): Promise<void> {
   const capability = capabilities.get(asm);
-  if (capability === undefined) throw new Error("importVerifiedAssemblyModule: assembly is not assembler-owned");
+  if (capability === undefined) throw new AssemblyCorrespondenceError("importVerifiedAssemblyModule: assembly is not assembler-owned");
   await verify(capability, expectedArtifact);
 }
 
@@ -59,9 +69,9 @@ export async function importVerifiedAssemblyModule(
   asm: AssembledModules, path: string, expectedArtifact?: CompileArtifact,
 ): Promise<unknown> {
   const capability = capabilities.get(asm);
-  if (capability === undefined) throw new Error("importVerifiedAssemblyModule: assembly is not assembler-owned");
+  if (capability === undefined) throw new AssemblyCorrespondenceError("importVerifiedAssemblyModule: assembly is not assembler-owned");
   const url = capability.urls.get(path);
-  if (url === undefined) throw new Error("importVerifiedAssemblyModule: unknown artifact module path");
+  if (url === undefined) throw new AssemblyCorrespondenceError("importVerifiedAssemblyModule: unknown artifact module path");
   await verify(capability, expectedArtifact);
   try {
     const imported: unknown = capability.importModule === undefined

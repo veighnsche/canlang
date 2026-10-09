@@ -126,7 +126,7 @@ import type {
 } from "./context.js";
 import { createContext } from "./context.js";
 import type { AssembledModules } from "./modules.js";
-import { importVerifiedAssemblyModule, verifyAssemblerModuleCapability } from './assembly-verification.js';
+import { AssemblyCorrespondenceError, importVerifiedAssemblyModule, verifyAssemblerModuleCapability } from './assembly-verification.js';
 import type { MappedPosition } from "./sourcemap.js";
 import { lookup } from "./sourcemap.js";
 import { stageAuthoredDelivery } from "./receipt-staging.js";
@@ -342,6 +342,26 @@ async function invokeWith(
   args?: unknown[],
   preserveThrown = false,
 ): Promise<InvokeResult> {
+  const checkedScenario = requiresScenarioCorrespondence(artifact);
+  if (checkedScenario) await verifyScenarioAssembly(asm, artifact, canonicalCache.get(artifact)?.scenarioAssembly);
+  try {
+    return await invokeAssembledCallable(asm, artifact, id, ctx, args, preserveThrown, checkedScenario);
+  } finally {
+    // Qualify every exit, including import/registry refusals and throwing handlers.
+    // Infrastructure drift must escape the business rejected-receipt path.
+    if (checkedScenario) await verifyScenarioAssembly(asm, artifact, canonicalCache.get(artifact)?.scenarioAssembly);
+  }
+}
+
+async function invokeAssembledCallable(
+  asm: AssembledModules,
+  artifact: CompileArtifact,
+  id: string,
+  ctx: HandlerContext,
+  args: unknown[] | undefined,
+  preserveThrown: boolean,
+  checkedScenario: boolean,
+): Promise<InvokeResult> {
   const callable = artifact.callables.find((entry) => entry.id === id);
   if (callable === undefined) {
     const available = artifact.callables.map((entry) => entry.id);
@@ -354,6 +374,7 @@ async function invokeWith(
   }
   const moduleUrl = asm.moduleUrls[callable.module];
   if (moduleUrl === undefined) {
+    if (checkedScenario) throw new AssemblyCorrespondenceError('Verified scenario callable lost its assembled module URL.');
     return {
       ok: false,
       error:
@@ -363,12 +384,11 @@ async function invokeWith(
   }
   let mod: Record<string, unknown>;
   try {
-    const checkedScenario = requiresScenarioCorrespondence(artifact);
-    if (checkedScenario) await verifyScenarioAssembly(asm, artifact, canonicalCache.get(artifact)?.scenarioAssembly);
     mod = (checkedScenario
       ? await importVerifiedAssemblyModule(asm, callable.module, artifact)
       : await import(moduleUrl)) as Record<string, unknown>;
   } catch (error) {
+    if (error instanceof AssemblyCorrespondenceError) throw error;
     return {
       ok: false,
       error:
@@ -405,6 +425,7 @@ async function invokeWith(
   try {
     current = (canApp as () => unknown)();
   } catch (error) {
+    if (error instanceof AssemblyCorrespondenceError) throw error;
     return {
       ok: false,
       error:
@@ -446,14 +467,12 @@ async function invokeWith(
     current = next;
   }
   const fn = current as (ctx: HandlerContext, ...args: unknown[]) => unknown;
+  if (checkedScenario) await verifyScenarioAssembly(asm, artifact, canonicalCache.get(artifact)?.scenarioAssembly);
   try {
-    const checkedScenario = requiresScenarioCorrespondence(artifact);
-    if (checkedScenario) await verifyScenarioAssembly(asm, artifact, canonicalCache.get(artifact)?.scenarioAssembly);
     const value = await fn(ctx, ...(args ?? []));
-    if (checkedScenario) await verifyScenarioAssembly(asm, artifact, canonicalCache.get(artifact)?.scenarioAssembly);
     return { ok: true, value };
   } catch (error) {
-    if (preserveThrown) throw error;
+    if (preserveThrown || error instanceof AssemblyCorrespondenceError) throw error;
     const mapped = mapThrownError(error, artifact, asm);
     return mapped === undefined
       ? { ok: false, error: message(error) }
@@ -2070,7 +2089,7 @@ function requiresScenarioCorrespondence(artifact: CompileArtifact): boolean {
 async function verifyScenarioAssembly(asm: AssembledModules, artifact: CompileArtifact,
   original?: AssembledModules): Promise<void> {
   if (original !== undefined && asm !== original) {
-    throw new Error('Scenario disclosure requires its original verified assembly.');
+    throw new AssemblyCorrespondenceError('Scenario disclosure requires its original verified assembly.');
   }
   await verifyAssemblerModuleCapability(asm, artifact);
 }
