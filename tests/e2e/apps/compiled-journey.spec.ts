@@ -26,11 +26,6 @@ const READ = "Store.Gadget.read";
 const UPDATE = "Store.Gadget.update";
 const DELETE = "Store.Gadget.delete";
 const MODEL = "Store.Gadget";
-// Receipt `app` pin: the worker assembly derives the app id from the
-// artifact source stem (`interimAppInfo`), so the compiled-shop fixture
-// receipts under "compiled-shop" (same rule the T17b harness pins as
-// "TeamTasks" for its fixture).
-const RECEIPT_APP = "compiled-shop";
 
 interface ReadRow {
   readonly id: string;
@@ -44,13 +39,15 @@ function readRows(result: unknown): ReadRow[] {
   return root.records;
 }
 
-function createdRow(result: MutationResult): { id: string; version: number; data: Record<string, unknown> } {
-  const row = result.result as { id: unknown; version: unknown; data: unknown };
+function disclosedRow(result: MutationResult): ReadRow {
+  expect(result.result).toBeNull();
+  expect(result.records).toHaveLength(1);
+  const row = result.records![0] as { id: unknown; version: unknown; data: unknown };
   if (typeof row.id !== "string" || typeof row.version !== "number") {
-    throw new Error(`compiled journey: bad create result ${JSON.stringify(result.result)}`);
+    throw new Error(`compiled journey: bad disclosed record ${JSON.stringify(result.records)}`);
   }
   if (typeof row.data !== "object" || row.data === null || Array.isArray(row.data)) {
-    throw new Error(`compiled journey: bad create data ${JSON.stringify(result.result)}`);
+    throw new Error(`compiled journey: bad disclosed data ${JSON.stringify(result.records)}`);
   }
   return { id: row.id, version: row.version, data: row.data as Record<string, unknown> };
 }
@@ -75,6 +72,12 @@ test.describe("compiled journey", () => {
 
   test("create→read→update→delete with receipt/history verification", async ({ compiled, island }) => {
     expect(compiled.label.startsWith(COMPILED_LABEL_PREFIX)).toBe(true);
+    const entry = compiled.artifact.modules[0];
+    if (entry === undefined) throw new Error("compiled journey: defining app entry is missing");
+    const entryUrl = compiled.asm.moduleUrls[entry.path];
+    if (entryUrl === undefined) throw new Error("compiled journey: defining app entry is not assembled");
+    const { appDefinition } = await import(entryUrl) as { appDefinition: { id: string } };
+    expect(appDefinition.id).toBe("Lobby");
     const seed = await seedCompiledMember();
     const invoker = await createCompiledInvoker(compiled, island.store, {
       memberships: seed.store,
@@ -95,9 +98,11 @@ test.describe("compiled journey", () => {
     );
     if (!("result" in created)) throw new Error(`compiled journey: create failed ${JSON.stringify(created)}`);
     expect(created.result.status).toBe("committed");
-    const row = createdRow(created.result);
+    expect(created.result.operation_id).toBe(createOpId);
+    const row = disclosedRow(created.result);
     expect(row.version).toBe(1);
     expect(row.data).toEqual({ title });
+    const revisionAfterCreate = await island.store.readRevision();
 
     // -- duplicate create replays without re-executing ----------------
     const replayed = await invoker.invokeMutation(
@@ -110,12 +115,16 @@ test.describe("compiled journey", () => {
     );
     if (!("result" in replayed)) throw new Error(`compiled journey: replay failed ${JSON.stringify(replayed)}`);
     expect(replayed.result.status).toBe("replayed");
-    expect(createdRow(replayed.result).id).toBe(row.id);
+    expect(replayed.result.operation_id).toBe(createOpId);
+    expect(disclosedRow(replayed.result)).toEqual(row);
+    expect(replayed.result.records).toEqual(created.result.records);
+    expect(await island.store.readRevision()).toBe(revisionAfterCreate);
 
     // -- read serves the created row ----------------------------------
     const readBack = await invoker.invokeRead({ operation: READ, inputs: {} }, seed.identity);
     if (!("result" in readBack)) throw new Error(`compiled journey: read failed ${JSON.stringify(readBack)}`);
     const found = readRows(readBack.result).find((entry) => entry.id === row.id);
+    expect(found?.version).toBe(row.version);
     expect(found?.data).toEqual({ title });
 
     // -- update --------------------------------------------------------
@@ -125,13 +134,15 @@ test.describe("compiled journey", () => {
       {
         operation: UPDATE as OperationName,
         operation_id: updateOpId as OperationId,
-        inputs: { record: { id: row.id, version: "1" }, title: updatedTitle },
+        inputs: { record: { id: row.id, version: String(row.version) }, title: updatedTitle },
       },
       seed.identity,
     );
     if (!("result" in updated)) throw new Error(`compiled journey: update failed ${JSON.stringify(updated)}`);
     expect(updated.result.status).toBe("committed");
-    const updatedRow = createdRow(updated.result);
+    expect(updated.result.operation_id).toBe(updateOpId);
+    const updatedRow = disclosedRow(updated.result);
+    expect(updatedRow.id).toBe(row.id);
     expect(updatedRow.version).toBe(2);
     expect(updatedRow.data).toEqual({ title: updatedTitle });
 
@@ -139,7 +150,9 @@ test.describe("compiled journey", () => {
     if (!("result" in readUpdated)) {
       throw new Error(`compiled journey: re-read failed ${JSON.stringify(readUpdated)}`);
     }
-    expect(readRows(readUpdated.result).find((entry) => entry.id === row.id)?.data).toEqual({
+    const foundUpdated = readRows(readUpdated.result).find((entry) => entry.id === row.id);
+    expect(foundUpdated?.version).toBe(updatedRow.version);
+    expect(foundUpdated?.data).toEqual({
       title: updatedTitle,
     });
 
@@ -149,12 +162,15 @@ test.describe("compiled journey", () => {
       {
         operation: DELETE as OperationName,
         operation_id: deleteOpId as OperationId,
-        inputs: { record: { id: row.id, version: "2" } },
+        inputs: { record: { id: row.id, version: String(updatedRow.version) } },
       },
       seed.identity,
     );
     if (!("result" in deleted)) throw new Error(`compiled journey: delete failed ${JSON.stringify(deleted)}`);
     expect(deleted.result.status).toBe("committed");
+    expect(deleted.result.operation_id).toBe(deleteOpId);
+    expect(deleted.result.result).toBeNull();
+    expect(deleted.result.records).toEqual([]);
 
     const readDeleted = await invoker.invokeRead({ operation: READ, inputs: {} }, seed.identity);
     if (!("result" in readDeleted)) {
@@ -164,20 +180,29 @@ test.describe("compiled journey", () => {
 
     // -- receipts + history via a FRESH handle (persist proof) ----------
     const fresh = island.freshStore();
-    for (const [operation, operationId] of [
-      [CREATE, createOpId],
-      [UPDATE, updateOpId],
-      [DELETE, deleteOpId],
+    const archived = await fresh.load(MODEL as ModelName, row.id as RecordId);
+    expect(archived?.version).toBe(3);
+    expect(archived?.data).toEqual({ title: updatedTitle });
+    expect(typeof archived?.archivedAt).toBe("number");
+    for (const [operation, operationId, version] of [
+      [CREATE, createOpId, 1],
+      [UPDATE, updateOpId, 2],
+      [DELETE, deleteOpId, 3],
     ] as const) {
       const receipt = await fresh.readReceipt({
-        app: RECEIPT_APP,
+        app: appDefinition.id,
         owner: seed.teamId,
         principal: seed.memberId,
         operation: operation as OperationName,
         operationId: operationId as OperationId,
       });
       expect(receipt, `receipt for ${operation}`).not.toBeNull();
+      expect(receipt?.identity).toEqual({ app: appDefinition.id, owner: seed.teamId, principal: seed.memberId,
+        operation, operationId });
       expect(receipt?.outcome.status).toBe("committed");
+      if (receipt?.outcome.status === "committed") {
+        expect(receipt.outcome.recordVersions).toEqual([{ model: MODEL, id: row.id, version }]);
+      }
     }
     const trail = await fresh.historyFor(MODEL as ModelName, row.id as RecordId);
     expect(trail.map((entry) => [entry.change, entry.version, entry.operationId])).toEqual([
