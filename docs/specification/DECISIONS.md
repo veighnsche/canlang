@@ -3687,3 +3687,7 @@ Accepted finite checked-field correction: reuse the State constraint factory wit
 ## 2026-10-09 — validate only actual update-hook field changes
 
 Accepted finite State correction for Codex4232157232: compare update-hook field wire contents after clone handoff, retaining every explicit patch key for validation. No-op or cloned arrays/objects retain unchanged legacy data under tightened constraints; actual hook mutations still validate and fail atomically. Full create/update codec traversal remains intact. State emit and20existing modifier/typed-staging controls pass without skips, covering all-field encoding, explicit patch refusal, in-place array/object mutation and complete batch/revision/history rollback. Current-head review and complete parent qualification remain separate.
+
+## 2026-10-09 — consume rendered delete replay identities
+
+Consume exact owning Compiler22903771 nonce producer with7fe7fe35 canonical form consumer: each visible delete occurrence mints one UUIDv7, preserves its hidden identity on submit/replay, and gated omission mints none. The real UI posts only protected record id/version, retaining undeclared-mode refusal and operation-owned archive behavior. Rust1.99locked/offline focused codegen1/1and actual generated delete runtime1/1pass, including native precision, fresh rendering, archive/replay/stale and current-grant refusal. Complete Office browser/durable qualification remains Dev-owned; no broader acceptance.

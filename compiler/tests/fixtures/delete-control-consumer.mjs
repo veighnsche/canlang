@@ -17,8 +17,9 @@ const artifact=JSON.parse(readFileSync(artifactPath,'utf8'));
 const uiUrl=pathToFileURL(require.resolve('@canlang/ui')).href;
 const observer=resolve(scratch,'observed-ui.mjs');
 writeFileSync(observer,`export * from ${JSON.stringify(uiUrl)};
-import {deleteRecord as nativeDelete,text as nativeText} from ${JSON.stringify(uiUrl)};
-export async function deleteRecord(props){globalThis.deleteControls.push(props.record);return nativeDelete(props);}
+import {deleteRecord as nativeDelete,text as nativeText,mintOperationId as nativeMint} from ${JSON.stringify(uiUrl)};
+export async function deleteRecord(props){globalThis.deleteControls.push(props);return nativeDelete(props);}
+export function mintOperationId(){globalThis.deleteMintCalls++;return nativeMint(()=>${FIXED_NOW});}
 export function text(props){globalThis.deleteTextValues.push(props.values);return nativeText(props);}`);
 const asm=await assembleModules({artifact,sourcePath:resolve(scratch,'delete-control.can')},{
  workDir:resolve(scratch,'modules'),uiUrl:pathToFileURL(observer).href,
@@ -37,6 +38,7 @@ const currentRows=()=>queryPageRowsCanonical({asm,artifact,model,args:{},identit
 const born=(await currentRows()).rows[0];assert.ok(born);
 const reference=artifact.pages[0],entry=await import(asm.moduleUrls[reference.module]),page=entry[reference.export];
 let queries=0,synthetic;
+globalThis.deleteMintCalls=0;
 const controls=[],textValues=[];globalThis.deleteControls=controls;globalThis.deleteTextValues=textValues;
 const context=buildPresentationContext({request:new Request('https://example.test/'),pathname:'/',isPartial:false,
  appDefaultLocale:'en',csrfToken:'test-csrf',principal:identity,
@@ -47,26 +49,57 @@ const render=async()=>page.render(context,await page.admit(context));
 const hidden=(html,name)=>{const match=html.match(new RegExp(`name="${name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}" value="([^"]*)"`));assert.ok(match,name);return match[1];};
 const html=await render();
 assert.equal(queries,1,'one authorized collection read');
-assert.deepEqual(controls,[{id:born.id,version:String(born.version)}]);
+assert.deepEqual(controls.map(props=>props.record),[{id:born.id,version:String(born.version)}]);
+assert.equal(globalThis.deleteMintCalls,1,'one nonce for one rendered control');
+const first=controls[0];
+assert.equal(first.operation,operation);
+assert.equal(first.action,'/api/operations/'+operation);
+assert.equal(first.mode,'archive');
+assert.ok(!html.includes('name="inputs[mode]"'),'mode selects presentation without inventing a business input');
+assert.match(first.operationId,/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+assert.equal(first.operationId.slice(0,8)+first.operationId.slice(9,13),FIXED_NOW.toString(16).padStart(12,'0'));
+assert.equal(hidden(html,'operation_id'),first.operationId);
+assert.equal(hidden(html,'operation'),operation);
+const repeated=await render();
+assert.equal(globalThis.deleteMintCalls,2);
+assert.notEqual(hidden(repeated,'operation_id'),first.operationId,'fresh nonce per render');
 assert.deepEqual(textValues.at(-1),[BigInt(born.version)+1n],'source version arithmetic remains native');
 const wire={id:hidden(html,'inputs[record][id]'),version:hidden(html,'inputs[record][version]')};
 assert.deepEqual(wire,{id:born.id,version:String(born.version)});
-// Submit the exact protected form identity through actual canonical admission.
-committed(await mutate(operation,{record:wire}));
+// Retain refusal of an undeclared mode added to otherwise valid form inputs.
+const rawMode=await invoker.invokeMutation({operation,operation_id:hidden(repeated,'operation_id'),inputs:{record:wire,mode:first.mode}},identity);
+assert.ok('error' in rawMode);
+assert.equal(rawMode.error.code,'validation','extra mode stays outside canonical CRUD inputs');
+// Submit every emitted business input and the rendered nonce unchanged.
+const businessFields=[...html.matchAll(/name="(inputs\[[^"]+)" value="([^"]*)"/g)].map(match=>[match[1],match[2]]);
+assert.deepEqual(businessFields,[['inputs[record][id]',wire.id],['inputs[record][version]',wire.version]],'only the declared protected record is posted');
+const envelope={operation,operation_id:hidden(html,'operation_id'),inputs:{record:wire}};
+const deleted=await invoker.invokeMutation(envelope,identity);committed(deleted);
+const replayed=await invoker.invokeMutation(envelope,identity);
+assert.ok('result' in replayed);
+assert.equal(replayed.result.status,'replayed','same rendered nonce replays the saved outcome');
+assert.equal(replayed.result.operation_id,envelope.operation_id);
+assert.deepEqual(replayed.result.result,deleted.result.result);
+assert.deepEqual(replayed.result.records,deleted.result.records);
 const stale=await mutate(operation,{record:wire});assert.ok('error' in stale);assert.equal(stale.error.code,'conflict');
 committed(await mutate(model+'.create',{title:'Two',enabled:true}));
 const another=(await currentRows()).rows[0];assert.ok(another);
+const beforeRevocation=await render();
+assert.equal(hidden(beforeRevocation,'inputs[record][id]'),another.id);
+const deniedEnvelope={operation,operation_id:hidden(beforeRevocation,'operation_id'),inputs:{record:{id:hidden(beforeRevocation,'inputs[record][id]'),version:hidden(beforeRevocation,'inputs[record][version]')}}};
 await memberships.removeMembership(member.membership.membership_id);
-const denied=await mutate(operation,{record:{id:another.id,version:String(another.version)}});
+const denied=await invoker.invokeMutation(deniedEnvelope,identity);
 assert.ok('error' in denied);assert.equal(denied.error.code,'forbidden','rendered controls confer no mutation authority');
 // Presentation wire precision is wider than State's admitted stored-version
 // domain. Exercise the renderer with an exact wire row, without store claims.
 const exact='9007199254740993';
 synthetic={id:'precision',version:exact,fields:{title:'Exact',enabled:true}};
 controls.length=0;const precise=await render();
-assert.deepEqual(controls,[{id:'precision',version:exact}]);
+assert.deepEqual(controls.map(props=>props.record),[{id:'precision',version:exact}]);
+assert.equal(hidden(precise,'operation_id'),controls[0].operationId);
 assert.equal(hidden(precise,'inputs[record][version]'),exact);
 assert.deepEqual(textValues.at(-1),[9007199254740994n],'native arithmetic stays exact above 2^53');
 synthetic={id:'gated',version:exact,fields:{title:'Hidden',enabled:false}};
-controls.length=0;const gated=await render();assert.deepEqual(controls,[]);assert.ok(!gated.includes('inputs[record][version]'),'gate encloses the delete boundary');
-console.log('delete control: native arithmetic, exact hidden wire versions, real UI render, canonical archive/stale/current-grant admission and gated omission passed');
+const mintedBeforeGate=globalThis.deleteMintCalls;
+controls.length=0;const gated=await render();assert.equal(globalThis.deleteMintCalls,mintedBeforeGate,'gated controls mint no nonce');assert.deepEqual(controls,[]);assert.ok(!gated.includes('inputs[record][version]'),'gate encloses the delete boundary');
+console.log('delete control: native arithmetic, exact hidden wire versions, real UI render, fresh UUIDv7 render identity, unchanged nonce archive/replay/stale/current-grant admission and gated omission passed');
