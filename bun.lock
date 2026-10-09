@@ -150,10 +150,10 @@
       "dependencies": {
         "@canlang/cloudflare": "workspace:*",
         "@canlang/contracts": "workspace:*",
+        "@canlang/services": "workspace:*",
       },
       "devDependencies": {
         "@canlang/identity": "workspace:*",
-        "@canlang/services": "workspace:*",
         "@canlang/state": "workspace:*",
         "@canlang/values": "workspace:*",
         "@canlang/work": "workspace:*",
