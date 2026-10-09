@@ -1011,9 +1011,11 @@
       ],
       "conditional_gates": [],
       "worker_update": {
-        "state": "blocked_prerequisite_or_value_gate",
-        "prerequisite": "Runtime-choice checked producer and exact installed judgment model/token-count/deployment profile; reuse existing static native-D1/System-One controlled HTTP join.",
-        "owner": "Compiler/Contracts and Judgment/Services deployment owners."
+        "state": "tested_source_runtime_choice_native_component",
+        "implemented": "Current upstream actual source already includes static and runtime judgments and their bounded source-derived option inventory; no duplicate implementation.",
+        "validation": "Existing genuine bound-judgment-durable case1/1 in13.69s, compiling with rebuilt current CLI2561c9b8: nativeD1/current grants/reopen and real controlled localhost System-One static/runtime provider routes, schema/catalog/input/distribution/revision/model/usage negatives.",
+        "remaining": "Controlled provider/model/token-count profile only; original current source06b and actual deployed/remote model/account/tokenizer/provider qualification remain defining-owner gates. Older missing-runtime-choice claims are superseded at this tested component scope.",
+        "owner": "Judgment/Services deployment owner and draft publisher/coordinator; no image-provider dependency."
       }
     },
     {
@@ -1070,10 +1072,10 @@
         "mixed_handler_semantics": "Defining Package worker confirms DESIGN\u00a76 independent handler occurrence/receipt; later handler cannot reject already committed event source. Source-atomic ordinary body grouping withdrawn. Atomic durable routing/admission creates independent handler occurrences/cohort intents; each body/outcome remains separate. Existing Work lacks retained source-to-handler routing/admission/stored selector. Balanced preauthorized JEV3 addresses consequential new minimal producer/cursor design, preserving accepted semantics; no worker/resource hold."
       },
       "worker_update": {
-        "state": "ready_missing_installed_boundary_qualification",
-        "implemented_prerequisites": "Reuse upstream actual installed concrete-team Worker HTTP/scheduled tick, retained mixed ordinary/cohort routing and durable bounded navigation/resume producer; earlier record absence claims are stale.",
-        "next": "Extend existing owning installed nativeD1 Worker case through original499/500/501/1000 membership matrix with incomplete admission at real restart.",
-        "owner": "This Capability worker; State/Work producers already integrated at their accepted component scope."
+        "state": "implemented_tested_installed_boundary_component",
+        "implemented": "Existing genuine installed Worker nativeD1 case now covers original499/500/501/1000 membership sizes with admission genuinely incomplete at workerd dispose/reopen, exact frozen members/children/history, late exclusion, complete independent outcomes and full scheduled replay without repeated effects. Integrated default tick, routing and durable navigation prerequisites are reused.",
+        "validation": "Owning scheduler emit22/22; focused changed installed case1/1 in201.34s, all four boundary diagnostics passed. No extra rerun or new runtime/schema/fixture/bridge.",
+        "acceptance": "The identified original installed multi-chunk qualification unit is tested; full48 and original wider product/resource/host gates are not inferred from this result."
       }
     },
     {
@@ -1500,9 +1502,9 @@
     },
     "review_status": {
       "pr": "https://github.com/veighnsche/canlang/pull/134",
-      "revision": "30cac59e",
-      "state": "automated_review_skipped_draft",
-      "action": "Request draft review after next coherent pushed update; absent review is not approval."
+      "revision": "b68bc71ff8f910d16cd8923ca719614c045b9982",
+      "state": "Codex_code_and_security_reviews_completed_with_two_actionable_code_findings",
+      "action": "Correct bound model-alias identity encoding and configured Chromium/failure cleanup; affected generated regression pending. Only Codex counts under latest human review instruction; no CodeRabbit action or approval credit."
     }
   },
   "live_handoffs": {
