@@ -35,10 +35,12 @@ import {
   readFanoutIntentRow,
 } from '../fanout/tables.js';
 import {
-  invoke, invokeRead, invokeReadScenario,
+  invoke, invokeRead, invokeReadScenario, invokeReadPage,
   type ExecuteHandler, type ReadSelection,
   type ReadScenarioHandler, type ReadScenarioResult,
+  type InvokeReadPageInput, type ViewerPageResult, type ViewerPageTransform,
 } from '../invocation/invoke.js';
+import type { InterimContainment } from '../mutation/models.js';
 import type { OperationRegistry } from '../invocation/registry.js';
 import type { ClockPort } from '../invocation/context.js';
 import type { MembershipReader } from '../policy/roles.js';
@@ -164,6 +166,35 @@ export type BoundReadScenarioInvoker = (args: ReadScenarioInvokeArgs) => Promise
 
 export function createReadScenarioInvoker(input: ReadInvokerInput): BoundReadScenarioInvoker {
   return (args) => invokeReadScenario({ ...args, ...input });
+}
+
+export interface ReadPageInvokerInput extends ReadInvokerInput {
+  readonly containment: ReadonlyMap<import('@canlang/contracts').ModelName, InterimContainment>;
+}
+
+export type ReadPageInvokeArgs = Pick<InvokeReadPageInput, 'envelope' | 'identity' | 'selection'>;
+
+export interface BoundReadPageInvoker {
+  (args: ReadPageInvokeArgs): Promise<ViewerPageResult>;
+  <Result>(args: ReadPageInvokeArgs, transform: ViewerPageTransform<Result>): Promise<Result>;
+}
+
+/** Bound metadata is detached once; call selection cannot replace dependencies. */
+export function createReadPageInvoker(input: ReadPageInvokerInput): BoundReadPageInvoker {
+  const models = input.models === undefined ? undefined : structuredClone(input.models);
+  const containment = new Map([...input.containment].map(([model, relation]) => [model, structuredClone(relation)]));
+  function read(args: ReadPageInvokeArgs): Promise<ViewerPageResult>;
+  function read<Result>(args: ReadPageInvokeArgs, transform: ViewerPageTransform<Result>): Promise<Result>;
+  function read(args: ReadPageInvokeArgs, transform?: ViewerPageTransform<unknown>): Promise<unknown> {
+    const call: InvokeReadPageInput = {
+      registry: input.registry, policy: input.policy, store: input.store, memberships: input.memberships,
+      ...(models === undefined ? {} : { models }), containment,
+      envelope: args.envelope, identity: args.identity,
+      ...(args.selection === undefined ? {} : { selection: args.selection }),
+    };
+    return transform === undefined ? invokeReadPage(call) : invokeReadPage(call, transform);
+  }
+  return read;
 }
 
 /* -- T24a dispatch-join port (ADDITIVE; existing ports untouched). -- */

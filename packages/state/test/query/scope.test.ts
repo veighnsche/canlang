@@ -6,7 +6,8 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { queryRecords } from '../../src/query/index.js';
+import type { OrderTerm, RecordId } from '@canlang/contracts';
+import { queryRecords, queryRecordsPage } from '../../src/query/index.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
 import { captureStateError } from '../invocation/fixtures.js';
 import {
@@ -40,6 +41,72 @@ async function setup() {
 type Setup = Awaited<ReturnType<typeof setup>>;
 
 describe('scope', () => {
+  it('pages the projected visible set with a terminal step and preserves ordinary overflow', async () => {
+    const s = await setup();
+    await seedRows(s.store, MODEL, [
+      { id: 'a', data: { title: 'First', secret: 'hidden' } },
+      { id: 'b', data: { title: 'Second', secret: 'hidden' } },
+      { id: 'c', archivedAt: FIXED_NOW, data: { title: 'Archived' } },
+    ]);
+    const input = viewerInput({ ...s.call, caller: s.std.alice });
+    const first = await queryRecordsPage({ ...input, selection: { limit: 1 } });
+    assert.deepEqual(first.records.map(row => row.data), [{ title: 'First' }]);
+    assert.deepEqual(first.continuation, { revision: first.revision, after: 'a' });
+    const last = await queryRecordsPage({ ...input, selection: { limit: 1, continuation: first.continuation! } });
+    assert.deepEqual(last.records.map(row => row.id), ['b']);
+    assert.equal(last.continuation, null);
+    const overflow = await captureStateError(queryRecords({ ...input, limit: 1 }));
+    assert.equal(overflow.code, 'validation');
+    const invisiblePosition = await captureStateError(queryRecordsPage({ ...input,
+      selection: { continuation: { revision: first.revision, after: 'c' as RecordId } },
+    }));
+    assert.equal(invisiblePosition.code, 'conflict');
+    await seedRows(s.store, MODEL, [{ id: 'd', data: { title: 'New' } }]);
+    assert.equal((await captureStateError(queryRecordsPage({ ...input,
+      selection: { continuation: first.continuation! },
+    }))).code, 'conflict');
+  });
+
+  it('caps materialized candidates before projection/filtering and refuses partial scans', async () => {
+    const s = await setup();
+    await seedRows(s.store, MODEL, Array.from({ length: 1001 }, (_, index) => ({
+      id: String(index).padStart(4, '0'), data: { title: String(index) },
+    })));
+    let observedLimit: number | undefined;
+    let pushedWhere = false;
+    const store = { ...s.store, query: async (spec: Parameters<typeof s.store.query>[0]) => {
+      observedLimit = spec.limit;
+      pushedWhere = Object.hasOwn(spec, 'where');
+      return s.store.query(spec);
+    } };
+    const error = await captureStateError(queryRecordsPage({
+      ...viewerInput({ ...s.call, caller: s.std.alice }), store,
+      selection: { where: { op: 'eq', field: 'title', value: '0' }, limit: 1 },
+    }));
+    assert.equal(error.code, 'limit');
+    assert.equal(observedLimit, 1001);
+    assert.equal(pushedWhere, false);
+    assert.doesNotMatch(error.message, /1001/);
+  });
+
+  it('page-only finite operands and page size checks leave ordinary AST behavior unchanged', async () => {
+    const s = await setup();
+    const input = viewerInput({ ...s.call, caller: s.std.alice });
+    for (const value of [NaN, Infinity, -Infinity]) {
+      assert.equal((await captureStateError(queryRecordsPage({ ...input,
+        selection: { where: { op: 'eq', field: 'created', value } },
+      }))).code, 'validation');
+    }
+    for (const limit of [0, 101, 1.5]) {
+      assert.equal((await captureStateError(queryRecordsPage({ ...input, selection: { limit } }))).code, 'validation');
+    }
+    assert.equal((await captureStateError(queryRecordsPage({ ...input,
+      selection: { order: new Array<OrderTerm>(1) },
+    }))).code, 'validation');
+    const defaultPage = await queryRecordsPage(input);
+    assert.deepEqual(defaultPage.records, []);
+    assert.equal(defaultPage.continuation, null);
+  });
   it('excludes archived rows by default', async () => {
     const s = await setup();
     await seedRows(s.store, MODEL, [
