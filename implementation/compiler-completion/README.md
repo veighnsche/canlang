@@ -97,7 +97,9 @@ English/Dutch pages pass **1/1** for same-name inherited captions, renamed
 values-only overrides and explicit whole labels, with existing receiving
 save/default/current/version, CSRF/case/stale/revocation controls intact.
 Field captions retain DESIGN's same-name inheritance rule; case labels inherit
-across names. The affected ExpenseFlow golden **1/1**, strict all-target Clippy
+across names. Capability review4231140837's renamed main-caption request
+conflicts with DESIGN1018 and is non-actionable here; the existing producer
+condition and real English/Dutch receiving controls remain required. The affected ExpenseFlow golden **1/1**, strict all-target Clippy
 and compiler-wide formatting pass. Independent HIGH source review accepts
 this bounded correction. Codex review of e461c1e2 completed and exposed the
 parameterized-caption producer correction below.
