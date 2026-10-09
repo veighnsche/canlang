@@ -106,6 +106,18 @@ export interface ReceiptIdentity {
 export interface ScenarioReceiptSourceOrigin {
   readonly path: string; readonly sha256: string; readonly module: string;
 }
+/** Intrinsics are distinct from declared row fields. This finite profile
+ * supports only admitted invocation identity and a required singular versioned
+ * reference parameter's ORIGINAL version, never its provisional row version.
+ */
+export type ScenarioReceiptIntrinsicDependency = {
+  readonly id: string;
+  readonly source: ScenarioReceiptSourceOrigin;
+  readonly role: 'data' | 'control';
+  readonly type: CanTypeId;
+} & ({ readonly kind: 'operation-id' } | {
+  readonly kind: 'admitted-reference-version'; readonly parameter: string; readonly model: ModelName;
+});
 export interface ScenarioResultDisclosurePlan {
   readonly version: 1;
   readonly source: ScenarioReceiptSourceOrigin;
@@ -128,6 +140,8 @@ export interface ScenarioResultDisclosurePlan {
       readonly field: string;
       readonly type: CanTypeId;
     }>;
+    /** Optional additive profile; absence preserves existing field-only plans. */
+    readonly intrinsics?: ReadonlyArray<ScenarioReceiptIntrinsicDependency>;
   }>;
 }
 
@@ -142,6 +156,12 @@ export interface ScenarioReceiptAssociation {
     readonly model: ModelName;
     readonly row: StoredRow;
     readonly secretFields: ReadonlyArray<string>;
+  }>;
+  readonly intrinsics?: ReadonlyArray<{
+    readonly dependencyId: string; readonly kind: 'operation-id'; readonly wire: string;
+  } | {
+    readonly dependencyId: string; readonly kind: 'admitted-reference-version'; readonly wire: string;
+    readonly model: ModelName; readonly row: StoredRow; readonly secretFields: ReadonlyArray<string>;
   }>;
   readonly changed: ReadonlyArray<{
     readonly model: ModelName;
