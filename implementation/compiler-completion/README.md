@@ -19,6 +19,17 @@ new gitlink. The coordinator/draft publisher owns this prerequisite. Upstream's
 anonymous-message, query and helper releases supersede the pre-sync leads;
 the duplicate unvalidated anonymous producer is retained only in local branch
 `codex/compiler-anonymous-unfinished-checkpoint`, without acceptance credit.
+
+The populated-page delete handoff now adapts only DeleteProps.record to the
+public MutationRef: capture the row once and encode its protected version as
+a decimal string, preserving native BigInt row semantics and other consumers.
+The actual UI/canonical Memory case passes **1/1** for hidden fields, archive,
+stale versions, membership revocation and gated omission; presentation-only
+precision above 2^53 remains distinct from State's version domain. The affected
+factory golden passes **1/1**, focused strict Clippy passes and independent
+HIGH review accepts this boundary. Dev can consume the published PR revision;
+full Office Supplies/application acceptance remains with its owner.
+
 The user has authorized finishing the remaining compiler tasks. Use the [recorded work/review settings](../../docs/research/compiler-library-audit-20261006/resumption/model-allocation.md); overlapping references share work and completed receipts are reused at matching scope. Current completion joins append to the canonical coverage ledger; historical source pins remain unchanged.
 
 | Reference | Current outcome |
