@@ -3787,3 +3787,7 @@ Rebuild the stale captured Values binding through its exact locked owning wasm32
 ### Implementation: local preview ownership-root admission
 
 Classify authoritative model containment roots before activating or allocating workers. Empty/app-only artifacts use the existing global store and its activation gate; team-only artifacts use existing pinned team stores. Validate unique names, ancestry, scope and cycles. Orchestration18/18 passes; actual app-only consumption is due. Mixed app/team models refuse explicitly because the owning invocation/page boundary lacks model-aware selection and cross-owner semantics; retain that named API prerequisite instead of relaxing team admission or duplicating State routing.
+
+### Validation: real compiler context and generated delete joins
+
+The joined native build and real generated delete/replay/security consumer pass1/1. An actual captured native diagnostic traverses the private socket with exact exported-When IDs, primary keyword bytes/hash/span and accepted context; unqualified cards remain unknown/nonworking and default ranking performs zero provider calls (1/1). This supplies producer-to-consumer evidence while retaining false runtime-evidence flags and missing working-profile/live-ambiguity prerequisites.
