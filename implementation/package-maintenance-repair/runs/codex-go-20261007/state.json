@@ -1589,10 +1589,16 @@
         "limits": "Scenario/legacy catalog and MCP age gates unchanged. Full packet/original security/installed/native gates remain open; no replacement savings."
       },
       "source_form_replay_prerequisite": {
-        "state": "blocked; no expiry bypass implemented",
-        "prerequisite": "Canonical retained-receipt-only admission that refuses absentreceipt before execution/commit, trusted Cloudflare forwarding and Interfaces expired immutable signed-claim restoration only through thatmode. ExistingOperationInvoker has no suchcontract; tokenlease15min is shorter than unseenUUIDv7age24h.",
-        "owner": "Capability owns State/Contracts retained-receipt-only API underSEQ-005/009/014; Dev owns trusted Cloudflare canonical/assembly forwarding; Packages owns subsequent Interfaces expired signed-claim restoration. Coordinator released these finite owner assignments; producer/API/forwarding publication pending.",
-        "preserved": "Signature/canonicalbytes/revision/schema/nonce/app/session/actor/team/editableclaims, freshlease, scenarioage/lease, current credential/disclosure and no new mutation from expiredtoken. Greater-than24h-only workaround skipped as incomplete."
+        "state": "State/Contracts prerequisite consumed and affected qualification passed; Interfaces expiry restoration blocked on published trusted Dev forwarding",
+        "prerequisite": "Dev trusted Cloudflare canonical/assembly forwarding of host-only retained-receipt-only admission. Then Packages verifies expired immutable signed CRUD claims and restores only through that mode. No expiry bypass implemented; fresh token lease remains15min and scenario age/lease stays unchanged.",
+        "owner": "Dev owns exact trusted Cloudflare forwarding release; Packages subsequent Interfaces consumer. Capability State/Contracts API cf4be765 is published/qualified by198c3813/62a0a87e and consumed here.",
+        "preserved": "Signature/canonicalbytes/revision/schema/nonce/app/session/actor/team/editableclaims, freshlease, scenarioage/lease, current credential/disclosure and no new mutation from expiredtoken. Greater-than24h-only workaround skipped as incomplete.",
+        "state_api_release": {
+          "source": "Exact cf4be765ee4390e1ec110aaa78f871a890f77ac3 six State/Contracts source and three owning test files; later owning198c3813/62a0a87e qualification verified. No unrelated owner-session, pipeline or service source imported.",
+          "behavior": "Host-only retained-receipt-only refuses unseen identities before execute/commit; exact receipt identity/hash required, current authority and saved-outcome observer/disclosure retained. Ordinary execution admission remains default.",
+          "validation": "Contracts then State emits pass; Node24 five exact retained-receipt-only cases pass with zero skips, including Memory and actual workerd D1/DO.16min/24h replay, saved rejection, changed hashes/identity, current grant/membership revocation and zero execution/commit/history change execute.",
+          "limit": "Interfaces expired form restoration and actual forwarded HTTP remain blocked; no full parent/product/native or current-head review acceptance."
+        }
       }
     },
     "PARSER-DP01": {
@@ -1892,7 +1898,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-09T12:38:38.314154+00:00",
+  "updated_utc": "2026-10-09T17:07:31.149311Z",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -4350,7 +4356,7 @@
       }
     ],
     "review_prerequisite": {
-      "prerequisite": "Current-head Codex/CI; exact Capability retained-receipt-only State/Contracts API then Dev trusted forwarding before Packages expired signed-claim restoration. PriorCF32runtime fixture prerequisite is consumed/qualified at its finite71-case scope; Draft/Compiler15pilot fixtures retain real producer/consumer obligations.",
+      "prerequisite": "Current-head Codex/CI; exact State/Contracts retained-only API consumed and five owning cases qualified, Dev trusted forwarding remains before Packages expired signed-claim restoration. PriorCF32runtime fixture prerequisite is consumed/qualified at its finite71-case scope; Draft/Compiler15pilot fixtures retain real producer/consumer obligations.",
       "owner": "Assigned Capability/Dev/Compiler/Draft defining producers; Packages consumes coherent exact releases and owns Interfaces restoration"
     },
     "ci_observed_revision": "Priorbf6517e1CI37956535058workspace32CF runtime failures now recover through exactDev57b1fixture intake: local joined six-file71/71passes without skips. Last source1bf automatic compiler/editor and tools passed, browser failed, workspace was running at observed boundary. Current-head full Linux/browser/manual receipt acceptance remains pending; no guard/assertion weakening.",

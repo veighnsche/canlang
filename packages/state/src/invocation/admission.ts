@@ -5,9 +5,10 @@
  *
  * Order is load-bearing per DESIGN §7: read the revision first, then hash
  * inputs and check the receipt before age, authorization, shape, version,
- * or business evaluation. A matching receipt replays the saved outcome
- * even though its submitted versions are now stale; a mismatched hash on
- * the same identity is a conflict.
+ * or business evaluation. Ordinary admission replays a matching receipt even
+ * though its submitted versions are now stale; retained-receipt-only recovery
+ * also checks current operation authority and refuses unseen identities.
+ * A mismatched hash on the same identity is a conflict.
  */
 
 import type {
@@ -16,6 +17,7 @@ import type {
   CanonicalOperationKind,
   InvocationContext,
   ModelName,
+  MutationAdmissionMode,
   Receipt,
   ReceiptIdentity,
   RecordId,
@@ -313,6 +315,8 @@ export async function admit(input: {
   context: InvocationContext;
   store: StoragePort;
   memberships: MembershipReader;
+  /** Host-only recovery selection; it does not alter caller authority or business inputs. */
+  admissionMode?: MutationAdmissionMode;
   /**
    * B2 (Q3): serverOnly exclusions for denial currents (see
    * `ConflictServerOnly`). Absent reads as unknown: stale-ref denials
@@ -321,6 +325,10 @@ export async function admit(input: {
   conflictServerOnly?: ConflictServerOnly;
 }): Promise<AdmittedCall> {
   const { def, inputs, context, store, memberships } = input;
+  if (input.admissionMode !== undefined && input.admissionMode !== 'execute-or-replay' &&
+      input.admissionMode !== 'retained-receipt-only') {
+    throw new StateError('validation', 'Invalid mutation admission mode.');
+  }
   // DESIGN §7 step 1: read the primary revision BEFORE all other
   // state-dependent reads (receipt, membership, rows), so the commit-time
   // fence assertion covers everything admission observed.
@@ -331,11 +339,28 @@ export async function admit(input: {
   const scope = openFenceScope(revision, context.team?.teamId ?? context.app);
   const inputHash = await hashInputs(inputs);
 
+  const authorize = async (): Promise<void> => {
+    if (context.kind === 'trusted') return;
+    const actorUserId = context.actor?.userId ?? null;
+    const teamId = context.team?.teamId ?? null;
+    const membership = actorUserId !== null && teamId !== null
+      ? await memberships.findMembership(teamId, actorUserId) : null;
+    if (actorUserId !== null && teamId !== null) {
+      scope.enroll({ kind: 'membership', teamId, userId: actorUserId });
+    }
+    if (!await evaluateBy(def.by, { actorUserId, teamId, membership, memberships })) {
+      throw new StateError('forbidden', 'This operation is not permitted for the caller.');
+    }
+  };
+
   const existing = await store.readReceipt(receiptIdentityFor(context));
   if (existing !== null) {
     if (existing.inputHash !== inputHash) {
       throw new StateError('conflict', 'Conflicting reuse of this operation identity.');
     }
+    // Recovery proves current operation authority; the host still owns
+    // current grant/secret-aware projection of the retained outcome.
+    if (input.admissionMode === 'retained-receipt-only') await authorize();
     return {
       context,
       def,
@@ -348,25 +373,15 @@ export async function admit(input: {
     };
   }
 
+  if (input.admissionMode === 'retained-receipt-only') {
+    throw new StateError('not_found', 'No retained receipt matches this operation identity.');
+  }
+
   // DESIGN §7: age applies to UNSEEN identities only — a live receipt
   // above already replayed regardless of identity age.
   assertOperationIdAge(context.operationId, context.now);
 
-  if (context.kind !== 'trusted') {
-    const actorUserId = context.actor?.userId ?? null;
-    const teamId = context.team?.teamId ?? null;
-    const membership =
-      actorUserId !== null && teamId !== null
-        ? await memberships.findMembership(teamId, actorUserId)
-        : null;
-    if (actorUserId !== null && teamId !== null) {
-      scope.enroll({ kind: 'membership', teamId, userId: actorUserId });
-    }
-    const allowed = await evaluateBy(def.by, { actorUserId, teamId, membership, memberships });
-    if (!allowed) {
-      throw new StateError('forbidden', 'This operation is not permitted for the caller.');
-    }
-  }
+  await authorize();
 
   // T17a: one validation entry — generated defs validate against the
   // canonical descriptor (the normalized copy, with ordinary-array fills,

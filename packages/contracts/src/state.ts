@@ -48,6 +48,13 @@ export type ModelName = string & { readonly __brand: 'ModelName' };
 /** How the invocation was admitted. `test` is isolated fixture authority only. */
 export type AdmissionKind = 'user' | 'trusted' | 'system' | 'test';
 
+/**
+ * Host-selected mutation admission; retained recovery never executes an unseen
+ * identity and rechecks current operation authority. Result disclosure still
+ * belongs to the host's current grant/secret-aware projection.
+ */
+export type MutationAdmissionMode = 'execute-or-replay' | 'retained-receipt-only';
+
 /** Authenticated account; stable id only, no directory fields. */
 export interface Principal {
   readonly userId: string;
