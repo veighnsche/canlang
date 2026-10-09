@@ -3684,3 +3684,7 @@ The22903771 compiler source passes1,281Rust tests under actual Node24/catalog/dr
 ## 2026-10-09 — consume released portable browser fixture unit
 
 Consume Dev3c45c18c1f20830b6693f0e9a469a4aa502dbe74's finite page-query-serving Chromium unit: both managed launches use the installed browser, and native CDP polling spawns Playwright's executable headlessly. Preserve this branch's existing native assertions and type fixes; do not import absent foreign session fixtures or obsolete workflows. Source intake is implemented; consuming-head browser qualification is still due.
+
+## 2026-10-09 — retain exact checked stored-field modifiers
+
+Consume Compiler producer input1cf28c523c7f64e2f132f7d7e2bb4678271ba05b plus its directly related0e8073bc7047d4f827685922d6d2a1abedb19b1f correction. Publish checked trim and exact literal min/max on stored model descriptors; text/array lengths use safe integers, scalar bounds retain exact wire strings, and unrepresentable expressions refuse E6008 rather than disappear. Preserve current unrelated native/golden corrections. Affected codegen19/19 and typed artifact/descriptor8/8 pass, including nullable/array lengths, large signed precision, authored decimal scale, omitted modifiers and unsafe/nonliteral refusals. Broader consuming application/State qualification remains owner-held.
