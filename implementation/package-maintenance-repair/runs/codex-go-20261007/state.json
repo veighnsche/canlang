@@ -1573,8 +1573,8 @@
       "blocker": "Remaining scenario retained replay lacks current authority/result provenance; its existing Interfaces age gate cannot safely be lifted.",
       "evidence": "security-joins.json",
       "remaining_prerequisite": {
-        "prerequisite": "Checked CRUD projection/HTTP/CSV slice qualified at its recorded scope. Remaining scenario execution-owned provenance/current-authority projection and expired signed source-form receipt-only lease join must land before transport age/lease gates can safely lift.",
-        "owner": "Capability State/Contracts API; Dev trusted Cloudflare canonical/assembly forwarding; Packages subsequent Interfaces consumer"
+        "prerequisite": "Scenario execution-owned provenance/current-authority projection remains. Existing expired signed create/update consumer now implemented and owningtested with dedicated State/CF prerequisites; genuine emitted HTTP qualification additionally requires exact Compiler/nativeState-Stdlib create producer correspondence. No full packet acceptance.",
+        "owner": "Capability scenario/native State-Stdlib producers; Compiler emitted ABI; Packages subsequent genuine consumer qualification"
       },
       "checked_crud_consumer": {
         "state": "implemented, tested, root-reviewed finite current producer/consumer join",
@@ -1604,6 +1604,14 @@
           "behavior": "Positive installed invokeRetainedReceiptOnly required; no ordinary fallback, untyped conflicting mode forced to receipt-only, checked CRUD/current projection only. Scenario disclosure refuses; no execution, commit or file retention/metadata repair.",
           "validation": "State\u2192Cloudflare emits pass; two affected State retained controls and three actual CF retained consumers pass Node24 zero skips. Additional CF noEmit after type-only mirror passes. Snapshot rows/history/outbox/receipt/revision, exact hash/identity, revoked authority, closed caller modes and absent dedicated producer execute.",
           "limit": "Current dedicated host scope; genuine emitted native primitive correspondence and full parent/host qualification remain separate. Local integration only."
+        },
+        "expired_consumer": {
+          "state": "unfinished: implementation and affected owning validation complete; genuine compiled host join blocked",
+          "behavior": "Optional positive restoreRetained verifies expired existing signed create/update claims through full canonicalbytes/HMAC/revision/schema/nonce/app/session/actor/team/editable/bound checks and exact15minspan. Fresh restore/lease and expiredscenario refusal remain. HTTP native/JSON requires callable recovery service and dedicated invoker, never ordinary fallback; current credential/closed inputs remain. Delete source binding production unchanged/unavailable.",
+          "validation": "Interfaces emit and9affected factory/protectedHTTP/presentation cases pass. After review, affected factory1case passes malformed context/derived guards; affected HTTP1case passes absent/null/nonfunction method403 with noinvocation. Exactexpiry/16min/24h, altered validly signedspan, all claimfences, native rendering and dedicated notfound/conflict passthrough covered. State2/CF3 qualified prerequisites recorded separately.",
+          "blocker": "Genuine current CLI artifact\u2192signedUI\u2192HTTP\u2192realCF/Memory stopped before app import: emitted @canlang/stdlib create import has no owningexport. No mutation ran, no module rewriting/fallback, scratch cleaned. Initial OSscratch resolution setup was corrected before this defining producer failure.",
+          "owner": "Compiler emitted native CRUD ABI +Capability State/Stdlib native primitive producer; Packages resumes genuine compiled qualification on exact coherent release.",
+          "limit": "Checkpoint establishes preservation and owning tests, not genuine compiled host/installed/browser or completeREPLAY-IP07 acceptance. Scenario current projection and parent gates remain blocked; native preparation/release HOLD retained."
         }
       }
     },
@@ -1904,7 +1912,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-09T17:49:06.674919Z",
+  "updated_utc": "2026-10-09T17:52:52.854412Z",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -4342,7 +4350,7 @@
     "authorization": "Human local continuation from ebd2ad08; sole shared CI/common gate owner; existing48packet scope and native preparation HOLD preserved.",
     "coordination": "Human-appointed coordinator01a11e6b-f4e1-7603-b47d-9d3210c9c6de; actionable exact prerequisite and shared repair handoffs through existing local chat.",
     "examined_queue": "All48existing one-per-packet dispositions examined; historical20finished/15partial/12open-or-blocked/1human-held accounting preserved. Ready shared gates and exact released State/UI/Interfaces/Compiler/Identity joins implemented and checked at their recorded scopes. Remaining28parent identities retain defining producer/contract/host prerequisites or the preparation HOLD; no original333duty closure claim.",
-    "delivery": "Coherent local units committed through ab81cde3636bcb245436a007832fb2698beb417e after human instruction stopped remote publication; last remote source3c846ee67ee5fa98296c4c4ea72545e5f5ee30eb. Exact prerequisite/source and affected outcomes released to appointed local coordinator for manual local integration. Remaining parent dependencies/holds remain; no worker merges/main writes/deployment/cloud execution.",
+    "delivery": "Coherent local units through2fd0835f939538842a32510db4c9f5c5e25a8371 ready for coordinator integration; expired Interfaces consumer preserved next as unfinished pending genuine emitted ABI correspondence. Last remote source3c846ee67ee5fa98296c4c4ea72545e5f5ee30eb; no subsequent remote push, worker merge/main write/deployment/cloud execution. Remaining parent prerequisites and recipient holds remain.",
     "last_upstream_sync": "ExistingPR upstream repeatedly inspected and pulled ff-only/no-recurse-submodules with no divergence; exact Compiler/Dev published prerequisites fetched/verified before finite intake. Primary checkout and other worktrees untouched.",
     "review_process": "Actual Codex bf6517e1review5472554211: native update clone4232157232fixedad3856a9; missing Compiler modifier4232157221fixed owning8f4release consumedb3d06edf. Actual01a6review5472670410: ignored undefined patch4232259618fixed8521ccfa. Earlier alias/chained caption/InlineMessage/Chromium/zsh findings corrected at recorded scopes. Pending/older reviews never qualify the current head; CodeRabbit/CodeRebits ignored.",
     "filetree_reconciliation": "Accumulated structural correspondence through exactsourceb3d06edf273439bf846bdb5721c4efa48ed9ef91:1079commits/10677net rows/11219historical paths/511history-only. Prior allocations retained;2new existing-package test rows remain inherited-unallocated, pending9175. Exact diff/history/counts and retained6f46/591ancestry pass. Complete82493427semantic checkpoint remains unadvanced; no recursive bookkeeping or product acceptance.",
@@ -4362,7 +4370,7 @@
       }
     ],
     "review_prerequisite": {
-      "prerequisite": "Coordinator manual local integration review under new human instruction; no remote pushes or automated-review waits. State/Contracts retained-only API consumed and five owning cases qualified; Dev trusted forwarding still required before Packages expired signed-claim restoration. Draft/Compiler15pilot fixtures retain real producer/consumer obligations.",
+      "prerequisite": "Coordinator manual local review/integration; no remote publication/automated-review waits. Native emitted create/Stdlib ABI correspondence required for unfinished expired signed-form genuine HTTP qualification. Remaining Draft/Compiler pilot and scenario current-authority producer obligations retained.",
       "owner": "Assigned Capability/Dev/Compiler/Draft defining producers; Packages consumes coherent exact releases and owns Interfaces restoration"
     },
     "ci_observed_revision": "dd03c53dCI37962368169: Compiler/editor and Language tools pass; workspace fails Services early-retry deadline assertion now corrected/qualified at exact1-case scope; browser15failed/30passed retains existing pilot producer/profile prerequisites. Current7d0d1274/full Linux/manual receipt and Codex qualification pending.",
