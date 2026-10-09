@@ -12,12 +12,9 @@
 import http from 'node:http';
 import { readTextBody, sendBody } from '../internal/controlled-http.js';
 import type { Socket } from 'node:net';
+import type { JudgmentsScript } from '../internal/scenario-admission.js';
 
-export type ControlledSystemOneScenario =
-  | { readonly kind: 'accept'; readonly body: unknown }
-  | { readonly kind: 'reject'; readonly status: number; readonly body: unknown }
-  | { readonly kind: 'hang' }
-  | { readonly kind: 'invalid-schema'; readonly body: unknown };
+export type ControlledSystemOneScenario = JudgmentsScript;
 
 export interface ControlledSystemOneRequestLog {
   readonly method: string;

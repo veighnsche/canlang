@@ -1,136 +1,614 @@
 {
-  "status": "SEQ-010 factual preparation only; unavailable context not repaired; no contract acceptance",
-  "observed_utc": "2026-10-07T23:00:12.636110+00:00",
-  "current_committed_revision": "a590a1eae97dcc8b4311b3b96a24433aa7be43de",
-  "frozen_revision": "db57c3794d386fcd27f17f54b199272d58106a81",
-  "actual_bounded_emitted_body": "async \"Bounded.advance\"(c,{job:$can$l$323a6a6f62}){\ncheck(hasRole(c,\"public\"),\"forbidden\");\nawait transition(c,\"Bounded.Job\",($can$l$323a6a6f62).id,\"status\",\"idle\",\"queued\");\nawait transition(c,\"Bounded.Job\",($can$l$323a6a6f62).id,\"status\",\"queued\",\"ready\");\n},",
-  "scopes": [
-    {
-      "scope": "Identity and State admitted user operation",
-      "source": [
-        "packages/identity/src/authentication/context.ts:64 resolveIdentity",
-        "packages/state/src/invocation/context.ts:90 buildContext",
-        "packages/contracts/src/state.ts:65 InvocationContext",
-        "packages/state/src/invocation/admission.ts:180 closed generated inputs; :344 live membership; :651 trusted revalidation boundary"
-      ],
-      "bindings": {
-        "actor": "Principal|null from resolved identity; userId/email/emailVerified",
-        "team": "TeamScope|null from resolved team, teamId/timezone",
-        "clock": "input.now captured in InvocationContext; not caller business input",
-        "operation": "operation name + operationId + source in separate readonly fields",
-        "locale_timezone": "team.timezone exists; no locale in InvocationContext"
+  "status": "SEQ-010 source-current preparation; selected user-scenario qualification retained; full used-scope matrix execution remains open; no acceptance change",
+  "observed_date": "2026-10-09",
+  "current_committed_revision": "6e8692fe",
+  "published_draft_revision": "5a12eb9ebb136ffa4e5ce352663f92affba25bc2",
+  "historical_observations": {
+    "status": "SEQ-010 factual preparation only; unavailable context not repaired; no contract acceptance",
+    "observed_utc": "2026-10-07T23:00:12.636110+00:00",
+    "current_committed_revision": "a590a1eae97dcc8b4311b3b96a24433aa7be43de",
+    "frozen_revision": "db57c3794d386fcd27f17f54b199272d58106a81",
+    "preserved_draft_revision": "a55a0f7",
+    "actual_bounded_emitted_body": "async \"Bounded.advance\"(c,{job:$can$l$323a6a6f62}){\ncheck(hasRole(c,\"public\"),\"forbidden\");\nawait transition(c,\"Bounded.Job\",($can$l$323a6a6f62).id,\"status\",\"idle\",\"queued\");\nawait transition(c,\"Bounded.Job\",($can$l$323a6a6f62).id,\"status\",\"queued\",\"ready\");\n},",
+    "scopes": [
+      {
+        "scope": "Identity and State admitted user operation",
+        "source": [
+          "packages/identity/src/authentication/context.ts:64 resolveIdentity",
+          "packages/state/src/invocation/context.ts:90 buildContext",
+          "packages/contracts/src/state.ts:65 InvocationContext",
+          "packages/state/src/invocation/admission.ts:180 closed generated inputs; :344 live membership; :651 trusted revalidation boundary"
+        ],
+        "bindings": {
+          "actor": "Principal|null from resolved identity; userId/email/emailVerified",
+          "team": "TeamScope|null from resolved team, teamId/timezone",
+          "clock": "input.now captured in InvocationContext; not caller business input",
+          "operation": "operation name + operationId + source in separate readonly fields",
+          "locale_timezone": "team.timezone exists; no locale in InvocationContext"
+        },
+        "evidence": "F1 invocation independent review uses production resolver/live membership over memory identity store; canonical D1 route proves public/member/owner selected gates and membership revocation. Installed/D1 identity remains unqualified.",
+        "unavailable": "This carrier is not the emitted HandlerContext object. Canonical context presence cannot qualify direct c.actor/c.team/c.now/c.operation bindings.",
+        "input_boundary": "Unknown generated business input fields reject; context fields supplied to internal APIs are trusted host inputs, not automatically verified merely by type. operation_id is caller/runtime UUIDv7 identity subject to age/replay checks, not proof of authenticated human identity."
       },
-      "evidence": "F1 invocation independent review uses production resolver/live membership over memory identity store; canonical D1 route proves public/member/owner selected gates and membership revocation. Installed/D1 identity remains unqualified.",
-      "unavailable": "This carrier is not the emitted HandlerContext object. Canonical context presence cannot qualify direct c.actor/c.team/c.now/c.operation bindings.",
-      "input_boundary": "Unknown generated business input fields reject; context fields supplied to internal APIs are trusted host inputs, not automatically verified merely by type. operation_id is caller/runtime UUIDv7 identity subject to age/replay checks, not proof of authenticated human identity."
+      {
+        "scope": "Emitted user scenario c (Creative/Approve required; Bounded actually executed)",
+        "source": [
+          "compiler/src/codegen/ir.rs:2451 decode_bare_name",
+          "compiler/src/codegen/js.rs:1670 lower_expr",
+          "packages/cloudflare/src/runtime/context.ts:93 HandlerContext; :132 createContext",
+          "packages/cloudflare/src/runtime/invoke.ts:2892 CanonicalEffectsScope; :3000 createContext; :2761 scenarioParameters"
+        ],
+        "bindings": {
+          "actor": "IR targets c.actor; constructor supplies c.caller.userId (anonymous sentinel for null), not c.actor",
+          "team": "IR targets c.team; no c.team field installed by createContext",
+          "clock": "IR targets c.now; actual c.clock supplied; not c.now",
+          "operation": "IR targets c.operation, including source operation.id; actual c.canonical.operation is name string and c.canonical.operationId is separate id",
+          "locale_timezone": "No locale/timezone installed on HandlerContext"
+        },
+        "evidence": "Bounded.advance actual module executes hasRole(c,public), transition(c,...) twice. It does not read actor/team/now/operation. Reviewed D1 success and restart therefore cover canonical closures and admission, not these expression bindings. Creative compile has112 diagnostics; Approve5; neither actual result contains production modules.",
+        "unavailable": "Actor/team/now/operation expression fields unavailable on the actual constructed c. This is a static producer/consumer mismatch, not a new runtime failure claim. Preserved .mjs expresses desired c fields, not successful emitted artifact. Current and frozen source spans are pinned.",
+        "input_boundary": "scenarioParameters clones admitted inputs and replaces record refs with frozen/provisional views. It does not add verified actor/team/clock/operation context. Arbitrary handler args cannot supply legitimate ambient fields; closed descriptor admission is the host boundary."
+      },
+      {
+        "scope": "Contextual server defaults and attribution",
+        "source": [
+          "compiler/src/codegen/ir.rs:4545 server=actor/now",
+          "packages/state/src/invocation/registry.ts:207 ServerInitKind",
+          "packages/state/src/mutation/pipeline.ts:158 actorFor; :178 evalServerInit; :262 context.now/actor"
+        ],
+        "bindings": {
+          "actor": "Pipeline actorFor uses context.actor.userId, then test/trustedSource/public attribution; server=actor returns {id:actor}",
+          "team": "No server=team initializer in closed supported set",
+          "clock": "server=now returns ISO datetime from fixed context.now",
+          "operation": "History derives operation identity from InvocationContext",
+          "locale_timezone": "No contextual locale initializer"
+        },
+        "evidence": "Creative Template.owner/Run.author and Approve Document.submitter declare server=actor. Bounded has scalar literal defaults only and no contextual initializer; F1 review explicitly retains contextual-default gate open.",
+        "unavailable": "Source implementation exists; original app and actor-null/trusted contextual-default semantics are not qualified by Bounded. Attribution fallback strings must not be interpreted as verified human actors.",
+        "input_boundary": "Server-only caller-supplied values are rejected by pipeline; internal attribution initialization is distinct from forgeable request data."
+      },
+      {
+        "scope": "Mutation hooks",
+        "source": [
+          "compiler/src/codegen/ir.rs:2463 hook actor/now; :2469 hook team/operation fallthrough",
+          "compiler/src/codegen/js.rs:1350 enter_hook; :1396 hook_gap",
+          "packages/state/src/mutation/pipeline.ts:646 InterimHookContext",
+          "packages/cloudflare/src/runtime/invoke.ts canonical model-table hooks attachment"
+        ],
+        "bindings": {
+          "actor": "IR targets $hookCtx.actor; pipeline provides attribution string from actorFor, not source user carrier",
+          "team": "No released hook-team field; IR preserves fallthrough",
+          "clock": "IR targets $hookCtx.now; pipeline supplies number context.now",
+          "operation": "hook op=create/update/remove exists, not source operation {id,source}; source operation falls through",
+          "locale_timezone": "No hook locale/timezone carrier"
+        },
+        "evidence": "Creative template_edited on=Template.update uses event.after. F1 independent review states canonical model table installs empty hooks/invariants/locks; no hook executes in bounded invocation witness.",
+        "unavailable": "Hook context needs owner release and actual generated hook attachment. Ambient-context-dependent hook paths report E6008 throwing placeholder; team/operation fallthrough is not proof of a bound variable. Actor/time representation compatibility remains unqualified.",
+        "input_boundary": "Pipeline controls staging and trigger owner; hooks do not inherit triggering dependencies and open fresh transitive read scopes. This source boundary is not a receipt for complete hook authorization."
+      },
+      {
+        "scope": "Trusted event/occurrence handlers",
+        "source": [
+          "packages/state/src/invocation/context.ts:105 trustedSource guard; :112 actor=null",
+          "packages/state/src/invocation/admission.ts:344 trusted/user branch; :651 trusted commit revalidation",
+          "packages/cloudflare/src/runtime/invoke.ts:418 OccurrenceContext; :465 invokeOccurrenceWith",
+          "compiler/src/codegen/ir.rs:2451 non-hook context lowering"
+        ],
+        "bindings": {
+          "actor": "State trusted kind forces actor=null; cannot forge human actor from raw resolved actor",
+          "team": "State may retain resolved team/timezone; emitted c.team still unavailable unless distinct owner installs it",
+          "clock": "State fixed now; emitted c.now is not installed by ordinary constructor",
+          "operation": "State operation name/id/source/trustedSource distinct; ordinary HandlerContext installs only canonical closure where used",
+          "locale_timezone": "No actual localized handler carrier proved"
+        },
+        "evidence": "Creative conversation_revoked/member_removed/image_progressed and Approve remind/notify require event scopes. Existing F1 reviewed witness has no trusted event or provider occurrence execution. buildContext source requires nonempty trustedSource, but host verification/provenance is separately owned.",
+        "unavailable": "No selected trusted event actor-null/wrong-scope receipt or event payload-to-generated-handler join. Direct invokeOccurrenceWith validates occurrence carrier separately; its existence does not qualify canonical trusted event admission.",
+        "input_boundary": "Nonempty trustedSource alone is not provenance proof. Need verified trusted producer/ingress envelope and current authority at actual used event scope; ordinary user business inputs cannot authorize trusted kind."
+      },
+      {
+        "scope": "Locale/timezone and source formatting",
+        "source": [
+          "docs/specification/DECISIONS.md:1911 localized formatting accepted design, implementation pending",
+          "packages/cloudflare/src/runtime/context.ts:93 HandlerContext",
+          "packages/state/src/invocation/context.ts:121 resolved team.timezone",
+          "draft/CanApprove.can:101 format(...locale=null)"
+        ],
+        "bindings": {
+          "actor": "as above per executable scope",
+          "team": "verified team.timezone exists only on State carrier",
+          "clock": "fixed canonical clock separate from formatting carrier",
+          "operation": "formatter must receive actual executable scope per accepted design",
+          "locale_timezone": "HandlerContext has no formatter input fields; accepted design remains implementation pending; team-null UTC is design requirement, not current execution receipt"
+        },
+        "evidence": "No localized-format workflow in Bounded. Approve uses locale=null and translated labels; desired .mjs and explicit locale syntax do not establish actual formatter default/team forwarding.",
+        "unavailable": "Checked app metadata/default-after-composition, direct/canonical/occurrence constructor forwarding, locale provenance and compatibility gates remain open.",
+        "input_boundary": "Viewer locale and shared package may not choose deployment default under accepted design; this inventory selects no new context policy."
+      }
+    ],
+    "open_gates": [
+      "SEQ-010 per used user/hook/trusted scope verified actor/team/clock/operation bindings",
+      "FP.CONTEXT actual emitted/executed meaningful actor-null and wrong-scope controls",
+      "Hook-owner carrier/version/attachment release; no inference from non-hook c",
+      "Localized formatting accepted design implementation and compatibility/provenance",
+      "Installed real identity versus memory resolver evidence",
+      "Original Creative/Approve unchanged compiler diagnostic and full workflow gates"
+    ],
+    "next_owner_action": "Root Sol-high defining compiler/runtime/context owners review the unavailable c fields and per-scope carriers against original gates; make any consequential selection through existing policy/JEV process, then implement and qualify separately.",
+    "superseded_by": "Current scopes below. Historical absent c.actor/c.team/c.now/c.operation and memory-only identity statements are not current claims. Historical diagnostic counts and desired .mjs are not current original-source compilation evidence."
+  },
+  "source_usage": [
+    {
+      "source": "draft/CanCreative.can",
+      "user_operations": [
+        {
+          "name": "inspect",
+          "source": "draft/CanCreative.can:65",
+          "kind": "mutation"
+        },
+        {
+          "name": "validate",
+          "source": "draft/CanCreative.can:71",
+          "kind": "mutation"
+        },
+        {
+          "name": "publish",
+          "source": "draft/CanCreative.can:80",
+          "kind": "mutation"
+        },
+        {
+          "name": "generate",
+          "source": "draft/CanCreative.can:93",
+          "kind": "mutation"
+        },
+        {
+          "name": "from_turn",
+          "source": "draft/CanCreative.can:119",
+          "kind": "mutation"
+        },
+        {
+          "name": "stop",
+          "source": "draft/CanCreative.can:125",
+          "kind": "mutation"
+        },
+        {
+          "name": "reconcile",
+          "source": "draft/CanCreative.can:131",
+          "kind": "mutation"
+        },
+        {
+          "name": "release_skipped",
+          "source": "draft/CanCreative.can:137",
+          "kind": "mutation"
+        }
+      ],
+      "crud": [
+        {
+          "model": "Template",
+          "source": "draft/CanCreative.can:60",
+          "delete": "none"
+        },
+        {
+          "model": "Budget",
+          "source": "draft/CanCreative.can:61",
+          "delete": "none"
+        }
+      ],
+      "mutation_hooks": [
+        {
+          "name": "template_edited",
+          "source": "draft/CanCreative.can:62",
+          "event": "Template.update"
+        }
+      ],
+      "trusted_handlers": [
+        {
+          "name": "conversation_revoked",
+          "source": "draft/CanCreative.can:142",
+          "event": "Conversation.updated"
+        },
+        {
+          "name": "member_removed",
+          "source": "draft/CanCreative.can:150",
+          "event": "teams.member_removed"
+        },
+        {
+          "name": "image_progressed",
+          "source": "draft/CanCreative.can:157",
+          "event": "Images.submit.progressed"
+        }
+      ],
+      "pages": [
+        {
+          "path": "/creative",
+          "source": "draft/CanCreative.can:187"
+        },
+        {
+          "path": "/creative/from-chat",
+          "source": "draft/CanCreative.can:213"
+        },
+        {
+          "path": "/creative/recovery",
+          "source": "draft/CanCreative.can:236"
+        },
+        {
+          "path": "/creative/workflows",
+          "source": "draft/CanCreative.can:243"
+        }
+      ]
     },
     {
-      "scope": "Emitted user scenario c (Creative/Approve required; Bounded actually executed)",
+      "source": "draft/CanChat.can",
+      "user_operations": [
+        {
+          "name": "open",
+          "source": "draft/CanChat.can:59",
+          "kind": "mutation"
+        },
+        {
+          "name": "ask",
+          "source": "draft/CanChat.can:66",
+          "kind": "mutation"
+        },
+        {
+          "name": "regenerate",
+          "source": "draft/CanChat.can:104",
+          "kind": "mutation"
+        },
+        {
+          "name": "stop",
+          "source": "draft/CanChat.can:117",
+          "kind": "mutation"
+        },
+        {
+          "name": "reconcile",
+          "source": "draft/CanChat.can:123",
+          "kind": "mutation"
+        },
+        {
+          "name": "release_skipped",
+          "source": "draft/CanChat.can:129",
+          "kind": "mutation"
+        },
+        {
+          "name": "revoke",
+          "source": "draft/CanChat.can:135",
+          "kind": "mutation"
+        }
+      ],
+      "crud": [
+        {
+          "model": "Profile",
+          "source": "draft/CanChat.can:56",
+          "delete": "none"
+        },
+        {
+          "model": "Allowance",
+          "source": "draft/CanChat.can:57",
+          "delete": "none"
+        }
+      ],
+      "mutation_hooks": [],
+      "trusted_handlers": [
+        {
+          "name": "member_removed",
+          "source": "draft/CanChat.can:143",
+          "event": "teams.member_removed"
+        },
+        {
+          "name": "reply_progressed",
+          "source": "draft/CanChat.can:153",
+          "event": "LLM.generate.progressed"
+        }
+      ],
+      "pages": [
+        {
+          "path": "/chat",
+          "source": "draft/CanChat.can:186"
+        },
+        {
+          "path": "/chat/recovery",
+          "source": "draft/CanChat.can:241"
+        },
+        {
+          "path": "/chat/admin",
+          "source": "draft/CanChat.can:250"
+        }
+      ]
+    },
+    {
+      "source": "draft/CanApprove.can",
+      "user_operations": [
+        {
+          "name": "reviewer_choices",
+          "source": "draft/CanApprove.can:55",
+          "kind": "read"
+        },
+        {
+          "name": "submit",
+          "source": "draft/CanApprove.can:91",
+          "kind": "mutation"
+        },
+        {
+          "name": "assign",
+          "source": "draft/CanApprove.can:197",
+          "kind": "mutation"
+        },
+        {
+          "name": "decide",
+          "source": "draft/CanApprove.can:218",
+          "kind": "mutation"
+        },
+        {
+          "name": "withdraw",
+          "source": "draft/CanApprove.can:241",
+          "kind": "mutation"
+        }
+      ],
+      "crud": [
+        {
+          "model": "Document",
+          "source": "draft/CanApprove.can:85",
+          "delete": "none"
+        }
+      ],
+      "mutation_hooks": [],
+      "trusted_handlers": [
+        {
+          "name": "remind",
+          "source": "draft/CanApprove.can:251",
+          "event": "Due"
+        },
+        {
+          "name": "notify",
+          "source": "draft/CanApprove.can:263",
+          "event": "Notice.created"
+        }
+      ],
+      "pages": [
+        {
+          "path": "/documents",
+          "source": "draft/CanApprove.can:273"
+        },
+        {
+          "path": "/documents/review",
+          "source": "draft/CanApprove.can:310"
+        }
+      ]
+    }
+  ],
+  "scopes": [
+    {
+      "scope": "Identity and State admitted context",
       "source": [
-        "compiler/src/codegen/ir.rs:2451 decode_bare_name",
-        "compiler/src/codegen/js.rs:1670 lower_expr",
-        "packages/cloudflare/src/runtime/context.ts:93 HandlerContext; :132 createContext",
-        "packages/cloudflare/src/runtime/invoke.ts:2892 CanonicalEffectsScope; :3000 createContext; :2761 scenarioParameters"
+        "packages/contracts/src/state.ts:49 AdmissionKind; :52 Principal; :59 TeamScope; :69 InvocationContext",
+        "packages/state/src/invocation/context.ts:90 buildContext",
+        "packages/interfaces/src/http/context.ts:44 resolveRequestIdentity",
+        "packages/cloudflare/src/runtime/typed-context-serving.test.ts:25 selected native HTTP/MCP+D1 case"
       ],
       "bindings": {
-        "actor": "IR targets c.actor; constructor supplies c.caller.userId (anonymous sentinel for null), not c.actor",
-        "team": "IR targets c.team; no c.team field installed by createContext",
-        "clock": "IR targets c.now; actual c.clock supplied; not c.now",
-        "operation": "IR targets c.operation, including source operation.id; actual c.canonical.operation is name string and c.canonical.operationId is separate id",
-        "locale_timezone": "No locale/timezone installed on HandlerContext"
+        "actor": "User kind copies resolved user_id/email/email_verified into Principal; public actor stays null; trusted kind forces actor=null even if input identity has an actor.",
+        "team": "Resolved team_id/timezone are copied into TeamScope or null.",
+        "clock": "Fixed numeric admission now; operation age and replay validation remain State-owned.",
+        "operation": "Admitted operation name, UUIDv7 operationId and source remain distinct; trustedSource attributes trusted work without fabricating a human actor.",
+        "locale_timezone": "Team timezone exists; InvocationContext has no viewer locale or app formatting default."
       },
-      "evidence": "Bounded.advance actual module executes hasRole(c,public), transition(c,...) twice. It does not read actor/team/now/operation. Reviewed D1 success and restart therefore cover canonical closures and admission, not these expression bindings. Creative compile has112 diagnostics; Approve5; neither actual result contains production modules.",
-      "unavailable": "Actor/team/now/operation expression fields unavailable on the actual constructed c. This is a static producer/consumer mismatch, not a new runtime failure claim. Preserved .mjs expresses desired c fields, not successful emitted artifact. Current and frozen source spans are pinned.",
-      "input_boundary": "scenarioParameters clones admitted inputs and replaces record refs with frozen/provisional views. It does not add verified actor/team/clock/operation context. Arbitrary handler args cannot supply legitimate ambient fields; closed descriptor admission is the host boundary."
+      "input_boundary": "Resolved host identity/context are separate from closed business inputs. Nonempty trustedSource validates shape, not ingress authenticity; actual trusted owner/source checks remain necessary.",
+      "evidence": "Existing selected user-scenario native HTTP session/MCP grant, D1 Identity/State and reopened storage qualification is recorded in execution-state SEQ-010 active_consumer, commit a3864762188c009ca1c071dc103908083ff6e9bd. The selected test checks typed actor/team/clock/source/id/email facts, forged inputs, wrong team, anonymous transport refusal and persisted replay. This preparation reruns nothing.",
+      "unavailable": "Complete original Creative/Chat/Approve context workflows, hook/trusted-scope controls and deployment-wide installed qualification are not established by the selected user fixture.",
+      "owner": "Identity/State admission owners; Compiler/runtime scope consumers."
+    },
+    {
+      "scope": "Emitted canonical user mutation scenario c",
+      "source": [
+        "compiler/src/codegen/ir.rs:2990 decode_bare_name; :3319 actorFacts member lowering",
+        "compiler/src/codegen/js.rs:2718 ambient c member lowering",
+        "packages/cloudflare/src/runtime/context.ts:117 HandlerContext; :156 CreateContextDeps; :173 createContext",
+        "packages/cloudflare/src/runtime/invoke.ts:4000 runScenarioSeam createContext; :4134 qualified admitted context",
+        "packages/cloudflare/src/worker/assembly.ts:1101 checked selected-app formatting forwarding"
+      ],
+      "bindings": {
+        "actor": "createContext installs Values makeUserRef(admitted actor.userId) or null, plus a separate frozen actorFacts {email,email_verified}; generic user references gain no directory facts.",
+        "team": "Frozen {id: admitted teamId, timezone} or null.",
+        "clock": "Values makeDatetime(BigInt(admitted now)); clock closure uses the captured admitted time.",
+        "operation": "Frozen {id: admitted operationId, source}; canonical.operation separately retains the operation name.",
+        "locale_timezone": "Optional frozen formatting.appDefault from checked selected app; native c.team supplies timezone. No viewer locale is inferred from business inputs/preferences."
+      },
+      "input_boundary": "qualified is an internal constructor argument supplied by the canonical seam, not by scenarioParameters or caller labels. Unqualified createContext does not fabricate these fields. Reference views and source actorFacts retain their distinct defining carriers.",
+      "evidence": "Selected generated typed-context fixture and existing native HTTP/MCP+D1/replay evidence supersede the historical missing-field and memory-only limitations at this selected user-scenario scope. Existing memory retry test retains fixed admission clock across a forced fence retry. No original app execution is inferred.",
+      "unavailable": "Full original model policies/rules, hooks, actor-null source user execution at native authenticated transports and complete app locale workflows remain open. Native unauthenticated transport refusals are not actor-null public-operation success.",
+      "owner": "Compiler lowering + Cloudflare context/seam owners; State current admission."
+    },
+    {
+      "scope": "Emitted canonical read scenario c",
+      "source": [
+        "draft/CanApprove.can:55 reviewer_choices",
+        "packages/cloudflare/src/runtime/invoke.ts:5939 runReadScenarioSeam createContext; :5949 qualified read facts",
+        "packages/cloudflare/src/worker/assembly.ts:1145 formatting forwarding"
+      ],
+      "bindings": {
+        "actor": "Native UserRef/null plus separate actorFacts from the resolved identity whose actor id matches the admitted read.",
+        "team": "Native {id,timezone}/null from resolved selected identity matching admitted team.",
+        "clock": "Read invocation samples opts.now/Date.now once for its handler context and exposes native DatetimeValue.",
+        "operation": "source is supplied; no mutation operationId is minted for this no-receipt read path.",
+        "locale_timezone": "Checked selected-app formatting may be forwarded; timezone comes from admitted team."
+      },
+      "input_boundary": "Readonly store and refusing send/schedule/cancel closures; projected viewer rows and current grant/revision revalidation stay on the existing read route.",
+      "evidence": "Existing SEQ-010 computed_default_component records genuine viewer read-scenario producer and State/runtime consumer at its selected scope. This does not qualify all context expressions in original reviewer_choices.",
+      "unavailable": "Original reviewer_choices conditional grants, subject reviewer roles, can_work authority dependencies and full generated browser/MCP comparison remain blocked on checked policy/context consumers. Source operation.id cannot be assumed available on a read with no mutation identity.",
+      "owner": "Compiler/Contracts checked read policy producer; State read admission; Cloudflare read scenario consumer."
     },
     {
       "scope": "Contextual server defaults and attribution",
       "source": [
-        "compiler/src/codegen/ir.rs:4545 server=actor/now",
-        "packages/state/src/invocation/registry.ts:207 ServerInitKind",
-        "packages/state/src/mutation/pipeline.ts:158 actorFor; :178 evalServerInit; :262 context.now/actor"
+        "draft/CanCreative.can:10 Template.owner; :13 Run.author",
+        "draft/CanChat.can:11 Conversation.account",
+        "draft/CanApprove.can:12 Document.submitter",
+        "packages/state/src/mutation/pipeline.ts:166 actorFor; :186 evalServerInit",
+        "packages/contracts/src/artifact.ts:239 ArtifactServerInit"
       ],
       "bindings": {
-        "actor": "Pipeline actorFor uses context.actor.userId, then test/trustedSource/public attribution; server=actor returns {id:actor}",
-        "team": "No server=team initializer in closed supported set",
-        "clock": "server=now returns ISO datetime from fixed context.now",
-        "operation": "History derives operation identity from InvocationContext",
-        "locale_timezone": "No contextual locale initializer"
+        "actor": "Omitted server=actor initializes the stored wire user identity from State attribution; source c.actor is separately native and nullable.",
+        "team": "No server=team initializer in the closed ArtifactServerInit set.",
+        "clock": "server=now is an ISO datetime from fixed context.now; source c.now is a native datetime constructed from that same admitted time.",
+        "operation": "History/receipt attribution derives from admitted operation name/id; not authored input.",
+        "locale_timezone": "No contextual locale initializer."
       },
-      "evidence": "Creative Template.owner/Run.author and Approve Document.submitter declare server=actor. Bounded has scalar literal defaults only and no contextual initializer; F1 review explicitly retains contextual-default gate open.",
-      "unavailable": "Source implementation exists; original app and actor-null/trusted contextual-default semantics are not qualified by Bounded. Attribution fallback strings must not be interpreted as verified human actors.",
-      "input_boundary": "Server-only caller-supplied values are rejected by pipeline; internal attribution initialization is distinct from forgeable request data."
+      "input_boundary": "Server-only supplied values reject. actorFor fallback trustedSource/public/test is attribution, not proof of a human user or directory fields. Computed server initializers have separate defining evaluation/hydration semantics.",
+      "evidence": "Existing selected user fixture checks persisted create attribution and history identity. Existing computed-default user/read components are retained at their recorded scope, not broadened to original source defaults.",
+      "unavailable": "Original app defaults and trusted/null actor server=actor semantics remain unqualified. No original full-context default matrix is asserted.",
+      "owner": "State default/attribution and Compiler default lowering owners; Cloudflare native default consumer."
     },
     {
       "scope": "Mutation hooks",
       "source": [
-        "compiler/src/codegen/ir.rs:2463 hook actor/now; :2469 hook team/operation fallthrough",
-        "compiler/src/codegen/js.rs:1350 enter_hook; :1396 hook_gap",
-        "packages/state/src/mutation/pipeline.ts:646 InterimHookContext",
-        "packages/cloudflare/src/runtime/invoke.ts canonical model-table hooks attachment"
+        "draft/CanCreative.can:62 template_edited on Template.update",
+        "draft/shared/Employees.can:22 changed on Employee.update",
+        "draft/shared/Locations.can:33 eight snapshot hooks through :61",
+        "compiler/src/codegen/ir.rs:2990 contextual hook refusal",
+        "compiler/src/codegen/js.rs:2778 hook queries; :2848 formatting; :2882 roles; :3015 derives; :8531 generated hook body/event",
+        "packages/state/src/mutation/models.ts:218 InterimHookContext",
+        "packages/state/src/mutation/pipeline.ts:676 interim hook construction",
+        "packages/cloudflare/src/runtime/invoke.ts:2449 collectUnsupportedHookOperations"
       ],
       "bindings": {
-        "actor": "IR targets $hookCtx.actor; pipeline provides attribution string from actorFor, not source user carrier",
-        "team": "No released hook-team field; IR preserves fallthrough",
-        "clock": "IR targets $hookCtx.now; pipeline supplies number context.now",
-        "operation": "hook op=create/update/remove exists, not source operation {id,source}; source operation falls through",
-        "locale_timezone": "No hook locale/timezone carrier"
+        "actor": "InterimHookContext carries raw attribution string; no checked native source actor contract. IR now explicitly refuses hook actor/now/team/operation contextual reads with E6008.",
+        "team": "No native hook team field released; explicit refusal supersedes historical unbound fallthrough.",
+        "clock": "Interim numeric now exists; no checked native source now field released.",
+        "operation": "Interim op=create/update/remove and trigger model/id are not source operation {id,source}.",
+        "locale_timezone": "Hook formatting/context queries/role gates/derives remain unsupported; ordinary c formatting does not release a hook carrier."
       },
-      "evidence": "Creative template_edited on=Template.update uses event.after. F1 independent review states canonical model table installs empty hooks/invariants/locks; no hook executes in bounded invocation witness.",
-      "unavailable": "Hook context needs owner release and actual generated hook attachment. Ambient-context-dependent hook paths report E6008 throwing placeholder; team/operation fallthrough is not proof of a bound variable. Actor/time representation compatibility remains unqualified.",
-      "input_boundary": "Pipeline controls staging and trigger owner; hooks do not inherit triggering dependencies and open fresh transitive read scopes. This source boundary is not a receipt for complete hook authorization."
+      "input_boundary": "Interim before is frozen and stage/transitive closures are pipeline-controlled. Generated event.after still derives candidate/version from the interim carrier; it lacks full immutable input/correct removal/reserved native version contract.",
+      "evidence": "Current source validates owning hook identity then refuses unsupported hook execution. No selected native user-context test proves hook execution. Shared EmployeeChanged reads event.after.version; Location snapshot hooks read/query staged containment.",
+      "unavailable": "Compiler/Contracts complete checked hook context/event/input/native/reserved-version release, State final owner transaction/hook integration and Cloudflare attachment remain required. No contextual name silently falls through as a successful binding.",
+      "owner": "Compiler/Contracts hook producer; State mutation lifecycle owner; Cloudflare hook linkage."
     },
     {
       "scope": "Trusted event/occurrence handlers",
       "source": [
-        "packages/state/src/invocation/context.ts:105 trustedSource guard; :112 actor=null",
-        "packages/state/src/invocation/admission.ts:344 trusted/user branch; :651 trusted commit revalidation",
-        "packages/cloudflare/src/runtime/invoke.ts:418 OccurrenceContext; :465 invokeOccurrenceWith",
-        "compiler/src/codegen/ir.rs:2451 non-hook context lowering"
+        "draft/CanCreative.can:142 conversation_revoked; :150 member_removed; :157 image_progressed",
+        "draft/CanChat.can:143 member_removed; :153 reply_progressed",
+        "draft/CanApprove.can:251 remind; :263 notify",
+        "packages/state/src/invocation/context.ts:105 trustedSource validation and actor-null mapping",
+        "packages/cloudflare/src/runtime/invoke.ts:454 OccurrenceScope; :497 invokeCallableInOccurrence",
+        "packages/cloudflare/src/runtime/invoke.ts:4399 checked progress staging; :5007 canonical due trusted admission; :5132 retained private-handler trusted admission; :5143 source/owner/actor-null checks; :4134 shared qualified context installation"
       ],
       "bindings": {
-        "actor": "State trusted kind forces actor=null; cannot forge human actor from raw resolved actor",
-        "team": "State may retain resolved team/timezone; emitted c.team still unavailable unless distinct owner installs it",
-        "clock": "State fixed now; emitted c.now is not installed by ordinary constructor",
-        "operation": "State operation name/id/source/trustedSource distinct; ordinary HandlerContext installs only canonical closure where used",
-        "locale_timezone": "No actual localized handler carrier proved"
+        "actor": "Current canonical due/retained paths invoke State kind=trusted and force native c.actor=null. Event user/account/reviewer references are subjects, not a forged initiating human actor.",
+        "team": "Verified resolved source-owner team/timezone passes through admitted context into c.team.",
+        "clock": "Fixed current invocation now reaches native c.now through runScenarioSeam.",
+        "operation": "Runtime-minted admitted handler operationId/source=schedule/trustedSource plus occurrence identity; originOccurrence stamp alone is not provenance.",
+        "locale_timezone": "Optional formatting facts require the selected app to be forwarded by the actual occurrence caller; user-path forwarding is not proof for every trusted route."
       },
-      "evidence": "Creative conversation_revoked/member_removed/image_progressed and Approve remind/notify require event scopes. Existing F1 reviewed witness has no trusted event or provider occurrence execution. buildContext source requires nonempty trustedSource, but host verification/provenance is separately owned.",
-      "unavailable": "No selected trusted event actor-null/wrong-scope receipt or event payload-to-generated-handler join. Direct invokeOccurrenceWith validates occurrence carrier separately; its existence does not qualify canonical trusted event admission.",
-      "input_boundary": "Nonempty trustedSource alone is not provenance proof. Need verified trusted producer/ingress envelope and current authority at actual used event scope; ordinary user business inputs cannot authorize trusted kind."
+      "input_boundary": "Due/retained paths validate captured source, owner, checked handler/payload and current fences. The low-level occurrence callable validates only the runtime stamp and cannot independently authorize a trusted event. Record-updated/created, membership removal, progress and keyed Due ingress have separate provenance.",
+      "evidence": "Current canonical due/retained and checked-progress code exists; existing selected schedule/progress/fanout components are retained at their own scopes. The old blanket missing c fields/no event path observation is superseded. No complete original event-context matrix or fresh execution evidence is claimed here.",
+      "unavailable": "Original event-type/context/provenance/current-authority controls remain unqualified across all declared handlers; membership and record events cannot be inferred from provider-progress success. Shared policy dependencies and full trusted source formatting remain open.",
+      "owner": "Work/Services/Identity verified ingress and retained source owners; Compiler handler/payload producer; State trusted admission and Cloudflare due/retained consumers."
+    },
+    {
+      "scope": "Generated pages/admission/discovery/render",
+      "source": [
+        "draft/CanCreative.can:187 four pages through :243",
+        "draft/CanChat.can:186 three pages through :250",
+        "draft/CanApprove.can:273 two pages through :310",
+        "packages/contracts/src/presentation.ts:165 PageSourceContext; :181 PresentationContext",
+        "packages/interfaces/src/http/presentation.ts:61 buildPageSourceContext; :98 buildPresentationContext",
+        "packages/interfaces/src/http/pages.ts:393 page context construction; :455 normal page context",
+        "compiler/src/codegen/js.rs:5235 emit_page"
+      ],
+      "bindings": {
+        "actor": "Native resolved UserRef/null and separate current actorFacts shared by page admission/discovery/render.",
+        "team": "Frozen resolved id/timezone; active membership roles and builtinRoles come from current identity.",
+        "clock": "PageSourceContext declares no native now; source Submission.overdue uses now in a derived-row scope, whose query/derive context needs its own qualification.",
+        "operation": "No source mutation operation identity on page context; forms submit distinct admitted operations.",
+        "locale_timezone": "PresentationContext carries preferredLocales and checked appDefaultLocale; source team supplies timezone. This is a separate carrier from HandlerContext.formatting."
+      },
+      "input_boundary": "Page state/selection tokens are comparison aids, not grants. Authorized query and associated receipt observer stay dispatcher-owned; saved preferences are actor/team scoped.",
+      "evidence": "Current source contains verified page identity projection and presentation locale inputs. Existing selected browser/page qualification is reused at its recorded scope, not expanded to all nine original pages.",
+      "unavailable": "Original page conditional grants/derived values and all original source navigation/action/locale controls remain unqualified. Do not add a mutation operation identity to pages merely to imitate user scenarios.",
+      "owner": "Interfaces page/presentation owner; Compiler page/derive producer; State/Cloudflare authorized query and projection owners."
     },
     {
       "scope": "Locale/timezone and source formatting",
       "source": [
-        "docs/specification/DECISIONS.md:1911 localized formatting accepted design, implementation pending",
-        "packages/cloudflare/src/runtime/context.ts:93 HandlerContext",
-        "packages/state/src/invocation/context.ts:121 resolved team.timezone",
-        "draft/CanApprove.can:101 format(...locale=null)"
+        "draft/CanApprove.can:100 submit notice format(locale=null); :201 assign; :226 decision; :253 remind",
+        "draft/shared/Locations.can:6 timezone; :20 parent-timezone invariant; :23 is_open",
+        "compiler/src/codegen/js.rs:2190 business formatted sink refusal; :2347 localized adapter; :5609 appDefaultLocale metadata",
+        "packages/cloudflare/src/runtime/context.ts:109 HandlerFormattingScope; :176 formatting copy",
+        "packages/cloudflare/src/worker/assembly.ts:1281 checked app locale fallback/validation; :1101 mutation; :1145 read; :1487 input choices forwarding",
+        "packages/interfaces/src/http/presentation.ts:98 PresentationContext locales",
+        "packages/cloudflare/src/runtime/handler-formatting.test.ts:17 authored bridge test"
       ],
       "bindings": {
-        "actor": "as above per executable scope",
-        "team": "verified team.timezone exists only on State carrier",
-        "clock": "fixed canonical clock separate from formatting carrier",
-        "operation": "formatter must receive actual executable scope per accepted design",
-        "locale_timezone": "HandlerContext has no formatter input fields; accepted design remains implementation pending; team-null UTC is design requirement, not current execution receipt"
+        "actor": "Formatting uses the actual scope carrier; current actorFacts remain separate from generic user refs.",
+        "team": "Admitted c.team timezone exists; generated localized adapter uses UTC only for an explicit null team and rejects absent timezone.",
+        "clock": "Fixed admitted clock exists in handler contexts; formatting cannot invent one for hooks/pages/other consumers.",
+        "operation": "Selected user/read contexts have the identities described above; formatting metadata does not authorize execution.",
+        "locale_timezone": "Compiler emits checked appDefaultLocale. Assembly validates selected app locale (legacy absent -> en) and forwards frozen formatting.appDefault where selected metadata exists. Localized adapter passes explicit locale, checked appDefault/sourceLang and admitted timezone to Values; source labels and UI preferences use presentation-owned locale inputs."
       },
-      "evidence": "No localized-format workflow in Bounded. Approve uses locale=null and translated labels; desired .mjs and explicit locale syntax do not establish actual formatter default/team forwarding.",
-      "unavailable": "Checked app metadata/default-after-composition, direct/canonical/occurrence constructor forwarding, locale provenance and compatibility gates remain open.",
-      "input_boundary": "Viewer locale and shared package may not choose deployment default under accepted design; this inventory selects no new context policy."
+      "input_boundary": "Business inputs, viewer preferences and sourcePath cannot replace selected-app formatting provenance. An explicit appId without selected metadata does not fabricate formatting. Presentation-only business-sink and hook refusals remain separate compiler limits.",
+      "evidence": "Current formatting carrier/adapter implementation supersedes the historical blanket implementation-pending statement. Existing handler-formatting test is an authored bridge test with a replaced handler body, explicitly not compiler format-lowering or original CanApprove execution evidence. No checks rerun.",
+      "unavailable": "Original explicit-null translated notice formatting in user/trusted contexts, wrong/missing scope, team-null timezone, compatibility and full original app locale matrix remain unqualified. Field presence is not an acceptance claim.",
+      "owner": "Compiler formatting sink/lowering and Values formatter owners; Cloudflare selected-app forwarding; Interfaces presentation locale owner; trusted/hook consumers at their defining scopes."
     }
   ],
+  "shared_source_usage": {
+    "employee": {
+      "source": "draft/shared/Employees.can",
+      "user_operations": [
+        "Employee CRUD at :16",
+        "deactivate at :18"
+      ],
+      "mutation_hooks": [
+        "changed on Employee.update at :22 emits EmployeeChanged with event.after.version"
+      ],
+      "context_dependencies": [
+        "staff at :8 and can_work at :9 use active_member(person,team) and current Employee rows",
+        "conditional Employee read grants at :10-12",
+        "actor/time input defaults and event.before/event.after native identity/version"
+      ]
+    },
+    "rent_catalog": {
+      "source": "draft/shared/Locations.can",
+      "user_operations": [
+        "Location/WeeklyHours/ClosedDate/DateHours CRUD at :29-32"
+      ],
+      "mutation_hooks": [
+        "snapshot_Location_create :33",
+        "snapshot_Location_update :37",
+        "snapshot_WeeklyHours_create :41",
+        "snapshot_WeeklyHours_update :45",
+        "snapshot_ClosedDate_create :49",
+        "snapshot_ClosedDate_update :53",
+        "snapshot_DateHours_create :57",
+        "snapshot_DateHours_update :61"
+      ],
+      "context_dependencies": [
+        "Location.timezone and local_instant/date calendar operations",
+        "LocationPolicy.effective server=now at :12",
+        "snapshot hooks query pending owner fields/collections; can_work(actor,...) CRUD authority"
+      ]
+    },
+    "composition": "Creative explicitly imports chat can_use/Conversation/Branch/Turn. Approve imports Employee/can_work/test_worker/hr/deactivate and Location/test_site; Employee/Location form a checked shared dependency. Supplier is not directly imported by these three apps and is not an extra required scope."
+  },
+  "qualification": {
+    "selected_user_context": "Existing recorded accepted commit a3864762188c009ca1c071dc103908083ff6e9bd; native batch3/3, emit0 and portable link1/1 reused. Selected actual generated HTTP/MCP+D1 identity/context/reopen/replay facts, not whole-source qualification.",
+    "historical_user_repair": "29f9d7b7 memory context repair/report retained at its original scope. Newer native/actorFacts evidence supersedes memory-only and missing-field claims for the selected user scenario.",
+    "full_original": "SEQ-010 stays open; no acceptance/task-count changes, original app completion or broad hook/trusted/locale claims.",
+    "current_preparation": "Source and existing records read only before editing this inventory; no compile/build/test/Git operations."
+  },
   "open_gates": [
-    "SEQ-010 per used user/hook/trusted scope verified actor/team/clock/operation bindings",
-    "FP.CONTEXT actual emitted/executed meaningful actor-null and wrong-scope controls",
-    "Hook-owner carrier/version/attachment release; no inference from non-hook c",
-    "Localized formatting accepted design implementation and compatibility/provenance",
-    "Installed real identity versus memory resolver evidence",
-    "Original Creative/Approve unchanged compiler diagnostic and full workflow gates"
+    "Compiler/Contracts complete native hook context/event/input/reserved-version carrier and State owner-transaction attachment (SEQ-011).",
+    "Original conditional/subject-role grants and bounded related-row/derived evaluation context through canonical State projection; actor-only checked grants are insufficient.",
+    "Complete per-original-handler trusted ingress/source/owner/actor-null/current-authority matrix, including membership and record events; existing scoped due/progress/retained implementations are not missing wholesale.",
+    "Original page admission/render/derived-context matrix and full native source browser/MCP workflows.",
+    "Original selected-app explicit locale/null/team timezone and compatibility controls at actual user/trusted/presentation sinks; current formatting implementation is not globally absent.",
+    "No inferred actor-null native public-operation success from unauthenticated HTTP/MCP refusal; preserve selected memory/direct controls separately."
   ],
-  "next_owner_action": "Root Sol-high defining compiler/runtime/context owners review the unavailable c fields and per-scope carriers against original gates; make any consequential selection through existing policy/JEV process, then implement and qualify separately.",
+  "next_owner_action": "Compiler/Contracts, State mutation and Cloudflare hook owners release the precise hook/rule carrier; Work/Services/Identity and Compiler/runtime owners qualify each original trusted source scope; Interfaces/Compiler/Values owners qualify original page/formatting consumers. Source publisher prerequisite is cleared. No consequential design choice or new implementation plan is selected by this inventory.",
   "exclusions": [
-    "No mutation/runtime reruns",
-    "No source/dist/git/DECISIONS/filetree changes",
-    "No inferred context acceptance from Bounded transition or desired .mjs"
+    "No new tests/builds or runtime mutations",
+    "Only verified-context-inventory README.md and map.json edited; no Git/other-file changes",
+    "No acceptance/task-count updates",
+    "No new audit/evidence tree; historical observations remain in this existing map"
   ]
 }

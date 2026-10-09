@@ -26,18 +26,22 @@ import type {
   RecordId,
   StoredRow,
 } from '@canlang/contracts';
+import { DELIVERY_RESULT_LEAVES } from '@canlang/contracts';
 import type {
   SystemCommandContext,
   SystemCommandDef,
   SystemStaging,
 } from '@canlang/state';
 import { createSystemRegistry } from '@canlang/state';
+import { RECEIPT_MODEL, newReceiptRow, readReceiptRow, withReceiptRowData } from '@canlang/state/receipt/tables';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { DISPATCH_JOIN_MODEL } from '@canlang/state/ports/transact';
 import {
   WORK_DISPATCH_MODEL,
   newDispatchRow,
   readDispatchRow,
+  readDispatchImageCorrelation,
+  readDispatchImageControlPin,
 } from '../src/kernel/tables.js';
 import { KernelTableError } from '../src/kernel/tables.js';
 import {
@@ -46,8 +50,9 @@ import {
   workDispatchClaimCommand,
   workDispatchRecoverCommand,
   workDispatchStageCommand,
+  workDispatchPinImageControlCommand,
 } from '../src/kernel/commands.js';
-import { stageCanonicalSend } from '../src/kernel/dispatch-staging.js';
+import { stageCanonicalSend, type CanonicalSendInput } from '../src/kernel/dispatch-staging.js';
 import {
   lifecycleOf,
   isTerminalLifecycle,
@@ -507,6 +512,51 @@ describe('t24a planRecoveryScan: resuming interrupted claims', () => {
 });
 
 describe('t24a work.dispatch.stage command', () => {
+  it('stages checked Images correlation with its original carrier, refuses replay drift and preserves it through claims', async () => {
+    const stored = seed([]); const ctx = { ...fakeCtx(stored), operation: 'Acme.generate' };
+    const correlation = { requestSource: 'business-source-is-not-operation', requestRevision: '3',
+      requestBinding: 'Acme.Images', requestFrom: 'deployment.images', requestApp: 'Acme', requestOwner: 'team-1' };
+    const input: CanonicalSendInput = { operationId: 'origin-operation', source: 'std.ImagesV1.submit', occurrenceIndex: 1,
+      originOccurrence: null, request: { binding: correlation.requestBinding, from: correlation.requestFrom,
+        arguments: { value: { source: correlation.requestSource, revision: correlation.requestRevision } } }, correlation };
+    const { effects, delivery } = await stageCanonicalSend(input, ctx);
+    const write = effects.writes?.[0]; assert.ok(write?.kind === 'insert');
+    assert.deepEqual(readDispatchImageCorrelation(readDispatchRow(write.row)), correlation);
+    assert.notEqual(readDispatchRow(write.row).operationId, correlation.requestSource);
+    assert.deepEqual(effects.outbox?.[0]?.arguments, input.request);
+    assert.deepEqual(Object.keys(effects.outbox![0]!.arguments).sort(), ['arguments', 'binding', 'from']);
+    stored.set(`${WORK_DISPATCH_MODEL}\0${write.row.id}`, write.row);
+    const replay = await stageCanonicalSend(input, ctx); assert.deepEqual(replay.effects.writes, []);
+    await assert.rejects(stageCanonicalSend({ ...input, correlation: { ...correlation, requestOwner: 'foreign-owner' } }, ctx), /different origin or verdict/);
+    await assert.rejects(stageCanonicalSend({ ...input, correlation: { ...correlation, requestRevision: '4' } }, fakeCtx(seed([]))), /disagrees with its retained carrier/);
+    await assert.rejects(stageCanonicalSend({ ...input, correlation: { ...correlation, requestRevision: '03' } }, fakeCtx(seed([]))), /canonical/);
+    const claim = await workDispatchClaimCommand.stage({ intentId: delivery.id, claimId: 'image-claim', claimedAtMs: NOW, maxClaimAgeMs: MAX_AGE }, ctx);
+    const claimed = claim.writes?.[0]; assert.ok(claimed?.kind === 'update');
+    assert.deepEqual(readDispatchImageCorrelation(readDispatchRow(claimed.row)), correlation);
+    assert.equal(claimed.row.createdBy, ACTOR); assert.equal(claimed.row.created, NOW);
+  });
+
+  it('checks primitive Images cancel/reconcile correlation against the original carrier', async () => {
+    const correlation = { requestSource: 'business-source', requestRevision: '3', requestBinding: 'Acme.Images',
+      requestFrom: 'deployment.images', requestApp: 'Acme', requestOwner: 'team-1' };
+    for (const source of ['std.ImagesV1.cancel', 'std.ImagesV1.reconcile']) {
+      const request: BoundCapabilityRequest = { binding: correlation.requestBinding, from: correlation.requestFrom,
+        arguments: { source: correlation.requestSource, revision: correlation.requestRevision } };
+      const input: CanonicalSendInput = { operationId: 'control-operation', source, occurrenceIndex: 0, originOccurrence: null,
+        request, correlation };
+      const stored = seed([]); const ctx = fakeCtx(stored);
+      const staged = await stageCanonicalSend(input, ctx);
+      const write = staged.effects.writes![0]!; assert.ok(write.kind === 'insert');
+      assert.deepEqual(readDispatchImageCorrelation(readDispatchRow(write.row)), correlation);
+      assert.deepEqual(staged.effects.outbox![0]!.arguments, input.request);
+      for (const arguments_ of [{ source: correlation.requestSource, revision: '4' },
+        { source: correlation.requestSource, revision: '3', extra: true },
+        { value: { source: correlation.requestSource, revision: '3' } }]) {
+        await assert.rejects(stageCanonicalSend({ ...input, request: { ...request, arguments: arguments_ } }, ctx), /disagrees/);
+      }
+    }
+  });
+
   it('joins a canonical checked send without committing and returns its native delivery identity', async () => {
     const stored = seed([]);
     const ctx = { ...fakeCtx(stored), operation: 'Acme.notify' };
@@ -851,8 +901,8 @@ describe('t24a registry join on the memory store (MEMORY-ONLY)', () => {
   function composedRegistry() {
     const commands = [...WORK_SYSTEM_COMMANDS, ...WORK_DISPATCH_STAGE_COMMANDS];
     const names = commands.map((command) => command.name);
-    assert.equal(names.length, 11);
-    assert.equal(new Set(names).size, 11);
+    assert.equal(names.length, 13);
+    assert.equal(new Set(names).size, 13);
     for (const name of names) {
       assert.match(name, /^work\.[a-z-]+\.[a-z-]+$/);
     }
@@ -872,6 +922,81 @@ describe('t24a registry join on the memory store (MEMORY-ONLY)', () => {
       guardVerdict: null,
     };
   }
+
+  it('fences an original pending stop against queued progress and retains a fixed control pin across claims (MEMORY-ONLY)', async () => {
+    const correlation = { requestSource: 'Acme.Draft.poster', requestRevision: '3', requestBinding: 'Acme.Images',
+      requestFrom: 'deployment.images', requestApp: 'Acme', requestOwner: 'team-1' };
+    const resultContext = { source: 'std.ImagesV1.submit', declaredResult: { name: 'ImageRun', fields: DELIVERY_RESULT_LEAVES['ImageRun']! },
+      request: { source: correlation.requestSource, revision: correlation.requestRevision } };
+    const queued = { source: correlation.requestSource, revision: '3', state: 'queued',
+      outputs: [], detail: null, sequence: '0', charged_jobs: null };
+    for (const stopWins of [true, false]) {
+      const { store } = createTestMemoryStorage(); const registry = composedRegistry();
+      const originalIntentId = 'original-image', controlIntentId = 'control-image';
+      const base = { originOperationId: 'trigger-op', occurrenceIndex: 0, originOccurrence: null,
+        guard: null, guardVerdict: null, correlation };
+      const stage = await workDispatchStageCommand.stage({ operationId: 'initial-images', intents: [
+        { ...base, intentId: originalIntentId, operation: 'Acme.generate', source: 'std.ImagesV1.submit',
+          request: { binding: correlation.requestBinding, from: correlation.requestFrom,
+            arguments: { value: { source: correlation.requestSource, revision: '3' } } } },
+        { ...base, intentId: controlIntentId, operation: 'Acme.stop', source: 'std.ImagesV1.cancel',
+          request: { binding: correlation.requestBinding, from: correlation.requestFrom,
+            arguments: { source: correlation.requestSource, revision: '3' } } },
+      ] }, { ...fakeCtx(seed([])), operation: 'initial-images' });
+      const receipt = newReceiptRow({ deliveryId: originalIntentId, revision: 1, status: 'pending', result: null,
+        error: null, contentRef: null, resultExpiresAtMs: null }, { nowMs: NOW, actor: ACTOR });
+      await store.commit({ expectedRevision: await store.readRevision(), writes: [
+        ...stage.writes!, { kind: 'insert', model: RECEIPT_MODEL as ModelName, row: receipt },
+      ], outbox: stage.outbox!, history: [], receipt: null, schedules: [], uniqueClaims: [], uniqueReleases: [] });
+      for (const [intentId, claimId] of [[originalIntentId, 'provider-claim'], [controlIntentId, 'control-claim']]) {
+        await registry.run('work.dispatch.claim', { intentId, claimId, claimedAtMs: NOW, maxClaimAgeMs: MAX_AGE },
+          { actor: ACTOR, now: NOW, operation: 'test.claim', operationId: `claim-${intentId}` }, { store });
+      }
+      const pinArgs = { intentId: controlIntentId, claimId: 'control-claim', originalIntentId, correlation,
+        observation: { startedAtMs: NOW, deadlineMs: NOW + 1000 } };
+      await registry.run('work.dispatch.pin-image-control', pinArgs,
+        { actor: ACTOR, now: NOW, operation: 'test.pin', operationId: 'pin-control' }, { store });
+      const pinned = await store.load(WORK_DISPATCH_MODEL, controlIntentId as RecordId); assert.ok(pinned);
+      assert.deepEqual(readDispatchImageControlPin(readDispatchRow(pinned)), {
+        originalIntentId, observationStartedAtMs: NOW, observationDeadlineMs: NOW + 1000,
+      });
+      const fence = await store.readRevision();
+      const next = withReceiptRowData(receipt, { deliveryId: originalIntentId, revision: fence + 1,
+        status: 'pending', result: queued, error: null, contentRef: null, resultExpiresAtMs: null }, { nowMs: NOW, actor: ACTOR }, resultContext);
+      const queuedBatch = { expectedRevision: fence, writes: [{ kind: 'update' as const, model: RECEIPT_MODEL as ModelName,
+        id: receipt.id, expectedVersion: receipt.version, row: next }], history: [], receipt: null,
+        outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [] };
+      let submitCalls = 0;
+      const progressThenSubmit = async () => { await store.commit(queuedBatch); submitCalls++; };
+      if (!stopWins) await progressThenSubmit();
+      const stop = await registry.run('work.dispatch.stop-pending', {
+        intentId: originalIntentId, correlation, revision: (await store.readRevision()) + 1,
+      }, { actor: ACTOR, now: NOW, operation: 'test.stop', operationId: 'stop-original' }, { store });
+      if (stopWins) {
+        assert.equal((stop.result as { stopped: boolean }).stopped, true);
+        await assert.rejects(progressThenSubmit()); assert.equal(submitCalls, 0);
+        assert.equal((await store.outboxPending()).some(intent => intent.intentId === originalIntentId), false);
+        assert.equal(readReceiptRow((await store.load(RECEIPT_MODEL as ModelName, receipt.id))!, resultContext).receipt.status, 'skipped');
+        await assert.rejects(registry.run('work.dispatch.record-attempt', { intentId: originalIntentId,
+          claimId: 'provider-claim', outcome: { state: 'delivered' }, ack: true },
+        { actor: ACTOR, now: NOW, operation: 'test.progress', operationId: 'losing-progress' }, { store }), /does not hold/);
+      } else {
+        assert.equal((stop.result as { reason: string }).reason, 'receipt-started');
+        assert.equal(submitCalls, 1);
+        assert.equal((await store.outboxPending()).some(intent => intent.intentId === originalIntentId), true);
+        assert.deepEqual(readReceiptRow((await store.load(RECEIPT_MODEL as ModelName, receipt.id))!, resultContext).receipt.result, queued);
+      }
+      await registry.run('work.dispatch.release', { intentId: controlIntentId, maxClaimAgeMs: 0 },
+        { actor: ACTOR, now: NOW + 2000, operation: 'test.release', operationId: 'release-control' }, { store });
+      await registry.run('work.dispatch.claim', { intentId: controlIntentId, claimId: 'recovery-claim', claimedAtMs: NOW + 2000, maxClaimAgeMs: MAX_AGE },
+        { actor: ACTOR, now: NOW + 2000, operation: 'test.claim', operationId: 'reclaim-control' }, { store });
+      const recoveredPin = await workDispatchPinImageControlCommand.stage({ ...pinArgs, claimId: 'recovery-claim' }, {
+        actor: ACTOR, now: NOW + 2000, operation: 'test.recover', load: store.load, query: store.query,
+      });
+      assert.equal(recoveredPin.writes, undefined);
+      assert.equal((recoveredPin.result as { existing: boolean }).existing, true);
+    }
+  });
 
   it('commits dispatch rows plus outbox intents in one fence revision', async () => {
     const { store } = createTestMemoryStorage();

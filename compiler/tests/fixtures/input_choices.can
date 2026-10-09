@@ -7,21 +7,61 @@ Given
  Document {site:Site}
  Submission in Document {note:text}
  Employee {user:user,name:text?,role:text,home:Site}
+ Parent {site:Site,label:text,kind:text}
+ Child in Parent {label:text}
+ PrivateParent {site:Site,label:text}
+ PrivateChild in PrivateParent {label:text}
  policy Country read=members
  policy Region read=members
  policy Site read=members
  policy Document read=members
  policy Submission read=members
  policy Employee read=members
+ policy Parent read=members fields=label,kind
+ policy Child read=members
+ policy PrivateParent read=owner
+ policy PrivateChild read=members
 When
+ scenario compareParents(first:Child,second:Child) read=true -> bool by=members
+  do return first.parent==second.parent
+ scenario parentLabel(child:Child) read=true -> text by=members
+  do return child.parent.label
+ scenario parentKind(child:Child) read=true -> text by=members
+  do return child.parent.kind
+ scenario parentSite(child:Child) read=true -> Site by=members
+  do return child.parent.site
+ scenario comparePrivateParents(first:PrivateChild,second:PrivateChild) read=true -> bool by=members
+  do return first.parent==second.parent
+ scenario privateParentSite(child:PrivateChild) read=true -> Site by=members
+  do return child.parent.site
  scenario region_choices(country:Country) read=true -> Region[] by=members
   do return country.Region
  scenario reviewer_choices(document:Document) read=true -> Employee[] by=members
   do return Employee as candidate where candidate.home==document.site
  scenario save(country:Country,region:Region choices={read=region_choices(country=country),labels=["name"]},note:text="Kept" desc="Address note" label="Note") -> Region by=members
+  require region.parent==country
   do return region
  scenario assign(submission:Submission,assignee:user?=null choices={read=reviewer_choices(document=submission.parent),value="user",labels=["name","role","home"]} desc="Chosen reviewer" label="Reviewer") -> user? by=members
+  require assignee==null or any(Employee as candidate,candidate.user==assignee and candidate.home==submission.parent.site)
   do return assignee
  scenario submit(document:Document,assignee:user?=null choices={read=reviewer_choices(document=document),value="user",labels=["name","role","home"]} desc="Chosen reviewer" label="Reviewer") -> user? by=members
+  require assignee==null or any(Employee as candidate,candidate.user==assignee and candidate.home==document.site)
   do return assignee
+ scenario copy_site(target:Document,source:Document,accept:bool=true) by=members
+  do
+   set target {site=source.site}
+   require accept
+ scenario bindSite(target:Document,site:Site,accept:bool=true) by=members
+  do
+   set target {site}
+   require accept
+ scenario reviseSubmission(submission:Submission,note:text) by=members
+  do set submission {note}
+ scenario assignWithSite(submission:Submission,document:Document,site:Site,assignee:user?=null,accept:bool=true) -> user? by=members
+  require submission.parent==document
+  do
+   set document {site}
+   require assignee==null or any(Employee as candidate,candidate.user==assignee and candidate.home==submission.parent.site)
+   require accept
+   return assignee
 Then

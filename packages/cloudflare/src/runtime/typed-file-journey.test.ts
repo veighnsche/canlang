@@ -10,7 +10,8 @@ import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { FIXED_NOW, asId, asModel, asOperationId, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
 import { buildSessionCookie, deriveCsrfToken, issueMcpGrant, resolveIdentity, sha256HexText } from '@canlang/identity';
 import { createMemoryIdentityStore } from '@canlang/identity/testing';
-import { createSqliteFileBindings, createSqliteFileStore } from '@canlang/files/host/sqlite';
+import { createSqliteFileBindings, createSqliteFileStore, type SqliteFileStore } from '@canlang/files/host/sqlite';
+import { blobKeyForFile } from '@canlang/files/finalize';
 import { sha256Hex, stagingKeyForIntent } from '@canlang/files/upload';
 import { createFileJourneyKernel } from '@canlang/interfaces/uploads/kernel';
 import { catalogFromArtifactOperations, handleOperationRequest } from '@canlang/interfaces/http/operations';
@@ -299,6 +300,116 @@ test('compiled attachment workflow uses authenticated uploads, SQLite bytes and 
     assert.deepEqual((await state.load(MODEL, asId(row.id)))?.data['attachment'], { id: browserRef });
     assert.equal(fileStore.files.get(browserRef)?.attachedRecord, retainedRecord);
     assert.equal(fileStore.files.get(ref)?.attachedRecord, retainedRecord);
+    // Receiving-side retention is an explicit host policy over the same
+    // persistent metadata and bytes used by this compiled file journey.
+    const retentionPolicy = { unattachedHorizonMs: 120_000, retentionMs: 600_000 };
+    let interruptCleanupKey: string | null = null;
+    const retentionFor = () => {
+      const nativeStore = fileStore!;
+      return createSqliteFileBindings({ ...nativeStore, blobs: { ...nativeStore.blobs,
+        remove(key) {
+          nativeStore.blobs.remove(key);
+          if (key === interruptCleanupKey) {
+            interruptCleanupKey = null;
+            throw new Error('Injected SQLite retention interruption after byte deletion');
+          }
+        },
+      } }, { clock, intentTtlMs: 60_000, urlBase: 'https://test.invalid' });
+    };
+    const orphanGrant = await intent('retention-orphan');
+    assert.equal((await handler(authRequest(orphanGrant.content, 'PUT', BYTES))).status, 200);
+    const orphanFinalized = await finalize(orphanGrant, 'retention-orphan'); assert.equal(orphanFinalized.status, 200);
+    const orphanRef = (await orphanFinalized.json() as { file: string }).file;
+    const openGrant = await intent('retention-open');
+    assert.equal((await handler(authRequest(openGrant.content, 'PUT', BYTES.slice(0, 8)))).status, 200);
+    const completeGrant = await intent('retention-complete');
+    assert.equal((await handler(authRequest(completeGrant.content, 'PUT', BYTES))).status, 200);
+    assert.equal(fileStore.intents.get(openGrant.intent_id)?.state, 'open');
+    assert.equal(fileStore.intents.get(completeGrant.intent_id)?.state, 'complete');
+    const retentionStarted = now;
+    const foreignFile = fileStore.files.get(foreignRef); assert.ok(foreignFile);
+    assert.equal(foreignFile.state, 'finalized');
+    assert.equal(foreignFile.attachedRecord, null);
+    assert.equal(foreignFile.finalizedAtMs, FIXED_NOW);
+    assert.equal(fileStore.files.get(orphanRef)?.finalizedAtMs, retentionStarted);
+    const retentionOwner = await state.load(MODEL, asId(row.id)); assert.ok(retentionOwner);
+    const retentionHistory = await state.historyFor(MODEL, asId(row.id));
+    let retentionRevision = await state.readRevision();
+    const assertRejectedAssignment = async (outcome: Awaited<ReturnType<typeof mutation>>) => {
+      assert.ok('error' in outcome); assert.equal(outcome.error.code, 'validation');
+      assert.equal(typeof outcome.error.operation_id, 'string');
+      assert.ok(outcome.error.operation_id);
+      const receipt = await state.readReceipt({ app: APP, owner: team.team_id, principal: owner.user_id,
+        operation: `${APP}.attach` as import('@canlang/contracts').OperationName,
+        operationId: asOperationId(outcome.error.operation_id) });
+      assert.ok(receipt);
+      assert.deepEqual(receipt.outcome, { status: 'rejected', code: outcome.error.code, message: outcome.error.message });
+      assert.equal(receipt.committedRevision, retentionRevision + 1);
+      assert.equal(await state.readRevision(), retentionRevision + 1);
+      assert.deepEqual(await state.load(MODEL, asId(row.id)), retentionOwner);
+      assert.deepEqual(await state.historyFor(MODEL, asId(row.id)), retentionHistory);
+      retentionRevision = await state.readRevision();
+    };
+    now = retentionStarted + 60_000;
+    const swept = retentionFor().runRetention(retentionPolicy);
+    // The earlier foreign upload already aged through the expired-upload
+    // clock advance. Its rejected attachment never retained its bytes.
+    assert.deepEqual(swept, { orphaned: [foreignRef], expired: [],
+      sweptIntents: [openGrant.intent_id, completeGrant.intent_id].sort() });
+    assert.equal(fileStore.files.get(foreignRef)?.state, 'orphaned');
+    assert.equal(fileStore.blobs.sizeOf(blobKeyForFile(foreignRef)), null);
+    assert.deepEqual(retentionFor().describeForReceipt(foreignRef), { file: foreignRef, status: 'redacted',
+      contentType: 'application/pdf', sizeBytes: BYTES.length });
+    assert.equal(fileStore.files.get(orphanRef)?.state, 'finalized');
+    assert.deepEqual(fileStore.blobs.read(blobKeyForFile(orphanRef)), BYTES);
+    for (const id of [openGrant.intent_id, completeGrant.intent_id]) {
+      assert.equal(fileStore.intents.get(id)?.state, 'expired');
+      assert.equal(fileStore.intents.get(id)?.receivedBytes, 0);
+      assert.equal(fileStore.intents.get(id)?.bytesDigest, null);
+      assert.equal(fileStore.blobs.sizeOf(stagingKeyForIntent(id)), null);
+    }
+    assert.equal((await handler(authRequest(openGrant.content, 'PUT', BYTES))).status, 404);
+    assert.equal((await finalize(completeGrant, 'retention-complete')).status, 404);
+    assert.equal(retentionFor().describeForReceipt(browserRef)?.status, 'available');
+    now = retentionStarted + retentionPolicy.unattachedHorizonMs;
+    const beforeSweepFiles = fileStore.files.listAll();
+    interruptCleanupKey = blobKeyForFile(orphanRef);
+    assert.throws(() => retentionFor().runRetention(retentionPolicy), /retention interruption/);
+    assert.equal(interruptCleanupKey, null);
+    // SQLite commits the complete pass together: interrupted fresh-orphan
+    // metadata and byte deletion roll back; existing tombstones survive.
+    assert.deepEqual(fileStore.files.listAll(), beforeSweepFiles);
+    assert.deepEqual(fileStore.blobs.read(blobKeyForFile(orphanRef)), BYTES);
+    assert.equal(retentionFor().describeForReceipt(orphanRef)?.status, 'available');
+    assert.deepEqual(await state.load(MODEL, asId(row.id)), retentionOwner);
+    assert.deepEqual(await state.historyFor(MODEL, asId(row.id)), retentionHistory);
+    assert.equal(await state.readRevision(), retentionRevision);
+    const reopenRetention = async () => {
+      fileStore!.close(); fileStore = undefined;
+      await miniflare!.dispose(); miniflare = undefined;
+      state = await openD1(); fileStore = createSqliteFileStore(join(dir, 'files.sqlite'));
+      kernel = kernelFor(); handler = handlerFor(); invoker = invokerFor();
+    };
+    await reopenRetention();
+    assert.deepEqual(fileStore!.files.listAll(), beforeSweepFiles);
+    assert.deepEqual(fileStore!.blobs.read(blobKeyForFile(orphanRef)), BYTES);
+    const collected = retentionFor().runRetention(retentionPolicy);
+    assert.deepEqual(collected, { orphaned: [orphanRef], expired: [], sweptIntents: [] });
+    assert.equal(fileStore!.files.get(orphanRef)?.state, 'orphaned');
+    assert.equal(fileStore!.blobs.sizeOf(blobKeyForFile(orphanRef)), null);
+    assert.deepEqual(retentionFor().describeForReceipt(orphanRef), { file: orphanRef, status: 'redacted',
+      contentType: 'application/pdf', sizeBytes: BYTES.length });
+    const collectedAttach = await attach(orphanRef, true);
+    await assertRejectedAssignment(collectedAttach);
+    assert.deepEqual(await state.load(MODEL, asId(row.id)), retentionOwner);
+    for (const attached of [ref, browserRef]) {
+      assert.equal(fileStore!.files.get(attached)?.state, 'attached');
+      assert.deepEqual(fileStore!.blobs.read(blobKeyForFile(attached)), BYTES);
+    }
+    const retainedDownload = await handler(authRequest(downloadPath, 'GET'));
+    assert.equal(retainedDownload.status, 200); assert.deepEqual(new Uint8Array(await retainedDownload.arrayBuffer()), BYTES);
+    assert.deepEqual(retentionFor().runRetention(retentionPolicy), { orphaned: [], expired: [], sweptIntents: [] });
+
     await identities.revokeMcpGrant(ownerGrant.grant.grant_id);
     assert.equal((await handler(authRequest(downloadPath, 'GET'))).status, 401);
     const nativeKernel = kernel;
@@ -321,6 +432,59 @@ test('compiled attachment workflow uses authenticated uploads, SQLite bytes and 
     assert.equal(refusedBody.includes(browserRef), false);
     assert.equal(refusedBody.includes(new TextDecoder().decode(BYTES)), false);
     assert.equal((await state.load(MODEL, asId(row.id)))?.data['label'], 'Uploaded');
+    // Existing revocation controls above remain unchanged. Restore the real
+    // receiving member and use its current session for retention refusals.
+    await identities.reactivateMembership(ownerMembership.membership_id, { is_owner: true, roles: [] });
+    kernel = kernelFor(); handler = handlerFor(); invoker = invokerFor();
+    now = retentionStarted + retentionPolicy.retentionMs;
+    const beforeExpiryFiles = fileStore!.files.listAll();
+    const expiredFiles = retentionFor().runRetention(retentionPolicy);
+    assert.deepEqual(expiredFiles, { orphaned: [], expired: [ref, browserRef, foreignRef, orphanRef].sort(), sweptIntents: [] });
+    for (const stored of beforeExpiryFiles) {
+      const terminal: ReturnType<SqliteFileStore['files']['get']> = fileStore!.files.get(stored.file.id); assert.ok(terminal);
+      assert.equal(terminal.state, 'expired'); assert.deepEqual(terminal.file, stored.file);
+      assert.deepEqual(terminal.owner, stored.owner); assert.equal(terminal.attachedRecord, stored.attachedRecord);
+      assert.equal(fileStore!.blobs.sizeOf(blobKeyForFile(stored.file.id)), null);
+      assert.deepEqual(retentionFor().describeForReceipt(stored.file.id), { file: stored.file.id, status: 'redacted',
+        contentType: stored.file.contentType, sizeBytes: stored.file.sizeBytes });
+    }
+    assert.deepEqual(await state.load(MODEL, asId(row.id)), retentionOwner);
+    assert.deepEqual(await state.historyFor(MODEL, asId(row.id)), retentionHistory);
+    assert.equal(await state.readRevision(), retentionRevision);
+    const expiredDownload = await handler(authRequest(downloadPath, 'GET', undefined, ownerGrant.token, true));
+    const absentDownload = await handler(authRequest(`/files/read/${MODEL}/missing/attachment`, 'GET', undefined, ownerGrant.token, true));
+    assert.equal(expiredDownload.status, 404); assert.equal(absentDownload.status, 404);
+    assert.equal(await expiredDownload.text(), await absentDownload.text());
+    const reattach = async () => {
+      const current = await state.load(MODEL, asId(row.id)); assert.ok(current);
+      return invoker.invokeMutation({ operation: `${APP}.attach`, operation_id: operationId(),
+        inputs: { entry: { id: current.id, version: String(current.version) }, attachment: { id: browserRef }, accept: true } },
+      await resolveIdentity(identities, { session_token: sessionToken, team_id: team.team_id }, { clock }));
+    };
+    const expiredReattach = await reattach();
+    await assertRejectedAssignment(expiredReattach);
+    await reopenRetention();
+    assert.equal((await handler(authRequest(downloadPath, 'GET', undefined, ownerGrant.token, true))).status, 404);
+    const reopenedReattach = await reattach();
+    await assertRejectedAssignment(reopenedReattach);
+    assert.deepEqual(retentionFor().runRetention(retentionPolicy), { orphaned: [], expired: [], sweptIntents: [] });
+    assert.deepEqual(await state.load(MODEL, asId(row.id)), retentionOwner);
+    assert.deepEqual(await state.historyFor(MODEL, asId(row.id)), retentionHistory);
+    assert.equal(await state.readRevision(), retentionRevision);
+
+    // Retaining an expired reference in an unrelated domain update is not
+    // an explicit file assignment and grants no renewed access to its bytes.
+    const expiredMetadata = fileStore!.files.get(browserRef); assert.ok(expiredMetadata);
+    const labelUpdate = await invoker.invokeMutation({ operation: `${APP}.Entry.update`, operation_id: operationId(),
+      inputs: { record: { id: retentionOwner.id, version: String(retentionOwner.version) }, label: 'Retained metadata' } },
+    await resolveIdentity(identities, { session_token: sessionToken, team_id: team.team_id }, { clock }));
+    assert.ok('result' in labelUpdate, JSON.stringify(labelUpdate));
+    assert.equal(labelUpdate.result.status, 'committed');
+    assert.equal((await state.load(MODEL, asId(row.id)))?.version, retentionOwner.version + 1);
+    assert.deepEqual((await state.load(MODEL, asId(row.id)))?.data, { ...retentionOwner.data, label: 'Retained metadata' });
+    assert.deepEqual(fileStore!.files.get(browserRef), expiredMetadata);
+    assert.equal((await handler(authRequest(downloadPath, 'GET', undefined, ownerGrant.token, true))).status, 404);
+
   } finally {
     fileStore?.close(); await miniflare?.dispose(); await rm(dir, { recursive: true, force: true });
   }

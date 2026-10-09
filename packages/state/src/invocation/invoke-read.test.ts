@@ -323,8 +323,9 @@ describe('saved generated CRUD disclosure', () => {
     const table = buildModelTableFromCanonical(loaded.models, { refs: loaded.refs,
       serverInits: loaded.serverInits, nullableFields: loaded.nullableFields });
     let observed: Receipt | undefined;
+    const envelope = makeEnvelope(`${GADGET}.create`, uuidv7(FIXED_NOW, ++readSeq), { title: 'saved', stock: '5' });
     const result = await invoke({ registry: loaded.registry,
-      envelope: makeEnvelope(`${GADGET}.create`, uuidv7(FIXED_NOW, ++readSeq), { title: 'saved', stock: '5' }),
+      envelope,
       identity: identityFor(alice), app: APP, source: 'test', store, memberships,
       clock: { nowMs: () => FIXED_NOW },
       execute: generatedCrudExecute({ table, store,
@@ -341,8 +342,36 @@ describe('saved generated CRUD disclosure', () => {
       when: { op: 'eq', field: 'title', value: 'current' },
     }] }]);
     return { store, memberships, alice, registry: loaded.registry, receipt: observed,
-      policy, saved, current, app: APP, identity: identityFor(alice) };
+      policy, saved, current, envelope, app: APP, identity: identityFor(alice) };
   }
+
+  it('retained-receipt-only preserves the replay observer and current secret/grant projection', async () => {
+    const world = await savedWorld();
+    const revision = await world.store.readRevision();
+    let executions = 0, commits = 0, observed: Receipt | undefined;
+    const recovery = { ...world, admissionMode: 'retained-receipt-only' as const,
+      source: 'test', clock: { nowMs: () => FIXED_NOW + 16 * 60 * 1000 },
+      store: { ...world.store, commit: async (batch: Parameters<typeof world.store.commit>[0]) => {
+        commits += 1; return world.store.commit(batch);
+      } }, execute: async () => { executions += 1; throw new Error('Recovery must not execute.'); },
+      observeCommittedReceipt: (receipt: Receipt) => { observed = receipt; },
+    };
+    assert.equal((await invoke(recovery)).status, 'replayed');
+    assert.deepEqual(observed, world.receipt);
+    const projected = await projectGeneratedCrudReceipt({ ...world, receipt: observed! });
+    assert.deepEqual(projected.records[0]?.data, { title: 'saved' });
+    assert.equal(projected.records[0]?.version, world.saved.version);
+    const memberships = { ...world.memberships, findMembership: async (team: string, user: string) => {
+      const current = await world.memberships.findMembership(team, user);
+      return current === null ? null : { ...current, roles: [] };
+    } };
+    await invoke({ ...recovery, memberships });
+    assert.deepEqual(await projectGeneratedCrudReceipt({ ...world, memberships, receipt: observed! }),
+      { result: null, records: [] });
+    assert.equal(executions, 0);
+    assert.equal(commits, 0);
+    assert.equal(await world.store.readRevision(), revision);
+  });
 
   it('uses live grant conditions but preserves saved values, versions and secret exclusions', async () => {
     const world = await savedWorld();

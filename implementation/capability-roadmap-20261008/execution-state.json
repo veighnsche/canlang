@@ -4,7 +4,7 @@
   "plan_source": "/Users/vince/Projects/canlang/design/language-proposals-20261007/task-sequence.json",
   "plan_sha256_at_start": "c0852b1f31e503003b08d0ecee5561288345e7baf99fa561e13280979472f391",
   "initial_head": "c718517a5aae8481a8b548a7eb299b8c5377dee6",
-  "status": "active",
+  "status": "in_progress_human_authorized_local_continuation",
   "git_and_shared_bookkeeping_owner": "package implementer retains scoped Git/DECISIONS/filetree; cross-chat coordination released to 01a11903-6033-78b3-b682-ee7f97196adf",
   "goal_authorizes_implementation": true,
   "conditional_and_original_gates_retained": true,
@@ -199,7 +199,14 @@
       "consumer_owner": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
       "active_consumer": "Selected actual authenticated HTTP/MCP+D1 Identity/State context case accepted/committed a3864762188c009ca1c071dc103908083ff6e9bd. Accepted one changed native batch3/3, CF emit0 and portable link1/1 reused. Hooks/other used scopes and complete original context matrix remain open; no full Task10 credit.",
       "consumer_commit": "a3864762188c009ca1c071dc103908083ff6e9bd",
-      "computed_default_component": "Mutating own-marker consumerf2a52505 retained. Genuine viewer read-scenario producer e38474fd + State admission/runtime e1204fdb + actual CF typed-scenario consumer3/3, compile0 and emit0 accepted at this component scope. Omitted/default/supplied values use real emitted handler and current-authority/no-receipt route; source/output/handles released, scoped CF commit pending. Full used-context/hooks/matrix and broader default/ref/host profiles remain open; no Task10 completion credit."
+      "computed_default_component": "Mutating own-marker consumerf2a52505 retained. Genuine viewer read-scenario producer e38474fd + State admission/runtime e1204fdb + actual CF typed-scenario consumer3/3, compile0 and emit0 accepted at this component scope. Omitted/default/supplied values use real emitted handler and current-authority/no-receipt route; source/output/handles released, scoped CF commit pending. Full used-context/hooks/matrix and broader default/ref/host profiles remain open; no Task10 completion credit.",
+      "worker_update": {
+        "state": "source_current_used_scope_inventory_prepared_execution_gates_open",
+        "source_revision": "6e8692fe6a314cdd7027bbd5998902a30a9c102a",
+        "draft_revision": "5a12eb9ebb136ffa4e5ce352663f92affba25bc2",
+        "scope": "Existing verified-context-inventory now covers complete current Creative/Chat/Approve user scenarios, CRUD, hooks, trusted handlers and pages plus shared Employee/Location dependencies. Current canonical user/read/retained/due/native context and formatting producers supersede stale blanket absence claims; historical observations and selected accepted a386 native3/3/emit0/portable1/1 evidence remain separately scoped.",
+        "prerequisite": "Compiler/Contracts checked native hook/event/input/reserved-version and conditional/subject grant/dependency producers; State final transaction enforcement; original trusted ingress/current-authority and page/formatting qualification from Work/Services/Identity/Interfaces/Compiler/Values/CF owners. Inventory does not accept those workflows or add task credit."
+      }
     },
     {
       "id": "SEQ-011",
@@ -213,7 +220,15 @@
         "SEQ-009",
         "SEQ-010"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "defining_owner_session_and_checked_binding_API_implemented_tested_source_assembly_pending",
+        "owner": "Local roadmap worker defines State/Contracts staging/finalization and native binding requirements; Compiler owns exact checked emitted producer. Packages retains its constrained-field and nominal-alias intake repairs.",
+        "prerequisite": "Compiler matching emitted CompileArtifact.modelPolicies/native modelPolicyBindings with exact ArtifactModule.path identities, source-verified native context/row/hook hydration and checked complete reverse selectors; Dev canonical Cloudflare owner-session assembly and complete original source/current authority workflows. Defining State lifecycle and immutable artifact/native transport are implemented/tested.",
+        "selected_contract": "Transaction-entry pre-state locks; existing generated native bindings with checked callable ABI; checked reverse affected-row selection under a shared bound, including absent/collection changes. JEV3 .95/.97/.84, .69/.99/.92, .99/.73/.97 respectively, advisory confidence variation retained in existing model-rule-contract.md/rules-machine raw responses. No activation or full11 acceptance.",
+        "implemented": "Contracts CanonicalOwnerModelPolicies ABI state.owner-model-policies@1; State bindOwnerModelPolicies exact checked native rule/dependency/hook linkage and beginOwnerMutation ordered stage/read/finalize with entry locks, reserved versions, final-only integrity/affected invariants, bounded complete owner queries, live CRUD before/input/after/removal contexts, poison/revision guards and net final effects. Legacy behavior retained. CompileArtifact.modelPolicies and canApp().modelPolicyBindings now have an exact emitted-path transport; State shared metadata checker, immutable loader preservation and bindArtifactOwnerModelPolicies join genuine source-verified module registries through existing private checked binding/session enforcement. generatedCrudExecute now accepts checked ownerPolicies, explicit ownerBounds and createOwnerFrame({call,session,context}) returning cleanup only. State creates real session, stages CRUD with actual admitted input, finalizes one net target/secondary effects set and closes native frame before effects escape; legacy omission path remains. Public generatedCrudExecuteOwnerSession is the positive installed-support entry required by Dev, exported from root/mutation/crud. It requires own explicit closed numeric bounds and a native frame factory, checks any claimed policy brand and always selects the real State session path; old generatedCrudExecute compatibility remains. Cleanup calls its captured function with the captured original verified frame receiver, without rereading a replaced member.",
+        "validation": "Combined runtime build22/22 and306affected State cases qualified:305initial passes plus focused retry-identity test correction1/1; unchanged results reused. Existing nativeD1/DO mutation regression coverage retained. No source activation/full11 acceptance. Direct canonical native D1/SQLiteDO4/4 receipt/fence cases and21affected session/policy cases pass in one25/25 invocation after actual nested-ref SQL-pushdown correction. Bounded candidate snapshot delegates native predicate/order to existing State queryRecords; no common storage repair or fixture narrowing. Additive transport/shared loader and affected native-policy checks pass85/85; Contracts and State emit pass in the joined build. Module byte/source correspondence and actual generated native hydration remain Dev/Compiler-owned. New owning State build6/6 and generated CRUD15/15 pass including5real-session checked policy/frame/hook-secondary/when/budget/cleanup/remove/correspondence cases. Actual source native hydration/Compiler hooks/Dev assembly remain defining owner qualification. Corrective State build6/6 and full generatedCRUD17/17 pass, including dedicated support invalid/missing/accessor/budget refusal before frame/domain mutation and receiver-dependent success/failure cleanup. The same combined invocation passes all30CRUD/nullable/modifier cases; unrelated results remain reused."
+      }
     },
     {
       "id": "SEQ-012",
@@ -274,7 +289,13 @@
       "accepted_outputs": "Defining861edef5 plus genuine compiled Entry.update; affected configured protected source/Chrome/Worker/D1 case1/1 (~7.7s). Existing unbound1/1, readonly1/1, native MCP13300570 and unchanged producer/owner outcomes reused. Completed six-path form slice committed by package owner at5dd9c84a; no extra verification tree.",
       "dependency_scope": "Exact accepted SEQ008 metadata, SEQ009 canonical durable commit/replay, SEQ010 verified invocation context, SEQ012 authorized reads and relevant readonly refresh outputs. Whole parent completion is not an extra gate.",
       "limits_retained": "Selected supported source create/rename/update forms only. Scalar fixed bindings, arrays, files and remote handles remain unavailable; broader F3/application/proposal, installed/deployed/native release and Task15 visibility/other-profile duties remain open.",
-      "consumer_commit": "5dd9c84a"
+      "consumer_commit": "5dd9c84a",
+      "worker_update": {
+        "state": "implemented_tested_source_identifier_http_join",
+        "implemented": "HTTP operation-name admission uses the existing compiler identifier vocabulary, including underscore in app/model/scenario segments; real release_skipped recovery names retain original canonical identity.",
+        "validation": "Owning Interfaces emission10/10 and affected HTTP dispatch22/22 pass, including original operation/envelope/actor and malformed/cross-route refusal controls. Actual regenerated copy_site consumer is prepared, affected nativeD1 case pending with required parent-navigation join. Actual regenerated copy_site operation also passes original HTTP commit/replay/late rollback in the affected nativeD1 case1/1.",
+        "remaining": "Earlier selected browser/MCP acceptance preserved; source-identifier producer/HTTP join tested. Full original application workflows retain defining source/rule/provider gates."
+      }
     },
     {
       "id": "SEQ-015",
@@ -292,8 +313,8 @@
       ],
       "next_gate": [],
       "conditional_gates": [],
-      "acceptance_scope": "Actual compiled supported Images variant (explicit empty caption only), genuine production session/team canonical HTTP create/advance/finish, public anonymous Chrome with served assets/bootstrap and 2s HX polling Generating→Image ready, canonical D1 ready version3/history1,2,2,3 and anonymous mutation403/no effects passed1/1. Prior producer correspondence reused. Forms/actions are not prerequisites; broad producer completion is not a gate. Extended SAME native readonly source case passed1/1 (~9s): empty/idle, Generating→ready, cancellation of late HX response after navigation and same-directory D1 restart with unchanged row/history. Public anonymous policy makes logout/revocation inapplicable for this selected source; no wider private-policy claim.",
-      "acceptance_summary": "Original selected public read-only compiled Images page, real installed bundle/worker/assets/session/D1 rendering and polling qualify. SAME owning native case1/1 passed using installed Chrome disposable profile/public connectOverCDP noDefaults/default context: actual sibling-tab visibility visible→hidden, HX polling pauses beyond2s cadence, authenticated canonical finish while hidden emits noHX, visible restoration resumes actual ready HX. Existing empty/idle/navigation-late-response/restart/public anonymous mutation403 criteria remain in the same case. Playwright default focus emulation was the actual harness cause; no synthetic property/event/visibility override. Source-specific public anonymous policy makes logout/revocation inapplicable, as previously accepted. Actual missing35 module/export/import bundle links corrected and routes pass. Original task15 selected installed read-only scope complete; private policy/forms/actions/Images provider/progress/model-rule and wider package/release scopes remain separate.",
+      "acceptance_scope": "Actual compiled supported Images variant (explicit empty caption only), genuine production session/team canonical HTTP create/advance/finish, public anonymous Chrome with served assets/bootstrap and 2s HX polling Generating\u2192Image ready, canonical D1 ready version3/history1,2,2,3 and anonymous mutation403/no effects passed1/1. Prior producer correspondence reused. Forms/actions are not prerequisites; broad producer completion is not a gate. Extended SAME native readonly source case passed1/1 (~9s): empty/idle, Generating\u2192ready, cancellation of late HX response after navigation and same-directory D1 restart with unchanged row/history. Public anonymous policy makes logout/revocation inapplicable for this selected source; no wider private-policy claim.",
+      "acceptance_summary": "Original selected public read-only compiled Images page, real installed bundle/worker/assets/session/D1 rendering and polling qualify. SAME owning native case1/1 passed using installed Chrome disposable profile/public connectOverCDP noDefaults/default context: actual sibling-tab visibility visible\u2192hidden, HX polling pauses beyond2s cadence, authenticated canonical finish while hidden emits noHX, visible restoration resumes actual ready HX. Existing empty/idle/navigation-late-response/restart/public anonymous mutation403 criteria remain in the same case. Playwright default focus emulation was the actual harness cause; no synthetic property/event/visibility override. Source-specific public anonymous policy makes logout/revocation inapplicable, as previously accepted. Actual missing35 module/export/import bundle links corrected and routes pass. Original task15 selected installed read-only scope complete; private policy/forms/actions/Images provider/progress/model-rule and wider package/release scopes remain separate.",
       "current_work": {
         "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
         "status": "Original installed read-only task accepted; source frozen and released to package Git owner. Actual changed visibility case reused once after harness/bundle correction."
@@ -319,7 +340,15 @@
       "accepted_outputs": "Defining861edef5 plus genuine compiled Entry.update; affected configured protected source/Chrome/Worker/D1 case1/1 (~7.7s). Existing unbound1/1, readonly1/1, native MCP13300570 and unchanged producer/owner outcomes reused. Completed six-path form slice committed by package owner at5dd9c84a; no extra verification tree.",
       "dependency_scope": "Exact accepted SEQ008 metadata, SEQ009 canonical durable commit/replay, SEQ010 verified invocation context, SEQ012 authorized reads and relevant readonly refresh outputs. Whole parent completion is not an extra gate.",
       "limits_retained": "Selected supported source create/rename/update forms only. Scalar fixed bindings, arrays, files and remote handles remain unavailable; broader F3/application/proposal, installed/deployed/native release and Task15 visibility/other-profile duties remain open.",
-      "consumer_commit": "5dd9c84a"
+      "consumer_commit": "5dd9c84a",
+      "worker_update": {
+        "date": "2026-10-09",
+        "implemented": "Worker modules reuse the existing producer import rewrite; native browser tests accept CANLANG_CHROME_EXECUTABLE.",
+        "tested": "Existing protected-form Chromium/default Worker/D1 case passed 1/1: sealed bindings, compatible draft/focus polling, stale conflict, fresh proof retry, CRUD patch omission and replay.",
+        "acceptance": "Direct selected Linux Chromium profile only; no new whole-task or original-app acceptance.",
+        "evidence": "../../packages/cloudflare/test/page-query-serving.test.ts",
+        "remaining": "Original registered apps and broader installed/provider/upgrade scope remain open."
+      }
     },
     {
       "id": "SEQ-017",
@@ -363,7 +392,7 @@
       "runtime_owner": "01a10c5a-0fb5-7343-9659-c3efab311c0c",
       "consumer_owner": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
       "current_scope": "Services type-only installed-mail port3f8c1d91 emitted/released directly to roadmap. Exact operative handoff remains in package run installed-bound-provider-handoff.json; finite selected EmailV1/owned localhost+D1 consumer is pending, with no external email/paid call/native preparation/publication authority.",
-      "acceptance_scope": "Original selected provider producer→outbox→installed dispatcher trace qualified by actual Node/nativeD1/D1Identity/ownedlocalhost Email journey. Stable identity through claim/crash/retry/reconcile, unknown acceptance no blind resend, authoritative result association+ack accepted in81dbe2e9 after concrete replay/transient defects repaired. Existing direct outcomes reused; no different provider or whole-F4 qualification.",
+      "acceptance_scope": "Original selected provider producer\u2192outbox\u2192installed dispatcher trace qualified by actual Node/nativeD1/D1Identity/ownedlocalhost Email journey. Stable identity through claim/crash/retry/reconcile, unknown acceptance no blind resend, authoritative result association+ack accepted in81dbe2e9 after concrete replay/transient defects repaired. Existing direct outcomes reused; no different provider or whole-F4 qualification.",
       "claim_gate_release": "Work8addb074bfceea3ec15e49b6bb050f2065f26fca emitted;22 affected checks and emit0 pass. Owning claim factory retains one lifecycle owner and invokes availability callback before claim writes; direct exact handoff reached roadmap. Actual installed-provider consumer remains unqualified.",
       "actual_consumer_result": "Selected native Node installed Email/runtime + owned localhost HTTP + persistent D1 + genuine compiled send case1/1 and CF normal emit0 pass. Missing/mismatched installation refuses before claim writes/dynamic ports. Postclaim interruption/reopen/stale recovery preserves original intent ID; malformed response remains uncertain; real404 reconcile does not blindly retry; second reopen confirmed reconcile retains ID and ack attempts1. Exact five-path frozen slice sent directly to package owner for scoped acceptance/commit. No remote provider/default workerd/multicapability/receipt-observer claim; completed count stays13 pending owner acceptance.",
       "current_acceptance_blocker": "None at accepted selected original Email provider scope; broader scopes remain separate.",
@@ -419,12 +448,18 @@
       "current_scope": "Genuine typed-delivery-observer.can lowering released in compiler bdab357663c446d4ce0e88577cc4d935b0e6a7fc with final rebuilt can. Existing Values delivery(std.EmailV1.send), nullable app-field profile and shared delivery helper pass actual frozen source and affected checks. Release routed to roadmap for actual runtime consumer. Reserved Receipt.read producer metadata is compiler work in progress; no fabricated consumer artifact.",
       "association_owner_findings": "Existing Work applyReceiptProgress and State receipt/association constructors/join located by package owner; no runtime persistence caller. Missing checked source/current-admission recordModel/id, declared delivery field/source and revision binding must be resolved rather than inferred from provider reference. Exact port findings routed to roadmap; source lowering preparation remains active, observer/disclosure original gates unfinished.",
       "producer_release": "bdab357663c446d4ce0e88577cc4d935b0e6a7fc; final can build after this and decoder c0a633b2 completed. Existing native delivery-field1/1, four affected T15b4/4 and strict library Clippy pass. Actual selected provider association/authorized observer/disclosure gates remain unfinished.",
-      "receipt_read_producer_release": "f1d63d0a31a4906bcc368aa4e8c7cb0ef2f51161 released/routed: genuine joined singular delivery fields emit existing Receipt.read required recordId:text, field:text, selected:text[] (array.required:false), appDefinition kind:read/read:true/by:public and matching canApp metadata. Actual frozen source→installed State loader native1/1 and strict library Clippy pass; source canonical collision refuses E6008/no modules. Local/unjoined/array route not advertised. Final can build succeeded; ready /Users/vince/Projects/canlang/compiler/target/debug/can release routed to consumer. Actual association/current grants/authorized observer remains unfinished; no full Task20 credit.",
+      "receipt_read_producer_release": "f1d63d0a31a4906bcc368aa4e8c7cb0ef2f51161 released/routed: genuine joined singular delivery fields emit existing Receipt.read required recordId:text, field:text, selected:text[] (array.required:false), appDefinition kind:read/read:true/by:public and matching canApp metadata. Actual frozen source\u2192installed State loader native1/1 and strict library Clippy pass; source canonical collision refuses E6008/no modules. Local/unjoined/array route not advertised. Final can build succeeded; ready /Users/vince/Projects/canlang/compiler/target/debug/can release routed to consumer. Actual association/current grants/authorized observer remains unfinished; no full Task20 credit.",
       "source_ownership_release": "Package owner directly released invoke.ts/bundle.ts after due commitde3cd6938a19ec5bab80188c8190c6d252d15225 for finite020 integration; root did not duplicate direct handoff. Existing Work command/State receipt composition remains one authoritative expectedRevision commit with dispatch+receipt assertions, no new public factory/API; actual association/observer remains unfinished.",
       "active_consumer": "Final scoped consumer accepted/committed81dbe2e9; defining and affected outcomes reused. Deeper generation result projection is independent021 work.",
       "consumer_commit": "81dbe2e9",
       "acceptance_scope": "Original selected actual MCP/persistentD1 observer binds owning Email operation/result source and authoritative current delivery. Status/result selection, current readers, replacement/supersession/stale association, leaf denial before protected disclosure and replay/transient retry accepted in final81dbe2e9 journey. Stateab8cf1d3 current-source/owner guard adopted; no different result type/provider/deep generation policy or whole-F5 claim.",
-      "accepted_at_original_selected_scope": true
+      "accepted_at_original_selected_scope": true,
+      "worker_update": {
+        "status": "parent_navigation_observation_and_mutation_corrections_implemented_tested_local",
+        "implemented": "Generated containment proxies resolve delivery observations through private exact identity and existing live viewer/mutation views with fence enrollment. Current field/association/role checks remain authoritative; private IDs stay withheld. Scenario set/delete now bind direct and queried generated parent proxies through the same private containment authority; current State admission/fence still gates writes.",
+        "validation": "Original owning genuine compiled native-D1 receipt case1/1 (13.36s), owning dependency build22/22, affected CF TypeScript and compiler delivery runtime1/1 pass. Parent pending/live/null/reassociation, withheld/hidden/missing/refused ID, in-flight role removal, no disclosure/domain/history on refusal and reopen covered. Existing outcomes reused. Extended actual native-D1/MCP case1/1 (20.89s) passes direct/queried update/archive, unchanged child/delivery, replay and missing/archive/current or mid-execution revoked membership refusals. Owning build22/22 passes.",
+        "remaining": "Separate nested result.reference compiler/consumer selection remains unsupported; parent status and original whole-result controls are preserved. No new full application/provider or roadmap acceptance."
+      }
     },
     {
       "id": "SEQ-021",
@@ -448,6 +483,11 @@
         "reuse": "Prior controlled provider bytes/source version/sequence/late usage/duplicates/private due/replacement/cancel/response loss/reopen/unknown/current disclosure/revocation outcomes reused; no separate rerun. Existing matching released Generation/progress runtime output; unready48 assembly/cohort-tick wiring not included in claim or capture.",
         "limits": "One changed owning case; controlled tokenized provider profile, production tokenizer/provider/account/routing and full original21 remain open. No new proof packet or helper.",
         "direct_outcome": "Changed existing typed-generation-progress.test.ts actual native D1 case1/1(27.63s), no failure/repeat, only34 direct boundary assertion lines added. Running-row exact replay no writes; conflicting same-revision, older receipt, stale sequence at newer receipt and wrong original source/request revision refuse. Terminal equal-checkpoint changed payload returns saved replay; newer content/verified-usage rewrite refuses. Receipt/current revision/progress occurrence rows remain unchanged by refusals. Existing controlled provider/tokenization/reopen/authority/recovery matrix passed in same case, no separate reruns. Test frozen for focused Package capture; no source/full21 credit."
+      },
+      "worker_update": {
+        "state": "controlled_native_component_tested_real_profile_blocked",
+        "prerequisite": "Actual production provider/model/account/tokenizer profile, retaining complete original lifecycle/current policy and usage units. Exact original draft5a12eb9e is now available. Existing controlled native-D1 progress/sequence/replacement/cancel/recovery evidence remains reusable.",
+        "owner": "Services/provider/profile owners; this worker retains original application consumer qualification."
       }
     },
     {
@@ -469,7 +509,16 @@
           ],
           "reason": "A targeted stop alone does not require keyed scheduling."
         }
-      ]
+      ],
+      "worker_update": {
+        "state": "implemented_tested_compiled_native_targeted_control_component",
+        "prerequisite": "Source-addressed cancel/reconcile must join actual retained original submit carrier and exact Work dispatch row; original attempt/binding/source/revision/owner/principal/current authority and verified observed usage remain required. Full current CanCreative task11 rules/context still applies.",
+        "owner": "Local roadmap worker owns defining Work correlation, Services observation-budget semantics and full control consumer per coordinator allocation; Compiler owns complete original source rule/guard/context facts.",
+        "implemented": "StoragePort.outboxGet(exact intentId) exposes original carrier/status via existing Memory/D1/DO storage with no new table or scan. Required overlays forward it; read-only handlers refuse it. SQL acknowledgement preserves skipped status as Memory already does. Canonical true-submit producer atomically stamps six immutable Values-checked flat business correlation facts on Work dispatch; exact bounded lookup verifies retained original carrier/deterministic identity/principal and refuses absent/ambiguous/malformed metadata. Full Work lifecycle/recovery preserves correlation. Installed Services cancel/reconcile use a separate finite installation-capped observation window; submit refuses it. Work work.dispatch.stop-pending conditionally revokes pre-queued original claim and stages checked skipped/null original receipt plus acknowledgement. work.dispatch.pin-image-control retains exact original intent and creation-anchored immutable observation window under current claim; actual primitive control carrier correlation and lifecycle preservation are checked. State observeOwnerSelectedReceiptJoin now shares actual selected join under private provenance-bound active State.invoke lifetime; exact physicalstore/context/checkpoint/native version are required, with current field/association/receipt/content correspondence and postread fence. Copied/forged/closed/foreign scopes cannot obtain owner authority. Installed compiled cancel/reconcile consumers require current cleanup guard/authority, exact owner/source/binding/revision/principal and live original association under the same owner fence. Checked private handlers use complete bounded owner queries and the State live admitted-call receipt join. Original-ID/window pin precedes HTTP; pending stops, queued uncertainty recovery, terminal evidence reuse, progress/association notifications and original receiving-file provenance join existing Work/receipt stages.",
+        "validation": "Owning runtime build22/22 and existing storage conformance144/144 pass on actual Memory/nativeD1/SQLiteDO; exact/unknown/SQL-like IDs, full carrier, input/output alias isolation, acknowledgement/retry/skipped and adapter-handle reopen covered. This is not whole process restart or full22 acceptance. New owning build22/22,73Work/Services portable/HTTP cases and actual compiled nativeD1/receiving SQLite Images1/1 (7.91s) pass. Real recovery projection dropped metadata; defining full-row preservation corrected and affected native rerun passes; unchanged prior results reused. Defining Work emit and68owning controls qualified (66initial passes,2focused fixture-schema corrections pass); original-stop-versus-queued fence and immutable pin/reclaim controls remain explicitly Memory-only. Owning selected receipt join42/42 passes, including six actual Stateinvoke trusted-owner authority/lifetime controls; owning State emit passes. Actual new CF image consumer reaches late lifecycle case but currently fails pending-versus-skipped assertion; no full consumer acceptance. Corrected affected compiled nativeD1/receiving SQLite/local HTTP Images journey1/1 (31.42s) passes including prequeued null stop, unsupported cancellation, unknown acceptance/restart, late success after original generation expiry, current authority refusal/held claim, exact ambiguity, retained pin despite changed installation policy, expired window without HTTP and progress notification/replay. Matching CF owning emit passes; unchanged prior Work/Services/State checks reused.",
+        "remaining": "Full original CanCreative/second consumer Task44 requires Compiler complete declared rules/hooks/current context and fresh send-guard facts plus real deployment/provider profiles. The actual compiled component now connects retained original carriers, finite controls/current association and receiving bytes; this does not accept whole22/44.",
+        "selected_contract": "JEV3 advisory retained_dispatch_fields (.85/.99/.88, confidence .77/.98/.82) and per_control_retained_budget (.98/.96/.91, confidence .97/.94/.86), raw targeted-control request/response1..3 retained. Cleanup uses its actual admitted current authority; original submit business guard is not implicitly rerun after authored cleanup invalidates it."
+      }
     },
     {
       "id": "SEQ-023",
@@ -486,7 +535,13 @@
       "accepted_at_original_selected_scope": true,
       "consumer_commit": "c2d04992",
       "acceptance_scope": "Explicit SQLite bytes/native D1/current credential+record-grant generic browser/MCP scope. Original file-specific durable finalize/association, failure/replay/retention/current-authorization outcomes accepted by backend owner and reused with genuine client consumer. No generated-provider finalization requested, so conditional F6/T27 gate does not apply. No Chrome DOM, R2/default Worker, shared-principal, hosted or whole-F7/proposal credit.",
-      "consumer_ui_commit": "795ebadd6911a149271a70276c27c4e663b583bb"
+      "consumer_ui_commit": "795ebadd6911a149271a70276c27c4e663b583bb",
+      "worker_update": {
+        "state": "implemented_tested_native_receiving_retention_component",
+        "implemented": "SQLite receiving bindings expose the existing retention kernel inside their real transaction and receipt metadata description. Invalid clocks refuse before mutation. Original source write intent carries checked declared File assignments before State row coalescing: explicit identical references revalidate current receiving authority/lifetime, while omitted unchanged fields retain normal update behavior. No client assignment marker is admitted.",
+        "validation": "Owning Files portable retention8/8 reused unchanged. CF owning emit and expanded genuine compiled attachment/nativeD1/receivingSQLite journey1/1 (2.69s) pass: open/completed uploads expire, actual aged orphan collection, attachment survival, interrupted whole-sweep rollback/reopen/retry, byte expiry/redacted metadata/provenance, current download/explicit same-reference reattach refusal, exact persisted rejected-receipt revisions with unchanged domain/history, and label-only mutation after expiry without byte renewal.",
+        "remaining": "This is the explicit native receiving policy component. Full original applications, hosted/default Worker byte storage profiles and any bounded background sweep service remain separate required scopes; no wider provider/application acceptance is inferred."
+      }
     },
     {
       "id": "SEQ-024",
@@ -506,6 +561,12 @@
         "scope": "Existing ImagesV1/ComfyUI full ImageRequest producer and finite ImageRun/result-array admission; original output correlation/policy gates retained.",
         "status": "Services installed Images component committed: emit0, changed owning7/7 and relevant existing3/3 accepted. Full ImageRun/receiving Files/consumer/current policy qualification remains open.",
         "services_commit": "c35fc990"
+      },
+      "worker_update": {
+        "state": "implemented_tested_fenced_images_recovery_component",
+        "implemented": "Reuse current actual installed Images/receiving Files/nativeD1 join. Fresh nonterminal-to-terminal recovery consumes actual host owner/guard admission and retains full checked SystemStaging (including progress occurrence schedules) in the original Work acknowledgement fence; no new table/lifecycle/side channel.",
+        "validation": "Owning CF emission22/22 and affected existing source/localHTTP/real receivingSQLite/nativeD1 case1/1 (20.58s) pass: terminal response loss/restart, unknown/running/terminal original-job recovery, missing/inherited/revoked admission, revocation after file finalize prevents progress/ack, re-admission reuses file, original checked notification schedule/replay, durable no repeated domain/history/files/notice effects. Unchanged prior controls reused.",
+        "remaining": "Full current CanCreative/CanChat ImageRun policy/product/provider qualification remains open on defining Compiler source producers and real provider profiles. The separateSEQ-022 retained control consumer now passes its genuine compiled nativeD1/receivingSQLite/localHTTP component; original applications remain required."
       }
     },
     {
@@ -534,6 +595,11 @@
         "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
         "scope": "Genuine Can page/request-scoped authorized receipt observer.",
         "status": "Genuine page artifact through matching CLI compile0; Contracts/Interfaces/CF emits0 reused; affected existing native Generation case1/1 in23.18s. Package owns scoped9-path commit. Original full lifecycle/profile gates retained; no full task credit."
+      },
+      "worker_update": {
+        "state": "existing_native_page_component_whole_original_journey_blocked",
+        "prerequisite": "Checked task11/conditional-read policy producers, followed by complete original CanCreative/CanChat action/gallery/obsolete-attempt browser journey with actual provider profile. Exact draft5a12eb9e is available; existing generated native page/receipt and typed lifecycle components are reused.",
+        "owner": "Compiler/Contracts/State defining policy owners and provider profile owner; original UI/application preparation and consumer remain this worker."
       }
     },
     {
@@ -553,7 +619,12 @@
         "SEQ-024",
         "SEQ-025"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "source_preparation_ready_execution_prerequisites_open",
+        "prerequisite": "Original task-specific rule/context or preceding whole-workflow output; existing upstream task prerequisites retained. Exact parent-required draft5a12eb9e is now available; source preparation is ready.",
+        "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker\u2019s task."
+      }
     },
     {
       "id": "SEQ-027",
@@ -566,7 +637,12 @@
       "next_gate": [
         "SEQ-026"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "source_preparation_ready_execution_prerequisites_open",
+        "prerequisite": "Original task-specific rule/context or preceding whole-workflow output; existing upstream task prerequisites retained. Exact parent-required draft5a12eb9e is now available; source preparation is ready.",
+        "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker\u2019s task."
+      }
     },
     {
       "id": "SEQ-028",
@@ -633,7 +709,7 @@
         "compiler_commit": "24b7e91d5ae5a440f9e4ca99ec89b5d334155557",
         "commit": "737fdf1a9f1081262796e8628a7ece5c9bc17f3e"
       },
-      "acceptance_scope": "Original emitted finite-handler/evaluation/effect stage accepted by joining released24b7e91d once-subject/one-branch/scoped-bindings/returns outcomes with owning generated-machines changed native rollback case1/1, genuine source compiled by current released CLI/private CFemit0. Match→set→later require failure preserves domain record/version/history/outbox; existing rejection receipt advances global revision once and replay adds nothing. Paired success writes once/replays unchanged. Original scenarios preserved, no State production edit, failed revision expectation corrected to original receipt contract. Canonical Node/State memory scope only; no D1/durable/whole proposal acceptance and no repeated unchanged cases."
+      "acceptance_scope": "Original emitted finite-handler/evaluation/effect stage accepted by joining released24b7e91d once-subject/one-branch/scoped-bindings/returns outcomes with owning generated-machines changed native rollback case1/1, genuine source compiled by current released CLI/private CFemit0. Match\u2192set\u2192later require failure preserves domain record/version/history/outbox; existing rejection receipt advances global revision once and replay adds nothing. Paired success writes once/replays unchanged. Original scenarios preserved, no State production edit, failed revision expectation corrected to original receipt contract. Canonical Node/State memory scope only; no D1/durable/whole proposal acceptance and no repeated unchanged cases."
     },
     {
       "id": "SEQ-031",
@@ -780,7 +856,14 @@
       "current_work": {
         "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
         "scope": "Original two genuine witness vertical/current authority/final selection/browser-MCP/source-navigation criteria.",
-        "status": "Original CountryRegion/CanApprove conditional-grant models require original11 model-rule producer, whose exact external payload hold remains. Actual CF runReadScenarioSeam refuses ruled models; parent/related navigation also retained. No substitute witness or full37 closure. Independent24/35/36 work continues."
+        "status": "Historical original witness join remains blocked on checked model-rule and row-grant producers. This worker has no inherited external-payload hold. Actual finite actor-role/direct-parent browser/HTTP/MCP consumer is implemented/tested below; full37 closure is not claimed."
+      },
+      "worker_update": {
+        "state": "implemented_tested_finite_component_not_full_acceptance",
+        "implemented": "Existing genuine fixture final region/reviewer guards and real Chromium-served generated controls; direct Values any binding and State-declared singular-reference decoding joined to mutation views. Bound projected model aliases and decoded singular fields share the defining private identity/Values canonical reference-write boundary. Declared containment parents now use bounded exact-ID viewer projection/current revalidation or staged owner fields, keeping link identity private and available under denied target reads. Actual grant-authenticated worker /mcp uses the same artifact registry, typed refs, production member permissions and current D1 Identity/State assignment handler as browser/HTTP.",
+        "validation": "Current compiler source built after exact4cb5c55d repair consumed as2561c9b8; fixture regenerated with that rebuilt CLI/current Values catalog. Owning runtime build22/22, protected sealed-form Chromium1/1 and existing dependent-choice nativeD1/happyDOM/realChromium case1/1 pass. Actual candidates, native final FormData, typed-reference guards, forged/stale/revoked/correctable submissions, nonce/version retention, default omission/null, cancellation/current-response fencing, asset bytes and persistent reopen verified. After Codex findings, regenerated copySite/bindSite actual set workflows pass in the same affected case1/1 (31.6s): exact {id} links, one next version/history, original-nonce replay and later-guard rollback. Updated owning emit22/22 passes; Chromium executable selection and acquisition cleanup corrected. Owning emission22/22 and expanded affected existing nativeD1/happyDOM/realChromium case1/1 (46.03s) pass: original nonnull assign, parent/site changes, null/missing-parent short circuit, stale submission/live membership, ordered staged parent success/replay/rollback, source-declared partial/owner-only parent permissions, link equality, business kind and actual underscore copy_site route. Readonly controls use actual canonical read port; mutation POST setup failure corrected before pass. After current Compiler producer integration the original artifact regenerates byte-identically; owning CF emission passes and expanded existing native-D1/happyDOM/Chromium/MCP case1/1 (47.89s) passes, with exact original nonnull assign success/replay, wrong model/site/parent, missing-parent nullable short-circuit, parent change, stale version, live membership revocation, session-token audience, foreign-team and revoked-grant refusals. Owning boundary correction exposes the existing real UI bootstrap/assets through typed package exports and preserves all native-D1/browser/MCP assertions: CF build22/22 and affected case1/1 (48.88s) pass. The first browser acquisition used the wrong environment variable; corrected CANLANG_CHROME_EXECUTABLE selects actual installed Chromium. After released Dev declared happy-dom/public catalog and complete optional Testkit intake, owning dependency build22/22, branch boundaries0 violations and original actual nativeD1/Chromium/MCP case1/1 (45.70s) pass with every previous assertion retained.",
+        "remaining": "Finite actor-role grant/direct-parent browser/HTTP/MCP profile implemented and tested. Original CountryRegion/CanApprove conditional row grants, model rules/subject roles and complete two-witness source-navigation/authoring comparison remain required. Exact draft5a12eb9e is now available for that comparison. Checked readSelectorFacts/transcribeReadFacts support owning actor-role facts; source where grants refuse as ruled models, so Compiler/Contracts must release their exact checked row-grant producer. Full37 not accepted. Source annotations762c50d4 and transport lifecycleb33bbb92 preserved unfinished at emergency shutdown; owning affected checks remain due locally.",
+        "local_continuation": "Saved transport hold/drain/first-error unit b33bbb92 now qualifies locally: source-current compiler build, frozen dependencies and owning runtime build22/22 pass; original nativeD1/happyDOM/installed macOS Chrome/MCP case1/1 passes33.75s. Complete choice shells preserve source permissions/guards/pages. The approval preference declaration now matches original draft5a12eb9e Then placement; full shared-provider closure check reports exactly original E2013x2/E3010x2. CountryRegion check0/complete=true, compile10 with four genuine breadcrumbs/edit/table E6008 refusals. Conditional row grants/model rules and complete original UI execution remain blocked on Compiler/Contracts/UI owning producers; no full37 credit."
       }
     },
     {
@@ -797,7 +880,16 @@
         "SEQ-012",
         "SEQ-014"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "complete_authored_comparison_execution_blocked",
+        "prerequisite": "Two complete ordinary expense/image-revision approval compositions and package/template comparison can now be authored from exact draft5a12eb9e; explicit reviewer/quorum/expiry domain policies remain required. Executed self/duplicate/ineligible/stale/revoked/concurrent controls retain task11 rule/context prerequisites.",
+        "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker\u2019s task.",
+        "selected_policy": "JEV3 recommends named_roster (.99/.99/.97; confidence .98/.98/.95), advisory only. Expense keeps assigned primary and eligible distinct secondary; Creative owner requests two other current managers. Explicit deadlines, rejection veto, superseding reset votes, exact frozen evidence/current eligibility and original separately authorized finalizers required.",
+        "remaining": "Both full source drafts/cases/pages04490bdc and complete ordinary/package/template comparison README retained. One bounded comparison confirms all original Expense10/Creative12 scenarios and pages, original body deltas restricted to decide/reimburse/publish. Current complete provider-closure checking: Expense original E3010x2, composition adds E5006x8 operation_id; Creative original7 diagnostics (E3010x5/E3001x1/E3004x1), composition adds E5006x6. Defining rule/grant/context and example-admission execution gates remain; no38/040 acceptance.",
+        "deliverables": "approval-compositions/ExpenseReview.can, CreativeRevisionReview.can and README.md comparison; finite writer active, no task credit.",
+        "example_identity_prerequisite": "Exact released Compiler52e9e375 consumed as9083997c; rebuilt CLI complete provider-closure checks remove all8/6 operation_id E5006. Expense retains original2 diagnostics and Creative original7. No full artifact/runtime acceptance; original providers/rules/grants/native context remain gates."
+      }
     },
     {
       "id": "SEQ-039",
@@ -813,7 +905,12 @@
         "SEQ-012",
         "SEQ-014"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "source_preparation_ready_execution_prerequisites_open",
+        "prerequisite": "Original task-specific rule/context or preceding whole-workflow output; existing upstream task prerequisites retained. Exact parent-required draft5a12eb9e is now available; source preparation is ready.",
+        "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker\u2019s task."
+      }
     },
     {
       "id": "SEQ-040",
@@ -844,7 +941,12 @@
           ],
           "reason": "Qualify exact reviewed target/value execution."
         }
-      ]
+      ],
+      "worker_update": {
+        "state": "source_preparation_ready_execution_prerequisites_open",
+        "prerequisite": "Complete original CanApprove rules/current access and task23 file/delivery-reference consumers; published source contains no protected invocation value, so task39 is conditional and is not an unconditional gate.",
+        "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker\u2019s task."
+      }
     },
     {
       "id": "SEQ-041",
@@ -879,7 +981,12 @@
         "SEQ-017",
         "SEQ-041"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "existing_complete_concrete_source_canonical_consumer_ready_rule_gate_open",
+        "prerequisite": "Accepted Task41 Chat/Knowledge same-owner sources already contain full admission/hold/request staging; existing canonical owner revision-fenced batch includes writes/receipt/outbox. Full qualification specifically needs Task11 checked rule/lock/final-invariant and authority-query producer, not a missing State/Work ownership API.",
+        "owner": "Compiler/Contracts defining checked rule facts; State/Cloudflare consume final transaction enforcement. This worker preserves original admission/hold/request source and completes its actual consumer after release."
+      }
     },
     {
       "id": "SEQ-043",
@@ -900,7 +1007,12 @@
           ],
           "reason": "Other resources need their own released verified-usage contract."
         }
-      ]
+      ],
+      "worker_update": {
+        "state": "existing_concrete_settlement_source_rule_and_usage_gates_open",
+        "prerequisite": "Original Chat reply_progressed and Knowledge progress/finish already express original evidence-bound settlement and independent slot release. Full qualification follows Task42/11; Task21 verified production generation usage applies conditionally. Unknown commitments cannot be released by guessed zero usage.",
+        "owner": "Compiler/Contracts checked rules/current context; owning generation/provider verified usage; actual source/consumer implementation remains this worker."
+      }
     },
     {
       "id": "SEQ-044",
@@ -914,7 +1026,12 @@
         "SEQ-019",
         "SEQ-022"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "blocked_targeted_recovery_dependency",
+        "prerequisite": "Released Task22 exact-ID retained outbox carrier and original stop/reconcile join before validating second-consumer reuse with existing keyed schedules.",
+        "owner": "State/Contracts retained outbox producer, then this worker\u2019s Cloudflare/application consumers."
+      }
     },
     {
       "id": "SEQ-045",
@@ -934,7 +1051,12 @@
           "tasks": [],
           "reason": "The original canonical FP.AW-PAYMENTS adapter task and definite-effect/reconcile contract are required; no new payment task is invented."
         }
-      ]
+      ],
+      "worker_update": {
+        "state": "blocked_prerequisite_or_value_gate",
+        "prerequisite": "Select actual reversible external effect with definite-success, identity and reconcile contract; selected Email receipt evidence cannot qualify refund/publication reversal.",
+        "owner": "App/provider recovery owner; payment selection additionally requires existing FP.AW-PAYMENTS."
+      }
     },
     {
       "id": "SEQ-046",
@@ -949,7 +1071,14 @@
         "SEQ-018",
         "SEQ-020"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "tested_source_runtime_choice_native_component",
+        "implemented": "Current upstream actual source already includes static and runtime judgments and their bounded source-derived option inventory; no duplicate implementation.",
+        "validation": "Existing genuine bound-judgment-durable case1/1 in13.69s, compiling with rebuilt current CLI2561c9b8: nativeD1/current grants/reopen and real controlled localhost System-One static/runtime provider routes, schema/catalog/input/distribution/revision/model/usage negatives.",
+        "remaining": "Controlled provider/model/token-count profile only; exact original draft5a12eb9e is now available. Actual deployed/remote model/account/tokenizer/provider qualification remains with defining owners. Older missing-runtime-choice claims are superseded at this tested component scope.",
+        "owner": "Judgment/Services deployment owner; original source preparation/consumer remains this worker, with no image-provider dependency."
+      }
     },
     {
       "id": "SEQ-047",
@@ -966,7 +1095,12 @@
         "SEQ-020",
         "SEQ-023"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "blocked_prerequisite_or_value_gate",
+        "prerequisite": "Bounded Handbook corpus interface and indexing/withdrawal/current-all-supplied-source disclosure contract; compiler currently refuses corpus emission.",
+        "owner": "Contracts/compiler and corpus index/provider owners."
+      }
     },
     {
       "id": "SEQ-048",
@@ -993,11 +1127,17 @@
       "current_work": {
         "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
         "status": "Genuine ordinary and declared-event private cohort components directly qualified. Five released private-cohort paths frozen for Package capture; no duplicate validation. Continue original full task through default installed Worker cohort fulfillment and mixed ordinary/cohort event intake; preserve broader original matrix and explicit unsupported trigger gates.",
-        "accepted_component": "Ordinary genuine compiled public-child/nativeD1 case1/1 and four affected version/fresh/fence/claim cases4/4 pass. Full admitted call/guards/readings/unique/default/result and checkpoint share existing State unit; authored postwrite rollback, frozen late-insert exclusion/2+1bounded turns, actual lost response→D1 reopen/no repeat, owner revocation and real role guard race qualify. Compiler private each source-event admission remains required; no full48 credit.",
+        "accepted_component": "Ordinary genuine compiled public-child/nativeD1 case1/1 and four affected version/fresh/fence/claim cases4/4 pass. Full admitted call/guards/readings/unique/default/result and checkpoint share existing State unit; authored postwrite rollback, frozen late-insert exclusion/2+1bounded turns, actual lost response\u2192D1 reopen/no repeat, owner revocation and real role guard race qualify. Compiler private each source-event admission remains required; no full48 credit.",
         "producer_release": "Compiler genuine declared-event producer captured b40a5390/own followup7126ef6f; current installed target requirement retained. Declared events/model/nonnull anchored collection only; hook/Every/progress E6008 remain. No new compiler producer or second State engine is needed for the accepted component.",
         "accepted_private_component": "Current CLI0/CF emit0; same owning genuine D1 private case1/1 (~8.1s) after exact retained schedule:event trustedSource pin, wrong-principal refusal with no domain/history writes. All matching sweep/unbound cohort handlers initialize in the same source-receipt revision; frozen payload/bounds/membership survive reopen. Null actor/current owner/private registry/child source forwarding/body effects/receipt/rollback/late exclusion/fair turns/replay/typed parent reload qualified. Two unchanged affected ordinary/private-due cases2/2 reused. Exact internal state.cohorts@1 constructor only; default Worker does not fulfill globally, mixed ordinary/cohort source currently refuses. Full48 remains open.",
         "defining_owner_prerequisites": "Package State/Work owns durable bounded execution cursor and intent-scan resume/rotation; checkpoint.cursor presently admission admit/N, scheduler cursor caller-owned, so restart-at-null fairness is unqualified. Mixed intake needs an actual retained source-to-handler routing/admission producer and selector, with atomic routing/cohort intake but independent ordinary handler executions/receipts. State ordinary private admission and existing trusted guard-revalidation limits remain explicit. No second engine/unbounded substitution.",
-        "mixed_handler_semantics": "Defining Package worker confirms DESIGN§6 independent handler occurrence/receipt; later handler cannot reject already committed event source. Source-atomic ordinary body grouping withdrawn. Atomic durable routing/admission creates independent handler occurrences/cohort intents; each body/outcome remains separate. Existing Work lacks retained source-to-handler routing/admission/stored selector. Balanced preauthorized JEV3 addresses consequential new minimal producer/cursor design, preserving accepted semantics; no worker/resource hold."
+        "mixed_handler_semantics": "Defining Package worker confirms DESIGN\u00a76 independent handler occurrence/receipt; later handler cannot reject already committed event source. Source-atomic ordinary body grouping withdrawn. Atomic durable routing/admission creates independent handler occurrences/cohort intents; each body/outcome remains separate. Existing Work lacks retained source-to-handler routing/admission/stored selector. Balanced preauthorized JEV3 addresses consequential new minimal producer/cursor design, preserving accepted semantics; no worker/resource hold."
+      },
+      "worker_update": {
+        "state": "implemented_tested_installed_boundary_component",
+        "implemented": "Existing genuine installed Worker nativeD1 case now covers original499/500/501/1000 membership sizes with admission genuinely incomplete at workerd dispose/reopen, exact frozen members/children/history, late exclusion, complete independent outcomes and full scheduled replay without repeated effects. Integrated default tick, routing and durable navigation prerequisites are reused. Installed tick now caps each of its two child queries and admission chunk to100 without altering retained source bounds/cutoff. Actual two-live-intent control co-stages held-child/owner rotation, reopens nativeD1/worker handle, advances the later intent, reloads current rows, deletes archived member, releases claim and replays exact source receipts.",
+        "validation": "Owning scheduler emit22/22; focused changed installed case1/1 in201.34s, all four boundary diagnostics passed. No extra rerun or new runtime/schema/fixture/bridge. New State emit/owning navigation3/3 and actual compiled installed nativeD1 case1/1 (93.02s) pass, including two-live-intent and unchanged499/500/501/1000 boundaries. Matching CF owning type emit now passes after unrelated new unit type corrections; unchanged native result is reused.",
+        "acceptance": "The identified original installed multi-chunk qualification unit is tested; full48 and original wider product/resource/host gates are not inferred from this result."
       }
     },
     {
@@ -1062,7 +1202,12 @@
           ],
           "reason": "Qualify finalization, expiry, discard and authorization for those files."
         }
-      ]
+      ],
+      "worker_update": {
+        "state": "blocked_prerequisite_or_value_gate",
+        "prerequisite": "Actual multi-session resume consumer and required ordinary-draft/form comparison.",
+        "owner": "App/UI value-gate owner."
+      }
     },
     {
       "id": "SEQ-052",
@@ -1083,7 +1228,12 @@
           ],
           "reason": "A read-only view needs its actual renderer, not a generic form prerequisite."
         }
-      ]
+      ],
+      "worker_update": {
+        "state": "blocked_prerequisite_or_value_gate",
+        "prerequisite": "Actual repeated customized subtree and two-use full-cost/authority comparison.",
+        "owner": "App/compiler/UI value-gate owners."
+      }
     },
     {
       "id": "SEQ-053",
@@ -1122,7 +1272,12 @@
       "next_gate": [
         "SEQ-011"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "blocked_prerequisite_or_value_gate",
+        "prerequisite": "Task11 enforcement and two qualified models demonstrating stable graph/vocabulary reuse.",
+        "owner": "Compiler/State producer and app value-gate owner."
+      }
     },
     {
       "id": "SEQ-055",
@@ -1210,7 +1365,12 @@
       "next_gate": [
         "SEQ-045"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "blocked_prerequisite_or_value_gate",
+        "prerequisite": "Complete concrete recovery reuse45 before compensation-grammar reconsideration.",
+        "owner": "Recovery/domain owner."
+      }
     },
     {
       "id": "SEQ-058",
@@ -1241,7 +1401,12 @@
       "next_gate": [
         "SEQ-011"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "blocked_prerequisite_or_value_gate",
+        "prerequisite": "Task11 enforcement and actual nested/parallel workflow that qualified flat composition cannot express.",
+        "owner": "Machine/app value-gate owner."
+      }
     },
     {
       "id": "SEQ-060",
@@ -1253,7 +1418,11 @@
       "evidence": [],
       "next_gate": [],
       "conditional_gates": [],
-      "acceptance_scope": "Roadmap documentation and evidence were committed as 4475990f; no product integration or living-plan checkpoint advance is claimed."
+      "acceptance_scope": "Roadmap documentation and evidence were committed as 4475990f; no product integration or living-plan checkpoint advance is claimed.",
+      "worker_update": {
+        "state": "integrated_tested_components_current_PR_review_required",
+        "scope": "Focused released producer/runtime/browser/MCP components tested. Codex code/security completed for03d9eaf7; caption finding resolved against accepted same-name rule. Later coherent corrections require their own pushed-head review; no merge or whole-plan acceptance."
+      }
     },
     {
       "id": "SEQ-061",
@@ -1264,7 +1433,11 @@
       "state": "not_started",
       "evidence": [],
       "next_gate": [],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "tested_claimed_components_whole_application_gates_open",
+        "scope": "Existing installed cohort/Images/browser/MCP component checks remain reusable. Published exact draft5a12eb9e unblocks Rust and full draft E2E checks: actual remaining compiler expectations/consumer fixtures and original source diagnostics are open. Corrected genuine compiled CRUD/receipt/history journey passes2/2 on nativeD1; affected E2E direct typecheck passes. Real production provider/tokenizer/account, original full app/rules and supported-host gates remain; no other worker hold is inferred."
+      }
     },
     {
       "id": "SEQ-062",
@@ -1275,7 +1448,12 @@
       "state": "not_started",
       "evidence": [],
       "next_gate": [],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "existing_accumulated_registry_reconciled_complete_checkpoint_open",
+        "source_revision": "66065e8a8ed8582185539afd818862c3204cafa0",
+        "scope": "Existing docs/ideal-filetree-plan/state-machines-20261007.json refreshed against every accumulated checkpoint change with decisions and owning paths preserved. Commit history source pin repaired from tree to commit; new producer fixtures await exact target/semantic review. Complete checkpoint unadvanced, no duplicate proof/recap tree."
+      }
     },
     {
       "id": "SEQ-063",
@@ -1313,7 +1491,7 @@
     "design/language-proposals-20261007/draft-intent-excerpts.md",
     "design/language-proposals-20261007/historical-draft-excerpts.md"
   ],
-  "source_provenance_resolution": "October7ignored-local ledger retained historically; current clean nested draft repository matches outer160000gitlink at a55a0f7. Outer submodule status has uninitialized marker; no submodule mutation.",
+  "source_provenance_resolution": "Parent main remains9ecb2759674970bd0bce4ce4e561eb307b6045ab. Coordinator published its exact required draft5a12eb9ebb136ffa4e5ce352663f92affba25bc2 on canlang-drafts/codex/ci-corpus-20261009; the clean local draft checkout now matches that pin. Historical registrations remain historical. Previously source-blocked Rust and draft E2E checks ran against the published source; current consumer/compiler/profile failures retain their actual owners.",
   "read_handoffs": [
     {
       "owner_thread": "01a10c5a-0fb5-7343-9659-c3efab311c0c",
@@ -1328,7 +1506,7 @@
       "status": "active_bounded_snapshot_probe"
     }
   ],
-  "updated_utc": "2026-10-08T15:57:26Z",
+  "updated_utc": "2026-10-09T17:55:59.061067Z",
   "progress_reporting": {
     "user_requested": true,
     "format": "done / 63 after every finished roadmap task; report partial slices separately without incrementing full-task count",
@@ -1387,7 +1565,157 @@
     "former_coordinator_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
     "former_coordinator_role": "implementation",
     "role": "cross-chat allocation, overlap prevention, resources and task status; no code review",
-    "validation": "one direct proportionate layer; no nested proof or review chains"
+    "validation": "one direct proportionate layer; no nested proof or review chains",
+    "current_coordinator_thread": "01a11e6b-f4e1-7603-b47d-9d3210c9c6de",
+    "worker_communication": "Human-authorized local continuation; actionable dependencies sent to the existing local coordinator through the available thread tool. No cloud resumption or replacement chats.",
+    "compiler_build_prerequisite": {
+      "available_revision": "4cb5c55d",
+      "branch": "codex/compiler-completion-20261009",
+      "pr": "https://github.com/veighnsche/canlang/pull/133",
+      "action": "Focused repair consumed without duplicating correction; current-source cargo build --locked --bin can passed and affected artifact/consumer case passed.",
+      "consumed_revision": "2561c9b8"
+    },
+    "review_status": {
+      "pr": "https://github.com/veighnsche/canlang/pull/134",
+      "revision": "9597a6609a27391fa5f29d04b12bbc0915408ff6",
+      "state": "Codex_completed_current_published_head_parent_mutation_finding_corrected_locally",
+      "action": "Accepted DESIGN.md1018 same-name caption rule resolves repeated caption finding without rewrite. New4231482661 parent delivery-observation join is being corrected at private native identity/authorized view seam with owning controls. Current-head CI37947682242 completed failure; released source/consumer corrections continue. Later head review/CI required.",
+      "finding": "4232261242 navigated parent mutation correction implemented/tested locally; prior nominal-alias and hook-value findings consumed exact Packages releases. New unpublished units have no current-head review yet."
+    },
+    "ci_status": {
+      "revision": "6e8692fe6a314cdd7027bbd5998902a30a9c102a",
+      "implemented_tested_corrections": "Optional late-bound Testkit/Contracts ES2022 fixes now pass their CI boundaries. Consume released Compiler048a7383/1ee1239d/dac8596f and matching exact codegen5bb5a5f5/B1 file1a6c7633: current native semantic/runtime/UI checks11/11, codegen117/117 and strict B1 joins2/2 pass. Original input_choices artifact is byte-identical after current-CLI regeneration. B1 strict joins now pass hosted; its remaining stale workflow pin is consumed from Compiler2db9200b and the exact actual CLI/catalog gate passes. Compiler diagnostic/lint repair37695f6d and released effects test intake3e5d2cd0 consumed; compiler-wide formatting, all-target warnings-denied Clippy, native foundation/LSP/BDD22/22 and effects48/48 pass. Published draft5a12eb9e checked out cleanly; previously blocked full Rust and45-case draft E2E checks ran. Genuine compiled journey now consumes disclosed records and actual emitted app identity; focused nativeD1 Playwright2/2 and direct E2E TypeScript pass. Earlier owning E2E typecheck27/27 passes. Settled-output BDD4/4, codegen117/117, cohort1/1 and collection1/1 reruns pass after transient concurrent build removals; bounded rollback exposes its released stale-result consumer dependency.",
+      "remaining": "Current-head03d9eaf7 language tools passed; compiler/current-browser/workspace jobs failed before owning corrections now tested locally. Later pushed head CI/Codex required. Original/patched pilot complete source diagnostics, Package/Interfaces/Contracts file semantics and full original rules/current contexts/provider qualification remain open; no retired workflow waits.",
+      "boundary_dependency": "Exact coordinator resolver/consolidation eac25ce3/1644cd4a retained. Consume independent Dev992b3d0/2421f900 catalog and declared happy-dom edges plus complete bf57cd85 application-owned optional Testkit loader. Actual branch guard now0 violations; unchanged shared16guard/40tools/static workflow results reused.",
+      "published_consolidation": "Published03d9eaf7 workflow blob matches exact1644cd4a; only ci.yml/release.yml/ts-gates.yml remain (ts-gates is the existing manual service). Current-head new CI run37943260210 observed in progress; retired jobs ignored.",
+      "teamtasks_consumer": {
+        "state": "released_correspondence_and_runtime_closure_consumed_tested",
+        "producer_revisions": [
+          "67aef2a8a411c16ef3e5961a45e08b81826c99b5",
+          "b11cc7c8eaf67909946ea8cfacb2e0ac49abe477"
+        ],
+        "scope": "Exact source review confirms only two verbatim preference Given-to-Then relocations; preserve explicit handbuilt limits and unchanged runtime/schema/workflows. Real public Identity/testing and UI dependency closures bundled for workerd using existing MCP bundler; one Identity instance and first-error cleanup retained.",
+        "validation": "Existing native Worker/Chromium scaffold/TeamTasks/MCP cases15/15 pass; direct owning E2E TypeScript passes. This is handbuilt consumer qualification, not full compiled original application emission."
+      },
+      "compiler_gate_correction": "Published0f17f6f8 owning producer/consumer intake passes all10 affected native targets529/529, including draft_outcome_table, explain entries, format corpus and CanInbox parameter/header parity; formatting and strict all-target Clippy pass. No whole-plan or hosted-current-head pass inferred.",
+      "loader_and_boundary_intake": {
+        "producer_revisions": [
+          "992b3d0ae188d96941a387d538cba11a48692bdb (independent public catalog imports)",
+          "2421f900e058ed45771a2a02338fa446ea0d8c4f (declared happy-dom and Values locator)",
+          "bf57cd856817f10e99857ec5cf8719b4569291b8 (complete optional Testkit loader, actual caller, error controls)"
+        ],
+        "validation": "Frozen installation passes; owning Cloudflare dependency build22/22, actual boundary check0 violations, affected Vitest44/44 and original nativeD1/Chromium/MCP choice case1/1 (45.70s) pass. Loader preserves application-installed optional producer identity and initialization/export errors.",
+        "unconsumed_prerequisites": "992 State collision loop requires complete792d8161 checked field-modifier producer;242 owner-context controls require complete2b0f5f48 runner/row-scope producer and inherited b65c0312/24ef7359/8ea86d53 behavior. Owners State/Contracts and Dev respectively; no checkpoint-only transplant."
+      },
+      "values_consumer_intake": {
+        "state": "saved_component_tested_locally",
+        "source_checkpoint": "d3f4fa65",
+        "scope": "Exact released four-donor source correspondence and prepared-hook consumer assertions preserved. Local frozen installation and owning dependency build22/22 pass; changed prepared-hook/string-escape cases10/10 pass. Reuse broader unchanged results; no full Values or roadmap acceptance."
+      },
+      "local_shared_gate_intake": {
+        "producer_revisions": [
+          "c99159501cab7420001999f046c110292f80ee26",
+          "040d38e3a2d7524fff913f01210ad2f169442230"
+        ],
+        "consumed_revisions": [
+          "ef63438f",
+          "c88d92a8"
+        ],
+        "scope": "Exact Packages workspace Chromium installation plus matching manual gate plan2/Turbo completion flag consumed. Branch records preserved through overlap; owning reported actionlint3/3 and runner/receipt32/32 reused. Actual consuming-head Linux execution remains due."
+      }
+    },
+    "compiler_consumer_integration": {
+      "producer_pr": "https://github.com/veighnsche/canlang/pull/133",
+      "producer_revisions": [
+        "048a738309e51116aef074875f108b6be835b701",
+        "1ee1239d277ef2bc432dc3da54fe422dc563b4e0",
+        "dac8596fe34f3f5dad254308419a359fea60c918"
+      ],
+      "consumed_commits": [
+        "0fd5b83f",
+        "ba68853a",
+        "c3362272"
+      ],
+      "test_files": "Exact released codegen.rs at5bb5a5f51230bc9d7873b97f105881bce34d9686 and b1_join.rs at1a6c76337b419e6f0524dfc37141242dfda6f7f9; no unrelated compiler branch changes consumed.",
+      "validation": "Direct source-current Cargo checks pass: anonymous message semantic/native3/3, UI adapter7/7, generated nominal preference public HTTP/Identity/UI1/1, codegen117/117, B1 artifact joins2/2. Initial structural golden failure revealed omitted producer test dependency; exact released file consumed and affected suite passes. Conditional model-rule/read-grant/full application acceptance remains open. Published CanDuration leaf consumed from exact e7d65ad9: owning b4_check282/282 pass; Cargo doc tests complete with zero doc cases. Remaining unrelated corpus mirrors are not changed.",
+      "additional_gate_producers": [
+        "37695f6d7c7e7ca95abd0bae169a3768e1fae37c",
+        "2db9200b3fa93d1fc90b2c9d18182568e1fb485e",
+        "compiler/tests/effects.rs at3e5d2cd034f89eebfee57d1e97cd38ecc6736b2b",
+        "e7d65ad9be0915fe74bd33dc0b7b7e0c38744ce2 (compiler/src/analysis/types.rs and compiler/tests/b4_check.rs)",
+        "1a6c7633 (b3_i5/b4_parse/b4_resolve only)",
+        "7db23906 (native profile consumers and invocation reference fixture)",
+        "bbd541af (CRUD records, installed UI/default/sourcemap consumers)",
+        "61957916 (default/rollback CRUD record consumers)"
+      ],
+      "additional_consumed_commits": [
+        "8f83740f",
+        "f617d3f7"
+      ],
+      "native_consumer_intake": {
+        "state": "released_producer_and_consumer_corrections_implemented_tested",
+        "producer_head": "0f17f6f806babaf8a36c9cfeaa40357e5437aae7",
+        "scope": "Consume coherent c3c12531 anonymous descriptor/effect/linkage producers and3082eae1 bound-caption producers with owning controls, plus current0f17f6f8 analysis/authoring/format/b4_examples consumers. Real1d6495d1 corpus,2ba8b526 claim controls andb1209ff6 parameter-domain/CanInbox parity underpin expectations; no count-only substitute. Ten affected source-current native targets pass529/529; cargo fmt --check and warnings-denied all-target Clippy pass. Existing105 native consumer results remain reusable where unchanged.",
+        "remaining": "Original application conditional-grant/model-rule/current-context and provider qualification remain defining-owner prerequisites; current corpus mirrors and CanInbox header parity affected checks now pass. Same-name preference caption behavior retained per accepted DESIGN.md1018."
+      },
+      "zsh_completion_intake": {
+        "producer_revision": "c4376ab8b92be5dd7daf6da766bda2dae7d3dc49",
+        "file": "compiler/tests/fixtures/completion-contract/zsh.py",
+        "scope": "Exact released compinit -i audit/bootstrap guard/echo-safe sentinel consumed. Actual Bash/Zsh completion engine case1/1 passes with require-engines enabled (20.54s). Other compiler prerequisites retained."
+      }
+    },
+    "model_field_modifiers": {
+      "producer_revisions": [
+        "792d8161b525a4ae2574f846b81e5938876b7ed9",
+        "992b3d0ae188d96941a387d538cba11a48692bdb (collision-safe schema naming/nominal array control)",
+        "8521ccfa4d95377e7041d0c0653fbf37030f3aad (exact applied-only patch field source/test hunks)"
+      ],
+      "state": "complete_selected_source_consumer_intake_implemented_tested",
+      "scope": "Contracts trim/min/max metadata, registry checked claims, complete State schema admission/cache and mutation normalization/bounds before hooks plus post-hook/update validation; canonical normalized defaults and nominal-array codecs retained. Private native reference/navigation and durable owner transaction behavior preserved. Packages8521 applied-only field tracking consumed into local owner-session pipeline without changing source ownership or structural hook comparison.",
+      "validation": "Owning State dependency build6/6 and existing affected mutation/registry controls105/105 pass. This does not supply Task11 checked rules/hooks or close whole typed workflow qualification. Owning State build6/6 and changed nullable/modifier13/13 pass once; known undefined keys omit constraints while null/caller refusal precedence and actual changed hook constraints remain."
+    },
+    "cloud_shutdown_handoff": {
+      "instruction": "Human stopped all cloud implementation, tests, builds, reviews and polling; only preservation commits/push authorized. No cloud resumption or replacement task.",
+      "local_checkout": "/Users/vince/Projects/canlang/.worktrees/capability-roadmap",
+      "branch": "codex/capability-roadmap-20261009",
+      "pr": "https://github.com/veighnsche/canlang/pull/134",
+      "source_checkpoints": {
+        "d9ea5d8d": "Complete released checked field-modifier intake; already recorded State build6/6 and mutation/registry105/105 before stop, no Task11 or full-workflow acceptance.",
+        "d3f4fa65": "Unfinished Values consumer/source-correspondence checkpoint. Exact released5910445b four-donor fixture entries plus e00098bc/e5b7038e test changes preserved; prior failed string check passed2/2 after exact released input, unchanged prepared checks passed. No later qualification.",
+        "b33bbb92": "Unfinished real dependent-choice transport hold/drain/first-error lifecycle correction from51697025; no affected build or native case after this edit.",
+        "762c50d4": "Unfinished complete CanApprove/CountryRegion implemented choice annotations and comparison update; no source-current check after edits.",
+        "04490bdc": "Unfinished full ExpenseReview and CreativeRevisionReview compositions/cases/presentation. Comparison README remains unwritten; no execution qualification."
+      },
+      "remaining_prerequisites": [
+        "Codex4231482661 parent delivery observations: finite private navigation/view resolution proposed; interrupted before any runtime/test/fixture edits. Must correct both viewer and mutation seams with genuine generated-parent/current-field/withheld/revoked controls. Existing owning typed-delivery-observer source/JSON unchanged.",
+        "Task38 last direct check: Expense retains2 inherited Employee E3010 plus8 operation_id request E5006; Creative retains5 original diagnostics plus6 request E5006. Runtime example adapter accepts operation_id but compiler example validation refuses; no checker change made. Existing full original rules/conditional grants/current-context execution prerequisites remain.",
+        "Released Compiler c4376ab8b92be5dd7daf6da766bda2dae7d3dc49 Zsh completion repair, published through59632d33, was announced but not fetched/consumed before emergency stop.",
+        "Dev complete2b0f5f48 owner-context producer and inherited b65c0312/24ef7359/8ea86d53 remain unconsumed. Existing explicit Task11, retained-carrier API and production-provider gates remain in their task records.",
+        "Pushed preservation head has no current-head CI/Codex acceptance; human explicitly forbids waiting or reviewing during shutdown."
+      ],
+      "nested_and_ignored_sources": "draft clean at exact required5a12eb9ebb136ffa4e5ce352663f92affba25bc2; no nested source edits/gitlink change or ignored repository task source candidates. Dependencies/build caches/logs/credentials excluded.",
+      "temporary_linux_playwright_wrapper": "import base from \"/workspace/canlang/playwright.config.ts\"; export default {...base,testDir:\"/workspace/canlang/tests/e2e\",workers:2,use:{...base.use,launchOptions:{executablePath:\"/usr/bin/chromium\"}}}; (temporary external wrapper only; adapt to local host if needed)"
+    },
+    "retained_receipt_admission": {
+      "state": "defining_API_implemented_tested_canonical_transport_assembly_pending",
+      "source_checkpoint": "f4673097",
+      "API": "Public State invokeRetainedReceiptOnly is the positive installed-support entry and forces receipt-only admission; ordinary admit/invoke/createInvoker also retain the host mode. Exact receipt identity/input hash, current by/membership, existing replay observer; unseen miss not_found before execute/commit. Dev must require the export before restoration and project current access before disclosure.",
+      "validation": "5owning Memory/nativeD1/DO and saved-CRUD projection cases pass including16minute/24hour recovery, rejected receipt, identity/hash mismatch and revocation. Owning build22/22. Explicit installed entry owning Memory recovery cases pass2/2, including conflicting untyped mode override refusal; unchanged native/projection results reused.",
+      "owners": "Dev canonical CF forwarding/owner selection and public projection; Packages Interfaces signed restoration consumer. State saved scenario result current grant/secret projection remains open beyond the tested CRUD boundary; low-level results confer no public grant. No signature-window extension or full workflow acceptance.",
+      "scenario_projection_prerequisite": {
+        "owner": "Compiler checked source result data/control dependency producer; roadmap State defining saved-scenario association/current-projection API; Dev actual native capture/public transport.",
+        "source_evidence": "DESIGN.md section5 requires private authority-derived scalar dependency tracking. Artifact/Canonical result currently carries type only; Compiler check_secret_return rejects direct secret types and IrStmt.Return has TypedExpr/span, without emitted dependency proof. CF scenarioResult discards native record view identity during encoding; State recordVersions retains no changed snapshots.",
+        "selected_boundary": "Checked versioned result-dependency plan and exact actually evaluated native row/field/reference observations plus committed changed-row snapshots in existing receipt. No body rerun, object-shape provenance or arbitrary user projector. Three independent JEV requests choose checked_result_dependency_plan .98/1/.98, confidence .97/1/.97; advice is not implementation or acceptance.",
+        "remaining": "Define/load complete plan and receipt association; Compiler data/control/derive/local-call closure and nominal/model-container inventory; native host capture; State current original/current secret and grant/lifetime/race projection. Literal/input/generated receipt provenance must remain distinct from private decision-only reads; general saved results remain internal until complete defining joins."
+      }
+    },
+    "dev_example_control_intake": {
+      "state": "source_intake_compiled_owning_native_controls_tested_observer_disposal_owner_prerequisite",
+      "released_revision": "53597b39df18da57d0e39d1f0180caee29e8ab7a",
+      "scope": "Coordinator-authorized10Cloudflare src/dev files plus9owning tests, preserving default-off external decisions and existing browser executable overrides. No session-socket/foreign records/Values binary intake. Existing createTeamOwnerStorageBoundary present.",
+      "remaining": "Serialized joined CF emission and owning example/control/source capture checks after concurrent feature sources stable; exact missing host/State/Testkit producer evidence if any goes to Dev/Packages/Compiler owners. No whole original example/application acceptance.",
+      "validation": "CF owning emit passes; exact six runtime fixture intakes pass71/71 including actualD1/DO. Native actual Dev example-runner2/2 passes after building its required local Testkit package. Control intake has40initial passing controls plus17controls in failed-file rerun under actual owner-private short Darwin temp paths; one genuine observer-disposal assertion at session-example-control.test.ts272 remains and is sent to Dev. No failed permission/source-currency assertion is weakened."
+    }
   },
   "live_handoffs": {
     "h1_typed_metadata": {

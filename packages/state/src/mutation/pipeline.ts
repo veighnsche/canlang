@@ -12,7 +12,7 @@
  */
 
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
-import { encodeValue, validateValue } from '@canlang/values';
+import { encodeValue, trim, validateValue } from '@canlang/values';
 import type {
   CanTypeId,
   CanonicalFieldDef,
@@ -299,6 +299,24 @@ function refValuesEqual(oldValue: unknown, newValue: unknown): boolean {
   return typeof oldId === 'string' && oldId !== '' && oldId === newId;
 }
 
+/** Cloned hook inputs do not make an unchanged stored field a new write. */
+function fieldDataEqual(left: unknown, right: unknown, seen = new WeakMap<object, object>()): boolean {
+  if (Object.is(left, right)) return true;
+  if (typeof left !== 'object' || left === null || typeof right !== 'object' || right === null ||
+      Array.isArray(left) !== Array.isArray(right)) return false;
+  if (Array.isArray(left) && left.length !== (right as unknown[]).length) return false;
+  if (!Array.isArray(left) && (Object.getPrototypeOf(left) !== Object.prototype ||
+      Object.getPrototypeOf(right) !== Object.prototype)) return false;
+  const previous = seen.get(left);
+  if (previous !== undefined) return previous === right;
+  seen.set(left, right);
+  const keys = Object.keys(left);
+  if (keys.length !== Object.keys(right).length) return false;
+  return keys.every(key => Object.hasOwn(right, key) && fieldDataEqual(
+    (left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key], seen,
+  ));
+}
+
 /**
  * Evaluate an ordered batch of mutation writes. Per-write order: resolve the
  * model def, load `before` (provisional-aware), build the candidate, run
@@ -451,7 +469,11 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     }
     await checkRevision();
     const cap = owner?.bounds.maxRows ?? spec.limit;
-    const base = await store.query({ ...spec, archived: 'include', limit: cap + 1 });
+    // Storage predicates/order only support a flat wire-field subset. Read
+    // the complete bounded model domain in deterministic identity order;
+    // the defining query producer applies the checked native selection.
+    const base = await store.query({ model: spec.model, authority: 'owner', archived: 'include',
+      order: [{ field: 'id', direction: 'asc' }], limit: cap + 1 });
     consumeWork(base.length);
     if (base.length > cap) throw new StateError('validation', 'Owner mutation query exceeds its row bound.');
     const merged = new Map<string, StoredRow>();
@@ -469,14 +491,13 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         else merged.delete(key);
       }
     }
-    const rows = [...merged.values()].filter(row =>
-      (spec.archived === 'include' || row.archivedAt === null) &&
-      (spec.parent === undefined || row.parent?.model === spec.parent.model && row.parent.id === spec.parent.id) &&
-      (spec.where === undefined || evalPredicateForRow(spec.where, row)));
-    if (rows.length > spec.limit) throw new StateError('validation', 'Owner mutation query exceeds its completeness limit.');
+    if (merged.size > cap) throw new StateError('validation', 'Owner mutation query exceeds its row bound.');
+    const rows = [...merged.values()];
     consumeWork(rows.length * (spec.order?.length ?? 1));
-    // The existing State query producer owns ordering, including native
-    // numeric comparison. It receives only this bounded merged snapshot.
+    // The existing State query producer owns the full predicate vocabulary
+    // (including nested reference identity paths), numeric ordering and
+    // completeness-limit refusal. Its storage seam receives only this
+    // bounded merged snapshot and applies storage archive/parent scoping.
     const fields: Record<string, CanonicalFieldDef> = Object.create(null);
     for (const [name, field] of Object.entries(table.get(spec.model)!.fields)) {
       fields[name] = { required: field.required, serverOnly: field.serverOnly,
@@ -487,7 +508,11 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       modelDescriptor: { name: spec.model, fields, deleteMode: table.get(spec.model)!.deleteMode },
       context: { actorUserId: context.actor?.userId ?? null, teamId: context.team?.teamId ?? null },
       memberships: { findMembership: async () => { throw new StateError('validation', 'Owner decision reads do not resolve viewer authority.'); } },
-      store: { ...store, query: async () => rows }, limit: spec.limit, archived: spec.archived ?? 'exclude',
+      store: { ...store, query: async selection => rows.filter(row =>
+        (selection.archived === 'include' || row.archivedAt === null) &&
+        (spec.parent === undefined || row.parent?.model === spec.parent.model && row.parent.id === spec.parent.id)) },
+      limit: spec.limit, archived: spec.archived ?? 'exclude',
+      ...(spec.where === undefined ? {} : { where: spec.where }),
       ...(spec.order === undefined ? {} : { order: spec.order }),
     });
     await checkRevision();
@@ -556,7 +581,8 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     target: Record<string, unknown>,
     data: Record<string, unknown>,
     def: InterimModelDef,
-  ): void => {
+  ): Set<string> => {
+    const applied = new Set<string>();
     for (const [field, value] of Object.entries(data)) {
       consumeWork();
       const fieldDef = def.fields[field];
@@ -581,7 +607,9 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         );
       }
       safeSet(target, field, jsonClone(value, `Field ${JSON.stringify(field)}`));
+      applied.add(field);
     }
+    return applied;
   };
 
   /**
@@ -616,6 +644,8 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     constrainedFields?: ReadonlySet<string>,
     encodedFields?: ReadonlySet<string>,
   ): void => {
+    // This post-hook pass validates the row only. Recorded defaults were
+    // normalized before hooks and must retain that original resolution.
     normalizeConstraints(candidate, def, constrainedFields ?? new Set(Object.keys(candidate)));
     if (input.encodeField !== undefined) {
       for (const [field, value] of Object.entries(candidate)) {
@@ -666,17 +696,19 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       const value = candidate[field];
       if (value === undefined || value === null) continue;
       try {
-        const wire = input.encodeField?.(fieldDef.valueType, value) ?? value;
+        // Receiving normalization precedes an installed source alias codec:
+        // that codec must validate the normalized value, while alias and
+        // receiving bounds still run in the Values schema below.
+        const receiving = fieldDef.trim === true && typeof value === 'string' ? trim(value) : value;
+        const wire = input.encodeField?.(fieldDef.valueType, receiving) ?? receiving;
         const normalized = validateValue(constraint.schema, constraint.type, { value: wire }, 'create') as Readonly<Record<string, unknown>>;
-        // Bounds validate through Values' wire view without replacing native
-        // hook inputs. Only trim changes the value here; encoding still belongs
-        // to the existing post-hook checkpoint (including resolved defaults).
-        const constrained = fieldDef.trim === true
+        // Validate bounds through the wire view while retaining native hook inputs.
+        const stored = fieldDef.trim === true
           ? encodeValue(fieldDef.valueType, normalized['value'] as Parameters<typeof encodeValue>[1])
           : value;
-        safeSet(candidate, field, jsonClone(constrained, `Field ${JSON.stringify(field)}`));
+        safeSet(candidate, field, jsonClone(stored, `Field ${JSON.stringify(field)}`));
         if (defaultWriter !== undefined && defaultWriters.get(defaultKey(field, defaultWriter)) === defaultWriter) {
-          safeSet(resolvedDefaults, defaultKey(field, defaultWriter), jsonClone(constrained, `Resolved default ${JSON.stringify(field)}`));
+          safeSet(resolvedDefaults, defaultKey(field, defaultWriter), jsonClone(stored, `Resolved default ${JSON.stringify(field)}`));
         }
       } catch (error) {
         throw new StateError('validation', `Invalid field ${JSON.stringify(field)} on model ${JSON.stringify(def.model as string)}: ${String(error)}`);
@@ -1474,7 +1506,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
           safeSet(candidate, field, structuredClone(value));
         }
         // Updates apply NO defaults: only the patch lands on before.data.
-        applyCallerData(candidate, asDataObject(write.data, 'Update patch'), def);
+        const changedFields = applyCallerData(candidate, asDataObject(write.data, 'Update patch'), def);
         if (write.transition !== undefined) {
           const edge = write.transition;
           if (typeof edge !== 'object' || edge === null || Array.isArray(edge) ||
@@ -1496,9 +1528,9 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
             throw new StateError('rule_failed', 'Transition source state does not match.');
           }
           safeSet(candidate, edge.field, edge.to);
+          changedFields.add(edge.field);
         }
         checkRequired(candidate, def);
-        const changedFields = new Set(Object.keys(write.data ?? {}));
         normalizeConstraints(candidate, def, changedFields);
         const beforeHook = jsonClone(candidate, 'Update before hooks');
         // T31 (Rule A): staged writes skip hooks (flat, no cascade); every
@@ -1510,14 +1542,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         checkKnownFields(hooked, def);
         checkRequired(hooked, def);
         for (const [field, value] of Object.entries(hooked)) {
-          if (value === beforeHook[field]) continue;
-        // Hook inputs/results are clones: unchanged arrays and objects keep
-        // their wire contents, even though their identities differ.
-        try {
-          if (JSON.stringify(value) !== JSON.stringify(beforeHook[field])) changedFields.add(field);
-        } catch {
-          changedFields.add(field);
-        }
+          if (!fieldDataEqual(value, beforeHook[field])) changedFields.add(field);
         }
         checkJsonSafe(hooked, def, undefined, changedFields);
         checkWhen(write.when, {

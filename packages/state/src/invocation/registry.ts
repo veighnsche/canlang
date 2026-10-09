@@ -2,7 +2,6 @@ import { StateError } from '../errors.js';
 import { checkOwnerModelPolicyDescriptors } from '../mutation/model-policies.js';
 import { checkFieldMachine } from '../internal/machine.js';
 import { normalizeValueTypes, ValueTypesError, parseTypeId, printTypeId, type NormalizedSchema } from '@canlang/values';
-import { modelFieldConstraintSchema } from '../mutation/models.js';
 /**
  * Lane 03 T16a: operation registry — INTERIM engine-local defs plus the
  * generated-descriptor join.
@@ -62,7 +61,7 @@ import type {
 } from '@canlang/contracts';
 import { validateByPredicate, type ByPredicate } from '../policy/roles.js';
 import { validatePredicateShape } from '../policy/grants.js';
-import type { InterimContainment, InterimRefDef } from '../mutation/models.js';
+import { modelFieldConstraintSchema, type InterimContainment, type InterimRefDef } from '../mutation/models.js';
 import {
   createDeliverySchema,
   type DeliveryFieldSchema,

@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import type http from 'node:http';
+import http from 'node:http';
 import { readTextBody, sendBody } from '../src/internal/controlled-http.js';
+import { startControlledMailServer } from '../src/ports.js';
 
 function request(): EventEmitter & { destroy(): void; destroyedCalls: number } {
   return Object.assign(new EventEmitter(), {
@@ -57,4 +58,66 @@ test('controlled response writer preserves raw string/JSON bytes and before-writ
   assert.deepEqual(calls, []);
   sendBody(res, 202, { n: -0, missing: undefined });
   assert.deepEqual(calls, [[202, { 'content-type': 'application/json', 'content-length': 7 }], '{"n":0}']);
+});
+
+test('mail drip preserves successful status and body', async () => {
+  const server = await startControlledMailServer({ kind: 'drip', delayMs: 1 });
+  try {
+    const response = await fetch(`${server.url}/send`, { method: 'POST', body: '{}' });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('content-type'), 'application/json');
+    assert.equal(await response.text(), '{"reference":"mail_drip"}');
+  } finally {
+    await server.close();
+  }
+});
+
+test('mail drip releases acquired timers on peer teardown and server close', async (t) => {
+  const originalSetTimeout = globalThis.setTimeout;
+  const originalClearTimeout = globalThis.clearTimeout;
+  const timers = new Set<ReturnType<typeof setTimeout>>();
+  let scheduled: (() => void) | undefined;
+  let released: (() => void) | undefined;
+  t.mock.method(globalThis, 'setTimeout', (...args: Parameters<typeof setTimeout>) => {
+    const timer = originalSetTimeout(...args);
+    if (args[1] === 60_000) {
+      timers.add(timer);
+      scheduled?.();
+    }
+    return timer;
+  });
+  t.mock.method(globalThis, 'clearTimeout', (timer: Parameters<typeof clearTimeout>[0]) => {
+    originalClearTimeout(timer);
+    if (timers.delete(timer as ReturnType<typeof setTimeout>)) released?.();
+  });
+  const server = await startControlledMailServer({ kind: 'drip', delayMs: 60_000 });
+  const clients: http.ClientRequest[] = [];
+  const request = async (): Promise<http.ClientRequest> => {
+    const acquired = new Promise<void>((resolve) => { scheduled = resolve; });
+    const client = http.request(`${server.url}/send`, { method: 'POST' });
+    client.on('error', () => {});
+    clients.push(client);
+    client.end('{}');
+    await acquired;
+    scheduled = undefined;
+    return client;
+  };
+  try {
+    const disconnected = await request();
+    assert.equal(timers.size, 1);
+    const teardown = new Promise<void>((resolve) => { released = resolve; });
+    disconnected.destroy();
+    await teardown;
+    released = undefined;
+    assert.equal(timers.size, 0);
+    await request();
+    await request();
+    assert.equal(timers.size, 2);
+    await server.close();
+    assert.equal(timers.size, 0);
+  } finally {
+    for (const client of clients) client.destroy();
+    await server.close();
+    for (const timer of timers) originalClearTimeout(timer);
+  }
 });

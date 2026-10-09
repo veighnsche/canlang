@@ -86,7 +86,11 @@ export function createOperationFormPreparer(
     if (authored !== undefined && (new Set(authored).size !== authored.length || authored.some(name => !selectedNames.has(name)))) {
       throw new Error('Authored form controls must be unique selected writable inputs.');
     }
-    if (authored !== undefined && fields.some(field => !selectedNames.has(field.path))) {
+    // Authored controls may omit the optional explicit-null checkbox: a blank
+    // optional scalar then submits omission. Other generated companions
+    // (version/currency/fold) are required to make their base control usable.
+    if (authored !== undefined && fields.some(field => !selectedNames.has(field.path) &&
+        !writable.some(input => input.nullable === true && field.path === `${input.name}__null`))) {
       return unavailable("This form's field types are not supported yet.");
     }
     const renderedNames = authored === undefined ? selectedNames : new Set(authored);
