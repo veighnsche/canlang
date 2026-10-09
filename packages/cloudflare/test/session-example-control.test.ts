@@ -8,6 +8,7 @@ import type { CompiledExampleInput } from "../src/dev/example-runner.js";
 import type { PreviewRefusal } from "../src/dev/preview-bridge.js";
 import { attachDevSessionService, startDevSessionService, type SessionConstructRankingOptions, type SessionConstructQualificationRequest } from "../src/dev/session-service.js";
 import { FIRST_PROFILE } from "../src/dev/construct-help.js";
+import { DevSessionCore } from "../src/dev/session-core.js";
 import type { JevChoiceRequest, RankResult } from "../src/dev/jev-ranker.js";
 import { runDevControlArgv, type DevControlEnvelope } from "../src/dev/control-client.js";
 
@@ -516,6 +517,48 @@ it("awaits card qualification without granting a ranking branch and refuses an e
     expect(await pending).toMatchObject({state:"stale"});
     expect(calls).toBe(0);
   } finally {release?.();await fixture.owner.stop();}
+});
+
+it("refreshes diagnostic detail after pending qualification when source changes before watcher delivery", async () => {
+  let release: (() => void) | undefined;
+  let entered: (() => void) | undefined;
+  let gate: Promise<void> | undefined;
+  const fixture = await rankingFixture({ qualify: async request => {
+    if (gate !== undefined) { entered!(); await gate; }
+    return Object.freeze({ ...syntheticQualification(request), messageKinds: Object.freeze([]) });
+  } });
+  let restoreWatcher: (() => void) | undefined;
+  try {
+    const payload = { revision: fixture.checked.revision, index: 0 };
+    expect(await fixture.client.request({ command: "diagnostic.detail", payload })).toMatchObject({
+      current: true, construct_help: { candidateCoverage: "complete" },
+    });
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    gate = new Promise<void>(resolve => { release = resolve; });
+    const pending = fixture.client.request({ command: "diagnostic.detail", payload });
+    await started;
+    // Hold only the watcher hint; the actual source capture and explicit
+    // refresh remain real, so this check cannot pass through watcher timing.
+    const delayedWatcher = vi.spyOn(DevSessionCore.prototype, "markDirty").mockImplementation(() => undefined);
+    restoreWatcher = () => { delayedWatcher.mockRestore(); };
+    writeFileSync(fixture.app, `${rankSource}## Edited while diagnostic qualification was pending.\n`);
+    expect(await fixture.client.request({ command: "status" })).toMatchObject({
+      revision: fixture.checked.revision, dirty: false,
+    });
+    release!();
+    const detail = await pending as { construct_help: { cards: { status: string }[];
+      classification: { working: string }[] } };
+    expect(detail).toMatchObject({ revision: fixture.checked.revision, current: false,
+      source: { sha256: createHash("sha256").update(rankSource).digest("hex") },
+      diagnostic: { message: "source error" }, construct_help: { candidateCoverage: "unknown" },
+    });
+    expect(detail.construct_help.cards.every(card => card.status !== "working")).toBe(true);
+    expect(detail.construct_help.classification.every(card => card.working === "unqualified")).toBe(true);
+  } finally {
+    release?.();
+    restoreWatcher?.();
+    await fixture.owner.stop();
+  }
 });
 
 it("stop aborts and waits for private qualification cleanup without retaining its late bundle", async () => {
