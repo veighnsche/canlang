@@ -3727,3 +3727,7 @@ The low-level State result remains execution data, not a safe public projection.
 ## 2026-10-09: checkpoint the defining owner mutation session
 
 Implement the accepted Task11 State/Contracts lifecycle and exact checked native-binding ABI in the owning mutation package. Ordered provisional writes defer final integrity and affected-row invariants until one finalization; entry field locks, live CRUD contexts, reserved versions, bounded complete selectors and baseline-to-final effects share the same owner session. Preserve legacy batches and the existing scoped default receipt convention. The coherent source/tests are unfinished pending serialized qualification and exact Compiler/Cloudflare producer-consumer assembly. Missing source facts continue to refuse activation; this checkpoint does not establish Task11 acceptance.
+
+## 2026-10-09 — retain bounded alias provenance during State constraint intake
+
+Accepted finite checked-field correction: reuse the State constraint factory with the owning normalized Values schema at both registry entry points and model-table intake. Copy only the exact checked alias declaration into the fresh bounds-validation descriptor, then retain original aliases for value traversal. Declared alias bounds/NAME format and receiving bounds remain enforced; unowned aliases and unsupported trim claims still refuse. State emit and4targeted artifact/direct-loader/mutation/ownership cases pass without skips. Unchanged native/archive results are reused; full nominal/CSV/host and original queue acceptance remain separate.
