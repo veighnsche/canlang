@@ -956,7 +956,8 @@ export function assertLinksResolve(
   }
 }
 
-function bundleSha256(mainModule: string, modules: Record<string, string>): string {
+/** @internal Exact text snapshot digest for owning writer fixtures; not an app API. */
+export function bundleSha256(mainModule: string, modules: Record<string, string>): string {
   const sorted: Record<string, string> = {};
   for (const key of Object.keys(modules).sort()) {
     sorted[key] = modules[key] as string;
@@ -1033,7 +1034,41 @@ export function buildDeployBundle(
  * paths, plus a `bundle.json` manifest (main, sha, keys, byte sizes) for
  * reviewability. Deterministic bytes for the same bundle.
  */
+function snapshotTextModules(modules: Record<string, string>): Record<string, string> {
+  const snapshot: Record<string, string> = Object.create(null);
+  for (const [key, text] of Object.entries(modules)) {
+    if (typeof text !== "string") throw new Error("deploy bundle: text module must be a string");
+    snapshot[key] = text;
+  }
+  return snapshot;
+}
+
+/** Validate the exact publication snapshot, including its text-only manifest claims. */
+function assertTextBundleIntegrity(bundle: DeployBundle): void {
+  const keys = Object.keys(bundle.modules);
+  if (typeof bundle.mainModule !== "string" || !Object.hasOwn(bundle.modules, bundle.mainModule)) {
+    throw new Error("deploy bundle: main module is absent from the publication snapshot");
+  }
+  if (bundle.moduleCount !== keys.length || !Number.isSafeInteger(bundle.moduleCount)) {
+    throw new Error("deploy bundle: text module count mismatch — refusing to write");
+  }
+  if (bundleSha256(bundle.mainModule, bundle.modules) !== bundle.sha256) {
+    throw new Error("deploy bundle: text digest mismatch — the bundle changed after build; refusing to write");
+  }
+  if (bundle.mcpBundleBytes !== (bundle.modules[MCP_HANDLER_MODULE]?.length ?? 0) ||
+      bundle.httpOperationsBytes !== (bundle.modules[HTTP_OPERATIONS_MODULE]?.length ?? 0)) {
+    throw new Error("deploy bundle: handler byte size mismatch — refusing to write");
+  }
+}
+
 export function writeDeployBundle(bundle: DeployBundle, outDir: string): WrittenDeployBundle {
+  const snapshot = { ...bundle, modules: snapshotTextModules(bundle.modules) };
+  assertTextBundleIntegrity(snapshot);
+  return writeCheckedDeployBundle(snapshot, outDir);
+}
+
+/** Only snapshot-owning public writers call this, after their integrity gates. */
+function writeCheckedDeployBundle(bundle: DeployBundle, outDir: string): WrittenDeployBundle {
   const dir = outDir;
   const keys = Object.keys(bundle.modules).sort();
   for (const key of keys) assertSafeRelativePath(key, "to write module");
@@ -1246,8 +1281,13 @@ export function attachBinaries(
  * therefore fails loudly instead of shipping a lying manifest.
  */
 export function writeDeployBundleMixed(bundle: MixedDeployBundle, outDir: string): WrittenDeployBundle {
-  const modules = { ...bundle.modules };
-  const binaries = snapshotBinaries(bundle.binaries);
+  const snapshot = { ...bundle, modules: snapshotTextModules(bundle.modules), binaries: snapshotBinaries(bundle.binaries) };
+  return writeCheckedDeployBundleMixed(snapshot, outDir);
+}
+
+/** The assets entrypoint also supplies its already-owned module/binary snapshots. */
+function writeCheckedDeployBundleMixed(bundle: MixedDeployBundle, outDir: string): WrittenDeployBundle {
+  const { modules, binaries } = bundle;
   assertMixedOutputLayout(modules, binaries);
   const recomputed = bundleMixedSha256(bundle.mainModule, inventorizeAssets(modules, binaries));
   if (recomputed !== bundle.mixedSha256) {
@@ -1255,11 +1295,12 @@ export function writeDeployBundleMixed(bundle: MixedDeployBundle, outDir: string
       "deploy bundle: mixed digest mismatch — the bundle changed after attach; refusing to write",
     );
   }
+  assertTextBundleIntegrity(bundle);
   const outputKeys = [...Object.keys(modules), ...Object.keys(binaries), ...RESERVED_MIXED_OUTPUTS];
   assertPlannedOutputFiles(new Set(outputKeys.map((key) => posix.normalize(key))));
   // Inspect complete mixed output before the text half publishes anything.
   assertPackageOutputFiles(outDir, [...Object.keys(modules).sort(), ...Object.keys(binaries).sort(), ...RESERVED_MIXED_OUTPUTS]);
-  const written = writeDeployBundle({ ...bundle, modules }, outDir);
+  const written = writeCheckedDeployBundle(bundle, outDir);
   const dir = written.dir;
   const binaryEntries: Array<{ key: string; kind: "binary"; bytes: number; sha256: string }> = [];
   for (const key of Object.keys(binaries).sort()) {
@@ -1515,9 +1556,9 @@ function assertPackageOutputFiles(
  * parent directory when the host supplies an alias such as macOS `/var`.
  */
 export function writeDeployBundleWithAssets(bundle: PackageDeployBundle, outDir: string): WrittenDeployBundle {
-  const modules = { ...bundle.modules };
-  const binaries = snapshotBinaries(bundle.binaries);
-  const resources = snapshotResources(bundle.resources);
+  bundle = { ...bundle, modules: snapshotTextModules(bundle.modules),
+    binaries: snapshotBinaries(bundle.binaries), resources: snapshotResources(bundle.resources) };
+  const { modules, binaries, resources } = bundle;
   assertPackageOutputLayout(modules, binaries, resources);
   assertPackageOutputFiles(outDir, [
     ...Object.keys(modules), ...Object.keys(binaries), ...Object.keys(resources),
@@ -1526,7 +1567,7 @@ export function writeDeployBundleWithAssets(bundle: PackageDeployBundle, outDir:
   if (resourcesSha256(resources) !== bundle.resourcesSha256) {
     throw new Error("deploy bundle: resource digest mismatch — the bundle changed after build; refusing to write");
   }
-  const written = writeDeployBundleMixed({ ...bundle, modules, binaries }, resolve(outDir));
+  const written = writeCheckedDeployBundleMixed(bundle, resolve(outDir));
   const entries = resourceEntries(resources);
   for (const { key } of entries) {
     const full = join(written.dir, key);
