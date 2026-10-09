@@ -8,8 +8,10 @@ Its unchanged 43 cases and five corrected cohort cases pass; the two failed
 analysis checks and one authoring check also pass after reconciling current
 declared-event grammar, descriptive E2019 capacity examples and seven observed
 draft diagnostic counts. The prior setup failures remain in the environment
-logs. These are validation corrections; no broader reference or current whole
-suite acceptance follows.
+logs. The seven count updates are withdrawn from the current patch after
+upstream synchronization; that historical receipt cannot pin the new corpus.
+These are validation corrections; no broader reference or current whole suite
+acceptance follows.
 
 After synchronization to upstream **9ecb2759**, the compiler failed E0583:
 the unfinished construct-candidate annotation hook referenced an absent source
@@ -22,7 +24,11 @@ the real producer and selected-profile proofs before enabling the hook.
 Current corpus qualification is blocked on the upstream draft gitlink
 **5a12eb9e**: its remote rejects that exact commit as unavailable. The existing
 clean draft checkout at **a55a0f7** is preserved; its counts cannot qualify the
-new gitlink. The coordinator/draft publisher owns this prerequisite. Upstream's
+new gitlink. The affected current run reports **159 passed, 2 failed**:
+`effects` 48/48, `check` 37/37, `foundation` 8/8, `analysis` 36/37 and
+`authoring` 30/31. The failing draft outcome and explain round-trip checks need
+the required draft revision; expectations and parser gates are not weakened.
+The coordinator/draft publisher owns this prerequisite. Upstream's
 anonymous-message, query and helper releases supersede the pre-sync leads;
 the duplicate unvalidated anonymous producer is retained only in local branch
 `codex/compiler-anonymous-unfinished-checkpoint`, without acceptance credit.
