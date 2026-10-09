@@ -21,11 +21,10 @@ fn interleaved_rules_keep_declaring_module_target_and_global_order() {
         .invariants
         .iter()
         .filter_map(|rule| {
-            rule.origin.as_ref().map(|origin| {
+            rule.origin.as_ref().inspect(|origin| {
                 assert_eq!(origin.registry_id, rule.id);
                 assert_eq!(origin.span, rule.span);
                 assert_eq!(origin.kind, IrModelRuleKind::Invariant);
-                origin
             })
         })
         .chain(program.locks.iter().map(|rule| {

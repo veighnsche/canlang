@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-09T17:08:56Z",
+  "updated_utc": "2026-10-09T17:27:23Z",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -159,7 +159,7 @@
     "../../compiler/tests/read_enum_default_runtime.rs",
     "../../compiler/tests/enum_result_runtime.rs"
   ],
-  "current_source_work": "Unfinished rule/hook join: exact published State/Contracts lifecycle consumed (build6/6,mutation156/156); compiler checked rule-origin IR producer retains owning model/declaring module/Effects ordinal/source anchor/kind, direct multi-module/interleaved case1/1. Artifact/native emission, genuine hydration/context, reverse selectors and activation remain unfinished. Existing canonical refusals, recipient holds and original58/67 count retained. Whole compiler/source native qualification follows remaining relevant edits.",
+  "current_source_work": "Unfinished rule/hook join: checked local modelPolicies/modelPolicyBindings source producer implemented; CLI/native callbacks3/3,classifier6/6,artifact2/2,codegen121/121,strict all-target Clippy/format pass. Whole-unit coverage declines unsupported dependency/context/hook/lock target profiles, retaining explicit canonical refusals. Published f467 State transport intake and private Dev native adapter/hook carriers, reverse selectors and whole-source native qualification remain due. Human revised workflow: local commits only, coordinator reviews/merges LOCAL main, no remote pushes/review waits. Original58/67 and recipient holds retained.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"

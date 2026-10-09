@@ -1,6 +1,6 @@
 # Active compiler completion
 
-Authorized local continuation uses `/Users/vince/Projects/canlang/.worktrees/compiler`; prior shutdown locations and results below are historical.
+Authorized local continuation uses `/Users/vince/Projects/canlang/.worktrees/compiler`; prior shutdown locations and results below are historical. The human's revised integration workflow uses coherent local commits only: the coordinator reviews and merges LOCAL main; no remote pushes or automated-review waits.
 
 Current completion is **58 of 67 references**, with **9 remaining including partial work**. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
@@ -196,6 +196,26 @@ multi-module/interleaved-rule case passes **1/1**, including conditional unique
 exclusion and lock selectors. Artifact/native emission, native hydration, fixed
 hook carriers, dependency plans and real source/native activation remain
 unfinished; existing canonical unsupported activation remains in force.
+
+**Unfinished rule/hook join — local source producer, 2026-10-09.**
+The checked local profile now emits additive artifact `modelPolicies` and
+registry `modelPolicyBindings` against the pinned State ABI. Model/rule/module
+identities remain canonical, rules retain Effects order, and conditional
+uniques remain excluded. Native callbacks consume typed `(c,row)`; the private
+Dev adapter must hydrate and verify these values before State raw-row binding.
+No public hydration import or fabricated invocation context is introduced.
+The first profile covers own stored nonnullable int/text/bool/inline-owned enum
+predicates and lock targets. Context, queries (including hidden queries),
+derived fields/calls, references/metadata, unsupported lock targets and any
+hook decline whole-unit coverage; declarations remain visible for explicit
+runtime refusal. Actual CLI/native callback **3/3**, classifier **6/6**,
+artifact serialization **2/2** and codegen **121/121** pass. Strict all-target
+Clippy and formatting pass after the mechanical JsOutput fixture initializer
+and origin-test iterator lint repairs. Independent finite review identified
+unbounded lock-target type coverage; the matching guard and nullable/money/ref
+controls resolve it. Native canonical activation, broader reverse selectors,
+hook carriers and current-source whole qualification remain unfinished. The
+coordinator owns local integration; no remote publication follows this unit.
 
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
