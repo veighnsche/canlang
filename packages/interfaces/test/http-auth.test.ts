@@ -280,6 +280,94 @@ test('select-team switches context; unknown team 404s, foreign team 403s; clear 
   assert.deepEqual(await res.json(), { ok: true });
 });
 
+test('team discovery lists only the session user\'s active teams without changing selection', async () => {
+  const t = await createTestDeps();
+  const own = await t.identity.store.createTeam({ timezone: 'America/New_York' });
+  await t.identity.store.createMembership({ team_id: own.team_id, user_id: t.identity.userId, is_owner: false, roles: [] });
+  const removed = await t.identity.store.createTeam({});
+  const removedMembership = await t.identity.store.createMembership({
+    team_id: removed.team_id, user_id: t.identity.userId, is_owner: false, roles: [],
+  });
+  await t.identity.store.removeMembership(removedMembership.membership_id);
+  const other = await t.identity.store.createUser({ email: 'other@test.example', password_hash: 'unused', email_verified: true });
+  const foreign = await t.identity.store.createTeam({});
+  await t.identity.store.createMembership({ team_id: foreign.team_id, user_id: other.user_id, is_owner: true, roles: [] });
+
+  const response = await handleAuthRequest(t.deps, get('/auth/teams', t.identity.cookie));
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  const body = await response.json() as { teams: Array<{ team_id: string; timezone: string }>; truncated: boolean; next_after: string | null };
+  assert.deepEqual(body.teams, [
+    { team_id: t.identity.teamId, timezone: 'UTC' },
+    { team_id: own.team_id, timezone: 'America/New_York' },
+  ].sort((a, b) => a.team_id.localeCompare(b.team_id)));
+  assert.equal(body.truncated, false);
+  assert.equal(body.next_after, null);
+  assert.equal(JSON.stringify(body).includes(removed.team_id), false);
+  assert.equal(JSON.stringify(body).includes(foreign.team_id), false);
+  // A GET did not select a team; the ordinary POST still requires CSRF.
+  const noCsrf = await handleAuthRequest(t.deps, post('/auth/select-team', { team: own.team_id }, { cookie: t.identity.cookie }));
+  assert.equal(noCsrf.status, 403);
+});
+
+test('team discovery refuses anonymous and revoked sessions, and permits an empty active list', async () => {
+  const t = await createTestDeps();
+  const anonymous = await handleAuthRequest(t.deps, get('/auth/teams'));
+  assert.equal(anonymous.status, 403);
+  assert.equal(anonymous.headers.get('cache-control'), 'no-store');
+
+  const membership = await t.identity.store.findMembership(t.identity.teamId, t.identity.userId);
+  assert.ok(membership);
+  await t.identity.store.removeMembership(membership.membership_id);
+  const empty = await handleAuthRequest(t.deps, get('/auth/teams', t.identity.cookie));
+  assert.equal(empty.status, 200);
+  assert.deepEqual(await empty.json(), { teams: [], truncated: false, next_after: null });
+
+  const csrf = await deriveCsrfToken(t.identity.sessionToken);
+  const logout = await handleAuthRequest(t.deps, post('/auth/logout', {}, { cookie: t.identity.cookie, csrf }));
+  assert.equal(logout.status, 200);
+  const revoked = await handleAuthRequest(t.deps, get('/auth/teams', t.identity.cookie));
+  assert.equal(revoked.status, 403);
+  assert.equal(revoked.headers.get('cache-control'), 'no-store');
+});
+
+test('team discovery cursor reaches every active team after the bounded first page', async () => {
+  const t = await createTestDeps();
+  const expected = new Set([t.identity.teamId]);
+  for (let index = 0; index < 105; index += 1) {
+    const team = await t.identity.store.createTeam({});
+    expected.add(team.team_id);
+    await t.identity.store.createMembership({ team_id: team.team_id, user_id: t.identity.userId, is_owner: false, roles: [] });
+  }
+  const seen = new Set<string>();
+  let after: string | null = null;
+  let pages = 0;
+  do {
+    const path = after === null ? '/auth/teams' : `/auth/teams?after=${after}`;
+    const response = await handleAuthRequest(t.deps, get(path, t.identity.cookie));
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    const body = await response.json() as { teams: Array<{ team_id: string }>; truncated: boolean; next_after: string | null };
+    assert.ok(body.teams.length > 0 && body.teams.length <= 100);
+    for (const team of body.teams) {
+      assert.equal(seen.has(team.team_id), false, `duplicate team ${team.team_id}`);
+      seen.add(team.team_id);
+    }
+    assert.equal(body.truncated, body.next_after !== null);
+    after = body.next_after;
+    pages += 1;
+  } while (after !== null);
+  assert.equal(pages, 2);
+  assert.deepEqual(seen, expected);
+
+  for (const path of ['/auth/teams?after=', '/auth/teams?after=bad',
+    `/auth/teams?after=${t.identity.teamId}&after=${t.identity.teamId}`, '/auth/teams?unknown=1']) {
+    const response = await handleAuthRequest(t.deps, get(path, t.identity.cookie));
+    assert.equal(response.status, 400, path);
+    assert.equal((await response.json() as { code: string }).code, 'validation');
+  }
+});
+
 test('logout and select-team require CSRF', async () => {
   const t = await createTestDeps();
   const cookie = t.identity.cookie;
