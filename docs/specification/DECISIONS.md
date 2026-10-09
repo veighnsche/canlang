@@ -3731,3 +3731,7 @@ Implement the accepted Task11 State/Contracts lifecycle and exact checked native
 ## 2026-10-09 — retain bounded alias provenance during State constraint intake
 
 Accepted finite checked-field correction: reuse the State constraint factory with the owning normalized Values schema at both registry entry points and model-table intake. Copy only the exact checked alias declaration into the fresh bounds-validation descriptor, then retain original aliases for value traversal. Declared alias bounds/NAME format and receiving bounds remain enforced; unowned aliases and unsupported trim claims still refuse. State emit and4targeted artifact/direct-loader/mutation/ownership cases pass without skips. Unchanged native/archive results are reused; full nominal/CSV/host and original queue acceptance remain separate.
+
+## 2026-10-09 — validate only actual update-hook field changes
+
+Accepted finite State correction for Codex4232157232: compare update-hook field wire contents after clone handoff, retaining every explicit patch key for validation. No-op or cloned arrays/objects retain unchanged legacy data under tightened constraints; actual hook mutations still validate and fail atomically. Full create/update codec traversal remains intact. State emit and20existing modifier/typed-staging controls pass without skips, covering all-field encoding, explicit patch refusal, in-place array/object mutation and complete batch/revision/history rollback. Current-head review and complete parent qualification remain separate.
