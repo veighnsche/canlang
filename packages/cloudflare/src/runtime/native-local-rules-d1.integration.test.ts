@@ -1,7 +1,7 @@
 /** Actual native source -> installed portable bundle -> workerd and owner D1. */
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
-import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,7 +20,7 @@ import { preflightLocalPreviewActivation, localPreviewActivationVerdict, produce
 import { startLocalDev, type LocalDev } from '../dev/local-run.js';
 import { startProtectedPreview, type ProtectedPreview } from '../dev/preview-bridge.js';
 import { PINNED_COMPATIBILITY_DATE } from '../dev/zero-config.js';
-import { writeDeployBundleWithAssets } from '../deploy/bundle.js';
+import { buildDeployBundle, writeDeployBundle, writeDeployBundleWithAssets } from '../deploy/bundle.js';
 
 const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
 const model = 'NativeLocalRules.Item';
@@ -145,6 +145,26 @@ it('consumes captured native rules through real portable owner D1, auth and MCP'
       assert.deepEqual(await response.json(), { nativeBinding: true, copiedAssembly: true, unknownPath: true,
         sources: true, js: true, map: true, policies: true, frozenGraph: true, frozenArtifact: true, currentOriginal: true });
     } finally { await controls.dispose(); }
+    // Plain publication must bind the same real native source and verdict;
+    // changing staged application code cannot retain the frozen host's authority.
+    const plain = buildDeployBundle(artifact, { verdict: preflight });
+    const plainOutput = await mkdtemp(join(tmpdir(), 'can-native-plain-bundle-'));
+    try {
+      const changedPlain = { ...plain, modules: { ...plain.modules,
+        [entry]: `${plain.modules[entry]}\n// changed native application bytes` } };
+      assert.throws(() => writeDeployBundle(changedPlain, plainOutput), /text digest mismatch/);
+      assert.deepEqual(await readdir(plainOutput), [], 'plain changed native code refuses before any file output');
+      const written = writeDeployBundle(plain, plainOutput);
+      assert.equal(written.mainFile, join(plainOutput, plain.mainModule));
+      const manifest = JSON.parse(await readFile(join(plainOutput, 'bundle.json'), 'utf8')) as {
+        sha256: string; moduleCount: number; modules: { key: string; bytes: number }[] };
+      assert.equal(manifest.sha256, plain.sha256);
+      assert.equal(manifest.moduleCount, Object.keys(plain.modules).length);
+      assert.deepEqual(manifest.modules.map(row => row.key), Object.keys(plain.modules).sort());
+      for (const [key, text] of Object.entries(plain.modules))
+        assert.equal(await readFile(join(plainOutput, key), 'utf8'), text, `exact checked native graph ${key}`);
+    } finally { await rm(plainOutput, { recursive: true, force: true }); }
+
     const refusedOutput = await mkdtemp(join(tmpdir(), 'can-native-stale-bundle-'));
     try {
       const changed = { ...evidence.bundle, modules: { ...evidence.bundle.modules,
