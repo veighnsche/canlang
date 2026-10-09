@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-09T19:51:10Z",
+  "updated_utc": "2026-10-09T21:25:14Z",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -102,10 +102,10 @@
     "reused_results": "Unchanged editor/client/real LSP results reused. Full current95d outside-sandbox run includes actual mode4750 permission body, no skip. Exact coordinator integrated00a changed alias/CSV fixture2/2 reused; installed dependencies rebuilt26/26 zero cached."
   },
   "latest_component": {
-    "commit": "d9c50fe1bfc59c85a0aefbf8b242d614c613bae4",
-    "state": "native_derive_current_whole_qualified_except_transition_owner_dependency",
-    "outcome": "Native checked derive bodies/omitted defaults join exact caller-specific IR sites and field inventories. Genuine CLI/native/public StateMemory1/1 covers43successpaths+replay, separate source imports, ordered eager arguments/slots/defaults, explicit skip/lazy choices, exact repeated/nested observations and retained derived values after update/archive/revocation. Checked source facts12/12, strict all-targetClippy/fmt and independent finite review pass. No mutation/query/composite profile broadening. Final current-source full129targets1321passed/1failed/0ignored/no body skips atd9c50fe1; sole failure preserved state-machine replay association. Actual installed build26/26 zero cached and currentcatalog. Exact released portable local-derive consumer55a0f916/cd8da1ad actual public/workerd/two-ownerD1 journey1/1 in37.72s across19scalar/array/derive results is reused; production/compiler source unchanged.",
-    "remaining": "State/Dev actual OwnerMutationSession intermediate/final-write provenance and changed-record dependency projection must release and qualify before compiler mutation/transition activation; preserved state-machine replay still fails. Portable single-file local derive journey19results is qualified at exact55a0f916 source, imported composition outside that caller. Original58/67 and precise human holds/other owner dependencies remain."
+    "base_commit": "8b6e8d406fd1afa3bafcf740bbd44bd505d02dbb",
+    "state": "native_machine_transitions_memory_qualified_current_whole_pending",
+    "outcome": "Exact reviewed Stateemptyfile+Dev22a/5b session source consumed. Installed outputs26/26 zero cached, actual binary/catalog refreshed. ORIGINAL state-machine consumer1/1 passes genuine idle/queued old-state observations and final generating/version2, ordinary/aged replay physical invariance with commit/file tripwires, conflict/rollback/UI assertions. Four actual private-selector void/scalar true/false cases withhold result/changed records and preserve physical scalar7/receipt/history. Explicit default slots work, omitted-default writes refuse without domain effects. Unchanged checked source15/15 reused; final strict Clippy/fmt and independent finite review pass. Coordinator unchanged native1/1 and Dev direct18/18+portable1/1 for19scalar/array/derive results reused at exact8b6e scope.",
+    "remaining": "Current-source required whole suite pending. State omitted-input-default contribution contract and Dev distinct actual portable native mutation qualification remain owner prerequisites; no unsupported runtime default map/host carrier workaround. Original58/67 and precise owner dependencies/holds remain."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -448,10 +448,11 @@
     "delivery_progress_correction": "Existing real public int64 export forwarded in isolated compiler test stdlib; actual same target1/1 passes.",
     "remaining_failure": {
       "target": "state_machines::compiled_lifecycle_runs_through_canonical_runtime_and_state_driven_ui",
-      "prerequisite": "Complete influencing-read/write lineage or defining owner-session intermediate observation: queued observation is neither original stored row nor generating final net write. General changed public fields also need influencing reads/control; void result is insufficient. State/Dev genuine OwnerMutationSession producer/consumer and changed-record dependency projection are pending, not released or positively qualified.",
+      "prerequisite": "Exact reviewed8b6e State/Dev session and empty-file producer/consumer release consumed. Native transition activation plus ORIGINAL state-machine replay now pass direct1/1 with real private write/no-write controls and frozen-default refusal. Required current-source whole qualification remains due; historical d9 counts are unchanged. State omitted-default mutation contribution and distinct Dev portable mutation are separate dependencies.",
       "owner": "Compiler checked lineage; State defining observation/projection ABI; coordinator has exact evidence.",
-      "state": "blocked; real replay assertion preserved"
+      "state": "historical failure fixed by current original direct consumer1/1; changed-source whole pending"
     },
-    "subsequent_owner_intake": "Exact reviewed d87213ae Dev captured compiler cancellation/control usage correction; owning real captured5/5 and compiler build/Cloudflare emit reused at unchanged caller scope. Compiler source remains d9c50fe1; no mutation/transition activation or full-reference acceptance. Exact reviewed cd8da1ad/Dev55a0f916 portable local-derive fixture: production sources unchanged, actual public/workerd/Identity+two-ownerD1 journey1/1 in37.72s across19results reused; imports/composition outside single-file caller."
+    "subsequent_owner_intake": "Exact reviewed d87213ae Dev captured compiler cancellation/control usage correction; owning real captured5/5 and compiler build/Cloudflare emit reused at unchanged caller scope. Compiler source remains d9c50fe1; no mutation/transition activation or full-reference acceptance. Exact reviewed cd8da1ad/Dev55a0f916 portable local-derive fixture: production sources unchanged, actual public/workerd/Identity+two-ownerD1 journey1/1 in37.72s across19results reused; imports/composition outside single-file caller.",
+    "current_head_is_qualified": false
   }
 }

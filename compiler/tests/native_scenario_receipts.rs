@@ -16,6 +16,7 @@ const SOURCE: &str = r#"app NativeReceipts
 use receiptlib {Shared,caption}
 Given
  Item {value:int,enabled:bool,optional:int?,state:enum(a,b)=a,values:int[]?,required:int[]!}
+ Machine {state:enum(idle,queued,ready)=idle machine}
  contract Packet {value:int}
  policy Item read=members
  derive value(item:Item):int = item.value
@@ -120,6 +121,12 @@ When
      return value(item)
     case b
      return nested_value(item)
+ scenario machine_read(job:Machine) -> bool by=members
+  do return job.state==idle
+ scenario machine(job:Machine) by=members
+  do
+   transition job.state idle -> queued
+   transition job.state queued -> ready
  scenario changed(item:Item) -> int by=members
   do
    set item {value=2}
@@ -219,6 +226,7 @@ fn opt_in_native_capture_retains_selected_paths_replays_and_current_state_projec
         "derived_override",
         "derived_lazy",
         "derived_match",
+        "machine",
     ] {
         let op = operation(&artifact, name);
         let plan = &op["result"]["disclosure"];
@@ -278,6 +286,7 @@ fn opt_in_native_capture_retains_selected_paths_replays_and_current_state_projec
         "required_array",
         "model",
         "changed",
+        "machine_read",
     ] {
         assert!(
             operation(&artifact, name)["result"]
