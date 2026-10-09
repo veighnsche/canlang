@@ -19,9 +19,12 @@ When
  scenario reviewer_choices(document:Document) read=true -> Employee[] by=members
   do return Employee as candidate where candidate.home==document.site
  scenario save(country:Country,region:Region choices={read=region_choices(country=country),labels=["name"]},note:text="Kept" desc="Address note" label="Note") -> Region by=members
+  require region.parent==country
   do return region
  scenario assign(submission:Submission,assignee:user?=null choices={read=reviewer_choices(document=submission.parent),value="user",labels=["name","role","home"]} desc="Chosen reviewer" label="Reviewer") -> user? by=members
+  require assignee==null or count(Employee as candidate where candidate.user==assignee and candidate.home==submission.parent.site)>0
   do return assignee
  scenario submit(document:Document,assignee:user?=null choices={read=reviewer_choices(document=document),value="user",labels=["name","role","home"]} desc="Chosen reviewer" label="Reviewer") -> user? by=members
+  require assignee==null or count(Employee as candidate where candidate.user==assignee and candidate.home==document.site)>0
   do return assignee
 Then

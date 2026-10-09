@@ -4,23 +4,30 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
+import { createServer } from 'node:http';
+import { chromium } from '@playwright/test';
 import type { D1Database } from '@cloudflare/workers-types';
 import { Miniflare } from 'miniflare';
 import type { CompileArtifact, DerivedOperationInputs, PresentationContext, StoragePort } from '@canlang/contracts';
 import { CSRF_FIELD } from '@canlang/contracts';
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
-import { FIXED_NOW, asModel, asId, makeRow, makeBatch, asOperation, asOperationId, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
+import { FIXED_NOW, asModel, asId, asVersion, makeRow, makeBatch, asOperation, asOperationId, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
 import { buildSessionCookie, createD1IdentityStore, deriveCsrfToken, ensureIdentitySchema, sha256HexText } from '@canlang/identity';
 import { catalogFromArtifactOperations, handleOperationRequest, INPUT_CHOICES_VERSION } from '@canlang/interfaces/http/operations';
 import type { HttpDeps } from '@canlang/interfaces';
-import { generatedForm } from '@canlang/ui';
+import { generatedForm, message, renderPage } from '@canlang/ui';
 import type { BrowserClientOptions } from '../../../ui/dist/src/browser/bootstrap.js';
 import type { SubmitFetchInit } from '../../../ui/dist/src/client.js';
 import type { HTMLInputElement, HTMLSelectElement } from '../../../ui/node_modules/happy-dom/lib/index.js';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { assembleWorker } from '@canlang/cloudflare/worker/assembly';
+import { gatherBrowserAssets } from '@canlang/cloudflare/deploy/package-assets';
 
 const fixturePath = resolve('packages/cloudflare/test/fixtures/input-choices.json');
+
+// Browser-evaluated callbacks use the native document; this Node test has no DOM lib.
+type ChromiumGlobals = { document: { activeElement: unknown;
+  querySelector(selector: string): { textContent: string | null; getAttribute(name: string): string | null } | null } };
 
 test('genuine dependent choices use current native D1 grants and the original generated form controls', async () => {
   const artifact = JSON.parse(await readFile(fixturePath, 'utf8')) as CompileArtifact;
@@ -41,6 +48,12 @@ test('genuine dependent choices use current native D1 grants and the original ge
     const asm = await assembleModules({ artifact, sourcePath: fixturePath }, {
       workDir: join(dir, 'modules'), stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
       uiUrl: import.meta.resolve('@canlang/ui') });
+    const { createAssetTable, handleAssetsRequest } = await import(new URL('./http/assets.js', import.meta.resolve('@canlang/interfaces')).href) as
+      typeof import('../../../interfaces/dist/src/http/assets.js');
+    const resources = gatherBrowserAssets().resources;
+    const assetTable = createAssetTable(Object.entries(resources).map(([key, resource]) => ({
+      key, bytes: resource.bytes, mime: resource.contentType, cache: { maxAgeSeconds: 0, immutable: false },
+    })));
     const catalog = catalogFromArtifactOperations(artifact);
     const derivedInputs: Record<string, DerivedOperationInputs> = {};
     for (const operation of artifact.operations ?? []) {
@@ -92,7 +105,10 @@ test('genuine dependent choices use current native D1 grants and the original ge
       return result;
     } });
     const assemble = () => assembleWorker(artifact, asm, { store: countedStore(), identityStore: storage.identity,
-      now: () => FIXED_NOW, http: { derivedInputs, createOperationHandler: Object.assign(
+      now: () => FIXED_NOW, http: { derivedInputs,
+        loadBrowserAssets: async () => ({ paths: Object.keys(resources).map(key => `/assets/${key}`),
+          fetch: request => handleAssetsRequest(assetTable, request) }),
+        createOperationHandler: Object.assign(
         (deps: unknown) => (request: Request, operation: string) => handleOperationRequest(deps as HttpDeps, request, operation),
         { inputChoicesVersion: INPUT_CHOICES_VERSION }) } }, { active: true });
     let worker = await assemble();
@@ -282,6 +298,214 @@ test('genuine dependent choices use current native D1 grants and the original ge
         }
       }
     } finally { client.stop(); await window.happyDOM.close(); }
+
+    // This separate client uses Chromium's native fetch/FormData and the
+    // installed, served bootstrap. Only the transport response is delayed;
+    // every candidate and final request executes the original assembled Worker.
+    const browserSaveNonce = id(); const browserUserNonce = id();
+    const html = await renderPage(context, {
+      owner: 'InputChoices', path: '/form', title: message('Dependent choices'),
+      admit: async () => ({}), render: async () => '',
+    }, [await render(save, browserSaveNonce, 'browser-save', {
+      country: countries[0], country__version: '1', note: 'Chromium draft',
+    }), await render(submit, browserUserNonce, 'browser-reviewer', { document, document__version: '1' })], {
+      brand: message('InputChoices'), navigation: { groups: [], incomplete: false },
+      routes: { signIn: '/auth/sign-in', signOut: '/auth/sign-out', switchTeam: '/auth/switch-team' },
+      account: { authenticated: false, teams: [] }, settings: { sections: [] },
+    });
+    type Traffic = { path: string; inputs: Record<string, unknown>; operationId: string;
+      status: number; body: { code?: string; result?: unknown; choices?: Array<{ value: unknown; labels: string[] }> } };
+    const traffic: Traffic[] = [];
+    const serverErrors: unknown[] = [];
+    const heldResponses: Array<() => void> = [];
+    const closedHeldResponses: boolean[] = [];
+    let heldCountry: string | undefined;
+    const server = createServer(async (incoming, outgoing) => {
+      try {
+        const address = server.address(); assert.ok(address && typeof address !== 'string');
+        const url = new URL(incoming.url ?? '/', `http://127.0.0.1:${address.port}`);
+        if (incoming.method === 'GET' && url.pathname === '/form') {
+          outgoing.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); outgoing.end(html); return;
+        }
+        const chunks: Buffer[] = [];
+        for await (const chunk of incoming) chunks.push(Buffer.from(chunk));
+        const body = Buffer.concat(chunks).toString('utf8');
+        const headers = new Headers();
+        for (const [name, value] of Object.entries(incoming.headers)) {
+          if (value !== undefined) headers.set(name, Array.isArray(value) ? value.join(', ') : value);
+        }
+        const response = await worker.fetch(new Request(url, { method: incoming.method ?? 'GET', headers,
+          ...(body === '' ? {} : { body }) }));
+        const bytes = Buffer.from(await response.arrayBuffer());
+        if (body !== '') {
+          const requestBody = JSON.parse(body) as { operation_id: string; inputs: Record<string, unknown> };
+          traffic.push({ path: url.pathname, inputs: requestBody.inputs, operationId: requestBody.operation_id,
+            status: response.status, body: JSON.parse(bytes.toString('utf8')) as Traffic['body'] });
+          const country = requestBody.inputs['country'] as { id?: string } | undefined;
+          if (url.pathname.endsWith('/choices/region') && country?.id === heldCountry) {
+            const index = heldResponses.length; closedHeldResponses[index] = false;
+            outgoing.once('close', () => { closedHeldResponses[index] = true; });
+            await new Promise<void>(release => heldResponses.push(release));
+          }
+        }
+        outgoing.writeHead(response.status, Object.fromEntries(response.headers)); outgoing.end(bytes);
+      } catch (error) {
+        serverErrors.push(error); outgoing.writeHead(500); outgoing.end('HTTP bridge failed');
+      }
+    });
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject); server.listen(0, '127.0.0.1', () => { server.off('error', reject); resolve(); });
+    });
+    const address = server.address(); assert.ok(address && typeof address !== 'string');
+    const origin = `http://127.0.0.1:${address.port}`;
+    const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true,
+      args: ['--no-sandbox', '--disable-dev-shm-usage'] });
+    try {
+      const browserContext = await browser.newContext();
+      const cookieEquals = cookie.indexOf('=');
+      await browserContext.addCookies([{ name: cookie.slice(0, cookieEquals), value: cookie.slice(cookieEquals + 1), url: origin }]);
+      const page = await browserContext.newPage();
+      const pageErrors: string[] = [];
+      page.on('pageerror', error => pageErrors.push(error.message));
+      const bootstrapResponse = page.waitForResponse(response => response.url() === `${origin}/assets/browser/bootstrap.js`);
+      await page.goto(`${origin}/form`);
+      const bootstrap = await bootstrapResponse;
+      assert.equal(bootstrap.status(), 200);
+      assert.deepEqual(await bootstrap.body(), Buffer.from(resources['browser/bootstrap.js']!.bytes));
+      const browserSave = page.locator('form[action="/api/operations/InputChoices.save"]');
+      const browserReviewer = page.locator('form[action="/api/operations/InputChoices.submit"]');
+      const field = (name: string) => browserSave.locator(`[name="inputs[${name}]"]`);
+      const region = browserSave.locator('select[data-can-choices-select]');
+      const assignee = browserReviewer.locator('select[data-can-choices-select]');
+      const status = browserSave.locator('[data-can-choices-feedback]');
+      const waitBrowser = async (selector: string, expected: string) => page.waitForFunction(({ selector, expected }) =>
+        (globalThis as unknown as ChromiumGlobals).document.querySelector(selector)?.textContent === expected, { selector, expected });
+      const saveFeedback = 'form[action="/api/operations/InputChoices.save"] [data-can-choices-feedback]';
+      const reviewerFeedback = 'form[action="/api/operations/InputChoices.submit"] [data-can-choices-feedback]';
+      await waitBrowser(saveFeedback, '1 choices available.');
+      await waitBrowser(reviewerFeedback, '1 choices available.');
+      assert.equal(await region.locator('option').nth(1).textContent(), 'Region 1');
+      assert.deepEqual(traffic.find(row => row.path.endsWith('save/choices/region'))?.inputs,
+        { country: { id: countries[0], version: '1' }, note: 'Chromium draft' });
+      assert.equal(traffic.find(row => row.path.endsWith('submit/choices/assignee'))?.operationId, browserUserNonce);
+      assert.equal(await page.locator('select[data-can-choices-select]').count(), 2);
+
+      // A parent edit aborts a genuine outstanding request. Its completed
+      // canonical response is released after the current response arrives.
+      await field('note').fill('Retained Chromium draft');
+      await region.selectOption('0');
+      await assignee.selectOption('0');
+      heldCountry = countries[1]!;
+      await field('country').fill(countries[1]!);
+      assert.equal(await field('region').inputValue(), '');
+      assert.equal(await field('region__version').inputValue(), '');
+      await wait(() => heldResponses.length === 1);
+      assert.equal(await status.textContent(), 'Loading choices…');
+      assert.equal(await region.getAttribute('aria-busy'), 'true');
+      assert.equal(await field('country').evaluate(element => element === (globalThis as unknown as ChromiumGlobals).document.activeElement), true);
+      await field('country').fill(countries[0]!);
+      await waitBrowser(saveFeedback, '1 choices available.');
+      await wait(() => closedHeldResponses[0] === true);
+      heldCountry = undefined; heldResponses[0]!();
+      assert.deepEqual(traffic.find(row => row.path.endsWith('save/choices/region') &&
+        (row.inputs['country'] as { id: string }).id === countries[1])?.body.choices,
+        [{ value: { id: regions[1], version: '1' }, labels: ['Region 2'] }]);
+      assert.equal(await region.locator('option').nth(1).textContent(), 'Region 1');
+      assert.equal(await field('note').inputValue(), 'Retained Chromium draft');
+      assert.equal(await browserReviewer.locator('[name="inputs[assignee]"]').inputValue(), reviewer.user_id);
+
+      // Direct submissions cannot turn assistance into authority.
+      const direct = async (operation: string, inputs: Record<string, unknown>) => {
+        const response = await browserContext.request.post(`${origin}/api/operations/InputChoices.${operation}`, {
+          headers: { 'x-csrf-token': csrf }, data: { operation_id: id(), inputs },
+        });
+        return { status: response.status(), body: await response.json() as Traffic['body'] };
+      };
+      const mismatched = await direct('save', { country: { id: countries[0], version: '1' },
+        region: { id: regions[1], version: '1' }, note: 'Forged region' });
+      assert.equal(mismatched.body.code, 'rule_failed', JSON.stringify(mismatched));
+      for (const [operation, input] of [['submit', { document: { id: document, version: '1' } }],
+        ['assign', { submission: { id: submission, version: '1' } }]] as const) {
+        const forged = await direct(operation, { ...input, assignee: { id: user.user_id } });
+        assert.equal(forged.body.code, 'rule_failed', JSON.stringify(forged));
+        for (const optional of [{}, { assignee: null }]) {
+          const nullable = await direct(operation, { ...input, ...optional });
+          assert.equal(nullable.status, 200, JSON.stringify(nullable)); assert.equal(nullable.body.result, null);
+        }
+      }
+
+      const replaceData = async (model: string, recordId: string, data: Record<string, unknown>) => {
+        const current = await storage.state.load(asModel(`InputChoices.${model}`), asId(recordId)); assert.ok(current);
+        await storage.state.commit(makeBatch(await storage.state.readRevision(), { writes: [{ kind: 'update',
+          model: asModel(`InputChoices.${model}`), id: current.id, expectedVersion: current.version,
+          row: { ...current, version: asVersion(Number(current.version) + 1), data },
+        }] }));
+      };
+      const submitBrowser = async (operation: string, form: typeof browserSave) => {
+        const response = page.waitForResponse(response => response.url() === `${origin}/api/operations/InputChoices.${operation}`);
+        await form.locator('button[type="submit"]').click();
+        return (await response).json() as Promise<Traffic['body']>;
+      };
+      await region.selectOption('0');
+      await replaceData('Region', regions[0]!, { name: 'Region 1 current' });
+      const stale = await submitBrowser('save', browserSave);
+      assert.equal(stale.code, 'conflict', JSON.stringify(stale));
+      await page.waitForFunction(() => (globalThis as unknown as ChromiumGlobals).document.querySelector('form[action="/api/operations/InputChoices.save"]')?.getAttribute('data-can-submit-state') === 'denied');
+      assert.equal(await field('region').inputValue(), regions[0]);
+      assert.equal(await field('region__version').inputValue(), '1');
+      assert.equal(await field('note').inputValue(), 'Retained Chromium draft');
+      assert.equal(await field('country').inputValue(), countries[0]);
+      const staleRequest = traffic.find(row => row.path.endsWith('InputChoices.save') && row.operationId === browserSaveNonce)!;
+      assert.deepEqual(staleRequest.inputs, { country: { id: countries[0], version: '1' },
+        region: { id: regions[0], version: '1' }, note: 'Retained Chromium draft' });
+      assert.equal(await storage.state.readReceipt({ app: 'InputChoices', owner: team.team_id, principal: user.user_id,
+        operation: asOperation(save.operation), operationId: asOperationId(browserSaveNonce) }), null);
+
+      // Correct the stale candidate using the existing parent and selection
+      // controls, preserving the form's original idempotency key and siblings.
+      await field('country').fill(countries[2]!); await waitBrowser(saveFeedback, 'No choices available.');
+      await field('country').fill(countries[0]!); await waitBrowser(saveFeedback, '1 choices available.');
+      assert.equal(await region.locator('option').nth(1).textContent(), 'Region 1 current');
+      await region.selectOption('0');
+      assert.equal(await field('region__version').inputValue(), '2');
+      const corrected = await submitBrowser('save', browserSave);
+      assert.deepEqual(corrected.result, { id: regions[0], version: '2' });
+      await page.waitForFunction(() => (globalThis as unknown as ChromiumGlobals).document.querySelector('form[action="/api/operations/InputChoices.save"]')?.getAttribute('data-can-submit-state') === 'committed');
+      assert.equal(await field('note').inputValue(), 'Retained Chromium draft');
+      assert.deepEqual(traffic.filter(row => row.path.endsWith('InputChoices.save') && row.operationId === browserSaveNonce).at(-1)?.inputs,
+        { country: { id: countries[0], version: '1' }, region: { id: regions[0], version: '2' }, note: 'Retained Chromium draft' });
+
+      // Eligibility can disappear without changing the bound document version.
+      // The already selected user is refused by the source predicate, and a
+      // fresh candidate lookup reflects the current Employee/site relationship.
+      await replaceData('Employee', employee, { user: { id: reviewer.user_id }, name: 'Reviewer', role: 'Approver', home: { id: sites[1] } });
+      const ineligible = await submitBrowser('submit', browserReviewer);
+      assert.equal(ineligible.code, 'rule_failed', JSON.stringify(ineligible));
+      assert.equal(await browserReviewer.locator('[name="inputs[assignee]"]').inputValue(), reviewer.user_id);
+      const noReviewer = await direct('submit/choices/assignee', { document: { id: document, version: '1' } });
+      assert.equal(noReviewer.status, 200); assert.deepEqual(noReviewer.body.choices, []);
+      assert.equal((await direct('assign', { submission: { id: submission, version: '1' }, assignee: { id: reviewer.user_id } })).body.code, 'rule_failed');
+      await replaceData('Employee', employee, { user: { id: reviewer.user_id }, name: 'Reviewer', role: 'Approver', home: { id: sites[0] } });
+      const restored = await direct('submit', { document: { id: document, version: '1' }, assignee: { id: reviewer.user_id } });
+      assert.equal(restored.status, 200, JSON.stringify(restored)); assert.deepEqual(restored.body.result, { id: reviewer.user_id });
+
+      // Revoking the native D1 membership refuses both HTTP lookup and a final
+      // mutation from the same authenticated Chromium cookie jar.
+      await storage.identity.removeMembership(membership.membership_id);
+      const revisionBeforeDenied = await storage.state.readRevision();
+      const deniedLookup = await direct('submit/choices/assignee', { document: { id: document, version: '1' } });
+      assert.equal(deniedLookup.status, 403); assert.equal(deniedLookup.body.code, 'forbidden');
+      assert.equal(deniedLookup.body.choices, undefined);
+      const deniedMutation = await direct('save', { country: { id: countries[0], version: '1' }, region: { id: regions[0], version: '2' } });
+      assert.equal(deniedMutation.status, 403); assert.equal(deniedMutation.body.code, 'forbidden');
+      assert.equal(await storage.state.readRevision(), revisionBeforeDenied);
+      await storage.identity.reactivateMembership(membership.membership_id, { is_owner: false, roles: [] });
+      assert.deepEqual(pageErrors, []); assert.deepEqual(serverErrors, []);
+    } finally {
+      for (const release of heldResponses) release();
+      await browser.close();
+      server.closeAllConnections(); await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+    }
     const beforeReopen = await storage.state.readRevision();
     await miniflare!.dispose(); miniflare = undefined; storage = await open(); worker = await assemble();
     const reopened = await choices('assign/choices/assignee', { submission: { id: submission, version: '1' } });
