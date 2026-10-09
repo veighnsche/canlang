@@ -2995,37 +2995,53 @@ fn t14b_b1_unbound_nominal_type_position() {
     assert!(diags.is_empty(), "unbound nominal type: {diags:?}");
 }
 
-/// (T14b/B1) Nominal values construct without leaf validation
-/// and flow into nominal send inputs silently (no T13 leaf tables
-/// exist to check entries against; the entries stay unchecked,
-/// never invented).
+/// (T14b/B1) Known nominal constructors validate their released field schema
+/// and flow into the owning nominal send input.
 #[test]
 fn t14b_b1_unbound_nominal_construct() {
     let catalog = fixture();
-    let src = "app T uses=[p]\npackage p\n use std {TextRequest}\n use std {TextGenerationV1 as LLM} from=deployment.llm\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send LLM.generate {value=TextRequest {source=\"s\"}} as attempt\n Then\n";
+    let src = "app T uses=[p]\npackage p\n use std {TextRequest}\n use std {TextGenerationV1 as LLM} from=deployment.llm\n Given\n  M { t:text }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    send LLM.generate {value=TextRequest {source=\"s\",revision=1,profile=\"local\",policy_revision=\"p1\",messages=[],max_input_tokens=1024,max_output_tokens=128,max_duration=30s}} as attempt\n Then\n";
     let diags = check(src, Some(&catalog));
     assert!(diags.is_empty(), "nominal construct: {diags:?}");
 }
 
-/// (T14b/B1) A nominal-typed model-fixture flow surfaces `E3015`
-/// per the established opaque-mismatch rule (`types_compatible`
-/// never unifies `Opaque`; cf. the baseline `derived field:
-/// expected {opaque}, found {opaque}` siblings): the checker
-/// honestly cannot verify the flow without T13 leaf tables, so it
-/// reports instead of blindly accepting. Verification is owed to a
-/// T13c-style leaf-table transcription, out of T14b scope.
+/// (T14b/B1) Valid known nominal fixtures preserve their schema, while an
+/// incompatible field value still surfaces E3015.
 #[test]
 fn t14b_b1_nominal_fixture_flow_surfaces_e3015() {
     let catalog = fixture();
-    let src = "app T uses=[p]\npackage p\n use std {TextRequest}\n Given\n  M { request:TextRequest }\n  policy M read=members\n  fixture r=M {request=TextRequest {source=\"s\"}}\n When\n Then\n";
+    let src = "app T uses=[p]\npackage p\n use std {TextRequest}\n Given\n  M { request:TextRequest }\n  policy M read=members\n  fixture r=M {request=TextRequest {source=\"s\",revision=1,profile=\"local\",policy_revision=\"p1\",messages=[],max_input_tokens=1024,max_output_tokens=128,max_duration=30s}}\n When\n Then\n";
     let diags = check(src, Some(&catalog));
+    assert!(diags.is_empty(), "valid nominal fixture: {diags:?}");
+    let invalid = "app T uses=[p]\npackage p\n use std {TextRequest}\n Given\n  M { request:TextRequest }\n  policy M read=members\n  fixture r=M {request=1}\n When\n Then\n";
+    let diags = check(invalid, Some(&catalog));
     assert_eq!(codes(&diags), vec!["E3015"], "{diags:?}");
+    assert_eq!(
+        diags[0].message,
+        "'request': expected object{source,revision,profile,policy_revision,messages,max_input_tokens,max_output_tokens,max_duration}, found int"
+    );
+    let wrong_duration = src
+        .replace("request=TextRequest {", "request={")
+        .replace("max_duration=30s", "max_duration=\"30s\"");
+    let diags = check(&wrong_duration, Some(&catalog));
+    assert_eq!(
+        codes(&diags),
+        vec!["E3015", "E3001"],
+        "wrong duration: {diags:?}"
+    );
+    assert!(diags[0].message.starts_with("'request': expected object{"));
+    assert_eq!(
+        diags[1].message,
+        "field 'max_duration': expected duration, found text"
+    );
+    let field_span = diags[1].primary;
+    assert_eq!(
+        &wrong_duration[field_span.start as usize..field_span.end as usize],
+        "max_duration=\"30s\""
+    );
+    let span = diags[0].primary;
     assert!(
-        diags[0]
-            .message
-            .contains("'request': expected {opaque}, found {opaque}"),
-        "{}",
-        diags[0].message
+        wrong_duration[span.start as usize..span.end as usize].contains("max_duration=\"30s\"")
     );
 }
 
@@ -3553,15 +3569,20 @@ fn t14d_handbook_result_stays_opaque() {
     assert_eq!(codes(&diags), vec!["E3019"], "{diags:?}");
 }
 
-/// (T14d) The transcription never leaks into non-result nominal
-/// positions: an external-typed nominal value reads any member
-/// silently, exactly as before the join.
+/// (T14d) Known nominal value positions expose their released field types:
+/// source is text, and a further unknown member is rejected precisely.
 #[test]
 fn t14d_nominal_value_position_stays_opaque() {
     let catalog = fixture();
-    let src = "app T uses=[p]\npackage p\n use std {TextRequest}\n Given\n  M { request:TextRequest }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    let x = m.request.source.deeper\n Then\n";
+    let src = "app T uses=[p]\npackage p\n use std {TextRequest}\n Given\n  M { request:TextRequest }\n  policy M read=members\n When\n  scenario s(m:M) by=members\n   do\n    let x = m.request.source\n Then\n";
     let diags = check(src, Some(&catalog));
-    assert!(diags.is_empty(), "nominal value position: {diags:?}");
+    assert!(diags.is_empty(), "known nominal source: {diags:?}");
+    let invalid = src.replace("m.request.source", "m.request.source.deeper");
+    let diags = check(&invalid, Some(&catalog));
+    assert_eq!(codes(&diags), vec!["E2013"], "{diags:?}");
+    assert_eq!(diags[0].message, "unknown member 'deeper' on text");
+    let span = diags[0].primary;
+    assert_eq!(&invalid[span.start as usize..span.end as usize], "deeper");
 }
 
 /// (T14d) Same-target leaves share the existing compat: two
