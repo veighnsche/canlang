@@ -156,9 +156,11 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       {from:'idle',to:'ready',operation:'NativeSavedScenario.default_scalar'},
       {from:'idle',to:'ready',operation:'NativeSavedScenario.computed_scalar'},
       {from:'idle',to:'ready',operation:'NativeSavedScenario.default_reference'},
+      {from:'idle',to:'ready',operation:'NativeSavedScenario.stored_private_scalar'},
+      {from:'idle',to:'ready',operation:'NativeSavedScenario.stored_public_scalar'},
     ]);
     const transitions = ['advance','finish','rollback','optional','optional_scalar',
-      'default_scalar','computed_scalar','default_reference'].map(name => {
+      'default_scalar','computed_scalar','default_reference','stored_private_scalar','stored_public_scalar'].map(name => {
       const op = artifact.operations?.find(item => item.name === `NativeSavedScenario.${name}`); assert.ok(op);
       const plan = op.result?.disclosure; assert.ok(plan, 'actual native machine capture must be published');
       assert.equal(op.result?.type, name.endsWith('_scalar') ? 'int' : 'void');
@@ -166,9 +168,14 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       const emitted = artifact.modules.find(item => item.path === callable.module); assert.ok(emitted);
       assert.match(emitted.js, /await[^;]*observeScenarioReceiptDependency/);
       for (const returned of plan.returns) for (const dependency of returned.dependencies) {
-        assert.equal(dependency.model, jobModel); assert.equal(dependency.role, 'control');
-        assert.equal(dependency.type, dependency.field === 'status' ? 'enum(idle,queued,generating,ready)' : 'bool');
-        assert.ok(['status','private_choice'].includes(dependency.field));
+        assert.equal(dependency.role, 'control');
+        if (dependency.model === model) {
+          assert.equal(name,'stored_public_scalar'); assert.equal(dependency.field,'optional'); assert.equal(dependency.type,'int?');
+        } else {
+          assert.equal(dependency.model,jobModel);
+          assert.equal(dependency.type, dependency.field === 'status' ? 'enum(idle,queued,generating,ready)' : 'bool');
+          assert.ok(['status','private_choice'].includes(dependency.field));
+        }
       }
       for (const origin of [plan.source, ...plan.returns.flatMap(returned =>
         [returned.source, ...returned.dependencies.map(dependency => dependency.source)])]) {
@@ -453,6 +460,9 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       const before = await resources(), history = await jobs.historyFor(jobModelName,asRecordId(jobId));
       const fence = await cedar.prepare('SELECT * FROM fence').first<{id:number;revision:number}>(); assert.ok(fence);
       const envelope = { operation:descriptor.name, operation_id:operationId(), inputs:supplied ?? {job:{id:jobId,version:String(entry.version)}} };
+      const itemRef = envelope.inputs.item === undefined ? null : object(envelope.inputs.item);
+      const itemEntry = itemRef ? await jobs.load(model as ModelName,asRecordId(word(itemRef.id))) : null;
+      if (itemRef) { assert.ok(itemEntry); assert.equal(String(itemEntry.version),itemRef.version); }
       const fresh = await commit(ava,envelope.operation,envelope.inputs,envelope.operation_id);
       const physical = await receipt(envelope.operation_id), outcome = object(JSON.parse(physical.outcome));
       const association = object(outcome.scenario), plan = descriptor.result!.disclosure!;
@@ -465,7 +475,8 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       const observations = association.observations.map(object), changed = association.changed.map(object);
       assert.deepEqual(observations.map(value => value.dependencyId),selected.dependencies.map(value => value.id));
       for (const observation of observations) {
-        assert.equal(observation.model,jobModel); assert.equal(object(observation.row).id,jobId);
+        if (observation.model === model) { assert.ok(itemEntry); assert.deepEqual(observation.row,itemEntry); }
+        else { assert.equal(observation.model,jobModel); assert.equal(object(observation.row).id,jobId); }
       }
       const final = await jobs.load(jobModelName,asRecordId(jobId)); assert.ok(final);
       assert.equal(changed.length,final.version === entry.version ? 0 : 1);
@@ -600,8 +611,55 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       assert.deepEqual(outcome.observations[0]!.row,outcome.entry);
       assert.deepEqual(outcome.fresh.body.records,[{id:jobId,data:{status:'ready'}}]);
     }
-    assert.equal(machineSaved.length,13,'retain six transitions and seven default/override outcomes');
-    const defaultWitnesses = ['default_scalar','computed_scalar','default_reference'].map(name => {
+    // Grouped stored reads execute in declaration order before prior default
+    // bindings are consumed. Private influence withholds BOTH branches;
+    // explicit prior/final overrides never read that private field.
+    for (const choice of [true,false]) for (const mode of ['omitted','prior','both'] as const) {
+      const jobId=operationId(); await commit(ava,`${jobModel}.create`,{private_choice:choice},jobId);
+      const selected=mode==='omitted'?choice:!choice;
+      const inputs={job:{id:jobId,version:'1'},...(mode==='omitted'?{}:{first:selected}),...(mode==='both'?{selected}: {})};
+      const defaults=mode==='omitted'?{first:choice,selected:choice}:mode==='prior'?{selected}:{};
+      const outcome=await machineCall('stored_private_scalar',jobId,inputs,defaults);
+      assert.equal(outcome.final.data.status,selected?'ready':'idle'); assert.equal(outcome.final.version,selected?2:1);
+      const fields=[...(mode==='omitted'?['private_choice']:[]),...(selected?['status']:[])];
+      assert.deepEqual(outcome.selected.dependencies.map(value => value.field),fields);
+      assert.deepEqual(outcome.observations.map(value => value.row),fields.map(() => outcome.entry));
+      assert.equal(outcome.outcome.result,'7'); assert.equal(outcome.changed.length,selected?1:0);
+      assert.equal(outcome.fresh.body.result,mode==='omitted'?null:'7');
+      assert.deepEqual(outcome.fresh.body.records,mode!=='omitted'&&selected?[{id:jobId,data:{status:'ready'}}]:[]);
+    }
+    const publicDefaultReturns: string[]=[];
+    for (const optional of [null,'2','0']) {
+      const current=await row(id); assert.ok(current);
+      await commit(ben,`${model}.update`,{record:{id,version:String(current.version)},optional});
+      const admitted=await row(id); assert.ok(admitted);
+      const jobId=operationId(); await commit(ava,`${jobModel}.create`,{private_choice:false},jobId);
+      const selected=optional??'0', inputs={job:{id:jobId,version:'1'},item:{id,version:String(admitted.version)}};
+      const outcome=await machineCall('stored_public_scalar',jobId,inputs,{first:selected,selected});
+      const writes=selected!=='0';
+      assert.equal(outcome.final.data.status,writes?'ready':'idle'); assert.equal(outcome.final.version,writes?2:1);
+      assert.equal(outcome.fresh.body.result,'7'); assert.equal(outcome.changed.length,writes?1:0);
+      assert.deepEqual(outcome.fresh.body.records,writes?[{id:jobId,data:{status:'ready'}}]:[]);
+      assert.deepEqual(outcome.selected.dependencies.map(value => value.field),['optional',...(writes?['status']:[])]);
+      assert.equal(object(object(outcome.observations[0]!.row).data).optional,optional);
+      publicDefaultReturns.push(outcome.selected.id);
+    }
+    assert.notEqual(publicDefaultReturns[0],publicDefaultReturns[2],'coalesce RHS and skipped RHS have distinct source-carried paths');
+    for (const supplied of [{first:'3'},{first:'9',selected:'0'}]) {
+      const admitted=await row(id); assert.ok(admitted);
+      const jobId=operationId(); await commit(ava,`${jobModel}.create`,{private_choice:false},jobId);
+      const inputs={job:{id:jobId,version:'1'},item:{id,version:String(admitted.version)},...supplied};
+      const selected=supplied.selected??supplied.first;
+      const outcome=await machineCall('stored_public_scalar',jobId,inputs,supplied.selected===undefined?{selected}:{});
+      const writes=selected!=='0';
+      assert.equal(outcome.final.data.status,writes?'ready':'idle'); assert.equal(outcome.final.version,writes?2:1);
+      assert.equal(outcome.fresh.body.result,'7');
+      assert.deepEqual(outcome.selected.dependencies.map(value => value.field),writes?['status']:[],
+        'explicit header bypasses the stored read, while only omitted later defaults contribute');
+      assert.deepEqual(outcome.observations.map(value => value.row),writes?[outcome.entry]:[]);
+    }
+    assert.equal(machineSaved.length,24,'retain six transitions, seven previous defaults and eleven stored-read/default overrides');
+    const defaultWitnesses = ['default_scalar','computed_scalar','default_reference','stored_private_scalar','stored_public_scalar'].map(name => {
       const witness=machineSaved.find(value => value.envelope.operation === `NativeSavedScenario.${name}`); assert.ok(witness);
       return witness;
     });
@@ -614,6 +672,12 @@ it('consumes captured native saved scalar, array, derive and machine scenarios t
       const retained=await recovery(ava,{...witness.envelope,inputs:supplied});
       assert.equal(object(retained.error).code,'conflict','same resolved value never erases original raw omission');
       assert.deepEqual(await resources(),before); assert.deepEqual(await receipt(witness.envelope.operation_id),witness.physical);
+    }
+    // Later physical changes invalidate the original supplied refs. Recovery
+    // must use the frozen receipt/default observations without fresh execution.
+    for (const witness of machineSaved.filter(value => value.envelope.operation.includes('.stored_'))) {
+      const current=await jobs.load(jobModelName,asRecordId(witness.jobId)); assert.ok(current);
+      await commit(ben,`${jobModel}.update`,{record:{id:witness.jobId,version:String(current.version)},private_choice:!current.data.private_choice});
     }
     const beforeMachineReplay = await resources();
     for (const value of machineSaved) {
