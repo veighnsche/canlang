@@ -131,6 +131,67 @@ fn anonymous_local_aliases_preserve_exact_descriptor_provenance() {
 
 #[cfg(unix)]
 #[test]
+fn anonymous_descriptors_cannot_escape_into_plain_text_business_values() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let header = "app Escapes\nGiven\n Item {value:text}\n policy Item read=members\n derive accept(value:text):text=value\nWhen\n scenario run(row:Item) -> text by=members\n  do\n";
+    for (shape, bindings, value) in [
+        ("direct", "", "\"Hi\"@{}"),
+        ("grouped", "", "((\"Hi\"@{}))"),
+        ("bound", "", "\"Hi {name}\"@{}(name=\"Ada\")"),
+        (
+            "chained",
+            "   let first=\"Hi {name}\"@{}(name=\"Ada\")\n   let alias=((first))\n   let final=alias\n",
+            "((final))",
+        ),
+    ] {
+        for (sink, statement) in [
+            ("return", format!("return {value}")),
+            (
+                "create",
+                format!("create Item {{value={value}}} as created"),
+            ),
+            ("set", format!("set row {{value={value}}}")),
+            ("parameter", format!("let result=accept({value})")),
+            (
+                "nested",
+                format!("let result=accept(({{value={value}}}).value)"),
+            ),
+        ] {
+            let source = format!("{header}{bindings}   {statement}\n   return \"done\"\nThen\n");
+            let path = scratch.path().join(format!("{shape}-{sink}.can"));
+            std::fs::write(&path, source).unwrap();
+            let compiled = std::process::Command::new(env!("CARGO_BIN_EXE_can"))
+                .args(["compile", "--format=json", "--catalog"])
+                .arg(root.join("packages/values/dist/catalog.json"))
+                .arg(path)
+                .env_remove("CAN_CATALOG")
+                .output()
+                .unwrap();
+            let response: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
+            assert_eq!(
+                compiled.status.code(),
+                Some(10),
+                "{shape}/{sink}: {response}"
+            );
+            assert!(
+                response["diagnostics"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|diagnostic| diagnostic["code"] == "E3001"),
+                "{shape}/{sink}: {response}"
+            );
+            assert!(
+                response.get("modules").is_none(),
+                "{shape}/{sink}: {response}"
+            );
+        }
+    }
+}
+
+#[cfg(unix)]
+#[test]
 fn anonymous_messages_compile_and_execute_native_date_time_and_plural_bindings() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let scratch = tempfile::tempdir().unwrap();
