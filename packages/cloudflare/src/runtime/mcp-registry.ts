@@ -19,25 +19,13 @@
  */
 
 import type { CanTypeId, CompileArtifact, DerivedOperationInputs, ResolvedIdentity } from "@canlang/contracts";
+import type { McpSchemaField } from "@canlang/interfaces";
+export type { McpSchemaField } from "@canlang/interfaces";
 import { checkArtifactOperation, checkArtifactOperations, checkedToMcpInputSchema } from "@canlang/interfaces";
 
 /* ------------------------------------------------------------------ */
 /* Verbatim mirrors of `packages/interfaces/src/ports.ts`.             */
 /* ------------------------------------------------------------------ */
-
-/** Mirror of `McpSchemaField` (`ports.ts:151`). */
-export type McpSchemaField =
-  | { readonly kind: "ref"; readonly model: string; readonly requireVersion: boolean }
-  | { readonly kind: "string" }
-  | { readonly kind: "integer" }
-  | { readonly kind: "decimal" }
-  | { readonly kind: "money" }
-  | { readonly kind: "datetime" }
-  | { readonly kind: "duration" }
-  | { readonly kind: "user" }
-  | { readonly kind: "boolean" }
-  | { readonly kind: "file" }
-  | { readonly kind: "enum"; readonly values: readonly string[] };
 
 /** Mirror of `McpNamedField` (`ports.ts:162`). */
 export interface McpNamedField {
@@ -239,7 +227,7 @@ function isFramingExcludedDelivery(entry: unknown): boolean {
   return entry["field"]["kind"] === "delivery";
 }
 
-function checkInput(raw: unknown, where: string): McpNamedField {
+function checkInput(raw: unknown, where: string, owningField?: McpSchemaField): McpNamedField {
   if (!isRecord(raw)) fail(where, "must be an object");
   const name = raw["name"];
   if (typeof name !== "string" || name.length === 0) {
@@ -248,7 +236,7 @@ function checkInput(raw: unknown, where: string): McpNamedField {
   if (typeof raw["required"] !== "boolean") {
     fail(`${where}.required`, "must be a boolean");
   }
-  const field = checkField(raw["field"], `${where}.field`);
+  const field = owningField ?? checkField(raw["field"], `${where}.field`);
   const description = raw["description"];
   if (description !== undefined && typeof description !== "string") {
     fail(`${where}.description`, "must be a string (authored `@{desc}` text)");
@@ -290,7 +278,11 @@ function checkOperation(raw: unknown, index: number, owningSchema?: McpInputSche
   const fields: McpNamedField[] = [];
   for (const [fieldIndex, entry] of fieldsRaw.entries()) {
     if (isFramingExcludedDelivery(entry)) continue;
-    const checked = checkInput(entry, `${where}.inputs.fields[${fieldIndex}]`);
+    // Nominal fields require the whole artifact's checked inventory. Reuse
+    // that exact owning projection rather than admitting a new local kind.
+    const nominal = isRecord(entry) && isRecord(entry['field']) && entry['field']['kind'] === 'nominal'
+      ? owningSchema?.fields.find(field => field.name === entry['name'])?.field : undefined;
+    const checked = checkInput(entry, `${where}.inputs.fields[${fieldIndex}]`, nominal);
     if (seen.has(checked.name)) {
       fail(where, `repeats input ${JSON.stringify(checked.name)}`);
     }
@@ -300,7 +292,7 @@ function checkOperation(raw: unknown, index: number, owningSchema?: McpInputSche
   // Preserve the existing framing checks and their error paths. Source type
   // claims additionally pass through the owning Interfaces descriptor checker;
   // legacy descriptors retain their original framing-only admission.
-  if (fieldsRaw.some((entry) => isRecord(entry) && Object.hasOwn(entry, "valueType"))) {
+  if (owningSchema !== undefined || fieldsRaw.some((entry) => isRecord(entry) && Object.hasOwn(entry, "valueType"))) {
     const schema = owningSchema ?? checkedToMcpInputSchema(checkArtifactOperation(raw));
     fields.splice(0, fields.length, ...schema.fields);
   }
@@ -327,7 +319,11 @@ function readArtifactOperations(artifact: CompileArtifact): readonly OperationDe
   const hasChoices = raw.some(entry => isRecord(entry) && isRecord(entry['inputs']) &&
     Array.isArray(entry['inputs']['fields']) && entry['inputs']['fields'].some((field: unknown) =>
       isRecord(field) && 'choices' in field));
-  const owningSchemas = hasChoices ? new Map(checkArtifactOperations(artifact).map(operation =>
+  const hasNominal = raw.some(entry => isRecord(entry) && isRecord(entry['inputs']) &&
+    Array.isArray(entry['inputs']['fields']) && entry['inputs']['fields'].some((field: unknown) =>
+      isRecord(field) && isRecord(field['field']) && field['field']['kind'] === 'nominal'));
+  const needsOwningInventory = hasChoices || hasNominal || Object.hasOwn(artifact, 'valueTypes');
+  const owningSchemas = needsOwningInventory ? new Map(checkArtifactOperations(artifact).map(operation =>
     [operation.name, checkedToMcpInputSchema(operation)])) : undefined;
   const descriptors = raw.map((entry, index) => checkOperation(entry, index,
     isRecord(entry) && typeof entry['name'] === 'string' ? owningSchemas?.get(entry['name']) : undefined));

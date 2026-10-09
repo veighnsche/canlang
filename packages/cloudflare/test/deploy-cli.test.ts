@@ -166,12 +166,12 @@ describe("can-platform deploy/test/build local paths (B5-J3)", () => {
     expect(body["modules"]).toBe(1);
   });
 
-  it("test boots the local harness via testkit (zero executed: no lane-1 loader)", async () => {
+  it("test refuses zero-row success until the compiled row producer is joined", async () => {
     const { artifact } = deployBundle();
     const result = await runCli(["test", "--artifact", artifact], 90000);
-    expect(result.code).toBe(0);
+    expect(result.code).toBe(2);
     const body = envelope(result.stdout);
-    expect(body).toMatchObject({ ok: true, command: "test", executed: 0 });
-    expect(String(body["note"])).toContain("lane-01");
+    expect(body).toMatchObject({ ok: false, command: "test", code: "missing-producer" });
+    expect(String(body["detail"])).toContain("zero-row results cannot pass");
   }, 100000);
 });

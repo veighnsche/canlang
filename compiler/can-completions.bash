@@ -9,7 +9,7 @@ _can_complete() {
     prev="${COMP_WORDS[COMP_CWORD-1]}"
     cmd="${COMP_WORDS[1]}"
 
-    local commands="activate build check compile completions deploy docs explain fmt help lint lsp policy run test"
+    local commands="activate build check compile completions deploy dev docs explain fmt help lint lsp policy run test"
 
     # First operand: the subcommand.
     if (( COMP_CWORD == 1 )); then
@@ -17,9 +17,9 @@ _can_complete() {
         return 0
     fi
 
-    # Thin commands pass every tail token to the platform, including flags.
+    # Delegated commands pass every tail token to their owning client.
     case "$cmd" in
-        run|test|build|deploy|activate)
+        run|test|build|deploy|activate|dev)
             COMPREPLY=($(compgen -f -- "$cur"))
             return 0
             ;;

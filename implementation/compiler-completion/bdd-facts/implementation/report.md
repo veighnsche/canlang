@@ -54,3 +54,9 @@ Canonical application version application, real result payload/inspection/as
 semantics, live record refresh, helper composition and wider platform joins remain
 open under their existing owning contracts and narrow BDD consultation hold.
 Canonical completion remains **48/67**.
+
+## Finite imported-helper link
+
+`compiler/tests/bdd_binding_runtime.rs::imported_example_helpers_use_actual_production_registry` passes **1/1** (0.90s) from the unchanged captured `sequence-alias.can` through the current CLI, installed catalog, generated production/test modules, and installed testkit setup/invoke/observe path. The selected `Provider.take` alias executes its actual production registry entry: the preceding echo dispatch and expected assertions succeed. The existing `{ok:true}` invocation-port profile is preserved.
+
+The owning compiler change is finite: the JS emitter tracks checked canonical helpers used by generated examples, and the BDD emitter links those helpers to the already-exported production `canApp` registry entries only when needed. Production helper bodies stay in their owning module, with existing transitive/default closure. Focused codegen and BDD-binding `--no-run` build passed (13.37s); no broad suite or old case was rerun. This closes only the imported-helper link for this actual alias. BDD3 payload/result/`as`, live refresh, context/disclosure, and input-slot policy remain held; no full S9-Q07 or reference-count credit follows. Original completion remains **58/67**, with **9 open** references.

@@ -547,10 +547,10 @@ fn valid_corpus_checks_clean() {
         "app T\nGiven\n export M { s:enum(a,b)=a }\n policy M read=members\n lock M fields=s when=row.s!=a\nWhen\nThen\n",
         "app T\nGiven\n export M { s:enum(a,b)=a, t:text }\n policy M read=members\n fixture f=M {s=a,t=\"x\"}\nWhen\nThen\n",
         // Forward field-chain references resolve regardless of order.
-        "app T\nGiven\n preferences { v:M.s=a }\n M { s:enum(a,b)=a }\n policy M read=members\nWhen\nThen\n page / title=\"T\"\n  tabs preferences.v\n",
+        "app T\nGiven\n M { s:enum(a,b)=a }\n policy M read=members\nWhen\nThen\n preferences { v:M.s=a }\n page / title=\"T\"\n  tabs preferences.v\n",
         // Builtins are callable names, not lexical bindings: a
         // same-spelled enum case still elides, in either order.
-        "app T\nGiven\n preferences { v:enum(all,x)=all }\nWhen\nThen\n page / title=\"T\"\n  tabs preferences.v\n",
+        "app T\nGiven\nWhen\nThen\n preferences { v:enum(all,x)=all }\n page / title=\"T\"\n  tabs preferences.v\n",
         "app T\nGiven\n M { s:enum(all,x)=all }\n policy M read=members\nWhen\n scenario s(m:M) by=members\n  require all==m.s and m.s==all and (all)==m.s\n  do\n   let x = 1\nThen\n",
         // Contained navigation: `row.parent` and `parentRecord.Child`.
         "app T\nGiven\n Cafe { location:text }\n Table in Cafe { seats:int }\n policy Cafe read=members\n policy Table read=members\n lock Table fields=seats when=row.parent.location==\"x\"\nWhen\nThen\n",

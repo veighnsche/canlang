@@ -43,7 +43,8 @@ use crate::analysis::catalog::{Availability, Catalog, Effects, SigType, std_capa
 use crate::analysis::effects::{EffectVerb, PolicyRule};
 use crate::analysis::migrate_check::{self, OwnerModelView};
 use crate::analysis::resolve::{
-    CrudOp, FixtureTarget, ModelOwner, ModuleId, ModuleKind, SymbolId, SymbolKind,
+    CheckedJudgmentKind, CheckedValueConstraints, CrudOp, FixtureTarget, ModelOwner, ModuleId,
+    ModuleKind, SymbolId, SymbolKind,
 };
 use crate::analysis::types::{ResolvedType, Scalar, SelectedCallTarget};
 use crate::analysis::{CheckedProgram, NodeKey};
@@ -145,6 +146,15 @@ pub struct IrItem {
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub enum IrItemKind {
+    /// One checked static declaration owns all derived Judgment shapes.
+    Judgment {
+        source_language: String,
+        version: i64,
+        questions: Vec<IrJudgmentQuestion>,
+        result_fields: Vec<SymbolId>,
+    },
+    /// Preserve symbol index identity without emitting derived authored schemas.
+    JudgmentGenerated(IrJudgmentGenerated),
     Model {
         fields: Vec<SymbolId>,
         owner: IrOwner,
@@ -522,6 +532,8 @@ pub struct IrProgram {
     pub modules: Vec<IrModule>,
     /// Items in declaration order (parity with analysis symbols).
     pub items: Vec<IrItem>,
+    /// Checked declaration and field-reuse constraints, keyed by owning symbol.
+    pub value_constraints: HashMap<SymbolId, CheckedValueConstraints>,
     /// `catalog_version` consulted by analysis, or empty when none was.
     pub catalog_version: String,
     /// Builtin references observed while decoding checked call positions
@@ -593,6 +605,7 @@ fn empty_program(catalog_version: &str) -> IrProgram {
     IrProgram {
         modules: Vec::new(),
         items: Vec::new(),
+        value_constraints: HashMap::new(),
         catalog_version: catalog_version.to_string(),
         referenced_builtins: Vec::new(),
         read_rules: Vec::new(),
@@ -763,6 +776,8 @@ struct Cx<'a> {
     page_fns: HashSet<String>,
     /// Preferences validator name per module (filled by rule maps).
     preference_validators: HashMap<ModuleId, String>,
+    /// Collected while decoding one page's bound tabs.
+    page_preference_fields: Vec<IrPreferenceField>,
     diags: Vec<Diagnostic>,
 }
 
@@ -801,6 +816,7 @@ impl<'a> Cx<'a> {
             g13_seen: HashSet::new(),
             page_fns: HashSet::new(),
             preference_validators: HashMap::new(),
+            page_preference_fields: Vec::new(),
             diags: Vec::new(),
         }
     }
@@ -982,6 +998,11 @@ impl TypedExpr {
 /// Checked expression shapes with a §13 lowering.
 #[derive(Debug, Clone)]
 pub enum IrExpr {
+    /// Checked static specification asset, resolved by owning declaration.
+    JudgmentSpecification {
+        judgment: String,
+        options: Option<Box<TypedExpr>>,
+    },
     /// Exact integer literal → BigInt (`5n`).
     Int(i128),
     /// Exact decimal literal, canonical source spelling (`"1.50"`).
@@ -1035,6 +1056,8 @@ pub enum IrExpr {
     DeliveryRead {
         record: Box<TypedExpr>,
         field: String,
+        /// Checked access chain; error members project from the authorized
+        /// `error` leaf locally rather than naming additional receipt leaves.
         props: Vec<String>,
     },
     /// Inline message descriptor → `message(...)`.
@@ -1175,7 +1198,10 @@ pub struct IrQuery {
 // --- Guards, effects, pages, UI (PR5 contract) -----------------------------
 
 /// Checked admission guard: `by` clauses, `require` conditions, page guards.
+// Checked expressions stay inline in the once-built IR, as with IrStep below.
+// Boxing here would change its public representation and add allocations.
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum IrGuard {
     /// Role gate (canonical role, or a predicate spelling `members`, `owner`,
     /// `authenticated`, `public`) → `hasRole(c, id)`.
@@ -1302,7 +1328,10 @@ pub struct IrMatchArm {
 }
 
 /// Checked effect/handler statements in source order.
+// Statement payloads stay inline in the once-built IR; changing their public
+// representation solely for variant size would add allocations, as with IrStep.
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum IrStmt {
     /// `let name = value`.
     Let {
@@ -1424,16 +1453,71 @@ pub enum IrStmt {
     },
 }
 
-/// Parameterized display message → `message(source, {locales}, {params})`.
-/// Static messages omit the third argument.
+/// Display message with its checked owning source locale and typed parameters.
 #[derive(Debug, Clone)]
 pub struct IrMessage {
     /// Source-language text.
     pub source: String,
+    /// Source language retained from the checked owning declaration.
+    pub source_lang: String,
     /// `(locale, translation)` pairs; `None` renders `null`.
     pub variants: Vec<(String, Option<String>)>,
     /// Typed parameters in source order.
     pub params: Vec<IrMessageParam>,
+}
+
+/// Static Judgment captions retain the ordinary localized message descriptor.
+#[derive(Debug, Clone)]
+pub struct IrJudgmentQuestion {
+    pub name: String,
+    pub kind: IrJudgmentKind,
+    pub runtime: bool,
+    pub instructions: IrMessage,
+    pub yes: Option<IrMessage>,
+    pub no: Option<IrMessage>,
+    pub options: Vec<IrJudgmentOption>,
+    pub levels: Vec<IrJudgmentOption>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IrJudgmentKind {
+    Noul,
+    Choice,
+    Score,
+}
+
+#[derive(Debug, Clone)]
+pub struct IrJudgmentOption {
+    pub id: String,
+    pub description: IrMessage,
+}
+
+/// Checked derived schemas remain distinct from authored emission items.
+#[derive(Debug, Clone)]
+pub enum IrJudgmentGenerated {
+    Contract {
+        fields: Vec<SymbolId>,
+    },
+    Field {
+        owner: SymbolId,
+        ty: IrType,
+        required_array: bool,
+    },
+    CapabilityOp {
+        params: Vec<SymbolId>,
+        result: IrType,
+    },
+    Specification {
+        params: Vec<SymbolId>,
+        result: IrType,
+    },
+    Param {
+        owner: SymbolId,
+        index: usize,
+        ty: IrType,
+    },
+    /// Failing shell after an explicit missing-carrier diagnostic.
+    Unsupported,
 }
 
 #[derive(Debug, Clone)]
@@ -1482,6 +1566,8 @@ pub struct IrMessageParam {
 /// browser business-state stores.
 #[derive(Debug, Clone)]
 pub struct IrUi {
+    /// Checked source-only view expansion; no public factory is emitted.
+    pub view: Option<IrViewUse>,
     /// Factory name (`card`, `text`, `table`, `list`, `form`, ...).
     pub factory: String,
     /// Props in source order.
@@ -1496,6 +1582,14 @@ pub struct IrUi {
     pub gate: Option<TypedExpr>,
     /// Source span.
     pub span: Span,
+}
+
+/// A checked app-local presentation use. Its row argument is evaluated once;
+/// descendants retain declaration ownership while identities include this use.
+#[derive(Debug, Clone)]
+pub struct IrViewUse {
+    pub argument: TypedExpr,
+    pub identity: String,
 }
 
 /// One page → named page function plus page descriptor
@@ -1523,6 +1617,8 @@ pub struct IrPage {
     pub refresh: Option<String>,
     /// Admission guards in source order.
     pub admit: Vec<IrGuard>,
+    /// Source-owned enum selectors saved through this page's POST route.
+    pub preference_fields: Vec<IrPreferenceField>,
     /// Render body: UI factory nodes in source order.
     pub render: Vec<IrUi>,
     /// Page function name.
@@ -1531,6 +1627,13 @@ pub struct IrPage {
     pub descriptor_name: String,
     /// Declaration span.
     pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct IrPreferenceField {
+    pub name: String,
+    pub options: Vec<String>,
+    pub default_value: String,
 }
 
 // --- Test artifacts (PR5 contract, lowered by `bdd`) -----------------------
@@ -1680,6 +1783,7 @@ impl<'a> Cx<'a> {
         let program = IrProgram {
             modules,
             items,
+            value_constraints: self.program.types.value_constraints.clone(),
             catalog_version: self.program.catalog_version.clone(),
             referenced_builtins,
             read_rules,
@@ -1815,8 +1919,189 @@ impl<'a> Cx<'a> {
     }
 
     /// Decode one symbol's item kind plus its PR5 payload.
+    fn decode_judgment_generated(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+    ) -> IrJudgmentGenerated {
+        match &symbol.kind {
+            SymbolKind::Contract { fields } => IrJudgmentGenerated::Contract {
+                fields: fields.clone(),
+            },
+            SymbolKind::Field { owner, .. } => IrJudgmentGenerated::Field {
+                owner: *owner,
+                ty: lookup_symbol_type(
+                    self.program,
+                    symbol,
+                    "generated field type",
+                    &mut self.diags,
+                ),
+                required_array: self
+                    .program
+                    .types
+                    .judgment_required_arrays
+                    .contains(&symbol.id),
+            },
+            SymbolKind::CapabilityOp { params, .. } => {
+                let result = match self.program.types.symbol_results.get(&symbol.id) {
+                    Some(Some(ty)) => IrType::Known(ty.clone()),
+                    _ => {
+                        self.gap(
+                            format!(
+                                "judgment operation {}: checked generated result type is missing",
+                                symbol.canonical
+                            ),
+                            symbol.span,
+                        );
+                        IrType::Unknown
+                    }
+                };
+                IrJudgmentGenerated::CapabilityOp {
+                    params: params.clone(),
+                    result,
+                }
+            }
+            SymbolKind::DeriveFn { params, .. } => IrJudgmentGenerated::Specification {
+                params: params.clone(),
+                result: self
+                    .program
+                    .types
+                    .symbol_results
+                    .get(&symbol.id)
+                    .and_then(|result| result.as_ref())
+                    .map_or(IrType::Unknown, |ty| IrType::Known(ty.clone())),
+            },
+            SymbolKind::Param { owner, index, .. } => IrJudgmentGenerated::Param {
+                owner: *owner,
+                index: *index,
+                ty: lookup_symbol_type(
+                    self.program,
+                    symbol,
+                    "generated parameter type",
+                    &mut self.diags,
+                ),
+            },
+            _ => {
+                self.gap(
+                    format!(
+                        "judgment generated symbol {}: checked kind has no derived schema carrier",
+                        symbol.canonical
+                    ),
+                    symbol.span,
+                );
+                IrJudgmentGenerated::Unsupported
+            }
+        }
+    }
+
+    /// Decode one symbol's item kind plus its PR5 payload.
     #[allow(clippy::too_many_lines)]
     fn build_item_kind(&mut self, symbol: &crate::analysis::resolve::Symbol) -> IrItemKind {
+        if let Some(judgment) = self.program.types.judgments.get(&symbol.id).cloned() {
+            let Some(source_language) = self
+                .program
+                .effects
+                .modules
+                .get(&symbol.module)
+                .map(|module| module.source_lang.clone())
+            else {
+                self.gap(
+                    format!(
+                        "judgment {}: checked owning module source language is missing",
+                        symbol.canonical
+                    ),
+                    symbol.span,
+                );
+                return IrItemKind::JudgmentGenerated(self.decode_judgment_generated(symbol));
+            };
+            let mut questions = Vec::with_capacity(judgment.questions.len());
+            for question in judgment.questions {
+                let Some(instructions) =
+                    self.decode_message_value(symbol.module, &question.instructions)
+                else {
+                    self.gap(
+                        format!(
+                            "judgment {}: checked instructions have no static message descriptor",
+                            symbol.canonical
+                        ),
+                        symbol.span,
+                    );
+                    continue;
+                };
+                let yes = question
+                    .yes
+                    .as_ref()
+                    .and_then(|key| self.decode_message_value(symbol.module, key));
+                let no = question
+                    .no
+                    .as_ref()
+                    .and_then(|key| self.decode_message_value(symbol.module, key));
+                if yes.is_some() != question.yes.is_some() || no.is_some() != question.no.is_some()
+                {
+                    self.gap(
+                        format!(
+                            "judgment {}: checked NOUL criterion has no static message descriptor",
+                            symbol.canonical
+                        ),
+                        symbol.span,
+                    );
+                }
+                let mut decode_options = |options: Vec<
+                    crate::analysis::resolve::CheckedJudgmentOption,
+                >| {
+                    options.into_iter().filter_map(|option| {
+                        match self.decode_message_value(symbol.module, &option.description) {
+                            Some(description) => Some(IrJudgmentOption { id: option.id, description }),
+                            None => {
+                                self.gap(format!("judgment {}: checked option has no static message descriptor", symbol.canonical), symbol.span);
+                                None
+                            }
+                        }
+                    }).collect()
+                };
+                let options = decode_options(question.options);
+                let levels = decode_options(question.levels);
+                questions.push(IrJudgmentQuestion {
+                    name: question.name,
+                    runtime: question.runtime,
+                    kind: match question.kind {
+                        CheckedJudgmentKind::Noul => IrJudgmentKind::Noul,
+                        CheckedJudgmentKind::Choice => IrJudgmentKind::Choice,
+                        CheckedJudgmentKind::Score => IrJudgmentKind::Score,
+                    },
+                    instructions,
+                    yes,
+                    no,
+                    options,
+                    levels,
+                });
+            }
+            return IrItemKind::Judgment {
+                source_language,
+                version: judgment.version,
+                questions,
+                result_fields: match &symbol.kind {
+                    SymbolKind::Contract { fields } => fields.clone(),
+                    _ => {
+                        self.gap(
+                            format!(
+                                "judgment {}: checked result owner is not a contract",
+                                symbol.canonical
+                            ),
+                            symbol.span,
+                        );
+                        Vec::new()
+                    }
+                },
+            };
+        }
+        if self
+            .program
+            .types
+            .judgment_generated_symbols
+            .contains(&symbol.id)
+        {
+            return IrItemKind::JudgmentGenerated(self.decode_judgment_generated(symbol));
+        }
         match &symbol.kind {
             SymbolKind::Model {
                 fields,
@@ -2180,10 +2465,23 @@ impl Scope {
 }
 
 impl<'a> Cx<'a> {
+    /// Retain a caption's checked source language; missing ownership blocks emission.
+    fn checked_message_source_lang(&mut self, module: ModuleId, span: Span) -> String {
+        if let Some(owner) = self.program.effects.modules.get(&module) {
+            return owner.source_lang.clone();
+        }
+        self.gap(
+            "message source language: checked owning module is missing".to_string(),
+            span,
+        );
+        String::new()
+    }
+
     /// Message descriptor for a `MessageData` row (G7).
     fn decode_message_data(&self, data: &crate::analysis::effects::MessageData) -> IrMessage {
         IrMessage {
             source: data.source.clone(),
+            source_lang: data.source_lang.clone(),
             variants: data
                 .variants
                 .iter()
@@ -2194,7 +2492,7 @@ impl<'a> Cx<'a> {
     }
 
     /// Decode a label/message value node: `MessageValue` text plus
-    /// variants, or a `Path` message reference (inlined).
+    /// variants, or a resolved zero-parameter message reference (inlined).
     fn decode_message_value(&mut self, module: ModuleId, key: &NodeKey) -> Option<IrMessage> {
         let node = self.node(key)?.clone();
         self.decode_message_node(module, &node)
@@ -2208,6 +2506,7 @@ impl<'a> Cx<'a> {
             // of silently dropping the label.
             SyntaxKind::Literal => Some(IrMessage {
                 source: literal_string(self.db, node)?,
+                source_lang: self.checked_message_source_lang(module, node.span),
                 variants: Vec::new(),
                 params: Vec::new(),
             }),
@@ -2231,17 +2530,18 @@ impl<'a> Cx<'a> {
                 }
                 Some(IrMessage {
                     source: source?,
+                    source_lang: self.checked_message_source_lang(module, node.span),
                     variants,
                     params: Vec::new(),
                 })
             }
-            SyntaxKind::Path => {
+            SyntaxKind::Path | SyntaxKind::NameRef => {
                 let name = path_text(self.db, node);
                 match self.resolve_member(module, &name) {
                     Some((id, _))
                         if matches!(
                             self.program.symbols.get(id.0 as usize).map(|s| &s.kind),
-                            Some(SymbolKind::Message { .. })
+                            Some(SymbolKind::Message { params }) if params.is_empty()
                         ) =>
                     {
                         self.program
@@ -2352,6 +2652,39 @@ impl<'a> Cx<'a> {
     fn decode_expr(&mut self, scope: &Scope, node: &SyntaxNode) -> TypedExpr {
         let span = node.span;
         let mut ty = self.node_type(node);
+        if let Some(call) = self
+            .program
+            .types
+            .judgment_specification_calls
+            .get(&NodeKey::of(node))
+            .cloned()
+        {
+            let options =
+                self.decode_anchored(scope, &call.options, "judgment specification options");
+            return TypedExpr::new(
+                IrExpr::JudgmentSpecification {
+                    judgment: self.canonical(call.judgment),
+                    options: Some(Box::new(options)),
+                },
+                ty,
+                span,
+            );
+        }
+        if let Some(judgment) = self
+            .program
+            .types
+            .judgment_specifications
+            .get(&NodeKey::of(node))
+        {
+            return TypedExpr::new(
+                IrExpr::JudgmentSpecification {
+                    judgment: self.canonical(*judgment),
+                    options: None,
+                },
+                ty,
+                span,
+            );
+        }
         // Scope-bound names (query aliases, sequence bindings, test
         // accounts) carry their type when no table anchors the node.
         // The lookup follows the alias rewrite, so a rewritten alias
@@ -3072,6 +3405,29 @@ impl<'a> Cx<'a> {
     /// Consume the checker-selected target and slots. CST supplies content,
     /// never a second overload choice or argument-name binding.
     fn decode_call(&mut self, scope: &Scope, node: &SyntaxNode, _ty: &ResolvedType) -> IrExpr {
+        if let Some(binding) = self
+            .program
+            .types
+            .anonymous_messages
+            .get(&NodeKey::of(node))
+            .cloned()
+        {
+            let Some(mut descriptor) = self.decode_message_value(scope.module, &binding.descriptor)
+            else {
+                return IrExpr::Unsupported {
+                    what: "anonymous message".to_string(),
+                    why: "checked descriptor anchor is unavailable".to_string(),
+                };
+            };
+            for (name, argument, ty) in binding.arguments {
+                descriptor.params.push(IrMessageParam {
+                    name,
+                    type_id: self.type_id(&ty),
+                    value: self.decode_anchored(scope, &argument, "anonymous message argument"),
+                });
+            }
+            return IrExpr::Message(descriptor);
+        }
         let Some(selected) = self
             .program
             .types
@@ -3398,6 +3754,12 @@ impl<'a> Cx<'a> {
         // Inline descriptors have no declared parameters. Their syntax supplies
         // text only; the owning checked module supplies source language.
         let inline = descriptor_node.kind == SyntaxKind::MessageValue;
+        let anonymous = self
+            .program
+            .types
+            .anonymous_messages
+            .get(&NodeKey::of(&descriptor_node))
+            .cloned();
         let args: Vec<_> = arguments
             .iter()
             .enumerate()
@@ -3436,11 +3798,23 @@ impl<'a> Cx<'a> {
                 }
                 (data.source_lang.clone(), params)
             }
-            ResolvedType::Scalar(Scalar::Text) if inline => {
+            ResolvedType::Scalar(Scalar::Text) if inline || anonymous.is_some() => {
                 let Some(module) = self.program.effects.modules.get(&scope.module) else {
                     return unsupported("checked inline descriptor module is unavailable");
                 };
-                (module.source_lang.clone(), Vec::new())
+                let source_lang = module.source_lang.clone();
+                let mut params = Vec::new();
+                if let Some(binding) = anonymous {
+                    for (name, _, ty) in binding.arguments {
+                        let Some(tag) = Self::format_param_tag(&ty) else {
+                            return unsupported(
+                                "checked anonymous argument has no Values presentation tag",
+                            );
+                        };
+                        params.push((name, self.type_id(&ty), tag.to_string()));
+                    }
+                }
+                (source_lang, params)
             }
             _ => return unsupported("descriptor has no checked message owner or inline schema"),
         };
@@ -3735,22 +4109,19 @@ impl<'a> Cx<'a> {
                             why: "ordering has no array lowering".to_string(),
                         };
                     }
-                    // Selector order only (`order=-created`); expression
-                    // keys have no lowering.
-                    let unsupported = clause_parts.iter().any(|n| {
-                        matches!(
-                            n.kind,
-                            SyntaxKind::Binary
-                                | SyntaxKind::Unary
-                                | SyntaxKind::Call
-                                | SyntaxKind::Member
-                        )
-                    });
-                    if unsupported {
-                        return IrExpr::Unsupported {
-                            what: "expression query order".to_string(),
-                            why: "no §13 lowering exists".to_string(),
-                        };
+                    if let Some(value) = clause_parts.iter().find(|n| is_expression(n.kind)) {
+                        let term = model_id.zip(alias.as_deref()).and_then(|(model, alias)| {
+                            self.decode_query_field_order(value, model, alias)
+                        });
+                        match term {
+                            Some(term) => order.push(term),
+                            None => {
+                                return IrExpr::Unsupported {
+                                    what: "expression query order".to_string(),
+                                    why: "no §13 lowering exists".to_string(),
+                                };
+                            }
+                        }
                     }
                     for selector in clause_parts.iter().filter(|n| {
                         matches!(
@@ -3842,6 +4213,59 @@ impl<'a> Cx<'a> {
             select,
             select_param,
         })
+    }
+
+    /// The native mutation query contract orders direct stored fields of
+    /// the checked domain. It does not evaluate arbitrary key expressions.
+    fn decode_query_field_order(
+        &self,
+        node: &SyntaxNode,
+        model: SymbolId,
+        alias: &str,
+    ) -> Option<IrOrder> {
+        let (member, descending) = if node.kind == SyntaxKind::Unary {
+            let parts = kids(node);
+            let op = parts.iter().find(|n| n.kind == SyntaxKind::Punct)?;
+            if self.text(op.span) != "-" {
+                return None;
+            }
+            (*parts.iter().find(|n| is_expression(n.kind))?, true)
+        } else {
+            (node, false)
+        };
+        if member.kind != SyntaxKind::Member {
+            return None;
+        }
+        let parts = kids(member);
+        let base = *parts.iter().find(|n| is_expression(n.kind))?;
+        if base.kind != SyntaxKind::NameRef
+            || self.text(base.span) != alias
+            || self.node_type(base)
+                != (ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                })
+        {
+            return None;
+        }
+        let field = parts.iter().rev().find_map(|n| name_text(self.db, n))?;
+        let symbol = self.fields.get(&(model, field.clone()))?;
+        if !matches!(self.program.symbols[symbol.0 as usize].kind,
+            SymbolKind::Field { owner, .. } if owner == model)
+        {
+            return None;
+        }
+        let ty = self.node_type(member);
+        let ty = ty.nullable_inner().unwrap_or(&ty);
+        if !matches!(
+            ty,
+            ResolvedType::Scalar(
+                Scalar::Text | Scalar::Bool | Scalar::Int | Scalar::Decimal | Scalar::Money
+            )
+        ) {
+            return None;
+        }
+        Some(IrOrder { field, descending })
     }
 }
 
@@ -3957,6 +4381,7 @@ pub fn expr_uses_async(expr: &TypedExpr) -> bool {
             IrExpr::Format { args, .. } => work.extend(args),
             IrExpr::HasRole { person, .. } => work.extend(person.iter().map(|v| v.as_ref())),
             IrExpr::Lambda { body, .. } => work.push(body),
+            IrExpr::JudgmentSpecification { options, .. } => work.extend(options.as_deref()),
             IrExpr::Int(_)
             | IrExpr::Decimal(_)
             | IrExpr::Text(_)
@@ -6039,6 +6464,10 @@ impl<'a> Cx<'a> {
         }
         Some(IrMessage {
             source: entry.text.clone(),
+            source_lang: self.checked_message_source_lang(
+                module,
+                Span::new(entry.node.file, entry.node.start, entry.node.end),
+            ),
             variants: entry
                 .variants
                 .iter()
@@ -6058,22 +6487,13 @@ impl<'a> Cx<'a> {
         page: &crate::analysis::effects::PageData,
     ) -> IrPage {
         let span = Span::new(page.node.file, page.node.start, page.node.end);
+        let source_lang = self.checked_message_source_lang(module, span);
         let scope = Scope::module(module);
         let node = self.node(&page.node).cloned();
         let title = page.title.as_ref().and_then(|key| {
-            // Titles are static captions or context-free message values.
+            // Titles include checked references to zero-parameter messages.
             let title_node = self.node(key)?.clone();
-            if title_node.kind == SyntaxKind::MessageValue {
-                self.decode_message_node(module, &title_node)
-            } else if title_node.kind == SyntaxKind::Literal {
-                literal_string(self.db, &title_node).map(|source| IrMessage {
-                    source,
-                    variants: Vec::new(),
-                    params: Vec::new(),
-                })
-            } else {
-                None
-            }
+            self.decode_message_node(module, &title_node)
         });
         let title = title.unwrap_or_else(|| {
             self.gap(
@@ -6083,6 +6503,7 @@ impl<'a> Cx<'a> {
             );
             IrMessage {
                 source: String::new(),
+                source_lang: source_lang.clone(),
                 variants: Vec::new(),
                 params: Vec::new(),
             }
@@ -6094,6 +6515,7 @@ impl<'a> Cx<'a> {
             .unwrap_or_else(|| ("/".to_string(), None, None, false, None, None));
         let mut admit = Vec::new();
         let mut render = Vec::new();
+        self.page_preference_fields.clear();
         if let Some(node) = node.as_ref() {
             for child in kids(node) {
                 match child.kind {
@@ -6146,6 +6568,7 @@ impl<'a> Cx<'a> {
             poll,
             refresh,
             admit,
+            preference_fields: std::mem::take(&mut self.page_preference_fields),
             render,
             fn_name,
             descriptor_name,
@@ -6359,6 +6782,7 @@ impl<'a> Cx<'a> {
     ) -> Option<IrUi> {
         let word = ui_word(self.db, node);
         match node.kind {
+            SyntaxKind::Show => self.decode_view_use(scope, node),
             SyntaxKind::Card => {
                 self.check_ui_attributes(node, "card", &["layout"]);
                 let mut props = Vec::new();
@@ -6388,6 +6812,7 @@ impl<'a> Cx<'a> {
                     }
                 }
                 Some(IrUi {
+                    view: None,
                     factory: "card".to_string(),
                     props,
                     children: self.decode_ui_children(scope, node, row_ctx),
@@ -6432,6 +6857,7 @@ impl<'a> Cx<'a> {
                     ));
                 }
                 Some(IrUi {
+                    view: None,
                     factory: "collapse".to_string(),
                     props,
                     children,
@@ -6452,14 +6878,13 @@ impl<'a> Cx<'a> {
                         self.diags.push(Diagnostic::error("E6008", "cannot lower tabs: only tab item children have an owning factory profile".to_string(), child.span));
                     }
                 }
-                if let Some(target) = kids(node)
+                let bound_target = kids(node)
                     .iter()
                     .find(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
-                {
+                    .copied();
+                if bound_target.is_some() && kids(node).iter().any(|n| n.kind == SyntaxKind::Tab) {
                     self.diags.push(Diagnostic::error(
-                        "E6008",
-                        "cannot lower bound tabs: canonical owned preference binding and save lifecycle are not implemented".to_string(),
-                        target.span,
+                        "E6008", "cannot lower bound tabs with authored tab panels".to_string(), node.span,
                     ));
                     return None;
                 }
@@ -6483,6 +6908,13 @@ impl<'a> Cx<'a> {
                         props.push((name.clone(), self.decode_word_attr(scope, &name, value)));
                     }
                 }
+                if let Some(target) = bound_target {
+                    let (binding, caption) = self.decode_bound_tabs(scope, target)?;
+                    props.push(("binding".to_string(), binding));
+                    if let Some(caption) = caption {
+                        props.push(("caption".to_string(), caption));
+                    }
+                }
                 let children = kids(node)
                     .iter()
                     .filter(|child| child.kind == SyntaxKind::Tab)
@@ -6493,6 +6925,7 @@ impl<'a> Cx<'a> {
                     .collect();
                 let gate = self.decode_gate(scope, node);
                 Some(IrUi {
+                    view: None,
                     factory: "tabs".to_string(),
                     props,
                     children,
@@ -6501,15 +6934,7 @@ impl<'a> Cx<'a> {
                     span: node.span,
                 })
             }
-            SyntaxKind::Edit => {
-                self.diags.push(Diagnostic::error(
-                    "E6008",
-                    "cannot lower edit: the bound edit profile has no complete owning form props"
-                        .to_string(),
-                    node.span,
-                ));
-                None
-            }
+            SyntaxKind::Edit => self.decode_bound_edit(scope, node, row_ctx),
             SyntaxKind::UiLeaf => self.decode_leaf(scope, node, &word, row_ctx),
             SyntaxKind::Slot => Some(self.decode_slot(scope, node, row_ctx)),
             SyntaxKind::CatalogItem => self.decode_catalog(scope, node, &word, row_ctx),
@@ -6608,6 +7033,97 @@ impl<'a> Cx<'a> {
     }
 
     /// One transient panel payload consumed only by its owning `tabs`.
+    fn decode_bound_tabs(
+        &mut self,
+        scope: &Scope,
+        target: &SyntaxNode,
+    ) -> Option<(TypedExpr, Option<TypedExpr>)> {
+        let current = self.decode_expr(scope, target);
+        let (cases, field_id) = match &current.ty {
+            ResolvedType::Enum { cases, owner: Some(field_id) } => (cases.clone(), *field_id),
+            _ => {
+                self.diags.push(Diagnostic::error(
+                    "E6008", "bound tabs needs a checked owned enum preference".to_string(), target.span,
+                ));
+                return None;
+            }
+        };
+        let IrExpr::Member { base, field } = &current.expr else {
+            self.diags.push(Diagnostic::error(
+                "E6008", "bound tabs needs a direct preferences field".to_string(), target.span,
+            ));
+            return None;
+        };
+        if !matches!(&base.expr, IrExpr::Name(name) if name == "preferences") {
+            self.diags.push(Diagnostic::error(
+                "E6008", "bound tabs needs a direct preferences field".to_string(), target.span,
+            ));
+            return None;
+        }
+        let Some(symbol) = self.program.symbols.get(field_id.0 as usize).cloned() else {
+            self.diags.push(Diagnostic::error("E6008", "bound tabs field has no checked declaration".to_string(), target.span));
+            return None;
+        };
+        let SymbolKind::Field { owner, .. } = &symbol.kind else {
+            self.diags.push(Diagnostic::error("E6008", "bound tabs field has no preference owner".to_string(), target.span));
+            return None;
+        };
+        if symbol.module != scope.module || symbol.name != *field ||
+            !matches!(self.program.symbols.get(owner.0 as usize).map(|item| &item.kind), Some(SymbolKind::Preferences { .. })) {
+            self.diags.push(Diagnostic::error("E6008", "bound tabs field has no local preference owner".to_string(), target.span));
+            return None;
+        }
+        let (_, default, _, _, label, _) = self.decode_field(&symbol, *owner);
+        let Some(IrDefault::Literal(default)) = default else {
+            self.diags.push(Diagnostic::error("E6008", "bound tabs preference needs a literal enum default".to_string(), target.span));
+            return None;
+        };
+        let IrExpr::Text(default_value) = default.expr else {
+            self.diags.push(Diagnostic::error("E6008", "bound tabs preference default must be an enum case".to_string(), target.span));
+            return None;
+        };
+        if cases.is_empty() || !cases.contains(&default_value) {
+            self.diags.push(Diagnostic::error("E6008", "bound tabs preference default is not a listed case".to_string(), target.span));
+            return None;
+        }
+        if !self.page_preference_fields.iter().any(|item| item.name == symbol.name) {
+            self.page_preference_fields.push(IrPreferenceField {
+                name: symbol.name.clone(), options: cases.clone(), default_value,
+            });
+        }
+        let text = |value: String| TypedExpr::new(IrExpr::Text(value), ResolvedType::Scalar(Scalar::Text), target.span);
+        let options = cases.into_iter().map(|case| {
+            let caption = label.as_ref().and_then(|label| label.values.iter().find(|(value, _)| value == &case))
+                .map(|(_, caption)| TypedExpr::new(IrExpr::Message(caption.clone()), ResolvedType::Scalar(Scalar::Text), target.span))
+                .unwrap_or_else(|| text(case.clone()));
+            TypedExpr::new(IrExpr::Object(vec![("value".to_string(), text(case)), ("label".to_string(), caption)]),
+                ResolvedType::Unknown, target.span)
+        }).collect();
+        let ctx = TypedExpr::new(IrExpr::Name("c".to_string()), ResolvedType::Unknown, target.span);
+        let member = |base: TypedExpr, field: String| TypedExpr::new(
+            IrExpr::Member { base: Box::new(base), field }, ResolvedType::Unknown, target.span,
+        );
+        let module_name = self.program.modules.iter().find(|module| module.id == scope.module)?.name.clone();
+        let version = member(member(member(ctx.clone(), "preferenceVersions".to_string()), module_name), symbol.name.clone());
+        let post_to = TypedExpr::new(IrExpr::Binary {
+            op: IrBinOp::Coalesce,
+            left: Box::new(member(ctx.clone(), "pollUrl".to_string())),
+            right: Box::new(member(ctx, "path".to_string())),
+        }, ResolvedType::Scalar(Scalar::Text), target.span);
+        let binding = TypedExpr::new(IrExpr::Object(vec![
+            ("name".to_string(), text(symbol.name)),
+            ("options".to_string(), TypedExpr::new(IrExpr::Array(options), ResolvedType::Unknown, target.span)),
+            ("current".to_string(), current),
+            ("version".to_string(), version),
+            ("postTo".to_string(), post_to),
+        ]), ResolvedType::Unknown, target.span);
+        let caption = label.map(|label| TypedExpr::new(
+            IrExpr::Message(label.text), ResolvedType::Scalar(Scalar::Text), target.span,
+        ));
+        Some((binding, caption))
+    }
+
+    /// One transient panel payload consumed only by its owning `tabs`.
     fn decode_transient_tab(
         &mut self,
         scope: &Scope,
@@ -6629,6 +7145,7 @@ impl<'a> Cx<'a> {
                 )
             });
         IrUi {
+            view: None,
             factory: "tabItem".to_string(),
             props: vec![
                 (
@@ -6716,10 +7233,18 @@ impl<'a> Cx<'a> {
             "fieldset" => Some(self.decode_fieldset(scope, node, row_ctx)),
             "fab" => Some(self.decode_fab(scope, node, row_ctx)),
             "chat_bubble" => Some(self.decode_chat_bubble(scope, node, row_ctx)),
+            "button"
+                if ui_attributes(self.db, node)
+                    .iter()
+                    .any(|(name, _)| name == "action") =>
+            {
+                self.decode_action_button(scope, node)
+            }
             "button" => Some(self.decode_button(scope, node, row_ctx)),
             "modal" | "drawer" => Some(self.decode_modal(scope, node, word, row_ctx)),
             "divider" => Some(self.decode_divider(scope, node, row_ctx)),
             "badge" => Some(self.decode_badge(scope, node, row_ctx)),
+            "status" => self.decode_status(scope, node, row_ctx),
             "breadcrumbs" => Some(self.decode_breadcrumbs(scope, node, row_ctx)),
             "pagination" => Some(self.decode_pagination(scope, node, row_ctx)),
             "stat" => Some(self.decode_stat(scope, node, row_ctx)),
@@ -6736,6 +7261,63 @@ impl<'a> Cx<'a> {
                 None
             }
         }
+    }
+
+    /// Expand only the checked local declaration in its owning module scope.
+    /// Caller aliases and page bindings are never captured by the definition.
+    fn decode_view_use(&mut self, scope: &Scope, node: &SyntaxNode) -> Option<IrUi> {
+        let key = NodeKey::of(node);
+        let Some(definition) = self.program.types.view_uses.get(&key).copied() else {
+            self.gap(
+                "show has no checked local view binding".to_string(),
+                node.span,
+            );
+            return None;
+        };
+        let Some(model) = self.program.types.view_models.get(&definition).copied() else {
+            self.gap(
+                "view has no checked stored-model row".to_string(),
+                node.span,
+            );
+            return None;
+        };
+        let declaration = self.node(&definition)?.clone();
+        let object = kids(node)
+            .into_iter()
+            .find(|n| n.kind == SyntaxKind::Object)?;
+        let entry = kids(object)
+            .into_iter()
+            .find(|n| n.kind == SyntaxKind::ObjectEntry)?;
+        let value = kids(entry).into_iter().find(|n| is_expression(n.kind))?;
+        let argument = self.decode_expr(scope, value);
+        // The checked link is same-module; model ownership may be imported.
+        let mut owned = Scope::module(scope.module);
+        owned.name_types.insert(
+            "row".to_string(),
+            ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            },
+        );
+        let children =
+            self.decode_ui_children(&owned, &declaration, Some((model, "row".to_string())));
+        // A definition-level require gates its whole expansion using the bound row.
+        let gate = self.decode_gate(&owned, &declaration);
+        Some(IrUi {
+            view: Some(IrViewUse {
+                argument,
+                identity: format!(
+                    "can-view-m{}-f{}-s{}",
+                    scope.module.0, node.span.file.0, node.span.start
+                ),
+            }),
+            factory: String::new(),
+            props: Vec::new(),
+            children,
+            row_scope: None,
+            gate,
+            span: node.span,
+        })
     }
 
     /// Decode a field-placement control (`input`/`textarea`): the header
@@ -6816,6 +7398,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: word.to_string(),
             props,
             children,
@@ -6866,6 +7449,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: "fieldset".to_string(),
             props,
             children,
@@ -6927,6 +7511,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: "fab".to_string(),
             props,
             children,
@@ -7015,6 +7600,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: "chatBubble".to_string(),
             props,
             children,
@@ -7022,6 +7608,223 @@ impl<'a> Cx<'a> {
             gate: self.decode_gate(scope, node),
             span: node.span,
         }
+    }
+
+    /// Only checked ordinary mutation scenarios have the protected form profile.
+    fn action_scenario(
+        &mut self,
+        module: ModuleId,
+        target: &SyntaxNode,
+    ) -> Option<(SymbolId, Vec<SymbolId>)> {
+        let selected = self
+            .resolve_operation_target(module, target)
+            .and_then(|id| {
+                let symbol = self.program.symbols.get(id.0 as usize)?;
+                let SymbolKind::Scenario {
+                    params,
+                    trusted: false,
+                    ..
+                } = &symbol.kind
+                else {
+                    return None;
+                };
+                let data = self.program.effects.scenarios.get(&id)?;
+                (!data.read && !data.expose_none && data.on.is_none()).then(|| (id, params.clone()))
+            });
+        if selected.is_none() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower action: target has no published ordinary mutation form profile"
+                    .to_string(),
+                target.span,
+            ));
+        }
+        selected
+    }
+
+    /// Reuse the native preparer's unbound fields, protected arguments and display.
+    fn protected_action_form(
+        &mut self,
+        operation: SymbolId,
+        arguments: TypedExpr,
+        span: Span,
+    ) -> IrUi {
+        let mut props = vec![
+            (
+                "operation".to_string(),
+                TypedExpr::new(
+                    IrExpr::Text(self.canonical(operation)),
+                    ResolvedType::Scalar(Scalar::Text),
+                    span,
+                ),
+            ),
+            ("arguments".to_string(), arguments),
+        ];
+        if let Some(data) = self.program.effects.scenarios.get(&operation).cloned()
+            && let Some(label) = data.label
+            && let Some(message) = self.decode_message_value(data.module, &label)
+        {
+            props.push((
+                "submit".to_string(),
+                TypedExpr::new(
+                    IrExpr::Message(message),
+                    ResolvedType::Scalar(Scalar::Text),
+                    span,
+                ),
+            ));
+        }
+        IrUi {
+            view: None,
+            factory: "form".to_string(),
+            props,
+            children: Vec::new(),
+            row_scope: None,
+            gate: None,
+            span,
+        }
+    }
+
+    /// `actions` is a private grouping of ordinary protected operation forms.
+    fn decode_actions(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        self.check_ui_attributes(node, "actions", &[]);
+        if kids(node)
+            .iter()
+            .any(|child| is_ui_node(child.kind) && !is_gate_leaf(self.db, child))
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower actions: protected controls take no content suite".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        let Some((model, row)) = row_ctx else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower actions: an owning stored row is required".to_string(),
+                node.span,
+            ));
+            return None;
+        };
+        let targets: Vec<_> = kids(node)
+            .into_iter()
+            .filter(|n| is_expression(n.kind))
+            .collect();
+        let mut operations = HashSet::new();
+        let mut children = Vec::new();
+        for target in targets {
+            let (operation, params) = self.action_scenario(scope.module, target)?;
+            if !operations.insert(operation) {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower actions: duplicate canonical operation".to_string(),
+                    target.span,
+                ));
+                return None;
+            }
+            let host_ty = ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            };
+            let matching: Vec<_> = params
+                .into_iter()
+                .filter(|id| self.program.types.symbol_types.get(id) == Some(&host_ty))
+                .collect();
+            let [param] = matching.as_slice() else {
+                self.diags.push(Diagnostic::error("E6008", "cannot lower actions: operation needs exactly one parameter matching the owning row model".to_string(), target.span));
+                return None;
+            };
+            let name = self.program.symbols.get(param.0 as usize)?.name.clone();
+            let argument = TypedExpr::new(IrExpr::Name(row.clone()), host_ty, target.span);
+            let arguments = TypedExpr::new(
+                IrExpr::Object(vec![(name, argument)]),
+                ResolvedType::Unknown,
+                target.span,
+            );
+            children.push(self.protected_action_form(operation, arguments, target.span));
+        }
+        if children.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower actions: at least one operation is required".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        Some(IrUi {
+            view: None,
+            factory: "actions".to_string(),
+            props: Vec::new(),
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        })
+    }
+
+    /// Explicit bound buttons reuse the same protected form with authored refs.
+    fn decode_action_button(&mut self, scope: &Scope, node: &SyntaxNode) -> Option<IrUi> {
+        self.check_ui_attributes(node, "button action", &["action", "arguments"]);
+        if kids(node).iter().any(|n| is_expression(n.kind)) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower button action: protected controls take no positional header"
+                    .to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        let attributes = ui_attributes(self.db, node);
+        let target = attributes
+            .iter()
+            .find(|(name, _)| name == "action")
+            .and_then(|(_, value)| *value)?;
+        let (operation, params) = self.action_scenario(scope.module, target)?;
+        let object = attributes
+            .iter()
+            .find(|(name, _)| name == "arguments")
+            .and_then(|(_, value)| *value);
+        let Some(object) = object.filter(|node| node.kind == SyntaxKind::Object) else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower button action: explicit protected record arguments are required"
+                    .to_string(),
+                node.span,
+            ));
+            return None;
+        };
+        let arguments = self.decode_expr(scope, object);
+        let IrExpr::Object(entries) = &arguments.expr else {
+            return None;
+        };
+        let mut names = HashSet::new();
+        let supported = !entries.is_empty()
+            && entries.iter().all(|(name, value)| {
+                names.insert(name.clone())
+                    && params.iter().any(|id| {
+                        self.program
+                            .symbols
+                            .get(id.0 as usize)
+                            .is_some_and(|param| param.name == *name)
+                            && matches!(
+                                self.program.types.symbol_types.get(id),
+                                Some(ResolvedType::Record { stored: true, .. })
+                            )
+                            && self.program.types.symbol_types.get(id) == Some(&value.ty)
+                    })
+            });
+        if !supported || !self.decode_ui_children(scope, node, None).is_empty() {
+            self.diags.push(Diagnostic::error("E6008", "cannot lower button action: only declared singular stored-record bindings without a content suite are supported".to_string(), node.span));
+            return None;
+        }
+        let mut form = self.protected_action_form(operation, arguments, node.span);
+        form.gate = self.decode_gate(scope, node);
+        Some(form)
     }
 
     fn decode_button(
@@ -7081,6 +7884,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: "button".to_string(),
             props,
             children,
@@ -7175,6 +7979,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: word.to_string(),
             props,
             children,
@@ -7218,6 +8023,7 @@ impl<'a> Cx<'a> {
         }
         let children = self.decode_ui_children(scope, node, row_ctx);
         IrUi {
+            view: None,
             factory: "slot".to_string(),
             props,
             children,
@@ -7256,6 +8062,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: "divider".to_string(),
             props,
             children,
@@ -7263,6 +8070,73 @@ impl<'a> Cx<'a> {
             gate: self.decode_gate(scope, node),
             span: node.span,
         }
+    }
+
+    /// Decode the owning status leaf's primitive/message TextValue profile.
+    fn decode_status(
+        &mut self,
+        scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        self.check_ui_attributes(node, "status", &["caption", "tone", "size"]);
+        let headers: Vec<_> = kids(node)
+            .into_iter()
+            .filter(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
+            .collect();
+        let [header] = headers.as_slice() else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower status: status takes one readable value".to_string(),
+                node.span,
+            ));
+            return None;
+        };
+        let value = self.decode_ui_header_value(scope, header);
+        if !matches!(
+            value.ty.nullable_inner().unwrap_or(&value.ty),
+            ResolvedType::Scalar(Scalar::Bool | Scalar::Text | Scalar::Int)
+                | ResolvedType::Enum { .. }
+                | ResolvedType::Message(_)
+                | ResolvedType::Null
+        ) {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower status: value has no admitted primitive/message TextValue carrier"
+                    .to_string(),
+                header.span,
+            ));
+            return None;
+        }
+        let mut props = vec![("value".to_string(), value)];
+        for (name, value) in ui_attributes(self.db, node) {
+            if let Some(value) = value {
+                let value = if name == "caption" {
+                    self.decode_ui_header_value(scope, value)
+                } else {
+                    self.decode_word_attr(scope, &name, value)
+                };
+                props.push((name, value));
+            }
+        }
+        let children = self.decode_ui_children(scope, node, row_ctx);
+        if !children.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower status: status takes no content suite".to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        Some(IrUi {
+            view: None,
+            factory: "status".to_string(),
+            props,
+            children,
+            row_scope: None,
+            gate: self.decode_gate(scope, node),
+            span: node.span,
+        })
     }
 
     /// Decode a `badge`: exactly one readable typed value.
@@ -7303,6 +8177,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: "badge".to_string(),
             props,
             children,
@@ -7350,6 +8225,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: "breadcrumbs".to_string(),
             props,
             children,
@@ -7370,7 +8246,8 @@ impl<'a> Cx<'a> {
     ) -> IrUi {
         self.diags.push(Diagnostic::error(
             "E6008",
-            "cannot lower pagination: cursor and label carriers are not implemented".to_string(),
+            "cannot lower pagination: the bare marker must belong directly to a list or table"
+                .to_string(),
             node.span,
         ));
         let props = Vec::new();
@@ -7398,6 +8275,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: "pagination".to_string(),
             props,
             children,
@@ -7432,6 +8310,7 @@ impl<'a> Cx<'a> {
             }
         }
         IrUi {
+            view: None,
             factory: "stat".to_string(),
             props,
             children,
@@ -7484,6 +8363,7 @@ impl<'a> Cx<'a> {
             }
         }
         IrUi {
+            view: None,
             factory: "alert".to_string(),
             props,
             children,
@@ -7519,6 +8399,7 @@ impl<'a> Cx<'a> {
             ));
         }
         IrUi {
+            view: None,
             factory: "join".to_string(),
             props,
             children,
@@ -7545,6 +8426,141 @@ impl<'a> Cx<'a> {
     }
 
     /// Decode a `form` node: operation plus display/arguments/fields/submit.
+    /// Bound row edits reuse the protected operation form and its native defaults.
+    fn decode_bound_edit(
+        &mut self,
+        _scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        self.check_ui_attributes(node, "edit", &["fields"]);
+        let attributes = ui_attributes(self.db, node);
+        if attributes.len() != 1
+            || attributes[0].0 != "fields"
+            || attributes[0].1.is_none()
+            || kids(node).iter().any(|child| {
+                is_expression(child.kind)
+                    || matches!(child.kind, SyntaxKind::Path | SyntaxKind::MessageValue)
+                    || is_ui_node(child.kind)
+            })
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower edit: only bound row edits with fields and no header or body are supported"
+                    .to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        let Some((model, row)) = row_ctx.filter(|(model, _)| {
+            matches!(
+                self.program
+                    .symbols
+                    .get(model.0 as usize)
+                    .map(|symbol| &symbol.kind),
+                Some(SymbolKind::Model { .. })
+            )
+        }) else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower edit: a checked stored model row is required".to_string(),
+                node.span,
+            ));
+            return None;
+        };
+        let operation = self
+            .crud_for_model(model)
+            .and_then(|crud| self.program.effects.cruds.get(&crud))
+            .filter(|crud| crud.update && crud.model == model)
+            .and_then(|crud| {
+                crud.ops.iter().find_map(|op| {
+                    self.program.effects.crud_ops.get(op).filter(|data| {
+                        data.crud_decl == crud.crud
+                            && data.model == model
+                            && data.operation == CrudOp::Update
+                    })
+                })
+            })
+            .cloned();
+        let Some(operation) = operation else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower edit: the row model has no checked enabled update operation"
+                    .to_string(),
+                node.span,
+            ));
+            return None;
+        };
+        let fields = attributes[0]
+            .1
+            .map(|value| selector_strings(self.db, value))
+            .unwrap_or_default();
+        let allowed = self.default_form_fields(operation.op).unwrap_or_default();
+        let mut seen = HashSet::new();
+        if fields.is_empty()
+            || fields.iter().any(|field| {
+                field.contains('.')
+                    || !seen.insert(field.clone())
+                    || !allowed.contains(field)
+                    || (!operation.fields.is_empty() && !operation.fields.contains(field))
+            })
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower edit: fields must be unique simple checked writable update inputs"
+                    .to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        let record = TypedExpr::new(
+            IrExpr::Name(row),
+            ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            },
+            node.span,
+        );
+        let arguments = TypedExpr::new(
+            IrExpr::Object(vec![("record".to_string(), record)]),
+            ResolvedType::Unknown,
+            node.span,
+        );
+        let mut form = self.protected_action_form(operation.op, arguments, node.span);
+        form.props.push((
+            "fields".to_string(),
+            TypedExpr::new(
+                IrExpr::Array(
+                    fields
+                        .into_iter()
+                        .map(|field| {
+                            TypedExpr::new(
+                                IrExpr::Text(field),
+                                ResolvedType::Scalar(Scalar::Text),
+                                node.span,
+                            )
+                        })
+                        .collect(),
+                ),
+                ResolvedType::Unknown,
+                node.span,
+            ),
+        ));
+        if let Some(label) = operation.label
+            && let Some(message) = self.decode_message_value(operation.module, &label)
+        {
+            form.props.push((
+                "submit".to_string(),
+                TypedExpr::new(
+                    IrExpr::Message(message),
+                    ResolvedType::Scalar(Scalar::Text),
+                    node.span,
+                ),
+            ));
+        }
+        Some(form)
+    }
+
     fn decode_form(
         &mut self,
         scope: &Scope,
@@ -7658,6 +8674,7 @@ impl<'a> Cx<'a> {
         let children = self.decode_ui_children(&owned, node, row_ctx);
         let gate = self.decode_gate(scope, node);
         Some(IrUi {
+            view: None,
             factory: "form".to_string(),
             props,
             children,
@@ -7665,13 +8682,6 @@ impl<'a> Cx<'a> {
             gate,
             span: node.span,
         })
-    }
-
-    /// Resolve a `Model.op`/`scenario` operation reference to its
-    /// canonical identity (total).
-    fn decode_operation_ref(&mut self, module: ModuleId, node: &SyntaxNode) -> Option<String> {
-        self.resolve_operation_target(module, node)
-            .map(|id| self.canonical(id))
     }
 
     /// Resolve a `Model.op`/`scenario`/`Cap.op` operation reference to
@@ -7865,9 +8875,13 @@ impl<'a> Cx<'a> {
             return None;
         }
         let admitted: &[&str] = if word == "table" {
-            &["parent", "empty", "limit", "cursor", "columns", "order"]
+            &[
+                "parent", "empty", "limit", "cursor", "columns", "order", "display",
+            ]
         } else {
-            &["parent", "empty", "limit", "cursor", "order"]
+            &[
+                "parent", "empty", "limit", "cursor", "order", "search", "display",
+            ]
         };
         self.check_ui_attributes(node, word, admitted);
         if kids(node)
@@ -7895,14 +8909,36 @@ impl<'a> Cx<'a> {
             .or_else(|| {
                 kids(node)
                     .iter()
-                    .find(|n| matches!(n.kind, SyntaxKind::NameRef | SyntaxKind::Path))
+                    .find(|n| is_expression(n.kind) || n.kind == SyntaxKind::Path)
                     .copied()
             });
-        let mut model_id = None;
-        if let Some(head) = head
-            && let Some(id) = self.collection_head_model(scope.module, head)
-        {
-            model_id = Some(id);
+        let containment = head.and_then(|head| self.contained_collection_head(head));
+        let model_id = head
+            .and_then(|head| self.collection_head_model(scope.module, head))
+            .or(containment.map(|(child, _)| child));
+        if let Some((_, parent)) = containment {
+            if ui_attributes(self.db, node)
+                .iter()
+                .any(|(name, _)| name == "parent")
+            {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "contained collection already owns its parent binding".to_string(),
+                    node.span,
+                ));
+                return None;
+            }
+            props.push(("parent".to_string(), self.decode_expr(scope, parent)));
+        }
+        let Some(id) = model_id else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "collection domain must be a checked stored model or contained child".to_string(),
+                head.map(|head| head.span).unwrap_or(node.span),
+            ));
+            return None;
+        };
+        if let Some(head) = head {
             props.push((
                 "model".to_string(),
                 TypedExpr::new(
@@ -7960,20 +8996,53 @@ impl<'a> Cx<'a> {
             if !admitted.contains(&name.as_str()) {
                 continue;
             }
-            if name == "order" {
-                self.diags.push(Diagnostic::error(
-                    "E6008",
-                    "cannot lower collection order: the owning query profile does not forward authored ordering".to_string(),
-                    value.span,
-                ));
-                continue;
-            }
             match name.as_str() {
-                "search" | "filter" | "columns" => {
+                "order" | "search" | "filter" | "columns" => {
+                    if name == "order" && word != "list" {
+                        self.diags.push(Diagnostic::error(
+                            "E6008",
+                            "cannot lower table order: the table query profile does not forward authored ordering".to_string(),
+                            value.span,
+                        ));
+                        continue;
+                    }
+                    if name == "order" && value.kind != SyntaxKind::Selectors {
+                        self.diags.push(Diagnostic::error(
+                            "E6008",
+                            "cannot lower collection order: preference-dispatched ordering has no query profile".to_string(),
+                            value.span,
+                        ));
+                        continue;
+                    }
                     let strings = if value.kind == SyntaxKind::Selectors {
                         kids(value)
                             .iter()
                             .flat_map(|path| {
+                                if name == "order" {
+                                    let key = if path.kind == SyntaxKind::Descending {
+                                        kids(path)
+                                            .into_iter()
+                                            .find(|child| child.kind == SyntaxKind::Path)
+                                    } else {
+                                        Some(*path)
+                                    };
+                                    return key
+                                        .and_then(|key| {
+                                            self.program
+                                                .types
+                                                .ui_order_selectors
+                                                .get(&NodeKey::of(key))
+                                        })
+                                        .cloned()
+                                        .map(|canonical| vec![canonical])
+                                        .unwrap_or_else(|| {
+                                            self.gap(
+                                                "UI order selector has no checked field-relative path".to_string(),
+                                                path.span,
+                                            );
+                                            Vec::new()
+                                        });
+                                }
                                 self.program
                                     .types
                                     .delivery_selectors
@@ -8054,12 +9123,109 @@ impl<'a> Cx<'a> {
         }
         // Row scope: the name the row children actually use (the `as`
         // name when referenced, else `row`); mixed scopes stay loud.
-        let child_nodes: Vec<&SyntaxNode> = kids(node)
+        let mut child_nodes: Vec<&SyntaxNode> = kids(node)
             .iter()
             .filter(|n| is_ui_node(n.kind))
             .copied()
             .collect();
-        if word == "table" && !child_nodes.is_empty() {
+        let counts: Vec<_> = child_nodes
+            .iter()
+            .copied()
+            .filter(|child| ui_word(self.db, child) == "count")
+            .collect();
+        if let Some(count) = counts.first() {
+            let attributes = ui_attributes(self.db, count);
+            let label = attributes
+                .iter()
+                .find(|(name, _)| name == "label")
+                .and_then(|(_, value)| *value);
+            if counts.len() > 1
+                || attributes.len() != 1
+                || label.is_none()
+                || kids(count)
+                    .iter()
+                    .any(|child| is_expression(child.kind) || is_ui_node(child.kind))
+            {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower count: one list-level count with a static label and no body is supported".to_string(),
+                    count.span,
+                ));
+            } else if word != "list" {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower count: count belongs to a list".to_string(),
+                    count.span,
+                ));
+            } else if let Some(label) = label {
+                if let Some(message) = self.decode_message_node(scope.module, label) {
+                    props.push((
+                        "count".to_string(),
+                        TypedExpr::new(
+                            IrExpr::Object(vec![(
+                                "label".to_string(),
+                                TypedExpr::new(
+                                    IrExpr::Message(message),
+                                    ResolvedType::Scalar(Scalar::Text),
+                                    label.span,
+                                ),
+                            )]),
+                            ResolvedType::Unknown,
+                            count.span,
+                        ),
+                    ));
+                } else {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        "cannot lower count: label must be static text or a context-free message"
+                            .to_string(),
+                        label.span,
+                    ));
+                }
+            }
+        }
+        child_nodes.retain(|child| ui_word(self.db, child) != "count");
+        let pagination: Vec<_> = child_nodes
+            .iter()
+            .copied()
+            .filter(|child| ui_word(self.db, child) == "pagination")
+            .collect();
+        for marker in &pagination {
+            self.check_ui_attributes(marker, "pagination", &[]);
+            if kids(marker)
+                .iter()
+                .any(|child| is_expression(child.kind) || is_ui_node(child.kind))
+            {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower pagination: the collection marker takes no header or content suite"
+                        .to_string(),
+                    marker.span,
+                ));
+            }
+        }
+        if let Some(marker) = pagination.first() {
+            props.push((
+                "page".to_string(),
+                TypedExpr::new(
+                    IrExpr::Bool(true),
+                    ResolvedType::Scalar(Scalar::Bool),
+                    marker.span,
+                ),
+            ));
+        }
+        if pagination.len() > 1 {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower pagination: a collection takes one page marker".to_string(),
+                pagination[1].span,
+            ));
+        }
+        child_nodes.retain(|child| ui_word(self.db, child) != "pagination");
+        let split = props.iter().any(|(name, value)| {
+            name == "display" && matches!(&value.expr, IrExpr::Text(display) if display == "split")
+        });
+        if word == "table" && !split && !child_nodes.is_empty() {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 "cannot lower table: authored row children have no owning renderRow profile"
@@ -8092,17 +9258,34 @@ impl<'a> Cx<'a> {
         // re-establishes it.
         let mut unowned = scope.clone();
         unowned.in_field_owner = false;
-        let children = child_nodes
+        if let Some(model) = model_id {
+            // The collection's checked element owns this lexical row slot;
+            // a surrounding view's host type must not leak into its children.
+            unowned.name_types.insert(
+                row_name.clone(),
+                ResolvedType::Record {
+                    symbol: model,
+                    stored: true,
+                },
+            );
+            unowned
+                .row_rewrite
+                .insert(row_name.clone(), row_name.clone());
+        }
+        let children: Vec<IrUi> = child_nodes
             .iter()
             .filter(|n| !is_gate_leaf(self.db, n))
             .filter_map(|n| self.decode_ui(&unowned, n, row_ctx.clone()))
             .collect();
         let gate = self.decode_gate(scope, node);
+        let row_scope = (word == "list" || (split && !children.is_empty()))
+            .then_some((row_name, "rowView".to_string()));
         Some(IrUi {
+            view: None,
             factory: word.to_string(),
             props,
             children,
-            row_scope: (word == "list").then_some((row_name, "rowView".to_string())),
+            row_scope,
             gate,
             span: node.span,
         })
@@ -8131,6 +9314,7 @@ impl<'a> Cx<'a> {
                 node.span,
             ));
             return IrUi {
+                view: None,
                 factory: "deleteRecord".to_string(),
                 props,
                 children: Vec::new(),
@@ -8155,6 +9339,7 @@ impl<'a> Cx<'a> {
                 node.span,
             ));
             return IrUi {
+                view: None,
                 factory: "deleteRecord".to_string(),
                 props,
                 children: Vec::new(),
@@ -8210,6 +9395,7 @@ impl<'a> Cx<'a> {
             text(format!("delete-{}", model_canonical.replace('.', "-"))),
         ));
         IrUi {
+            view: None,
             factory: "deleteRecord".to_string(),
             props,
             children: Vec::new(),
@@ -8227,7 +9413,10 @@ impl<'a> Cx<'a> {
         word: &str,
         row_ctx: Option<(SymbolId, String)>,
     ) -> Option<IrUi> {
-        if matches!(word, "metrics" | "copy" | "action" | "actions" | "history") {
+        if word == "actions" {
+            return self.decode_actions(scope, node, row_ctx);
+        }
+        if matches!(word, "metrics" | "copy" | "action" | "history") {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 format!(
@@ -8276,57 +9465,6 @@ impl<'a> Cx<'a> {
                     TypedExpr::new(IrExpr::Array(exprs), ResolvedType::Unknown, node.span),
                 ));
             }
-            "actions" | "action" => {
-                let operations: Vec<String> = kids(node)
-                    .iter()
-                    .filter(|n| {
-                        matches!(
-                            n.kind,
-                            SyntaxKind::Member | SyntaxKind::NameRef | SyntaxKind::Path
-                        )
-                    })
-                    .filter_map(|n| self.decode_operation_ref(scope.module, n))
-                    .collect();
-                let span = node.span;
-                props.push((
-                    "operations".to_string(),
-                    TypedExpr::new(
-                        IrExpr::Array(
-                            operations
-                                .iter()
-                                .map(|op| {
-                                    TypedExpr::new(
-                                        IrExpr::Text(op.clone()),
-                                        ResolvedType::Scalar(Scalar::Text),
-                                        span,
-                                    )
-                                })
-                                .collect(),
-                        ),
-                        ResolvedType::Unknown,
-                        span,
-                    ),
-                ));
-                if let Some((_, row)) = &row_ctx {
-                    // The row record binds the actions; shorthand keeps
-                    // the source binding name.
-                    props.push((
-                        "boundArgs".to_string(),
-                        TypedExpr::new(
-                            IrExpr::Object(vec![(
-                                row.clone(),
-                                TypedExpr::new(
-                                    IrExpr::Name(row.clone()),
-                                    ResolvedType::Unknown,
-                                    span,
-                                ),
-                            )]),
-                            ResolvedType::Unknown,
-                            span,
-                        ),
-                    ));
-                }
-            }
             "content" | "title" => {
                 let key = if word == "title" { "text" } else { "value" };
                 if let Some(value) = self.decode_single_ui_caption(scope, node, word) {
@@ -8352,6 +9490,7 @@ impl<'a> Cx<'a> {
         let children = self.decode_ui_children(scope, node, row_ctx);
         let gate = self.decode_gate(scope, node);
         Some(IrUi {
+            view: None,
             factory: word.to_string(),
             props,
             children,
@@ -8366,7 +9505,8 @@ impl<'a> Cx<'a> {
 fn is_ui_node(kind: SyntaxKind) -> bool {
     matches!(
         kind,
-        SyntaxKind::Card
+        SyntaxKind::Show
+            | SyntaxKind::Card
             | SyntaxKind::Details
             | SyntaxKind::Tabs
             | SyntaxKind::Tab
@@ -9824,6 +10964,11 @@ fn collect_s_refs(expr: &IrExpr, out: &mut Vec<String>) {
             }
         }
         IrExpr::Lambda { body, .. } => collect_s_refs(&body.expr, out),
+        IrExpr::JudgmentSpecification { options, .. } => {
+            if let Some(options) = options {
+                collect_s_refs(&options.expr, out);
+            }
+        }
         IrExpr::Int(_)
         | IrExpr::Decimal(_)
         | IrExpr::Text(_)

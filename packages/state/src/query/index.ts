@@ -6,6 +6,7 @@
 
 export {
   queryRecords,
+  queryRecordsPage,
   queryAggregate,
   type AggregateQueryResult,
   type BaseQueryInput,
@@ -14,6 +15,10 @@ export {
   type QueryCallerContext,
   type QueryRecordsInput,
   type ViewerRecordsInput,
+  type ViewerPagePosition,
+  type ViewerPageSelection,
+  type ViewerPageQueryInput,
+  type ViewerPageRecordsResult,
 } from './engine.js';
 export type {
   ByContext,

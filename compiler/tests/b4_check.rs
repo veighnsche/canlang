@@ -1335,6 +1335,312 @@ fn t10_examples_event_claims_nested_cases() {
     assert!(diags.is_empty(), "examples event claims cases: {diags:?}");
 }
 
+#[test]
+fn completion_example_headers_claim_status_and_declared_result_enum_cases() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let path = root.join("packages/values/dist/catalog.json");
+    let mut db = SourceDb::new();
+    let id = db.add("catalog.can".into(), String::new());
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&path),
+        env: None,
+        cwd: root,
+        primary: Span::new(id, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let catalog = catalog.expect("installed catalog required for completion header regression");
+    let check_source = |source: &str| {
+        let mut db = SourceDb::new();
+        let id = db.add("completion-header.can".into(), source.into());
+        check_program(&db, &[id], Some(&catalog))
+    };
+    let source = r#"app CompletionHeader
+Given
+ contract Outcome {source:text,revision:int,state:enum(confirmed,unavailable,failed,released),reference:text?,detail:text?}
+ capability StaffSchedule version=1
+  stage(source:text) -> Outcome
+When
+ scenario host_staged on=StaffSchedule.stage.completed
+  do let seen=1
+  examples event={delivery_id="move-host",status=succeeded,result={source="move",revision=1,state=unavailable,reference=null,detail="Host unavailable"},error=null}
+   event.result.state -> event.result.state
+   unavailable -> unavailable
+   confirmed -> confirmed
+Then
+"#;
+    let (checked, diagnostics) = check_source(source);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    for (binding, case) in [
+        ("status=succeeded", "succeeded"),
+        ("state=unavailable", "unavailable"),
+    ] {
+        let start = source.find(binding).unwrap() + binding.find('=').unwrap() + 1;
+        assert!(
+            checked.types.resolved_cases.iter().any(|key| {
+                key.start <= start as u32
+                    && (start as u32) < key.end
+                    && source[key.start as usize..key.end as usize].trim() == case
+            }),
+            "completion header case was not claimed: {case}"
+        );
+        assert!(checked.types.node_types.iter().any(|(key, ty)| {
+            key.start <= start as u32 && (start as u32) < key.end
+                && source[key.start as usize..key.end as usize].trim() == case
+                && matches!(ty, canlang_compiler::analysis::types::ResolvedType::Enum { cases, .. } if cases.iter().any(|value| value == case))
+        }), "completion header case has no owning enum type: {case}");
+    }
+    let state = checked
+        .symbols
+        .iter()
+        .find(|symbol| symbol.canonical == "CompletionHeader.Outcome.state")
+        .expect("declared completion result state field");
+    let state_type = checked
+        .types
+        .symbol_types
+        .get(&state.id)
+        .expect("declared completion result state type");
+    assert!(matches!(
+        state_type,
+        canlang_compiler::analysis::types::ResolvedType::Enum { cases, owner }
+            if cases.iter().map(String::as_str).eq(["confirmed", "unavailable", "failed", "released"])
+                && *owner == Some(state.id)
+    ));
+    for row in ["unavailable -> unavailable", "confirmed -> confirmed"] {
+        let row_start = source.find(row).unwrap();
+        let (case, _) = row.split_once(" -> ").unwrap();
+        for start in [row_start, row_start + case.len() + " -> ".len()] {
+            let key = checked
+                .types
+                .resolved_cases
+                .iter()
+                .find(|key| {
+                    key.start <= start as u32
+                        && (start as u32) < key.end
+                        && source[key.start as usize..key.end as usize].trim() == case
+                })
+                .unwrap_or_else(|| {
+                    panic!("completion row case was not claimed at {start}: {case}")
+                });
+            assert_eq!(
+                checked.types.node_types.get(key),
+                Some(state_type),
+                "completion row case must retain the exact declared state enum owner"
+            );
+        }
+    }
+    let result_binding = "result={source=\"move\",revision=1,state=unavailable,reference=null,detail=\"Host unavailable\"},";
+    for replacement in ["result=null,", ""] {
+        let absent_result = source.replace(result_binding, replacement);
+        let (checked, diagnostics) = check_source(&absent_result);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        for (start, _) in absent_result.match_indices("event.result.state") {
+            assert!(
+                checked.types.node_types.iter().any(|(key, ty)| {
+                    key.start <= start as u32
+                        && (start as u32) < key.end
+                        && absent_result[key.start as usize..key.end as usize].trim()
+                            == "event.result.state"
+                        && *ty == canlang_compiler::analysis::types::ResolvedType::Error
+                }),
+                "null or omitted completion result cannot supply a nonnull heading type"
+            );
+        }
+        for (start, _) in absent_result.match_indices("confirmed -> confirmed") {
+            assert!(
+                !checked
+                    .types
+                    .resolved_cases
+                    .iter()
+                    .any(|key| { key.start <= start as u32 && (start as u32) < key.end }),
+                "null or omitted completion result cannot claim the input enum cell"
+            );
+        }
+    }
+    for (binding, foreign) in [
+        ("status=succeeded", "status=foreign_status"),
+        ("state=unavailable", "state=foreign_state"),
+    ] {
+        let refused = source.replace(binding, foreign);
+        let (_, diagnostics) = check_source(&refused);
+        let start = refused.find(foreign).unwrap() + foreign.find('=').unwrap() + 1;
+        assert!(
+            diagnostics.iter().any(|diagnostic| {
+                matches!(diagnostic.code, "E2001" | "E3001")
+                    && diagnostic.primary.start <= start as u32
+                    && (start as u32) < diagnostic.primary.end
+            }),
+            "foreign completion enum must retain owning refusal: {diagnostics:?}"
+        );
+    }
+    // General BDD cell unresolved diagnostics belong to the runner profile;
+    // a foreign spelling still cannot become a checked owning enum case.
+    let foreign_row = source.replace("confirmed -> confirmed", "foreign_state -> confirmed");
+    let (checked, diagnostics) = check_source(&foreign_row);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let start = foreign_row.find("foreign_state ->").unwrap();
+    let key = checked
+        .types
+        .node_types
+        .iter()
+        .find_map(|(key, ty)| {
+            (key.start <= start as u32
+                && (start as u32) < key.end
+                && foreign_row[key.start as usize..key.end as usize].trim() == "foreign_state"
+                && *ty == canlang_compiler::analysis::types::ResolvedType::Error)
+                .then_some(key)
+        })
+        .expect("foreign completion row case retains an anchored error type");
+    assert!(!checked.types.resolved_cases.contains(key));
+
+    // CanBook's capability result is the standard nominal object schema,
+    // rather than a source-declared record.
+    let std_source = source
+        .replace(
+            "Given\n contract Outcome {source:text,revision:int,state:enum(confirmed,unavailable,failed,released),reference:text?,detail:text?}",
+            "use std {OperationOutcome}\nGiven",
+        )
+        .replace("-> Outcome", "-> OperationOutcome");
+    let (checked, diagnostics) = check_source(&std_source);
+    assert!(
+        diagnostics.is_empty(),
+        "standard completion result: {diagnostics:?}"
+    );
+    let schema = canlang_compiler::analysis::catalog::nominal_schema("OperationOutcome")
+        .expect("published OperationOutcome schema");
+    let state_schema = schema
+        .fields
+        .iter()
+        .find(|(name, _)| *name == "state")
+        .unwrap()
+        .1;
+    let cases: Vec<_> = state_schema
+        .strip_prefix("enum(")
+        .and_then(|value| value.strip_suffix(')'))
+        .expect("published OperationOutcome.state enum")
+        .split(',')
+        .map(str::to_string)
+        .collect();
+    let state_type = canlang_compiler::analysis::types::ResolvedType::Enum { cases, owner: None };
+    for (fragment, offset, case) in [
+        ("state=unavailable", "state=".len(), "unavailable"),
+        ("unavailable -> unavailable", 0, "unavailable"),
+        (
+            "unavailable -> unavailable",
+            "unavailable -> ".len(),
+            "unavailable",
+        ),
+        ("confirmed -> confirmed", 0, "confirmed"),
+        ("confirmed -> confirmed", "confirmed -> ".len(), "confirmed"),
+    ] {
+        let start = std_source.find(fragment).unwrap() + offset;
+        let key = checked
+            .types
+            .resolved_cases
+            .iter()
+            .find(|key| {
+                key.start <= start as u32
+                    && (start as u32) < key.end
+                    && std_source[key.start as usize..key.end as usize].trim() == case
+            })
+            .unwrap_or_else(|| {
+                panic!("standard completion case was not claimed at {start}: {case}")
+            });
+        assert_eq!(checked.types.node_types.get(key), Some(&state_type));
+    }
+    let foreign_header = std_source.replace("state=unavailable", "state=foreign_state");
+    let (_, diagnostics) = check_source(&foreign_header);
+    let start = foreign_header.find("state=foreign_state").unwrap() + "state=".len();
+    assert!(
+        diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "E2001"
+                && diagnostic.primary.start <= start as u32
+                && (start as u32) < diagnostic.primary.end
+        }),
+        "foreign standard completion header retains owning refusal: {diagnostics:?}"
+    );
+
+    let table = "   event.result.state -> event.result.state\n   unavailable -> unavailable\n   confirmed -> confirmed\n";
+    for input in ["event.result", "event"] {
+        let replaced = std_source.replace(
+            table,
+            &format!("   {input} -> event.result.state\n   null -> confirmed\n"),
+        );
+        let (checked, diagnostics) = check_source(&replaced);
+        assert!(
+            diagnostics.is_empty(),
+            "replacement input {input}: {diagnostics:?}"
+        );
+        let start = replaced.find("-> event.result.state").unwrap() + "-> ".len();
+        assert!(
+            checked.types.node_types.iter().any(|(key, ty)| {
+                key.start <= start as u32
+                    && (start as u32) < key.end
+                    && replaced[key.start as usize..key.end as usize].trim() == "event.result.state"
+                    && *ty == canlang_compiler::analysis::types::ResolvedType::Error
+            }),
+            "equal or ancestor input {input} cannot retain the header nonnull result proof"
+        );
+        let start = replaced.find("null -> confirmed").unwrap() + "null -> ".len();
+        assert!(
+            !checked
+                .types
+                .resolved_cases
+                .iter()
+                .any(|key| { key.start <= start as u32 && (start as u32) < key.end })
+        );
+    }
+
+    let scratch = tempfile::tempdir().unwrap();
+    let input = scratch.path().join("completion-header.can");
+    let cli_check = |source: &str| {
+        std::fs::write(&input, source).unwrap();
+        let output = std::process::Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["check", "--format=json", "--catalog"])
+            .arg(&path)
+            .arg(&input)
+            .env_remove("CAN_CATALOG")
+            .current_dir(root)
+            .output()
+            .unwrap();
+        let response: serde_json::Value =
+            serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
+                panic!(
+                    "CLI JSON: {error}: {}\n{}",
+                    String::from_utf8_lossy(&output.stdout),
+                    String::from_utf8_lossy(&output.stderr)
+                )
+            });
+        (output, response)
+    };
+    let (output, response) = cli_check(source);
+    assert!(
+        output.status.success(),
+        "production example analysis: {}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(response["diagnostics"].as_array().unwrap().is_empty());
+
+    let (output, response) = cli_check(&std_source);
+    assert!(
+        output.status.success(),
+        "production standard completion example analysis: {}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(response["diagnostics"].as_array().unwrap().is_empty());
+
+    let (output, response) = cli_check(&foreign_header);
+    assert_eq!(output.status.code(), Some(10), "{response}");
+    let diagnostics = response["diagnostics"].as_array().unwrap();
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+    assert_eq!(diagnostics[0]["code"], "E2001");
+    let primary = &diagnostics[0]["primary"];
+    let start = primary["start"].as_u64().unwrap() as usize;
+    let end = primary["end"].as_u64().unwrap() as usize;
+    assert_eq!(&foreign_header[start..end], "foreign_state");
+}
+
 /// (T10) Arrays of contracts validate element-wise, including under a
 /// nullable array expectation.
 #[test]
