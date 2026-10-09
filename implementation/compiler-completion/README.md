@@ -8,8 +8,9 @@ Its unchanged 43 cases and five corrected cohort cases pass; the two failed
 analysis checks and one authoring check also pass after reconciling current
 declared-event grammar, descriptive E2019 capacity examples and seven observed
 draft diagnostic counts. The prior setup failures remain in the environment
-logs. The seven count updates are withdrawn from the current patch after
-upstream synchronization; that historical receipt cannot pin the new corpus.
+logs. The seven count updates and corpus authoring-exception removal are
+withdrawn from the current patch after upstream synchronization and PR review;
+that historical receipt cannot pin the new corpus.
 These are validation corrections; no broader reference or current whole suite
 acceptance follows.
 
@@ -27,7 +28,8 @@ preserves its wire shape; exact short-circuit/traversal rewrites and the LSP
 token chunk correction preserve behavior. Foundation **9/9**, typed LSP **9/9**
 and actual BDD bindings **4/4** pass. Independent review accepts the bounded
 repair, including its newly introduced Rust field source-compatibility change;
-final strict Clippy remains due after the ready alias source unit.
+strict all-target Clippy now passes after the alias source corrections. Actual
+CLI thin-entry compatibility checks also pass **2/2**.
 
 Current corpus qualification is blocked on the upstream draft gitlink
 **5a12eb9e**: its remote rejects that exact commit as unavailable. The existing
@@ -41,13 +43,39 @@ anonymous-message, query and helper releases supersede the pre-sync leads;
 the duplicate unvalidated anonymous producer is retained only in local branch
 `codex/compiler-anonymous-unfinished-checkpoint`, without acceptance credit.
 
+The current compiler alias leaf retains checked descriptor provenance through
+immutable, grouped and chained locals. IR lowers raw descriptors through the
+existing owning decoder and reads captured anonymous/named values before any
+same-spelling module reconstruction. The actual native case passes **1/1** with
+real Values/UI imports, named dependent defaults, source locale, getter order,
+first-failure identity and module-name collisions. Semantic alias controls pass
+**1/1**; selected-call regressions pass **7/7**, named slot controls **6/6** and
+raw anonymous coverage **1/1**. Independent HIGH review accepted the corrected
+producer/consumer paths. The real UI/stdlib dependency closure rebuilt
+successfully (**10/10** tasks) to replace stale installed outputs.
+
+Ownerless enums now retain canonical ordered `enum(a,b)` IDs and the existing
+Values `enum` presentation tag; named/anonymous native formatting and hostile
+structural operands are qualified in that same case. Actual UI formatting still
+rejects the canonical ID. UI must release exact finite-enum recognition and
+case-preserving admission; Values presentation currently checks string shape,
+not membership, and direct registry calls do not qualify typed input admission.
+This is a bounded compiler leaf, with no broader reference/count completion.
+
+Codex review of **37695f6d** requested deferring the corpus authoring correction
+until the required draft is available. That edit is withdrawn alongside the
+historical diagnostic-count pins; the currently reproduced authoring failure
+is the old draft's Given-preferences E1200. The corpus prerequisite remains
+visible rather than broadening parser exceptions. Latest-revision Codex review
+remains required after the next coherent PR update.
+
 Current remaining prerequisites are recorded here without reopening accepted
 compiler leaves:
 
 | References | Required prerequisite and owner |
 | --- | --- |
 | SEM-R05, S9-Q05 | Release-pinned timezone dataset/membership and wider temporal profiles: Values/runtime release owner. Structural timezone admission remains bounded. |
-| S9-Q01 | Additional human-text capability sinks and canonical outbound text/locale/release freezing: capability, Contracts, State and Cloudflare owners. Local anonymous alias provenance is a ready compiler leaf; canonical inline-enum UI presentation requires the UI message consumer to recognize `enum(a,b)` without dropping cases. |
+| S9-Q01 | Additional human-text capability sinks and canonical outbound text/locale/release freezing: capability, Contracts, State and Cloudflare owners. Local descriptor alias provenance is implemented; canonical inline-enum UI presentation requires the UI message consumer to recognize `enum(a,b)` without dropping cases. |
 | SEM-R08 | Admitted unknown-nominal callable/facade contract and authority-derived scalar expectation: Values/catalog and defining runtime owners. Existing E6007 refusal remains. |
 | S9-Q02 | Additional default/result intake and observation contracts, private/CRUD/D1 transaction profiles: Contracts, State and Cloudflare owners. Unsupported nested/nonempty/element-nullable enum profiles remain explicit. |
 | S9-Q07 | Specific BDD consumer-policy consultation remains held; human/policy owner must resolve it. Actual result/current-input/live-read transport belongs to Testkit/canonical invocation owners. Imported helpers are already linked. |

@@ -92,6 +92,43 @@ fn anonymous_messages_reject_invalid_bindings_and_inferred_icu_schemas() {
     );
 }
 
+#[test]
+fn anonymous_local_aliases_preserve_exact_descriptor_provenance() {
+    let catalog = catalog();
+    for (initializer, code) in [
+        ("\"ordinary text\"", Some("E3005")),
+        ("{source=\"literal\",variants={}}", Some("E3005")),
+        ("\"{unbound}\"@{}", Some("E5007")),
+        ("\"plain\"@{nl=\"{unbound}\"}", Some("E5007")),
+        ("\"plain\"@{}", None),
+        ("\"{n}\"@{nl=\"{n,number}\"}(n=1)", None),
+    ] {
+        let source = format!(
+            "app Aliases\nGiven\nWhen\n scenario run() by=members\n  do\n   let descriptor={initializer}\n   let alias=((descriptor))\n   let final=alias\n   let rendered=format(locale=null,descriptor=((final)))\nThen\n"
+        );
+        let mut db = SourceDb::new();
+        let file = db.add("aliases.can".into(), source);
+        let (_, diagnostics) = check_program(&db, &[file], Some(&catalog));
+        if let Some(code) = code {
+            assert!(
+                diagnostics.iter().any(|d| d.code == code),
+                "{initializer}: {diagnostics:?}"
+            );
+        } else {
+            assert!(diagnostics.is_empty(), "{initializer}: {diagnostics:?}");
+        }
+    }
+    let source = "app Shadow\nGiven\nWhen\n scenario run(descriptor:text) by=members\n  do\n   if true\n    let descriptor=\"checked\"@{}\n    let rendered=format(descriptor,locale=null)\n   let rendered=format(descriptor,locale=null)\nThen\n";
+    let mut db = SourceDb::new();
+    let file = db.add("shadow.can".into(), source.into());
+    let (_, diagnostics) = check_program(&db, &[file], Some(&catalog));
+    assert_eq!(
+        diagnostics.iter().filter(|d| d.code == "E3005").count(),
+        1,
+        "{diagnostics:?}"
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn anonymous_messages_compile_and_execute_native_date_time_and_plural_bindings() {
