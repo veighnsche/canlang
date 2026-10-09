@@ -159,6 +159,15 @@ Compiler source and its **1,291** results are unchanged and reused; later-head
 whole CI/Codex, readonly CDP bootstrap and selected application profiles remain
 separate prerequisites.
 
+**Subsequent native polling intake, 2026-10-09.** Exact published Dev
+**2a5d2c72** fixture initialization and joined navigation/bootstrap waits are
+consumed. The formerly stalled actual workerd/D1/Chromium readonly polling,
+hidden-tab, authentication, persistence and cancellation case passes **1/1**
+in **10.8 seconds**. The two unchanged form/browser cases are reused; the
+selected Images source profile still requires its owning artifact. Compiler
+**1,291/lint/editor** results remain unchanged. No whole pilot/application or
+latest-head CI/Codex acceptance follows.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed
@@ -473,7 +482,7 @@ compiler leaves:
 | Office delete workflow | Compiler nonce and Packages1704023b declared-input projection are released and pass the actual native join. Dev owns full HTTP/D1/browser Office qualification. Deliberately added raw mode remains refused. |
 | Rule/hook producer join | Capability SEQ-011 defines State/Contracts finalization, dependency/lock selectors and native context carriers; compiler consumes the concrete defining release. Current design notes are a prerequisite, not a human hold. |
 | Dev T04/T11 | Compiler supplies the finite originating parser producer against verified published Dev4d3da681 context shape; source/CLI4/4 and carrier9/9 pass. Dev owns source/profile/card evidence and runtime/example qualification. Evidence flags remain false, so grammar inventory does not establish live ranking or working availability. |
-| Workspace browser gate | Exact Dev3c45c18c portable Chromium unit is consumed. Actual local native forms/browser2/2 pass; readonly CDP bootstrap times out, and selected Images profile skips without its artifact. Dev owns the lifecycle/selected-artifact prerequisite. No workflows or foreign session fixtures change. |
+| Workspace browser gate | Exact Dev3c45c18c portable Chromium and2a5d2c72 temporary-profile/wait units are consumed. Actual local native forms/browser2/2 and corrected readonly polling1/1 pass; selected Images source profile still requires its artifact. Dev owns the selected-profile prerequisite. No workflows or foreign session fixtures change. |
 | Shared Values gate | Exact Packages e5b7038e released export-list test correction is consumed. Owning build4/4 and prepared-hook8/8 pass, preserving hidden-authority/wire/arity controls; consuming-head CI remains separate. |
 | Shared UI gate | Exact Packages ebd2ad08 source/four-test unit is consumed, preserving prior delete input projection and excluding foreign records. Owning build6/6 and126/126 cases pass with zero skips; unchanged compiler results are reused. Later-head CI/Codex remains separate. |
 | Pilot browser gate | Defining pilot/app owner: CI7fe7fe35 challenge source fails expected user versus user? and impure active_member derives; patched-site assertion also drifted (30 passed/15 failed). Packages owns shared gate coordination. No language rule weakening or duplicate application repair is authorized here. |

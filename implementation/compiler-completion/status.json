@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-09T16:47:59Z",
+  "updated_utc": "2026-10-09T16:54:16Z",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -98,13 +98,13 @@
       "mode_4750_body_skipped": false,
       "source_commit": "e9a46221aa62c5c26d044d1c5b6c6266bab345ce"
     },
-    "subsequent_owner_intake": "Exact Packages ebd2ad08 UI forms/four-test unit: owning build6/6 and126/126 cases pass, zero skips; compiler source unchanged,1291/lint/editor results reused. Prior Values prepared-hook8/8 remains unchanged."
+    "subsequent_owner_intake": "Exact Packages ebd2ad08 UI forms/four-test unit: owning build6/6 and126/126 cases pass, zero skips; compiler source unchanged,1291/lint/editor results reused. Prior Values prepared-hook8/8 remains unchanged. Exact Dev2a5d2c72 native polling fixture passes affected1/1 in10.8seconds; two unchanged form/browser successes reused."
   },
   "latest_component": {
     "commit": "e9a46221aa62c5c26d044d1c5b6c6266bab345ce",
     "state": "local_compiler_producers_implemented_and_tested",
     "outcome": "Checked stored-field trim and exact min/max; originating construct-help source context/full inventories against published Dev4d3da681; query-local example binders; exact portable Chromium and Values export test releases. Full1291 current-source Rust tests, strict Clippy/format and real editor checks pass. Finite help scope independently reviewed; no live ranking/profile acceptance.",
-    "remaining": "Original58/67 coverage and nine broader owner prerequisites remain. Capability SEQ-011 rule/hook contract; Dev full Office/browser/qualified-help profile; runtime release and held BDD policy dependencies. Exact UI ebd2ad08 unit resolves catalog/messages/shell/file assertions with126/126 local cases; later-head CI/Codex remains pending. Local readonly CDP bootstrap times out and selected Images artifact is absent; pilot source remains with defining app owner."
+    "remaining": "Original58/67 coverage and nine broader owner prerequisites remain. Capability SEQ-011 rule/hook contract; Dev full Office/selected Images/qualified-help profile; runtime release and held BDD policy dependencies. Exact UI ebd2ad08 resolves assertions with126/126 local cases, and Dev2a5d2c72 resolves readonly polling with actual1/1; later-head CI/Codex remains pending. Selected Images artifact is absent and pilot source remains with defining app owner."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
