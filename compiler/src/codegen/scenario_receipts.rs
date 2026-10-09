@@ -152,6 +152,12 @@ pub(super) fn collect_native_scenario_receipt(
     }
     let source = transport_source(&checked.source, entry_module)?;
     let sites = Sites::collect(ir, by, guards, effects)?;
+    // Transition activation requires the released Dev issued-session adapter
+    // to attest each genuine current-row read, including intermediate own writes.
+    // Collector preparation must not activate those observations through v1.
+    if !sites.transitions.is_empty() {
+        return None;
+    }
     let mut recipe = NativeScenarioReceipt {
         plan: ReceiptDisclosurePlan {
             version: 1,
@@ -267,10 +273,10 @@ pub(super) fn collect_native_scenario_receipt(
             native_return.decisions.push((key, decision.choice.clone()));
         }
         for dependency in &returned.dependencies {
-            if dependency.node.kind != SyntaxKind::Member as u8
+            let is_transition = dependency.node.kind == SyntaxKind::Transition as u8;
+            if (!is_transition && dependency.node.kind != SyntaxKind::Member as u8)
                 || dependency.id.is_empty()
                 || !source_matches(ir, &dependency.source, node_span(dependency.node))
-                || !supported_type_id(&dependency.type_id)
                 || !direct_field_name(&dependency.field_name)
             {
                 return None;
@@ -294,12 +300,38 @@ pub(super) fn collect_native_scenario_receipt(
                 return None;
             }
             let site = checked_site(dependency.node, &dependency.calls)?;
-            let expressions = sites.members.get(&site)?;
-            if expressions.len() != 1 {
-                return None;
-            }
-            let IrExpr::Member { base, field } = &expressions[0].expr else {
-                return None;
+            let (base, field, transition) = if is_transition {
+                if !dependency.calls.is_empty() || dependency.role != DependencyRole::Control {
+                    return None;
+                }
+                let statements = sites.transitions.get(&site)?;
+                if statements.len() != 1 {
+                    return None;
+                }
+                let IrStmt::Transition {
+                    model,
+                    record,
+                    field,
+                    from,
+                    to,
+                    ..
+                } = statements[0]
+                else {
+                    return None;
+                };
+                if model != &dependency.model_name {
+                    return None;
+                }
+                (record, field, Some((from, to)))
+            } else {
+                let expressions = sites.members.get(&site)?;
+                if expressions.len() != 1 {
+                    return None;
+                }
+                let IrExpr::Member { base, field } = &expressions[0].expr else {
+                    return None;
+                };
+                (base.as_ref(), field, None)
             };
             if field != &dependency.field_name
                 || !matches!(base.expr, IrExpr::Name(_))
@@ -320,6 +352,7 @@ pub(super) fn collect_native_scenario_receipt(
                 owner: field_owner,
                 ty: IrType::Known(ty),
                 required_array,
+                modifiers,
                 ..
             } = &stored.kind
             else {
@@ -348,9 +381,60 @@ pub(super) fn collect_native_scenario_receipt(
                 .iter()
                 .filter(|field| field.name == stored.name)
                 .collect();
-            if declared.len() != 1 || inventory_type(declared[0])?.as_str() != dependency.type_id {
+            if declared.len() != 1 {
                 return None;
             }
+            let transport_type = if let ResolvedType::Enum {
+                owner: Some(enum_owner),
+                cases,
+            } = ty
+            {
+                // This inventory adaptation belongs only to a real transition
+                // recipe, which remains gated above. Do not broaden standalone
+                // machine-field reads while preparing the mutation consumer.
+                if sites.transitions.is_empty()
+                    || *enum_owner != stored.id
+                    || dependency.type_id != stored.canonical
+                    || !modifiers.machine
+                {
+                    return None;
+                }
+                let descriptor = declared[0];
+                let JsModelFieldType::Enum { values } = &descriptor.field else {
+                    return None;
+                };
+                let machine = descriptor.machine.as_ref()?;
+                if descriptor.nullable
+                    || descriptor.array_required.is_some()
+                    || values != cases
+                    || &machine.states != cases
+                    || !cases.contains(&machine.initial)
+                {
+                    return None;
+                }
+                if let Some((from, to)) = transition
+                    && (!cases.contains(from)
+                        || !cases.contains(to)
+                        || !machine.transitions.iter().any(|edge| {
+                            edge.from == *from && edge.to == *to && edge.operation == item.canonical
+                        }))
+                {
+                    return None;
+                }
+                let inline = format!("enum({})", cases.join(","));
+                if inventory_type(descriptor)? != inline {
+                    return None;
+                }
+                inline
+            } else {
+                if transition.is_some()
+                    || !supported_type_id(&dependency.type_id)
+                    || inventory_type(declared[0])?.as_str() != dependency.type_id
+                {
+                    return None;
+                }
+                dependency.type_id.clone()
+            };
             let role = match dependency.role {
                 DependencyRole::Data => ReceiptRole::Data,
                 DependencyRole::Control => ReceiptRole::Control,
@@ -359,7 +443,7 @@ pub(super) fn collect_native_scenario_receipt(
                 site.clone(),
                 dependency.model_name.clone(),
                 dependency.field_name.clone(),
-                dependency.type_id.clone(),
+                transport_type.clone(),
                 role,
             );
             if let Some(previous) = dependency_ids.get(&dependency.id) {
@@ -391,7 +475,7 @@ pub(super) fn collect_native_scenario_receipt(
                 role,
                 model: dependency.model_name.clone(),
                 field: dependency.field_name.clone(),
-                type_id: dependency.type_id.clone(),
+                type_id: transport_type,
             });
         }
         recipe.returns.push(native_return);
@@ -530,6 +614,7 @@ fn valid_choice(
 #[derive(Default)]
 struct Sites<'a> {
     members: HashMap<NativeSite, Vec<&'a TypedExpr>>,
+    transitions: HashMap<NativeSite, Vec<&'a IrStmt>>,
     decisions: HashMap<NativeSite, NativeDecisionKind>,
     matches: HashMap<NativeSite, HashSet<String>>,
     calls: HashMap<NativeSite, String>,
@@ -593,6 +678,13 @@ impl<'a> Sites<'a> {
                     IrGuard::Not(guard) => push!(Visit::Guard(guard)),
                 },
                 Visit::Statement(statement) => match statement {
+                    IrStmt::Transition { record, span, .. } => {
+                        out.transitions
+                            .entry(context.site(*span))
+                            .or_default()
+                            .push(statement);
+                        push!(Visit::Expression(record));
+                    }
                     IrStmt::Let { value, .. } => push!(Visit::Expression(value)),
                     IrStmt::Require { cond, .. } => push!(Visit::Expression(cond)),
                     IrStmt::Return { value, span } => {

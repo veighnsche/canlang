@@ -1803,3 +1803,15 @@ installed outputs and this changed compiler source still require combined
 qualification; the earlier **1,321/1** whole result is historical. Existing
 file-tree intake coverage is retained with its complete checkpoint unadvanced.
 Original **58/67**, owner dependencies and precise human holds remain open.
+
+**Gated native transition preparation (unfinished), 2026-10-09.** Actual IR
+transition sites, own machine-enum inventory joins and once-only old-state
+markers are prepared; publication remains explicitly gated. Existing CLI/native
+fixture confirms generic ABI preservation and transition plan omission before
+its runtime phase. Exact Node24 runtime phase fails the new State effect
+envelope: real Cloudflare always returns `fileAssignments`, which State's
+closed snapshot currently rejects, including an empty array. Owners/coordinator
+have the exact evidence; no passing native journey is claimed. Strict all-target
+Clippy passes after one mechanical lint correction. Coordinator review of the
+private producer found missing no-write branch controls; that correction is
+required before acceptance or activation. Full validation awaits these repairs.
