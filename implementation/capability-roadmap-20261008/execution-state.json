@@ -222,10 +222,12 @@
       ],
       "conditional_gates": [],
       "worker_update": {
-        "state": "defining_owner_lifecycle_implementation_ready_checked_producer_pending",
+        "state": "defining_owner_session_and_checked_binding_API_implemented_tested_source_assembly_pending",
         "owner": "Local roadmap worker defines State/Contracts staging/finalization and native binding requirements; Compiler owns exact checked emitted producer. Packages retains its constrained-field and nominal-alias intake repairs.",
         "prerequisite": "Exact native rule/hook/module identity, declaration order, native input/before/after/removal carriers, typed lock selectors and checked bounded reverse dependency plans; State single owner-session stage/read/finalize implementation and Cloudflare canonical binding are required together.",
-        "selected_contract": "Transaction-entry pre-state locks; existing generated native bindings with checked callable ABI; checked reverse affected-row selection under a shared bound, including absent/collection changes. JEV3 .95/.97/.84, .69/.99/.92, .99/.73/.97 respectively, advisory confidence variation retained in existing model-rule-contract.md/rules-machine raw responses. No activation or full11 acceptance."
+        "selected_contract": "Transaction-entry pre-state locks; existing generated native bindings with checked callable ABI; checked reverse affected-row selection under a shared bound, including absent/collection changes. JEV3 .95/.97/.84, .69/.99/.92, .99/.73/.97 respectively, advisory confidence variation retained in existing model-rule-contract.md/rules-machine raw responses. No activation or full11 acceptance.",
+        "implemented": "Contracts CanonicalOwnerModelPolicies ABI state.owner-model-policies@1; State bindOwnerModelPolicies exact checked native rule/dependency/hook linkage and beginOwnerMutation ordered stage/read/finalize with entry locks, reserved versions, final-only integrity/affected invariants, bounded complete owner queries, live CRUD before/input/after/removal contexts, poison/revision guards and net final effects. Legacy behavior retained.",
+        "validation": "Combined runtime build22/22 and306affected State cases qualified:305initial passes plus focused retry-identity test correction1/1; unchanged results reused. Existing nativeD1/DO mutation regression coverage retained. No source activation/full11 acceptance."
       }
     },
     {
@@ -1685,6 +1687,13 @@
       ],
       "nested_and_ignored_sources": "draft clean at exact required5a12eb9ebb136ffa4e5ce352663f92affba25bc2; no nested source edits/gitlink change or ignored repository task source candidates. Dependencies/build caches/logs/credentials excluded.",
       "temporary_linux_playwright_wrapper": "import base from \"/workspace/canlang/playwright.config.ts\"; export default {...base,testDir:\"/workspace/canlang/tests/e2e\",workers:2,use:{...base.use,launchOptions:{executablePath:\"/usr/bin/chromium\"}}}; (temporary external wrapper only; adapt to local host if needed)"
+    },
+    "retained_receipt_admission": {
+      "state": "defining_API_implemented_tested_canonical_transport_assembly_pending",
+      "source_checkpoint": "cf4be765",
+      "API": "MutationAdmissionMode retained-receipt-only through admit/invokeMutation and createInvoker host argument; no wire/public capability syntax. Exact receipt identity/input hash, current by/membership, existing replay observer; unseen miss not_found before execute/commit.",
+      "validation": "5owning Memory/nativeD1/DO and saved-CRUD projection cases pass including16minute/24hour recovery, rejected receipt, identity/hash mismatch and revocation. Owning build22/22.",
+      "owners": "Dev canonical CF forwarding/owner selection and projection; Packages Interfaces signed restoration consumer. Low-level result is not public grant projection; no signature-window extension or full workflow acceptance."
     }
   },
   "live_handoffs": {
