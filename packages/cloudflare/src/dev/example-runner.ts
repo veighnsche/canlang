@@ -385,7 +385,7 @@ async function createRowScope(input: CompiledExampleInput, moduleIndex: number, 
         if (accountsOfRow === null || currentTeamId === null || otherTeamId === null) {
           throw new Error("example runner: row actors are unavailable");
         }
-        if (by === "public") return resolveIdentity(identities, {});
+        if (by === "public") return resolveIdentity(identities, { team_id: currentTeamId });
         let account: string | null = null;
         if (by === "self" || (input.bindings !== undefined && by === input.bindings.self)) account = accountsOfRow.self;
         else if (by === "other" || (input.bindings !== undefined && by === input.bindings.other)) account = accountsOfRow.other;
@@ -656,11 +656,13 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules)
       const request = applyRequestOverrides(closedOperationInputs(operation.kind, encoded),
         wireInputs(call.request, new Map()));
       const ownerStorage = call.scope.ownerStorage;
-      if (ownerStorage === undefined) throw new Error("example runner: canonical row has no owner storage boundary");
+      if (ownerStorage === undefined && (artifact.models?.length ?? 0) > 0) {
+        throw new Error("example runner: model-backed canonical row has no owner storage boundary");
+      }
       const invoker = buildInvoker(artifact, asm, call.scope.store, {
         memberships: call.scope.identities,
         source: "example",
-        ownerStorage,
+        ...(ownerStorage === undefined ? {} : { ownerStorage }),
       });
       const outcome = operation.kind === "read"
         ? await invoker.invokeRead({ operation: call.operation as FqOperationName, inputs: request.inputs as ClosedInputs }, identity)
@@ -734,7 +736,7 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
       { workDir, stdlibUrl: new URL("../runtime/stdlib.js", import.meta.url).href },
     );
     let ownerProfile: ExampleOwnerProfile | undefined;
-    if (input.hooks === undefined || (artifact.models?.length ?? 0) > 0) {
+    if ((artifact.models?.length ?? 0) > 0) {
       const first = artifact.modules[0];
       const url = first === undefined ? undefined : asm.moduleUrls[first.path];
       if (url === undefined) throw new Error("example runner: canonical app entry is missing");

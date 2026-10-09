@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { createReport, fixtureValuesOf, loadExampleSuite, runTable } from "../../testkit/src/index.js";
-import { runCompiledExamples, type ExampleRowScope } from "../src/dev/example-runner.js";
+import { loadInstalledExampleTestkit, runCompiledExamples, type ExampleRowScope } from "../src/dev/example-runner.js";
+
+// Use the same application-owned optional producer as the real runner. A
+// static package edge would make Cloudflare and Testkit depend on each other.
+const { createReport, fixtureValuesOf, loadExampleSuite, runTable } =
+  await loadInstalledExampleTestkit(process.cwd());
 
 const map = (file: string) => ({
   version: 3, file, sources: ["Office.can"], sourcesContent: [null], names: [], mappings: "",
