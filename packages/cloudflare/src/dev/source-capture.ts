@@ -273,17 +273,25 @@ export async function captureSingleFileSource(request: SingleFileCaptureRequest)
 async function inventoryMatches(
   kind: SingleFileCaptureRequest["inputInventory"], root: string,
   selected: readonly { name: string; path: string | null }[], compilerPath: string,
+  runtimeOnly = false,
 ): Promise<boolean> {
   if (kind === undefined) return true;
   if (kind !== "installed-local-preview") return false;
   try {
-    const { installedLocalPreviewInputInventory } = await import("./preview-inputs.js");
-    const current = installedLocalPreviewInputInventory(root, compilerPath);
+    const inputs = await import("./preview-inputs.js");
+    const current = runtimeOnly
+      ? {
+          packageInputPaths: inputs.installedPortableBundleInputs(root),
+          extraInputPaths: inputs.installedOwnedSourceInputs(root),
+        }
+      : inputs.installedLocalPreviewInputInventory(root, compilerPath);
     const expected = [
       ...current.packageInputPaths.map(item => ({ name: `package:${item.name}`, path: item.path })),
-      ...current.extraInputPaths.map(item => ({ name: `extra:${item.name}`, path: item.path })),
+      ...current.extraInputPaths
+        .filter(item => !runtimeOnly || item.name.startsWith("source:"))
+        .map(item => ({ name: `extra:${item.name}`, path: item.path })),
     ];
-    const actual = selected.filter(item => item.name.startsWith("package:") || item.name.startsWith("extra:"));
+    const actual = runtimeOnly ? selected.filter(isRuntimeInput) : selected.filter(isCapturedInput);
     if (actual.length !== expected.length) return false;
     const byName = new Map(actual.map(item => [item.name, item.path]));
     const matches = await mapInputs(expected, async (item): Promise<boolean> => {
@@ -295,6 +303,14 @@ async function inventoryMatches(
   } catch {
     return false;
   }
+}
+
+function isRuntimeInput(input: Pick<CapturedFileIdentity, "name">): boolean {
+  return input.name.startsWith("package:") || input.name.startsWith("extra:source:");
+}
+
+function isCapturedInput(input: Pick<CapturedFileIdentity, "name">): boolean {
+  return input.name.startsWith("package:") || input.name.startsWith("extra:");
 }
 
 /**
@@ -318,7 +334,7 @@ export function verifyCompilerSources(capture: SingleFileCapture, report: Compil
 /** Recheck source, symlink targets and all declared inputs before publication. */
 export async function captureIsCurrent(capture: SingleFileCapture): Promise<boolean> {
   try {
-    if (!(await capturedRuntimeInputsAreCurrent(capture))) return false;
+    if (!(await capturedInputsAreCurrent(capture, capture.inputs))) return false;
     const { canonicalPath, bytes } = await readStableFile(capture.requestedAppPath);
     if (canonicalPath !== capture.appPath || bytes.length !== capture.sourceBytes) return false;
     if (createHash("sha256").update(bytes).digest("hex") !== capture.sourceSha256) return false;
@@ -330,12 +346,21 @@ export async function captureIsCurrent(capture: SingleFileCapture): Promise<bool
 
 /** An old artifact may rerun after a source edit, but never through changed producers. */
 export async function capturedRuntimeInputsAreCurrent(capture: SingleFileCapture): Promise<boolean> {
+  return capturedInputsAreCurrent(capture, capture.inputs.filter(isRuntimeInput), true);
+}
+
+async function capturedInputsAreCurrent(
+  capture: SingleFileCapture,
+  inputs: readonly CapturedFileIdentity[],
+  runtimeOnly = false,
+): Promise<boolean> {
   try {
     if ((await realpath(capture.requestedRoot)) !== capture.root ||
         !(await inventoryMatches(capture.inputInventory, capture.root,
           capture.inputs.map(input => ({ name: input.name, path: input.requestedPath })),
-          capture.inputs.find(input => input.name === "compiler")?.requestedPath ?? ""))) return false;
-    const current = await mapInputs(capture.inputs, async (input): Promise<boolean> => {
+          capture.inputs.find(input => input.name === "compiler")?.requestedPath ?? "",
+          runtimeOnly))) return false;
+    const current = await mapInputs(inputs, async (input): Promise<boolean> => {
       if (input.requestedPath === null) {
         return input.state === "missing";
       }
