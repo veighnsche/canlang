@@ -547,7 +547,10 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     [WORK_ASSOCIATION_SOURCE_SPECIFIER, WORK_ASSOCIATION_VENDOR_ENTRY],
     ["@canlang/ui", UI_VENDOR_ENTRY],
   ] as const) {
-    out = out.split(source).join(relativeSpecifier(moduleKey, entry));
+    // Match a complete literal: mutation/crud and other exported subpaths
+    // must not inherit the mutation entry's index.js suffix.
+    const literal = new RegExp(`(["'])${source.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\1`, "g");
+    out = out.replace(literal, (_match, quote: string) => `${quote}${relativeSpecifier(moduleKey, entry)}${quote}`);
   }
   out = out.replace(/[\'"](@canlang\/state\/([^\'"]+))[\'"]/g, (_full, _spec, sub) => JSON.stringify(relativeSpecifier(moduleKey, `vendor/state/${sub}.js`)));
   out = out.replace(/[\'"](@canlang\/work\/kernel\/([^\'"]+))[\'"]/g, (_full, _spec, sub) => JSON.stringify(relativeSpecifier(moduleKey, `vendor/work/kernel/${sub}.js`)));
