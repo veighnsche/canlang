@@ -3545,3 +3545,8 @@ This adds a public Rust enum variant, so exhaustive downstream ResolvedType matc
 ## 2026-10-09 — preserve the actual B1 refusal gate
 
 Replace the stale workflow count with the seven exact unsupported UI profiles already asserted by b1_join.rs: tooltip/collapse once, breadcrumbs/edit twice and filter once. Consume the actual CLI diagnostic JSON and retain exit10, schema1, complete/untruncated output, only error-severity E6008 and no artifact fields. The changed gate passes against the real CLI/catalog; unchanged STRICT joins2/2 and build results are reused. Formatting-only corrections make compiler-wide cargo fmt --check pass without changing producer behavior. Hosted CI's unavailable draft, Contracts ES2022 workflow and clean Cloudflare/Testkit declaration prerequisites belong to their defining owners; do not suppress their checks or transfer their implementation to Compiler.
+
+
+## 2026-10-09 — consume released CI prerequisites
+
+Apply only Capability697022afc62d06a4ec3d909eb78bacdf44ab0ff9's released optional-Testkit import and Contracts ES2022 command, retaining its runtime resolution/export checks and package-cycle boundary. The exact isolated Contracts command and owning Cloudflare build pass here. B1's hosted check now passes at2db9200b; draft5a12eb9e remains unavailable for Rust/Tools checkout. Shared package-boundary guard correction stays with the coordinator, without rewriting exported package self-references. Capability's separate execution record is not copied into this worker's scope.
