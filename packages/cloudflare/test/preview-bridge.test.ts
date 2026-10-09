@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { LocalDev } from "../src/dev/local-run.js";
 import { startProtectedPreview } from "../src/dev/preview-bridge.js";
+import { toMcpError } from "@canlang/interfaces";
 
 function cookieOf(response: Response): string {
   const raw = response.headers.get("set-cookie");
@@ -196,6 +197,61 @@ describe("protected local preview", () => {
       unsubscribe();
       await preview.close();
     }
+  });
+
+  it("observes only matched MCP tool business errors while relaying the real HTTP 200 response", async () => {
+    const secret = "PRIVATE_TOOL_VALUES";
+    const canonical = toMcpError({ code: "busy", message: secret, retryable: true,
+      fields: [{ path: "/PRIVATE_FIELD", code: "PRIVATE_CODE", message: secret }] });
+    let result: unknown = canonical;
+    let id: unknown = 7;
+    let protocolError = false;
+    let oversized = false;
+    const dev: Pick<LocalDev, "dispatchUrl"> = {
+      dispatchUrl: async () => new Response(JSON.stringify({ jsonrpc: "2.0", id,
+        ...(protocolError ? { error: { code: -32602, message: secret } } : { result }) }) +
+        (oversized ? " ".repeat(8 * 1024) : ""), {
+        headers: { "content-type": "application/json", "x-worker-secret": secret },
+      }) as Awaited<ReturnType<LocalDev["dispatchUrl"]>>,
+    };
+    const preview = await startProtectedPreview(dev);
+    const events: unknown[] = [];
+    preview.observeRefusals(event => events.push(event));
+    try {
+      const cookie = cookieOf(await fetch(preview.issueOpenUrl(), { redirect: "manual" }));
+      const call = async (path = "/mcp", method = "tools/call") => fetch(preview.url + path, {
+        method: "POST", headers: { cookie, origin: preview.url, "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 7, method,
+          params: { name: "PRIVATE_OPERATION", arguments: { secret } } }),
+      });
+      const response = await call();
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ jsonrpc: "2.0", id: 7, result: canonical });
+      expect(response.headers.get("x-worker-secret")).toBe(secret);
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({ status: 200, transport: "mcp",
+        error: { code: "busy", retryable: true } });
+      expect(JSON.stringify(events)).not.toMatch(/PRIVATE_/);
+
+      // Ordinary success may contain error-looking business values.
+      result = { ...canonical, isError: false };
+      await call();
+      result = canonical;
+      id = 8;
+      await call();
+      id = 7;
+      await call("/other");
+      await call("/mcp", "tools/list");
+      protocolError = true;
+      await call();
+      protocolError = false;
+      result = { ...canonical, structuredContent: { code: "unknown", message: secret } };
+      await call();
+      result = canonical;
+      oversized = true;
+      await call();
+      expect(events).toHaveLength(1);
+    } finally { await preview.close(); }
   });
 
   it.each(["dispatch", "response body"] as const)(

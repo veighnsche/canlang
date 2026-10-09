@@ -68,7 +68,7 @@ export interface SessionServicePreview extends DevPreview {
   /** Exact admitted artifact and verified Worker recipe for isolated rows. */
   exampleInput?(): Omit<CompiledExampleInput, "selectedRow" | "runId" | "testkit">;
   /** Actual bounded business refusal; no request headers, credentials or raw response detail. */
-  observeRefusals?(handler: (event: { requestId: string; status: number; error: BusinessError }) => void): () => void;
+  observeRefusals?(handler: (event: { requestId: string; status: number; error: BusinessError; transport?: "mcp" }) => void): () => void;
 }
 
 export interface SessionServiceOptions {
@@ -511,7 +511,8 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         const projection = projectBusinessRefusal({ context: {
           session: socket!.identity.sessionId, revision: buildRevision,
           sourceRevision: captured.sourceRevision, sourcePaths: [captured.compilerOperand], servingBuild: preview.id,
-        }, requestId: event.requestId, error: event.error, status: event.status, phase: "unknown" });
+        }, requestId: event.requestId, error: event.error, status: event.status,
+          ...(event.transport === undefined ? {} : { transport: event.transport }), phase: "unknown" });
         exampleFailures.set(projection.occurrence.ref, { projection, cursor: failureCursor++ });
         while (exampleFailures.size > 64) exampleFailures.delete(exampleFailures.keys().next().value!);
       });
