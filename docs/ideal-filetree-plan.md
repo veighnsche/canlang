@@ -11,8 +11,8 @@ The canonical target is [finished-product/target-tree.md](ideal-filetree-plan/fi
 | Initial new semantic review | `cf36983c768c32e0a63ac33c3b45a94dc75dc2d3` |
 | Refreshed structural/catalog pin | `fdb059c634c32c83760f35dd9175f49d9821762d`, main; 2567 current tracked parent paths; historical predecessor identities retained separately |
 | Independent clean draft pin | `40656da211a410cb6fb363a9c2afc3010fcb8b29`; 148 paths, 49 app/companion pairs and three shared declarations |
-| Accumulated checkpoint registry | 10662 net path deltas and 11203 historical touched paths at merge candidate tree `385e981ce2137679752aa163a326b8ff16834684`; [current registry](ideal-filetree-plan/state-machines-20261007.json). Prior byte-scoped reviews remain historical evidence; complete semantic/target review is open. |
-| Latest scoped maintenance | 2026-10-09, UTC; accumulated path registration for Capability worker upstream integration |
+| Accumulated checkpoint registry | 10664 net path deltas and 11205 historical touched paths at Capability integration commit `66065e8a8ed8582185539afd818862c3204cafa0`; [current registry](ideal-filetree-plan/state-machines-20261007.json). Prior byte-scoped reviews remain historical evidence; complete semantic/target review is open. |
+| Latest scoped maintenance | 2026-10-09, UTC; accumulated checkpoint path registration after Capability source/consumer integration |
 
 The prior implementation run is stopped. Consolidation preserves its unfinished source, reservations and evidence at their recorded scope; it does not resume workers or accept incomplete programme gates. This scoped maintenance updates the `finished-product/` planning records and this entry, preserving other integrators' maintenance records and shared implementation evidence. The user separately authorized the five documentation moves and live reference repairs recorded below.
 
