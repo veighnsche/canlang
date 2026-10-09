@@ -3537,3 +3537,7 @@ Consume Packages source hunks 080efa8e and 1dfa261f: resolve optional Testkit fr
 ### 2026-10-09 — Recover dead Linux owners and bound cold preview checks
 
 Treat a parsed Linux zombie/dead process as unable to own a live control socket, preserving unknown-state refusal, process-birth checks and exclusive reclaim. Use the existing 60-second socket maximum for compiler/preview cold work; an earlier timeout cannot establish readiness or acceptance. Real worktree isolation and invalid/repaired lifecycle checks passed, while installed crash recovery and the new deadline remain affected checks after rebuild.
+
+### 2026-10-09 — Refuse example evidence after a producer race
+
+Revalidate exact captured runtime inputs around Testkit loading and row execution before publishing results or allocating retained failure recipes. A changed producer invalidates the run; a late swallowed refresh cannot repair its provenance. Original captured source bytes remain valid for isolated reruns under unchanged runtime inputs.
