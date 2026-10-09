@@ -385,6 +385,9 @@ function checkResult(
   if (!scalarOrVoid && !inlineEnumResult && !knownModelResult && !checkedNominal(type, valueSchema)) {
     fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration/user/file profile, canonical inline enum profile or bare void; scenarios and reads may also declare a known qualified model, and reads a model[].`);
   }
+  if ('disclosure' in result && !Object.hasOwn(result, 'disclosure')) {
+    fail('malformed_descriptor', `Invalid ${what}: scenario disclosure requires own data.`);
+  }
   const claim = Object.getOwnPropertyDescriptor(result, 'disclosure');
   if (claim !== undefined) {
     if (!('value' in claim) || kind !== 'scenario' || Object.keys(result).some(key => !['type', 'disclosure'].includes(key))) {
