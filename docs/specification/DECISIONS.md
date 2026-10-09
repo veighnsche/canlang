@@ -3691,3 +3691,7 @@ Accepted finite State correction for Codex4232157232: compare update-hook field 
 ## 2026-10-09 — consume rendered delete replay identities
 
 Consume exact owning Compiler22903771 nonce producer with7fe7fe35 canonical form consumer: each visible delete occurrence mints one UUIDv7, preserves its hidden identity on submit/replay, and gated omission mints none. The real UI posts only protected record id/version, retaining undeclared-mode refusal and operation-owned archive behavior. Rust1.99locked/offline focused codegen1/1and actual generated delete runtime1/1pass, including native precision, fresh rendering, archive/replay/stale and current-grant refusal. Complete Office browser/durable qualification remains Dev-owned; no broader acceptance.
+
+## 2026-10-09 — consume the bounded joined auth-team producer
+
+Consume exact owning Dev422ebfb6route baseline and1084c1a1complete discovery correction. Identity joins active memberships with live teams, applies an exclusive cursor and LIMIT101 in D1; Interfaces returns100with lookahead without per-team queries. Identity/Interfaces/Cloudflare emits and31team/auth controls pass. Actual workerd D1 consumer passes1/1after the initial sandbox-localhost refusal, yielding100/100/5for205teams and exactly5queries per request with one joined discovery query. Removed, dangling and foreign teams stay excluded; revoked session403, strict cursor and no-store responses remain. Installed feature qualification/current-head review and original Identity parent obligations stay open.
