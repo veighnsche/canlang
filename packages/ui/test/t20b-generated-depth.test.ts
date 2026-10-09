@@ -465,6 +465,51 @@ describe("T20b wall-to-instant resolution", () => {
 });
 
 describe("T20b depth projection", () => {
+  it("preserves declared prototype-named inputs as own envelope data", () => {
+    const derived: DerivedOperationInputs = {
+      operation: "Shop.Entry.submit", kind: "scenario", artifactVersion: 1,
+      inputs: [
+        { name: "__proto__", kind: "boolean", required: true },
+        { name: "constructor", kind: "ref", model: "Shop.Entry", versioned: true, required: true },
+      ],
+    };
+    const projected = projectGeneratedInputs(derived, "scenario", {
+      "inputs[__proto__]": "true", "inputs[constructor]": "entry-1",
+      "inputs[constructor__version]": "9007199254740993",
+    }, ["__proto__", "constructor"]);
+    assert.equal(Object.getPrototypeOf(projected), Object.prototype);
+    assert.deepEqual(Object.keys(projected), ["__proto__", "constructor"]);
+    assert.deepEqual(Object.getOwnPropertyDescriptor(projected, "__proto__"), {
+      value: true, enumerable: true, writable: true, configurable: true,
+    });
+    assert.deepEqual(Object.getOwnPropertyDescriptor(projected, "constructor"), {
+      value: { id: "entry-1", version: "9007199254740993" },
+      enumerable: true, writable: true, configurable: true,
+    });
+    const envelope = JSON.parse(JSON.stringify({ operation: derived.operation, inputs: projected }));
+    assert.equal(Object.hasOwn(envelope.inputs, "__proto__"), true);
+    assert.equal(envelope.inputs["__proto__"], true);
+    assert.deepEqual(envelope.inputs.constructor, { id: "entry-1", version: "9007199254740993" });
+    assert.equal(Object.getPrototypeOf(envelope.inputs), Object.prototype);
+    const cases: Array<{ input: DerivedOperationInputs["inputs"][number]; form: Record<string, string>; expected: unknown }> = [
+      { input: { name: "__proto__", kind: "ref", model: "Shop.Entry", versioned: true, required: true },
+        form: { "inputs[__proto__]": "entry-2", "inputs[__proto____version]": "7" }, expected: { id: "entry-2", version: "7" } },
+      { input: { name: "__proto__", kind: "string", required: true },
+        form: { "inputs[__proto__]": "text" }, expected: "text" },
+      { input: { name: "__proto__", kind: "boolean", required: false, nullable: true },
+        form: { "inputs[__proto____null]": "true" }, expected: null },
+      { input: { name: "__proto__", kind: "string", required: true, array: { required: true } },
+        form: { "inputs[__proto__]": '["first","second"]' }, expected: ["first", "second"] },
+    ];
+    for (const { input, form: submitted, expected } of cases) {
+      const result = projectGeneratedInputs({ ...derived, inputs: [input] }, "scenario", submitted, ["__proto__"]);
+      assert.equal(Object.getPrototypeOf(result), Object.prototype);
+      assert.equal(Object.hasOwn(result, "__proto__"), true);
+      assert.deepEqual(result["__proto__"], expected);
+      assert.deepEqual(Object.keys(result), ["__proto__"]);
+    }
+  });
+
   it("never emits delivery members, even under tampering", () => {
     assert.deepEqual(
       projectGeneratedInputs(RETRY, "scenario", {
