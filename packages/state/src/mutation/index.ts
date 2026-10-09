@@ -42,6 +42,9 @@ export {
   type CrudDefsOptions,
   type CrudExecuteInput,
   type CrudOperationDef,
+  type GeneratedCrudExecuteInput,
+  type GeneratedCrudOwnerFrame,
+  type GeneratedCrudOwnerFrameFactory,
 } from './crud.js';
 export {
   bindOwnerModelPolicies,

@@ -15,6 +15,7 @@ import type {
   OperationName,
   QueryPredicate,
   RecordId,
+  StoredRow,
 } from '@canlang/contracts';
 import type { StoragePort } from '../storage/port.js';
 import type { AdmittedCall } from '../invocation/admission.js';
@@ -24,7 +25,9 @@ import { isGeneratedOperationDef } from '../invocation/registry.js';
 import { validateByPredicate, type ByPredicate } from '../policy/roles.js';
 import { validatePredicateShape } from '../policy/grants.js';
 import { StateError } from '../errors.js';
-import { runMutationWrites, type MutationWritesInput } from './pipeline.js';
+import { beginOwnerMutation, runMutationWrites, type MutationWrite, type MutationWritesInput,
+  type OwnerMutationInput, type OwnerMutationSession } from './pipeline.js';
+import type { CheckedOwnerModelPolicies } from './model-policies.js';
 import type { ModelTable } from './models.js';
 
 /** INTERIM CRUD def: an operation def with an optional candidate `when`. */
@@ -320,17 +323,35 @@ export interface GeneratedCrudExecuteInput {
   readonly encodeField?: MutationWritesInput['encodeField'];
   /** Checked defining model metadata supplied by trusted host wiring. */
   readonly secretFields?: ReadonlyMap<ModelName, readonly string[]>;
+  /** Checked source policy bindings; beginOwnerMutation verifies their private brand. */
+  readonly ownerPolicies?: CheckedOwnerModelPolicies;
+  /** Required whenever owner execution or a native frame is selected. */
+  readonly ownerBounds?: OwnerMutationInput['bounds'];
+  /** Install the host's native frame over State's real session; never replace it. */
+  readonly createOwnerFrame?: GeneratedCrudOwnerFrameFactory;
 }
 
+export interface GeneratedCrudOwnerFrame {
+  readonly close: () => void | Promise<void>;
+}
+
+/** Source/byte verification and actual Can context/hydration remain the host's job. */
+export type GeneratedCrudOwnerFrameFactory = (input: {
+  readonly call: AdmittedCall;
+  readonly session: OwnerMutationSession;
+  readonly context: OwnerMutationSession['views']['context'];
+}) => Promise<GeneratedCrudOwnerFrame>;
+
 function generatedCrudAssociation(
-  first: ExecutionEffects['writes'][number],
+  model: ModelName,
+  row: StoredRow | null,
   secretFields: GeneratedCrudExecuteInput['secretFields'],
 ): GeneratedCrudReceiptAssociation {
-  const fields = secretFields?.get(first.model);
+  const fields = secretFields?.get(model);
   return {
     kind: 'generated-crud/v1',
-    model: first.model,
-    record: first.kind === 'remove' ? null : { id: first.row.id, version: first.row.version },
+    model,
+    record: row === null ? null : { id: row.id, version: row.version },
     ...(fields === undefined ? {} : { secretFields: [...fields] }),
   };
 }
@@ -343,6 +364,7 @@ function generatedCrudAssociation(
  */
 function generatedCreateModel(def: GeneratedOperationDef, table: ModelTable): ModelName {
   const name = def.descriptor.name as string;
+  if (!name.endsWith('.create')) throw new Error('Generated create operation must match its owning model identity.');
   const model = name.slice(0, -'.create'.length) as ModelName;
   if (!table.has(model)) {
     throw new Error(
@@ -408,13 +430,65 @@ function generatedRecordInput(def: GeneratedOperationDef): Extract<
 export function generatedCrudExecute(
   input: GeneratedCrudExecuteInput,
 ): (call: AdmittedCall) => Promise<ExecutionEffects> {
-  const { table, store, encodeField, secretFields } = input;
+  const { table, store, encodeField, secretFields, ownerPolicies, ownerBounds, createOwnerFrame } = input;
+  const ownerExecution = ownerPolicies !== undefined || ownerBounds !== undefined || createOwnerFrame !== undefined;
+  if (ownerExecution && ownerBounds === undefined) {
+    throw new StateError('validation', 'Generated owner CRUD requires explicit mutation bounds.');
+  }
+  if (createOwnerFrame !== undefined && typeof createOwnerFrame !== 'function') {
+    throw new StateError('validation', 'Generated owner CRUD requires a native frame factory function.');
+  }
+  const executeWrite = async (call: AdmittedCall, write: MutationWrite): Promise<ExecutionEffects> => {
+    const common = { table, context: call.context, store,
+      ...(encodeField !== undefined ? { encodeField } : {}) };
+    const effects = await (async () => {
+      if (!ownerExecution) return runMutationWrites({ ...common, writes: [write] });
+      const session = await beginOwnerMutation({ ...common, bounds: ownerBounds!,
+        ...(ownerPolicies !== undefined ? { policies: ownerPolicies } : {}) });
+      let close: GeneratedCrudOwnerFrame['close'] | undefined;
+      try {
+        if (createOwnerFrame !== undefined) {
+          const frame = await createOwnerFrame(Object.freeze({ call, session, context: session.views.context }));
+          const member = typeof frame === 'object' && frame !== null
+            ? Object.getOwnPropertyDescriptor(frame, 'close') : undefined;
+          if (member !== undefined && 'value' in member && typeof member.value === 'function') {
+            close = member.value as GeneratedCrudOwnerFrame['close'];
+          }
+          if (typeof frame !== 'object' || frame === null ||
+              (Object.getPrototypeOf(frame) !== Object.prototype && Object.getPrototypeOf(frame) !== null) ||
+              Reflect.ownKeys(frame).length !== 1) {
+            throw new StateError('validation', 'Generated CRUD native frame must supply only its cleanup function.');
+          }
+          if (close === undefined) {
+            throw new StateError('validation', 'Generated CRUD native frame needs an own cleanup function.');
+          }
+        }
+        await session.stage(write, { cause: 'crud', input: call.inputs });
+        return await session.finalize();
+      } finally {
+        await close?.();
+      }
+    })();
+    // Owner finalization coalesces hook/secondary writes and reserves one final
+    // version per row. The target need not be the first (sorted) net write.
+    const target = effects.writes.find(candidate => candidate.model === write.model &&
+      (candidate.kind === 'remove' ? candidate.id : candidate.row.id) === write.id);
+    if (!ownerExecution && target === undefined) throw new Error(`Mutation pipeline returned no target write for a ${write.op}.`);
+    const row = target === undefined || target.kind === 'remove' ? null : target.row;
+    return { writes: effects.writes, history: effects.history, outbox: [], schedules: effects.schedules,
+      uniqueClaims: effects.uniqueClaims, uniqueReleases: effects.uniqueReleases,
+      resolvedDefaults: effects.resolvedDefaults, result: row,
+      generatedCrud: generatedCrudAssociation(write.model, row, secretFields) };
+  };
   return async (call: AdmittedCall): Promise<ExecutionEffects> => {
     const def = call.def;
     if (!isGeneratedOperationDef(def)) {
       throw new Error('generatedCrudExecute handles generated operation defs only.');
     }
     const kind = def.descriptor.kind;
+    if (def.name !== def.descriptor.name || def.kind !== kind || call.context.operation !== def.name) {
+      throw new Error('Generated CRUD call and descriptor operation identities disagree.');
+    }
     const when = def.when;
 
     if (kind === 'create') {
@@ -439,39 +513,19 @@ export function generatedCrudExecute(
               'got an admitted call with no loaded parent ref.',
           );
         }
+        if (parentRef.model !== parentInput.model || parentRef.row.id !== parentRef.id) {
+          throw new Error('Generated CRUD parent does not match its admitted binding.');
+        }
         parent = { model: parentInput.model, id: parentRef.id };
         delete data[parentInput.name];
       }
-      const effects = await runMutationWrites({
-        table,
-        writes: [
-          {
-            op: 'create',
-            model,
-            id: call.context.operationId as unknown as RecordId,
-            data,
-            ...(parent !== undefined ? { parent } : {}),
-          },
-        ],
-        context: call.context,
-        store,
-        ...(encodeField !== undefined ? { encodeField } : {}),
+      return executeWrite(call, {
+        op: 'create',
+        model,
+        id: call.context.operationId as unknown as RecordId,
+        data,
+        ...(parent !== undefined ? { parent } : {}),
       });
-      const first = effects.writes[0];
-      if (first === undefined) {
-        throw new Error('Mutation pipeline returned no write for a create.');
-      }
-      return {
-        writes: effects.writes,
-        history: effects.history,
-        outbox: [],
-        schedules: effects.schedules,
-        uniqueClaims: effects.uniqueClaims,
-        uniqueReleases: effects.uniqueReleases,
-        resolvedDefaults: effects.resolvedDefaults,
-        result: first.kind === 'remove' ? null : first.row,
-        generatedCrud: generatedCrudAssociation(first, secretFields),
-      };
     }
 
     if (kind === 'update' || kind === 'delete') {
@@ -484,6 +538,10 @@ export function generatedCrudExecute(
           `generatedCrudExecute ${kind} got an admitted call with no loaded record ref.`,
         );
       }
+      if (ref.model !== recordInput.model || ref.row.id !== ref.id ||
+          def.name !== `${recordInput.model}.${kind}`) {
+        throw new Error('Generated CRUD target and operation do not match their admitted binding.');
+      }
       if (!table.has(recordInput.model)) {
         throw new Error(
           `generatedCrudExecute for operation ${JSON.stringify(def.descriptor.name as string)} ` +
@@ -492,43 +550,13 @@ export function generatedCrudExecute(
       }
       const patch: Record<string, unknown> = { ...call.inputs };
       delete patch[recordInput.name];
-      const effects = await runMutationWrites({
-        table,
-        writes: [
-          kind === 'update'
-            ? {
-                op: 'update',
-                model: recordInput.model,
-                id: ref.id,
-                data: patch,
-                ...(when !== undefined ? { when } : {}),
-              }
-            : {
-                op: 'remove',
-                model: recordInput.model,
-                id: ref.id,
-                ...(when !== undefined ? { when } : {}),
-              },
-        ],
-        context: call.context,
-        store,
-        ...(encodeField !== undefined ? { encodeField } : {}),
-      });
-      const first = effects.writes[0];
-      if (first === undefined) {
-        throw new Error(`Mutation pipeline returned no write for a ${kind}.`);
-      }
-      return {
-        writes: effects.writes,
-        history: effects.history,
-        outbox: [],
-        schedules: effects.schedules,
-        uniqueClaims: effects.uniqueClaims,
-        uniqueReleases: effects.uniqueReleases,
-        resolvedDefaults: effects.resolvedDefaults,
-        result: first.kind === 'remove' ? null : first.row,
-        generatedCrud: generatedCrudAssociation(first, secretFields),
-      };
+      return executeWrite(call,
+        kind === 'update'
+          ? { op: 'update', model: recordInput.model, id: ref.id, data: patch,
+              ...(when !== undefined ? { when } : {}) }
+          : { op: 'remove', model: recordInput.model, id: ref.id,
+              ...(when !== undefined ? { when } : {}) },
+      );
     }
 
     throw new Error(
