@@ -36,7 +36,9 @@ it('serves one app-owned CRUD model with shared app reads and saved-outcome repl
   const preview = await createInstalledLocalPreviewBuilder()(compiled.artifact, capture, compiled.artifactBytes);
   try {
     const login = async (label: string) => {
-      const opened = preview.issueOpenUrl();
+      const issueOpenUrl = preview.issueOpenUrl;
+      if (typeof issueOpenUrl !== 'function') throw new Error('installed preview has no protected-open producer');
+      const opened = issueOpenUrl();
       const origin = new URL(opened).origin;
       const cookies = new Map<string, string>();
       const request = async (path: string, init: RequestInit = {}) => {
