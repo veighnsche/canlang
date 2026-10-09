@@ -1815,3 +1815,16 @@ have the exact evidence; no passing native journey is claimed. Strict all-target
 Clippy passes after one mechanical lint correction. Coordinator review of the
 private producer found missing no-write branch controls; that correction is
 required before acceptance or activation. Full validation awaits these repairs.
+
+**No-write transition control correction (unfinished native join), 2026-10-09.**
+The coordinator's counterexample is corrected: a branch selecting any transition
+retains its selector on every outcome, including no-write siblings. Entirely
+read-only branches still prune controls at their common continuation. Exact
+no-else/else/match, implicit-void/common-scalar source cases pass **15/15**;
+strict all-target Clippy, formatting and finite independent review pass. Actual
+native CLI gates decline transitions, standalone machine reads and unrelated
+mutations while retaining six existing scalar/derive plans. The prepared enum
+adaptation is restricted to actual transition recipes. Node24 native runtime
+remains owner-blocked on the confirmed `fileAssignments` envelope mismatch;
+session consumer release, omitted-default mutation contribution and combined
+replay/current whole qualification remain required. No broader reference closes.
