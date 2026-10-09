@@ -2,6 +2,17 @@
 
 Current completion is **58 of 67 references**, with **9 remaining including partial work**. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
+After synchronization to upstream **9ecb2759**, the compiler failed E0583:
+the unfinished construct-candidate annotation hook referenced an absent source
+module. Removing only that declaration and its two calls restores the existing
+checking pipeline; the optional diagnostic carrier remains. Library/binary
+`cargo check --locked --offline` passes, and independent review accepts this
+bounded repair. Can Dev **T04's compiler inventory/help-data owner** must release
+the real producer and selected-profile proofs before enabling the hook.
+
+
+Current corpus qualification remains with the compiler worker and the coordinator/draft publisher: the upstream **5a12eb9e** gitlink is unavailable from its remote. The published source repair does not release construct help or qualify that corpus.
+
 The user has authorized finishing the remaining compiler tasks. Use the [recorded work/review settings](../../docs/research/compiler-library-audit-20261006/resumption/model-allocation.md); overlapping references share work and completed receipts are reused at matching scope. Current completion joins append to the canonical coverage ledger; historical source pins remain unchanged.
 
 | Reference | Current outcome |
