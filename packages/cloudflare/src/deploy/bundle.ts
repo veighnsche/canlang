@@ -366,7 +366,9 @@ function stageWorkerDist(workerDistDir: string): Record<string, string> {
   // within `worker/`. Deterministic order.
   const staged: Record<string, string> = {};
   for (const entry of readdirSync(workerDistDir).sort()) {
-    if (!entry.endsWith(".js")) continue;
+    // Colocated worker unit tests are emitted to dist but are not Worker
+    // modules; they may import Node-only test producers.
+    if (!entry.endsWith(".js") || entry.endsWith(".test.js")) continue;
     const full = join(workerDistDir, entry);
     if (!statSync(full).isFile()) continue;
     const key = `worker/${entry}`;

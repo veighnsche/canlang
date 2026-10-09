@@ -3561,3 +3561,7 @@ Pass socket and daemon-stop cancellation to the real row adapter, which aborts p
 ### 2026-10-09 — Preserve declared producer access in affected checks
 
 Use owning UI/Values root exports for public client types and catalogs. Keep the frozen evaluator fixture reads and native catalog join intact while their exact shared guard allowance/generated catalog export remains an owning prerequisite. Do not replace exported self-reference imports to work around the shared resolver mismatch. Constraint validation's temporary structural wrapper chooses a fresh name across the full nominal namespace.
+
+### 2026-10-09 — Keep Worker unit tests outside portable staging
+
+Apply the existing vendor test exclusion to flat Worker dist siblings as well. Unit tests are package checks, not production Worker modules; stage all real main/entry/assembly and lazy runtime dependencies and keep link/load validation. The actual installed test module exposed the gap before any app row or business call ran.
