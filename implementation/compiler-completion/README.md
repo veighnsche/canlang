@@ -47,6 +47,26 @@ case-preserving admission; Values presentation currently checks string shape,
 not membership, and direct registry calls do not qualify typed input admission.
 This is a bounded compiler leaf, with no broader reference/count completion.
 
+The next ready preference leaf separates the exact receiving Preferences field
+from its borrowed enum owner. Source Tabs now preserve nominal cases/inherited
+labels and receiving overrides/defaults, while saving under the receiving
+module/field/current version. The actual generated page passes **1/1** through
+public Interfaces/UI, real Identity fixtures and a Memory preference-store
+port: saved-current rendering, owner/default metadata, CSRF/case/stale-version
+and anonymous/revoked-member refusals all qualify. The new receiving-identity
+controls and unchanged inline Tabs case pass **1/1** each. Independent review
+accepts the source and lifecycle scope after strengthening the checked-status
+assertion. Identity and Interfaces owning builds both pass.
+
+Both affected structural goldens now pass **1/1** each, with positive inline and
+borrowed Tabs payload/save metadata in place of retired refusals. ExpenseFlow's
+sequence assertion preserves the emitted nullable binding normalization before
+member access; call/expected/type assertions remain. Strict all-target Clippy,
+scoped formatting and diff checks pass. The earlier `unfinished` structural
+checkpoint establishes no separate acceptance. State/D1 persistence, full
+ExpenseFlow/application serving, unsupported order/panels and the wider nine
+references remain open; canonical completion stays **58/67**.
+
 The user has authorized finishing the remaining compiler tasks. Use the [recorded work/review settings](../../docs/research/compiler-library-audit-20261006/resumption/model-allocation.md); overlapping references share work and completed receipts are reused at matching scope. Current completion joins append to the canonical coverage ledger; historical source pins remain unchanged.
 
 | Reference | Current outcome |

@@ -1224,8 +1224,17 @@ fn golden_expenseflow_structure() {
         "list defaults lack an owning factory profile"
     );
     assert!(
-        !entry.contains("selector:\"reporting.status\""),
-        "refused tabs selector is absent"
+        entry.contains("$can$u$74616273({context:c,id:\"can-tabs-m")
+            && entry.contains("binding:{name:\"status\",options:"),
+        "nominal preference tabs use the existing owned binding"
+    );
+    assert!(
+        entry.contains("current:preferences.status,version:c.preferenceVersions.reporting.status,postTo:c.pollUrl ?? c.path"),
+        "save identity belongs to the receiving reporting preference"
+    );
+    assert!(
+        entry.contains("preferenceFields:[{name:\"status\",options:[\"draft\",\"submitted\",\"approved\",\"rejected\"],defaultValue:\"submitted\"}]"),
+        "nominal cases retain the receiving preference default and allowlist"
     );
     assert!(
         entry.contains("order:[\"-created\"]"),
@@ -1414,7 +1423,7 @@ fn golden_expenseflow_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        9,
+        8,
         "owning UI profile refusals: {diags:?}"
     );
     for (profile, count) in [
@@ -1437,16 +1446,14 @@ fn golden_expenseflow_structure() {
             "{profile} refusal"
         );
     }
-    for word in ["bound tabs"] {
-        assert_eq!(
-            diags
-                .iter()
-                .filter(|d| d.code == "E6008" && d.message.contains(word))
-                .count(),
-            1,
-            "{word} refusal"
-        );
-    }
+    assert_eq!(
+        diags
+            .iter()
+            .filter(|d| d.code == "E6008" && d.message.contains("bound tabs"))
+            .count(),
+        0,
+        "borrowed enum preference tabs lower without refusal"
+    );
     for test in &artifact.tests {
         assert!(
             !test.module.js.contains("throw new Error"),
