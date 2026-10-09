@@ -3803,3 +3803,7 @@ Adapt the two preserved probes in place to captured local native compilation and
 ### Validation: real local Office business and example workflows
 
 The actual native/public installed Office journey passes36 business/auth observations with shared-member CRUD/status/archive readback, physical team isolation, Public/Dee refusals and closed MCP controls. For blank-name validation only, verify the exact canonical rejected receipt/fence batch including actor/team/call/operation/raw-input hash/defaults/timestamp; all domain/history/effects/other stores remain unchanged. Missing/unknown-field and unauthorized calls keep strict zero-write checks. Real authored rows execute/pass2/2 twice in fresh scopes without serving-store changes. Native failed-row retention separately passes deliberate1-fail/1-pass, distinct immutable reruns before/after restoration and owned cleanup. Browser deletion/native stop gaps keep whole Office/G2 open.
+
+### Validation: real app-owned preview CRUD and replay
+
+One actual native app-owned model passes1/1 through installed activation/preview and ordinary Identity/CSRF: HTTP create and saved-outcome replay, MCP read/update shared across two selected teams, HTTP deletion and generated page readback. Preserve real source currency and disposal. The declared app root shares one app store; this check does not establish separate app-state databases or mixed-owner routing.
