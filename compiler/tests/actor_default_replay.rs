@@ -24,7 +24,12 @@ Then
     )
     .unwrap();
     let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
-        .args(["compile", "--format=json", "--catalog"])
+        .args([
+            "compile",
+            "--native-scenario-receipts",
+            "--format=json",
+            "--catalog",
+        ])
         .arg(root.join("packages/values/dist/catalog.json"))
         .arg(&input)
         .env_remove("CAN_CATALOG")
@@ -54,6 +59,9 @@ const {buildInvoker}=await load('@canlang/cloudflare/worker/assembly');
 const {createTestMemoryStorage}=await load('@canlang/state/storage/memory');
 const {FIXED_NOW,createMemoryIdentityStore,seedMember,makeIdentity,uuidv7}=await load('@canlang/state/testing/invocation/fixtures');
 const artifact=JSON.parse(readFileSync(resolve(base,'artifact.json'),'utf8'));
+const capture=artifact.operations.find(operation=>operation.name.endsWith('.selected'))?.result?.disclosure;
+assert.equal(capture?.version,1,'actual native host requires a complete emitted scenario disclosure plan');
+assert.ok(capture.returns.length>0);
 const id='ActorDefaults.selected',descriptor=artifact.operations.find(operation=>operation.name===id);
 assert.equal(descriptor.kind,'scenario');assert.equal(descriptor.inputs.fields.length,1);
 const who=descriptor.inputs.fields[0];
@@ -113,10 +121,11 @@ await committed(explicitPeer,peer);
 assert.deepEqual(trace,[['admission','members',true],['check',true],['check',true]]);
 const peerReceipt=await receipt(explicitPeer);assert.ok(peerReceipt);assert.deepEqual(peerReceipt.resolvedDefaults,{});
 await memberships.removeMembership(member.membership.membership_id);
-// Matching receipts return first, without current-membership or body work.
-await committed(omitted,actor,'replayed');assert.deepEqual(trace,[]);assert.deepEqual(await receipt(omitted),saved);
+// Matching receipts retain their original values; current projection withholds
+// the public result after revocation without default or handler execution.
+await committed(omitted,null,'replayed');assert.deepEqual(trace,[]);assert.deepEqual(await receipt(omitted),saved);
 await committed(explicitNull,null,'replayed');assert.deepEqual(trace,[]);assert.deepEqual(await receipt(explicitNull),nullReceipt);
-await committed(explicitPeer,peer,'replayed');assert.deepEqual(trace,[]);assert.deepEqual(await receipt(explicitPeer),peerReceipt);
+await committed(explicitPeer,null,'replayed');assert.deepEqual(trace,[]);assert.deepEqual(await receipt(explicitPeer),peerReceipt);
 // Same identity with changed supplied input conflicts; a fresh request is
 // denied against current membership and creates no receipt.
 rejected(await invoke({...omitted,inputs:{who:actor}}),'conflict');assert.deepEqual(trace,[]);
