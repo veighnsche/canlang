@@ -3692,3 +3692,7 @@ Accepted finite shared gate correction: receipt plan2 emits the Values catalog b
 ## 2026-10-09: expose the existing retained outbox carrier by exact identity
 
 Accepted finite SEQ-022 prerequisite: the local coordinator allocated the defining retained read to this roadmap worker. StoragePort.outboxGet(intentId) returns the original intent and pending/dispatched/skipped status using existing Memory map and D1/DO primary keys/codecs; pending enumeration stays unchanged. Required mutation/dispatch overlays forward the method and read-only/unavailable contexts refuse it. SQL acknowledgement now changes pending rows only, preserving skipped status as Memory does. Owning runtime build22/22 and storage conformance144/144 pass, including alias safety and adapter-handle reopen; process restart and complete source-addressed stop/reconcile remain separate. The original carrier and canonical authority are retained, without a new table or guessed provider identity.
+
+## 2026-10-09 — admit sequence replay identities through the owning runner
+
+Treat top-level example request.operation_id as text, matching the actual examples runner. Admit malformed/stale text so error(validation) nonce cases reach the canonical invoker; reject nontext literals, unknown keys and nested identity overrides. Dynamic unanchored sequence expressions retain existing runner typing. The five affected sequence checks pass and independent finite review accepts this boundary; UUIDv7/freshness and execution remain runtime-owned.
