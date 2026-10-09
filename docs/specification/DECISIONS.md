@@ -3509,3 +3509,7 @@ Retained diagnostic detail consumes the compiler's optional versioned routing ex
 ## 2026-10-09 — restore checking without an unfinished diagnostic hook
 
 Accepted bounded repair: remove the dangling construct_candidates module declaration and two annotation calls introduced by upstream ce730102. No implementation exists in the published tree/history; Can Dev T04 still requires an exact compiler inventory and selected-profile proofs. Preserve the optional diagnostic carrier and implemented checking, sorting and failure pipeline, without a no-op producer or guessed candidates. Library/binary Cargo checking passes; independent review accepts the repair. The upstream draft gitlink 5a12eb9e is unavailable from its remote, so current corpus checks remain blocked on the coordinator/draft publisher. Prior diagnostic-count validation retains its 1527a249 scope.
+
+### 2026-10-09 — Source-current local Values consumer prerequisite
+
+The dev preview freshness gate exposed a stale tracked Values WASM binary. Regenerate through the owning pinned build-semantics producer and retain its binary/inventory together, then rebuild installed Values and emit its catalog after the final package build. Bootstrap checks pass 17/17; timestamps remain conservative admission evidence, while captured hashes identify the consumed bytes. This releases installed input preparation, not the app acceptance gates.
