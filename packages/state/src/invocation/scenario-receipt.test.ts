@@ -97,11 +97,11 @@ describe('execution-associated saved scenario disclosure', () => {
     assert.equal((await projectScenarioReceipt({ ...w, receipt })).records[0]!.data['visible'], 'committed visible');
   });
 
-  it('withholds private data/control results whole, projects changed records independently, and leaves literal results free of decision-only reads', async () => {
+  it('withholds private data/control results and influenced changes, and leaves literal results free of decision-only reads', async () => {
     const w = await world(); const receipt = await save(w);
     const restricted = buildPolicyTable([{ model: MODEL, secretFields: ['visible'], grants: [{ by: 'members', fields: ['private'] }] }]);
     const hidden = await projectScenarioReceipt({ ...w, policy: restricted, receipt });
-    assert.equal(hidden.result, null); assert.deepEqual(hidden.records[0]!.data, { private: 'private choice' });
+    assert.deepEqual(hidden, { result: null, records: [] });
     for (const returnId of ['literal-result', 'private-control']) {
       const fresh = await world(); let saved: Receipt | undefined;
       await invoke({ ...fresh, execute: async call => {
@@ -257,7 +257,7 @@ describe('execution-associated saved scenario disclosure', () => {
 
   it('refuses copied/outside-lifetime calls, unbound descriptors, forged associations, and capture drift without trusting object shape', async () => {
     const w = await world(); let admitted: Parameters<typeof selectScenarioReceiptReturn>[0] | undefined;
-    await invoke({ ...w, execute: async call => {
+    await assert.rejects(invoke({ ...w, execute: async call => {
       admitted = call;
       assert.throws(() => selectScenarioReceiptReturn({ ...call }, w.store, 'literal-result'), forbidden);
       assert.throws(() => selectScenarioReceiptReturn(call, { ...w.store }, 'literal-result'), forbidden);
@@ -281,10 +281,9 @@ describe('execution-associated saved scenario disclosure', () => {
       (call.checkpoint as { owner: string }).owner = originalOwner;
       await assert.rejects(observeScenarioReceiptDependency(call, w.store, { dependencyId: 'value', model: MODEL,
         row: call.recordRefs[0]!.row, field: 'private' }), validation);
-      selectScenarioReceiptReturn(call, w.store, 'literal-result');
       assert.throws(() => selectScenarioReceiptReturn(call, w.store, 'literal-result'), validation);
       return emptyEffects('literal');
-    } });
+    } }), validation);
     assert.ok(admitted); assert.throws(() => selectScenarioReceiptReturn(admitted!, w.store, 'literal-result'), forbidden);
     await assert.rejects(observeScenarioReceiptDependency(admitted!, w.store, {
       dependencyId: 'value', model: MODEL, row: w.row, field: 'visible',
@@ -319,7 +318,7 @@ describe('execution-associated saved scenario disclosure', () => {
     assert.equal(readScenarioReceiptAssociation(receipt)?.returnId, 'implicit-return');
   });
 
-  it('withholds changed fields whose original scalar schema becomes a file, model reference, or another scalar type', async () => {
+  it('withholds influenced changes when a required scalar becomes a file, model reference, or another scalar type', async () => {
     const w = await world(); const receipt = await save(w);
     for (const tag of [{ kind: 'file' as const }, { kind: 'ref' as const, model: MODEL }, { kind: 'integer' as const }]) {
       const slice = artifact(); const changed = slice.models![0]!.fields.find(field => field.name === 'visible')!;
@@ -329,8 +328,7 @@ describe('execution-associated saved scenario disclosure', () => {
       const registry = loadArtifactDescriptors(slice, { by: 'members' }).registry;
       const projected = await projectScenarioReceipt({ ...w, registry, receipt });
       assert.equal(projected.result, null);
-      assert.equal(Object.hasOwn(projected.records[0]!.data, 'visible'), false);
-      assert.equal(projected.records[0]!.data['private'], 'private choice');
+      assert.deepEqual(projected.records, []);
     }
   });
 
