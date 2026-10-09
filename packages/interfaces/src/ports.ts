@@ -103,6 +103,8 @@ export interface SourceFormBindingProof {
 export interface SourceFormBindings {
   seal(context: SourceFormBindingContext, bound: ClosedInputs, editable: readonly string[]): Promise<SourceFormBindingProof>;
   restore(context: SourceFormBindingContext, token: string, inputs: ClosedInputs): Promise<ClosedInputs | null>;
+  /** Expired checked CRUD proof; recovered inputs require receipt-only invocation. */
+  restoreRetained?(context: SourceFormBindingContext, token: string, inputs: ClosedInputs): Promise<ClosedInputs | null>;
 }
 
 /** Owning-app facts the shell needs. L1 binds from appDefinition. */
@@ -127,6 +129,8 @@ export type ReadOutcome = { result: ReadResult } | { error: BusinessError };
 /** L3 canonical invocation callable (admission + commit + projection). */
 export interface OperationInvoker {
   invokeMutation(envelope: MutationEnvelope, identity: ResolvedIdentity): Promise<MutationOutcome>;
+  /** Current-authority saved CRUD outcome only; never executes an unseen identity. */
+  invokeRetainedMutation?(envelope: MutationEnvelope, identity: ResolvedIdentity): Promise<MutationOutcome>;
   invokeRead(envelope: ReadEnvelope, identity: ResolvedIdentity): Promise<ReadOutcome>;
 }
 
