@@ -70,6 +70,7 @@ export {
   CRUD_MAX_ID_LENGTH,
   crudDefs,
   crudExecute,
+  generatedCrudExecuteOwnerSession,
   type InterimFieldDef,
   type InterimHook,
   type InterimHookContext,
@@ -104,6 +105,7 @@ export {
   type CrudExecuteInput,
   type CrudOperationDef,
   type GeneratedCrudExecuteInput,
+  type GeneratedCrudExecuteOwnerSessionInput,
   type GeneratedCrudOwnerFrame,
   type GeneratedCrudOwnerFrameFactory,
 } from './mutation/index.js';
