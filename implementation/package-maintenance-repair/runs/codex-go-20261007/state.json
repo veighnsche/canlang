@@ -900,6 +900,137 @@
       "remaining_prerequisite": {
         "prerequisite": "Released provider classification/explanation, evidence lifetime, late outcome/idempotency and media jobId recovery correlation.",
         "owner": "Services/Cloudflare/Work provider contract owners"
+      },
+      "text_control_window_decision": {
+        "stage": "Finite Services producer verdict implemented and affected local checks passed after exact human-approved JEV3; coordinator manual review pending. Roadmap owns actual consumer creation/nonrenewal/full-await qualification.",
+        "owner": "Packages Services installed policy/ABI; Roadmap owns Work/Cloudflare correlation/control/progress consumption",
+        "destination": "https://api.typesafe.ai/v1/systemone",
+        "model": "jev-latest",
+        "payload_scope": "Generalized repository-derived adapter facts below; no source code, credentials or private app data. Configured TYPESAFE_API_KEY used only as Authorization; never included in state or saved.",
+        "state": {
+          "verified_current_facts": [
+            "Installed streaming Text adapter freezes exact deployment/account/profile/policy/model identity and finite maxDurationMs from actual HTTP timeout. Generation uses its own absolute monotonic deadline anchored before preparation; cancellation never restarts generation.",
+            "Run-handle cancel may await original completion; late cancellation preserves established success. Reconciliation has no durable provider lookup and returns unknown after restart. Persistence/progress waits also exist outside the Services adapter.",
+            "The Work/Cloudflare consumer owns retained original control creation time/deadline, delivery/source/revision correlation, current authority, pin/stop and progress/receipt association. A retry must not renew that deadline. Both options require the whole consumer wait to be bounded without claiming physical cessation.",
+            "Existing installed Images uses a distinct maxObservationDurationMs policy, default HTTP timeout or explicit positive finite configuration, validating a retained observation window for controls without renewing generation.",
+            "No requirement states that Text observation ceiling must differ numerically from its installed generation ceiling. Either new Services ABI or a consumer cap using existing metadata is technically possible."
+          ],
+          "required_outcomes": [
+            "Finite creation-anchored nonrenewable observation including persistence wait",
+            "Unchanged generation deadlines/model/transcript/token accounting",
+            "Preserved late success and truthful unknown after restart",
+            "Complete real producer/consumer behavior with concise authoring/minimal API"
+          ]
+        },
+        "question_type": "choice",
+        "question_name": "text_control_boundary",
+        "criteria": {
+          "consumer_existing_ceiling": "Keep Services installed ABI unchanged. Define permission for consumer to cap a distinct retained control observation window with installed maxDurationMs. Consumer actually enforces creation anchor, nonrenewal, whole-wait timeout and truthful late/unknown retention. Services does not claim to enforce consumer lifecycle. Observation ceiling cannot differ separately, but no such requirement is declared.",
+          "separate_services_observation": "Add explicit installed maxObservationDurationMs and corresponding control-window options/handle ABI. Default may equal HTTP timeout or finite deployment configuration differ. Producer validates window without changing generation deadlines; consumer still persists anchor/nonrenewal and bounds external callback/persistence waits. Adds independent policy/API validation but does not prove consumer nonrenewal."
+        },
+        "equivalent_instructions": [
+          "Which ownership/ABI boundary should implement the same complete finite Text control outcomes now, given the verified enforcement points and no independent numerical ceiling requirement?",
+          "Choose the smaller sufficient contract for the stated nonrenewable observation behavior: a consumer window capped by the existing installed ceiling, or separately installed Services observation ABI. Evaluate identical outcomes and actual boundaries.",
+          "For this streaming producer and persistent control consumer, which alternative preserves generation and honest late/restart outcomes while providing the required finite control wait with minimal necessary policy/API?"
+        ],
+        "approval_status": "Human explicitly approved these three exact prepared JEV requests to this destination in the current chat; prior rejection preserved, no bypass or hidden retry.",
+        "calls": [
+          {
+            "variant": 1,
+            "http_status": 200,
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "text_control_boundary": {
+                  "type": "choice",
+                  "choice": "consumer_existing_ceiling",
+                  "confidence": 0.94,
+                  "probabilities": {
+                    "consumer_existing_ceiling": 0.97,
+                    "separate_services_observation": 0.03
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 786,
+                "output_tokens": 45
+              }
+            }
+          },
+          {
+            "variant": 2,
+            "http_status": 200,
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "text_control_boundary": {
+                  "type": "choice",
+                  "choice": "consumer_existing_ceiling",
+                  "confidence": 0.98,
+                  "probabilities": {
+                    "consumer_existing_ceiling": 0.99,
+                    "separate_services_observation": 0.01
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 796,
+                "output_tokens": 45
+              }
+            }
+          },
+          {
+            "variant": 3,
+            "http_status": 200,
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "text_control_boundary": {
+                  "type": "choice",
+                  "choice": "consumer_existing_ceiling",
+                  "confidence": 0.94,
+                  "probabilities": {
+                    "consumer_existing_ceiling": 0.97,
+                    "separate_services_observation": 0.03
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 790,
+                "output_tokens": 45
+              }
+            }
+          }
+        ],
+        "prior_rejection": "Automatic approval review rejected repository-derived adapter/contract egress before execution; specific human approval then authorized these exact three saved requests and destination. No prior transmission or workaround.",
+        "interpretation": {
+          "choice": "consumer_existing_ceiling",
+          "probabilities": [
+            0.97,
+            0.99,
+            0.97
+          ],
+          "confidence": [
+            0.94,
+            0.98,
+            0.94
+          ],
+          "rationale": "Verified existing installed maxDurationMs is immutable, finite and tied to exact provider/profile/policy/model. No independent numerical ceiling is required. Consumer already owns retained control creation/pin and whole-await progress; it must enforce this separate window. No Services API or numeric policy addition is necessary.",
+          "uncertainty": "No rationale field returned by JEV; agreement is advice, not consumer qualification. Services cannot prove caller-persisted nonrenewal, bound external durable callbacks or claim physical cancellation. Reconsider a separately configured observation ceiling only if a defining requirement needs a different value."
+        },
+        "release_contract": {
+          "field": "InstalledTextGeneration.profile.maxDurationMs",
+          "meaning": "Existing positive safe installed generation ceiling also caps one DISTINCT retained control observation window anchored once at control creation. Work/Cloudflare preserves original start/deadline across retries and bounds the complete remaining observation await including durable progress; it never derives a renewed deadline per retry.",
+          "preserved": "Original absolute generation deadline/model/transcript/token/output/accounting stay unchanged. Observation timeout is honest uncertainty, not terminal cancellation/failure or remote cessation. Saved/late success must not be overwritten; restart reconciliation remains unknown/no_run_resume with original delivery identity.",
+          "owner": "Services installed ceiling/identity producer; Roadmap Work/Cloudflare creation/persistence/current authority/control/progress consumer. No new Services ABI/timer or consumer implementation here."
+        },
+        "validation": "Services owning emit passed. Exactly three changed existing real localhost Ollama cases3/3 pass on Node24 (318ms total): configured binding/profile/policy/model mutation cannot change frozen positive safe installed HTTP ceiling; original80ms final/stream deadlines still bound larger installation; reconstruction returns identical original-id unknown/no_run_resume without extra provider POST; late cancellation preserves settled success/snapshots and single POST. Unchanged adapter results reused at original source scope; no consumer timer or compiled Work/Cloudflare qualification claim.",
+        "files": [
+          "packages/services/src/ports.ts",
+          "packages/services/src/models/ollama.ts",
+          "packages/services/test/models-ollama.test.ts"
+        ],
+        "limits": "No new Services ABI/configured policy/timer, provider lookup or cancellation guarantee. Actual Work/Cloudflare consumer must persist original control deadline/anchor and bound its complete wait; do not renew generation, overwrite terminal success or treat unknown as remote stop. Native preparation/release and distinct timezone/raw-payload holds remain unchanged."
       }
     },
     "TECH-SV03": {
@@ -4407,7 +4538,7 @@
     "authorization": "Human local continuation from ebd2ad08; sole shared CI/common gate owner; existing48packet scope and native preparation HOLD preserved.",
     "coordination": "Human-appointed coordinator01a11e6b-f4e1-7603-b47d-9d3210c9c6de; actionable exact prerequisite and shared repair handoffs through existing local chat.",
     "examined_queue": "All48existing one-per-packet dispositions examined; historical20finished/15partial/12open-or-blocked/1human-held accounting preserved. Ready shared gates and exact released State/UI/Interfaces/Compiler/Identity joins implemented and checked at their recorded scopes. Remaining28parent identities retain defining producer/contract/host prerequisites or the preparation HOLD; no original333duty closure claim.",
-    "delivery": "Released Compilerb2c1a425 source/test consumed and genuine bounded-alias CSV consumer implemented/tested. Finite date/common import repairs retained. Remaining existing rows retain defining scenario/resource/provider/host contracts and precise holds. New TECH-SV02 installed Text control policy verdict under exact current-source investigation; no consumer producer duplication, remote/main write/deployment/cloud execution.",
+    "delivery": "Released Compilerb2 alias/CSV and exact writer/common fixture units remain qualified. TECH-SV02 finite Services installed-ceiling control verdict implemented/tested after explicitly approvedJEV3; coordinator review and Roadmap compiled Work/Cloudflare creation/nonrenewal/full-await qualification remain. No new Services ABI/foreignconsumer duplication, remote/main write/deployment/cloud execution; original48parent prerequisites and precise holds retained.",
     "last_upstream_sync": "Safe ff-only/no-recurse remote pull already up to date. Consumed coordinator-released local mainfdd03cb7 at clean committed846d6a20 boundary, retaining date/ordinary Contract CSV records and common fixtures. Defining Dev40222c25 source and57479053 cache verification remain owning releases; inherited native CRUD unit remains unfinished with recipient HOLD. No source conflict, remote publication, foreign producer duplication or worker main write.",
     "review_process": "Actual Codex bf6517e1review5472554211: native update clone4232157232fixedad3856a9; missing Compiler modifier4232157221fixed owning8f4release consumedb3d06edf. Actual01a6review5472670410: ignored undefined patch4232259618fixed8521ccfa. Earlier alias/chained caption/InlineMessage/Chromium/zsh findings corrected at recorded scopes. Pending/older reviews never qualify the current head; CodeRabbit/CodeRebits ignored.",
     "filetree_reconciliation": "Reuse coordinator source registry57479053: accumulated net predecessor/successor paths of current staged Packages/mainfdd03cb7 merge are registered, zero missing; newer date/CSV records use existing registered paths. Prior owners/allocations/history-only/open semantic scopes retained, complete82493427checkpoint unadvanced. No recursive bookkeeping or full acceptance.",
