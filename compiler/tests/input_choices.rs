@@ -103,7 +103,7 @@ fn owning_input_choices_publish_checked_bindings_without_executing_annotations()
     std::fs::write(
         stdlib.join("index.mjs"),
         format!(
-            "export {{ require, hasRole, same }} from {};\nexport async function records(context,model,options){{const probe=globalThis.choiceLookup;if(!probe)throw Error('choice lookup executed');probe.calls.push({{context,model,options}});await Promise.resolve();if(probe.error)throw probe.error;return probe.rows;}}\n",
+            "export {{ ValueError, require, hasRole, same }} from {};\nexport async function records(context,model,options){{const probe=globalThis.choiceLookup;if(!probe)throw Error('choice lookup executed');probe.calls.push({{context,model,options}});await Promise.resolve();if(probe.error)throw probe.error;return probe.rows;}}\n",
             serde_json::to_string(&root.join("packages/stdlib/dist/src/index.js").display().to_string()).unwrap()
         ),
     )

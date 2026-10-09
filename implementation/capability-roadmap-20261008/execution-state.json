@@ -1583,12 +1583,22 @@
         "37695f6d7c7e7ca95abd0bae169a3768e1fae37c",
         "2db9200b3fa93d1fc90b2c9d18182568e1fb485e",
         "compiler/tests/effects.rs at3e5d2cd034f89eebfee57d1e97cd38ecc6736b2b",
-        "e7d65ad9be0915fe74bd33dc0b7b7e0c38744ce2 (compiler/src/analysis/types.rs and compiler/tests/b4_check.rs)"
+        "e7d65ad9be0915fe74bd33dc0b7b7e0c38744ce2 (compiler/src/analysis/types.rs and compiler/tests/b4_check.rs)",
+        "1a6c7633 (b3_i5/b4_parse/b4_resolve only)",
+        "7db23906 (native profile consumers and invocation reference fixture)",
+        "bbd541af (CRUD records, installed UI/default/sourcemap consumers)",
+        "61957916 (default/rollback CRUD record consumers)"
       ],
       "additional_consumed_commits": [
         "8f83740f",
         "f617d3f7"
-      ]
+      ],
+      "native_consumer_intake": {
+        "state": "unfinished_current_source_qualification",
+        "producer_head": "e461c1e22d547cdb17ca9f8aa2ed8869ce1ea365",
+        "scope": "Only23 mapped consumer files consumed from published focused producer units; current source-current affected invocation105passed/2failed. Prior unchanged native/typed/browser/MCP results reused. No source-current full compiler acceptance.",
+        "remaining": "Compiler owns format corpus mirror (published draft now zero known-unparseable files), analysis draft-outcome pins/explain exclusion and authoring/CanInbox stale mirrors. This worker is repairing the native input_choices harness for its expanded fixture: real any/set helpers, actual nonnull final guard query/parent-read order and null/annotation short-circuits. No assertion removal or fake guard helper."
+      }
     }
   },
   "live_handoffs": {

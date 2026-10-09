@@ -93,7 +93,13 @@ const anonymous=makeIdentity({actor:null,team:null,membership:null});
 const trace=[];globalThis.readEnumTrace=trace;
 const created=await invoker.invokeMutation({operation:`${model}.create`,operation_id:uuidv7(FIXED_NOW,1),inputs:{}},identity);
 assert.ok('result' in created,JSON.stringify(created));assert.equal(created.result.status,'committed');
-const row=created.result.result;assert.equal(row.data.count,'1');assert.equal(row.data.state,'a');
+assert.equal(created.result.result,null,'generated CRUD has no business result');
+ assert.equal(created.result.records.length,1,'exact disclosed created record');
+ const row=created.result.records[0];
+ assert.deepEqual(Object.keys(row).sort(),['archivedAt','created','createdBy','data','id','parent','updated','updatedBy','version']);
+ assert.equal(typeof row.id,'string');assert.ok(row.id.length>0);
+ assert.ok(Number.isSafeInteger(row.version)&&row.version>0);
+assert.equal(row.data.count,'1');assert.equal(row.data.state,'a');
 const counter={id:row.id},revision=await store.readRevision(),history=await store.historyFor(model,row.id);
 async function unchanged(){
  assert.equal(await store.readRevision(),revision,'reads never commit a receipt or effects');
