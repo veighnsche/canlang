@@ -2629,15 +2629,7 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
     if (names.length === 0 && !deliveryFields) continue;
     const app = own(definition, 'id');
     if (typeof app !== 'string' || app === '') throw new AssemblyCorrespondenceError('Scenario framework lacks its owning app identity.');
-    const bind = producers.invoke.bindScenarioReceiptFrameworkProducer;
-    if (bind === undefined) throw new AssemblyCorrespondenceError('Installed State framework binder is unavailable.');
-    const work = await import('@canlang/work/kernel/dispatch-staging');
-    const tables = await import('@canlang/work/kernel/tables');
-    if (typeof work.stageCanonicalSend !== 'function' || typeof work.readCanonicalSendStaging !== 'function' ||
-        typeof tables.dispatchGenerationTargetProfile !== 'function') {
-      throw new AssemblyCorrespondenceError('Installed Work framework producers are unavailable.');
-    }
-    const bindings = names.map(binding => {
+    const inventory = names.map(binding => {
       const declaration = own(rawBindings, binding), from = own(declaration, 'from');
       const capability = own(declaration, 'capability'), judgment = own(declaration, 'judgment');
       if (typeof from !== 'string' || from === '' ||
@@ -2658,12 +2650,28 @@ async function bindScenarioFrameworkProducers(asm: AssembledModules, artifact: C
           return `${capability}.${operation}`;
         });
       }
-      return Object.freeze({ binding, from, targets: Object.freeze(sources.map(source => {
+      return { binding, from, sources };
+    });
+    // Unrelated bindings/delivery models do not prove this scenario uses
+    // framework effects. Pre-bind available genuine producers; if absent,
+    // the actual Send/assignment still refuses in its active State capture.
+    // There is no late registration after execution begins.
+    const bind = producers.invoke.bindScenarioReceiptFrameworkProducer;
+    if (bind === undefined) continue;
+    let work: typeof import('@canlang/work/kernel/dispatch-staging');
+    let tables: typeof import('@canlang/work/kernel/tables');
+    try {
+      work = await import('@canlang/work/kernel/dispatch-staging');
+      tables = await import('@canlang/work/kernel/tables');
+    } catch { continue; }
+    if (typeof work.stageCanonicalSend !== 'function' || typeof work.readCanonicalSendStaging !== 'function' ||
+        typeof tables.dispatchGenerationTargetProfile !== 'function') continue;
+    const bindings = inventory.map(({ binding, from, sources }) =>
+      Object.freeze({ binding, from, targets: Object.freeze(sources.map(source => {
         const profile = tables.dispatchGenerationTargetProfile(source);
         return Object.freeze({ source, correlation: profile === null ? null :
           profile.role === 'original' ? 'value' as const : 'arguments' as const });
-      })) });
-    });
+      })) }));
     bind(def, Object.freeze({ source: Object.freeze({ ...plan.source }), app, bindings: Object.freeze(bindings),
       stage: work.stageCanonicalSend, read: work.readCanonicalSendStaging }));
   }
