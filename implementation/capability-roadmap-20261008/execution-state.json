@@ -509,11 +509,12 @@
         }
       ],
       "worker_update": {
-        "state": "retained_exact_id_producer_implemented_tested_original_consumer_in_progress",
+        "state": "retained_exact_id_implemented_tested_source_control_blocked_on_correlation_and_late_observation_contract",
         "prerequisite": "Source-addressed cancel/reconcile must join actual retained original submit carrier and exact Work dispatch row; original attempt/binding/source/revision/owner/principal/current authority and verified observed usage remain required. Full current CanCreative task11 rules/context still applies.",
         "owner": "This human-authorized local worker owns the finite retained read and original consumer following coordinator allocation; Compiler owns missing checked source facts, Services owns actual provider profile.",
         "implemented": "StoragePort.outboxGet(exact intentId) exposes original carrier/status via existing Memory/D1/DO storage with no new table or scan. Required overlays forward it; read-only handlers refuse it. SQL acknowledgement preserves skipped status as Memory already does.",
-        "validation": "Owning runtime build22/22 and existing storage conformance144/144 pass on actual Memory/nativeD1/SQLiteDO; exact/unknown/SQL-like IDs, full carrier, input/output alias isolation, acknowledgement/retry/skipped and adapter-handle reopen covered. This is not whole process restart or full22 acceptance."
+        "validation": "Owning runtime build22/22 and existing storage conformance144/144 pass on actual Memory/nativeD1/SQLiteDO; exact/unknown/SQL-like IDs, full carrier, input/output alias isolation, acknowledgement/retry/skipped and adapter-handle reopen covered. This is not whole process restart or full22 acceptance.",
+        "remaining": "Compiled Images.cancel/reconcile takes arbitrary business source/revision, but original canonical dispatch rows/outbox carrier retain no checked source+revision+binding locator. Existing receipt association revision is a delivery checkpoint, not request revision. No test-only callback or source==operation_id assumption is admitted. Owner: roadmap defining correlation/Work consumer; Compiler checked source facts; Services observation deadline separate from expired generation deadline. Defining retain-read prerequisite is released; full22/44 consumer must refuse absent/ambiguous correlation and retain original principal/attempt/current cleanup authority."
       }
     },
     {
@@ -877,7 +878,8 @@
         "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker\u2019s task.",
         "selected_policy": "JEV3 recommends named_roster (.99/.99/.97; confidence .98/.98/.95), advisory only. Expense keeps assigned primary and eligible distinct secondary; Creative owner requests two other current managers. Explicit deadlines, rejection veto, superseding reset votes, exact frozen evidence/current eligibility and original separately authorized finalizers required.",
         "remaining": "Both full source drafts/cases/pages04490bdc and complete ordinary/package/template comparison README retained. One bounded comparison confirms all original Expense10/Creative12 scenarios and pages, original body deltas restricted to decide/reimburse/publish. Current complete provider-closure checking: Expense original E3010x2, composition adds E5006x8 operation_id; Creative original7 diagnostics (E3010x5/E3001x1/E3004x1), composition adds E5006x6. Defining rule/grant/context and example-admission execution gates remain; no38/040 acceptance.",
-        "deliverables": "approval-compositions/ExpenseReview.can, CreativeRevisionReview.can and README.md comparison; finite writer active, no task credit."
+        "deliverables": "approval-compositions/ExpenseReview.can, CreativeRevisionReview.can and README.md comparison; finite writer active, no task credit.",
+        "example_identity_prerequisite": "Exact released Compiler52e9e375 consumed as9083997c; rebuilt CLI complete provider-closure checks remove all8/6 operation_id E5006. Expense retains original2 diagnostics and Creative original7. No full artifact/runtime acceptance; original providers/rules/grants/native context remain gates."
       }
     },
     {
@@ -1682,6 +1684,10 @@
       ],
       "nested_and_ignored_sources": "draft clean at exact required5a12eb9ebb136ffa4e5ce352663f92affba25bc2; no nested source edits/gitlink change or ignored repository task source candidates. Dependencies/build caches/logs/credentials excluded.",
       "temporary_linux_playwright_wrapper": "import base from \"/workspace/canlang/playwright.config.ts\"; export default {...base,testDir:\"/workspace/canlang/tests/e2e\",workers:2,use:{...base.use,launchOptions:{executablePath:\"/usr/bin/chromium\"}}}; (temporary external wrapper only; adapt to local host if needed)"
+    },
+    "pr_review": {
+      "state": "older_published_head_codex_review_completed_parent_correction_tested_new_head_review_due",
+      "action": "Codex4231482661 fixed/tested332e73b3. Same-name caption behavior remains per accepted DESIGN1018. Exact Packages native/archive correction853aa6f6 passes State build6/6 and owning10/10, preserving nominal-array controls. P14232103004 nominal-alias correction remains with Packages. Later published-head review/CI required."
     }
   },
   "live_handoffs": {
