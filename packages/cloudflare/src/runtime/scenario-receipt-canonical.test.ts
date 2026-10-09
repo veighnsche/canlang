@@ -605,12 +605,12 @@ it('retains a caught unsupported query refusal and discards earlier successful o
 });
 
 
-it('retains omitted literal/nullable input reports read-only and refuses their mutation join', async () => {
+it('joins omitted literal/nullable input defaults to the actual read-only or mutating owner effects', async () => {
   for(const mutates of [false,true]) {
     const w=await world(false,true,`
       if(input.optional!==null) throw new Error("nullable omission did not hydrate native null");
       if(input.message!=="defaulted input") throw new Error("literal omission did not hydrate native text");
-      ${mutates ? 'await set(c,input.record,{visible:"must not stage with omitted input defaults"});' : ''}
+      ${mutates ? 'await set(c,input.record,{visible:"default final"});' : ''}
       selectScenarioReceiptReturn(c,"selected"); return input.message;
     `, artifact=>{
       artifact.operations![0]!.inputs.fields.push(
@@ -630,30 +630,34 @@ it('retains omitted literal/nullable input reports read-only and refuses their m
     const fresh=await buildInvoker(w.artifact,w.asm,captureStore,{appId:app,memberships:w.identities,now:()=>FIXED_NOW})
       .invokeMutation(envelope,w.identity);
     const after=await w.snapshot();
-    assert.deepEqual(after.rows,before.rows); assert.deepEqual(after.history,before.history);
     assert.deepEqual(after.outbox,before.outbox); assert.deepEqual(after.schedules,before.schedules);
     assert.deepEqual(after.receipt,before.receipt,'original retained receipt stays unchanged');
     for(const batch of batches) {
-      assert.deepEqual(batch.writes,[]); assert.deepEqual(batch.history,[]); assert.deepEqual(batch.outbox,[]);
+      assert.equal(batch.writes.length,mutates?1:0); assert.equal(batch.history.length,mutates?1:0); assert.deepEqual(batch.outbox,[]);
       assert.deepEqual(batch.schedules,[]); assert.deepEqual(batch.uniqueClaims,[]); assert.deepEqual(batch.uniqueReleases,[]);
     }
-    if(mutates) {
-      assert.ok('error' in fresh,JSON.stringify(fresh)); assert.equal(fresh.error.code,'validation');
-      assert.deepEqual(w.counters(),{commits:0,files:0,executions:1});
-      continue;
-    }
     assert.ok('result' in fresh,JSON.stringify(fresh)); assert.equal(fresh.result.status,'committed');
-    assert.equal(fresh.result.result,'defaulted input'); assert.deepEqual(fresh.result.records,[]);
+    assert.equal(fresh.result.result,'defaulted input');
     const physical=await w.store.readReceipt({...w.receipt.identity,operationId:envelope.operation_id as OperationId}); assert.ok(physical);
     assert.deepEqual(physical.resolvedDefaults,{message:'defaulted input',optional:null});
     const association=readScenarioReceiptAssociation(physical); assert.ok(association);
-    assert.deepEqual(association.observations,[]); assert.deepEqual(association.changed,[]);
+    assert.deepEqual(association.observations,[]); assert.equal(association.changed.length,mutates?1:0);
+    if(mutates) {
+      const final=await w.store.load(model,entry.id); assert.ok(final);
+      assert.equal(final.data['visible'],'default final'); assert.equal(final.version,entry.version+1);
+      assert.deepEqual(association.changed[0]!.row,final);
+      assert.equal(after.history.length,before.history.length+1);
+      assert.equal(projectedRecords(fresh.result)[0]?.data['visible'],'default final');
+    } else {
+      assert.deepEqual(after.rows,before.rows); assert.deepEqual(after.history,before.history);
+      assert.deepEqual(fresh.result.records,[]);
+    }
     const retainedBefore={state:await w.snapshot(),physical:await w.store.readReceipt(physical.identity)};
     for(const dedicated of [false,true]) {
       const replay=dedicated?await w.invoker(w.readonlyStore,true).invokeRetainedMutation(envelope,w.identity)
         :await w.invoker().invokeMutation(envelope,w.identity);
       assert.ok('result' in replay,JSON.stringify(replay)); assert.equal(replay.result.status,'replayed');
-      assert.equal(replay.result.result,'defaulted input'); assert.deepEqual(replay.result.records,[]);
+      assert.equal(replay.result.result,'defaulted input'); assert.deepEqual(replay.result.records,fresh.result.records);
       assert.deepEqual({state:await w.snapshot(),physical:await w.store.readReceipt(physical.identity)},retainedBefore);
       assert.deepEqual(w.counters(),{commits:0,files:0,executions:1});
     }
@@ -661,7 +665,7 @@ it('retains omitted literal/nullable input reports read-only and refuses their m
 });
 
 
-it('keeps actual computed input-default reports read-only and permits an explicit override without a default report', async () => {
+it('joins actual computed input-default reports to owner mutation and keeps explicit overrides report-free', async () => {
   for(const mode of ['omitted-readonly','omitted-mutation','explicit-mutation'] as const) {
     const w=await world(false,true,`
       const old=input.record.visible;
@@ -684,16 +688,6 @@ it('keeps actual computed input-default reports read-only and permits an explici
     const captureStore:StoragePort={...w.store,commit:async batch=>{batches.push(batch);return w.store.commit(batch);}};
     const fresh=await buildInvoker(w.artifact,w.asm,captureStore,{appId:app,memberships:w.identities,now:()=>FIXED_NOW})
       .invokeMutation(envelope,w.identity);
-    if(mode==='omitted-mutation') {
-      assert.ok('error' in fresh,JSON.stringify(fresh)); assert.equal(fresh.error.code,'validation');
-      const after=await w.snapshot(); assert.deepEqual(after.rows,before.rows); assert.deepEqual(after.history,before.history);
-      assert.deepEqual(after.outbox,before.outbox); assert.deepEqual(after.schedules,before.schedules);
-      assert.deepEqual(after.receipt,before.receipt);
-      for(const batch of batches) { assert.deepEqual(batch.writes,[]); assert.deepEqual(batch.history,[]);
-        assert.deepEqual(batch.outbox,[]); assert.deepEqual(batch.schedules,[]);
-        assert.deepEqual(batch.uniqueClaims,[]); assert.deepEqual(batch.uniqueReleases,[]); }
-      continue;
-    }
     assert.ok('result' in fresh,JSON.stringify(fresh)); assert.equal(fresh.result.status,'committed');
     const expected=mode==='explicit-mutation'?'explicit':entry.data['visible']+':computed';
     assert.equal(fresh.result.result,expected);
@@ -702,8 +696,14 @@ it('keeps actual computed input-default reports read-only and permits an explici
     const association=readScenarioReceiptAssociation(physical); assert.ok(association);
     assert.deepEqual(association.observations.map(observation=>observation.dependencyId),['visible-value']);
     assert.deepEqual(association.observations[0]!.row,entry);
-    if(mode==='explicit-mutation') { assert.equal(association.changed.length,1);
-      assert.equal(association.changed[0]!.row.data['visible'],'explicit final'); }
+    if(mode!=='omitted-readonly') {
+      assert.equal(association.changed.length,1);
+      const final=await w.store.load(model,entry.id); assert.ok(final);
+      assert.equal(final.version,entry.version+1); assert.deepEqual(association.changed[0]!.row,final);
+      assert.equal(final.data['visible'],'explicit final');
+      for(const batch of batches) { assert.equal(batch.writes.length,1); assert.equal(batch.history.length,1); assert.ok(batch.receipt);
+        assert.deepEqual(batch.receipt.resolvedDefaults,mode==='explicit-mutation'?{}:{message:expected}); }
+    }
     else { assert.deepEqual(association.changed,[]); const after=await w.snapshot();
       assert.deepEqual(after.rows,before.rows); assert.deepEqual(after.history,before.history); }
     const retainedBefore={state:await w.snapshot(),physical:await w.store.readReceipt(physical.identity)};
@@ -712,6 +712,58 @@ it('keeps actual computed input-default reports read-only and permits an explici
         :await w.invoker().invokeMutation(envelope,w.identity);
       assert.ok('result' in replay,JSON.stringify(replay)); assert.equal(replay.result.status,'replayed');
       assert.equal(replay.result.result,expected); assert.deepEqual(replay.result.records,fresh.result.records);
+      assert.deepEqual({state:await w.snapshot(),physical:await w.store.readReceipt(physical.identity)},retainedBefore);
+      assert.deepEqual(w.counters(),{commits:0,files:0,executions:1});
+    }
+  }
+});
+
+it('forwards computed references only after private seed proof and refuses copied or missing producers before commit', async () => {
+  for(const mode of ['admitted','caught-copy','missing-producer'] as const) {
+    const w=await world(false,true,`
+      const old=input.record.visible;
+      ${mode==='caught-copy' ? 'await set(c,input.record,{visible:"discard caught copy stage"}); try {reportDefault("alias",{...input.record});} catch {}' :
+        'if(input.alias===undefined) reportDefault("alias",input.record); await set(c,input.record,{visible:"reference final"});'}
+      await observeScenarioReceiptDependency(c,"Shop.Record",input.record,"visible","visible-value");
+      selectScenarioReceiptReturn(c,"selected"); return old;
+    `,artifact=>{
+      artifact.operations![0]!.inputs.fields.push({name:'alias',field:{kind:'ref',model,requireVersion:true},required:false,computedDefault:true});
+      artifact.modules[0]!.js=artifact.modules[0]!.js.replace('id:"SavedScenario",policy,models:',
+        'id:"SavedScenario",policy,operations:{"Shop.saved":{inputs:{alias:{type:"Shop.Record",computedDefault:true}}}},models:');
+    });
+    const entry=await w.store.load(model,w.row.id); assert.ok(entry);
+    const envelope={...w.envelope,operation_id:uuidv7(FIXED_NOW,++sequence),inputs:{record:{id:entry.id,version:String(entry.version)}}};
+    const before=await w.snapshot(), batches:Array<Parameters<StoragePort['commit']>[0]>=[];
+    const store:StoragePort={...w.store,commit:async batch=>{batches.push(batch);return w.store.commit(batch);}};
+    const producer=w.loaded.producers.invoke as {observeScenarioInputComputedDefault?:typeof import('@canlang/state/invocation').observeScenarioInputComputedDefault};
+    const original=producer.observeScenarioInputComputedDefault; assert.ok(original);
+    if(mode==='missing-producer') delete producer.observeScenarioInputComputedDefault;
+    let fresh: Awaited<ReturnType<ReturnType<typeof buildInvoker>['invokeMutation']>>;
+    try { fresh=await buildInvoker(w.artifact,w.asm,store,{appId:app,memberships:w.identities,now:()=>FIXED_NOW})
+      .invokeMutation(envelope,w.identity); }
+    finally { producer.observeScenarioInputComputedDefault=original; }
+    const after=await w.snapshot();
+    if(mode!=='admitted') {
+      assert.ok('error' in fresh,JSON.stringify(fresh)); assert.equal(fresh.error.code,'validation');
+      assert.match(fresh.error.message,mode==='missing-producer'?/installed State contribution producer/:/earlier admitted singular nonnullable/);
+      assert.equal(w.counters().executions,mode==='missing-producer'?0:1);
+      assert.deepEqual({...after,revision:before.revision},before);
+      assert.equal(batches.length,1); assert.ok(batches[0]!.receipt); assert.equal(batches[0]!.receipt.outcome.status,'rejected');
+      for(const batch of batches) { assert.deepEqual(batch.writes,[]); assert.deepEqual(batch.history,[]);
+        assert.deepEqual(batch.outbox,[]); assert.deepEqual(batch.schedules,[]);
+        assert.deepEqual(batch.uniqueClaims,[]); assert.deepEqual(batch.uniqueReleases,[]); }
+      continue;
+    }
+    assert.ok('result' in fresh,JSON.stringify(fresh)); assert.equal(fresh.result.status,'committed');
+    const physical=await w.store.readReceipt({...w.receipt.identity,operationId:envelope.operation_id as OperationId}); assert.ok(physical);
+    assert.deepEqual(physical.resolvedDefaults,{alias:{id:entry.id,version:String(entry.version)}});
+    const final=await w.store.load(model,entry.id); assert.ok(final);
+    assert.equal(final.data['visible'],'reference final'); assert.equal(final.version,entry.version+1);
+    const retainedBefore={state:await w.snapshot(),physical};
+    for(const dedicated of [false,true]) {
+      const replay=dedicated?await w.invoker(w.readonlyStore,true).invokeRetainedMutation(envelope,w.identity):await w.invoker().invokeMutation(envelope,w.identity);
+      assert.ok('result' in replay,JSON.stringify(replay)); assert.equal(replay.result.status,'replayed');
+      assert.deepEqual(replay.result.result,fresh.result.result); assert.deepEqual(replay.result.records,fresh.result.records);
       assert.deepEqual({state:await w.snapshot(),physical:await w.store.readReceipt(physical.identity)},retainedBefore);
       assert.deepEqual(w.counters(),{commits:0,files:0,executions:1});
     }

@@ -146,6 +146,7 @@ describe('models: installed std text generation', () => {
       } });
       const installed = adapter.installTextGeneration(config);
       config.binding.deployment = 'deployment.changed';
+      Object.assign(config, { profile: 'changed-profile', policyRevision: 'changed-policy', model: 'not-bound' });
       assert.equal(installed.binding.deployment, 'deployment.llm');
       assert.deepEqual(installed.profile, {
         name: 'local-chat', policyRevision: 'policy-1', provider: 'ollama', model: MODEL,
@@ -153,6 +154,11 @@ describe('models: installed std text generation', () => {
         inputTokenization: 'deployment', attachments: 'unsupported',
       });
       assert.ok(Object.isFrozen(installed));
+      assert.ok(Object.isFrozen(installed.binding));
+      assert.ok(Object.isFrozen(installed.profile));
+      assert.ok(Number.isSafeInteger(installed.profile.maxDurationMs) && installed.profile.maxDurationMs > 0);
+      assert.equal(Reflect.set(installed.profile, 'maxDurationMs', 4000), false);
+      assert.equal(installed.profile.maxDurationMs, 2000, 'the frozen ceiling remains the configured HTTP timeout');
       const completion = await installed.text.generate(input, { deliveryId: 'text_1' });
       assert.equal(completion.status, 'succeeded');
       assert.equal(counted?.createdAt, CLOCK_NOW);
@@ -267,6 +273,10 @@ describe('models: installed std text generation', () => {
       const reconciled = await installed.text.reconcile('text_final');
       assert.equal(reconciled.status, 'unknown');
       assert.equal(reconciled.error?.code, 'no_run_resume');
+      const restarted = makeAdapter(server.url).installTextGeneration(textInstallation());
+      assert.deepEqual(restarted.profile, installed.profile, 'reconstruction retains the installed policy/model and ceiling');
+      assert.deepEqual(await restarted.text.reconcile('text_final'), reconciled,
+        'reconstruction cannot invent a resumable provider outcome');
       assert.equal(server.requests.length, 2);
     });
   });
@@ -284,13 +294,20 @@ describe('models: installed std text generation', () => {
       } }));
       const seen: ModelRunSnapshot[] = [];
       const run = installed.text.generateStream(textInput(), { deliveryId: 'text_stream', onSnapshot: snapshot => seen.push(snapshot) });
-      assert.equal((await run.done()).status, 'succeeded');
+      const completion = await run.done();
+      assert.equal(completion.status, 'succeeded');
+      const settledSnapshots = run.snapshots();
+      assert.deepEqual(await run.cancel(), completion, 'late cancellation preserves the settled installed-stream success');
+      assert.equal(run.cancelRequested, false);
+      assert.deepEqual(run.snapshots(), settledSnapshots);
+      assert.deepEqual(await run.done(), completion);
       assert.equal(calls, 1);
       assert.deepEqual(seen, run.snapshots());
       const wire = JSON.parse(server.requests[0]!.bodyText);
       assert.equal(wire.stream, true);
       assert.deepEqual(wire.messages, counted?.messages);
       assert.deepEqual(wire.options, { num_predict: counted?.maxTokens });
+      assert.equal(server.requests.length, 1, 'settled control observations send no second provider POST');
     });
   });
 });
