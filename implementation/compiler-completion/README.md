@@ -335,10 +335,11 @@ which supplies genuine context-bound CRUD helpers. Actual Values WASM, package
 and Testkit builds followed by catalog generation refresh stale installed inputs
 without a tracked generated-output change. Actual source compilation/assembly
 then reaches all three native cases, but all **3 fail before policy execution**:
-canonical hook module intake rejects the generated `canApp` namespace export as
-accessor metadata. No passing rule activation, rejection receipt or fence change
-is claimed. Dev owns that exact intake/activation prerequisite; its unfinished
-activation release is separate from the released portability repair. Original
+Vitest rewrites the generated `canApp` namespace export as accessor metadata,
+which the strict runtime correctly refuses. This fixture failure does not qualify
+production policy behavior. Dev reports a real Node replacement and native
+activation unit; exact reviewed source intake and its affected Node cases remain
+due. No passing rule activation, rejection receipt or fence change is claimed. Original
 **58/67**, nine open references, BDD3 and outbox holds remain unchanged.
 
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
