@@ -695,6 +695,7 @@ fn display_type(program: &CheckedProgram, module: ModuleId, ty: &ResolvedType) -
         ResolvedType::Enum { cases, .. } => format!("enum({})", cases.join(",")),
         ResolvedType::Record { symbol, .. } => name(*symbol),
         ResolvedType::Message(id) => format!("message {}", name(*id)),
+        ResolvedType::InlineMessage => "anonymous message descriptor".to_string(),
         ResolvedType::Action {
             targets, external, ..
         } => {

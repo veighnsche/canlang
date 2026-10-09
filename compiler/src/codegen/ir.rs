@@ -942,6 +942,7 @@ pub fn scalar_family(ty: &ResolvedType) -> Option<ScalarFamily> {
         | ResolvedType::Union(_)
         | ResolvedType::Object(_)
         | ResolvedType::Operation(_)
+        | ResolvedType::InlineMessage
         | ResolvedType::Opaque(_) => None,
     }
 }
@@ -961,6 +962,7 @@ pub fn is_structural(ty: &ResolvedType) -> bool {
         | ResolvedType::OperationContext
         | ResolvedType::Enum { .. }
         | ResolvedType::Message(_)
+        | ResolvedType::InlineMessage
         | ResolvedType::Action { .. }
         | ResolvedType::Invocation { .. }
         | ResolvedType::Delivery { .. }
@@ -3823,7 +3825,7 @@ impl<'a> Cx<'a> {
                 }
                 (data.source_lang.clone(), params)
             }
-            ResolvedType::Scalar(Scalar::Text) if origin_inline || anonymous.is_some() => {
+            ResolvedType::InlineMessage if origin_inline || anonymous.is_some() => {
                 let Some(module) = self.program.effects.modules.get(&scope.module) else {
                     return unsupported("checked inline descriptor module is unavailable");
                 };
@@ -7015,7 +7017,7 @@ impl<'a> Cx<'a> {
         {
             return TypedExpr::new(
                 IrExpr::Message(message),
-                ResolvedType::Scalar(Scalar::Text),
+                ResolvedType::InlineMessage,
                 node.span,
             );
         }
@@ -7049,7 +7051,53 @@ impl<'a> Cx<'a> {
             ));
         }
         let value = self.decode_expr(scope, header);
-        if !matches!(value.ty, ResolvedType::Scalar(Scalar::Text)) {
+        if let ResolvedType::Message(id) = &value.ty
+            && self
+                .program
+                .effects
+                .messages
+                .get(id)
+                .is_some_and(|message| !message.params.is_empty())
+        {
+            // Immutable aliases retain the checked initializer anchor. Inspect
+            // a bare origin's IR only to classify its binding; never emit or
+            // reevaluate that origin in place of the captured caption value.
+            let mut reference = *header;
+            while reference.kind == SyntaxKind::Group {
+                let Some(inner) = kids(reference).into_iter().find(|n| is_expression(n.kind))
+                else {
+                    break;
+                };
+                reference = inner;
+            }
+            let bare_origin = self
+                .program
+                .types
+                .message_descriptor_references
+                .get(&NodeKey::of(reference))
+                .and_then(|key| self.node(key))
+                .filter(|node| matches!(node.kind, SyntaxKind::NameRef | SyntaxKind::Path))
+                .cloned();
+            let unbound = if let Some(origin) = bare_origin {
+                matches!(self.decode_expr(scope, &origin).expr, IrExpr::Message(message) if message.params.is_empty())
+            } else {
+                matches!(&value.expr, IrExpr::Message(message) if message.params.is_empty())
+            };
+            if unbound {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    format!("cannot lower {word}: parameterized message caption needs a checked call binding"),
+                    header.span,
+                ));
+                return None;
+            }
+        }
+        if !matches!(
+            value.ty,
+            ResolvedType::Scalar(Scalar::Text)
+                | ResolvedType::InlineMessage
+                | ResolvedType::Message(_)
+        ) {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 format!("cannot lower {word}: caption has no checked text profile"),
@@ -8283,6 +8331,7 @@ impl<'a> Cx<'a> {
             ResolvedType::Scalar(Scalar::Bool | Scalar::Text | Scalar::Int)
                 | ResolvedType::Enum { .. }
                 | ResolvedType::Message(_)
+                | ResolvedType::InlineMessage
                 | ResolvedType::Null
         ) {
             self.diags.push(Diagnostic::error(
