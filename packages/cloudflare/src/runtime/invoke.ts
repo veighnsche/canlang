@@ -58,6 +58,7 @@ import type {
   ListQueryResult,
   PageDeliveryObserver,
   PageReadScope,
+  PageRecordsQuery,
   QueryPredicate,
   DispatchClaim,
   DomainWrite,
@@ -6939,6 +6940,7 @@ export function createPageReadScopeCanonical(
   opts: CanonicalPageReadOpts,
 ): PageReadScope {
   const bindings = new Map<string, Set<string>>();
+  const views = new WeakMap<object, { readonly model: string; readonly id: string; readonly version: number }>();
   let revision: number | undefined;
   const key = (id: string, version: string): string => JSON.stringify([id, version]);
   const checkpoint = async (): Promise<number> => {
@@ -6951,6 +6953,107 @@ export function createPageReadScopeCanonical(
     return current;
   };
   return Object.freeze({
+    readRecords: async (model: string, query: PageRecordsQuery): Promise<ReadonlyArray<Record<string, unknown>>> => {
+      const expectedRevision = await checkpoint();
+      const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
+      const StateError = loaded.producers.errors;
+      assertCanonicalStore(opts.store, `${model}.read`);
+      assertCanonicalMemberships(opts.memberships, `${model}.read`);
+      if (loaded.ruledModels.has(model)) throw ruledReadRefusal(StateError, model);
+      if (!isUnknownRecord(query) || Reflect.ownKeys(query).some(key => typeof key !== 'string' ||
+          !['parent', 'where', 'order', 'limit', 'archived', 'authority'].includes(key) ||
+          !Object.hasOwn(Object.getOwnPropertyDescriptor(query, key)!, 'value')) ||
+          (query.authority !== undefined && query.authority !== 'viewer') ||
+          (query.archived !== undefined && query.archived !== 'exclude')) {
+        throw new StateError('validation', 'Page source records require current viewer queries.');
+      }
+      const navigation = await createContainmentNavigation({ loaded, store: opts.store,
+        revision: expectedRevision as Revision, actorUserId: opts.identity.actor?.user_id ?? null,
+        teamId: opts.identity.team?.team_id ?? null, memberships: opts.memberships, authority: 'viewer' });
+      const recordView = (name: string, row: StoredRow | ProjectedRecord): Record<string, unknown> => {
+        const view = nativeProjectedRecord(loaded, name, row, navigation, recordView);
+        views.set(view, { model: name, id: row.id, version: row.version });
+        return view;
+      };
+      const parent = query.parent;
+      const parentBinding = typeof parent === 'object' && parent !== null
+        ? views.get(parent) ?? navigation.resolveRecord(parent) : undefined;
+      if (parent !== undefined && (parentBinding === undefined ||
+          opts.artifact.models?.find(candidate => candidate.name === model)?.parent !== parentBinding.model)) {
+        throw new StateError('validation', 'Page source containment requires its authorized declared parent record.');
+      }
+      if (parentBinding !== undefined) {
+        await navigation.authorizeReference(makeRecordRef(parentBinding.model, parentBinding.id, BigInt(parentBinding.version)));
+      }
+      const order: OrderTerm[] | undefined = query.order === undefined ? undefined : (() => {
+        if (!Array.isArray(query.order) || !query.order.every(term => typeof term === 'string' && term !== '' && term !== '-')) {
+          throw new StateError('validation', 'Page source order requires compiler field spellings.');
+        }
+        return query.order.map((term: string) => ({ field: term.startsWith('-') ? term.slice(1) : term,
+          direction: term.startsWith('-') ? 'desc' as const : 'asc' as const }));
+      })();
+      const metadataOrder = new Set(['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt']);
+      for (const term of order ?? []) {
+        const type = loaded.models.find(candidate => candidate.name === model)?.fields[term.field]?.valueType?.replace(/\?$/, '');
+        if (!metadataOrder.has(term.field) && !['text', 'bool', 'int', 'decimal', 'money'].includes(type ?? '')) {
+          throw new StateError('validation', 'Page source order currently supports metadata, text, bool, int, decimal, and money fields.');
+        }
+      }
+      const nativeLimit: unknown = query.limit;
+      const limit = typeof nativeLimit === 'bigint' && nativeLimit >= 0n && nativeLimit <= BigInt(Number.MAX_SAFE_INTEGER)
+        ? Number(nativeLimit) : nativeLimit;
+      if (limit !== undefined && (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 0)) {
+        throw new StateError('validation', 'Page source limit requires a non-negative safe integer.');
+      }
+      const where = query.where, dependencies: ProjectedRecord[] = [];
+      const selection: CanonicalReadSelection = {
+        ...(typeof where === 'function' || parentBinding !== undefined ? { predicate: async (row: Readonly<ProjectedRecord>) => {
+          // Revalidate the complete authorized candidate domain without running
+          // checked source predicates a second time, including false candidates.
+          dependencies.push(structuredClone(row));
+          if (parentBinding !== undefined && (row.parent?.model !== parentBinding.model || row.parent.id !== parentBinding.id)) return false;
+          if (typeof where !== 'function') return true;
+          await navigation.prepare(model, row);
+          const matched: unknown = await where(recordView(model, row));
+          if (typeof matched !== 'boolean') throw new StateError('validation', 'Page source predicates must return bool.');
+          return matched;
+        } } : {}),
+        ...(where === undefined || typeof where === 'function' ? {} : { where: where as QueryPredicate }),
+        ...(order === undefined ? {} : { order }),
+        ...(limit === undefined ? {} : { limit: limit as number }),
+      };
+      const reader = loaded.producers.transact.createReadInvoker({ registry: loaded.registry,
+        models: loaded.models, policy: loaded.policy, store: opts.store, memberships: opts.memberships });
+      const read = async (selected: CanonicalReadSelection): Promise<CanonicalReadServed> => {
+        const served = await reader({ envelope: { operation: `${model}.read`, inputs: {} }, identity: opts.identity,
+          selection: selected });
+        if (served.revision !== expectedRevision) throw new StateError('conflict', 'Page data changed during rendering; refresh the page.');
+        await checkpoint();
+        return served;
+      };
+      // The unpaginated owning reader has no implicit collection limit.
+      const served = await read(selection), result: Record<string, unknown>[] = [];
+      for (const row of served.records) {
+        await navigation.prepare(model, row);
+        result.push(recordView(model, row));
+      }
+      await navigation.revalidate();
+      const predicate = selection.predicate !== undefined;
+      const fresh = await read(predicate
+        ? (selection.where === undefined ? {} : { where: selection.where }) : selection);
+      const projection = (records: readonly ProjectedRecord[]): string => JSON.stringify(
+        [...records].sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
+      if (projection(fresh.records) !== projection(predicate ? dependencies : served.records)) {
+        throw new StateError('forbidden', 'Page source record authority changed during rendering.');
+      }
+      await navigation.revalidate();
+      await checkpoint();
+      for (const row of served.records) {
+        const locator = key(row.id, String(row.version)), models = bindings.get(locator) ?? new Set<string>();
+        models.add(model); bindings.set(locator, models);
+      }
+      return Object.freeze(result);
+    },
     query: async (_invocation: unknown, model: string, args: ListQueryArgs): Promise<ListQueryResult> => {
       await checkpoint();
       const result = await queryPageRowsCanonical({ ...opts, model, args });
