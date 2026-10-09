@@ -48,7 +48,7 @@ import type {
 } from '../mcp/schemas.js';
 import { buildBusinessError, fromUnknown, toHttpResponse } from '../errors/envelope.js';
 import { logBusinessError, logInternalError } from '../errors/logging.js';
-import { checkClosedInputs, validateOperationId } from '../envelope/validate.js';
+import { checkClosedInputs, validateOperationId, validateOperationIdShape } from '../envelope/validate.js';
 import {
   CSRF_FIELD,
   CSRF_HEADER,
@@ -265,8 +265,17 @@ export async function handleOperationRequest(
     });
 
     const idError = validateOperationId(operationId, deps.clock);
+    let derived: DerivedOperationInputs | null | undefined;
     if (idError !== null) {
-      return denyOrRerender(deps, request, operation, idError, seen, authed);
+      // Only checked CRUD has the current-authority saved-outcome join.
+      // Preserve ordinary fresh and malformed-ID demand order; consult the
+      // catalog here only when the original age gate would refuse.
+      if (validateOperationIdShape(operationId) === null) {
+        derived = deps.catalog.derivedFor?.(operation) ?? null;
+      }
+      if (derived?.kind !== 'create' && derived?.kind !== 'update' && derived?.kind !== 'delete') {
+        return denyOrRerender(deps, request, operation, idError, seen, authed);
+      }
     }
     const shape = deps.catalog.shapeFor(operation);
     if (shape === null) {
@@ -274,7 +283,7 @@ export async function handleOperationRequest(
     }
     const { [CSRF_FIELD]: _csrf, ...submittedInputs } = inputs;
     void _csrf;
-    const derived = deps.catalog.derivedFor?.(operation) ?? null;
+    if (derived === undefined) derived = deps.catalog.derivedFor?.(operation) ?? null;
     let businessInputs = submittedInputs;
     if (Object.hasOwn(record, SOURCE_FORM_BINDING_FIELD)) {
       const token = record[SOURCE_FORM_BINDING_FIELD];

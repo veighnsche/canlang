@@ -1307,7 +1307,7 @@
           "packages/cloudflare/test/example-rerun.test.ts"
         ],
         "behavior": "Preserve upstream complete capture/activation/compiled-example execution. Attempt defining scratch removal and acquired scope disposal without masking the original execution/provisioning failure.",
-        "validation": "CLI29/29 and actual runner/rerun20/20; shared CF declarations pending fresh upstream dependency emit.",
+        "validation": "CLI29/29 and actual runner/rerun20/20; current shared dependency emissions, full Cloudflare external emit and noEmit now pass.",
         "limits": "No whole-command budget/run returned-URL/native preparation acceptance; no reduction credit."
       },
       "remaining_prerequisite": {
@@ -1497,17 +1497,29 @@
     },
     "REPLAY-IP07": {
       "planning_status": "ready",
-      "state": "blocked on actual canonical authority/projection repair before lifting Interfaces age gate",
+      "state": "Checked CRUD HTTP/CSV implemented, tested and root-reviewed; full packet partial pending scenario authority/result provenance",
       "files": [
         "packages/interfaces/src/http/operations.ts",
         "packages/interfaces/src/http/csv.ts",
         "packages/interfaces/src/envelope/validate.ts"
       ],
-      "blocker": "Source-current security join witnesses retained replay bypassing current membership/read grants and saved secret projection; old planning assumption cannot satisfy required revoked-actor negative control",
+      "blocker": "Remaining scenario retained replay lacks current authority/result provenance; its existing Interfaces age gate cannot safely be lifted.",
       "evidence": "security-joins.json",
       "remaining_prerequisite": {
-        "prerequisite": "Released generated CRUD projection/current-authority producer is now available from main; checked CRUD HTTP/CSV correction in progress. Scenario replay still lacks current authority/result provenance and keeps existing age gate.",
-        "owner": "Interfaces CRUD consumer worker now; State/Cloudflare scenario security contract owner for residual"
+        "prerequisite": "Scenario execution-owned result provenance and current-authority projection before lifting its retained-replay transport age gate; checked CRUD consumer is complete.",
+        "owner": "State/Cloudflare scenario security contract owner, then Interfaces consumer"
+      },
+      "checked_crud_consumer": {
+        "state": "implemented, tested, root-reviewed finite current producer/consumer join",
+        "files": [
+          "packages/interfaces/src/envelope/validate.ts",
+          "packages/interfaces/src/http/operations.ts",
+          "packages/interfaces/src/http/csv.ts",
+          "packages/cloudflare/src/runtime/reviewed-csv.test.ts"
+        ],
+        "behavior": "Retain strict lexical admission and fresh demand order; for trusted checked CRUD let canonical State read retained receipt before unseen age. Old matching HTTP/CSV replay observes current disclosure without repeated effects; changed reuse conflicts, unseen expired/future and pre-provenance receipts refuse.",
+        "validation": "Current Interfaces emit and58/58 affected envelope/HTTP/CSV checks; fresh Cloudflare external emit/noEmit and1/1 actual source-generated D1 HTTP/CSV workflow pass without skips. Trace covers receipt/current-row reads, one cached metadata lookup, no commit, revoked read grants/membership and unchanged history/receipt/revision.",
+        "limits": "Scenario/legacy catalog and MCP age gates unchanged. Full packet/original security/installed/native gates remain open; no replacement savings."
       }
     },
     "PARSER-DP01": {
@@ -1788,7 +1800,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-09T01:41:16.956660+00:00",
+  "updated_utc": "2026-10-09T11:58:50.498792+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -3438,7 +3450,8 @@
     }
   },
   "live_finite_packets": [
-    "REPLAY-IP07 released checked-CRUD HTTP/CSV consumer"
+    "VERIFY-TV01 Values exact public export inventory",
+    "DEL-D03/VERIFY-TV01 optional testkit clean-build consumer"
   ],
   "foreign_runtime_pure_integration_commit": "b5f3f61c5a7aa942cc9e535312bc848fe21cf497",
   "owner_build_test_acceptance": {
@@ -4229,9 +4242,27 @@
     "coordination": "Coordinator verified as local chat 01a11e6b-f4e1-7603-b47d-9d3210c9c6de; no callable send-message-to-thread capability. Dependencies recorded in packet_state.",
     "examined_queue": "All48 original packet labels examined against existing progress; canonical identities and original acceptance unchanged.",
     "delivery": "Draft PR135 created from own branchcodex/packages-repair-20261009; pushed1dfa261f. Human authorizes own branch updates; no PR merge/main push/deployment.",
-    "last_upstream_sync": "Merged origin/main9ecb2759 at5910445b; missing remote draft-submodule06b23b5d commit remains external.",
-    "review_process": "After own PR pushes, continue ready work for automated review interval; assess findings for relevant pushed revision at a task boundary. Pending/absent/older review gives no approval.",
+    "last_upstream_sync": "Merged origin/main9ecb2759 at5910445b; current main/branch draft gitlink5a12eb9e is also unavailable to CI checkout. Earlier recursive fetch additionally refused06b23b5d.",
+    "review_process": "Continue ready work while reviews run; CodeRabbit skipped draft PR135 at1dfa261f (issuecomment6080274256), so its success status is not a review/approval. Assess only actual findings for the relevant pushed revision; no global review-config or PR-readiness change authorized.",
     "filetree_reconciliation": "Existing registry reconciled complete structural ancestry through merged5910445b; prior allocations/semantic limits retained; complete82493427checkpoint not advanced.",
-    "pull_request": "https://github.com/veighnsche/canlang/pull/135"
+    "pull_request": "https://github.com/veighnsche/canlang/pull/135",
+    "ci_prerequisites": [
+      {
+        "prerequisite": "Clean Cloudflare build cannot resolve its optional @canlang/testkit dynamic import before testkit (which depends on Cloudflare) emits. Finite producer/consumer repair under analysis.",
+        "owner": "Packages Cloudflare/testkit delivery owner"
+      },
+      {
+        "prerequisite": "Values exact public export test omits intentionally released ValueTypesError/normalizeValueTypes. Finite assertion repair ready.",
+        "owner": "Packages Values owning test worker"
+      },
+      {
+        "prerequisite": "Publish/provide tracked draft submodule5a12eb9ebb136ffa4e5ce352663f92affba25bc2; tools checkout refuses missing remote ref.",
+        "owner": "Draft submodule publisher/upstream coordinator"
+      },
+      {
+        "prerequisite": "compiler/src/analysis/mod.rs declares absent construct_candidates module; b1-gate cannot compile.",
+        "owner": "Compiler implementation owner"
+      }
+    ]
   }
 }
