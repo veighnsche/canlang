@@ -17,6 +17,7 @@ import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { invoke, observeScenarioReceiptDependency, selectScenarioReceiptReturn } from '@canlang/state/invocation';
 import { seedRow, updateRow, uuidv7, FIXED_NOW } from '@canlang/state/testing/invocation/fixtures';
 import { assembleModules } from './modules.js';
+import { AssemblyCorrespondenceError } from './assembly-verification.js';
 import { buildInvoker } from '../worker/assembly.js';
 import { invokeMutationCanonical, loadCanonicalDescriptors } from './invoke.js';
 
@@ -43,16 +44,18 @@ function plan(): ScenarioResultDisclosurePlan {
   return { version: 1, source: origin, returns: [{ id: 'selected', source: origin, influences: [],
     dependencies: [{ id: 'visible-value', source: origin, role: 'data', model, field: 'visible', type: 'text' as CanTypeId }] }] };
 }
-function declaration(legacy = false, fresh = false): CompileArtifact {
+function declaration(legacy = false, fresh = false, handlerBody?: string): CompileArtifact {
   // Data-only read selector provenance, not Function.toString() inference.
   const js = `${fresh ? 'import { observeScenarioReceiptDependency, selectScenarioReceiptReturn } from "@canlang/stdlib";' : ''}let executions=0;
 export const executionCount=()=>executions;
+let handlerProbe;
+export const setHandlerProbe=probe=>{handlerProbe=probe;};
 const policy={operations:{"Shop.saved":{by:["members"]}},models:{"Shop.Record":{read:["Record.read.1"]}}};
 export const appDefinition={id:"SavedScenario",policy,models:{"Shop.Record":{
  fields:{visible:{type:"text"},private:{type:"text"},token:{type:"secret",init:"random_secret"}},
  readGrants:[{rule:"Record.read.1",by:["members"],fields:["visible","private"]}]}}};
 export function canApp(){return {policy,read:{"Record.read.1":()=>true},Shop:{saved:async(c,input)=>{
- executions++; ${legacy ? 'return "fresh legacy result";' : fresh ? 'const value=input.record.visible; await observeScenarioReceiptDependency(c,"Shop.Record",input.record,"visible","visible-value"); selectScenarioReceiptReturn(c,"selected"); return value;' : 'throw new Error("scenario replay execution tripwire");'}
+ executions++; ${handlerBody ?? (legacy ? 'return "fresh legacy result";' : fresh ? 'const value=input.record.visible; await observeScenarioReceiptDependency(c,"Shop.Record",input.record,"visible","visible-value"); selectScenarioReceiptReturn(c,"selected"); return value;' : 'throw new Error("scenario replay execution tripwire");')}
 }}};}`;
   return { artifact_version: 1, language_version: 'declaration-labelled fixture', tool_version: 'consumer fixture',
     sources: [{ path: source, sha256: sha }], modules: [{ path: modulePath, js,
@@ -69,8 +72,8 @@ export function canApp(){return {policy,read:{"Record.read.1":()=>true},Shop:{sa
       ...(legacy ? {} : { result: { type: 'text' as CanTypeId, disclosure: plan() } }) }],
   };
 }
-async function world(legacy = false, fresh = false) {
-  const artifact = declaration(legacy, fresh), dir = await mkdtemp(join(tmpdir(), 'can-scenario-receipt-')); dirs.push(dir);
+async function world(legacy = false, fresh = false, handlerBody?: string) {
+  const artifact = declaration(legacy, fresh, handlerBody), dir = await mkdtemp(join(tmpdir(), 'can-scenario-receipt-')); dirs.push(dir);
   const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: dir,
     stdlibUrl: pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href });
   const clock = createFrozenClock(FIXED_NOW), identities = createMemoryIdentityStore({ clock });
@@ -305,4 +308,88 @@ it('requires the original issuer and unchanged whole staged closure for cached s
   assert.ok('result' in outcome, JSON.stringify(outcome));
   assert.equal(outcome.result.result, 'original visible');
   await assertUnchanged();
+});
+
+
+it('refuses closure drift after descriptor load and before the actual handler without canonical writes', async () => {
+  const w = await world(false, true), before = await w.snapshot();
+  const current = await w.store.load(model, w.row.id); assert.ok(current);
+  const operationId = uuidv7(FIXED_NOW, ++sequence) as OperationId;
+  const path = fileURLToPath(w.asm.moduleUrls[modulePath]!), original = await readFile(path);
+  let commits = 0, drifts = 0;
+  const store: StoragePort = { ...w.store,
+    readReceipt: async identity => {
+      const receipt = await w.store.readReceipt(identity);
+      if (identity.operationId === operationId) {
+        drifts++; await writeFile(path, Buffer.concat([original, Buffer.from('\n ')]));
+      }
+      return receipt;
+    },
+    commit: async () => { commits++; throw new Error('invalid source canonical commit tripwire'); },
+  };
+  try {
+    await assert.rejects(invokeMutationCanonical({ asm: w.asm, artifact: w.artifact, operation, operationId,
+      inputs: { record: { id: current.id, version: String(current.version) } }, identity: w.identity,
+      app, source: 'consumer fixture', store, memberships: w.identities, now: () => FIXED_NOW }),
+      AssemblyCorrespondenceError);
+    assert.ok(drifts >= 1, 'real State admission reached the deliberate post-load drift');
+    assert.equal(commits, 0);
+    assert.equal(await w.store.readReceipt({ ...w.receipt.identity, operationId }), null);
+    assert.deepEqual(await w.snapshot(), before);
+    assert.deepEqual(w.counters(), { commits: 0, files: 0, executions: 0 });
+  } finally { await writeFile(path, original); }
+});
+
+it('post-verifies throwing handlers for JS and map drift without converting infrastructure failure into a rejected receipt', async () => {
+  for (const target of ['js', 'map'] as const) {
+    const body = 'await handlerProbe(); throw new Error("business throw after source drift");';
+    const w = await world(false, true, body), before = await w.snapshot();
+    const current = await w.store.load(model, w.row.id); assert.ok(current);
+    const operationId = uuidv7(FIXED_NOW, ++sequence) as OperationId;
+    const path = fileURLToPath(target === 'js' ? w.asm.moduleUrls[modulePath]! : w.asm.mapUrls![modulePath]!);
+    const original = await readFile(path);
+    // Trusted fixture hook supplies the deliberate host filesystem event; the
+    // artifact keeps the production import policy and exact registered bytes.
+    const namespace: unknown = await import(w.asm.moduleUrls[modulePath]!);
+    assert.ok(namespace && typeof namespace === 'object' && 'setHandlerProbe' in namespace &&
+      typeof namespace.setHandlerProbe === 'function');
+    namespace.setHandlerProbe(async () => { await writeFile(path, Buffer.concat([original, Buffer.from('\n ')])); });
+    let commits = 0;
+    const store: StoragePort = { ...w.store, commit: async () => {
+      commits++; throw new Error('drifting handler canonical commit tripwire');
+    } };
+    try {
+      await assert.rejects(invokeMutationCanonical({ asm: w.asm, artifact: w.artifact, operation, operationId,
+        inputs: { record: { id: current.id, version: String(current.version) } }, identity: w.identity,
+        app, source: 'consumer fixture', store, memberships: w.identities, now: () => FIXED_NOW }),
+        AssemblyCorrespondenceError);
+      assert.equal(commits, 0);
+      assert.equal(await w.store.readReceipt({ ...w.receipt.identity, operationId }), null);
+      assert.deepEqual(await w.snapshot(), before);
+      assert.deepEqual(w.counters(), { commits: 0, files: 0, executions: 1 });
+    } finally { await writeFile(path, original); }
+  }
+});
+
+it('retains an unchanged-source business rejection as exactly one rejected receipt', async () => {
+  const w = await world(false, true, 'throw new Error("unchanged-source business rejection");');
+  const before = await w.snapshot(), current = await w.store.load(model, w.row.id); assert.ok(current);
+  const operationId = uuidv7(FIXED_NOW, ++sequence) as OperationId;
+  let commits = 0;
+  const store: StoragePort = { ...w.store, commit: async batch => { commits++; return w.store.commit(batch); } };
+  await assert.rejects(invokeMutationCanonical({ asm: w.asm, artifact: w.artifact, operation, operationId,
+    inputs: { record: { id: current.id, version: String(current.version) } }, identity: w.identity,
+    app, source: 'consumer fixture', store, memberships: w.identities, now: () => FIXED_NOW }),
+    error => error instanceof Error && 'code' in error && error.code === 'rule_failed' &&
+      error.message === 'unchanged-source business rejection');
+  assert.equal(commits, 1);
+  const receipt = await w.store.readReceipt({ ...w.receipt.identity, operationId }); assert.ok(receipt);
+  assert.equal(receipt.outcome.status, 'rejected');
+  if (receipt.outcome.status !== 'rejected') throw new Error('expected unchanged-source rejection');
+  assert.equal(receipt.outcome.code, 'rule_failed');
+  assert.equal(receipt.outcome.message, 'unchanged-source business rejection');
+  const after = await w.snapshot();
+  assert.equal(after.revision, before.revision + 1);
+  assert.deepEqual({ ...after, revision: before.revision }, before);
+  assert.deepEqual(w.counters(), { commits: 0, files: 0, executions: 1 });
 });
