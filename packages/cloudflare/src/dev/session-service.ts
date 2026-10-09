@@ -839,17 +839,22 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         }
         const help = checkedHelp.get(revision), captured = checkedCaptures.get(revision);
         const bundle = help && captured ? await qualification(captured,help,requestSignal) : null;
+        await core.refresh().catch(() => undefined);
+        const state = core.status();
+        const current = !requestSignal.aborted && state.revision === revision && !state.dirty &&
+          state.captureError === null && state.checkRevision === revision &&
+          (help === undefined || rankCurrent(revision, help.revision));
         return {
           schema: "can.dev.diagnostic.v1", session: socket?.identity.sessionId,
           revision, source_revision: found.sourceRevision,
-          current: core.status().revision === revision && !core.status().dirty,
+          current,
           ref: diagnosticRef(socket!.identity.sessionId, revision, payload.index),
           source: found.check.detail.source,
           diagnostic: diagnostics[payload.index],
           construct_help: checkedHelp.has(revision)
             ? joinCompilerConstructCandidates(checkedHelp.get(revision)!,
               diagnostics[payload.index]!.construct_candidates, FIRST_PROFILE,
-              bundle?.proofs ?? [])
+              current ? bundle?.proofs ?? [] : [])
             : { disposition: "unknown", slot: null, grammarCoverage: "unknown", candidateCoverage: "unknown", cards: [], classification: [],
               reason: "captured help index is unavailable" },
           evidence: { source_excerpt: "unavailable", trace: "unavailable" },
