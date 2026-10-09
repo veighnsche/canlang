@@ -320,6 +320,8 @@ export interface ConformanceSetup {
   readonly store: StoragePort;
   readonly reset: () => Promise<void>;
   readonly probe?: ConformanceProbe;
+  /** New adapter handle over the same backend; no data reset. */
+  readonly reopen?: () => Promise<StoragePort>;
 }
 
 /** Await a promise that must reject; fail the test if it resolves. */
@@ -1509,6 +1511,50 @@ export function storageConformance(
       );
     });
 
+    it('outboxGet retains the exact original carrier before and after ack and adapter reopen', async () => {
+      const { store, reset, reopen } = await setup();
+      await reset();
+      const intent = {
+        ...makeIntent({ intentId: 'retained-exact', operationId: 'op-retained', occurrenceIndex: 3 }),
+        dispatchGuard: 'allowed',
+        handlerContract: 'shop.original-handler',
+        arguments: { principal: { userId: 'original-user' }, payload: { values: [1, 2] } },
+      };
+      const original = structuredClone(intent);
+      const sibling = makeIntent({ intentId: 'retained-sibling', operationId: 'op-retained' });
+      assert.equal(await store.outboxGet(intent.intentId), null);
+      await store.commit(makeBatch(0, { outbox: [intent, sibling] }));
+      // Input aliases cannot alter the committed original carrier.
+      intent.arguments.principal.userId = 'changed-input';
+      intent.arguments.payload.values.push(9);
+      assert.deepEqual(await store.outboxGet(original.intentId), { intent: original, status: 'pending' });
+      assert.equal(await store.outboxGet("retained-exact' OR 1=1 --"), null);
+      assert.equal(await store.outboxGet('retained-unknown'), null);
+      const read = await store.outboxGet(original.intentId);
+      assert.ok(read !== null);
+      const mutable = read as unknown as { intent: typeof intent; status: string };
+      mutable.intent.arguments.principal.userId = 'changed-output';
+      mutable.intent.arguments.payload.values.push(8);
+      mutable.intent.target = 'changed-target';
+      mutable.status = 'skipped';
+      assert.deepEqual(await store.outboxGet(original.intentId), { intent: original, status: 'pending' });
+      await store.commit({ ...makeBatch(1), outboxAck: [original.intentId] });
+      assert.deepEqual(await store.outboxGet(original.intentId), { intent: original, status: 'dispatched' });
+      assert.deepEqual(await store.outboxGet(sibling.intentId), { intent: sibling, status: 'pending' });
+      assert.deepEqual(await store.outboxPending(), [sibling]);
+      const retained = await store.outboxGet(original.intentId);
+      assert.ok(retained !== null);
+      (retained.intent.arguments as typeof intent.arguments).payload.values.push(7);
+      if (reopen !== undefined) {
+        const reopened = await reopen();
+        assert.deepEqual(await reopened.outboxGet(original.intentId), { intent: original, status: 'dispatched' });
+        assert.deepEqual(await reopened.outboxGet(sibling.intentId), { intent: sibling, status: 'pending' });
+        assert.equal(await reopened.outboxGet('retained-unknown'), null);
+      }
+      assert.deepEqual(await store.outboxGet(original.intentId), { intent: original, status: 'dispatched' });
+      assert.equal(await store.readRevision(), 2);
+    });
+
     it('acking an id staged in the same batch marks it dispatched', async () => {
       const { store, reset } = await setup();
       await reset();
@@ -2256,17 +2302,18 @@ export function storageConformance(
     });
 
     it('S7: flip installs pointer, skips intents, records outcomes, marks active', async () => {
-      const { store, reset } = await setup();
+      const { store, reset, reopen } = await setup();
       await reset();
       const migrationId = freshId('mig-flip');
       const owner = freshId('owner-flip');
       const skip1 = `skip-1-${migrationId}`;
       const skip2 = `skip-2-${migrationId}`;
       const keep = `keep-1-${migrationId}`;
+      const skippedIntent = { ...makeIntent({ intentId: skip1 }), handlerContract: 'shop.oldHandler' };
       await store.commit(
         makeBatch(0, {
           outbox: [
-            makeIntent({ intentId: skip1 }),
+            skippedIntent,
             makeIntent({ intentId: skip2 }),
             makeIntent({ intentId: keep }),
           ],
@@ -2324,6 +2371,16 @@ export function storageConformance(
         installedRevision: flipped.revision,
       });
       assert.deepEqual(await store.readMigrationOutcomes(migrationId), outcomes);
+      assert.deepEqual(await store.outboxGet(skip1), { intent: skippedIntent, status: 'skipped' });
+      assert.equal(await store.outboxGet(`unknown-${migrationId}`), null);
+      // A dispatcher retry cannot rewrite a migration skip into dispatched.
+      await store.commit({ ...makeBatch(4), outboxAck: [skip1, keep] });
+      assert.deepEqual(await store.outboxGet(skip1), { intent: skippedIntent, status: 'skipped' });
+      assert.equal((await store.outboxGet(keep))?.status, 'dispatched');
+      assert.deepEqual(await store.outboxPending(), []);
+      if (reopen !== undefined) {
+        assert.deepEqual(await (await reopen()).outboxGet(skip1), { intent: skippedIntent, status: 'skipped' });
+      }
     });
 
     it('S7: removal flip deletes the pointer, still skips/outcomes, idempotent', async () => {

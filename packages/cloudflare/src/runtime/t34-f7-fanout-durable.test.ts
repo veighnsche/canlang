@@ -187,6 +187,7 @@ function doProxy(mf: Miniflare): StoragePort {
     commit: (batch) => doCall(mf, "commit", batch),
     readReceipt: (identity) => doCall(mf, "readReceipt", identity),
     outboxPending: () => doCall(mf, "outboxPending"),
+    outboxGet: (intentId) => doCall(mf, "outboxGet", intentId),
     scheduleGet: (key) => doCall(mf, "scheduleGet", key),
     schedulesDue: (now, limit) => doCall(mf, "schedulesDue", now, limit),
     historyFor: (model, recordId) => doCall(mf, "historyFor", model, recordId),

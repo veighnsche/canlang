@@ -14,6 +14,7 @@ import { stageOutboxIntentAsync } from '../intent/staging.js';
 import type { StageOutboxIntentInput } from '../intent/staging.js';
 import {
   KernelTableError, WORK_DISPATCH_MODEL, newDispatchRow, readDispatchRow,
+  DISPATCH_IMAGE_CORRELATION_FIELDS, readDispatchImageCorrelation, type DispatchImageCorrelation,
 } from './tables.js';
 
 /** L3 staging bound (`STAGING_MAX_ID_LENGTH`); length is UTF-16 units. */
@@ -30,6 +31,31 @@ interface ParsedStageIntent {
   guard: string | null;
   guardVerdict: boolean | null;
   fanout: FanoutLineage | null;
+  correlation: DispatchImageCorrelation | null;
+}
+
+function argImageCorrelation(record: Readonly<Record<string, unknown>>, source: string,
+  request: Record<string, unknown>, what: string): DispatchImageCorrelation | null {
+  if (!Object.hasOwn(record, 'correlation')) return null;
+  const raw = argRecord(record, 'correlation', what);
+  if (Reflect.ownKeys(raw).length !== DISPATCH_IMAGE_CORRELATION_FIELDS.length ||
+      Reflect.ownKeys(raw).some(key => typeof key !== 'string' || !DISPATCH_IMAGE_CORRELATION_FIELDS.includes(key as typeof DISPATCH_IMAGE_CORRELATION_FIELDS[number]))) {
+    throw new KernelTableError(`${what}: original Images correlation has unknown or missing fields.`);
+  }
+  const correlation = readDispatchImageCorrelation(raw);
+  const args = request['arguments'];
+  const control = source === 'std.ImagesV1.cancel' || source === 'std.ImagesV1.reconcile';
+  const value = typeof args === 'object' && args !== null && !Array.isArray(args)
+    ? control ? args : (args as Record<string, unknown>)['value'] : undefined;
+  if ((!control && source !== 'std.ImagesV1.submit') || correlation === null ||
+      request['binding'] !== correlation.requestBinding || request['from'] !== correlation.requestFrom ||
+      typeof value !== 'object' || value === null || Array.isArray(value) ||
+      (control && (Reflect.ownKeys(value).length !== 2 || Reflect.ownKeys(value).some(key => key !== 'source' && key !== 'revision'))) ||
+      (value as Record<string, unknown>)['source'] !== correlation.requestSource ||
+      (value as Record<string, unknown>)['revision'] !== correlation.requestRevision) {
+    throw new KernelTableError(`${what}: original Images correlation disagrees with its retained carrier.`);
+  }
+  return correlation;
 }
 
 function argOccurrenceIndex(
@@ -104,17 +130,20 @@ function parseStageIntent(
     );
   }
   const { guard, verdict } = argGuard(record, item);
+  const source = argString(record, 'source', item);
+  const request = argRecord(record, 'request', item);
   return {
     intentId,
     operation: argString(record, 'operation', item),
     originOperationId: argString(record, 'originOperationId', item),
-    source: argString(record, 'source', item),
+    source,
     occurrenceIndex: argOccurrenceIndex(record, 'occurrenceIndex', item),
-    request: argRecord(record, 'request', item),
+    request,
     originOccurrence: argNullableString(record, 'originOccurrence', item) as OccurrenceId | null,
     guard,
     guardVerdict: verdict,
     fanout: argFanout(record, item),
+    correlation: argImageCorrelation(record, source, request, item),
   };
 }
 
@@ -179,7 +208,8 @@ export const workDispatchStageCommand: SystemCommandDef = {
           data.source !== intent.source ||
           data.occurrenceIndex !== intent.occurrenceIndex ||
           data.originOccurrence !== intent.originOccurrence ||
-          data.guardVerdict !== intent.guardVerdict
+          data.guardVerdict !== intent.guardVerdict ||
+          DISPATCH_IMAGE_CORRELATION_FIELDS.some(field => data[field] !== intent.correlation?.[field])
         ) {
           throw new KernelTableError(
             `${what}: intent ${JSON.stringify(intent.intentId)} already staged ` +
@@ -196,6 +226,7 @@ export const workDispatchStageCommand: SystemCommandDef = {
           source: intent.source,
           occurrenceIndex: intent.occurrenceIndex,
           originOccurrence: intent.originOccurrence,
+          ...(intent.correlation ?? {}),
         },
         { nowMs: ctx.now, actor: ctx.actor },
       );
@@ -241,6 +272,11 @@ export interface CanonicalSendStaging {
   readonly delivery: DeliveryRef;
 }
 
+/** Correlation is supplied only by the genuine checked request/scope producer. */
+export interface CanonicalSendInput extends StageOutboxIntentInput {
+  readonly correlation?: DispatchImageCorrelation;
+}
+
 /**
  * Stage one unconditional checked bound send in the admitted scenario's
  * existing transaction. The caller resolves the exact compiler binding,
@@ -256,10 +292,18 @@ export interface CanonicalSendStaging {
  * here, and no transport, registry run or separate commit occurs.
  */
 export async function stageCanonicalSend(
-  input: StageOutboxIntentInput,
+  input: CanonicalSendInput,
   ctx: SystemCommandContext,
 ): Promise<CanonicalSendStaging> {
   const stageContext = { ...ctx };
+  let correlation: DispatchImageCorrelation | undefined;
+  if (input.correlation !== undefined) {
+    if (Reflect.ownKeys(input.correlation).length !== DISPATCH_IMAGE_CORRELATION_FIELDS.length) {
+      throw new KernelTableError('Canonical send original Images correlation has unknown or missing fields.');
+    }
+    correlation = readDispatchImageCorrelation(input.correlation) ?? undefined;
+    if (correlation === undefined) throw new KernelTableError('Canonical send original Images correlation is missing.');
+  }
   const staged = await stageOutboxIntentAsync(input);
   const item = staged.item;
   const effects = await workDispatchStageCommand.stage({
@@ -274,6 +318,7 @@ export async function stageCanonicalSend(
       originOccurrence: item.originOccurrence,
       guard: null,
       guardVerdict: null,
+      ...(correlation === undefined ? {} : { correlation }),
     }],
   }, stageContext);
   return { effects, delivery: makeDeliveryRef(item.id, item.source) };

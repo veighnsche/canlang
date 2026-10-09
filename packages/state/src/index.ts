@@ -43,6 +43,7 @@ export type {
   DomainWrite,
   HistoryEntry,
   OutboxIntent,
+  RetainedOutboxIntent,
   ScheduleOp,
   CommitBatch,
   CommitResult,
@@ -62,6 +63,8 @@ export {
   beginOwnerMutation,
   assertOwnerMutationHookContext,
   bindOwnerModelPolicies,
+  bindArtifactOwnerModelPolicies,
+  checkOwnerModelPolicyDescriptors,
   assertCheckedOwnerModelPolicies,
   runMutationWrites,
   CRUD_MAX_ID_LENGTH,
@@ -79,6 +82,7 @@ export {
   type InterimRefDef,
   type ModelTable,
   type CheckedOwnerModelPolicies,
+  type SourceVerifiedOwnerModelPolicyModule,
   type OwnerModelChange,
   type OwnerModelReadView,
   type OwnerModelPolicyViews,
@@ -138,7 +142,7 @@ export type { MembershipReader } from './policy/roles.js';
 export type { PolicyTable } from './policy/grants.js';
 export type { OperationRegistry } from './invocation/registry.js';
 export type { ClockPort } from './invocation/context.js';
-export type { ExecuteHandler } from './invocation/invoke.js';
+export { invokeRetainedReceiptOnly, type ExecuteHandler } from './invocation/invoke.js';
 export {
   activate,
   canonicalUniqueValue,
