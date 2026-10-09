@@ -121,7 +121,7 @@ const MAX_LIMIT = 100;
 
 /** Pass S3 query args through, including only defined optionals. */
 function queryArgs(
-  props: Pick<ListProps, "parent" | "where" | "limit" | "cursor">,
+  props: Pick<ListProps, "parent" | "where" | "limit" | "cursor" | "page" | "occurrence">,
   factory: string,
 ): ListQueryArgs {
   if (
@@ -135,6 +135,8 @@ function queryArgs(
     ...(props.where === undefined ? {} : { where: props.where }),
     ...(props.limit === undefined ? {} : { limit: props.limit }),
     ...(props.cursor === undefined ? {} : { cursor: props.cursor }),
+    ...(props.page === undefined ? {} : { page: props.page }),
+    ...(props.occurrence === undefined ? {} : { occurrence: props.occurrence }),
   };
 }
 
