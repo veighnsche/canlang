@@ -1051,6 +1051,7 @@ describe('media: installed std Images full requests', () => {
       const installed = makeAdapter(`http://127.0.0.1:${address.port}`).installImages(installationFor());
 
 
+
       for (const observing of [false, true]) {
         paths.length = 0;
         const original = observing ? observationOptions(260) : originalOptions(260);
@@ -1072,6 +1073,7 @@ describe('media: installed std Images full requests', () => {
         await assert.rejects(async () => installed.images.reconcile(requestFor(), original), MappingValidationError);
         assert.equal(paths.length, 3);
       }
+
     } finally {
       for (const timer of timers) clearTimeout(timer);
       server.closeAllConnections();
