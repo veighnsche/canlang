@@ -3671,3 +3671,7 @@ Consume exact published792d8161State/Contracts modifier source and its owning co
 ## 2026-10-09 — expose bounded structured facts on HTML form refusals
 
 Accepted finite Interfaces contract: FORM_REFUSAL_HEADER exports can-form-refusal on full-page and fragment business-error responses, carrying JSON{version:1,code:BusinessErrorCode,retryable:boolean}. The producer admits only the closed code vocabulary and strict boolean; it never includes prose, draft values, fields or identifiers. Existing HTML rendering/status and JSON error transport remain intact. Interfaces emit and22HTTP operation cases pass, covering nonretryable/retryable facts, preserved drafts, absence from ordinary JSON, auth/CSRF and body/refusal behavior. Dev consumes this owning header and independently qualifies its bridge/MCP behavior.
+
+## 2026-10-09 — consume qualified inline descriptor choice producers
+
+Consume exact owning Compiler57573511self-unification source/test prerequisite together with0769125einline descriptor array IR ande40b2901generic choose witness. The unfinished checkpoint label establishes preservation only; the later released controls qualify this finite slice. After genuine catalog emission, owning Rust1.99locked/offline anonymous-message3/3cases pass: both choose conditions, eager authored capture order, native identity/counts, first-failure identity and text/named mixing refusals execute. No unrelated UI checkpoint or computed-format provenance profile is imported; full compiler/product and current-head review remain separate.

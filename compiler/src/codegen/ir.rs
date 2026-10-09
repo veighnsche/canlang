@@ -3204,6 +3204,7 @@ fn is_expression(kind: SyntaxKind) -> bool {
     matches!(
         kind,
         SyntaxKind::Literal
+            | SyntaxKind::MessageValue
             | SyntaxKind::NameRef
             | SyntaxKind::Group
             | SyntaxKind::Array
