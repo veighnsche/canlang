@@ -691,25 +691,22 @@ fn golden_teamtasks_structure() {
         "selectors"
     );
     assert!(
-        suite.contains("observations:[async(c,s)=>s.task.done,async(c,s)=>(() => { throw new Error(\"call has no lowering\"); })()"),
-        "unchecked observation stays loud:\n{suite}"
+        suite.contains("observations:[async(c,s)=>s.task.done,async(c,s)=>(($can$a$30)=>$can$h$6c6f63616c697a65645f666f726d6174(c,$can$a$30[0],$can$a$30[1],\"en\",[[\"n\",\"int\",\"int\"]]))"),
+        "checked localized observation preserves the descriptor signature:\n{suite}"
     );
-    let missing: Vec<_> = diags
-        .iter()
-        .filter(|d| {
+    assert!(
+        !diags.iter().any(|d| {
             d.code == "E6008"
                 && d.message == "cannot lower call: checked selected-call binding is not published"
-        })
-        .collect();
-    assert_eq!(
-        missing.len(),
-        1,
-        "untyped BDD format observation: {diags:?}"
+        }),
+        "owning format signature selects the BDD observation: {diags:?}"
     );
-    let span = missing[0].primary;
-    assert_eq!(
-        &db.get(id).unwrap().text[span.start as usize..span.end as usize],
-        "format(task_count(count(Todo)),locale=\"nl\")"
+    assert!(
+        suite.contains(
+            "value:await count(await records(c,\"TeamTasks.Todo\",{}))}},\"en\"),\"nl\"])"
+        ) && suite.contains("message formatting requires checked selected-app scope")
+            && suite.contains("message formatting requires admitted team timezone"),
+        "localized execution keeps its admitted context requirements:\n{suite}"
     );
     assert!(
         suite.contains("values:async(c,s)=>([\"members\",true,1n])"),
@@ -770,7 +767,7 @@ fn golden_teamtasks_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        8,
+        7,
         "unsupported count: {diags:?}"
     );
     for (word, n) in [("tooltip", 1), ("collapse", 1)] {
@@ -2840,16 +2837,23 @@ fn construct_page_preferences_preamble_reads_bindings() {
             view: None,
             factory: "text".to_string(),
             props: vec![(
-                "value".to_string(),
+                "values".to_string(),
                 typed(
-                    IrExpr::Member {
-                        base: Box::new(typed(
-                            IrExpr::Name("preferences".to_string()),
-                            text_ty.clone(),
-                        )),
-                        field: "view".to_string(),
+                    IrExpr::Array(vec![typed(
+                        IrExpr::Member {
+                            base: Box::new(typed(
+                                IrExpr::Name("preferences".to_string()),
+                                text_ty.clone(),
+                            )),
+                            field: "view".to_string(),
+                        },
+                        text_ty.clone(),
+                    )]),
+                    ResolvedType::Array {
+                        element: Box::new(text_ty.clone()),
+                        ordered: true,
+                        nonempty: false,
                     },
-                    text_ty.clone(),
                 ),
             )],
             children: vec![],
@@ -2864,7 +2868,7 @@ fn construct_page_preferences_preamble_reads_bindings() {
     emitter.lower_page(&page, &mut out);
     let module = out.finish("test.mjs".to_string());
     assert!(
-        module.js.contains("export async function $can$p$657870656e73653a72656e6465723a2f657870656e7365732f7072656673(c,bindings){const preferences=bindings.preferences[\"expense\"];return (await Promise.all([$can$u$74657874({context:c,value:preferences.view})])).filter(value=>value!=null).join('');}"),
+        module.js.contains("export async function $can$p$657870656e73653a72656e6465723a2f657870656e7365732f7072656673(c,bindings){const preferences=bindings.preferences[\"expense\"];return (await Promise.all([$can$u$74657874({context:c,values:[preferences.view]})])).filter(value=>value!=null).join('');}"),
         "preamble reads bindings:\n{}",
         module.js
     );
@@ -3325,7 +3329,7 @@ fn golden_catalog() -> (Catalog, PathBuf) {
 {"id":"sum","kind":"builtin","signature":"sum(domain:C<T>,currency:currency)->money","effects":"state-read","availability":"implemented","owner":"lane-02"},
 {"id":"money","kind":"builtin","signature":"money(minor:int,currency:currency)->money","effects":"pure","availability":"implemented","owner":"lane-02"},
 {"id":"trim","kind":"builtin","signature":"trim(value:text)->text","effects":"pure","availability":"implemented","owner":"lane-02"},
-{"id":"format","kind":"builtin","signature":"format(descriptor:message)->text","effects":"pure","availability":"implemented","owner":"lane-02"},
+{"id":"format","kind":"builtin","signature":"format(descriptor:message,locale:locale?)->text","effects":"pure","availability":"implemented","owner":"lane-02"},
 {"id":"random_secret","kind":"builtin","signature":"random_secret()->secret","effects":"server-default-only","availability":"external","owner":"lane-03"}
 ]}"#,
     )
@@ -3526,8 +3530,23 @@ fn form_fields_unknown_op_stays_loud() {
     // No operation prop (unresolvable) and crucially no `fields` prop:
     // Preparation receives the unresolved request without a silent field default.
     assert!(
-        entry.contains("(($can$f$666f726d)=>{if($can$f$666f726d.status!==\"ready\")return $can$u$74657874({context:c,values:[$can$f$666f726d.message]});return $can$u$666f726d($can$f$666f726d.props);})(await c.prepareForm({display:\"inline\"}))"),
+        entry.contains("(($can$f$666f726d)=>{if($can$f$666f726d.status!==\"ready\")return $can$u$74657874({context:c,values:[$can$f$666f726d.message]});return $can$u$666f726d($can$f$666f726d.props);})(await c.prepareForm({display:\"inline\",occurrence:\"can-form-f0-s132-\"+encodeURIComponent(JSON.stringify([c.path,\"\",]))}))"),
         "loud form without fields:\n{entry}"
+    );
+    let request = entry
+        .split("await c.prepareForm({")
+        .nth(1)
+        .unwrap()
+        .split("})")
+        .next()
+        .unwrap();
+    assert!(
+        !request.contains("fields:"),
+        "no invented field default: {request}"
+    );
+    assert!(
+        !request.contains("operation:"),
+        "no invented operation: {request}"
     );
 }
 
@@ -3577,9 +3596,14 @@ fn catalog_factories_lower_from_source() {
         entry.contains("renderRow:async($can$l$303a726f77,$can$l$313a726f7756696577)=>"),
         "nested form preparation awaits inside the row callback:\n{entry}"
     );
+    let form_token = src.find("form Item.update").expect("source update form");
+    let form_start = src[..form_token].rfind('\n').unwrap_or(0);
+    let occurrence = format!(
+        "occurrence:\"can-form-f0-s{form_start}-\"+encodeURIComponent(JSON.stringify([$can$l$313a726f7756696577.path,\"shop.Item.update\",$can$l$303a726f77.id]))"
+    );
     assert!(
         entry.contains("$can$l$303a726f77.name !== \"\" ? (($can$f$666f726d)=>")
-            && entry.contains("await $can$l$313a726f7756696577.prepareForm({operation:\"shop.Item.update\",arguments:{record:$can$l$303a726f77},display:\"inline\",fields:[\"name\"],labels:{name:$can$h$636865636b65645f6d657373616765(\"Item\",{nl:\"Artikel\"},undefined,\"en\")},authoredFields:[\"name\"]})"),
+            && entry.contains(&format!("await $can$l$313a726f7756696577.prepareForm({{operation:\"shop.Item.update\",arguments:{{record:$can$l$303a726f77}},display:\"inline\",fields:[\"name\"],{occurrence},labels:{{name:$can$h$636865636b65645f6d657373616765(\"Item\",{{nl:\"Artikel\"}},undefined,\"en\")}},authoredFields:[\"name\"]}})")),
         "row gate encloses preparation with source request properties in order:\n{entry}"
     );
     assert!(
@@ -5150,15 +5174,13 @@ fn t15a_example_separation() {
     }
 }
 
-/// (T15a) Fail-closed omission is surgical: a `duration`-typed scenario
-/// input (T04b scope) omits only that operation — siblings, models (the
-/// duration field keeps its source-exact tag) and duration-free CRUD
-/// operations stay — while a CRUD allowlist naming the duration field
-/// omits that operation (no partial closed schema).
+/// (T15a) Unsupported bytes inputs omit only their operation. Released
+/// duration inputs and sibling CRUD schemas remain complete; a bytes
+/// CRUD allowlist still omits its operation without a partial schema.
 /// TEST-ONLY artifact: see module docs.
 #[test]
 fn t15a_negative_exotic_omits_operation_only() {
-    let src = "app Shop\nGiven\n Gadget { title:text, window:duration }\n Timer { window:duration }\n policy Gadget read=members\n policy Timer read=members\nWhen\n scenario slow(wait:duration) by=members\n  do\n   let x = 1\n scenario fast(note:text) by=members\n  do\n   let x = 1\n crud Gadget by=members fields=title\n crud Timer by=members fields=window\nThen\n";
+    let src = "app Shop\nGiven\n Gadget { title:text, window:duration }\n Timer { window:bytes }\n policy Gadget read=members\n policy Timer read=members\nWhen\n scenario unsupported(payload:bytes) by=members\n  do\n   let x = 1\n scenario slow(wait:duration) by=members\n  do\n   let x = 1\n scenario fast(note:text) by=members\n  do\n   let x = 1\n crud Gadget by=members fields=title\n crud Timer by=members fields=window\nThen\n";
     let (_program, artifact, diags) = d03_emit(src);
     assert!(
         diags.iter().all(|d| d.code != "E6006"),
@@ -5166,8 +5188,8 @@ fn t15a_negative_exotic_omits_operation_only() {
     );
     let names: Vec<_> = artifact.operations.iter().map(|op| &op.name).collect();
     assert!(
-        !names.iter().any(|n| n.as_str() == "Shop.slow"),
-        "exotic omitted: {names:?}"
+        !names.iter().any(|n| n.as_str() == "Shop.unsupported"),
+        "unsupported bytes omitted: {names:?}"
     );
     assert!(
         names.iter().any(|n| n.as_str() == "Shop.fast"),
@@ -5179,8 +5201,12 @@ fn t15a_negative_exotic_omits_operation_only() {
     );
     assert!(
         !names.iter().any(|n| n.as_str() == "Shop.Timer.create"),
-        "exotic allowlist omits (no partial schema): {names:?}"
+        "bytes allowlist omits (no partial schema): {names:?}"
     );
+    let slow = d03_operation(&artifact, "Shop.slow");
+    let wait = d03_input(slow, "wait");
+    assert!(matches!(wait.field, js::JsMcpField::Duration));
+    assert!(wait.required && !wait.nullable && wait.array_required.is_none());
     // Models stay complete: the duration field keeps its source-exact tag.
     let window = t15a_field(t15a_model(&artifact, "Shop.Gadget"), "window");
     assert!(matches!(window.field, js::JsModelFieldType::Duration));
@@ -5218,7 +5244,7 @@ fn t15a_negative_duplicate_record_name() {
 }
 
 /// (T15a) The emitted envelope uses only closed descriptor kinds: every
-/// operation input kind is one of the 9 L3-mirrored kinds, every model
+/// operation input kind belongs to the released ArtifactOperationField union; every model
 /// field kind is one of the 17 `ArtifactModelFieldType` members, every
 /// delete mode is `archive`/`remove`/`none`, and no unknown kind string
 /// appears anywhere in the envelope.
@@ -5234,7 +5260,8 @@ fn t15a_negative_kinds_closed() {
     let json = artifact::to_json(&artifact);
     let parsed = canlang_compiler::json::parse(&json).expect("envelope parses");
     let closed_inputs = [
-        "ref", "string", "integer", "decimal", "money", "datetime", "boolean", "file", "enum",
+        "ref", "string", "integer", "decimal", "money", "datetime", "duration", "user", "boolean",
+        "file", "enum", "nominal", "delivery",
     ];
     let closed_model_kinds = [
         "ref", "string", "integer", "decimal", "money", "datetime", "boolean", "file", "enum",
