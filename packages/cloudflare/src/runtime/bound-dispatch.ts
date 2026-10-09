@@ -510,7 +510,7 @@ async function createInstalledDispatcher(
     return staged;
   };
   const observeGenerationControl = async (control: OutboxIntent, admission: GenerationControlAdmission,
-    ctx: SystemCommandContext, recovering: boolean): Promise<{ observation: GenerationControlObservation; answer: DispatchProviderOutcome }> => {
+    ctx: SystemCommandContext, recovering: boolean, nowMs: () => number): Promise<{ observation: GenerationControlObservation; answer: DispatchProviderOutcome }> => {
     const observed = await qualifyGenerationControl(control, admission, ctx);
     const original = observed.original.retained.intent;
     const definitive = await readRetainedEvidence({ intent: original, context: observed.originalContext }, ctx);
@@ -533,6 +533,7 @@ async function createInstalledDispatcher(
     if (options.profile === 'text') {
       if (textControls === null) throw new Error('Text controls need their positively installed adapter entries.');
       const answer = await textControls.observeControl(control, original, { ...common,
+        nowMs,
         retainedProgress: observed.receipt.result as unknown as TextRunWire | null,
         onProgress: async (value: TextRunWire) => { progress = value; } });
       // The live Text adapter resolves only after its original progress commits.
@@ -608,7 +609,7 @@ async function createInstalledDispatcher(
                 originalIntentId: original.original.retained.intent.intentId, correlation: original.correlation, observation },
                 { actor: input.actor, now: input.nowMs(), operation: input.operation,
                   operationId: `${held.claimId}:${options.profile === 'images' ? 'image' : 'text'}-control-pin` }, { store });
-              const controlled = await observeGenerationControl(selected, admission, scope, saved !== null);
+              const controlled = await observeGenerationControl(selected, admission, scope, saved !== null, input.nowMs);
               completions.set(heldKey, { intent: selected, outcome: controlled.answer, owner: input.fence.owner, control: controlled.observation });
               return controlled.answer;
             }
@@ -753,7 +754,7 @@ async function createInstalledDispatcher(
                 if (observedControlOriginals.has(originalId)) continue;
                 observedControlOriginals.add(originalId);
               }
-              const controlled = await observeGenerationControl(intent, admission, retainedContext, true);
+              const controlled = await observeGenerationControl(intent, admission, retainedContext, true, input.nowMs);
               if (controlled.answer.kind === 'delivered') {
                 controlObservations.set(intent.intentId, controlled.observation);
                 evidence.set(intent.intentId, { kind: 'delivered', result: controlled.answer.result });
