@@ -63,7 +63,8 @@
 import type { ActivationVerdict, CompileArtifact, PageDescriptor, StoragePort, WorkScope } from "@canlang/contracts";
 import type { IdentityStore } from '@canlang/identity';
 import type { StateTeamBinding, StateTeamBindings } from '../runtime/env-assembly.js';
-import type { PagePreferenceStore } from '@canlang/interfaces';
+import type { PagePreferenceStore, caughtToBusinessError, isBusinessThrow, jsonErrorResponse,
+  httpStatusFor, logInternalError } from '@canlang/interfaces';
 import type { createD1OwnerRouter } from '@canlang/state/storage/owner-router';
 import type { AssembledModules } from "../runtime/modules.js";
 import type { BakedDerivedInputs } from "../runtime/mcp-registry.js";
@@ -514,11 +515,35 @@ async function defaultLoadHttpPageFactory(): Promise<HttpPageHandlerFactory | un
   let mod: unknown;
   try { mod = await import(HTTP_OPERATIONS_SPECIFIER); }
   catch { return undefined; }
-  if (!isRecord(mod) || typeof mod["handlePageRequest"] !== "function") {
-    throw new Error('deploy main: worker sibling ./http-operations.js has no function export "handlePageRequest"');
+  if (!isRecord(mod)) {
+    throw new Error('deploy main: worker sibling ./http-operations.js imported a non-module namespace');
+  }
+  for (const name of ['handlePageRequest', 'handlePagePreferencePost', 'caughtToBusinessError',
+    'isBusinessThrow', 'jsonErrorResponse', 'httpStatusFor', 'logInternalError']) {
+    if (typeof mod[name] !== 'function') {
+      throw new Error(`deploy main: worker sibling ./http-operations.js has no function export "${name}"`);
+    }
   }
   const handle = mod["handlePageRequest"] as (deps: unknown, request: Request) => Promise<Response>;
-  return deps => request => handle(deps, request);
+  const post = mod['handlePagePreferencePost'] as typeof handle;
+  const caught = mod['caughtToBusinessError'] as typeof caughtToBusinessError;
+  const business = mod['isBusinessThrow'] as typeof isBusinessThrow;
+  const errorResponse = mod['jsonErrorResponse'] as typeof jsonErrorResponse;
+  const statusFor = mod['httpStatusFor'] as typeof httpStatusFor;
+  const logInternal = mod['logInternalError'] as typeof logInternalError;
+  return deps => async request => {
+    if (request.method.toUpperCase() !== 'POST') return handle(deps, request);
+    try { return await post(deps, request); }
+    catch (err) {
+      // Preference POST uses the same owning refusal projection as the
+      // Interfaces router; GET/HEAD retain the page handler's own mapping.
+      const error = caught(err);
+      if (!business(err)) logInternal(deps.logger, err, {
+        method: request.method, path: new URL(request.url).pathname,
+      });
+      return errorResponse(error, statusFor(error.code));
+    }
+  };
 }
 
 async function defaultLoadDerivedInputs(): Promise<BakedDerivedInputs | undefined> {
