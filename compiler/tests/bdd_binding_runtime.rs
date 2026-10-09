@@ -4,6 +4,50 @@
 
 #[cfg(unix)]
 #[test]
+fn generation_table_binds_same_named_fixture_before_row_evaluation() {
+    use std::path::PathBuf;
+    use std::process::Command;
+
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let scratch = tempfile::tempdir().unwrap();
+    let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(root.join("examples/Generation.can"))
+        .output()
+        .unwrap();
+    assert!(compiled.status.success(), "{}\n{}", String::from_utf8_lossy(&compiled.stdout), String::from_utf8_lossy(&compiled.stderr));
+    let artifact: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
+    let suite = artifact["tests"].as_array().unwrap().iter()
+        .find(|test| test["scope"] == "Generation.queue").expect("queue suite");
+    assert_eq!(suite["fixtures"], serde_json::json!(["Generation.job"]));
+    let js = suite["module"]["js"].as_str().unwrap();
+    assert!(js.contains("inputs:async(c,s)=>({job:s.job})"), "{js}");
+    assert!(js.contains("observations:[async(c,s)=>s.job.status]"), "{js}");
+    let module = scratch.path().join("suite.mjs");
+    std::fs::write(&module, js).unwrap();
+    let check = scratch.path().join("check.mjs");
+    std::fs::write(&check, r#"
+import assert from 'node:assert/strict';
+import { exampleFixtures } from './suite.mjs';
+const suite=exampleFixtures({self:'self',other:'other',imported:{}});
+assert.deepEqual(Object.keys(suite.fixtures),['job']);
+const recipe=suite.fixtures.job;
+assert.equal(recipe.model,'Generation.Job');
+assert.deepEqual(await recipe.value({},new Map()),{prompt:'A misty forest'});
+const table=suite.examples[0];
+assert.equal(table.dependencies[0],recipe);
+const stored={id:'job-1',version:1n,prompt:'A misty forest',status:'idle'};
+assert.equal((await table.inputs({}, {job:stored})).job,stored);
+assert.deepEqual(await Promise.all(table.observations.map(observe=>observe({}, {job:stored}))),['idle']);
+assert.deepEqual(await table.rows[0].expected({}, {job:stored}),['queued']);
+"#).unwrap();
+    let outcome = Command::new("node").arg(check).output().unwrap();
+    assert!(outcome.status.success(), "{}\n{}", String::from_utf8_lossy(&outcome.stdout), String::from_utf8_lossy(&outcome.stderr));
+}
+
+#[cfg(unix)]
+#[test]
 fn imported_example_helpers_use_actual_production_registry() {
     use std::path::PathBuf;
     use std::process::Command;

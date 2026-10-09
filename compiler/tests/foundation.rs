@@ -146,6 +146,7 @@ fn diagnostic_populated_envelope_exact_bytes_and_order() {
             },
         ],
         tags: vec!["unnecessary".into(), "deprecated".into()],
+        construct_candidates: None,
     });
     result.push(Diagnostic {
         code: "I1001",
@@ -154,6 +155,7 @@ fn diagnostic_populated_envelope_exact_bytes_and_order() {
         primary: Span::new(SourceId(2), 0, 1),
         related: vec![],
         tags: vec![],
+        construct_candidates: None,
     });
     result.push(Diagnostic::error(
         "E1001",

@@ -57,6 +57,9 @@ async function render(preferredLocale, {url='https://example.test/views', hasDet
     catalog, formBindings, appId:'ViewReuse', sessionToken:'view-reuse-session', clock:{nowMs:()=>FIXED_NOW},
     query:async (invocation, model, args) => {
       assert.equal(invocation, identity, 'collection query preserves admitted invocation identity');
+      assert.equal(args.page, true, 'bare marker requests the installed collection page contract');
+      assert.match(args.occurrence, /^can-collection-f\d+-s\d+-/,
+        'paged query receives its compiler-owned source occurrence');
       queries.push({model, args});
       if (model === 'ViewReuse.Card') {
         assert.equal(args.parent, undefined);
@@ -76,6 +79,8 @@ async function render(preferredLocale, {url='https://example.test/views', hasDet
     return {context, queries, html};
   }
   assert.deepEqual(queries.map(item => item.model), ['ViewReuse.Card', 'ViewReuse.Detail', 'ViewReuse.Detail']);
+  assert.equal(new Set(queries.map(item => item.args.occurrence)).size, 3,
+    'table and the two paged list expansions retain distinct occurrences');
   const oneUse=['Outer &lt;Card&gt;', 'Outer &lt;Card&gt;',
     ...(hasDetails?['Nested &lt;Detail&gt;']:[]),'Outer &lt;Card&gt;', 'Outer &lt;Card&gt;'];
   assert.deepEqual(html.replace(/<[^>]*>/g, '').match(/Outer &lt;Card&gt;|Nested &lt;Detail&gt;/g), ['Outer &lt;Card&gt;',...oneUse,...oneUse],
@@ -106,7 +111,7 @@ async function render(preferredLocale, {url='https://example.test/views', hasDet
   const captions = preferredLocale === 'nl' ? ['Afstemming', 'Geschiedenis'] : ['Coordination', 'History'];
   assert.deepEqual(radios.map(item => item['aria-label']), [...captions, ...captions]);
   const forms = [...html.matchAll(/<form\b[^>]*>[\s\S]*?<\/form>/g)].map(match => match[0]);
-  assert.equal(forms.length, hasDetails ? 6 : 4, 'each show renders its actual unbound and bound source forms');
+  assert.equal(forms.length, hasDetails ? 10 : 6, 'each show renders its actual unbound, bound action and row edit forms');
   const operationForms = operation => forms.filter(form => attributes(form.split('>')[0]).action === '/api/operations/'+operation);
   const unbound = operationForms('ViewReuse.save');
   assert.equal(unbound.length, 2);
@@ -122,6 +127,47 @@ async function render(preferredLocale, {url='https://example.test/views', hasDet
     return note[0].id;
   });
   assert.equal(new Set(inputIds).size, 2, 'same-operation shows have distinct form controls');
+  const editIdentities = {};
+  const editControlIds = {};
+  for (const [operation, row, expectedCount, fields] of [
+    ['ViewReuse.Card.update', card, 2, [['title', 'Card title'], ['flag', 'Card flag']]],
+    ['ViewReuse.Detail.update', detail, hasDetails ? 2 : 0, [['label', 'Detail label']]],
+  ]) {
+    const edits = operationForms(operation);
+    assert.equal(edits.length, expectedCount, 'one installed edit form per checked row expansion');
+    editControlIds[operation] = [];
+    editIdentities[operation] = edits.map(form => {
+      const attrs = attributes(form.split('>')[0]);
+      const metadata = JSON.parse(decodeAttribute(attrs['data-can-generated-form']));
+      assert.equal(metadata.derived.operation, operation);
+      const inputs = [...form.matchAll(/<input\b[^>]*>/g)].map(match => ({tag:match[0], ...attributes(match[0])}));
+      const tokens = inputs.filter(input => input.name === 'form_binding');
+      assert.equal(tokens.length, 1);
+      const claims = JSON.parse(Buffer.from(decodeAttribute(tokens[0].value).split('.')[0], 'base64url').toString('utf8'));
+      assert.deepEqual(claims.bound, {record:{id:row.id, version:row.version}},
+        'edit seal contains only the current projected row identity and version');
+      for (const [field, caption] of fields) {
+        const control = inputs.filter(input => input.name === ui.fieldInputName('update', field));
+        assert.equal(control.length, 1);
+        assert.ok(control[0].id.startsWith('operation-form-source-'));
+        const label = [...form.matchAll(/<label\b[^>]*>[\s\S]*?<\/label>/g)]
+          .find(match => attributes(match[0].split('>')[0])['for'] === control[0].id);
+        assert.ok(label?.[0].includes(caption), 'edit control retains the owning field caption');
+        if (field === 'flag') {
+          assert.equal(control[0].type, 'checkbox');
+          assert.match(control[0].tag, /\schecked(?:\s|=|>)/, 'boolean edit control starts with the authorized projection value');
+        } else {
+          assert.equal(decodeAttribute(control[0].value), row.fields[field],
+            'edit control starts with the authorized projection value');
+        }
+        editControlIds[operation].push(control[0].id);
+      }
+      return {binding:metadata.bindingIdentity, draft:metadata.draftIdentity};
+    });
+    assert.equal(new Set(editIdentities[operation].map(item => item.binding)).size, expectedCount);
+    assert.equal(new Set(editIdentities[operation].map(item => item.draft)).size, expectedCount);
+    assert.equal(new Set(editControlIds[operation]).size, expectedCount * fields.length);
+  }
   const boundIdentities = {};
   for (const [operation, expectedCount, caption] of [
     ['ViewReuse.bind_card', 2, 'Bind card'],
@@ -150,7 +196,7 @@ async function render(preferredLocale, {url='https://example.test/views', hasDet
     assert.equal(new Set(boundIdentities[operation].map(item => item.binding)).size, expectedCount);
     assert.equal(new Set(boundIdentities[operation].map(item => item.draft)).size, expectedCount);
   }
-  return {context, radios, panels, queries, html, inputIds, boundIdentities};
+  return {context, radios, panels, queries, html, inputIds, boundIdentities, editIdentities, editControlIds};
 }
 const unselected = await render('es');
 assert.equal(unselected.context.collectionSelections.size, 0);
@@ -160,20 +206,31 @@ const selectedUrl = selectionUrls.find(url => [...url.searchParams].some(([key,v
 assert.ok(selectedUrl, 'actual native split table emits the row selection URL');
 assert.equal(selectedUrl.pathname, '/views');
 const source = await render('es', {url:selectedUrl.href, selected:true});
+assert.equal(source.queries[0].args.occurrence, unselected.queries[0].args.occurrence,
+  'selection preserves the paged table occurrence');
 assert.deepEqual([...source.context.collectionSelections.values()], [card.id], 'actual Interfaces parses the native selection link');
 assert.equal(ui.resolveMessage(page.title, {preferredLocales:source.context.preferredLocales,
   appDefaultLocale:source.context.appDefaultLocale}).locale, 'fr', 'unavailable viewer locale falls back to checked source');
 const dutch = await render('nl', {url:selectedUrl.href, selected:true});
+assert.deepEqual(dutch.queries.map(item=>item.args.occurrence), source.queries.map(item=>item.args.occurrence),
+  'locale rerender preserves paged collection occurrences');
 assert.deepEqual(dutch.radios.map(item => item.id), source.radios.map(item => item.id), 'rerender preserves each use identity');
 assert.deepEqual(dutch.panels.map(item => item.id), source.panels.map(item => item.id));
 assert.deepEqual(dutch.inputIds, source.inputIds, 'locale rerender preserves each show/row form control prefix');
 assert.deepEqual(dutch.boundIdentities, source.boundIdentities, 'locale rerender preserves owning signed binding/draft comparisons');
+assert.deepEqual(dutch.editIdentities, source.editIdentities);
+assert.deepEqual(dutch.editControlIds, source.editControlIds, 'locale rerender preserves row edit control identities');
 const empty=await render('es', {url:selectedUrl.href, selected:true, hasDetails:false});
+assert.deepEqual(empty.queries.map(item=>item.args.occurrence), source.queries.map(item=>item.args.occurrence),
+  'fresh nested query preserves paged collection occurrences');
 assert.equal(empty.html.split('No records.').length-1,2,'omitted empty props reach the released shared UI default');
 assert.deepEqual(empty.radios.map(item=>item.id),source.radios.map(item=>item.id));
 assert.deepEqual(empty.inputIds, source.inputIds, 'nested requery preserves each show/row form control prefix');
 assert.deepEqual(empty.boundIdentities['ViewReuse.bind_card'], source.boundIdentities['ViewReuse.bind_card'],
   'nested requery preserves the outer row action occurrence');
+assert.deepEqual(empty.editIdentities['ViewReuse.Card.update'], source.editIdentities['ViewReuse.Card.update']);
+assert.deepEqual(empty.editControlIds['ViewReuse.Card.update'], source.editControlIds['ViewReuse.Card.update'],
+  'Card edit after nested shadowing retains the restored outer row across requery');
 const unknownUrl = new URL(selectedUrl);
 const selectionKey = [...unknownUrl.searchParams.keys()].find(key => key.startsWith('can-row:'));
 unknownUrl.searchParams.set(selectionKey, uuidv7(FIXED_NOW, 99));
@@ -184,4 +241,6 @@ console.log(JSON.stringify({consumer:'real CLI artifact → public loader/assemb
   nativeUnboundForms:true, distinctStableFormControls:true, declarationInputLabel:true,
   signedImplicitAndNestedActionBindings:true,
   nativeSplitSelection:true, absentUnknownRevokedDetailSuppressed:true,
+  nativePagedTableAndLists:true, stablePagedOccurrences:true,
+  nativeProjectedRowEdits:true, distinctStableEditControls:true, identityOnlyEditSeals:true,
   queriesPerRender:source.queries.map(item => item.model)}));

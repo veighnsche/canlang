@@ -622,8 +622,8 @@ revocations. Two preparation failures corrected unsupported returned-query
 added. Mutation-filter refusal, structured expression ordering, D1 and full
 S9-Q02 remain separate. Completion remains **58/67**.
 
-The [existing map consumer](map-attribution/consumer.mjs) now also qualifies
-the installed public callable-registry mapper through
+The [existing map consumer](map-attribution/consumer.mjs) qualifies the
+installed public callable-registry mapper through
 [`production_failure_reaches_native_registry_mapped_outcome`](../../compiler/tests/map_attribution.rs):
 **1/1** (0.22s). One actual emitted division failure returns its unchanged
 error text and original absolute `.can` identity at line 4, column 8, with
@@ -848,3 +848,84 @@ Clippy on the changed producer source also passes:
 (exit 0, 2.93s; handle 30727). Scoped rustfmt check passes; a test-line wrapping
 correction was formatting-only and had no semantic rerun. No unrelated native
 case or broader suite was run.
+
+The current affected view case now also qualifies the finite native split-table
+consumer: the real compiler/artifact and installed Interfaces selection parser
+feed the released UI split table. The href selects the current projection;
+two views render with signed outer/nested actions and stable tab/form labels
+across locale changes and requery. Absent, unknown and currently absent
+projected rows cause no callback, detail query or form. `display=split` uses
+private stable collection-occurrence/table `row_scope`; unsplit ordinary table
+children, unknown display and source occurrences refuse. The case uses a
+controlled authorized-query port and claims no State-principal revocation, D1,
+viewport/key-focus or full CanBook result. Roadmap14 renders and Interfaces12
+are reused. Changed-source build passed (11.52s), focused Clippy passed (3.22s;
+handle 40408), and scoped rustfmt passed after test-only wrapping. Full52
+pagination/parent/cursor/filters/order/defaults, `time`/`by`/`require`, held11
+and full CanBook remain open; completion stays **58/67**.
+
+The finite std nominal field-reuse case
+`std_nominal_field_reuse_preserves_delivery_status_enum_and_native_inputs`
+passes **1/1** (0.22s) through the actual installed Cloudflare/State Memory
+consumer. `Report.status` and optional `delivery?.status` reuse the installed
+`DeliveryResult` schema; all five schema cases, foreign-string validation and
+rejected-receipt behavior pass. Existing E3008 nonnull and E2013 missing-field
+refusals remain. The initial **0/1** (0.01s) was a test lookup issue from CST
+leading trivia, corrected with `.trim()` without weakening the assertion.
+Existing `std_nominal_construct` **1/1** (0.53s) is reused. Focused builds pass
+(6.74s and test-only rebuild 2.06s), focused lib/bin Clippy passes (3.79s), and
+source formatting passes. A fresh check of the same 12 source files, including CanBook, still
+exits 10 with no modules; the repaired status and case-label errors are gone,
+while broader source/runtime/BDD duties remain open. This adds no task-count
+credit; completion remains **58/67**.
+
+The same std-owner slice now also qualifies completion-header enum claims:
+`types.rs` reuses the exact checked handler completion envelope for example
+event literals, and existing enum-claim machinery accepts `succeeded` with the
+declared `Outcome.state=unavailable`. The permanent
+`b4_check::completion_example_headers_claim_status_and_declared_result_enum_cases`
+case also checks the nullable generic Object field against the imported std
+`OperationOutcome` schema. Example table headings/rows reuse checked event-base
+and explicit nonnull header facts; null/omission and equal/ancestor input
+replacement preserve Error/unclaimed behavior. The final owning case passes
+**1/1** (0.06s) with actual installed schema and CLI local/standard fixtures;
+foreign HEADER status/state refuses E2001, while a general foreign ROW stays
+diagnostic-free and unclaimed (no refusal claim). An earlier **0/1** (0.42s)
+asserted a false CLI row diagnostic and passed after correcting that expectation.
+A later **0/1** (0.01s) added an inadmissible trusted-handler sequence E1210;
+that control was removed, restoring the original DoBlock scope without sequence
+policy changes. Final focused build passes (7.04s), focused lib/bin Clippy
+passed before that temporary control (3.33s), and scoped formatting passes.
+The coordinator's one Roadmap CanBook check is complete: source closure reports
+CanBook with zero diagnostics, all 24 local source files present, and no E2005;
+at that checkpoint the overall command still exited 10 for 437 dependency diagnostics. No BDD3
+carrier/runtime/disclosure, guard/send invalidation or full-task claim follows;
+completion remains **58/67**.
+
+
+The current finite joins also cover omitted nullable Object keys from the
+published `OperationOutcome` schema (**3/3**), and explicit anonymous ICU
+postfix bindings from DESIGN §9.1. The anonymous native case passes with the
+complete bilingual CanRent date/time wording, inferred plural schema, checked
+source language, null-locale fallback and once-only authored argument order;
+its corrected parser/semantic refusal case also passes. Named-message slot
+checks (**6/6**), raw anonymous-format coverage (**1/1**) and the existing
+canonical-handler localized formatter (**1/1**, 0.59s) pass. The latter initially
+failed on a Cloudflare-owned TypeScript parameter property; the owning explicit
+field/assignment fix was consumed without a compiler shim. Direct/grouped
+anonymous postfix operands are qualified; alias schema propagation and
+ownerless enum presentation remain outside this finite join.
+
+Bare collection `pagination` now becomes the existing private `page:true`
+query option with compiler-owned stable occurrence. The existing view native
+case passes **1/1** (0.80s), including split table/two plain lists and protected
+Card/Detail row edits. Checked enabled CRUD updates reuse the installed form
+preparer, authorized projected initial values, source labels and identity-only
+sealed record bindings. Unsupported marker/edit profiles and authored private
+options still refuse. This is a controlled authorized-query consumer; full
+State/D1 paging, physical routing, current grant/version dispatch and complete
+application acceptance remain with their owners. The two affected structural
+goldens pass (**1/1** each, 0.16s/0.21s). They exposed a real multiline writer
+mapping gap, now fixed by attributing every physical emitted line without
+changing JavaScript bytes or source-disclosure policy. Final focused lib/bin
+Clippy passes (4.56s), and scoped formatting passes. Counters remain **58/67**.

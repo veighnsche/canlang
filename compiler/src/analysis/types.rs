@@ -498,6 +498,8 @@ pub struct TypeTable {
     pub node_types: HashMap<NodeKey, ResolvedType>,
     /// Canonical delivery observation selectors checked against their source owner.
     pub delivery_selectors: HashMap<NodeKey, String>,
+    /// Field-relative signed UI order selectors checked against their own query alias.
+    pub(crate) ui_order_selectors: HashMap<NodeKey, String>,
     /// Additional unbound names found by the types pass (pass 2 `E2001`).
     pub unresolved_names: Vec<NodeKey>,
     /// Unbound names the types pass claimed as unique-expected-enum
@@ -669,6 +671,19 @@ fn delivery_status_type() -> ResolvedType {
         .and_then(|schema| schema.fields.iter().find(|(name, _)| *name == "status"))
         .map(|(_, kind)| std_nominal_leaf_type(kind))
         .unwrap_or(ResolvedType::Opaque("delivery status"))
+}
+
+fn delivery_error_type() -> ResolvedType {
+    std_nominal_leaf_type("DeliveryError?")
+}
+
+fn completion_status_type() -> ResolvedType {
+    let mut status = delivery_status_type();
+    if let ResolvedType::Enum { cases, .. } = &mut status {
+        // Pending is a receipt state, never a completion occurrence.
+        cases.retain(|case| case != "pending");
+    }
+    status
 }
 
 /// Map one T13c nominal leaf kind to its checkable type (T14d).
@@ -3773,8 +3788,8 @@ impl<'a> Typer<'a> {
 
     /// Delivery envelope behind a handler's `on=Cap.op.completed`
     /// (DESIGN §8): `delivery_id:text`,
-    /// `status:enum(pending,succeeded,failed,unknown,skipped)`,
-    /// `result:R?` from the op's declared result, `error:{opaque}`.
+    /// `status:enum(succeeded,failed,unknown,skipped)`,
+    /// `result:R?` from the op's declared result, `error:DeliveryError?`.
     /// Mirrors the examples pass T35/R24 envelope, with the closed
     /// DESIGN:654 status vocabulary so bare outcomes claim. Anything
     /// else yields `None` (payload stays opaque).
@@ -3817,18 +3832,9 @@ impl<'a> Typer<'a> {
                 "delivery_id".to_string(),
                 ResolvedType::Scalar(Scalar::Text),
             ),
-            (
-                "status".to_string(),
-                ResolvedType::Enum {
-                    cases: ["pending", "succeeded", "failed", "unknown", "skipped"]
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
-                    owner: None,
-                },
-            ),
+            ("status".to_string(), completion_status_type()),
             ("result".to_string(), result),
-            ("error".to_string(), ResolvedType::Opaque("delivery error")),
+            ("error".to_string(), delivery_error_type()),
         ]))
     }
 
@@ -6141,7 +6147,12 @@ impl<'a> Typer<'a> {
                     tight_span(cx.text, child),
                 ));
             }
-            let segments = path_segments(path, cx.text);
+            let source_segments = path_segments(path, cx.text);
+            let segments = if what == "order" && node.kind == SyntaxKind::Collection {
+                self.ui_order_segments(cx, node, model, &source_segments)
+            } else {
+                source_segments
+            };
             if segments.is_empty() {
                 continue;
             }
@@ -6162,6 +6173,16 @@ impl<'a> Typer<'a> {
             }
             if self.navigate_selector(cx, node, model, path, &segments, allow_reserved) {
                 selected.push(segments.join("."));
+                if what == "order" && node.kind == SyntaxKind::Collection {
+                    self.types.ui_order_selectors.insert(
+                        NodeKey::of(path),
+                        format!(
+                            "{}{}",
+                            if descending { "-" } else { "" },
+                            segments.join(".")
+                        ),
+                    );
+                }
             }
         }
         selected
@@ -6234,6 +6255,78 @@ impl<'a> Typer<'a> {
             format!("model {}", record_name(self.tables, cx.module, model)),
             name.to_string(),
         );
+    }
+
+    /// Checked terminal type of a UI selector, used only after ordinary
+    /// selector navigation has reported invalid paths. This does not grant
+    /// read access; the query runner still enforces current field grants.
+    fn ui_order_segments<'s>(
+        &self,
+        cx: &Ctx<'_, '_>,
+        collection: &SyntaxNode,
+        model: SymbolId,
+        segments: &[&'s str],
+    ) -> Vec<&'s str> {
+        let alias = kids(collection)
+            .into_iter()
+            .find(|child| is_expression(child.kind))
+            .map(unwrap_groups)
+            .filter(|domain| domain.kind == SyntaxKind::Query)
+            .and_then(|domain| {
+                kids(domain).into_iter().find_map(|clause| {
+                    let parts = kids(clause);
+                    if clause.kind != SyntaxKind::QueryClause
+                        || !parts
+                            .first()
+                            .is_some_and(|part| is_name(part, cx.text, "as"))
+                        || self.aliases.get(&NodeKey::of(clause))
+                            != Some(&ResolvedType::Record {
+                                symbol: model,
+                                stored: true,
+                            })
+                    {
+                        return None;
+                    }
+                    parts.get(1).and_then(|part| name_text(part, cx.text))
+                })
+            });
+        if segments.len() > 1 && alias == segments.first().copied() {
+            segments[1..].to_vec()
+        } else {
+            segments.to_vec()
+        }
+    }
+
+    fn ui_selector_type(&self, model: SymbolId, segments: &[&str]) -> Option<ResolvedType> {
+        let first = *segments.first()?;
+        let mut current = if let Some(field) = self.model_field_named(model, first) {
+            self.decl_type(field)
+        } else if first == "parent" {
+            ResolvedType::Record {
+                symbol: contained_parent_of(self.tables, model)?,
+                stored: true,
+            }
+        } else {
+            reserved_member_type(first)?
+        };
+        for segment in &segments[1..] {
+            current = match current.nullable_inner().unwrap_or(&current) {
+                ResolvedType::Record { symbol, .. } => {
+                    self.decl_type(self.record_field_named(*symbol, segment)?)
+                }
+                ResolvedType::Scalar(Scalar::Money) if *segment == "minor" => {
+                    ResolvedType::Scalar(Scalar::Int)
+                }
+                ResolvedType::Scalar(Scalar::Money) if *segment == "currency" => {
+                    ResolvedType::Scalar(Scalar::Currency)
+                }
+                ResolvedType::Scalar(Scalar::User) if *segment == "id" => {
+                    ResolvedType::Scalar(Scalar::Text)
+                }
+                _ => return None,
+            };
+        }
+        Some(current)
     }
 
     /// Navigate one selector path from `model`: declared fields,
@@ -7537,7 +7630,7 @@ impl<'a> Typer<'a> {
     }
 
     /// Static page text: a string literal, a context-free message
-    /// value or a path to a zero-parameter message (`E3013`).
+    /// value or a resolved reference to a zero-parameter message (`E3013`).
     fn check_page_static_text(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode, what: &str) {
         if invalid_string_literal(node) || string_literal_value(node).is_some() {
             return;
@@ -7558,18 +7651,20 @@ impl<'a> Typer<'a> {
             }
             return;
         }
-        if node.kind == SyntaxKind::Path {
-            let ok = self
-                .tables
-                .node_symbol
-                .get(&NodeKey::of(node))
-                .copied()
-                .is_some_and(|id| {
-                    matches!(
-                        self.tables.symbols[id.0 as usize].kind,
-                        SymbolKind::Message { ref params } if params.is_empty()
-                    )
-                });
+        if matches!(node.kind, SyntaxKind::Path | SyntaxKind::NameRef) {
+            let key = NodeKey::of(node);
+            let symbol = self.tables.node_symbol.get(&key).copied().or_else(|| {
+                match self.tables.node_binding.get(&key) {
+                    Some(Binding::Symbol(id)) => Some(*id),
+                    _ => None,
+                }
+            });
+            let ok = symbol.is_some_and(|id| {
+                matches!(
+                    self.tables.symbols[id.0 as usize].kind,
+                    SymbolKind::Message { ref params } if params.is_empty()
+                )
+            });
             if ok {
                 return;
             }
@@ -7858,6 +7953,49 @@ impl<'a> Typer<'a> {
                             self.check_selectors(cx, node, model, sel, key, true);
                         }
                     }
+                    if let Some(order) = attribute_value(node, "order", cx.text)
+                        && order.kind == SyntaxKind::Selectors
+                    {
+                        self.check_selectors(cx, node, model, order, "order", true);
+                        for selector in kids(order) {
+                            let path = if selector.kind == SyntaxKind::Descending {
+                                kids(selector)
+                                    .iter()
+                                    .find(|part| part.kind == SyntaxKind::Path)
+                                    .copied()
+                            } else {
+                                Some(selector)
+                            };
+                            if let Some(path) = path
+                                && let Some(ty) = self.ui_selector_type(
+                                    model,
+                                    &self.ui_order_segments(
+                                        cx,
+                                        node,
+                                        model,
+                                        &path_segments(path, cx.text),
+                                    ),
+                                )
+                            {
+                                self.check_order_key(cx, path, &ty);
+                            }
+                        }
+                    }
+                    if let Some(search) = attribute_value(node, "search", cx.text) {
+                        for selector in kids(search) {
+                            if let Some(ty) =
+                                self.ui_selector_type(model, &path_segments(selector, cx.text))
+                                && !matches!(ty, ResolvedType::Scalar(s) if s.is_string_like())
+                            {
+                                self.diags.push(Diagnostic::error(
+                                    "E3006",
+                                    "search selectors must name nonnullable text-like fields"
+                                        .to_string(),
+                                    tight_span(cx.text, selector),
+                                ));
+                            }
+                        }
+                    }
                 }
                 if let Some(empty) = attribute_value(node, "empty", cx.text) {
                     let _ = self.expr(cx, empty, None);
@@ -7865,8 +8003,8 @@ impl<'a> Typer<'a> {
                 if let Some(defaults) = attribute_value(node, "defaults", cx.text) {
                     let _ = self.expr(cx, defaults, None);
                 }
-                // `order=` (ui_order) and `display=` values need
-                // runtime catalogs: no check (reported gap).
+                // Preference-dispatched `order=` and `display=` remain
+                // separate runtime profiles; fixed ordering is checked above.
             }
             SyntaxKind::Form => {
                 if let Some(domain) = domain {
@@ -7929,6 +8067,18 @@ impl<'a> Typer<'a> {
             // Catalog positional domains are expressions, like leaf
             // domains; `NAME=word` options stay untyped (PR5 words).
             SyntaxKind::CatalogItem => {
+                if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("count") {
+                    if parent != SyntaxKind::Collection {
+                        self.diags.push(Diagnostic::error(
+                            "E3001",
+                            "count belongs directly inside a list".to_string(),
+                            tight_span(cx.text, node),
+                        ));
+                    }
+                    if let Some(label) = attribute_value(node, "label", cx.text) {
+                        self.check_page_static_text(cx, label, "count label");
+                    }
+                }
                 for child in kids(node) {
                     if is_expression(child.kind) {
                         let _ = self.expr(cx, child, None);
@@ -7987,8 +8137,46 @@ impl<'a> Typer<'a> {
             }
             _ => {}
         }
-        // A `timeline` row seed (above) applies to nested widgets only;
-        // sibling subtrees keep the incoming context.
+        // Direct card/tab gates run before the container's children. Their
+        // stable-path facts belong only to that gated subtree, like row seeds.
+        let gated = matches!(node.kind, SyntaxKind::Card | SyntaxKind::Tab);
+        if gated {
+            let mut env = row_seed.take().unwrap_or_else(|| cx.narrow.clone());
+            for gate in kids(node).into_iter().filter(|child| {
+                child.kind == SyntaxKind::UiLeaf
+                    && kids(child).iter().find_map(|n| name_text(n, cx.text)) == Some("require")
+                    && !has_error(child)
+            }) {
+                let Some(pred) = kids(gate).into_iter().find(|n| is_expression(n.kind)) else {
+                    continue;
+                };
+                let gate_cx = Ctx {
+                    module: cx.module,
+                    file: cx.file,
+                    text: cx.text,
+                    narrow: &env,
+                    strict: cx.strict,
+                    server_default: cx.server_default,
+                };
+                let before = self.diags.len();
+                let ty = self.expr(&gate_cx, pred, None);
+                self.expect_bool(&gate_cx, tight_span(cx.text, pred), &ty, "`require`");
+                for (name, span) in self.effectful_calls(pred, cx.text) {
+                    self.diags.push(Diagnostic::error(
+                        "E3010",
+                        format!("page require must be pure; '{name}' is not allowed here"),
+                        span,
+                    ));
+                }
+                if self.diags.len() == before && ty == ResolvedType::Scalar(Scalar::Bool) {
+                    let mut facts = NarrowEnv::default();
+                    self.collect_narrow(&gate_cx, pred, false, &mut facts);
+                    env.extend(facts);
+                }
+            }
+            row_seed = Some(env);
+        }
+        // Child contexts never escape into sibling subtrees.
         let timeline_cx;
         let inner: &Ctx<'_, '_> = if let Some(ref env) = row_seed {
             timeline_cx = Ctx {
@@ -8004,6 +8192,12 @@ impl<'a> Typer<'a> {
             cx
         };
         for child in kids(node) {
+            if gated
+                && child.kind == SyntaxKind::UiLeaf
+                && kids(child).iter().find_map(|n| name_text(n, cx.text)) == Some("require")
+            {
+                continue;
+            }
             if matches!(child.kind, SyntaxKind::Route | SyntaxKind::Attribute) {
                 continue;
             }
@@ -11208,7 +11402,17 @@ impl<'a> Typer<'a> {
                     cases: bc,
                     owner: bo,
                 },
-            ) => ao == bo && (ao.is_some() || ac == bc),
+            ) => {
+                ao == bo
+                    && (ao.is_some()
+                        || ac == bc
+                        // A terminal completion outcome fits its owning
+                        // receipt status. This exact std relation is one-way;
+                        // named enum identity and other anonymous sets stay strict.
+                        || (ao.is_none()
+                            && *actual == completion_status_type()
+                            && *expected == delivery_status_type()))
+            }
             (
                 ResolvedType::Record {
                     symbol: a,
@@ -11955,7 +12159,7 @@ impl<'a> Typer<'a> {
                 match name {
                     "id" => Some(ResolvedType::Scalar(Scalar::Text)),
                     "status" => Some(delivery_status_type()),
-                    "error" => Some(ResolvedType::Opaque("delivery error")),
+                    "error" => Some(delivery_error_type()),
                     "result" => Some(match self.results.get(&op).cloned() {
                         Some(Some(ty)) => ResolvedType::Nullable(Box::new(ty)),
                         Some(None) | None => ResolvedType::Null,
@@ -11977,7 +12181,7 @@ impl<'a> Typer<'a> {
                 match name {
                     "id" => Some(ResolvedType::Scalar(Scalar::Text)),
                     "status" => Some(delivery_status_type()),
-                    "error" => Some(ResolvedType::Opaque("delivery error")),
+                    "error" => Some(delivery_error_type()),
                     // T14d: `attempt.result` types against the
                     // consumed owner result shape (DESIGN §8.1:
                     // `result:R?` is the only nominal-typed leaf).
@@ -14734,7 +14938,22 @@ impl<'a> Typer<'a> {
                     };
                     for value in kids(part) {
                         if is_expression(value.kind) {
-                            let ty = self.expr(&clause_cx, value, None);
+                            // In an order clause, leading '-' selects descending
+                            // order; it does not negate the checked scalar key.
+                            let key = if value.kind == SyntaxKind::Unary
+                                && kids(value).iter().any(|part| is_punct(part, cx.text, "-"))
+                            {
+                                kids(value)
+                                    .into_iter()
+                                    .find(|part| is_expression(part.kind))
+                                    .unwrap_or(value)
+                            } else {
+                                value
+                            };
+                            let ty = self.expr(&clause_cx, key, None);
+                            if !std::ptr::eq(key, value) {
+                                self.types.node_types.insert(NodeKey::of(value), ty.clone());
+                            }
                             self.check_order_key(&clause_cx, value, &ty);
                         }
                     }

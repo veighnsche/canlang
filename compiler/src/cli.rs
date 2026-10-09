@@ -1,6 +1,6 @@
 //! Single dispatch for the `can` binary.
 //!
-//! `can compile|check|lint|fmt|explain|lsp|policy|docs|run|test|build|deploy|activate|completions|help`,
+//! `can compile|check|lint|fmt|explain|lsp|policy|docs|run|test|build|deploy|activate|dev|completions|help`,
 //! plus `--help`/`--version` and a global `--format=json|text`. Exit codes
 //! come from [`crate::exit`]: 0 clean, 10 errors reported, 2 tool failure
 //! (warnings alone exit 0; they never block). JSON goes to stdout,
@@ -382,6 +382,15 @@ pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult
             let platform_bin = std::env::var("CAN_PLATFORM_BIN").ok();
             run_thin_entry(cmd, &parsed.operands, platform_bin)
         }
+        "dev" => {
+            if parsed.format_set || parsed.catalog_set {
+                return DispatchResult::tool_error(
+                    "E7001",
+                    "can dev takes no can-side flags; arguments pass through to can-dev".to_string(),
+                );
+            }
+            run_dev_entry(&parsed.operands, std::env::var("CAN_DEV_BIN").ok())
+        }
         unknown => DispatchResult::tool_error(
             "E7001",
             format!("unknown command '{unknown}'; use can --help"),
@@ -406,6 +415,7 @@ fn is_known_command(cmd: &str) -> bool {
             | "build"
             | "deploy"
             | "activate"
+            | "dev"
             | "completions"
             | "help"
     )
@@ -414,7 +424,7 @@ fn is_known_command(cmd: &str) -> bool {
 /// Thin lane-7 entries: flag parsing stops at these; everything after is
 /// child args passed verbatim to `can-platform`.
 fn is_thin_entry(cmd: &str) -> bool {
-    matches!(cmd, "run" | "test" | "build" | "deploy" | "activate")
+    matches!(cmd, "run" | "test" | "build" | "deploy" | "activate" | "dev")
 }
 
 struct ParsedArgs {
@@ -617,6 +627,7 @@ Commands:
   build     Thin lane-7 entry: exec can-platform build (passthrough)
   deploy    Thin lane-7 entry: exec can-platform deploy (passthrough)
   activate  Thin lane-7 entry: exec can-platform activate (passthrough)
+  dev       JSON control for the local development session (can-dev)
   completions  Print a shell completion script: can completions bash|zsh|fish
   help      Show help (global or `can help <COMMAND>`)
 
@@ -632,6 +643,7 @@ Options:
 Environment:
   CAN_CATALOG       Producer catalog path (below --catalog, above ./can-catalog.json)
   CAN_PLATFORM_BIN  Override path to the can-platform binary (run|test|build|deploy|activate|docs)
+  CAN_DEV_BIN       Override path to the can-dev JSON control binary
 
 Exit codes: 0 clean, 10 errors reported, 2 tool failure.
 ",
@@ -660,6 +672,7 @@ fn command_help(cmd: &str) -> String {
         "run" | "test" | "build" | "deploy" | "activate" => format!(
             "can {cmd} — thin lane-7 entry (passthrough to can-platform)\n\nUsage: can {cmd} [ARGS...]\n\nExecs `can-platform {cmd}` with argument passthrough when the lane-7\nproducer is installed, else reports missing-producer error E7004.\nEverything after the subcommand passes through verbatim, flags\nincluded (`can {cmd} --help` asks the platform tool; use\n`can help {cmd}` or `can --help {cmd}` to see this text). `can` never embeds a second\nplatform engine. Override search with CAN_PLATFORM_BIN. The child\nprocess exit code passes through; a signal-killed child maps to\nexit 2.\n"
         ),
+        "dev" => "can dev — JSON control for the local development session\n\nUsage: can dev [COMMAND] [ARGS...]\n\nExecs the installed `can-dev` control adapter and passes every argument through. `can dev help` lists its machine-readable commands and flags. A missing adapter reports E7004. Override search with CAN_DEV_BIN. The adapter's JSON stdout and exit code pass through unchanged.\n".to_string(),
         unknown => format!("unknown command '{unknown}'; use can --help\n"),
     }
 }
@@ -1821,7 +1834,14 @@ pub fn run_thin_entry(
     let mut child_args = Vec::with_capacity(args.len() + 1);
     child_args.push(subcommand.to_string());
     child_args.extend(args.iter().cloned());
-    match std::process::Command::new(&bin).args(&child_args).status() {
+    let mut command = std::process::Command::new(&bin);
+    command.args(&child_args);
+    if subcommand == "test" && std::env::var_os("CAN_COMPILER_BIN").is_none() {
+        if let Ok(executable) = std::env::current_exe() {
+            command.env("CAN_COMPILER_BIN", executable);
+        }
+    }
+    match command.status() {
         Ok(status) => DispatchResult {
             code: status.code().unwrap_or(exit::TOOL_FAILURE),
             stdout: String::new(),
@@ -1831,6 +1851,41 @@ pub fn run_thin_entry(
         Err(err) => DispatchResult::tool_error(
             "E7004",
             format!("failed to exec lane-7 producer '{bin}': {err}"),
+        ),
+    }
+}
+
+/// Pass the native `can dev` command to the single Node session client.
+/// The child owns its one-line JSON response and exit status.
+pub fn run_dev_entry(args: &[String], dev_bin: Option<String>) -> DispatchResult {
+    let bin = match dev_bin {
+        Some(path) => path,
+        None => match find_on_path("can-dev") {
+            Some(path) => path,
+            None => {
+                return DispatchResult::tool_error(
+                    "E7004",
+                    "development control 'can-dev' not found on PATH; install it or set CAN_DEV_BIN (see can explain E7004)".to_string(),
+                );
+            }
+        },
+    };
+    if !Path::new(&bin).is_file() {
+        return DispatchResult::tool_error(
+            "E7004",
+            format!("development control '{bin}' is not a file; install it or fix CAN_DEV_BIN (see can explain E7004)"),
+        );
+    }
+    match std::process::Command::new(&bin).args(args).status() {
+        Ok(status) => DispatchResult {
+            code: status.code().unwrap_or(exit::TOOL_FAILURE),
+            stdout: String::new(),
+            stderr: String::new(),
+            run_lsp: false,
+        },
+        Err(err) => DispatchResult::tool_error(
+            "E7004",
+            format!("failed to exec development control '{bin}': {err}"),
         ),
     }
 }
