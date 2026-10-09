@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { attachDevSessionService, startDevSessionService } from "./session-service.js";
@@ -170,6 +170,119 @@ test("stop releases the owned socket even when preview disposal fails", async ()
     await assert.rejects(attachDevSessionService({ checkoutRoot: root, runtimeDir }));
   } finally {
     await owner.stop().catch(() => undefined);
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
+test("stop cancels the captured compiler child before releasing its private endpoint", { timeout: 10_000 }, async () => {
+  const scratch = await mkdtemp(join(tmpdir(), "cv-"));
+  const root = join(scratch, "c");
+  const runtimeDir = join(scratch, "r");
+  await mkdir(root, { mode: 0o700 });
+  await mkdir(runtimeDir, { mode: 0o700 });
+  await writeFile(join(root, "OfficeSupplies.can"), "app OfficeSupplies\nGiven\nWhen\nThen\n");
+  // Component-only compiler fixture: exact captured bytes use the real child
+  // and session lifecycle, without claiming native compiler acceptance.
+  // Synchronization files are outside the watched/captured source directory.
+  const ready = join(scratch, "ready");
+  const terminated = join(scratch, "terminated");
+  const release = join(scratch, "release");
+  const compilerPath = join(root, "slow-compiler");
+  await writeFile(compilerPath, `#!/usr/bin/env node
+const fs = require("node:fs");
+const { createHash } = require("node:crypto");
+const source = process.argv.at(-1);
+const envelope = {
+  complete: true, omitted: 0, diagnostics: [],
+  sources: [{ id: 0, path: source, sha256: createHash("sha256").update(fs.readFileSync(source)).digest("hex") }],
+};
+process.on("SIGTERM", () => {
+  process.stdout.write(JSON.stringify(envelope));
+  fs.writeFileSync(${JSON.stringify(terminated)}, "late result emitted; child remains active");
+});
+setInterval(() => {
+  if (fs.existsSync(${JSON.stringify(release)})) process.exit(10);
+}, 10);
+fs.writeFileSync(${JSON.stringify(`${ready}.tmp`)}, JSON.stringify({
+  pid: process.pid, executable: process.argv[1], args: process.argv.slice(2), cwd: process.cwd(),
+}));
+fs.renameSync(${JSON.stringify(`${ready}.tmp`)}, ${JSON.stringify(ready)});
+`);
+  let previewAttempts = 0;
+  const owner = await startDevSessionService({
+    selectedApp: "OfficeSupplies", runtimeDir,
+    capture: {
+      checkoutRoot: root, appPath: "OfficeSupplies.can", profile: "local-d1-identity", compilerPath,
+      catalogPath: join(project, "packages/values/dist/catalog.json"),
+      helpIndexPath: join(project, "docs/specification/CONSTRUCT-HELP.md"),
+      packageInputPaths: [{ name: "cloudflare-worker", path: join(project, "packages/cloudflare/dist/worker/assembly.js") }],
+    },
+    previewBuilder: async () => {
+      previewAttempts += 1;
+      throw new Error("cancelled compiler must not build a preview");
+    },
+  });
+  const pending = owner.check();
+  void pending.catch(() => undefined);
+  try {
+    let started: { pid: number; executable: string; args: string[]; cwd: string } | undefined;
+    for (let attempt = 0; attempt < 500; attempt += 1) {
+      try {
+        started = JSON.parse(await readFile(ready, "utf8")) as typeof started;
+        break;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    assert.ok(started, "captured compiler child did not start");
+    assert.ok(Number.isSafeInteger(started.pid) && started.pid > 0);
+    assert.equal(started.cwd, owner.identity.root);
+    assert.deepEqual(started.args, [
+      "compile", "--format=json", "--native-scenario-receipts",
+      `--catalog=${join(dirname(started.executable), "catalog.json")}`, "OfficeSupplies.can",
+    ]);
+    const client = await attachDevSessionService({ checkoutRoot: root, runtimeDir });
+    assert.deepEqual(await client.request({ command: "stop" }), {
+      schema: "can.dev.stop.v1", session: owner.identity.sessionId, stopping: true,
+    });
+    let deadline: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        // The acknowledged socket stop must actually cancel the child.
+        // Joining owner.stop only after that check settles cannot trigger it.
+        pending.then(() => owner.stop()),
+        new Promise<never>((_, reject) => {
+          deadline = setTimeout(() => reject(new Error("owned compiler stop exceeded 3 seconds")), 3_000);
+        }),
+      ]);
+    } finally {
+      if (deadline !== undefined) clearTimeout(deadline);
+    }
+    assert.equal(await readFile(terminated, "utf8"), "late result emitted; child remains active");
+    assert.throws(() => process.kill(started.pid, 0), (error: unknown) =>
+      (error as NodeJS.ErrnoException).code === "ESRCH");
+    await assert.rejects(lstat(dirname(started.executable)), (error: unknown) =>
+      (error as NodeJS.ErrnoException).code === "ENOENT");
+    await assert.rejects(lstat(owner.descriptorPath), (error: unknown) =>
+      (error as NodeJS.ErrnoException).code === "ENOENT");
+    await assert.rejects(lstat(owner.identity.socketPath), (error: unknown) =>
+      (error as NodeJS.ErrnoException).code === "ENOENT");
+    await assert.rejects(attachDevSessionService({ checkoutRoot: root, runtimeDir }));
+    const cancelled = await pending;
+    assert.equal(cancelled.state, "superseded");
+    assert.equal(cancelled.current, false);
+    assert.equal(cancelled.focus, null);
+    assert.equal(cancelled.evidence.diagnostics_reported, 0);
+    assert.equal(owner.status().check_revision, null);
+    assert.equal(owner.status().serving_build, null);
+    assert.equal(previewAttempts, 0);
+  } finally {
+    // Failure cleanup releases only this fixture child; the passing stop path
+    // must terminate it without this emergency release.
+    await writeFile(release, "release");
+    await owner.stop();
+    await pending.catch(() => undefined);
     await rm(scratch, { recursive: true, force: true });
   }
 });
