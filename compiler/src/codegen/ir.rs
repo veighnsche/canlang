@@ -7065,87 +7065,234 @@ impl<'a> Cx<'a> {
         target: &SyntaxNode,
     ) -> Option<(TypedExpr, Option<TypedExpr>)> {
         let current = self.decode_expr(scope, target);
-        let (cases, field_id) = match &current.ty {
-            ResolvedType::Enum { cases, owner: Some(field_id) } => (cases.clone(), *field_id),
+        let (cases, enum_owner) = match &current.ty {
+            ResolvedType::Enum {
+                cases,
+                owner: Some(enum_owner),
+            } => (cases.clone(), *enum_owner),
             _ => {
                 self.diags.push(Diagnostic::error(
-                    "E6008", "bound tabs needs a checked owned enum preference".to_string(), target.span,
+                    "E6008",
+                    "bound tabs needs a checked owned enum preference".to_string(),
+                    target.span,
                 ));
                 return None;
             }
         };
+        let Some(field_id) = self
+            .program
+            .types
+            .preference_field_references
+            .get(&NodeKey::of(target))
+            .copied()
+        else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "bound tabs field has no checked preference identity".to_string(),
+                target.span,
+            ));
+            return None;
+        };
         let IrExpr::Member { base, field } = &current.expr else {
             self.diags.push(Diagnostic::error(
-                "E6008", "bound tabs needs a direct preferences field".to_string(), target.span,
+                "E6008",
+                "bound tabs needs a direct preferences field".to_string(),
+                target.span,
             ));
             return None;
         };
         if !matches!(&base.expr, IrExpr::Name(name) if name == "preferences") {
             self.diags.push(Diagnostic::error(
-                "E6008", "bound tabs needs a direct preferences field".to_string(), target.span,
+                "E6008",
+                "bound tabs needs a direct preferences field".to_string(),
+                target.span,
             ));
             return None;
         }
         let Some(symbol) = self.program.symbols.get(field_id.0 as usize).cloned() else {
-            self.diags.push(Diagnostic::error("E6008", "bound tabs field has no checked declaration".to_string(), target.span));
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "bound tabs field has no checked declaration".to_string(),
+                target.span,
+            ));
             return None;
         };
         let SymbolKind::Field { owner, .. } = &symbol.kind else {
-            self.diags.push(Diagnostic::error("E6008", "bound tabs field has no preference owner".to_string(), target.span));
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "bound tabs field has no preference owner".to_string(),
+                target.span,
+            ));
             return None;
         };
-        if symbol.module != scope.module || symbol.name != *field ||
-            !matches!(self.program.symbols.get(owner.0 as usize).map(|item| &item.kind), Some(SymbolKind::Preferences { .. })) {
-            self.diags.push(Diagnostic::error("E6008", "bound tabs field has no local preference owner".to_string(), target.span));
+        if symbol.module != scope.module
+            || symbol.name != *field
+            || !matches!(
+                self.program
+                    .symbols
+                    .get(owner.0 as usize)
+                    .map(|item| &item.kind),
+                Some(SymbolKind::Preferences { .. })
+            )
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "bound tabs field has no local preference owner".to_string(),
+                target.span,
+            ));
             return None;
         }
         let (_, default, _, _, label, _) = self.decode_field(&symbol, *owner);
+        let inherited_label = if enum_owner != field_id {
+            self.program
+                .symbols
+                .get(enum_owner.0 as usize)
+                .cloned()
+                .and_then(|enum_field| {
+                    let SymbolKind::Field { owner, .. } = enum_field.kind else {
+                        return None;
+                    };
+                    let (_, _, _, _, label, _) = self.decode_field(&enum_field, owner);
+                    label.map(|label| (enum_field.name, label))
+                })
+        } else {
+            None
+        };
         let Some(IrDefault::Literal(default)) = default else {
-            self.diags.push(Diagnostic::error("E6008", "bound tabs preference needs a literal enum default".to_string(), target.span));
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "bound tabs preference needs a literal enum default".to_string(),
+                target.span,
+            ));
             return None;
         };
         let IrExpr::Text(default_value) = default.expr else {
-            self.diags.push(Diagnostic::error("E6008", "bound tabs preference default must be an enum case".to_string(), target.span));
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "bound tabs preference default must be an enum case".to_string(),
+                target.span,
+            ));
             return None;
         };
         if cases.is_empty() || !cases.contains(&default_value) {
-            self.diags.push(Diagnostic::error("E6008", "bound tabs preference default is not a listed case".to_string(), target.span));
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "bound tabs preference default is not a listed case".to_string(),
+                target.span,
+            ));
             return None;
         }
-        if !self.page_preference_fields.iter().any(|item| item.name == symbol.name) {
+        if !self
+            .page_preference_fields
+            .iter()
+            .any(|item| item.name == symbol.name)
+        {
             self.page_preference_fields.push(IrPreferenceField {
-                name: symbol.name.clone(), options: cases.clone(), default_value,
+                name: symbol.name.clone(),
+                options: cases.clone(),
+                default_value,
             });
         }
-        let text = |value: String| TypedExpr::new(IrExpr::Text(value), ResolvedType::Scalar(Scalar::Text), target.span);
-        let options = cases.into_iter().map(|case| {
-            let caption = label.as_ref().and_then(|label| label.values.iter().find(|(value, _)| value == &case))
-                .map(|(_, caption)| TypedExpr::new(IrExpr::Message(caption.clone()), ResolvedType::Scalar(Scalar::Text), target.span))
-                .unwrap_or_else(|| text(case.clone()));
-            TypedExpr::new(IrExpr::Object(vec![("value".to_string(), text(case)), ("label".to_string(), caption)]),
-                ResolvedType::Unknown, target.span)
-        }).collect();
-        let ctx = TypedExpr::new(IrExpr::Name("c".to_string()), ResolvedType::Unknown, target.span);
-        let member = |base: TypedExpr, field: String| TypedExpr::new(
-            IrExpr::Member { base: Box::new(base), field }, ResolvedType::Unknown, target.span,
+        let text = |value: String| {
+            TypedExpr::new(
+                IrExpr::Text(value),
+                ResolvedType::Scalar(Scalar::Text),
+                target.span,
+            )
+        };
+        let options = cases
+            .into_iter()
+            .map(|case| {
+                let caption = label
+                    .as_ref()
+                    .and_then(|label| label.values.iter().find(|(value, _)| value == &case))
+                    .or_else(|| {
+                        inherited_label.as_ref().and_then(|(_, label)| {
+                            label.values.iter().find(|(value, _)| value == &case)
+                        })
+                    })
+                    .map(|(_, caption)| {
+                        TypedExpr::new(
+                            IrExpr::Message(caption.clone()),
+                            ResolvedType::Scalar(Scalar::Text),
+                            target.span,
+                        )
+                    })
+                    .unwrap_or_else(|| text(case.clone()));
+                TypedExpr::new(
+                    IrExpr::Object(vec![
+                        ("value".to_string(), text(case)),
+                        ("label".to_string(), caption),
+                    ]),
+                    ResolvedType::Unknown,
+                    target.span,
+                )
+            })
+            .collect();
+        let ctx = TypedExpr::new(
+            IrExpr::Name("c".to_string()),
+            ResolvedType::Unknown,
+            target.span,
         );
-        let module_name = self.program.modules.iter().find(|module| module.id == scope.module)?.name.clone();
-        let version = member(member(member(ctx.clone(), "preferenceVersions".to_string()), module_name), symbol.name.clone());
-        let post_to = TypedExpr::new(IrExpr::Binary {
-            op: IrBinOp::Coalesce,
-            left: Box::new(member(ctx.clone(), "pollUrl".to_string())),
-            right: Box::new(member(ctx, "path".to_string())),
-        }, ResolvedType::Scalar(Scalar::Text), target.span);
-        let binding = TypedExpr::new(IrExpr::Object(vec![
-            ("name".to_string(), text(symbol.name)),
-            ("options".to_string(), TypedExpr::new(IrExpr::Array(options), ResolvedType::Unknown, target.span)),
-            ("current".to_string(), current),
-            ("version".to_string(), version),
-            ("postTo".to_string(), post_to),
-        ]), ResolvedType::Unknown, target.span);
-        let caption = label.map(|label| TypedExpr::new(
-            IrExpr::Message(label.text), ResolvedType::Scalar(Scalar::Text), target.span,
-        ));
+        let member = |base: TypedExpr, field: String| {
+            TypedExpr::new(
+                IrExpr::Member {
+                    base: Box::new(base),
+                    field,
+                },
+                ResolvedType::Unknown,
+                target.span,
+            )
+        };
+        let module_name = self
+            .program
+            .modules
+            .iter()
+            .find(|module| module.id == scope.module)?
+            .name
+            .clone();
+        let version = member(
+            member(
+                member(ctx.clone(), "preferenceVersions".to_string()),
+                module_name,
+            ),
+            symbol.name.clone(),
+        );
+        let post_to = TypedExpr::new(
+            IrExpr::Binary {
+                op: IrBinOp::Coalesce,
+                left: Box::new(member(ctx.clone(), "pollUrl".to_string())),
+                right: Box::new(member(ctx, "path".to_string())),
+            },
+            ResolvedType::Scalar(Scalar::Text),
+            target.span,
+        );
+        let binding = TypedExpr::new(
+            IrExpr::Object(vec![
+                ("name".to_string(), text(symbol.name.clone())),
+                (
+                    "options".to_string(),
+                    TypedExpr::new(IrExpr::Array(options), ResolvedType::Unknown, target.span),
+                ),
+                ("current".to_string(), current),
+                ("version".to_string(), version),
+                ("postTo".to_string(), post_to),
+            ]),
+            ResolvedType::Unknown,
+            target.span,
+        );
+        let label = label.or_else(|| {
+            inherited_label
+                .filter(|(name, _)| name == &symbol.name)
+                .map(|(_, label)| label)
+        });
+        let caption = label.map(|label| {
+            TypedExpr::new(
+                IrExpr::Message(label.text),
+                ResolvedType::Scalar(Scalar::Text),
+                target.span,
+            )
+        });
         Some((binding, caption))
     }
 
