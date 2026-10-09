@@ -249,6 +249,15 @@ the actual insecure-fpath reproduction passes all **47** exact ZLE assertions.
 Independent source review accepts the finite harness correction. Production
 completion scripts and their actual output assertions remain unchanged.
 
+The published owning compiled-journey correction **5e13a5f5** is consumed only
+in its existing E2E spec: CRUD has a null business result and exactly disclosed
+records, with generated selected app identity. Actual source-bound compilation
+and the canonical D1 create/read/update/archive, replay, receipt and fresh-store
+history journey pass **2/2**; the owning E2E typecheck passes. This supplies the
+released consumer expectation, without handbuilt substitution or application
+completion credit. The separate **b11cc7c8** handbuilt dependency closure does
+not alter compiled assembly or repair stale CanDo pilot source.
+
 Current remaining prerequisites are recorded here without reopening accepted
 compiler leaves:
 
