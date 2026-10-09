@@ -6,6 +6,7 @@ import type { InstalledTextGeneration, ResolveInstalledTextGeneration, ModelRunH
 import { encodeValue, normalizeSchema, validateOperationInput } from '@canlang/values';
 import type { SchemaDescriptor } from '@canlang/values';
 import type { DispatchProviderOutcome, DispatchReconcileEvidence } from './invoke.js';
+import type { DispatchImageCorrelation } from '@canlang/work/kernel/tables';
 
 const CAPABILITY = 'std.TextGenerationV1';
 const TARGET = `${CAPABILITY}.generate`;
@@ -28,6 +29,13 @@ export interface BoundTextGenerationCallOptions {
   /** Required to start transport: the host queue observation must commit first. */
   readonly onProgress?: (progress: TextRunWire) => Promise<void>;
 }
+export interface BoundTextGenerationControlCallOptions {
+  readonly observation: { readonly startedAtMs: number; readonly deadlineMs: number };
+  readonly originalScope: { readonly app: string; readonly owner: string; readonly principal: string };
+  readonly retainedProgress: TextRunWire | null;
+  readonly recovering?: boolean;
+  readonly onProgress: (progress: TextRunWire) => Promise<void>;
+}
 export interface BoundTextGenerationAdapter {
   available(intent: OutboxIntent): boolean;
   resultContext(intent: OutboxIntent): ReceiptResultContext | null;
@@ -38,6 +46,11 @@ export interface BoundTextGenerationAdapter {
   /** Only the retained real live handle can request cancellation. */
   cancel(intent: OutboxIntent): Promise<DispatchProviderOutcome | null>;
   reconcile(intent: OutboxIntent): Promise<DispatchReconcileEvidence | null>;
+  /** Positive entries are required before the dispatcher may claim a source control. */
+  controlCorrelation?(control: OutboxIntent, owner: string): DispatchImageCorrelation | null;
+  controlObservation?(control: OutboxIntent, startedAtMs: number): BoundTextGenerationControlCallOptions['observation'] | null;
+  observeControl?(control: OutboxIntent, original: OutboxIntent,
+    options: BoundTextGenerationControlCallOptions): Promise<DispatchProviderOutcome>;
 }
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
