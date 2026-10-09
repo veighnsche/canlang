@@ -391,6 +391,28 @@ pub struct ReferencedBuiltin {
     pub span: Span,
 }
 
+/// Declared model policy kind, distinct from neighboring callable registries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IrModelRuleKind {
+    Invariant,
+    Lock,
+}
+
+/// Owning declaration facts for a model invariant or field lock.
+/// Registry sharing with read/unique predicates does not establish rule kind.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrModelRuleOrigin {
+    pub model: SymbolId,
+    pub module: ModuleId,
+    /// Global Effects ordinal across models and rule kinds.
+    pub ordinal: u32,
+    pub node: NodeKey,
+    pub span: Span,
+    pub kind: IrModelRuleKind,
+    /// Existing model-local callable registry identity.
+    pub registry_id: String,
+}
+
 /// One boolean rule function for the `canApp()` registry (`read` and
 /// `invariants` maps).
 #[derive(Debug, Clone)]
@@ -401,6 +423,8 @@ pub struct IrRuleFn {
     pub pred: TypedExpr,
     /// Declaration span.
     pub span: Span,
+    /// Present only for a declared model invariant, never read/unique rules.
+    pub origin: Option<IrModelRuleOrigin>,
 }
 
 /// One lock entry for the `canApp()` registry `locks` map.
@@ -414,6 +438,7 @@ pub struct IrLockFn {
     pub when: Option<TypedExpr>,
     /// Declaration span.
     pub span: Span,
+    pub origin: IrModelRuleOrigin,
 }
 
 /// One named rule function for the `canApp()` registry (`crudWhen`,
@@ -5967,6 +5992,7 @@ impl<'a> Cx<'a> {
                         id: format!("{}.read.{}", symbol.name, index + 1),
                         pred,
                         span,
+                        origin: None,
                     });
                 }
                 for (index, invariant) in data.invariants.iter().enumerate() {
@@ -5996,6 +6022,15 @@ impl<'a> Cx<'a> {
                         id: format!("{}.require.{}", symbol.name, index + 1),
                         pred,
                         span,
+                        origin: Some(IrModelRuleOrigin {
+                            model: invariant.target,
+                            module: invariant.module,
+                            ordinal: invariant.id,
+                            node: invariant.node,
+                            span,
+                            kind: IrModelRuleKind::Invariant,
+                            registry_id: format!("{}.require.{}", symbol.name, index + 1),
+                        }),
                     });
                 }
                 for (index, unique) in data.uniques.iter().enumerate() {
@@ -6016,6 +6051,7 @@ impl<'a> Cx<'a> {
                             &format!("unique constraint on {}", symbol.canonical),
                         ),
                         span,
+                        origin: None,
                     });
                 }
                 for (index, lock) in data.locks.iter().enumerate() {
@@ -6031,6 +6067,15 @@ impl<'a> Cx<'a> {
                             )
                         }),
                         span,
+                        origin: IrModelRuleOrigin {
+                            model: symbol.id,
+                            module: lock.module,
+                            ordinal: lock.id,
+                            node: lock.node,
+                            span,
+                            kind: IrModelRuleKind::Lock,
+                            registry_id: format!("{}.lock.{}", symbol.name, index + 1),
+                        },
                     });
                 }
                 if let Some(retain) = data.retains.first() {
