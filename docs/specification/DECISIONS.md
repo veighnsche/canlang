@@ -3630,3 +3630,8 @@ Preserve the unaccepted compiler UI ownerless-enum descriptor admission delta an
 ## 2026-10-09 — unfinished cloud shutdown: inline descriptor arrays
 
 Preserve the InlineMessage reflexive loose_equal arm and actual CLI/native array controls for Codex4231479656. The final affected target is2/3: compile/check accepts the arrays, but native raw descriptor count returns0n because IR's expression-child predicate omits MessageValue. The required producer correction remains unfinished; mixed text/named-schema and business text-array refusals pass. Retain the fixture's actual clean-check diagnostics versus successful compile-artifact distinction. No independent final review, current suite acceptance or completion credit is supplied; continuation belongs to the human's local prompt.
+
+
+## 2026-10-09 — retain inline descriptor array elements locally
+
+Include `MessageValue` in IR expression-child recognition so arrays accepted by the saved reflexive InlineMessage typing retain their raw/grouped elements. Preserve ordinary business text arrays and mixed/text/named-schema descriptor refusals. The production CLI/native coverage target passes 3/3 after supplying the local locked package/catalog prerequisites. This is a finite implementation choice; independent review and current-source integrated qualification remain separate, with no original reference-count increase.

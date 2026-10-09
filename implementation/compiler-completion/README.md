@@ -24,6 +24,18 @@ Mixed text/named-schema and business text-array refusal controls pass; the
 check/compile artifact-shape fixture correction is retained. No completed array
 workflow or current-revision Codex review follows from this unfinished checkpoint.
 
+
+**Local continuation — inline descriptor arrays, 2026-10-09.** The missing
+`MessageValue` expression-child producer is corrected; the saved reflexive
+inline type equality is retained. The actual CLI/native coverage target passes
+**3/3**, including raw/grouped arrays, captured binding order/failure and mixed
+text/named-schema/business text-array refusals. Ordinary business `text[]`
+continues to execute. The initial local run lacked installed dependencies and
+catalog; locked local installation, actual package builds and catalog generation
+supply the prerequisite. This finite correction supersedes the array shutdown
+failure; UI descriptor admission and current-source whole qualification remain
+unfinished. Original completion remains **58/67**, with **9 open** references.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed
