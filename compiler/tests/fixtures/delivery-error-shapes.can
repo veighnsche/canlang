@@ -1,0 +1,17 @@
+app DeliveryErrorShapes
+use std {EmailV1 as Mail} from=deployment.mail
+Given
+ Entry {label:text,error:text?,notification:delivery(Mail.send)?}
+ policy Entry read=members fields=label,error,notification.error
+ derive error_code(entry:Entry):text? = entry.notification?.error?.code
+ derive error_message(entry:Entry):text? = entry.notification?.error?.message
+When
+ scenario read_code(entry:Entry) read=true -> text? by=members
+  do return error_code(entry)
+ scenario read_message(entry:Entry) read=true -> text? by=members
+  do return error_message(entry)
+ scenario capture(entry:Entry) by=members
+  do
+   let failure=entry.notification?.error
+   set entry {error=failure?.message}
+Then
