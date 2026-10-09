@@ -4,12 +4,12 @@ import { promisify } from 'node:util';
 import { createRequire } from 'node:module';
 import { cp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const installed = '/workspace/canlang';
-const root = '/workspace/.canlang-env/office-browser-journey-root';
-const log = '/workspace/.canlang-env/logs/office-browser-journey.json';
-const manifest = '/workspace/.canlang-env/logs/office-browser-journey-capture.json';
+const installed = fileURLToPath(new URL('../../../', import.meta.url));
+const root = join(installed, 'test-results/can-dev-server/office-browser-root');
+const log = join(installed, 'test-results/can-dev-server/office-browser-journey.json');
+const manifest = join(installed, 'test-results/can-dev-server/office-browser-capture.json');
 const require = createRequire(join(installed, 'package.json'));
 const { chromium } = require('@playwright/test');
 const { deriveCsrfToken } = await import(pathToFileURL(require.resolve('@canlang/identity')).href);
@@ -84,7 +84,10 @@ async function submit(page, form, operation) {
   const response = page.waitForResponse(item => item.request().method() === 'POST' &&
     decodeURIComponent(new URL(item.url()).pathname).includes(operation), { timeout: 30000 });
   await form.locator('button[type="submit"]').first().click();
-  assert.equal((await response).status(), 200, operation + ' status');
+  const result = await response;
+  const status = result.status();
+  const error = status === 200 ? '' : (await result.text()).slice(0, 240);
+  assert.equal(status, 200, operation + ' status: ' + error);
 }
 async function create(page, origin, name, quantity) {
   const form = page.locator('form[action*="Supply.create"]').first();

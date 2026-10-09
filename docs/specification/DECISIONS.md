@@ -3703,3 +3703,7 @@ Apply Compiler `c4376ab8`’s exact real-engine fixture correction. Audit fpath 
 ## 2026-10-09 — unfinished emergency cloud preservation
 
 The human ended cloud execution for cost and limited remaining work to preservation. Preserve the unapplied T04 branch-local structural patch and reusable credential-free probe source in the dev-server handoff, together with the interrupted Office result. Do not treat this checkpoint as implemented, tested, accepted or a completed plan. The last partial Office browser run stopped at delete status; local continuation must resolve that seam and the remaining original task list. Preserve the clean exact draft pin; exclude private runtime credentials/captures, caches, dependencies and generated outputs. No further cloud implementation, review or CI waiting follows.
+
+### Implementation: local dev-server continuation and ranking slots
+
+The human resumed PR 132 locally in the existing assigned worktree and branch; cloud execution remains stopped. Preserve the unfinished Office/G2/G3 qualification and consume exact Compiler/Packages prerequisites through the coordinator. The bounded ranker now accepts the candidate carrier's existing dotted/hyphenated slot spelling and 96-character limit, allowing `given.rule` without relaxing source capture, qualification, material-intent or disclosure gates. Its direct checks pass 8/8. Live compiler inventory/ranking context and profile proofs remain absent; no external packet is sent and no acceptance follows from this repair.
