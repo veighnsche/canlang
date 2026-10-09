@@ -293,6 +293,7 @@ export function projectBusinessRefusal(input: {
     evidence: evidence([
       ...(at === undefined ? ["source_mapping_unavailable"] : []),
       "trace_unavailable",
+      ...(operation === null ? ["operation_identity_withheld"] : []),
       ...(input.error.code === "delivery_unknown" ? ["external_effect_uncertain"] : []),
     ]),
   };
