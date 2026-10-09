@@ -960,3 +960,8 @@ scoped formatting and diff checks pass. The earlier `unfinished` structural
 checkpoint establishes no separate acceptance. State/D1 persistence, full
 ExpenseFlow/application serving, unsupported order/panels and the wider nine
 references remain open; canonical completion stays **58/67**.
+
+Codex review of **1ee1239d** completed and identified grouped-target identity
+loss. Unwrapping syntax groups only for the checked field lookup fixes direct,
+single and nested inline/borrowed targets; the actual grouped HTTP/UI case and
+business-field refusal controls pass. Independent review accepts this correction.
