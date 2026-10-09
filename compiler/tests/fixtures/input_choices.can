@@ -27,4 +27,12 @@ When
  scenario submit(document:Document,assignee:user?=null choices={read=reviewer_choices(document=document),value="user",labels=["name","role","home"]} desc="Chosen reviewer" label="Reviewer") -> user? by=members
   require assignee==null or any(Employee as candidate,candidate.user==assignee and candidate.home==document.site)
   do return assignee
+ scenario copySite(target:Document,source:Document,accept:bool=true) by=members
+  do
+   set target {site=source.site}
+   require accept
+ scenario bindSite(target:Document,site:Site,accept:bool=true) by=members
+  do
+   set target {site}
+   require accept
 Then

@@ -74,6 +74,7 @@ test('genuine dependent choices use current native D1 grants and the original ge
     const countries = [id(), id(), id()]; const regions = [id(), id()];
     const sites = [id(), id()]; const document = id(); const submission = id();
     const employee = id(); const otherEmployee = id();
+    const copyTarget = id(); const copySource = id();
     const rows = [
       { model: 'Country', id: countries[0]!, data: { name: 'First', active: true } },
       { model: 'Country', id: countries[1]!, data: { name: 'Second', active: true } },
@@ -82,6 +83,8 @@ test('genuine dependent choices use current native D1 grants and the original ge
         parent: { model: asModel('InputChoices.Country'), id: asId(countries[index]!) } })),
       ...sites.map((record, index) => ({ model: 'Site', id: record, data: { name: `Site ${index + 1}` } })),
       { model: 'Document', id: document, data: { site: { id: sites[0] } } },
+      { model: 'Document', id: copyTarget, data: { site: { id: sites[0] } } },
+      { model: 'Document', id: copySource, data: { site: { id: sites[1] } } },
       { model: 'Submission', id: submission, data: { note: 'Submitted' },
         parent: { model: asModel('InputChoices.Document'), id: asId(document) } },
       { model: 'Employee', id: employee, data: { user: { id: reviewer.user_id }, name: 'Reviewer', role: 'Approver', home: { id: sites[0] } } },
@@ -355,14 +358,16 @@ test('genuine dependent choices use current native D1 grants and the original ge
         serverErrors.push(error); outgoing.writeHead(500); outgoing.end('HTTP bridge failed');
       }
     });
-    await new Promise<void>((resolve, reject) => {
-      server.once('error', reject); server.listen(0, '127.0.0.1', () => { server.off('error', reject); resolve(); });
-    });
-    const address = server.address(); assert.ok(address && typeof address !== 'string');
-    const origin = `http://127.0.0.1:${address.port}`;
-    const browser = await chromium.launch({ executablePath: '/usr/bin/chromium', headless: true,
-      args: ['--no-sandbox', '--disable-dev-shm-usage'] });
+    let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
     try {
+      await new Promise<void>((resolve, reject) => {
+        server.once('error', reject); server.listen(0, '127.0.0.1', () => { server.off('error', reject); resolve(); });
+      });
+      const address = server.address(); assert.ok(address && typeof address !== 'string');
+      const origin = `http://127.0.0.1:${address.port}`;
+      const chromeExecutable = process.env['CANLANG_CHROME_EXECUTABLE'];
+      browser = await chromium.launch({ headless: true,
+        ...(chromeExecutable ? { executablePath: chromeExecutable } : {}) });
       const browserContext = await browser.newContext();
       const cookieEquals = cookie.indexOf('=');
       await browserContext.addCookies([{ name: cookie.slice(0, cookieEquals), value: cookie.slice(cookieEquals + 1), url: origin }]);
@@ -521,9 +526,78 @@ test('genuine dependent choices use current native D1 grants and the original ge
       assert.deepEqual(pageErrors, []); assert.deepEqual(serverErrors, []);
     } finally {
       for (const release of heldResponses) release();
-      await browser.close();
-      server.closeAllConnections(); await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+      try { await browser?.close(); }
+      finally {
+        server.closeAllConnections();
+        if (server.listening) await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+      }
     }
+
+    // A hydrated singular reference remains a declared Site value when a
+    // generated handler copies it through normal set into another Document.
+    const documentModel = asModel('InputChoices.Document');
+    const copiedInputs = { target: { id: copyTarget, version: '1' }, source: { id: copySource, version: '1' } };
+    const copyNonce = id();
+    const copy = await post('copySite', copiedInputs, { operationId: copyNonce });
+    const copied = await copy.json() as { status?: string; code?: string; message?: string };
+    assert.equal(copy.status, 200, JSON.stringify(copied)); assert.equal(copied.status, 'committed');
+    const copiedRow = await storage.state.load(documentModel, asId(copyTarget)); assert.ok(copiedRow);
+    assert.deepEqual(copiedRow.data, { site: { id: sites[1] } }, 'the admitted typed Site is stored in its original wire shape');
+    assert.equal(copiedRow.version, 2, 'normal set reserves exactly the next Document version');
+    const copiedHistory = await storage.state.historyFor(documentModel, asId(copyTarget));
+    assert.equal(copiedHistory.length, 1);
+    const revisionAfterCopy = await storage.state.readRevision();
+    const copyReplay = await post('copySite', copiedInputs, { operationId: copyNonce });
+    const replayedCopy = await copyReplay.json() as { status?: string };
+    assert.equal(copyReplay.status, 200, JSON.stringify(replayedCopy)); assert.equal(replayedCopy.status, 'replayed');
+    assert.equal(await storage.state.readRevision(), revisionAfterCopy);
+    assert.deepEqual(await storage.state.load(documentModel, asId(copyTarget)), copiedRow);
+    assert.deepEqual(await storage.state.historyFor(documentModel, asId(copyTarget)), copiedHistory);
+
+    // The later source guard rejects after set has staged the reverse copy;
+    // its receipt cannot publish that provisional field, version or history.
+    const rollbackNonce = id();
+    const rollback = await post('copySite', { target: { id: copyTarget, version: '2' },
+      source: { id: document, version: '1' }, accept: false }, { operationId: rollbackNonce });
+    const rolledBack = await rollback.json() as { code?: string; message?: string };
+    assert.equal(rolledBack.code, 'rule_failed', JSON.stringify(rolledBack)); assert.equal(rolledBack.message, 'forbidden');
+    assert.deepEqual(await storage.state.load(documentModel, asId(copyTarget)), copiedRow);
+    assert.deepEqual(await storage.state.historyFor(documentModel, asId(copyTarget)), copiedHistory);
+    assert.deepEqual((await storage.state.load(documentModel, asId(copySource)))?.data, { site: { id: sites[1] } });
+    assert.equal((await storage.state.load(documentModel, asId(copySource)))?.version, 1);
+    const rollbackReceipt = await storage.state.readReceipt({ app: 'InputChoices', owner: team.team_id, principal: user.user_id,
+      operation: asOperation('InputChoices.copySite'), operationId: asOperationId(rollbackNonce) });
+    assert.equal(rollbackReceipt?.outcome.status, 'rejected');
+
+    // Assign the admitted model alias itself as well as the decoded field
+    // above. Both source forms must use the same declared Site wire boundary.
+    const boundInputs = { target: { id: copyTarget, version: '2' }, site: { id: sites[0], version: '1' } };
+    const bindNonce = id();
+    const bind = await post('bindSite', boundInputs, { operationId: bindNonce });
+    const bound = await bind.json() as { status?: string; code?: string; message?: string };
+    assert.equal(bind.status, 200, JSON.stringify(bound)); assert.equal(bound.status, 'committed');
+    const boundRow = await storage.state.load(documentModel, asId(copyTarget)); assert.ok(boundRow);
+    assert.deepEqual(boundRow.data, { site: { id: sites[0] } });
+    assert.equal(boundRow.version, 3, 'assigning a model alias reserves one next version');
+    const boundHistory = await storage.state.historyFor(documentModel, asId(copyTarget));
+    assert.equal(boundHistory.length, copiedHistory.length + 1);
+    const revisionAfterBind = await storage.state.readRevision();
+    const bindReplay = await post('bindSite', boundInputs, { operationId: bindNonce });
+    const replayedBind = await bindReplay.json() as { status?: string };
+    assert.equal(bindReplay.status, 200, JSON.stringify(replayedBind)); assert.equal(replayedBind.status, 'replayed');
+    assert.equal(await storage.state.readRevision(), revisionAfterBind);
+    assert.deepEqual(await storage.state.load(documentModel, asId(copyTarget)), boundRow);
+    assert.deepEqual(await storage.state.historyFor(documentModel, asId(copyTarget)), boundHistory);
+    const bindRollbackNonce = id();
+    const bindRollback = await post('bindSite', { target: { id: copyTarget, version: '3' },
+      site: { id: sites[1], version: '1' }, accept: false }, { operationId: bindRollbackNonce });
+    const rolledBackBind = await bindRollback.json() as { code?: string; message?: string };
+    assert.equal(rolledBackBind.code, 'rule_failed', JSON.stringify(rolledBackBind)); assert.equal(rolledBackBind.message, 'forbidden');
+    assert.deepEqual(await storage.state.load(documentModel, asId(copyTarget)), boundRow);
+    assert.deepEqual(await storage.state.historyFor(documentModel, asId(copyTarget)), boundHistory);
+    const bindRollbackReceipt = await storage.state.readReceipt({ app: 'InputChoices', owner: team.team_id, principal: user.user_id,
+      operation: asOperation('InputChoices.bindSite'), operationId: asOperationId(bindRollbackNonce) });
+    assert.equal(bindRollbackReceipt?.outcome.status, 'rejected');
     const beforeReopen = await storage.state.readRevision();
     await miniflare!.dispose(); miniflare = undefined; storage = await open(); worker = await assemble();
     const reopened = await choices('assign/choices/assignee', { submission: { id: submission, version: '1' } });

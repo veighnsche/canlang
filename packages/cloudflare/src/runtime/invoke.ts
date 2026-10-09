@@ -107,7 +107,7 @@ import type { FieldDescriptor, NormalizedSchema, SchemaDescriptor } from "@canla
 import type { SystemCommandContext, SystemStaging } from "@canlang/state";
 import { assertReceiptJoin, createJudgmentReceiptContext } from "@canlang/state/receipt/tables";
 import { retainCommittedFiles, stageFileReferences } from './file-staging.js';
-import { bindNativeRecord } from './native-records.js';
+import { bindNativeRecord, nativeRecordReference } from './native-records.js';
 import type { CanonicalFileBinding, FileAttachment } from './file-staging.js';
 import type { IdentityStore } from "@canlang/identity";
 import { sha256HexText, timingSafeEqualHex } from '@canlang/identity';
@@ -3588,7 +3588,11 @@ async function runScenarioSeam(
         const data = write.data === undefined ? undefined : { ...write.data };
         for (const reference of loaded.refs.get(write.model) ?? []) {
           if (data === undefined || !Object.hasOwn(data, reference.field) || data[reference.field] === null) continue;
-          data[reference.field] = encodeCanonicalField(StateError, reference.model, data[reference.field]);
+          const identity = nativeRecordReference(data[reference.field]);
+          // Stored links carry identity, not the alias's admitted metadata or
+          // projected business fields. State retains referential admission.
+          const value = identity === undefined ? data[reference.field] : makeRecordRef(identity.model, identity.id);
+          data[reference.field] = encodeCanonicalField(StateError, reference.model, value);
         }
         for (const field of opts.artifact.models?.find(model => model.name === write.model)?.fields ?? []) {
           if (field.field.kind !== 'delivery' || data === undefined || !Object.hasOwn(data, field.name)) continue;
