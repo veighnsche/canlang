@@ -112,7 +112,7 @@ export async function preflightLocalPreviewActivation(
 }
 
 function checkedInstalledInputs(capture: SingleFileCapture): PortableBundleEvidence["consumedInputs"] {
-  const expected = installedPortableBundleInputs();
+  const expected = installedPortableBundleInputs(capture.root);
   const captured = capture.inputs.filter(input => input.name.startsWith("package:"));
   if (expected.length !== captured.length) {
     throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", "captured package inventory differs from installed producer closure");
@@ -133,7 +133,7 @@ function checkedInstalledInputs(capture: SingleFileCapture): PortableBundleEvide
   if (grammar?.state !== "present" || grammar.canonicalPath !== realpathSync(join(capture.root, "docs/specification/GRAMMAR.md"))) {
     throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", "installed grammar reference was not captured");
   }
-  const sourceInputs = installedOwnedSourceInputs();
+  const sourceInputs = installedOwnedSourceInputs(capture.root);
   const capturedSources = capture.inputs.filter(input => input.name.startsWith("extra:source:"));
   if (sourceInputs.length !== capturedSources.length) {
     throw new PreviewAdmissionError("BUNDLE_INPUTS_INCOMPLETE", "captured package sources differ from installed producer closure");

@@ -232,10 +232,46 @@ it("projects observed business refusals through the owner and releases the obser
   }
 });
 
+it("refuses newly changed runtime modules until the owner restarts", async () => {
+  const fixture = await ownerFixture();
+  try {
+    await fixture.client.request({ command: "check" });
+    writeFileSync(fixture.runtime, "new runtime producer");
+    expect(await fixture.client.request({ command: "check" })).toMatchObject({ state: "incomplete",
+      preview_reason: "capture_incomplete" });
+    const state = await fixture.client.request({ command: "status" }) as { revision: string };
+    expect(state).toMatchObject({ stale: true, dirty: true,
+      capture_error: expect.stringContaining("restart this session") });
+    await expect(fixture.client.request({ command: "example.run", payload: { expectedRevision: state.revision } }))
+      .rejects.toMatchObject({ code: "REQUEST_FAILED" });
+    expect(producer.calls).toHaveLength(0);
+  } finally { await fixture.owner.stop(); }
+});
+
+it("refreshes retained capture order when a failed artifact epoch returns", async () => {
+  const fixture = await ownerFixture();
+  try {
+    const source = "app Office\nGiven\nWhen\nThen\n";
+    const run = async (label: string) => {
+      writeFileSync(fixture.app, `${source}## ${label}\n`);
+      const { revision } = await fixture.client.request({ command: "check" }) as { revision: string };
+      return fixture.client.request({ command: "example.run", payload: { expectedRevision: revision } }) as
+        Promise<{ focus: { ref: string }; artifact_digest: string }>;
+    };
+    for (const label of ["A", "B", "C", "D", "E", "F", "G", "H"]) await run(label);
+    const newestA = await run("A");
+    await run("I");
+    expect(await fixture.client.request({ command: "example.rerun", payload: { ref: newestA.focus.ref } }))
+      .toMatchObject({ ok: true, artifact: { artifactDigest: newestA.artifact_digest } });
+  } finally { await fixture.owner.stop(); }
+});
+
 it("keeps failure cursors stable when bounded retention evicts older occurrences", async () => {
   const fixture = await ownerFixture();
   try {
     const { revision } = await fixture.client.request({ command: "check" }) as { revision: string };
+    await expect(fixture.client.request({ command: "failures", payload: { revision: "r999" } }))
+      .rejects.toMatchObject({ code: "REVISION_UNAVAILABLE" });
     const emit = (index: number) => fixture.emitRefusal({ requestId: `request${index}`, status: 403,
       error: { code: "forbidden", message: "denied" } });
     for (let index = 0; index < 3; index++) emit(index);

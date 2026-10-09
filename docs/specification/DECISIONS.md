@@ -3529,3 +3529,7 @@ Add authenticated GET /auth/teams to Interfaces using Identity memberships, retu
 ### 2026-10-09 — Bound concurrent exact-input capture reads
 
 Use eight concurrent readers for the full declared input hash and membership scans, retaining stable identity order and waiting for every started reader before propagating failure. The native session check hit its request deadline with sequential scans during actual preview work; optimize the owning capture without reducing the producer inventory or weakening currency.
+
+### 2026-10-09 — Preserve the published application producer join
+
+Consume Packages source hunks 080efa8e and 1dfa261f: resolve optional Testkit from the invoking app and retain original failures during cleanup. Capture and preview evidence use the same app-resolved producer; help data resolves captured installed package paths across worktrees. Keep the setup-owned expectation getter. Because Node caches the service/Testkit transitive graph, changed package bytes require a session restart before admission; no new revision may claim old executable imports. Retention refreshes reused captures, failure listings require retained revisions, and only exact closed-code rejection receipts are bookkeeping.

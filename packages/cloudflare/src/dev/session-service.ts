@@ -229,17 +229,20 @@ function failureDetail(capture: SingleFileCapture, kind: SessionCheckDetail["kin
   };
 }
 
-function capturedInput(capture: SingleFileCapture, path: string): { sha256: string; canonicalPath: string } {
-  const selected = capture.inputs.find(input => input.canonicalPath === resolve(capture.root, path) &&
+function capturedInput(capture: SingleFileCapture, path: string, producer?: RegExp): { sha256: string; canonicalPath: string } {
+  const matches = capture.inputs.filter(input => (input.canonicalPath === resolve(capture.root, path) ||
+    producer?.test(input.name) === true) &&
     input.state === "present" && typeof input.sha256 === "string");
+  const selected = matches.length === 1 ? matches[0] : undefined;
   if (selected === undefined || typeof selected.sha256 !== "string" || selected.canonicalPath === null) {
     throw new Error(`construct help input is absent: ${path}`);
   }
   return { sha256: selected.sha256, canonicalPath: selected.canonicalPath };
 }
 
-async function capturedCatalog(capture: SingleFileCapture, path: string, exportName: string): Promise<readonly CatalogFact[]> {
-  const input = capturedInput(capture, path);
+async function capturedCatalog(capture: SingleFileCapture, path: string, exportName: string,
+  producer?: RegExp): Promise<readonly CatalogFact[]> {
+  const input = capturedInput(capture, path, producer);
   const hash = async (): Promise<string> => createHash("sha256").update(await readFile(input.canonicalPath)).digest("hex");
   if (await hash() !== input.sha256) throw new Error(`construct help catalog changed after capture: ${path}`);
   const module = await import(`${pathToFileURL(input.canonicalPath).href}?can-dev=${input.sha256}`) as Record<string, unknown>;
@@ -254,11 +257,15 @@ async function capturedHelpIndex(capture: SingleFileCapture): Promise<ConstructH
   const help = capture.inputs.find(input => input.name === "help-index" && input.state === "present");
   if (!compiler?.sha256 || !help?.sha256) throw new Error("construct help compiler or document input is missing");
   const grammar = capturedInput(capture, "docs/specification/GRAMMAR.md");
-  const values = capturedInput(capture, "packages/values/src/catalog.ts");
-  const ui = capturedInput(capture, "packages/ui/src/catalog.ts");
+  const values = capturedInput(capture, "packages/values/src/catalog.ts",
+    /^extra:source:@canlang\/values@[^/]+\/src\/catalog\.ts$/);
+  const ui = capturedInput(capture, "packages/ui/src/catalog.ts",
+    /^extra:source:@canlang\/ui@[^/]+\/src\/catalog\.ts$/);
   const [valuesEntries, uiEntries] = await Promise.all([
-    capturedCatalog(capture, "packages/values/dist/src/catalog.js", "CATALOG"),
-    capturedCatalog(capture, "packages/ui/dist/src/catalog.js", "UI_CATALOG"),
+    capturedCatalog(capture, "packages/values/dist/src/catalog.js", "CATALOG",
+      /^package:@canlang\/values@[^/]+\/dist\/src\/catalog\.js$/),
+    capturedCatalog(capture, "packages/ui/dist/src/catalog.js", "UI_CATALOG",
+      /^package:@canlang\/ui@[^/]+\/dist\/src\/catalog\.js$/),
   ]);
   return loadConstructHelpIndex(capture.root, {
     languageVersion: "1.0", compiler: { sha256: compiler.sha256 }, grammar: { sha256: grammar.sha256 },
@@ -397,12 +404,22 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
     },
   });
   let latestCapture: SingleFileCapture | null = null;
+  let sessionProducerIdentity: string | null = null;
   const core = new DevSessionCore<SessionCheckDetail, SessionServicePreview>({
     async capture() {
       const request = options.capture.inputInventory === "installed-local-preview"
         ? { ...options.capture, ...installedLocalPreviewInputInventory(options.capture.checkoutRoot, options.capture.compilerPath) }
         : options.capture;
       const captured = await captureSingleFileSource(request);
+      // Node retains the service and Testkit's transitive imports for this
+      // process. A newly admitted package hash cannot reload that graph.
+      const producerIdentity = createHash("sha256").update(JSON.stringify(captured.inputs
+        .filter(input => input.name.startsWith("package:"))
+        .map(input => [input.name, input.canonicalPath, input.sha256]))).digest("hex");
+      if (sessionProducerIdentity !== null && sessionProducerIdentity !== producerIdentity) {
+        throw new Error("installed runtime producer changed; stop and restart this session to consume its new modules");
+      }
+      sessionProducerIdentity = producerIdentity;
       let help = helpByDigest.get(captured.epochMaterial);
       if (help === undefined && captured.inputs.some(input => input.name === "extra:grammar" && input.state === "present")) {
         help = await capturedHelpIndex(captured);
@@ -720,6 +737,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
           !integer(after, -1) || !integer(limit, 1) || limit > MAX_PAGE) {
         throw new SessionSocketError("INVALID_REQUEST", "failure list needs a captured revision and bounded cursor");
       }
+      detail(revision);
       const retained = [...exampleFailures.values()].filter(value => value.projection.occurrence.revision === revision);
       const available = retained.filter(value => value.cursor > after);
       const page = available.slice(0, limit);
@@ -766,7 +784,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         if (recipe.sourceRevision !== state.sourceRevision) {
           throw new SessionSocketError("EXAMPLES_UNAVAILABLE", "example recipe differs from the admitted source");
         }
-        const input = { ...recipe, testkit: await loadInstalledExampleTestkit() };
+        const input = { ...recipe, testkit: await loadInstalledExampleTestkit(captured.root) };
         const artifactDigest = createHash("sha256").update(input.artifactBytes).digest("hex");
         const runId = randomUUID();
         const result = await runCompiledExamples({ ...input, runId,
@@ -778,6 +796,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         const artifact = rerunnable ? reruns.retainArtifact({ revision: expectedRevision,
           fixtureRecipeId: captured.epochMaterial, runtimeProfileId: options.capture.profile, input }) : null;
         if (artifact !== null) {
+          exampleCaptures.delete(captured.epochMaterial);
           exampleCaptures.set(captured.epochMaterial, captured);
           while (exampleCaptures.size > 8) exampleCaptures.delete(exampleCaptures.keys().next().value!);
         }
