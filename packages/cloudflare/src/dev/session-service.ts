@@ -8,7 +8,8 @@ import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { BusinessError, CompileArtifact, Diagnostic, DiagnosticResult, DiagnosticSpan } from "@canlang/contracts";
 import { compileCapturedSingleFile } from "./compiler-check.js";
-import { loadConstructHelpIndex, type CatalogFact, type ConstructHelpIndex } from "./construct-help.js";
+import { joinCompilerConstructCandidates, loadConstructHelpIndex, parseCompilerConstructCandidates,
+  type CatalogFact, type CompilerConstructCandidates, type ConstructHelpIndex } from "./construct-help.js";
 import { loadInstalledExampleTestkit, runCompiledExamples, type CompiledExampleInput } from "./example-runner.js";
 import { ExampleRerunCoordinator, type ExampleRerunResult } from "./example-rerun.js";
 import { projectBusinessRefusal, projectCompilerFailure, projectExampleFailure, type FailureProjection } from "./failure-occurrence.js";
@@ -112,6 +113,7 @@ interface CapturedDiagnostic {
   primary: DiagnosticSpan;
   related: Diagnostic["related"];
   tags: string[];
+  construct_candidates?: CompilerConstructCandidates;
 }
 
 interface SessionCheckDetail {
@@ -209,6 +211,9 @@ function diagnosticsFrom(value: readonly unknown[], sourceBytes: number): Captur
       primary: { file: item.primary.file, start: item.primary.start, end: item.primary.end },
       related,
       tags: item.tags.slice(0, 12).map(tag => short(tag as string, 40)),
+      ...(item.construct_candidates === undefined ? {} : {
+        construct_candidates: parseCompilerConstructCandidates(item.construct_candidates),
+      }),
     });
   }
   return diagnostics;
@@ -636,6 +641,11 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
           ref: diagnosticRef(socket!.identity.sessionId, revision, payload.index),
           source: found.check.detail.source,
           diagnostic: diagnostics[payload.index],
+          construct_help: checkedHelp.has(revision)
+            ? joinCompilerConstructCandidates(checkedHelp.get(revision)!,
+              diagnostics[payload.index]!.construct_candidates, options.capture.profile)
+            : { disposition: "unknown", slot: null, candidateCoverage: "unknown", cards: [],
+              reason: "captured help index is unavailable" },
           evidence: { source_excerpt: "unavailable", trace: "unavailable" },
         };
       }
