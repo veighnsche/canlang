@@ -4283,10 +4283,10 @@
     "source_base": "1527a249c915076c3e87daa5e8a488ac3c5a0e85",
     "authorization": "Vince current Packages starting prompt; worker-specific instructions remain confined to Packages.",
     "coordination": "Coordinator verified as local chat 01a11e6b-f4e1-7603-b47d-9d3210c9c6de; no callable send-message-to-thread capability. Dependencies recorded in packet_state.",
-    "examined_queue": "All48 existing packet labels and progress preserved. Returned to newly available main CRUD/upload/retention and published Dev runner inputs; all currently ready finite implementation/owning checks complete. Genuine full-packet prerequisites remain individually owned in packet_state; explicit native preparation HOLD retained.",
+    "examined_queue": "All48 existing packet labels/progress preserved. Focused compiler release4cb5c55d consumed asd2788779; no complete packet released. Newly executable owning MCP/browser and compiled consumer checks continue. Genuine full-packet prerequisites remain individually owned; native preparation HOLD retained.",
     "delivery": "PR135 ready; implementation/test headbe2bc253 committed/pushed and confirmed GitHub head. Final related record-only update preserves explicit unfinished/external scope; own branch only, no merge/main push/deployment.",
     "last_upstream_sync": "Current main9ecb2759 remains integrated at5910445b; all subsequent coherent boundaries up to published-a37 prerequisite check are already up to date. Draft5a12eb9e remote ref remains unavailable to CI; earlier recursive fetch additionally refused06b23b5d.",
-    "review_process": "Only Codex automation counts. Code/security reviews completed without posted findings for080efa8e and latest implementation/testheadbe2bc253 (summary6080449425; inline/review records empty). Any subsequent record-only pushed revision still requires its own relevant review; older completion is not current approval. No whole-plan/security acceptance or CodeRabbit reliance.",
+    "review_process": "Only Codex automation counts. Code/security reviews completed without posted findings for prior PRhead6533ecad (summary6080449425; inline/review records empty), plus prior implementation/test revisions. Subsequent pushed source/record revisions require their own relevant review; no whole-plan/security acceptance or CodeRabbit reliance.",
     "filetree_reconciliation": "Existing registry reconciled complete structural ancestry through merged5910445b; prior allocations/semantic limits retained; complete82493427checkpoint not advanced.",
     "pull_request": "https://github.com/veighnsche/canlang/pull/135",
     "ci_prerequisites": [
@@ -4295,8 +4295,8 @@
         "owner": "Draft submodule publisher/upstream coordinator"
       },
       {
-        "prerequisite": "compiler/src/analysis/mod.rs declares absent construct_candidates module; b1-gate cannot compile.",
-        "owner": "Compiler implementation owner"
+        "prerequisite": "Missing-module repair4cb5c55d integrated asd2788779; Rust1.99 locked offline compiler build passes. Actual catalog B1 runs both joins without SKIP but fails current diagnostic/output pins: TeamTasks7E6008 vs4, ExpenseFlow9vs2, retired diagnostic descriptions and emitted label/slot/stat fragments. TeamTasks CLI exits10 with7E6008/no other codes, vs workflow3. Exact supported-source/profile and owning pin reconciliation required; gates unchanged.",
+        "owner": "Compiler/B1 source-profile and consumer owners via coordinator"
       },
       {
         "prerequisite": "Workspace package-boundary gate reports102 existing violations (93source-resolution/5cross-package-import/4cross-package-path); changed reviewed-csv file sites are unchanged imports. Requires source-resolution interpretation and offending owning test input/API releases; no new admission helper/manifest violation identified.",
@@ -4304,9 +4304,14 @@
       }
     ],
     "review_prerequisite": {
-      "prerequisite": "Assess Codex reviews for any subsequent pushed record revision at a useful next boundary; current be2bc253 implementation/test code and security reviews completed without findings.",
+      "prerequisite": "Assess Codex reviews for the subsequent pushed compiler dependency/record revision at a useful task boundary; prior6533ecad code/security reviews completed without findings.",
       "owner": "Codex automated reviewer; Packages consumes relevant revision findings"
     },
-    "ci_observed_revision": "Atbe2bc253 build/catalog, Values, contracts-conformance, B2 and Work/Services/Files package jobs pass. Playwright/B1 compiler module, tools draft ref and workspace102boundary violations remain at recorded owner prerequisites; final changed5testfiles add no boundary violation."
+    "ci_observed_revision": "Atbe2bc253 build/catalog, Values, contracts-conformance, B2 and Work/Services/Files package jobs pass. Playwright/B1 compiler module, tools draft ref and workspace102boundary violations remain at recorded owner prerequisites; final changed5testfiles add no boundary violation.",
+    "released_compiler_dependency": {
+      "release": "Compiler PR1334cb5c55d04afe0c8d4641e9fe9501465baec8f96 cherry-picked with provenance asd2788779cee855bc940cf212208e0c049d9abd99; source delta exactly absent module declaration/two calls. Conflicting documentation retained at its owning historical scope.",
+      "validation": "Actual Values catalog emit59entries/15features; Rust1.99 cargo test --locked --offline --test b1_join reaches2tests,0SKIP,2failed current pins. cargo build --locked --offline passes; fresh TeamTasks CLI exit10,7E6008,zero other codes. Missing-module compile blocker resolved; B1 acceptance remains failed.",
+      "limits": "No construct-help/inventory implementation, broad compiler/corpus acceptance or foreign implementation duplication. Actual available cached Rust/Bun tools found outside PATH; package consumer checks can resume without native preparation activation."
+    }
   }
 }
