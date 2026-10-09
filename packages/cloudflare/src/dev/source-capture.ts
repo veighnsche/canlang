@@ -14,6 +14,7 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 
 const MAX_SOURCE_BYTES = 0xffff_ffff;
 const SHA256 = /^[0-9a-f]{64}$/;
+const INPUT_READERS = 8;
 
 export interface NamedInputPath {
   /** Stable identity within its kind, such as a package export path. */
@@ -167,27 +168,45 @@ function namedPaths(request: SingleFileCaptureRequest): { name: string; path: st
   return paths.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/** Bound open descriptors and await every started reader before a failure escapes. */
+async function mapInputs<T, R>(items: readonly T[], read: (item: T) => Promise<R>): Promise<readonly R[]> {
+  const results = new Array<R>(items.length);
+  const failures: Array<{ index: number; error: unknown }> = [];
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    while (failures.length === 0 && next < items.length) {
+      const index = next++;
+      try { results[index] = await read(items[index]!); }
+      catch (error) { failures.push({ index, error }); }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(INPUT_READERS, items.length) }, () => worker()));
+  if (failures.length > 0) {
+    failures.sort((a, b) => a.index - b.index);
+    throw failures[0]!.error;
+  }
+  return results;
+}
+
 async function captureInputs(root: string, paths: readonly { name: string; path: string | null }[]): Promise<readonly CapturedFileIdentity[]> {
-  const inputs: CapturedFileIdentity[] = [];
-  for (const input of paths) {
+  const inputs = await mapInputs(paths, async (input): Promise<CapturedFileIdentity> => {
     if (input.path === null) {
-      inputs.push(Object.freeze({
+      return Object.freeze({
         name: input.name, requestedPath: null, canonicalPath: null,
         sha256: null, bytes: null, state: "missing" as const,
-      }));
-      continue;
+      });
     }
     const requestedPath = resolve(root, input.path);
     const { canonicalPath, bytes } = await readStableFile(requestedPath);
-    inputs.push(Object.freeze({
+    return Object.freeze({
       name: input.name,
       requestedPath,
       canonicalPath,
       sha256: createHash("sha256").update(bytes).digest("hex"),
       bytes: bytes.length,
       state: "present" as const,
-    }));
-  }
+    });
+  });
   return Object.freeze(inputs);
 }
 
@@ -267,12 +286,12 @@ async function inventoryMatches(
     const actual = selected.filter(item => item.name.startsWith("package:") || item.name.startsWith("extra:"));
     if (actual.length !== expected.length) return false;
     const byName = new Map(actual.map(item => [item.name, item.path]));
-    for (const item of expected) {
+    const matches = await mapInputs(expected, async (item): Promise<boolean> => {
       const path = byName.get(item.name);
-      if (path === undefined || path === null ||
-          (await realpath(resolve(root, path))) !== (await realpath(item.path))) return false;
-    }
-    return true;
+      return path !== undefined && path !== null &&
+        (await realpath(resolve(root, path))) === (await realpath(item.path));
+    });
+    return matches.every(Boolean);
   } catch {
     return false;
   }
@@ -316,22 +335,21 @@ export async function capturedRuntimeInputsAreCurrent(capture: SingleFileCapture
         !(await inventoryMatches(capture.inputInventory, capture.root,
           capture.inputs.map(input => ({ name: input.name, path: input.requestedPath })),
           capture.inputs.find(input => input.name === "compiler")?.requestedPath ?? ""))) return false;
-    for (const input of capture.inputs) {
+    const current = await mapInputs(capture.inputs, async (input): Promise<boolean> => {
       if (input.requestedPath === null) {
-        if (input.state !== "missing") return false;
-        continue;
+        return input.state === "missing";
       }
       if (input.state === "missing") {
         try { await stat(input.requestedPath); return false; }
         catch (error) {
           if ((error as NodeJS.ErrnoException).code !== "ENOENT") return false;
-          continue;
+          return true;
         }
       }
-      const current = await readStableFile(input.requestedPath);
-      if (current.canonicalPath !== input.canonicalPath || current.bytes.length !== input.bytes ||
-          createHash("sha256").update(current.bytes).digest("hex") !== input.sha256) return false;
-    }
-    return true;
+      const checked = await readStableFile(input.requestedPath);
+      return checked.canonicalPath === input.canonicalPath && checked.bytes.length === input.bytes &&
+        createHash("sha256").update(checked.bytes).digest("hex") === input.sha256;
+    });
+    return current.every(Boolean);
   } catch { return false; }
 }
