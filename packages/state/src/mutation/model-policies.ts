@@ -157,7 +157,7 @@ export function bindOwnerModelPolicies(input: {
       if (operation !== expected) return fail('Hook disagrees with its canonical CRUD trigger.');
       const binding = link(id, 'hook', descriptor);
       if (binding.kind !== 'hook') return fail('Invalid CRUD hook binding.');
-      modelHooks.push(Object.freeze({ name: id, ops: Object.freeze([h.op]), run: (candidate: Record<string, unknown>, context: InterimHookContext) => {
+      modelHooks.push(Object.freeze({ name: id, ops: Object.freeze([h.op] as const), run: (candidate: Record<string, unknown>, context: InterimHookContext) => {
         assertOwnerMutationHookContext(context);
         return binding.run(candidate, context);
       } }));

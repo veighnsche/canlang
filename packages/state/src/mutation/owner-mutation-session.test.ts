@@ -237,8 +237,9 @@ test('owner receipt defaults reuse stable ordered write attribution across direc
       ctx.stage({ op: 'create', model: LINK, id: asId(`${ctx.triggerId}-link`) });
       return candidate;
     })] }), modelDef('Acme.Link', { fields: { title: field({ default: 'link' }) } })]);
+  const retryContext = pipelineContext({ operation: 'Acme.Item.create' });
   const execute = async () => {
-    const session = await beginOwnerMutation({ table, store, context: pipelineContext({ operation: 'Acme.Item.create' }), bounds });
+    const session = await beginOwnerMutation({ table, store, context: retryContext, bounds });
     await session.stage({ op: 'create', model: ITEM, id: asId('first') }, { cause: 'crud', input: {} });
     await session.stage({ op: 'create', model: ITEM, id: asId('second') }, { cause: 'crud', input: {} });
     return session.finalize();
