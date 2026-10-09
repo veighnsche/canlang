@@ -1555,15 +1555,16 @@
     },
     "review_status": {
       "pr": "https://github.com/veighnsche/canlang/pull/134",
-      "revision": "6e8692fe6a314cdd7027bbd5998902a30a9c102a",
-      "state": "Codex_code_and_security_reviews_completed_no_new_findings",
-      "action": "Actual Codex code/security reviews completed with no new findings for6e8692fe. Subsequent pushed correction still requires its own review; no whole-plan acceptance inferred."
+      "revision": "03d9eaf7f7df6e8c1341660dc3aae6f3b2b81991",
+      "state": "Codex_code_and_security_completed_finding_assessed_against_explicit_design",
+      "action": "Codex P2 asks renamed nominal preference fields to inherit main captions. DESIGN.md1018 explicitly permits that caption inheritance only when the receiver retains the source field name; case labels remain inherited independently. Preserve the conforming name check; no correction to this behavior. Completed review is not full-plan acceptance, and later pushes require their own review."
     },
     "ci_status": {
       "revision": "6e8692fe6a314cdd7027bbd5998902a30a9c102a",
       "implemented_tested_corrections": "Optional late-bound Testkit/Contracts ES2022 fixes now pass their CI boundaries. Consume released Compiler048a7383/1ee1239d/dac8596f and matching exact codegen5bb5a5f5/B1 file1a6c7633: current native semantic/runtime/UI checks11/11, codegen117/117 and strict B1 joins2/2 pass. Original input_choices artifact is byte-identical after current-CLI regeneration. B1 strict joins now pass hosted; its remaining stale workflow pin is consumed from Compiler2db9200b and the exact actual CLI/catalog gate passes. Compiler diagnostic/lint repair37695f6d and released effects test intake3e5d2cd0 consumed; compiler-wide formatting, all-target warnings-denied Clippy, native foundation/LSP/BDD22/22 and effects48/48 pass. Published draft5a12eb9e checked out cleanly; previously blocked full Rust and45-case draft E2E checks ran. Genuine compiled journey now consumes disclosed records and actual emitted app identity; focused nativeD1 Playwright2/2 and direct E2E TypeScript pass. Earlier owning E2E typecheck27/27 passes. Settled-output BDD4/4, codegen117/117, cohort1/1 and collection1/1 reruns pass after transient concurrent build removals; bounded rollback exposes its released stale-result consumer dependency.",
       "remaining": "Compiler current-source mirrors/consumer intake remain recorded; exact draft5a12eb9e is available. Actual boundary check has four Dev-owned Cloudflare consumers (optional Testkit declaration, compiler-check catalog locator, construct-help Values/UI catalog imports); owning dependent-choice bypasses cleared. Root test types/config and File-schema semantics remain Package/Interfaces/Contracts joins. Published TeamTasks correspondence/bundle inputs67aef2a8/b11cc7c8 are available to consume; original/patched pilot complete source diagnostics remain. Current consolidated CI and next pushed-head Codex review are due; no CI or whole-plan acceptance.",
-      "boundary_dependency": "Released coordinator eac25ce3 and final1644cd4a consumed as01556e67/98097b8e; State NumericControl2742f700 consumed as0697855f. Reuse unchanged16guard/40tools/26build/static workflow validation. Actual branch guard now reports four Dev-owned violations after all five owning dependent-choice sibling imports were corrected through typed package APIs. Only current CI four-job names apply; no retired workflow wait."
+      "boundary_dependency": "Released coordinator eac25ce3 and final1644cd4a consumed as01556e67/98097b8e; State NumericControl2742f700 consumed as0697855f. Reuse unchanged16guard/40tools/26build/static workflow validation. Actual branch guard now reports four Dev-owned violations after all five owning dependent-choice sibling imports were corrected through typed package APIs. Only current CI four-job names apply; no retired workflow wait.",
+      "published_consolidation": "Published03d9eaf7 workflow blob matches exact1644cd4a; only ci.yml/release.yml/ts-gates.yml remain (ts-gates is the existing manual service). Current-head new CI run37943260210 observed in progress; retired jobs ignored."
     },
     "compiler_consumer_integration": {
       "producer_pr": "https://github.com/veighnsche/canlang/pull/133",
@@ -1594,10 +1595,10 @@
         "f617d3f7"
       ],
       "native_consumer_intake": {
-        "state": "unfinished_current_source_qualification",
+        "state": "implemented_tested_native_consumer_intake_current_corpus_mirrors_open",
         "producer_head": "e461c1e22d547cdb17ca9f8aa2ed8869ce1ea365",
-        "scope": "Only23 mapped consumer files consumed from published focused producer units; current source-current affected invocation105passed/2failed. Prior unchanged native/typed/browser/MCP results reused. No source-current full compiler acceptance.",
-        "remaining": "Compiler owns format corpus mirror (published draft now zero known-unparseable files), analysis draft-outcome pins/explain exclusion and authoring/CanInbox stale mirrors. This worker is repairing the native input_choices harness for its expanded fixture: real any/set helpers, actual nonnull final guard query/parent-read order and null/annotation short-circuits. No assertion removal or fake guard helper."
+        "scope": "Released native consumer intake105passed/2failed followed by corrected owning input_choices1/1 pass; unchanged105 results reused, leaving the pre-existing format corpus mirror. Actual installed any/set and typed references preserve final nonnull query/read/short-circuit order, null/omitted annotation nonexecution, missing-parent sentinel and actual reviewer_choices predicates. Cargo formatting and strict all-target Clippy pass after the changed consumers.",
+        "remaining": "Compiler owns format corpus mirror, analysis draft-outcome pins, current CanInbox/authoring mirrors. Exact available3e5d2cd E2019 explain exclusion remains a focused ready intake; no stale draft-outcome values will be imported."
       }
     }
   },
