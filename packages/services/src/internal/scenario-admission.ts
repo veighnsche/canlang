@@ -20,7 +20,9 @@ export type ModelsScript =
   | { readonly kind: "final"; readonly body: unknown }
   | {
       readonly kind: "stream";
+      /** NDJSON line payloads, each served as one line. */
       readonly lines: readonly unknown[];
+      /** Delay in ms between lines; 0 writes the whole stream at once. */
       readonly lineDelayMs?: number;
     }
   | { readonly kind: "reject"; readonly status: number; readonly body: unknown }

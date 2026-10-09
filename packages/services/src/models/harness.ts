@@ -13,19 +13,9 @@
 import http from 'node:http';
 import { readTextBody, sendBody } from '../internal/controlled-http.js';
 import type { Socket } from 'node:net';
+import type { ModelsScript } from '../internal/scenario-admission.js';
 
-export type ControlledOllamaScenario =
-  | { readonly kind: 'final'; readonly body: unknown }
-  | {
-      readonly kind: 'stream';
-      /** NDJSON line payloads, each served as one line. */
-      readonly lines: readonly unknown[];
-      /** Delay in ms between lines; 0 writes the whole stream at once. */
-      readonly lineDelayMs?: number;
-    }
-  | { readonly kind: 'reject'; readonly status: number; readonly body: unknown }
-  | { readonly kind: 'hang' }
-  | { readonly kind: 'invalid-schema'; readonly body: unknown };
+export type ControlledOllamaScenario = ModelsScript;
 
 export interface ControlledOllamaRequestLog {
   readonly method: string;

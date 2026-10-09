@@ -949,6 +949,21 @@
         "behavior": "Release acquired drip timers on firing or response teardown, and clear concurrent timers before closing server sockets.",
         "validation": "5/5 focused actual HTTP/helper tests; strict focused TypeScript check passed",
         "limits": "Controlled Node harness only; no reduction credit or provider/durable acceptance."
+      },
+      "portable_admission": {
+        "state": "implemented, tested and root-reviewed finite Node/Worker caller consolidation; original broad provider gates unchanged",
+        "files": [
+          "packages/services/src/internal/scenario-admission.ts",
+          "packages/services/src/scenarios.ts",
+          "packages/services/src/ports.ts",
+          "packages/services/src/models/harness.ts",
+          "packages/services/src/judgments/harness.ts",
+          "packages/testkit/src/fixtures/playback.ts"
+        ],
+        "closure": "Pure package subpath exports shared admission/types; testkit runtime dependency/lock updated. Preserve caller errors, media Buffer/atob reconstruction, table coercion differences and lifecycle owners.",
+        "validation": "Node41/41 and differential/actual workerd55/55; services strict emit and focused playback TypeScript pass. Type alias completion has identical union tokens/runtime emissions and services noEmit passes; reuse unchanged runtime results.",
+        "reduction": "Against9ecb2759 complete6-TS-owner/2manifest/lockclosure:3295->3044readable(-251); declarations357->323; total3652->3367(-285). Correctness timer overhead included; no overlapping historical/shared-leaf credit, test or generated savings.",
+        "limits": "Controlled scripted fixtures; no durable/live provider acceptance or native default/retirement."
       }
     },
     "DEL-D01": {
@@ -3423,8 +3438,7 @@
     }
   },
   "live_finite_packets": [
-    "TECH-SV04 portable scenario admission",
-    "VERIFY-TV01 source-current Values donor parity"
+    "REPLAY-IP07 released checked-CRUD HTTP/CSV consumer"
   ],
   "foreign_runtime_pure_integration_commit": "b5f3f61c5a7aa942cc9e535312bc848fe21cf497",
   "owner_build_test_acceptance": {
@@ -4214,9 +4228,10 @@
     "authorization": "Vince current Packages starting prompt; worker-specific instructions remain confined to Packages.",
     "coordination": "Coordinator verified as local chat 01a11e6b-f4e1-7603-b47d-9d3210c9c6de; no callable send-message-to-thread capability. Dependencies recorded in packet_state.",
     "examined_queue": "All48 original packet labels examined against existing progress; canonical identities and original acceptance unchanged.",
-    "delivery": "Human coordinator relay authorizes own implementation branch push and draft PR; main sync at coherent boundaries. No main push, merge or deployment.",
+    "delivery": "Draft PR135 created from own branchcodex/packages-repair-20261009; pushed1dfa261f. Human authorizes own branch updates; no PR merge/main push/deployment.",
     "last_upstream_sync": "Merged origin/main9ecb2759 at5910445b; missing remote draft-submodule06b23b5d commit remains external.",
     "review_process": "After own PR pushes, continue ready work for automated review interval; assess findings for relevant pushed revision at a task boundary. Pending/absent/older review gives no approval.",
-    "filetree_reconciliation": "Existing registry reconciled complete structural ancestry through merged5910445b; prior allocations/semantic limits retained; complete82493427checkpoint not advanced."
+    "filetree_reconciliation": "Existing registry reconciled complete structural ancestry through merged5910445b; prior allocations/semantic limits retained; complete82493427checkpoint not advanced.",
+    "pull_request": "https://github.com/veighnsche/canlang/pull/135"
   }
 }
