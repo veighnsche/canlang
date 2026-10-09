@@ -1898,7 +1898,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-09T17:10:46.978639Z",
+  "updated_utc": "2026-10-09T17:24:09.747731Z",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -4356,7 +4356,7 @@
       }
     ],
     "review_prerequisite": {
-      "prerequisite": "Current-head Codex/CI; exact State/Contracts retained-only API consumed and five owning cases qualified, Dev trusted forwarding remains before Packages expired signed-claim restoration. PriorCF32runtime fixture prerequisite is consumed/qualified at its finite71-case scope; Draft/Compiler15pilot fixtures retain real producer/consumer obligations.",
+      "prerequisite": "Coordinator manual local integration review under new human instruction; no remote pushes or automated-review waits. State/Contracts retained-only API consumed and five owning cases qualified; Dev trusted forwarding still required before Packages expired signed-claim restoration. Draft/Compiler15pilot fixtures retain real producer/consumer obligations.",
       "owner": "Assigned Capability/Dev/Compiler/Draft defining producers; Packages consumes coherent exact releases and owns Interfaces restoration"
     },
     "ci_observed_revision": "dd03c53dCI37962368169: Compiler/editor and Language tools pass; workspace fails Services early-retry deadline assertion now corrected/qualified at exact1-case scope; browser15failed/30passed retains existing pilot producer/profile prerequisites. Current7d0d1274/full Linux/manual receipt and Codex qualification pending.",
@@ -4410,14 +4410,20 @@
       "branch": "codex/local-packages",
       "upstream": "origin/codex/packages-repair-20261009",
       "sync": "Repeated ff-only/no-recurse-submodules own-upstream pulls; no divergent history/reset or foreign branch import. Coherent units committed before switching; existingPR branch only.",
-      "held": "Native preparation/release activation and all other recipient-specific human holds preserved; local execution only."
+      "held": "Native preparation/release activation and all other recipient-specific human holds preserved; local execution only.",
+      "integration": "Appointed coordinator forwarded the new human instruction: remaining work stays local, coherent commits/unfinished checkpoints only, no remote pushes or automated-review waits. Coordinator alone manually reviews/merges into local main. Required affected local checks and recipient-specific holds remain."
     },
     "shared_gate_repairs": {
       "workspace_chromium": "c9915950 published; all3workflow actionlint passes; actual Linux workspace tests run browser consumers without the former missing-Chromium error. Foreign runtime source/fixture failures remain visible.",
       "manual_receipts": "Plan2 builds Values catalog before its real tests, and catalog/compiler/Chromium before Cloudflare/workspace consumers. Existing32receipt/runner cases pass with full omission/reorder/failed prerequisite refusals. Direct3profile ordering assertions pass. Native preparation debug prerequisite remains private; activation held.",
       "completion_engines": "CAN_COMPLETION_REQUIRE_ENGINES explicitly passes strict Turbo environment to existing native compiler test entry; automatic CI direct Cargo already retained it.",
       "remaining": "Current-head Linux/manual receipt qualification and foreign browser pilot producer joins remain required; prior32CF runtime fixture prerequisite consumed and affected71cases pass.",
-      "services_deadline_case": "CI37962368169dd03c53d exposed retry before wall expiry: transport floors remaining budget and existing assertion allows10msremaining. Existing Services case now reaches original deadline before testing expired retry; aggregate<420ms, exact first bytes/partial count and three requests/no third output/no retry request retained. Services emit and actual Node24 HTTP case1/1pass zero skips; adapter unchanged."
+      "services_deadline_case": "CI37962368169dd03c53d exposed retry before wall expiry: transport floors remaining budget and existing assertion allows10msremaining. Existing Services case now reaches original deadline before testing expired retry; aggregate<420ms, exact first bytes/partial count and three requests/no third output/no retry request retained. Services emit and actual Node24 HTTP case1/1pass zero skips; adapter unchanged.",
+      "native_polling_fixture": {
+        "source": "Only two functional fixture hunks from exact published Compiler79e6b016ec67ff23eea520888cf9e01191e98461: native temporary Chromium profile credential-store flags and combined navigation/bootstrap observation. All product/visibility/polling/cancellation/HTTP/history assertions preserved.",
+        "validation": "Cloudflare owning emit passes. Actual local Mac Worker/Chromium readonly polling case passes1/1 with3unselected,10.879s; initial sandbox localhostEPERM did not qualify behavior, identical escalated retry passes.",
+        "limit": "Exact native case only; broader browser pilot source/profile and mounted workflow gates remain with their owners. Native preparation/release activation HOLD retained."
+      }
     },
     "stdlib_gate": "CurrentCI ebd2ad08 failed explicit141export surface because existing owning choose was omitted from140inventory. Add only choose; preserve exact equality and producer binding identity. Owning emit/assembly4/4 pass; existing Values choose behavior controls reused.",
     "canonical_delete_form": {
