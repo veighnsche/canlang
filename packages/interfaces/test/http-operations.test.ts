@@ -14,6 +14,7 @@ import {
 } from '../src/http/formErrors.js';
 import { FORM_REFUSAL_HEADER, catalogFromArtifactOperations, handleOperationRequest } from '../src/http/operations.js';
 import { ARTIFACT_VERSION } from '@canlang/contracts';
+import { NATIVE_BOOLEAN_PRESENCE_PREFIX } from '@canlang/ui';
 import {
   parseCollectionQuery,
   parseFormBody,
@@ -346,18 +347,21 @@ test('native create, update and scenario controls project by declarations before
       { name: 'quantity', field: { kind: 'integer' as const }, required: true },
       { name: 'enabled', field: { kind: 'boolean' as const }, required: true },
       { name: 'tags', field: { kind: 'string' as const }, required: true, array: { required: true } },
+      { name: 'flags', field: { kind: 'boolean' as const }, required: false, array: { required: false } },
+      { name: 'requiredFlags', field: { kind: 'boolean' as const }, required: true, array: { required: true } },
     ];
     const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: [{ name: operation, kind, description: '', inputs: { fields } }] });
     const root = (name: string) => kind === 'update' ? `inputs[changes][${name}]` : `inputs[${name}]`;
     const params = new URLSearchParams({ operation, operation_id: freshOperationId(), _csrf: await deriveCsrfToken(t.identity.sessionToken),
       [root('title')]: '123', [root('quantity')]: '9007199254740993', [root('enabled')]: 'false', [root('tags')]: '["one"]',
+      [root('requiredFlags')]: '[]',
       ...(kind === 'update' ? { 'inputs[record][id]': 'true', 'inputs[record][version]': '7' } : {}),
     });
     const submit = (body: URLSearchParams) => handleOperationRequest({ ...t.deps, catalog }, opRequest({
       cookie: t.identity.cookie, contentType: 'application/x-www-form-urlencoded', body: body.toString(),
     }), operation);
     assert.equal((await submit(params)).status, 200, kind);
-    assert.deepEqual(t.invoker.mutations[0]?.envelope.inputs, { title: '123', quantity: '9007199254740993', enabled: false, tags: ['one'],
+    assert.deepEqual(t.invoker.mutations[0]?.envelope.inputs, { title: '123', quantity: '9007199254740993', enabled: false, tags: ['one'], requiredFlags: [],
       ...(kind === 'update' ? { record: { id: 'true', version: '7' } } : {}),
     });
     for (const [name, value] of [[root('tags'), '{}'], [root('quantity'), 'not-int'], [root('enabled'), 'maybe']]) {
@@ -369,6 +373,21 @@ test('native create, update and scenario controls project by declarations before
       assert.equal((await submit(wrongMode)).status, 400);
     }
     assert.equal(t.invoker.mutations.length, 1);
+    const arrayMarker = NATIVE_BOOLEAN_PRESENCE_PREFIX + root('flags');
+    const absentArray = new URLSearchParams(params); absentArray.set(arrayMarker, 'true');
+    assert.equal((await submit(absentArray)).status, 200);
+    assert.equal(Object.hasOwn(t.invoker.mutations.at(-1)!.envelope.inputs, 'flags'), false, 'array presence never synthesizes false');
+    const invalidArray = new URLSearchParams(absentArray); invalidArray.set(root('flags'), 'true');
+    assert.equal((await submit(invalidArray)).status, 400);
+    const validArray = new URLSearchParams(absentArray); validArray.set(root('flags'), '[false,true]');
+    assert.equal((await submit(validArray)).status, 200);
+    assert.deepEqual(t.invoker.mutations.at(-1)!.envelope.inputs['flags'], [false, true]);
+    for (const raw of [undefined, 'true']) {
+      const requiredArray = new URLSearchParams(params);
+      requiredArray.set(NATIVE_BOOLEAN_PRESENCE_PREFIX + root('requiredFlags'), 'true');
+      if (raw === undefined) requiredArray.delete(root('requiredFlags')); else requiredArray.set(root('requiredFlags'), raw);
+      assert.equal((await submit(requiredArray)).status, 400, 'required array still needs JSON-array text');
+    }
   }
 });
 

@@ -314,6 +314,7 @@ interface FieldRenderContext {
 }
 
 interface WidgetAttrs {
+  readonly name: string;
   readonly nameAttr: string;
   readonly idAttr: string;
   readonly common: string;
@@ -427,12 +428,22 @@ function decimalWidget(field: FormFieldDef, attrs: WidgetAttrs): WidgetResult {
   };
 }
 
+/** Native-only transport evidence; the business control name remains unique. */
+export const NATIVE_BOOLEAN_PRESENCE_PREFIX = "can_boolean_present:";
+
+/** Render-time reuse by explicit controls preserves the forms/controls ESM cycle. */
+export function nativeBooleanPresence(field: FormFieldDef, controlName: string): string {
+  return field.type === "bool" && field.readonly !== true
+    ? hidden(NATIVE_BOOLEAN_PRESENCE_PREFIX + controlName, "true") : "";
+}
+
 function boolWidget(field: FormFieldDef, attrs: WidgetAttrs): WidgetResult {
   const checked = boolFieldValue(field);
   return {
     html:
       `<input type="checkbox" name="${attrs.nameAttr}" id="${attrs.idAttr}" value="true"` +
-      `${checked ? " checked" : ""} class="toggle"${attrs.common}>`,
+      `${checked ? " checked" : ""} class="toggle"${attrs.common}>` +
+      nativeBooleanPresence(field, attrs.name),
     submitValue: checked ? "true" : "false",
   };
 }
@@ -612,7 +623,7 @@ async function renderField(field: FormFieldDef, ctx: FieldRenderContext): Promis
   const disabled = field.readonly === true ? " disabled" : "";
   const widget = renderWidget(
     field,
-    { nameAttr: escapeAttr(name), idAttr, common: `${requiredAttr}${invalid}${describedBy}${disabled}` },
+    { name, nameAttr: escapeAttr(name), idAttr, common: `${requiredAttr}${invalid}${describedBy}${disabled}` },
     ctx.context,
     ctx.timeZone,
   );
