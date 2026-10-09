@@ -103,6 +103,15 @@ strict all-target Clippy passes. Testkit still owns trusted formatting context
 and text/locale observation transport; no BDD execution or broader completion
 follows from this structural golden correction.
 
+The current compiler integration attempt reports **1,223 passed, 46 failed**
+across 33 failed targets. Source-matching Cloudflare outputs and draft5a12eb9e
+are distinct prerequisites; ready stale source controls are corrected separately.
+Released `each` parsing, judgment choice/callability and checked-locale plain
+emission controls now pass **35/35**, retaining coverage, exact duplicate/static
+call refusals and forms/policy omission. The two source structural join cases
+pass **2/2** with exact remaining refusals and positive preference/order/slot
+metadata, without application completion credit.
+
 Current remaining prerequisites are recorded here without reopening accepted
 compiler leaves:
 
