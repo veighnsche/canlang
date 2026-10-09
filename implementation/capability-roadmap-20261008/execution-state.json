@@ -1404,7 +1404,12 @@
       "state": "not_started",
       "evidence": [],
       "next_gate": [],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "existing_accumulated_registry_reconciled_complete_checkpoint_open",
+        "source_revision": "66065e8a8ed8582185539afd818862c3204cafa0",
+        "scope": "Existing docs/ideal-filetree-plan/state-machines-20261007.json refreshed against every accumulated checkpoint change with decisions and owning paths preserved. Commit history source pin repaired from tree to commit; new producer fixtures await exact target/semantic review. Complete checkpoint unadvanced, no duplicate proof/recap tree."
+      }
     },
     {
       "id": "SEQ-063",
