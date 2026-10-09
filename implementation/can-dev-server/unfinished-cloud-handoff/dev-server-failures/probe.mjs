@@ -147,9 +147,28 @@ try {
   assert.equal(rerun.rerun.outcome, 'failed');
   assert.notEqual(rerun.original.run_id, rerun.rerun.run_id);
   assert.equal(rerun.artifact.artifactDigest, runResult.artifact_digest);
+  async function verifyRerunFailure(attempt, previousRefs) {
+    const focus = attempt.focus;
+    assert.equal(focus.origin, 'example');
+    assert.equal(focus.revision, runResult.revision);
+    assert.equal(focus.source_revision, runResult.source_revision);
+    assert.equal(focus.serving_build, runResult.serving_build);
+    assert.equal(focus.owner_ref.run_id, attempt.rerun.run_id);
+    assert.ok(!previousRefs.includes(focus.ref));
+    const found = success(await run('failure.lookup', ['--ref', focus.ref]), 'rerun failure.lookup');
+    assert.deepEqual(found, focus);
+    const saved = success(await run('failure.detail', ['--ref', focus.ref]), 'rerun failure.detail');
+    assert.equal(saved.detail.outcome, 'failed');
+    assert.equal(saved.detail.artifact_digest, runResult.artifact_digest);
+    const page = success(await run('failures', ['--revision', runResult.revision, '--limit', '25']), 'rerun failures');
+    for (const retainedRef of [...previousRefs, focus.ref]) assert.ok(page.failures.some(item => item.ref === retainedRef));
+    assert.doesNotMatch(JSON.stringify({ attempt, found, saved }), /Deliberately wrong|"(?:expected|actual|caller|mismatches)"\s*:/);
+    return focus.ref;
+  }
+  const rerunRef = await verifyRerunFailure(rerun, [ref]);
   result.rerunBeforeRestore = { kind: rerun.kind, originalRunId: rerun.original.run_id,
     rerunRunId: rerun.rerun.run_id, artifactDigest: rerun.artifact.artifactDigest,
-    inputs: rerun.inputs, outcome: rerun.rerun.outcome };
+    inputs: rerun.inputs, outcome: rerun.rerun.outcome, failureRef: rerunRef };
 
   await writeFile(sourcePath, original);
   edited = false;
@@ -165,9 +184,13 @@ try {
   assert.equal(rerunAfter.rerun.outcome, 'failed');
   assert.notEqual(rerunAfter.rerun.run_id, rerun.rerun.run_id);
   assert.equal(rerunAfter.artifact.artifactDigest, runResult.artifact_digest);
+  const rerunAfterRef = await verifyRerunFailure(rerunAfter, [ref, rerunRef]);
+  assert.deepEqual(success(await run('failure.lookup', ['--ref', ref]), 'original lookup after restore'), lookup);
+  assert.equal(success(await run('failure.lookup', ['--ref', rerunRef]), 'earlier rerun lookup after restore').owner_ref.run_id,
+    rerun.rerun.run_id);
   result.rerunAfterRestore = { originalRunId: rerunAfter.original.run_id,
     rerunRunId: rerunAfter.rerun.run_id, outcome: rerunAfter.rerun.outcome,
-    artifactDigest: rerunAfter.artifact.artifactDigest, inputs: rerunAfter.inputs };
+    artifactDigest: rerunAfter.artifact.artifactDigest, inputs: rerunAfter.inputs, failureRef: rerunAfterRef };
   result.outcome = 'passed';
 } catch (error) {
   result.outcome = 'failed';
@@ -187,11 +210,14 @@ try {
       result.stop = { ownSession: true, stopped: stopped.stopped === true };
       const absent = await stat(descriptorPath).then(() => false, error => error.code === 'ENOENT');
       result.stop.descriptorRemoved = absent;
+      assert.equal(result.stop.stopped, true);
+      assert.equal(absent, true, 'owned descriptor remains after stop');
     } catch (error) {
       result.stop = { ownSession: true, error: String(error.message).slice(0, 250) };
       result.outcome = 'failed';
     }
   }
+  if (result.finalSourceSha !== originalSha) result.outcome = 'failed';
   await writeFile(output, `${JSON.stringify(result, null, 2)}\n`, { mode: 0o600 });
   console.log(JSON.stringify({ outcome: result.outcome, initial: result.initial?.revision,
     wrong: result.wrong?.revision, restored: result.restored?.revision,
@@ -199,4 +225,5 @@ try {
     rerunBefore: result.rerunBeforeRestore?.outcome,
     rerunAfter: result.rerunAfterRestore?.outcome, stop: result.stop,
     failureCause: result.failureCause }));
+  if (result.outcome !== 'passed') process.exitCode = 1;
 }

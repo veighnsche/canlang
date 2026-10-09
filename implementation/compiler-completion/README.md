@@ -1673,3 +1673,16 @@ goldens pass (**1/1** each, 0.16s/0.21s). They exposed a real multiline writer
 mapping gap, now fixed by attributing every physical emitted line without
 changing JavaScript bytes or source-disclosure policy. Final focused lib/bin
 Clippy passes (4.56s), and scoped formatting passes. Counters remain **58/67**.
+
+**Corrected public runtime intake (unfinished wider join), 2026-10-09.**
+Reviewed integrated local **1d0b350d**, including exact Dev **0a3fdb1e**, is
+merged onto committed primitive-array **0b79ebc1**, preserving both histories.
+Source correspondence now escapes business-error conversion and runs on
+throwing exits; the owner's **10/10** association/correspondence controls are
+reused. Actual changed installed dependency/Cloudflare/Testkit outputs rebuild
+**26/26**, zero cached. The same genuine generated-source native fixture passes
+**1/1**, with all **31 success invocations plus ordinary replay** now traversing
+the released public scenario projector. Dedicated recovery/current-access and
+portable scenario witnesses remain distinct next checks, not owner handbuilt
+proof substitutions. Original **58/67**, exact holds and broader source joins
+remain open.
