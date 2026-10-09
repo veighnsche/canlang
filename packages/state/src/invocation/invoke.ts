@@ -343,6 +343,19 @@ export interface InvokeMutationInput {
   conflictServerOnly?: ConflictServerOnly;
 }
 
+/**
+ * Positive installed-support boundary for recovery. Hosts must require this
+ * export before restoring a retained call; older invokers may ignore an
+ * optional mode. This entry always selects receipt-only admission, including
+ * when an untyped caller supplies a conflicting mode. Disclosure still uses
+ * the owning current-access projection after this internal invocation.
+ */
+export function invokeRetainedReceiptOnly(
+  input: Omit<InvokeMutationInput, 'admissionMode'>,
+): Promise<MutationResult> {
+  return invoke({ ...input, admissionMode: 'retained-receipt-only' });
+}
+
 export async function invoke(input: InvokeMutationInput): Promise<MutationResult> {
   const def = input.registry.get(input.envelope.operation);
   if (def === undefined) {

@@ -169,6 +169,11 @@ export interface OperationInvoker {
   invokeRead(envelope: ReadEnvelope, identity: ResolvedIdentity): Promise<ReadOutcome>;
 }
 
+/** Host-owned restoration consumer, separate from ordinary transport dispatch. */
+export interface RetainedOperationInvoker extends OperationInvoker {
+  invokeRetainedMutation(envelope: MutationEnvelope, identity: ResolvedIdentity): Promise<MutationOutcome>;
+}
+
 /**
  * Real MCP mirrors (`src/runtime/mcp-registry.ts`; joined at P2). The
  * registry, catalog, and permissions shapes live there as the single
@@ -358,6 +363,7 @@ export interface SourceFormBindingProof {
 export interface SourceFormBindings {
   seal(context: SourceFormBindingContext, bound: ClosedInputs, editable: readonly string[]): Promise<SourceFormBindingProof>;
   restore(context: SourceFormBindingContext, token: string, inputs: ClosedInputs): Promise<ClosedInputs | null>;
+  restoreRetained?(context: SourceFormBindingContext, token: string, inputs: ClosedInputs): Promise<ClosedInputs | null>;
 }
 
 export interface HttpDeps {
@@ -1067,9 +1073,8 @@ export function buildInvoker(
   asm: AssembledModules,
   store: StoragePort,
   opts: CanonicalInvokerOpts = {},
-): OperationInvoker {
-  return {
-    invokeMutation: async (envelope, identity): Promise<MutationOutcome> => {
+): RetainedOperationInvoker {
+  const mutate = async (envelope: MutationEnvelope, identity: ResolvedIdentity, receiptOnly: boolean): Promise<MutationOutcome> => {
       const isGeneratedArtifact = await loadSiblingFn<IsGeneratedArtifact>(
         "../runtime/invoke.js",
         "runtime/invoke.ts",
@@ -1084,7 +1089,7 @@ export function buildInvoker(
         const invokeCanonical = await loadSiblingFn<InvokeMutationCanonical>(
           "../runtime/invoke.js",
           "runtime/invoke.ts",
-          "invokeMutationCanonical",
+          receiptOnly ? "invokeRetainedMutationCanonical" : "invokeMutationCanonical",
         );
         const selectedApp = opts.appInfo ?? (opts.appId === undefined ? await loadAppInfo(artifact, asm) : undefined);
         const app = selectedApp?.appId ?? opts.appId!;
@@ -1110,7 +1115,10 @@ export function buildInvoker(
       } catch (error) {
         return { error: toBusinessError(error, envelope.operation_id) };
       }
-    },
+    };
+  return {
+    invokeMutation: (envelope, identity) => mutate(envelope, identity, false),
+    invokeRetainedMutation: (envelope, identity) => mutate(envelope, identity, true),
     invokeRead: async (envelope, identity): Promise<ReadOutcome> => {
       const isGeneratedArtifact = await loadSiblingFn<IsGeneratedArtifact>(
         "../runtime/invoke.js",
