@@ -3489,3 +3489,7 @@ The list contract carries checked order/search fields and an optional count requ
 ### Accepted implementation: rederive local preview input membership
 
 The existing installed preview producer now rederives its package outputs, owning sources, compiler sources and Testkit inputs before and after capture and at currency checks. A changed membership or symlink identity refuses the old capture, so an added runtime file cannot leave an apparently current build. Exact hashes pin bytes; source/output timestamps remain conservative freshness evidence because existing producers lack complete build-provenance manifests. Source capture passes 6/6. This does not qualify the source-current compiler or whole app; the missing compiler candidate module remains a Compiler-owned prerequisite.
+
+### Accepted implementation: reconcile missed development watcher events
+
+The existing session core reconciles captured input identities every two seconds and reattaches watchers after directory replacement. Notifications still only mark dirty; capture and revision checks control publication. Shutdown closes watchers and the reconciliation timer and drains owned capture work. Focused lifecycle checks pass 6/6 and Cloudflare source typecheck passes; full-app membership and build-reset qualification remain with their owning capture/runtime joins.
