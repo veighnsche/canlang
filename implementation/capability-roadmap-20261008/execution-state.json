@@ -213,7 +213,13 @@
         "SEQ-009",
         "SEQ-010"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "blocked_defining_producer_contract",
+        "prerequisite": "Checked owning model-rule identities/dependency plans/field selectors and complete generated hook context/event/native/reserved-version carrier. Existing emitted local predicates and unsupported-hook refusals do not provide these facts.",
+        "owner": "Compiler/Contracts producer; this worker consumes through State owner-transaction lifecycle and Cloudflare linkage when released.",
+        "scope": "Bounded dependency closure, final-only invariants, field locks, hook ordering/authority/version semantics remain required. No old worker-specific external-payload hold is applied to this worker."
+      }
     },
     {
       "id": "SEQ-012",
@@ -561,7 +567,12 @@
         "SEQ-024",
         "SEQ-025"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "blocked_required_prerequisite",
+        "prerequisite": "Original task-specific rule/context or preceding whole-workflow output, and current registered draft06b23b5d source availability; existing upstream task prerequisites retained.",
+        "owner": "Compiler/Contracts rule producer and draft publisher/coordinator; consumer/application implementation remains this worker\u2019s task."
+      }
     },
     {
       "id": "SEQ-027",
@@ -574,7 +585,12 @@
       "next_gate": [
         "SEQ-026"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "blocked_required_prerequisite",
+        "prerequisite": "Original task-specific rule/context or preceding whole-workflow output, and current registered draft06b23b5d source availability; existing upstream task prerequisites retained.",
+        "owner": "Compiler/Contracts rule producer and draft publisher/coordinator; consumer/application implementation remains this worker\u2019s task."
+      }
     },
     {
       "id": "SEQ-028",
@@ -789,6 +805,12 @@
         "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
         "scope": "Original two genuine witness vertical/current authority/final selection/browser-MCP/source-navigation criteria.",
         "status": "Original CountryRegion/CanApprove conditional-grant models require original11 model-rule producer, whose exact external payload hold remains. Actual CF runReadScenarioSeam refuses ruled models; parent/related navigation also retained. No substitute witness or full37 closure. Independent24/35/36 work continues."
+      },
+      "worker_update": {
+        "state": "unfinished_runtime_browser_join",
+        "implemented": "Existing genuine fixture final region/reviewer guards and real Chromium-served generated controls; direct Values any binding and State-declared singular-reference decoding joined to mutation views.",
+        "validation": "Current runtime owning build22/22 and protected sealed-form Chromium1/1 pass. Input-choice case reached valid happy-dom final submission, then identified and corrected a test response-hold race; browser case awaits source-current compiler repair and artifact regeneration.",
+        "remaining": "Full original CountryRegion/CanApprove ruled models require checked rule/dependency/hook producer and State owner-transaction execution. Nonnull assign final parent.site navigation remains unqualified; no substitute original/full37 claim."
       }
     },
     {
@@ -805,7 +827,12 @@
         "SEQ-012",
         "SEQ-014"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "blocked_required_prerequisite",
+        "prerequisite": "Original task-specific rule/context or preceding whole-workflow output, and current registered draft06b23b5d source availability; existing upstream task prerequisites retained.",
+        "owner": "Compiler/Contracts rule producer and draft publisher/coordinator; consumer/application implementation remains this worker\u2019s task."
+      }
     },
     {
       "id": "SEQ-039",
@@ -821,7 +848,12 @@
         "SEQ-012",
         "SEQ-014"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "blocked_required_prerequisite",
+        "prerequisite": "Original task-specific rule/context or preceding whole-workflow output, and current registered draft06b23b5d source availability; existing upstream task prerequisites retained.",
+        "owner": "Compiler/Contracts rule producer and draft publisher/coordinator; consumer/application implementation remains this worker\u2019s task."
+      }
     },
     {
       "id": "SEQ-040",
@@ -852,7 +884,12 @@
           ],
           "reason": "Qualify exact reviewed target/value execution."
         }
-      ]
+      ],
+      "worker_update": {
+        "state": "blocked_required_prerequisite",
+        "prerequisite": "Original task-specific rule/context or preceding whole-workflow output, and current registered draft06b23b5d source availability; existing upstream task prerequisites retained.",
+        "owner": "Compiler/Contracts rule producer and draft publisher/coordinator; consumer/application implementation remains this worker\u2019s task."
+      }
     },
     {
       "id": "SEQ-041",
@@ -887,7 +924,12 @@
         "SEQ-017",
         "SEQ-041"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "blocked_required_prerequisite",
+        "prerequisite": "Original task-specific rule/context or preceding whole-workflow output, and current registered draft06b23b5d source availability; existing upstream task prerequisites retained.",
+        "owner": "Compiler/Contracts rule producer and draft publisher/coordinator; consumer/application implementation remains this worker\u2019s task."
+      }
     },
     {
       "id": "SEQ-043",
@@ -908,7 +950,12 @@
           ],
           "reason": "Other resources need their own released verified-usage contract."
         }
-      ]
+      ],
+      "worker_update": {
+        "state": "blocked_required_prerequisite",
+        "prerequisite": "Original task-specific rule/context or preceding whole-workflow output, and current registered draft06b23b5d source availability; existing upstream task prerequisites retained.",
+        "owner": "Compiler/Contracts rule producer and draft publisher/coordinator; consumer/application implementation remains this worker\u2019s task."
+      }
     },
     {
       "id": "SEQ-044",
@@ -942,7 +989,12 @@
           "tasks": [],
           "reason": "The original canonical FP.AW-PAYMENTS adapter task and definite-effect/reconcile contract are required; no new payment task is invented."
         }
-      ]
+      ],
+      "worker_update": {
+        "state": "blocked_prerequisite_or_value_gate",
+        "prerequisite": "Select actual reversible external effect with definite-success, identity and reconcile contract; selected Email receipt evidence cannot qualify refund/publication reversal.",
+        "owner": "App/provider recovery owner; payment selection additionally requires existing FP.AW-PAYMENTS."
+      }
     },
     {
       "id": "SEQ-046",
@@ -957,7 +1009,12 @@
         "SEQ-018",
         "SEQ-020"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "blocked_prerequisite_or_value_gate",
+        "prerequisite": "Runtime-choice checked producer and exact installed judgment model/token-count/deployment profile; reuse existing static native-D1/System-One controlled HTTP join.",
+        "owner": "Compiler/Contracts and Judgment/Services deployment owners."
+      }
     },
     {
       "id": "SEQ-047",
@@ -974,7 +1031,12 @@
         "SEQ-020",
         "SEQ-023"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "blocked_prerequisite_or_value_gate",
+        "prerequisite": "Bounded Handbook corpus interface and indexing/withdrawal/current-all-supplied-source disclosure contract; compiler currently refuses corpus emission.",
+        "owner": "Contracts/compiler and corpus index/provider owners."
+      }
     },
     {
       "id": "SEQ-048",
@@ -1006,6 +1068,11 @@
         "accepted_private_component": "Current CLI0/CF emit0; same owning genuine D1 private case1/1 (~8.1s) after exact retained schedule:event trustedSource pin, wrong-principal refusal with no domain/history writes. All matching sweep/unbound cohort handlers initialize in the same source-receipt revision; frozen payload/bounds/membership survive reopen. Null actor/current owner/private registry/child source forwarding/body effects/receipt/rollback/late exclusion/fair turns/replay/typed parent reload qualified. Two unchanged affected ordinary/private-due cases2/2 reused. Exact internal state.cohorts@1 constructor only; default Worker does not fulfill globally, mixed ordinary/cohort source currently refuses. Full48 remains open.",
         "defining_owner_prerequisites": "Package State/Work owns durable bounded execution cursor and intent-scan resume/rotation; checkpoint.cursor presently admission admit/N, scheduler cursor caller-owned, so restart-at-null fairness is unqualified. Mixed intake needs an actual retained source-to-handler routing/admission producer and selector, with atomic routing/cohort intake but independent ordinary handler executions/receipts. State ordinary private admission and existing trusted guard-revalidation limits remain explicit. No second engine/unbounded substitution.",
         "mixed_handler_semantics": "Defining Package worker confirms DESIGN\u00a76 independent handler occurrence/receipt; later handler cannot reject already committed event source. Source-atomic ordinary body grouping withdrawn. Atomic durable routing/admission creates independent handler occurrences/cohort intents; each body/outcome remains separate. Existing Work lacks retained source-to-handler routing/admission/stored selector. Balanced preauthorized JEV3 addresses consequential new minimal producer/cursor design, preserving accepted semantics; no worker/resource hold."
+      },
+      "worker_update": {
+        "state": "blocked_prerequisite_or_value_gate",
+        "prerequisite": "Retained mixed ordinary/cohort routing and durable bounded execution cursor/resume rotation; default Worker wiring remains a consumer duty.",
+        "owner": "State/Work routing/cursor producers; Cloudflare consumer is this worker."
       }
     },
     {
@@ -1070,7 +1137,12 @@
           ],
           "reason": "Qualify finalization, expiry, discard and authorization for those files."
         }
-      ]
+      ],
+      "worker_update": {
+        "state": "blocked_prerequisite_or_value_gate",
+        "prerequisite": "Actual multi-session resume consumer and required ordinary-draft/form comparison.",
+        "owner": "App/UI value-gate owner."
+      }
     },
     {
       "id": "SEQ-052",
@@ -1091,7 +1163,12 @@
           ],
           "reason": "A read-only view needs its actual renderer, not a generic form prerequisite."
         }
-      ]
+      ],
+      "worker_update": {
+        "state": "blocked_prerequisite_or_value_gate",
+        "prerequisite": "Actual repeated customized subtree and two-use full-cost/authority comparison.",
+        "owner": "App/compiler/UI value-gate owners."
+      }
     },
     {
       "id": "SEQ-053",
@@ -1130,7 +1207,12 @@
       "next_gate": [
         "SEQ-011"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "blocked_prerequisite_or_value_gate",
+        "prerequisite": "Task11 enforcement and two qualified models demonstrating stable graph/vocabulary reuse.",
+        "owner": "Compiler/State producer and app value-gate owner."
+      }
     },
     {
       "id": "SEQ-055",
@@ -1218,7 +1300,12 @@
       "next_gate": [
         "SEQ-045"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "blocked_prerequisite_or_value_gate",
+        "prerequisite": "Complete concrete recovery reuse45 before compensation-grammar reconsideration.",
+        "owner": "Recovery/domain owner."
+      }
     },
     {
       "id": "SEQ-058",
@@ -1249,7 +1336,12 @@
       "next_gate": [
         "SEQ-011"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "blocked_prerequisite_or_value_gate",
+        "prerequisite": "Task11 enforcement and actual nested/parallel workflow that qualified flat composition cannot express.",
+        "owner": "Machine/app value-gate owner."
+      }
     },
     {
       "id": "SEQ-060",
@@ -1397,7 +1489,19 @@
     "role": "cross-chat allocation, overlap prevention, resources and task status; no code review",
     "validation": "one direct proportionate layer; no nested proof or review chains",
     "current_coordinator_thread": "01a11e6b-f4e1-7603-b47d-9d3210c9c6de",
-    "worker_communication": "Current coordinator identified from the four starting prompts; no callable cross-chat send tool is exposed. Dependencies remain in this existing record; no receipt is inferred."
+    "worker_communication": "Current coordinator identified from the four starting prompts; no callable cross-chat send tool is exposed. Dependencies remain in this existing record; no receipt is inferred.",
+    "compiler_build_prerequisite": {
+      "available_revision": "4cb5c55d",
+      "branch": "codex/compiler-completion-20261009",
+      "pr": "https://github.com/veighnsche/canlang/pull/133",
+      "action": "Consume focused dangling-module repair after unfinished checkpoint; rebuild current source and regenerate affected artifact before qualification. No main/full-app acceptance implied."
+    },
+    "review_status": {
+      "pr": "https://github.com/veighnsche/canlang/pull/134",
+      "revision": "30cac59e",
+      "state": "automated_review_skipped_draft",
+      "action": "Request draft review after next coherent pushed update; absent review is not approval."
+    }
   },
   "live_handoffs": {
     "h1_typed_metadata": {

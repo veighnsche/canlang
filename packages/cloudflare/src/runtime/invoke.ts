@@ -3258,15 +3258,20 @@ function nativeRecordMetadata(row: StoredRow | ProjectedRecord): Record<string, 
   };
 }
 
+/** Decode only the defining loader's scalar and singular-reference associations. */
+function nativeRecordField(loaded: LoadedCanonicalDescriptors, modelName: string, field: string, wire: unknown): unknown {
+  if (wire === undefined) return wire;
+  const type = loaded.models.find(model => model.name === modelName)?.fields[field]?.valueType;
+  if (type !== undefined) return decodeCanonicalValue(loaded.valueSchema, type, wire);
+  const target = loaded.refs.get(modelName)?.find(reference => reference.field === field)?.model;
+  return target === undefined || wire === null ? wire : decodeValue(target, wire);
+}
+
 /** Only actual projected fields enter a native read view. */
 function nativeProjectedRecord(loaded: LoadedCanonicalDescriptors, modelName: string, row: StoredRow | ProjectedRecord): Record<string, unknown> {
-  const model = loaded.models.find(candidate => candidate.name === modelName);
   const record: Record<string, unknown> = Object.create(null);
   for (const [field, wire] of Object.entries(row.data)) {
-    const type = model?.fields[field]?.valueType;
-    const target = loaded.refs.get(modelName)?.find(reference => reference.field === field)?.model;
-    record[field] = type !== undefined ? decodeCanonicalValue(loaded.valueSchema, type, wire)
-      : target === undefined || wire === null ? wire : decodeValue(target, wire);
+    record[field] = nativeRecordField(loaded, modelName, field, wire);
   }
   Object.assign(record, nativeRecordMetadata(row));
   const ownership = loaded.containment.get(modelName);
@@ -3395,8 +3400,7 @@ async function runScenarioSeam(
     for (const field of Object.keys(model?.fields ?? snapshot.data)) Object.defineProperty(record, field, {
       enumerable: true, get: () => {
         const wire = current()?.data[field];
-        const type = model?.fields[field]?.valueType;
-        return type === undefined || wire === undefined ? wire : decodeCanonicalValue(loaded.valueSchema, type, wire);
+        return nativeRecordField(loaded, modelName, field, wire);
       },
     });
     // Ordinary references retain admitted metadata while domain reads see
@@ -3421,10 +3425,10 @@ async function runScenarioSeam(
     // Do not reuse a full parameter/write view or load the stored row: a
     // matching read grant may expose only part of its data.
     for (const [field, wire] of Object.entries(row.data)) {
-      const type = model?.fields[field]?.valueType;
-      record[field] = type === undefined ? wire : decodeCanonicalValue(loaded.valueSchema, type, wire);
+      record[field] = nativeRecordField(loaded, modelName, field, wire);
     }
     Object.assign(record, nativeRecordMetadata(row));
+    bindNativeRecord(record, modelName, row.id, row.version);
     Object.freeze(record);
     recordBindings.set(record, { model: modelName, id: row.id, version: row.version });
     return record;
@@ -3582,6 +3586,10 @@ async function runScenarioSeam(
         // Delivery tags predate the scalar valueType checkpoint. Their owning
         // artifact declaration still selects Values' exact native/wire codec.
         const data = write.data === undefined ? undefined : { ...write.data };
+        for (const reference of loaded.refs.get(write.model) ?? []) {
+          if (data === undefined || !Object.hasOwn(data, reference.field) || data[reference.field] === null) continue;
+          data[reference.field] = encodeCanonicalField(StateError, reference.model, data[reference.field]);
+        }
         for (const field of opts.artifact.models?.find(model => model.name === write.model)?.fields ?? []) {
           if (field.field.kind !== 'delivery' || data === undefined || !Object.hasOwn(data, field.name)) continue;
           data[field.name] = encodeCanonicalField(StateError,
