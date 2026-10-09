@@ -126,6 +126,7 @@
     "@cloudflare/workers-types": "^5.20261004.1",
     "@types/node": "24.19.1",
     "@canlang/files": "workspace:*",
+    "happy-dom": "20.14.5",
     "vitest": "^3.2.4",
     "@types/eslint-scope": "3.7.7"
   }

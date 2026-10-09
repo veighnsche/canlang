@@ -9,7 +9,8 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import type { ArtifactModelField, ClosedInputs, CompileArtifact, ExampleCaseResult, ExampleReport, FqOperationName, ModelName, OperationId, RecordId, RecordVersion, ReportValue, ResolvedCaller, ResolvedIdentity, StoragePort, StoredRow, TableCaseResult } from "@canlang/contracts";
 import { createD1IdentityStore, ensureIdentitySchema, resolveIdentity, sha256HexText, toInstant, type IdentityStore } from "@canlang/identity";
 import { createD1Storage, ensureSchema } from "@canlang/state/storage/d1";
@@ -34,17 +35,15 @@ export class MissingExampleTestkitError extends Error {
   }
 }
 
-/** Late-bind the optional test producer without a Cloudflare package cycle. */
-export async function loadInstalledExampleTestkit(): Promise<ExampleTestkitPort> {
+/** The invoking application installs the optional producer, without a package cycle. */
+export async function loadInstalledExampleTestkit(applicationRoot: string): Promise<ExampleTestkitPort> {
+  let entry: string;
   try {
-    createRequire(import.meta.url).resolve("@canlang/testkit");
+    entry = createRequire(resolve(applicationRoot, "package.json")).resolve("@canlang/testkit");
   } catch {
     throw new MissingExampleTestkitError();
   }
-  // Keep this as a runtime-only optional edge: a literal specifier makes
-  // TypeScript resolve testkit while building Cloudflare, creating a cycle.
-  const testkitSpecifier: string = "@canlang/testkit";
-  const kit = await import(testkitSpecifier) as unknown as ExampleTestkitPort;
+  const kit = await import(pathToFileURL(entry).href);
   requirement(kit.loadExampleSuite, "testkit loader");
   requirement(kit.runTable, "testkit table runner");
   requirement(kit.createReport, "testkit report builder");
