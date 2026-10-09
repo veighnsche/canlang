@@ -6,6 +6,8 @@ This plan does not replace the [seven-lane platform plan](../PLAN.md). Its paths
 
 ## Current checkpoint
 
+The source/recheck refusal-observer control now waits only through an explicit superseded publication, then requires valid/current/ready before its unchanged unsubscribe/retained-failure assertions. The whole affected private-session suite passes12/12. A superseded check correctly retains the old serving owner; it cannot qualify replacement cleanup.
+
 **Local publication instruction:** the human's coordinator now integrates committed units into local main. This worker continues only in its assigned checkout, commits coherent units and unfinished checkpoints, and does not push, merge, switch main or wait for remote automated review. Other recipient-specific holds remain unchanged.
 
 The affected Office business and Generation probes pass again after the defining State join: Office36 observations and two fresh2/2 example attempts; Generation real host/create/queue/read/refusals/assets and3/3 authored rows. Serving-store isolation remains exact. The complete local two-owner lifecycle now passes verified attach, duplicate-owner and foreign-session refusals, ordinary auth/CSRF, HTTP/MCP isolation, invalid-source stale serving, repaired build/data reset, retained diagnostics and surviving-owner functionality. Both stops remove their descriptors within2seconds; source is restored. Explicit checks all settle on their first attempt. This closes that bounded lifecycle journey, not Office browser or G2/G3.

@@ -3823,3 +3823,7 @@ Fix the two branch-owned native integration checks' optional-method type errors 
 ### Validation: full local two-owner lifecycle
 
 Use explicit discover/status to attach the verified original owner; duplicate native start correctly refuses SESSION_EXISTS rather than silently attaching. The actual two-root journey passes ordinary auth/CSRF, distinct sessions/origins/builds, HTTP/MCP data isolation, invalid-source stale serving, repair/reset, retained diagnostics and surviving-owner operation. Both owned stops remove descriptors in under2seconds and edited source is restored. Retry only a producer-reported superseded check; all four checks settle first attempt. Office36 observations/two fresh2/2 example runs and Generation host/3/3 examples also pass after the State join with serving isolation retained. These bounded results leave Office browser and G2/G3 unfinished. The human now requires local commits and coordinator integration, with no further remote publication or review waits.
+
+### Validation: observer cleanup after a current replacement
+
+Require a valid/current/ready publication before the session control checks replacement unsubscribe. Native watcher supersession correctly preserves the old serving preview/observer; the previous fixture accepted any changed revision and raced that contract. Retry only an explicitly superseded check, bounded to3 immediate checks, retaining all disposal/subscriber/failure assertions. The affected private-session suite passes12/12. No production cleanup defect or new wait policy is inferred.
