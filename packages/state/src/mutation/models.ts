@@ -330,7 +330,8 @@ function checkModelValueType(field: InterimFieldDef, name: string, model: string
       const parsed = parseTypeId(field.valueType);
       const scalar = /^(int|datetime|text|bool|decimal|money|date|duration|user|file)(\[\])?\??$/.test(field.valueType);
       const nominal = schema !== undefined && parsed.base.kind === 'nominal' &&
-        (Object.hasOwn(schema.contracts, parsed.base.path) || Object.hasOwn(schema.enums, parsed.base.path));
+        (Object.hasOwn(schema.contracts, parsed.base.path) || Object.hasOwn(schema.enums, parsed.base.path) ||
+          schema.aliases !== undefined && Object.hasOwn(schema.aliases, parsed.base.path));
       const enumeration = parsed.base.kind === 'enum' && !parsed.requiredArray;
       valid = (scalar || nominal || enumeration) && printTypeId(parsed) === field.valueType &&
         parsed.array === (field.array !== undefined) &&
@@ -342,7 +343,7 @@ function checkModelValueType(field: InterimFieldDef, name: string, model: string
 }
 
 /** Reuse Values' checked field descriptor for both load-time claims and write-time values. */
-export function modelFieldConstraintSchema(field: InterimFieldDef, schema?: NormalizedSchema): {
+export function modelFieldConstraintSchema(field: Pick<InterimFieldDef, 'valueType' | 'trim' | 'min' | 'max'>, schema?: NormalizedSchema): {
   readonly schema: NormalizedSchema; readonly type: string;
 } | undefined {
   if (!Object.hasOwn(field, 'trim') && !Object.hasOwn(field, 'min') && !Object.hasOwn(field, 'max')) return undefined;
@@ -358,7 +359,15 @@ export function modelFieldConstraintSchema(field: InterimFieldDef, schema?: Norm
   // nominal type is restored for actual value traversal below.
   const descriptorType = parsed.array && parsed.base.kind === 'nominal' ? 'text[]' : field.valueType;
   const name = '_CanModelConstraint';
-  const checked = normalizeSchema({ contracts: { [name]: { fields: { value: {
+  // Only the exact owning alias supplies the receiving field's scalar
+  // profile and declared bounds. Other nominal names retain their refusals.
+  const alias = parsed.base.kind === 'nominal' && schema?.aliases !== undefined &&
+    Object.hasOwn(schema.aliases, parsed.base.path) ? schema.aliases[parsed.base.path] : undefined;
+  const checked = normalizeSchema({
+    ...(alias === undefined || parsed.base.kind !== 'nominal' ? {} : { aliases: {
+      [parsed.base.path]: { type: alias.typeId, min: alias.lengthMin, max: alias.lengthMax, format: alias.format },
+    } }),
+    contracts: { [name]: { fields: { value: {
     type: descriptorType,
     ...(Object.hasOwn(field, 'trim') ? { trim: field.trim } : {}),
     ...(Object.hasOwn(field, 'min') ? { min: field.min } : {}),
