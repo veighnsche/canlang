@@ -286,6 +286,8 @@ pub enum IrItemKind {
         ty: IrType,
         /// `=` default, when one is authored (G1/G6/G7).
         default: Option<IrDefault>,
+        /// Checked source anchor before grouping is erased by expression lowering.
+        default_node: Option<crate::analysis::NodeKey>,
         /// Exact parameter identity of an authored bare-name default.
         default_copy_source: Option<SymbolId>,
         /// `label=` caption (G1/G6/G7).
@@ -2396,6 +2398,9 @@ impl<'a> Cx<'a> {
                     index: *index,
                     ty: lookup_symbol_type(self.program, symbol, "declared type", &mut self.diags),
                     default,
+                    default_node: self
+                        .param_data(*owner, symbol.id)
+                        .and_then(|param| param.default),
                     default_copy_source,
                     label,
                     description,
