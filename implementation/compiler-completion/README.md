@@ -1949,3 +1949,16 @@ these results. This qualifies the compiler producer/output only. Dev's exact
 private native observer release, actual original Text workflow and final changed-
 source whole qualification remain required. No 67-reference or Task44 completion
 is inferred; historical83/1325 and all precise holds retain their scopes.
+
+
+**Intrinsic requirement-control correction — unfinished runtime join, 2026-10-10.**
+Coordinator review found operation-id/original-version requirements were omitted
+from successful-effect CONTROL while primitive requirements were retained. All
+supported intrinsic guards now govern effects before and after writes, preserving
+independent-return and stored-guard policy. The focused six-path source case1/1
+and actual CLI output case1/1 with four before/after guards pass; strict all-target
+lint/format pass. Unrelated earlier source/output results are reused. The SAME
+native consumer is prepared for actual operation/input/original-version capture,
+post-Set original metadata, later writes, aged recovery and archive withholding;
+that body remains unexecuted pending exact reviewed Dev observer intake. No native
+or whole acceptance follows from this coherent unfinished checkpoint.

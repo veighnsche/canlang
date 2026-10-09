@@ -4958,3 +4958,13 @@ Source23/23, facts15/15, actual intrinsic CLI1/1 and unchanged original generati
 CLI1/1, strict lint/format pass. The four original generation facts are now
 complete in compiler output. Native adapter/original workflow and whole changed-
 source acceptance remain unfinished; broader refs and precise holds stay open.
+
+
+## 2026-10-10 — retain all admitted intrinsic requirements on successful effects
+
+Correct the finite guard closure identified in manual review: every supported
+intrinsic kind controls successful effects, whether the requirement precedes or
+follows the effect. Preserve the established independent-return/stored-guard
+policy. Six direct source paths1/1 and actual output1/1 with four effect guards
+pass; strict lint/format pass. The existing native fixture extension remains
+prepared and unexecuted until the exact released Dev observer is consumed.

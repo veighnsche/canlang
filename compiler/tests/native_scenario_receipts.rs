@@ -35,6 +35,14 @@ When
   do return 7
  scenario input(value:int) -> int by=members
   do return value
+ scenario operation_id() -> text by=members
+  do return operation.id
+ scenario original_version(item:Item) -> int by=members
+  do return item.version
+ scenario post_write_version(item:Item) -> int by=members
+  do
+   set item {value=item.value+1}
+   return item.version
  scenario checked(item:Item) -> int by=members
   do
    require item.enabled
@@ -212,18 +220,10 @@ fn intrinsic_compile_output_keeps_admitted_identity_distinct_from_row_fields() {
     let source = format!(
         "{body}\n{}\nThen{then}",
         r#"
- scenario operation_id() -> text by=members
-  do return operation.id
- scenario original_version(item:Item) -> int by=members
-  do return item.version
  scenario alias_version(item:Item) -> int by=members
   do
    let alias=item
    return (alias.version)
- scenario post_write_version(item:Item) -> int by=members
-  do
-   set item {value=2}
-   return item.version
  scenario private_version(item:WriteItem) -> int by=members
   do
    if item.private_choice
@@ -262,6 +262,30 @@ fn intrinsic_compile_output_keeps_admitted_identity_distinct_from_row_fields() {
    return 1
  scenario shorthand_send(source:text,revision:int) by=members
   do send LLM.cancel {source,revision} as stop
+ scenario guard_operation_before(item:Item) by=members
+  do
+   require operation.id!=""
+   set item {value=2}
+ scenario guard_operation_after(item:Item) by=members
+  do
+   set item {value=2}
+   require operation.id!=""
+ scenario guard_version_before(item:Item) by=members
+  do
+   require item.version>0
+   set item {value=2}
+ scenario guard_version_after(item:Item) by=members
+  do
+   set item {value=2}
+   require item.version>0
+ scenario independent_version_guard(item:Item) -> int by=members
+  do
+   require item.version>0
+   return 7
+ scenario independent_operation_guard() -> int by=members
+  do
+   require operation.id!=""
+   return 7
 "#
     );
     let scratch = tempfile::tempdir().unwrap();
@@ -301,11 +325,17 @@ fn intrinsic_compile_output_keeps_admitted_identity_distinct_from_row_fields() {
         assert_eq!(plan["version"], 1, "{name}");
         let returns = plan["returns"].as_array().unwrap();
         assert_eq!(returns.len(), 1, "{name}");
-        assert_eq!(
-            returns[0]["dependencies"],
-            serde_json::json!([]),
-            "intrinsics must not pretend to be stored fields"
-        );
+        if name == "post_write_version" {
+            assert_eq!(returns[0]["dependencies"].as_array().unwrap().len(), 1);
+            assert_eq!(returns[0]["dependencies"][0]["field"], "value");
+            assert_eq!(returns[0]["dependencies"][0]["role"], "data");
+        } else {
+            assert_eq!(
+                returns[0]["dependencies"],
+                serde_json::json!([]),
+                "intrinsics must not pretend to be stored fields"
+            );
+        }
         let intrinsics = returns[0]["intrinsics"].as_array().unwrap();
         assert_eq!(intrinsics.len(), 1, "{name}");
         let intrinsic = &intrinsics[0];
@@ -464,6 +494,53 @@ fn intrinsic_compile_output_keeps_admitted_identity_distinct_from_row_fields() {
                     .unwrap()["valueType"],
                 ty
             );
+        }
+    }
+    for name in [
+        "guard_operation_before",
+        "guard_operation_after",
+        "guard_version_before",
+        "guard_version_after",
+    ] {
+        let op = operation(&artifact, name);
+        assert_eq!(op["result"]["type"], "void");
+        let plan = &op["result"]["disclosure"];
+        assert_eq!(plan["version"], 1);
+        let paths = plan["returns"].as_array().unwrap();
+        assert_eq!(paths.len(), 1);
+        assert_eq!(paths[0]["dependencies"], serde_json::json!([]));
+        let intrinsics = paths[0]["intrinsics"].as_array().unwrap();
+        assert_eq!(
+            intrinsics.len(),
+            1,
+            "successful effect guard must retain its exact control: {name}"
+        );
+        assert_eq!(intrinsics[0]["role"], "control");
+        assert_eq!(intrinsics[0]["source"], plan["source"]);
+        if name.starts_with("guard_operation") {
+            assert_eq!(intrinsics[0]["kind"], "operation-id");
+            assert_eq!(intrinsics[0]["type"], "text");
+            assert!(
+                intrinsics[0].get("parameter").is_none() && intrinsics[0].get("model").is_none()
+            );
+        } else {
+            assert_eq!(intrinsics[0]["kind"], "admitted-reference-version");
+            assert_eq!(intrinsics[0]["type"], "int");
+            assert_eq!(intrinsics[0]["parameter"], "item");
+            assert_eq!(intrinsics[0]["model"], "NativeReceipts.Item");
+        }
+    }
+    for name in ["independent_version_guard", "independent_operation_guard"] {
+        let plan = &operation(&artifact, name)["result"]["disclosure"];
+        assert_eq!(plan["version"], 1);
+        for path in plan["returns"].as_array().unwrap() {
+            assert!(
+                path["intrinsics"]
+                    .as_array()
+                    .is_none_or(|values| values.is_empty()),
+                "require-only admission cannot taint independent literal without effects: {name}"
+            );
+            assert_eq!(path["dependencies"], serde_json::json!([]));
         }
     }
     for name in ["nullable_version", "body_actor"] {
@@ -665,6 +742,9 @@ fn opt_in_native_capture_retains_selected_paths_replays_and_current_state_projec
     for name in [
         "literal",
         "input",
+        "operation_id",
+        "original_version",
+        "post_write_version",
         "checked",
         "field",
         "branch",
@@ -818,6 +898,7 @@ const ref=row=>({id:row.id,version:String(row.version)});
 const saved=[];
 for(const [name,inputs,expected,fields] of [
  ['literal',{},'7',[]],['input',{value:'9223372036854775807'},'9223372036854775807',[]],
+ ['operation_id',{},null,[]],['original_version',{item:ref(yes)},'1',[]],
  ['checked',{item:ref(yes)},'7',[]],['field',{item:ref(yes)},'17',['value']],
  ['branch',{item:ref(yes)},'17',['enabled','value']],['branch',{item:ref(no)},'0',['enabled']],
  ['conjunction',{item:ref(yes)},true,['enabled','value']],['conjunction',{item:ref(no)},false,['enabled']],
@@ -839,12 +920,25 @@ for(const [name,inputs,expected,fields] of [
  ['derived_match',{item:ref(yes),selected:'a'},'17',['value']],['derived_match',{item:ref(yes),selected:'b'},'18',['value']],
 ]){
  const req=request(name,inputs),result=await committed(req),receipt=await receiptFor(req);
- assert.deepEqual(result.result,expected);assert.deepEqual(receipt.outcome.result,expected);
+ const actualExpected=name==='operation_id'?req.operation_id:expected;
+ assert.deepEqual(result.result,actualExpected);assert.deepEqual(receipt.outcome.result,actualExpected);
  assert.equal(JSON.stringify(result).includes('scenario-result/v1'),false,'association metadata remains private');
  const association=readScenarioReceiptAssociation(receipt);assert.ok(association,'native State-owned capture');
  const descriptor=artifact.operations.find(op=>op.name===req.operation);
  assert.deepEqual(association.plan,descriptor.result.disclosure);
  const path=association.plan.returns.find(value=>value.id===association.returnId);assert.ok(path);
+ if(['input','operation_id','original_version'].includes(name)){
+  assert.equal(path.intrinsics.length,1);assert.equal(association.intrinsics.length,1);
+  const declared=path.intrinsics[0],captured=association.intrinsics[0];
+  assert.equal(captured.dependencyId,declared.id);assert.equal(captured.kind,declared.kind);
+  assert.deepEqual(declared.source,association.plan.source);
+  assert.equal(captured.wire,name==='operation_id'?req.operation_id:name==='input'?inputs.value:'1');
+  if(name==='original_version'){
+   assert.equal(declared.parameter,'item');assert.equal(declared.model,'NativeReceipts.Item');
+   assert.equal(captured.model,'NativeReceipts.Item');assert.deepEqual(captured.row,await store.load('NativeReceipts.Item',yes.id));
+   assert.equal(captured.row.version,1);assert.deepEqual(captured.secretFields,[]);
+  }
+ }
  assert.deepEqual([...new Set(path.dependencies.map(dep=>dep.field))].sort(),[...fields].sort());
  assert.deepEqual([...association.observations.map(observation=>observation.dependencyId)].sort(),[...path.dependencies.map(dep=>dep.id)].sort());
  assert.deepEqual(association.changed,[]);
@@ -872,11 +966,11 @@ for(const [name,inputs,expected,fields] of [
  if(name==='derived_lazy')assert.equal(path.dependencies.filter(dep=>dep.field==='value').length,inputs.item.id===yes.id?1:0,'derive fallback keeps its RHS lazy');
  for(const observation of association.observations){const input=name==='imported'?inputs.shared:inputs.item;assert.equal(observation.model,name==='imported'?'receiptlib.Shared':'NativeReceipts.Item');assert.equal(observation.row.id,input.id);assert.deepEqual(observation.row.data,rows.get(input.id).data);}
  const revision=await store.readRevision(),count=commits,history=await store.historyFor('NativeReceipts.Item',yes.id);
- const replay=await invoke(req);assert.ok('result' in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');assert.deepEqual(replay.result.result,expected);
+ const replay=await invoke(req);assert.ok('result' in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');assert.deepEqual(replay.result.result,actualExpected);
  assert.equal(commits,count);assert.equal(await store.readRevision(),revision);assert.deepEqual(await receiptFor(req),receipt);assert.deepEqual(await store.historyFor('NativeReceipts.Item',yes.id),history);
  const projected=await projectScenarioReceipt({receipt,registry:loaded.registry,policy:loaded.policy,app:'NativeReceipts',identity,store,memberships});
- assert.deepEqual(projected.result,expected);assert.deepEqual(projected.records,[]);
- saved.push({req,receipt,expected});
+ assert.deepEqual(projected.result,actualExpected);assert.deepEqual(projected.records,[]);
+ saved.push({req,receipt,expected:actualExpected});
 }
 // Initial validation/business refusal keeps the actual checked pipeline controls.
 const failed=request('checked',{item:ref(no)}),denied=await invoke(failed);
@@ -921,11 +1015,13 @@ const retainedInvoker=buildInvoker(artifact,asm,readonlyStore,{memberships,now:(
 const written=[];
 for(const [name,choice,fields] of [
  ['changed',true,[]],['computed',true,['value','label','enabled']],
+ ['post_write_version',true,['value']],
  ['private_write',true,['private_choice']],['private_write',false,['private_choice']],
  ['public_write',true,['public_choice']],['public_write',false,['public_choice']],
 ]){
- const model=name==='changed'?'NativeReceipts.Item':'NativeReceipts.WriteItem';
- const born=name==='changed'?await create({value:'5',enabled:true,optional:null,values:null,required:[]}):
+ const itemModel=['changed','post_write_version'].includes(name);
+ const model=itemModel?'NativeReceipts.Item':'NativeReceipts.WriteItem';
+ const born=itemModel?await create({value:'5',enabled:true,optional:null,values:null,required:[]}):
   (await committed(request('WriteItem.create',{value:'5',label:'Original',note:'Clear me',enabled:true,private_choice:choice,public_choice:choice}))).records[0];
  const original=await store.load(model,born.id);
  const req=request(name,{item:ref(born)}),result=await committed(req),receipt=await receiptFor(req);
@@ -934,14 +1030,21 @@ for(const [name,choice,fields] of [
  assert.equal(result.records.length,choice&&!withheld?1:0);
  const physical=await store.load(model,born.id);
  assert.equal(physical.version,choice?2:1);
- assert.equal(physical.data.value,choice?(name==='computed'?'6':'2'):'5');
+ assert.equal(physical.data.value,choice?(['computed','post_write_version'].includes(name)?'6':'2'):'5');
  if(name==='computed'){assert.equal(physical.data.label,'Original');assert.equal(physical.data.note,null);assert.equal(physical.data.enabled,true);}
  const association=readScenarioReceiptAssociation(receipt);assert.ok(association,'Set owns a genuine successful native association');
  assert.deepEqual(association.plan,artifact.operations.find(op=>op.name===req.operation).result.disclosure);
  const path=association.plan.returns.find(value=>value.id===association.returnId);assert.ok(path);
  assert.deepEqual(path.dependencies.map(dep=>dep.field),fields);
  assert.deepEqual(association.observations.map(value=>value.dependencyId),path.dependencies.map(value=>value.id));
- for(const dependency of path.dependencies){assert.equal(dependency.model,model);assert.equal(dependency.role,name==='computed'?'data':'control');}
+ for(const dependency of path.dependencies){assert.equal(dependency.model,model);assert.equal(dependency.role,['computed','post_write_version'].includes(name)?'data':'control');}
+ if(name==='post_write_version'){
+  assert.equal(path.intrinsics.length,1);assert.equal(association.intrinsics.length,1);
+  const declared=path.intrinsics[0],captured=association.intrinsics[0];
+  assert.equal(declared.kind,'admitted-reference-version');assert.equal(declared.parameter,'item');assert.equal(declared.type,'int');
+  assert.equal(captured.dependencyId,declared.id);assert.equal(captured.kind,declared.kind);assert.equal(captured.wire,'1','post-write expression retains the admitted ORIGINAL version');
+  assert.equal(captured.model,model);assert.deepEqual(captured.row,original);assert.equal(captured.row.version,1);
+ }
  for(const observation of association.observations){assert.equal(observation.row.id,born.id);assert.deepEqual(observation.row,original);}
  assert.equal(association.changed.length,choice?1:0);
  if(choice){assert.equal(association.changed[0].model,model);assert.deepEqual(association.changed[0].row,physical);}
@@ -955,9 +1058,23 @@ for(const [name,choice,fields] of [
  const retained=await retainedInvoker.invokeRetainedMutation(req,identity);assert.ok('result' in retained,JSON.stringify(retained));
  assert.equal(retained.result.status,'replayed');assert.deepEqual(retained.result.result,result.result);assert.deepEqual(retained.result.records,result.records);
  assert.deepEqual(await stable(),before);assert.equal(retainedCommits,0);assert.equal(fileReads,0);
+ if(name==='post_write_version'){
+  await committed(request('Item.update',{record:ref(physical),value:'99'}));
+  assert.equal((await store.load(model,born.id)).version,3);
+  const after=await stable();
+  for(const dedicated of [false,true]){
+   const recovered=await (dedicated?retainedInvoker.invokeRetainedMutation(req,identity):retainedInvoker.invokeMutation(req,identity));
+   assert.ok('result' in recovered,JSON.stringify(recovered));assert.equal(recovered.result.status,'replayed');
+   assert.equal(recovered.result.result,'1');assert.deepEqual(recovered.result.records,result.records,'saved changed value6/version2 survives later value99/version3');
+  }
+  assert.deepEqual(await stable(),after);assert.equal(retainedCommits,0);assert.equal(fileReads,0);
+ }
  written.push({req,receipt,model,row:physical,result});
 }
-const retainedCases=[field,originalArray,originalDerived];
+const originalVersion=saved.find(value=>value.req.operation==='NativeReceipts.original_version');
+const originalOperation=saved.find(value=>value.req.operation==='NativeReceipts.operation_id');
+const originalInput=saved.find(value=>value.req.operation==='NativeReceipts.input');
+const retainedCases=[field,originalArray,originalDerived,originalVersion,originalOperation,originalInput];
 const snapshot=async()=>({receipts:await Promise.all(retainedCases.map(value=>receiptFor(value.req))),
  revision:await store.readRevision(),rows:await store.query({model:'NativeReceipts.Item',authority:'owner',archived:'include'}),
  history:await Promise.all([yes,no,populated].map(row=>store.historyFor('NativeReceipts.Item',row.id))),
@@ -999,14 +1116,18 @@ for(const value of retainedCases){
  for(const dedicated of [false,true]){
   const replay=await (dedicated?retainedInvoker.invokeRetainedMutation(value.req,identity):invoke(value.req));
   assert.ok('result' in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');
-  assert.equal(replay.result.result,null);assert.deepEqual(replay.result.records,[]);
+  const association=readScenarioReceiptAssociation(value.receipt);
+  const path=association.plan.returns.find(path=>path.id===association.returnId);
+  const readsRow=path.dependencies.length>0||(path.intrinsics??[]).some(dep=>dep.kind==='admitted-reference-version');
+  assert.deepEqual(replay.result.result,readsRow?null:value.expected,'original-reference intrinsic gates lifetime even without stored-field dependencies');assert.deepEqual(replay.result.records,[]);
   assert.equal(JSON.stringify(replay).includes('scenario-result/v1'),false);
  }
 }
 assert.deepEqual(await snapshot(),retainedBefore);assert.equal(retainedCommits,0);assert.equal(fileReads,0);
 // Current read authority also gates the saved Set result and changed row.
 for(const value of written){
- await committed(request(value.model==='NativeReceipts.Item'?'Item.delete':'WriteItem.delete',{record:ref(value.row)}));
+ const current=await store.load(value.model,value.row.id);
+ await committed(request(value.model==='NativeReceipts.Item'?'Item.delete':'WriteItem.delete',{record:ref(current)}));
  const before={receipt:await receiptFor(value.req),row:await store.load(value.model,value.row.id),history:await store.historyFor(value.model,value.row.id),revision:await store.readRevision(),commits};
  for(const dedicated of [false,true]){
   const outcome=await (dedicated?retainedInvoker.invokeRetainedMutation(value.req,identity):retainedInvoker.invokeMutation(value.req,identity));
