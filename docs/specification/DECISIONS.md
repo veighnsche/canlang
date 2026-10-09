@@ -3127,3 +3127,7 @@ Accepted bounded correction: Cloudflare checked enum result validation now impor
 ## 2026-10-09 — clean up test-command scratch across failure paths
 
 Accepted bounded DEL-D03 correction: protect the complete test scratch lifetime after acquisition, then attempt acquired scope disposal and directory removal even when assembly, module reading, scope construction or snapshot fails. Preserve the first thrown value, including null or undefined, when cleanup also fails. The actual CLI dispatch regression suite passes 29/29 and Cloudflare TypeScript checking passes. Run URL lifetime, command resource budgets and native preparation remain separately owned; no reduction or whole packet completion is claimed. The repair queue now links its existing current execution record, preserving historical planning evidence.
+
+## 2026-10-09 — release controlled mail drip timers
+
+Accepted bounded TECH-SV04 correctness correction: the controlled mail harness releases each delayed response timer when it fires or its response closes, and clears concurrent acquired timers before server socket shutdown. Five focused checks pass, including actual HTTP status/body bytes, peer teardown and concurrent close; strict focused TypeScript checking passes. This is controlled Node resource ownership, with no provider/durable acceptance or replacement savings.

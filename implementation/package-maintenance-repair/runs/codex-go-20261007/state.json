@@ -878,7 +878,17 @@
       "readable_reduction": 87,
       "full_closure_reduction": 84,
       "measurement": "AST token leaves exclude trivia; previous raw scanner absolute counts corrected, saving delta unchanged",
-      "commit": "4d6a781"
+      "commit": "4d6a781",
+      "mail_drip_cleanup": {
+        "state": "implemented, tested, root-reviewed",
+        "files": [
+          "packages/services/src/ports.ts",
+          "packages/services/test/private-harness-leaves.test.ts"
+        ],
+        "behavior": "Release acquired drip timers on firing or response teardown, and clear concurrent timers before closing server sockets.",
+        "validation": "5/5 focused actual HTTP/helper tests; strict focused TypeScript check passed",
+        "limits": "Controlled Node harness only; no reduction credit or provider/durable acceptance."
+      }
     },
     "DEL-D01": {
       "planning_status": "ready",
