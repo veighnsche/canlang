@@ -6,6 +6,7 @@ import {
   captureIsCurrent,
   captureSingleFileSource,
   capturedRuntimeInputsAreCurrent,
+  capturedProducerInputsAreCurrent,
   verifyCompilerSources,
   type SingleFileCaptureRequest,
 } from "../src/dev/source-capture.js";
@@ -57,8 +58,10 @@ describe("one-file source capture", () => {
     writeFileSync(join(request.checkoutRoot, "app.can"), "app Office\n## Changed source.\n");
     expect(await captureIsCurrent(first)).toBe(false);
     expect(await capturedRuntimeInputsAreCurrent(first)).toBe(true);
+    expect(await capturedProducerInputsAreCurrent(first)).toBe(true);
     writeFileSync(request.packageInputPaths[0]!.path, "changed installed producer");
     expect(await capturedRuntimeInputsAreCurrent(first)).toBe(false);
+    expect(await capturedProducerInputsAreCurrent(first)).toBe(false);
   });
   it("keeps runtime currency independent from analysis-only inputs", async () => {
     const request = fixture();
@@ -71,9 +74,13 @@ describe("one-file source capture", () => {
 
     writeFileSync(join(request.checkoutRoot, "app.can"), "app Office\n## Edited app.\n");
     expect(await capturedRuntimeInputsAreCurrent(capture)).toBe(true);
+    expect(await capturedProducerInputsAreCurrent(capture)).toBe(true);
     for (const path of [request.compilerPath, request.catalogPath!, request.helpIndexPath, grammarPath]) {
+      const producerCapture = await captureSingleFileSource({ ...request,
+        extraInputPaths: [{name:"grammar:main",path:grammarPath}] });
       writeFileSync(path, `analysis-only change ${path}`);
       expect(await capturedRuntimeInputsAreCurrent(capture)).toBe(true);
+      expect(await capturedProducerInputsAreCurrent(producerCapture)).toBe(false);
     }
     writeFileSync(request.packageInputPaths[0]!.path, "changed runtime output");
     expect(await capturedRuntimeInputsAreCurrent(capture)).toBe(false);

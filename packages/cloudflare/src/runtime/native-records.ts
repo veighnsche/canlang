@@ -1,5 +1,6 @@
 /** Identity for framework-created native views, without business-field tags. */
 import type { CanValue, RecordRef, StoredRow } from '@canlang/contracts';
+import type { AdmittedCall } from '@canlang/state/invocation';
 import { StateError } from '@canlang/state/errors';
 import { makeRecordRef, same } from '@canlang/values';
 
@@ -41,6 +42,37 @@ export function bindNativeScenarioReceiptRow(view: object, owner: object, model:
     throw new StateError('validation', 'Scenario receipt row requires its original framework conversion.');
   }
   scenarioRows.set(view, { owner, model, id: identity.id, current });
+}
+
+/** Original parameter admission stays separate from the mutable row resolver.
+ * Several parameters may share one cached native view of the same record.
+ */
+const scenarioReferences = new WeakMap<object, Map<string, {
+  readonly owner: object; readonly reference: AdmittedCall['recordRefs'][number];
+}>>();
+
+export function bindNativeScenarioReceiptReference(view: object, owner: object,
+  reference: AdmittedCall['recordRefs'][number]): void {
+  const row = scenarioRows.get(view), identity = identities.get(view);
+  if (row === undefined || row.owner !== owner || row.model !== reference.model || row.id !== reference.id ||
+      identity?.version !== BigInt(reference.row.version)) {
+    throw new StateError('validation', 'Scenario intrinsic requires its original admitted native parameter.');
+  }
+  let references = scenarioReferences.get(view);
+  if (references === undefined) { references = new Map(); scenarioReferences.set(view, references); }
+  if (references.has(reference.param)) {
+    throw new StateError('validation', 'Scenario intrinsic parameter cannot be rebound.');
+  }
+  references.set(reference.param, { owner, reference });
+}
+
+export function captureNativeScenarioReceiptReference(view: unknown, owner: object,
+  parameter: string): AdmittedCall['recordRefs'][number] {
+  const binding = typeof view === 'object' && view !== null ? scenarioReferences.get(view)?.get(parameter) : undefined;
+  if (binding === undefined || binding.owner !== owner) {
+    throw new StateError('validation', 'Scenario intrinsic reference is copied, foreign, or not its admitted parameter.');
+  }
+  return binding.reference;
 }
 
 /** Validate finite own JSON wire data without evaluating any accessor. Keep

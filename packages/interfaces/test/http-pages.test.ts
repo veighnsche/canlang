@@ -8,6 +8,8 @@ import { deriveCsrfToken, IdentityError } from '@canlang/identity';
 import type {
   AdmittedBindings,
   PageDescriptor,
+  PageRecordsQuery,
+  PageRecordsReader,
   PageSourceContext,
   PresentationContext,
   ResolvedIdentity,
@@ -327,7 +329,9 @@ test('authed GET embeds the derived CSRF token and account teams', async () => {
   assert.equal(rendered[0]!.actorFacts, admitted[0]!.actorFacts);
   assert.equal(rendered[0]!.team, admitted[0]!.team);
   assert.equal(rendered[0]!.memberships, admitted[0]!.memberships);
-  assert.equal(rendered[0]!.canonical, admitted[0]!.canonical);
+  assert.deepEqual(rendered[0]!.canonical?.builtinRoles, admitted[0]!.canonical.builtinRoles);
+  assert.equal(admitted[0]!.canonical.readRecords, undefined);
+  assert.equal(typeof rendered[0]!.canonical?.readRecords, 'function');
 });
 
 test('?team= scoping honors the explicit team; unknown team is 404', async () => {
@@ -575,6 +579,119 @@ function queryingPage(): PageDescriptor {
     },
   });
 }
+
+test('native record reads use the exact admitted request scope for full and partial pages without collection truncation', async () => {
+  for (const partial of [false, true]) {
+    const admissions: PageSourceContext[] = [];
+    const events: string[] = [];
+    const rows = Array.from({ length: 130 }, (_, index) => ({ id: `native-${index}`, version: BigInt(index + 1) }));
+    const authored: PageRecordsQuery = { authority: 'viewer' };
+    let scopeIdentity: ResolvedIdentity | undefined;
+    let reads = 0;
+    const readRecords: PageRecordsReader = async (model, query) => {
+      events.push('read'); reads += 1;
+      assert.equal(model, 'TestApp.Todo');
+      assert.equal(query, authored);
+      assert.equal(scopeIdentity?.actor?.user_id, identity.userId);
+      assert.equal(scopeIdentity?.team?.team_id, identity.teamId);
+      return rows;
+    };
+    const page = helloPage({
+      admit: async context => {
+        const source = context as PageSourceContext;
+        admissions.push(source); events.push('admit');
+        assert.equal(source.canonical.readRecords, undefined);
+        return {};
+      },
+      render: async context => {
+        assert.equal(context.canonical?.readRecords, readRecords);
+        // Extra renderer arguments cannot replace the identity captured by the scope.
+        const native = await (context.canonical!.readRecords as (...args: unknown[]) => ReturnType<PageRecordsReader>)(
+          'TestApp.Todo', authored, { actor: { user_id: 'foreign' }, team: { team_id: 'foreign' } });
+        assert.equal(native, rows);
+        assert.equal(native[129]?.['version'], 130n);
+        return `<p>native:${native.length}</p>`;
+      },
+    });
+    const { deps, identity } = await createTestDeps({ descriptors: [page] });
+    let scopes = 0;
+    const res = await handlePageRequest({ ...deps,
+      query: async () => { assert.fail('native records must not fall back to collection queries'); },
+      createReadScope: current => {
+        events.push('scope'); scopes += 1; scopeIdentity = current;
+        assert.ok(admissions.length > 0);
+        assert.equal(current.actor?.user_id, identity.userId);
+        assert.equal(current.team?.team_id, identity.teamId);
+        return { query: async () => { assert.fail('native records must not use the scope collection query'); }, readRecords };
+      },
+    }, testRequest(`/hello?team=${identity.teamId}`, { cookie: identity.cookie,
+      ...(partial ? { headers: { 'HX-Request': 'true' } } : {}) }));
+    assert.equal(res.status, 200);
+    assert.match(await res.text(), /<p>native:130<\/p>/);
+    assert.equal(scopes, 1); assert.equal(reads, 1);
+    assert.ok(events.indexOf('admit') < events.indexOf('scope'));
+    assert.ok(events.indexOf('scope') < events.indexOf('read'));
+  }
+});
+
+test('native record reads explicitly refuse an absent reader for full and partial pages', async () => {
+  const page = helloPage({ render: async context => {
+    await context.canonical!.readRecords!('TestApp.Todo', {});
+    return '<p>unreachable</p>';
+  } });
+  const { deps } = await createTestDeps({ descriptors: [page] });
+  for (const partial of [false, true]) {
+    const res = await handlePageRequest({ ...deps,
+      query: async () => { assert.fail('an absent native reader must not fall back'); },
+    }, testRequest('/hello', partial ? { headers: { 'HX-Request': 'true' } } : {}));
+    assert.equal(res.status, 400);
+    assert.equal((await jsonBody(res)).code, 'validation');
+  }
+});
+
+test('native record owner refusals preserve selectors and forbidden, conflict and validation meanings', async () => {
+  const authored: PageRecordsQuery = { parent: 'unsupported-parent', where: 'unsupported-where',
+    order: 'unsupported-order', limit: 130, archived: 'include', authority: 'owner' };
+  for (const [code, status] of [['forbidden', 403], ['conflict', 409], ['validation', 400]] as const) {
+    const page = helloPage({ render: async context => {
+      await context.canonical!.readRecords!('TestApp.Todo', authored);
+      return '<p>unreachable</p>';
+    } });
+    const { deps, identity } = await createTestDeps({ descriptors: [page] });
+    let reads = 0;
+    const res = await handlePageRequest({ ...deps, createReadScope: () => ({
+      query: async () => { assert.fail('owner refusal must not fall back'); },
+      readRecords: async (_model, query) => {
+        reads += 1; assert.equal(query, authored);
+        throw buildBusinessError(code, 'Native owner refusal.');
+      },
+    }) }, testRequest('/hello', { cookie: identity.cookie }));
+    assert.equal(res.status, status);
+    const error = await jsonBody(res);
+    assert.equal(error.code, code); assert.equal(error.message, 'Native owner refusal.');
+    assert.equal(reads, 1);
+    const scopeRefusal = await handlePageRequest({ ...deps, createReadScope: () => {
+      throw buildBusinessError(code, 'Native scope refusal.');
+    } }, testRequest('/hello', { cookie: identity.cookie }));
+    assert.equal(scopeRefusal.status, status);
+    assert.deepEqual(await scopeRefusal.json(), { code, message: 'Native scope refusal.', retryable: false });
+  }
+});
+
+test('page admission denial never creates a native record scope or invokes its reader', async () => {
+  const { deps, identity } = await createTestDeps({ descriptors: [secretPage(), helloPage()] });
+  let scopes = 0; let reads = 0;
+  const scopedDeps = { ...deps, createReadScope: () => {
+    scopes += 1;
+    return { query: async () => TODO_LIST_RESULT, readRecords: async () => { reads += 1; return []; } };
+  } };
+  const res = await handlePageRequest(scopedDeps, testRequest('/secret', { cookie: identity.cookie }));
+  assert.equal(res.status, 403);
+  const invalidSession = await handlePageRequest(scopedDeps,
+    testRequest('/hello', { cookie: 'can_session=not-an-issued-token' }));
+  assert.equal(invalidSession.status, 403);
+  assert.equal(scopes, 0); assert.equal(reads, 0);
+});
 
 const TODO_LIST_RESULT = {
   rows: [{ id: 't1', fields: { title: 'Write tests' } }],

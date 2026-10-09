@@ -63,7 +63,7 @@ import { equalValue as equalValueProducer } from '@canlang/values';
 import { sameNativeReference } from './native-records.js';
 
 // Private generated markers resolve only framework-bound scenario lifetimes.
-export { observeScenarioReceiptDependency, selectScenarioReceiptReturn } from './scenario-receipt-frame.js';
+export { observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, selectScenarioReceiptReturn } from './scenario-receipt-frame.js';
 
 // Generated pure helpers retain their Values producer identity.
 export {
