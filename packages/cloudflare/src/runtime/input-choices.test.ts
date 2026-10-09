@@ -28,6 +28,10 @@ test('genuine dependent choices use current native D1 grants and the original ge
   let sequence = 100;
   const id = () => uuidv7(FIXED_NOW, ++sequence);
   let miniflare: Miniflare | undefined;
+  let failure: { value: unknown } | undefined;
+  const cleanup = async (release: () => unknown | Promise<unknown>) => {
+    try { await release(); } catch (error) { failure ??= { value: error }; }
+  };
   const open = async () => {
     miniflare = new Miniflare({ compatibilityDate: '2026-07-15', modules: true,
       script: 'export default { fetch() { return new Response("ok"); } }',
@@ -161,15 +165,24 @@ test('genuine dependent choices use current native D1 grants and the original ge
     let hold = false;
     const releases: Array<() => void> = [];
     const signals: Array<NonNullable<SubmitFetchInit['signal']>> = [];
+    const transports = new Set<ReturnType<SubmitFetch>>();
     let choiceRequests = 0;
     const fetchImpl: SubmitFetch = async (url, init) => {
       if (url.includes('/choices/')) {
         choiceRequests++; assert.ok(init.signal); signals.push(init.signal);
       }
-      const response = await worker.fetch(new Request(new URL(url, 'https://test.invalid'), {
-        ...init, body: init.body as string, headers: { ...init.headers, cookie } }));
-      if (hold && url.includes('/choices/')) await new Promise<void>(resolve => releases.push(resolve));
-      return response;
+      // Bind the hold to this request's phase before the real worker yields.
+      const held = hold && url.includes('/choices/')
+        ? new Promise<void>(resolve => releases.push(resolve)) : undefined;
+      const transport = (async () => {
+        const response = await worker.fetch(new Request(new URL(url, 'https://test.invalid'), {
+          ...init, body: init.body as string, headers: { ...init.headers, cookie } }));
+        await held;
+        return response;
+      })();
+      transports.add(transport);
+      void transport.then(() => transports.delete(transport), () => transports.delete(transport));
+      return transport;
     };
     let client = startBrowserClient({ window: window as unknown as BrowserClientOptions['window'], fetchImpl });
     const wait = async (condition: () => boolean) => {
@@ -278,12 +291,31 @@ test('genuine dependent choices use current native D1 grants and the original ge
           await wait(() => regionSelect.children.length === 2);
         }
       }
-    } finally { client.stop(); await window.happyDOM.close(); }
+    } catch (error) {
+      failure ??= { value: error };
+    } finally {
+      await cleanup(() => client.stop());
+      for (const release of releases) await cleanup(release);
+      // Cancellation may be ignored by the transport; keep real ports open
+      // until every worker request and its released hold gate have settled.
+      await cleanup(async () => {
+        const settled = await Promise.allSettled([...transports]);
+        for (const result of settled) if (result.status === 'rejected') throw result.reason;
+      });
+      await cleanup(() => window.happyDOM.close());
+    }
+    if (failure !== undefined) throw failure.value;
     const beforeReopen = await storage.state.readRevision();
     await miniflare!.dispose(); miniflare = undefined; storage = await open(); worker = await assemble();
     const reopened = await choices('assign/choices/assignee', { submission: { id: submission, version: '1' } });
     assert.equal(reopened.status, 200, JSON.stringify(reopened));
     assert.deepEqual(reopened.body.choices?.[0]?.value, { id: reviewer.user_id });
     assert.equal(await storage.state.readRevision(), beforeReopen);
-  } finally { await miniflare?.dispose(); await rm(dir, { recursive: true, force: true }); }
+  } catch (error) {
+    failure ??= { value: error };
+  } finally {
+    await cleanup(() => miniflare?.dispose());
+    await cleanup(() => rm(dir, { recursive: true, force: true }));
+  }
+  if (failure !== undefined) throw failure.value;
 });
