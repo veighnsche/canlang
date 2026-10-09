@@ -7824,7 +7824,7 @@ fn a2b_ui_profiles_lower_to_factories() {
         "chat slots dissolve to props:\n{js}"
     );
     assert!(
-        js.contains("$can$u$64656c6574655265636f7264({context:$can$l$313a726f7756696577,operation:\"shop.Item.delete\",record:(($can$r$64656c6574655f7265636f7264)=>({id:$can$r$64656c6574655f7265636f7264.id,version:$can$r$64656c6574655f7265636f7264.version.toString(10)}))($can$l$303a726f77),mode:\"archive\",action:\"/api/operations/shop.Item.delete\",operationId:\"shop.Item.delete\",itemLabel:\"Item\",confirm:\"Archive this Item?\",idPrefix:\"delete-shop-Item\"})"),
+        js.contains("$can$u$64656c6574655265636f7264({context:$can$l$313a726f7756696577,operation:\"shop.Item.delete\",record:(($can$r$64656c6574655f7265636f7264)=>({id:$can$r$64656c6574655f7265636f7264.id,version:$can$r$64656c6574655f7265636f7264.version.toString(10)}))($can$l$303a726f77),mode:\"archive\",action:\"/api/operations/shop.Item.delete\",itemLabel:\"Item\",confirm:\"Archive this Item?\",idPrefix:\"delete-shop-Item\",operationId:$can$u$6d696e744f7065726174696f6e4964()})"),
         "delete infers the full card:\n{js}"
     );
 }
