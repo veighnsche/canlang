@@ -1694,3 +1694,19 @@ dependency/Cloudflare/Testkit outputs rebuild **26/26**, zero cached. The native
 Memory/public fixture owns dedicated recovery and current-access checks. Dev
 owns its already in-progress `native-scenario-receipts-d1.integration.test.ts`
 and `NativeSavedScenario.can` portable witness; no competing harness is created.
+
+**Generated public retained recovery/current access, 2026-10-09.** The existing
+actual CLI/native target passes **1/1** after its public recovery extension,
+preserving all **31 success invocations plus ordinary replay**. Dedicated
+`invokeRetainedMutation` at age16minutes recovers the exact original scalar/
+array after current updates using a commit-tripwire store and file-property
+tripwire; neither fires. Receipt bytes, revision, rows, history, outbox and
+schedules remain unchanged. Real generated CRUD archive makes both ordinary
+and dedicated replay withhold each saved value; revocation returns public
+`forbidden`, distinct from State's internal empty projection. Public output
+contains no private association metadata. The first attempt was source-refused
+E3009 because the fixture repeated default `delete=archive`; omitting that
+attribute restores the authored default and the complete case passes. Changed
+fixture strict Clippy and formatting pass; producer source is unchanged from
+**0b79ebc1**. Dev's in-progress portable D1 witness remains its exact prerequisite;
+no competing fixture, wider reference or held-policy acceptance follows.

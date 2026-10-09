@@ -1,5 +1,5 @@
 //! Opt-in native capture through unchanged CLI output and installed owners.
-//! Saved disclosure projection is State-owned; generic public scenario projection remains separate.
+//! Actual public ordinary and retained transports project State-owned saved associations.
 #![cfg(unix)]
 use serde_json::Value;
 use std::{path::Path, process::Command};
@@ -10,7 +10,7 @@ Given
  policy Item read=members
  derive value(item:Item):int = item.value
 When
- crud Item by=members fields=value,enabled,optional,values,required delete=none
+ crud Item by=members fields=value,enabled,optional,values,required
  scenario literal() -> int by=members
   do return 7
  scenario input(value:int) -> int by=members
@@ -293,6 +293,7 @@ for(const [name,inputs,expected,fields] of [
 ]){
  const req=request(name,inputs),result=await committed(req),receipt=await receiptFor(req);
  assert.deepEqual(result.result,expected);assert.deepEqual(receipt.outcome.result,expected);
+ assert.equal(JSON.stringify(result).includes('scenario-result/v1'),false,'association metadata remains private');
  const association=readScenarioReceiptAssociation(receipt);assert.ok(association,'native State-owned capture');
  const descriptor=artifact.operations.find(op=>op.name===req.operation);
  assert.deepEqual(association.plan,descriptor.result.disclosure);
@@ -345,6 +346,23 @@ assert.equal(arrayReplay.result.status,'replayed');assert.deepEqual(arrayReplay.
 assert.deepEqual(readScenarioReceiptAssociation(await receiptFor(originalArray.req)).observations[0].row.data.values,['9223372036854775807','-2']);
 assert.deepEqual((await projectScenarioReceipt({receipt:originalArray.receipt,registry:loaded.registry,policy:loaded.policy,app:'NativeReceipts',identity,store,memberships})).result,['9223372036854775807','-2']);
 assert.equal(commits,before.commits);assert.equal(await store.readRevision(),before.revision);
+// Dedicated recovery uses the actual public entry with no writable or file capability.
+let retainedCommits=0,fileReads=0;
+const readonlyStore={...store,commit:async()=>{retainedCommits++;throw new Error('retained commit tripwire');}};
+const fileTripwire=new Proxy({},{get(){fileReads++;throw new Error('retained file metadata tripwire');}});
+const retainedInvoker=buildInvoker(artifact,asm,readonlyStore,{memberships,now:()=>FIXED_NOW+16*60000,files:fileTripwire});
+const snapshot=async()=>({receipts:await Promise.all([field,originalArray].map(value=>receiptFor(value.req))),
+ revision:await store.readRevision(),rows:await store.query({model:'NativeReceipts.Item',authority:'owner',archived:'include'}),
+ history:await Promise.all([yes,no,populated].map(row=>store.historyFor('NativeReceipts.Item',row.id))),
+ outbox:probe.outboxAll(),schedules:await store.schedulesDue(Number.MAX_SAFE_INTEGER,100)});
+let retainedBefore=await snapshot();
+for(const value of [field,originalArray]){
+ const replay=await retainedInvoker.invokeRetainedMutation(value.req,identity);
+ assert.ok('result' in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');
+ assert.deepEqual(replay.result.result,value.expected);assert.deepEqual(replay.result.records,[]);
+ assert.equal(JSON.stringify(replay).includes('scenario-result/v1'),false,'dedicated output excludes association');
+}
+assert.deepEqual(await snapshot(),retainedBefore);assert.equal(retainedCommits,0);assert.equal(fileReads,0);
 // Existing storage seam: reject the actual observation load after one admission load.
 const failure=new StateError('validation','native array observation refused');let targetLoads=0;
 const faultStore={...store,load:async(model,id)=>{
@@ -362,11 +380,33 @@ assert.equal(readScenarioReceiptAssociation(rejected),null,'no selected successf
 assert.deepEqual(await store.load('NativeReceipts.Item',yes.id),effectsBefore.row);
 assert.deepEqual(await store.historyFor('NativeReceipts.Item',yes.id),effectsBefore.history);
 assert.deepEqual(probe.outboxAll(),effectsBefore.outbox);
-const afterFault={revision:await store.readRevision(),commits};
 // This does not claim instrumentation of unobserved pure element evaluation.
+// Real generated CRUD archive changes current lifetime; public transports withhold saved values.
+for(const row of [yes,populated]){
+ const current=await store.load('NativeReceipts.Item',row.id);
+ await committed(request('Item.delete',{record:ref(current)}));
+ assert.notEqual((await store.load('NativeReceipts.Item',row.id)).archivedAt,null);
+}
+retainedBefore=await snapshot();
+for(const value of [field,originalArray]){
+ for(const dedicated of [false,true]){
+  const replay=await (dedicated?retainedInvoker.invokeRetainedMutation(value.req,identity):invoke(value.req));
+  assert.ok('result' in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');
+  assert.equal(replay.result.result,null);assert.deepEqual(replay.result.records,[]);
+  assert.equal(JSON.stringify(replay).includes('scenario-result/v1'),false);
+ }
+}
+assert.deepEqual(await snapshot(),retainedBefore);assert.equal(retainedCommits,0);assert.equal(fileReads,0);
+const afterArchive={revision:await store.readRevision(),commits};
 // Revocation is checked by the released State projection over that exact native receipt.
 await memberships.removeMembership(member.membership.membership_id);
 for(const value of saved){assert.deepEqual(await projectScenarioReceipt({receipt:value.receipt,registry:loaded.registry,policy:loaded.policy,app:'NativeReceipts',identity,store,memberships}),{result:null,records:[]});}
-assert.equal(commits,afterFault.commits);assert.equal(await store.readRevision(),afterFault.revision);
+for(const value of [field,originalArray]){
+ const denied=await retainedInvoker.invokeRetainedMutation(value.req,identity);
+ assert.ok('error' in denied,JSON.stringify(denied));assert.equal(denied.error.code,'forbidden');
+ assert.equal(JSON.stringify(denied).includes('scenario-result/v1'),false);
+}
+assert.deepEqual(await snapshot(),retainedBefore);assert.equal(retainedCommits,0);assert.equal(fileReads,0);
+assert.equal(commits,afterArchive.commits);assert.equal(await store.readRevision(),afterArchive.revision);
 assert.equal(probe.outboxAll().length,0);
 "#;
