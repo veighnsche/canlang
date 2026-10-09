@@ -1151,6 +1151,8 @@ export interface CanonicalExecutionEffects {
   readonly result: unknown;
   readonly guards?: ReadonlyArray<CanonicalGuardRevalidation>;
   readonly readings?: ReadonlyArray<unknown>;
+  /** Internal producer intent; never admitted from a mutation envelope. */
+  readonly fileAssignments?: readonly { readonly model: string; readonly recordId: string; readonly field: string }[];
 }
 
 /**
@@ -3652,6 +3654,7 @@ async function runScenarioSeam(
   const stagedWrites: CanonicalStagedDomainWrite[] = [];
   const reservedVersions = new Map<string, RecordVersion>();
   const stagedHistory: unknown[] = [];
+  const fileAssignments = new Map<string, { model: string; recordId: string; field: string }>();
   const stagedTouches: CanonicalStagedUniqueTouch[] = [];
   const deferredEffects: SystemStaging[] = [];
   const queuedDeliveries = new Map<string, OutboxIntent>();
@@ -3845,6 +3848,13 @@ async function runScenarioSeam(
         const mutation = `${write.model}.${write.op === 'remove' ? 'delete' : write.op}`;
         if (loaded.unsupportedHookOperations.has(mutation)) {
           throw new StateError('validation', `Operation ${JSON.stringify(mutation)} requires unsupported canonical hooks.`);
+        }
+        if (write.op !== 'remove' && write.data !== undefined) {
+          for (const field of opts.artifact.models?.find(model => model.name === write.model)?.fields ?? []) {
+            if (field.field.kind !== 'file' || !Object.hasOwn(write.data, field.name) || write.data[field.name] === undefined) continue;
+            const assignment = { model: write.model, recordId: write.id, field: field.name };
+            fileAssignments.set(JSON.stringify([assignment.model, assignment.recordId, assignment.field]), assignment);
+          }
         }
         // Delivery tags predate the scalar valueType checkpoint. Their owning
         // artifact declaration still selects Values' exact native/wire codec.
@@ -4366,8 +4376,14 @@ async function runScenarioSeam(
     : makeRecordRef(returnedBinding.model, returnedBinding.id,
       BigInt(reservedVersions.get(stagedKey(returnedBinding.model, returnedBinding.id)) ?? returnedBinding.version));
   const result = scenarioResult(call, loaded, outcome.value, modelReference);
+  const writes = collapseStagedWrites(stagedWrites);
   return {
-    writes: collapseStagedWrites(stagedWrites),
+    writes,
+    // A removed provisional target retains no final file assignment. The
+    // validator still checks every returned intent against its actual net row.
+    fileAssignments: [...fileAssignments.values()].filter(assignment => writes.some(write =>
+      (write.kind === 'insert' || write.kind === 'update') && write.model === assignment.model &&
+      write.row?.id === assignment.recordId)),
     history: [...stagedHistory, ...deferredEffects.flatMap((effects) => effects.history ?? [])].map((entry) => {
       if (!isUnknownRecord(entry)) return entry;
       const first = stagedWrites.find((write) => write.model === entry["model"] &&
@@ -4445,6 +4461,20 @@ export async function invokeMutationCanonical(
           throw new StateError('validation', `Operation ${JSON.stringify(opts.operation)} requires unsupported canonical hooks.`);
         }
         effects = await crudExecute(call);
+        if (kind !== 'delete') {
+          const operation = opts.artifact.operations?.find(entry => entry.name === opts.operation);
+          const owningModel = opts.artifact.models?.find(model => `${model.name}.${kind}` === opts.operation);
+          const supplied = operation?.inputs.fields.filter(field => field.field.kind === 'file' &&
+            Object.hasOwn(opts.inputs, field.name) && opts.inputs[field.name] !== undefined &&
+            owningModel?.fields.some(declaration => declaration.name === field.name && declaration.field.kind === 'file')) ?? [];
+          const assignments = effects.writes.flatMap(effect => {
+            if (!isUnknownRecord(effect) || (effect.kind !== 'insert' && effect.kind !== 'update') ||
+                effect.model !== owningModel?.name || !isUnknownRecord(effect.row) || typeof effect.row.id !== 'string') return [];
+            const recordId = effect.row.id;
+            return supplied.map(field => ({ model: owningModel!.name, recordId, field: field.name }));
+          });
+          effects = { ...effects, fileAssignments: assignments };
+        }
       } else if (kind === "scenario") {
         effects = await runScenarioSeam(loaded, opts, call, occurrenceIds);
       } else {

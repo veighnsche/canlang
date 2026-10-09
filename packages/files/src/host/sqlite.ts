@@ -11,6 +11,8 @@ import { DEFAULT_FILE_POLICY, createUploadIntent, appendUploadContent, completeU
 import type { CreateIntentInput, UploadDeps } from '../upload/index.js';
 import { finalizeUpload, finalizeProviderOutput, readFinalizedFile, authorizeAttach, recordAttachment, readFinalizedBytes } from '../finalize/index.js';
 import type { FinalizeDeps, FinalizeInput, ProviderOutputInput } from '../finalize/index.js';
+import { runRetention, describeForReceipt } from '../retention/index.js';
+import type { RetentionConfig } from '../retention/index.js';
 
 export interface SqliteFileStore {
   readonly intents: IntentStorePort;
@@ -191,5 +193,10 @@ export function createSqliteFileBindings(store: SqliteFileStore, options: Sqlite
     recordAttachment: (ref: string, recordRef: string, caller: ReceivingContext) =>
       store.transaction(() => recordAttachment(finalize, ref, recordRef, caller)),
     readBytes: (ref: string, caller: ReceivingContext) => readFinalizedBytes(finalize, ref, caller),
+    /** Explicit receiving policy; the full sweep rolls back on interrupted cleanup. */
+    runRetention: (config: RetentionConfig) => store.transaction(() => runRetention({
+      clock: options.clock, intents: store.intents, files: store.files, blobs: store.blobs,
+    }, config)),
+    describeForReceipt: (ref: string) => describeForReceipt({ files: store.files, blobs: store.blobs }, ref),
   };
 }
