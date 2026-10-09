@@ -3,7 +3,6 @@ import { test } from 'node:test';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
 import { chromium } from '@playwright/test';
 import type { D1Database } from '@cloudflare/workers-types';
@@ -21,7 +20,7 @@ import { resolveRequestIdentity } from '@canlang/interfaces';
 import { generatedForm, message, renderPage } from '@canlang/ui';
 import type { SubmitFetchInit } from '@canlang/ui';
 import { startBrowserClient, type BrowserClientOptions } from '@canlang/ui/browser/bootstrap';
-import type { HTMLInputElement, HTMLSelectElement } from '../../../ui/node_modules/happy-dom/lib/index.js';
+import { Window, type HTMLInputElement, type HTMLSelectElement } from 'happy-dom';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { assembleWorker, buildInvoker } from '@canlang/cloudflare/worker/assembly';
 import { gatherBrowserAssets } from '@canlang/cloudflare/deploy/package-assets';
@@ -185,7 +184,6 @@ test('genuine dependent choices use current native D1 grants and the original ge
       corrupt(field); assert.throws(() => catalogFromArtifactOperations(malformed));
     }
 
-    const { Window } = createRequire(import.meta.resolve('@canlang/ui'))('happy-dom') as typeof import('../../../ui/node_modules/happy-dom/lib/index.js');
     const window = new Window({ url: 'https://test.invalid/form' });
     const context: PresentationContext = { preferredLocales: [], appDefaultLocale: 'en',
       theme: { mode: 'light', accent: 'blue', density: 'comfortable' }, path: '/form', pollContext: 'choices/member/team',
@@ -222,7 +220,7 @@ test('genuine dependent choices use current native D1 grants and the original ge
       assert.ok(condition(), 'native DOM/worker interaction completed');
     };
     const form = window.document.querySelector('form')!;
-    const control = (name: string) => Array.from(form.elements).find(element => 'name' in element && element.name === `inputs[${name}]`) as import('../../../ui/node_modules/happy-dom/lib/index.js').HTMLInputElement;
+    const control = (name: string) => Array.from(form.elements).find(element => 'name' in element && element.name === `inputs[${name}]`) as HTMLInputElement;
     const regionSelect = form.querySelector('select[data-can-choices-select]') as HTMLSelectElement;
     const userForm = window.document.querySelectorAll('form')[1]!;
     const userSelect = userForm.querySelector('select[data-can-choices-select]') as HTMLSelectElement;
