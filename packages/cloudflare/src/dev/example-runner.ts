@@ -334,7 +334,11 @@ async function createRowScope(input: CompiledExampleInput, moduleIndex: number, 
     };
     return scope;
   } catch (error) {
-    await base.dispose();
+    try {
+      await base.dispose();
+    } catch {
+      // Preserve the provisioning failure after attempting owned disposal.
+    }
     throw error;
   }
 }
@@ -635,6 +639,7 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
   assertNoModuleCollisions(artifact);
   const digest = createHash("sha256").update(input.artifactBytes).digest("hex");
   const workDir = await mkdtemp(join(tmpdir(), "can-example-modules-"));
+  let failed = false;
   try {
     // The production and test modules share one checked relative-import
     // graph on disk; only the separate portable Worker map enters workerd.
@@ -746,7 +751,14 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
       executed: report.summary.total,
       report,
     };
+  } catch (error) {
+    failed = true;
+    throw error;
   } finally {
-    await rm(workDir, { force: true, recursive: true });
+    try {
+      await rm(workDir, { force: true, recursive: true });
+    } catch (error) {
+      if (!failed) throw error;
+    }
   }
 }

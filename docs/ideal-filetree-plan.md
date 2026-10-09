@@ -11,8 +11,8 @@ The canonical target is [finished-product/target-tree.md](ideal-filetree-plan/fi
 | Initial new semantic review | `cf36983c768c32e0a63ac33c3b45a94dc75dc2d3` |
 | Refreshed structural/catalog pin | `fdb059c634c32c83760f35dd9175f49d9821762d`, main; 2567 current tracked parent paths; historical predecessor identities retained separately |
 | Independent clean draft pin | `40656da211a410cb6fb363a9c2afc3010fcb8b29`; 148 paths, 49 app/companion pairs and three shared declarations |
-| Accumulated checkpoint registry | 10528 net path deltas and 10957 historical touched paths at `8f0cc8da`; [current registry](ideal-filetree-plan/state-machines-20261007.json). Prior 1305-delta consolidation remains historical evidence; complete semantic/target review is open. |
-| Latest scoped maintenance | 2026-10-08, Europe/Brussels; accumulated path registration and publication-history reconciliation |
+| Accumulated checkpoint registry | 10665 net path deltas and 11206 historical touched paths at `5910445b`; [current registry](ideal-filetree-plan/state-machines-20261007.json). Prior allocations and scoped evidence retained; new paths remain unreviewed; complete semantic/target review is open. |
+| Latest scoped maintenance | 2026-10-09, UTC; accumulated structural registration through the main merge, with complete checkpoint unchanged |
 
 The prior implementation run is stopped. Consolidation preserves its unfinished source, reservations and evidence at their recorded scope; it does not resume workers or accept incomplete programme gates. This scoped maintenance updates the `finished-product/` planning records and this entry, preserving other integrators' maintenance records and shared implementation evidence. The user separately authorized the five documentation moves and live reference repairs recorded below.
 
@@ -429,3 +429,8 @@ The existing typed-private-cohort source consumer now uses its same emitted stdl
 
 
 Released finite Compiler consumers are captured without producer expansion: read-dependent default follows admitted context/read/count once and explicit override skips it, with current-host CRUD setup corrected; scalar-alias overlaps retains declared date/datetime owner types, chosen slots, argument order/identity and installed Values results. Sole affected cases pass1/1 (.51s) and1/1 (.54s), earlier presentation/cohort receipts reused in owning notes. No matching/default API or full SEM/S9/count acceptance; complete filetree checkpoint unadvanced.
+
+
+## 2026-10-09 — Main merge structural reconciliation
+
+Merged source `5910445ba45196a3001757327ad3e4f108d0930f` integrates main `9ecb2759`. The existing accumulated registry now covers all 1031 commits since retained checkpoint `8249342707d3280e88e39e8c911b7e457828f31f`: 10665 net path deltas, 11206 historical touched paths and 510 history-only paths. Prior owner/scope allocations, pending targets and narrow accepted evidence retain their original limits; new paths require inherited source/target review. Structural registration does not accept source semantics, retirement, broader product gates or advance the complete checkpoint. This bookkeeping requires no recursive registration of its own changes.

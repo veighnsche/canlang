@@ -1285,14 +1285,15 @@
       "planned_test_pin": "c3d09faf0da8ac9e27d1f756d5491906dec4ee7f0452a6312c19d240c37536f8",
       "planned_collision_commit": "788e5352ea989fafc4677af27f72e61f70f4738c",
       "test_scratch_cleanup": {
-        "state": "Original CLI-local unit superseded by upstream actual compiled-example runner; defining producer cleanup correction follows the integration.",
+        "state": "implemented and tested at actual post-main example producer; wider packet remains partial",
         "files": [
-          "packages/cloudflare/src/cli/platform.ts",
-          "packages/cloudflare/test/cli.test.ts"
+          "packages/cloudflare/src/dev/example-runner.ts",
+          "packages/cloudflare/test/cli.test.ts",
+          "packages/cloudflare/test/example-rerun.test.ts"
         ],
-        "validation": "29/29 CLI cases; Cloudflare noEmit TypeScript check passed",
-        "behavior": "Protect all work after test scratch acquisition; attempt scope disposal and scratch removal, preserving the first thrown value.",
-        "limits": "No run URL lifetime, whole-command budget, native preparation or parent acceptance; no reduction credit."
+        "behavior": "Preserve upstream complete capture/activation/compiled-example execution. Attempt defining scratch removal and acquired scope disposal without masking the original execution/provisioning failure.",
+        "validation": "CLI29/29 and actual runner/rerun20/20; shared CF declarations pending fresh upstream dependency emit.",
+        "limits": "No whole-command budget/run returned-URL/native preparation acceptance; no reduction credit."
       },
       "remaining_prerequisite": {
         "prerequisite": "Child/whole-command resource contract, sidecar/general race/partial-effect qualification and run returned-URL lifetime. Test scratch cleanup is complete.",
@@ -4214,7 +4215,8 @@
     "coordination": "Coordinator verified as local chat 01a11e6b-f4e1-7603-b47d-9d3210c9c6de; no callable send-message-to-thread capability. Dependencies recorded in packet_state.",
     "examined_queue": "All48 original packet labels examined against existing progress; canonical identities and original acceptance unchanged.",
     "delivery": "Human coordinator relay authorizes own implementation branch push and draft PR; main sync at coherent boundaries. No main push, merge or deployment.",
-    "last_upstream_sync": "origin/main9ecb2759; fetched main successfully, recursive draft-submodule fetch reports unavailable06b23b5d1c21b9902bde6ebc5ad7c9903955811a. No draft changes discarded.",
-    "review_process": "After own PR pushes, continue ready work for automated review interval; assess findings for relevant pushed revision at a task boundary. Pending/absent/older review gives no approval."
+    "last_upstream_sync": "Merged origin/main9ecb2759 at5910445b; missing remote draft-submodule06b23b5d commit remains external.",
+    "review_process": "After own PR pushes, continue ready work for automated review interval; assess findings for relevant pushed revision at a task boundary. Pending/absent/older review gives no approval.",
+    "filetree_reconciliation": "Existing registry reconciled complete structural ancestry through merged5910445b; prior allocations/semantic limits retained; complete82493427checkpoint not advanced."
   }
 }
