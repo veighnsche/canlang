@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
-const [root, artifactPath, scratch] = process.argv.slice(2);
+const [root, artifactPath, scratch, expectedCaption] = process.argv.slice(2);
 const load = path => import(pathToFileURL(resolve(root,path)));
 const {loadArtifactFile} = await load('packages/cloudflare/dist/runtime/artifact.js');
 const {assembleModules} = await load('packages/cloudflare/dist/runtime/modules.js');
@@ -28,6 +28,6 @@ const page=entry[reference.export];
 const bindings=await page.admit(context);
 const html=await page.render(context,bindings);
 assert.equal(queries,1,'one canonical authorized empty query');
-assert.ok(html.includes('Nog geen taken'),'authored localized caption reaches strict actual UI sink');
+assert.ok(html.includes(expectedCaption),'owning localized caption reaches actual UI sink');
 assert.ok(!html.includes('No jobs yet'));
-console.log('explicit empty message: canonical empty query and real UI list passed');
+console.log('empty message: canonical empty query and real UI list passed');

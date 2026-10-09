@@ -3614,3 +3614,8 @@ Consume coordinator CI/boundary releases eac25ce3 and1644cd4a, plus Packages2742
 ## 2026-10-09: Reconcile the original used-context matrix
 
 Use the published exact draft5a12eb9e to complete the existing Creative/Chat/Approve context inventory, retaining historical observations and accepted selected native user evidence separately. Current qualified user/read/due/retained constructors and formatting producers supersede former blanket missing-context claims. Hook contextual expressions explicitly refuse until the defining native carrier is released; complete conditional grants, original trusted provenance/current authority and page/formatting controls retain their owners. This is source preparation only: no new execution, acceptance or task credit.
+
+
+## 2026-10-09: Checkpoint unfinished released native consumer intake
+
+Consume the23 exact mapped Compiler PR133 consumer files from released1a6c7633,7db23906,bbd541af and61957916, preserving source-profile refusal controls, current disclosed CRUD records, original rollback/default/replay assertions and actual installed UI/source-map joins. Affected current-source checks report105passed/2failed. The draft formatter's known-unparseable expectation remains a Compiler-owned current corpus mirror. The expanded input-choice fixture now requires genuine any/set imports and nonnull final guard query/parent reads; its old zero-read harness is unfinished and will be migrated without weakening guards or annotation nonexecution. This checkpoint is not acceptance or full compiler qualification.
