@@ -42,7 +42,11 @@ inputs and all 55 format/reparse/idempotence inputs. The Judgment case now also 
 parameter/domain and examples validation; the fixture retains its exact typed
 case claim. Foreign header/fixture cases and opaque nested levels still refuse.
 The earlier unfinished checkpoint supplied no acceptance and is superseded.
-No whole-suite or broader-reference acceptance follows. The pre-sync duplicate
+The full Rust run at **b1209ff6** now passes **1,275 tests, 0 failed,
+0 ignored**, with completion engines required and no reported body skips.
+Compiler-wide formatting and final strict all-target Clippy pass. This supplies
+current Rust qualification, without broader-reference or application acceptance.
+The pre-sync duplicate
 anonymous producer remains only in local branch
 `codex/compiler-anonymous-unfinished-checkpoint`, without acceptance credit.
 
@@ -223,10 +227,17 @@ and final CI consolidation **1644cd4a** are consumed. The workflow and both
 boundary files match the published shared source; unchanged 16 guard, 40 tools
 and 26 build results are reused at that scope. Current CI uses four independent
 jobs; retired lane/B1/B2/E2E status names are obsolete. The actual branch guard
-reports seven source violations: the optional Testkit loader edge remains with
-its defining Capability/Dev producer, and six UI/catalog/construct-help test
-imports remain Dev-owned. The published loader is being inspected; no package
-self-reference rewrite or broadened boundary exception is introduced.
+initially reported seven source violations. Consume the owning application-root
+Testkit loader from published **080efa8e**, preserving real installation/module
+identity, four required exports and initialization errors. Its owning Cloudflare
+build and **36/36** loader/CLI controls pass after the State build finished;
+the first concurrent build/test attempt failed on transient missing outputs
+and remains in the environment log. The State owning build and exact released
+NumericControl case pass **1/1**. The actual guard now reports only six
+Dev-owned UI/catalog/construct-help imports; no package self-reference rewrite
+or broadened boundary exception is introduced. Codex's completed **7bed51d7**
+code/security review identified the same optional-import P1, corrected by this
+released owning loader. New published-head review and hosted CI remain due.
 
 Current remaining prerequisites are recorded here without reopening accepted
 compiler leaves:
