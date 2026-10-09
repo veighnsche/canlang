@@ -4997,3 +4997,19 @@ Declaration-labelled installed canonical/frame consumers pass24/24 with exact or
 Consume the exact PageRecordsReader producer and bind it to the existing canonical scope and lazy selected physical owner. Native expression reads use defining unpaginated State projection, Values/native reference conversion and viewer containment navigation. Preserve selectors and finite explicit limits or refuse unsupported/private/owner/archive forms. Compare current projected authority after conversion and revalidate the shared revision/navigation before disclosure; source predicates run once and their complete authorized candidate domain is compared without executing them again. Collection and receipt readers share that actual scope; renderer arguments cannot replace identity or storage.
 
 The existing real two-owner D1/Identity consumer passes1/1 with131 native rows, exact codecs/readable keys, four correctly filtered/ordered rows with131 source evaluations, private-model withholding, explicit selector refusals, fixed owner and a raced actual membership revocation before disclosure. Source-current package graph/native Compiler/catalog and CF/root strict checks pass at their stated scopes. Individual read checks do not establish final render-close or server cancellation. Full41-card compiled/native profile and parent-source breadth remain unfinished; keep the original positive test, existing holds and source/security assertions.
+
+## 2026-10-10 — qualify the joined compiler source and native intrinsic consumer
+
+Exact12a3209b/ec3c2f50 passes the required whole129targets1349/0/0/0 with
+Node24.19, exactdraft5a12eb9e, real completion engines and actual native packages.
+Rebuilt graph26/26 zero cached and current bin/catalog59/15 establish its runtime
+inputs; strict all-target lint/format pass. Uncaptured owning permission1/1 proves
+mode4750 actually executes. Reviewed d392 integration changes records only.
+Current native3/3, stored-default machine4/4 and compiler help6/6 are included.
+Reuse unchanged editor/client/LSP protocol and owner-portable scopes.
+
+These results qualify the implemented compiler/default/Send/Set/intrinsic units
+at their actual tested scope. Dev still owns original Text Send and full T04
+runtime/example/provider outcomes; broad58/67 owner refs and precise human holds
+remain. No source-only, checkpoint or handbuilt producer proof substitutes for
+those original workflow results. All updates stay local for coordinator review.

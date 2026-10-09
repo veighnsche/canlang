@@ -1972,3 +1972,28 @@ operation/input/original-version capture, post-Set metadata after later writes,
 ordinary/dedicated16minute no-effect recovery and archive/current-grant controls
 are qualified at that scope. The required full changed-source run is in progress;
 no whole result or Dev original Text workflow acceptance is inferred.
+
+
+**Current compiler qualification, 2026-10-10.** Exact source/runtime tuple
+**12a3209b** (compiler correction **ec3c2f50**) completes all **129 targets:
+1,349 passed, 0 failed, 0 ignored, 0 filtered**. Node **24.19.0**, exact draft
+**5a12eb9e**, real required completion engines, corpus and actual native bodies
+execute against rebuilt installed outputs **26/26**, zero cached, and current
+binary/catalog **59/15**. The permission case separately passes **1/1** with
+uncaptured output, confirming mode4750 runs with no host-body skip. Strict
+all-target Clippy and formatting pass. Unchanged editor/client/LSP protocol
+checks are reused; current full includes its compiler/LSP and real completion
+assertions. Reviewed integration **d392097e** changes records only, so these
+production/compiler/test results remain current.
+
+The SAME native receipt target passes **3/3**, including genuine operation/input/
+original-version capture, complete original generation compiler output, scalar
+Set, original post-write metadata, later writes, ordinary/dedicated aged recovery
+and current archive/grant withholding without effects. Stored-read/default
+machine **4/4** and T04 compiler-half **6/6** are included in the current whole
+result. Compiler producers in these units are implemented, tested and locally
+committed; this clears their previous changed-source qualification prerequisite.
+Dev owns the SAME original Text Send end-to-end journey and T04 actual runtime/
+example/provider acceptance. Wider nine owner-dependent refs and explicit BDD3/
+Task22 and other-recipient holds remain; original completion stays **58/67**.
+No remote push, broader application acceptance or hold release follows.
