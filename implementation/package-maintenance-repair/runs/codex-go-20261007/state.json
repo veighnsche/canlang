@@ -4459,6 +4459,12 @@
       "behavior": "Generated delete mints UUIDv7 once per visible rendered control, keeps the same hidden identity for submit/replay, and mints none inside an omitted gate. Canonical business fields remain record-only; undeclared mode still refuses.",
       "validation": "Rust1.99 locked/offline focused codegen1/1 and actual generated delete_control_runtime1/1pass. Source native version arithmetic/precision, exact UI wire identity, archive/replay/stale and revoked grant controls execute. Initial shared filter selected no runtime case; corrected unfiltered owning target executes1/1.",
       "limit": "Complete Office browser/durable workflow remains Dev-owned; current-head/full-plan review is separate."
+    },
+    "state_update_undefined": {
+      "state": "implemented and affected checks passed; Codex4232259618",
+      "correction": "applyCallerData records only actually applied fields after existing validation, undefined omission and cloning. Update constraint tracking uses that set without rereading patch getters; hook content comparison and full codec traversal remain.",
+      "validation": "State owning emit and12existing nullable-ref cases pass onNode24, zero skips. Omitted/known undefined preserve legacy array/object/text and full codec traversal; explicit null stays null; explicit invalid, unknown undefined, machine and server-only refusal precedence remain. Initial new machine fixture omitted its required default, corrected before final pass.",
+      "limit": "Current-head review and original complete parent qualification remain required."
     }
   }
 }
