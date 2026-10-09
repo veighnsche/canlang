@@ -29,7 +29,9 @@ test('reviewed CSV commits authored rows through native D1 admission, replay and
   const { Window } = createRequire(import.meta.resolve('@canlang/ui'))('happy-dom') as
     typeof import('../../../ui/node_modules/happy-dom/lib/index.js');
   const window = new Window({ url: 'https://csv.example.test/' });
-  const clock = { nowMs: () => Date.now() };
+  let clockOffset = 0;
+  const clock = { nowMs: () => Date.now() + clockOffset };
+  const trace: string[] = [];
   try {
     const db = await worker.getD1Database('DB') as unknown as D1Database;
     await ensureSchema(db); await ensureIdentitySchema(db);
@@ -40,7 +42,7 @@ test('reviewed CSV commits authored rows through native D1 admission, replay and
     const membership = await identities.createMembership({ team_id: team.team_id, user_id: user.user_id, is_owner: true, roles: [] });
     const token = 'native-reviewed-csv-session';
     await identities.createSession({ user_id: user.user_id, token_sha256: await sha256HexText(token),
-      last_team_id: team.team_id, expires_at: new Date(clock.nowMs() + 3600_000).toISOString() });
+      last_team_id: team.team_id, expires_at: new Date(clock.nowMs() + 7 * 24 * 3600_000).toISOString() });
     const cookie = buildSessionCookie(token, { maxAgeSeconds: 3600 }).split(';')[0]!;
     const csrf = await deriveCsrfToken(token);
     const identity = await resolveIdentity(identities, { session_token: token }, { clock });
@@ -50,7 +52,11 @@ test('reviewed CSV commits authored rows through native D1 admission, replay and
       workDir: join(dir, 'modules'), stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
       uiUrl: import.meta.resolve('@canlang/ui') });
     let revokeAfterCommit = false;
-    const store: StoragePort = { ...state, async commit(batch) {
+    const store: StoragePort = { ...state,
+      async readReceipt(receipt) { trace.push(`receipt:${receipt.operationId}`); return state.readReceipt(receipt); },
+      async load(model, id) { trace.push(`load:${model}:${id}`); return state.load(model, id); },
+      async commit(batch) {
+      trace.push('commit');
       const result = await state.commit(batch);
       if (revokeAfterCommit && batch.writes.some(write => write.model === MODEL)) {
         revokeAfterCommit = false;
@@ -62,9 +68,14 @@ test('reviewed CSV commits authored rows through native D1 admission, replay and
     // This route composition mounts only the existing CSV and canonical operation
     // endpoints. No page, upload or provider port participates in this profile.
     const unavailable = (): never => { throw new Error('Capability is not installed in the reviewed CSV host'); };
+    const sourceCatalog = catalogFromArtifactOperations(artifact);
+    const catalog: HttpDeps['catalog'] = {
+      shapeFor(operation) { trace.push(`shape:${operation}`); return sourceCatalog.shapeFor(operation); },
+      derivedFor(operation) { trace.push(`derived:${operation}`); return sourceCatalog.derivedFor!(operation); },
+    };
     const deps: HttpDeps = { app: { appId: APP, brand: APP, appDefaultLocale: 'en', ownerLabels: new Map() },
       pages: { descriptors: () => [] },
-      invoker, catalog: catalogFromArtifactOperations(artifact), clock, logger: { log: () => {} },
+      invoker, catalog, clock, logger: { log: () => {} },
       limiter: { check: async () => unavailable() },
       identity: { store: identities, clock, mail: { sendMail: async () => unavailable() },
         verifyBaseUrl: '', recoveryBaseUrl: '', inviteBaseUrl: '', sessionMaxAgeSeconds: 3600 },
@@ -81,6 +92,7 @@ test('reviewed CSV commits authored rows through native D1 admission, replay and
       operations: (request, operation) => handleOperationRequest(deps, request, operation),
       auth: request => handleAuthRequest(deps, request), uploads: unmounted, ingress: unmounted, oauth: unmounted });
     const wire: SubmitFetch = async (url, init) => {
+      trace.push(`request:${url}`);
       const response = await http(new Request(new URL(url, 'https://csv.example.test'), {
         method: init.method, headers: { ...init.headers, cookie }, body: init.body as string }));
       return { status: response.status, headers: response.headers, text: () => response.text() };
@@ -216,14 +228,21 @@ test('reviewed CSV commits authored rows through native D1 admission, replay and
     const privateSelections = await selections(privateCsv, privateReview.review);
     const privateId = privateSelections[0]!.operation_id;
     const privateInputs = { label: 'Protected saved', count: '5' };
-    const privateHttp = async (operation: string, operationId: string, inputs: Record<string, unknown>) => {
-      const response = await http(new Request(`https://csv.example.test/api/operations/${operation}`, {
+    const privateRequest = async (operation: string, operationId: string, inputs: Record<string, unknown>) => {
+      trace.push(`request:/api/operations/${operation}`);
+      return http(new Request(`https://csv.example.test/api/operations/${operation}`, {
         method: 'POST', headers: { cookie, 'content-type': 'application/json', 'x-csrf-token': csrf },
         body: JSON.stringify({ operation_id: operationId, inputs }) }));
+    };
+    const privateHttp = async (operation: string, operationId: string, inputs: Record<string, unknown>) => {
+      const response = await privateRequest(operation, operationId, inputs);
       assert.equal(response.status, 200, await response.clone().text());
       return await response.json() as MutationResult;
     };
+    trace.length = 0;
     const privateCreated = await privateHttp(privateOperation, privateId, privateInputs);
+    assert.deepEqual(trace.filter(entry => entry.startsWith('shape:') || entry.startsWith('derived:')),
+      [`shape:${privateOperation}`, `derived:${privateOperation}`]);
     assert.equal(privateCreated.status, 'committed');
     assert.equal(privateCreated.result, null);
     assert.deepEqual((privateCreated.records![0] as { data: unknown }).data, privateInputs);
@@ -239,12 +258,101 @@ test('reviewed CSV commits authored rows through native D1 admission, replay and
     assert.equal(privateRows.length, 1);
     const privateHistory = await state.historyFor(privateModel, privateRows[0]!.id);
     const privateRevision = await state.readRevision();
+    // The original committed identity is now outside transport age bounds,
+    // while its credential and stored receipt remain live. Only canonical
+    // State may decide retained replay versus unseen-age refusal.
+    clockOffset = 25 * 3600_000;
+    const privateCommit = { ...request, operation: privateOperation, csv: privateCsv,
+      consent: privateReview.review.consent, selections: privateSelections };
+    const assertReplayTrace = () => {
+      assert.ok(trace.some(entry => entry.startsWith('request:')), JSON.stringify(trace));
+      assert.ok(trace.includes(`receipt:${privateId}`), JSON.stringify(trace));
+      assert.ok(trace.some(entry => entry.startsWith(`load:${privateModel}:`)), JSON.stringify(trace));
+      assert.equal(trace.includes('commit'), false, JSON.stringify(trace));
+    };
+    trace.length = 0;
+    const agedHttp = await privateHttp(privateOperation, privateId, privateInputs);
+    assert.equal(agedHttp.status, 'replayed');
+    assert.deepEqual(agedHttp.records, privateCreated.records);
+    assertReplayTrace();
+    assert.deepEqual(trace.filter(entry => entry.startsWith('shape:') || entry.startsWith('derived:')),
+      [`derived:${privateOperation}`, `shape:${privateOperation}`]);
+    trace.length = 0;
+    const agedCsv = await submitCsvCommit(privateCommit);
+    assert.ok(agedCsv.ok, JSON.stringify(agedCsv));
+    const agedCsvResult = agedCsv.outcome.rows[0]!.result as MutationResult;
+    assert.equal(agedCsvResult.status, 'replayed');
+    assert.deepEqual(agedCsvResult.records, privateCreated.records);
+    assertReplayTrace();
+    trace.length = 0;
+    const conflicting = await privateRequest(privateOperation, privateId, { ...privateInputs, count: '6' });
+    assert.equal(conflicting.status, 409, await conflicting.clone().text());
+    assert.equal((await conflicting.json() as { code: string }).code, 'conflict');
+    assert.ok(trace.includes(`receipt:${privateId}`));
+    assert.equal(trace.includes('commit'), false);
+    const changedCsv = privateCsv.replace(',5', ',6');
+    const changedReview = await submitCsvReview({ fetchImpl: wire, action: '/api/csv/review', csrf,
+      operation: privateOperation, csv: changedCsv });
+    assert.ok(changedReview.ok, JSON.stringify(changedReview));
+    trace.length = 0;
+    const conflictingCsv = await submitCsvCommit({ ...privateCommit, csv: changedCsv,
+      consent: changedReview.review.consent });
+    assert.ok(conflictingCsv.ok, JSON.stringify(conflictingCsv));
+    assert.equal(conflictingCsv.outcome.rows[0]!.error?.code, 'conflict');
+    assert.ok(trace.includes(`receipt:${privateId}`));
+    assert.equal(trace.includes('commit'), false);
+    for (const [label, id] of [
+      ['expired', uuidv7(clock.nowMs() - 26 * 3600_000, 110)],
+      ['future', uuidv7(clock.nowMs() + 10 * 60_000, 111)],
+      ['malformed', privateId.toUpperCase()],
+    ] as const) {
+      trace.length = 0;
+      const refused = await privateRequest(privateOperation, id, privateInputs);
+      assert.equal(refused.status, 400, `${label}: ${await refused.clone().text()}`);
+      assert.equal((await refused.json() as { code: string }).code, 'validation');
+      assert.equal(trace.includes(`receipt:${id}`), label !== 'malformed', JSON.stringify(trace));
+      assert.equal(trace.includes('commit'), false);
+      trace.length = 0;
+      const refusedCsv = await submitCsvCommit({ ...privateCommit, selections: [{ index: 0, operation_id: id }] });
+      assert.ok(refusedCsv.ok, JSON.stringify(refusedCsv));
+      assert.equal(refusedCsv.outcome.rows[0]!.status, 'failed');
+      assert.equal(refusedCsv.outcome.rows[0]!.error?.code, 'validation');
+      assert.equal(trace.includes(`receipt:${id}`), label !== 'malformed', JSON.stringify(trace));
+      assert.equal(trace.includes('commit'), false);
+    }
+    // A pre-provenance generated CRUD receipt cannot authorize raw content.
+    assert.ok(privateReceipt !== null && privateReceipt.outcome.status === 'committed');
+    const legacyOutcome = { ...privateReceipt.outcome } as Record<string, unknown>;
+    delete legacyOutcome['generatedCrud'];
+    const replaceSavedOutcome = (outcome: unknown) => db.prepare(
+      'UPDATE receipts SET outcome = ? WHERE app = ? AND owner = ? AND principal = ? AND operation = ? AND operation_id = ?',
+    ).bind(JSON.stringify(outcome), APP, team.team_id, user.user_id, privateOperation, privateId).run();
+    await replaceSavedOutcome(legacyOutcome);
+    trace.length = 0;
+    const legacy = await privateRequest(privateOperation, privateId, privateInputs);
+    assert.equal(legacy.status, 400);
+    const legacyBody = await legacy.text();
+    assert.equal((JSON.parse(legacyBody) as { code: string }).code, 'validation');
+    assert.equal(legacyBody.includes('Protected saved'), false);
+    assert.ok(trace.includes(`receipt:${privateId}`));
+    assert.equal(trace.includes('commit'), false);
+    trace.length = 0;
+    const legacyCsv = await submitCsvCommit(privateCommit);
+    assert.ok(legacyCsv.ok, JSON.stringify(legacyCsv));
+    assert.equal(legacyCsv.outcome.rows[0]!.error?.code, 'validation');
+    assert.equal(JSON.stringify(legacyCsv).includes('Protected saved'), false);
+    assert.ok(trace.includes(`receipt:${privateId}`));
+    assert.equal(trace.includes('commit'), false);
+    await replaceSavedOutcome(privateReceipt.outcome);
     await identities.setMembershipRoles(membership.membership_id, []);
     assert.equal((await identities.findMembership(team.team_id, user.user_id))?.status, 'active');
+    trace.length = 0;
     const withheldHttp = await privateHttp(privateOperation, privateId, privateInputs);
     assert.equal(withheldHttp.status, 'replayed');
     assert.equal(withheldHttp.result, null);
     assert.deepEqual(withheldHttp.records, []);
+    assertReplayTrace();
+    trace.length = 0;
     const withheldCsv = await submitCsvCommit({ ...request, operation: privateOperation, csv: privateCsv,
       consent: privateReview.review.consent, selections: privateSelections });
     assert.ok(withheldCsv.ok, JSON.stringify(withheldCsv));
@@ -252,11 +360,15 @@ test('reviewed CSV commits authored rows through native D1 admission, replay and
     assert.equal(withheld.status, 'replayed');
     assert.equal(withheld.result, null);
     assert.deepEqual(withheld.records, []);
+    assertReplayTrace();
+    assert.equal(JSON.stringify(withheldHttp).includes('Protected saved'), false);
+    assert.equal(JSON.stringify(withheldCsv).includes('Protected saved'), false);
     assert.equal(await state.readRevision(), privateRevision);
     assert.deepEqual(await state.query({ model: privateModel, authority: 'owner' }), privateRows);
     assert.deepEqual(await state.historyFor(privateModel, privateRows[0]!.id), privateHistory);
     assert.deepEqual(await state.readReceipt(privateReceiptIdentity), privateReceipt);
 
+    clockOffset = 0;
     const partialCsv = 'label,count\nBefore revocation,5\nAfter revocation,6\n';
     const partialReview = await review(partialCsv);
     const partialSelections = await selections(partialCsv, partialReview);
@@ -277,8 +389,22 @@ test('reviewed CSV commits authored rows through native D1 admission, replay and
     window.document.body.innerHTML = await csvConfirmSection({ context, outcome: partial.outcome, regionId: 'csv-partial' });
     assert.match(window.document.body.textContent, /Failed/);
     const afterRevision = await state.readRevision();
+    clockOffset = 25 * 3600_000;
+    trace.length = 0;
+    const revokedHttp = await privateHttp(privateOperation, privateId, privateInputs);
+    // The established CRUD disclosure contract withholds data while keeping
+    // the retained mutation outcome; membership removal does not rewrite it.
+    assert.equal(revokedHttp.status, 'replayed');
+    assert.equal(revokedHttp.result, null);
+    assert.deepEqual(revokedHttp.records, []);
+    assert.equal(JSON.stringify(revokedHttp).includes('Protected saved'), false);
+    assert.ok(trace.includes(`receipt:${privateId}`));
+    assert.equal(trace.includes('commit'), false);
+    trace.length = 0;
     const revoked = await submitCsvCommit({ ...request, csv: partialCsv, consent: partialReview.consent, selections: partialSelections });
     assert.equal(revoked.ok, false); if (!revoked.ok) assert.equal(revoked.error.code, 'forbidden');
+    assert.equal(JSON.stringify(revoked).includes('Protected saved'), false);
+    assert.equal(trace.includes('commit'), false);
     assert.equal(await state.readRevision(), afterRevision);
     assert.deepEqual(await state.query({ model: MODEL, authority: 'owner' }), afterPartial);
   } finally {

@@ -15,7 +15,8 @@ function record(value: unknown): value is Record<string, unknown> {
 }
 
 function validContext(context: SourceFormBindingContext): boolean {
-  return typeof context.appId === 'string' && context.appId !== '' &&
+  return record(context) && record(context.derived) &&
+    typeof context.appId === 'string' && context.appId !== '' &&
     typeof context.sessionToken === 'string' && context.sessionToken !== '' &&
     typeof context.operationId === 'string' && context.operationId !== '' &&
     Number.isSafeInteger(context.nowMs) && context.nowMs >= 0 &&
@@ -64,6 +65,29 @@ export async function createSourceFormBindings(key: Uint8Array | string, revisio
     operation: context.derived.operation, schema: await sha256HexText(JSON.stringify(context.derived)),
     nonce: context.operationId,
   });
+  const restore = async (context: SourceFormBindingContext, token: string, inputs: ClosedInputs, retained: boolean): Promise<ClosedInputs | null> => {
+    if (!validContext(context) || typeof token !== 'string' || token.length > MAX_TOKEN_CHARS || !record(inputs)) return null;
+    if (retained && !['create', 'update', 'delete'].includes(context.derived.kind)) return null;
+    const segments = token.split('.');
+    if (segments.length !== 2) return null;
+    const payload = canonicalBytes(segments[0]!), signature = canonicalBytes(segments[1]!);
+    if (payload === null || signature === null || signature.length !== 32 ||
+        !await globalThis.crypto.subtle.verify('HMAC', signingKey, signature.slice(), payload.slice())) return null;
+    let parsed: unknown;
+    try { parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(payload)) as unknown; }
+    catch { return null; }
+    if (!record(parsed)) return null;
+    const expected = await claims(context);
+    if (Object.entries(expected).some(([name, value]) => parsed[name] !== value) ||
+        !Number.isSafeInteger(parsed['issued']) || !Number.isSafeInteger(parsed['expires']) ||
+        (parsed['issued'] as number) < 0 || (parsed['issued'] as number) > context.nowMs ||
+        (retained ? (parsed['expires'] as number) > context.nowMs : (parsed['expires'] as number) <= context.nowMs) ||
+        (parsed['expires'] as number) !== (parsed['issued'] as number) + LIFETIME_MS ||
+        !validSelection(context, parsed['bound'], parsed['editable'])) return null;
+    const bound = parsed['bound'], editable = new Set(parsed['editable'] as string[]);
+    if (Object.keys(inputs).some(name => Object.hasOwn(bound, name) || !editable.has(name))) return null;
+    return Object.assign(Object.create(null) as ClosedInputs, inputs, bound);
+  };
   return {
     async seal(context, bound, editable) {
       if (Object.hasOwn(context, 'occurrence') && (typeof context.occurrence !== 'string' ||
@@ -94,26 +118,7 @@ export async function createSourceFormBindings(key: Uint8Array | string, revisio
       const draftIdentity = await sha256HexText(JSON.stringify({ ...bindingContext, ...comparison, bound: boundIds, editable: selectedEditable }));
       return { token, identity, draftIdentity };
     },
-    async restore(context, token, inputs) {
-      if (!validContext(context) || typeof token !== 'string' || token.length > MAX_TOKEN_CHARS || !record(inputs)) return null;
-      const segments = token.split('.');
-      if (segments.length !== 2) return null;
-      const payload = canonicalBytes(segments[0]!), signature = canonicalBytes(segments[1]!);
-      if (payload === null || signature === null || signature.length !== 32 ||
-          !await globalThis.crypto.subtle.verify('HMAC', signingKey, signature.slice(), payload.slice())) return null;
-      let parsed: unknown;
-      try { parsed = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(payload)) as unknown; }
-      catch { return null; }
-      if (!record(parsed)) return null;
-      const expected = await claims(context);
-      if (Object.entries(expected).some(([name, value]) => parsed[name] !== value) ||
-          !Number.isSafeInteger(parsed['issued']) || !Number.isSafeInteger(parsed['expires']) ||
-          (parsed['issued'] as number) > context.nowMs || (parsed['expires'] as number) <= context.nowMs ||
-          (parsed['expires'] as number) !== (parsed['issued'] as number) + LIFETIME_MS ||
-          !validSelection(context, parsed['bound'], parsed['editable'])) return null;
-      const bound = parsed['bound'], editable = new Set(parsed['editable'] as string[]);
-      if (Object.keys(inputs).some(name => Object.hasOwn(bound, name) || !editable.has(name))) return null;
-      return Object.assign(Object.create(null) as ClosedInputs, inputs, bound);
-    },
+    restore: (context, token, inputs) => restore(context, token, inputs, false),
+    restoreRetained: (context, token, inputs) => restore(context, token, inputs, true),
   };
 }

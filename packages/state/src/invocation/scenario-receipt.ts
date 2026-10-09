@@ -335,12 +335,27 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
   const revision = await input.store.readRevision();
   const retained = await input.store.readReceipt(receipt.identity);
   if (retained === null || stableStringify(dataCopy(retained)) !== stableStringify(receipt)) return invalid('exact retained receipt required.');
+  const authorityFacts = new Map<string, { teamId: string; userId: string; snapshot: string }>();
+  let authorityDrift = false;
+  const memberships: MembershipReader = {
+    async findMembership(team, user) {
+      const current = await input.memberships.findMembership(team, user);
+      const key = stableStringify([team, user]), snapshot = stableStringify(dataCopy(current));
+      const previous = authorityFacts.get(key);
+      if (previous !== undefined && previous.snapshot !== snapshot) authorityDrift = true;
+      if (previous === undefined) {
+        if (authorityFacts.size >= MAX_ITEMS) return invalid('authority observation budget exceeded.');
+        authorityFacts.set(key, { teamId: team, userId: user, snapshot });
+      }
+      return current;
+    },
+  };
   const membership = () => actorUserId !== null && teamId !== null
-    ? input.memberships.findMembership(teamId, actorUserId) : Promise.resolve(null);
+    ? memberships.findMembership(teamId, actorUserId) : Promise.resolve(null);
   const live = await membership(); const membershipSnapshot = stableStringify(dataCopy(live));
   const withheld = { result: null, records: [] } as const;
   const project = async (member: Awaited<ReturnType<typeof membership>>) => {
-    const context = { actorUserId, teamId, membership: member, memberships: input.memberships };
+    const context = { actorUserId, teamId, membership: member, memberships };
     if (!await evaluateBy(def.by, context)) return withheld;
     const savedProjection = async (model: ModelName, saved: StoredRow, originalSecrets: readonly string[], blocked: readonly string[]) => {
       const current = await input.store.load(model, saved.id); const inventory = currentBound.models.get(model);
@@ -375,5 +390,11 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
   const secondMembership = await membership();
   if (stableStringify(dataCopy(secondMembership)) !== membershipSnapshot ||
       stableStringify(await project(secondMembership)) !== stableStringify(first) || await input.store.readRevision() !== revision) return withheld;
+  // Identity storage has its own lifetime: a State revision cannot fence a
+  // caller or subject-role revocation during the final projection's reads.
+  for (const fact of authorityFacts.values()) {
+    if (stableStringify(dataCopy(await input.memberships.findMembership(fact.teamId, fact.userId))) !== fact.snapshot) return withheld;
+  }
+  if (authorityDrift || await input.store.readRevision() !== revision) return withheld;
   return first;
 }

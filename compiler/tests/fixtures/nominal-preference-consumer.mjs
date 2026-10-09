@@ -22,19 +22,22 @@ const {assembleModules} = await load('packages/cloudflare/src/runtime/modules.ts
 const source = `app NominalPreferenceApp uses=[Reporting]
 package Expenses
  Given
-  export Expense {status:enum(draft,submitted,approved)=draft label={text="Status",values={draft="Draft",submitted="Submitted",approved="Approved"}}}
+  export Expense {status:enum(draft,submitted,approved)=draft label={text="Status"@{nl="Toestand"},values={draft="Draft"@{nl="Concept"},submitted="Submitted"@{nl="Ingediend"},approved="Approved"@{nl="Goedgekeurd"}}}}
+  export Bridge {status:Expense.status=approved label={text="Bridge status"@{nl="Brugtoestand"},values={draft="Bridge draft"@{nl="Brugconcept"},approved="Bridge approved"@{nl="Bruggoedkeuring"}}}}
   policy Expense read=public
+  policy Bridge read=public
  When
  Then
 package Reporting
- use Expenses {Expense}
+ use Expenses {Expense,Bridge}
  Given
  When
  Then
-  preferences {status:Expense.status=submitted,labelled:Expense.status=approved label={text="Review",values={approved="Accepted"}}}
+  preferences {status:Bridge.status=submitted label={values={approved="Accepted status"@{nl="Geaccepteerde toestand"}}},labelled:Expense.status=approved label={text="Review"@{nl="Beoordeling"},values={approved="Accepted"@{nl="Geaccepteerd"}}},selection:Bridge.status=draft label={values={approved="Accepted selection"@{nl="Geaccepteerde selectie"}}}}
   page /reports title="Reports"
    tabs ((preferences.status))
    tabs (preferences.labelled)
+   tabs preferences.selection
 `;
 const input = resolve(scratch, 'Reporting.can');
 writeFileSync(input, source);
@@ -52,6 +55,7 @@ assert.equal(pages[0].owner, 'Reporting');
 assert.deepEqual(pages[0].preferenceFields, [
   {name:'status',options:['draft','submitted','approved'],defaultValue:'submitted'},
   {name:'labelled',options:['draft','submitted','approved'],defaultValue:'approved'},
+  {name:'selection',options:['draft','submitted','approved'],defaultValue:'draft'},
 ]);
 const {deps, identity, logger} = await createTestDeps({descriptors:pages});
 const rows = new Map();
@@ -80,7 +84,48 @@ assert.match(html,/name="status"/);
 assert.match(html,/name="labelled"/);
 assert.ok(checked(html,'status','submitted'));
 assert.match(html,/name="_version" value="0"/);
-for (const label of ['Status','Draft','Submitted','Approved','Review','Accepted']) assert.ok(html.includes(label),label);
+const forms = html.match(/<form\b[^>]*>[\s\S]*?<\/form>/g) ?? [];
+const preferenceForm = name => forms.find(form => form.includes(`name="${name}"`));
+const statusForm = preferenceForm('status');
+assert.ok(statusForm,'values-only receiving label has its real preference form');
+for (const label of ['Bridge status','Bridge draft','Submitted','Accepted status']) assert.ok(statusForm.includes(label),label);
+assert.ok(!statusForm.includes('<legend>Status</legend>'),'immediate reuse text replaces ultimate enum text');
+assert.ok(!statusForm.includes('Bridge approved'),'receiving case overrides the immediate source');
+assert.ok(!statusForm.includes('Approved'),'receiving case override replaces the inherited approved caption');
+const labelledForm = preferenceForm('labelled');
+assert.ok(labelledForm,'whole receiving label has its real preference form');
+for (const label of ['Review','Draft','Submitted','Accepted']) assert.ok(labelledForm.includes(label),label);
+assert.ok(!labelledForm.includes('<legend>Status</legend>'),'explicit text replaces the inherited field caption');
+const selectionForm = preferenceForm('selection');
+assert.ok(selectionForm,'renamed values-only receiving label has its real preference form');
+for (const label of ['Bridge draft','Submitted','Accepted selection']) assert.ok(selectionForm.includes(label),label);
+assert.ok(!selectionForm.includes('<legend>'),'renamed field does not inherit the nominal text caption');
+assert.ok(!selectionForm.includes('Status'));
+assert.ok(!selectionForm.includes('Bridge status'),'renamed receiving field does not inherit immediate text');
+assert.ok(!selectionForm.includes('Bridge approved'),'renamed receiving case override replaces immediate case');
+assert.ok(!selectionForm.includes('Approved'));
+assert.ok(checked(html,'selection','draft'),'renamed field retains its receiving default');
+const dutch = await handler(testRequest(path,{cookie:identity.cookie,headers:{'accept-language':'nl'}}));
+assert.equal(dutch.status,200,JSON.stringify(logger.calls));
+const translated = await dutch.text();
+const translatedForms = translated.match(/<form\b[^>]*>[\s\S]*?<\/form>/g) ?? [];
+const translatedStatus = translatedForms.find(form => form.includes('name="status"'));
+const translatedLabelled = translatedForms.find(form => form.includes('name="labelled"'));
+const translatedSelection = translatedForms.find(form => form.includes('name="selection"'));
+for (const label of ['Brugtoestand','Brugconcept','Ingediend','Geaccepteerde toestand']) assert.ok(translatedStatus?.includes(label),label);
+for (const label of ['Beoordeling','Concept','Ingediend','Geaccepteerd']) assert.ok(translatedLabelled?.includes(label),label);
+for (const label of ['Brugconcept','Ingediend','Geaccepteerde selectie']) assert.ok(translatedSelection?.includes(label),label);
+assert.ok(!translatedSelection.includes('<legend>'),'renamed translated field has no inherited legend');
+assert.ok(!translatedSelection.includes('Toestand'));
+assert.ok(!translatedSelection.includes('Brugtoestand'));
+assert.ok(!translatedSelection.includes('Bruggoedkeuring'));
+assert.ok(!translatedSelection.includes('Goedgekeurd'));
+assert.ok(checked(translated,'selection','draft'));
+assert.ok(!translatedStatus.includes('<legend>Toestand</legend>'),'immediate translated text replaces ultimate enum text');
+assert.ok(!translatedStatus.includes('Bruggoedkeuring'),'receiving translated case overrides immediate source');
+assert.ok(!translatedStatus.includes('Goedgekeurd'),'translated receiving override replaces the translated nominal case');
+assert.ok(checked(translated,'status','submitted'),'locale changes preserve the current enum case');
+assert.equal(rows.size,0,'presentation requests do not write preferences');
 const token = await deriveCsrfToken(identity.sessionToken);
 const post = (value,version,csrf=token) => handler(testRequest(path, {
   method:'POST',cookie:identity.cookie,headers:{'content-type':'application/x-www-form-urlencoded'},

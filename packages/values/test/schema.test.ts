@@ -1184,6 +1184,30 @@ describe("checked runtime candidate value constraints", () => {
     assertSchemaError(() => validateValue(schema, "Result", { option: "abcd" }, "create"));
   });
 
+  it("trims receiving text aliases before declared NAME and intersecting bounds", () => {
+    const aliases = { Choice: { type: "text", min: 2, max: 5, format: "name" } };
+    const option = { type: "Choice", trim: true, min: 3, max: 4, default: "  abc  " };
+    const schema = normalizeSchema({ aliases,
+      contracts: { Result: { fields: { option } }, Nullable: { fields: { option: { type: "Choice?", trim: true } } } },
+      operations: { pick: { inputs: { option } } },
+    });
+    assert.equal(schema.contracts["Result"]!.fields["option"]!.typeId, "Choice");
+    assert.deepEqual(validateValue(schema, "Result", {}, "create"), { option: "abc" });
+    assert.deepEqual(validateValue(schema, "Result", { option: "  abcd  " }, "create"), { option: "abcd" });
+    assert.deepEqual(validateValue(schema, "Result", { option: "  abc  " }, "update"), { option: "abc" });
+    assert.deepEqual(validateValue(schema, "Nullable", { option: null }, "create"), { option: null });
+    assert.deepEqual(validateOperationInput(schema, "pick", {}), { option: "abc" });
+    assert.deepEqual(validateOperationInput(schema, "pick", { option: "  abcd  " }), { option: "abcd" });
+    for (const raw of ["   ", "  a  ", "  ab  ", "  abcde  ", "  abcdef  ", "  a b  "]) {
+      assertSchemaError(() => validateValue(schema, "Result", { option: raw }, "create"));
+      assertSchemaError(() => validateOperationInput(schema, "pick", { option: raw }));
+    }
+    assertSchemaError(() => validateValue(schema, "Choice", "  abc  ", "create"));
+    assertSchemaError(() => normalizeSchema({ aliases, contracts: { Result: { fields: {
+      option: { type: "Choice", trim: true, min: 6 },
+    } } } }));
+  });
+
   it("preserves static defaults and explicitly refuses unsupported prepared profiles", () => {
     const legacy = normalizeSchema({ contracts: { Legacy: { fields: {
       count: { type: "int", default: "1" }, items: { type: "text[]" },
