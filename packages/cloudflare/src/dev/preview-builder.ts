@@ -117,6 +117,49 @@ function sha256(value: string | Uint8Array): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+/** Classify declared containment roots before allocating preview resources. */
+function previewStorageMode(artifact: CompileArtifact): "global" | "team" {
+  const models = artifact.models;
+  if (models === undefined) return "global";
+  if (!Array.isArray(models)) fail("MODEL_OWNERSHIP_INVALID", "preview models must be an array");
+  const byName = new Map<string, NonNullable<CompileArtifact["models"]>[number]>();
+  for (const model of models) {
+    if (typeof model !== "object" || model === null || Array.isArray(model) ||
+        typeof model.name !== "string" || model.name === "" || byName.has(model.name)) {
+      fail("MODEL_OWNERSHIP_INVALID", "preview requires unique nonempty model names");
+    }
+    if ((model.scope !== undefined && model.scope !== "app") ||
+        (model.parent !== undefined && (typeof model.parent !== "string" || model.parent === "")) ||
+        (model.parent !== undefined && model.scope !== undefined)) {
+      fail("MODEL_OWNERSHIP_INVALID", "preview model ownership requires a parent or an app scope, not both");
+    }
+    byName.set(model.name, model);
+  }
+  const resolved = new Map<string, "global" | "team">();
+  for (const model of models) {
+    const path: string[] = [];
+    const visiting = new Set<string>();
+    let name = model.name;
+    let mode = resolved.get(name);
+    while (mode === undefined) {
+      const current = byName.get(name);
+      if (current === undefined || visiting.has(name)) {
+        fail("MODEL_OWNERSHIP_INVALID", "preview model ownership has a missing or cyclic parent");
+      }
+      visiting.add(name);
+      path.push(name);
+      if (current.parent === undefined) mode = current.scope === "app" ? "global" : "team";
+      else { name = current.parent; mode = resolved.get(name); }
+    }
+    for (const child of path) resolved.set(child, mode);
+  }
+  const modes = new Set(resolved.values());
+  if (modes.size > 1) {
+    fail("MIXED_OWNER_PROFILE_UNSUPPORTED", "mixed app/team preview requires an owning operation and page storage-selection API");
+  }
+  return modes.has("team") ? "team" : "global";
+}
+
 function admitPreviewInputs(artifact: CompileArtifact, capture: SingleFileCapture, resources: LocalPreviewResources): void {
   if (capture.profile !== PROFILE) fail("PROFILE_UNSUPPORTED", `preview profile ${capture.profile} is unsupported`);
   const source = verifyCompilerSources(capture, { complete: true, sources: artifact.sources });
@@ -152,7 +195,6 @@ function admitPreviewInputs(artifact: CompileArtifact, capture: SingleFileCaptur
 async function admittedVerdict(
   artifact: CompileArtifact, capture: SingleFileCapture, options: LocalPreviewBuilderOptions,
 ): Promise<ActivationVerdict & { active: true }> {
-  admitPreviewInputs(artifact, capture, options.resources);
   if (options.activationVerdict === undefined) {
     fail("ACTIVATION_UNAVAILABLE", "installed activation gate producer is unavailable");
   }
@@ -363,6 +405,8 @@ async function probeWorker(dev: LocalDev, bundle: PackageDeployBundle, origin: s
 export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
   (artifact: CompileArtifact, capture: SingleFileCapture, artifactBytes?: Uint8Array) => Promise<LocalPreviewWithActors> {
   return async (artifact, capture, artifactBytes) => {
+    admitPreviewInputs(artifact, capture, options.resources);
+    const storageMode = previewStorageMode(artifact);
     const verdict = await admittedVerdict(artifact, capture, options);
     if (!(await captureIsCurrent(capture))) fail("SOURCE_CHANGED", "preview capture changed before build");
     if (options.produceBundle === undefined) fail("PORTABLE_BUNDLE_UNAVAILABLE", "no verified installed-package bundle producer is configured");
@@ -418,7 +462,7 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
             !["STATE_CEDAR_DB", "STATE_OAK_DB"].includes(owner.binding))) {
         fail("IDENTITY_UNAVAILABLE", "real local Identity seed did not provide the expected isolated team matrix");
       }
-      const ownerDatabases = (artifact.models === undefined || artifact.models.length === 0 ? [] : seed.owners)
+      const ownerDatabases = (storageMode === "global" ? [] : seed.owners)
         .map(owner => ({ ...owner, id: `can-preview-owner-${randomUUID()}` }));
       worker = await startLocalDev({
         workerName: `can-preview-${randomUUID()}`,
