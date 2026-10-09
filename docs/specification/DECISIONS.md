@@ -5013,3 +5013,9 @@ at their actual tested scope. Dev still owns original Text Send and full T04
 runtime/example/provider outcomes; broad58/67 owner refs and precise human holds
 remain. No source-only, checkpoint or handbuilt producer proof substitutes for
 those original workflow results. All updates stay local for coordinator review.
+
+## 2026-10-10 — retain the next genuine full-profile prerequisite
+
+At exact reviewed LOCALd392097e and genuine Dev canonical reader, rebuild the actual native bin and run the SAME full41-card native/private-session profile. Originating diagnostic1/1 passes; the positive profile case remains failed after21.69s and owned cleanup completes. It advances beyond the missing count reader to the original initially empty table: missing columns name/stock/available. Existing collection columns depend on actual row-projected fields, while the generated table requires authored columns. Packages owns the truthful empty-table/schema/current-authority producer. Preserve the whole source and positive assertions; no fake row, inferred schema grant, narrowed fixture or partial23-card claim. Record/send this exact new prerequisite and skip unchanged failures.
+
+The same reviewed tuple releases complete Compiler source/Send/Set/primitive/operation/original-reference capture and its existing scoped native receipt3/3. State/Capability receives exact prerequisites and priority for the unchanged whole Task44 native D1/localHTTP/progress/replay/security/control case. Dev owns precise runtime/effects defects from that consumer. Compiler whole qualification is now recorded at e4777be7/integrated ff0055c8. Original Task44 and complete T04/UI/Office/G2–G3 remain open; precise human holds are preserved.
