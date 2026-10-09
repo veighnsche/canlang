@@ -4419,9 +4419,12 @@
       "limit": "Defining generated/full consumer joins and current-head review remain required; no native preparation activation."
     },
     "auth_team_budget": {
-      "state": "blocked; skip without edits",
-      "prerequisite": "Exact Dev-owned complete joined/paginated Identity ports/D1/testing producer plus corrected /auth/teams consumer with actual production D1 budget checks. Existing422ebfb6consumer is published but required joined producer absent.",
-      "owner": "Dev worker per coordinator explicit ownership clarification; Packages consumes exact coherent release."
+      "state": "implemented by owning Dev release, consumed and affected checks passed",
+      "source": "Verified published422ebfb6f48d410a3170096fac0d00db87228577 original Interfaces route baseline plus1084c1a102d005236a57d7a3665c7a5a524dc8d2 joined/paginated Identity ports/D1/testing, Interfaces consumer and matching Cloudflare structural port/actual D1 test. No Dev plan or unrelated producer imported.",
+      "behavior": "Store joins active memberships to live teams, ordered after exclusive cursor with LIMIT101. Auth route displays100 plus lookahead, never resolves each team separately; auth/cache/cursor/refusal controls retained.",
+      "validation": "Identity/Interfaces/Cloudflare project emits and31existing team/auth unit cases pass onNode24. Actual workerd D1 consumer1/1passes after sandbox-localhost EPERM rerun:205teams produce100/100/5pages, exactly5queries per request with one discovery INNER JOIN, removed/dangling/foreign exclusions and revoked403.",
+      "owner": "Dev producer/feature consumer; Packages exact released dependency intake",
+      "limit": "Installed feature qualification/current-head review remains due; original Identity parent obligations remain open."
     },
     "form_refusal_metadata": {
       "state": "implemented and affected checks passed",
