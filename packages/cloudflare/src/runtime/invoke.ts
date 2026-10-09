@@ -108,6 +108,8 @@ import type { SystemCommandContext, SystemStaging } from "@canlang/state";
 import { assertReceiptJoin, createJudgmentReceiptContext } from "@canlang/state/receipt/tables";
 import { retainCommittedFiles, stageFileReferences } from './file-staging.js';
 import { bindNativeRecord, bindNativeReference, nativeRecordReference } from './native-records.js';
+import type { AdmittedCall } from '@canlang/state/invocation';
+import { openScenarioReceiptFrame, type ScenarioReceiptFrame } from './scenario-receipt-frame.js';
 import type { CanonicalFileBinding, FileAttachment } from './file-staging.js';
 import type { IdentityStore } from "@canlang/identity";
 import { sha256HexText, timingSafeEqualHex } from '@canlang/identity';
@@ -3777,6 +3779,7 @@ async function runScenarioSeam(
   due?: { readonly effects: SystemStaging; readonly occurrenceId: OccurrenceId },
   cohort?: { readonly occurrenceId: OccurrenceId; readonly eventFields: ReadonlyArray<string>;
     readonly refInput: string; readonly bind: string | null },
+  receiptStore?: StoragePort,
 ): Promise<CanonicalExecutionEffects> {
   if (localOwnerPolicyControls.has(loaded)) {
     throw new loaded.producers.errors('validation', 'Native owner model rules require one scenario owner session; this producer profile supports generated CRUD only.');
@@ -3860,6 +3863,7 @@ async function runScenarioSeam(
     revision: navigationRevision, actorUserId, teamId, memberships: opts.memberships,
     authority: 'viewer', failure: recordEngineFailure });
   seamGuards.push({ name: 'parent.read', evaluate: async () => { await viewerNavigation.revalidate(); return true; } });
+  let scenarioReceiptFrame: ScenarioReceiptFrame | undefined;
   const views = new Map<string, Record<string, unknown>>();
   const recordBindings = new Map<Record<string, unknown>, { model: string; id: string; version: number }>();
   const callable = opts.artifact.callables.find((entry) => entry.id === opts.operation);
@@ -3890,6 +3894,7 @@ async function runScenarioSeam(
     ownerNavigation.attach(record, modelName, row, (model, parent) => recordView(model, parent as StoredRow));
     bindNativeRecord(record, modelName, row.id, row.version);
     Object.freeze(record);
+    scenarioReceiptFrame?.bind(record, modelName, current);
     views.set(key, record);
     recordBindings.set(record, { model: modelName, id: row.id, version: row.version });
     return record;
@@ -3897,6 +3902,9 @@ async function runScenarioSeam(
   const projectedRecordView = (modelName: string, row: ProjectedRecord): Record<string, unknown> => {
     const record = nativeProjectedRecord(loaded, modelName, row, viewerNavigation,
       (model, parent) => projectedRecordView(model, parent as ProjectedRecord));
+    // Preserve the exact served projection; partial snapshots remain an owning
+    // State refusal rather than being expanded into unserved raw fields.
+    scenarioReceiptFrame?.bind(record, modelName, () => row);
     recordBindings.set(record, { model: modelName, id: row.id, version: row.version });
     return record;
   };
@@ -4523,6 +4531,12 @@ async function runScenarioSeam(
     qualified: call.context,
     ...(opts.formatting === undefined ? {} : { formatting: opts.formatting }),
   });
+  if (receiptStore !== undefined) {
+    // This is the unchanged call pointer supplied by actual State.invoke.
+    // State verifies the lifetime and selected store before opening the frame.
+    scenarioReceiptFrame = openScenarioReceiptFrame(ctx, call as AdmittedCall, receiptStore, recordEngineFailure);
+  }
+  try {
   for (const ref of call.recordRefs ?? []) await ownerNavigation.prepare(ref.model, ref.row);
   const parameters = cohort === undefined ? undefined : scenarioParameters(call, loaded, recordView, resolvedDefaults);
   const argument = cohort !== undefined
@@ -4618,6 +4632,7 @@ async function runScenarioSeam(
   if (observesDefaults && observedDefaults.size !== computedSlots.size) {
     throw new StateError('validation', 'Generated handler omitted a required computed-default report.');
   }
+  scenarioReceiptFrame?.assertCompleted();
   const uniques = netStagedUniques(stagedTouches);
   const returnedBinding = typeof outcome.value === 'object' && outcome.value !== null
     ? recordBindings.get(outcome.value as Record<string, unknown>) : undefined;
@@ -4654,6 +4669,7 @@ async function runScenarioSeam(
     guards: seamGuards,
     readings: servedReadings,
   };
+  } finally { scenarioReceiptFrame?.close(); }
 }
 
 export async function invokeMutationCanonical(
@@ -4774,7 +4790,7 @@ async function invokeCanonicalMutation(
           effects = { ...effects, fileAssignments: assignments };
         }
       } else if (kind === "scenario") {
-        effects = await runScenarioSeam(loaded, opts, call, occurrenceIds);
+        effects = await runScenarioSeam(loaded, opts, call, occurrenceIds, undefined, undefined, receiptStore);
       } else {
         throw new StateError("validation", `Operation ${JSON.stringify(opts.operation)} cannot execute here.`);
       }
