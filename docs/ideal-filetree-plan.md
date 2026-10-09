@@ -100,6 +100,8 @@ After every merge, its handler reconciles all accumulated changes since the comp
 
 <!-- local-main-integration:start -->
 Current local integration: committed source `95d5b3d68fb6943759ed68863d25871e84179ddc` onto main `966e98dcb85a6c17f4baebbe408ebc922ced2482`. The existing accumulated registry is reconciled from its complete checkpoint to the staged merge tree. Source owners and recorded validation scopes remain distinct from full workflow acceptance; uncommitted worker edits and precise holds remain preserved. The human now requires local commits, coordinator main integration and manual review; PR/remote-review waits are superseded. Complete source/target review remains open and the checkpoint is not advanced.
+
+Compiler consumes reviewed integrated local main `00a9727ec9ba0dc3ddf79d9ede8a63e0f7b34c0d` by fast-forward. Its existing registry already covers the 39 incoming changed paths; owner allocations and the unadvanced complete checkpoint are reused. Compiler implementation is unchanged from the qualified 95d source; the coordinator's newer genuine alias/CSV fixture2/2 is reused, and installed dependency outputs rebuild26/26. Public source-correspondence repair remains Dev-owned.
 <!-- local-main-integration:end -->
 
 <!-- documentation-review:start -->
