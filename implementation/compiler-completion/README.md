@@ -239,6 +239,16 @@ or broadened boundary exception is introduced. Codex's completed **7bed51d7**
 code/security review identified the same optional-import P1, corrected by this
 released owning loader. New published-head review and hosted CI remain due.
 
+Codex **0f17f6f8** code/security reviews completed without new findings.
+That head's hosted compiler job passes both corpus/CanInbox corrections, then
+finds a zsh host-startup prerequisite: interactive compinit aborts on insecure
+search directories. The owning fixture now uses audited `compinit -i -D`,
+ignoring unsafe host directories without prompting, and verifies bootstrap and
+an echo-safe readiness sentinel. Required-engine completion checks pass **2/2**;
+the actual insecure-fpath reproduction passes all **47** exact ZLE assertions.
+Independent source review accepts the finite harness correction. Production
+completion scripts and their actual output assertions remain unchanged.
+
 Current remaining prerequisites are recorded here without reopening accepted
 compiler leaves:
 
