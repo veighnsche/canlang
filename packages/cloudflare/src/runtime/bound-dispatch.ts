@@ -1,10 +1,12 @@
 /** Installed provider dispatch over the existing Work lifecycle and State join. */
-import type { OutboxId, OutboxIntent, ReceiptResultContext, StoragePort, RecordId, AssociatedReceipt } from '@canlang/contracts';
+import type { OutboxId, OutboxIntent, ReceiptResultContext, StoragePort, RecordId, AssociatedReceipt, StoredRow, RetainedOutboxIntent } from '@canlang/contracts';
 import { createReceiptJoinPort } from '@canlang/state/receipt/tables';
 import { decodeValue, equalValue } from '@canlang/values';
 import type { SystemCommandContext } from '@canlang/state';
 import type { SystemCommandDef } from '@canlang/state/ports/system';
-import { dispatchByStateQuery, WORK_DISPATCH_MODEL } from '@canlang/work/kernel/tables';
+import { dispatchByStateQuery, WORK_DISPATCH_MODEL, readDispatchRow, readDispatchImageCorrelation,
+  DISPATCH_IMAGE_CORRELATION_FIELDS, type DispatchImageCorrelation, type DispatchRowData } from '@canlang/work/kernel/tables';
+import { deriveOutboxId } from '@canlang/work/intent';
 import { assembleDispatchCommands } from '../worker/assembly.js';
 import type { BoundMailAdapter } from './bound-mail.js';
 import type { BoundJudgmentAdapter } from './bound-judgment.js';
@@ -33,6 +35,55 @@ import type {
   RecoverySweepOpts,
   RecoverySweepResult,
 } from './invoke.js';
+
+export type RetainedImagesDispatchLookup =
+  | { readonly status: 'resolved'; readonly row: StoredRow; readonly dispatch: DispatchRowData;
+      readonly retained: RetainedOutboxIntent; readonly principal: string }
+  | { readonly status: 'absent' | 'ambiguous' | 'invalid' };
+
+/**
+ * Exact owner-local correlation read, including acknowledged originals.
+ * This read grants no authority: the control consumer must still qualify the
+ * current association, principal/cleanup authority and its own owner fence.
+ */
+export async function lookupRetainedImagesDispatch(input: {
+  readonly store: StoragePort;
+  readonly correlation: DispatchImageCorrelation;
+}): Promise<RetainedImagesDispatchLookup> {
+  const requested = readDispatchImageCorrelation(input.correlation as unknown as Readonly<Record<string, unknown>>);
+  if (requested === null) return { status: 'invalid' };
+  const rows = await input.store.query({ model: WORK_DISPATCH_MODEL, authority: 'owner',
+    where: { op: 'and', args: [
+      { op: 'eq', field: 'source', value: 'std.ImagesV1.submit' },
+      ...DISPATCH_IMAGE_CORRELATION_FIELDS.map(field => ({ op: 'eq' as const, field, value: requested[field] })),
+    ] }, order: [{ field: 'id', direction: 'asc' }], limit: 2 });
+  if (rows.length === 0) return { status: 'absent' };
+  if (rows.length > 1) return { status: 'ambiguous' };
+  const row = rows[0]!;
+  try {
+    const dispatch = readDispatchRow(row);
+    if (row.id !== dispatch.intentId || dispatch.source !== 'std.ImagesV1.submit' ||
+        DISPATCH_IMAGE_CORRELATION_FIELDS.some(field => dispatch[field] !== requested[field]) ||
+        row.archivedAt !== null || typeof row.createdBy !== 'string' || row.createdBy === '' ||
+        !Number.isSafeInteger(row.created) || row.created < 0) return { status: 'invalid' };
+    const retained = await input.store.outboxGet(dispatch.intentId);
+    if (retained === null || !['pending', 'dispatched', 'skipped'].includes(retained.status)) return { status: 'invalid' };
+    const intent = retained.intent;
+    if (intent.intentId !== dispatch.intentId || intent.target !== dispatch.source ||
+        intent.operationId !== dispatch.operationId || intent.occurrenceIndex !== dispatch.occurrenceIndex ||
+        deriveOutboxId(intent.operationId, intent.target, intent.occurrenceIndex) !== intent.intentId) return { status: 'invalid' };
+    const carrier = intent.arguments;
+    const args = carrier['arguments'];
+    if (Object.keys(carrier).length !== 3 || carrier['binding'] !== requested.requestBinding ||
+        carrier['from'] !== requested.requestFrom || typeof args !== 'object' || args === null || Array.isArray(args) ||
+        Object.keys(args).length !== 1 || !Object.hasOwn(args, 'value')) return { status: 'invalid' };
+    const value = (args as Record<string, unknown>)['value'];
+    if (typeof value !== 'object' || value === null || Array.isArray(value) ||
+        (value as Record<string, unknown>)['source'] !== requested.requestSource ||
+        (value as Record<string, unknown>)['revision'] !== requested.requestRevision) return { status: 'invalid' };
+    return { status: 'resolved', row, dispatch, retained, principal: row.createdBy };
+  } catch { return { status: 'invalid' }; }
+}
 
 export interface BoundMailDispatcherOptions {
   readonly store: StoragePort;

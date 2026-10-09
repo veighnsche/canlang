@@ -39,6 +39,7 @@ import type {
   RecordVersion,
   StoredRow,
 } from '@canlang/contracts';
+import { decodeValue, encodeValue } from '@canlang/values';
 import type {
   ClaimId,
   FanoutChildId,
@@ -71,8 +72,41 @@ export const WORK_SCHEDULE_MODEL = 'work.schedule' as ModelName;
 export const WORK_EVERY_SLOT_MODEL = 'work.every_slot' as ModelName;
 export const WORK_SUPERSESSION_MODEL = 'work.supersession' as ModelName;
 
+/** Checked business identity of an original Images submit; all fields are flat and immutable. */
+export interface DispatchImageCorrelation {
+  readonly requestSource: string;
+  readonly requestRevision: string;
+  readonly requestBinding: string;
+  readonly requestFrom: string;
+  readonly requestApp: string;
+  readonly requestOwner: string;
+}
+export const DISPATCH_IMAGE_CORRELATION_FIELDS = [
+  'requestSource', 'requestRevision', 'requestBinding', 'requestFrom', 'requestApp', 'requestOwner',
+] as const;
+
+/** Legacy rows omit the entire correlation; partial or noncanonical metadata is never usable. */
+export function readDispatchImageCorrelation(value: object): DispatchImageCorrelation | null {
+  const data = value as Readonly<Record<string, unknown>>;
+  const present = DISPATCH_IMAGE_CORRELATION_FIELDS.filter(field => Object.hasOwn(data, field));
+  if (present.length === 0) return null;
+  if (present.length !== DISPATCH_IMAGE_CORRELATION_FIELDS.length || present.some(field => {
+    const descriptor = Object.getOwnPropertyDescriptor(data, field);
+    return descriptor === undefined || !('value' in descriptor) || typeof descriptor.value !== 'string' || descriptor.value === '';
+  })) {
+    throw new KernelTableError('Incomplete or invalid original Images correlation.');
+  }
+  try {
+    const revision = decodeValue('int', data.requestRevision);
+    if (typeof revision !== 'bigint' || revision < 0n || encodeValue('int', revision) !== data.requestRevision) {
+      throw new Error('Noncanonical revision.');
+    }
+  } catch { throw new KernelTableError('Original Images correlation requires a canonical nonnegative revision.'); }
+  return Object.freeze(Object.fromEntries(DISPATCH_IMAGE_CORRELATION_FIELDS.map(field => [field, data[field]]))) as unknown as DispatchImageCorrelation;
+}
+
 /** Claim lifecycle per staged intent. Flat for store querying. */
-export interface DispatchRowData {
+export interface DispatchRowData extends Partial<DispatchImageCorrelation> {
   readonly intentId: OutboxId;
   readonly operationId: string;
   readonly source: string;
@@ -291,6 +325,7 @@ export function readDispatchRow(row: StoredRow): DispatchRowData {
     );
   }
   return {
+    ...(readDispatchImageCorrelation(data) ?? {}),
     intentId: checkString(data, 'intentId', 'work.dispatch'),
     operationId: checkString(data, 'operationId', 'work.dispatch'),
     source: checkString(data, 'source', 'work.dispatch'),
@@ -454,11 +489,13 @@ export function newDispatchRow(
   input: Pick<
     DispatchRowData,
     'intentId' | 'operationId' | 'source' | 'occurrenceIndex' | 'originOccurrence'
-  >,
+  > & Partial<DispatchImageCorrelation>,
   meta: NewRowMeta,
 ): StoredRow {
+  const correlation = readDispatchImageCorrelation(input as unknown as Readonly<Record<string, unknown>>);
   const data: DispatchRowData = {
     ...input,
+    ...(correlation ?? {}),
     state: 'pending',
     attempts: 0,
     claimId: null,
