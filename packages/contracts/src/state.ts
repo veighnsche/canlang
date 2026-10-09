@@ -880,10 +880,13 @@ export interface CanonicalModelDescriptor {
 }
 
 /** Exact, source-ordered owning native policy ABI; missing plans never imply a scan. */
+export const OWNER_MODEL_POLICY_BINDINGS_MEMBER = 'modelPolicyBindings' as const;
+
 export interface CanonicalOwnerModelPolicies {
   readonly abi: 'state.owner-model-policies@1';
   readonly model: ModelName;
   readonly ownerPackage: string;
+  /** Exact emitted ArtifactModule.path, using the ArtifactCallable.module convention. */
   readonly module: string;
   readonly rules: ReadonlyArray<
     | {
