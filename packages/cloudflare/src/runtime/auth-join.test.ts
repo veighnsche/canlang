@@ -18,7 +18,7 @@ import { activate } from '../deploy/activate.js';
 import { probeInstalledRuntime } from '../deploy/installed.js';
 import { buildProductionDeps } from '../runtime/env-assembly.js';
 
-// The wrapper supplies host configuration only; the generated app and all handlers are genuine.
+// The normal shipped main and production dependency loader consume trusted host vars.
 test('installed bundled auth joins real local D1 sessions, teams and canonical operations', async () => {
   const fixturePath = resolve('packages/cloudflare/test/fixtures/typed-context-scopes.json');
   const bytes = await readFile(fixturePath);
@@ -30,6 +30,14 @@ test('installed bundled auth joins real local D1 sessions, teams and canonical o
     let db = await mf.getD1Database('DB') as unknown as D1Database;
     let production = await buildProductionDeps({ DB: db });
     let identities = createD1IdentityStore(db);
+    for (const invalid of ['not-an-origin', 'ftp://auth.example', 'http://localhost/', 'http://localhost/path',
+      'http://localhost?query=1', 'http://user:password@localhost', 'http://localhost#fragment']) {
+      await assert.rejects(buildProductionDeps({ DB: db, CAN_AUTH_ORIGIN: invalid }), /CAN_AUTH_ORIGIN/);
+    }
+    const configured = await buildProductionDeps({ DB: db, CAN_AUTH_ORIGIN: 'https://auth.example' });
+    assert.equal(configured.auth?.origin, 'https://auth.example');
+    assert.equal(configured.auth?.secureCookies, true);
+    assert.equal(configured.auth?.mail, undefined);
     const password = 'ordinary-account-password';
     const member = await identities.createUser({ email: 'member@auth.example',
       password_hash: await hashPassword(password), email_verified: true });
@@ -58,26 +66,18 @@ test('installed bundled auth joins real local D1 sessions, teams and canonical o
     const deployment = buildDeployBundle(artifact, { verdict,
       workerDistDir: fileURLToPath(new URL('../worker', import.meta.url)),
       runtimeDistDir: fileURLToPath(new URL('./', import.meta.url)) });
-    const modules = { ...deployment.modules,
-      'worker/auth-host.js': `import { createMainFetch } from './main.js';
-import { buildProductionDeps } from '../runtime/env-assembly.js';
-import { createD1AuthRateLimiter } from '../runtime/auth-rate-limiter.js';
-const fetch = createMainFetch({ loadProductionDeps: async env => ({
-  ...await buildProductionDeps(env),
-  ...(env.AUTH_CONFIGURED ? { auth: { origin: env.AUTH_ORIGIN, secureCookies: false,
-    limiter: await createD1AuthRateLimiter(env.DB, { scope: 'TypedContextScopes.auth', clock: { nowMs: Date.now } }) } } : {})
-}) });
-export default { fetch };` };
+    const modules = deployment.modules;
     assertLinksResolve(modules); assertWorkerdLoadable(modules);
-    const update = async (configured = true, origin = 'http://localhost', withDb = true) => { await mf.setOptions({
+    const update = async (origin: string | undefined, withDb = true) => { await mf.setOptions({
       compatibilityDate: '2026-07-15',
-      modules: [['worker/auth-host.js', modules['worker/auth-host.js']], ...Object.entries(modules).filter(([path]) => path !== 'worker/auth-host.js')].map(([path, contents]) => ({ path, type: 'ESModule' as const, contents })),
+      modules: [[deployment.mainModule, modules[deployment.mainModule]!], ...Object.entries(modules).filter(([path]) => path !== deployment.mainModule)].map(([path, contents]) => ({ path, type: 'ESModule' as const, contents })),
       modulesRoot: resolve('.'),
-      bindings: { AUTH_CONFIGURED: configured, AUTH_ORIGIN: origin },
+      bindings: origin === undefined ? {} : { CAN_AUTH_ORIGIN: origin },
       ...(withDb ? { d1Databases: { DB: 'auth-join' } } : {}),
     });
       if (withDb) {
         db = await mf.getD1Database('DB') as unknown as D1Database;
+        // The raw storage consumer remains valid without auth configuration.
         production = await buildProductionDeps({ DB: db });
         identities = createD1IdentityStore(db);
       }
@@ -85,11 +85,13 @@ export default { fetch };` };
     const request = (path: string, body?: object, headers: Record<string, string> = {}) =>
       mf.dispatchFetch(`http://localhost${path}`, body === undefined ? { headers } : {
         method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
-    await update(false);
-    assert.equal((await request('/auth/login')).status, 501);
-    await update(true, 'not-an-origin');
+    await update(undefined);
+    const missingOrigin = await request('/auth/login');
+    assert.equal(missingOrigin.status, 500);
+    assert.equal((await missingOrigin.json() as { code: string }).code, 'auth-configuration');
+    await update('not-an-origin');
     assert.equal((await request('/auth/login')).status, 500);
-    await update();
+    await update('http://localhost');
     assert.ok(await identities.findUserByEmail(member.email), 'Reconfiguration preserves the actual same D1 identity data.');
     const login = async (email: string) => {
       const descriptor = await request('/auth/login');
@@ -150,7 +152,7 @@ export default { fetch };` };
     assert.equal(throttled.status, 429);
     assert.ok(Number(throttled.headers.get('retry-after')) > 0);
 
-    await update(true, 'http://localhost', false);
+    await update('http://localhost', false);
     assert.equal((await request('/auth/login')).status, 500);
   } finally {
     await mf.dispose();
