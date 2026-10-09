@@ -286,8 +286,14 @@ Judgment collection behavior remains. Actual CLI/emitted definition/native
 Cloudflare+State **2/2** pass: flat/nested contracts, enums, arrays/nulls, eight
 scalar codecs, unrelated-Judgment equality, live input/admission controls,
 first genuine mutation and its persisted receipt. Unknown source type refuses
-E2001 without modules. Independent finite source review reports no findings.
-Current changed-source whole compiler/lint checks are running; saved-result
+E2001 without modules. Actual generated CRUD also stores and projects Flat/Nested
+contracts; malformed scalar/enum/missing/extra/nested-array fields refuse while
+preserving the original domain row/history. Independent finite source review
+reports no findings. Changed-source strict all-target Clippy passes. The initial
+whole run found two retired codegen expectations for unknown contract tags and
+unquoted fields; matching checked nominal/JSON-schema expectations restore
+owning codegen **121/121**. Final changed-source whole checks remain due after
+the positive State owner-entry intake; saved-result
 replay disclosure, BDD3 and broader nominal/model-container workflows remain
 unfinished. No original reference count closes from this finite correction.
 
