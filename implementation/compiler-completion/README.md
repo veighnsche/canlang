@@ -2,6 +2,20 @@
 
 Current completion is **58 of 67 references**, with **9 remaining including partial work**. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
+**Unfinished shutdown checkpoint, 2026-10-09.** The human stopped cloud work;
+continuation belongs in `/Users/vince/.codex/worktrees/cloud-compiler/canlang`.
+The open UI descriptor-admission correction for Codex4231381141 is preserved
+in `ir.rs`, `anonymous_message_bindings.rs` and its existing native fixture.
+The last affected run reports anonymous bindings **6/8**: added stat-description
+calls lack checked selected-call facts, and the new button/native positive lacks
+checked target/option facts. Those option profiles were already unsupported;
+the unfinished expanded fixture does not establish their admission. The earlier
+70 caption/header refusal controls passed before the extra option cases. Other
+affected targets pass codegen **117/117**, slots **6/6**, selected calls **7/7**
+and UI adapter **7/7**. Independent review was interrupted; no final acceptance,
+new strict lint result or passing current-head suite is claimed. The shutdown
+checkpoint and push preserve work only; no further cloud execution is authorized.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed
@@ -263,8 +277,8 @@ The reviewed handbuilt **67aef2a8 / b11cc7c8** pair is now consumed separately:
 retain the explicit correspondence limits and bundle actual public Identity/UI
 dependency closures, sharing the Identity instance. Its existing Chromium
 scaffold/TeamTasks/MCP cases pass **15/15** after downloading the real browser;
-the owning E2E typecheck also passes.
-the initial attempt passed **6/15**, with nine missing-engine failures retained
+the owning E2E typecheck also passes. The initial attempt passed **6/15**, with
+nine missing-engine failures retained
 in the environment log. This does not qualify the full source-generated app.
 
 Released Dev boundary inputs **992b3d0a / 2421f900** now supply the exact public

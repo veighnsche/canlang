@@ -3620,3 +3620,8 @@ Consume only publishedbe2bc253569fb1976d5defff0bcac7b73a82e121's five owning tes
 ## 2026-10-09 — consume the qualified handbuilt browser dependency closure
 
 Consume only reviewed67aef2a8's TeamTasks source-correspondence fixture and qualifiedb11cc7c8's owning artifact loader plus public Identity/UI bundle entries. Preserve explicit fixture limits, every browser/auth/CSRF/MCP assertion and one shared Identity instance; installed producer dependencies are bundled for Worker execution without aliases or stubs. Actual Chromium scaffold/TeamTasks/MCP15/15 passes after installing the real engine in the workspace cache; the initial6/15 run failed nine missing-engine cases and remains in the environment log. This separate handbuilt profile does not change compiled assembly, repair CanDo pilot source or establish whole-application acceptance.
+
+
+## 2026-10-09 — unfinished cloud shutdown: UI descriptor admission
+
+Preserve the unaccepted compiler UI ownerless-enum descriptor admission delta and related CLI/native controls after the human's emergency stop. The final affected anonymous target is6/8: new stat-description calls have no selected-call facts and new button/native positives have no checked target/option facts; these catalog option profiles were already unsupported, so the expanded fixtures require bounded reconciliation locally. Earlier70caption/header refusal controls passed, and unchanged affected codegen117/117, slots6/6, selected calls7/7 and UI adapter7/7 pass. Independent review was interrupted; no final-source acceptance or strict lint qualification is supplied. Checkpoint publication is preservation only, and cloud execution must not resume.

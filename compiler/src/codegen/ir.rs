@@ -7050,16 +7050,90 @@ impl<'a> Cx<'a> {
     }
 
     fn decode_ui_header_value(&mut self, scope: &Scope, node: &SyntaxNode) -> TypedExpr {
-        if node.kind == SyntaxKind::MessageValue
+        let value = if node.kind == SyntaxKind::MessageValue
             && let Some(message) = self.decode_message_node(scope.module, node)
         {
-            return TypedExpr::new(
+            TypedExpr::new(
                 IrExpr::Message(message),
                 ResolvedType::InlineMessage,
                 node.span,
-            );
+            )
+        } else {
+            self.decode_expr(scope, node)
+        };
+        self.check_ui_message_parameter_profile(node, &value);
+        value
+    }
+
+    /// UI and Values own different parameter profiles. Check only the owning
+    /// schema here; descriptor construction and captured argument reads remain
+    /// in their original expression and evaluation order.
+    fn check_ui_message_parameter_profile(&mut self, node: &SyntaxNode, value: &TypedExpr) {
+        let problem = match value.ty.nullable_inner().unwrap_or(&value.ty) {
+            ResolvedType::Message(id) => match self.program.effects.messages.get(id) {
+                Some(message) => message.params.iter().find_map(|param| {
+                    match self.program.types.symbol_types.get(&param.param) {
+                        Some(ty) => {
+                            matches!(ty, ResolvedType::Enum { owner: None, .. }).then(|| {
+                                format!(
+                                    "message parameter '{}' uses unsupported UI type {}",
+                                    self.local_name(param.param),
+                                    self.type_id(ty)
+                                )
+                            })
+                        }
+                        None => Some(format!(
+                            "message parameter '{}' has no checked UI type",
+                            self.local_name(param.param)
+                        )),
+                    }
+                }),
+                None => Some("named message has no checked UI parameter schema".to_string()),
+            },
+            ResolvedType::InlineMessage => {
+                let mut reference = node;
+                while reference.kind == SyntaxKind::Group {
+                    let Some(inner) = kids(reference).into_iter().find(|n| is_expression(n.kind))
+                    else {
+                        break;
+                    };
+                    reference = inner;
+                }
+                let key = NodeKey::of(reference);
+                let origin = self
+                    .program
+                    .types
+                    .message_descriptor_references
+                    .get(&key)
+                    .copied()
+                    .unwrap_or(key);
+                if let Some(binding) = self.program.types.anonymous_messages.get(&origin) {
+                    binding.arguments.iter().find_map(|(name, _, ty)| {
+                        matches!(ty, ResolvedType::Enum { owner: None, .. }).then(|| {
+                            format!(
+                                "message parameter '{name}' uses unsupported UI type {}",
+                                self.type_id(ty)
+                            )
+                        })
+                    })
+                } else if self
+                    .node(&origin)
+                    .is_some_and(|node| node.kind == SyntaxKind::MessageValue)
+                {
+                    None
+                } else {
+                    Some("inline message has no checked UI parameter schema".to_string())
+                }
+            }
+            _ => None,
+        };
+        if let Some(problem) = problem {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot render UI descriptor: {problem}"),
+                node.span,
+            ));
         }
-        self.decode_expr(scope, node)
     }
 
     /// Captioned factories consume exactly one checked text/message header.
@@ -7089,6 +7163,7 @@ impl<'a> Cx<'a> {
             ));
         }
         let value = self.decode_expr(scope, header);
+        self.check_ui_message_parameter_profile(header, &value);
         if let ResolvedType::Message(id) = &value.ty
             && self
                 .program
@@ -8137,7 +8212,12 @@ impl<'a> Cx<'a> {
                     )),
                 }
             } else {
-                props.push((name.clone(), self.decode_expr(scope, value)));
+                let decoded = if name == "caption" {
+                    self.decode_ui_header_value(scope, value)
+                } else {
+                    self.decode_expr(scope, value)
+                };
+                props.push((name.clone(), decoded));
             }
         }
         if bindings == 0 {
@@ -8579,7 +8659,12 @@ impl<'a> Cx<'a> {
         }
         for (name, value) in ui_attributes(self.db, node) {
             if let Some(value) = value {
-                props.push((name.clone(), self.decode_word_attr(scope, &name, value)));
+                let decoded = if name == "description" {
+                    self.decode_ui_header_value(scope, value)
+                } else {
+                    self.decode_word_attr(scope, &name, value)
+                };
+                props.push((name.clone(), decoded));
             }
         }
         IrUi {
@@ -8695,7 +8780,11 @@ impl<'a> Cx<'a> {
                 value.span,
             );
         }
-        self.decode_expr(scope, value)
+        let decoded = self.decode_expr(scope, value);
+        if matches!(name, "caption" | "title" | "text" | "label" | "submit") {
+            self.check_ui_message_parameter_profile(value, &decoded);
+        }
+        decoded
     }
 
     /// Decode a `form` node: operation plus display/arguments/fields/submit.
@@ -8881,7 +8970,11 @@ impl<'a> Cx<'a> {
                 }
                 "arguments" | "submit" => {
                     if let Some(value) = value {
-                        props.push((name, self.decode_expr(scope, value)));
+                        let decoded = self.decode_expr(scope, value);
+                        if name == "submit" {
+                            self.check_ui_message_parameter_profile(value, &decoded);
+                        }
+                        props.push((name, decoded));
                     }
                 }
                 "fields" => {
@@ -9757,7 +9850,14 @@ impl<'a> Cx<'a> {
         }
         for (name, value) in ui_attributes(self.db, node) {
             if let Some(value) = value {
-                props.push((name, self.decode_expr(scope, value)));
+                let decoded = self.decode_expr(scope, value);
+                if matches!(
+                    name.as_str(),
+                    "caption" | "title" | "text" | "label" | "submit"
+                ) {
+                    self.check_ui_message_parameter_profile(value, &decoded);
+                }
+                props.push((name, decoded));
             }
         }
         let children = self.decode_ui_children(scope, node, row_ctx);

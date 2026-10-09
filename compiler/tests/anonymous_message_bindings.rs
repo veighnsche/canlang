@@ -450,6 +450,85 @@ fn parameterized_message_captions_require_binding_before_publication() {
 
 #[cfg(unix)]
 #[test]
+fn unsupported_ownerless_enum_ui_descriptors_refuse_before_publication() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let declarations = "app EnumSinks\nuse std {OperationOutcome}\nGiven\n derive mode():OperationOutcome.state=pending\n message word(mode:OperationOutcome.state)=\"{mode}\"@{}\n message defaulted(mode:OperationOutcome.state=pending)=\"{mode}\"@{}\n derive returned():word=word(mode=mode())\n derive forward(value:word):word=value\nWhen\nThen\n page / title=\"Enum sinks\"\n";
+    for descriptor in [
+        "word(mode=mode())",
+        "((word(mode=mode())))",
+        "returned()",
+        "forward(word(mode=mode()))",
+        "defaulted()",
+        "\"{mode}\"@{}(mode=mode())",
+        "((\"{mode}\"@{}(mode=mode())))",
+    ] {
+        for (sink, body) in [
+            ("card", format!("  card {descriptor}\n   text \"Body\"\n")),
+            (
+                "details",
+                format!("  details {descriptor}\n   text \"Body\"\n"),
+            ),
+            ("divider", format!("  divider {descriptor}\n")),
+            (
+                "fieldset",
+                format!("  fieldset {descriptor}\n   text \"Body\"\n"),
+            ),
+            (
+                "tab",
+                format!("  tabs\n   tab {descriptor}\n    text \"Body\"\n"),
+            ),
+            ("text", format!("  text {descriptor}\n")),
+            ("status", format!("  status {descriptor}\n")),
+            ("badge", format!("  badge {descriptor}\n")),
+            ("alert", format!("  alert {descriptor}\n")),
+            ("stat", format!("  stat {descriptor}\n")),
+            (
+                "stat description",
+                format!("  stat 1 description={descriptor}\n"),
+            ),
+            (
+                "button caption",
+                format!("  button target=\"/\" caption={descriptor}\n"),
+            ),
+        ] {
+            let input = scratch.path().join("enum-sink.can");
+            std::fs::write(&input, format!("{declarations}{body}")).unwrap();
+            let compiled = std::process::Command::new(env!("CARGO_BIN_EXE_can"))
+                .args(["compile", "--format=json", "--catalog"])
+                .arg(root.join("packages/values/dist/catalog.json"))
+                .arg(input)
+                .env_remove("CAN_CATALOG")
+                .output()
+                .unwrap();
+            let response: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
+            assert_eq!(
+                compiled.status.code(),
+                Some(10),
+                "{sink}/{descriptor}: {response}"
+            );
+            assert!(
+                response.get("modules").is_none(),
+                "{sink}/{descriptor}: {response}"
+            );
+            assert!(
+                response["diagnostics"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|d| d["code"] == "E6008"
+                        && d["message"]
+                            .as_str()
+                            .unwrap()
+                            .contains("unsupported UI type enum(pending,")),
+                "{sink}/{descriptor}: {response}"
+            );
+        }
+    }
+}
+
+#[cfg(unix)]
+#[test]
 fn anonymous_messages_compile_and_execute_native_date_time_and_plural_bindings() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let scratch = tempfile::tempdir().unwrap();
