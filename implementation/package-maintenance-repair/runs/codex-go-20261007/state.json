@@ -4405,6 +4405,17 @@
       "source": "Existing compiler Delete descriptor accepts record only; archive/remove behavior belongs to declared operation.",
       "correction": "DeleteProps.mode remains presentation caption/tone; hidden fields are exactly operation, unchanged caller operation_id, CSRF, timezone and record{id,version}. Remove undeclared inputs[mode].",
       "validation": "UI TypeScript emit and94existing forms cases pass onNode24/Bun1.4.2, no skips; parsed exact payload assertions and escaping preserved. Dev owns generated requestUUIDv7 producer/e2e qualification."
+    },
+    "state_modifier_release": {
+      "prerequisite": "Consumed exact published792d8161b525a4ae2574f846b81e5938876b7ed9 six source/test files: Contracts artifact/state and State registry/models/pipeline/nullable-ref. No Dev plan or historical acceptance imported.",
+      "correction": "Constrained native values remain native through hooks; Values wire views validate bounds, trim alone normalizes, existing post-hook/default encoding remains. Archive constrains/encodes only hook-changed fields, preserving unchanged legacy values and history.",
+      "validation": "Contracts and State owning emits pass. Existing modifier/typed staging/remove29cases pass; after root correction to unchanged archive codec traversal,3affected archive/native controls pass with zero skips. Arithmetic create/update/defaults, pre/post-hook bounds and rollback/unique recovery/history covered.",
+      "limit": "Defining generated/full consumer joins and current-head review remain required; no native preparation activation."
+    },
+    "auth_team_budget": {
+      "state": "blocked; skip without edits",
+      "prerequisite": "Exact Dev-owned complete joined/paginated Identity ports/D1/testing producer plus corrected /auth/teams consumer with actual production D1 budget checks. Existing422ebfb6consumer is published but required joined producer absent.",
+      "owner": "Dev worker per coordinator explicit ownership clarification; Packages consumes exact coherent release."
     }
   }
 }
