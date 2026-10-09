@@ -217,6 +217,14 @@ controls resolve it. Native canonical activation, broader reverse selectors,
 hook carriers and current-source whole qualification remain unfinished. The
 coordinator owns local integration; no remote publication follows this unit.
 
+**Local common fixture intake, 2026-10-09.** Exact published Packages
+**9a635da8** B3 malformed-delivery assertion and **6ac7e29** Services deadline
+fixture correction are consumed without independent common repairs. Owning
+build **8/8**, B3 **5/5** and selected real HTTP deadline **1/1** pass, retaining
+nominal refusal, aggregate deadline and exact request-count assertions. Other
+cases and unchanged producer results are reused. This unit stays locally
+committed under the revised integration workflow.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed

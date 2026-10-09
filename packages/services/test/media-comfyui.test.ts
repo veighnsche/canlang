@@ -943,6 +943,11 @@ describe('media: installed std Images full requests', () => {
       assert.equal(paths.length, 3); // history, first output, timed-out second; never third.
       assert.ok(elapsed < 420, `aggregate deadline elapsed ${elapsed}ms`);
       assert.equal(original.deadlineMs < Date.now() + 10, true);
+      // Transport rounds its remaining budget down; establish actual expiry
+      // before testing rejection of a later attempt on the original lease.
+      while (Date.now() < original.deadlineMs) {
+        await new Promise<void>((resolve) => setTimeout(resolve, original.deadlineMs - Date.now()));
+      }
       await assert.rejects(async () => installed.images.reconcile(requestFor(), original), MappingValidationError);
       assert.equal(paths.length, 3);
     } finally {
