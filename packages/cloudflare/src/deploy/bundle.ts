@@ -133,6 +133,7 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
   "context.js",
   "stdlib.js",
   "native-records.js",
+  "assembly-verification.js",
   "invoke.js",
   "bound-judgment.js",
   "input-choices.js",
@@ -491,6 +492,8 @@ function rewriteArtifactImports(js: string, modulePath: string) {
  */
 const IDENTITY_SOURCE_SPECIFIER = "@canlang/identity";
 const STATE_D1_SOURCE_SPECIFIER = "@canlang/state/storage/d1";
+const STATE_MUTATION_SOURCE_SPECIFIER = "@canlang/state/mutation";
+const STATE_MUTATION_VENDOR_ENTRY = "vendor/state/mutation/index.js";
 /** D3b receipt producers (C's Q2 seam consts in pinned `invoke.js`). */
 const STATE_RECEIPT_JOIN_SOURCE_SPECIFIER = "@canlang/state/receipt/join";
 const STATE_RECEIPT_OBSERVER_SOURCE_SPECIFIER = "@canlang/state/receipt";
@@ -506,6 +509,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     if (spec === SOURCEMAP_CODEC_SPECIFIER) return relativeSpecifier(moduleKey, SOURCEMAP_CODEC_VENDOR_ENTRY);
     if (spec === IDENTITY_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, IDENTITY_VENDOR_ENTRY);
     if (spec === STATE_D1_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_D1_VENDOR_ENTRY);
+    if (spec === STATE_MUTATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, STATE_MUTATION_VENDOR_ENTRY);
     if (spec === STATE_RECEIPT_JOIN_SOURCE_SPECIFIER) {
       return relativeSpecifier(moduleKey, STATE_RECEIPT_JOIN_VENDOR_ENTRY);
     }
@@ -532,6 +536,7 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
   for (const [source, entry] of [
     [IDENTITY_SOURCE_SPECIFIER, IDENTITY_VENDOR_ENTRY],
     [STATE_D1_SOURCE_SPECIFIER, STATE_D1_VENDOR_ENTRY],
+    [STATE_MUTATION_SOURCE_SPECIFIER, STATE_MUTATION_VENDOR_ENTRY],
     [STATE_RECEIPT_JOIN_SOURCE_SPECIFIER, STATE_RECEIPT_JOIN_VENDOR_ENTRY],
     [STATE_RECEIPT_OBSERVER_SOURCE_SPECIFIER, STATE_RECEIPT_OBSERVER_VENDOR_ENTRY],
     [CONTRACTS_SOURCE_SPECIFIER, CONTRACTS_VENDOR_ENTRY],
