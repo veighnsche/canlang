@@ -44,11 +44,13 @@ function argImageCorrelation(record: Readonly<Record<string, unknown>>, source: 
   }
   const correlation = readDispatchImageCorrelation(raw);
   const args = request['arguments'];
+  const control = source === 'std.ImagesV1.cancel' || source === 'std.ImagesV1.reconcile';
   const value = typeof args === 'object' && args !== null && !Array.isArray(args)
-    ? (args as Record<string, unknown>)['value'] : undefined;
-  if (source !== 'std.ImagesV1.submit' || correlation === null ||
+    ? control ? args : (args as Record<string, unknown>)['value'] : undefined;
+  if ((!control && source !== 'std.ImagesV1.submit') || correlation === null ||
       request['binding'] !== correlation.requestBinding || request['from'] !== correlation.requestFrom ||
       typeof value !== 'object' || value === null || Array.isArray(value) ||
+      (control && (Reflect.ownKeys(value).length !== 2 || Reflect.ownKeys(value).some(key => key !== 'source' && key !== 'revision'))) ||
       (value as Record<string, unknown>)['source'] !== correlation.requestSource ||
       (value as Record<string, unknown>)['revision'] !== correlation.requestRevision) {
     throw new KernelTableError(`${what}: original Images correlation disagrees with its retained carrier.`);
