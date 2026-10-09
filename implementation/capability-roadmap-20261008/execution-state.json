@@ -964,9 +964,9 @@
       ],
       "conditional_gates": [],
       "worker_update": {
-        "state": "source_preparation_ready_execution_prerequisites_open",
-        "prerequisite": "Original task-specific rule/context or preceding whole-workflow output; existing upstream task prerequisites retained. Exact parent-required draft5a12eb9e is now available; source preparation is ready.",
-        "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker\u2019s task."
+        "state": "existing_complete_concrete_source_canonical_consumer_ready_rule_gate_open",
+        "prerequisite": "Accepted Task41 Chat/Knowledge same-owner sources already contain full admission/hold/request staging; existing canonical owner revision-fenced batch includes writes/receipt/outbox. Full qualification specifically needs Task11 checked rule/lock/final-invariant and authority-query producer, not a missing State/Work ownership API.",
+        "owner": "Compiler/Contracts defining checked rule facts; State/Cloudflare consume final transaction enforcement. This worker preserves original admission/hold/request source and completes its actual consumer after release."
       }
     },
     {
@@ -990,9 +990,9 @@
         }
       ],
       "worker_update": {
-        "state": "source_preparation_ready_execution_prerequisites_open",
-        "prerequisite": "Original task-specific rule/context or preceding whole-workflow output; existing upstream task prerequisites retained. Exact parent-required draft5a12eb9e is now available; source preparation is ready.",
-        "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker\u2019s task."
+        "state": "existing_concrete_settlement_source_rule_and_usage_gates_open",
+        "prerequisite": "Original Chat reply_progressed and Knowledge progress/finish already express original evidence-bound settlement and independent slot release. Full qualification follows Task42/11; Task21 verified production generation usage applies conditionally. Unknown commitments cannot be released by guessed zero usage.",
+        "owner": "Compiler/Contracts checked rules/current context; owning generation/provider verified usage; actual source/consumer implementation remains this worker."
       }
     },
     {
@@ -1558,9 +1558,9 @@
     },
     "review_status": {
       "pr": "https://github.com/veighnsche/canlang/pull/134",
-      "revision": "03d9eaf7f7df6e8c1341660dc3aae6f3b2b81991",
-      "state": "Codex_code_security_completed_caption_finding_resolved_against_accepted_design",
-      "action": "Coordinator verified DESIGN.md1018: main field caption inherits only under same receiving/source field name; enum/value captions inherit independently. Existing function and owning fixture match the accepted rule. Reservation released; no caption rewrite required for that finding alone. Later pushed corrections still require their own current-head review."
+      "revision": "18958f6ae2814ded66defcb1e8bff40e6253ccea",
+      "state": "Codex_code_security_completed_parent_delivery_finding_under_correction",
+      "action": "Accepted DESIGN.md1018 same-name caption rule resolves repeated caption finding without rewrite. New4231482661 parent delivery-observation join is being corrected at private native identity/authorized view seam with owning controls. Current-head CI37947682242 completed failure; released source/consumer corrections continue. Later head review/CI required."
     },
     "ci_status": {
       "revision": "6e8692fe6a314cdd7027bbd5998902a30a9c102a",
@@ -1622,6 +1622,15 @@
         "scope": "Consume coherent c3c12531 anonymous descriptor/effect/linkage producers and3082eae1 bound-caption producers with owning controls, plus current0f17f6f8 analysis/authoring/format/b4_examples consumers. Real1d6495d1 corpus,2ba8b526 claim controls andb1209ff6 parameter-domain/CanInbox parity underpin expectations; no count-only substitute. Ten affected source-current native targets pass529/529; cargo fmt --check and warnings-denied all-target Clippy pass. Existing105 native consumer results remain reusable where unchanged.",
         "remaining": "Original application conditional-grant/model-rule/current-context and provider qualification remain defining-owner prerequisites; current corpus mirrors and CanInbox header parity affected checks now pass. Same-name preference caption behavior retained per accepted DESIGN.md1018."
       }
+    },
+    "model_field_modifiers": {
+      "producer_revisions": [
+        "792d8161b525a4ae2574f846b81e5938876b7ed9",
+        "992b3d0ae188d96941a387d538cba11a48692bdb (collision-safe schema naming/nominal array control)"
+      ],
+      "state": "complete_selected_source_consumer_intake_implemented_tested",
+      "scope": "Contracts trim/min/max metadata, registry checked claims, complete State schema admission/cache and mutation normalization/bounds before hooks plus post-hook/update validation; canonical normalized defaults and nominal-array codecs retained. Private native reference/navigation and durable owner transaction behavior preserved.",
+      "validation": "Owning State dependency build6/6 and existing affected mutation/registry controls105/105 pass. This does not supply Task11 checked rules/hooks or close whole typed workflow qualification."
     }
   },
   "live_handoffs": {
