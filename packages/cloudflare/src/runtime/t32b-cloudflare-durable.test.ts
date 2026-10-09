@@ -25,7 +25,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { Miniflare } from "miniflare";
 import type { D1Database } from "@cloudflare/workers-types";
 import type {
@@ -111,6 +111,7 @@ const throwing = () => { throw new Error("t32b-proof: CRUD handler must never ru
 export function canApp() {
   return {
     calls,
+    read: { "Todo.read.1": () => true },
     policy: {
       operations: {
         "acme.Todo.create": { by: ["members"] },
@@ -147,6 +148,13 @@ export function canApp() {
     }
   };
 }
+export const appDefinition = {
+  id: "TeamTasks", policy: canApp().policy,
+  models: { "acme.Todo": {
+    readGrants: [{ rule: "Todo.read.1", by: ["public"] }],
+    fields: { title: { type: "text" }, done: { type: "bool" } },
+  } },
+};
 `;
 
 interface FixtureModule {
@@ -163,8 +171,8 @@ function durableArtifact(module: string): CompileArtifact {
     artifact_version: 1,
     language_version: "t32b-fixture/0 (hand-written T15a shape; NOT compiler output)",
     tool_version: "t32b-fixture/0",
-    sources: [{ path: "examples/TeamTasks.can", sha256: "fixture-not-a-digest" }],
-    modules: [],
+    sources: [{ path: module, sha256: createHash("sha256").update(DURABLE_MODULE, "utf8").digest("hex") }],
+    modules: [{ path: module, js: DURABLE_MODULE }],
     callables: [
       { id: "acme.Todo.create", kind: "operation", module, export: "Todo_create", member: ["Todo", "create"] },
       { id: "acme.Shop.place", kind: "operation", module, export: "Shop_place", member: ["Shop", "place"] },
@@ -553,7 +561,7 @@ async function scenarioSetup(): Promise<{
 }> {
   const dir = tempDir();
   const url = writeModule(dir, "ops.mjs", DURABLE_MODULE);
-  const asm: AssembledModules = { dir, entryUrl: "fixture-entry", moduleUrls: { "ops.mjs": url } };
+  const asm: AssembledModules = { dir, entryUrl: url, moduleUrls: { "ops.mjs": url } };
   const artifact = durableArtifact("ops.mjs");
   const seed = await seedIdentity();
   const mod = (await import(url)) as FixtureModule;

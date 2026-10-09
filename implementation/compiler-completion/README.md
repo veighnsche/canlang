@@ -168,6 +168,18 @@ selected Images source profile still requires its owning artifact. Compiler
 **1,291/lint/editor** results remain unchanged. No whole pilot/application or
 latest-head CI/Codex acceptance follows.
 
+**Subsequent runtime fixture intake, 2026-10-09.** Exact published Dev
+**57b1eb57** six-file runtime unit is consumed, preserving this branch's existing
+compiler/native controls and excluding foreign records. Actual module bytes,
+entry URLs and owning read/field declarations restore fixture provenance;
+user carriers, explicit empty-array disclosure and delivery viewer-read refusal
+match the released contracts. Owning build **22/22** and all **71/71** affected
+runtime cases pass with **zero skips**, including native workerd/D1. These are
+fixture and existing runtime results; hand-built modules remain explicitly
+labelled and confer no new compiler output qualification. Unchanged compiler
+**1,291/lint/editor** results are reused; whole application/current-head CI and
+Codex review remain separate.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed
