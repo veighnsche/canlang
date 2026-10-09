@@ -1236,6 +1236,7 @@ interface StateInvokeProducer {
   }): Promise<MutationResult>;
   readonly readScenarioReceiptAssociation?: typeof import('@canlang/state/invocation').readScenarioReceiptAssociation;
   readonly projectScenarioReceipt?: typeof import('@canlang/state/invocation').projectScenarioReceipt;
+  readonly beginScenarioReceiptMutation?: typeof import('@canlang/state/invocation').beginScenarioReceiptMutation;
   projectGeneratedCrudReceipt?(input: {
     readonly receipt: Receipt;
     readonly registry: ReadonlyMap<string, unknown>;
@@ -1547,6 +1548,9 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
       }),
       ...(typeof scenarioMod['projectScenarioReceipt'] !== 'function' ? {} : {
         projectScenarioReceipt: scenarioMod['projectScenarioReceipt'] as NonNullable<StateInvokeProducer['projectScenarioReceipt']>,
+      }),
+      ...(typeof scenarioMod['beginScenarioReceiptMutation'] !== 'function' ? {} : {
+        beginScenarioReceiptMutation: scenarioMod['beginScenarioReceiptMutation'] as NonNullable<StateInvokeProducer['beginScenarioReceiptMutation']>,
       }),
       ...(typeof invokeMod['projectGeneratedCrudReceipt'] !== 'function' ? {} : {
         projectGeneratedCrudReceipt: invokeMod['projectGeneratedCrudReceipt'] as NonNullable<StateInvokeProducer['projectGeneratedCrudReceipt']>,
@@ -3861,6 +3865,10 @@ function workStageContext(
   };
 }
 
+// The owning saved-disclosure producer bounds issued/changed rows at 200.
+// Work remains finite independently of authored source limits.
+const SCENARIO_RECEIPT_OWNER_BOUNDS = Object.freeze({ maxRows: 200, maxWork: 10_000 });
+
 async function runScenarioSeam(
   loaded: LoadedCanonicalDescriptors,
   opts: CanonicalMutationOpts,
@@ -3871,7 +3879,22 @@ async function runScenarioSeam(
     readonly refInput: string; readonly bind: string | null },
   receiptStore?: StoragePort,
 ): Promise<CanonicalExecutionEffects> {
-  if (localOwnerPolicyControls.has(loaded)) {
+  const scenarioDef = generatedScenarioDef(call);
+  const receiptAware = scenarioDef?.descriptor.result?.disclosure !== undefined;
+  // The defining descriptor has no mutation/read-only flag. Preserve owning
+  // omitted-input default reports on the existing no-owner read path, and
+  // forbid effects until State can join them to its finalized owner tuple.
+  const readonlyInputDefaults = receiptAware && (scenarioDef?.descriptor.inputs ?? []).some(field =>
+    !Object.hasOwn(call.inputs, field.name) && ((field.kind !== 'delivery' && field.computedDefault === true) ||
+      field.default?.kind === 'literal' || (field.kind !== 'ref' && field.kind !== 'delivery' &&
+        field.valueType?.endsWith('?') === true)));
+  const useOwnerSession = receiptAware && !readonlyInputDefaults;
+  const ownerControl = localOwnerPolicyControls.get(loaded);
+  const beginReceiptMutation = loaded.producers.invoke.beginScenarioReceiptMutation;
+  if (useOwnerSession && (receiptStore === undefined || beginReceiptMutation === undefined || due !== undefined || cohort !== undefined)) {
+    throw new loaded.producers.errors('validation', 'Saved scenario mutation requires its installed State producer and actual admitted receipt execution.');
+  }
+  if (ownerControl !== undefined && !useOwnerSession) {
     throw new loaded.producers.errors('validation', 'Native owner model rules require one scenario owner session; this producer profile supports generated CRUD only.');
   }
   const actorUserId = call.context.actor?.userId ?? null;
@@ -3930,12 +3953,14 @@ async function runScenarioSeam(
   // code (indistinguishable from propagation — the receipt then says
   // exactly what propagation would have said).
   const engineFailures = new Map<string, Error>();
+  let receiptEngineFailure: Error | undefined;
   const recordEngineFailure = (error: unknown): void => {
     // Preserve failures from engine callbacks across the handler's string
     // seam. A plain storage exception must reach State unchanged, so it is
     // retriable rather than saved as an authored rejected receipt.
     if (error instanceof Error) {
       engineFailures.set(error.message, error);
+      if (receiptAware) receiptEngineFailure ??= error;
     }
   };
   const refuseRecordBinding = (text: string): never => {
@@ -3943,8 +3968,41 @@ async function runScenarioSeam(
     recordEngineFailure(error);
     throw error;
   };
+  // State derives context, trigger, archive gate and provenance from the exact
+  // admitted call/physical receiptStore. A host overlay never enters this API.
+  const ownerSession = useOwnerSession ? await beginReceiptMutation!(call as AdmittedCall, receiptStore!, {
+    table: loaded.table as ModelTable, bounds: SCENARIO_RECEIPT_OWNER_BOUNDS,
+    ...(ownerControl === undefined ? {} : { policies: ownerControl.policies }),
+    encodeField: (type, value) => encodeCanonicalField(StateError, type, value, loaded.valueSchema),
+  }) : undefined;
+  let ownerPolicyFrame: { close(): void } | undefined;
+  let scenarioReceiptFrame: ScenarioReceiptFrame | undefined;
+  try {
+  if (ownerSession !== undefined && ownerControl !== undefined) {
+    ownerPolicyFrame = ownerControl.createOwnerFrame({ call, session: ownerSession });
+  }
   const staged: Map<string, StoredRow | null> = new Map();
-  const overlay = withStagedOverlay(opts.store, staged);
+  const ownerRows = new Map<string, StoredRow | null>();
+  const readOwnerRow = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+    if (ownerSession === undefined) throw new StateError('validation', 'Scenario owner session is unavailable.');
+    const row = await ownerSession.read(model, id);
+    ownerRows.set(stagedKey(model, id), row);
+    return row;
+  };
+  const overlay: StoragePort = ownerSession === undefined ? withStagedOverlay(opts.store, staged) : {
+    ...opts.store,
+    load: readOwnerRow,
+    query: async spec => {
+      const limit = spec.limit ?? SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows;
+      if (!Number.isSafeInteger(limit) || limit < 0 || limit > SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows) {
+        throw new StateError('validation', 'Scenario owner query exceeds its defining row bound.');
+      }
+      const rows = await ownerSession.views.final.query({ ...spec, authority: 'owner', limit });
+      for (const row of rows) ownerRows.set(stagedKey(spec.model, row.id), row);
+      return [...rows];
+    },
+    commit: async () => { throw new StateError('validation', 'Scenario owner reads cannot commit outside State invoke.'); },
+  };
   const navigationRevision = call.revision ?? seamTrigger?.revision ?? await opts.store.readRevision();
   const ownerNavigation = await createContainmentNavigation({ loaded, store: overlay,
     revision: navigationRevision, actorUserId, teamId, memberships: opts.memberships,
@@ -3953,7 +4011,6 @@ async function runScenarioSeam(
     revision: navigationRevision, actorUserId, teamId, memberships: opts.memberships,
     authority: 'viewer', failure: recordEngineFailure });
   seamGuards.push({ name: 'parent.read', evaluate: async () => { await viewerNavigation.revalidate(); return true; } });
-  let scenarioReceiptFrame: ScenarioReceiptFrame | undefined;
   const views = new Map<string, Record<string, unknown>>();
   const recordBindings = new Map<Record<string, unknown>, { model: string; id: string; version: number }>();
   const callable = opts.artifact.callables.find((entry) => entry.id === opts.operation);
@@ -3968,8 +4025,14 @@ async function runScenarioSeam(
     const key = stagedKey(modelName, row.id);
     const existing = views.get(key);
     if (existing !== undefined) return existing;
-    const snapshot = freezeScenarioSnapshot(structuredClone(row)) as StoredRow;
-    const current = () => staged.has(key) ? staged.get(key) : snapshot;
+    const issued = ownerRows.get(key);
+    if (ownerSession !== undefined && (issued === undefined || issued === null)) {
+      return refuseRecordBinding('Scenario native row requires its actual current owner-session read.');
+    }
+    const snapshot = ownerSession === undefined
+      ? freezeScenarioSnapshot(structuredClone(row)) as StoredRow : issued!;
+    const current = () => ownerSession === undefined
+      ? staged.has(key) ? staged.get(key) : snapshot : ownerRows.get(key);
     const model = loaded.models.find((model) => model.name === modelName);
     const record: Record<string, unknown> = {};
     for (const field of Object.keys(model?.fields ?? snapshot.data)) Object.defineProperty(record, field, {
@@ -3981,7 +4044,8 @@ async function runScenarioSeam(
     // Ordinary references retain admitted metadata while domain reads see
     // provisional writes; reserved post-write versions belong to staged rows.
     Object.assign(record, nativeRecordMetadata(row));
-    ownerNavigation.attach(record, modelName, row, (model, parent) => recordView(model, parent as StoredRow));
+    ownerNavigation.attach(record, modelName, ownerSession === undefined ? row : snapshot,
+      (model, parent) => recordView(model, parent as StoredRow));
     bindNativeRecord(record, modelName, row.id, row.version);
     Object.freeze(record);
     scenarioReceiptFrame?.bind(record, modelName, current);
@@ -4039,6 +4103,16 @@ async function runScenarioSeam(
     // use domain writes/outbox/schedules, never a separate acknowledgement.
     if ((effects.outboxAck?.length ?? 0) !== 0) {
       throw new Error('Canonical deferred effects cannot stage outbox acknowledgements.');
+    }
+    if (readonlyInputDefaults && ((effects.writes?.length ?? 0) !== 0 || (effects.history?.length ?? 0) !== 0 ||
+        (effects.uniqueClaims?.length ?? 0) !== 0 || (effects.uniqueReleases?.length ?? 0) !== 0 ||
+        (effects.outbox?.length ?? 0) !== 0 || (effects.schedules?.length ?? 0) !== 0)) {
+      refuseRecordBinding('Saved scenario input-default execution must remain read-only until its defining owner-effects join.');
+    }
+    if (ownerSession !== undefined && ((effects.writes?.length ?? 0) !== 0 ||
+        (effects.history?.length ?? 0) !== 0 || (effects.uniqueClaims?.length ?? 0) !== 0 ||
+        (effects.uniqueReleases?.length ?? 0) !== 0)) {
+      refuseRecordBinding('Saved scenario deferred domain effects require their defining owner-session join.');
     }
     for (const write of effects.writes ?? []) {
       stagedWrites.push(write);
@@ -4183,6 +4257,9 @@ async function runScenarioSeam(
     },
     stageWrite: async (write: CanonicalStagedWrite): Promise<StoredRow | null> => {
       try {
+        if (readonlyInputDefaults) {
+          throw new StateError('validation', 'Saved scenario input-default execution must remain read-only until its defining owner-effects join.');
+        }
         if (write.op !== "create" && write.op !== "update" && write.op !== "remove") {
           throw new Error(`t17b: stageWrite needs op create/update/remove (wiring bug).`);
         }
@@ -4219,6 +4296,22 @@ async function runScenarioSeam(
           data[field.name] = encodeCanonicalField(StateError,
             `delivery(${field.field.capability}.${field.field.operation})${field.nullable === true ? '?' : ''}`,
             data[field.name], loaded.valueSchema);
+        }
+        if (ownerSession !== undefined) {
+          await ownerSession.stage({
+            op: write.op, model: write.model as ModelName, id: write.id as RecordId,
+            ...(write.parent === undefined ? {} : { parent: write.parent }),
+            ...(data === undefined ? {} : { data }),
+            ...(write.transition === undefined ? {} : { transition: write.transition }),
+          }, { cause: 'scenario' });
+          // Every stage invalidates every issued carrier, including unchanged
+          // rows. Refresh exact current reads; hooks/defaults remain State-owned.
+          const keys = new Set([...ownerRows.keys(), stagedKey(write.model, write.id)]);
+          for (const key of keys) {
+            const split = key.indexOf('\0');
+            await readOwnerRow(key.slice(0, split) as ModelName, key.slice(split + 1) as RecordId);
+          }
+          return ownerRows.get(stagedKey(write.model, write.id)) ?? null;
         }
         const result = await loaded.producers.pipeline.runMutationWrites({
           table: loaded.table,
@@ -4291,6 +4384,11 @@ async function runScenarioSeam(
       try {
         if (typeof model !== "string" || model === "") {
           throw new Error(`t17b: readModel needs a non-empty string model (wiring bug).`);
+        }
+        if (ownerSession !== undefined) {
+          // Disclosure v1 has no query influence/current-authority carrier.
+          // A viewer projection must not be upgraded into a State-issued row.
+          throw new StateError('validation', 'Saved scenario query reads require their defining provenance and disclosure join.');
         }
         const native = callable?.inputStyle === 'parameters' || trustedOwnerReads;
         if (!native) assertServableReadQuery(StateError, query);
@@ -4628,8 +4726,11 @@ async function runScenarioSeam(
     // State verifies the lifetime and selected store before opening the frame.
     scenarioReceiptFrame = openScenarioReceiptFrame(ctx, call as AdmittedCall, receiptStore, recordEngineFailure);
   }
-  try {
-  for (const ref of call.recordRefs ?? []) await ownerNavigation.prepare(ref.model, ref.row);
+  for (const ref of call.recordRefs ?? []) {
+    const row = ownerSession === undefined ? ref.row : await readOwnerRow(ref.model as ModelName, ref.row.id);
+    if (row === null) throw new StateError('conflict', 'Admitted scenario owner record is no longer present.');
+    await ownerNavigation.prepare(ref.model, row);
+  }
   const parameters = cohort === undefined ? undefined : scenarioParameters(call, loaded, recordView, resolvedDefaults);
   const argument = cohort !== undefined
     ? { event: Object.fromEntries(cohort.eventFields.map(name => [name, parameters![name]])),
@@ -4639,6 +4740,9 @@ async function runScenarioSeam(
     : callable?.inputStyle === "parameters"
     ? scenarioParameters(call, loaded, recordView, resolvedDefaults)
     : { operation_id: call.context.operationId, inputs: call.inputs };
+  if (ownerSession !== undefined && Object.keys(resolvedDefaults).length !== 0) {
+    throw new StateError('validation', 'Saved scenario input-default reports require their defining finalized-effects join.');
+  }
   const observesDefaults = due === undefined && cohort === undefined && callable?.inputStyle === 'parameters';
   const defaultDef = generatedScenarioDef(call);
   const defaultInputs = defaultDef?.descriptor.inputs ?? [];
@@ -4651,6 +4755,9 @@ async function runScenarioSeam(
   const observedDefaults = new Set<string>();
   const observeDefault = (name: unknown, value: unknown): void => {
     try {
+      if (ownerSession !== undefined) {
+        throw new StateError('validation', 'Saved scenario input-default reports require their defining finalized-effects join.');
+      }
       const field = typeof name === 'string' ? computedSlots.get(name) : undefined;
       if (field === undefined || observedDefaults.has(field.name)) {
         throw new StateError('validation', 'Computed default reports require an omitted owning slot, exactly once.');
@@ -4696,6 +4803,10 @@ async function runScenarioSeam(
   };
   const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx,
     observesDefaults ? [argument, observeDefault] : [argument], due !== undefined || cohort !== undefined);
+  // A caught unsupported join or engine refusal cannot convert prior owner
+  // stages into a partial success. Preserve the first actual failure; State
+  // retains its own session poisoning and rejected-receipt semantics.
+  if (receiptEngineFailure !== undefined) throw receiptEngineFailure;
   if (!outcome.ok) {
     // Attributed engine failure first: an uncaught engine `StateError`
     // propagates verbatim, so its message matches the recorded one
@@ -4725,6 +4836,26 @@ async function runScenarioSeam(
     throw new StateError('validation', 'Generated handler omitted a required computed-default report.');
   }
   scenarioReceiptFrame?.assertCompleted();
+  if (ownerSession !== undefined) {
+    const result = scenarioResult(call, loaded, outcome.value);
+    const finalized = await ownerSession.finalize();
+    const ownedScheduleKeys = new Set(finalized.schedules.map(schedule => schedule.key));
+    const extraSchedules = deferredEffects.flatMap(effects => effects.schedules ?? []);
+    if (extraSchedules.some(schedule => ownedScheduleKeys.has(schedule.key))) {
+      throw new StateError('validation', 'Saved scenario deferred schedule overrides an actual finalized owner schedule.');
+    }
+    return {
+      writes: finalized.writes, history: finalized.history,
+      uniqueClaims: finalized.uniqueClaims, uniqueReleases: finalized.uniqueReleases,
+      resolvedDefaults: finalized.resolvedDefaults,
+      schedules: [...finalized.schedules, ...extraSchedules],
+      outbox: deferredEffects.flatMap(effects => effects.outbox ?? []), result,
+      fileAssignments: [...fileAssignments.values()].filter(assignment => finalized.writes.some(write =>
+        (write.kind === 'insert' || write.kind === 'update') && write.model === assignment.model &&
+        write.row.id === assignment.recordId)),
+      guards: seamGuards, readings: servedReadings,
+    };
+  }
   const uniques = netStagedUniques(stagedTouches);
   const returnedBinding = typeof outcome.value === 'object' && outcome.value !== null
     ? recordBindings.get(outcome.value as Record<string, unknown>) : undefined;
@@ -4761,7 +4892,7 @@ async function runScenarioSeam(
     guards: seamGuards,
     readings: servedReadings,
   };
-  } finally { scenarioReceiptFrame?.close(); }
+  } finally { scenarioReceiptFrame?.close(); ownerPolicyFrame?.close(); }
 }
 
 export async function invokeMutationCanonical(
