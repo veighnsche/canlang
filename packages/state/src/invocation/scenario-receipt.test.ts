@@ -1,0 +1,303 @@
+/** Defining State port controls using checked descriptor inventory and real
+ * admit/invoke/Values/receipt projection. These are not Compiler/native-host
+ * source closure or binding-capture acceptance.
+ */
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import type { CanTypeId, Receipt, ScenarioResultDisclosurePlan, StoragePort } from '@canlang/contracts';
+import { createMemoryStorage } from '../storage/memory.js';
+import { StateError } from '../errors.js';
+import { buildPolicyTable } from '../policy/grants.js';
+import { loadArtifactDescriptors, loadExecutionDescriptorSet, type ArtifactDescriptorSlice } from './registry.js';
+import { invoke, invokeRetainedReceiptOnly, type ExecutionEffects } from './invoke.js';
+import { observeScenarioReceiptDependency, selectScenarioReceiptReturn,
+  readScenarioReceiptAssociation, projectScenarioReceipt } from './scenario-receipt.js';
+import { FIXED_NOW, asModel, asVersion, createMemoryIdentityStore, makeIdentity, makeEnvelope,
+  seedMember, seedRow, updateRow, uuidv7 } from '../../test/invocation/fixtures.js';
+
+const MODEL = asModel('Shop.Record'); const OP = 'Shop.saved'; const APP = 'saved-scenario-app';
+let sequence = 0;
+const origin = () => ({ path: 'saved.can', sha256: 'a'.repeat(64), module: 'saved.mjs' });
+const plan = (): ScenarioResultDisclosurePlan => ({ version: 1,
+  source: origin(),
+  returns: [
+    { id: 'record-result', source: origin(), influences: [], dependencies: [{ id: 'value', source: origin(), role: 'data', model: MODEL, field: 'visible', type: 'text' as CanTypeId }] },
+    { id: 'literal-result', source: origin(), influences: [], dependencies: [] },
+    { id: 'private-control', source: origin(), influences: [], dependencies: [{ id: 'choice', source: origin(), role: 'control', model: MODEL, field: 'private', type: 'text' as CanTypeId }] },
+  ],
+});
+function artifact(): ArtifactDescriptorSlice {
+  return { artifact_version: 1, sources: [{ path: 'saved.can', sha256: 'a'.repeat(64) }],
+    modules: [{ path: 'saved.mjs', js: 'export const identity="Shop.saved";',
+      map: { version: 3, file: 'saved.mjs', sources: ['saved.can'], sourcesContent: [null], names: [], mappings: '' } }],
+    callables: [{ id: OP, kind: 'operation', module: 'saved.mjs', export: 'identity', member: ['saved'] }],
+    models: [{ name: MODEL, deleteMode: 'archive', fields: [
+      { name: 'visible', field: { kind: 'string' }, required: true, serverOnly: false },
+      { name: 'private', field: { kind: 'string' }, required: true, serverOnly: false },
+      { name: 'token', field: { kind: 'secret' }, required: false, serverOnly: true,
+        default: { kind: 'server', init: 'random_secret' } },
+    ] }],
+    operations: [{ name: OP, kind: 'scenario', description: '',
+      inputs: { fields: [{ name: 'record', field: { kind: 'ref', model: MODEL, requireVersion: true }, required: true }] },
+      result: { type: 'text' as CanTypeId, disclosure: plan() } }],
+  };
+}
+const validation = (error: unknown) => error instanceof StateError && error.code === 'validation';
+const forbidden = (error: unknown) => error instanceof StateError && error.code === 'forbidden';
+const emptyEffects = (result: unknown): ExecutionEffects => ({ result, writes: [], history: [], outbox: [],
+  schedules: [], uniqueClaims: [], uniqueReleases: [], resolvedDefaults: {} });
+
+async function world(slice: ArtifactDescriptorSlice = artifact()) {
+  const store = createMemoryStorage(); const memberships = createMemoryIdentityStore();
+  const member = await seedMember(memberships, { isOwner: false, roles: ['Shop.reader'] });
+  const identity = makeIdentity({ userId: member.user.user_id, team: member.team, membership: member.membership });
+  const loaded = loadArtifactDescriptors(slice, { by: 'members' });
+  const row = await seedRow(store, MODEL, { data: { visible: 'original visible', private: 'private choice', token: 'original secret' } });
+  const envelope = makeEnvelope(OP, uuidv7(FIXED_NOW, ++sequence), { record: { id: row.id, version: String(row.version) } });
+  const policy = buildPolicyTable([{ model: MODEL, secretFields: [],
+    grants: [{ by: { role: 'Shop.reader' }, fields: ['visible', 'private', 'token'] }] }]);
+  const input = { registry: loaded.registry, envelope, app: APP, identity, store, memberships,
+    source: 'test', clock: { nowMs: () => FIXED_NOW } };
+  return { ...input, row, member, loaded, policy };
+}
+async function save(w: Awaited<ReturnType<typeof world>>, changed = true): Promise<Receipt> {
+  let receipt: Receipt | undefined;
+  await invoke({ ...w, execute: async call => {
+    const original = call.recordRefs[0]!.row;
+    const result = original.data['visible'];
+    await observeScenarioReceiptDependency(call, w.store, { dependencyId: 'value', model: MODEL, row: original, field: 'visible' });
+    selectScenarioReceiptReturn(call, w.store, 'record-result');
+    return { ...emptyEffects(result), writes: changed ? [{ kind: 'update', model: MODEL, id: original.id,
+      expectedVersion: original.version, row: { ...original, version: asVersion(original.version + 1),
+        data: { ...original.data, visible: 'committed visible' } } }] : [] };
+  }, observeCommittedReceipt: value => { receipt = value; } });
+  assert.ok(receipt); return receipt;
+}
+
+describe('execution-associated saved scenario disclosure', () => {
+  it('retains original dependencies and final changed snapshots, recovers at 16 minutes without execution and projects saved values', async () => {
+    const w = await world(); const receipt = await save(w);
+    const association = readScenarioReceiptAssociation(receipt); assert.ok(association);
+    assert.equal(association.observations[0]!.row.data['visible'], 'original visible');
+    assert.equal(association.changed[0]!.row.data['visible'], 'committed visible');
+    const current = await w.store.load(MODEL, w.row.id); assert.ok(current);
+    await updateRow(w.store, MODEL, current, { data: { ...current.data, visible: 'current visible' } });
+    const revision = await w.store.readRevision(); let executes = 0; let commits = 0; let recovered: Receipt | undefined;
+    const store: StoragePort = { ...w.store, commit: async batch => { commits += 1; return w.store.commit(batch); } };
+    assert.equal((await invokeRetainedReceiptOnly({ ...w, store,
+      clock: { nowMs: () => FIXED_NOW + 16 * 60_000 }, execute: async () => { executes += 1; throw new Error('must not run'); },
+      observeCommittedReceipt: value => { recovered = value; } })).status, 'replayed');
+    assert.deepEqual(recovered, receipt); assert.equal(executes, 0); assert.equal(commits, 0);
+    const projected = await projectScenarioReceipt({ ...w, receipt });
+    assert.equal(projected.result, 'original visible'); assert.equal(projected.records.length, 1);
+    assert.equal(projected.records[0]!.data['visible'], 'committed visible');
+    assert.equal(Object.hasOwn(projected.records[0]!.data, 'token'), false);
+    assert.equal(await w.store.readRevision(), revision);
+    (projected.records[0]!.data as Record<string, unknown>)['visible'] = 'external alias';
+    assert.equal((await projectScenarioReceipt({ ...w, receipt })).records[0]!.data['visible'], 'committed visible');
+  });
+
+  it('withholds private data/control results whole, projects changed records independently, and leaves literal results free of decision-only reads', async () => {
+    const w = await world(); const receipt = await save(w);
+    const restricted = buildPolicyTable([{ model: MODEL, secretFields: ['visible'], grants: [{ by: 'members', fields: ['private'] }] }]);
+    const hidden = await projectScenarioReceipt({ ...w, policy: restricted, receipt });
+    assert.equal(hidden.result, null); assert.deepEqual(hidden.records[0]!.data, { private: 'private choice' });
+    for (const returnId of ['literal-result', 'private-control']) {
+      const fresh = await world(); let saved: Receipt | undefined;
+      await invoke({ ...fresh, execute: async call => {
+        await observeScenarioReceiptDependency(call, fresh.store, { dependencyId: 'choice', model: MODEL,
+          row: call.recordRefs[0]!.row, field: 'private' });
+        selectScenarioReceiptReturn(call, fresh.store, returnId);
+        return emptyEffects(returnId === 'literal-result' ? 'literal/input value' : 'selected private branch');
+      }, observeCommittedReceipt: value => { saved = value; } });
+      assert.ok(saved);
+      const policy = buildPolicyTable([{ model: MODEL, secretFields: [], grants: [{ by: 'members', fields: ['visible'] }] }]);
+      const projected = await projectScenarioReceipt({ ...fresh, policy, receipt: saved });
+      assert.equal(projected.result, returnId === 'literal-result' ? 'literal/input value' : null);
+      assert.deepEqual(projected.records, []);
+    }
+  });
+
+  it('checks current by, membership, row grant, lifetime, source scope, and revision/membership races over the actual retained receipt', async () => {
+    const w = await world(); const receipt = await save(w);
+    const denied = buildPolicyTable([{ model: MODEL, secretFields: [], grants: [{ by: 'members', fields: ['visible'],
+      when: { op: 'eq', field: 'visible', value: 'no current grant' } }] }]);
+    assert.deepEqual(await projectScenarioReceipt({ ...w, policy: denied, receipt }), { result: null, records: [] });
+    await assert.rejects(projectScenarioReceipt({ ...w, app: 'foreign', receipt }), forbidden);
+    await assert.rejects(projectScenarioReceipt({ ...w, receipt: { ...receipt, inputHash: 'foreign hash' } }), validation);
+    const noBy = loadArtifactDescriptors(artifact(), { by: { role: 'Shop.denied' } }).registry;
+    assert.deepEqual(await projectScenarioReceipt({ ...w, registry: noBy, receipt }), { result: null, records: [] });
+    let reads = 0;
+    const racing: StoragePort = { ...w.store, readRevision: async () => {
+      const value = await w.store.readRevision(); return (++reads >= 2 ? value + 1 : value) as typeof value;
+    } };
+    assert.deepEqual(await projectScenarioReceipt({ ...w, store: racing, receipt }), { result: null, records: [] });
+    let membershipReads = 0;
+    const racedMembership = { ...w.memberships, findMembership: async (team: string, user: string) =>
+      ++membershipReads === 1 ? w.memberships.findMembership(team, user) : null };
+    assert.deepEqual(await projectScenarioReceipt({ ...w, memberships: racedMembership, receipt }), { result: null, records: [] });
+    const live = await w.store.load(MODEL, w.row.id); assert.ok(live);
+    await updateRow(w.store, MODEL, live, { archivedAt: FIXED_NOW + 1 });
+    assert.deepEqual(await projectScenarioReceipt({ ...w, receipt }), { result: null, records: [] });
+    await w.memberships.removeMembership(w.member.membership.membership_id);
+    assert.deepEqual(await projectScenarioReceipt({ ...w, receipt }), { result: null, records: [] });
+  });
+
+  it('accepts final provisional own-row reads and refuses intermediate or uncaptured reads before domain commit', async () => {
+    for (const mode of ['final', 'intermediate', 'missing'] as const) {
+      const w = await world();
+      const baseline = await w.store.load(MODEL, w.row.id); assert.ok(baseline);
+      const next = { ...baseline, version: asVersion(baseline.version + 1), data: { ...baseline.data, visible: 'final staged' } };
+      const execution = invoke({ ...w, execute: async call => {
+        if (mode !== 'missing') await observeScenarioReceiptDependency(call, w.store, { dependencyId: 'value', model: MODEL,
+          row: mode === 'final' ? next : { ...next, data: { ...next.data, visible: 'intermediate staged' } }, field: 'visible' });
+        selectScenarioReceiptReturn(call, w.store, 'record-result');
+        return { ...emptyEffects(mode === 'final' ? 'final staged' : 'intermediate staged'), writes: [{ kind: 'update' as const,
+          model: MODEL, id: next.id, expectedVersion: w.row.version, row: next }] };
+      } });
+      if (mode === 'final') {
+        assert.equal((await execution).status, 'committed');
+        const receipt = await w.store.readReceipt({ app: APP, owner: w.member.team.team_id,
+          principal: w.member.user.user_id, operation: OP as Receipt['identity']['operation'],
+          operationId: w.envelope.operation_id as Receipt['identity']['operationId'] }); assert.ok(receipt);
+        assert.equal((await projectScenarioReceipt({ ...w, receipt })).result, 'final staged');
+      } else {
+        await assert.rejects(execution, validation);
+        assert.deepEqual(await w.store.load(MODEL, w.row.id), baseline);
+      }
+    }
+  });
+
+  it('refuses copied/outside-lifetime calls, unbound descriptors, forged associations, and capture drift without trusting object shape', async () => {
+    const w = await world(); let admitted: Parameters<typeof selectScenarioReceiptReturn>[0] | undefined;
+    await invoke({ ...w, execute: async call => {
+      admitted = call;
+      assert.throws(() => selectScenarioReceiptReturn({ ...call }, w.store, 'literal-result'), forbidden);
+      assert.throws(() => selectScenarioReceiptReturn(call, { ...w.store }, 'literal-result'), forbidden);
+      const def = Object.getOwnPropertyDescriptor(call, 'def')!;
+      let getterCalls = 0;
+      Object.defineProperty(call, 'def', { configurable: true, enumerable: true,
+        get: () => { getterCalls += 1; return def.value; } });
+      assert.throws(() => selectScenarioReceiptReturn(call, w.store, 'literal-result'), forbidden);
+      assert.equal(getterCalls, 0); Object.defineProperty(call, 'def', def);
+      const observation = { dependencyId: 'value', model: MODEL, row: call.recordRefs[0]!.row, field: 'visible' };
+      Object.defineProperty(observation, 'field', { enumerable: true, get: () => { getterCalls += 1; return 'visible'; } });
+      await assert.rejects(observeScenarioReceiptDependency(call, w.store, observation), validation);
+      assert.equal(getterCalls, 0);
+      const originalApp = call.context.app; (call.context as { app: string }).app = 'forged-app';
+      assert.throws(() => selectScenarioReceiptReturn(call, w.store, 'literal-result'), forbidden);
+      (call.context as { app: string }).app = originalApp;
+      assert.ok(call.checkpoint);
+      const originalOwner = call.checkpoint.owner;
+      (call.checkpoint as { owner: string }).owner = 'forged-owner';
+      assert.throws(() => selectScenarioReceiptReturn(call, w.store, 'literal-result'), forbidden);
+      (call.checkpoint as { owner: string }).owner = originalOwner;
+      await assert.rejects(observeScenarioReceiptDependency(call, w.store, { dependencyId: 'value', model: MODEL,
+        row: call.recordRefs[0]!.row, field: 'private' }), validation);
+      selectScenarioReceiptReturn(call, w.store, 'literal-result');
+      assert.throws(() => selectScenarioReceiptReturn(call, w.store, 'literal-result'), validation);
+      return emptyEffects('literal');
+    } });
+    assert.ok(admitted); assert.throws(() => selectScenarioReceiptReturn(admitted!, w.store, 'literal-result'), forbidden);
+    await assert.rejects(observeScenarioReceiptDependency(admitted!, w.store, {
+      dependencyId: 'value', model: MODEL, row: w.row, field: 'visible',
+    }), forbidden);
+    const fresh = await world();
+    await assert.rejects(invoke({ ...fresh, execute: async call => {
+      selectScenarioReceiptReturn(call, fresh.store, 'literal-result');
+      return { ...emptyEffects('literal'), scenario: {} } as ExecutionEffects;
+    } }), validation);
+    const unboundWorld = await world();
+    const unbound = new Map(unboundWorld.registry); const def = unbound.get(OP)!; unbound.set(OP, { ...def });
+    await assert.rejects(invoke({ ...unboundWorld, registry: unbound, execute: async call => {
+      selectScenarioReceiptReturn(call, unboundWorld.store, 'literal-result'); return emptyEffects('literal');
+    } }), validation);
+  });
+
+  it('saves an implicit checked void result and projects its changed snapshots without an invented business return', async () => {
+    const w = await world(); const slice = artifact();
+    slice.operations![0]!.result = { type: 'void' as CanTypeId,
+      disclosure: { ...plan(), returns: [{ id: 'implicit-return', source: origin(), influences: [], dependencies: [] }] } };
+    const registry = loadArtifactDescriptors(slice, { by: 'members' }).registry;
+    let receipt: Receipt | undefined;
+    await invoke({ ...w, registry, execute: async call => {
+      const original = call.recordRefs[0]!.row;
+      return { ...emptyEffects(null), writes: [{ kind: 'update', model: MODEL, id: original.id,
+        expectedVersion: original.version, row: { ...original, version: asVersion(original.version + 1),
+          data: { ...original.data, visible: 'void changed snapshot' } } }] };
+    }, observeCommittedReceipt: value => { receipt = value; } });
+    assert.ok(receipt);
+    const projected = await projectScenarioReceipt({ ...w, registry, receipt });
+    assert.equal(projected.result, null); assert.equal(projected.records[0]!.data['visible'], 'void changed snapshot');
+    assert.equal(readScenarioReceiptAssociation(receipt)?.returnId, 'implicit-return');
+  });
+
+  it('withholds changed fields whose original scalar schema becomes a file, model reference, or another scalar type', async () => {
+    const w = await world(); const receipt = await save(w);
+    for (const tag of [{ kind: 'file' as const }, { kind: 'ref' as const, model: MODEL }, { kind: 'integer' as const }]) {
+      const slice = artifact(); const changed = slice.models![0]!.fields.find(field => field.name === 'visible')!;
+      changed.field = tag;
+      slice.operations![0]!.result = { type: 'text' as CanTypeId,
+        disclosure: { ...plan(), returns: [{ id: 'literal-result', source: origin(), influences: [], dependencies: [] }] } };
+      const registry = loadArtifactDescriptors(slice, { by: 'members' }).registry;
+      const projected = await projectScenarioReceipt({ ...w, registry, receipt });
+      assert.equal(projected.result, null);
+      assert.equal(Object.hasOwn(projected.records[0]!.data, 'visible'), false);
+      assert.equal(projected.records[0]!.data['private'], 'private choice');
+    }
+  });
+
+  it('rejects source/callable/schema drift, open or unsupported plans and intake-only claims; original and current secrecy are both applied', async () => {
+    for (const mutate of [
+      (slice: ArtifactDescriptorSlice) => { slice.sources = [{ path: 'other.can', sha256: 'b'.repeat(64) }]; },
+      (slice: ArtifactDescriptorSlice) => { slice.callables![0]!.module = 'foreign.mjs'; },
+      (slice: ArtifactDescriptorSlice) => { slice.operations![0]!.result = { type: 'file' as CanTypeId, disclosure: plan() }; },
+      (slice: ArtifactDescriptorSlice) => { (slice.operations![0]!.result!.disclosure!.returns[0]!.dependencies[0]! as { field: string }).field = 'unknown'; },
+      (slice: ArtifactDescriptorSlice) => { (slice.operations![0]!.result!.disclosure as unknown as { version: number }).version = 2; },
+      (slice: ArtifactDescriptorSlice) => { (slice.operations![0]!.result!.disclosure as unknown as Record<string, unknown>)['extra'] = true; },
+      (slice: ArtifactDescriptorSlice) => { (slice.operations![0]!.result!.disclosure!.returns[0]!.dependencies[0]!.source as { path: string }).path = 'unverified-callee.can'; },
+    ]) { const slice = artifact(); mutate(slice); assert.throws(() => loadArtifactDescriptors(slice, { by: 'members' })); }
+    const loaded = loadArtifactDescriptors(artifact(), { by: 'members' });
+    assert.throws(() => loadExecutionDescriptorSet({ contractVersion: 1, models: loaded.models,
+      operations: [...loaded.registry.values()].map(def => 'descriptor' in def ? def.descriptor : (() => { throw new Error('generated'); })()) }, { by: 'members' }));
+    const w = await world(); const receipt = await save(w);
+    const changed = artifact();
+    changed.models![0]!.fields.find(field => field.name === 'private')!.field = { kind: 'secret' };
+    const field = changed.models![0]!.fields.find(field => field.name === 'private')!;
+    field.serverOnly = true; field.required = false; field.default = { kind: 'server', init: 'random_secret' };
+    changed.operations![0]!.result = { type: 'text' as CanTypeId, disclosure: { ...plan(), returns: plan().returns.slice(0, 2) } };
+    const declassified = changed.models![0]!.fields.find(field => field.name === 'token')!;
+    declassified.field = { kind: 'string' }; declassified.serverOnly = false; delete declassified.default;
+    const current = loadArtifactDescriptors(changed, { by: 'members' }).registry;
+    const projected = await projectScenarioReceipt({ ...w, registry: current, receipt });
+    assert.equal(projected.result, 'original visible');
+    assert.equal(Object.hasOwn(projected.records[0]!.data, 'private'), false);
+    assert.equal(Object.hasOwn(projected.records[0]!.data, 'token'), false);
+    let getterCalls = 0;
+    const malformed = structuredClone(receipt);
+    Object.defineProperty(malformed.outcome, 'scenario', { enumerable: true, get: () => { getterCalls += 1; return {}; } });
+    await assert.rejects(projectScenarioReceipt({ ...w, receipt: malformed }), validation);
+    assert.equal(getterCalls, 0);
+  });
+
+  it('checks every imported site origin and refuses query/absent-reference influence instead of treating empty observations as proof', async () => {
+    const slice = artifact();
+    slice.sources!.push({ path: 'callee.can', sha256: 'b'.repeat(64) });
+    slice.modules!.push({ path: 'callee.mjs', js: 'export const pureIdentity="Shop.derive";',
+      map: { version: 3, file: 'callee.mjs', sources: ['callee.can'], sourcesContent: [null], names: [], mappings: '' } });
+    const disclosure = slice.operations![0]!.result!.disclosure!;
+    const dependency = disclosure.returns[0]!.dependencies[0]!;
+    slice.operations![0]!.result = { type: 'text' as CanTypeId, disclosure: { ...disclosure,
+      returns: [{ ...disclosure.returns[0]!, dependencies: [{ ...dependency,
+        source: { path: 'callee.can', sha256: 'b'.repeat(64), module: 'callee.mjs' } }] }] } };
+    const w = await world(slice); const receipt = await save(w, false);
+    assert.equal((await projectScenarioReceipt({ ...w, receipt })).result, 'original visible');
+    assert.equal(readScenarioReceiptAssociation(receipt)!.observations[0]!.dependencyId, 'value');
+    for (const kind of ['query-existence', 'query-cardinality', 'query-membership', 'query-order', 'absent-reference'] as const) {
+      const unsupported = artifact();
+      unsupported.operations![0]!.result = { type: 'text' as CanTypeId, disclosure: { ...plan(),
+        returns: [{ id: 'influenced-result', source: origin(), dependencies: [], influences: [{ id: 'fact', kind }] }] } };
+      assert.throws(() => loadArtifactDescriptors(unsupported, { by: 'members' }), /query\/absence return influence is unsupported/);
+    }
+  });
+});
