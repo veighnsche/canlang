@@ -149,11 +149,11 @@ export type { OperationRegistry } from './invocation/registry.js';
 export type { ClockPort } from './invocation/context.js';
 export { invokeRetainedReceiptOnly, type ExecuteHandler } from './invocation/invoke.js';
 export {
-  observeScenarioReceiptDependency, selectScenarioReceiptReturn,
+  observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, type ScenarioReceiptIntrinsicInput, selectScenarioReceiptReturn,
   beginScenarioReceiptMutation, observeScenarioInputComputedDefault, type ScenarioReceiptMutationInput,
   readScenarioReceiptAssociation, projectScenarioReceipt, type ProjectScenarioReceiptInput,
 } from './invocation/scenario-receipt.js';
-export type { ScenarioReceiptSourceOrigin, ScenarioResultDisclosurePlan, ScenarioReceiptAssociation } from '@canlang/contracts';
+export type { ScenarioReceiptSourceOrigin, ScenarioReceiptIntrinsicDependency, ScenarioResultDisclosurePlan, ScenarioReceiptAssociation } from '@canlang/contracts';
 export {
   activate,
   canonicalUniqueValue,
