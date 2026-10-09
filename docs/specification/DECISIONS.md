@@ -3647,3 +3647,7 @@ Human emergency ends cloud work immediately. Preserve the open Cloudflare Files 
 ## 2026-10-09 — unfinished emergency UI qualification checkpoint
 
 Preserve the five open UI files as an unfinished related checkpoint: reasoned CSV helper inventory, copied/frozen message wrapper with retained native value identity, exact trusted bootstrap DOM assertions with existing hostile probes, and canonical File wire projection plus field-scoped SchemaError retaining ordered violations/original cause. These implement the concrete owning corrections but their current affected checks were in flight when the human stopped cloud execution; no result or acceptance is claimed. All further implementation/validation belongs to the human-started existing local checkout.
+
+## 2026-10-09 — install the workspace browser test producer locally released CI
+
+Accepted finite shared CI correction under the human local Packages assignment: install the lock-selected Playwright Chromium and Linux system dependencies on the workspace runner before its real package/integration suites. The separate browser runner cannot supply those binaries. Preserve all browser/security assertions, required engines and four independent automatic jobs. All three retained workflows pass actionlint and the diff whitespace check; actual new-head Linux execution remains due. Local continuation preserves the two unfinished emergency checkpoints and native preparation HOLD.
