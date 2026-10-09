@@ -814,7 +814,7 @@ describe("genuine compiled MCP operations through native Worker and D1", () => {
         client_id: "native-source-consumer",
       });
       const nativeFetch = async (request: Request) => worker.dispatchFetch(request.url, {
-        method: request.method, headers: request.headers, body: await request.text(),
+        method: request.method, headers: Object.fromEntries(request.headers), body: await request.text(),
       });
       const initialized = await mcpCall(nativeFetch, "initialize", INIT_PARAMS, { grant });
       expect(initialized.status).toBe(200);
