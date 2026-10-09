@@ -140,9 +140,10 @@ describe("development session revision lifecycle", () => {
       },
       check: async inputs => ({ complete: true, passed: true, detail: inputs.sourceRevision }),
       preparePreview: async inputs => preview(inputs.sourceRevision, []),
-    }, { debounceMs: 5, reconcileMs: 20 });
+    }, { debounceMs: 5, reconcileMs: 20, auditMs: 60 });
     try {
       session.watchDirectories([sources]);
+      await new Promise(resolve => setTimeout(resolve, 100));
       expect(await session.check()).toMatchObject({ revision: "r1", preview: "ready" });
       await writeFile(join(sources, "Extra.can"), "added");
       await until(() => session.status().sourceRevision?.includes("Extra.can") === true);
@@ -176,9 +177,10 @@ describe("development session revision lifecycle", () => {
       },
       check: async inputs => ({ complete: true, passed: true, detail: inputs.inputDigest }),
       preparePreview: async inputs => preview(inputs.inputDigest, []),
-    }, { debounceMs: 5, reconcileMs: 20 });
+    }, { debounceMs: 5, reconcileMs: 20, auditMs: 60 });
     try {
       session.watchDirectories([watched]);
+      await new Promise(resolve => setTimeout(resolve, 100));
       await session.check();
       await writeFile(installed, "two");
       await until(() => session.status().revision === "r2");
@@ -197,5 +199,38 @@ describe("development session revision lifecycle", () => {
       await session.stop();
       await rm(root, { recursive: true, force: true });
     }
+  });
+
+  it("avoids full captures on idle identity polls but eventually audits a missed event", async () => {
+    const root = await mkdtemp(join(tmpdir(), "can-session-idle-"));
+    let source = "first";
+    let captures = 0;
+    const disposed: string[] = [];
+    const session = new DevSessionCore({
+      capture: async () => { captures++; return { sourceRevision: source, inputDigest: source }; },
+      check: async () => ({ complete: true, passed: true, detail: null }),
+      preparePreview: async inputs => preview(inputs.sourceRevision, disposed),
+    }, { debounceMs: 5, reconcileMs: 10, auditMs: 200 });
+    try {
+      session.watchDirectories([root]);
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await session.check();
+      const checkedCaptures = captures;
+      await new Promise(resolve => setTimeout(resolve, 60));
+      expect(captures).toBe(checkedCaptures);
+      expect(session.status()).toMatchObject({ dirty: false, stale: false });
+      // No filesystem event accompanies this producer change.
+      source = "second";
+      await until(() => session.status().sourceRevision === "second");
+      expect(session.status()).toMatchObject({ revision: "r2", dirty: true, stale: true, servingRevision: "r1" });
+      expect(captures).toBe(checkedCaptures + 1);
+    } finally {
+      await session.stop();
+      await rm(root, { recursive: true, force: true });
+    }
+    const stoppedCaptures = captures;
+    await new Promise(resolve => setTimeout(resolve, 30));
+    expect(captures).toBe(stoppedCaptures);
+    expect(disposed).toEqual(["first"]);
   });
 });

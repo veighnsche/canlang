@@ -3707,3 +3707,7 @@ The human ended cloud execution for cost and limited remaining work to preservat
 ### Implementation: local dev-server continuation and ranking slots
 
 The human resumed PR 132 locally in the existing assigned worktree and branch; cloud execution remains stopped. Preserve the unfinished Office/G2/G3 qualification and consume exact Compiler/Packages prerequisites through the coordinator. The bounded ranker now accepts the candidate carrier's existing dotted/hyphenated slot spelling and 96-character limit, allowing `given.rule` without relaxing source capture, qualification, material-intent or disclosure gates. Its direct checks pass 8/8. Live compiler inventory/ranking context and profile proofs remain absent; no external packet is sent and no acceptance follows from this repair.
+
+### Implementation: bound idle dev-session audits
+
+Keep directory identity polling at two seconds, while fallback full producer-byte audits and failed watcher retries default to thirty seconds. Watcher events and explicit checks still recapture exact inputs; missed events remain covered by the bounded fallback. This removes repeated full-closure reads from an idle session without treating watcher identity as proof of bytes. Focused lifecycle checks pass 7/7, including missed-event stale serving, replacement and owned-stop cleanup. Native successful watcher reattachment remains unverified in the sandbox that reports EMFILE; the fallback cases pass.

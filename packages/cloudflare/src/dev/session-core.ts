@@ -82,20 +82,23 @@ export class DevSessionCore<T, P extends DevPreview> {
   private serving: { revision: string; preview: P } | null = null;
   private lastPreviewReset = false;
   private readonly history = new Map<string, CapturedCheck<T>>();
-  private readonly watchers = new Map<string, { watcher: FSWatcher | null; identity: string | null }>();
+  private readonly watchers = new Map<string, { watcher: FSWatcher | null; identity: string | null; retryAt: number }>();
   private timer: ReturnType<typeof setTimeout> | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private polling = false;
   private readonly reconcileMs: number;
+  private readonly auditMs: number;
+  private lastCaptureAt = 0;
   private captureQueue: Promise<unknown> = Promise.resolve();
   private checkQueue: Promise<unknown> = Promise.resolve();
   private stopped = false;
 
-  constructor(hooks: DevSessionHooks<T, P>, options: { historyLimit?: number; debounceMs?: number; reconcileMs?: number } = {}) {
+  constructor(hooks: DevSessionHooks<T, P>, options: { historyLimit?: number; debounceMs?: number; reconcileMs?: number; auditMs?: number } = {}) {
     this.hooks = hooks;
     this.historyLimit = options.historyLimit ?? 32;
     this.debounceMs = options.debounceMs ?? 75;
     this.reconcileMs = options.reconcileMs ?? 2_000;
+    this.auditMs = options.auditMs ?? 30_000;
     if (!Number.isInteger(this.historyLimit) || this.historyLimit < 1) {
       throw new Error("historyLimit must be a positive integer");
     }
@@ -104,6 +107,9 @@ export class DevSessionCore<T, P extends DevPreview> {
     }
     if (!Number.isInteger(this.reconcileMs) || this.reconcileMs < 1) {
       throw new Error("reconcileMs must be a positive integer");
+    }
+    if (!Number.isInteger(this.auditMs) || this.auditMs < 1) {
+      throw new Error("auditMs must be a positive integer");
     }
   }
 
@@ -139,7 +145,7 @@ export class DevSessionCore<T, P extends DevPreview> {
     if (this.stopped) throw new Error("session stopped");
     for (const directory of new Set(directories)) {
       if (this.watchers.has(directory)) continue;
-      this.watchers.set(directory, { watcher: null, identity: null });
+      this.watchers.set(directory, { watcher: null, identity: null, retryAt: 0 });
       this.attachWatcher(directory);
     }
     if (this.pollTimer === null) {
@@ -159,11 +165,13 @@ export class DevSessionCore<T, P extends DevPreview> {
         watcher.close();
         entry.watcher = null;
         entry.identity = null;
+        entry.retryAt = Date.now() + this.auditMs;
         this.markDirty();
       });
     } catch {
       // The directory may have vanished between inventory and watch setup.
       // Polling recaptures inputs and attaches when it returns.
+      entry.retryAt = Date.now() + this.auditMs;
     }
   }
 
@@ -185,12 +193,16 @@ export class DevSessionCore<T, P extends DevPreview> {
           this.markDirty();
         }
         entry.identity = identity;
-        if (identity !== null && entry.watcher === null) {
+        if (identity !== null && entry.watcher === null && Date.now() >= entry.retryAt) {
           this.attachWatcher(directory);
           this.markDirty();
         }
       }
-      await this.refresh().catch(() => undefined);
+      // Directory identity checks stay cheap and frequent. A slower full
+      // audit recovers lost events even when directory identity is unchanged.
+      if (Date.now() - this.lastCaptureAt >= this.auditMs) {
+        await this.refresh().catch(() => undefined);
+      }
     } finally {
       this.polling = false;
     }
@@ -230,6 +242,8 @@ export class DevSessionCore<T, P extends DevPreview> {
         this.inputs = null;
         this.dirty = true;
         throw error;
+      } finally {
+        this.lastCaptureAt = Date.now();
       }
       if (this.inputs?.inputDigest !== captured.inputDigest || this.captureError !== null) {
         this.epoch += 1;
