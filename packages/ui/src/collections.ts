@@ -53,6 +53,53 @@ const MORE_ROWS = message("More rows available.", {
   nl: "Meer rijen beschikbaar.",
 });
 const EMPTY_COLLECTION = message("No records.", { nl: "Geen gegevens." }, undefined, "en");
+const DETAILS = message("Details", { nl: "Details" }, undefined, "en");
+const OPEN_DETAILS = message("Open details", { nl: "Details openen" }, undefined, "en");
+const CLOSE_DETAILS = message("Close details", { nl: "Details sluiten" }, undefined, "en");
+
+function splitOccurrence(props: Pick<ListProps, "display" | "occurrence">): string | undefined {
+  if (props.display === undefined) return undefined;
+  if (props.display !== "split" || typeof props.occurrence !== "string" || props.occurrence.trim() === "") {
+    throw new TypeError("Split collections require a nonempty source occurrence.");
+  }
+  return props.occurrence;
+}
+
+function selectionHref(context: PresentationContext, occurrence: string, id: string): string {
+  const current = context.pollUrl ?? context.path;
+  if (!current.startsWith("/") || current.startsWith("//") || /[\\\s\u0000-\u001f\u007f#]/.test(current)) {
+    throw new TypeError("Collection selection requires a same-app relative URL.");
+  }
+  const url = new URL(current, "https://can.invalid");
+  if (url.origin !== "https://can.invalid") throw new TypeError("Invalid collection selection URL.");
+  url.searchParams.set(`can-row:${occurrence}`, id);
+  return `${url.pathname}${url.search}`;
+}
+
+/** One selected authorized body, shared by desktop pane and mobile drawer. */
+async function splitBody(props: Pick<ListProps, "context" | "model" | "parent">,
+  occurrence: string, summaries: string, rows: readonly RowView[],
+  renderRow: ListProps["renderRow"] | undefined): Promise<string> {
+  const locator = props.context.collectionSelections?.get(occurrence);
+  const selected = rows.find(row => row.id === locator);
+  const body = selected === undefined || renderRow === undefined ? ""
+    : await resolveChildren(await renderRow(selected, props.context));
+  const scope = JSON.stringify([props.context.path, props.model, props.parent?.id ?? null, occurrence]);
+  const id = `can-split-${Array.from({ length: scope.length }, (_, index) =>
+    scope.charCodeAt(index).toString(16).padStart(4, "0")).join("")}`;
+  const toggle = `${id}-toggle`, panel = `${id}-panel`, title = `${id}-title`;
+  const caption = escapeHtml(resolveCaption(DETAILS, props.context));
+  const open = escapeHtml(resolveCaption(OPEN_DETAILS, props.context));
+  const close = escapeHtml(resolveCaption(CLOSE_DETAILS, props.context));
+  return `<div class="drawer drawer-end lg:drawer-open">` +
+    `<input id="${toggle}" type="checkbox" class="drawer-toggle" aria-label="${caption}" aria-controls="${panel}"${selected === undefined ? "" : " checked"}>` +
+    `<div class="drawer-content">${summaries}` +
+    `<label for="${toggle}" class="btn drawer-button lg:hidden" aria-controls="${panel}">${open}</label></div>` +
+    `<div class="drawer-side"><label for="${toggle}" class="drawer-overlay" aria-label="${close}"></label>` +
+    `<section id="${panel}" aria-labelledby="${title}" class="bg-base-100 min-h-full w-80 p-4" style="max-width:90vw">` +
+    `<div class="flex gap-2"><h2 id="${title}">${caption}</h2>` +
+    `<label for="${toggle}" class="btn lg:hidden" aria-controls="${panel}">${close}</label></div>${body}</section></div></div>`;
+}
 
 /** Scalar cell types rendered through formatScalar; see renderCell. */
 const SCALAR_CELL_TYPES = new Set([
@@ -121,6 +168,7 @@ function moreNote(context: PresentationContext, nextCursor: string | undefined):
  * parent-chain scopes are a later extension.
  */
 export async function list(props: ListProps): Promise<string> {
+  const occurrence = splitOccurrence(props);
   if (props.controls !== undefined) {
     assertControls(props.controls, "list");
     assertConsistentContext(props.context, props.controls.context, "list");
@@ -138,10 +186,14 @@ export async function list(props: ListProps): Promise<string> {
   }
   const items: string[] = [];
   for (const row of result.rows) {
-    const body = await resolveChildren(await props.renderRow(row, props.context));
+    const body = occurrence === undefined
+      ? await resolveChildren(await props.renderRow(row, props.context))
+      : `<a href="${escapeAttr(selectionHref(props.context, occurrence, row.id))}"${props.context.collectionSelections?.get(occurrence) === row.id ? ' aria-current="true"' : ""}>${isolate(rowHeading(row, props.model, props.context))}</a>`;
     items.push(`<li class="list-row">${body}</li>`);
   }
-  const rowsHtml = `<ul class="list">${items.join("")}</ul>`;
+  const summaries = `<ul class="list">${items.join("")}</ul>`;
+  const rowsHtml = occurrence === undefined ? summaries
+    : await splitBody(props, occurrence, summaries, result.rows, props.renderRow);
   if (props.controls === undefined) {
     return `${rowsHtml}${moreNote(props.context, result.nextCursor)}`;
   }
@@ -150,6 +202,7 @@ export async function list(props: ListProps): Promise<string> {
 
 /** Render one model table over the requested column subset. */
 export async function table(props: TableProps): Promise<string> {
+  const occurrence = splitOccurrence(props);
   if (props.controls !== undefined) {
     assertControls(props.controls, "table");
     assertConsistentContext(props.context, props.controls.context, "table");
@@ -184,17 +237,25 @@ export async function table(props: TableProps): Promise<string> {
   }
   const head = metas
     .map((meta) => `<th scope="col">${escapeHtml(resolveCaption(meta.label, props.context))}</th>`)
-    .join("");
+    .join("") + (occurrence === undefined ? "" : `<th scope="col">${escapeHtml(resolveCaption(DETAILS, props.context))}</th>`);
   const body: string[] = [];
   for (const row of result.rows) {
     const cells = metas
       .map((meta) => `<td>${renderCell(meta, row.fields[meta.field], props.context)}</td>`)
       .join("");
-    body.push(`<tr>${cells}</tr>`);
+    const selection = occurrence === undefined ? ""
+      : `<td><a href="${escapeAttr(selectionHref(props.context, occurrence, row.id))}"${props.context.collectionSelections?.get(occurrence) === row.id ? ' aria-current="true"' : ""}>${escapeHtml(resolveCaption(OPEN_DETAILS, props.context))}</a></td>`;
+    body.push(`<tr>${cells}${selection}</tr>`);
+    if (occurrence === undefined && props.renderRow !== undefined) {
+      const detail = await resolveChildren(await props.renderRow(row, props.context));
+      body.push(`<tr><td colspan="${Math.max(1, metas.length)}">${detail}</td></tr>`);
+    }
   }
-  const rowsHtml =
+  const summaries =
     `<table class="table"><thead><tr>${head}</tr></thead>` +
     `<tbody>${body.join("")}</tbody></table>`;
+  const rowsHtml = occurrence === undefined ? summaries
+    : await splitBody(props, occurrence, summaries, result.rows, props.renderRow);
   if (props.controls === undefined) {
     return `${rowsHtml}${moreNote(props.context, result.nextCursor)}`;
   }
