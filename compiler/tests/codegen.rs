@@ -1016,7 +1016,7 @@ fn golden_expenseflow_structure() {
         "contract label"
     );
     assert!(
-        entry.contains("count:{type:\"int\"},total:{type:\"money\"}"),
+        entry.contains("count:{\"type\":\"int\"},total:{\"type\":\"money\"}"),
         "contract fields"
     );
     assert!(entry.contains("reporting:{fields:{"), "preferences");
@@ -4731,7 +4731,7 @@ fn t15a_model_field_tags() {
         other => panic!("ref tag: {other:?}"),
     }
     match tag("f_contract") {
-        js::JsModelFieldType::Other { type_id } => assert_eq!(type_id, "demo.C"),
+        js::JsModelFieldType::Nominal { name } => assert_eq!(name, "demo.C"),
         other => panic!("contract tag: {other:?}"),
     }
     assert!(matches!(tag("f_date"), js::JsModelFieldType::Date));

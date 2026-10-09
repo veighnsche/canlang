@@ -836,7 +836,7 @@ test('bounded nominal alias fields retain the owning alias through both loaders 
     [candidate => { delete candidate.valueTypes; }, 'dangling_reference'],
     [candidate => { candidate.models![0]!.fields[0]!.valueType = 'ChangeReview.other.choice'; }, 'dangling_reference'],
     [candidate => { candidate.models![0]!.fields[0]!.min = 7; candidate.models![0]!.fields[0]!.max = 8; }, 'malformed_descriptor'],
-    [candidate => { candidate.models![0]!.fields[0]!.trim = true; }, 'malformed_descriptor'],
+    [candidate => { (candidate.models![0]!.fields[0]! as unknown as Record<string, unknown>).trim = 'yes'; }, 'malformed_descriptor'],
   ];
   for (const [change, reason] of changes) {
     const candidate = structuredClone(raw); change(candidate);
@@ -950,4 +950,72 @@ test('named enums reuse ordered-case checks and checked nominal array requiremen
   assert.throws(() => loadArtifactDescriptors(changed, opts), IncompatibleArtifactError);
   changed.operations![0]!.inputs.fields[0]!.field = { kind: 'enum', values: ['refuse', 'accept'] };
   assert.throws(() => loadArtifactDescriptors(changed, opts), IncompatibleArtifactError);
+});
+
+
+function policyArtifact(): ArtifactDescriptorSlice {
+  const raw = artifact();
+  return { ...raw, modules: [{ path: 'output/Example.mjs', js: '/* Metadata test inventory: this loader does not evaluate module bytes. */',
+    map: { version: 3, file: 'Example.mjs', sources: ['Example.can'], sourcesContent: [''], names: [], mappings: '' } }],
+    modelPolicies: [{ abi: 'state.owner-model-policies@1', model, ownerPackage: 'Example', module: 'output/Example.mjs',
+      rules: [{ kind: 'lock', id: 'Example.Job.frozen', fields: ['count'] },
+        { kind: 'invariant', id: 'Example.Job.positive', dependencies: [{ id: 'Example.Job.affected', model, maxTargets: 2 }] }],
+      hooks: [{ id: 'Example.Job.updated', op: 'update', operation: 'Example.Job.update' as OperationName }] }] };
+}
+
+test('artifact loading retains immutable ordered model policies separately from callbacks and legacy omission', () => {
+  const raw = policyArtifact();
+  const converted = artifactToDescriptorSet(raw), loaded = loadArtifactDescriptors(raw, opts);
+  assert.deepEqual(converted.modelPolicies, raw.modelPolicies);
+  assert.deepEqual(loaded.modelPolicies, raw.modelPolicies);
+  assert.ok(Object.isFrozen(loaded.modelPolicies));
+  assert.ok(Object.isFrozen(loaded.modelPolicies![0]!.rules));
+  const lock = loaded.modelPolicies![0]!.rules[0]!;
+  assert.equal(lock.kind, 'lock');
+  if (lock.kind === 'lock') assert.ok(Object.isFrozen(lock.fields));
+  raw.modelPolicies![0] = { ...raw.modelPolicies![0]!, module: 'changed.mjs', rules: [] };
+  assert.equal(loaded.modelPolicies![0]!.module, 'output/Example.mjs');
+  assert.equal(loaded.modelPolicies![0]!.rules.length, 2);
+  assert.equal(Object.hasOwn(loadArtifactDescriptors(artifact(), opts), 'modelPolicies'), false);
+  assert.equal(Object.hasOwn(artifactToDescriptorSet(artifact()), 'modelPolicies'), false);
+});
+
+test('model policy artifact claims require real unique output modules and checked closed metadata', () => {
+  const malformed: Array<(raw: any) => void> = [
+    raw => { raw.modelPolicies = undefined; }, raw => { raw.modelPolicies = null; },
+    raw => { delete raw.modules; }, raw => { raw.modules = null; },
+    raw => { raw.modules.push(raw.modules[0]); },
+    raw => { raw.modelPolicies[0].module = 'Example'; },
+    raw => { raw.modelPolicies[0].ownerPackage = 'Foreign'; },
+    raw => { raw.modelPolicies[0].rules[0].fields = ['absent']; },
+    raw => { raw.modelPolicies[0].rules[1].dependencies[0].model = 'Example.Absent'; },
+    raw => { raw.modelPolicies[0].rules[1].id = raw.modelPolicies[0].rules[0].id; },
+    raw => { raw.modelPolicies[0].hooks[0].operation = 'Example.inspect'; },
+    raw => { raw.modelPolicies[0].evaluate = 'callback-in-json'; },
+  ];
+  for (const mutate of malformed) {
+    const raw = policyArtifact(); mutate(raw);
+    incompatible(() => loadArtifactDescriptors(raw, opts));
+  }
+  const inherited = Object.assign(Object.create({ modelPolicies: policyArtifact().modelPolicies }), artifact());
+  incompatible(() => loadArtifactDescriptors(inherited, opts));
+  const unrelated = policyArtifact();
+  unrelated.modules!.push({ ...unrelated.modules![0]!, path: 'output/unrelated.mjs' });
+  assert.equal(loadArtifactDescriptors(unrelated, opts).modelPolicies!.length, 1);
+});
+
+test('policy claim, module and nested metadata accessors refuse without execution', () => {
+  const paths: Array<Array<string | number>> = [
+    ['modelPolicies'], ['modules'], ['modules', 0], ['modules', 0, 'path'],
+    ['modelPolicies', 0, 'module'], ['modelPolicies', 0, 'rules', 0, 'fields'],
+    ['modelPolicies', 0, 'rules', 1, 'dependencies', 0, 'maxTargets'],
+  ];
+  let reads = 0;
+  for (const path of paths) {
+    const raw = policyArtifact(); let target: any = raw;
+    for (const key of path.slice(0, -1)) target = target[key];
+    Object.defineProperty(target, path.at(-1)!, { enumerable: true, get() { reads++; throw new Error('getter executed'); } });
+    incompatible(() => loadArtifactDescriptors(raw, opts));
+  }
+  assert.equal(reads, 0);
 });

@@ -1,6 +1,7 @@
+import { StateError } from '../errors.js';
+import { checkOwnerModelPolicyDescriptors } from '../mutation/model-policies.js';
 import { checkFieldMachine } from '../internal/machine.js';
 import { normalizeValueTypes, ValueTypesError, parseTypeId, printTypeId, type NormalizedSchema } from '@canlang/values';
-import { modelFieldConstraintSchema } from '../mutation/models.js';
 /**
  * Lane 03 T16a: operation registry — INTERIM engine-local defs plus the
  * generated-descriptor join.
@@ -40,6 +41,7 @@ import {
   type CanonicalFieldDefault,
   type CanonicalInputDef,
   type CanonicalModelDescriptor,
+  type CanonicalOwnerModelPolicies,
   type CanonicalOperationDescriptor,
   type CanonicalOperationKind,
   type CanonicalScalarKind,
@@ -59,7 +61,7 @@ import type {
 } from '@canlang/contracts';
 import { validateByPredicate, type ByPredicate } from '../policy/roles.js';
 import { validatePredicateShape } from '../policy/grants.js';
-import type { InterimContainment, InterimRefDef } from '../mutation/models.js';
+import { modelFieldConstraintSchema, type InterimContainment, type InterimRefDef } from '../mutation/models.js';
 import {
   createDeliverySchema,
   type DeliveryFieldSchema,
@@ -208,7 +210,7 @@ export interface LoadedDescriptorSet {
 export type ArtifactDescriptorSlice = Pick<
   CompileArtifact,
   'artifact_version' | 'operations' | 'models'
-> & Partial<Pick<CompileArtifact, 'sources' | 'valueTypes'>>;
+> & Partial<Pick<CompileArtifact, 'sources' | 'valueTypes' | 'modelPolicies' | 'modules'>>;
 
 /**
  * T18 engine-resolvable server initializer (closed subset of L1
@@ -232,6 +234,7 @@ export type ServerInitKind = 'actor' | 'now' | 'random_secret';
  * `delivery` field tags; the receipt join's schema source).
  */
 export interface ConvertedArtifactDescriptors {
+  readonly modelPolicies?: readonly CanonicalOwnerModelPolicies[];
   readonly sources?: ReadonlyArray<Readonly<ArtifactSource>>;
   readonly set: ExecutionDescriptorSet;
   readonly valueSchema?: NormalizedSchema;
@@ -250,6 +253,8 @@ export interface ConvertedArtifactDescriptors {
 
 /** Fully loaded artifact: registry + models + engine-local model attachments. */
 export interface LoadedArtifactDescriptors extends LoadedDescriptorSet {
+  /** Immutable checked JSON metadata; owning native callbacks remain separate. */
+  readonly modelPolicies?: readonly CanonicalOwnerModelPolicies[];
   /** Copied compilation inputs identify this load; they confer no authority. */
   readonly sources?: ReadonlyArray<Readonly<ArtifactSource>>;
   readonly refs: ReadonlyMap<ModelName, ReadonlyArray<InterimRefDef>>;
@@ -529,6 +534,31 @@ function checkSources(artifact: Record<string, unknown>): ReadonlyArray<Readonly
     }
     return Object.freeze({ path, sha256 });
   }));
+}
+
+/** A policy claim must name actual emitted production paths, never logical modules.
+ * Inspect own data without executing module/path/array accessors. */
+function artifactPolicyModulePaths(artifact: Record<string, unknown>): readonly string[] {
+  const inventory = Object.getOwnPropertyDescriptor(artifact, 'modules');
+  if (inventory === undefined || !('value' in inventory) || !Array.isArray(inventory.value)
+    || Object.getPrototypeOf(inventory.value) !== Array.prototype) fail('malformed_descriptor', 'Model policies require an own emitted module inventory.');
+  const modules = inventory.value as unknown[];
+  if (Reflect.ownKeys(modules).some(key => key !== 'length' && (typeof key !== 'string' || !/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= modules.length))) fail('malformed_descriptor', 'Invalid emitted module inventory member.');
+  const paths: string[] = [];
+  for (let i = 0; i < modules.length; i++) {
+    const entry = Object.getOwnPropertyDescriptor(modules, String(i));
+    if (entry === undefined || !('value' in entry) || !isRecord(entry.value)
+      || (Object.getPrototypeOf(entry.value) !== Object.prototype && Object.getPrototypeOf(entry.value) !== null)) fail('malformed_descriptor', 'Invalid emitted module inventory element.');
+    const module = Object.getOwnPropertyDescriptors(entry.value);
+    if (Reflect.ownKeys(module).some(key => typeof key !== 'string' || !['path', 'js', 'map'].includes(key)
+      || !('value' in module[key]!))) fail('malformed_descriptor', 'Invalid emitted module member or accessor.');
+    const path = module['path'];
+    if (path === undefined || !('value' in path) || typeof path.value !== 'string' || path.value === ''
+      || module['js'] === undefined || typeof module['js'].value !== 'string'
+      || module['map'] === undefined || !isRecord(module['map'].value)) fail('malformed_descriptor', 'Invalid emitted module inventory.');
+    paths.push(path.value);
+  }
+  return paths;
 }
 
 /** Load-time dot-path check: non-empty with no empty segments. */
@@ -1152,6 +1182,11 @@ export function artifactToDescriptorSet(
         `does not match the required artifact contract ${T04A_PINNED_VERSIONS.artifact}.`,
     );
   }
+  const policyClaim = Object.getOwnPropertyDescriptor(artifact, 'modelPolicies');
+  if ((policyClaim === undefined && 'modelPolicies' in artifact) || (policyClaim !== undefined && !('value' in policyClaim))) {
+    fail('malformed_descriptor', 'Model policies require an own data claim.');
+  }
+  const policyModules = policyClaim === undefined ? undefined : artifactPolicyModulePaths(artifact);
   const sources = checkSources(artifact);
   const { valueTypes, valueSchema } = checkValueTypes(artifact);
   const rawOperations: unknown[] =
@@ -1575,9 +1610,20 @@ export function artifactToDescriptorSet(
   // them). `createDeliverySchema` is the shared builder: its
   // validation doubles as this conversion's whole-set guard.
   const deliveryFields = createDeliverySchema(deliveryEntries);
+  let modelPolicies: readonly CanonicalOwnerModelPolicies[] | undefined;
+  if (policyClaim !== undefined) {
+    try {
+      modelPolicies = checkOwnerModelPolicyDescriptors({ descriptors: policyClaim.value,
+        models: new Map(models.map(model => [model.name, model])), modules: policyModules! });
+    } catch (error) {
+      if (error instanceof StateError && error.code === 'validation') fail('malformed_descriptor', error.message);
+      throw error;
+    }
+  }
   return {
     ...(valueSchema !== undefined ? { valueSchema } : {}),
     set, refs, inputArrays, inputNullableRefs, serverInits, nullableFields, secretFields, containment, deliveryFields,
+    ...(modelPolicies !== undefined ? { modelPolicies } : {}),
     ...(sources !== undefined ? { sources } : {}),
   };
 }
@@ -1626,6 +1672,7 @@ export function loadArtifactDescriptors(
     ...(loaded.valueSchema !== undefined ? { valueSchema: loaded.valueSchema } : {}),
     ...(loaded.valueTypes !== undefined ? { valueTypes: loaded.valueTypes } : {}),
     ...(converted.sources !== undefined ? { sources: converted.sources } : {}),
+    ...(converted.modelPolicies !== undefined ? { modelPolicies: converted.modelPolicies } : {}),
     refs,
     serverInits,
     nullableFields,

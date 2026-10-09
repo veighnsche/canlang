@@ -178,6 +178,8 @@ export const MCP_BUNDLE_MARKERS: readonly string[] = [
  */
 export const HTTP_BUNDLE_MARKERS: readonly string[] = [
   "handleOperationRequest",
+  "handlePageRequest",
+  "handlePagePreferencePost",
   "handleAuthRequest",
   "SESSION_EXPIRES_MS",
   "createSourceFormBindings",
@@ -366,7 +368,9 @@ function stageWorkerDist(workerDistDir: string): Record<string, string> {
   // within `worker/`. Deterministic order.
   const staged: Record<string, string> = {};
   for (const entry of readdirSync(workerDistDir).sort()) {
-    if (!entry.endsWith(".js")) continue;
+    // Colocated worker unit tests are emitted to dist but are not Worker
+    // modules; they may import Node-only test producers.
+    if (!entry.endsWith(".js") || entry.endsWith(".test.js")) continue;
     const full = join(workerDistDir, entry);
     if (!statSync(full).isFile()) continue;
     const key = `worker/${entry}`;
@@ -800,7 +804,10 @@ export function buildHttpOperationsBundle(_repoRoot?: string): string {
       `export { handleOperationRequest, createSourceFormBindings, catalogFromArtifactOperations, INPUT_CHOICES_VERSION } from ${JSON.stringify(toPosixAbsolute(operationsDist))};\n` +
       `export { handleAuthRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "auth.js")))};\n` +
       `export { SESSION_EXPIRES_MS } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(identityDistribution.modules), "accounts", "registration.js")))};\n` +
-      `export { handlePageRequest } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "pages.js")))};\n` +
+      `export { handlePageRequest, handlePagePreferencePost } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "pages.js")))};\n` +
+      `export { caughtToBusinessError, isBusinessThrow, jsonErrorResponse } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "http", "context.js")))};\n` +
+      `export { httpStatusFor } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "errors", "envelope.js")))};\n` +
+      `export { logInternalError } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "errors", "logging.js")))};\n` +
       `export { checkArtifactOperation, checkArtifactOperations, checkBoundArgument, checkBoundArguments, checkedToMcpInputSchema } from ${JSON.stringify(toPosixAbsolute(join(fileURLToPath(interfacesDistribution.modules), "mcp", "schemas.js")))};\n`,
       "utf8",
     );

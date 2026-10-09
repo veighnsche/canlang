@@ -50,6 +50,7 @@ import {
   generatedFields,
   generatedForm,
   form,
+  input as renderInput,
   checkbox,
   toggle,
   NATIVE_BOOLEAN_PRESENCE_PREFIX,
@@ -393,6 +394,36 @@ test('source form preparation scopes typed controls and refuses unavailable bind
     { operation: GADGET_CREATE_OP.name, authoredFields: ['title', 'stock', 'price', 'state', 'owner', 'tags', 'ids', 'code'] },
     { operation: 'Missing.create' },
   ]) assert.equal((await prepare(request)).status, 'unavailable');
+});
+
+test('authored create controls render a nullable integer without inventing its clear checkbox', async () => {
+  const create: ArtifactOperation = {
+    name: 'OfficeSupplies.Supply.create', kind: 'create', description: '', inputs: { fields: [
+      { name: 'name', field: { kind: 'string' }, valueType: 'text', required: true },
+      { name: 'quantity', field: { kind: 'integer' }, required: false, nullable: true },
+    ] },
+  };
+  const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: [create] });
+  const { deps, identity } = await createTestDeps();
+  const { identity: principal } = await resolveRequestIdentity(deps.identity.store,
+    testRequest('/forms', { cookie: identity.cookie }), { clock: deps.clock, teamId: identity.teamId });
+  const context = buildPresentationContext({ request: testRequest('/forms', { cookie: identity.cookie }),
+    pathname: '/forms', isPartial: false, appDefaultLocale: 'en',
+    csrfToken: await deriveCsrfToken(identity.sessionToken), principal,
+    query: async () => ({ rows: [], columns: [] }), catalog, clock: deps.clock });
+  const prepared = await context.prepareForm!({ operation: create.name,
+    fields: ['name', 'quantity'], authoredFields: ['name', 'quantity'], display: 'inline' });
+  assert.equal(prepared.status, 'ready');
+  if (prepared.status !== 'ready') throw new Error('expected authored nullable form');
+  assert.deepEqual(prepared.props.fields.map(field => field.path), ['name', 'quantity']);
+  const html = await form({ ...prepared.props,
+    children: () => [renderInput(prepared.field('name')), renderInput(prepared.field('quantity'))] });
+  assert.match(html, /name="inputs\[name\]"/);
+  assert.match(html, /name="inputs\[quantity\]"/);
+  assert.doesNotMatch(html, /quantity__null/);
+  assert.deepEqual(projectGeneratedInputs(prepared.derived, 'create', {
+    'inputs[name]': 'Paper', 'inputs[quantity]': '',
+  }, prepared.props.fields.map(field => field.path)), { name: 'Paper' });
 });
 
 test('protected source update submits only editable values and restores its exact record through HTTP', async () => {

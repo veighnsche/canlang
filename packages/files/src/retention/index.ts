@@ -80,6 +80,9 @@ export function runRetention(
     throw new RangeError('runRetention: horizons must be finite and >= 0');
   }
   const nowMs = deps.clock.nowMs();
+  if (!Number.isFinite(nowMs) || nowMs < 0) {
+    throw new RangeError('runRetention: clock must be finite and >= 0');
+  }
   const orphaned: FinalizedFileRef[] = [];
   const expired: FinalizedFileRef[] = [];
   const sweptIntents: UploadIntentId[] = [];

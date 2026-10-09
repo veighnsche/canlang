@@ -397,6 +397,28 @@ pub struct ReferencedBuiltin {
     pub span: Span,
 }
 
+/// Declared model policy kind, distinct from neighboring callable registries.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IrModelRuleKind {
+    Invariant,
+    Lock,
+}
+
+/// Owning declaration facts for a model invariant or field lock.
+/// Registry sharing with read/unique predicates does not establish rule kind.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IrModelRuleOrigin {
+    pub model: SymbolId,
+    pub module: ModuleId,
+    /// Global Effects ordinal across models and rule kinds.
+    pub ordinal: u32,
+    pub node: NodeKey,
+    pub span: Span,
+    pub kind: IrModelRuleKind,
+    /// Existing model-local callable registry identity.
+    pub registry_id: String,
+}
+
 /// One boolean rule function for the `canApp()` registry (`read` and
 /// `invariants` maps).
 #[derive(Debug, Clone)]
@@ -407,6 +429,8 @@ pub struct IrRuleFn {
     pub pred: TypedExpr,
     /// Declaration span.
     pub span: Span,
+    /// Present only for a declared model invariant, never read/unique rules.
+    pub origin: Option<IrModelRuleOrigin>,
 }
 
 /// One lock entry for the `canApp()` registry `locks` map.
@@ -420,6 +444,7 @@ pub struct IrLockFn {
     pub when: Option<TypedExpr>,
     /// Declaration span.
     pub span: Span,
+    pub origin: IrModelRuleOrigin,
 }
 
 /// One named rule function for the `canApp()` registry (`crudWhen`,
@@ -6059,6 +6084,7 @@ impl<'a> Cx<'a> {
                         id: format!("{}.read.{}", symbol.name, index + 1),
                         pred,
                         span,
+                        origin: None,
                     });
                 }
                 for (index, invariant) in data.invariants.iter().enumerate() {
@@ -6088,6 +6114,15 @@ impl<'a> Cx<'a> {
                         id: format!("{}.require.{}", symbol.name, index + 1),
                         pred,
                         span,
+                        origin: Some(IrModelRuleOrigin {
+                            model: invariant.target,
+                            module: invariant.module,
+                            ordinal: invariant.id,
+                            node: invariant.node,
+                            span,
+                            kind: IrModelRuleKind::Invariant,
+                            registry_id: format!("{}.require.{}", symbol.name, index + 1),
+                        }),
                     });
                 }
                 for (index, unique) in data.uniques.iter().enumerate() {
@@ -6108,6 +6143,7 @@ impl<'a> Cx<'a> {
                             &format!("unique constraint on {}", symbol.canonical),
                         ),
                         span,
+                        origin: None,
                     });
                 }
                 for (index, lock) in data.locks.iter().enumerate() {
@@ -6123,6 +6159,15 @@ impl<'a> Cx<'a> {
                             )
                         }),
                         span,
+                        origin: IrModelRuleOrigin {
+                            model: symbol.id,
+                            module: lock.module,
+                            ordinal: lock.id,
+                            node: lock.node,
+                            span,
+                            kind: IrModelRuleKind::Lock,
+                            registry_id: format!("{}.lock.{}", symbol.name, index + 1),
+                        },
                     });
                 }
                 if let Some(retain) = data.retains.first() {
@@ -7104,16 +7149,90 @@ impl<'a> Cx<'a> {
     }
 
     fn decode_ui_header_value(&mut self, scope: &Scope, node: &SyntaxNode) -> TypedExpr {
-        if node.kind == SyntaxKind::MessageValue
+        let value = if node.kind == SyntaxKind::MessageValue
             && let Some(message) = self.decode_message_node(scope.module, node)
         {
-            return TypedExpr::new(
+            TypedExpr::new(
                 IrExpr::Message(message),
                 ResolvedType::InlineMessage,
                 node.span,
-            );
+            )
+        } else {
+            self.decode_expr(scope, node)
+        };
+        self.check_ui_message_parameter_profile(node, &value);
+        value
+    }
+
+    /// UI and Values own different parameter profiles. Check only the owning
+    /// schema here; descriptor construction and captured argument reads remain
+    /// in their original expression and evaluation order.
+    fn check_ui_message_parameter_profile(&mut self, node: &SyntaxNode, value: &TypedExpr) {
+        let problem = match value.ty.nullable_inner().unwrap_or(&value.ty) {
+            ResolvedType::Message(id) => match self.program.effects.messages.get(id) {
+                Some(message) => message.params.iter().find_map(|param| {
+                    match self.program.types.symbol_types.get(&param.param) {
+                        Some(ty) => {
+                            matches!(ty, ResolvedType::Enum { owner: None, .. }).then(|| {
+                                format!(
+                                    "message parameter '{}' uses unsupported UI type {}",
+                                    self.local_name(param.param),
+                                    self.type_id(ty)
+                                )
+                            })
+                        }
+                        None => Some(format!(
+                            "message parameter '{}' has no checked UI type",
+                            self.local_name(param.param)
+                        )),
+                    }
+                }),
+                None => Some("named message has no checked UI parameter schema".to_string()),
+            },
+            ResolvedType::InlineMessage => {
+                let mut reference = node;
+                while reference.kind == SyntaxKind::Group {
+                    let Some(inner) = kids(reference).into_iter().find(|n| is_expression(n.kind))
+                    else {
+                        break;
+                    };
+                    reference = inner;
+                }
+                let key = NodeKey::of(reference);
+                let origin = self
+                    .program
+                    .types
+                    .message_descriptor_references
+                    .get(&key)
+                    .copied()
+                    .unwrap_or(key);
+                if let Some(binding) = self.program.types.anonymous_messages.get(&origin) {
+                    binding.arguments.iter().find_map(|(name, _, ty)| {
+                        matches!(ty, ResolvedType::Enum { owner: None, .. }).then(|| {
+                            format!(
+                                "message parameter '{name}' uses unsupported UI type {}",
+                                self.type_id(ty)
+                            )
+                        })
+                    })
+                } else if self
+                    .node(&origin)
+                    .is_some_and(|node| node.kind == SyntaxKind::MessageValue)
+                {
+                    None
+                } else {
+                    Some("inline message has no checked UI parameter schema".to_string())
+                }
+            }
+            _ => None,
+        };
+        if let Some(problem) = problem {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot render UI descriptor: {problem}"),
+                node.span,
+            ));
         }
-        self.decode_expr(scope, node)
     }
 
     /// Captioned factories consume exactly one checked text/message header.
@@ -7143,6 +7262,7 @@ impl<'a> Cx<'a> {
             ));
         }
         let value = self.decode_expr(scope, header);
+        self.check_ui_message_parameter_profile(header, &value);
         if let ResolvedType::Message(id) = &value.ty
             && self
                 .program
@@ -8167,7 +8287,12 @@ impl<'a> Cx<'a> {
                     )),
                 }
             } else {
-                props.push((name.clone(), self.decode_expr(scope, value)));
+                let decoded = if name == "caption" {
+                    self.decode_ui_header_value(scope, value)
+                } else {
+                    self.decode_expr(scope, value)
+                };
+                props.push((name.clone(), decoded));
             }
         }
         if bindings == 0 {
@@ -8609,7 +8734,25 @@ impl<'a> Cx<'a> {
         }
         for (name, value) in ui_attributes(self.db, node) {
             if let Some(value) = value {
-                props.push((name.clone(), self.decode_word_attr(scope, &name, value)));
+                let decoded = if name == "description" {
+                    let attribute = kids(node).into_iter().find(|child| {
+                        child.kind == SyntaxKind::Attribute
+                            && kids(child)
+                                .first()
+                                .and_then(|part| name_text(self.db, part))
+                                .as_deref()
+                                == Some("description")
+                    });
+                    let Some(decoded) = attribute.and_then(|attribute| {
+                        self.decode_single_ui_caption(scope, attribute, "stat description")
+                    }) else {
+                        continue;
+                    };
+                    decoded
+                } else {
+                    self.decode_word_attr(scope, &name, value)
+                };
+                props.push((name.clone(), decoded));
             }
         }
         IrUi {
@@ -8725,7 +8868,11 @@ impl<'a> Cx<'a> {
                 value.span,
             );
         }
-        self.decode_expr(scope, value)
+        let decoded = self.decode_expr(scope, value);
+        if matches!(name, "caption" | "title" | "text" | "label" | "submit") {
+            self.check_ui_message_parameter_profile(value, &decoded);
+        }
+        decoded
     }
 
     /// Decode a `form` node: operation plus display/arguments/fields/submit.
@@ -8911,7 +9058,11 @@ impl<'a> Cx<'a> {
                 }
                 "arguments" | "submit" => {
                     if let Some(value) = value {
-                        props.push((name, self.decode_expr(scope, value)));
+                        let decoded = self.decode_expr(scope, value);
+                        if name == "submit" {
+                            self.check_ui_message_parameter_profile(value, &decoded);
+                        }
+                        props.push((name, decoded));
                     }
                 }
                 "fields" => {
@@ -9786,7 +9937,14 @@ impl<'a> Cx<'a> {
         }
         for (name, value) in ui_attributes(self.db, node) {
             if let Some(value) = value {
-                props.push((name, self.decode_expr(scope, value)));
+                let decoded = self.decode_expr(scope, value);
+                if matches!(
+                    name.as_str(),
+                    "caption" | "title" | "text" | "label" | "submit"
+                ) {
+                    self.check_ui_message_parameter_profile(value, &decoded);
+                }
+                props.push((name, decoded));
             }
         }
         let children = self.decode_ui_children(scope, node, row_ctx);

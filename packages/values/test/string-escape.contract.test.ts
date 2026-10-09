@@ -31,17 +31,7 @@ test("frozen corpus and source-current owning TypeScript caller observations rep
     const regenerated = path.join(tmp, "captured.json");
     execFileSync(process.env.CAN_N04_NODE ?? "node", [oraclePath, path.join(tmp, "staged"), regenerated], { stdio: "pipe" });
     const actual = JSON.parse(readFileSync(regenerated, "utf8")) as typeof fixture & { engine: unknown };
-    // 31a26fd4 adds only the package-owned catalog locator. Keep the recorded
-    // donor provenance; admit this reviewed source successor independently of
-    // all frozen string bytes, actual caller observations and other donors.
-    const distributionPath = "packages/values/src/distribution.ts";
-    assert.equal(fixture.source.donorHashes[distributionPath],
-      "d42f490fe465f366cef6be65adc2514bcf6e7a0e3ff6c5a3bc85cb03cdae94fb");
-    const currentDonorHashes = {
-      ...fixture.source.donorHashes,
-      [distributionPath]: "ff3b122b7b675af01e7ea0b29607e899aa5f3f34376380a44a53ea6a57e6e176",
-    };
-    assert.deepEqual(actual.source, { ...fixture.source, donorHashes: currentDonorHashes },
+    assert.deepEqual(actual.source, fixture.source,
       "capture differs from reviewed source correspondence");
     const semantic = (value: typeof fixture & { engine?: unknown }) => {
       const { engine: _engine, ...observations } = value;

@@ -1,0 +1,23 @@
+{
+  "schema": "office-browser-journey.v1",
+  "checks": {
+    "private_owner": true,
+    "native_cli_failures_minus_one": true,
+    "current_artifact": true,
+    "source_form": true,
+    "blank_name_refused_no_effect": true,
+    "paper_optional_blank": true,
+    "three_creates": true,
+    "edit_unavailable_persisted": true,
+    "available_tab": true,
+    "restock_tab": true,
+    "search_count_empty": true,
+    "available_restored": true
+  },
+  "capture": {},
+  "result": "failed",
+  "failure": {
+    "name": "AssertionError",
+    "message": "Supply.delete status"
+  }
+}

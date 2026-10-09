@@ -47,7 +47,6 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
   fixture decision_attempt=Mail.send {request={to="submitter@example.test",subject="Review",body="Approved with conditions"}}
   fixture pending_notice=Notice {parent=pending_version,kind=request,assignment=1,recipient="reviewer@example.test",subject="Review",body="Plan",delivery=attempt}
   fixture accepted=Submission {parent=document,revision=1,file=original,note="Original",reviewer=reviewer_user,reviewer_email="reviewer@example.test",due=now+1d,state=approved,decided_by=reviewer_user,decided_at=now}
-  preferences { review_state:Submission.state? label="Initial review state filter"@{nl="Eerste filter beoordelingsstatus"}, versions_open:bool=false label="Expand submitted version history"@{nl="Ingediende versiehistorie uitklappen"} }
   message label_reviewer = "Reviewer"@{nl="Beoordelaar"}
   message label_Submission_note = "Note"@{nl="Notitie"}
   message label_Submission_reviewer_email = "Reviewer email"@{nl="E-mail beoordelaar"}
@@ -89,7 +88,7 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
     members,"New title" -> "New title"
     outsider,"New title" -> error(not_found)
   # Submit a fresh immutable file revision, withdrawing pending reviews and retaining earlier decisions. @{nl="Dien een nieuwe onveranderlijke bestandsrevisie in, trek wachtende beoordelingen in en behoud eerdere besluiten."}
-  scenario submit(document:Document,file:file,note:text label=label_Submission_note,assignee:user label=label_reviewer,reviewer_email:email label=label_Submission_reviewer_email,due:datetime) by=members
+  scenario submit(document:Document,file:file,note:text label=label_Submission_note,assignee:user choices={read=reviewer_choices(document=document),value="user",labels=["name","role","home"]} label=label_reviewer,reviewer_email:email label=label_Submission_reviewer_email,due:datetime) by=members
    require document.submitter==actor and (document.location==null or can_work(actor,document.location)) and assignee!=actor and reviewer(assignee) and (document.location==null or can_work(assignee,document.location)) and due>now
    do
     let revision=document.current+1
@@ -195,7 +194,7 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
      recovered_approval!=null -> true
      recovered_approval.revision,recovered_approval.file,recovered_approval.note,recovered_approval.due,recovered_approval.reviewer,recovered_approval.assignment,recovered_approval.state,recovered_approval.decided_by,count(recovered_approval.Notice) -> 1,original,"Submitted plan",now+1d,replacement_user,2,approved,replacement_user,3
   # Reassign the current pending review, retaining assignment history. @{nl="Wijs de huidige wachtende beoordeling opnieuw toe en behoud de toewijzingshistorie."}
-  scenario assign(submission:Submission,assignee:user label=label_reviewer,email:email) by=coordinator
+  scenario assign(submission:Submission,assignee:user choices={read=reviewer_choices(document=submission.parent),value="user",labels=["name","role","home"]} label=label_reviewer,email:email) by=coordinator
    require (submission.parent.location==null or can_work(actor,submission.parent.location)) and submission.state==pending and submission.revision==submission.parent.current and assignee!=submission.parent.submitter and reviewer(assignee) and (submission.parent.location==null or can_work(assignee,submission.parent.location))
    do
     set submission {reviewer=assignee,reviewer_email=email,assignment=submission.assignment+1}
@@ -269,6 +268,7 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
      set notice {delivery=attempt}
 
  Then
+  preferences { review_state:Submission.state? label="Initial review state filter"@{nl="Eerste filter beoordelingsstatus"}, versions_open:bool=false label="Expand submitted version history"@{nl="Ingediende versiehistorie uitklappen"} }
   # Submit and follow your own exact document versions. @{nl="Dien je eigen exacte documentversies in en volg ze."}
   page /documents title="My submissions"@{nl="Mijn inzendingen"}
    require members
@@ -324,7 +324,7 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
         textarea reason
      modal "Assign"@{nl="Toewijzen"} id=assign_dialog
       slot content
-       ## PROPOSED: owning form metadata binds choices to the current bound Submission parent.
+       ## The assignee choices read is bound to the current Submission parent; the server guard still checks current authority.
        form assign arguments={submission=row} display=inline
         input email
     collapse "Review history"@{nl="Beoordelingshistorie"}

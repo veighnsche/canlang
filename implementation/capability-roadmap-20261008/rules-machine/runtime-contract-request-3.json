@@ -1,0 +1,30 @@
+{
+  "state": "Choose minimal complete rule-runtime design using these verified facts. DESIGN specifies pre-state field locks and final-state invariants with dependency-triggered affected-row checks. Its lock-establishing operation can set final field values; archival retaining values is allowed, locked removal prohibited apart from declared expiry. Rule reads inspect bounded authority data at the resolved owner without disclosing it. Versions: ordinary references retain admitted v while business fields reflect staged writes, one v+1 is reserved for the entire existing-row transaction, new rows are1. Native CRUD event.before/input are immutable, event.after is pending/reserved-version or null, deletion cannot rewrite the target, scenario writes produce postcommit events and skip CRUD hook execution. Existing mutation code has ordered writes/history/reference/unique/default/machine machinery, but applies invariants separately after each runtime helper, checks whole-row predicate locks, increases every provisional version and passes frozen wire before to interim hooks. The runtime's final version collapse comes too late to fix hook/rule observations. Generated source emits real local invariant/lock callbacks while artifact model entries omit checked membership/link/dependency metadata; native hooks also miss input and proper removed-after. Such declarations currently refuse activation, so no working complete rule join is being asserted. Proposed State-owned operation session reuses pipeline staging and supplies a finalization checkpoint returning original atomic receipt effects. Compiler must publish checked owning identities, ordered rule membership, callback/type ABI, field selectors and hook/context/dependency plans. Compare representations and pre-state/recheck choices without dropping any original obligation: deterministic bounded final rechecks including absent and collection relationships, rollback, original replay, current permissions, final reference removal, complete native hooks and reserved versions. These alternatives have genuine implementation costs; none is a tested API or an invitation to narrow application coverage.",
+  "questions": {
+    "lock_prestate": {
+      "type": "choice",
+      "instructions": "Choose the lock evaluation origin that should be explicit in the complete operation contract.",
+      "criteria": {
+        "transaction_entry": "Retain one original row per operation for all field-lock predicates/comparisons. An operation that starts unlocked may establish its lock and then finish provisional field values; future operations cannot change them.",
+        "ordered_write": "Use the immediately previous provisional row for each field-lock check. Newly established protection applies to subsequent helper writes in the same operation; callers must finish locked data in the establishing write. This is an additional staging constraint."
+      }
+    },
+    "dependency_execution": {
+      "type": "choice",
+      "instructions": "Which sound bounded reevaluation mechanism should be released to the producer and consumer owners?",
+      "criteria": {
+        "checked_reverse_plans": "Emit owner-checked dependency paths and reverse affected-row selectors including query absence and collection relationships. State accounts for expansion/evaluation in one finite budget and rejects overflow. Precise plans cost compiler work but limit irrelevant runtime scanning.",
+        "bounded_conservative_scans": "Emit complete conservative involved-model/owner sets and scan their possible rows with a shared hard limit. Simpler selection logic can be correct without truncation, although unrelated rows consume budget and can reject useful large workflows.",
+        "dynamic_read_tracking": "Track concrete evaluation reads and query-result/absence dependencies, discover affected rows to a bounded stable closure and conservatively cover unseen collection changes. Offers dynamic selection but demands more state/accounting and proof of complete invalidation."
+      }
+    },
+    "execution_binding": {
+      "type": "choice",
+      "instructions": "Compare the two complete execution representations, with identical transaction, native hook and dependency scope.",
+      "criteria": {
+        "checked_native_bindings": "Keep emitted pure JS functions and release exact module/owner/rule linkage plus native argument/context types. State owns reads/budgets/staging/finalization; checked metadata and genuine hook carriers must be implemented before activation.",
+        "serializable_rule_ir": "Replace or supplement emitted functions with checked rule data and a State interpreter supporting all original pure/native/query/hook semantics. This may simplify representation inspection but adds a separate evaluator and does not remove any finalization or producer gate."
+      }
+    }
+  }
+}

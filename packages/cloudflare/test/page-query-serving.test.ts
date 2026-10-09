@@ -18,6 +18,11 @@ import { buildDeployBundleWithAssets, writeDeployBundleWithAssets, DEPLOY_MAIN_M
 // Shared fetch profile used by both Node and workerd in these callers.
 type TestFetchInit = { method?: string; headers?: Record<string, string>; body?: string };
 const producer = process.env["CANLANG_PAGE_ARTIFACT"];
+// Hosts may supply their installed Chromium executable; otherwise use the
+// lock-selected Playwright browser, including the native CDP journey.
+const chromeExecutable = process.env["CANLANG_CHROME_EXECUTABLE"];
+const chromeLaunch = { headless: true, ...(chromeExecutable
+  ? { executablePath: chromeExecutable } : {}) };
 const workers: Miniflare[] = [];
 const dirs: string[] = [];
 afterEach(async () => {
@@ -147,10 +152,10 @@ describe("authored operation forms through defining default Worker", () => {
     const nextId = attributes(afterHtml.match(/<input\b[^>]*name="operation_id"[^>]*>/)![0])["value"];
     expect(nextId).not.toBe(flat["operation_id"]);
 
-    // Drive the emitted bootstrap in installed Chrome over the real Worker
+    // Drive the emitted bootstrap in installed Chromium over the real Worker
     // HTTP origin. Direct submission above remains a separate admitted path.
     const origin = (await worker.ready).origin;
-    const browser = await chromium.launch({ headless: true });
+    const browser = await chromium.launch(chromeLaunch);
     try {
       const context = await browser.newContext();
       try {
@@ -441,7 +446,7 @@ describe("authored readonly state page through native Worker polling", () => {
     const profile = join(dir, "chrome-profile");
     // This anonymous temporary profile uses the same credential-store flags as
     // Playwright launches; native macOS keychain initialization can stall HTTP.
-    const chrome = spawn(chromium.executablePath(), [
+    const chrome = spawn(chromeExecutable ?? chromium.executablePath(), [
       "--headless=new", "--no-sandbox",
       `--user-data-dir=${profile}`, "--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1",
       "--no-first-run", "--no-default-browser-check",
@@ -631,7 +636,7 @@ describe("configured authored protected forms through native Worker", () => {
     const target = creation.records[0]!;
     expect(target.version).toBe(1);
     const origin = (await worker.ready).origin;
-    const browser = await chromium.launch({ headless: true });
+    const browser = await chromium.launch(chromeLaunch);
     try {
       const context = await browser.newContext();
       try {

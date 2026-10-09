@@ -82,6 +82,114 @@ function input(bytes: Uint8Array): Omit<CompiledExampleInput, "selectedRow" | "r
 }
 
 describe("revision-pinned isolated example rerun", () => {
+  it("cancels hung readiness, never invokes a row, and keeps the recipe usable", async () => {
+    const bytes = Uint8Array.from(Buffer.from("ready-cancellation-artifact"));
+    const stale = new AbortController();
+    const recipe = { ...input(bytes), signal: stale.signal };
+    let checks = 0;
+    let runs = 0;
+    const coordinator = new ExampleRerunCoordinator({
+      resourcesReady: async () => {
+        checks += 1;
+        if (checks === 1) return new Promise<never>(() => {});
+        return { available: true };
+      },
+      runSelected: async received => {
+        runs += 1;
+        expect(received.signal).not.toBe(stale.signal);
+        return failedResult(received.artifactBytes, received.sourceRevision, "fresh result");
+      },
+    });
+    const artifact = coordinator.retainArtifact({ revision: "r17", fixtureRecipeId: "recipe",
+      runtimeProfileId: "profile", input: recipe });
+    const failure = coordinator.recordFailure({ artifactRef: artifact.artifactRef, selector,
+      runId: "original", result: failedResult(bytes, "source-17", "original") });
+    const canceled = new AbortController();
+    const pending = coordinator.rerun(failure.failureRef, canceled.signal);
+    await vi.waitFor(() => expect(checks).toBe(1));
+    canceled.abort();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(runs).toBe(0);
+    stale.abort();
+    const fresh = new AbortController();
+    expect((await coordinator.rerun(failure.failureRef, fresh.signal)).ok).toBe(true);
+    expect(runs).toBe(1);
+    coordinator.close();
+  });
+
+  it("propagates an in-flight run abort and accepts a later fresh attempt", async () => {
+    const bytes = Uint8Array.from(Buffer.from("run-cancellation-artifact"));
+    let runs = 0;
+    let receivedSignal: AbortSignal | undefined;
+    let releaseCleanup: (() => void) | undefined;
+    const cleanup = new Promise<void>(resolve => { releaseCleanup = resolve; });
+    const coordinator = new ExampleRerunCoordinator({
+      resourcesReady: async () => ({ available: true }),
+      runSelected: async received => {
+        runs += 1;
+        receivedSignal = received.signal;
+        if (runs === 1) {
+          await new Promise<void>(resolve => {
+            received.signal?.addEventListener("abort", () => resolve(), { once: true });
+          });
+          await cleanup; // Owner finishes disposing its row scope before rejecting.
+          throw new DOMException("row canceled", "AbortError");
+        }
+        return failedResult(received.artifactBytes, received.sourceRevision, "fresh run");
+      },
+    });
+    const artifact = coordinator.retainArtifact({ revision: "r17", fixtureRecipeId: "recipe",
+      runtimeProfileId: "profile", input: input(bytes) });
+    const failure = coordinator.recordFailure({ artifactRef: artifact.artifactRef, selector,
+      runId: "original", result: failedResult(bytes, "source-17", "original") });
+    const canceled = new AbortController();
+    const pending = coordinator.rerun(failure.failureRef, canceled.signal);
+    let settled = false;
+    void pending.then(() => { settled = true; }, () => { settled = true; });
+    await vi.waitFor(() => expect(runs).toBe(1));
+    expect(receivedSignal).toBe(canceled.signal);
+    canceled.abort();
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    releaseCleanup?.();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(settled).toBe(true);
+    const fresh = new AbortController();
+    const result = await coordinator.rerun(failure.failureRef, fresh.signal);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.rerun.runId).not.toBe(failure.original.runId);
+    expect(runs).toBe(2);
+    coordinator.close();
+  });
+
+  it("refuses a completed row if its runtime producer changed during execution", async () => {
+    const bytes = Uint8Array.from(Buffer.from("post-run-change-artifact"));
+    let current = true;
+    let checks = 0;
+    let runs = 0;
+    const coordinator = new ExampleRerunCoordinator({
+      resourcesReady: async () => { checks += 1; return current
+        ? { available: true } : { available: false, reason: "runtime producer changed" }; },
+      runSelected: async received => {
+        runs += 1;
+        if (runs === 1) current = false;
+        return failedResult(received.artifactBytes, received.sourceRevision, "observed");
+      },
+    });
+    const artifact = coordinator.retainArtifact({ revision: "r17", fixtureRecipeId: "recipe",
+      runtimeProfileId: "profile", input: input(bytes) });
+    const failure = coordinator.recordFailure({ artifactRef: artifact.artifactRef, selector,
+      runId: "original", result: failedResult(bytes, "source-17", "original") });
+    expect(await coordinator.rerun(failure.failureRef)).toMatchObject({ ok: false,
+      code: "resource_unavailable", detail: "runtime producer changed" });
+    expect(checks).toBe(2);
+    current = true;
+    const result = await coordinator.rerun(failure.failureRef);
+    expect(result.ok).toBe(true);
+    expect(runs).toBe(2);
+    coordinator.close();
+  });
+
   it("uses copied artifact bytes, a new run ID and a single selected row; classifies a saved receipt", async () => {
     const sourceBytes = Uint8Array.from(Buffer.from("original compiled artifact"));
     const originalInput = input(sourceBytes);

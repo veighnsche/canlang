@@ -1,0 +1,30 @@
+{
+  "state": "Select necessary runtime contracts for complete owner-local Can model rules, not a local-field-only surrogate. Verified accepted DESIGN: invariants run on affected final surviving rows; reference changes trigger relevant dependent rows; excessive work refuses with bounded-work failure. Locks select typed fields, use pre-state, permit identical values/archive, forbid removal while locked except declared expiry disposal, and the transaction establishing a conditional lock may set final values. Existing admitted references expose version v with ordered provisional fields; repeated writes reserve one v+1, create stays1. CRUD hook before/input immutable native snapshots, pending after has reserved version, unavailable sides null; delete hooks reject but cannot mutate the removed target. Scenario writes emit committed changes without invoking CRUD hooks. Current State pipeline implements default/ref/unique/history/order/machines and engine-local hooks but runs final callbacks per helper call, increments versions per write, wire-before context, whole-record locks, unbounded whole-model invariant snapshots. Runtime separately overlays helper writes and normalizes versions after rule evaluation. Real compiler RuleMachineCore artifact has emitted module registry Job.require.1 and Job.lock.1 callbacks, model JSON lacks rule linkage/dependency plans. Generated hooks omit input/full context and synthesize after even for removal. Activation currently refuses declared unsupported rules/hooks. A single State staging/finalization session can reuse ordered pipeline mechanisms, immutable context/owner/checkpoint, enforce bounded reads and return effects for the existing revision-fenced receipt commit. Compiler must release checked identity/order/model/native-type/lock-selector/hook/dependency facts. Every alternative must preserve complete hooks, queries, reverse affected-row checking, absence/collection dependencies, current authority, rollback/replay, final reference removal, one reserved version and bounded failure. No option receives a free implementation or authority grant. Advice guides development only; no tested/full-task acceptance.",
+  "questions": {
+    "lock_prestate": {
+      "type": "choice",
+      "instructions": "Which pre-state timing best preserves the accepted lock-establishing transaction and ordered effects?",
+      "criteria": {
+        "transaction_entry": "Test field locks against the owning operation-entry row. A previously unlocked row may establish a lock and finish values through multiple ordered writes; later transactions see the lock. Within-operation predicates see their defined entry baseline.",
+        "ordered_write": "Test each lock against the provisional row just before each helper write. Later writes can become blocked by an earlier lock-establishing write; final values must be set in that same earlier write. This matches current interim timing but may restrict full source composition."
+      }
+    },
+    "dependency_execution": {
+      "type": "choice",
+      "instructions": "Which complete bounded affected-row dependency strategy should the defining contract select?",
+      "criteria": {
+        "checked_reverse_plans": "Compiler publishes checked reference/parent/query dependencies and reverse row-selection plans. State expands affected final rows under one shared work budget, including absence and collection dependencies. More producer work, more precise runtime work.",
+        "bounded_conservative_scans": "Compiler declares complete involved model/owner relationships; State conservatively scans all possibly affected owner rows under a hard shared budget. Easier initial reverse logic and sound absence checks, potentially many valid operations refuse at scale; never silently skip rows.",
+        "dynamic_read_tracking": "Record actual rule reads/queries and reevaluate based on captured dependencies under bounded work, with explicit conservative dependency carriers for absent/collection rows and stable discovery. Less static planning, more runtime bookkeeping and a complete invalidation proof required."
+      }
+    },
+    "execution_binding": {
+      "type": "choice",
+      "instructions": "How should checked complete rules reach the State operation session?",
+      "criteria": {
+        "checked_native_bindings": "Bind existing generated functions by exact checked owner/module/rule IDs and native ABI, supplying immutable context plus State-controlled bounded final/prestate read ports. Retains current codegen but requires real dependency and hook metadata and strict pure effects.",
+        "serializable_rule_ir": "Emit a checked serializable rule representation evaluated by State with equivalent native types, pure queries, context/hook/effect restrictions and full dependency semantics. Adds producer/interpreter work beside current JS; cannot avoid the session or coverage obligations."
+      }
+    }
+  }
+}

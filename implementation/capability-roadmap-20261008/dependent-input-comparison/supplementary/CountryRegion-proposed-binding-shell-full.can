@@ -37,7 +37,7 @@ package geography
     require count(choices)<=100
     return choices
   ## Final server authority remains independent of any previously displayed candidates.
-  scenario save(country:Country,region:Region,street:Address.street,notes:Address.notes=null) by=members -> Address
+  scenario save(country:Country choices={read=country_choices(),labels=["name"]},region:Region choices={read=region_choices(country=country),labels=["name"]},street:Address.street,notes:Address.notes=null) by=members -> Address
    require country.active and region.active and region.parent==country and actor in country.allowed
    do
     create Address {country,region,street,notes} as address
@@ -56,8 +56,7 @@ package geography
   page /address title="Choose an address"@{nl="Kies een adres"}
    require members
    breadcrumbs
-   ## PROPOSED: generated Country reference lookup plus region choices from current typed input.country.
-   ## The JSON sketch is comparison-only; these comments implement no dependent behavior.
+   ## The save operation owns the Country lookup and the Region choices bound to its current country input.
    form save
     select country
     select region

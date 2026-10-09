@@ -156,7 +156,7 @@ describe('separate durable fanout navigation on the owning StoragePort', () => {
     assert.throws(() => readFanoutOwnerScanRow(scan.row, 'other-owner'), validation);
     assert.throws(() => readFanoutOwnerScanRow({ ...scan.row, data: { owner, lastVisitedIntentId: 'fanout/v1/%ZZ/h/model' } }, owner), validation);
     assert.throws(() => stageFanoutOwnerScanWrite({ row: scan.row, owner, visitedIntentRow: intent, meta }), validation);
-    for (const limit of [0, -1, 1.5, Infinity]) {
+    for (const limit of [0, -1, 1.5, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
       assert.throws(() => fanoutNavigationChildQuery({ ...binding, row: null, limit }), validation);
       assert.throws(() => fanoutOwnerIntentQuery({ row: null, owner, limit }), validation);
     }
