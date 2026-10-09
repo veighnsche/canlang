@@ -3,10 +3,15 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
-import type { BusinessError, CompileArtifact, ExampleReport, TableRowResult } from "@canlang/contracts";
+import type { BusinessError, CompileArtifact, ExampleReport, ObservationMismatch, OperationId, TableRowResult } from "@canlang/contracts";
 import type { CompiledExampleInput } from "../src/dev/example-runner.js";
 import { attachDevSessionService, startDevSessionService } from "../src/dev/session-service.js";
-import { runDevControlArgv } from "../src/dev/control-client.js";
+import { runDevControlArgv, type DevControlEnvelope } from "../src/dev/control-client.js";
+
+function controlResult<T>(envelope: DevControlEnvelope): T {
+  if (!envelope.ok) throw new Error(`expected successful ${envelope.command}: ${envelope.code}`);
+  return envelope.result as T;
+}
 
 const producer = vi.hoisted(() => ({ calls: [] as unknown[], routing: undefined as unknown, passed: false }));
 vi.mock("../src/dev/compiler-check.js", () => ({
@@ -27,11 +32,13 @@ vi.mock("../src/dev/example-runner.js", () => ({
   runCompiledExamples: async (input: CompiledExampleInput) => {
     producer.calls.push({ bytes: [...input.artifactBytes], worker: input.worker.modules,
       sourceRevision: input.sourceRevision, selectedRow: input.selectedRow, runId: input.runId });
+    const mismatches = [{ observation: "private-observation", expected: "PRIVATE_EXPECTED",
+      actual: "PRIVATE_ACTUAL" }] satisfies readonly ObservationMismatch[];
     const row: TableRowResult = {
       rowIndex: input.selectedRow?.rowIndex ?? 0,
       caller: { account: "PRIVATE_CALLER", team: "current", roles: ["PRIVATE_ROLE"], authenticated: true },
       outcome: producer.passed ? "passed" : "failed", detail: "PRIVATE_RUNTIME_MESSAGE",
-      mismatches: [{ expected: "PRIVATE_EXPECTED", actual: "PRIVATE_ACTUAL" }] as TableRowResult["mismatches"],
+      ...(producer.passed ? {} : { mismatches }),
     };
     const report: ExampleReport = {
       contractsVersion: 1, examplesVersion: 1,
@@ -134,7 +141,7 @@ it("runs through the private owner, retains safe failure lookup, and reruns copi
       "--operation", "Office.use", "--row", "0"]);
     expect(run).toMatchObject({ ok: true, result: { schema: "can.dev.example-run.v1", executed: 1,
       revision: checked.revision, replay: { available: false } } });
-    const result = run.result as { run_id: string; focus: { ref: string }; artifact_digest: string };
+    const result = controlResult<{ run_id: string; focus: { ref: string }; artifact_digest: string }>(run);
     expect(producer.calls).toHaveLength(1);
     expect(producer.calls[0]).toMatchObject({ selectedRow: { operation: "Office.use", rowIndex: 0 },
       runId: result.run_id });
@@ -152,7 +159,7 @@ it("runs through the private owner, retains safe failure lookup, and reruns copi
     const rerun = await control(["example.rerun", "--ref", result.focus.ref]);
     expect(rerun).toMatchObject({ ok: true, result: { ok: true, kind: "isolated_example_rerun",
       original: { run_id: result.run_id }, inputs: { changed: expect.arrayContaining(["D1_row_scope"]) } } });
-    expect((rerun.result as { rerun: { run_id: string } }).rerun.run_id).not.toBe(result.run_id);
+    expect(controlResult<{ rerun: { run_id: string } }>(rerun).rerun.run_id).not.toBe(result.run_id);
     expect(producer.calls).toHaveLength(2);
     expect(producer.calls[1]).toMatchObject({ selectedRow: { operation: "Office.use", rowIndex: 0 },
       bytes: [...firstBytes] });
@@ -199,16 +206,17 @@ it("projects observed business refusals through the owner and releases the obser
     expect(first.preview).toBe("ready");
     expect(fixture.subscriberCount()).toBe(1);
     const secret = "PRIVATE_HTTP_MESSAGE_AND_VALUES";
+    const privateOperation = "018f4d7a-0000-7000-8000-000000000001" as OperationId;
     fixture.emitRefusal({ requestId: "request1", status: 403,
-      error: { code: "forbidden", message: secret, operation_id: "PRIVATE_OPERATION" as BusinessError["operation_id"],
-        fields: [{ field: "PRIVATE_FIELD", code: "PRIVATE_CODE", message: secret }] as BusinessError["fields"] } });
+      error: { code: "forbidden", message: secret, operation_id: privateOperation,
+        fields: [{ path: "/PRIVATE_FIELD", code: "PRIVATE_CODE", message: secret }] } });
     const control = (args: string[]) => runDevControlArgv(args, {
       cwd: fixture.root, discover: async () => fixture.client,
     });
     const preview = await control(["preview.status"]);
     expect(preview).toMatchObject({ ok: true, result: { failure_focus: {
       origin: "http", revision: first.revision, code: "forbidden" } } });
-    const ref = (preview.result as { failure_focus: { ref: string } }).failure_focus.ref;
+    const ref = controlResult<{ failure_focus: { ref: string } }>(preview).failure_focus.ref;
     const listed = await control(["failures", "--revision", first.revision, "--limit", "5"]);
     expect(listed).toMatchObject({ ok: true, result: { schema: "can.dev.failures.v1",
       total_retained: 1, failures: [{ ref, origin: "http" }] } });
@@ -217,7 +225,8 @@ it("projects observed business refusals through the owner and releases the obser
     expect(lookup).toMatchObject({ ok: true, result: { ref, origin: "http",
       owner_ref: { request_id: "request1", status: 403 } } });
     expect(detail).toMatchObject({ ok: true, result: { detail: { status: 403, retryable: false } } });
-    expect(JSON.stringify([preview, listed, lookup, detail])).not.toMatch(/PRIVATE_(?:HTTP_MESSAGE_AND_VALUES|OPERATION|FIELD|CODE)/);
+    expect(JSON.stringify([preview, listed, lookup, detail])).not.toMatch(/PRIVATE_(?:HTTP_MESSAGE_AND_VALUES|FIELD|CODE)/);
+    expect(JSON.stringify([preview, listed, lookup, detail])).not.toContain(privateOperation);
 
     writeFileSync(fixture.app, "app Office\nGiven\nWhen\nThen\n## next revision\n");
     const second = await fixture.client.request({ command: "check" }) as { revision: string };
