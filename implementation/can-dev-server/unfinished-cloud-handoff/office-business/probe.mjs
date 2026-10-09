@@ -13,6 +13,7 @@ const { compileCapturedSingleFile } = await local('dev/compiler-check.js');
 const { createLocalPreviewBuilder } = await local('dev/preview-builder.js');
 const { preflightLocalPreviewActivation, localPreviewActivationVerdict, produceInstalledPortableBundle, seedLocalPreviewActors } = await local('dev/preview-host.js');
 const { deriveCsrfToken } = await import(pathToFileURL(require.resolve('@canlang/identity')).href);
+const { hashInputs } = await import(pathToFileURL(require.resolve('@canlang/state/invocation/replay')).href);
 const output = join(root, 'test-results/can-dev-server/office-business-result.json');
 const sha = value => createHash('sha256').update(value).digest('hex');
 function operationId() {
@@ -48,10 +49,10 @@ async function snapshot() {
 function changes(before,after) {
   return [...new Set([...Object.keys(before),...Object.keys(after)])].sort().filter(name=>JSON.stringify(before[name])!==JSON.stringify(after[name]));
 }
-async function noEffects(before, after, operation, callId, code) {
+async function noEffects(before, after, operation, callId, code, expected) {
   const changed = changes(before, after);
   if (changed.length === 0) return;
-  assert.ok(operation && callId && code, 'unexpected non-mutation D1 effect');
+  assert.ok(operation && callId && code && expected, 'unexpected non-mutation D1 effect');
   let rejectedReceipts = 0;
   let rejectedOwnerLabel;
   for (const [owner, db] of ownerDbs) {
@@ -64,6 +65,11 @@ async function noEffects(before, after, operation, callId, code) {
     const outcome = JSON.parse(receipt.outcome);
     assert.equal(receipt.app, 'OfficeSupplies');
     assert.equal(receipt.owner, owner);
+    assert.equal(receipt.owner, expected.owner, 'rejection stays in invoking team owner');
+    assert.equal(receipt.principal, expected.principal, 'rejection belongs to exact authenticated caller');
+    assert.equal(receipt.operation_id, callId);
+    assert.equal(receipt.input_hash, await hashInputs(expected.inputs), 'rejection hashes exact submitted inputs');
+    assert.deepEqual(JSON.parse(receipt.resolved_defaults), {}, 'rejection stores no resolved defaults');
     assert.equal(receipt.operation, `OfficeSupplies.Supply.${operation}`);
     assert.equal(outcome.status, 'rejected');
     assert.equal(outcome.code, code);
@@ -73,8 +79,9 @@ async function noEffects(before, after, operation, callId, code) {
     assert.equal(after[`${label}:fence`].revision, before[`${label}:fence`].revision + 1);
     assert.equal(receipt.committed_revision, after[`${label}:fence`].revision);
     assert.equal(after[`${label}:fence_log`].count, before[`${label}:fence_log`].count + 1);
-    const fence = await db.prepare('SELECT operation FROM fence_log WHERE revision = ?').bind(receipt.committed_revision).first();
+    const fence = await db.prepare('SELECT operation, at FROM fence_log WHERE revision = ?').bind(receipt.committed_revision).first();
     assert.equal(fence?.operation, receipt.operation);
+    assert.equal(fence?.at, receipt.created_at, 'receipt and fence belong to one canonical batch');
     const logs = (await db.prepare('SELECT * FROM fence_log').all()).results;
     assert.equal(sha(JSON.stringify(logs.filter(row => row.revision !== receipt.committed_revision).map(row => JSON.stringify(row)).sort())),
       before[`${label}:fence_log`].sha256, 'pre-existing fence log unchanged');
@@ -124,7 +131,9 @@ async function login(actor) {
     if (selected.status!==200) throw new Error(`${actor.label} ordinary team selection failed HTTP ${selected.status}`);
   }
   facts.operations.push({label:`identity.${actor.label}`,login:response.status,listedTeams:teams.teams?.length??null,selected:team!==null});
-  return { label:actor.label, appCookie, csrf, team };
+  const user=await identityDb.prepare('SELECT user_id FROM identity_users WHERE email_lc=?').bind(actor.email.toLowerCase()).first();
+  assert.ok(user?.user_id,'actual seeded Identity principal');
+  return { label:actor.label, appCookie, csrf, team, userId:user.user_id };
 }
 async function http(actor, operation, inputs, label, checkDenied=false) {
   const before = checkDenied ? await snapshot() : null;
@@ -141,9 +150,15 @@ async function http(actor, operation, inputs, label, checkDenied=false) {
     if (label.startsWith('O01.')) {
       assert.equal(response.status, 400, `${label} validation status`);
       assert.equal(entry.code, 'validation', `${label} validation code`);
-      assert.deepEqual(changes(before, after), [], `${label} closed/invalid create has zero effects`);
+      // Blank text passes closed-shape admission; trim/min validation runs in
+      // State and commits its canonical rejected receipt, with no domain writes.
+      if (label !== 'O01.blank-name') {
+        assert.deepEqual(changes(before, after), [], `${label} closed create admission has zero writes`);
+      } else {
+        assert.ok(changes(before,after).length>0,'blank-name must reach canonical rejection commit');
+      }
     }
-    await noEffects(before, after, operation, callId, entry.code);
+    await noEffects(before, after, operation, callId, entry.code, {owner:actor?.team,principal:actor?.userId,inputs});
   } else {
     assert.equal(response.status, 200, `${label} status`);
     assert.equal(body.status, 'committed', `${label} canonical commit`);
@@ -325,6 +340,26 @@ try {
   facts.mcpClosedCreate={status:mcpOverride.status,isError:mcpOverride.body.result?.isError??null,errorCode:mcpOverride.body.result?.structuredContent?.code??mcpOverride.body.error?.code??null,changedTables:changes(beforeMcp,afterMcp)};
   assert.equal(facts.mcpClosedCreate.errorCode, -32602, 'closed MCP create InvalidParams');
   assert.deepEqual(facts.mcpClosedCreate.changedTables, []);
+  // Consume the authored compiled rows twice; each runner call creates fresh
+  // row scopes from this exact installed preview bundle, independently of the
+  // serving owner databases inspected throughout the business journey.
+  const {loadInstalledExampleTestkit,runCompiledExamples}=await local('dev/example-runner.js');
+  const applicationTestkit=await loadInstalledExampleTestkit(root);
+  facts.examples=[];
+  for(let attempt=1;attempt<=2;attempt++) {
+    const beforeExamples=await snapshot();
+    const result=await runCompiledExamples({...preview.exampleInput(),testkit:applicationTestkit,runId:operationId()});
+    const changedTables=changes(beforeExamples,await snapshot());
+    facts.examples.push({attempt,ok:result.ok,executed:result.executed,summary:result.report.summary,changedTables});
+    assert.equal(result.executed,2,'both authored Office rows execute');
+    assert.equal(result.report.summary.total,2);
+    assert.equal(result.report.summary.passed,2);
+    assert.equal(result.report.summary.failed,0);
+    assert.equal(result.report.summary.setupFailed,0);
+    assert.equal(result.report.summary.unsupported,0);
+    assert.equal(result.ok,true,'authored shared-team update and forbidden outsider pass');
+    assert.deepEqual(changedTables,[],'fresh example scopes leave every serving D1 table unchanged');
+  }
   facts.outcome = 'passed';
 } catch(error) {facts.outcome='failed';facts.error={name:error?.name??'Error',code:error?.code??null,message:String(error?.message??error).split('\n',1)[0].slice(0,400)};process.exitCode=1;}
 finally {

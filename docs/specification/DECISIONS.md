@@ -3799,3 +3799,7 @@ The real native artifact and public installed preview pass1/1 on local D1: prefl
 ### Validation: current local Generation shared joins
 
 Adapt the two preserved probes in place to captured local native compilation and public installed producers. Actual ordinary Identity/member host, canonical HTTP create, MCP queue/read, signed-in page, exact bundled assets and rule/Public denial snapshots pass; all three authored rows execute/pass3/3 in isolated scopes without serving-store changes. Fresh native MCP create/read and physical owner readback also pass. Preserve the frozen source and G1 engineering scope; this is not Office or full-plan acceptance.
+
+### Validation: real local Office business and example workflows
+
+The actual native/public installed Office journey passes36 business/auth observations with shared-member CRUD/status/archive readback, physical team isolation, Public/Dee refusals and closed MCP controls. For blank-name validation only, verify the exact canonical rejected receipt/fence batch including actor/team/call/operation/raw-input hash/defaults/timestamp; all domain/history/effects/other stores remain unchanged. Missing/unknown-field and unauthorized calls keep strict zero-write checks. Real authored rows execute/pass2/2 twice in fresh scopes without serving-store changes. Native failed-row retention separately passes deliberate1-fail/1-pass, distinct immutable reruns before/after restoration and owned cleanup. Browser deletion/native stop gaps keep whole Office/G2 open.
