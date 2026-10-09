@@ -16,6 +16,11 @@ import { buildDeployBundleWithAssets, writeDeployBundleWithAssets, DEPLOY_MAIN_M
 // The released authored producer is supplied by the focused integration run.
 // A handwritten page cannot stand in for the compiler/production join.
 const producer = process.env["CANLANG_PAGE_ARTIFACT"];
+// Hosts may supply their installed Chromium executable; Mac Chrome remains
+// the default profile for the existing native browser journeys.
+const chromeExecutable = process.env["CANLANG_CHROME_EXECUTABLE"];
+const chromeLaunch = { headless: true, ...(chromeExecutable
+  ? { executablePath: chromeExecutable } : { channel: "chrome" }) };
 const workers: Miniflare[] = [];
 const dirs: string[] = [];
 afterEach(async () => {
@@ -147,7 +152,7 @@ describe("authored operation forms through defining default Worker", () => {
     // Drive the emitted bootstrap in installed Chrome over the real Worker
     // HTTP origin. Direct submission above remains a separate admitted path.
     const origin = (await worker.ready).origin;
-    const browser = await chromium.launch({ channel: "chrome", headless: true });
+    const browser = await chromium.launch(chromeLaunch);
     try {
       const context = await browser.newContext();
       try {
@@ -433,7 +438,7 @@ describe("authored readonly state page through native Worker polling", () => {
     // Attach without Playwright's main-session focus/active emulation. The
     // public noDefaults option applies only to this real default Chrome context.
     const profile = join(dir, "chrome-profile");
-    const chrome = spawn("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", [
+    const chrome = spawn(chromeExecutable ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", [
       `--user-data-dir=${profile}`, "--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1",
       "--no-first-run", "--no-default-browser-check", "about:blank",
     ], { stdio: "ignore" });
@@ -615,7 +620,7 @@ describe("configured authored protected forms through native Worker", () => {
     const target = (await created.json() as { result: { id: string; version: number } }).result;
     expect(target.version).toBe(1);
     const origin = (await worker.ready).origin;
-    const browser = await chromium.launch({ channel: "chrome", headless: true });
+    const browser = await chromium.launch(chromeLaunch);
     try {
       const context = await browser.newContext();
       try {

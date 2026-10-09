@@ -3119,3 +3119,10 @@ Accepted: retain remote 9693b00c history through tree-preserving merge 8f0cc8da.
 ## 2026-10-08 — admit generated enum results through canonical callers
 
 Accepted narrow result join: compiler public operation profiles reuse existing checked enum case identity; State admits canonical inline enums with one ordinary array and outer nullability; Cloudflare compares the defining ordered cases and wrappers with the public type using the existing Values parser/printer. Keep existing result encoding and ordinary scalar/model behavior. The genuine generated enum_result_runtime consumer passed 1/1 on canonical Memory mutation/read calls with ordered wire values and membership denial. Its initial failure came from full-artifact read validation rejecting a cases field in normalizeSchema; correct only that read-coherence branch and reuse the same compiled consumer. Source checks and actual producer publication passed. This does not close installed/native/host qualification, broad validation packets or the complete file-tree checkpoint.
+
+
+## 2026-10-09 — Stage Worker producer imports through the existing rewrite
+
+The actual protected-form browser journey exposed a bare Identity import in staged Worker assembly. Apply the existing trusted producer import rewrite to Worker modules as well as runtime modules, preserving module-relative vendor ownership and the existing loadability/link gates. Browser journeys accept an explicit `CANLANG_CHROME_EXECUTABLE` while retaining their existing Mac Chrome default. No new loader or runtime identity implementation is introduced.
+
+The existing protected-form case passed 1/1 with installed Linux Chromium, default Worker and native D1: sealed row bindings, poll-preserved drafts/focus, stale conflict, fresh-proof correction, source defaults, patch omission and durable replay. Initial missing-bun setup and the actual bare-import failure were corrected before that result. This is selected SEQ-016 consumer evidence; complete original applications, wider hosts/provider/upgrade qualification and roadmap acceptance counts remain open.
