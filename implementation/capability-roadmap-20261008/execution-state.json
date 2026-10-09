@@ -222,10 +222,10 @@
       ],
       "conditional_gates": [],
       "worker_update": {
-        "state": "blocked_defining_producer_contract",
-        "prerequisite": "Checked owning model-rule identities/dependency plans/field selectors and complete generated hook context/event/native/reserved-version carrier. Existing emitted local predicates and unsupported-hook refusals do not provide these facts.",
-        "owner": "Compiler/Contracts producer; this worker consumes through State owner-transaction lifecycle and Cloudflare linkage when released.",
-        "scope": "Bounded dependency closure, final-only invariants, field locks, hook ordering/authority/version semantics remain required. No old worker-specific external-payload hold is applied to this worker."
+        "state": "defining_owner_lifecycle_implementation_ready_checked_producer_pending",
+        "owner": "Local roadmap worker defines State/Contracts staging/finalization and native binding requirements; Compiler owns exact checked emitted producer. Packages retains its constrained-field and nominal-alias intake repairs.",
+        "prerequisite": "Exact native rule/hook/module identity, declaration order, native input/before/after/removal carriers, typed lock selectors and checked bounded reverse dependency plans; State single owner-session stage/read/finalize implementation and Cloudflare canonical binding are required together.",
+        "selected_contract": "Transaction-entry pre-state locks; existing generated native bindings with checked callable ABI; checked reverse affected-row selection under a shared bound, including absent/collection changes. JEV3 .95/.97/.84, .69/.99/.92, .99/.73/.97 respectively, advisory confidence variation retained in existing model-rule-contract.md/rules-machine raw responses. No activation or full11 acceptance."
       }
     },
     {
