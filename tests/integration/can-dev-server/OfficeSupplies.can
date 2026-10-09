@@ -1,0 +1,28 @@
+# Track supplies for one team.
+app OfficeSupplies
+Given
+ Supply { name:text trim min=1 max=160, quantity:int?, available:bool=true } label="Supply"
+ policy Supply read=members
+ fixture editable=Supply {name="Printer paper",quantity=4}
+When
+ crud Supply by=members fields=name,quantity,available create_fields=name,quantity
+  examples update record=editable
+   as,changes.name,changes.quantity -> record.name,record.quantity
+   other,"A4 paper",8 -> "A4 paper",8
+   outsider,"Private change",9 -> error(forbidden)
+Then
+ preferences { view:enum(all,available,restock)=all label={text="Supply view",values={all="All",available="Available",restock="Needs restock"}} }
+ # Add and manage the supplies your team can see.
+ page / title="Office supplies"
+  card "Add a supply"
+   form Supply.create fields=name,quantity display=inline
+    input name
+    input quantity
+  card "Team supplies"
+   tabs preferences.view
+   list Supply as supply where preferences.view==all or (preferences.view==available and supply.available) or (preferences.view==restock and not supply.available) order=name search=name empty="No supplies match this view. Add one or change the search."
+    ## Desired-stage list child: count the authorized rows matching this view and search, before any page limit.
+    count label="Supplies in this view"
+    text row.name,row.quantity,row.available
+    edit fields=name,quantity,available
+    delete
