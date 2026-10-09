@@ -22,6 +22,8 @@ const ROOT_AREAS = ['tests', 'tools', 'scripts', '.github'];
 export const checkoutInputs = [
   { consumer: 'packages/cloudflare/src/release/stamp.ts', target: 'compiler/Cargo.toml', reason: 'Release lockstep reads the owning compiler version.' },
   { consumer: 'tests/e2e/fixtures/artifact-loader.ts', target: 'caller-supplied .can fixtures', reason: 'The compiled mode hands explicit fixture paths to the compiler; shell/native execution is outside this AST guard.' },
+  { consumer: 'packages/cloudflare/src/dev/session-service.test.ts', target: 'tests/integration/can-dev-server/OfficeSupplies.can', reason: 'The dev-session integration test reads this declared compiled example fixture.' },
+  { consumer: 'packages/cloudflare/test/compiler-check.integration.test.ts', target: 'tests/integration/can-dev-server/OfficeSupplies.can', reason: 'The compiler integration test reads this declared example fixture.' },
 ];
 
 function inside(file, directory) {
@@ -78,6 +80,36 @@ function runtimeTarget(value) {
   if (!value) return undefined;
   if (Array.isArray(value)) return value.map(runtimeTarget).find(Boolean);
   return runtimeTarget(value.import ?? value.default ?? value.node ?? value.require);
+}
+
+function matchesPathAlias(config, specifier) {
+  return Object.keys(config.options.paths ?? {}).some(pattern => {
+    const wildcard = pattern.indexOf('*');
+    if (wildcard < 0) return pattern === specifier;
+    const prefix = pattern.slice(0, wildcard);
+    const suffix = pattern.slice(wildcard + 1);
+    return specifier.startsWith(prefix) && specifier.endsWith(suffix) && specifier.length >= prefix.length + suffix.length;
+  });
+}
+
+function reverseMappedSources(producer, target, config) {
+  const rootDir = config.options.rootDir;
+  const outDir = config.options.outDir;
+  if (!rootDir || !outDir) return [];
+  const sourceRoot = path.resolve(rootDir);
+  const outputRoot = path.resolve(outDir);
+  const output = path.resolve(producer.directory, target);
+  if (!inside(output, outputRoot)) return [];
+  const relative = path.relative(outputRoot, output);
+  const replacements = [
+    [/\.d\.mts$/, ['.mts']], [/\.d\.cts$/, ['.cts']], [/\.d\.ts$/, ['.ts']],
+    [/\.mjs$/, ['.mts']], [/\.cjs$/, ['.cts']], [/\.jsx$/, ['.tsx', '.jsx']], [/\.js$/, ['.ts', '.tsx', '.js']],
+  ];
+  const match = replacements.find(([suffix]) => suffix.test(relative));
+  if (!match) return [];
+  const stem = relative.replace(match[0], '');
+  return match[1].map(extension => path.resolve(sourceRoot, `${stem}${extension}`))
+    .filter(source => inside(source, sourceRoot) && config.fileNames.includes(source));
 }
 
 export function checkPackageBoundaries(rootDirectory) {
@@ -200,7 +232,12 @@ export function checkPackageBoundaries(rootDirectory) {
         }
         if (entry && targets(entry).some(target => SOURCE.test(target)) && !resolved) report('package-resolution', file, node, `${specifier} has an export but cannot resolve through the installed package; install and build its producer.`);
         if (resolved && owner(path.resolve(resolved.resolvedFileName)) !== producer) report('package-resolution', file, node, `${specifier} resolves outside the named producer: ${resolved.resolvedFileName}`);
-        if (resolved && inside(path.resolve(resolved.resolvedFileName), path.join(producer.directory, 'src'))) report('source-resolution', file, node, `${specifier} resolves to source rather than its exported build: ${resolved.resolvedFileName}`);
+        if (resolved && inside(path.resolve(resolved.resolvedFileName), path.join(producer.directory, 'src'))) {
+          const resolvedFile = path.resolve(resolved.resolvedFileName);
+          const selfReference = consumer === producer && !matchesPathAlias(config, specifier) &&
+            targets(entry).some(target => reverseMappedSources(producer, target, config).includes(resolvedFile));
+          if (!selfReference) report('source-resolution', file, node, `${specifier} resolves to source rather than its exported build: ${resolved.resolvedFileName}`);
+        }
         return;
       }
       if (specifier.startsWith('@canlang/')) report('unknown-local-package', file, node, `${specifier} names an unknown local package.`);
