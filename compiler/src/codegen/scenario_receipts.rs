@@ -5,7 +5,8 @@ use std::collections::{HashMap, HashSet};
 use serde::Serialize;
 
 use crate::analysis::scenario_disclosure::{
-    DependencyRole, DisclosureChoice, DisclosureEffectKind, DisclosureSource, ScenarioDisclosure,
+    DependencyRole, DisclosureChoice, DisclosureEffectKind, DisclosureIntrinsicKind,
+    DisclosureSource, ScenarioDisclosure,
 };
 use crate::analysis::{ResolvedType, Scalar};
 use crate::source::{Span, sha256_hex};
@@ -37,6 +38,8 @@ pub(super) struct ReceiptReturn {
     pub source: ReceiptSource,
     pub influences: Vec<ReceiptInfluence>,
     pub dependencies: Vec<ReceiptDependency>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub intrinsics: Vec<ReceiptIntrinsic>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -61,6 +64,31 @@ pub(super) struct ReceiptDependency {
     pub field: String,
     #[serde(rename = "type")]
     pub type_id: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub(super) struct ReceiptIntrinsic {
+    pub id: String,
+    pub source: ReceiptSource,
+    pub role: ReceiptRole,
+    #[serde(rename = "type")]
+    pub type_id: String,
+    #[serde(flatten)]
+    pub kind: NativeIntrinsicKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub(super) enum NativeIntrinsicKind {
+    OperationId,
+    AdmittedInput { parameter: String },
+    AdmittedReferenceVersion { parameter: String, model: String },
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct NativeIntrinsic {
+    pub id: String,
+    pub kind: NativeIntrinsicKind,
 }
 
 #[derive(Debug, Clone)]
@@ -101,6 +129,7 @@ pub(super) struct NativeScenarioReceipt {
     pub plan: ReceiptDisclosurePlan,
     /// One observation site may supply both data and control identities.
     pub dependencies: HashMap<NativeSite, Vec<NativeDependency>>,
+    pub intrinsics: HashMap<NativeSite, Vec<NativeIntrinsic>>,
     pub decisions: HashMap<NativeSite, NativeDecisionKind>,
     pub decision_keys: HashMap<NativeSite, String>,
     pub calls: HashMap<NativeSite, String>,
@@ -164,6 +193,7 @@ pub(super) fn collect_native_scenario_receipt(
             returns: Vec::new(),
         },
         dependencies: HashMap::new(),
+        intrinsics: HashMap::new(),
         decisions: HashMap::new(),
         decision_keys: HashMap::new(),
         calls: sites.calls.clone(),
@@ -178,6 +208,8 @@ pub(super) fn collect_native_scenario_receipt(
     let mut matched_returns = HashSet::new();
     let mut dependency_ids =
         HashMap::<String, (NativeSite, String, String, String, ReceiptRole)>::new();
+    let mut intrinsic_ids =
+        HashMap::<String, (NativeSite, NativeIntrinsicKind, String, ReceiptRole)>::new();
     // State's v1 own-data parser bounds each array/global dependency inventory
     // at 200 and the closed plan traversal at 20,000 JSON nodes.
     let mut data_nodes: usize = 7;
@@ -189,10 +221,16 @@ pub(super) fn collect_native_scenario_receipt(
         {
             return None;
         }
-        if returned.dependencies.len() > 200 {
+        if returned
+            .dependencies
+            .len()
+            .checked_add(returned.intrinsics.len())?
+            > 200
+        {
             return None;
         }
-        data_nodes = data_nodes.checked_add(8 + 10 * returned.dependencies.len())?;
+        data_nodes = data_nodes
+            .checked_add(9 + 10 * returned.dependencies.len() + 16 * returned.intrinsics.len())?;
         if data_nodes > 20_000 {
             return None;
         }
@@ -224,6 +262,7 @@ pub(super) fn collect_native_scenario_receipt(
             source: transport_source(&returned.source, entry_module)?,
             influences: Vec::new(),
             dependencies: Vec::new(),
+            intrinsics: Vec::new(),
         };
         for decision in &returned.decisions {
             let mut site = checked_site(decision.node, &decision.calls)?;
@@ -282,6 +321,7 @@ pub(super) fn collect_native_scenario_receipt(
             let is_transition = dependency.node.kind == SyntaxKind::Transition as u8;
             if (!is_transition && dependency.node.kind != SyntaxKind::Member as u8)
                 || dependency.id.is_empty()
+                || intrinsic_ids.contains_key(&dependency.id)
                 || !source_matches(ir, &dependency.source, node_span(dependency.node))
                 || !direct_field_name(&dependency.field_name)
             {
@@ -462,7 +502,7 @@ pub(super) fn collect_native_scenario_receipt(
                 }
             } else {
                 dependency_ids.insert(dependency.id.clone(), identity);
-                if dependency_ids.len() > 200 {
+                if dependency_ids.len() + intrinsic_ids.len() > 200 {
                     return None;
                 }
             }
@@ -481,6 +521,210 @@ pub(super) fn collect_native_scenario_receipt(
                 model: dependency.model_name.clone(),
                 field: dependency.field_name.clone(),
                 type_id: transport_type,
+            });
+        }
+        for intrinsic in &returned.intrinsics {
+            if intrinsic.id.is_empty()
+                || dependency_ids.contains_key(&intrinsic.id)
+                || plan_return
+                    .intrinsics
+                    .iter()
+                    .any(|value| value.id == intrinsic.id)
+                || !source_matches(ir, &intrinsic.source, node_span(intrinsic.node))
+                || (intrinsic.calls.is_empty() && intrinsic.source != checked.source)
+            {
+                return None;
+            }
+            let source_key = (intrinsic.node.file, intrinsic.source.module.clone());
+            if let Some(previous) = source_origins.get(&source_key) {
+                if previous != &intrinsic.source {
+                    return None;
+                }
+            } else {
+                source_origins.insert(source_key, intrinsic.source.clone());
+            }
+            let site = checked_site(intrinsic.node, &intrinsic.calls)?;
+            let input = matches!(
+                intrinsic.kind,
+                DisclosureIntrinsicKind::AdmittedInput { .. }
+            );
+            if if input {
+                intrinsic.node.kind != SyntaxKind::NameRef as u8
+                    && intrinsic.node.kind != SyntaxKind::Path as u8
+                    && intrinsic.node.kind != SyntaxKind::Name as u8
+            } else {
+                intrinsic.node.kind != SyntaxKind::Member as u8
+            } {
+                return None;
+            }
+            let expressions = if input {
+                sites.names.get(&site)?
+            } else {
+                sites.members.get(&site)?
+            };
+            if expressions.len() != 1 {
+                return None;
+            }
+            let expression = expressions[0];
+            if expression.ty != intrinsic.ty {
+                return None;
+            }
+            let kind = match &intrinsic.kind {
+                DisclosureIntrinsicKind::OperationId => {
+                    let IrExpr::Member { base, field } = &expression.expr else {
+                        return None;
+                    };
+                    if field != "id"
+                        || base.ty != ResolvedType::OperationContext
+                        || !matches!(&base.expr, IrExpr::Member { base: context, field: operation }
+                            if operation == "operation" && context.ty == ResolvedType::Unknown
+                                && matches!(&context.expr, IrExpr::Name(name) if name == "c"))
+                        || intrinsic.ty != ResolvedType::Scalar(Scalar::Text)
+                        || intrinsic.type_id != "text"
+                    {
+                        return None;
+                    }
+                    NativeIntrinsicKind::OperationId
+                }
+                DisclosureIntrinsicKind::AdmittedInput {
+                    parameter,
+                    parameter_name,
+                } => {
+                    if !matches!(expression.expr, IrExpr::Name(_))
+                        || !direct_field_name(parameter_name)
+                    {
+                        return None;
+                    }
+                    let ResolvedType::Scalar(scalar) = &intrinsic.ty else {
+                        return None;
+                    };
+                    if !matches!(
+                        scalar,
+                        Scalar::Text
+                            | Scalar::Bool
+                            | Scalar::Int
+                            | Scalar::Date
+                            | Scalar::Datetime
+                            | Scalar::Decimal
+                            | Scalar::Money
+                            | Scalar::Duration
+                            | Scalar::User
+                    ) || intrinsic.type_id != scalar.as_str()
+                    {
+                        return None;
+                    }
+                    let parameter_item = ir.items.get(parameter.0 as usize)?;
+                    let IrItemKind::Param {
+                        owner: parameter_owner,
+                        index,
+                        ty: IrType::Known(parameter_ty),
+                        default,
+                        ..
+                    } = &parameter_item.kind
+                    else {
+                        return None;
+                    };
+                    if parameter_item.id != *parameter
+                        || *parameter_owner != item.id
+                        || params.get(*index) != Some(parameter)
+                        || parameter_item.name != *parameter_name
+                        || parameter_ty != &intrinsic.ty
+                        || default.is_some()
+                    {
+                        return None;
+                    }
+                    NativeIntrinsicKind::AdmittedInput {
+                        parameter: parameter_name.clone(),
+                    }
+                }
+                DisclosureIntrinsicKind::AdmittedReferenceVersion {
+                    parameter,
+                    parameter_name,
+                    model,
+                    model_name,
+                } => {
+                    let IrExpr::Member { base, field } = &expression.expr else {
+                        return None;
+                    };
+                    if field != "version"
+                        || !matches!(base.expr, IrExpr::Name(_))
+                        || base.ty
+                            != (ResolvedType::Record {
+                                symbol: *model,
+                                stored: true,
+                            })
+                        || intrinsic.ty != ResolvedType::Scalar(Scalar::Int)
+                        || intrinsic.type_id != "int"
+                        || !direct_field_name(parameter_name)
+                    {
+                        return None;
+                    }
+                    let parameter_item = ir.items.get(parameter.0 as usize)?;
+                    let IrItemKind::Param {
+                        owner: parameter_owner,
+                        index,
+                        ty: IrType::Known(parameter_ty),
+                        default,
+                        ..
+                    } = &parameter_item.kind
+                    else {
+                        return None;
+                    };
+                    if parameter_item.id != *parameter
+                        || *parameter_owner != item.id
+                        || params.get(*index) != Some(parameter)
+                        || parameter_item.name != *parameter_name
+                        || parameter_ty != &base.ty
+                        || default.is_some()
+                    {
+                        return None;
+                    }
+                    let model_item = ir.items.get(model.0 as usize)?;
+                    if model_item.id != *model
+                        || model_item.canonical != *model_name
+                        || !matches!(model_item.kind, IrItemKind::Model { .. })
+                        || models
+                            .iter()
+                            .filter(|value| value.name == *model_name)
+                            .count()
+                            != 1
+                    {
+                        return None;
+                    }
+                    NativeIntrinsicKind::AdmittedReferenceVersion {
+                        parameter: parameter_name.clone(),
+                        model: model_name.clone(),
+                    }
+                }
+            };
+            let role = match intrinsic.role {
+                DependencyRole::Data => ReceiptRole::Data,
+                DependencyRole::Control => ReceiptRole::Control,
+            };
+            let identity = (site.clone(), kind.clone(), intrinsic.type_id.clone(), role);
+            if let Some(previous) = intrinsic_ids.get(&intrinsic.id) {
+                if previous != &identity {
+                    return None;
+                }
+            } else {
+                intrinsic_ids.insert(intrinsic.id.clone(), identity);
+                if dependency_ids.len() + intrinsic_ids.len() > 200 {
+                    return None;
+                }
+            }
+            let observed = recipe.intrinsics.entry(site).or_default();
+            if !observed.iter().any(|value| value.id == intrinsic.id) {
+                observed.push(NativeIntrinsic {
+                    id: intrinsic.id.clone(),
+                    kind: kind.clone(),
+                });
+            }
+            plan_return.intrinsics.push(ReceiptIntrinsic {
+                id: intrinsic.id.clone(),
+                source: transport_source(&intrinsic.source, entry_module)?,
+                role,
+                type_id: intrinsic.type_id.clone(),
+                kind,
             });
         }
         recipe.returns.push(native_return);
@@ -711,13 +955,9 @@ fn match_effect_proofs(
                     if declared.next().is_some() || !assignment_inventory_matches(ty, emitted) {
                         return None;
                     }
-                    // Shorthand entries currently retain the checked name but
-                    // have no independently decoded RHS type in native IR.
-                    let shorthand = value.ty == ResolvedType::Unknown
-                        && matches!(&value.expr, IrExpr::Name(rhs) if rhs == name);
                     let compatible = value.ty == *ty
                         || matches!(ty, ResolvedType::Nullable(inner) if value.ty == **inner || value.ty == ResolvedType::Null);
-                    if !shorthand && !compatible {
+                    if !compatible {
                         return None;
                     }
                 }
@@ -786,6 +1026,7 @@ fn assignment_inventory_matches(ty: &ResolvedType, field: &JsModelField) -> bool
 #[derive(Default)]
 struct Sites<'a> {
     members: HashMap<NativeSite, Vec<&'a TypedExpr>>,
+    names: HashMap<NativeSite, Vec<&'a TypedExpr>>,
     transitions: HashMap<NativeSite, Vec<&'a IrStmt>>,
     effects: HashMap<NativeSite, &'a IrStmt>,
     decisions: HashMap<NativeSite, NativeDecisionKind>,
@@ -1082,8 +1323,13 @@ impl<'a> Sites<'a> {
                     | IrExpr::Money { .. }
                     | IrExpr::DurationMs(_)
                     | IrExpr::Date(_)
-                    | IrExpr::Datetime(_)
-                    | IrExpr::Name(_) => {}
+                    | IrExpr::Datetime(_) => {}
+                    IrExpr::Name(_) => {
+                        out.names
+                            .entry(context.site(expression.span))
+                            .or_default()
+                            .push(expression);
+                    }
                     IrExpr::HasRole { person, .. } => {
                         extend!(person.iter().map(|person| Visit::Expression(person)))
                     }
