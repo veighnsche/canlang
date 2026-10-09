@@ -1725,3 +1725,17 @@ reruns the handler. An invalid nonnullable Actor-default test was corrected
 without changing the language contract. Historical **1,319** remains tied to
 **95d5b3d**; changed-source full qualification and transition-write provenance
 remain required. Original **58/67** and human holds are unchanged.
+
+**Joined whole qualification (unfinished), 2026-10-09.** At **66b83546**, the
+required Node24/real-engine run completes all **129 targets: 1,320 passed,
+2 failed, 0 ignored**, with no body skips. The delivery-progress fixture's
+isolated stdlib omitted the existing public `int64` export newly used by its
+owning source; forwarding that real export restores the actual case **1/1**.
+The remaining state-machine replay assertion is preserved and owner-blocked:
+State accepts original stored observations and final net-write snapshots, but
+rejects the intermediate `queued` row when the committed state is `generating`.
+Complete influencing-read/write lineage or a defining State owner-session
+observation join is required; a void result cannot establish an empty proof.
+The coordinator has the exact State/Cloudflare/emitter evidence. Historical
+whole successes remain scoped to their source. Checked derive call-chain
+capture is the next independent compiler implementation unit.
