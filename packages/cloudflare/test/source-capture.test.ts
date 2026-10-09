@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   captureIsCurrent,
   captureSingleFileSource,
+  capturedRuntimeInputsAreCurrent,
   verifyCompilerSources,
   type SingleFileCaptureRequest,
 } from "../src/dev/source-capture.js";
@@ -42,6 +43,15 @@ function fixture(): SingleFileCaptureRequest {
 }
 
 describe("one-file source capture", () => {
+  it("retains runtime identity after a source edit and refuses changed producers", async () => {
+    const request = fixture();
+    const first = await captureSingleFileSource(request);
+    writeFileSync(join(request.checkoutRoot, "app.can"), "app Office\n## Changed source.\n");
+    expect(await captureIsCurrent(first)).toBe(false);
+    expect(await capturedRuntimeInputsAreCurrent(first)).toBe(true);
+    writeFileSync(request.packageInputPaths[0]!.path, "changed installed producer");
+    expect(await capturedRuntimeInputsAreCurrent(first)).toBe(false);
+  });
   it("keeps exact source bytes and separates source from non-source revisions", async () => {
     const request = fixture();
     const first = await captureSingleFileSource(request);

@@ -119,6 +119,43 @@ describe("protected local preview", () => {
     }
   });
 
+  it("observes dispatched business refusals without changing bytes or exposing response secrets", async () => {
+    const secret = "member-secret-and-row-value";
+    const body = JSON.stringify({ error: { code: "forbidden", message: secret, fields: [{ path: "/private", message: secret }] } });
+    const dev: Pick<LocalDev, "dispatchUrl"> = {
+      dispatchUrl: async url => new Response(url.endsWith("/big") ? `${body}${" ".repeat(8 * 1024)}` : body, {
+        status: 401, headers: { "content-type": "application/json; charset=utf-8", "x-secret": secret },
+      }) as Awaited<ReturnType<LocalDev["dispatchUrl"]>>,
+    };
+    const preview = await startProtectedPreview(dev);
+    const events: unknown[] = [];
+    const unsubscribe = preview.observeRefusals(event => { events.push(event); throw new Error("observer failed"); });
+    try {
+      // Bridge authentication is not a business refusal.
+      expect((await fetch(`${preview.url}/mcp`)).status).toBe(401);
+      expect(events).toHaveLength(0);
+      const bootstrap = await fetch(preview.issueOpenUrl(), { redirect: "manual" });
+      const cookie = cookieOf(bootstrap);
+      const response = await fetch(`${preview.url}/mcp`, { headers: { cookie, authorization: `Bearer ${secret}` } });
+      expect(response.status).toBe(401);
+      expect(await response.text()).toBe(body);
+      expect(response.headers.get("x-secret")).toBe(secret);
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({ status: 401, error: { code: "forbidden" } });
+      expect((events[0] as { requestId: string }).requestId).toMatch(/^[0-9a-f-]{36}$/);
+      expect(JSON.stringify(events)).not.toContain(secret);
+      expect(Object.keys((events[0] as { error: object }).error)).toEqual(["code", "message"]);
+      const large = await fetch(`${preview.url}/big`, { headers: { cookie } });
+      expect((await large.text()).length).toBeGreaterThan(8 * 1024);
+      expect(events).toHaveLength(1);
+      unsubscribe();
+      await fetch(`${preview.url}/mcp`, { headers: { cookie } });
+      expect(events).toHaveLength(1);
+    } finally {
+      await preview.close();
+    }
+  });
+
   it.each(["dispatch", "response body"] as const)(
     "closes an active preview when the Worker %s never settles",
     async stage => {

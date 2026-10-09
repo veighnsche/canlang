@@ -424,6 +424,7 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
       return {
         id: `preview-${randomUUID()}`,
         issueOpenUrl: () => protectedBridge.issueOpenUrl(),
+        observeRefusals: handler => protectedBridge.observeRefusals(handler),
         issueLocalActors: () => {
           if (actors === null) throw new Error("local preview actors are unavailable after disposal");
           return actors.map(actor => ({ ...actor, teams: [...actor.teams] }));
