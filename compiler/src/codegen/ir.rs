@@ -565,6 +565,10 @@ pub struct IrProgram {
     pub items: Vec<IrItem>,
     /// Checked declaration and field-reuse constraints, keyed by owning symbol.
     pub value_constraints: HashMap<SymbolId, CheckedValueConstraints>,
+    /// Checked return-specific source closure. Runtime publication additionally
+    /// requires actual evaluated-read and return capture at every selected site.
+    pub scenario_disclosures:
+        HashMap<SymbolId, crate::analysis::scenario_disclosure::ScenarioDisclosure>,
     /// `catalog_version` consulted by analysis, or empty when none was.
     pub catalog_version: String,
     /// Builtin references observed while decoding checked call positions
@@ -637,6 +641,7 @@ fn empty_program(catalog_version: &str) -> IrProgram {
         modules: Vec::new(),
         items: Vec::new(),
         value_constraints: HashMap::new(),
+        scenario_disclosures: HashMap::new(),
         catalog_version: catalog_version.to_string(),
         referenced_builtins: Vec::new(),
         read_rules: Vec::new(),
@@ -1817,6 +1822,7 @@ impl<'a> Cx<'a> {
             modules,
             items,
             value_constraints: self.program.types.value_constraints.clone(),
+            scenario_disclosures: self.program.scenario_disclosures().clone(),
             catalog_version: self.program.catalog_version.clone(),
             referenced_builtins,
             read_rules,

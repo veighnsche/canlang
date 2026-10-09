@@ -32,6 +32,7 @@ pub mod effects;
 pub mod examples;
 pub mod migrate_check;
 pub mod resolve;
+pub mod scenario_disclosure;
 pub mod types;
 
 pub use catalog::Catalog;
@@ -107,6 +108,8 @@ pub struct CheckedProgram {
     /// `catalog_version` of the producer catalog consulted, or the empty
     /// string when no catalog was available (an `E6xxx` is then reported).
     pub catalog_version: String,
+    scenario_disclosures:
+        std::collections::HashMap<SymbolId, scenario_disclosure::ScenarioDisclosure>,
     cohort: cohort::CheckedCohort,
 }
 
@@ -117,6 +120,14 @@ impl CheckedProgram {
     /// additional checked semantics. Appending sources does not extend this list.
     pub fn checked_files(&self) -> &[SourceId] {
         self.cohort.files()
+    }
+
+    /// Complete return closures or an explicit whole-scenario decline from
+    /// the clean checked cohort. These facts alone do not publish runtime claims.
+    pub fn scenario_disclosures(
+        &self,
+    ) -> &std::collections::HashMap<SymbolId, scenario_disclosure::ScenarioDisclosure> {
+        &self.scenario_disclosures
     }
 
     pub(crate) fn validate_cohort(
@@ -160,6 +171,7 @@ pub fn check_program(
                     effects: EffectTables::default(),
                     examples: ExampleTables::default(),
                     catalog_version: catalog.map_or_else(String::new, |c| c.version().to_string()),
+                    scenario_disclosures: std::collections::HashMap::new(),
                     cohort: cohort::CheckedCohort::new(db, files, catalog),
                 },
                 diagnostics,
@@ -186,6 +198,20 @@ pub fn check_program(
     );
     let mut diagnostics = check::dedup_diagnostics(diagnostics);
     check::sort_diagnostics(&mut diagnostics);
+    let scenario_disclosures = if diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == crate::diagnostic::Severity::Error)
+    {
+        std::collections::HashMap::new()
+    } else {
+        scenario_disclosure::analyze_scenario_disclosure(
+            db,
+            &trees,
+            &resolve_tables,
+            &types,
+            &effects,
+        )
+    };
     let program = CheckedProgram {
         modules: resolve_tables.modules.clone(),
         symbols: resolve_tables.symbols.clone(),
@@ -193,6 +219,7 @@ pub fn check_program(
         effects,
         examples,
         catalog_version: catalog.map_or_else(String::new, |c| c.version().to_string()),
+        scenario_disclosures,
         cohort: cohort::CheckedCohort::new(db, files, catalog),
     };
     (program, diagnostics)
