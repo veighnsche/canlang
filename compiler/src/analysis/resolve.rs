@@ -365,7 +365,8 @@ pub enum TypeRef {
         fields: Vec<SymbolId>,
         consumed: usize,
     },
-    /// Bound import from an external provider: opaque structural type.
+    /// Bound external import; published std nominal schemas are consumed
+    /// by the types pass, while other external types remain opaque.
     External,
 }
 
@@ -4684,6 +4685,16 @@ impl<'a> Resolver<'a> {
         }
         if self.tables.module_by_name.contains_key(segments[0]) {
             return self.resolve_qualified_type(module, segments, node, text, diags);
+        }
+        if let Some(ScopedName::External { provider, name }) = self.lookup_prod(module, segments[0])
+            && provider == "std"
+            && !self.tables.judgment_standard_records.contains_key(&name)
+            && nominal_schema(&name).is_some()
+        {
+            self.tables
+                .node_typeref
+                .insert(NodeKey::of(node), TypeRef::External);
+            return Some(TypeRef::External);
         }
         let head = self.resolve_type_head(module, segments, node, text, diags)?;
         if self.is_judgment(head)
