@@ -14,12 +14,13 @@ import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { FIXED_NOW, asModel, asId, asVersion, makeRow, makeBatch, asOperation, asOperationId, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
 import { buildSessionCookie, createD1IdentityStore, deriveCsrfToken, ensureIdentitySchema, issueMcpGrant, sha256HexText } from '@canlang/identity';
 import { catalogFromArtifactOperations, handleOperationRequest, INPUT_CHOICES_VERSION } from '@canlang/interfaces/http/operations';
+import { createAssetTable, handleAssetsRequest } from '@canlang/interfaces/http/assets';
 import { createMcpHandler } from '@canlang/interfaces/mcp/server';
 import type { HttpDeps, McpDeps } from '@canlang/interfaces';
 import { resolveRequestIdentity } from '@canlang/interfaces';
 import { generatedForm, message, renderPage } from '@canlang/ui';
-import type { BrowserClientOptions } from '../../../ui/dist/src/browser/bootstrap.js';
-import type { SubmitFetchInit } from '../../../ui/dist/src/client.js';
+import type { SubmitFetchInit } from '@canlang/ui';
+import { startBrowserClient, type BrowserClientOptions } from '@canlang/ui/browser/bootstrap';
 import type { HTMLInputElement, HTMLSelectElement } from '../../../ui/node_modules/happy-dom/lib/index.js';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { assembleWorker, buildInvoker } from '@canlang/cloudflare/worker/assembly';
@@ -51,8 +52,6 @@ test('genuine dependent choices use current native D1 grants and the original ge
     const asm = await assembleModules({ artifact, sourcePath: fixturePath }, {
       workDir: join(dir, 'modules'), stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
       uiUrl: import.meta.resolve('@canlang/ui') });
-    const { createAssetTable, handleAssetsRequest } = await import(new URL('./http/assets.js', import.meta.resolve('@canlang/interfaces')).href) as
-      typeof import('../../../interfaces/dist/src/http/assets.js');
     const resources = gatherBrowserAssets().resources;
     const assetTable = createAssetTable(Object.entries(resources).map(([key, resource]) => ({
       key, bytes: resource.bytes, mime: resource.contentType, cache: { maxAgeSeconds: 0, immutable: false },
@@ -187,7 +186,6 @@ test('genuine dependent choices use current native D1 grants and the original ge
     }
 
     const { Window } = createRequire(import.meta.resolve('@canlang/ui'))('happy-dom') as typeof import('../../../ui/node_modules/happy-dom/lib/index.js');
-    const { startBrowserClient } = await import(new URL('./browser/bootstrap.js', import.meta.resolve('@canlang/ui')).href);
     const window = new Window({ url: 'https://test.invalid/form' });
     const context: PresentationContext = { preferredLocales: [], appDefaultLocale: 'en',
       theme: { mode: 'light', accent: 'blue', density: 'comfortable' }, path: '/form', pollContext: 'choices/member/team',
