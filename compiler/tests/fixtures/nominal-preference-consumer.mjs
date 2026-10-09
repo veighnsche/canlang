@@ -33,8 +33,8 @@ package Reporting
  Then
   preferences {status:Expense.status=submitted,labelled:Expense.status=approved label={text="Review",values={approved="Accepted"}}}
   page /reports title="Reports"
-   tabs preferences.status
-   tabs preferences.labelled
+   tabs ((preferences.status))
+   tabs (preferences.labelled)
 `;
 const input = resolve(scratch, 'Reporting.can');
 writeFileSync(input, source);
