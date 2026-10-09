@@ -15,12 +15,13 @@ import { FIXED_NOW, asModel, asId, asVersion, makeRow, makeBatch, asOperation, a
 import { buildSessionCookie, createD1IdentityStore, deriveCsrfToken, ensureIdentitySchema, sha256HexText } from '@canlang/identity';
 import { catalogFromArtifactOperations, handleOperationRequest, INPUT_CHOICES_VERSION } from '@canlang/interfaces/http/operations';
 import type { HttpDeps } from '@canlang/interfaces';
+import { resolveRequestIdentity } from '@canlang/interfaces';
 import { generatedForm, message, renderPage } from '@canlang/ui';
 import type { BrowserClientOptions } from '../../../ui/dist/src/browser/bootstrap.js';
 import type { SubmitFetchInit } from '../../../ui/dist/src/client.js';
 import type { HTMLInputElement, HTMLSelectElement } from '../../../ui/node_modules/happy-dom/lib/index.js';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
-import { assembleWorker } from '@canlang/cloudflare/worker/assembly';
+import { assembleWorker, buildInvoker } from '@canlang/cloudflare/worker/assembly';
 import { gatherBrowserAssets } from '@canlang/cloudflare/deploy/package-assets';
 
 const fixturePath = resolve('packages/cloudflare/test/fixtures/input-choices.json');
@@ -75,6 +76,10 @@ test('genuine dependent choices use current native D1 grants and the original ge
     const sites = [id(), id()]; const document = id(); const submission = id();
     const employee = id(); const otherEmployee = id();
     const copyTarget = id(); const copySource = id();
+    const navigationDocument = id(); const navigationSubmission = id();
+    const missingParent = id(); const missingParentSubmission = id();
+    const projectedParents = [id(), id()]; const projectedChildren = [id(), id(), id()];
+    const privateParent = id(); const privateChildren = [id(), id()];
     const rows = [
       { model: 'Country', id: countries[0]!, data: { name: 'First', active: true } },
       { model: 'Country', id: countries[1]!, data: { name: 'Second', active: true } },
@@ -85,10 +90,22 @@ test('genuine dependent choices use current native D1 grants and the original ge
       { model: 'Document', id: document, data: { site: { id: sites[0] } } },
       { model: 'Document', id: copyTarget, data: { site: { id: sites[0] } } },
       { model: 'Document', id: copySource, data: { site: { id: sites[1] } } },
+      { model: 'Document', id: navigationDocument, data: { site: { id: sites[0] } } },
       { model: 'Submission', id: submission, data: { note: 'Submitted' },
         parent: { model: asModel('InputChoices.Document'), id: asId(document) } },
+      { model: 'Submission', id: navigationSubmission, data: { note: 'Navigation draft' },
+        parent: { model: asModel('InputChoices.Document'), id: asId(navigationDocument) } },
+      { model: 'Submission', id: missingParentSubmission, data: { note: 'Missing parent draft' },
+        parent: { model: asModel('InputChoices.Document'), id: asId(missingParent) } },
       { model: 'Employee', id: employee, data: { user: { id: reviewer.user_id }, name: 'Reviewer', role: 'Approver', home: { id: sites[0] } } },
       { model: 'Employee', id: otherEmployee, data: { user: { id: user.user_id }, name: 'Elsewhere', role: 'Approver', home: { id: sites[1] } } },
+      ...projectedParents.map((record, index) => ({ model: 'Parent', id: record,
+        data: { site: { id: sites[index] }, label: `Projected parent ${index + 1}`, kind: index === 0 ? 'business' : 'other business' } })),
+      ...projectedChildren.map((record, index) => ({ model: 'Child', id: record, data: { label: `Child ${index + 1}` },
+        parent: { model: asModel('InputChoices.Parent'), id: asId(projectedParents[index < 2 ? 0 : 1]!) } })),
+      { model: 'PrivateParent', id: privateParent, data: { site: { id: sites[0] }, label: 'Owner-only parent' } },
+      ...privateChildren.map((record, index) => ({ model: 'PrivateChild', id: record, data: { label: `Private child ${index + 1}` },
+        parent: { model: asModel('InputChoices.PrivateParent'), id: asId(privateParent) } })),
     ];
     await storage.state.commit(makeBatch(await storage.state.readRevision(), { writes: rows.map(record => ({
       kind: 'insert', model: asModel(`InputChoices.${record.model}`), row: {
@@ -533,12 +550,153 @@ test('genuine dependent choices use current native D1 grants and the original ge
       }
     }
 
+    // A visible child carries its declared parent identity independently of
+    // field disclosure. The genuine Parent grant exposes label, never site.
+    // Authored read scenarios use the assembled canonical query port; the
+    // existing HTTP operation POST remains the mutation submission path.
+    const readonlyIdentity = (await resolveRequestIdentity(storage.identity,
+      new Request('https://test.invalid/form', { headers: { cookie } }), { clock })).identity;
+    const readonlyInvoker = buildInvoker(artifact, asm, countedStore(), { memberships: storage.identity, now: () => FIXED_NOW });
+    const sourceRead = (operation: string, inputs: Record<string, unknown>) =>
+      readonlyInvoker.invokeRead({ operation: `InputChoices.${operation}`, inputs }, readonlyIdentity);
+    const readonlyRevision = await storage.state.readRevision();
+    const comparedParents = (second: string) => sourceRead('compareParents', {
+      first: { id: projectedChildren[0], version: '1' }, second: { id: second, version: '1' },
+    });
+    const sameProjectedParent = await comparedParents(projectedChildren[1]!);
+    assert.deepEqual(sameProjectedParent, { result: { result: true, revision: readonlyRevision } });
+    const differentProjectedParent = await comparedParents(projectedChildren[2]!);
+    assert.deepEqual(differentProjectedParent, { result: { result: false, revision: readonlyRevision } });
+    const labelResult = await sourceRead('parentLabel', { child: { id: projectedChildren[0], version: '1' } });
+    assert.deepEqual(labelResult, { result: { result: 'Projected parent 1', revision: readonlyRevision } });
+    const kindResult = await sourceRead('parentKind', { child: { id: projectedChildren[0], version: '1' } });
+    assert.deepEqual(kindResult, { result: { result: 'business', revision: readonlyRevision } });
+    const hiddenSiteResult = await sourceRead('parentSite', { child: { id: projectedChildren[0], version: '1' } });
+    assert.ok('error' in hiddenSiteResult, JSON.stringify(hiddenSiteResult));
+    assert.equal(hiddenSiteResult.error.code, 'forbidden'); assert.equal(hiddenSiteResult.error.message, 'Record field is not readable.');
+    assert.equal('result' in hiddenSiteResult, false);
+    const privateIdentityResult = await sourceRead('comparePrivateParents', { first: { id: privateChildren[0], version: '1' },
+      second: { id: privateChildren[1], version: '1' } });
+    assert.deepEqual(privateIdentityResult, { result: { result: true, revision: readonlyRevision } });
+    const privateSiteResult = await sourceRead('privateParentSite', { child: { id: privateChildren[0], version: '1' } });
+    assert.ok('error' in privateSiteResult, JSON.stringify(privateSiteResult));
+    assert.equal(privateSiteResult.error.code, 'not_found'); assert.equal(privateSiteResult.error.message, 'Parent record not found.');
+    assert.equal('result' in privateSiteResult, false);
+    assert.equal(await storage.state.readRevision(), readonlyRevision);
+
+    // The original non-null assign workflow traverses the current parent;
+    // its lookup and final guard share the authored document/site predicate.
+    const assigned = async (assigneeId: string, version = '1') => {
+      const response = await post('assign', { submission: { id: navigationSubmission, version }, assignee: { id: assigneeId } });
+      return { status: response.status, body: await response.json() as { code?: string; message?: string; result?: unknown } };
+    };
+    const navigationInput = { submission: { id: navigationSubmission, version: '1' } };
+    assert.deepEqual((await choices('assign/choices/assignee', navigationInput)).body.choices,
+      [{ value: { id: reviewer.user_id }, labels: ['Reviewer', 'Approver', sites[0]] }]);
+    const eligibleAssignment = await assigned(reviewer.user_id);
+    assert.equal(eligibleAssignment.status, 200, JSON.stringify(eligibleAssignment));
+    assert.deepEqual(eligibleAssignment.body.result, { id: reviewer.user_id });
+    const wrongSiteAssignment = await assigned(user.user_id);
+    assert.equal(wrongSiteAssignment.body.code, 'rule_failed', JSON.stringify(wrongSiteAssignment));
+    assert.equal(wrongSiteAssignment.body.message, 'forbidden');
+    for (const optional of [{}, { assignee: null }]) {
+      const response = await post('assign', { submission: { id: missingParentSubmission, version: '1' }, ...optional });
+      const nullable = await response.json() as { result?: unknown };
+      assert.equal(response.status, 200, JSON.stringify(nullable)); assert.equal(nullable.result, null);
+    }
+    const missingParentLookup = await choices('assign/choices/assignee', { submission: { id: missingParentSubmission, version: '1' } });
+    assert.equal(missingParentLookup.status, 404); assert.equal(missingParentLookup.body.code, 'not_found');
+    assert.equal(missingParentLookup.body.choices, undefined);
+    const missingParentAssignment = await post('assign', { submission: { id: missingParentSubmission, version: '1' },
+      assignee: { id: reviewer.user_id } });
+    const missingParentResult = await missingParentAssignment.json() as { code?: string; message?: string };
+    assert.equal(missingParentAssignment.status, 404); assert.equal(missingParentResult.code, 'not_found');
+    assert.equal(missingParentResult.message, 'Parent record not found.');
+
+    const moveParentSite = await post('bindSite', { target: { id: navigationDocument, version: '1' },
+      site: { id: sites[1], version: '1' } });
+    const movedParent = await moveParentSite.json(); assert.equal(moveParentSite.status, 200, JSON.stringify(movedParent));
+    assert.deepEqual((await choices('assign/choices/assignee', navigationInput)).body.choices,
+      [{ value: { id: user.user_id }, labels: ['Elsewhere', 'Approver', sites[1]] }]);
+    const lostSiteAssignment = await assigned(reviewer.user_id);
+    assert.equal(lostSiteAssignment.body.code, 'rule_failed', JSON.stringify(lostSiteAssignment));
+    assert.equal(lostSiteAssignment.body.message, 'forbidden');
+    const currentSiteAssignment = await assigned(user.user_id);
+    assert.equal(currentSiteAssignment.status, 200, JSON.stringify(currentSiteAssignment));
+    assert.deepEqual(currentSiteAssignment.body.result, { id: user.user_id });
+
+    // This separate source control stages a change on the exactly bound
+    // admitted parent before evaluating the original assignment predicate.
+    const navigationModel = asModel('InputChoices.Document');
+    const parentBeforeMismatch = await storage.state.load(navigationModel, asId(navigationDocument)); assert.ok(parentBeforeMismatch);
+    const mismatch = await post('assignWithSite', { ...navigationInput, document: { id: document, version: '1' },
+      site: { id: sites[0], version: '1' }, assignee: { id: reviewer.user_id } });
+    const mismatchedParent = await mismatch.json() as { code?: string; message?: string };
+    assert.equal(mismatchedParent.code, 'rule_failed', JSON.stringify(mismatchedParent)); assert.equal(mismatchedParent.message, 'forbidden');
+    assert.deepEqual(await storage.state.load(navigationModel, asId(navigationDocument)), parentBeforeMismatch);
+    assert.equal((await storage.state.load(navigationModel, asId(document)))?.version, 1);
+    const stagedAssignmentInputs = { ...navigationInput, document: { id: navigationDocument, version: '2' },
+      site: { id: sites[0], version: '1' }, assignee: { id: reviewer.user_id } };
+    const stagedAssignmentNonce = id();
+    const stagedAssignment = await post('assignWithSite', stagedAssignmentInputs, { operationId: stagedAssignmentNonce });
+    const assignedStaged = await stagedAssignment.json() as { status?: string; code?: string; result?: unknown };
+    assert.equal(stagedAssignment.status, 200, JSON.stringify(assignedStaged));
+    assert.deepEqual(assignedStaged.result, { id: reviewer.user_id });
+    const stagedParentRow = await storage.state.load(navigationModel, asId(navigationDocument)); assert.ok(stagedParentRow);
+    assert.deepEqual(stagedParentRow.data, { site: { id: sites[0] } }); assert.equal(stagedParentRow.version, 3);
+    const stagedParentHistory = await storage.state.historyFor(navigationModel, asId(navigationDocument));
+    assert.equal(stagedParentHistory.length, 2);
+    const revisionAfterStaged = await storage.state.readRevision();
+    const stagedReplay = await post('assignWithSite', stagedAssignmentInputs, { operationId: stagedAssignmentNonce });
+    const replayedStaged = await stagedReplay.json() as { status?: string };
+    assert.equal(stagedReplay.status, 200, JSON.stringify(replayedStaged)); assert.equal(replayedStaged.status, 'replayed');
+    assert.equal(await storage.state.readRevision(), revisionAfterStaged);
+    assert.deepEqual(await storage.state.load(navigationModel, asId(navigationDocument)), stagedParentRow);
+    assert.deepEqual(await storage.state.historyFor(navigationModel, asId(navigationDocument)), stagedParentHistory);
+    const stagedRollback = await post('assignWithSite', { ...navigationInput, document: { id: navigationDocument, version: '3' },
+      site: { id: sites[1], version: '1' }, assignee: { id: user.user_id }, accept: false });
+    const rejectedStaged = await stagedRollback.json() as { code?: string; message?: string };
+    assert.equal(rejectedStaged.code, 'rule_failed', JSON.stringify(rejectedStaged)); assert.equal(rejectedStaged.message, 'forbidden');
+    assert.deepEqual(await storage.state.load(navigationModel, asId(navigationDocument)), stagedParentRow);
+    assert.deepEqual(await storage.state.historyFor(navigationModel, asId(navigationDocument)), stagedParentHistory);
+
+    const revise = await post('reviseSubmission', { ...navigationInput, note: 'Current navigation draft' });
+    const revised = await revise.json(); assert.equal(revise.status, 200, JSON.stringify(revised));
+    const staleAssignmentChoices = await choices('assign/choices/assignee', navigationInput);
+    assert.equal(staleAssignmentChoices.body.code, 'conflict', JSON.stringify(staleAssignmentChoices));
+    const staleAssignment = await assigned(reviewer.user_id);
+    assert.equal(staleAssignment.body.code, 'conflict', JSON.stringify(staleAssignment));
+    assert.deepEqual((await choices('assign/choices/assignee', { submission: { id: navigationSubmission, version: '2' } })).body.choices,
+      [{ value: { id: reviewer.user_id }, labels: ['Reviewer', 'Approver', sites[0]] }]);
+    const currentAssignment = await assigned(reviewer.user_id, '2');
+    assert.equal(currentAssignment.status, 200, JSON.stringify(currentAssignment)); assert.deepEqual(currentAssignment.body.result, { id: reviewer.user_id });
+    assert.deepEqual((await storage.state.load(asModel('InputChoices.Submission'), asId(navigationSubmission)))?.data,
+      { note: 'Current navigation draft' });
+
+    const revisionBeforeAssignmentRace = await storage.state.readRevision();
+    revokeOnEmployeeRead = true;
+    const assignmentRevokedDuringRead = await assigned(reviewer.user_id, '2');
+    assert.equal(assignmentRevokedDuringRead.status, 403, JSON.stringify(assignmentRevokedDuringRead));
+    assert.equal(assignmentRevokedDuringRead.body.code, 'forbidden');
+    assert.equal(await storage.state.readRevision(), revisionBeforeAssignmentRace);
+    await storage.identity.reactivateMembership(membership.membership_id, { is_owner: false, roles: [] });
+
+    await storage.identity.removeMembership(membership.membership_id);
+    const revisionBeforeAssignmentRevocation = await storage.state.readRevision();
+    const revokedAssignmentLookup = await choices('assign/choices/assignee', { submission: { id: navigationSubmission, version: '2' } });
+    assert.equal(revokedAssignmentLookup.status, 404); assert.equal(revokedAssignmentLookup.body.code, 'not_found');
+    assert.equal(revokedAssignmentLookup.body.choices, undefined);
+    const revokedAssignment = await assigned(reviewer.user_id, '2');
+    assert.equal(revokedAssignment.status, 403); assert.equal(revokedAssignment.body.code, 'forbidden');
+    assert.equal(await storage.state.readRevision(), revisionBeforeAssignmentRevocation);
+    await storage.identity.reactivateMembership(membership.membership_id, { is_owner: false, roles: [] });
+
     // A hydrated singular reference remains a declared Site value when a
     // generated handler copies it through normal set into another Document.
     const documentModel = asModel('InputChoices.Document');
     const copiedInputs = { target: { id: copyTarget, version: '1' }, source: { id: copySource, version: '1' } };
     const copyNonce = id();
-    const copy = await post('copySite', copiedInputs, { operationId: copyNonce });
+    const copy = await post('copy_site', copiedInputs, { operationId: copyNonce });
     const copied = await copy.json() as { status?: string; code?: string; message?: string };
     assert.equal(copy.status, 200, JSON.stringify(copied)); assert.equal(copied.status, 'committed');
     const copiedRow = await storage.state.load(documentModel, asId(copyTarget)); assert.ok(copiedRow);
@@ -547,7 +705,7 @@ test('genuine dependent choices use current native D1 grants and the original ge
     const copiedHistory = await storage.state.historyFor(documentModel, asId(copyTarget));
     assert.equal(copiedHistory.length, 1);
     const revisionAfterCopy = await storage.state.readRevision();
-    const copyReplay = await post('copySite', copiedInputs, { operationId: copyNonce });
+    const copyReplay = await post('copy_site', copiedInputs, { operationId: copyNonce });
     const replayedCopy = await copyReplay.json() as { status?: string };
     assert.equal(copyReplay.status, 200, JSON.stringify(replayedCopy)); assert.equal(replayedCopy.status, 'replayed');
     assert.equal(await storage.state.readRevision(), revisionAfterCopy);
@@ -557,7 +715,7 @@ test('genuine dependent choices use current native D1 grants and the original ge
     // The later source guard rejects after set has staged the reverse copy;
     // its receipt cannot publish that provisional field, version or history.
     const rollbackNonce = id();
-    const rollback = await post('copySite', { target: { id: copyTarget, version: '2' },
+    const rollback = await post('copy_site', { target: { id: copyTarget, version: '2' },
       source: { id: document, version: '1' }, accept: false }, { operationId: rollbackNonce });
     const rolledBack = await rollback.json() as { code?: string; message?: string };
     assert.equal(rolledBack.code, 'rule_failed', JSON.stringify(rolledBack)); assert.equal(rolledBack.message, 'forbidden');
@@ -566,7 +724,7 @@ test('genuine dependent choices use current native D1 grants and the original ge
     assert.deepEqual((await storage.state.load(documentModel, asId(copySource)))?.data, { site: { id: sites[1] } });
     assert.equal((await storage.state.load(documentModel, asId(copySource)))?.version, 1);
     const rollbackReceipt = await storage.state.readReceipt({ app: 'InputChoices', owner: team.team_id, principal: user.user_id,
-      operation: asOperation('InputChoices.copySite'), operationId: asOperationId(rollbackNonce) });
+      operation: asOperation('InputChoices.copy_site'), operationId: asOperationId(rollbackNonce) });
     assert.equal(rollbackReceipt?.outcome.status, 'rejected');
 
     // Assign the admitted model alias itself as well as the decoded field
