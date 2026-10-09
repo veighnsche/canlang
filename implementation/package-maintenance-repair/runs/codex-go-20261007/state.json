@@ -1192,7 +1192,17 @@
       "planned_collision_review": "planned-output-collision-independent-review.json",
       "source_pin": "8ccf7b1178df87cdb02c1312bf4e2314680697034b5391fdad6a062ed80a7f85",
       "planned_test_pin": "c3d09faf0da8ac9e27d1f756d5491906dec4ee7f0452a6312c19d240c37536f8",
-      "planned_collision_commit": "788e5352ea989fafc4677af27f72e61f70f4738c"
+      "planned_collision_commit": "788e5352ea989fafc4677af27f72e61f70f4738c",
+      "test_scratch_cleanup": {
+        "state": "implemented, tested, root-reviewed; original packet remains partial",
+        "files": [
+          "packages/cloudflare/src/cli/platform.ts",
+          "packages/cloudflare/test/cli.test.ts"
+        ],
+        "validation": "29/29 CLI cases; Cloudflare noEmit TypeScript check passed",
+        "behavior": "Protect all work after test scratch acquisition; attempt scope disposal and scratch removal, preserving the first thrown value.",
+        "limits": "No run URL lifetime, whole-command budget, native preparation or parent acceptance; no reduction credit."
+      }
     },
     "DEL-D04": {
       "planning_status": "blocked",
@@ -3532,5 +3542,10 @@
       "/private/tmp/canlang-repair-go-20261007/retained-admission-chunk-check/output",
       "/private/tmp/canlang-enum-claim-state"
     ]
+  },
+  "enum_result_import_correction": {
+    "state": "committed 1c95e75c; State and Cloudflare TypeScript checks pass",
+    "file": "packages/cloudflare/src/runtime/invoke.ts",
+    "scope": "Existing checked enum result parser/printer imports only."
   }
 }

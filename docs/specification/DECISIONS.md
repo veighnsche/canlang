@@ -3123,3 +3123,7 @@ Accepted narrow result join: compiler public operation profiles reuse existing c
 ## 2026-10-09 — restore checked enum result helper imports
 
 Accepted bounded correction: Cloudflare checked enum result validation now imports the existing Values parser and printer that its current branch invokes. This resolves the committed missing-name compilation failure without changing the type or result contract. Current State and Cloudflare TypeScript checks pass; compiler and broader runtime qualification remain at their existing evidence scope.
+
+## 2026-10-09 — clean up test-command scratch across failure paths
+
+Accepted bounded DEL-D03 correction: protect the complete test scratch lifetime after acquisition, then attempt acquired scope disposal and directory removal even when assembly, module reading, scope construction or snapshot fails. Preserve the first thrown value, including null or undefined, when cleanup also fails. The actual CLI dispatch regression suite passes 29/29 and Cloudflare TypeScript checking passes. Run URL lifetime, command resource budgets and native preparation remain separately owned; no reduction or whole packet completion is claimed. The repair queue now links its existing current execution record, preserving historical planning evidence.

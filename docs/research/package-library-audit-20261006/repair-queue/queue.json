@@ -7558,5 +7558,6 @@
     "unresolved_bounded_findings": 0,
     "subsequent_allocation_amendment": "User requested most economical reliable implementation/review settings. Only delegation/historical-role metadata added; prior structural/coverage review remains at its original recorded hashes. Separate bounded allocation consistency review recorded in model-allocation-review.json."
   },
-  "model_allocation": "model-allocation.json"
+  "model_allocation": "model-allocation.json",
+  "execution_progress_record": "implementation/package-maintenance-repair/runs/codex-go-20261007/state.json#packet_state"
 }

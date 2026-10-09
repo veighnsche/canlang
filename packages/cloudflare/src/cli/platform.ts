@@ -58,7 +58,7 @@ import { createLocalRowScope } from "../dev/row-scope.js";
  */
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { access, mkdtemp } from "node:fs/promises";
+import { access, mkdtemp, rm } from "node:fs/promises";
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -348,28 +348,50 @@ async function runTest(artifactPath: string): Promise<void> {
     fail("test", "missing-dist", error instanceof Error ? error.message : String(error));
   }
   const workDir = await mkdtemp(join(tmpdir(), "can-platform-test-"));
-  const stdlibUrl = new URL("../runtime/stdlib.js", import.meta.url).href;
-  const asm = await assembleModules(loaded, { distRoot, workDir, stdlibUrl });
-  const entry = loaded.artifact.modules[0];
-  if (entry === undefined) {
-    fail("test", "invalid-artifact", `artifact ${artifactPath} has no modules`);
-  }
-  const modules: Record<string, string> = {};
-  for (const [name, url] of Object.entries(asm.moduleUrls)) {
-    modules[name] = readFileSync(new URL(url), "utf8");
-  }
-  const scope = await createLocalRowScope(randomUUID(), {
-    workerName: defaults.workerName,
-    compatibilityDate: defaults.compatibilityDate,
-    mainModule: entry.path,
-    modules,
-    d1Binding: "DB",
-  });
+  let scope: Awaited<ReturnType<typeof createLocalRowScope>> | undefined;
+  let failed = false;
+  let failure: unknown;
   try {
+    const stdlibUrl = new URL("../runtime/stdlib.js", import.meta.url).href;
+    const asm = await assembleModules(loaded, { distRoot, workDir, stdlibUrl });
+    const entry = loaded.artifact.modules[0];
+    if (entry === undefined) {
+      fail("test", "invalid-artifact", `artifact ${artifactPath} has no modules`);
+    }
+    const modules: Record<string, string> = {};
+    for (const [name, url] of Object.entries(asm.moduleUrls)) {
+      modules[name] = readFileSync(new URL(url), "utf8");
+    }
+    scope = await createLocalRowScope(randomUUID(), {
+      workerName: defaults.workerName,
+      compatibilityDate: defaults.compatibilityDate,
+      mainModule: entry.path,
+      modules,
+      d1Binding: "DB",
+    });
     await scope.snapshot();
+  } catch (error) {
+    failed = true;
+    failure = error;
   } finally {
-    await scope.dispose();
+    try {
+      await scope?.dispose();
+    } catch (error) {
+      if (!failed) {
+        failed = true;
+        failure = error;
+      }
+    }
+    try {
+      await rm(workDir, { recursive: true, force: true });
+    } catch (error) {
+      if (!failed) {
+        failed = true;
+        failure = error;
+      }
+    }
   }
+  if (failed) throw failure;
   const artifact = loaded.artifact;
   process.stderr.write(
     `test harness: worker ${defaults.workerName} booted, ` +
