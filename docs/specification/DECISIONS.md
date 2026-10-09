@@ -3513,3 +3513,7 @@ Accepted bounded repair: remove the dangling construct_candidates module declara
 ### 2026-10-09 — Source-current local Values consumer prerequisite
 
 The dev preview freshness gate exposed a stale tracked Values WASM binary. Regenerate through the owning pinned build-semantics producer and retain its binary/inventory together, then rebuild installed Values and emit its catalog after the final package build. Bootstrap checks pass 17/17; timestamps remain conservative admission evidence, while captured hashes identify the consumed bytes. This releases installed input preparation, not the app acceptance gates.
+
+### 2026-10-09 — Preserve setup-owned compiled example expectations
+
+The Cloudflare row adapter must read the expectation produced by the owning Testkit setup at assertion time. Forward that property through the row wrapper; do not retain its pre-setup placeholder or derive an oracle from the business result. A real Testkit/D1 success-and-denial regression passes, while actual Office/Generation reruns remain required after rebuilding the consumer.
