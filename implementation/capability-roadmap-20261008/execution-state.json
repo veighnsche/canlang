@@ -453,9 +453,9 @@
       "acceptance_scope": "Original selected actual MCP/persistentD1 observer binds owning Email operation/result source and authoritative current delivery. Status/result selection, current readers, replacement/supersession/stale association, leaf denial before protected disclosure and replay/transient retry accepted in final81dbe2e9 journey. Stateab8cf1d3 current-source/owner guard adopted; no different result type/provider/deep generation policy or whole-F5 claim.",
       "accepted_at_original_selected_scope": true,
       "worker_update": {
-        "status": "parent_navigation_correction_implemented_tested_local",
-        "implemented": "Generated containment proxies resolve delivery observations through private exact identity and existing live viewer/mutation views with fence enrollment. Current field/association/role checks remain authoritative; private IDs stay withheld.",
-        "validation": "Original owning genuine compiled native-D1 receipt case1/1 (13.36s), owning dependency build22/22, affected CF TypeScript and compiler delivery runtime1/1 pass. Parent pending/live/null/reassociation, withheld/hidden/missing/refused ID, in-flight role removal, no disclosure/domain/history on refusal and reopen covered. Existing outcomes reused.",
+        "status": "parent_navigation_observation_and_mutation_corrections_implemented_tested_local",
+        "implemented": "Generated containment proxies resolve delivery observations through private exact identity and existing live viewer/mutation views with fence enrollment. Current field/association/role checks remain authoritative; private IDs stay withheld. Scenario set/delete now bind direct and queried generated parent proxies through the same private containment authority; current State admission/fence still gates writes.",
+        "validation": "Original owning genuine compiled native-D1 receipt case1/1 (13.36s), owning dependency build22/22, affected CF TypeScript and compiler delivery runtime1/1 pass. Parent pending/live/null/reassociation, withheld/hidden/missing/refused ID, in-flight role removal, no disclosure/domain/history on refusal and reopen covered. Existing outcomes reused. Extended actual native-D1/MCP case1/1 (20.89s) passes direct/queried update/archive, unchanged child/delivery, replay and missing/archive/current or mid-execution revoked membership refusals. Owning build22/22 passes.",
         "remaining": "Separate nested result.reference compiler/consumer selection remains unsupported; parent status and original whole-result controls are preserved. No new full application/provider or roadmap acceptance."
       }
     },
@@ -1568,9 +1568,10 @@
     },
     "review_status": {
       "pr": "https://github.com/veighnsche/canlang/pull/134",
-      "revision": "18958f6ae2814ded66defcb1e8bff40e6253ccea",
-      "state": "Codex_code_security_completed_parent_delivery_finding_under_correction",
-      "action": "Accepted DESIGN.md1018 same-name caption rule resolves repeated caption finding without rewrite. New4231482661 parent delivery-observation join is being corrected at private native identity/authorized view seam with owning controls. Current-head CI37947682242 completed failure; released source/consumer corrections continue. Later head review/CI required."
+      "revision": "9597a6609a27391fa5f29d04b12bbc0915408ff6",
+      "state": "Codex_completed_current_published_head_parent_mutation_finding_corrected_locally",
+      "action": "Accepted DESIGN.md1018 same-name caption rule resolves repeated caption finding without rewrite. New4231482661 parent delivery-observation join is being corrected at private native identity/authorized view seam with owning controls. Current-head CI37947682242 completed failure; released source/consumer corrections continue. Later head review/CI required.",
+      "finding": "4232261242 navigated parent mutation correction implemented/tested locally; prior nominal-alias and hook-value findings consumed exact Packages releases. New unpublished units have no current-head review yet."
     },
     "ci_status": {
       "revision": "6e8692fe6a314cdd7027bbd5998902a30a9c102a",
@@ -1684,10 +1685,6 @@
       ],
       "nested_and_ignored_sources": "draft clean at exact required5a12eb9ebb136ffa4e5ce352663f92affba25bc2; no nested source edits/gitlink change or ignored repository task source candidates. Dependencies/build caches/logs/credentials excluded.",
       "temporary_linux_playwright_wrapper": "import base from \"/workspace/canlang/playwright.config.ts\"; export default {...base,testDir:\"/workspace/canlang/tests/e2e\",workers:2,use:{...base.use,launchOptions:{executablePath:\"/usr/bin/chromium\"}}}; (temporary external wrapper only; adapt to local host if needed)"
-    },
-    "pr_review": {
-      "state": "older_published_head_codex_review_completed_parent_correction_tested_new_head_review_due",
-      "action": "Codex4231482661 fixed/tested332e73b3. Same-name caption behavior remains per accepted DESIGN1018. Exact Packages native/archive correction853aa6f6 passes State build6/6 and owning10/10, preserving nominal-array controls. P14232103004 nominal-alias correction remains with Packages. Later published-head review/CI required."
     }
   },
   "live_handoffs": {
