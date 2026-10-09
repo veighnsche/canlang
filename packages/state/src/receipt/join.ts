@@ -32,11 +32,13 @@ import type {
 import type {
   ModelName,
   RecordId,
+  RecordVersion,
   Revision,
   StoragePort,
   StoredRow,
 } from '@canlang/contracts';
-import type { FenceScope } from '../invocation/admission.js';
+import type { AdmittedCall, FenceScope } from '../invocation/admission.js';
+import { assertOwnerReceiptExecution } from '../invocation/invoke.js';
 import { StateError } from '../errors.js';
 import type { MembershipReader } from '../policy/roles.js';
 import type { PolicyTable } from '../policy/grants.js';
@@ -227,6 +229,20 @@ export interface SelectedReceiptJoinInput {
   readonly observeSelected: SelectedReceiptObserver;
 }
 
+/**
+ * Selected observation inside an actual trusted owner execution. `recordVersion`
+ * comes from the host's private native record binding, not a locator member.
+ * The physical store and checkpoint must be the ones admitted for `call`.
+ * Source verification and native hydration remain the host loader's boundary.
+ */
+export type OwnerSelectedReceiptJoinInput = Omit<
+  SelectedReceiptJoinInput, 'policy' | 'caller' | 'memberships' | 'fence'
+> & {
+  readonly call: AdmittedCall;
+  readonly recordVersion: RecordVersion;
+  readonly fence: FenceScope;
+};
+
 export type SelectedReceiptJoinOutcome =
   /**
    * Authorized observation: the projection carries exactly the selected
@@ -271,6 +287,24 @@ export type SelectedReceiptJoinOutcome =
 export async function observeSelectedReceiptJoin(
   input: SelectedReceiptJoinInput,
 ): Promise<SelectedReceiptJoinOutcome> {
+  return observeReceiptJoin(input);
+}
+
+/** Owner authority replaces only viewer leaf grants; the receipt join is shared. */
+export async function observeOwnerSelectedReceiptJoin(
+  input: OwnerSelectedReceiptJoinInput,
+): Promise<SelectedReceiptJoinOutcome> {
+  assertOwnerReceiptExecution(input.call, input.store, input.fence);
+  if (!Number.isSafeInteger(input.recordVersion) || input.recordVersion < 1) {
+    throw new StateError('validation', 'Owner receipt observation requires the native record version.');
+  }
+  return observeReceiptJoin(input, input);
+}
+
+async function observeReceiptJoin(
+  input: SelectedReceiptJoinInput | OwnerSelectedReceiptJoinInput,
+  ownerExecution?: OwnerSelectedReceiptJoinInput,
+): Promise<SelectedReceiptJoinOutcome> {
   const { recordId, field } = resolveJoinLocator(input.locator);
   assertJoinSelected(input.selected);
   assertDeliveryField(input.schema, input.model, field);
@@ -289,24 +323,36 @@ export async function observeSelectedReceiptJoin(
   if (owner === null) {
     throw new StateError('not_found', 'Receipt owner record not found.');
   }
-  const paths = await resolveLeafGrantPaths({
-    policy: input.policy,
-    model: input.model,
-    caller: input.caller,
-    memberships: input.memberships,
-    row: owner,
-  });
-  const policyGrants = createSelectedGrants({ field, paths });
+  if (ownerExecution !== undefined) {
+    assertOwnerReceiptExecution(ownerExecution.call, input.store, ownerExecution.fence);
+    if (owner.id !== recordId || owner.version !== ownerExecution.recordVersion) {
+      throw new StateError('conflict', 'Receipt owner record disagrees with the native binding.');
+    }
+    if (owner.archivedAt !== null) {
+      throw new StateError('validation', 'Archived records cannot supply owner receipt observations.');
+    }
+  }
   const selectedVerdicts = new Map<ReceiptProperty, boolean>();
-  for (const property of new Set(input.selected)) {
-    selectedVerdicts.set(property,
-      policyGrants.mayObserve(property, { field, deliveryId: null, revision: null }));
+  if (ownerExecution === undefined) {
+    const viewer = input as SelectedReceiptJoinInput;
+    const paths = await resolveLeafGrantPaths({
+      policy: viewer.policy, model: input.model, caller: viewer.caller,
+      memberships: viewer.memberships, row: owner,
+    });
+    const policyGrants = createSelectedGrants({ field, paths });
+    for (const property of new Set(input.selected)) {
+      selectedVerdicts.set(property,
+        policyGrants.mayObserve(property, { field, deliveryId: null, revision: null }));
+    }
+  } else {
+    for (const property of new Set(input.selected)) selectedVerdicts.set(property, true);
   }
   const denied = [...selectedVerdicts].filter(([, allowed]) => !allowed).map(([property]) => property);
   const grants: JoinGrantPort = {
     mayObserve: (property, context) => context.field === field && selectedVerdicts.get(property) === true,
   };
   if (denied.length !== 0) {
+    await assertReceiptReadRevision(input, readRevision);
     return { outcome: 'denied', denied, readRevision };
   }
   if (typeof input.declaredSource !== 'string' || input.declaredSource.length === 0) {
@@ -407,5 +453,18 @@ export async function observeSelectedReceiptJoin(
       version: receiptRow.version,
     });
   }
+  await assertReceiptReadRevision(input, readRevision);
+  if (ownerExecution !== undefined) {
+    assertOwnerReceiptExecution(ownerExecution.call, input.store, ownerExecution.fence);
+  }
   return { ...outcome, readRevision };
+}
+
+/** A selected projection cannot escape a revision change during its reads. */
+async function assertReceiptReadRevision(
+  input: SelectedReceiptJoinInput | OwnerSelectedReceiptJoinInput, revision: Revision,
+): Promise<void> {
+  if (await input.store.readRevision() !== revision) {
+    throw new StateError('conflict', 'Fence checkpoint moved during the receipt observation.');
+  }
 }

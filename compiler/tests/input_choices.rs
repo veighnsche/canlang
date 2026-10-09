@@ -90,8 +90,8 @@ fn owning_input_choices_publish_checked_bindings_without_executing_annotations()
     );
 
     std::fs::write(scratch.path().join("artifact.json"), &output.stdout).unwrap();
-    // The installed facade lacks `records`; this narrow host refuses every
-    // lookup while preserving its actual admission/reference helpers and UI.
+    // The installed facade lacks `records` and `set`. Keep the actual pure
+    // helpers and mutation producer; only finite query observations are hosted.
     let packages = scratch.path().join("node_modules/@canlang");
     let stdlib = packages.join("stdlib");
     std::fs::create_dir_all(&stdlib).unwrap();
@@ -103,12 +103,17 @@ fn owning_input_choices_publish_checked_bindings_without_executing_annotations()
     std::fs::write(
         stdlib.join("index.mjs"),
         format!(
-            "export {{ ValueError, require, hasRole, same }} from {};\nexport async function records(context,model,options){{const probe=globalThis.choiceLookup;if(!probe)throw Error('choice lookup executed');probe.calls.push({{context,model,options}});await Promise.resolve();if(probe.error)throw probe.error;return probe.rows;}}\n",
+            "export {{ ValueError, require, hasRole, same, any, makeUserRef, makeRecordRef }} from {};\nexport {{set}} from '@canlang/cloudflare/runtime/stdlib';\nexport async function records(context,model,options){{const probe=globalThis.choiceLookup;if(!probe)throw Error('choice lookup executed');probe.calls.push({{context,model,options}});probe.trace?.push('query-start');await Promise.resolve();if(probe.error)throw probe.error;const selected=[];for(const row of probe.rows){{if(options.where===undefined||await options.where(row))selected.push(row);}}probe.trace?.push('query-complete');return selected;}}\n",
             serde_json::to_string(&root.join("packages/stdlib/dist/src/index.js").display().to_string()).unwrap()
         ),
     )
     .unwrap();
     std::os::unix::fs::symlink(root.join("node_modules/@canlang/ui"), packages.join("ui")).unwrap();
+    std::os::unix::fs::symlink(
+        root.join("node_modules/@canlang/cloudflare"),
+        packages.join("cloudflare"),
+    )
+    .unwrap();
     for module in artifact["modules"].as_array().unwrap() {
         let path = scratch.path().join(module["path"].as_str().unwrap());
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -120,6 +125,7 @@ fn owning_input_choices_publish_checked_bindings_without_executing_annotations()
         r#"import assert from 'node:assert/strict';
 import {pathToFileURL} from 'node:url';
 import {readFileSync} from 'node:fs';
+import {makeRecordRef,makeUserRef} from '@canlang/stdlib';
 const artifact = JSON.parse(readFileSync(process.argv[3],'utf8'));
 const entry = await import(pathToFileURL(process.argv[2]));
 const registry = entry.canApp(), context = {memberships:['members']};
@@ -136,13 +142,61 @@ for(const operation of artifact.operations){
 let reads = 0;
 const submission = {get parent(){reads++;throw Error('choice annotation executed');}};
 const document = {get site(){reads++;throw Error('choice read executed');}};
-const assignee = {kind:'user',id:'reviewer'}, region = {id:'region'};
-assert.equal(await callable('assign')(context,{submission,assignee}),assignee);
+const assignee = makeUserRef('reviewer');
+assert.equal(await callable('assign')(context,{submission,assignee:null}),null);
 assert.equal(await callable('assign')(context,{submission}),null);
-assert.equal(await callable('submit')(context,{document,assignee}),assignee);
-assert.equal(await callable('save')(context,{country:document,region}),region);
-assert.equal(reads,0,'importing and invoking the owning operations never evaluates choice annotations');
-const country={id:'country',get Region(){throw Error('child collection must be queried');}};
+assert.equal(await callable('submit')(context,{document,assignee:null}),null);
+assert.equal(await callable('submit')(context,{document}),null);
+assert.equal(reads,0,'imports and null/default final guards never evaluate choice annotations');
+const country={...makeRecordRef('InputChoices.Country','country'),get Region(){throw Error('child collection must be queried');}};
+let parentReads=0;
+const region={...makeRecordRef('InputChoices.Region','region'),get parent(){parentReads++;return country;}};
+assert.equal(await callable('save')(context,{country,region}),region);
+assert.equal(parentReads,1,'the actual save guard reads its parent once without executing the annotation');
+await assert.rejects(callable('save')(context,{country:makeRecordRef('InputChoices.Country','other'),region}),{message:'forbidden'});
+assert.equal(parentReads,2);
+
+const home=makeRecordRef('InputChoices.Site','home'),otherHome=makeRecordRef('InputChoices.Site','other-home');
+const otherUser=makeUserRef('other-user');
+function candidate(trace,name,user,site){
+ return {get user(){trace.push(`${name}.user`);return user;},
+  get home(){trace.push(`${name}.home`);if(site instanceof Error)throw site;return site;}};
+}
+for(const name of ['assign','submit']){
+ const trace=[];
+ const doc={get site(){trace.push('document.site');return home;}};
+ const sub={get parent(){trace.push('submission.parent');return doc;}};
+ const rows=[candidate(trace,'unrelated',otherUser,Error('unrelated home must not be read')),
+  candidate(trace,'wrong',assignee,otherHome),candidate(trace,'right',assignee,home),
+  {get user(){throw Error('any must stop at the first match');}}];
+ const finalProbe={rows,calls:[],trace};globalThis.choiceLookup=finalProbe;
+ const args=name==='assign'?{submission:sub,assignee}:{document:doc,assignee};
+ assert.equal(await callable(name)(context,args),assignee);
+ const navigation=name==='assign'?['submission.parent','document.site']:['document.site'];
+ assert.deepEqual(trace,['query-start','query-complete','unrelated.user','wrong.user','wrong.home',
+  ...navigation,'right.user','right.home',...navigation],`${name}: real final guard reads after the awaited query and short-circuits`);
+ assert.equal(finalProbe.calls.length,1);assert.equal(finalProbe.calls[0].context,context);
+ assert.equal(finalProbe.calls[0].model,'InputChoices.Employee');assert.deepEqual(finalProbe.calls[0].options,{});
+ trace.length=0;finalProbe.calls=[];
+ await assert.rejects(callable(name)({memberships:[]},args),{message:'forbidden'});
+ assert.deepEqual(trace,[]);assert.equal(finalProbe.calls.length,0,'admission precedes final guard reads');
+}
+const missingParent=Error('original submission parent is unavailable');
+const missingTrace=[];
+const missingSubmission={get parent(){missingTrace.push('submission.parent');throw missingParent;}};
+const missingProbe={rows:[],calls:[],trace:missingTrace};globalThis.choiceLookup=missingProbe;
+for(const rows of [[],[candidate(missingTrace,'unrelated',otherUser,Error('unrelated home must not be read'))]]){
+ missingProbe.rows=rows;missingProbe.calls=[];missingTrace.length=0;
+ await assert.rejects(callable('assign')(context,{submission:missingSubmission,assignee}),{message:'forbidden'});
+ assert.deepEqual(missingTrace,['query-start','query-complete',...(rows.length===0?[]:['unrelated.user'])]);
+ assert.equal(missingProbe.calls.length,1,'a nonnull final guard queries before testing candidates');
+}
+missingProbe.rows=[candidate(missingTrace,'matching',assignee,home)];missingProbe.calls=[];missingTrace.length=0;
+await assert.rejects(callable('assign')(context,{submission:missingSubmission,assignee}),error=>error===missingParent);
+assert.deepEqual(missingTrace,['query-start','query-complete','matching.user','matching.home','submission.parent']);
+assert.equal(missingProbe.calls.length,1);
+delete globalThis.choiceLookup;
+
 const probe={rows:[region],calls:[]};globalThis.choiceLookup=probe;
 let inputReads=0;
 assert.deepEqual(await callable('region_choices')(context,{get country(){inputReads++;return country;}}),[region]);
@@ -154,6 +208,27 @@ await assert.rejects(callable('region_choices')(context,{country}),error=>error=
 assert.equal(probe.calls.length,1);probe.calls=[];
 await assert.rejects(callable('region_choices')({memberships:[]},{country}));
 assert.equal(probe.calls.length,0,'admission rejects before the child query');
+
+const choiceTrace=[];
+const choiceDocument={get site(){choiceTrace.push('document.site');return home;}};
+const first={get home(){choiceTrace.push('first.home');return home;}};
+const excluded={get home(){choiceTrace.push('excluded.home');return otherHome;}};
+const last={get home(){choiceTrace.push('last.home');return home;}};
+const choiceProbe={rows:[first,excluded,last],calls:[],trace:choiceTrace};globalThis.choiceLookup=choiceProbe;
+let documentReads=0;
+assert.deepEqual(await callable('reviewer_choices')(context,{get document(){documentReads++;return choiceDocument;}}),[first,last]);
+assert.equal(documentReads,1);assert.equal(choiceProbe.calls.length,1);
+assert.equal(choiceProbe.calls[0].context,context);assert.equal(choiceProbe.calls[0].model,'InputChoices.Employee');
+assert.deepEqual(Object.keys(choiceProbe.calls[0].options),['where']);
+assert.equal(typeof choiceProbe.calls[0].options.where,'function');
+assert.deepEqual(choiceTrace,['query-start','first.home','document.site','excluded.home','document.site',
+ 'last.home','document.site','query-complete'],'the original read predicate executes once per candidate in domain order');
+choiceProbe.error=failure;choiceProbe.calls=[];choiceTrace.length=0;
+await assert.rejects(callable('reviewer_choices')(context,{document:choiceDocument}),error=>error===failure);
+assert.equal(choiceProbe.calls.length,1);assert.deepEqual(choiceTrace,['query-start'],'query failure precedes predicate reads');
+choiceProbe.calls=[];choiceTrace.length=0;
+await assert.rejects(callable('reviewer_choices')({memberships:[]},{document:choiceDocument}),{message:'forbidden'});
+assert.equal(choiceProbe.calls.length,0);assert.deepEqual(choiceTrace,[],'admission rejects before the query or predicate');
 delete globalThis.choiceLookup;
 const assign = entry.appDefinition.operations['InputChoices.assign'].inputs.assignee;
 assert.equal(assign.default,null);assert.equal(assign.label.source,'Reviewer');

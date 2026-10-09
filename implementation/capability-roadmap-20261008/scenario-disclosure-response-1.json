@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Verified implementation facts for the Canlang roadmap saved scenario-result disclosure join. DESIGN.md section5 explicitly allows mutation returns literals/input values/generated receipts/readable record values and requires Compiler tracking so private authority-derived scalars cannot leak; privileged authority reports are explicit read-only by grants. State invocation stores ExecutionEffects.result unknown and recordVersions identities only; exact receipt-only replay returns saved unknown result internally, which must cross current grant/secret projection before public disclosure. Existing generated CRUD receipt association stores exact model/row/version/original secret selectors and projectGeneratedCrudReceipt rechecks current by/membership, current row lifetime/parent, current grant masks, union original/current secrets and revision/membership race before returning saved row fields. CF runScenarioSeam owns native record WeakMap identity/reserved versions and scenarioResult actual Values codec. ArtifactOperation/CanonicalOperationDescriptor.result currently carries only type. Nominal schema proves wire shape but not private field provenance; compiler check_secret_return only checks direct secret types and IrStmt.Return carries TypedExpr/span with no emitted data/control dependency plan. Current mutation model result supports singular nonnullable model; complete nested nominal/model/collection source/schema producer remains necessary. Need define complete current-disclosure API and existing receipt association, preserving original values, no body rerun/no extra business writes, source declaration/module correspondence, typed refs/current lifetimes, changed row snapshots checked against committed netwrites, finite reads/work, revocation and changed original/current secrets. Missing or malformed required producer facts must refuse. Compare equally complete end goals including compiler/runtime/storage, literals/input/generated-receipt availability, private decision-only reads vs disclosed result derivation, branch/control/local-call closure, current policies, no provenance inference from object shape and no arbitrary user callback. Advice is not implementation/acceptance.",
+    "questions": {
+      "provenance": {
+        "type": "choice",
+        "instructions": "Which complete provenance boundary should define saved mutation scenario-result disclosure under the verified semantics and producer gaps?",
+        "criteria": {
+          "checked_result_dependency_plan": "Compiler emits versioned checked data/control result dependency plan through existing result metadata, including derive/local-call closure and canonical source/module IDs. Host captures exact actually evaluated dependency row/field/reference observations and changed snapshots through genuine native bindings; existing receipt retains a closed execution-associated manifest. State validates correspondence and projects saved content under current access without reevaluation. Precise permitted output but requires meaningful new compiler dataflow/host producers and refusal for missing proof.",
+          "native_provenance_instrumentation": "Compiler instruments ordinary emitted expressions/branches/local calls to propagate hidden runtime provenance from protected record reads, including control dependencies; host extracts complete hidden result provenance and exact changed snapshots into the existing receipt. State uses the same current-access saved projection. Avoid serializable static dependency-plan interpretation but requires complete instrumentation for every scalar/native operator/value/call and secure taint lifecycle; uninstrumented paths refuse.",
+          "conservative_complete_read_manifest": "Retain every protected execution read row/field/query presence and changed snapshot as disclosure dependencies for a result-bearing operation, independently of whether its data reaches the return. Compiler/runtime certify complete read interception including control/local-call/query closure; State rechecks all dependencies before disclosing the saved typed result. Simpler dependency tracking, but private decision-only reads can unnecessarily withhold otherwise permitted literals/inputs and larger bounded manifests/refusal cost must be assessed explicitly."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "provenance": {
+        "type": "choice",
+        "choice": "checked_result_dependency_plan",
+        "confidence": 0.97,
+        "probabilities": {
+          "checked_result_dependency_plan": 0.98,
+          "native_provenance_instrumentation": 0.01,
+          "conservative_complete_read_manifest": 0.01
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1003,
+      "output_tokens": 57
+    }
+  }
+}

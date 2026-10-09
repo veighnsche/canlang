@@ -197,6 +197,9 @@ export function fanoutNavigationChildQuery(input: FanoutNavigationBinding & {
 }): QuerySpec {
   const intent = retainedIntent(input.intentRow);
   nonempty(input.owner, 'owner');
+  if (!Number.isSafeInteger(input.limit) || input.limit < 1) {
+    throw new StateError('validation', 'Fanout child navigation limit must be a safe integer >= 1.');
+  }
   const cursor = input.row === null ? null : readFanoutNavigationRow(input.row, input).lastVisitedChildId;
   return fanoutChildPageQuery(intent.fanoutId, { cursor, limit: input.limit });
 }
