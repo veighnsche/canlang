@@ -83,6 +83,77 @@ export function exampleFixtures({ self, other, imported }) {
 `;
 
 describe("genuine emitted scope convention", () => {
+  it("applies fixture-field row cells before the rejection snapshot", async () => {
+    const url = await writeModule("fixture-cells.mjs", `
+export function exampleFixtures() {
+  const job={model:"demo.Job",dependencies:[],value:async()=>({status:"idle"})};
+  return {fixtures:{job},examples:[{
+    operation:"demo.queue",dependencies:[job],inputs:async(c,s)=>({job:s.job}),
+    selectors:["as","job.status"],observations:[async(c,s)=>s.job.status],
+    rows:[
+      {dependencies:[],values:async()=>["members","idle"],expected:async()=>["queued"]},
+      {dependencies:[],values:async()=>["members","queued"],error:"rule_failed"}
+    ]
+  }]};
+}`);
+    const seen: string[] = [];
+    const suite = await loadExampleSuite(url, bindings(), {
+      prepareFixtures: async () => new Map([["job", { id: "job-1", version: 1n, status: "idle" }]]),
+      prepareRowCells: async ({ fixtures, baselineInputs, inputs, selectors, cells }) => {
+        expect(selectors).toEqual(["as", "job.status"]);
+        expect((baselineInputs as { job: unknown }).job).toBe(fixtures.get("job"));
+        const updated = { ...(inputs as { job: object }).job, version: 2n, status: cells[1] };
+        seen.push(`seed:${String(updated.status)}`);
+        return { fixtures: new Map([["job", updated]]), inputs: { job: updated } };
+      },
+      invokeCall: async ({ inputs }) => {
+        const job = (inputs as { job: { status: string; version: bigint } }).job;
+        expect(job.version).toBe(2n);
+        seen.push(`call:${job.status}`);
+        return job.status === "queued" ? { ok: false, error: "rule_failed" } : { ok: true };
+      },
+      observeScope: async (_scope, stashed) => new Map([["job", {
+        ...(stashed.fixtures.get("job") as object), status: "queued",
+      }]]),
+    });
+    const result = await runTable({ operation: "demo.queue", userFixtures: suite.userFixtures,
+      createScope: async () => new MemoryScope(), rows: suite.rows });
+    expect(result.rows.map(row => row.outcome)).toEqual(["passed", "passed"]);
+    expect(seen).toEqual(["seed:idle", "call:idle", "seed:queued", "call:queued"]);
+  });
+
+  it("materializes a stored fixture before CRUD cells and keeps request overrides separate", async () => {
+    const url = await writeModule("prepared-update.mjs", `
+export function exampleFixtures() {
+  const editable={model:"todo.Task",dependencies:[],value:async()=>({name:"Paper",quantity:4n})};
+  return {fixtures:{editable},examples:[{
+    operation:"todo.Task.update",dependencies:[editable],
+    inputs:async(c,s)=>({record:s.editable}),
+    selectors:["changes.name","changes.quantity","request.record.version"],
+    observations:[async(c,s)=>s.editable.name,async(c,s)=>s.editable.quantity],
+    rows:[{dependencies:[],values:async()=>["A4 paper",8n,1n],expected:async()=>["A4 paper",8n]}]
+  }]};
+}`);
+    const calls: unknown[] = [];
+    const suite = await loadExampleSuite(url, bindings(), {
+      prepareFixtures: async (_scope, fields, required) => {
+        expect(required).toEqual([{ name: "editable", kind: "model", label: "todo.Task" }]);
+        expect(fields.get("editable")).toEqual({ name: "Paper", quantity: 4n });
+        return new Map([["editable", { id: "stored-1", version: 1n, name: "Paper", quantity: 4n }]]);
+      },
+      invokeCall: async (call) => {
+        calls.push({ inputs: call.inputs, request: call.request });
+        return { ok: true };
+      },
+      observeScope: async () => new Map([["editable", { name: "A4 paper", quantity: 8n }]]),
+    });
+    const result = await runTable({ operation: "todo.Task.update", userFixtures: suite.userFixtures,
+      createScope: async () => new MemoryScope(), rows: suite.rows });
+    expect(result.rows.map(row => row.outcome)).toEqual(["passed"]);
+    expect(calls).toEqual([{ inputs: { record: { id: "stored-1", version: 1n, name: "Paper", quantity: 4n },
+      changes: { name: "A4 paper", quantity: 8n } }, request: { record: { version: 1n } } }]);
+  });
+
   it("table closures read fixtures as scope properties through live state", async () => {
     const url = await writeModule("table.mjs", TABLE_MODULE);
     const seenInputs: unknown[] = [];
