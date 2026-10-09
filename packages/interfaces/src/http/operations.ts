@@ -48,6 +48,7 @@ import type {
 } from '../mcp/schemas.js';
 import { buildBusinessError, fromUnknown, toHttpResponse } from '../errors/envelope.js';
 import { logBusinessError, logInternalError } from '../errors/logging.js';
+import { isBusinessErrorCode } from '../errors/safe.js';
 import { checkClosedInputs, validateOperationId, validateOperationIdShape } from '../envelope/validate.js';
 import {
   CSRF_FIELD,
@@ -75,6 +76,10 @@ const JSON_CONTENT_TYPE = 'application/json';
 const FORM_CONTENT_TYPE = 'application/x-www-form-urlencoded';
 /** Installed consumer version for the checked route and generated control contract. */
 export const INPUT_CHOICES_VERSION = 1;
+/** HTML refusal metadata: JSON {version:1, code:BusinessErrorCode, retryable:boolean}.
+ * Contains no message, draft, field detail, operation identity or private value.
+ */
+export const FORM_REFUSAL_HEADER = 'can-form-refusal';
 
 function deny(deps: HttpDeps, error: BusinessError, operation: string): Response {
   logBusinessError(deps.logger, error, { route: 'operation', operation });
@@ -134,6 +139,9 @@ async function denyOrRerender(
       headers: {
         'content-type': 'text/html; charset=utf-8',
         vary: 'Accept, HX-Request',
+        [FORM_REFUSAL_HEADER]: JSON.stringify({ version: 1,
+          code: isBusinessErrorCode(error.code) ? error.code : 'rule_failed',
+          retryable: error.retryable === true }),
       },
     });
   } catch (err) {
