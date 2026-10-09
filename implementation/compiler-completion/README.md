@@ -1997,3 +1997,13 @@ Dev owns the SAME original Text Send end-to-end journey and T04 actual runtime/
 example/provider acceptance. Wider nine owner-dependent refs and explicit BDD3/
 Task22 and other-recipient holds remain; original completion stays **58/67**.
 No remote push, broader application acceptance or hold release follows.
+
+**T04 selected user prerequisite, 2026-10-10.** The same 41-card Office fixture
+now selects its declared `person` in an existing update table, preserving the
+other-caller, forbidden-outsider and rename rows. The owning target passes
+**6/6**; actual emitted example functions retain the exact person recipe,
+canonical reviewer role, selected caller and both changed-field expectations.
+This checks compiler output, not Identity execution. Dev owns the actual
+Identity/member example journey and current-profile capture; Packages owns the
+shared bundle prerequisite. Unchanged production/compiler qualification above
+is reused; no broad native rerun, reference-count credit or BDD3 hold release.
