@@ -24,6 +24,7 @@ import type { HttpSubHandlers } from '../src/http/routes.js';
 import { handlePageRequest } from '../src/http/pages.js';
 import { fragmentErrorResponse, isPartialRequest } from '../src/http/fragments.js';
 import { buildBusinessError } from '../src/errors/envelope.js';
+import type { PagePreferenceKey, PagePreferenceStore } from '../src/ports.js';
 
 function helloPage(overrides: Partial<PageDescriptor> = {}): PageDescriptor {
   return {
@@ -227,6 +228,78 @@ test('public GET full page renders the shell with brand and sign-in', async () =
   assert.ok(html.includes('Test App'));
   assert.ok(html.includes(`href="${SIGN_IN_PATH}"`));
   assert.ok(html.includes('href="/hello"'));
+});
+
+test('page search is a bounded request-local value for full and partial renders', async () => {
+  const observed: string[] = [];
+  const page = helloPage({ render: async context => {
+    observed.push(context.searchQuery ?? '');
+    return '<p>searched</p>';
+  } });
+  const { deps } = await createTestDeps({ descriptors: [page] });
+  const handler = createHttpHandler(deps, spySub());
+  assert.equal((await handler(testRequest('/hello?q=pen'))).status, 200);
+  assert.equal((await handler(testRequest('/hello?q=paper', { headers: { 'HX-Request': 'true' } }))).status, 200);
+  assert.deepEqual(observed, ['pen', 'paper']);
+  for (const path of ['/hello?q=one&q=two', `/hello?q=${'x'.repeat(201)}`, '/hello?q=bad%0Aquery']) {
+    const response = await handler(testRequest(path));
+    assert.equal(response.status, 400);
+    assert.equal((await jsonBody(response)).code, 'validation');
+  }
+  assert.deepEqual(observed, ['pen', 'paper']);
+});
+
+test('bound page preference saves only an admitted actor/team enum with CSRF and version', async () => {
+  const rows = new Map<string, { value: string; version: string }>();
+  const keyOf = (key: PagePreferenceKey) => JSON.stringify({
+    appId: key.appId, actorUserId: key.actorUserId, teamId: key.teamId,
+    owner: key.owner, field: key.field,
+  });
+  const preferences: PagePreferenceStore = {
+    async read(key) { return rows.get(keyOf(key)) ?? null; },
+    async save(input) {
+      const key = keyOf(input);
+      const before = rows.get(key);
+      if ((before?.version ?? '0') !== input.expectedVersion) return false;
+      rows.set(key, { value: input.value, version: String(BigInt(input.expectedVersion) + 1n) });
+      return true;
+    },
+  };
+  const page = helloPage({
+    owner: 'OfficeSupplies',
+    preferenceFields: [{ name: 'view', options: ['all', 'available', 'restock'], defaultValue: 'all' }],
+    admit: async source => ({ preferences: (source as PageSourceContext).preferences }),
+    render: async context => `<p>${context.preferences?.OfficeSupplies?.view}:${context.preferenceVersions?.OfficeSupplies?.view}</p>`,
+  });
+  const { deps, identity } = await createTestDeps({ descriptors: [page] });
+  const handler = createHttpHandler({ ...deps, preferences }, spySub());
+  const path = `/hello?team=${identity.teamId}&q=paper`;
+  const first = await handler(testRequest(path, { cookie: identity.cookie }));
+  assert.equal(first.status, 200);
+  assert.match(await first.text(), /<p>all:0<\/p>/);
+  const token = await deriveCsrfToken(identity.sessionToken);
+  const post = (csrf: string, value: string, version: string) => testRequest(path, {
+    method: 'POST', cookie: identity.cookie,
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ _csrf: csrf, _version: version, view: value }),
+  });
+  const badCsrf = await handler(post('bad', 'available', '0'));
+  assert.equal(badCsrf.status, 403);
+  const badValue = await handler(post(token, 'foreign', '0'));
+  assert.equal(badValue.status, 400);
+  const saved = await handler(post(token, 'available', '0'));
+  assert.equal(saved.status, 303);
+  assert.equal(saved.headers.get('location'), path);
+  assert.deepEqual(rows.get(keyOf({ appId: deps.app.appId, actorUserId: identity.userId,
+    teamId: identity.teamId, owner: 'OfficeSupplies', field: 'view' })),
+  { value: 'available', version: '1' });
+  const current = await handler(testRequest(path, { cookie: identity.cookie }));
+  assert.equal(current.status, 200);
+  assert.match(await current.text(), /<p>available:1<\/p>/);
+  const stale = await handler(post(token, 'restock', '0'));
+  assert.equal(stale.status, 409);
+  const missingStore = await createHttpHandler(deps, spySub())(testRequest(path, { cookie: identity.cookie }));
+  assert.notEqual(missingStore.status, 200);
 });
 
 test('authed GET embeds the derived CSRF token and account teams', async () => {

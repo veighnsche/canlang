@@ -42,6 +42,143 @@ fn production_selected_calls_execute_actual_facades() {
 }
 
 #[test]
+fn imported_scalar_aliases_preserve_installed_temporal_overloads() {
+    use canlang_compiler::analysis::types::{ResolvedType, Scalar, SelectedCallTarget};
+    use canlang_compiler::codegen::ir::{IrCallTarget, IrExpr, IrItemKind};
+
+    let scratch = tempfile::tempdir().unwrap();
+    let source = include_str!("fixtures/scalar-alias-overlaps.can");
+    let mut db = SourceDb::new();
+    let source_id = db.add("scalar-alias-overlaps.can".into(), source.into());
+    let catalog_path = root().join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&catalog_path),
+        env: None,
+        cwd: scratch.path(),
+        primary: Span::new(source_id, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let catalog = catalog.unwrap();
+    assert_eq!(catalog.overloads("overlaps").unwrap().len(), 2);
+    let (checked, diagnostics) = check_program(&db, &[source_id], Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let mut arms = Vec::new();
+    for (key, selected) in &checked.types.selected_calls {
+        let SelectedCallTarget::Builtin { id, overload } = &selected.target else {
+            continue;
+        };
+        if id != "overlaps" {
+            continue;
+        }
+        let scalar = match overload {
+            0 => Scalar::Date,
+            1 => Scalar::Datetime,
+            other => panic!("unexpected installed overlaps arm: {other}"),
+        };
+        arms.push(*overload);
+        assert_eq!(
+            checked.types.node_types[key],
+            ResolvedType::Scalar(Scalar::Bool)
+        );
+        assert_eq!(selected.slots, [Some(3), Some(1), Some(2), Some(0)]);
+        assert_eq!(selected.arguments.len(), 4);
+        for argument in &selected.arguments {
+            assert_eq!(
+                checked.types.node_types[argument],
+                ResolvedType::Scalar(scalar)
+            );
+            let alias = &checked.types.selected_calls[argument];
+            let SelectedCallTarget::DeriveFn(symbol) = alias.target else {
+                panic!("scalar originates in an imported owning derive")
+            };
+            let expected_owner = if *overload == 0 {
+                "Calendar.day"
+            } else {
+                "Calendar.instant"
+            };
+            assert_eq!(checked.symbols[symbol.0 as usize].canonical, expected_owner);
+        }
+    }
+    arms.sort_unstable();
+    assert_eq!(arms, [0, 1]);
+
+    let (program, diagnostics) = ir::build(&checked, &db, Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    for (canonical, scalar, owner) in [
+        ("ScalarAlias.date_overlap", Scalar::Date, "Calendar.day"),
+        (
+            "ScalarAlias.datetime_overlap",
+            Scalar::Datetime,
+            "Calendar.instant",
+        ),
+    ] {
+        let item = program
+            .items
+            .iter()
+            .find(|item| item.canonical == canonical)
+            .unwrap();
+        let IrItemKind::DeriveFn {
+            expr: Some(value), ..
+        } = &item.kind
+        else {
+            panic!("owning scalar workflow derive")
+        };
+        assert_eq!(value.ty, ResolvedType::Scalar(Scalar::Bool));
+        let IrExpr::BoundCall {
+            target,
+            args,
+            slots,
+        } = &value.expr
+        else {
+            panic!("named temporal operands preserve checked slots")
+        };
+        assert!(matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "overlaps"));
+        assert_eq!(slots, &[Some(3), Some(1), Some(2), Some(0)]);
+        assert_eq!(args.len(), 4);
+        for (argument, field) in args.iter().zip(["bEnd", "aEnd", "bStart", "aStart"]) {
+            assert_eq!(argument.ty, ResolvedType::Scalar(scalar));
+            let IrExpr::Call {
+                target: IrCallTarget::DeriveFn(actual),
+                args,
+            } = &argument.expr
+            else {
+                panic!("imported identity derive remains source-callable")
+            };
+            assert_eq!(actual, owner);
+            assert_eq!(args.len(), 1);
+            assert_eq!(args[0].ty, ResolvedType::Scalar(scalar));
+            assert!(
+                matches!(&args[0].expr, IrExpr::Member { field: actual, .. } if actual == field)
+            );
+        }
+    }
+    // Reuse the existing production CLI/native facade host in its isolated
+    // scalar mode; the earlier selected-call matrix is not executed.
+    std::os::unix::fs::symlink(
+        root().join("node_modules"),
+        scratch.path().join("node_modules"),
+    )
+    .unwrap();
+    let script = scratch.path().join("probe.mjs");
+    std::fs::write(&script, include_str!("fixtures/selected-call-consumer.mjs")).unwrap();
+    let output = Command::new("node")
+        .arg(script)
+        .arg(root())
+        .arg(env!("CARGO_BIN_EXE_can"))
+        .arg(scratch.path())
+        .arg("--scalar-alias-overlaps")
+        .output()
+        .expect("Node required for actual temporal scalar facade qualification");
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    eprintln!("{}", String::from_utf8_lossy(&output.stdout));
+}
+
+#[test]
 fn effectful_custom_same_arity_binding_executes_typed_native_getters() {
     use canlang_compiler::analysis::types::{ResolvedType, Scalar, SelectedCallTarget};
     use canlang_compiler::codegen::ir::{IrCallTarget, IrExpr, IrItemKind, IrStmt};
@@ -231,6 +368,181 @@ fn missing_checked_binding_has_no_catalog_reconstruction_fallback() {
         "{:?}",
         emitted.diagnostics
     );
+}
+
+#[test]
+fn rejected_currency_overload_preserves_winning_text_argument_facts() {
+    use canlang_compiler::analysis::types::{ResolvedType, Scalar, SelectedCallTarget};
+    use canlang_compiler::codegen::ir::{IrCallTarget, IrExpr, IrItemKind};
+
+    let scratch = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(
+        root().join("node_modules"),
+        scratch.path().join("node_modules"),
+    )
+    .unwrap();
+    let installed_catalog = root().join("packages/values/dist/catalog.json");
+    let mut custom: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(installed_catalog).unwrap()).unwrap();
+    let builtin = custom["entries"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|entry| entry["id"] == "choose")
+        .unwrap();
+    assert_eq!(builtin["signature"], "choose(condition:bool,yes:T,no:T)->T");
+    assert_eq!(builtin["availability"], "implemented");
+    // Both signatures are sound subsets of the same installed generic
+    // native choose. Only the signature changes; all owner facts survive.
+    builtin["signature"] = "choose(condition:bool,yes:currency,no:currency)->currency; choose(condition:bool,yes:T,no:T)->T".into();
+    let catalog_path = scratch.path().join("catalog.json");
+    std::fs::write(&catalog_path, serde_json::to_vec(&custom).unwrap()).unwrap();
+    let source = "app T\nGiven\n derive chosen():text = choose(true,\"USD\",\"not a currency\")\n derive accepted():currency = choose(true,\"USD\",\"GBP\")\nWhen\nThen\n";
+    let mut db = SourceDb::new();
+    let id = db.add("choice.can".into(), source.into());
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&catalog_path),
+        env: None,
+        cwd: scratch.path(),
+        primary: Span::new(id, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let catalog = catalog.unwrap();
+    assert_eq!(catalog.overloads("choose").unwrap().len(), 2);
+    let (checked, diagnostics) = check_program(&db, &[id], Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert_eq!(checked.types.selected_calls.len(), 2);
+    let (call_key, selected) = checked.types.selected_calls.iter().find(|(_, selected)| matches!(&selected.target, SelectedCallTarget::Builtin { id, overload: 1 } if id == "choose")).unwrap();
+    assert!(
+        matches!(&selected.target, SelectedCallTarget::Builtin { id, overload: 1 } if id == "choose")
+    );
+    assert_eq!(selected.slots, [Some(0), Some(1), Some(2)]);
+    assert_eq!(
+        checked.types.node_types[call_key],
+        ResolvedType::Scalar(Scalar::Text)
+    );
+    let argument_types = selected
+        .arguments
+        .iter()
+        .map(|key| checked.types.node_types[key].clone())
+        .collect::<Vec<_>>();
+    let (accepted_key, accepted) = checked.types.selected_calls.iter().find(|(_, selected)| matches!(&selected.target, SelectedCallTarget::Builtin { id, overload: 0 } if id == "choose")).unwrap();
+    assert_eq!(
+        checked.types.node_types[accepted_key],
+        ResolvedType::Scalar(Scalar::Currency)
+    );
+    let accepted_argument_types = accepted
+        .arguments
+        .iter()
+        .map(|key| checked.types.node_types[key].clone())
+        .collect::<Vec<_>>();
+    let (ir, diagnostics) = ir::build(&checked, &db, Some(&catalog));
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let item = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "T.chosen")
+        .unwrap();
+    let IrItemKind::DeriveFn {
+        expr: Some(value), ..
+    } = &item.kind
+    else {
+        panic!("owning source derive expression")
+    };
+    let IrExpr::Call { target, args } = &value.expr else {
+        panic!("checked winning builtin: {:?}", value.expr)
+    };
+    assert!(matches!(target, IrCallTarget::Builtin { id, awaited: false } if id == "choose"));
+    let ir_argument_types = args.iter().map(|arg| arg.ty.clone()).collect::<Vec<_>>();
+    let accepted_item = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == "T.accepted")
+        .unwrap();
+    let IrItemKind::DeriveFn {
+        expr: Some(accepted_value),
+        ..
+    } = &accepted_item.kind
+    else {
+        panic!("owning narrowed derive expression")
+    };
+    assert_eq!(accepted_value.ty, ResolvedType::Scalar(Scalar::Currency));
+    let IrExpr::Call {
+        target: accepted_target,
+        args: accepted_args,
+    } = &accepted_value.expr
+    else {
+        panic!("checked winning narrowed builtin")
+    };
+    assert!(
+        matches!(accepted_target, IrCallTarget::Builtin { id, awaited: false } if id == "choose")
+    );
+    let accepted_ir_argument_types = accepted_args
+        .iter()
+        .map(|arg| arg.ty.clone())
+        .collect::<Vec<_>>();
+    let emitted = canlang_compiler::codegen::js::emit_program(&ir);
+    assert!(emitted.diagnostics.is_empty(), "{:?}", emitted.diagnostics);
+    assert!(emitted.stdlib_imports.contains("choose"));
+    assert!(
+        std::iter::once(&emitted.entry)
+            .chain(&emitted.packages)
+            .any(|module| module.js.contains("@canlang/stdlib")),
+        "actual public stdlib import required"
+    );
+    for module in std::iter::once(&emitted.entry).chain(&emitted.packages) {
+        let path = scratch.path().join(&module.path);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, &module.js).unwrap();
+    }
+    let script = scratch.path().join("probe.mjs");
+    std::fs::write(
+        &script,
+        r#"import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+const registry = (await import(pathToFileURL(process.argv[2]))).canApp();
+const value = await registry['T.chosen']({});
+assert.equal(value, 'USD');
+const accepted = await registry['T.accepted']({});
+assert.equal(accepted, 'USD');
+console.log(JSON.stringify({consumer:'generated canApp → installed stdlib choose', value, accepted}));
+"#,
+    )
+    .unwrap();
+    let output = Command::new("node")
+        .arg(script)
+        .arg(scratch.path().join(&emitted.entry.path))
+        .output()
+        .expect("Node required for actual installed choose execution");
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    eprintln!("{}", String::from_utf8_lossy(&output.stdout));
+    eprintln!(
+        "selected written argument types: {argument_types:?}; typed IR argument types: {ir_argument_types:?}"
+    );
+    eprintln!(
+        "accepted narrowed argument types: {accepted_argument_types:?}; typed IR argument types: {accepted_ir_argument_types:?}"
+    );
+    // Native execution precedes these fact checks: a rejected trial must
+    // leave no contextual Currency fact in the successful generic program.
+    let expected = [
+        ResolvedType::Scalar(Scalar::Bool),
+        ResolvedType::Scalar(Scalar::Text),
+        ResolvedType::Scalar(Scalar::Text),
+    ];
+    assert_eq!(argument_types, expected);
+    assert_eq!(ir_argument_types, expected);
+    let narrowed_expected = [
+        ResolvedType::Scalar(Scalar::Bool),
+        ResolvedType::Scalar(Scalar::Currency),
+        ResolvedType::Scalar(Scalar::Currency),
+    ];
+    assert_eq!(accepted_argument_types, narrowed_expected);
+    assert_eq!(accepted_ir_argument_types, narrowed_expected);
 }
 
 #[test]

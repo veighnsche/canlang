@@ -20,8 +20,11 @@ import type {
   Membership,
   OperationName,
   OutboxIntent,
+  ProjectedRecord,
   Receipt,
+  ReceiptOutcome,
   RecordId,
+  RecordParent,
   RecordVersion,
   Revision,
   ScheduleOp,
@@ -41,7 +44,7 @@ import type { FanoutChildId } from '@canlang/contracts';
 import type { ClosedInputs } from '@canlang/contracts';
 import type { GeneratedOperationDef, OperationRegistry } from './registry.js';
 import { isGeneratedOperationDef } from './registry.js';
-import type { MembershipReader } from '../policy/roles.js';
+import type { ByPredicate, MembershipReader } from '../policy/roles.js';
 import { evaluateBy } from '../policy/roles.js';
 import type { PolicyTable } from '../policy/grants.js';
 import {
@@ -56,6 +59,13 @@ import {
   type GuardRevalidation,
 } from './admission.js';
 import { queryRecords, type ViewerRecordsInput } from '../query/index.js';
+import {
+  projectSavedRecordForViewer, projectCurrentRecordForViewer, queryRecordsPage,
+  viewerPageOrder, viewerPagePredicateTuple, viewerPageSearchTuple,
+  VIEWER_PAGE_DEFAULT_LIMIT, VIEWER_PAGE_MAX_CANDIDATES,
+  type ViewerPageRecordsResult, type ViewerPageSelection, type ViewerPageTuple,
+} from '../query/engine.js';
+import type { InterimContainment } from '../mutation/models.js';
 import { buildContext, type ClockPort } from './context.js';
 import { StateError, storageToStateError } from '../errors.js';
 import { stageEffectsStaging } from '../effects/staging.js';
@@ -64,6 +74,167 @@ import { FenceConflictError, StorageConstraintError } from '../storage/port.js';
 
 /** Fenced-commit attempts per invocation, per DESIGN §7. */
 export const MAX_ADMISSION_ATTEMPTS = 3;
+
+/** Execution-owned association retained in the existing receipt outcome JSON. */
+export interface GeneratedCrudReceiptAssociation {
+  readonly kind: 'generated-crud/v1';
+  readonly model: ModelName;
+  readonly record: { readonly id: RecordId; readonly version: RecordVersion } | null;
+  readonly secretFields?: readonly string[];
+}
+
+export type CommittedReceiptOutcome = Extract<ReceiptOutcome, { status: 'committed' }> & {
+  readonly generatedCrud?: GeneratedCrudReceiptAssociation;
+};
+
+/** Legacy outcomes have no association; recognized malformed metadata refuses. */
+export function readGeneratedCrudAssociation(outcome: ReceiptOutcome): GeneratedCrudReceiptAssociation | null {
+  if (!Object.hasOwn(outcome, 'generatedCrud')) return null;
+  const value = savedDataMember(outcome, 'generatedCrud');
+  const object = (candidate: unknown): candidate is Record<string, unknown> =>
+    typeof candidate === 'object' && candidate !== null && !Array.isArray(candidate);
+  const invalid = (): never => { throw new Error('Invalid generated CRUD receipt association.'); };
+  const model = savedDataMember(value, 'model'), record = savedDataMember(value, 'record');
+  if (outcome.status !== 'committed' || !object(value) ||
+      savedDataMember(value, 'kind') !== 'generated-crud/v1' ||
+      typeof model !== 'string' || model === '' || record === undefined) return invalid();
+  const id = savedDataMember(record, 'id'), version = savedDataMember(record, 'version');
+  if (record !== null && (!object(record) ||
+      Object.keys(record).length !== 2 || typeof id !== 'string' || id === '' ||
+      typeof version !== 'number' || !Number.isSafeInteger(version) || version < 1)) return invalid();
+  if (Object.keys(value).some(key => !['kind', 'model', 'record', 'secretFields'].includes(key))) return invalid();
+  let fields: string[] | undefined;
+  if (Object.hasOwn(value, 'secretFields')) {
+    const source = savedDataMember(value, 'secretFields');
+    if (!Array.isArray(source)) return invalid();
+    fields = [];
+    for (let index = 0; index < source.length; index += 1) {
+      const slot = Object.getOwnPropertyDescriptor(source, String(index));
+      if (slot === undefined || !('value' in slot) || typeof slot.value !== 'string' ||
+          slot.value.split('.').some((part: string) => part === '')) return invalid();
+      fields.push(slot.value);
+    }
+  }
+  return {
+    kind: 'generated-crud/v1', model: model as ModelName,
+    record: record === null ? null : { id: id as RecordId, version: version as RecordVersion },
+    ...(fields === undefined ? {} : { secretFields: fields }),
+  };
+}
+
+/** Public disclosure of an execution-associated CRUD outcome; never admission. */
+export interface ProjectGeneratedCrudReceiptInput {
+  readonly receipt: Receipt;
+  readonly registry: OperationRegistry;
+  readonly policy: PolicyTable;
+  readonly app: string;
+  readonly identity: ResolvedIdentity;
+  /** The host's already selected owning store, also used by the mutation. */
+  readonly store: StoragePort;
+  readonly memberships: MembershipReader;
+}
+
+/** Read a known envelope member without invoking a caller-supplied accessor. */
+function savedDataMember(value: unknown, key: string): unknown {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  const member = Object.getOwnPropertyDescriptor(value, key);
+  return member !== undefined && 'value' in member ? member.value : undefined;
+}
+
+function savedCrudRow(value: unknown): value is StoredRow {
+  const id = savedDataMember(value, 'id'), version = savedDataMember(value, 'version');
+  const created = savedDataMember(value, 'created'), updated = savedDataMember(value, 'updated');
+  const archived = savedDataMember(value, 'archivedAt'), data = savedDataMember(value, 'data');
+  const parent = savedDataMember(value, 'parent');
+  if (typeof value !== 'object' || value === null ||
+      (Object.hasOwn(value, 'parent') && !('value' in Object.getOwnPropertyDescriptor(value, 'parent')!))) return false;
+  return typeof id === 'string' && id !== '' && typeof version === 'number' &&
+    Number.isSafeInteger(version) && version >= 1 &&
+    typeof created === 'number' && Number.isFinite(created) &&
+    typeof updated === 'number' && Number.isFinite(updated) &&
+    typeof savedDataMember(value, 'createdBy') === 'string' &&
+    typeof savedDataMember(value, 'updatedBy') === 'string' &&
+    (archived === null || (typeof archived === 'number' && Number.isFinite(archived))) &&
+    typeof data === 'object' && data !== null && !Array.isArray(data) &&
+    (parent === undefined || parent === null ||
+      (typeof savedDataMember(parent, 'model') === 'string' && typeof savedDataMember(parent, 'id') === 'string'));
+}
+
+/**
+ * Finite CRUD-only boundary. Current authority chooses masks; all disclosed
+ * values and metadata come from the receipt. Lifetime and physical owner-store
+ * correspondence require their separate defining joins.
+ */
+export async function projectGeneratedCrudReceipt(
+  input: ProjectGeneratedCrudReceiptInput,
+): Promise<{ readonly result: null; readonly records: ReadonlyArray<ProjectedRecord> }> {
+  const invalid = (message: string): never => { throw new StateError('validation', message); };
+  const { receipt } = input;
+  const actorUserId = input.identity.actor?.user_id ?? null;
+  const teamId = input.identity.team?.team_id ?? null;
+  if (receipt.identity.app !== input.app || receipt.identity.owner !== (teamId ?? 'app') ||
+      receipt.identity.principal !== (actorUserId ?? 'public')) {
+    throw new StateError('forbidden', 'Saved mutation scope does not match the caller.');
+  }
+  if (receipt.outcome.status !== 'committed') return invalid('Saved mutation is not a committed CRUD outcome.');
+  let association: GeneratedCrudReceiptAssociation | null;
+  try { association = readGeneratedCrudAssociation(receipt.outcome); }
+  catch { return invalid('Invalid generated CRUD receipt association.'); }
+  if (association === null) return invalid('Saved mutation has no supported execution association.');
+  if (association.secretFields === undefined) return invalid('Saved CRUD outcome has no original secret metadata.');
+  const def = input.registry.get(receipt.identity.operation);
+  if (def === undefined || !isGeneratedOperationDef(def) || def.name !== receipt.identity.operation ||
+      def.descriptor.name !== receipt.identity.operation) return invalid('Saved CRUD operation has no matching checked declaration.');
+  const kind = def.descriptor.kind;
+  const target = def.descriptor.inputs.find(field => field.name === 'record' && field.kind === 'ref' && field.versioned);
+  const model = kind === 'create' && def.descriptor.name.endsWith('.create')
+    ? def.descriptor.name.slice(0, -'.create'.length)
+    : kind === 'update' || kind === 'delete'
+      ? target?.kind === 'ref' ? target.model : undefined
+      : undefined;
+  if (model !== association.model) return invalid('Saved CRUD association disagrees with the checked operation model.');
+  const saved = receipt.outcome.result;
+  if (association.record === null) {
+    if (kind !== 'delete' || saved !== null || receipt.outcome.recordVersions.length !== 0) {
+      return invalid('Saved CRUD removal disagrees with its committed outcome.');
+    }
+  } else if (!savedCrudRow(saved) || saved.id !== association.record.id ||
+      saved.version !== association.record.version || !receipt.outcome.recordVersions.some(record =>
+        record.model === association.model && record.id === association.record!.id &&
+        record.version === association.record!.version)) {
+    return invalid('Saved CRUD row disagrees with its committed record identity.');
+  }
+  const revision = await input.store.readRevision();
+  const readMembership = () => actorUserId !== null && teamId !== null
+    ? input.memberships.findMembership(teamId, actorUserId) : Promise.resolve(null);
+  const membership = await readMembership();
+  const membershipSnapshot = JSON.stringify(membership);
+  const project = async (live: Membership | null): Promise<ReadonlyArray<ProjectedRecord>> => {
+    const context = { actorUserId, teamId, membership: live, memberships: input.memberships };
+    if (!await evaluateBy(def.by, context) || association.record === null) return [];
+    const current = await input.store.load(association.model, association.record.id);
+    // Versions may advance; a different parent or an older generation cannot
+    // establish disclosure of this receipt's original row.
+    if (current === null || current.id !== association.record.id || current.archivedAt !== null ||
+        current.version < association.record.version || !savedCrudRow(saved) ||
+        (current.parent?.model ?? null) !== (saved.parent?.model ?? null) ||
+        (current.parent?.id ?? null) !== (saved.parent?.id ?? null)) return [];
+    const projected = await projectSavedRecordForViewer({
+      policy: input.policy.get(association.model), context, current, saved,
+      originalSecretFields: association.secretFields!,
+    });
+    return projected === null ? [] : [projected];
+  };
+  const withheld = { result: null, records: [] } as const;
+  const records = await project(membership);
+  if (await input.store.readRevision() !== revision) return withheld;
+  const live = await readMembership();
+  if (JSON.stringify(live) !== membershipSnapshot || JSON.stringify(await project(live)) !== JSON.stringify(records)) {
+    return withheld;
+  }
+  if (await input.store.readRevision() !== revision) return withheld;
+  return { result: null, records };
+}
 
 /** Provisional outcome of one execution pass, committed atomically or dropped. */
 export interface ExecutionEffects {
@@ -75,6 +246,7 @@ export interface ExecutionEffects {
   uniqueReleases: UniqueRelease[];
   resolvedDefaults: Record<string, unknown>;
   result: unknown;
+  generatedCrud?: GeneratedCrudReceiptAssociation;
   /**
    * T32b-wire: guard predicates the fenced commit re-evaluates live against
    * CURRENT state (after the revision assertion, before the commit). Offered
@@ -157,6 +329,8 @@ export async function invoke(input: {
   kind?: AdmissionKind;
   trustedSource?: string;
   execute: ExecuteHandler;
+  /** Synchronous observation after durability; failures never retry execution. */
+  observeCommittedReceipt?: (receipt: Receipt & { readonly outcome: CommittedReceiptOutcome }) => void;
   /**
    * B2 (Q3): serverOnly exclusions for denial currents, forwarded to
    * `admit` (see `ConflictServerOnly`). The holder (seam/assembly)
@@ -204,6 +378,7 @@ export async function invoke(input: {
       if (outcome.status === 'rejected') {
         throw new StateError(outcome.code, outcome.message);
       }
+      input.observeCommittedReceipt?.({ ...call.replay, outcome });
       return {
         status: 'replayed',
         operation_id: input.envelope.operation_id,
@@ -330,7 +505,7 @@ export async function invoke(input: {
         throw fenceError;
       }
     }
-    const receipt: Receipt = {
+    const receipt: Receipt & { readonly outcome: CommittedReceiptOutcome } = {
       identity: receiptIdentityFor(context),
       inputHash: call.inputHash,
       resolvedDefaults: effects.resolvedDefaults,
@@ -338,6 +513,7 @@ export async function invoke(input: {
         status: 'committed',
         result: effects.result,
         recordVersions: recordVersionsOf(effects.writes),
+        ...(effects.generatedCrud === undefined ? {} : { generatedCrud: effects.generatedCrud }),
       },
       committedRevision: (call.revision + 1) as Revision,
       createdAt: now,
@@ -357,6 +533,7 @@ export async function invoke(input: {
       if (error instanceof FenceConflictError) continue;
       throw storageToStateError(error);
     }
+    input.observeCommittedReceipt?.(receipt);
     return {
       status: 'committed',
       operation_id: input.envelope.operation_id,
@@ -528,14 +705,14 @@ export interface AdmittedReadScenarioCall {
   readonly membership: Membership | null;
 }
 
-export type ReadScenarioHandler = (call: AdmittedReadScenarioCall) => Promise<unknown>;
+export type ReadScenarioHandler<Result = unknown> = (call: AdmittedReadScenarioCall) => Promise<Result>;
 
-export interface InvokeReadScenarioInput extends Omit<InvokeReadInput, 'selection'> {
-  readonly execute: ReadScenarioHandler;
+export interface InvokeReadScenarioInput<Result = unknown> extends Omit<InvokeReadInput, 'selection'> {
+  readonly execute: ReadScenarioHandler<Result>;
 }
 
-export interface ReadScenarioResult {
-  readonly result: unknown;
+export interface ReadScenarioResult<Result = unknown> {
+  readonly result: Result;
   readonly revision: Revision;
 }
 
@@ -545,7 +722,7 @@ export interface ReadScenarioResult {
  * State owns closed-shape/ref admission, live authority and viewer projection.
  * Authority reports require a separate source/host contract and do not serve here.
  */
-export async function invokeReadScenario(input: InvokeReadScenarioInput): Promise<ReadScenarioResult> {
+export async function invokeReadScenario<Result = unknown>(input: InvokeReadScenarioInput<Result>): Promise<ReadScenarioResult<Result>> {
   const def = input.registry.get(input.envelope.operation);
   if (def === undefined) {
     throw new StateError('validation', `Unknown operation "${input.envelope.operation}".`);
@@ -621,6 +798,184 @@ export async function invokeReadScenario(input: InvokeReadScenarioInput): Promis
   }
   await assertRevision();
   return { result, revision };
+}
+
+/** Closed copied query identity, consumed only by the owning host cursor codec. */
+type CheckedViewerPageDefinitionPrefix = readonly [
+  profile: 'viewer-page/v1',
+  operation: readonly [ModelName, OperationName, ViewerPageTuple],
+  parent: readonly [ModelName, RecordId] | null,
+  where: ViewerPageTuple | null,
+  order: ReadonlyArray<readonly [string, 'asc' | 'desc']>,
+  limit: number,
+  candidates: typeof VIEWER_PAGE_MAX_CANDIDATES,
+  orderTypes: ReadonlyArray<readonly [string, string | null, boolean | null]>,
+  scopes: ReadonlyArray<readonly [ModelName, ViewerPageTuple | null, ViewerPageTuple, ViewerPageTuple | null]>,
+];
+
+export type CheckedViewerPageDefinition = readonly [
+  ...CheckedViewerPageDefinitionPrefix,
+  decisions: readonly [operation: true, childGrants: ReadonlyArray<boolean>,
+    parentGrants: ReadonlyArray<readonly [ModelName, true, ReadonlyArray<boolean>]>],
+];
+
+export interface ViewerPageResult extends ViewerPageRecordsResult {
+  /** Internal policy/type definition; never send this tuple to a viewer. */
+  readonly queryDefinition: CheckedViewerPageDefinition;
+}
+
+export interface InvokeReadPageInput extends Omit<InvokeReadInput, 'selection' | 'kind' | 'trustedSource'> {
+  /** Checked declaration linkage, supplied with the registry by its producer. */
+  readonly containment: ReadonlyMap<ModelName, InterimContainment>;
+  readonly selection?: ViewerPageSelection;
+  /** Trusted generated-source filter over already projected rows. */
+  readonly generatedPredicate?: (record: Readonly<ProjectedRecord>) => boolean | Promise<boolean>;
+}
+
+export type ViewerPageTransform<Result> = (page: Readonly<ViewerPageResult>) => Result | Promise<Result>;
+
+function pageByTuple(by: ByPredicate): ViewerPageTuple {
+  if (typeof by === 'string') return [by];
+  if ('role' in by) return ['role', by.role];
+  if ('roleSubject' in by) return ['roleSubject', by.roleSubject.role, by.roleSubject.person];
+  if ('not' in by) return ['not', pageByTuple(by.not)];
+  if ('and' in by) return ['and', by.and.map(pageByTuple)];
+  return ['or', by.or.map(pageByTuple)];
+}
+
+/**
+ * Viewer-only page read. Host digest/signing finishes inside the admitted read;
+ * current authority and revision checks follow before any result is returned.
+ * The host binds checked query definitions, including current relevant grant
+ * decisions, across requests; a changed decision requires a restart.
+ */
+export function invokeReadPage(input: InvokeReadPageInput): Promise<ViewerPageResult>;
+export function invokeReadPage<Result>(input: InvokeReadPageInput, transform: ViewerPageTransform<Result>): Promise<Result>;
+export async function invokeReadPage(input: InvokeReadPageInput,
+  transform?: ViewerPageTransform<unknown>): Promise<unknown> {
+  // Do not spread the per-call selection before admission/closed input checks.
+  const admitted = await invokeReadScenario({
+    registry: input.registry, policy: input.policy, store: input.store,
+    memberships: input.memberships, envelope: input.envelope, identity: input.identity,
+    execute: async call => {
+      const model = generatedReadModel(input.envelope.operation);
+      if (call.def.descriptor.inputs.length !== 0) {
+        throw new StateError('validation', 'Paged model reads require the supported empty generated input shape.');
+      }
+      const descriptor = input.models?.find(candidate => candidate.name === model);
+      if (descriptor === undefined) {
+        throw new StateError('validation', 'Paged reads require the checked owning model declaration.');
+      }
+      let selection: ViewerPageSelection;
+      try { selection = structuredClone(input.selection === undefined ? {} : input.selection); }
+      catch { throw new StateError('validation', 'Page selection must be a data-only AST.'); }
+      if (typeof selection !== 'object' || selection === null || Array.isArray(selection)) {
+        throw new StateError('validation', 'Invalid page selection.');
+      }
+      if (Object.keys(selection).some(key => !['where', 'order', 'search', 'includeCount', 'limit', 'parent', 'continuation'].includes(key))) {
+        throw new StateError('validation', 'Unknown page selection field.');
+      }
+      if (input.generatedPredicate !== undefined &&
+          (typeof input.generatedPredicate !== 'function' || selection.continuation !== undefined)) {
+        throw new StateError('validation', 'Generated page filters do not support cursor continuation.');
+      }
+      const order = viewerPageOrder(selection.order);
+      const whereBase = selection.where === undefined ? null : viewerPagePredicateTuple(selection.where);
+      const search = viewerPageSearchTuple(selection.search, descriptor);
+      const where: ViewerPageTuple | null = search === null ? whereBase : ['and-search', whereBase, search];
+      const context = { actorUserId: call.actorUserId, teamId: call.teamId };
+      const byContext = { ...context, membership: call.membership, memberships: input.memberships };
+      const readDef = (name: ModelName): GeneratedOperationDef => {
+        const def = input.registry.get(`${name}.read`);
+        if (def === undefined || !isGeneratedOperationDef(def) || def.descriptor.kind !== 'read' ||
+            def.descriptor.inputs.length !== 0 || !input.models?.some(candidate => candidate.name === name)) {
+          throw new StateError('validation', 'Parent scope requires a checked generated model read.');
+        }
+        return def;
+      };
+      const parents: Array<{ model: ModelName; row: StoredRow; def: GeneratedOperationDef;
+        projection: string; allowed: ReadonlyArray<boolean> }> = [];
+      const parent = selection.parent;
+      if (parent !== undefined) {
+        if (typeof parent !== 'object' || parent === null || Array.isArray(parent) ||
+            typeof parent.model !== 'string' || parent.model === '' || typeof parent.id !== 'string' || parent.id === '' ||
+            Object.keys(parent).length !== 2 || !Object.hasOwn(parent, 'model') || !Object.hasOwn(parent, 'id') ||
+            input.containment.get(model)?.parent !== parent.model) {
+          throw new StateError('validation', 'Page parent must match the checked containing model.');
+        }
+        let selected: RecordParent | null = parent;
+        const visited = new Set<ModelName>();
+        while (selected !== null) {
+          if (visited.has(selected.model)) throw new StateError('validation', 'Invalid cyclic page parent scope.');
+          visited.add(selected.model);
+          const def = readDef(selected.model);
+          if (!(await evaluateBy(def.by, byContext))) throw new StateError('not_found', 'Parent record not found.');
+          const row = await input.store.load(selected.model, selected.id);
+          if (row === null) throw new StateError('not_found', 'Parent record not found.');
+          const visible = await projectCurrentRecordForViewer({ policy: input.policy.get(selected.model), context: byContext, row });
+          if (visible.record === null || row.archivedAt !== null) throw new StateError('not_found', 'Parent record not found.');
+          const expected = input.containment.get(selected.model)?.parent;
+          const ancestor = row.parent ?? null;
+          if ((expected === undefined && ancestor !== null) ||
+              (expected !== undefined && (ancestor === null || ancestor.model !== expected))) {
+            throw new StateError('not_found', 'Parent record not found.');
+          }
+          parents.push({ model: selected.model, row, def, projection: JSON.stringify(visible.record), allowed: visible.allowed });
+          selected = ancestor;
+        }
+      }
+      const scopes: CheckedViewerPageDefinition[8] = [model, ...parents.map(item => item.model)].map(name => {
+        const containment = input.containment.get(name);
+        const relation: ViewerPageTuple | null = containment?.parent !== undefined ? ['parent', containment.parent] :
+          containment?.scope !== undefined ? ['scope', containment.scope] : null;
+        const policy = input.policy.get(name);
+        const policyTuple: ViewerPageTuple | null = policy === undefined ? null : [
+          [...policy.secretFields], policy.grants.map(grant => [pageByTuple(grant.by), [...grant.fields],
+            grant.when === undefined ? null : viewerPagePredicateTuple(grant.when)]),
+        ];
+        return [name, relation, pageByTuple(name === model ? call.def.by : readDef(name).by), policyTuple];
+      });
+      const definitionPrefix: CheckedViewerPageDefinitionPrefix = [
+        'viewer-page/v1', [model, call.def.descriptor.name, pageByTuple(call.def.by)],
+        parent === undefined ? null : [parent.model, parent.id], where,
+        [...order.map(term => [term.field, term.direction] as const), ['id', 'asc']],
+        selection.limit ?? VIEWER_PAGE_DEFAULT_LIMIT, VIEWER_PAGE_MAX_CANDIDATES,
+        order.map(term => {
+          const field = Object.hasOwn(descriptor.fields, term.field) ? descriptor.fields[term.field] : undefined;
+          return [term.field, field?.valueType ?? null, field?.array?.required ?? null];
+        }), scopes,
+      ];
+      return queryRecordsPage({
+        policy: input.policy, model, modelDescriptor: descriptor, authority: 'viewer', context,
+        memberships: input.memberships, store: input.store, fence: openFenceScope(call.revision, call.teamId ?? 'app'), selection,
+        ...(input.generatedPredicate === undefined ? {} : { generatedPredicate: input.generatedPredicate }),
+      }, async (page, childGrants) => {
+        const queryDefinition: CheckedViewerPageDefinition = [
+          ...definitionPrefix, [true, [...childGrants], parents.map(item => [item.model, true, [...item.allowed]] as const)],
+        ];
+        const result: ViewerPageResult = { ...page, queryDefinition: structuredClone(queryDefinition) };
+        const transformed = transform === undefined ? result : await transform(result);
+        // Parent checks also follow host async signing; no authority lease escapes.
+        const membership = call.actorUserId !== null && call.teamId !== null
+          ? await input.memberships.findMembership(call.teamId, call.actorUserId) : null;
+        const liveContext = { ...byContext, membership };
+        for (const admittedParent of parents) {
+          if (!(await evaluateBy(admittedParent.def.by, liveContext))) {
+            throw new StateError('forbidden', 'Parent read authority changed during the page read.');
+          }
+          const visible = await projectCurrentRecordForViewer({
+            policy: input.policy.get(admittedParent.model), context: liveContext, row: admittedParent.row,
+          });
+          if (JSON.stringify(visible.allowed) !== JSON.stringify(admittedParent.allowed) ||
+              JSON.stringify(visible.record) !== admittedParent.projection) {
+            throw new StateError('forbidden', 'Parent read authority changed during the page read.');
+          }
+        }
+        return transformed;
+      });
+    },
+  });
+  return admitted.result;
 }
 
 /* -- T34-F5 fanout child admission (ADDITIVE; `invoke`/`invokeRead` untouched). -- */

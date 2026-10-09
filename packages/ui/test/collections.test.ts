@@ -80,6 +80,28 @@ async function rejectsWith(fn: () => Promise<unknown>, ...needles: string[]): Pr
 }
 
 describe("list", () => {
+  it("renders source search and the authorized visible count outside rows", async () => {
+    const seen: SeenCall[] = [];
+    const context = makeContext({
+      path: "/supplies", pollUrl: "/supplies?team=team-1", searchQuery: 'pen"',
+      query: stubRunner(seen, { rows: [], columns: [], totalCount: 0 }),
+    });
+    const html = await list({ context, model: "Office.Supply", order: ["name"], search: ["name"],
+      count: { label: "Supplies in this view" }, renderRow: () => ["unused"] });
+    assert.deepEqual(seen[0]?.args, {
+      order: ["name"], search: { fields: ["name"], query: 'pen"' }, includeCount: true,
+    });
+    assert.match(html, /<form method="get" action="\/supplies" role="search">/);
+    assert.match(html, /name="q" value="pen&quot;"/);
+    assert.match(html, /name="team" value="team-1"/);
+    assert.match(html, /data-can-list-count>Supplies in this view: 0<\/p>/);
+    await rejectsWith(() => list({
+      context: makeContext({ query: stubRunner([], { rows: [], columns: [] }) }),
+      model: "Office.Supply", count: { label: "Supplies in this view" }, renderRow: () => [],
+    }),
+    "authorized pre-pagination count is unavailable");
+  });
+
   it("renders one item per row inside ul.list", async () => {
     const seen: SeenCall[] = [];
     const context = makeContext({
@@ -193,6 +215,8 @@ describe("list", () => {
       where,
       limit: 10,
       cursor: "c-1",
+      page: true,
+      occurrence: "page:/todos/list:1",
       empty: "No todos",
       renderRow: () => [],
     });
@@ -201,6 +225,8 @@ describe("list", () => {
       where,
       limit: 10,
       cursor: "c-1",
+      page: true,
+      occurrence: "page:/todos/list:1",
     });
     await list({ context, model: "TeamTasks.Todo", empty: "No todos", renderRow: () => [] });
     assert.deepEqual(seen[1]?.args, {});
@@ -701,12 +727,14 @@ describe("table", () => {
       where,
       limit: 5,
       cursor: "c-2",
+      page: true,
+      occurrence: "page:/todos/table:1",
       columns: ["title"],
       empty: "No todos",
     });
     assert.strictEqual(seen[0]?.invocation, invocation);
     assert.equal(seen[0]?.model, "TeamTasks.Todo");
-    assert.deepEqual(seen[0]?.args, { parent: { id: "p-2" }, where, limit: 5, cursor: "c-2" });
+    assert.deepEqual(seen[0]?.args, { parent: { id: "p-2" }, where, limit: 5, cursor: "c-2", page: true, occurrence: "page:/todos/table:1" });
   });
 
   it("appends a more-note after the table when nextCursor is present", async () => {

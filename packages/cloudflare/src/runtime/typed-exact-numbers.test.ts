@@ -58,7 +58,9 @@ test('compiled decimal and money profiles retain exact native arithmetic and can
     const invoker = buildInvoker(artifact, asm, store, options);
     const create = envelope('Ledger.create', { cash: eur('250'), seedCoins: [eur('10'), eur('20')] });
     const born = committed(await invoker.invokeMutation(create, identity));
-    const row = born.result as { id: string; data: Record<string, unknown> };
+    assert.equal(born.result, null);
+    assert.equal(born.records?.length, 1);
+    const row = born.records![0] as { id: string; data: Record<string, unknown> };
     assert.deepEqual(row.data, {
       amount: '1.5', cash: eur('250'), amounts: [], coins: [], seedAmounts: ['0.1', '0.2'],
       seedCoins: [eur('10'), eur('20')], maybeAmount: null, maybeCash: null, maybeAmounts: null, maybeCoins: null,
@@ -80,7 +82,9 @@ test('compiled decimal and money profiles retain exact native arithmetic and can
     assert.deepEqual(committed(await invoker.invokeMutation(defaults, identity), 'replayed').result, eur('30'));
     const omittedCreate = envelope('Ledger.create', {});
     const defaultBorn = committed(await invoker.invokeMutation(omittedCreate, identity));
-    const defaultRow = defaultBorn.result as { id: string; data: Record<string, unknown> };
+    assert.equal(defaultBorn.result, null);
+    assert.equal(defaultBorn.records?.length, 1);
+    const defaultRow = defaultBorn.records![0] as { id: string; data: Record<string, unknown> };
     assert.deepEqual(defaultRow.data, row.data);
     const omittedCreateReceipt = await store.readReceipt(receiptIdentity(omittedCreate));
     assert.deepEqual(omittedCreateReceipt?.resolvedDefaults['cash'], eur('250'));
@@ -237,7 +241,9 @@ test('compiled decimal and money D1 lifecycle persists exact values, CRUD refusa
     const suppliedMoney = { cash: eur('250'), seedCoins: [eur('10'), eur('20')] };
     const create = envelope('Ledger.create', suppliedMoney);
     const born = committed(await invoker.invokeMutation(create, identity));
-    const row = born.result as { id: string; data: Record<string, unknown> };
+    assert.equal(born.result, null);
+    assert.equal(born.records?.length, 1);
+    const row = born.records![0] as { id: string; data: Record<string, unknown> };
     const initialData = {
       amount: '1.5', ...suppliedMoney, amounts: [], coins: [], seedAmounts: ['0.1', '0.2'],
       maybeAmount: null, maybeCash: null, maybeAmounts: null, maybeCoins: null,
@@ -257,7 +263,9 @@ test('compiled decimal and money D1 lifecycle persists exact values, CRUD refusa
     assert.deepEqual(defaultsReceipt?.resolvedDefaults, { delta: '0.1', amounts: ['0.1', '0.2'] });
     const omittedCreate = envelope('Ledger.create', {});
     const defaultBorn = committed(await invoker.invokeMutation(omittedCreate, identity));
-    const defaultRow = defaultBorn.result as { id: string; data: Record<string, unknown> };
+    assert.equal(defaultBorn.result, null);
+    assert.equal(defaultBorn.records?.length, 1);
+    const defaultRow = defaultBorn.records![0] as { id: string; data: Record<string, unknown> };
     assert.deepEqual(defaultRow.data, initialData);
     const defaultStored = await d1.store.load(MODEL, asId(defaultRow.id));
     const defaultHistory = await d1.store.historyFor(MODEL, asId(defaultRow.id));

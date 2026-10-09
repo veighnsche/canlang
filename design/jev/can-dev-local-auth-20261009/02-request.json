@@ -1,0 +1,15 @@
+{
+  "state": "A language dev server must preview a team-scoped app on a new isolated local database. Its production account/session store is available, but there are no users; registration depends on email delivery that the local profile does not provide. The acceptance journey requires same-team members, a cross-team member, an authenticated outsider, and public access, with real login, team selection, CSRF and policy checks. The server has a private owner-authenticated command channel and a separately protected browser preview. Favor a simple agent-driven loop, reproducible resets, and no credentials in shared URLs or status.",
+  "questions": {
+    "bootstrap_method": {
+      "type": "choice",
+      "instructions": "Which local account setup should be implemented first, and what residual risk should be checked?",
+      "criteria": {
+        "explicit_env": "Load test account names/passwords from developer configuration and seed their real Identity rows. This avoids returning secrets from control commands, but each checkout needs configuration and lifecycle management.",
+        "auth_shortcut": "Let the preview's access cookie stand in for the application's login. This is very fast to build, but omits the required production login and policy path.",
+        "mail_sink": "Provide a local email service so normal sign-up can create accounts and team membership. It covers registration, at the cost of another local service and repeated setup.",
+        "private_seed": "Initialize the real Identity D1 rows with temporary generated passwords and disclose those only over the owner-only control channel. The app still performs its normal credential/session/permission work for browser and API calls."
+      }
+    }
+  }
+}

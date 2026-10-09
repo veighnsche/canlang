@@ -102,12 +102,13 @@ import type {
   VerifiedIngressEnvelope,
 } from "@canlang/contracts";
 import type { AssembledModules } from "../runtime/modules.js";
-import type { InputChoiceLookup } from '@canlang/interfaces';
+import type { InputChoiceLookup, PagePreferenceStore } from '@canlang/interfaces';
 import type { IdentityStore } from '@canlang/identity';
 import type { WorkScope } from '@canlang/contracts';
 import type { createD1OwnerRouter } from '@canlang/state/storage/owner-router';
 import type { HandlerContext } from "../runtime/context.js";
 import type { CanonicalFileBinding } from '../runtime/file-staging.js';
+import type { PageReadsBinding } from '../runtime/page-cursor.js';
 import type {
   CanonicalMembershipReader,
   CanonicalMutationOpts,
@@ -347,6 +348,7 @@ export interface SourceFormBindingContext {
   readonly derived: DerivedOperationInputs;
   readonly operationId: string;
   readonly nowMs: number;
+  readonly occurrence?: string;
 }
 export interface SourceFormBindingProof {
   readonly token: string;
@@ -407,6 +409,7 @@ export type VersionedHttpOperationHandlerFactory = HttpOperationHandlerFactory &
 /** Narrow defining page-handler dependencies (Interfaces PageHttpDeps). */
 export interface PageHttpDeps {
   readonly formBindings?: SourceFormBindings;
+  readonly preferences?: PagePreferenceStore;
   readonly app: AppInfo;
   readonly pages: PageRegistry;
   readonly catalog?: SchemaCatalog;
@@ -418,8 +421,32 @@ export interface PageHttpDeps {
 }
 export type HttpPageHandlerFactory = (deps: PageHttpDeps) => (request: Request) => Promise<Response>;
 
+/** Trusted host auth inputs; no request-derived origin or implicit limiter. */
+export interface HttpAuthConfiguration {
+  readonly limiter: RateLimiter;
+  readonly origin: string;
+  readonly secureCookies: boolean;
+  readonly mail?: MailPort;
+}
+export interface AuthHttpDeps {
+  readonly identity: Omit<IdentityDeps, 'mail'> & { readonly mail?: MailPort };
+  readonly limiter: RateLimiter;
+  readonly logger: Logger;
+  readonly clock: InterfacesClock;
+  readonly secureCookies: boolean;
+}
+export type HttpAuthHandlerFactory = (deps: AuthHttpDeps) => (request: Request) => Promise<Response>;
+export interface HttpAuthJoin {
+  readonly createHandler: HttpAuthHandlerFactory;
+  /** Owning Identity session lifetime, released by the same auth bundle. */
+  readonly sessionExpiresMs: number;
+}
+
 export interface HttpJoin {
+  readonly auth?: HttpAuthConfiguration;
+  readonly authHandler?: HttpAuthJoin;
   readonly formBindings?: SourceFormBindings;
+  readonly preferences?: PagePreferenceStore;
   readonly createPageHandler?: HttpPageHandlerFactory;
   readonly createOperationHandler?: VersionedHttpOperationHandlerFactory;
   /** C1 deploy-baked E1 channel, shared verbatim with the MCP path. */
@@ -583,10 +610,20 @@ type AssertRequiresFulfilled = (
  * the join is `IdentityStore` (`packages/identity/src/ports.ts:95`), bound
  * as `HttpDeps.identity.store`.
  */
+/** Actual installed cohort scheduler; v1 is fulfilled only by this bound consumer. */
+export interface CohortTickBinding {
+  readonly version: 1;
+  tick(): Promise<unknown>;
+}
+
 export interface AssemblyDeps {
   store: StoragePort;
   identityStore: unknown;
   now?: () => number;
+  cohorts?: CohortTickBinding;
+  ownerStorage?: TeamOwnerStorageBoundary;
+  /** Explicit qualified host page binding; the production owner routing gate still applies. */
+  pageReads?: PageReadsBinding;
   /** Installed owning Work observer for generated selected delivery reads. */
   selectedReceiptObserver?: SelectedReceiptObserverBinding;
   /**
@@ -616,6 +653,7 @@ export interface AssembledWorker {
   fetch: (req: Request) => Promise<Response>;
   pageCount: number;
   opCount: number;
+  tick?: () => Promise<unknown>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1269,6 +1307,7 @@ interface InterimDispatchContext {
   readonly asm: AssembledModules;
   readonly store: StoragePort;
   readonly identityStore: unknown;
+  readonly ownerStorage?: TeamOwnerStorageBoundary;
   readonly selectedReceiptObserver?: SelectedReceiptObserverBinding;
   readonly mcp: McpJoin | undefined;
   readonly http: HttpJoin | undefined;
@@ -1340,6 +1379,7 @@ async function handleMcpRequest(req: Request, ctx: InterimDispatchContext): Prom
       source: "mcp",
       appInfo: ctx.app,
       now,
+      ...(ctx.ownerStorage === undefined ? {} : { ownerStorage: ctx.ownerStorage }),
       ...(ctx.selectedReceiptObserver === undefined ? {} : { selectedReceiptObserver: ctx.selectedReceiptObserver }),
       ...(ctx.files?.canonical === undefined ? {} : { files: ctx.files.canonical }),
     }),
@@ -1441,7 +1481,8 @@ async function handleHttpOperationRequest(
       const lookup = await loadSiblingFn<typeof import('../runtime/input-choices.js').lookupInputChoicesCanonical>(
         '../runtime/input-choices.js', 'runtime/input-choices.ts', 'lookupInputChoicesCanonical',
       );
-      return lookup({ ...draft, identity, artifact: ctx.artifact, asm: ctx.asm, store: ctx.store,
+      const store = ctx.ownerStorage === undefined ? ctx.store : await ctx.ownerStorage.forIdentity(identity);
+      return lookup({ ...draft, identity, artifact: ctx.artifact, asm: ctx.asm, store,
         memberships: ctx.identityStore as CanonicalMembershipReader, source: 'http', now,
         formatting: { appDefault: ctx.app.appDefaultLocale } });
     },
@@ -1452,6 +1493,7 @@ async function handleHttpOperationRequest(
       source: "http",
       appInfo: ctx.app,
       now,
+      ...(ctx.ownerStorage === undefined ? {} : { ownerStorage: ctx.ownerStorage }),
       ...(ctx.selectedReceiptObserver === undefined ? {} : { selectedReceiptObserver: ctx.selectedReceiptObserver }),
       ...(ctx.files?.canonical === undefined ? {} : { files: ctx.files.canonical }),
     }),
@@ -1527,7 +1569,32 @@ function buildInterimFetch(
       return handleHttpOperationRequest(req, ctx, pathname);
     }
     if (pathname.startsWith("/auth/")) {
-      return interimUnavailable("auth routes need the interfaces join (handleAuthRequest)");
+      const config = ctx.http?.auth;
+      const join = ctx.http?.authHandler;
+      if (join === undefined) {
+        return interimUnavailable('auth routes need the defining handleAuthRequest join');
+      }
+      if (config === undefined || typeof config.limiter?.check !== 'function') {
+        return jsonResponse({ code: 'auth-configuration',
+          message: 'Authentication requires CAN_AUTH_ORIGIN or explicit trusted host auth configuration.' }, 500);
+      }
+      let origin: URL;
+      try { origin = new URL(config.origin); }
+      catch { return jsonResponse({ code: 'auth-configuration', message: 'Invalid host authentication configuration.' }, 500); }
+      if (origin.origin !== config.origin || !['https:', 'http:'].includes(origin.protocol) ||
+          typeof config.secureCookies !== 'boolean' || (origin.protocol === 'https:' && !config.secureCookies) ||
+          !Number.isSafeInteger(join.sessionExpiresMs) || join.sessionExpiresMs <= 0) {
+        return jsonResponse({ code: 'auth-configuration', message: 'Invalid host authentication configuration.' }, 500);
+      }
+      return join.createHandler({
+        identity: { store: ctx.identityStore, clock: { nowMs: ctx.now },
+          ...(config.mail === undefined ? {} : { mail: config.mail }),
+          verifyBaseUrl: new URL('/auth/verify', origin).href,
+          recoveryBaseUrl: new URL('/auth/recover', origin).href,
+          inviteBaseUrl: new URL('/auth/invite', origin).href,
+          sessionMaxAgeSeconds: join.sessionExpiresMs / 1000 },
+        limiter: config.limiter, logger: httpLogger, clock: { nowMs: ctx.now }, secureCookies: config.secureCookies,
+      })(req);
     }
     if (pathname.startsWith("/files/")) {
       if (ctx.files?.fetch !== undefined) return ctx.files.fetch(req);
@@ -1677,7 +1744,7 @@ export function assembleFanoutServingSurface<TSegments extends FanoutServingSegm
  * artifact-universal); fixtures with empty `requires[]` pass
  * trivially.
  */
-async function assertServingContracts(artifact: CompileArtifact, http?: HttpJoin): Promise<void> {
+async function assertServingContracts(artifact: CompileArtifact, http?: HttpJoin, cohorts?: CohortTickBinding): Promise<void> {
   const loadVersions = await loadSiblingFn<LoadContractVersions>(
     "../runtime/invoke.js",
     "runtime/invoke.ts",
@@ -1696,6 +1763,7 @@ async function assertServingContracts(artifact: CompileArtifact, http?: HttpJoin
   const versions = await loadVersions();
   assertPins(versions);
   assertRequires(artifact.requires, { state: versions.state, values: versions.values,
+    ...(cohorts?.version === 1 && typeof cohorts.tick === 'function' ? { cohorts: 1 } : {}),
     ...(http?.createOperationHandler?.inputChoicesVersion === undefined ? {} :
       { inputChoices: http.createOperationHandler.inputChoicesVersion }) });
 }
@@ -1718,6 +1786,7 @@ function buildRefusalFetch(verdict: Extract<ActivationVerdict, { active: false }
       : { code: "activation-refused", reason: first.code, detail: first.detail };
   return {
     fetch: async (): Promise<Response> => jsonResponse(body, 500),
+    tick: async () => { throw Object.assign(new Error('activation-refused'), body); },
     pageCount: 0,
     opCount: 0,
   };
@@ -1758,7 +1827,11 @@ export async function assembleWorker(
     return buildRefusalFetch(verdict);
   }
   assertArtifactCompatible(artifact);
-  await assertServingContracts(artifact, deps.http);
+  const cohorts = deps.cohorts;
+  if (cohorts !== undefined && (cohorts.version !== 1 || typeof cohorts.tick !== 'function')) {
+    throw new Error('assembly: cohort tick needs its actual v1 binding.');
+  }
+  await assertServingContracts(artifact, deps.http, cohorts);
   const generatedArtifact = await loadSiblingFn<IsGeneratedArtifact>(
     "../runtime/invoke.js",
     "runtime/invoke.ts",
@@ -1777,6 +1850,9 @@ export async function assembleWorker(
   }
 
   const { descriptors } = await loadPageRegistry(artifact, asm);
+  if (deps.ownerStorage !== undefined && descriptors.length !== 0) {
+    throw new Error('assembly: selected team owner storage has no qualified page routing boundary.');
+  }
 
   const browserAssets = await deps.http?.loadBrowserAssets?.(descriptors);
   if (descriptors.length > 0 && deps.http?.createPageHandler === undefined) {
@@ -1785,6 +1861,9 @@ export async function assembleWorker(
 
   const now = deps.now ?? Date.now;
   const appInfo = await loadAppInfo(artifact, asm);
+  if (deps.ownerStorage !== undefined && deps.ownerStorage.app !== appInfo.appId) {
+    throw new Error('assembly: selected owner storage disagrees with its declared app.');
+  }
   let pageHandler: ((request: Request) => Promise<Response>) | undefined;
   if (deps.http?.createPageHandler !== undefined) {
     const createArtifactCatalog = await loadSiblingFn<CreateArtifactCatalog>(
@@ -1798,6 +1877,7 @@ export async function assembleWorker(
     >("../runtime/invoke.js", "runtime/invoke.ts", "createPageReadScopeCanonical");
     pageHandler = deps.http.createPageHandler({
       ...(deps.http.formBindings === undefined ? {} : { formBindings: deps.http.formBindings }),
+      ...(deps.http.preferences === undefined ? {} : { preferences: deps.http.preferences }),
       app: appInfo, pages: { descriptors: () => descriptors },
       catalog: createArtifactCatalog(artifact, deps.http.derivedInputs),
       logger: httpLogger,
@@ -1805,11 +1885,13 @@ export async function assembleWorker(
       createReadScope: identity => createReadScope({
         asm, artifact, identity, store: deps.store,
         memberships: deps.identityStore as CanonicalMembershipReader, now,
+        ...(deps.pageReads === undefined ? {} : { pageReads: deps.pageReads }),
         ...(deps.selectedReceiptObserver === undefined ? {} : { observer: deps.selectedReceiptObserver }),
       }),
       query: async (invocation, model, args) => {
         return queryRows({ asm, artifact, model, args, identity: invocation as ResolvedIdentity,
-          store: deps.store, memberships: deps.identityStore as CanonicalMembershipReader });
+          store: deps.store, memberships: deps.identityStore as CanonicalMembershipReader, now,
+          ...(deps.pageReads === undefined ? {} : { pageReads: deps.pageReads }) });
       },
     });
   }
@@ -1821,6 +1903,7 @@ export async function assembleWorker(
     asm,
     store: deps.store,
     identityStore: deps.identityStore,
+    ...(deps.ownerStorage === undefined ? {} : { ownerStorage: deps.ownerStorage }),
     ...(deps.selectedReceiptObserver === undefined ? {} : { selectedReceiptObserver: deps.selectedReceiptObserver }),
     mcp: deps.mcp,
     http: deps.http,
@@ -1841,5 +1924,6 @@ export async function assembleWorker(
     fetch: async (req: Request): Promise<Response> => app.fetch(req, {}),
     pageCount: descriptors.length,
     opCount,
+    ...(cohorts === undefined ? {} : { tick: () => cohorts.tick() }),
   };
 }

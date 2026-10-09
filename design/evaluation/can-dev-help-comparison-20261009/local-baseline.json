@@ -1,0 +1,328 @@
+{
+  "status": "local_offline_baseline_only",
+  "compiler_binary_sha256": "9c081b03de5516df01d152c7d3c5132fda63bd09d92933dcda6bd878082937f8",
+  "catalog_sha256": "cd984f375e0d6cbcc2bc6aca5ad5ea5b1b3d3ba9cd17b15ab94e4b15e74ced62",
+  "source_checks": [
+    {
+      "source": "expenses-luna.can",
+      "source_sha256": "20664ba5a25e48040e2b2567912a2808a9c3c83fb7ead350a916b96e59d96fea",
+      "exit_code": 10,
+      "complete": true,
+      "omitted": 0,
+      "diagnostic_count": 24,
+      "first_code": "E1211",
+      "first_message": "expected app, package or migration",
+      "check_elapsed_ms": 35.959
+    },
+    {
+      "source": "expenses-sol.can",
+      "source_sha256": "3353c51af4beb6d8ad9e53738c32313182308ecbd2d77ef4adec5e61264c42b0",
+      "exit_code": 10,
+      "complete": true,
+      "omitted": 0,
+      "diagnostic_count": 48,
+      "first_code": "E1211",
+      "first_message": "expected app, package or migration",
+      "check_elapsed_ms": 5.885
+    },
+    {
+      "source": "shifts-luna.can",
+      "source_sha256": "0a64db21fc851432c29a24863d61df6c844af99d6d16b7c66352eae5f4c86561",
+      "exit_code": 10,
+      "complete": true,
+      "omitted": 0,
+      "diagnostic_count": 28,
+      "first_code": "E1211",
+      "first_message": "expected app, package or migration",
+      "check_elapsed_ms": 4.698
+    },
+    {
+      "source": "shifts-sol.can",
+      "source_sha256": "82cef1d637436a25ea4758f565cd77e4cc24eb2cf9ddfa7b7367b1ca4c066200",
+      "exit_code": 10,
+      "complete": true,
+      "omitted": 0,
+      "diagnostic_count": 43,
+      "first_code": "E1103",
+      "first_message": "child block must add exactly one space",
+      "check_elapsed_ms": 10.418
+    },
+    {
+      "source": "supplies-luna.can",
+      "source_sha256": "358b7d8df08bd4318d0c05251cbb251d8fe8ab970764f8a325941ab68a642bbb",
+      "exit_code": 10,
+      "complete": true,
+      "omitted": 0,
+      "diagnostic_count": 18,
+      "first_code": "E1211",
+      "first_message": "expected app, package or migration",
+      "check_elapsed_ms": 5.528
+    },
+    {
+      "source": "supplies-sol.can",
+      "source_sha256": "1f55c3c3c6570c1a5a2e97e035e16f9b006bd7124765d5b52bd9fff959527eae",
+      "exit_code": 10,
+      "complete": true,
+      "omitted": 0,
+      "diagnostic_count": 62,
+      "first_code": "E1103",
+      "first_message": "child block must add exactly one space",
+      "check_elapsed_ms": 6.765
+    }
+  ],
+  "reference_compile_checks": [
+    {
+      "source": "TeamTasks.can",
+      "source_sha256": "004a2b8e5c78c47b66112aa9c056a0dc6bde11cc6cfd28273fe0e0bd02baafd5",
+      "exit_code": 10,
+      "diagnostic_count": 13,
+      "E6008_count": 13,
+      "elapsed_ms": 23.556
+    },
+    {
+      "source": "ExpenseFlow.can",
+      "source_sha256": "ff56f879d4a7ee9c4c3392d8c07ba3af9bdd417c7f0ea40ce3c07c40059484c6",
+      "exit_code": 10,
+      "diagnostic_count": 11,
+      "E6008_count": 11,
+      "elapsed_ms": 18.602
+    }
+  ],
+  "deterministic_menus": [
+    {
+      "case": "supplies_helper",
+      "selected_id": null,
+      "candidate_count": 3,
+      "gold_in_menu": true,
+      "output_utf8_bytes": 958,
+      "format_elapsed_ms": 0.052,
+      "output": {
+        "occurrence": "supplies_helper",
+        "guess": "rule team_member(team)",
+        "kind": "neutral_grammar_position_menu",
+        "selected_id": null,
+        "candidates": [
+          {
+            "id": "can.v1.derive.function",
+            "signature": "`derive path(parameters) : type = expr`",
+            "meaning": "Defines a named pure function with typed inputs and result.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-derive-function"
+          },
+          {
+            "id": "can.v1.policy",
+            "signature": "`policy path read=expr [where=expr] [fields=selectors]`",
+            "meaning": "Grants checked record read access to an actor set.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-policy"
+          },
+          {
+            "id": "can.v1.when.scenario.user",
+            "signature": "`[export] scenario NAME(parameters) by=expr [-> type] [label=caption] [expose=none]`",
+            "meaning": "Declare a user operation with checked authorization.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-when-scenario-user"
+          }
+        ],
+        "notes": "These are documented alternatives, not a verified working replacement for this malformed draft."
+      }
+    },
+    {
+      "case": "supplies_search",
+      "selected_id": null,
+      "candidate_count": 3,
+      "gold_in_menu": true,
+      "output_utf8_bytes": 1112,
+      "format_elapsed_ms": 0.02,
+      "output": {
+        "occurrence": "supplies_search",
+        "guess": "search_input search",
+        "kind": "neutral_grammar_position_menu",
+        "selected_id": null,
+        "candidates": [
+          {
+            "id": "can.v1.then.preferences-schema",
+            "signature": "`preferences schema [label=caption]`",
+            "meaning": "Declares the owning user preference extension.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-then-preferences-schema"
+          },
+          {
+            "id": "can.v1.ui.list",
+            "signature": "`list query_expr [columns=selectors] [order=ui_order] [search=selectors] [filter=selectors] [empty=expr] [defaults=values] [display=split] [suite(ui_body)]`",
+            "meaning": "Existing authorized collection and row binding.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-ui-list"
+          },
+          {
+            "id": "can.v1.ui.table",
+            "signature": "`table query_expr columns=selectors [order=ui_order] [search=selectors] [filter=selectors] [empty=expr] [defaults=values] [display=split] [suite(ui_body)]`",
+            "meaning": "Existing authorized collection, selectors and row context.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-ui-table"
+          }
+        ],
+        "notes": "These are documented alternatives, not a verified working replacement for this malformed draft."
+      }
+    },
+    {
+      "case": "shifts_read_rule",
+      "selected_id": null,
+      "candidate_count": 4,
+      "gold_in_menu": true,
+      "output_utf8_bytes": 1135,
+      "format_elapsed_ms": 0.015,
+      "output": {
+        "occurrence": "shifts_read_rule",
+        "guess": "rule Shift may be read only when currentMember exists",
+        "kind": "neutral_grammar_position_menu",
+        "selected_id": null,
+        "candidates": [
+          {
+            "id": "can.v1.derive.function",
+            "signature": "`derive path(parameters) : type = expr`",
+            "meaning": "Defines a named pure function with typed inputs and result.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-derive-function"
+          },
+          {
+            "id": "can.v1.invariant",
+            "signature": "`invariant path : expr`",
+            "meaning": "Requires every accepted stored record state to satisfy a predicate.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-invariant"
+          },
+          {
+            "id": "can.v1.lock",
+            "signature": "`lock path fields=selectors [when=expr]`",
+            "meaning": "Protects selected stored fields from writes under a predicate.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-lock"
+          },
+          {
+            "id": "can.v1.policy",
+            "signature": "`policy path read=expr [where=expr] [fields=selectors]`",
+            "meaning": "Grants checked record read access to an actor set.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-policy"
+          }
+        ],
+        "notes": "These are documented alternatives, not a verified working replacement for this malformed draft."
+      }
+    },
+    {
+      "case": "shifts_state_rule",
+      "selected_id": null,
+      "candidate_count": 4,
+      "gold_in_menu": true,
+      "output_utf8_bytes": 1127,
+      "format_elapsed_ms": 0.018,
+      "output": {
+        "occurrence": "shifts_state_rule",
+        "guess": "rule status == Open implies assignee == none",
+        "kind": "neutral_grammar_position_menu",
+        "selected_id": null,
+        "candidates": [
+          {
+            "id": "can.v1.derive.function",
+            "signature": "`derive path(parameters) : type = expr`",
+            "meaning": "Defines a named pure function with typed inputs and result.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-derive-function"
+          },
+          {
+            "id": "can.v1.invariant",
+            "signature": "`invariant path : expr`",
+            "meaning": "Requires every accepted stored record state to satisfy a predicate.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-invariant"
+          },
+          {
+            "id": "can.v1.lock",
+            "signature": "`lock path fields=selectors [when=expr]`",
+            "meaning": "Protects selected stored fields from writes under a predicate.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-lock"
+          },
+          {
+            "id": "can.v1.policy",
+            "signature": "`policy path read=expr [where=expr] [fields=selectors]`",
+            "meaning": "Grants checked record read access to an actor set.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-policy"
+          }
+        ],
+        "notes": "These are documented alternatives, not a verified working replacement for this malformed draft."
+      }
+    },
+    {
+      "case": "expenses_freeze_rule",
+      "selected_id": null,
+      "candidate_count": 4,
+      "gold_in_menu": true,
+      "output_utf8_bytes": 1147,
+      "format_elapsed_ms": 0.013,
+      "output": {
+        "occurrence": "expenses_freeze_rule",
+        "guess": "rule purpose and amount may change only while status is Draft",
+        "kind": "neutral_grammar_position_menu",
+        "selected_id": null,
+        "candidates": [
+          {
+            "id": "can.v1.derive.function",
+            "signature": "`derive path(parameters) : type = expr`",
+            "meaning": "Defines a named pure function with typed inputs and result.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-derive-function"
+          },
+          {
+            "id": "can.v1.invariant",
+            "signature": "`invariant path : expr`",
+            "meaning": "Requires every accepted stored record state to satisfy a predicate.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-invariant"
+          },
+          {
+            "id": "can.v1.lock",
+            "signature": "`lock path fields=selectors [when=expr]`",
+            "meaning": "Protects selected stored fields from writes under a predicate.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-lock"
+          },
+          {
+            "id": "can.v1.policy",
+            "signature": "`policy path read=expr [where=expr] [fields=selectors]`",
+            "meaning": "Grants checked record read access to an actor set.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-policy"
+          }
+        ],
+        "notes": "These are documented alternatives, not a verified working replacement for this malformed draft."
+      }
+    },
+    {
+      "case": "expenses_visible",
+      "selected_id": null,
+      "candidate_count": 4,
+      "gold_in_menu": true,
+      "output_utf8_bytes": 1260,
+      "format_elapsed_ms": 0.009,
+      "output": {
+        "occurrence": "expenses_visible",
+        "guess": "Given visibleExpenses",
+        "kind": "neutral_grammar_position_menu",
+        "selected_id": null,
+        "candidates": [
+          {
+            "id": "can.v1.derive.function",
+            "signature": "`derive path(parameters) : type = expr`",
+            "meaning": "Defines a named pure function with typed inputs and result.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-derive-function"
+          },
+          {
+            "id": "can.v1.policy",
+            "signature": "`policy path read=expr [where=expr] [fields=selectors]`",
+            "meaning": "Grants checked record read access to an actor set.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-policy"
+          },
+          {
+            "id": "can.v1.then.page",
+            "signature": "`page route title=expr [data=expr] [order=expr] [group=expr] [nav=none] [poll=expr] [refresh=path] [suite(ui_body)]`",
+            "meaning": "Declares an admitted page.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-then-page"
+          },
+          {
+            "id": "can.v1.when.scenario.read",
+            "signature": "`[export] scenario NAME(parameters) by=expr read=true -> type [scope=authority] [label=caption]`",
+            "meaning": "Declare a pure typed result, with explicit authority scope for a privileged report.",
+            "link": "docs/specification/CONSTRUCT-HELP.md#can-v1-when-scenario-read"
+          }
+        ],
+        "notes": "These are documented alternatives, not a verified working replacement for this malformed draft."
+      }
+    }
+  ],
+  "note": "Menus use manually frozen candidates from extracted source phrases. The current compiler does not emit this help; initial diagnostics are structural. Formatting times exclude compiler checks and process startup."
+}

@@ -1,9 +1,0 @@
-<anonymous_script>:9
-function require(condition: unknown, code = 'forbidden'): void {
-                          ^
-
-SyntaxError: Unexpected token ':'
-    at new Function (<anonymous>)
-    at file:///Users/vince/Projects/canlang/implementation/compiler-completion/runtime-export-join/independent-review/control.mjs:30:27
-
-Node.js v24.21.0

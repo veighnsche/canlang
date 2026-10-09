@@ -28,9 +28,9 @@ use crate::analysis::resolve::{CrudOp, ModuleKind, SymbolId};
 use crate::analysis::types::{ResolvedType, Scalar, canonical_datetime_literal, std_schema_type};
 use crate::codegen::ir::{
     IrBinOp, IrCallTarget, IrChoiceValue, IrDefault, IrEventSource, IrExpr, IrFieldLabel, IrGuard,
-    IrHook, IrInputChoiceBinding, IrItem, IrItemKind, IrMessage, IrOwner, IrPage, IrProgram,
-    IrServer, IrStmt, IrType, IrUi, IrUnOp, ReferencedBuiltin, ScalarFamily, TypedExpr,
-    expr_uses_async, is_structural, scalar_family,
+    IrHook, IrInputChoiceBinding, IrItem, IrItemKind, IrJudgmentGenerated, IrMessage, IrOwner,
+    IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp, ReferencedBuiltin, ScalarFamily,
+    TypedExpr, expr_uses_async, is_structural, scalar_family,
 };
 use crate::diagnostic::Diagnostic;
 use crate::source::Span;
@@ -45,7 +45,10 @@ fn collect_std_nominal_contracts(
     published: &mut BTreeSet<String>,
     schemas: &mut Vec<&'static crate::analysis::catalog::StdNominal>,
 ) {
-    let base = declared.trim_end_matches('?').trim_end_matches("[]");
+    let base = declared
+        .trim_end_matches('?')
+        .trim_end_matches("[]!")
+        .trim_end_matches("[]");
     let Some(schema) = nominal_schema(base) else {
         return;
     };
@@ -176,6 +179,10 @@ impl JsOperationKind {
 /// One closed typed input field (JSON shape of `McpSchemaField`).
 #[derive(Debug, Clone)]
 pub enum JsMcpField {
+    /// Canonical value contract, distinct from a stored-record reference.
+    Nominal {
+        name: String,
+    },
     /// Stored-record reference: canonical model + version requirement.
     Ref {
         model: String,
@@ -199,6 +206,7 @@ pub enum JsMcpField {
     /// plus the T13c result nominal; shared shape with
     /// [`JsModelFieldType::Delivery`] (one renderer, no drift).
     Delivery(JsDeliveryDescriptor),
+    JudgmentDelivery(JsJudgmentDeliveryDescriptor),
 }
 
 /// One T13c nominal result leaf, verbatim (JSON shape of
@@ -208,19 +216,57 @@ pub enum JsMcpField {
 /// `file[]`, `enum(a,b)`, nominal refs — catalog.rs mapping rules),
 /// never a re-interpretation: T04b ratifies any structured leaf
 /// vocabulary, and verbatim leaves derive it without loss.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct JsNominalLeaf {
     /// Leaf field name in producer order.
     pub name: String,
     /// Verbatim T13c declared kind spelling.
     #[serde(rename = "type")]
     pub declared: String,
+    #[serde(flatten)]
+    pub constraints: JsValueConstraints,
+}
+
+/// Finite constraints from a checked owning declaration or its reused field.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct JsValueConstraints {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format: Option<String>,
+    #[serde(rename = "distinctBy", skip_serializing_if = "Option::is_none")]
+    pub distinct_by: Option<String>,
+    #[serde(rename = "excludedIds", skip_serializing_if = "Vec::is_empty")]
+    pub excluded_ids: Vec<String>,
+}
+
+impl From<&crate::analysis::resolve::CheckedValueConstraints> for JsValueConstraints {
+    fn from(value: &crate::analysis::resolve::CheckedValueConstraints) -> Self {
+        Self {
+            min: value.min,
+            max: value.max,
+            format: value.format.clone(),
+            distinct_by: value.distinct_by.clone(),
+            excluded_ids: value.excluded_ids.clone(),
+        }
+    }
 }
 
 impl JsNominalLeaf {
     /// Compact JSON in the owning artifact contract's field order.
     pub fn to_json(&self) -> String {
         descriptor_json(self)
+    }
+
+    fn schema_json(&self) -> String {
+        let mut schema = serde_json::to_value(self).expect("checked schema serializes");
+        schema
+            .as_object_mut()
+            .expect("leaf is an object")
+            .remove("name");
+        schema.to_string()
     }
 }
 
@@ -233,6 +279,31 @@ pub struct JsNominalResult {
     pub name: String,
     /// Leaves in T13c producer order.
     pub fields: Vec<JsNominalLeaf>,
+}
+
+/// Checked value schemas derived by their owning declarations.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct JsValueTypes {
+    pub contracts: Vec<JsNominalResult>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub enums: Vec<JsNamedEnum>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub aliases: Vec<JsValueAlias>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct JsValueAlias {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub declared: String,
+    #[serde(flatten)]
+    pub constraints: JsValueConstraints,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct JsNamedEnum {
+    pub name: String,
+    pub cases: Vec<String>,
 }
 
 impl JsNominalResult {
@@ -260,6 +331,21 @@ pub struct JsDeliveryDescriptor {
     pub version: u32,
     /// Declared provider result with its T13c leaves.
     pub result: JsNominalResult,
+}
+
+/// Static Judgment delivery uses the exact declaration integer version.
+#[derive(Debug, Clone)]
+pub struct JsJudgmentDeliveryDescriptor {
+    pub capability: String,
+    pub operation: String,
+    pub version: String,
+    pub result: JsNominalResult,
+}
+
+impl JsJudgmentDeliveryDescriptor {
+    pub fn to_json(&self) -> String {
+        descriptor_json(self)
+    }
 }
 
 impl JsDeliveryDescriptor {
@@ -292,6 +378,7 @@ pub fn delivery_descriptor(capability: &str, op: &StdOperation) -> Option<JsDeli
                 .map(|(name, declared)| JsNominalLeaf {
                     name: (*name).to_string(),
                     declared: (*declared).to_string(),
+                    constraints: JsValueConstraints::default(),
                 })
                 .collect(),
         },
@@ -697,6 +784,10 @@ pub fn operations_json(operations: &[JsOperation]) -> String {
 /// format; unjoined shapes keep the `other` fallback.
 #[derive(Debug, Clone)]
 pub enum JsModelFieldType {
+    /// Canonical value contract, distinct from a stored-record reference.
+    Nominal {
+        name: String,
+    },
     /// Stored-record reference: canonical target model.
     Ref {
         model: String,
@@ -715,6 +806,7 @@ pub enum JsModelFieldType {
     /// T15b provider delivery: a T14c typed `std` receipt (shared
     /// [`JsDeliveryDescriptor`] shape with [`JsMcpField::Delivery`]).
     Delivery(JsDeliveryDescriptor),
+    JudgmentDelivery(JsJudgmentDeliveryDescriptor),
     /// T04b-preview additive tags (source-exact; T04a intake ignores).
     Date,
     Duration,
@@ -744,7 +836,7 @@ pub struct JsModelField {
     /// Element type tag (arrays add the `array` marker).
     pub field: JsModelFieldType,
     /// Checked source value identity when the wire kind alone is ambiguous.
-    pub value_type: Option<&'static str>,
+    pub value_type: Option<String>,
     /// Whether omission rejects at creation.
     pub required: bool,
     /// Whether the field accepts explicit null.
@@ -835,10 +927,26 @@ impl Serialize for JsDeliveryDescriptor {
     }
 }
 
+impl Serialize for JsJudgmentDeliveryDescriptor {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut state = serializer.serialize_struct("JudgmentDelivery", 6)?;
+        state.serialize_field("kind", "delivery")?;
+        state.serialize_field("judgment", &true)?;
+        state.serialize_field("capability", &self.capability)?;
+        state.serialize_field("operation", &self.operation)?;
+        state.serialize_field("version", &self.version)?;
+        state.serialize_field("result", &self.result)?;
+        state.end()
+    }
+}
+
 // Borrowed wire adapters keep descriptor tags and member order explicit.
 #[derive(Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 enum FieldTag<'a> {
+    Nominal {
+        name: &'a str,
+    },
     Ref {
         model: &'a str,
         #[serde(rename = "requireVersion", skip_serializing_if = "Option::is_none")]
@@ -870,6 +978,7 @@ enum FieldTag<'a> {
 impl Serialize for JsMcpField {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let tag = match self {
+            Self::Nominal { name } => FieldTag::Nominal { name },
             Self::Ref {
                 model,
                 require_version,
@@ -888,6 +997,7 @@ impl Serialize for JsMcpField {
             Self::File => FieldTag::File,
             Self::Enum { values } => FieldTag::Enum { values },
             Self::Delivery(value) => return value.serialize(serializer),
+            Self::JudgmentDelivery(value) => return value.serialize(serializer),
         };
         tag.serialize(serializer)
     }
@@ -896,6 +1006,7 @@ impl Serialize for JsMcpField {
 impl Serialize for JsModelFieldType {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let tag = match self {
+            Self::Nominal { name } => FieldTag::Nominal { name },
             Self::Ref { model } => FieldTag::Ref {
                 model,
                 require_version: None,
@@ -917,6 +1028,7 @@ impl Serialize for JsModelFieldType {
             Self::Bytes => FieldTag::Bytes,
             Self::Other { type_id } => FieldTag::Other { type_id },
             Self::Delivery(value) => return value.serialize(serializer),
+            Self::JudgmentDelivery(value) => return value.serialize(serializer),
         };
         tag.serialize(serializer)
     }
@@ -1009,7 +1121,7 @@ impl Serialize for JsModelField {
         )?;
         state.serialize_field("name", &self.name)?;
         state.serialize_field("field", &self.field)?;
-        if let Some(value_type) = self.value_type {
+        if let Some(value_type) = &self.value_type {
             state.serialize_field("valueType", value_type)?;
         }
         state.serialize_field("required", &self.required)?;
@@ -1082,6 +1194,8 @@ pub struct JsOutput {
     pub pages: Vec<JsPage>,
     /// User-invocable operation descriptors in source order (MCP P1).
     pub operations: Vec<JsOperation>,
+    /// One checked inventory shared by artifact claims and app schemas.
+    pub value_types: Option<JsValueTypes>,
     /// `@canlang/stdlib` imports used by the entrypoint.
     pub stdlib_imports: BTreeSet<String>,
     /// `@canlang/ui` imports used by the entrypoint.
@@ -1102,25 +1216,35 @@ impl JsWriter {
         Self::default()
     }
 
-    /// Push one line attributed to `span` (and optionally `name`).
+    /// Push text attributed to `span` (and optionally `name`), followed by
+    /// a newline. Each physical output line receives the owning attribution.
     /// An unrepresentable 1-based u32 line number latches `E6012` before
     /// changing output. Subsequent writes are ignored; check [`Self::try_finish`].
     pub fn push(&mut self, span: Span, name: Option<String>, text: &str) {
         if self.capacity_error.is_some() {
             return;
         }
-        let Some(line) = self
-            .lines
-            .len()
+        let Some(last_line) = text
+            .bytes()
+            .filter(|byte| *byte == b'\n')
+            .count()
             .checked_add(1)
+            .and_then(|count| self.lines.len().checked_add(count))
             .and_then(|line| u32::try_from(line).ok())
         else {
             self.capacity_error = Some(Self::line_capacity_error(span));
             return;
         };
+        let first_line = self.lines.len() + 1;
         self.buf.push_str(text);
         self.buf.push('\n');
-        self.lines.push(JsLine { line, span, name });
+        for line in first_line..=last_line as usize {
+            self.lines.push(JsLine {
+                line: line as u32,
+                span,
+                name: name.clone(),
+            });
+        }
     }
 
     /// Append another writer's lines, renumbering them.
@@ -1241,6 +1365,7 @@ pub fn emit_program(ir: &IrProgram) -> JsOutput {
     });
     let stdlib_imports = emitter.stdlib.clone();
     let ui_imports = emitter.ui.clone();
+    let value_types = emitter.value_types.clone();
 
     let mut packages = Vec::new();
     for module in &ir.modules {
@@ -1258,6 +1383,7 @@ pub fn emit_program(ir: &IrProgram) -> JsOutput {
         callables,
         pages,
         operations,
+        value_types,
         stdlib_imports,
         ui_imports,
     }
@@ -1332,6 +1458,7 @@ fn is_ui_factory(factory: &str) -> bool {
             | "radio"
             | "select"
             | "stat"
+            | "status"
             | "table"
             | "tabs"
             | "text"
@@ -1346,17 +1473,35 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
     match factory {
         "card" => matches!(key, "title" | "layout"),
         "collapse" => matches!(key, "caption" | "open" | "id" | "variant"),
-        "tabs" => matches!(key, "id" | "size" | "variant"),
+        "tabs" => matches!(key, "id" | "size" | "variant" | "binding" | "caption"),
         "title" => matches!(key, "text" | "level"),
         "text" => key == "values",
         "content" => key == "value",
         "list" => matches!(
             key,
-            "model" | "parent" | "where" | "limit" | "cursor" | "empty"
+            "model"
+                | "parent"
+                | "where"
+                | "limit"
+                | "cursor"
+                | "empty"
+                | "display"
+                | "page"
+                | "order"
+                | "search"
+                | "count"
         ),
         "table" => matches!(
             key,
-            "model" | "parent" | "where" | "limit" | "cursor" | "empty" | "columns"
+            "model"
+                | "parent"
+                | "where"
+                | "limit"
+                | "cursor"
+                | "empty"
+                | "columns"
+                | "display"
+                | "page"
         ),
         "form" => matches!(
             key,
@@ -1368,6 +1513,7 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
         "fieldset" => matches!(key, "caption" | "id" | "variant"),
         "join" => matches!(key, "id" | "orientation" | "variant"),
         "badge" => matches!(key, "value" | "caption" | "tone" | "size" | "variant"),
+        "status" => matches!(key, "value" | "caption" | "tone" | "size"),
         "divider" => matches!(key, "caption" | "tone" | "orientation" | "variant"),
         "stat" => matches!(
             key,
@@ -1414,7 +1560,14 @@ fn ui_option_words(factory: &str, key: &str) -> Option<&'static [&'static str]> 
         "tone"
             if matches!(
                 factory,
-                "badge" | "divider" | "chatBubble" | "input" | "textarea" | "radio" | "select"
+                "badge"
+                    | "status"
+                    | "divider"
+                    | "chatBubble"
+                    | "input"
+                    | "textarea"
+                    | "radio"
+                    | "select"
             ) =>
         {
             Some(TONES)
@@ -1422,7 +1575,7 @@ fn ui_option_words(factory: &str, key: &str) -> Option<&'static [&'static str]> 
         "size"
             if matches!(
                 factory,
-                "badge" | "tabs" | "input" | "textarea" | "radio" | "select"
+                "badge" | "status" | "tabs" | "input" | "textarea" | "radio" | "select"
             ) =>
         {
             Some(SIZES)
@@ -1437,6 +1590,7 @@ fn ui_option_words(factory: &str, key: &str) -> Option<&'static [&'static str]> 
         "side" => Some(&["start", "end"]),
         "layout" => Some(&["stack", "columns"]),
         "display" if factory == "form" => Some(&["inline", "drawer"]),
+        "display" if matches!(factory, "list" | "table") => Some(&["split"]),
         _ => None,
     }
 }
@@ -1597,10 +1751,13 @@ fn fill_binary_template(template: String, left: &str, right: &str) -> String {
 /// Emission context: import tracking, diagnostics and link metadata.
 pub struct Emitter<'a> {
     ir: &'a IrProgram,
+    value_types: Option<JsValueTypes>,
     by_canonical: HashMap<String, usize>,
     stdlib: BTreeSet<String>,
     ui: BTreeSet<String>,
     relative: BTreeMap<String, BTreeSet<String>>,
+    /// Checked derive calls used by this emitter; example modules link them to their real owner.
+    derive_calls: BTreeSet<String>,
     diags: Vec<Diagnostic>,
     builtins: Vec<ReferencedBuiltin>,
     callables: Vec<JsCallable>,
@@ -1618,6 +1775,7 @@ pub struct Emitter<'a> {
     bindings: Vec<HashMap<String, String>>,
     binding_seq: usize,
     localized_format: bool,
+    checked_message: bool,
     formatted_bindings: Vec<HashMap<String, bool>>,
     formatted_derives: BTreeSet<String>,
 }
@@ -1633,6 +1791,13 @@ struct HookState {
 impl<'a> Emitter<'a> {
     /// Create an emitter over `ir`.
     pub fn new(ir: &'a IrProgram) -> Self {
+        let mut emitter = Self::with_value_types(ir, None);
+        emitter.value_types = emitter.collect_judgment_value_types();
+        emitter
+    }
+
+    /// Reuse the already checked inventory when collecting artifact models.
+    pub fn with_value_types(ir: &'a IrProgram, value_types: Option<JsValueTypes>) -> Self {
         let by_canonical = ir
             .items
             .iter()
@@ -1641,10 +1806,12 @@ impl<'a> Emitter<'a> {
             .collect();
         let mut emitter = Self {
             ir,
+            value_types,
             by_canonical,
             stdlib: BTreeSet::new(),
             ui: BTreeSet::new(),
             relative: BTreeMap::new(),
+            derive_calls: BTreeSet::new(),
             diags: Vec::new(),
             builtins: Vec::new(),
             callables: Vec::new(),
@@ -1654,6 +1821,7 @@ impl<'a> Emitter<'a> {
             bindings: vec![HashMap::new()],
             binding_seq: 0,
             localized_format: false,
+            checked_message: false,
             formatted_bindings: vec![HashMap::new()],
             formatted_derives: BTreeSet::new(),
         };
@@ -1677,6 +1845,188 @@ impl<'a> Emitter<'a> {
             }
         }
         emitter
+    }
+
+    fn collect_judgment_value_types(&mut self) -> Option<JsValueTypes> {
+        if !self
+            .ir
+            .items
+            .iter()
+            .any(|item| matches!(item.kind, IrItemKind::Judgment { .. }))
+        {
+            return None;
+        }
+        let mut inventory = JsValueTypes::default();
+        let mut enums = BTreeMap::new();
+        for item in &self.ir.items.clone() {
+            if let Some(constraints) = self.ir.value_constraints.get(&item.id)
+                && constraints.alias == Some(item.id)
+            {
+                inventory.aliases.push(JsValueAlias {
+                    name: item.canonical.clone(),
+                    declared: "text".to_string(),
+                    constraints: JsValueConstraints::from(constraints),
+                });
+            }
+            let fields = match &item.kind {
+                IrItemKind::Judgment { result_fields, .. } => result_fields,
+                IrItemKind::JudgmentGenerated(IrJudgmentGenerated::Contract { fields })
+                | IrItemKind::Contract { fields, .. } => fields,
+                _ => continue,
+            };
+            let mut leaves = Vec::new();
+            for id in fields {
+                let Some(field) = self.ir.items.get(id.0 as usize).cloned() else {
+                    self.unsupported(
+                        "Judgment value schema",
+                        "checked field identity is absent",
+                        item.span,
+                    );
+                    continue;
+                };
+                let (ty, required_array) = match &field.kind {
+                    IrItemKind::Field {
+                        ty, required_array, ..
+                    }
+                    | IrItemKind::JudgmentGenerated(IrJudgmentGenerated::Field {
+                        ty,
+                        required_array,
+                        ..
+                    }) => (ty, *required_array),
+                    _ => {
+                        self.unsupported(
+                            "Judgment value schema",
+                            "checked field payload is absent",
+                            field.span,
+                        );
+                        continue;
+                    }
+                };
+                let IrType::Known(ty) = ty else {
+                    self.unsupported(
+                        "Judgment value schema",
+                        "checked field type is absent",
+                        field.span,
+                    );
+                    continue;
+                };
+                let mut declared = self.symbol_value_type_id(field.id, ty, field.span);
+                if required_array {
+                    declared.push('!');
+                }
+                leaves.push(JsNominalLeaf {
+                    name: field.name.clone(),
+                    declared,
+                    constraints: self
+                        .ir
+                        .value_constraints
+                        .get(&field.id)
+                        .map_or_else(JsValueConstraints::default, JsValueConstraints::from),
+                });
+                let mut base = ty;
+                while let ResolvedType::Nullable(inner)
+                | ResolvedType::Array { element: inner, .. } = base
+                {
+                    base = inner;
+                }
+                if let ResolvedType::Enum {
+                    owner: Some(owner),
+                    cases,
+                } = base
+                {
+                    let name = self.ir.items[owner.0 as usize].canonical.clone();
+                    enums.entry(name).or_insert_with(|| cases.clone());
+                }
+            }
+            inventory.contracts.push(JsNominalResult {
+                name: item.canonical.clone(),
+                fields: leaves,
+            });
+        }
+        inventory.enums = enums
+            .into_iter()
+            .map(|(name, cases)| JsNamedEnum { name, cases })
+            .collect();
+        Some(inventory)
+    }
+
+    /// Nominal claims resolve only through the emitted checked inventory.
+    fn nominal_value_type(&self, ty: &ResolvedType) -> Option<String> {
+        match ty {
+            ResolvedType::Record { symbol, .. }
+            | ResolvedType::Enum {
+                owner: Some(symbol),
+                ..
+            } => {
+                let name = &self.ir.items.get(symbol.0 as usize)?.canonical;
+                let inventory = self.value_types.as_ref()?;
+                (inventory
+                    .contracts
+                    .iter()
+                    .any(|record| record.name == *name)
+                    || inventory
+                        .enums
+                        .iter()
+                        .any(|enumeration| enumeration.name == *name))
+                .then(|| name.clone())
+            }
+            ResolvedType::Nullable(inner) => self
+                .nominal_value_type(inner)
+                .map(|name| format!("{name}?")),
+            ResolvedType::Array { element, .. } => self
+                .nominal_value_type(element)
+                .map(|name| format!("{name}[]")),
+            _ => None,
+        }
+    }
+
+    fn operation_input_value_type(&self, ty: &IrType) -> Option<String> {
+        if let IrType::Known(resolved) = ty
+            && let Some(name) = self.nominal_value_type(resolved)
+        {
+            return Some(name);
+        }
+        checked_operation_input_value_type(ty)
+    }
+
+    fn model_value_type(&self, ty: &IrType) -> Option<String> {
+        if let IrType::Known(resolved) = ty
+            && let Some(name) = self.nominal_value_type(resolved)
+        {
+            return Some(name);
+        }
+        checked_string_value_type(ty).map(str::to_string)
+    }
+
+    fn judgment_delivery_descriptor(&self, op: SymbolId) -> Option<JsJudgmentDeliveryDescriptor> {
+        let operation = self.ir.items.get(op.0 as usize)?;
+        let IrItemKind::JudgmentGenerated(IrJudgmentGenerated::CapabilityOp {
+            result: IrType::Known(ResolvedType::Record { symbol, .. }),
+            ..
+        }) = &operation.kind
+        else {
+            return None;
+        };
+        let declaration = self.ir.items.get(symbol.0 as usize)?;
+        let IrItemKind::Judgment { version, .. } = declaration.kind else {
+            return None;
+        };
+        if operation.name != "evaluate" {
+            return None;
+        }
+        let result = self
+            .value_types
+            .as_ref()?
+            .contracts
+            .iter()
+            .find(|record| record.name == declaration.canonical)?
+            .clone();
+        Some(JsJudgmentDeliveryDescriptor {
+            capability: declaration.canonical.clone(),
+            operation: operation.name.clone(),
+            version: version.to_string(),
+            result,
+        })
     }
 
     fn enter_scope(&mut self) {
@@ -1901,6 +2251,35 @@ impl<'a> Emitter<'a> {
         self.throw_expr(&format!("{what} has no lowering"))
     }
 
+    /// Test-only callers reuse the exact production registry functions, whose
+    /// defaults and transitive helper references already close in the entry.
+    pub(super) fn example_helper_lines(&self) -> Vec<String> {
+        if self.derive_calls.is_empty() {
+            return Vec::new();
+        }
+        let Some(entry) = pick_entrypoint(self.ir) else {
+            return Vec::new();
+        };
+        let factory = binding_ident("t", "helperFactory");
+        let registry = binding_ident("t", "helperRegistry");
+        let path = format!("../{}", module_path(&self.ir.module(entry).name));
+        let mut lines = vec![
+            format!(
+                "import {{ canApp as {factory} }} from {};",
+                js_string(&path)
+            ),
+            format!("const {registry}={factory}();"),
+        ];
+        for canonical in &self.derive_calls {
+            lines.push(format!(
+                "const {}={registry}[{}];",
+                binding_ident("s", canonical),
+                js_string(canonical),
+            ));
+        }
+        lines
+    }
+
     /// Import lines in deterministic order: stdlib, UI, then relative
     /// owning-package modules. Shared by production and test modules:
     /// production modules never import from `tests/`.
@@ -1949,10 +2328,22 @@ impl<'a> Emitter<'a> {
     /// Shared generated adapters for owning runtime contracts. Keep this
     /// separate from imports so test-only modules use the same adapter.
     pub fn support_lines(&self) -> Vec<String> {
-        if !self.localized_format {
-            return Vec::new();
+        let mut lines = Vec::new();
+        if self.checked_message {
+            lines.push(format!(
+                "function {}(source,variants,params,sourceLocale){{\n\
+                 const canonical={}(sourceLocale);\n\
+                 const descriptor={}(source,variants,params,canonical);\n\
+                 if(descriptor?.sourceLocale!==canonical)throw new ValueError(\"invalid-construction\",\"message constructor must preserve checked source locale\");\n\
+                 return descriptor;\n\
+                 }}",
+                binding_ident("h", "checked_message"),
+                binding_ident("u", "normalizeTag"),
+                binding_ident("u", "message")
+            ));
         }
-        vec![format!(
+        if self.localized_format {
+            lines.push(format!(
             "function {}(c,d,locale,sourceLang,signature){{\n\
              if(typeof c?.formatting?.appDefault!==\"string\")throw new ValueError(\"invalid-construction\",\"message formatting requires checked selected-app scope\");\n\
              const timeZone=c.team===null?\"UTC\":c.team?.timezone;\n\
@@ -1964,7 +2355,29 @@ impl<'a> Emitter<'a> {
              return format(makeMessageDescriptor(d.source,d.variants,signature.length?params:undefined),{{locale,appDefault:c.formatting.appDefault,sourceLang,timeZone}});\n\
              }}",
             binding_ident("h", "localized_format")
-        )]
+            ));
+        }
+        lines
+    }
+
+    /// Preserve a checked bounded alias while keeping the ordinary wrappers.
+    fn symbol_value_type_id(&mut self, symbol: SymbolId, ty: &ResolvedType, span: Span) -> String {
+        fn alias_type(ty: &ResolvedType, alias: &str) -> String {
+            match ty {
+                ResolvedType::Nullable(inner) => format!("{}?", alias_type(inner, alias)),
+                ResolvedType::Array { element, .. } => format!("{}[]", alias_type(element, alias)),
+                _ => alias.to_string(),
+            }
+        }
+        if let Some(alias) = self
+            .ir
+            .value_constraints
+            .get(&symbol)
+            .and_then(|constraints| constraints.alias)
+        {
+            return alias_type(ty, &self.ir.items[alias.0 as usize].canonical);
+        }
+        self.canonical_type_id(ty, span)
     }
 
     /// Canonical type id for a resolved type (`int`, `user?`, `text[]`,
@@ -2107,6 +2520,15 @@ impl<'a> Emitter<'a> {
         required_array: bool,
         span: Span,
     ) -> String {
+        // Static Judgment enums are named types derived by the owning
+        // descriptor; fields reference that identity instead of copying cases.
+        if self.judgment_enum_type(ty) {
+            let mut id = self.canonical_type_id(ty, span);
+            if required_array && matches!(ty, ResolvedType::Array { .. }) {
+                id.push('!');
+            }
+            return format!("type:{}", js_string(&id));
+        }
         // The implemented Values FieldDescriptor owns shape in its canonical
         // type string. Invocation has no legacy structural descriptor keys.
         if invocation_base(ty) {
@@ -2207,6 +2629,22 @@ impl<'a> Emitter<'a> {
         }
     }
 
+    fn judgment_enum_type(&self, ty: &ResolvedType) -> bool {
+        match ty {
+            ResolvedType::Enum {
+                owner: Some(id), ..
+            } => self
+                .ir
+                .items
+                .get(id.0 as usize)
+                .is_some_and(|item| matches!(item.kind, IrItemKind::JudgmentGenerated(_))),
+            ResolvedType::Nullable(inner) | ResolvedType::Array { element: inner, .. } => {
+                self.judgment_enum_type(inner)
+            }
+            _ => false,
+        }
+    }
+
     /// Lower a checked expression to JavaScript.
     ///
     /// Scalar dispatch follows §13 exactly: one import name per operation,
@@ -2264,6 +2702,20 @@ impl<'a> Emitter<'a> {
                 format!("datetime({})", js_string(value))
             }
             IrExpr::Name(name) => self.reference(name),
+            IrExpr::JudgmentSpecification { judgment, options } => {
+                if self.in_hook() {
+                    return self.hook_gap(
+                        "judgment specification",
+                        "the pinned invocation declaration is unavailable in this hook",
+                        span,
+                    );
+                }
+                self.stdlib.insert("judgmentSpecification".to_string());
+                let options = options.as_ref().map_or_else(String::new, |options| {
+                    format!(",{}", self.lower_expr(options))
+                });
+                format!("judgmentSpecification(c,{}{options})", js_string(judgment))
+            }
             IrExpr::Member { base, field } => {
                 // IR context reads synthesize an unknown-typed `c` base.
                 // A source parameter named c owns a different, checked value.
@@ -2283,11 +2735,16 @@ impl<'a> Emitter<'a> {
                 } else {
                     "."
                 };
-                if object_key(field) == *field {
+                let member = if object_key(field) == *field {
                     format!("{base_text}{op}{field}")
                 } else {
                     let optional = if op == "?." { "?." } else { "" };
                     format!("{base_text}{optional}[{}]", js_string(field))
+                };
+                if expr.ty.nullable_inner().is_some() {
+                    format!("({member} ?? null)")
+                } else {
+                    member
                 }
             }
             IrExpr::Call { target, args } => self.lower_call(target, args, span),
@@ -2340,15 +2797,38 @@ impl<'a> Emitter<'a> {
                 }
                 self.stdlib.insert("delivery".to_string());
                 let record_text = self.lower_expr(record);
-                let selected = js_string(&props.join("."));
+                // Error is one authorized receipt leaf. Its closed payload
+                // members are projected locally, never new receipt selectors.
+                let error_projection =
+                    props.first().is_some_and(|prop| prop == "error") && props.len() > 1;
+                let selected = js_string(&if error_projection {
+                    "error".to_string()
+                } else {
+                    props.join(".")
+                });
                 let observed = format!(
                     "(await delivery(c,{{record:{record_text},field:{}}},[{selected}]))",
                     js_string(field)
                 );
-                if expr.ty.nullable_inner().is_some() {
-                    format!("({observed}?.[{selected}] ?? null)")
+                let nullable = expr.ty.nullable_inner().is_some();
+                let mut projected = if nullable {
+                    format!("{observed}?.[{selected}]")
                 } else {
                     format!("{observed}[{selected}]")
+                };
+                if error_projection {
+                    for field in &props[1..] {
+                        projected.push_str(&format!(
+                            "{}[{}]",
+                            if nullable { "?." } else { "" },
+                            js_string(field)
+                        ));
+                    }
+                }
+                if nullable {
+                    format!("({projected} ?? null)")
+                } else {
+                    projected
                 }
             }
             IrExpr::Message(message) => self.lower_message(message),
@@ -2549,6 +3029,7 @@ impl<'a> Emitter<'a> {
                         return self.throw_expr(&format!("unknown derive {canonical}"));
                     }
                 };
+                self.derive_calls.insert(canonical.clone());
                 let parts = parts.to_vec();
                 let mut all = vec!["c".to_string()];
                 all.extend(parts);
@@ -3428,8 +3909,7 @@ impl<'a> Emitter<'a> {
         )
     }
 
-    /// Lower a display message: `message(source, {locales})`, or the
-    /// three-argument parameterized form preserving typed parameters.
+    /// Retain the checked source locale through the owning message factory.
     pub fn lower_message(&mut self, message: &IrMessage) -> String {
         if let Some(param) = message
             .params
@@ -3439,15 +3919,14 @@ impl<'a> Emitter<'a> {
             return self.formatted_refusal("formatted message parameter", param.value.span);
         }
         self.ui.insert("message".to_string());
+        self.ui.insert("normalizeTag".to_string());
+        self.stdlib.insert("ValueError".to_string());
+        self.checked_message = true;
         let mut out = format!(
-            "{}({}",
-            binding_ident("u", "message"),
+            "{}({},",
+            binding_ident("h", "checked_message"),
             js_string(&message.source)
         );
-        if message.variants.is_empty() && message.params.is_empty() {
-            out.push(')');
-            return out;
-        }
         let variants = message
             .variants
             .iter()
@@ -3462,7 +3941,7 @@ impl<'a> Emitter<'a> {
             })
             .collect::<Vec<_>>()
             .join(",");
-        out.push_str(&format!(",{{{variants}}}"));
+        out.push_str(&format!("{{{variants}}},"));
         if !message.params.is_empty() {
             let params = message
                 .params
@@ -3477,9 +3956,11 @@ impl<'a> Emitter<'a> {
                 })
                 .collect::<Vec<_>>()
                 .join(",");
-            out.push_str(&format!(",{{{params}}}"));
+            out.push_str(&format!("{{{params}}}"));
+        } else {
+            out.push_str("undefined");
         }
-        out.push(')');
+        out.push_str(&format!(",{})", js_string(&message.source_lang)));
         out
     }
 
@@ -4254,7 +4735,7 @@ impl<'a> Emitter<'a> {
     /// Lower one UI node under an explicit context expression. Children
     /// inherit the context; row scopes thread their view name instead.
     pub fn lower_ui_ctx(&mut self, node: &IrUi, ctx: &str) -> String {
-        self.lower_ui_occurrence(node, ctx, &[], None)
+        self.lower_ui_occurrence(node, ctx, &[], None, false)
     }
 
     /// Occurrence identities thread through enclosing collection rows so
@@ -4265,7 +4746,57 @@ impl<'a> Emitter<'a> {
         ctx: &str,
         occurrences: &[String],
         prepared_form: Option<&str>,
+        view_scope: bool,
     ) -> String {
+        if let Some(view) = &node.view {
+            // Evaluate the supplied authorized row once in the caller scope,
+            // then shadow it only for this declaration-owned expansion.
+            let argument = self.lower_business_expr(&view.argument, "view row argument");
+            self.enter_scope();
+            let row = self.bind("row");
+            let mut nested = occurrences.to_vec();
+            nested.push(js_string(&view.identity));
+            nested.push(format!("{row}.id"));
+            let gate = node
+                .gate
+                .as_ref()
+                .map(|gate| self.lower_business_expr(gate, "view gate"));
+            let children = node
+                .children
+                .iter()
+                .map(|child| self.lower_ui_occurrence(child, ctx, &nested, None, true))
+                .collect::<Vec<_>>()
+                .join(",");
+            self.exit_scope();
+            let guard = gate
+                .map(|gate| format!("if(!({gate}))return '';"))
+                .unwrap_or_default();
+            return format!(
+                "await (async({row})=>{{{guard}return (await Promise.all([{children}])).filter(value=>value!=null).join('');}})({argument})"
+            );
+        }
+        // Checked source action groups contain ordinary protected forms.
+        // Their grouping adds no native container or presentation choice.
+        if node.factory == "actions" {
+            let gate = node
+                .gate
+                .as_ref()
+                .map(|gate| self.lower_business_expr(gate, "action group gate"));
+            let children = node
+                .children
+                .iter()
+                .map(|child| {
+                    self.lower_ui_occurrence(child, ctx, occurrences, prepared_form, view_scope)
+                })
+                .collect::<Vec<_>>()
+                .join(",");
+            let call =
+                format!("(await Promise.all([{children}])).filter(value=>value!=null).join('')");
+            return match gate {
+                Some(gate) => format!("{gate} ? {call} : null"),
+                None => call,
+            };
+        }
         if !is_ui_factory(&node.factory) {
             self.unsupported(
                 "UI node",
@@ -4287,6 +4818,9 @@ impl<'a> Emitter<'a> {
                 return self.throw_expr("unsupported UI option");
             }
             let typed = match key.as_str() {
+                "page" if matches!(node.factory.as_str(), "list" | "table") => {
+                    matches!(value.expr, IrExpr::Bool(true))
+                }
                 "open" => matches!(value.ty, ResolvedType::Scalar(Scalar::Bool)),
                 "caption" | "title" | "text" | "label" | "regionId" | "target" | "opens" => {
                     matches!(value.ty, ResolvedType::Scalar(Scalar::Text))
@@ -4320,17 +4854,7 @@ impl<'a> Emitter<'a> {
                 return self.throw_expr("unsupported UI option value");
             }
         }
-        // The actual list factory requires an owning empty-state message.
-        // Bare lists remain a language-default gap; do not invent copy or
-        // publish a factory payload that fails on an authorized empty query.
-        if node.factory == "list" && !node.props.iter().any(|(key, _)| key == "empty") {
-            self.unsupported(
-                "list UI profile",
-                "ListProps.empty requires an authored empty= message; the bare-list shared default is not implemented",
-                node.span,
-            );
-            return self.throw_expr("unsupported list UI profile: missing empty message");
-        }
+        // Omitted collection empty captions use the owning shared UI default.
         // Gated containers omit the whole node when unavailable; the
         // gate reads the same scope the node renders in.
         let gate = node
@@ -4350,6 +4874,20 @@ impl<'a> Emitter<'a> {
                     self.lower_business_expr(value, "unclassified formatted UI prop")
                 ));
             }
+            // The declaration, page, action target and enclosing use/row
+            // identities name this presentation occurrence. The preparer
+            // owns DOM and draft identity; this conveys no mutation grant.
+            let operation = form_prop_text(node, "operation").unwrap_or_default();
+            request.push(format!(
+                "occurrence:{}+encodeURIComponent(JSON.stringify([{}.path,{},{}]))",
+                js_string(&format!(
+                    "can-form-f{}-s{}-",
+                    node.span.file.0, node.span.start
+                )),
+                ctx,
+                js_string(&operation),
+                occurrences.join(",")
+            ));
             if let Some(labels) = self.form_labels_request(node) {
                 request.push(labels);
             }
@@ -4374,7 +4912,9 @@ impl<'a> Emitter<'a> {
             let children = node
                 .children
                 .iter()
-                .map(|child| self.lower_ui_occurrence(child, ctx, occurrences, Some(&prepared)))
+                .map(|child| {
+                    self.lower_ui_occurrence(child, ctx, occurrences, Some(&prepared), view_scope)
+                })
                 .collect::<Vec<_>>()
                 .join(",");
             let body = if node.children.is_empty() {
@@ -4437,9 +4977,39 @@ impl<'a> Emitter<'a> {
             && node.props.iter().any(|(key, _)| key == "id")
             && node.children.iter().all(|child| child.factory == "tabItem");
         let mut props = vec![format!("context:{ctx}")];
+        if matches!(node.factory.as_str(), "list" | "table")
+            && (form_prop_text(node, "display").as_deref() == Some("split")
+                || node
+                    .props
+                    .iter()
+                    .any(|(key, value)| key == "page" && matches!(value.expr, IrExpr::Bool(true))))
+        {
+            // A URL locator names this source collection occurrence. The
+            // owning factory selects only from its fresh authorized result.
+            props.push(format!(
+                "occurrence:{}+encodeURIComponent(JSON.stringify([{}.path,{}]))",
+                js_string(&format!(
+                    "can-collection-f{}-s{}-",
+                    node.span.file.0, node.span.start
+                )),
+                ctx,
+                occurrences.join(",")
+            ));
+        }
         for (key, value) in &node.props {
-            let value = self.lower_business_expr(value, "unclassified formatted UI prop");
-            let value = if transient_tabs && key == "id" && !occurrences.is_empty() {
+            let value = if node.factory == "text" && key == "values" {
+                self.lower_expr(value)
+            } else {
+                self.lower_business_expr(value, "unclassified formatted UI prop")
+            };
+            let value = if ((transient_tabs && key == "id")
+                || (view_scope
+                    && matches!(
+                        key.as_str(),
+                        "id" | "idPrefix" | "regionId" | "target" | "opens"
+                    )))
+                && !occurrences.is_empty()
+            {
                 format!(
                     r#"{value}+"-"+encodeURIComponent(JSON.stringify([{}]))"#,
                     occurrences.join(",")
@@ -4459,7 +5029,15 @@ impl<'a> Emitter<'a> {
                 let children = node
                     .children
                     .iter()
-                    .map(|c| self.lower_ui_occurrence(c, &child_ctx, &child_occurrences, None))
+                    .map(|c| {
+                        self.lower_ui_occurrence(
+                            c,
+                            &child_ctx,
+                            &child_occurrences,
+                            None,
+                            view_scope,
+                        )
+                    })
                     .collect::<Vec<_>>()
                     .join(",");
                 // `async` exactly when a row child awaits.
@@ -4478,55 +5056,68 @@ impl<'a> Emitter<'a> {
                 // never `children` (their F props have no children
                 // slot; shapes validated at decode).
                 if transient_tabs {
-                    let items = node
-                        .children
-                        .iter()
-                        .map(|item| {
-                            let gate = item
-                                .gate
-                                .as_ref()
-                                .map(|gate| self.lower_business_expr(gate, "formatted UI gate"));
-                            let mut fields = Vec::new();
-                            for (key, value) in &item.props {
-                                fields.push(format!(
-                                    "{}:{}",
-                                    object_key(key),
-                                    self.lower_business_expr(
-                                        value,
-                                        "unclassified formatted UI prop"
-                                    )
-                                ));
-                            }
-                            // Eager arrays preserve authored depth-first evaluation:
-                            // each caption then its descendants, exactly once.
-                            let children = item
-                                .children
-                                .iter()
-                                .map(|child| {
-                                    self.lower_ui_occurrence(child, ctx, occurrences, prepared_form)
-                                })
-                                .collect::<Vec<_>>()
-                                .join(",");
-                            fields.push(format!("children:[{children}]"));
-                            let item = format!("({{{}}})", fields.join(","));
-                            match gate {
-                                Some(gate) => format!("{gate}?{item}:null"),
-                                None => item,
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                        .join(",");
+                    let items =
+                        node.children
+                            .iter()
+                            .map(|item| {
+                                let gate = item.gate.as_ref().map(|gate| {
+                                    self.lower_business_expr(gate, "formatted UI gate")
+                                });
+                                let mut fields = Vec::new();
+                                for (key, value) in &item.props {
+                                    fields.push(format!(
+                                        "{}:{}",
+                                        object_key(key),
+                                        self.lower_business_expr(
+                                            value,
+                                            "unclassified formatted UI prop"
+                                        )
+                                    ));
+                                }
+                                // Eager arrays preserve authored depth-first evaluation:
+                                // each caption then its descendants, exactly once.
+                                let children = item
+                                    .children
+                                    .iter()
+                                    .map(|child| {
+                                        self.lower_ui_occurrence(
+                                            child,
+                                            ctx,
+                                            occurrences,
+                                            prepared_form,
+                                            view_scope,
+                                        )
+                                    })
+                                    .collect::<Vec<_>>()
+                                    .join(",");
+                                fields.push(format!("children:[{children}]"));
+                                let item = format!("({{{}}})", fields.join(","));
+                                match gate {
+                                    Some(gate) => format!("{gate}?{item}:null"),
+                                    None => item,
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join(",");
                     props.push(format!("items:[{items}].filter(item=>item!=null)"));
                 } else if node.factory == "fab" {
                     let mut kids = node.children.iter();
                     if let Some(main) = kids.next() {
                         props.push(format!(
                             "main:[{}]",
-                            self.lower_ui_occurrence(main, ctx, occurrences, prepared_form)
+                            self.lower_ui_occurrence(
+                                main,
+                                ctx,
+                                occurrences,
+                                prepared_form,
+                                view_scope
+                            )
                         ));
                     }
                     let rest: Vec<String> = kids
-                        .map(|c| self.lower_ui_occurrence(c, ctx, occurrences, prepared_form))
+                        .map(|c| {
+                            self.lower_ui_occurrence(c, ctx, occurrences, prepared_form, view_scope)
+                        })
                         .collect();
                     props.push(format!("actions:[{}]", rest.join(",")));
                 } else if matches!(node.factory.as_str(), "chatBubble" | "modal" | "drawer") {
@@ -4564,6 +5155,7 @@ impl<'a> Emitter<'a> {
                                     ctx,
                                     occurrences,
                                     prepared_form,
+                                    view_scope,
                                 ));
                             }
                         }
@@ -4573,7 +5165,9 @@ impl<'a> Emitter<'a> {
                     let children = node
                         .children
                         .iter()
-                        .map(|c| self.lower_ui_occurrence(c, ctx, occurrences, prepared_form))
+                        .map(|c| {
+                            self.lower_ui_occurrence(c, ctx, occurrences, prepared_form, view_scope)
+                        })
                         .collect::<Vec<_>>()
                         .join(",");
                     props.push(format!("children:[{children}]"));
@@ -4631,9 +5225,10 @@ impl<'a> Emitter<'a> {
             ));
         }
         format!(
-            "preferences:{{{app}:{{{entries}}}}},",
+            "preferences:{{{app}:{{{entries},...(c.preferences?.[{owner_key}]??{{}})}}}},",
             app = object_key(owner),
-            entries = entries.join(",")
+            entries = entries.join(","),
+            owner_key = js_string(owner),
         )
     }
 
@@ -4659,6 +5254,15 @@ impl<'a> Emitter<'a> {
         }
         if page.nav_none {
             members.push("nav:\"none\"".to_string());
+        }
+        if !page.preference_fields.is_empty() {
+            let fields = page.preference_fields.iter().map(|field| format!(
+                "{{name:{},options:[{}],defaultValue:{}}}",
+                js_string(&field.name),
+                field.options.iter().map(|value| js_string(value)).collect::<Vec<_>>().join(","),
+                js_string(&field.default_value),
+            )).collect::<Vec<_>>().join(",");
+            members.push(format!("preferenceFields:[{fields}]"));
         }
         // `poll=`/`refresh=` (DESIGN §9): the cadence as exact-BigInt
         // millis plus the canonical refresh mutation. Sparse like the
@@ -4731,7 +5335,8 @@ impl<'a> Emitter<'a> {
 /// Whether rendering this node evaluates an await in the current callback.
 /// Form and collection descendants execute under their own deferred callbacks.
 fn ui_immediate_uses_async(node: &IrUi) -> bool {
-    node.factory == "form"
+    node.view.is_some()
+        || node.factory == "form"
         || node.props.iter().any(|(_, value)| expr_uses_async(value))
         || node.gate.as_ref().is_some_and(expr_uses_async)
         || (node.factory != "form"
@@ -4741,7 +5346,8 @@ fn ui_immediate_uses_async(node: &IrUi) -> bool {
 
 /// Whether a UI subtree awaits (form preparation or state-read calls).
 fn ui_uses_async(node: &IrUi) -> bool {
-    node.factory == "form"
+    node.view.is_some()
+        || node.factory == "form"
         || node.props.iter().any(|(_, v)| expr_uses_async(v))
         || node.gate.as_ref().is_some_and(expr_uses_async)
         || node.children.iter().any(ui_uses_async)
@@ -4781,6 +5387,9 @@ fn page_uses_preferences(page: &IrPage) -> bool {
             IrExpr::Format { args, .. } => args.iter().any(expr_uses),
             IrExpr::HasRole { person, .. } => person.as_ref().is_some_and(|p| expr_uses(p)),
             IrExpr::Lambda { body, .. } => expr_uses(body),
+            IrExpr::JudgmentSpecification { options, .. } => {
+                options.as_deref().is_some_and(expr_uses)
+            }
             IrExpr::Int(_)
             | IrExpr::Decimal(_)
             | IrExpr::Text(_)
@@ -4803,7 +5412,11 @@ fn page_uses_preferences(page: &IrPage) -> bool {
         }
     }
     fn ui_uses(node: &IrUi) -> bool {
-        node.props.iter().any(|(_, v)| expr_uses(v)) || node.children.iter().any(ui_uses)
+        node.view
+            .as_ref()
+            .is_some_and(|view| expr_uses(&view.argument))
+            || node.props.iter().any(|(_, v)| expr_uses(v))
+            || node.children.iter().any(ui_uses)
     }
     page.admit.iter().any(guard_uses) || page.render.iter().any(ui_uses)
 }
@@ -5019,7 +5632,40 @@ impl<'a> Emitter<'a> {
         }
         members.push(self.emit_packages_member(entry));
         members.push(self.emit_bindings_member());
+        if let Some(judgments) = self.emit_judgments_member() {
+            members.push(judgments);
+        }
         members.push(self.emit_records_member("contracts", &["Contract"]));
+        if let Some(inventory) = &self.value_types {
+            let enums = inventory
+                .enums
+                .iter()
+                .map(|enumeration| {
+                    format!(
+                        "{}:{{cases:{}}}",
+                        js_string(&enumeration.name),
+                        descriptor_json(&enumeration.cases)
+                    )
+                })
+                .collect::<Vec<_>>();
+            members.push(format!("enums:{{{}}}", enums.join(",")));
+            if !inventory.aliases.is_empty() {
+                let aliases = inventory
+                    .aliases
+                    .iter()
+                    .map(|alias| {
+                        let leaf = JsNominalLeaf {
+                            name: alias.name.clone(),
+                            declared: alias.declared.clone(),
+                            constraints: alias.constraints.clone(),
+                        };
+                        format!("{}:{}", js_string(&alias.name), leaf.schema_json())
+                    })
+                    .collect::<Vec<_>>()
+                    .join(",");
+                members.push(format!("aliases:{{{aliases}}}"));
+            }
+        }
         members.push(self.emit_records_member("events", &["Event"]));
         members.push(self.emit_capabilities_member());
         members.push(self.emit_models_member());
@@ -5108,16 +5754,91 @@ impl<'a> Emitter<'a> {
                 };
                 for (name, alias, _span) in import.members.clone() {
                     let key = format!("{}.{}", module.name, alias);
+                    let declaration = format!("{}.{}", import.provider, name);
+                    let kind = if self.ir.items.iter().any(|item| {
+                        item.canonical == declaration
+                            && matches!(item.kind, IrItemKind::Judgment { .. })
+                    }) {
+                        "judgment"
+                    } else {
+                        "capability"
+                    };
                     bindings.push(format!(
-                        "{}:{{capability:{},from:{}}}",
+                        "{}:{{{kind}:{},from:{}}}",
                         js_string(&key),
-                        js_string(&format!("{}.{}", import.provider, name)),
+                        js_string(&declaration),
                         js_string(&from)
                     ));
                 }
             }
         }
         format!("bindings:{{{}}}", bindings.join(","))
+    }
+
+    /// One source-owned descriptor supplies derived judgment schemas and calls.
+    fn emit_judgments_member(&mut self) -> Option<String> {
+        let mut declarations = Vec::new();
+        for item in self.ir.items.clone() {
+            let IrItemKind::Judgment {
+                source_language,
+                version,
+                questions,
+                ..
+            } = item.kind
+            else {
+                continue;
+            };
+            let mut rendered = Vec::new();
+            for question in questions {
+                let kind = match question.kind {
+                    crate::codegen::ir::IrJudgmentKind::Noul => "noul",
+                    crate::codegen::ir::IrJudgmentKind::Choice => "choice",
+                    crate::codegen::ir::IrJudgmentKind::Score => "score",
+                };
+                let mut fields = vec![
+                    format!("name:{}", js_string(&question.name)),
+                    format!("kind:{}", js_string(kind)),
+                    format!(
+                        "instructions:{}",
+                        self.lower_message(&question.instructions)
+                    ),
+                ];
+                if question.runtime {
+                    fields.push("runtime:true".to_string());
+                }
+                if let Some(yes) = question.yes {
+                    fields.push(format!("yes:{}", self.lower_message(&yes)));
+                }
+                if let Some(no) = question.no {
+                    fields.push(format!("no:{}", self.lower_message(&no)));
+                }
+                for (key, options) in [("options", question.options), ("levels", question.levels)] {
+                    if options.is_empty() {
+                        continue;
+                    }
+                    let options = options
+                        .iter()
+                        .map(|option| {
+                            format!(
+                                "{{id:{},description:{}}}",
+                                js_string(&option.id),
+                                self.lower_message(&option.description),
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    fields.push(format!("{key}:[{options}]"));
+                }
+                rendered.push(format!("{{{}}}", fields.join(",")));
+            }
+            declarations.push(format!(
+                "{}:{{sourceLanguage:{},version:{version}n,questions:[{}]}}",
+                js_string(&item.canonical),
+                js_string(&source_language),
+                rendered.join(","),
+            ));
+        }
+        (!declarations.is_empty()).then(|| format!("judgments:{{{}}}", declarations.join(",")))
     }
 
     /// Emit the `contracts`/`events` member: labels plus full field
@@ -5194,6 +5915,23 @@ impl<'a> Emitter<'a> {
             }
         }
         if kinds.contains(&"Contract") {
+            if let Some(inventory) = &self.value_types {
+                for record in &inventory.contracts {
+                    if !published.insert(record.name.clone()) {
+                        continue;
+                    }
+                    let fields = record
+                        .fields
+                        .iter()
+                        .map(|field| format!("{}:{}", object_key(&field.name), field.schema_json()))
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    records.push(format!(
+                        "{}:{{fields:{{{fields}}}}}",
+                        js_string(&record.name)
+                    ));
+                }
+            }
             // Reach only schemas owned by checked imported capabilities.
             // Keep source contracts first and never overwrite their identity.
             let mut schemas = Vec::new();
@@ -5831,11 +6569,45 @@ impl<'a> Emitter<'a> {
             ),
             _ => (None, false, None, None, None, None),
         };
-        let mut members = match ty {
-            Some(IrType::Known(resolved)) => {
-                self.field_schema_object(&resolved, required_array, field.span)
+        let inventory_leaf = match &field.kind {
+            IrItemKind::Field { owner, .. } => self.value_types.as_ref().and_then(|inventory| {
+                let owner = self.ir.items.get(owner.0 as usize)?;
+                inventory
+                    .contracts
+                    .iter()
+                    .find(|record| record.name == owner.canonical)?
+                    .fields
+                    .iter()
+                    .find(|leaf| leaf.name == field.name)
+                    .cloned()
+            }),
+            _ => None,
+        };
+        let checked_constraints = self.ir.value_constraints.get(&field.id).cloned();
+        let mut members = if let Some(leaf) = inventory_leaf {
+            let json = leaf.schema_json();
+            json[1..json.len() - 1].to_string()
+        } else if let (Some(constraints), Some(IrType::Known(resolved))) =
+            (&checked_constraints, &ty)
+        {
+            let mut declared = self.symbol_value_type_id(field.id, resolved, field.span);
+            if required_array {
+                declared.push('!');
             }
-            _ => "type:\"unknown\"".to_string(),
+            let leaf = JsNominalLeaf {
+                name: field.name.clone(),
+                declared,
+                constraints: JsValueConstraints::from(constraints),
+            };
+            let json = leaf.schema_json();
+            json[1..json.len() - 1].to_string()
+        } else {
+            match ty {
+                Some(IrType::Known(resolved)) => {
+                    self.field_schema_object(&resolved, required_array, field.span)
+                }
+                _ => "type:\"unknown\"".to_string(),
+            }
         };
         if let Some(modifiers) = modifiers {
             if modifiers.trim {
@@ -5849,13 +6621,17 @@ impl<'a> Emitter<'a> {
             if modifiers.unique {
                 members.push_str(",unique:true");
             }
-            if let Some(min) = &modifiers.min {
+            if let Some(min) = &modifiers.min
+                && checked_constraints.is_none()
+            {
                 members.push_str(&format!(
                     ",min:{}",
                     self.lower_business_expr(min, "formatted field bound")
                 ));
             }
-            if let Some(max) = &modifiers.max {
+            if let Some(max) = &modifiers.max
+                && checked_constraints.is_none()
+            {
                 members.push_str(&format!(
                     ",max:{}",
                     self.lower_business_expr(max, "formatted field bound")
@@ -6468,7 +7244,7 @@ impl<'a> Emitter<'a> {
             inputs.push(JsOperationField {
                 name: item.name.clone(),
                 field,
-                value_type: checked_operation_input_value_type(ty),
+                value_type: self.operation_input_value_type(ty),
                 required: default.is_none() && !nullable && (!is_array || *required_array),
                 nullable,
                 array_required: is_array.then_some(*required_array),
@@ -6536,7 +7312,10 @@ impl<'a> Emitter<'a> {
                 .any(|field| {
                     let descriptor = self.model_field(field);
                     descriptor.array_required.is_none()
-                        && matches!(descriptor.field, JsModelFieldType::Delivery(_))
+                        && matches!(
+                            descriptor.field,
+                            JsModelFieldType::Delivery(_) | JsModelFieldType::JudgmentDelivery(_)
+                        )
                 })
         })
     }
@@ -6618,6 +7397,11 @@ impl<'a> Emitter<'a> {
         result: Option<&ResolvedType>,
         read: bool,
     ) -> Option<Cow<'static, str>> {
+        if let Some(result) = result
+            && let Some(name) = self.nominal_value_type(result)
+        {
+            return Some(Cow::Owned(name));
+        }
         // A declared stored model result preserves its owning identity for
         // reads and mutations alike; publishing it does not encode the row.
         if let Some(ResolvedType::Record {
@@ -6735,7 +7519,7 @@ impl<'a> Emitter<'a> {
                             Some((field, is_array)) => inputs.push(JsOperationField {
                                 name: param.name.clone(),
                                 field,
-                                value_type: checked_operation_input_value_type(ty),
+                                value_type: self.operation_input_value_type(ty),
                                 required: default.is_none() && !nullable && !is_array,
                                 nullable,
                                 array_required: is_array.then_some(false),
@@ -6872,7 +7656,7 @@ impl<'a> Emitter<'a> {
                                 flat.push(JsOperationField {
                                     name: field_item.name.clone(),
                                     field,
-                                    value_type: checked_operation_input_value_type(ty),
+                                    value_type: self.operation_input_value_type(ty),
                                     required,
                                     nullable,
                                     array_required,
@@ -6989,12 +7773,9 @@ impl<'a> Emitter<'a> {
     /// clears `required` and sets `nullable`. Nested arrays have no
     /// mapping (the element position takes one tag only).
     ///
-    /// T15b provider join (landed): T14c typed `std` receipts map to
-    /// the closed [`JsMcpField::Delivery`] kind below; bound-local
-    /// `Delivery` still falls into the `_ => None` arm (operations
-    /// taking local deliveries omit, fail-closed) alongside the
-    /// model-tag twin [`Emitter::model_field_tag`]. T04b ratifies the
-    /// delivery shape.
+    /// Standard receipts retain their closed provider descriptor. Static
+    /// Judgment deliveries join their checked declaration and value inventory;
+    /// other local deliveries remain outside this profile.
     fn mcp_field_for_type(&self, ty: &IrType, require_version: bool) -> Option<(JsMcpField, bool)> {
         let resolved = match ty {
             IrType::Known(resolved) => resolved,
@@ -7033,6 +7814,16 @@ impl<'a> Emitter<'a> {
                 },
                 false,
             )),
+            ResolvedType::Record { .. } | ResolvedType::Enum { .. }
+                if self.nominal_value_type(resolved).is_some() =>
+            {
+                Some((
+                    JsMcpField::Nominal {
+                        name: self.nominal_value_type(resolved)?,
+                    },
+                    false,
+                ))
+            }
             ResolvedType::Record { symbol, .. } => Some((
                 JsMcpField::Ref {
                     model: self.ir.items.get(symbol.0 as usize)?.canonical.clone(),
@@ -7062,6 +7853,9 @@ impl<'a> Emitter<'a> {
             // keep the omit (fail-closed, exactly as before).
             ResolvedType::StdDelivery { capability, op } => delivery_descriptor(capability, op)
                 .map(|descriptor| (JsMcpField::Delivery(descriptor), false)),
+            ResolvedType::Delivery { op } => self
+                .judgment_delivery_descriptor(*op)
+                .map(|descriptor| (JsMcpField::JudgmentDelivery(descriptor), false)),
             _ => None,
         }
     }
@@ -7179,7 +7973,7 @@ impl<'a> Emitter<'a> {
             return JsModelField {
                 name: field_item.name.clone(),
                 field,
-                value_type: checked_string_value_type(ty),
+                value_type: self.model_value_type(ty),
                 required: false,
                 nullable,
                 server_only: true,
@@ -7230,7 +8024,7 @@ impl<'a> Emitter<'a> {
         JsModelField {
             name: field_item.name.clone(),
             field,
-            value_type: checked_string_value_type(ty),
+            value_type: self.model_value_type(ty),
             required,
             nullable,
             server_only: server.is_some(),
@@ -7361,13 +8155,13 @@ impl<'a> Emitter<'a> {
     /// T04b-preview or the honest `other` fallback carrying the source
     /// type id. Total and diagnostic-free.
     ///
-    /// T15b provider join (landed): T14c typed `std` receipts map to
-    /// the closed [`JsModelFieldType::Delivery`] tag below when both
-    /// joins resolve; bound-local `Delivery` keeps the source-exact
-    /// `other` tag (see the arm below), as do unjoined `std` shapes.
-    /// Twin of the operation mapping [`Emitter::mcp_field_for_type`];
-    /// T04b ratifies the delivery shape.
+    /// Standard receipts retain their provider descriptor. Static Judgment
+    /// deliveries use the checked declaration version and shared result
+    /// inventory; unjoined local deliveries retain their source-exact tag.
     fn model_field_tag(&self, ty: &ResolvedType) -> JsModelFieldType {
+        if let Some(name) = self.nominal_value_type(ty) {
+            return JsModelFieldType::Nominal { name };
+        }
         match ty {
             ResolvedType::Scalar(scalar) => match scalar {
                 Scalar::Text
@@ -7414,17 +8208,18 @@ impl<'a> Emitter<'a> {
                     .map(|row| row.canonical.clone())
                     .unwrap_or_else(|| "message".to_string()),
             },
-            // Bound-local delivery handles stay `other`: T15b scopes
-            // closed descriptors to T14c typed `std` receipts (local
-            // capabilities have no T13 contract identity to join).
-            ResolvedType::Delivery { op } => JsModelFieldType::Other {
-                type_id: self
-                    .ir
-                    .items
-                    .get(op.0 as usize)
-                    .map(|row| format!("delivery:{}", row.canonical))
-                    .unwrap_or_else(|| "delivery".to_string()),
-            },
+            // Only a checked static Judgment joins the local delivery profile.
+            ResolvedType::Delivery { op } => self
+                .judgment_delivery_descriptor(*op)
+                .map(JsModelFieldType::JudgmentDelivery)
+                .unwrap_or_else(|| JsModelFieldType::Other {
+                    type_id: self
+                        .ir
+                        .items
+                        .get(op.0 as usize)
+                        .map(|row| format!("delivery:{}", row.canonical))
+                        .unwrap_or_else(|| "delivery".to_string()),
+                }),
             // T15b: typed `std` receipts tag closed when both joins
             // resolve; unjoined shapes keep exactly the T14c `other`
             // fallback (fail-closed, T04b ratifies).

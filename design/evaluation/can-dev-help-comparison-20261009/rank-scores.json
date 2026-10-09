@@ -1,0 +1,50 @@
+{
+  "aggregate": {
+    "cases": 6,
+    "valid_responses": 0,
+    "raw_gold_matches": null,
+    "displayed_recommendations": null,
+    "wrong_displayed_recommendations": null,
+    "jev_input_tokens": null,
+    "jev_output_tokens": null,
+    "jev_elapsed_ms": null
+  },
+  "observations": [
+    {
+      "case": "supplies_helper",
+      "gold": "unclear",
+      "status": "not_run",
+      "displayed_id": null
+    },
+    {
+      "case": "supplies_search",
+      "gold": "can.v1.ui.list",
+      "status": "not_run",
+      "displayed_id": null
+    },
+    {
+      "case": "shifts_read_rule",
+      "gold": "can.v1.policy",
+      "status": "not_run",
+      "displayed_id": null
+    },
+    {
+      "case": "shifts_state_rule",
+      "gold": "can.v1.invariant",
+      "status": "not_run",
+      "displayed_id": null
+    },
+    {
+      "case": "expenses_freeze_rule",
+      "gold": "can.v1.lock",
+      "status": "not_run",
+      "displayed_id": null
+    },
+    {
+      "case": "expenses_visible",
+      "gold": "unclear",
+      "status": "not_run",
+      "displayed_id": null
+    }
+  ]
+}

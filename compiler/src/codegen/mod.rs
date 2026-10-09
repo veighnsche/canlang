@@ -180,6 +180,7 @@ fn empty_artifact(db: &SourceDb) -> CompileArtifact {
         callables: Vec::new(),
         operations: Vec::new(),
         models: Vec::new(),
+        value_types: None,
         pages: Vec::new(),
         migrations: Vec::new(),
         requires: Vec::new(),

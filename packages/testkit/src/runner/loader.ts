@@ -76,32 +76,38 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * suites always resolve every non-`as` selector inside the inputs, so an
  * unresolvable path fails loud instead of silently dropping the cell.
  * Clones along each written path: the provisioned fixture values the
- * inputs were built from are never mutated.
+ * inputs were built from are never mutated. A checked dotted selector may
+ * declare a new input object (for example `changes.name` on CRUD update).
  */
 function applyInputCells(
   where: string,
   inputs: unknown,
   selectors: readonly string[],
   cells: readonly unknown[],
-): unknown {
+): { inputs: unknown; request?: unknown } {
   if (cells.length !== selectors.length) {
     throw new Error(
       `${where}: values evaluate to ${cells.length} cells but the table has ${selectors.length} selectors`,
     );
   }
   let applied: unknown = inputs;
+  let request: unknown;
   for (const [index, selector] of selectors.entries()) {
     if (selector === "as") {
       continue;
     }
-    applied = setPath(applied, selector, cells[index] as unknown, where);
+    if (selector.startsWith("request.")) {
+      request = setPath(request ?? {}, selector.slice("request.".length), cells[index] as unknown, where, true);
+      continue;
+    }
+    applied = setPath(applied, selector, cells[index] as unknown, where, true);
   }
-  return applied;
+  return request === undefined ? { inputs: applied } : { inputs: applied, request };
 }
 
 const UNSAFE_PATH_SEGMENTS: ReadonlySet<string> = new Set(["__proto__", "constructor", "prototype"]);
 
-function setPath(root: unknown, selector: string, value: unknown, where: string): unknown {
+function setPath(root: unknown, selector: string, value: unknown, where: string, allowNew: boolean): unknown {
   const segments = selector.split(".");
   if (segments.length === 0 || segments.some((segment) => segment.length === 0)) {
     throw new Error(`${where}: selector ${JSON.stringify(selector)} is not a dotted path`);
@@ -112,7 +118,7 @@ function setPath(root: unknown, selector: string, value: unknown, where: string)
       `${where}: selector ${JSON.stringify(selector)} uses unsafe segment ${JSON.stringify(poisoned)}`,
     );
   }
-  const set = (node: unknown, at: number): unknown => {
+  const set = (node: unknown, at: number, created: boolean): unknown => {
     const head = segments[at] as string;
     const last = at === segments.length - 1;
     if (Array.isArray(node)) {
@@ -123,7 +129,7 @@ function setPath(root: unknown, selector: string, value: unknown, where: string)
         );
       }
       const next = [...node];
-      next[index] = last ? value : set(next[index] as unknown, at + 1);
+      next[index] = last ? value : set(next[index] as unknown, at + 1, created);
       return next;
     }
     if (!isRecord(node)) {
@@ -131,16 +137,38 @@ function setPath(root: unknown, selector: string, value: unknown, where: string)
         `${where}: selector ${JSON.stringify(selector)} does not resolve (${JSON.stringify(head)} is not an object)`,
       );
     }
-    if (!(head in node)) {
+    if (!(head in node) && !allowNew && !created) {
       throw new Error(
         `${where}: selector ${JSON.stringify(selector)} does not resolve (no ${JSON.stringify(head)})`,
       );
     }
     const next = { ...node };
-    next[head] = last ? value : set(next[head] as unknown, at + 1);
+    next[head] = last ? value : set(head in node ? next[head] as unknown : {}, at + 1, created || !(head in node));
     return next;
   };
-  return set(root, 0);
+  return set(root, 0, false);
+}
+
+async function preparedFixtures(
+  scope: RowScope,
+  order: readonly string[],
+  suite: Parameters<typeof provisionFixtureValues>[1],
+  bindings: FixtureBindings,
+  userValues: ReadonlyMap<string, unknown>,
+  prepare: ExampleHooks["prepareFixtures"],
+): Promise<ReadonlyMap<string, unknown>> {
+  const provisioned = await provisionFixtureValues(order, suite, bindings, userValues);
+  if (prepare === undefined) return provisioned;
+  const required = order.map((name) => {
+    const recipe = suite.recipes.get(name);
+    if (recipe === undefined) throw new Error(`fixture ${name} went missing before materialization`);
+    return { name, kind: recipe.kind, ...(recipe.label === undefined ? {} : { label: recipe.label }) };
+  });
+  const materialized = await prepare(scope, provisioned, required);
+  if (!(materialized instanceof Map) || order.some((name) => !materialized.has(name))) {
+    throw new Error("fixture materializer did not return every required fixture value");
+  }
+  return materialized;
 }
 
 function setupError(fixture: string | null, reason: string, options?: { cause?: unknown }): FixtureSetupError {
@@ -219,13 +247,13 @@ function readEmittedRow(
  * - Examples with neither stay the LG01 single-spec shape (setup
  *   provisions the closure; invoke unsupported; empty expectations).
  *
- * `setup` provisions the row's fixture closure and stashes inputs/cells/
+ * `setup` provisions the row's fixture closure, applies checked row cells to
+ * stored fixtures when the host supplies that hook, and stashes inputs/cells/
  * expectations for invoke/observe; any validation/provisioning/evaluation
  * failure throws `FixtureSetupError`, which the runner reports as
  * `setup-failed` — never a business outcome. Without `hooks.invokeCall`,
  * invocations report `unsupported`; without `hooks.observeScope`,
- * observations read the static provisioned values (live state is a B/C
- * slice). `seed` carries the provisioned closure (report-indexed by the
+ * observations read the static provisioned values. `seed` carries the provisioned closure (report-indexed by the
  * artifact digest + `rowIndex`, not echoed per row).
  */
 export async function loadExampleSuite(
@@ -272,6 +300,7 @@ export async function loadExampleSuite(
   const { users, values } = await extractSuiteUsers(suite, bindings);
   const invoke = hooks.invokeCall;
   const observeScope = hooks.observeScope;
+  const prepare = hooks.prepareFixtures;
 
   const rows: Array<TableRowSpec<RowScope>> = [];
   let rowIndex = 0;
@@ -293,12 +322,12 @@ export async function loadExampleSuite(
       if (!Array.isArray(sequenceRaw)) {
         fail(moduleUrl, `example at index ${exampleIndex} has sequence that is not an array`);
       }
-      rows.push(await mapSequenceRow(moduleUrl, bindings, suite, adjacency, values, exampleIndex, rowIndex, record, sequenceRaw, invoke));
+      rows.push(await mapSequenceRow(moduleUrl, bindings, suite, adjacency, values, exampleIndex, rowIndex, record, sequenceRaw, invoke, prepare));
       rowIndex += 1;
       continue;
     }
     if (tableRows === undefined) {
-      rows.push(mapLegacyRow(bindings, suite, adjacency, values, exampleIndex, rowIndex, dependencies));
+      rows.push(mapLegacyRow(bindings, suite, adjacency, values, exampleIndex, rowIndex, dependencies, prepare));
       rowIndex += 1;
       continue;
     }
@@ -329,7 +358,7 @@ export async function loadExampleSuite(
         await mapTableRow(
           bindings, suite, adjacency, values, exampleIndex, rowIndex, position,
           operation, inputsFn as (...args: readonly unknown[]) => unknown,
-          selectors, observations, mapped, invoke, observeScope,
+          selectors, observations, mapped, invoke, observeScope, prepare, hooks.prepareRowCells,
         ),
       );
       rowIndex += 1;
@@ -346,6 +375,7 @@ function mapLegacyRow(
   exampleIndex: number,
   rowIndex: number,
   dependencies: readonly unknown[],
+  prepare: ExampleHooks["prepareFixtures"],
 ): TableRowSpec<RowScope> {
   let seeds: string[];
   try {
@@ -364,7 +394,7 @@ function mapLegacyRow(
     caller: { kind: "self" },
     seed: [...order],
     setup: async (scope) => {
-      const provisioned = await provisionFixtureValues(order, suite, bindings, userValues);
+      const provisioned = await preparedFixtures(scope, order, suite, bindings, userValues, prepare);
       fixtureValues.set(scope, provisioned);
       stashedRows.set(scope, { fixtures: provisioned, inputs: null, baselineInputs: null, cells: [], expectedValues: [] });
     },
@@ -389,6 +419,8 @@ async function mapTableRow(
   mapped: EmittedRow,
   invoke: ExampleHooks["invokeCall"],
   observeScope: ExampleHooks["observeScope"],
+  prepare: ExampleHooks["prepareFixtures"],
+  prepareRowCells: ExampleHooks["prepareRowCells"],
 ): Promise<TableRowSpec<RowScope>> {
   const where = `example at index ${exampleIndex} row ${position}`;
   const order = resolveFixtureOrder(mapped.seeds, adjacency);
@@ -421,20 +453,28 @@ async function mapTableRow(
     caller,
     seed: [...order],
     setup: async (scope) => {
-      const provisioned = await provisionFixtureValues(order, suite, bindings, userValues);
+      const provisioned = await preparedFixtures(scope, order, suite, bindings, userValues, prepare);
       const scopeArg = scopeFacade(provisioned);
       const baseline = await callClosure(inputsFn, `${where} inputs`, [bindings, scopeArg]);
       const cellsRaw = await callClosure(mapped.valuesFn, `${where} values`, [bindings, scopeArg]);
       if (!Array.isArray(cellsRaw)) {
         throw new Error(`${where}: values must evaluate to an array`);
       }
-      const inputs = applyInputCells(where, baseline, selectors, cellsRaw);
+      const applied = applyInputCells(where, baseline, selectors, cellsRaw);
+      const prepared = prepareRowCells === undefined
+        ? { fixtures: provisioned, inputs: applied.inputs }
+        : await prepareRowCells({ scope, fixtures: provisioned, baselineInputs: baseline,
+          inputs: applied.inputs, selectors, cells: cellsRaw });
+      if (!(prepared.fixtures instanceof Map) || order.some(name => !prepared.fixtures.has(name))) {
+        throw new Error(`${where}: row cell materializer did not return every required fixture`);
+      }
+      const preparedScope = scopeFacade(prepared.fixtures);
       let expectedValues: readonly unknown[] | null;
       if (mapped.error !== null) {
         expectedValues = null;
         spec.expected = { error: mapped.error };
       } else if (mapped.expectedFn !== null) {
-        const evaluated = await callClosure(mapped.expectedFn, `${where} expected`, [bindings, scopeArg]);
+        const evaluated = await callClosure(mapped.expectedFn, `${where} expected`, [bindings, preparedScope]);
         if (!Array.isArray(evaluated)) {
           throw new Error(`${where}: expected must evaluate to an array`);
         }
@@ -443,8 +483,10 @@ async function mapTableRow(
       } else {
         throw new Error(`${where}: row has neither expected nor error`);
       }
-      fixtureValues.set(scope, provisioned);
-      stashedRows.set(scope, { fixtures: provisioned, inputs, baselineInputs: baseline, cells: cellsRaw, expectedValues });
+      fixtureValues.set(scope, prepared.fixtures);
+      stashedRows.set(scope, { fixtures: prepared.fixtures, inputs: prepared.inputs,
+        ...(applied.request === undefined ? {} : { request: applied.request }),
+        baselineInputs: baseline, cells: cellsRaw, expectedValues });
     },
     invoke: async (scope, rowCaller) => {
       if (invoke === undefined) {
@@ -454,6 +496,7 @@ async function mapTableRow(
       return invoke({
         operation,
         inputs: stashed.inputs,
+        ...(stashed.request === undefined ? {} : { request: stashed.request }),
         by: asIndex >= 0 ? (stashed.cells[asIndex] as unknown) : null,
         scope,
       });
@@ -488,6 +531,7 @@ async function mapSequenceRow(
   record: Record<string, unknown>,
   sequenceRaw: readonly unknown[],
   invoke: ExampleHooks["invokeCall"],
+  prepare: ExampleHooks["prepareFixtures"],
 ): Promise<TableRowSpec<RowScope>> {
   const operation: unknown = record["operation"];
   if (typeof operation !== "string" || operation.length === 0) {
@@ -516,7 +560,7 @@ async function mapSequenceRow(
     caller: { kind: "self" },
     seed: [...order],
     setup: async (scope) => {
-      const provisioned = await provisionFixtureValues(order, suite, bindings, userValues);
+      const provisioned = await preparedFixtures(scope, order, suite, bindings, userValues, prepare);
       fixtureValues.set(scope, provisioned);
       stashedRows.set(scope, { fixtures: provisioned, inputs: null, baselineInputs: null, cells: [], expectedValues: [] });
     },

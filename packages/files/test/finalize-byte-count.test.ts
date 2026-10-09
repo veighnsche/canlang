@@ -124,10 +124,8 @@ test('actual FS append crash, reopen and retry rejects completion before finaliz
     assert.throws(() => appendUploadContent(broken, created.intentId, RECEIVER, BYTES), error => error === crash);
     assert.equal(intents.get(created.intentId)?.receivedBytes, 0);
     const reopened = { ...upload, blobs: createFsBlobStore(join(dir, 'blobs')), intents: persistedIntents(intentsPath) };
-    assert.equal(appendUploadContent(reopened, created.intentId, RECEIVER, BYTES).status, 'appended');
-    assert.equal(reopened.intents.get(created.intentId)?.receivedBytes, 1);
-    assert.equal(reopened.blobs.read(stagingKeyForIntent(created.intentId))?.byteLength, 2);
-    assert.deepEqual(completeUploadContent(reopened, created.intentId, RECEIVER), { status: 'failed', reason: 'oversized' });
+    assert.deepEqual(appendUploadContent(reopened, created.intentId, RECEIVER, BYTES), { status: 'failed', reason: 'closed' });
+    assert.deepEqual(completeUploadContent(reopened, created.intentId, RECEIVER), { status: 'failed', reason: 'closed' });
     const record = reopened.intents.get(created.intentId);
     assert.ok(record);
     assert.equal(record.state, 'rejected');

@@ -1,0 +1,22 @@
+## PROPOSED, uncompiled source input; match itself is not accepted grammar.
+app AdditionalEnumVector
+Given
+ Probe {state:enum(a,b)=a}
+ Other {state:enum(a,c)=a}
+ policy Probe read=members
+ policy Other read=members
+ fixture probe=Probe {}
+ fixture other=Other {}
+When
+ scenario inspect(probe:Probe,a:Other.state) read=true -> text by=members
+  do
+   let state=probe.state
+   match state
+    case a
+     return "A"
+    case b
+     return "B"
+Then
+ page / title="Enum vector"
+  list Probe
+   text row.state

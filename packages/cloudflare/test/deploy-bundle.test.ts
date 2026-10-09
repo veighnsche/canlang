@@ -135,6 +135,15 @@ describe("deploy bundle (P-B)", () => {
     expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/work/kernel/occurrence-staging.js");
     expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/work/receipt/index.js");
     expect(bundle.modules["runtime/invoke.js"]).toContain("./receipt-staging.js");
+    expect(bundle.modules["runtime/invoke.js"]).toContain("./bound-judgment.js");
+    expect(bundle.modules["runtime/bound-judgment.js"]).toContain("../vendor/services/judgments/specification.js");
+    expect(Object.keys(bundle.modules).filter(name => name.startsWith("vendor/services/"))).toEqual([
+      "vendor/services/judgments/specification.js",
+    ]);
+    expect(Object.keys(bundle.modules).filter(name => name.startsWith("vendor/noble-hashes/"))).toEqual([
+      "vendor/noble-hashes/_md.js", "vendor/noble-hashes/_u64.js",
+      "vendor/noble-hashes/sha2.js", "vendor/noble-hashes/utils.js",
+    ]);
     expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/ui/index.js");
     expect(bundle.modules["vendor/values/schema.js"]).toContain("normalizeSchema");
     expect(bundle.modules["vendor/values/schema.js"]).toContain("validateOperationInput");
@@ -142,6 +151,7 @@ describe("deploy bundle (P-B)", () => {
       "vendor/work/intent/staging.js",
       "vendor/work/kernel/arguments.js",
       "vendor/work/kernel/dispatch-staging.js",
+      "vendor/work/kernel/handler-occurrence.js",
       "vendor/work/kernel/occurrence-staging.js",
       "vendor/work/kernel/schedule-staging.js",
       "vendor/work/kernel/staging-support.js",
@@ -157,6 +167,9 @@ describe("deploy bundle (P-B)", () => {
     expect(bundle.modules["vendor/work/kernel/occurrence-staging.js"]).toContain("workOccurrencePutReceiptCommand");
     expect(() => assertWorkerdLoadable(bundle.modules)).not.toThrow();
     expect(() => assertLinksResolve(bundle.modules)).not.toThrow();
+    const missingJudgmentHash = { ...bundle.modules };
+    delete missingJudgmentHash["vendor/noble-hashes/_u64.js"];
+    expect(() => assertLinksResolve(missingJudgmentHash)).toThrow("no such staged module");
     expect(Object.keys(bundle.modules).some((name) => /(?:es-module-lexer|magic-string|trace-mapping|resolve-uri)/.test(name))).toBe(false);
     const missingCodec = { ...bundle.modules };
     delete missingCodec[key];

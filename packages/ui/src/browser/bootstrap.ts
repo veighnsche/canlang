@@ -790,11 +790,86 @@ function closeOpenDetails(document: DocumentLike): void {
   }
 }
 
+/** Native dialog owns modal focus; the checkbox remains the drawer trigger. */
+const bindSplitCollection: ComponentBinder = (root, _client, internals) => {
+  type Toggle = ElementLike & { checked?: boolean; getClientRects?: () => { readonly length: number } };
+  type Dialog = ElementLike & { readonly open?: boolean; matches?: (selector: string) => boolean;
+    show?: () => void; showModal?: () => void; close?: () => void };
+  const toggle = (): Toggle | null => root.querySelector?.('.drawer-toggle') ?? null;
+  const dialog = (): Dialog | null => root.querySelector?.('dialog[data-can-split-panel]') ?? null;
+  const mobile = (): boolean => (toggle()?.getClientRects?.().length ?? 0) > 0;
+  let stopped = false;
+  let mobileOpened = false;
+  const sync = (): void => {
+    const checkbox = toggle(), pane = dialog();
+    if (stopped || !root.isConnected || checkbox === null || pane === null ||
+        pane.show === undefined || pane.showModal === undefined || pane.close === undefined) return;
+    const modal = pane.matches?.(':modal') === true;
+    if (mobile() && checkbox.checked === true) {
+      if (modal) return;
+      if (pane.open) pane.close();
+      pane.setAttribute('closedby', 'any');
+      pane.setAttribute('style', 'max-width:90vw;margin:0;position:fixed;inset:0 0 0 auto;min-height:100vh;visibility:visible;transform:none');
+      for (const other of internals.document.querySelectorAll('[data-can-split] dialog:modal')) {
+        if (other !== pane) (other as Dialog).close?.();
+      }
+      pane.showModal();
+      mobileOpened = true;
+    } else {
+      if (modal || (mobile() && pane.open)) pane.close();
+      pane.setAttribute('closedby', 'none');
+      pane.setAttribute('style', 'max-width:90vw;margin:0;position:relative;visibility:visible;transform:none');
+      if (!mobile()) mobileOpened = false;
+      if (!mobile() && !pane.open) pane.show();
+    }
+  };
+  const close = (): void => {
+    const checkbox = toggle(), pane = dialog();
+    if (checkbox !== null) checkbox.checked = false;
+    if (pane?.open) pane.close?.();
+  };
+  const closed = (): void => {
+    const pane = dialog(), checkbox = toggle();
+    // close() queues its event: a subsequent showModal()/show() owns new state.
+    if (stopped || pane?.open || checkbox === null) return;
+    checkbox.checked = false;
+    if (mobileOpened && mobile() && checkbox.isConnected) checkbox.focus();
+    mobileOpened = false;
+  };
+  const clicked = (event: EventLike): void => {
+    if (event.target?.hasAttribute('data-can-split-close')) close();
+  };
+  const releases: Array<() => void> = [];
+  const pane = dialog();
+  try {
+    releases.push(() => root.removeEventListener('change', sync));
+    root.addEventListener('change', sync);
+    releases.push(() => root.removeEventListener('click', clicked));
+    root.addEventListener('click', clicked);
+    releases.push(() => internals.windowRef.removeEventListener('resize', sync));
+    internals.windowRef.addEventListener('resize', sync);
+    if (pane !== null) {
+      releases.push(() => pane.removeEventListener('close', closed));
+      pane.addEventListener('close', closed);
+    }
+    sync();
+  } catch (error) {
+    stopped = true;
+    try { releaseClientResources([...releases, close]); } catch { /* Preserve acquisition failure. */ }
+    throw error;
+  }
+  return () => {
+    stopped = true;
+    releaseClientResources([...releases.splice(0), close]);
+  };
+};
+
 // Core binder seeds (catalog ids bound by this slice).
 registerBinder("poll-region", bindPollRegion);
 registerBinder("guarded-form", bindGuardedForm);
 registerBinder("generated-form", bindGeneratedForm);
 registerBinder("once-action", (root) => bindOnceAction(root));
+registerBinder("split-collection", bindSplitCollection);
 
 /** Scan hooks: selector per core binder id. */
 const BINDER_SELECTORS: ReadonlyArray<readonly [string, string]> = [
@@ -802,6 +877,7 @@ const BINDER_SELECTORS: ReadonlyArray<readonly [string, string]> = [
   ["guarded-form", "form[data-can-guard]"],
   ["generated-form", "form[data-can-generated-form]"],
   ["once-action", "[data-can-once]"],
+  ["split-collection", "[data-can-split]"],
 ];
 
 /** Live clients by document: starting twice returns the same client. */
@@ -895,7 +971,8 @@ export function startBrowserClient(options: BrowserClientOptions): BrowserClient
         const entry = bound[index];
         if (entry !== undefined && (!entry.element.isConnected ||
             (entry.binder === 'poll-region' && !entry.element.hasAttribute('data-can-poll')) ||
-            (entry.binder === 'generated-form' && !entry.element.hasAttribute('data-can-generated-form')))) {
+            (entry.binder === 'generated-form' && !entry.element.hasAttribute('data-can-generated-form')) ||
+            (entry.binder === 'split-collection' && !entry.element.hasAttribute('data-can-split')))) {
           bound.splice(index, 1);
           entry.stop();
         }

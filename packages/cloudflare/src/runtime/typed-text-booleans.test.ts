@@ -56,7 +56,9 @@ test('compiled text and boolean profiles validate native inputs, fields, results
     });
     const invoker = buildInvoker(artifact, asm, store, options);
     const born = committed(await invoker.invokeMutation(envelope('Profile.create', {}), identity));
-    const row = born.result as { id: string; version: number; data: Record<string, unknown> };
+    assert.equal(born.result, null);
+    assert.equal(born.records?.length, 1);
+    const row = born.records![0] as { id: string; version: number; data: Record<string, unknown> };
     assert.deepEqual(row.data, {
       name: 'initial', enabled: false, names: [], flags: [], seedNames: ['a', 'b'],
       seedFlags: [true, false], maybeNames: null, maybeFlags: null, maybeName: null, maybeEnabled: null,
@@ -168,7 +170,9 @@ test('compiled text and boolean D1 lifecycle persists defaults, CRUD refusals an
     const invoker = buildInvoker(artifact, asm, d1.store, options);
     const create = envelope('Profile.create', {});
     const born = committed(await invoker.invokeMutation(create, identity));
-    const row = born.result as { id: string; version: number; data: Record<string, unknown> };
+    assert.equal(born.result, null);
+    assert.equal(born.records?.length, 1);
+    const row = born.records![0] as { id: string; version: number; data: Record<string, unknown> };
     const initialData = {
       name: 'initial', enabled: false, names: [], flags: [], seedNames: ['a', 'b'],
       seedFlags: [true, false], maybeNames: null, maybeFlags: null, maybeName: null, maybeEnabled: null,

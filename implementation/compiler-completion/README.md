@@ -1,6 +1,6 @@
 # Active compiler completion
 
-Current completion is **57 of 67 references**, with **10 remaining including partial work**. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
+Current completion is **58 of 67 references**, with **9 remaining including partial work**. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
 The user has authorized finishing the remaining compiler tasks. Use the [recorded work/review settings](../../docs/research/compiler-library-audit-20261006/resumption/model-allocation.md); overlapping references share work and completed receipts are reused at matching scope. Current completion joins append to the canonical coverage ledger; historical source pins remain unchanged.
 
@@ -17,7 +17,7 @@ OUT-R04 [comment preservation](comment-preservation/independent-review.md), FAIL
 
 The [frozen integrated native baseline](producer-refresh/integrated-checks.json) passes 1,130 harness tests and strict all-target Clippy. The mode-4750 optional body explicitly skipped. A real advertised producer rebuild also enabled the actual compiled state-machine lifecycle/runtime body; deployed/original/installed/GUI profiles remain open. These receipts precede later leaf edits and do not qualify future source automatically.
 
-SEM-R04 email policy is frozen with all three advisory consultations complete and explicit payload approval resolved; its focused low-reasoning implementation and [medium independent review](email-admission/independent-review/review.json) are accepted. The saved113 cases and145 distinct review cases agree with actual public codecs; imports execute generated metadata modules, with no UI consumer credit. ED-R06/FAIL-R07 [live session history and checked lint selection](session-history/independent-review/review.md) are independently accepted at the bounded valid-owner scope; native mode4750 qualification remains open. The [three support retention decisions](retained-support-review/report.md) are accepted separately, with zero deletion credit: docs views, map extraction and public map decoder. SEM-R03/S9-Q01 selected binding/default/plain-format implementation passes117 codegen cases and actual runtime controls, and is independently accepted by [HIGH review](selected-calls/independent-review/report.md). Localized formatting, UI adapters and actual BDD observation facts remain separate open owner joins. The [strict JSON reader retention](json-reader/independent-review/review.json) is separately accepted with zero deletion credit. The integrated run corrected one stale queue oracle (30 authoring checks and independent review pass), then exposed the genuine BDD fact gap in production b1_join; its gates remain unchanged. The [synchronous guard export closure](runtime-export-join/independent-review/assessment.md) is independently accepted and committed at b7e18b9b; actual canonical memory mutation/revocation controls pass, while read-scenario/subject/deployed gaps remain. The current selected-call regression uses real exports; historical absent-export evidence stays unchanged. The formatting join must carry the invoking selected app locale and trusted timezone through the actual Cloudflare HandlerContext owner.
+SEM-R04 email policy is frozen with all three advisory consultations complete and explicit payload approval resolved; its focused low-reasoning implementation and [medium independent review](email-admission/independent-review/review.json) are accepted. The saved113 cases and145 distinct review cases agree with actual public codecs; imports execute generated metadata modules, with no UI consumer credit. ED-R06/FAIL-R07 [live session history and checked lint selection](session-history/independent-review/review.md) are independently accepted at the bounded valid-owner scope; native mode4750 qualification remains open. The [three support retention decisions](retained-support-review/report.md) are accepted separately, with zero deletion credit: docs views, map extraction and public map decoder. SEM-R03/S9-Q01 selected binding/default/plain-format implementation passes117 codegen cases and actual runtime controls, and is independently accepted by [HIGH review](selected-calls/independent-review/report.md). Localized formatting, UI adapters and actual BDD observation facts remain separate open owner joins. The [strict JSON reader retention](json-reader/independent-review/review.json) is separately accepted with zero deletion credit. The integrated run corrected one stale queue oracle (30 authoring checks and independent review pass), then exposed the genuine BDD fact gap in production b1_join; its gates remain unchanged. The [synchronous guard export closure](runtime-export-join/implementation/report.md) is independently accepted and committed at b7e18b9b; actual canonical memory mutation/revocation controls pass, while read-scenario/subject/deployed gaps remain. The current selected-call regression uses real exports; historical absent-export conclusions and uncertainty remain in the concise report. The formatting join must carry the invoking selected app locale and trusted timezone through the actual Cloudflare HandlerContext owner.
 
 This compiler completion run has performed no merge or living-plan checkpoint advance. The separately authorized state-machine chat integrated its feature and recorded scoped coverage at 7f92c05f; its full-source review checkpoint is maintained by its merge coordinator. Active compiler packet receipts retain their own source pins.
 
@@ -468,3 +468,464 @@ no replacement helper or compiler source change was needed. The existing
 Accepted mutation, input, actor/reference and replay checks were reused.
 Broader read/default forms, CRUD/private/D1/full applications and full S9-Q02
 remain separate. Canonical completion remains **57/67**, with **10** remaining.
+
+
+The [enum-result case](../../compiler/tests/enum_result_runtime.rs) passes
+**1/1** through genuine compiler output and canonical CF/State Memory. Public
+mutation/read results now publish checked ordered inline enum claims through
+the existing descriptor and Values codec. Eighteen positive calls cover
+singular, nullable, ordinary-array and nullable-array results, including null,
+empty and ordered arrays; a nonmember call denies before authored execution.
+Reads preserve revision/history. The first run failed because Cloudflare's
+whole-artifact loader forwarded defining read cases into a Values schema field
+that rejects them, before the initial mutation could admit. Work corrected that
+read-coherence branch with the existing type parser/printer and published its
+actual output; only the same failed case ran again and passed. No compiler/test
+correction or repeat build was needed. Existing scalar/model, input/default,
+actor/reference and replay outcomes are reused. Nonempty, element-nullable,
+nested and private enum result producers, D1/full applications and full S9-Q02
+remain separate. Canonical completion remains **57/67**, with **10** remaining.
+
+The [static Judgment source](../../compiler/tests/fixtures/static_judgment.can)
+now compiles through the production CLI and installed Values catalog. Its
+single descriptor preserves ordered localized questions, exact BigInt version
+and checked owning `sourceLanguage`. One checked IR-derived `valueTypes`
+inventory supplies source/generated/standard contracts and named enums to
+both the artifact and `appDefinition`. Public nominal fields, inputs and
+results refer to that inventory, including required `[]!` arrays. Judgment
+delivery metadata preserves the exact declaration version as decimal text
+and reuses its inventory result. The checked binding and ordinary send
+retain their existing authority path.
+The same source creates an assessment, retains its frozen specification,
+associates the request and returns the model reference under an authored rule.
+Three focused source refusals qualify score-level type-only access, text state
+and unique option identities with no modules. The duplicate control's initial
+diagnostic expectation was corrected to the owning parser's E1202, then only
+that control was repeated. The affected Rust direct case builds and its
+source controls pass. Its first module import stopped because installed
+Cloudflare stdlib lacked `judgmentSpecification`. After the defining helper
+and actual State/CF outputs were released, the same case passed **1/1**
+(0.18s), including inventory/app-schema coherence, exact descriptor/binding,
+nominal field/input/result metadata, delivery and callable imports. Work owns
+the native workflow through the same source. The defining State owner
+requires no new capability ID; existing scenario/parameter requirements stay.
+Runtime options, provider normalization and
+full applications remain separate; this is no additional full-task credit.
+
+S9-Q03 is complete at its original finite row86 tab/order/factory duty.
+Accepted `c718517a`/`65199fa6` outcomes already exercise the actual public
+Card/transient Tabs factories and explicit E6008 bound-tab/structured-order
+refusals at authored spans without modules. The original duty permits such
+unsupported admission; no meaningful-node-to-empty acceptance remains in
+this scope. The coordinator accepted the existing outcomes without new
+source changes, checks or a proof packet. Preference saving/lifecycle, bound
+enum-panel coverage, actual query ordering, authenticated-row/product and
+full application work remain separate. Completion is **58/67**, with **9**
+remaining. Earlier counts and wider-work statements retain their historical
+scope.
+
+The [bounded query source](../../compiler/tests/fixtures/bounded_query_rollback.can)
+and [owning direct case](../../compiler/tests/bounded_query_rollback_runtime.rs)
+pass **1/1** (0.70s) through genuine CLI output and installed canonical CF/State
+Memory invocation. Actual CRUD-created rows are fetched once; the declared
+bound runs before writes; updates await once in returned native domain
+identity/order. An authored failing guard rolls back rows, versions and
+history. An accepted guard commits both updates once; a third row causes
+overflow refusal before any update. Rejected receipts retain the existing
+`rule_failed` policy, preserve the `limit` diagnostic for overflow and advance
+the global fence once while domain state stays intact. Two initial failures
+were incorrect new expectations about global revision and typed limit codes;
+only this affected case was corrected and repeated. No production change or
+accepted matrix rerun was needed. This qualifies the original S9-Q02 bounded
+domain/order/failure slice; async predicates, hooks, outbound lifecycle, D1
+and the broader reference remain open. Completion remains **58/67**.
+
+The earlier async-query mutation slice remains unqualified. Current source emits an
+awaited async model predicate through the existing derive/query path, but
+canonical mutation `records(where)` explicitly refuses with `validation`
+before source callbacks or updates. The first native case exposed that
+boundary; a reduced refusal-only run was already started before the
+coordinator stopped recertification and passed 1/1 (0.73s). Prepared source
+and test were left uncaptured and removed. That mutation outcome carries no
+positive async/once credit. The distinct held Task22 outbox lookup contract
+stays held. Work subsequently released its separate viewer-query repair;
+the supported read result below supersedes the earlier predicate-replay gap.
+
+The supported [hook source](../../compiler/tests/fixtures/hook_order_rollback.can)
+compiles, but its [prepared native case](../../compiler/tests/hook_order_rollback_runtime.rs)
+failed **0/1** (6.63s): canonical CRUD committed the proposed Entry update
+without executing the emitted authored hook. Production output contains the
+hook registry and explicit callable linkage; the defining invocation assembly
+was silently omitting them. After Work released the explicit unsupported-hook
+refusal, the same reduced case passed **1/1** (0.51s): `validation` names the
+unsupported canonical hook, no authored guards run, Entry/version/history and
+absent Audit remain intact, and the native rejected receipt advances the fence
+once. Candidate order, staged Audit and late rollback remain unqualified
+through this path. The reduced refusal case is ready for capture. Accepted T31
+native engine staging coverage is reused; no replacement callbacks or contexts
+were introduced and no unchanged case was repeated.
+
+Runtime-choice Judgment now extends the [same source](../../compiler/tests/fixtures/static_judgment.can)
+and [same direct case](../../compiler/tests/static_judgment_runtime.rs), passing
+**1/1** (0.58s) through production CLI, installed catalog and actual module
+assembly. One checked inventory adds the bounded text choice alias, candidate
+record and required options array with count, distinct-ID and authored-ID
+exclusion constraints. `RuntimeCandidates.choices` reuses that field with
+the receiving max=8 intersection. Static descriptor/types remain unchanged;
+runtime specification emits the third options argument and evaluate receives
+the same typed options contract. Missing send options (E3010), missing
+specification argument (E3005) and an authored 81-scalar ID (E3001) refuse
+without modules. Mechanical affected IR/descriptor fixture constructors compile;
+accepted matrices were not executed. Nonliteral receiving bounds on these
+constrained reused fields explicitly refuse. Work/Package own the native
+dispatch, provider normalization and storage/receipt join through this source;
+full roadmap46/CanDecide and S9-Q02 remain open. Completion remains **58/67**.
+Two concrete edge corrections were batched in the same case, then it passed
+**1/1** (0.75s): a question named `runtime` remains static unless the actual
+`options=runtime` marker is present; an omitted authored map emits no `options`
+property and derives a 2–26 runtime array, while an explicit empty map refuses
+with E1204. Both positive variants load actual generated modules. The targeted
+existing descriptor byte contract also passes 1/1, preserving unchanged
+standard delivery bytes when optional constraints are absent.
+
+The bounded S9-Q01 branch-options formatter case
+[`localized_format_executes_source_owned_branch_options`](../../compiler/tests/localized_format.rs)
+passes **1/1** (0.65s). The existing real
+[generated-import consumer](../../compiler/tests/fixtures/localized-format-consumer.mjs)
+uses `--branch-options` to compile one genuine `.can` source, load its artifact,
+assemble unchanged exported derives and execute the installed stdlib formatter.
+Nested enum select/int plural/bool select, int ordinals, exact Decimal selectors
+and number rendering, safe-range refusal, en/fr selected-locale fallback,
+positional/reordered named getter order and once, and first-failure identity
+and short-circuit are qualified. The first failed source case exposed a tiny
+`types.rs::scan_argument` closing-brace ownership defect for typed ICU arguments;
+the owning scan now consumes that argument's closing brace. The same affected
+case passed after that repair. Existing selected-call/localized-format matrices
+are reused unchanged. This is an expression host with explicit app scope: no
+full S9-Q01, State, authority, timezone or Decimal-source-literal claim. The
+prior contextual attribute-name issue for a parameter named `label` is now
+qualified separately below; this earlier branch case still uses `word`. Completion counters are unchanged.
+
+The restored [async-query source](../../compiler/tests/fixtures/async_query_predicate.can)
+and [same native case](../../compiler/tests/async_query_predicate_runtime.rs)
+pass **1/1** (0.75s) against Work's actual released viewer-query repair. The
+production CLI and installed catalog emit an awaited model predicate; actual
+Cloudflare/State Memory invocation preserves one predicate call per candidate
+in its native scan order, short circuit, awaited nested reads, and first
+arithmetic failure without later evaluation. Fresh membership revocation
+refuses both a nonempty result and an all-false result whose nested Probe
+reads are empty, without replaying source. All read outcomes preserve domain
+rows, versions, history and the global fence without receipts. Native CRUD
+supplies all fixtures and Probe deletion; real membership fixtures supply
+revocations. Two preparation failures corrected unsupported returned-query
+`limit=` and bare `order=` in the fixture; no production query feature was
+added. Mutation-filter refusal, structured expression ordering, D1 and full
+S9-Q02 remain separate. Completion remains **58/67**.
+
+The [existing map consumer](map-attribution/consumer.mjs) qualifies the
+installed public callable-registry mapper through
+[`production_failure_reaches_native_registry_mapped_outcome`](../../compiler/tests/map_attribution.rs):
+**1/1** (0.22s). One actual emitted division failure returns its unchanged
+error text and original absolute `.can` identity at line 4, column 8, with
+the owning callable name. Node source-map support is disabled in this mode;
+the current runtime decodes the generated frame. The first observer omitted
+the existing optional mapped name and was corrected; only that affected case
+repeated. Accepted DEP-02 emission/Node/decoder evidence is reused. Full State
+operation conversion is now qualified at the internal existing-details hop by
+[`production_failure_retains_internal_attribution_through_canonical_state`](../../compiler/tests/map_attribution.rs),
+**1/1** (0.21s). Actual production CLI/artifact/installed Cloudflare assembly
+and State Memory preserve mapped attribution only in fresh internal
+`StateError.details`; public error code/message/opid/retryable fields stay
+unchanged, rejected create rolls back, receipt and same-ID replay do not leak
+the mapping, and map-free fresh artifacts return `details:null`. One
+source-level `invoke.ts` edit wraps the existing `outcome.mapped` in the
+existing error details while preserving engine failures. Two fixture/setup
+failures (0.36s, 0.52s) were corrected before the installed consumer; focused
+TypeScript no-emit/Rust build receipts are reused. This closes only the finite
+internal handoff, not held BDD3 returned/as/live/context disclosure, full
+replay/public source policy or full S9-Q08/OUT-R05.
+
+The finite SEM-R08 rejected-trial literal-fact defect is now qualified and
+repaired in the [owning overload seam](overload-owner-seam/README.md). The same
+new permanent `rejected_currency_overload_preserves_winning_text_argument_facts`
+case passes **1/1** (0.10s): a sound Currency `choose` subset preceding the
+installed generic signature rejects its later argument, while the successful
+generic call retains checked/IR `[Bool,Text,Text]`. Trial-local literal writes,
+fork/commit and winner publication preserve the accepted narrow call's
+`[Bool,Currency,Currency]`. Both actual generated stdlib calls return `USD`
+before fact assertions, as they did in the intended prepatch failure. Earlier
+13 standard-catalog nonreproduction checks and selected-call matrices are reused
+unchanged. Full SEM-R08 remains open; no IDE-error, wrong-native-value, new API
+or new catalog producer contract is claimed. Package owns facade capture and
+the coordinator owns decisions/coverage/index; completion counters are unchanged.
+
+The same generated formatter consumer now separately qualifies contextual
+`label` parameters in
+`localized_format_preserves_contextual_label_parameter_and_caption`: **1/1**
+(0.68s). The first affected run **0/1** (0.58s) reported two E3016 diagnostics
+at valid `label` parameter text types. `resolve_param_defaults` now treats
+`label` as metadata only when followed by `=`, preserving the earlier `seed`
+default binding; `check_param_defaults` uses the existing `field_parts.label`
+owner. Actual native outputs are `{text:"Ready|Ready|T",locale:"en"}` for the
+dependent default and `{text:"S|Bound|T",locale:"en"}` for explicit binding. A
+true parameter caption referencing a parameterized message still refuses the
+exact E3016 with no modules. Existing matrices and branch outcomes are reused
+unchanged. This finite S9-Q01 source/default/caption qualification adds no task
+count, full S9-Q01, carrier, public human sink, State/authority, parser or facade
+claim. Source/test/own notes are ready for capture; coordinator/Package own
+DECISIONS/index joins.
+
+The [bounded model query-order join](query-order/outcome.md) qualifies direct
+`entry.count` and unary `-entry.count` through the genuine authorized-read
+fixture. Its production compiler case **1/1** (0.40s) is reused without rerun;
+two prior source E6008 refusals are repaired, while same-source arithmetic and
+typed foreign-root order still refuse exact E6008 with no modules. The same
+authorized D1 case now passes **1/1** (4213.82ms; 4396.74ms total), following
+production CLI0/Cloudflare emit0. Work fixed the observed `14` before `7` sort
+defect by supplying `models: loaded.models` to State's existing comparator; no
+State API/comparator change was required. Owners/auditors receive exact
+`["1","7","14","9007199254740993"]` and its descending reverse;
+members/anonymous preserve existing ungranted-order validation, correcting the
+earlier proposed empty-array observer. Existing predicate/privacy, provisional,
+rollback and role-loss checks are reused within the same changed native case.
+Full S9-Q02/Q08, metadata and computed ordering remain open. Completion remains
+**58/67**, with **9 open** references; Work owns Cloudflare/fixture capture and
+the coordinator owns DECISIONS/index joins.
+
+The [read-dependent default handoff](default-read-dependency/outcome.md) passes
+its first actual case **1/1** (5.13s), then the required host-migration
+affected-case rerun **1/1** (0.51s) after a consumer-only setup correction;
+its affected `--no-run` build passed (5.60s). No production repair was needed. Actual
+checked default NodeKey/derive ownership and Int type survive into the same
+owning computed-call IR. Production CLI/public loading and assembly/native
+Cloudflare/State Memory execute the generated read/count default against two
+CRUD-created rows: omission returns wire `"2"`, explicit `"9"` skips the
+helper. After host migration `45cbbd3e`, public CRUD returns `null` without
+read authorization; consumer setup now supplies an operation ID and verifies
+the created row through the owning internal store. Authored source grants and
+default expectations are unchanged. Forwarding native observers retain
+admitted context and native row identity, with one default read/count and
+unchanged domain rows/history.
+Existing `computedDefault`/no literal default and state/state.parameters
+requirements remain qualified. Legitimate policy role checks were allowed in
+the observer before the first run. The migration rerun was required by the
+actual host change, not an old-matrix repeat. Earlier actor/read/default/effects
+outcomes including `d2fb9024` are reused unexecuted. No server-marker/
+unsupported-default API expansion or full SEM-R08/task-count credit follows.
+Completion remains **58/67**, with **9 open** references.
+
+The [finite native text presentation join](localized-format/outcome.md) passes
+`localized_format_displays_checked_source_locale_and_frozen_result` on its
+first run **1/1** (6.81s), with three older cases filtered out. Checked owner
+source language reaches one generated UI constructor helper, which canonicalizes
+the fourth source-locale argument and requires its returned field; absent
+ownership is E6006 and an incompatible constructor refuses. Values formatting
+signatures remain unchanged. Actual CLI/loading/assembly/page admission/render
+with installed UI presents both imported French zero grammar and the complete
+frozen formatter pair safely, with escaping, literal braces, Arabic isolation
+and language markup. A Dutch rerender changes only the direct descriptor; the
+explicit formatted pair retains French. Legacy calls, source mismatch/malformed
+pair checks, incompatible constructor refusal and formatted badge E6008/no
+modules pass. Only text values admit the pair; other business/sink refusals stay
+intact. Affected codegen/localized-format targets compile0 without executing
+old matrices. Earlier branch/label/expression results are reused; wider
+S9-Q01 hosts/business/outbound/timezone remain open. Completion remains
+**58/67**, with **9 remaining** references.
+
+The finite SEM-R08 imported scalar-alias consumer passes its first actual case
+**1/1** (0.54s). `Calendar.day` and `Calendar.instant` aliases retain their
+checked source identities and `date`/`datetime` scalar types through named,
+reordered arguments into the installed same-arity `overlaps` overloads; checked
+facts and typed IR select arms 0 and 1 with slots `[3,1,2,0]`. The unchanged
+installed catalog, public compiler path, generated imports and Values facade
+execute date and datetime overlap/touching controls with receiver-bound getters
+once in source order and preserve original input references. Six unchanged
+selected-call tests are reused. This is finite alias/overload qualification,
+not a demonstrated preexisting defect or full SEM-R08 credit; unknown dotted
+nominals, authority-derived provenance and other SEM-R08 duties remain open.
+Completion remains **58/67**, with **9 remaining** references.
+
+The human-priority preferences placement slice is implemented and its focused
+native source case is qualified. Preferences schemas and their own invariants
+now belong in `Then`; `Given` preferences schemas fail E1200. The focused
+`preferences_placement.rs` case passes **1/1** (0.10s) through the production
+CLI, installed catalog, generated `canApp` metadata and UI render: defaults,
+positive/negative validation and page preference references are preserved.
+Its initial run exposed only the test fixture's missing required model read
+policy; adding the authored `read=members` policy made the same case pass. A
+focused parser/preferences `--no-run` build passes (11.12s), with the corrected
+case rebuild at 0.78s. Shared owner, empty/duplicate/export guards remain, as
+do nested bare UI preference panels. This does not qualify saved preference
+admission, browser/read lifecycle or full S9-Q03, and earns no reference-count
+credit; completion remains **58/67**, with **9 open** references.
+
+The current cohort-host case is now qualified at its recorded scope. The
+original installed-host failure is retained: scoped JSON case 55 in
+`/private/tmp/canlang-crud-public-migration/node-tests.log259ff` reports
+`ValueError` for `same(entry.parent,event.container)`. Authored source, checked
+producer and saved emission are correct; the split private host and installed
+stdlib use distinct WeakMaps for native record identity. One test-only
+`stdlibUrl` adjustment in the owning Cloudflare test makes both sides share the
+actual emitted owner, without changing production/compiler/reference policy.
+Package released Services closure `5ca0e117`; normal Services Cloudflare dist
+emit0 and installed1/1/pages3/3 are reused, not rerun. Root refreshed the
+selected cohort/required-stdlib TypeScript emit in the fresh private root (0),
+then the same owning `typed-private-cohort` case passed **1/1** (23.760s;
+24.118s total). The full case completes native frozen sibling, scoped
+membership, current references, restart/recovery, fences and retained
+navigation, plus installed bundle/worker behavior; the original `same()`
+reference failure is gone.
+
+Earlier host attempts remain recorded: first0/1 (21.831s) passed the reference,
+scope, frozen, restart and current-authority portions before private-host
+self-package resolution failed; after a temporary dependency overlay, second
+0/1 (22.806s) passed those portions before the bound-judgment staged module was
+missing. The third attempt was interrupted at21.460s (cancelled,1 pass,0 fail)
+while awaiting package closure. The explicit release justified the final
+same-case repeat. No production/runtime/compiler/reference-policy or shared
+identity-map change was made. No S9-Q02/full-task, BDD3 policy or new-packet
+credit follows; original completion remains **58/67**, with **9 open**.
+
+The bounded app-local `view`/`show` producer passes the genuine
+[`local_views_bind_rows_once_and_keep_native_occurrences_distinct`](../../compiler/tests/view_reuse.rs)
+case **1/1** (0.59s). Checked local row binding expands declaration-owned
+presentation through installed UI factories. Two uses retain distinct controls,
+source locale, nested row shadowing and original authorized query projections.
+The first native run **0/1** (0.61s) exposed an omitted contained collection
+model; the producer now reuses its checked child/parent domain classification.
+Only that affected case was repeated. The actual CanBook action-bearing table
+contract and per-use prepared forms still need their owning payload/identity
+profiles, so original52 and full CanBook remain open. Completion stays **58/67**.
+
+The finite S9-Q07 imported-helper link now passes
+[`imported_example_helpers_use_actual_production_registry`](../../compiler/tests/bdd_binding_runtime.rs)
+**1/1** (0.90s) through actual CLI/catalog output, generated production and
+test modules, and installed testkit setup/invoke/observe. The unchanged
+`sequence-alias.can` selects the real `Provider.take` registry entry; its
+preceding echo dispatch and assertions succeed. The emitter links only checked
+canonical helpers already exported by production `canApp`, when required; it
+does not clone helper bodies or add exports/APIs. Focused codegen and
+BDD-binding `--no-run` build passed (13.37s), with no broad suite or old-case
+rerun. BDD3 result/payload/`as`, live/context/disclosure and input-slot policy
+remain held, and full S9-Q07 remains open; completion stays **58/67**.
+
+The changed affected view case now also passes **1/1** (4.75s) after the owning
+boolean-status and shared collection-empty profiles were released. Existing
+native `status` consumes the checked bool; omitted nested-list `empty` reaches
+the real shared default for empty projected rows. Source status records and
+unsupported appearance refuse publication. This repeats only the changed case;
+the owning shared-default checks are reused. Prepared actions, table split
+selection and per-use form edit identity remain separate original52 duties.
+
+The focused compiler-source check
+`cargo clippy --manifest-path compiler/Cargo.toml --locked --offline -j2 --lib --bin can -- -D warnings`
+passes (exit 0, 5.60s; handle 61090). Its first run reported five warnings in
+the view namespace map entry, two judgment nested-if cases, and the existing
+public inline `IrGuard`/`IrStmt` enums. The fixes use `HashMap::entry`, equivalent
+judgment let-chain conditions, and documented local allows on those enums. No
+semantic native case was rerun; the recorded view case remains qualified at its
+existing scope, without whole-closure or reference-count credit.
+
+The same app-local view case now also qualifies a protected nested
+action/form slice: actual outer Card and nested Detail actions seal only their
+own identity/version through the installed Interfaces catalog, preparer/seal
+and UI path. Authored labels, omitted display defaults, and distinct stable DOM
+prefixes, bindings and drafts survive locale change/requery; reference-only
+status and duplicate/no-host controls refuse. Authored action content refuses
+except for the ordinary `require` gate, now covered by a permanent control. The first IR failure exposed an
+outer typed fallback inherited by the nested row; the producer now reuses the
+existing collection child scope and `row_rewrite` for exact-model shadowing.
+Two later failures were harness setup assumptions (framing-only catalog, then
+bare field name); the case passed **1/1** (0.31s), before the content-refusal
+control. The final same case including that control passes **1/1** (0.69s).
+Focused builds passed (13.19s, 5.88s, and final changed-source build 9.76s).
+This does not qualify `by`/`for`
+availability, full original52/11/CanBook/table/split, or held BDD3/public-wire
+semantics; the original **58/67** count is unchanged.
+The earlier focused Clippy result was **0** (3.50s; handle 18184). Final focused
+Clippy on the changed producer source also passes:
+`cargo clippy --manifest-path compiler/Cargo.toml --locked --offline -j2 --lib --bin can -- -D warnings`
+(exit 0, 2.93s; handle 30727). Scoped rustfmt check passes; a test-line wrapping
+correction was formatting-only and had no semantic rerun. No unrelated native
+case or broader suite was run.
+
+The current affected view case now also qualifies the finite native split-table
+consumer: the real compiler/artifact and installed Interfaces selection parser
+feed the released UI split table. The href selects the current projection;
+two views render with signed outer/nested actions and stable tab/form labels
+across locale changes and requery. Absent, unknown and currently absent
+projected rows cause no callback, detail query or form. `display=split` uses
+private stable collection-occurrence/table `row_scope`; unsplit ordinary table
+children, unknown display and source occurrences refuse. The case uses a
+controlled authorized-query port and claims no State-principal revocation, D1,
+viewport/key-focus or full CanBook result. Roadmap14 renders and Interfaces12
+are reused. Changed-source build passed (11.52s), focused Clippy passed (3.22s;
+handle 40408), and scoped rustfmt passed after test-only wrapping. Full52
+pagination/parent/cursor/filters/order/defaults, `time`/`by`/`require`, held11
+and full CanBook remain open; completion stays **58/67**.
+
+The finite std nominal field-reuse case
+`std_nominal_field_reuse_preserves_delivery_status_enum_and_native_inputs`
+passes **1/1** (0.22s) through the actual installed Cloudflare/State Memory
+consumer. `Report.status` and optional `delivery?.status` reuse the installed
+`DeliveryResult` schema; all five schema cases, foreign-string validation and
+rejected-receipt behavior pass. Existing E3008 nonnull and E2013 missing-field
+refusals remain. The initial **0/1** (0.01s) was a test lookup issue from CST
+leading trivia, corrected with `.trim()` without weakening the assertion.
+Existing `std_nominal_construct` **1/1** (0.53s) is reused. Focused builds pass
+(6.74s and test-only rebuild 2.06s), focused lib/bin Clippy passes (3.79s), and
+source formatting passes. A fresh check of the same 12 source files, including CanBook, still
+exits 10 with no modules; the repaired status and case-label errors are gone,
+while broader source/runtime/BDD duties remain open. This adds no task-count
+credit; completion remains **58/67**.
+
+The same std-owner slice now also qualifies completion-header enum claims:
+`types.rs` reuses the exact checked handler completion envelope for example
+event literals, and existing enum-claim machinery accepts `succeeded` with the
+declared `Outcome.state=unavailable`. The permanent
+`b4_check::completion_example_headers_claim_status_and_declared_result_enum_cases`
+case also checks the nullable generic Object field against the imported std
+`OperationOutcome` schema. Example table headings/rows reuse checked event-base
+and explicit nonnull header facts; null/omission and equal/ancestor input
+replacement preserve Error/unclaimed behavior. The final owning case passes
+**1/1** (0.06s) with actual installed schema and CLI local/standard fixtures;
+foreign HEADER status/state refuses E2001, while a general foreign ROW stays
+diagnostic-free and unclaimed (no refusal claim). An earlier **0/1** (0.42s)
+asserted a false CLI row diagnostic and passed after correcting that expectation.
+A later **0/1** (0.01s) added an inadmissible trusted-handler sequence E1210;
+that control was removed, restoring the original DoBlock scope without sequence
+policy changes. Final focused build passes (7.04s), focused lib/bin Clippy
+passed before that temporary control (3.33s), and scoped formatting passes.
+The coordinator's one Roadmap CanBook check is complete: source closure reports
+CanBook with zero diagnostics, all 24 local source files present, and no E2005;
+at that checkpoint the overall command still exited 10 for 437 dependency diagnostics. No BDD3
+carrier/runtime/disclosure, guard/send invalidation or full-task claim follows;
+completion remains **58/67**.
+
+
+The current finite joins also cover omitted nullable Object keys from the
+published `OperationOutcome` schema (**3/3**), and explicit anonymous ICU
+postfix bindings from DESIGN §9.1. The anonymous native case passes with the
+complete bilingual CanRent date/time wording, inferred plural schema, checked
+source language, null-locale fallback and once-only authored argument order;
+its corrected parser/semantic refusal case also passes. Named-message slot
+checks (**6/6**), raw anonymous-format coverage (**1/1**) and the existing
+canonical-handler localized formatter (**1/1**, 0.59s) pass. The latter initially
+failed on a Cloudflare-owned TypeScript parameter property; the owning explicit
+field/assignment fix was consumed without a compiler shim. Direct/grouped
+anonymous postfix operands are qualified; alias schema propagation and
+ownerless enum presentation remain outside this finite join.
+
+Bare collection `pagination` now becomes the existing private `page:true`
+query option with compiler-owned stable occurrence. The existing view native
+case passes **1/1** (0.80s), including split table/two plain lists and protected
+Card/Detail row edits. Checked enabled CRUD updates reuse the installed form
+preparer, authorized projected initial values, source labels and identity-only
+sealed record bindings. Unsupported marker/edit profiles and authored private
+options still refuse. This is a controlled authorized-query consumer; full
+State/D1 paging, physical routing, current grant/version dispatch and complete
+application acceptance remain with their owners. The two affected structural
+goldens pass (**1/1** each, 0.16s/0.21s). They exposed a real multiline writer
+mapping gap, now fixed by attributing every physical emitted line without
+changing JavaScript bytes or source-disclosure policy. Final focused lib/bin
+Clippy passes (4.56s), and scoped formatting passes. Counters remain **58/67**.

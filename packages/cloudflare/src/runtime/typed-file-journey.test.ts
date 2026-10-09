@@ -149,7 +149,8 @@ test('compiled attachment workflow uses authenticated uploads, SQLite bytes and 
     }, await resolveIdentity(identities, { mcp_grant_token: ownerGrant.token }, { clock }));
     const created = await mutation('Entry.create', {});
     assert.ok('result' in created, JSON.stringify(created));
-    const row = created.result.result as { id: string };
+    assert.equal(created.result.result, null);
+    const row = created.result.records![0] as { id: string };
     const authRequest = (url: string, method: string, body?: string | Uint8Array, bearer = ownerGrant.token,
       viaSession = false) => new Request(url.startsWith('https:') ? url : `https://test.invalid${url}`, {
       method, headers: { ...(viaSession ? { cookie, 'x-csrf-token': csrf } : { authorization: `Bearer ${bearer}` }),

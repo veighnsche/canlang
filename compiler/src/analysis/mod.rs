@@ -27,6 +27,7 @@
 
 pub mod catalog;
 pub mod check;
+mod construct_candidates;
 mod cohort;
 pub mod effects;
 pub mod examples;
@@ -152,6 +153,7 @@ pub fn check_program(
             diagnostics.push(diagnostic);
             let mut diagnostics = check::dedup_diagnostics(diagnostics);
             check::sort_diagnostics(&mut diagnostics);
+            construct_candidates::annotate(db, &trees, &mut diagnostics);
             return (
                 CheckedProgram {
                     modules: Vec::new(),
@@ -186,6 +188,7 @@ pub fn check_program(
     );
     let mut diagnostics = check::dedup_diagnostics(diagnostics);
     check::sort_diagnostics(&mut diagnostics);
+    construct_candidates::annotate(db, &trees, &mut diagnostics);
     let program = CheckedProgram {
         modules: resolve_tables.modules.clone(),
         symbols: resolve_tables.symbols.clone(),

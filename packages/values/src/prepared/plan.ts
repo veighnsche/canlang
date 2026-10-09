@@ -427,6 +427,21 @@ export function registerValidationPlan(owner: unknown, profileVersion: unknown, 
   ) {
     throw new PlanError("malformed-schema", "provenance-bearing schema fails the normalized shape gate");
   }
+  // This prepared/native profile cannot preserve the new value constraints.
+  // Refuse before copying a plan; public validation remains the canonical TS path.
+  if (Object.hasOwn(candidate, "aliases")) {
+    throw new PlanError("malformed-schema", "text aliases are outside the prepared validation profile");
+  }
+  for (const fields of [
+    ...Object.values(candidate.contracts).map(contract => contract.fields),
+    ...Object.values(candidate.operations).map(operation => operation.inputs),
+  ]) {
+    for (const field of Object.values(fields)) {
+      if (["format", "distinctBy", "excludedIds"].some(key => Object.hasOwn(field, key))) {
+        throw new PlanError("malformed-schema", "NAME and keyed-array constraints are outside the prepared validation profile");
+      }
+    }
+  }
   const sequence = state.nextSequence++;
   const id = planIdFor(state, sequence);
   const rejectReservedName = (where: string, name: string): void => {

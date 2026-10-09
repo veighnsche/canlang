@@ -127,10 +127,10 @@ bunx vitest run packages/testkit/test/isolation.test.ts
 - Stale `dist/` after switching branches: run `bun run build`. Every scheduled
   producer cleans its owned outputs and incremental state before building or
   restoring a cache entry, so removed source files leave no stale emissions.
-- Fresh-clone `can docs` failing with `E7004`/`Permission denied` on
-  `can-platform`: `tsc` emits `dist/cli/platform.js` without `+x`. Both
-  the Cloudflare `build:emit` script repairs it, and Turbo restoration preserves
-  its executable mode, so either documented build
+- Fresh-clone `can docs` or `can dev` failing with `E7004`/`Permission denied`
+  on `can-platform` or `can-dev`: `tsc` emits the CLI files without `+x`. Both
+  modes are repaired by Cloudflare `build:emit`, and Turbo restoration preserves
+  them, so either documented build
   leaves an executable bin. If you invoked `tsc -b`/`tsc -p` directly,
   bypassing both scripts, re-run one of the documented builds instead
   of hand-chmodding the output.

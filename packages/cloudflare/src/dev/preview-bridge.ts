@@ -1,0 +1,300 @@
+/**
+ * Owner-controlled browser access to one local Worker build. The session
+ * owner decides when to start/stop this bridge and supplies its disposable
+ * LocalDev instance. This bridge never grants application identity.
+ */
+import { createHash, randomBytes } from "node:crypto";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import type { LocalDev } from "./local-run.js";
+
+const BOOTSTRAP_PATH = "/_can_dev/preview/bootstrap";
+const PREVIEW_COOKIE = "can_dev_preview";
+const DEFAULT_BOOTSTRAP_TTL_MS = 30_000;
+const DEFAULT_COOKIE_TTL_MS = 15 * 60_000;
+const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
+const MAX_COOKIES = 8;
+
+/** Node and Fetch manage these headers; they must not be copied verbatim. */
+const REQUEST_HOP_HEADERS = new Set([
+  "connection", "content-length", "expect", "host", "keep-alive",
+  "proxy-authenticate", "proxy-authorization", "te", "trailer",
+  "transfer-encoding", "upgrade",
+]);
+
+export interface ProtectedPreviewOptions {
+  /** Test clock; production uses Date.now. */
+  readonly now?: () => number;
+  readonly bootstrapTtlMs?: number;
+  readonly cookieTtlMs?: number;
+  readonly maxBodyBytes?: number;
+}
+
+export interface ProtectedPreview {
+  /** Fixed loopback origin with an OS-selected port. This is not an access URL. */
+  readonly url: string;
+  /** Mint a one-use access URL. Never include it in ordinary status output. */
+  issueOpenUrl(): string;
+  close(): Promise<void>;
+}
+
+function positiveLimit(value: number, name: string): number {
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`preview bridge: ${name} must be a positive safe integer`);
+  }
+  return value;
+}
+
+function digest(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function sendRefusal(reply: ServerResponse, status: number, code: string): void {
+  reply.writeHead(status, {
+    "cache-control": "no-store",
+    "content-type": "application/json; charset=utf-8",
+    "x-content-type-options": "nosniff",
+  });
+  reply.end(JSON.stringify({ code }));
+}
+
+function previewCookie(request: IncomingMessage): string | null {
+  const source = request.headers.cookie;
+  if (source === undefined) return null;
+  let found: string | null = null;
+  for (const part of source.split(";")) {
+    const trimmed = part.trim();
+    const separator = trimmed.indexOf("=");
+    if (separator < 0 || trimmed.slice(0, separator) !== PREVIEW_COOKIE) continue;
+    if (found !== null) return null; // Duplicate authority is ambiguous.
+    found = trimmed.slice(separator + 1);
+  }
+  return found;
+}
+
+function forwardedHeaders(request: IncomingMessage): Array<[string, string]> {
+  const headers: Array<[string, string]> = [];
+  for (const [name, value] of Object.entries(request.headers)) {
+    const lower = name.toLowerCase();
+    if (value === undefined || REQUEST_HOP_HEADERS.has(lower) || lower === "cookie") continue;
+    if (Array.isArray(value)) {
+      for (const entry of value) headers.push([name, entry]);
+    } else {
+      headers.push([name, value]);
+    }
+  }
+  // The preview cookie belongs to this bridge, never to the Can app.
+  const appCookies = (request.headers.cookie ?? "")
+    .split(";")
+    .map(part => part.trim())
+    .filter(part => part.length > 0 && part.split("=", 1)[0] !== PREVIEW_COOKIE);
+  if (appCookies.length > 0) headers.push(["cookie", appCookies.join("; ")]);
+  return headers;
+}
+
+async function boundedBody(request: IncomingMessage, maxBytes: number): Promise<Buffer | null> {
+  const declared = request.headers["content-length"];
+  if (declared !== undefined && Number(declared) > maxBytes) return null;
+  const chunks: Buffer[] = [];
+  let bytes = 0;
+  for await (const chunk of request) {
+    const part = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array);
+    bytes += part.length;
+    if (bytes > maxBytes) {
+      request.pause();
+      return null;
+    }
+    chunks.push(part);
+  }
+  return Buffer.concat(chunks, bytes);
+}
+
+function isEffectful(method: string): boolean {
+  return method !== "GET" && method !== "HEAD";
+}
+
+function whileOpen<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(new Error("preview bridge: closed"));
+  return new Promise<T>((resolve, reject) => {
+    const abort = (): void => reject(new Error("preview bridge: closed"));
+    signal.addEventListener("abort", abort, { once: true });
+    work.then(
+      value => { signal.removeEventListener("abort", abort); resolve(value); },
+      error => { signal.removeEventListener("abort", abort); reject(error); },
+    );
+  });
+}
+
+function relay(reply: ServerResponse, workerResponse: Response, body: Buffer): void {
+  const headers: Record<string, string | string[]> = {};
+  workerResponse.headers.forEach((value, name) => {
+    if (name.toLowerCase() !== "set-cookie") headers[name] = value;
+  });
+  const setCookies = workerResponse.headers.getSetCookie();
+  // An app must not overwrite the bridge's access cookie. Other cookies,
+  // including the application's Identity session, retain their own bytes.
+  if (setCookies.some(cookie => cookie.split("=", 1)[0]?.trim() === PREVIEW_COOKIE)) {
+    sendRefusal(reply, 502, "preview_cookie_conflict");
+    return;
+  }
+  if (setCookies.length > 0) headers["set-cookie"] = setCookies;
+  reply.writeHead(workerResponse.status, headers);
+  reply.end(body);
+}
+
+/**
+ * Start a protected HTTP bridge for a single disposable local Worker.
+ * Every browser request requires bridge access; the Worker still applies
+ * normal application Identity, grants, policies, and CSRF checks.
+ */
+export async function startProtectedPreview(
+  dev: Pick<LocalDev, "dispatchUrl">,
+  options: ProtectedPreviewOptions = {},
+): Promise<ProtectedPreview> {
+  const now = options.now ?? Date.now;
+  const bootstrapTtlMs = positiveLimit(options.bootstrapTtlMs ?? DEFAULT_BOOTSTRAP_TTL_MS, "bootstrapTtlMs");
+  const cookieTtlMs = positiveLimit(options.cookieTtlMs ?? DEFAULT_COOKIE_TTL_MS, "cookieTtlMs");
+  const maxBodyBytes = positiveLimit(options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES, "maxBodyBytes");
+  let pending: { hash: string; expiresAt: number } | null = null;
+  const cookies = new Map<string, number>();
+  const active = new Set<AbortController>();
+  let closed = false;
+  let origin = "";
+
+  const prune = (): void => {
+    for (const [hash, expiresAt] of cookies) {
+      if (expiresAt <= now()) cookies.delete(hash);
+    }
+  };
+
+  const server: Server = createServer((request, reply) => {
+    if (closed) {
+      reply.destroy();
+      return;
+    }
+    const controller = new AbortController();
+    const abort = (): void => controller.abort();
+    active.add(controller);
+    reply.once("close", abort);
+    void (async () => {
+      const raw = request.url ?? "";
+      if (!raw.startsWith("/") || raw.startsWith("//")) {
+        sendRefusal(reply, 400, "invalid_preview_path");
+        return;
+      }
+      let url: URL;
+      try {
+        url = new URL(raw, origin);
+      } catch {
+        sendRefusal(reply, 400, "invalid_preview_path");
+        return;
+      }
+      if (url.origin !== origin) {
+        sendRefusal(reply, 400, "invalid_preview_path");
+        return;
+      }
+      if (request.headers.host !== new URL(origin).host) {
+        sendRefusal(reply, 400, "invalid_preview_host");
+        return;
+      }
+      const method = (request.method ?? "GET").toUpperCase();
+      if (url.pathname === BOOTSTRAP_PATH) {
+        const token = url.searchParams.get("token");
+        const valid = method === "GET" && token !== null && url.searchParams.size === 1 &&
+          pending !== null && pending.expiresAt > now() && digest(token) === pending.hash;
+        if (!valid) {
+          sendRefusal(reply, 403, "invalid_preview_bootstrap");
+          return;
+        }
+        pending = null; // Consumed before any asynchronous work.
+        prune();
+        const cookie = randomBytes(32).toString("base64url");
+        if (cookies.size >= MAX_COOKIES) cookies.delete(cookies.keys().next().value!);
+        cookies.set(digest(cookie), now() + cookieTtlMs);
+        reply.writeHead(303, {
+          "cache-control": "no-store",
+          "location": "/",
+          "referrer-policy": "no-referrer",
+          "set-cookie": `${PREVIEW_COOKIE}=${cookie}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${Math.ceil(cookieTtlMs / 1000)}`,
+        });
+        reply.end();
+        return;
+      }
+      prune();
+      const cookie = previewCookie(request);
+      if (cookie === null || !cookies.has(digest(cookie))) {
+        sendRefusal(reply, 401, "preview_access_required");
+        return;
+      }
+      if (isEffectful(method) && request.headers.origin !== origin) {
+        sendRefusal(reply, 403, "preview_origin_mismatch");
+        return;
+      }
+      const body = await whileOpen(boundedBody(request, maxBodyBytes), controller.signal);
+      if (controller.signal.aborted) return;
+      if (body === null) {
+        reply.shouldKeepAlive = false;
+        sendRefusal(reply, 413, "preview_body_too_large");
+        return;
+      }
+      const workerResponse = await whileOpen(dev.dispatchUrl(url.href, {
+        method,
+        headers: forwardedHeaders(request),
+        redirect: "manual",
+        signal: controller.signal,
+        ...(body.length > 0 ? { body } : {}),
+      }), controller.signal);
+      if (controller.signal.aborted) return;
+      const responseBody = await whileOpen(workerResponse.arrayBuffer(), controller.signal);
+      if (controller.signal.aborted) return;
+      relay(reply, workerResponse, Buffer.from(responseBody));
+    })().catch(() => {
+      if (closed || controller.signal.aborted || reply.destroyed) reply.destroy();
+      else if (!reply.headersSent) sendRefusal(reply, 502, "preview_dispatch_failed");
+      else reply.destroy();
+    }).finally(() => {
+      active.delete(controller);
+      reply.off("close", abort);
+    });
+  });
+  server.requestTimeout = 15_000;
+  server.headersTimeout = 10_000;
+  server.keepAliveTimeout = 5_000;
+  server.maxHeadersCount = 100;
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+  const address = server.address();
+  if (address === null || typeof address === "string") {
+    server.close();
+    throw new Error("preview bridge: could not determine loopback port");
+  }
+  origin = `http://127.0.0.1:${address.port}`;
+  let closing: Promise<void> | null = null;
+  return {
+    url: origin,
+    issueOpenUrl(): string {
+      if (closed) throw new Error("preview bridge: closed");
+      const token = randomBytes(32).toString("base64url");
+      pending = { hash: digest(token), expiresAt: now() + bootstrapTtlMs };
+      return `${origin}${BOOTSTRAP_PATH}?token=${token}`;
+    },
+    close(): Promise<void> {
+      if (closing !== null) return closing;
+      closed = true;
+      pending = null;
+      cookies.clear();
+      for (const controller of active) controller.abort();
+      closing = new Promise<void>((resolve, reject) => {
+        server.close(error => error === undefined ? resolve() : reject(error));
+        // A Worker dispatch or response body may never settle. Do not hold
+        // the owned Worker open waiting for its browser socket to drain.
+        server.closeAllConnections();
+      });
+      return closing;
+    },
+  };
+}

@@ -1,0 +1,15 @@
+{
+  "state": "A domain language is being made usable by unfamiliar AI coding agents given only a tiny Given/When/Then introduction. Desired first product feedback includes source checks with canonical construct help and optional typed ranking, a real local browser preview, ordinary authorization, executable authored examples and compact failure evidence. Existing compiler diagnostics and JSON commands are real, but a persistent development session and full help join are absent. One existing lifecycle app compiles and serves an anonymous page through a test bridge; its sign-in route is interim and its example rows fail before invocation. A proposed small team record-tracker task adds a form, search/filter/count, member CRUD and success/denial examples, but has not been runtime-qualified. A broader role-heavy and money-heavy task pair also exists as later evaluation. The first supported slice must be complete for its declared profile, honest about missing joins, and useful for an agent starting from the tiny introduction. Compare options by real task completion, implementation scope, correctness/permission risk, feedback quality and ability to measure agent turns/tokens. No candidate is implemented as a full dev server today.",
+  "questions": {
+    "first_supported_slice": {
+      "type": "choice",
+      "instructions": "Which first supported product slice best matches those requirements, with incomplete stages labeled as prerequisites?",
+      "criteria": {
+        "authoring_only": "Release a revisioned check/help/ranking session first, with no working preview or executed examples. Fastest language-feedback milestone, but cannot claim the requested complete app-debugging loop or full small-app completion.",
+        "lifecycle_app": "Make the existing lifecycle app's auth, D1 preview and three examples work first and call that the supported slice. Smallest same-source runtime target, but it has no authored create form/search/filter or small novice-task completion.",
+        "team_tracker": "Use the lifecycle app as a prerequisite integration gate, then support one single-file team record tracker with member CRUD, form/list/search/filter/count and success/denial examples as the first agent-facing slice. More joins to fix, but tests the complete smallest novice task.",
+        "broad_suite": "Support the small team tracker plus role-heavy scheduling and money/review tasks in the first slice. Broad evidence, but much larger unqualified language/runtime scope and delayed first complete product result."
+      }
+    }
+  }
+}

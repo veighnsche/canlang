@@ -1,7 +1,0 @@
-app Guard
-Given
-When
- scenario gate(flag:bool) by=members
-  do
-   require flag
-Then

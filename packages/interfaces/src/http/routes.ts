@@ -23,7 +23,7 @@ import type { HttpDeps } from '../ports.js';
 import { caughtToBusinessError, isBusinessThrow, jsonErrorResponse } from './context.js';
 import { buildBusinessError, httpStatusFor } from '../errors/envelope.js';
 import { logInternalError } from '../errors/logging.js';
-import { handlePageRequest } from './pages.js';
+import { handlePagePreferencePost, handlePageRequest } from './pages.js';
 
 /** Canonical sign-in page: the shell links here, auth serves it (agent F). */
 export const SIGN_IN_PATH = '/auth/login';
@@ -159,6 +159,7 @@ export function createHttpHandler(
         if (sub.print === undefined) return notFoundResponse();
         return await sub.print(request);
       }
+      if (method === 'POST') return await handlePagePreferencePost(deps, request);
       if (method !== 'GET' && method !== 'HEAD') return notFoundResponse();
       return await handlePageRequest(deps, request);
     } catch (err) {

@@ -16,7 +16,7 @@ import {
 } from '@canlang/contracts';
 import type { BusinessError, CollectionRequest } from '@canlang/contracts';
 import { IdentityError } from '@canlang/identity';
-import type { HttpDeps } from '../ports.js';
+import type { AuthHttpDeps } from '../ports.js';
 import { buildBusinessError } from '../errors/envelope.js';
 import { clientKey } from './context.js';
 
@@ -203,7 +203,7 @@ function isRecoveryRoute(route: string): boolean {
  * response header from it.
  */
 export async function checkAuthRateLimit(
-  deps: HttpDeps,
+  deps: AuthHttpDeps,
   route: string,
   request: Request,
 ): Promise<BusinessError | null> {

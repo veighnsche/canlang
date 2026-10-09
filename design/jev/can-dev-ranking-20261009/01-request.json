@@ -1,0 +1,23 @@
+{
+  "state": "Can is a closed Given/When/Then language for unfamiliar AI coding agents. Its proposed help catalog has stable construct IDs, Can-owned signatures/examples/links and explicit availability. The Rust compiler emits codes, primary/related byte spans, source hashes and completeness, but not structured expected-token lists; position-aware completion has a broad fallback and misses some implemented words. Six observed first drafts include exact contextual type-case mismatches, invented `rule`/`permit`, structural app/indent errors and cases where one keyword would change read authority, mutation authority or transaction meaning. Jev Choice ranks supplied finite IDs with probabilities and confidence; it does not generate Can source. Compare routing and context policies by novice completion, wrong-intent risk, latency, provider cost, local fallback and source disclosure. No implementation or calibrated threshold exists yet.",
+  "questions": {
+    "ranking_trigger": {
+      "type": "choice",
+      "instructions": "When should the future Can dev check ask Jev to rank construct IDs?",
+      "criteria": {
+        "all_eligible_errors": "Ask on every source error with at least one context-eligible card, after basic availability filtering. Gives broad assistance but spends calls on exact syntax/signature errors and may rank while parse context is weak.",
+        "ambiguous_after_deterministic": "Return exact grammar/help matches directly; ask Jev only when a complete bounded set has at least two plausible, profile-eligible interpretations and reliable location evidence. Preserve none/unclear and explicit access to deeper ranking; fewer calls but some borderline cases get deterministic help only.",
+        "request_only": "Never rank during automatic check; give deterministic help and let an agent explicitly request Jev for a diagnostic. Minimizes provider use and disclosure, but adds an interaction step when ambiguous guesses are common."
+      }
+    },
+    "ranking_context": {
+      "type": "choice",
+      "instructions": "What default evidence should Jev receive to distinguish Can construct intent without excessive disclosure?",
+      "criteria": {
+        "structured_only": "Send diagnostic code/span/context quality and balanced descriptions of eligible IDs, without authored source text or task intent. Smallest disclosure, but invented words and meaning may be underdetermined.",
+        "bounded_context": "Send the same structured facts plus a small redacted source window, relevant declaration names/types and an optional explicit one-sentence task intent when allowed; exclude full files, runtime values and secrets. Better intent context with bounded disclosure and tokens.",
+        "full_context": "Send the source file, related declaration graph and original task request with candidates. More context can help broad guesses, but increases tokens, provider latency and disclosure risk."
+      }
+    }
+  }
+}

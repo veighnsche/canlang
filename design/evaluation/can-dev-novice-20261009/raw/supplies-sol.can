@@ -1,0 +1,149 @@
+app OfficeSupplies
+
+Given
+  Team
+    name: Text required
+    members: User many
+
+  Supply
+    team: Team required
+    name: Text required
+    quantity: Number optional
+    status: available | needs_restock = available
+
+  rule team_member(team)
+    current_user in team.members
+
+  rule supply_access(supply)
+    team_member(supply.team)
+
+When
+  add_supply(team, name, quantity?)
+    permit team_member(team)
+    require name.trim() != ""
+    do
+      create Supply
+        team: team
+        name: name.trim()
+        quantity: quantity
+        status: available
+
+  edit_supply(supply, name, quantity?)
+    permit supply_access(supply)
+    require name.trim() != ""
+    do
+      update supply
+        name: name.trim()
+        quantity: quantity
+
+  mark_needs_restock(supply)
+    permit supply_access(supply)
+    do
+      supply.status = needs_restock
+
+  mark_available(supply)
+    permit supply_access(supply)
+    do
+      supply.status = available
+
+  remove_supply(supply)
+    permit supply_access(supply)
+    do
+      delete supply
+
+Then
+  page Supplies(team)
+    permit team_member(team)
+
+    state search: Text = ""
+    state view: all | available | needs_restock = all
+
+    do
+      visible_supplies = Supply
+        where team == page.team
+        where name contains search case_insensitive
+        where view == all or status == view
+        order by name
+
+    title "Office supplies"
+
+    form "Add a supply"
+      name: Text required
+      quantity: Number optional
+      submit "Add supply"
+        add_supply(team, name, quantity)
+
+    search_input search
+      placeholder "Search supplies by name"
+
+    tabs view
+      all: "All"
+      available: "Available"
+      needs_restock: "Needing restock"
+
+    text "{visible_supplies.count} items in this view"
+
+    list visible_supplies
+      item supply
+        text supply.name
+        text supply.quantity when supply.quantity != null
+        badge supply.status
+
+        form "Edit supply"
+          name: Text required = supply.name
+          quantity: Number optional = supply.quantity
+          submit "Save changes"
+            edit_supply(supply, name, quantity)
+
+        button "Needs restock" when supply.status == available
+          mark_needs_restock(supply)
+
+        button "Mark available" when supply.status == needs_restock
+          mark_available(supply)
+
+        button "Remove"
+          confirm "Remove {supply.name}?"
+          remove_supply(supply)
+
+      empty
+        if search != "" or view != all
+          text "No supplies match this view."
+          button "Show all supplies"
+            do
+              search = ""
+              view = all
+        else
+          text "No supplies yet. Add your first supply using the form above."
+
+## Behavior example: successful edit
+example "A team member edits a supply"
+  given
+    team.members includes alice
+    supply.team = team
+    supply.name = "Printer paper"
+    supply.quantity = 2
+    supply.status = available
+    current_user = alice
+  when
+    edit_supply(supply, "A4 printer paper", 5)
+  then
+    supply.name == "A4 printer paper"
+    supply.quantity == 5
+    supply.status == available
+
+## Behavior example: nonmember denied
+example "A nonmember cannot see or change supplies"
+  given
+    team.members excludes bob
+    supply.team = team
+    supply.name = "Printer paper"
+    supply.quantity = 2
+    current_user = bob
+  when
+    open Supplies(team)
+    edit_supply(supply, "Changed", 0)
+  then
+    page_access == denied
+    action_access == denied
+    supply.name == "Printer paper"
+    supply.quantity == 2

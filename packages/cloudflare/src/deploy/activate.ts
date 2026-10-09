@@ -77,6 +77,7 @@ export const REQUIRES_CAPABILITY_MAP: Readonly<Record<string, readonly string[]>
   state: ["state"],
   "state.machines": ["state.machines"],
   "state.parameters": ["state.parameters"],
+  "state.cohorts": ["state.cohorts"],
   "interfaces.input-choices": ["interfaces.input-choices"],
 };
 
@@ -179,6 +180,10 @@ function checkRequires(
   const have = new Set(installed.capabilities);
   const failures: ActivationFailure[] = [];
   for (const requirement of artifact.requires) {
+    if (requirement.capability === 'state.cohorts' && requirement.min_version !== 1) {
+      failures.push({ code: 'missing-capability', detail: 'The cohort consumer supports exactly state.cohorts v1.' });
+      continue;
+    }
     const mapped = Object.hasOwn(REQUIRES_CAPABILITY_MAP, requirement.capability)
       ? REQUIRES_CAPABILITY_MAP[requirement.capability]
       : undefined;

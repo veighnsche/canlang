@@ -17,19 +17,22 @@ import type {
   MessageParamValue,
   MessageValue,
   PresentationContext,
+  ResolvedMessage,
   RowView,
   SharedStateProps,
   TextProps,
   TextValue,
   TitleProps,
 } from "@canlang/contracts";
-import { escapeHtml, isolate } from "./escape.js";
+import { escapeAttr, escapeHtml, isolate } from "./escape.js";
 import {
   canonicalDefaultTag,
   canonicalPreferredTags,
   formatIntExact,
+  formatMessageResult,
   formatScalar,
   resolveCaption,
+  resolvedText,
 } from "./messages.js";
 
 /** Page locale: first valid viewer preference, else the app default. */
@@ -39,7 +42,7 @@ function pageLocaleOf(context: PresentationContext): string {
 }
 
 function isMessageDescriptor(
-  value: MessageDescriptor | MessageParamValue,
+  value: MessageDescriptor | MessageParamValue | ResolvedMessage,
 ): value is MessageDescriptor {
   return typeof (value as MessageDescriptor).source === "string";
 }
@@ -49,6 +52,11 @@ const TITLE_CLASSES = {
   2: "text-2xl font-bold",
   3: "text-xl font-bold",
 } as const;
+
+/** Final text keeps the effective language selected by its producer. */
+function renderResolvedText(value: ResolvedMessage): string {
+  return `<span lang="${escapeAttr(value.locale)}" dir="auto">${isolate(escapeHtml(value.text))}</span>`;
+}
 
 /**
  * Render one `text` value to escaped, bidi-isolated HTML text. Sync so
@@ -77,12 +85,24 @@ export function renderTextValue(value: TextValue, context: PresentationContext):
     }
     return isolate(formatIntExact(BigInt(value), pageLocaleOf(context)));
   }
+  const formatted = resolvedText(value);
+  if (formatted !== undefined) {
+    return renderResolvedText(formatted);
+  }
   if (isMessageDescriptor(value)) {
+    if (value.sourceLocale !== undefined) {
+      return renderResolvedText(formatMessageResult(value, {
+        preferredLocales: canonicalPreferredTags(context.preferredLocales),
+        appDefaultLocale: canonicalDefaultTag(context.appDefaultLocale),
+        timeZone: "UTC",
+        ...(context.currencyScales === undefined ? {} : { currencyScales: context.currencyScales }),
+      }));
+    }
     return isolate(escapeHtml(resolveCaption(value, context)));
   }
   return isolate(
     escapeHtml(
-      formatScalar(value, {
+      formatScalar(value as MessageParamValue, {
         locale: pageLocaleOf(context),
         timeZone: "UTC",
         ...(context.currencyScales !== undefined

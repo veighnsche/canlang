@@ -69,7 +69,9 @@ test('compiled native datetime and integer arrays stage wire rows, results and p
     assert.deepEqual(await d1.store.query({ model: MODEL, authority: 'owner' }), []);
     const create = envelope('Slot.create', { requiredCounts: [] });
     const born = committed(await invoker.invokeMutation(create, identity));
-    const row = born.result as { id: string; version: number; data: Record<string, unknown> };
+    assert.equal(born.result, null);
+    assert.equal(born.records?.length, 1);
+    const row = born.records![0] as { id: string; version: number; data: Record<string, unknown> };
     assert.deepEqual(row.data, {
       count: '1', at: BASE, counts: [], instants: [], seedCounts: ['1', '2'],
       seedInstants: [BASE], maybeCounts: null, maybeInstants: null, requiredCounts: [],
@@ -84,9 +86,12 @@ test('compiled native datetime and integer arrays stage wire rows, results and p
     assert.deepEqual(receipt?.resolvedDefaults['seedInstants'], [BASE]);
     assert.equal(receipt?.resolvedDefaults['maybeCounts'], null);
     assert.equal(receipt?.resolvedDefaults['maybeInstants'], null);
-    const partial = committed(await invoker.invokeMutation(envelope('Slot.create', {
+    const partialCreated = committed(await invoker.invokeMutation(envelope('Slot.create', {
       requiredCounts: ['4'], counts: ['7'], instants: TIMES,
-    }), identity)).result as { id: string; data: Record<string, unknown> };
+    }), identity));
+    assert.equal(partialCreated.result, null);
+    assert.equal(partialCreated.records?.length, 1);
+    const partial = partialCreated.records![0] as { id: string; data: Record<string, unknown> };
     committed(await invoker.invokeMutation(envelope('Slot.update', {
       record: { id: partial.id, version: '1' }, count: '9',
     }), identity));

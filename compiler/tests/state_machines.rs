@@ -28,7 +28,7 @@ fn checked_machine_requires_stored_scalar_enum_and_constant_initial_case() {
         assert!(ds.iter().any(|d| d.code == "E3012"), "{field}: {ds:?}");
     }
     let source =
-        "app Images\nGiven\n preferences { status:enum(idle,ready)=idle machine }\nWhen\nThen\n";
+        "app Images\nGiven\nWhen\nThen\n preferences { status:enum(idle,ready)=idle machine }\n";
     assert!(diagnostics(source).iter().any(|d| d.code == "E3012"));
 }
 #[test]

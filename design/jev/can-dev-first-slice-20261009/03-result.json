@@ -1,0 +1,38 @@
+{
+  "request": {
+    "state": "An AI-first business app language aims to let an agent with almost no grammar briefing draft source, follow machine-readable construct help, preview the compiled app and run its own inline examples. Present verified pieces include stable diagnostic codes and source hashes, separate generated example modules, a local worker dispatch API and a JSON command pattern. An existing state-viewer source reaches an anonymous browser page with static assets when manually bridged, but identity and example execution are broken. The first novice benchmark asks for a single team-scoped item app with edit/create/delete, status changes, a searchable/filterable counted page and allowed/denied checks. Two later benchmark apps add role coordination and money decisions. Pick a truthful first supported slice, considering full declared workflow coverage, focused implementation cost, safe permissions, and the chance to measure whether help/ranking saves agent effort. Treat a prerequisite infrastructure demonstration differently from agent-visible task completion.",
+    "questions": {
+      "first_supported_slice": {
+        "type": "choice",
+        "instructions": "Which bounded slice should receive the first supported-product claim?",
+        "criteria": {
+          "authoring_only": "The agent gets check and construct-help results, with runtime preview and examples deferred. Easier to ship but qualifies source authoring rather than a complete application experience.",
+          "lifecycle_app": "Repair and qualify the existing lifecycle viewer's member page and three examples, then release that limited app profile. Concrete end-to-end evidence, but no create/search/form experience and no completion of the small benchmark.",
+          "team_tracker": "Treat the lifecycle viewer as a smoke prerequisite; the first release supports a self-contained one-file team tracker with real auth, mutations, page controls and behavior examples. Larger focused integration, but it closes the first agent benchmark.",
+          "broad_suite": "Include team items, shift coordination and expense decisions at once. This tests many behaviors, but extends the initial gate to unqualified roles, money and cross-operation policy."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "first_supported_slice": {
+        "type": "choice",
+        "choice": "team_tracker",
+        "confidence": 0.91,
+        "probabilities": {
+          "authoring_only": 0.01,
+          "lifecycle_app": 0.05,
+          "team_tracker": 0.93,
+          "broad_suite": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 679,
+      "output_tokens": 57
+    }
+  }
+}

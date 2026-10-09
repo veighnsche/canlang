@@ -1,6 +1,0 @@
-app T
-Given
- derive take(a:text,b:text):text = a
- derive g():text = take("A")
-When
-Then

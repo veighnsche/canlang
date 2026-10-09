@@ -3,6 +3,7 @@ export * from './http/client.js';
 export * from './http/errors.js';
 export * from './http/pagination.js';
 export * from './judgments/systemone.js';
+export * from './judgments/specification.js';
 export * from './mail/adapter.js';
 export * from './mail/redact.js';
 export * from './media/comfyui.js';

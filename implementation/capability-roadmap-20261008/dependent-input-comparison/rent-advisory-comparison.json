@@ -1,0 +1,43 @@
+{
+  "witness": "CanRent available -> hold",
+  "source": "originals/CanRent.can",
+  "role": "preserved real advisory comparison; not chosen as candidate-choice binding witness",
+  "anchors": [
+    "draft/CanRent.can:149",
+    "draft/CanRent.can:406",
+    "draft/CanRent.can:427",
+    "draft/CanRent.can:1584",
+    "draft/CanRent.can:1592",
+    "draft/CanRent.md:21",
+    "draft/CanRent.md:45"
+  ],
+  "current": [
+    "Resource row -> canonical available form accepts from/until/quantity/attendees/amenities.",
+    "Result is one WorkspaceAvailability with echoed resource/interval/quantity/attendees, available bool, total/terms/refund cutoff.",
+    "Visible available result gates nested hold; hold prebinds echoed inputs, then independently checks email verification/customer/account/company roles/staff location/party rules/current free capacity and creates one frozen-price Booking."
+  ],
+  "dynamic_parent_overlap": "from/until/quantity/attendees are real dynamic parents for advisory availability, and also hold inputs.",
+  "minimal_choice_binding_mismatch": "WorkspaceAvailability is a scalar advisory contract, not Region[]/Employee[] candidate choices. It cannot supply hold.resource without an additional checked advisory/result projection contract; no singleton conversion/cast or broader binding is invented.",
+  "fair_alternatives": [
+    {
+      "kind": "current nested",
+      "expected": "Explicit check then hold; user rechecks after changing interval. Stale advisory never bypasses hold free/current authority guards."
+    },
+    {
+      "kind": "current custom/if controller requirement",
+      "expected": "Reuse available when canonical draft inputs complete, fence responses and display advice; final hold same schema/authority. Controller cost and custom read serving remain gates."
+    },
+    {
+      "kind": "PROPOSED minimal choice binding",
+      "expected": "Does not represent this scalar result as candidate list; compare as applicability gap rather than claim a win."
+    }
+  ],
+  "open_cases": [
+    "Canceled/out-of-order advisory responses cannot display old interval price as current.",
+    "Another booking after available=true makes final hold unavailable/conflict with no fabricated capacity.",
+    "Current customer or company-booker grant revocation rejects hold while public availability still reveals only allowed resource/price terms.",
+    "Changing amenities cannot silently remove required amenity advice; amenities is not a hold input, so final action must not imply a bound amenity promise absent a separate contract.",
+    "Lookup is advice, not reservation/payment/allowance confirmation."
+  ],
+  "stage": "Full source retained; no CanRent runtime, compilation success or whole-app acceptance."
+}

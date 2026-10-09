@@ -83,6 +83,8 @@ export type MessageParams = Record<string, MessageParamValue>;
  * Descriptors are not stored fields, client-supplied keys, callbacks or tools.
  */
 export interface MessageDescriptor {
+  /** Checked owning source locale; omitted legacy descriptors retain explicit resolver options. */
+  readonly sourceLocale?: string;
   readonly source: string;
   readonly variants: MessageVariantMap;
   readonly params?: MessageParams;
@@ -93,12 +95,13 @@ export type MessageFactory = (
   source: string,
   variants?: MessageVariantMap,
   params?: MessageParams,
+  sourceLocale?: string,
 ) => MessageDescriptor;
 
 /** Any caption slot: literal source text or a full descriptor. */
 export type MessageValue = string | MessageDescriptor;
 
-/** Result of locale resolution: selected text plus the variant locale used. */
+/** Final display text and its effective locale. Never parse or resolve this text as a message pattern. */
 export interface ResolvedMessage {
   readonly text: string;
   readonly locale: string;
@@ -164,6 +167,10 @@ export interface PageSourceContext {
   readonly actorFacts: { readonly email: string; readonly email_verified: boolean } | null;
   readonly team: { readonly id: string; readonly timezone: string } | null;
   readonly memberships: readonly string[];
+  /** Dispatcher-loaded saved values, scoped to this resolved actor and team. */
+  readonly preferences?: Readonly<Record<string, Readonly<Record<string, string>>>>;
+  /** Version of each saved value (`0` means no saved row yet). */
+  readonly preferenceVersions?: Readonly<Record<string, Readonly<Record<string, string>>>>;
   readonly canonical: {
     readonly builtinRoles: readonly string[];
     readonly observeDelivery?: PageDeliveryObserver;
@@ -185,6 +192,10 @@ export interface PresentationContext extends Partial<PageSourceContext> {
   readonly pollContext?: string;
   /** Current same-app pathname plus query, preserving team selection and filters. */
   readonly pollUrl?: string;
+  /** Validated request-local collection search text; source fields stay compiler-owned. */
+  readonly searchQuery?: string;
+  /** URL occurrence → row-id locators; select only from the current authorized collection result. */
+  readonly collectionSelections?: ReadonlyMap<string, string>;
   /** True for HTMX partial requests; false for full page GET. */
   readonly isPartial: boolean;
   /** Lane 6 issued CSRF token covering canonical POSTs from this page. */
@@ -229,6 +240,12 @@ export interface PageDescriptor {
   readonly order?: bigint;
   readonly group?: MessageValue;
   readonly nav?: "none";
+  /** Source-owned enum selectors that this page can save for its current actor/team. */
+  readonly preferenceFields?: readonly {
+    readonly name: string;
+    readonly options: readonly string[];
+    readonly defaultValue: string;
+  }[];
   readonly admit: AdmitFn;
   readonly render: RenderFn;
 }
@@ -405,6 +422,16 @@ export interface ColumnMeta {
 export interface ListQueryArgs {
   readonly parent?: { readonly id: string };
   readonly where?: unknown;
+  /** Source-checked signed selectors; the authorized query owner applies ordering. */
+  readonly order?: readonly string[];
+  /** Source-checked searchable fields plus the accepted request query. */
+  readonly search?: { readonly fields: readonly string[]; readonly query: string };
+  /** Ask the authorized query owner for the matched total before pagination. */
+  readonly includeCount?: true;
+  /** Explicit finite page profile; omission retains ordinary read overflow refusal. */
+  readonly page?: true;
+  /** Stable collection identity for cursor binding; required by the page profile. */
+  readonly occurrence?: string;
   /**
    * Requested page size, 1..100. UI rejects anything outside; the runner
    * defaults to 25 rows when absent and rejects overflow by design.
@@ -417,6 +444,8 @@ export interface ListQueryResult {
   readonly rows: readonly RowView[];
   readonly nextCursor?: string;
   readonly columns: readonly ColumnMeta[];
+  /** Authorized where+search total before limit/cursor, when requested. */
+  readonly totalCount?: number;
 }
 
 /**
@@ -456,6 +485,7 @@ export type TextValue =
   | bigint
   | boolean
   | MessageDescriptor
+  | ResolvedMessage
   | MessageParamValue
   | null
   | undefined;
@@ -499,9 +529,19 @@ export interface ListProps {
   readonly model: string;
   readonly parent?: { readonly id: string };
   readonly where?: unknown;
+  readonly order?: readonly string[];
+  readonly search?: readonly string[];
+  /** One source-owned list summary, outside renderRow. */
+  readonly count?: { readonly label: MessageValue };
   readonly limit?: number;
   readonly cursor?: string;
-  readonly empty: MessageValue;
+  /** Explicit finite page read, independent of presentation layout. */
+  readonly page?: true;
+  readonly display?: "split";
+  /** Stable source collection occurrence; required when display is split. */
+  readonly occurrence?: string;
+  /** Omission uses the standard shared collection empty message. */
+  readonly empty?: MessageValue;
   readonly renderRow: (row: RowView, view: PresentationContext) => PageChildren | Promise<PageChildren>;
   /** Search/filter/order/pagination/export toolbar; absent renders rows only. */
   readonly controls?: CollectionControls;
@@ -514,8 +554,16 @@ export interface TableProps {
   readonly where?: unknown;
   readonly limit?: number;
   readonly cursor?: string;
+  /** Explicit finite page read, independent of presentation layout. */
+  readonly page?: true;
+  readonly display?: "split";
+  /** Stable source collection occurrence; required when display is split. */
+  readonly occurrence?: string;
   readonly columns: readonly string[];
-  readonly empty: MessageValue;
+  /** Omission uses the standard shared collection empty message. */
+  readonly empty?: MessageValue;
+  /** Split detail body receives only the freshly queried authorized row and current view. */
+  readonly renderRow?: (row: RowView, view: PresentationContext) => PageChildren | Promise<PageChildren>;
   /** Search/filter/order/pagination/export toolbar; absent renders rows only. */
   readonly controls?: CollectionControls;
 }
@@ -835,6 +883,8 @@ export interface FormProps {
 /** Checked source form props, evaluated once before its child controls. */
 export interface OperationFormRequest {
   readonly operation: string;
+  /** Stable source presentation occurrence; comparison identity only, never submission authority. */
+  readonly occurrence?: string;
   readonly fields?: readonly string[];
   readonly arguments?: Readonly<Record<string, unknown>>;
   readonly submit?: MessageValue;
@@ -1666,6 +1716,8 @@ export interface TabsBinding {
   readonly name: string;
   readonly options: readonly TabsOption[];
   readonly current?: string;
+  /** Saved snapshot version; sent with a bound save for compare-and-set. */
+  readonly version?: string;
   /** Caller-owned persistence path; the form POSTs name=<value> + CSRF. */
   readonly postTo: string;
 }

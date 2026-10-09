@@ -57,7 +57,9 @@ test('compiled calendar dates and durations preserve native arithmetic, wire val
     const invoker = buildInvoker(artifact, asm, store, { memberships, now: () => FIXED_NOW });
     const create = envelope('Span.create', {});
     const born = committed(await invoker.invokeMutation(create, identity));
-    const row = born.result as { id: string; data: Record<string, unknown> };
+    assert.equal(born.result, null);
+    assert.equal(born.records?.length, 1);
+    const row = born.records![0] as { id: string; data: Record<string, unknown> };
     assert.deepEqual(row.data, {
       day: '2028-02-28', elapsed: '1', days: [], durations: [], seedDays: ['2028-02-28'],
       seedDurations: ['1', '1000'], maybeDay: null, maybeElapsed: null, maybeDays: null, maybeDurations: null,
@@ -156,7 +158,9 @@ test('compiled calendar date and duration D1 lifecycle persists values, rollback
     const invoker = buildInvoker(artifact, asm, d1.store, options);
     const create = envelope('Span.create', {});
     const born = committed(await invoker.invokeMutation(create, identity));
-    const row = born.result as { id: string; data: Record<string, unknown> };
+    assert.equal(born.result, null);
+    assert.equal(born.records?.length, 1);
+    const row = born.records![0] as { id: string; data: Record<string, unknown> };
     const initialData = {
       day: '2028-02-28', elapsed: '1', days: [], durations: [], seedDays: ['2028-02-28'],
       seedDurations: ['1', '1000'], maybeDay: null, maybeElapsed: null, maybeDays: null, maybeDurations: null,

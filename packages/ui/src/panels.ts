@@ -194,6 +194,7 @@ export async function tabs(props: TabsProps): Promise<string> {
     return (
       `<form action="${escapeAttr(safeHref(binding.postTo))}" method="post"${idAttr("tabs", props.id)}>` +
       `<input type="hidden" name="${escapeAttr(CSRF_FIELD)}" value="${escapeAttr(props.context.csrfToken)}">` +
+      (binding.version === undefined ? "" : `<input type="hidden" name="_version" value="${escapeAttr(binding.version)}">`) +
       `<fieldset>${legend}<div class="flex flex-col gap-2">${radios}</div></fieldset>` +
       `<div class="flex gap-2"><button type="submit" class="btn btn-primary">${save}</button></div></form>`
     );
@@ -244,6 +245,7 @@ export async function tabs(props: TabsProps): Promise<string> {
   return (
     `<form action="${escapeAttr(safeHref(props.binding.postTo))}" method="post"${idAttr("tabs", props.id)}>` +
     `<input type="hidden" name="${escapeAttr(CSRF_FIELD)}" value="${escapeAttr(props.context.csrfToken)}">` +
+    (props.binding.version === undefined ? "" : `<input type="hidden" name="_version" value="${escapeAttr(props.binding.version)}">`) +
     set +
     `<div class="flex gap-2"><button type="submit" class="btn btn-primary">${save}</button></div></form>`
   );

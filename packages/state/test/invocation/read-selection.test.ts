@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { ModelName, QuerySpec, StoragePort } from '@canlang/contracts';
-import { invokeRead, type ReadSelection } from '../../src/invocation/invoke.js';
+import { invokeRead, invokeReadPage, type ReadSelection } from '../../src/invocation/invoke.js';
 import { loadArtifactDescriptors, type ArtifactDescriptorSlice } from '../../src/invocation/registry.js';
-import { createReadInvoker } from '../../src/ports/transact.js';
+import { createReadInvoker, createReadPageInvoker } from '../../src/ports/transact.js';
 import { queryRecords } from '../../src/query/engine.js';
 import { createTestMemoryStorage } from '../../src/storage/memory.js';
 import { grant, modelPolicy, policyTable, seedRows } from '../query/fixtures.js';
-import { captureStateError, createMemoryIdentityStore, fieldPaths, makeIdentity, seedMember } from './fixtures.js';
+import { captureStateError, createMemoryIdentityStore, fieldPaths, makeIdentity, makeBatch, makeRow, seedMember } from './fixtures.js';
 
 const model = 'Example.Doc' as ModelName;
 const operation = `${model}.read`;
@@ -34,13 +34,174 @@ async function setup() {
     scans.push(spec);
     return store.query(spec);
   } };
-  const registry = loadArtifactDescriptors(slice(), { by: 'members' }).registry;
+  const loaded = loadArtifactDescriptors(slice(), { by: 'members' });
+  const registry = loaded.registry;
   const policy = policyTable(modelPolicy(model, { grants: [grant('members', ['title', 'score'])] }));
   const identity = makeIdentity({ membership: alice.membership, email: alice.user.email });
   const dependencies = { registry, policy, store: observed, memberships };
   const args = { envelope: { operation, inputs: {} }, identity };
-  return { ...dependencies, alice, scans, args, reader: createReadInvoker(dependencies) };
+  return { ...dependencies, models: loaded.models, containment: loaded.containment,
+    alice, scans, args, reader: createReadInvoker(dependencies) };
 }
+
+test('page result transforms finish before current authority and revision checks', async () => {
+  const world = await setup();
+  const reader = createReadPageInvoker(world);
+  const first = await reader({ ...world.args, selection: { limit: 1 } }, async page => {
+    await Promise.resolve();
+    assert.deepEqual(page.records.map(row => row.id), ['a']);
+    assert.equal(page.queryDefinition[0], 'viewer-page/v1');
+    return { cursor: JSON.stringify(page.continuation), definition: JSON.stringify(page.queryDefinition) };
+  });
+  assert.match(first.cursor, /after/);
+  assert.equal(world.scans[0]!.limit, 1001);
+  assert.equal(Object.hasOwn(world.scans[0]!, 'where'), false);
+  const changed = await captureStateError(reader(world.args, async () => {
+    await seedRows(world.store, model, [{ id: 'new', data: { title: 'New', score: 40 } }]);
+    return 'signed-before-change';
+  }));
+  assert.equal(changed.code, 'conflict');
+  const revoked = await captureStateError(reader(world.args, async () => {
+    await world.memberships.removeMembership(world.alice.membership.membership_id);
+    return 'signed-before-revocation';
+  }));
+  assert.equal(revoked.code, 'forbidden');
+  assert.equal(await world.store.readReceipt({
+    app: 'Example', owner: world.alice.team.team_id, operationId: 'page-read' as import('@canlang/contracts').OperationId,
+    operation: operation as import('@canlang/contracts').OperationName, principal: world.alice.user.user_id,
+  }), null);
+});
+
+test('page admission precedes selection and refuses source functions and unsupported input shapes', async () => {
+  const world = await setup();
+  const selection = { get where(): never { throw new Error('selection read before admission'); } };
+  const closed = await captureStateError(invokeReadPage({ ...world, ...world.args,
+    envelope: { operation, inputs: { bogus: true } }, selection,
+  }));
+  assert.deepEqual(fieldPaths(closed), ['/bogus']);
+  const functions = await captureStateError(invokeReadPage({ ...world, ...world.args,
+    selection: { where: (() => true) as unknown as NonNullable<ReadSelection['where']> },
+  }));
+  assert.equal(functions.code, 'validation');
+  assert.equal(world.scans.length, 0);
+});
+
+test('pages retain checked numeric ordering, null placement and visible ID ties', async () => {
+  const world = await setup();
+  const raw = slice();
+  raw.models![0]!.fields = [{ name: 'count', field: { kind: 'integer' }, nullable: true,
+    required: false, serverOnly: false }];
+  const loaded = loadArtifactDescriptors(raw, { by: 'members' });
+  const policy = policyTable(modelPolicy(model, { grants: [grant('members', ['count'])] }));
+  await seedRows(world.store, model, [
+    { id: 'two', data: { count: '2' } }, { id: 'ten', data: { count: '10' } },
+    { id: 'minus', data: { count: '-3' } }, { id: 'null', data: { count: null } },
+  ]);
+  const reader = createReadPageInvoker({ ...world, ...loaded, policy });
+  const page = await reader({ ...world.args, selection: { order: [{ field: 'count', direction: 'asc' }], limit: 100 } });
+  assert.deepEqual(page.records.map(row => row.id), ['a', 'b', 'null', 'minus', 'two', 'ten']);
+  assert.equal(page.queryDefinition[7][0]![1], 'int?');
+});
+
+test('relevant role-subject decisions bind continuation and are rechecked after host signing', async () => {
+  const world = await setup();
+  const reviewer = await seedMember(world.memberships, { teamId: world.alice.team.team_id,
+    isOwner: false, roles: ['Example.reviewer'] });
+  let granted = true;
+  const memberships = { findMembership: async (teamId: string, userId: string) => {
+    const row = await world.memberships.findMembership(teamId, userId);
+    return row !== null && userId === reviewer.user.user_id && !granted ? { ...row, roles: [] } : row;
+  } };
+  const policy = policyTable(modelPolicy(model, { grants: [
+    grant('members', ['title', 'score']),
+    grant({ roleSubject: { role: 'Example.reviewer', person: reviewer.user.user_id } }, ['note']),
+  ] }));
+  const reader = createReadPageInvoker({ ...world, memberships, policy });
+  const first = await reader({ ...world.args, selection: { limit: 1 } });
+  const revision = first.revision;
+  granted = false;
+  const next = await reader({ ...world.args, selection: { limit: 1, continuation: first.continuation! } });
+  assert.equal(next.revision, revision);
+  assert.notDeepEqual(next.queryDefinition[9], first.queryDefinition[9]);
+  assert.deepEqual(next.records[0]!.data, { title: 'Second', score: 20 });
+  granted = true;
+  const error = await captureStateError(reader(world.args, async () => { granted = false; await Promise.resolve(); return 'signed'; }));
+  assert.equal(error.code, 'forbidden');
+});
+
+test('nested pages admit exact live parents and ancestors before applying storage parent restriction', async () => {
+  const world = await setup();
+  const parentModel = 'Example.Folder' as ModelName;
+  const rootModel = 'Example.Space' as ModelName;
+  const raw = slice();
+  raw.models![0]!.parent = parentModel;
+  raw.models!.push({ name: parentModel, parent: rootModel, fields: [], deleteMode: 'archive' },
+    { name: rootModel, fields: [], deleteMode: 'archive' });
+  raw.operations!.push({ name: `${parentModel}.read`, kind: 'read', description: '', inputs: { fields: [] } },
+    { name: `${rootModel}.read`, kind: 'read', description: '', inputs: { fields: [] } });
+  const loaded = loadArtifactDescriptors(raw, { by: 'members' });
+  const policy = policyTable(modelPolicy(model, { grants: [grant('members', ['title'])] }),
+    modelPolicy(parentModel, { grants: [grant('members', ['title'])] }),
+    modelPolicy(rootModel, { grants: [grant('members', ['title'])] }));
+  const root = makeRow({ id: 'root', data: { title: 'Root' } });
+  const parent = { ...makeRow({ id: 'parent', data: { title: 'Folder' } }), parent: { model: rootModel, id: root.id } };
+  const child = { ...makeRow({ id: 'nested', data: { title: 'Nested', note: 'private' } }), parent: { model: parentModel, id: parent.id } };
+  await world.store.commit(makeBatch(await world.store.readRevision(), { writes: [
+    { kind: 'insert', model: rootModel, row: root }, { kind: 'insert', model: parentModel, row: parent },
+    { kind: 'insert', model, row: child },
+  ] }));
+  const reader = createReadPageInvoker({ ...world, ...loaded, policy });
+  const selection = { parent: { model: parentModel, id: parent.id }, limit: 1 };
+  const page = await reader({ ...world.args, selection });
+  assert.deepEqual(page.records.map(row => row.data), [{ title: 'Nested' }]);
+  assert.equal(page.continuation, null);
+  assert.deepEqual(world.scans.at(-1)!.parent, selection.parent);
+  assert.deepEqual(page.queryDefinition[8].map(scope => scope[0]), [model, parentModel, rootModel]);
+  const before = world.scans.length;
+  const wrongRelation = await captureStateError(reader({ ...world.args,
+    selection: { parent: { model: rootModel, id: root.id } },
+  }));
+  assert.equal(wrongRelation.code, 'validation');
+  const unreadable = createReadPageInvoker({ ...world, ...loaded,
+    policy: policyTable(modelPolicy(model, { grants: [grant('members', ['title'])] })) });
+  assert.equal((await captureStateError(unreadable({ ...world.args, selection }))).code, 'not_found');
+  assert.equal(world.scans.length, before);
+  const membershipSurvives = await world.memberships.findMembership(world.alice.team.team_id, world.alice.user.user_id);
+  assert.equal(membershipSurvives?.status, 'active');
+  const withdrawn = createReadPageInvoker({ ...world, ...loaded, policy: policyTable(
+    modelPolicy(model, { grants: [grant('members', ['title'])] }),
+    modelPolicy(parentModel, { grants: [grant('owner', ['title'])] }),
+    modelPolicy(rootModel, { grants: [grant('members', ['title'])] }),
+  ) });
+  assert.equal((await captureStateError(withdrawn({ ...world.args, selection }))).code, 'not_found');
+  const reviewer = await seedMember(world.memberships, { teamId: world.alice.team.team_id,
+    isOwner: false, roles: ['Example.reviewer'] });
+  let liveRole = true;
+  const memberships = { findMembership: async (teamId: string, userId: string) => {
+    const found = await world.memberships.findMembership(teamId, userId);
+    return found !== null && userId === reviewer.user.user_id && !liveRole ? { ...found, roles: [] } : found;
+  } };
+  const parentRoleReader = createReadPageInvoker({ ...world, ...loaded, memberships, policy: policyTable(
+    modelPolicy(model, { grants: [grant('members', ['title'])] }),
+    modelPolicy(parentModel, { grants: [grant('members', ['title']),
+      grant({ roleSubject: { role: 'Example.reviewer', person: reviewer.user.user_id } }, ['note'])] }),
+    modelPolicy(rootModel, { grants: [grant('members', ['title'])] }),
+  ) });
+  const postSignParent = await captureStateError(parentRoleReader({ ...world.args, selection }, async () => {
+    liveRole = false;
+    await Promise.resolve();
+    return 'signed';
+  }));
+  assert.equal(postSignParent.code, 'forbidden');
+  assert.match(postSignParent.message, /Parent read authority/);
+  await world.store.commit(makeBatch(await world.store.readRevision(), { writes: [
+    { kind: 'update', model: rootModel, id: root.id, expectedVersion: root.version,
+      row: { ...root, archivedAt: 1, version: (root.version + 1) as typeof root.version } },
+  ] }));
+  const beforeArchived = world.scans.length;
+  assert.equal((await captureStateError(reader({ ...world.args, selection }))).code, 'not_found');
+  assert.equal(world.scans.length, beforeArchived);
+});
 
 test('bound read selection filters projected records in one scan and preserves the fence revision', async () => {
   const world = await setup();

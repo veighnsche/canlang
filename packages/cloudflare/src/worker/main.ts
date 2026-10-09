@@ -60,18 +60,26 @@
  * same bound rules.
  */
 
-import type { ActivationVerdict, CompileArtifact, PageDescriptor, StoragePort } from "@canlang/contracts";
+import type { ActivationVerdict, CompileArtifact, PageDescriptor, StoragePort, WorkScope } from "@canlang/contracts";
+import type { IdentityStore } from '@canlang/identity';
+import type { StateTeamBinding } from '../runtime/env-assembly.js';
+import type { PagePreferenceStore } from '@canlang/interfaces';
+import type { createD1OwnerRouter } from '@canlang/state/storage/owner-router';
 import type { AssembledModules } from "../runtime/modules.js";
 import type { BakedDerivedInputs } from "../runtime/mcp-registry.js";
 import type {
   AssembledWorker,
+  CohortTickBinding,
   AssemblyDeps,
   BrowserAssetsHandler,
   HttpOperationHandlerFactory,
+  HttpAuthConfiguration,
+  HttpAuthJoin,
   HttpPageHandlerFactory,
   McpHandlerFactory,
   McpPermissions,
   SourceFormBindings,
+  TeamOwnerStorageBoundary,
 } from "./assembly.js";
 import type { WorkerApp, WorkerAppOptions } from "./entry.js";
 
@@ -128,8 +136,12 @@ interface BrowserAssetsManifest {
 
 /** P-C `buildProductionDeps(env)` result: `{ store, identityStore }`. */
 export interface ProductionDeps {
+  /** Explicit trusted host configuration; no production default limiter or mail binding. */
+  readonly auth?: HttpAuthConfiguration;
   readonly store: StoragePort;
   readonly identityStore: unknown;
+  readonly preferences?: PagePreferenceStore;
+  readonly stateTeam?: StateTeamBinding;
 }
 
 /**
@@ -170,6 +182,14 @@ export type CreateWorkerAppFn = (options: WorkerAppOptions) => WorkerApp;
 
 /** Serving fetch: workerd `(request, env)` shape. */
 export type WorkerFetch = (request: Request, env: Record<string, unknown>) => Promise<Response>;
+export type WorkerScheduled = (controller: { readonly scheduledTime: number; readonly cron: string },
+  env: Record<string, unknown>, context: { waitUntil(task: Promise<unknown>): void }) => Promise<void>;
+export interface MainHandlers { readonly fetch: WorkerFetch; readonly scheduled: WorkerScheduled }
+export type CreateCohortTickFn = (input: { readonly artifact: CompileArtifact; readonly asm: AssembledModules;
+  readonly identities: IdentityStore; readonly ownerStorage: TeamOwnerStorageBoundary;
+  readonly scope: WorkScope; readonly now: () => number }) => Promise<CohortTickBinding>;
+type CreateOwnerRouterFn = typeof createD1OwnerRouter;
+type CreateOwnerStorageFn = typeof import('./assembly.js').createTeamOwnerStorageBoundary;
 
 /**
  * Join loaders. Every field defaults to the production dynamic import;
@@ -195,7 +215,11 @@ export interface MainLoaders {
   readonly loadDerivedInputs?: () => Promise<BakedDerivedInputs | undefined>;
   /** Resolves `undefined` when `./http-operations.js` is absent (-> assembly 501 on the op route). */
   readonly loadHttpOperationsFactory?: () => Promise<HttpOperationHandlerFactory | undefined>;
+  readonly loadHttpAuthJoin?: () => Promise<HttpAuthJoin | undefined>;
   readonly loadHttpPageFactory?: () => Promise<HttpPageHandlerFactory | undefined>;
+  readonly loadCohortTickFactory?: () => Promise<CreateCohortTickFn>;
+  readonly loadOwnerRouterFactory?: () => Promise<CreateOwnerRouterFn>;
+  readonly loadOwnerStorageFactory?: () => Promise<CreateOwnerStorageFn>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -288,6 +312,18 @@ async function loadSiblingFn<T>(specifier: string, file: string, binding: string
     );
   }
   return mod[binding] as T;
+}
+
+async function defaultLoadCohortTickFactory(): Promise<CreateCohortTickFn> {
+  return loadSiblingFn('../runtime/cohort-tick.js', 'runtime/cohort-tick.ts', 'createBoundCohortTick');
+}
+
+async function defaultLoadOwnerRouterFactory(): Promise<CreateOwnerRouterFn> {
+  return loadSiblingFn('@canlang/state/storage/owner-router', 'state/storage/owner-router.ts', 'createD1OwnerRouter');
+}
+
+async function defaultLoadOwnerStorageFactory(): Promise<CreateOwnerStorageFn> {
+  return loadSiblingFn('./assembly.js', 'worker/assembly.ts', 'createTeamOwnerStorageBoundary');
 }
 
 async function defaultLoadEntry(): Promise<CreateWorkerAppFn> {
@@ -461,6 +497,18 @@ function sourceFormRevision(artifact: CompileArtifact): string {
   });
 }
 
+async function defaultLoadHttpAuthJoin(): Promise<HttpAuthJoin | undefined> {
+  let mod: unknown;
+  try { mod = await import(HTTP_OPERATIONS_SPECIFIER); }
+  catch { return undefined; }
+  if (!isRecord(mod) || typeof mod['handleAuthRequest'] !== 'function' ||
+      typeof mod['SESSION_EXPIRES_MS'] !== 'number') {
+    throw new Error('deploy main: worker sibling ./http-operations.js lacks owning auth handler/session lifetime');
+  }
+  const handle = mod['handleAuthRequest'] as (deps: unknown, request: Request) => Promise<Response>;
+  return { createHandler: deps => request => handle(deps, request), sessionExpiresMs: mod['SESSION_EXPIRES_MS'] };
+}
+
 async function defaultLoadHttpPageFactory(): Promise<HttpPageHandlerFactory | undefined> {
   let mod: unknown;
   try { mod = await import(HTTP_OPERATIONS_SPECIFIER); }
@@ -587,8 +635,11 @@ function keyedPromise<K extends object, T>(
  * reuses one `env`, so it assembles once); loader failures evict so a
  * later request retries.
  */
-export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
+export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
   const loadEntry = loaders.loadEntry ?? defaultLoadEntry;
+  const loadCohortTick = loaders.loadCohortTickFactory ?? defaultLoadCohortTickFactory;
+  const loadOwnerRouter = loaders.loadOwnerRouterFactory ?? defaultLoadOwnerRouterFactory;
+  const loadOwnerStorage = loaders.loadOwnerStorageFactory ?? defaultLoadOwnerStorageFactory;
   const loadAssemble = loaders.loadAssembleWorker ?? defaultLoadAssembleWorker;
   const loadStaged = loaders.loadStagedDeployment ?? defaultLoadStagedDeployment;
   const loadProdDeps = loaders.loadProductionDeps ?? defaultLoadProductionDeps;
@@ -597,6 +648,7 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
   const loadPerms = loaders.loadMcpPermissions ?? defaultLoadMcpPermissions;
   const loadDerived = loaders.loadDerivedInputs ?? defaultLoadDerivedInputs;
   const loadHttpOps = loaders.loadHttpOperationsFactory ?? defaultLoadHttpOperationsFactory;
+  const loadHttpAuth = loaders.loadHttpAuthJoin ?? defaultLoadHttpAuthJoin;
   const loadHttpPages = loaders.loadHttpPageFactory ?? defaultLoadHttpPageFactory;
   const loadFormBindings = loaders.loadSourceFormBindingsFactory ?? defaultLoadSourceFormBindingsFactory;
 
@@ -613,9 +665,13 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
   const getPermsFactory = memoize(() => loadPerms());
   const getDerivedInputs = memoize(() => loadDerived());
   const getHttpOpsFactory = memoize(() => loadHttpOps());
+  const getHttpAuthJoin = memoize(() => loadHttpAuth());
   const getHttpPageFactory = memoize(() => loadHttpPages());
   const getFormBindingsFactory = memoize(() => loadFormBindings());
   const getAssemble = memoize(() => loadAssemble());
+  const getCohortTickFactory = memoize(() => loadCohortTick());
+  const getOwnerRouterFactory = memoize(() => loadOwnerRouter());
+  const getOwnerStorageFactory = memoize(() => loadOwnerStorage());
 
   function prodDepsFor(env: Record<string, unknown>): Promise<ProductionDeps> {
     return keyedPromise(prodDepsByEnv, env, loadProdDeps);
@@ -640,14 +696,49 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
     const factory = await getMcpFactory();
     const httpFactory = await getHttpOpsFactory();
     const pageFactory = await getHttpPageFactory();
+    const authJoin = await getHttpAuthJoin();
     const permFactory = factory === undefined ? undefined : await getPermsFactory();
     const derivedInputs =
       factory === undefined && httpFactory === undefined && pageFactory === undefined ? undefined : await getDerivedInputs();
     const assembleWorker = await getAssemble();
     const browserAssets = staged.browserAssets;
+    const cohortRequirement = staged.artifact.requires.find(requirement => requirement.capability === 'state.cohorts');
+    if (cohortRequirement !== undefined && cohortRequirement.min_version !== 1) {
+      throw new Error('deploy main: installed cohort tick requires exact state.cohorts version 1');
+    }
+    if (staged.verdict.active && cohortRequirement !== undefined && deps.stateTeam === undefined) {
+      throw new Error('deploy main: installed cohort tick requires explicit CAN_STATE_OWNER and separate STATE_DB');
+    }
+    let ownerStorage: TeamOwnerStorageBoundary | undefined;
+    let scope: WorkScope | undefined;
+    if (deps.stateTeam !== undefined) {
+      const selected = Object.freeze({ ...deps.stateTeam });
+      const entry: unknown = await import(staged.modules.entryUrl);
+      const definition = isRecord(entry) ? entry['appDefinition'] : undefined;
+      if (!isRecord(definition) || typeof definition['id'] !== 'string' || definition['id'] === '' ||
+          !isRecord(definition['packages']) || !Object.hasOwn(definition['packages'], definition['id'])) {
+        throw new Error('deploy main: selected State requires its actual declared app and owning package');
+      }
+      const app = definition['id'];
+      const createRouter = await getOwnerRouterFactory();
+      const router = createRouter({ resolveBinding: requested => requested.app === app && requested.owner === selected.owner
+        ? { app, owner: selected.owner, db: selected.db,
+            ...(selected.initializeFresh === true ? { initializeFresh: true } : {}) }
+        : null });
+      ownerStorage = await (await getOwnerStorageFactory())({ artifact: staged.artifact, asm: staged.modules,
+        app, identities: deps.identityStore as IdentityStore, router });
+      scope = { app, owner: selected.owner, ownerPackage: app };
+    }
+    const needsTick = cohortRequirement !== undefined || staged.artifact.callables.some(callable => callable.kind === 'handler');
+    const cohorts = staged.verdict.active && needsTick && ownerStorage !== undefined && scope !== undefined
+      ? await (await getCohortTickFactory())({ artifact: staged.artifact, asm: staged.modules,
+          identities: deps.identityStore as IdentityStore, ownerStorage, scope, now: Date.now })
+      : undefined;
     const assemblyDeps: AssemblyDeps = {
       store: deps.store,
       identityStore: deps.identityStore,
+      ...(ownerStorage === undefined ? {} : { ownerStorage }),
+      ...(cohorts === undefined ? {} : { cohorts }),
       ...(factory === undefined
         ? null
         : {
@@ -659,10 +750,13 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
               ...(derivedInputs === undefined ? null : { derivedInputs }),
             },
           }),
-      ...(httpFactory === undefined && pageFactory === undefined && browserAssets === undefined
+      ...(httpFactory === undefined && pageFactory === undefined && authJoin === undefined && browserAssets === undefined
         ? null
         : {
             http: {
+              ...(deps.auth === undefined ? {} : { auth: deps.auth }),
+              ...(deps.preferences === undefined ? {} : { preferences: deps.preferences }),
+              ...(authJoin === undefined ? {} : { authHandler: authJoin }),
               ...(formBindings === undefined ? {} : { formBindings }),
               ...(httpFactory === undefined ? {} : { createOperationHandler: httpFactory }),
               ...(pageFactory === undefined ? {} : { createPageHandler: pageFactory }),
@@ -721,7 +815,7 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
     return assemblyResponse(request, env);
   }
 
-  return async (request: Request, env: Record<string, unknown>): Promise<Response> => {
+  const fetch: WorkerFetch = async (request, env) => {
     const safeEnv: Record<string, unknown> = isRecord(env) ? env : {};
     let app: WorkerApp;
     try {
@@ -731,9 +825,30 @@ export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
     }
     return app.fetch(request, safeEnv);
   };
+  const scheduled: WorkerScheduled = async (_controller, env, context) => {
+    const safeEnv: Record<string, unknown> = isRecord(env) ? env : {};
+    for (const binding of REQUIRED_BINDINGS) {
+      if (safeEnv[binding] === undefined || safeEnv[binding] === null) {
+        throw Object.assign(new Error(`Missing required binding ${binding}.`), { code: 'missing-binding', binding });
+      }
+    }
+    const task = (async () => {
+      const worker = await workerFor(safeEnv);
+      if (worker.tick === undefined) throw new Error('The installed worker has no cohort tick binding.');
+      return worker.tick();
+    })();
+    context.waitUntil(task);
+    await task;
+  };
+  return { fetch, scheduled };
 }
 
-/** Deploy main: the default-export fetch P-B bundles. */
-const workerMain: { fetch: WorkerFetch } = { fetch: createMainFetch() };
+/** Existing fetch consumers retain the same API and joins. */
+export function createMainFetch(loaders: MainLoaders = {}): WorkerFetch {
+  return createMainHandlers(loaders).fetch;
+}
+
+/** Deploy main: fetch and the actual scheduled entry share one bound worker. */
+const workerMain: MainHandlers = createMainHandlers();
 
 export default workerMain;
