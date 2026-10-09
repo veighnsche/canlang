@@ -68,6 +68,16 @@ mixed text/named-schema refusals. No extra production type patch is needed.
 Formatting a computed anonymous descriptor still needs checked schema provenance;
 this witness claims only generic choice/array consumption, not that wider sink.
 
+
+**Local prerequisite — chained Preferences captions, 2026-10-09.** Checked
+field reuse now retains the immediately referenced field identity, independent
+of ultimate enum identity. Tabs compose case labels from ultimate to nearest to
+receiving declarations; text inherits only across same-name reuse edges. Actual
+adapter **8/8** and generated HTTP/UI preference lifecycle **1/1** pass with
+nearest/receiving overrides, ancestor fallback, translations, renamed receiving
+fields and unchanged owner/default/version/save/refusal behavior. Independent
+finite review accepts this producer/consumer boundary. No wider reference closes.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed
