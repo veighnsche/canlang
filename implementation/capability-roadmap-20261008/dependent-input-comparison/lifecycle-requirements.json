@@ -1,0 +1,34 @@
+{
+  "stage": "Expected interaction behavior for all alternatives; unexecuted",
+  "form_identity": [
+    "Stable owning form instance/route/row identity; separate simultaneous forms do not share request or selection state.",
+    "Lookup context includes current authenticated actor/team/grant context, owning form instance and canonical parent reference/revision; no ambient implicit input capture."
+  ],
+  "input_absence": [
+    "Initial absent parent disables/unsets dependent child and performs no lookup.",
+    "Only typed canonical partial values feed mapped read parameters; invalid/incomplete values show correctable validation and do not execute final mutation.",
+    "No dependency cycle; only declared prerequisites are read; no mutation operation can supply choices."
+  ],
+  "change_and_results": [
+    "Parent change invalidates old lookup and incompatible child immediately; preserve unrelated notes/street/file/reason/email/due drafts.",
+    "Abort/debounce is a cost/lifecycle control, not authority. Context+sequence fencing discards old responses even if cancellation fails.",
+    "For a picker-supplied child, retain selection when returned and eligible under exactly same current parent/context; otherwise clear it. Approval original unassisted opaque user path remains available, and empty viewer choices never creates a new final candidate-membership guard. Parent switch clears incompatible choice while lookup pending.",
+    "Pending result cannot restore a cleared child. Empty authorized result and read error are distinct; no global broad-candidate fallback.",
+    "A denied/stale result carries no leaked candidates; refresh/repair may rerun same existing read, not automatically submit final mutation."
+  ],
+  "authority": [
+    "Every lookup and every final submission rechecks current identity/membership/record+field grants; no candidate result confers role/site/work or capacity authority.",
+    "Final actual canonical envelope/schema/business guards and current reference revisions remain mandatory, including relation match, actual reviewer role, distinct assignee and current workplace eligibility.",
+    "MCP uses the same final operation/schema/current guards; it need not emulate a browser partial draft or first perform candidate lookup."
+  ],
+  "ui": [
+    "Loading/empty/error/disabled child clearly presented with EN/NL captions and current selection.",
+    "Keyboard selection, focus after invalidation/error, accessible announced updates and modal focus remain stable; preserve current unsaved unrelated fields.",
+    "Reopen/reconnect refetches authorized state and cannot submit/create/reserve automatically."
+  ],
+  "source_limits": [
+    "Original CanApprove lookup is bound to persisted Document and duplicates canonical candidate-bound forms; no partial country-like sibling input exists there.",
+    "Current nested forms can expose a staged selection workflow; automatic partial-draft cancellation/clearing/focus behavior is not established by source alone.",
+    "Proposed checked metadata centralizes controller responsibility; runtime/adoption advantage remains hypothetical until comparable browser checks."
+  ]
+}
