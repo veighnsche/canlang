@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-09T00:03:56.717267+00:00",
+  "updated_utc": "2026-10-09T00:22:33.435594+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -3110,6 +3110,15 @@
       "state": "VerifiedJEV3 selected boundedrescan; exact definingcontract preparation next",
       "verification": "Three facts-only consultations completeonce,1/.98/1 confidence,no rationale; no runtimechecks/claim",
       "limits": "Candidatebudget separate from rendered500; key/querydefinition/authorityrecheck/parent gates open"
+    },
+    "split_native_dialog_focus": {
+      "status": "Source reviewed and owning native-browser release accepted; scoped local commit",
+      "files": [
+        "packages/ui/src/collections.ts",
+        "packages/ui/src/browser/bootstrap.ts"
+      ],
+      "validation": "Selective emission0/browser asset build0; same Chrome desktop/mobile/Space/focus/Escape/close/hidden-control/desktop-release/two-occurrence/removal checks pass. Query and identity evidence reused.",
+      "limits": "Native modal exclusion accepted; no strict custom Tab-wrap guarantee, pagination or whole-app acceptance."
     }
   },
   "live_finite_packets": [
