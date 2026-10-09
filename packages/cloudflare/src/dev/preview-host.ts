@@ -243,5 +243,6 @@ export function createInstalledLocalPreviewBuilder() {
     confirmRunningActivation: localPreviewActivationVerdict,
     produceBundle: produceInstalledPortableBundle,
     seedLocalActors: seedLocalPreviewActors,
+    workerVarsForOrigin: () => ({ CAN_FORM_BINDING_KEY: randomBytes(32).toString("base64url") }),
   });
 }
