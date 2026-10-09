@@ -307,6 +307,18 @@ completes the defining entry prerequisite; native adaptation and hook/live-view
 production remain with their recorded owners. Final compiler qualification
 uses these current installed inputs.
 
+**Related ordinary contract consumer — private event ABI, 2026-10-09.**
+The next whole run exposed the schedule fixture's old unsupported assumption
+for a closed ordinary Packet contract. Its private invocation now asserts the
+exact owning nominal descriptor and validates the actual emitted event/contract
+schema through Values before invoking the generated handler. Missing, extra and
+malformed nested fields refuse; a model-containing contract retains whole
+private-descriptor omission. Owning schedule target **2/2** passes. Original
+package identity, once/order, schedule/cancel and later-failure controls remain.
+This is callable ABI qualification using declared host doubles, not persistence
+or fabricated canonical admission. Final combined qualification follows the
+coordinator's released local integration baseline.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed
