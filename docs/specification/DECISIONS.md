@@ -5008,3 +5008,14 @@ at their actual tested scope. Dev still owns original Text Send and full T04
 runtime/example/provider outcomes; broad58/67 owner refs and precise human holds
 remain. No source-only, checkpoint or handbuilt producer proof substitutes for
 those original workflow results. All updates stay local for coordinator review.
+
+## 2026-10-10 — select the declared Office user in its owning example
+
+Use the existing named-user fixture caller mechanism in the complete 41-card
+Office source: add a `person` update row with name/quantity expectations while
+preserving the prior member, outsider and rename examples. Actual emitted
+functions preserve the canonical reviewer role and link that row to its exact
+user recipe; owning compiler target6/6 passes. This supplies the missing source
+prerequisite for Dev's genuine Identity/member journey, not runtime acceptance
+or a change to held BDD3 policy. Reuse unchanged compiler/native results; Dev
+owns current-profile capture and execution, Packages the shared bundle gate.
