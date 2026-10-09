@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-09T00:58:59.680462+00:00",
+  "updated_utc": "2026-10-09T01:02:19.929123+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -3169,6 +3169,12 @@
       "status": "Released exact source reviewed and locally committed; scenario identities unchanged",
       "validation": "One affected source check complete/omitted0,Rent26,total321,Book0,other providers unchanged;24 targeted nullable/filter diagnostics removed,none added.",
       "limits": "Remaining26 explicitly open; no runtime/full52/root48 credit."
+    },
+    "durable_auth_rate_limiter": {
+      "status": "Sol6.1medium finite adapter implemented/released, direct source reviewed and locally committed",
+      "model_reason": "Known bounded persistence adapter and exact owning checks; economical medium sufficient, no broader security redesign.",
+      "validation": "Private selectedTypeScript0; actual localworkerd/D1 tests2/2 after loopback permission, concurrent20 across2instances exactly10allowed plus5hour/expiry/retry/isolation/cleanup/failure controls.",
+      "limits": "Documented fixedwindow selected; memory rollinghelper mismatch explicit. No defaultproduction hostconfiguration or provider-mail acceptance."
     }
   },
   "live_finite_packets": [
