@@ -4607,3 +4607,17 @@ acceptance follows.
 Intake exact reviewed coordinator main85188b3e/Compiler0b79 at the committed scalar-consumer boundary, preserving both decision histories and all precise holds. Rebuild its owning native compiler and extend the existing genuine .can/installed public/workerd/owner-D1 witness. Use owning T[]/T[]? plans, types and awaited observations; no invented adapter, metadata or duplicate array implementation. Eleven stored scalar/int[]?/bool[]/text[] results cover null, empty and populated int64 strings, original ordinary/dedicated aged replay after changed rows/stale refs, exact receipts/all resources, archive/current authority withholding and issuer/source/JS/map refusals. Keep selected.store commit and file tripwires.
 
 The final full portable journey passes1/1 in53.18s; owning CF emit, root noEmit and zero-violation boundaries pass. The first draft wrongly expected the Compiler Node/Memory bad-element rejection receipt through public HTTP. Actual HTTP validates shape and elements before State: require exact zero-write resources and no receipt for both malformed inputs, then rerun the full affected journey. A test-only inferred field type caused an owning emit failure; use the actual exported ArtifactModelField type and emitted integer/nullable/array descriptor, without guessing int array valueType. Reuse unchanged producer closure/catalog and earlier Office/browser checks only at their recorded scopes. Reconcile cumulative path coverage with checkpoint unadvanced. Required/nested/model/nominal arrays and wider source/owner/hook/query/help/G2–G3 joins remain unqualified.
+
+## 2026-10-09 — retain transition provenance refusal during whole qualification
+
+The source66b whole run completes129targets with1320passed/2failed/0ignored and
+no body skip. Forward the existing real public `int64` export in the isolated
+delivery-progress compiler fixture; its actual owning case1/1 then passes.
+Preserve the state-machine replay assertion and record its exact prerequisite:
+State scenario-receipt273-275 cannot retain an intermediate queued observation
+against a generating final net write; Cloudflare's genuine native view reads
+the staged overlay. Complete compiler literal/write lineage or defining State
+owner-session intermediate observation is required. General changed public
+fields also need their full influencing-read/control closure, since changed
+rows are projected separately from typed results. No empty void association,
+snapshot substitution, raw replay bypass or gate weakening is authorized.
