@@ -1,22 +1,22 @@
 {
   "date": "2026-10-09",
-  "integrated_source_pin": "b94917a208e7aee41d9f152881f611d1e95738d0",
+  "integrated_source_pin": "bde01621db214c7d70a833542660f3797f928dfd",
   "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 1427,
+    "commit_count_since_checkpoint": 1428,
     "net_path_deltas": 10772,
     "history_touched_paths": 11316,
     "history_only_paths": 513,
     "released_feature_paths": 78,
     "new_target_leaves": 30,
     "inherited_paths_without_prior_target_allocation": 9270,
-    "scope": "Local main integration of committed source b94917a208e7aee41d9f152881f611d1e95738d0 onto 1cd512f09999a6009c891da51fe1b23291c8aacf; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced."
+    "scope": "Worker integration of coordinator-released local main source bde01621db214c7d70a833542660f3797f928dfd onto bde01621db214c7d70a833542660f3797f928dfd; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced."
   },
   "methods": [
-    "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z checkpoint (actual staged local merge tree; incoming integrated_source_pin onto current main parent)",
-    "git log --full-history -m --format= --name-only --no-renames integrated_source_pin current-main-parent ^checkpoint",
+    "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z checkpoint (actual staged local merge tree; incoming integrated_source_pin onto current worker parent)",
+    "git log --full-history -m --format= --name-only --no-renames integrated_source_pin current-worker-parent ^checkpoint",
     "Prior input/target/retirement/task ledgers retained; new feature ownership and target leaves joined without accepting inherited incomplete source review. Similarity rename detection is bookkeeping evidence, not semantic successor authority."
   ],
   "row_schema": "[status, path, owner, scope] or [rename_status, predecessor, successor, successor_owner, scope]",
@@ -67282,5 +67282,5 @@
   "lanes": "Existing four local worktrees continue their assigned plans; only committed snapshots are integrated here. Open edits and recipient-specific holds are preserved. Coordinator alone serializes local main merges/manual review; no remote publication or PR review gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Local main integration of committed source b94917a208e7aee41d9f152881f611d1e95738d0 onto 1cd512f09999a6009c891da51fe1b23291c8aacf; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced."
+  "current_maintenance_summary": "Worker integration of coordinator-released local main source bde01621db214c7d70a833542660f3797f928dfd onto bde01621db214c7d70a833542660f3797f928dfd; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced."
 }

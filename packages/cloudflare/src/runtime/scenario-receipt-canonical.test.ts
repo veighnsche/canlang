@@ -9,12 +9,12 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
-import type { CanTypeId, CompileArtifact, ModelName, OperationId, ProjectedRecord, Receipt, RecordVersion, ScenarioResultDisclosurePlan,
+import type { CanTypeId, CompileArtifact, ModelName, OperationId, ProjectedRecord, Receipt, RecordId, RecordVersion, ScenarioResultDisclosurePlan,
   StoragePort } from '@canlang/contracts';
 import { resolveIdentity, sha256HexText } from '@canlang/identity';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
-import { invoke, observeScenarioReceiptDependency, selectScenarioReceiptReturn } from '@canlang/state/invocation';
+import { invoke, observeScenarioReceiptDependency, selectScenarioReceiptReturn, readScenarioReceiptAssociation } from '@canlang/state/invocation';
 import { seedRow, updateRow, uuidv7, FIXED_NOW } from '@canlang/state/testing/invocation/fixtures';
 import { assembleModules } from './modules.js';
 import { AssemblyCorrespondenceError } from './assembly-verification.js';
@@ -46,7 +46,7 @@ function plan(): ScenarioResultDisclosurePlan {
 }
 function declaration(legacy = false, fresh = false, handlerBody?: string): CompileArtifact {
   // Data-only read selector provenance, not Function.toString() inference.
-  const js = `${fresh ? 'import { observeScenarioReceiptDependency, selectScenarioReceiptReturn } from "@canlang/stdlib";' : ''}let executions=0;
+  const js = `${fresh ? 'import { set, observeScenarioReceiptDependency, selectScenarioReceiptReturn } from "@canlang/stdlib";' : ''}let executions=0;
 export const executionCount=()=>executions;
 let handlerProbe;
 export const setHandlerProbe=probe=>{handlerProbe=probe;};
@@ -54,7 +54,7 @@ const policy={operations:{"Shop.saved":{by:["members"]}},models:{"Shop.Record":{
 export const appDefinition={id:"SavedScenario",policy,models:{"Shop.Record":{
  fields:{visible:{type:"text"},private:{type:"text"},token:{type:"secret",init:"random_secret"}},
  readGrants:[{rule:"Record.read.1",by:["members"],fields:["visible","private"]}]}}};
-export function canApp(){return {policy,read:{"Record.read.1":()=>true},Shop:{saved:async(c,input)=>{
+export function canApp(){return {policy,read:{"Record.read.1":()=>true},Shop:{saved:async(c,input,reportDefault)=>{
  executions++; ${handlerBody ?? (legacy ? 'return "fresh legacy result";' : fresh ? 'const value=input.record.visible; await observeScenarioReceiptDependency(c,"Shop.Record",input.record,"visible","visible-value"); selectScenarioReceiptReturn(c,"selected"); return value;' : 'throw new Error("scenario replay execution tripwire");')}
 }}};}`;
   return { artifact_version: 1, language_version: 'declaration-labelled fixture', tool_version: 'consumer fixture',
@@ -72,8 +72,9 @@ export function canApp(){return {policy,read:{"Record.read.1":()=>true},Shop:{sa
       ...(legacy ? {} : { result: { type: 'text' as CanTypeId, disclosure: plan() } }) }],
   };
 }
-async function world(legacy = false, fresh = false, handlerBody?: string) {
-  const artifact = declaration(legacy, fresh, handlerBody), dir = await mkdtemp(join(tmpdir(), 'can-scenario-receipt-')); dirs.push(dir);
+async function world(legacy = false, fresh = false, handlerBody?: string, configure?: (artifact: CompileArtifact) => void) {
+  const artifact = declaration(legacy, fresh, handlerBody); configure?.(artifact);
+  const dir = await mkdtemp(join(tmpdir(), 'can-scenario-receipt-')); dirs.push(dir);
   const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: dir,
     stdlibUrl: pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href });
   const clock = createFrozenClock(FIXED_NOW), identities = createMemoryIdentityStore({ clock });
@@ -88,7 +89,8 @@ async function world(legacy = false, fresh = false, handlerBody?: string) {
   const row = await seedRow(store, model, { data: { visible: 'original visible', private: 'original private', token: 'original secret' } });
   const loaded = await loadCanonicalDescriptors(asm, artifact);
   const envelope = { operation, operation_id: uuidv7(FIXED_NOW, ++sequence),
-    inputs: { record: { id: row.id, version: String(row.version) } } };
+    inputs: Object.fromEntries(artifact.operations![0]!.inputs.fields.filter(field=>field.field.kind==='ref')
+      .map(field=>[field.name,{id:row.id,version:String(row.version)}])) };
   let receipt: Receipt | undefined;
   // Only State's active admitted execution creates the association. No receipt
   // or association metadata is supplied by this executor or a request.
@@ -97,10 +99,12 @@ async function world(legacy = false, fresh = false, handlerBody?: string) {
     execute: async call => {
       const original = call.recordRefs[0]!.row;
       if (!legacy) {
-        await observeScenarioReceiptDependency(call, store, { dependencyId: 'visible-value', model, row: original, field: 'visible' });
-        selectScenarioReceiptReturn(call, store, 'selected');
+        const returned = artifact.operations![0]!.result!.disclosure!.returns[0]!;
+        for (const dependency of returned.dependencies) await observeScenarioReceiptDependency(call, store,
+          { dependencyId: dependency.id, model, row: original, field: dependency.field });
+        selectScenarioReceiptReturn(call, store, returned.id);
       }
-      return { result: original.data['visible'], writes: [{ kind: 'update', model, id: original.id,
+      return { result: artifact.operations![0]!.result?.type === 'void' ? null : original.data['visible'], writes: [{ kind: 'update', model, id: original.id,
         expectedVersion: original.version, row: { ...original, version: (original.version+1) as RecordVersion,
           data: { ...original.data, visible: 'committed visible' } } }], history: [], outbox: [], schedules: [],
         uniqueClaims: [], uniqueReleases: [], resolvedDefaults: {} };
@@ -176,7 +180,7 @@ it('uses current secret masks and lifetime, then refuses revoked membership with
   let before = await w.snapshot();
   const masked = await w.invoker(w.readonlyStore,true).invokeRetainedMutation(w.envelope,w.identity);
   assert.ok('result' in masked,JSON.stringify(masked)); assert.equal(masked.result.result,null);
-  assert.deepEqual(projectedRecords(masked.result)[0]?.data,{private:'original private'});
+  assert.deepEqual(projectedRecords(masked.result),[],'an unavailable required dependency withholds every influenced changed record');
   assert.deepEqual(await w.snapshot(),before);
   const current = await w.store.load(model,w.row.id); assert.ok(current);
   await updateRow(w.store,model,current,{archivedAt:FIXED_NOW+1}); before=await w.snapshot();
@@ -392,4 +396,296 @@ it('retains an unchanged-source business rejection as exactly one rejected recei
   assert.equal(after.revision, before.revision + 1);
   assert.deepEqual({ ...after, revision: before.revision }, before);
   assert.deepEqual(w.counters(), { commits: 0, files: 0, executions: 1 });
+});
+
+
+/** Direct Dev consumer of State b949 owner-session issuance, not native
+ * mutation compilation: declarations and handler are explicitly hand-built. */
+function ownerPlan(voidResult = false): ScenarioResultDisclosurePlan {
+  const origin = { path: source, sha256: sha, module: modulePath };
+  return { version: 1, source: origin, returns: [{ id: 'selected', source: origin, influences: [],
+    dependencies: voidResult
+      ? [{ id: 'private-control', source: origin, role: 'control', model, field: 'private', type: 'text' as CanTypeId }]
+      : [{ id: 'old-visible', source: origin, role: 'data', model, field: 'visible', type: 'text' as CanTypeId },
+        { id: 'middle-visible', source: origin, role: 'data', model, field: 'visible', type: 'text' as CanTypeId }] }] };
+}
+
+it('requires the positive owner producer for fresh execution while retained recovery constructs no session', async () => {
+  const w=await world(false,true), entry=await w.store.load(model,w.row.id); assert.ok(entry);
+  const producer=w.loaded.producers.invoke as {beginScenarioReceiptMutation?: typeof import('@canlang/state/invocation').beginScenarioReceiptMutation};
+  const original=producer.beginScenarioReceiptMutation; assert.ok(original !== undefined); assert.equal(typeof original,'function');
+  const batches:Array<Parameters<StoragePort['commit']>[0]>=[];
+  const captureStore:StoragePort={...w.store,commit:async batch=>{batches.push(batch);return w.store.commit(batch);}};
+  const before=await w.snapshot(); delete producer.beginScenarioReceiptMutation;
+  try {
+    const outcome=await buildInvoker(w.artifact,w.asm,captureStore,{appId:app,memberships:w.identities,now:()=>FIXED_NOW})
+      .invokeMutation({...w.envelope,operation_id:uuidv7(FIXED_NOW,++sequence),
+        inputs:{record:{id:entry.id,version:String(entry.version)}}},w.identity);
+    assert.ok('error' in outcome,JSON.stringify(outcome)); assert.equal(outcome.error.code,'validation');
+    assert.match(outcome.error.message,/installed State producer/); assert.equal(w.counters().executions,0);
+    const after=await w.snapshot(); assert.deepEqual({...after,revision:before.revision},before);
+    for(const batch of batches) { assert.deepEqual(batch.writes,[]); assert.deepEqual(batch.history,[]);
+      assert.deepEqual(batch.outbox,[]); assert.deepEqual(batch.schedules,[]);
+      assert.deepEqual(batch.uniqueClaims,[]); assert.deepEqual(batch.uniqueReleases,[]); }
+    const retainedBefore=await w.snapshot();
+    const retained=await w.invoker(w.readonlyStore,true).invokeRetainedMutation(w.envelope,w.identity);
+    assert.ok('result' in retained,JSON.stringify(retained)); assert.equal(retained.result.result,'original visible');
+    assert.deepEqual(await w.snapshot(),retainedBefore); assert.deepEqual(w.counters(),{commits:0,files:0,executions:0});
+  } finally { producer.beginScenarioReceiptMutation=original; }
+});
+
+it('refreshes an unchanged issued row after staging a different admitted record', async () => {
+  const w=await world(false,true,`
+    const old=input.record.visible;
+    await observeScenarioReceiptDependency(c,"Shop.Record",input.record,"visible","old-visible");
+    await set(c,input.other,{visible:"other final"});
+    const current=input.record.visible;
+    await observeScenarioReceiptDependency(c,"Shop.Record",input.record,"visible","middle-visible");
+    selectScenarioReceiptReturn(c,"selected"); return old+"|"+current;
+  `, artifact=>{
+    artifact.operations![0]!.inputs.fields.push({name:'other',field:{kind:'ref',model,requireVersion:true},required:true});
+    artifact.operations![0]!.result={type:'text' as CanTypeId,disclosure:ownerPlan()};
+  });
+  const entry=await w.store.load(model,w.row.id); assert.ok(entry);
+  const other=await seedRow(w.store,model,{id:uuidv7(FIXED_NOW,++sequence) as RecordId,
+    data:{visible:'other original',private:'other private',token:'other secret'}});
+  const envelope={...w.envelope,operation_id:uuidv7(FIXED_NOW,++sequence),inputs:{
+    record:{id:entry.id,version:String(entry.version)},other:{id:other.id,version:String(other.version)}}};
+  const fresh=await buildInvoker(w.artifact,w.asm,w.store,{appId:app,memberships:w.identities,now:()=>FIXED_NOW})
+    .invokeMutation(envelope,w.identity);
+  assert.ok('result' in fresh,JSON.stringify(fresh)); assert.equal(fresh.result.result,'committed visible|committed visible');
+  const physical=await w.store.readReceipt({...w.receipt.identity,operationId:envelope.operation_id as OperationId}); assert.ok(physical);
+  const association=readScenarioReceiptAssociation(physical); assert.ok(association);
+  assert.deepEqual(association.observations.map(observation=>observation.row),[entry,entry]);
+  assert.equal(association.changed.length,1); assert.equal(association.changed[0]!.row.id,other.id);
+  assert.equal(association.changed[0]!.row.data['visible'],'other final');
+  assert.deepEqual(await w.store.load(model,entry.id),entry);
+  assert.equal((await w.store.load(model,other.id))?.version,other.version+1);
+});
+
+it('joins receipt-aware stage/read/finalize into one net State row and saved intermediate result', async () => {
+  const w = await world(false,true,`
+    const old=input.record.visible;
+    await observeScenarioReceiptDependency(c,"Shop.Record",input.record,"visible","old-visible");
+    const middle=await set(c,input.record,{visible:"middle visible"});
+    const value=middle.visible;
+    await observeScenarioReceiptDependency(c,"Shop.Record",middle,"visible","middle-visible");
+    await set(c,middle,{visible:"final visible"});
+    selectScenarioReceiptReturn(c,"selected"); return old+"|"+value;
+  `, artifact => { artifact.operations![0]!.result = { type: 'text' as CanTypeId, disclosure: ownerPlan() }; });
+  const entry=await w.store.load(model,w.row.id); assert.ok(entry);
+  const envelope={...w.envelope,operation_id:uuidv7(FIXED_NOW,++sequence),
+    inputs:{record:{id:entry.id,version:String(entry.version)}}};
+  const batches: Array<Parameters<StoragePort['commit']>[0]> = [];
+  const captureStore: StoragePort={...w.store,commit:async batch=>{batches.push(batch);return w.store.commit(batch);}};
+  const beforeHistory=await w.store.historyFor(model,entry.id);
+  const fresh=await buildInvoker(w.artifact,w.asm,captureStore,{appId:app,memberships:w.identities,now:()=>FIXED_NOW})
+    .invokeMutation(envelope,w.identity);
+  assert.ok('result' in fresh,JSON.stringify(fresh)); assert.equal(fresh.result.status,'committed');
+  assert.equal(fresh.result.result,'committed visible|middle visible');
+  assert.equal(batches.length,1,'one actual State commit');
+  const batch=batches[0]!; assert.equal(batch.writes.length,1); assert.equal(batch.history.length,1);
+  const write=batch.writes[0]!; assert.equal(write.kind,'update');
+  if(write.kind!=='update') throw new Error('expected one net update');
+  assert.equal(write.expectedVersion,entry.version); assert.equal(write.row.version,entry.version+1);
+  assert.deepEqual(write.row.data,{...entry.data,visible:'final visible'});
+  assert.deepEqual(batch.history[0]!.before,entry.data); assert.deepEqual(batch.history[0]!.after,write.row.data);
+  assert.deepEqual(batch.uniqueClaims,[]); assert.deepEqual(batch.uniqueReleases,[]);
+  const physical=await w.store.readReceipt({...w.receipt.identity,operationId:envelope.operation_id as OperationId}); assert.ok(physical);
+  assert.deepEqual(physical.resolvedDefaults,{},'no default is invented for updates');
+  assert.deepEqual(await w.store.load(model,entry.id),write.row);
+  assert.equal((await w.store.historyFor(model,entry.id)).length,beforeHistory.length+1);
+  const association=readScenarioReceiptAssociation(physical); assert.ok(association);
+  assert.deepEqual(association.plan,ownerPlan()); assert.equal(association.returnId,'selected');
+  assert.deepEqual(association.observations.map(observation=>observation.dependencyId),['old-visible','middle-visible']);
+  assert.deepEqual(association.observations[0]!.row,entry);
+  assert.equal(association.observations[1]!.row.version,entry.version+1);
+  assert.deepEqual(association.observations[1]!.row.data,{...entry.data,visible:'middle visible'});
+  assert.deepEqual(association.changed.map(changed=>changed.row),[write.row]);
+  assert.equal(JSON.stringify(fresh).includes('scenario-result/v1'),false);
+  const committed=await w.store.load(model,entry.id); assert.ok(committed);
+  await updateRow(w.store,model,committed,{data:{...committed.data,visible:'later visible'}});
+  const before={state:await w.snapshot(),physical:await w.store.readReceipt(physical.identity)};
+  for(const dedicated of [false,true]) {
+    const replay=dedicated?await w.invoker(w.readonlyStore,true).invokeRetainedMutation(envelope,w.identity)
+      :await w.invoker().invokeMutation(envelope,w.identity);
+    assert.ok('result' in replay,JSON.stringify(replay)); assert.equal(replay.result.status,'replayed');
+    assert.equal(replay.result.result,fresh.result.result);
+    assert.equal(projectedRecords(replay.result)[0]?.data['visible'],'final visible');
+    assert.equal(JSON.stringify(replay).includes('scenario-result/v1'),false);
+    assert.deepEqual({state:await w.snapshot(),physical:await w.store.readReceipt(physical.identity)},before);
+    assert.deepEqual(w.counters(),{commits:0,files:0,executions:1});
+  }
+});
+
+it('withholds every public void changed record when its required read dependency is unavailable', async () => {
+  const w=await world(false,true,`
+    const selected=input.record.private;
+    await observeScenarioReceiptDependency(c,"Shop.Record",input.record,"private","private-control");
+    await set(c,input.record,{visible:selected});
+    selectScenarioReceiptReturn(c,"selected"); return;
+  `, artifact=>{
+    artifact.operations![0]!.result={type:'void' as CanTypeId,disclosure:ownerPlan(true)};
+    artifact.modules[0]!.js=artifact.modules[0]!.js.replace('"Shop.saved":{by:["members"]}', '"Shop.saved":{by:["public"]}')
+      .replace('fields:["visible","private"]','fields:["visible"]');
+  });
+  const entry=await w.store.load(model,w.row.id); assert.ok(entry);
+  const envelope={...w.envelope,operation_id:uuidv7(FIXED_NOW,++sequence),inputs:{record:{id:entry.id,version:String(entry.version)}}};
+  const fresh=await buildInvoker(w.artifact,w.asm,w.store,{appId:app,memberships:w.identities,now:()=>FIXED_NOW})
+    .invokeMutation(envelope,w.identity);
+  assert.ok('result' in fresh,JSON.stringify(fresh)); assert.equal(fresh.result.status,'committed');
+  assert.equal(fresh.result.result,null); assert.deepEqual(fresh.result.records,[],'unreadable control cannot disclose a changed value');
+  const physical=await w.store.readReceipt({...w.receipt.identity,operationId:envelope.operation_id as OperationId}); assert.ok(physical);
+  const association=readScenarioReceiptAssociation(physical); assert.ok(association);
+  assert.equal(association.observations[0]!.row.data['private'],entry.data['private']);
+  assert.equal(association.changed[0]!.row.data['visible'],entry.data['private']);
+  const {buildPolicyTable}=await import('@canlang/state/policy/grants');
+  for(const secret of [false,true]) {
+    // Genuine current policy table: absent grant versus newly secret mask.
+    const loaded=w.loaded as unknown as {policy:ReturnType<typeof buildPolicyTable>};
+    loaded.policy=buildPolicyTable([{model,secretFields:secret?['private']:[],
+      grants:[{by:'members',fields:['visible']}]}]);
+    const before: { state: Awaited<ReturnType<typeof w.snapshot>>; physical: Receipt | null } =
+      {state:await w.snapshot(),physical:await w.store.readReceipt(physical.identity)};
+    for(const dedicated of [false,true]) {
+      const replay=dedicated?await w.invoker(w.readonlyStore,true).invokeRetainedMutation(envelope,w.identity)
+        :await w.invoker().invokeMutation(envelope,w.identity);
+      assert.ok('result' in replay,JSON.stringify(replay)); assert.equal(replay.result.status,'replayed');
+      assert.equal(replay.result.result,null); assert.deepEqual(replay.result.records,[]);
+      assert.deepEqual({state:await w.snapshot(),physical:await w.store.readReceipt(physical.identity)},before);
+      assert.deepEqual(w.counters(),{commits:0,files:0,executions:1});
+    }
+  }
+});
+
+it('refuses a caught cloned intermediate marker before committing staged changes', async () => {
+  const w=await world(false,true,`
+    const middle=await set(c,input.record,{visible:"must not commit"});
+    try { await observeScenarioReceiptDependency(c,"Shop.Record",{...middle},"visible","visible-value"); } catch {}
+    selectScenarioReceiptReturn(c,"selected"); return "caught";
+  `);
+  const entry=await w.store.load(model,w.row.id); assert.ok(entry);
+  const before=await w.snapshot(), envelope={...w.envelope,operation_id:uuidv7(FIXED_NOW,++sequence),
+    inputs:{record:{id:entry.id,version:String(entry.version)}}};
+  const outcome=await buildInvoker(w.artifact,w.asm,w.store,{appId:app,memberships:w.identities,now:()=>FIXED_NOW})
+    .invokeMutation(envelope,w.identity);
+  assert.ok('error' in outcome,JSON.stringify(outcome)); assert.equal(outcome.error.code,'validation');
+  const after=await w.snapshot(); assert.deepEqual(after.rows,before.rows); assert.deepEqual(after.history,before.history);
+  assert.deepEqual(after.outbox,before.outbox); assert.deepEqual(after.schedules,before.schedules);
+  assert.deepEqual(after.receipt,before.receipt,'original retained receipt unchanged');
+  assert.deepEqual(w.counters(),{commits:0,files:0,executions:1});
+});
+
+
+it('retains omitted literal/nullable input reports read-only and refuses their mutation join', async () => {
+  for(const mutates of [false,true]) {
+    const w=await world(false,true,`
+      if(input.optional!==null) throw new Error("nullable omission did not hydrate native null");
+      if(input.message!=="defaulted input") throw new Error("literal omission did not hydrate native text");
+      ${mutates ? 'await set(c,input.record,{visible:"must not stage with omitted input defaults"});' : ''}
+      selectScenarioReceiptReturn(c,"selected"); return input.message;
+    `, artifact=>{
+      artifact.operations![0]!.inputs.fields.push(
+        {name:'message',field:{kind:'string'},required:false,valueType:'text' as CanTypeId,
+          default:{kind:'literal',value:'defaulted input'}},
+        {name:'optional',field:{kind:'string'},required:false,valueType:'text?' as CanTypeId,nullable:true},
+      );
+      const origin={path:source,sha256:sha,module:modulePath};
+      artifact.operations![0]!.result={type:'text' as CanTypeId,disclosure:{version:1,source:origin,
+        returns:[{id:'selected',source:origin,influences:[],dependencies:[]}]}};
+    });
+    const entry=await w.store.load(model,w.row.id); assert.ok(entry);
+    const envelope={...w.envelope,operation_id:uuidv7(FIXED_NOW,++sequence),
+      inputs:{record:{id:entry.id,version:String(entry.version)}}};
+    const before=await w.snapshot(), batches:Array<Parameters<StoragePort['commit']>[0]>=[];
+    const captureStore:StoragePort={...w.store,commit:async batch=>{batches.push(batch);return w.store.commit(batch);}};
+    const fresh=await buildInvoker(w.artifact,w.asm,captureStore,{appId:app,memberships:w.identities,now:()=>FIXED_NOW})
+      .invokeMutation(envelope,w.identity);
+    const after=await w.snapshot();
+    assert.deepEqual(after.rows,before.rows); assert.deepEqual(after.history,before.history);
+    assert.deepEqual(after.outbox,before.outbox); assert.deepEqual(after.schedules,before.schedules);
+    assert.deepEqual(after.receipt,before.receipt,'original retained receipt stays unchanged');
+    for(const batch of batches) {
+      assert.deepEqual(batch.writes,[]); assert.deepEqual(batch.history,[]); assert.deepEqual(batch.outbox,[]);
+      assert.deepEqual(batch.schedules,[]); assert.deepEqual(batch.uniqueClaims,[]); assert.deepEqual(batch.uniqueReleases,[]);
+    }
+    if(mutates) {
+      assert.ok('error' in fresh,JSON.stringify(fresh)); assert.equal(fresh.error.code,'validation');
+      assert.deepEqual(w.counters(),{commits:0,files:0,executions:1});
+      continue;
+    }
+    assert.ok('result' in fresh,JSON.stringify(fresh)); assert.equal(fresh.result.status,'committed');
+    assert.equal(fresh.result.result,'defaulted input'); assert.deepEqual(fresh.result.records,[]);
+    const physical=await w.store.readReceipt({...w.receipt.identity,operationId:envelope.operation_id as OperationId}); assert.ok(physical);
+    assert.deepEqual(physical.resolvedDefaults,{message:'defaulted input',optional:null});
+    const association=readScenarioReceiptAssociation(physical); assert.ok(association);
+    assert.deepEqual(association.observations,[]); assert.deepEqual(association.changed,[]);
+    const retainedBefore={state:await w.snapshot(),physical:await w.store.readReceipt(physical.identity)};
+    for(const dedicated of [false,true]) {
+      const replay=dedicated?await w.invoker(w.readonlyStore,true).invokeRetainedMutation(envelope,w.identity)
+        :await w.invoker().invokeMutation(envelope,w.identity);
+      assert.ok('result' in replay,JSON.stringify(replay)); assert.equal(replay.result.status,'replayed');
+      assert.equal(replay.result.result,'defaulted input'); assert.deepEqual(replay.result.records,[]);
+      assert.deepEqual({state:await w.snapshot(),physical:await w.store.readReceipt(physical.identity)},retainedBefore);
+      assert.deepEqual(w.counters(),{commits:0,files:0,executions:1});
+    }
+  }
+});
+
+
+it('keeps actual computed input-default reports read-only and permits an explicit override without a default report', async () => {
+  for(const mode of ['omitted-readonly','omitted-mutation','explicit-mutation'] as const) {
+    const w=await world(false,true,`
+      const old=input.record.visible;
+      await observeScenarioReceiptDependency(c,"Shop.Record",input.record,"visible","visible-value");
+      let message=input.message;
+      if(message===undefined) { message=old+":computed"; reportDefault("message",message); }
+      ${mode === 'omitted-readonly' ? '' : 'await set(c,input.record,{visible:"explicit final"});'}
+      selectScenarioReceiptReturn(c,"selected"); return message;
+    `, artifact=>{
+      artifact.operations![0]!.inputs.fields.push({name:'message',field:{kind:'string'},
+        valueType:'text' as CanTypeId,required:false,computedDefault:true});
+      // Both exact owning descriptor channels claim the generated omission.
+      artifact.modules[0]!.js=artifact.modules[0]!.js.replace('id:"SavedScenario",policy,models:',
+        'id:"SavedScenario",policy,operations:{"Shop.saved":{inputs:{message:{type:"text",computedDefault:true}}}},models:');
+    });
+    const entry=await w.store.load(model,w.row.id); assert.ok(entry);
+    const inputs={record:{id:entry.id,version:String(entry.version)},...(mode==='explicit-mutation'?{message:'explicit'}:{})};
+    const envelope={...w.envelope,operation_id:uuidv7(FIXED_NOW,++sequence),inputs};
+    const before=await w.snapshot(), batches:Array<Parameters<StoragePort['commit']>[0]>=[];
+    const captureStore:StoragePort={...w.store,commit:async batch=>{batches.push(batch);return w.store.commit(batch);}};
+    const fresh=await buildInvoker(w.artifact,w.asm,captureStore,{appId:app,memberships:w.identities,now:()=>FIXED_NOW})
+      .invokeMutation(envelope,w.identity);
+    if(mode==='omitted-mutation') {
+      assert.ok('error' in fresh,JSON.stringify(fresh)); assert.equal(fresh.error.code,'validation');
+      const after=await w.snapshot(); assert.deepEqual(after.rows,before.rows); assert.deepEqual(after.history,before.history);
+      assert.deepEqual(after.outbox,before.outbox); assert.deepEqual(after.schedules,before.schedules);
+      assert.deepEqual(after.receipt,before.receipt);
+      for(const batch of batches) { assert.deepEqual(batch.writes,[]); assert.deepEqual(batch.history,[]);
+        assert.deepEqual(batch.outbox,[]); assert.deepEqual(batch.schedules,[]);
+        assert.deepEqual(batch.uniqueClaims,[]); assert.deepEqual(batch.uniqueReleases,[]); }
+      continue;
+    }
+    assert.ok('result' in fresh,JSON.stringify(fresh)); assert.equal(fresh.result.status,'committed');
+    const expected=mode==='explicit-mutation'?'explicit':entry.data['visible']+':computed';
+    assert.equal(fresh.result.result,expected);
+    const physical=await w.store.readReceipt({...w.receipt.identity,operationId:envelope.operation_id as OperationId}); assert.ok(physical);
+    assert.deepEqual(physical.resolvedDefaults,mode==='explicit-mutation'?{}:{message:expected});
+    const association=readScenarioReceiptAssociation(physical); assert.ok(association);
+    assert.deepEqual(association.observations.map(observation=>observation.dependencyId),['visible-value']);
+    assert.deepEqual(association.observations[0]!.row,entry);
+    if(mode==='explicit-mutation') { assert.equal(association.changed.length,1);
+      assert.equal(association.changed[0]!.row.data['visible'],'explicit final'); }
+    else { assert.deepEqual(association.changed,[]); const after=await w.snapshot();
+      assert.deepEqual(after.rows,before.rows); assert.deepEqual(after.history,before.history); }
+    const retainedBefore={state:await w.snapshot(),physical:await w.store.readReceipt(physical.identity)};
+    for(const dedicated of [false,true]) {
+      const replay=dedicated?await w.invoker(w.readonlyStore,true).invokeRetainedMutation(envelope,w.identity)
+        :await w.invoker().invokeMutation(envelope,w.identity);
+      assert.ok('result' in replay,JSON.stringify(replay)); assert.equal(replay.result.status,'replayed');
+      assert.equal(replay.result.result,expected); assert.deepEqual(replay.result.records,fresh.result.records);
+      assert.deepEqual({state:await w.snapshot(),physical:await w.store.readReceipt(physical.identity)},retainedBefore);
+      assert.deepEqual(w.counters(),{commits:0,files:0,executions:1});
+    }
+  }
 });
