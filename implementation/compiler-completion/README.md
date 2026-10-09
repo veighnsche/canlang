@@ -38,9 +38,10 @@ the unchanged gitlink. The first affected run reports **169 passed, 4 failed,
 All **59 syntax checks** pass. The stale aggregate diagnostic pins and retired
 CanShift/CanVolunteer parser exceptions are corrected; the three affected
 analysis/authoring/format cases each pass, retaining all 52 diagnostic-count
-inputs and all 55 format/reparse/idempotence inputs. Judgment positive-claim
-controls remain an **unfinished** test correction: the exact header-fact lookup
-is still failing and must be reconciled with its owning checked representation.
+inputs and all 55 format/reparse/idempotence inputs. The Judgment case now also passes **1/1**: its header uses the checked owning
+parameter/domain and examples validation; the fixture retains its exact typed
+case claim. Foreign header/fixture cases and opaque nested levels still refuse.
+The earlier unfinished checkpoint supplied no acceptance and is superseded.
 No whole-suite or broader-reference acceptance follows. The pre-sync duplicate
 anonymous producer remains only in local branch
 `codex/compiler-anonymous-unfinished-checkpoint`, without acceptance credit.
@@ -216,6 +217,16 @@ Its actual CLI/catalog gate passes; unchanged STRICT joins **2/2** and build
 results are reused. Compiler-wide `cargo fmt --check` also passes after layout-only
 corrections to existing upstream lines; source behavior and the integrated
 results are reused. No passing hosted CI or full-plan acceptance follows.
+
+The released shared guard **eac25ce3**, State NumericControl fixture **2742f700**
+and final CI consolidation **1644cd4a** are consumed. The workflow and both
+boundary files match the published shared source; unchanged 16 guard, 40 tools
+and 26 build results are reused at that scope. Current CI uses four independent
+jobs; retired lane/B1/B2/E2E status names are obsolete. The actual branch guard
+reports seven source violations: the optional Testkit loader edge remains with
+its defining Capability/Dev producer, and six UI/catalog/construct-help test
+imports remain Dev-owned. The published loader is being inspected; no package
+self-reference rewrite or broadened boundary exception is introduced.
 
 Current remaining prerequisites are recorded here without reopening accepted
 compiler leaves:
