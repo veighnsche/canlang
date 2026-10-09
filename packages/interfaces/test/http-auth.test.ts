@@ -339,6 +339,14 @@ test('team discovery cursor reaches every active team after the bounded first pa
     expected.add(team.team_id);
     await t.identity.store.createMembership({ team_id: team.team_id, user_id: t.identity.userId, is_owner: false, roles: [] });
   }
+  // Discovery owns one joined page read; only resolving a selected team may
+  // call findTeamById. A per-membership lookup would fail this bound.
+  const listPage = t.identity.store.listActiveUserTeamsPage.bind(t.identity.store);
+  const findTeam = t.identity.store.findTeamById.bind(t.identity.store);
+  let pageReads = 0;
+  let teamReads = 0;
+  t.identity.store.listActiveUserTeamsPage = async (...args) => { pageReads += 1; return listPage(...args); };
+  t.identity.store.findTeamById = async (...args) => { teamReads += 1; return findTeam(...args); };
   const seen = new Set<string>();
   let after: string | null = null;
   let pages = 0;
@@ -358,6 +366,8 @@ test('team discovery cursor reaches every active team after the bounded first pa
     pages += 1;
   } while (after !== null);
   assert.equal(pages, 2);
+  assert.equal(pageReads, pages);
+  assert.ok(teamReads <= pages, `unexpected per-membership lookups: ${teamReads}`);
   assert.deepEqual(seen, expected);
 
   for (const path of ['/auth/teams?after=', '/auth/teams?after=bad',

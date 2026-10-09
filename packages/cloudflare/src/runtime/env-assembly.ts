@@ -143,6 +143,8 @@ export interface IdentityStore {
   findMembership(team_id: TeamId, user_id: UserId): Promise<Membership | null>;
   findMembershipById(membership_id: MembershipId): Promise<Membership | null>;
   listUserMemberships(user_id: UserId): Promise<readonly Membership[]>;
+  listActiveUserTeamsPage(user_id: UserId, after: TeamId | null):
+    Promise<readonly Pick<Team, 'team_id' | 'timezone'>[]>;
   listActiveOwners(team_id: TeamId): Promise<readonly Membership[]>;
   setMembershipRoles(membership_id: MembershipId, roles: Membership["roles"]): Promise<void>;
   setMembershipOwner(membership_id: MembershipId, is_owner: boolean): Promise<void>;
