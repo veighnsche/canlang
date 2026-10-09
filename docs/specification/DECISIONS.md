@@ -3659,3 +3659,7 @@ Accept exact `-1` only for the supported diagnostics/failures after cursor, keep
 ## 2026-10-09 — Consume authorized CRUD records in the compiled browser journey
 
 Under the human’s finite shared consumer assignment, keep the real compiled Store.Gadget source and separate nullable declared return from authorized changed-record projection. The browser helper validates its single records projection, model visibility, id/version/data and replay identity. Receipt scope uses the source-declared Lobby app identity. Readback, update/delete, fresh D1 receipts and history assertions remain active. The actual Chrome journey passes 2/2 and e2e noEmit passes; no synthetic return, handwritten artifact or whole-app acceptance is introduced.
+
+## 2026-10-09 — retain optional diagnostic wire shape with bounded error layout
+
+Accepted bounded repair: store the newly introduced optional construct extension behind a Box and serialize through as_deref, preserving omitted/present JSON and avoiding enlarged error returns throughout checking. Rust callers assigning this unpublished field must now box its value; no complete construct-help producer is claimed. Preserve CLI short-circuit environment setup and BDD optional-child traversal order through equivalent lint corrections; use fixed LSP token arrays with the same ignored incomplete remainder. Foundation9/9, typed LSP9/9 and actual BDD binding4/4 checks pass; independent review accepts the behavior and source-compatibility limit. Strict all-target Clippy remains due after the active alias source change.
