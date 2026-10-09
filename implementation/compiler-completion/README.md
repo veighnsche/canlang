@@ -1848,3 +1848,127 @@ finite review pass. Required current-source whole qualification follows this
 unit. State's separate omitted-default contribution contract, Dev's distinct
 portable mutation qualification, original **58/67** and precise holds remain.
 Incoming living registry reconciliations retain the complete checkpoint unadvanced.
+
+**Current whole and original changed-row recovery, 2026-10-09.** Exact source
+**83f4f137** passes all **129 targets: 1,325 passed, 0 failed, 0 ignored,
+0 filtered**, required real engines/Node24 and actual permission bodies with
+zero skips. The historical state-machine replay failure is cleared. Production
+source is unchanged by the related consumer extension: actual original machine
+**1/1** additionally proves both ordinary and aged replay retain original
+generating/title/version snapshots after later ready/renamed writes, then
+withhold them after real generated archive. Physical rows/history/receipts,
+revision/outbox/schedules remain unchanged by recovery; commit/file tripwires
+remain zero. Strict lint/format and unchanged editor/LSP outcomes are reused.
+State omitted-default API146 and Dev's distinct portable mutation release remain
+exact reviewed intakes to consume; no current-source default-mutation acceptance
+is inferred. T04's compiler half is the next ready finite unit; Dev owns exact
+profile classification, trusted live qualification and distinguishing ranking
+evidence. Full grammar inventories and parser evidence=false remain intact.
+Original **58/67**, owner dependencies and precise human holds remain.
+
+
+**Local T04 compiler half — first authoring profile, 2026-10-09.** The existing
+construct-help target passes **6/6**. One complete Office source checks and
+compiles all **41** declared first-profile cards, with exact CST card anchors,
+actual model/rule/operation/page/fixture/example output and called UI factories.
+Four controls refuse invalid invariant types, unknown assigned fields, unknown
+stat options and unsupported authored table children; the positive table uses
+its canonical columns path. Proof identities are
+`compiler/tests/construct_help.rs::first_profile_compiler_cards_have_checked_source_and_emitted_owners[card-id]`.
+Runtime/example execution and the production trusted current-proof provider
+remain Dev-owned. Grammar inventories and ambiguous-intent evidence flags remain
+unchanged; this compiler half grants no working-card or ranking acceptance.
+
+
+**Local stored-read scenario defaults — unfinished whole qualification, 2026-10-09.**
+Reviewed State/Dev default contributions are consumed from local main2e4d6471.
+Checked source paths now evaluate omitted defaults in declaration order with
+earlier bindings and actual read provenance; supplied values skip those defaults.
+Native collection matches each real default IR site and the generated header
+records omission separately from an expression decision at the same span. The
+original machine target passes **4/4** through Node24 and installed State/CF,
+including literal defaults, private/public stored-field defaults, nullable
+coalesce, physical writes/defaults, current-read withholding, raw-input conflicts
+and ordinary/dedicated aged recovery with physical-resource invariance. Source
+closure checks pass **8/8**, strict all-target Clippy and formatting pass; finite
+independent review finds no defect. Build26/26 and current59-entry catalog supply
+the actual consumer prerequisites. Whole83f4/1325 remains historical until the
+changed-source full run completes. Task44 original generation sends/assignments
+remain the next compiler prerequisite; frozen operation/reference metadata needs
+Packages' defining State dependency contract. Existing broad refs and holds remain.
+
+
+**Related default-anchor correction, 2026-10-10.** Grouping was erased before
+native default-site correspondence, so a grouped stored-read default compiled
+without its association. IR now preserves the checked default source node; the
+collector and actual header use that same anchor while inner reads/coalesce
+retain their own sites. The same original native target passes4/4 with nested
+private-field grouping and grouped public coalesce; source8/8, all-target lint
+and formatting pass. The earlier changed-source full run was interrupted for
+this confirmed gap and supplies no whole acceptance. Final source qualification
+remains due; historical83f4/1325 is unchanged.
+
+
+**Local Send/Set influence closure — unfinished Task44 join, 2026-10-10.**
+Checked own scalar assignments and bound capability sends now retain ordered
+payload/read/control influence through actual native sites. Closed TextRequest/
+TextMessage intermediates and matching delivery assignments have exact source
+and target proofs; the native collector requires a complete bijection to emitted
+Send/Set statements and owning field/delivery inventories. Literal effects retain
+branch selectors on both effect and no-effect paths. Source closure16/16 and
+existing facts15/15 pass; genuine native target2/2 preserves its prior reads/
+arrays/derives and six fresh literal/computed/private/public Set cases, physical
+receipts/rows/defaults, replay/current grants/archive/resource invariance. A
+constant result remains frozen after its changed row is archived; unreadable
+required influences withhold dependent values and changed rows. The SAME original
+generation source emits checked cancel/reconcile plans and bound send/Set code.
+Generate still refuses frozen operation/reference metadata; the released State
+intrinsic producer and pending primitive-input contract need the real Compiler/
+Dev joins. No original generation execution or Task44 completion is claimed.
+Strict all-target Clippy/format pass; independent finite review finds no defect.
+Final changed-source whole qualification remains due; historical83/1325 is reused
+only at its source scope. Existing Dev portable grouped-default journey1/1 at
+f4365702 is consumed and reused. Broader nine refs and precise holds remain.
+
+
+**Admitted intrinsic compiler producer — unfinished native/whole join, 2026-10-10.**
+Exact reviewed State4396/078cac74 is consumed. The SAME original generation
+source now emits complete operation-id, original required job.version, prompt
+DATA and late accept CONTROL attribution, alongside its existing Send/Set proofs.
+Actual checked occurrences preserve aliases, grouping, derive origins and
+authored once-only evaluation. Generated markers use the Dev-accepted private
+facade; native descriptors carry exact checked primitive valueType. Shorthand
+keys now retain the checker's actual lexical type and source anchor through IR,
+so required scalar Set/Send shorthand publishes the same complete plan. Reused
+field types, optional/default/array/enum inputs retain their separate profiles;
+nullable/versionless/default reference metadata and other context still decline.
+Source23/23, existing facts15/15, actual CLI intrinsic output1/1 and SAME original
+generation output1/1 pass; strict all-target Clippy and formatting pass. A type-
+reuse admission mistake and a shorthand type/anchor gap were corrected before
+these results. This qualifies the compiler producer/output only. Dev's exact
+private native observer release, actual original Text workflow and final changed-
+source whole qualification remain required. No 67-reference or Task44 completion
+is inferred; historical83/1325 and all precise holds retain their scopes.
+
+
+**Intrinsic requirement-control correction — unfinished runtime join, 2026-10-10.**
+Coordinator review found operation-id/original-version requirements were omitted
+from successful-effect CONTROL while primitive requirements were retained. All
+supported intrinsic guards now govern effects before and after writes, preserving
+independent-return and stored-guard policy. The focused six-path source case1/1
+and actual CLI output case1/1 with four before/after guards pass; strict all-target
+lint/format pass. Unrelated earlier source/output results are reused. The SAME
+native consumer is prepared for actual operation/input/original-version capture,
+post-Set original metadata, later writes, aged recovery and archive withholding;
+that body remains unexecuted pending exact reviewed Dev observer intake. No native
+or whole acceptance follows from this coherent unfinished checkpoint.
+
+
+At the exact local `12a3209b`/`ec3c2f50` tuple, the reviewed Dev observer is consumed.
+Owning graph26/26 with zero cached tasks, actual bin and catalog59/15 refresh
+complete. The current target passes3/3 on Node24.19 with zero skips: two real
+compile-output checks and the SAME Memory/native receipt workflow. Actual
+operation/input/original-version capture, post-Set metadata after later writes,
+ordinary/dedicated16minute no-effect recovery and archive/current-grant controls
+are qualified at that scope. The required full changed-source run is in progress;
+no whole result or Dev original Text workflow acceptance is inferred.

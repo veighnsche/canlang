@@ -19,6 +19,7 @@ import { DevRevisionConflictError, DevSessionCore, type DevCheck, type DevPrevie
 import {
   captureSingleFileSource,
   capturedRuntimeInputsAreCurrent,
+  capturedProducerInputsAreCurrent,
   type SingleFileCapture,
   type SingleFileCaptureRequest,
 } from "./source-capture.js";
@@ -94,10 +95,13 @@ export interface SessionConstructQualificationRequest {
   readonly compilerSha256: string;
   readonly producerInputsDigest: string;
   readonly inputs: SingleFileCapture["inputs"];
+  /** Private trusted host input, never a socket payload or external ranking packet. */
+  readonly capture: SingleFileCapture;
 }
 
 export interface SessionConstructRankingOptions {
-  readonly qualify?: (request: SessionConstructQualificationRequest) => SessionConstructQualification | null;
+  readonly qualify?: (request: SessionConstructQualificationRequest, signal?: AbortSignal) =>
+    SessionConstructQualification | null | Promise<SessionConstructQualification | null>;
   readonly transport?: JevChoiceTransport;
   /** Host policy defaults to no external disclosure. */
   readonly allowExternal?: () => boolean;
@@ -322,10 +326,17 @@ async function capturedHelpIndex(capture: SingleFileCapture): Promise<ConstructH
     capturedCatalog(capture, "packages/ui/dist/src/catalog.js", "UI_CATALOG",
       /^package:@canlang\/ui@[^/]+\/dist\/src\/catalog\.js$/),
   ]);
+  const profileGuards = ['compiler-check','preview-builder'].map(name => capture.inputs.filter(input =>
+    new RegExp(`^package:@canlang/cloudflare@[^/]+/dist/dev/${name}\\.js$`).test(input.name) &&
+    input.state === 'present' && typeof input.sha256 === 'string'));
+  const profilePolicy = profileGuards.every(inputs => inputs.length === 1)
+    ? { sha256: createHash('sha256').update(JSON.stringify(profileGuards.map(inputs => inputs[0]!.sha256))).digest('hex') }
+    : undefined;
   return loadConstructHelpIndex(capture.root, {
     languageVersion: "1.0", compiler: { sha256: compiler.sha256 }, grammar: { sha256: grammar.sha256 },
     values: { sha256: values.sha256, entries: valuesEntries },
     ui: { sha256: ui.sha256, entries: uiEntries },
+    ...(profilePolicy === undefined ? {} : { profilePolicy }),
   }, help.sha256);
 }
 
@@ -454,6 +465,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
   const exampleCaptures = new Map<string, SingleFileCapture>();
   let exampleQueue: Promise<unknown> = Promise.resolve();
   const stopExamples = new AbortController();
+  const pendingQualifications = new Set<Promise<unknown>>();
   const reruns = new ExampleRerunCoordinator({
     resourcesReady: async ({ fixtureRecipeId }) => {
       const captured = exampleCaptures.get(fixtureRecipeId);
@@ -640,6 +652,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       let stopError: unknown;
       try { await core.stop(); } catch (error) { stopError = error; }
       await exampleQueue;
+      await Promise.allSettled([...pendingQualifications]);
       reruns.close();
       exampleCaptures.clear();
       exampleFailures.clear();
@@ -678,19 +691,27 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
   };
   const ranker = new ConstructRanker(ranking?.transport, rankerOptions);
 
-  const qualification = (capture: SingleFileCapture, index: ConstructHelpIndex): SessionConstructQualification | null => {
+  const qualification = async (capture: SingleFileCapture, index: ConstructHelpIndex,
+    requestSignal?: AbortSignal): Promise<SessionConstructQualification | null> => {
+    if (ranking?.qualify === undefined) return null;
+    const signal = requestSignal === undefined ? stopExamples.signal : AbortSignal.any([requestSignal,stopExamples.signal]);
+    if (signal.aborted || !(await capturedProducerInputsAreCurrent(capture)) || signal.aborted) return null;
     const inputs = Object.freeze(capture.inputs.map(input => Object.freeze({ ...input })));
     const request = Object.freeze({ resourceProfile: capture.profile, authoringProfile: FIRST_PROFILE,
       indexRevision: index.revision, compilerSha256: index.compilerSha256,
-      producerInputsDigest: createHash("sha256").update(JSON.stringify(capture.inputs)).digest("hex"), inputs });
+      producerInputsDigest: createHash("sha256").update(JSON.stringify(capture.inputs)).digest("hex"), inputs, capture });
     let bundle: SessionConstructQualification | null;
-    try { bundle = ranking?.qualify?.(request) ?? null; } catch { return null; }
+    const pending = Promise.resolve().then(() => signal.aborted ? null : ranking?.qualify?.(request,signal) ?? null);
+    pendingQualifications.add(pending);
+    try { bundle = await pending; } catch { return null; }
+    finally { pendingQualifications.delete(pending); }
+    if (signal.aborted || !(await capturedProducerInputsAreCurrent(capture)) || signal.aborted) return null;
     if (bundle === null || Object.keys(bundle).some(key => !["resourceProfile", "authoringProfile", "indexRevision",
         "compilerSha256", "producerInputsDigest", "messageKinds", "proofs"].includes(key)) ||
         !Object.isFrozen(bundle) || bundle.resourceProfile !== request.resourceProfile ||
         bundle.authoringProfile !== FIRST_PROFILE || bundle.indexRevision !== request.indexRevision ||
         bundle.compilerSha256 !== request.compilerSha256 || bundle.producerInputsDigest !== request.producerInputsDigest ||
-        !Array.isArray(bundle.messageKinds) || !Object.isFrozen(bundle.messageKinds) || bundle.messageKinds.length === 0 ||
+        !Array.isArray(bundle.messageKinds) || !Object.isFrozen(bundle.messageKinds) ||
         bundle.messageKinds.length > 64 || new Set(bundle.messageKinds).size !== bundle.messageKinds.length ||
         bundle.messageKinds.some(kind => typeof kind !== "string" || !/^[a-z][a-z0-9_]{0,63}$/.test(kind)) ||
         !Array.isArray(bundle.proofs) || !Object.isFrozen(bundle.proofs) || bundle.proofs.length > 278 ||
@@ -705,7 +726,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
     return bundle;
   };
 
-  const rankDiagnostic = async (revision: string, diagnosticIndex: number): Promise<RankResult> => {
+  const rankDiagnostic = async (revision: string, diagnosticIndex: number, requestSignal: AbortSignal): Promise<RankResult> => {
     const found = detail(revision);
     const diagnostic = found.check.detail.diagnostics[diagnosticIndex];
     if (diagnostic === undefined) throw new SessionSocketError("DIAGNOSTIC_UNAVAILABLE", "diagnostic index is unavailable");
@@ -738,7 +759,10 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
     if (!context.recoveryComplete || !context.nameFilterComplete || !exactSourceSpan) {
       return { state: "ineligible", reason: "diagnostic or source capture is incomplete" };
     }
-    const bundle = qualification(capture, index);
+    const bundle = await qualification(capture, index, requestSignal);
+    await core.refresh().catch(() => undefined);
+    if (requestSignal.aborted) return { state: "stale", reason: "request was cancelled" };
+    if (!rankCurrent(revision,index.revision)) return { state: "stale", reason: "source or help revision changed" };
     if (bundle === null || !bundle.messageKinds.includes(context.messageKind)) {
       return { state: "candidate_coverage_unknown", reason: "host profile or diagnostic branch qualification is unavailable" };
     }
@@ -813,17 +837,25 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         if (!integer(payload?.index) || payload.index >= diagnostics.length) {
           throw new SessionSocketError("DIAGNOSTIC_UNAVAILABLE", "diagnostic index is unavailable");
         }
+        const help = checkedHelp.get(revision), captured = checkedCaptures.get(revision);
+        const bundle = help && captured ? await qualification(captured,help,requestSignal) : null;
+        await core.refresh().catch(() => undefined);
+        const state = core.status();
+        const current = !requestSignal.aborted && state.revision === revision && !state.dirty &&
+          state.captureError === null && state.checkRevision === revision &&
+          (help === undefined || rankCurrent(revision, help.revision));
         return {
           schema: "can.dev.diagnostic.v1", session: socket?.identity.sessionId,
           revision, source_revision: found.sourceRevision,
-          current: core.status().revision === revision && !core.status().dirty,
+          current,
           ref: diagnosticRef(socket!.identity.sessionId, revision, payload.index),
           source: found.check.detail.source,
           diagnostic: diagnostics[payload.index],
           construct_help: checkedHelp.has(revision)
             ? joinCompilerConstructCandidates(checkedHelp.get(revision)!,
-              diagnostics[payload.index]!.construct_candidates, options.capture.profile)
-            : { disposition: "unknown", slot: null, candidateCoverage: "unknown", cards: [],
+              diagnostics[payload.index]!.construct_candidates, FIRST_PROFILE,
+              current ? bundle?.proofs ?? [] : [])
+            : { disposition: "unknown", slot: null, grammarCoverage: "unknown", candidateCoverage: "unknown", cards: [], classification: [],
               reason: "captured help index is unavailable" },
           evidence: { source_excerpt: "unavailable", trace: "unavailable" },
         };
@@ -863,7 +895,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       let result: RankResult;
       if (command.command === "construct.rank") {
         if (!integer(payload.index)) throw new SessionSocketError("INVALID_REQUEST", "ranking needs a diagnostic index");
-        result = await rankDiagnostic(revision, payload.index);
+        result = await rankDiagnostic(revision, payload.index, requestSignal);
       } else {
         if (typeof payload.ref !== "string" || !/^[0-9a-f]{64}$/.test(payload.ref)) {
           throw new SessionSocketError("INVALID_REQUEST", "rank lookup needs a pending ref");
