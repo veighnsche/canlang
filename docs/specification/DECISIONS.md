@@ -3668,3 +3668,7 @@ The human ended cloud execution immediately. Preserve existing related source/te
 ## 2026-10-09: qualify the saved Values correspondence locally
 
 Accepted bounded intake decision: retain the exact released four-donor string-escape inputs and prepared-hook assertions preserved at unfinished checkpoint d3f4fa65. The human-authorized local continuation initialized the exact draft5a12eb9e and installed the frozen lock; owning runtime dependency build22/22 and the changed Values cases10/10 pass. These results qualify that saved consumer component on this host; they do not accept the entire Values package, original workflows or roadmap. Broader unchanged results are reused.
+
+## 2026-10-09: preserve complete dependent-choice source and qualify transport
+
+Accepted consumer decision: capture request hold state before actual worker suspension and drain released transports before disposing D1/browser ports, preserving first-error identity. The original nativeD1/happyDOM/installed Chrome/MCP case passes1/1 (33.75s), with owning build22/22. Move the approval shell's unchanged preference declaration to Then to match exact draft5a12eb9e; full shared-provider checking then retains precisely the original four diagnostics. CountryRegion checks cleanly but its four genuine presentation lowering refusals remain. Full two-witness conditional-grant/model-rule/navigation/UI qualification stays open with defining Compiler/Contracts/UI owners; the saved source checkpoint is not whole-task acceptance.
