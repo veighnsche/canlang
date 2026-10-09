@@ -1,0 +1,19 @@
+{
+  "model": "jev-1.13.0",
+  "answers": {
+    "review_organization": {
+      "type": "choice",
+      "choice": "named_roster",
+      "confidence": 0.98,
+      "probabilities": {
+        "named_roster": 0.99,
+        "frozen_pool": 0.01,
+        "staged_concurrence": 0.0
+      }
+    }
+  },
+  "usage": {
+    "input_tokens": 8581,
+    "output_tokens": 52
+  }
+}

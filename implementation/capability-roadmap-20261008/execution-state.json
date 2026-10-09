@@ -864,9 +864,12 @@
       ],
       "conditional_gates": [],
       "worker_update": {
-        "state": "source_preparation_ready_execution_prerequisites_open",
+        "state": "complete_concrete_source_authoring_in_progress_execution_gates_open",
         "prerequisite": "Two complete ordinary expense/image-revision approval compositions and package/template comparison can now be authored from exact draft5a12eb9e; explicit reviewer/quorum/expiry domain policies remain required. Executed self/duplicate/ineligible/stale/revoked/concurrent controls retain task11 rule/context prerequisites.",
-        "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker\u2019s task."
+        "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker\u2019s task.",
+        "selected_policy": "JEV3 recommends named_roster (.99/.99/.97; confidence .98/.98/.95), advisory only. Expense keeps assigned primary and eligible distinct secondary; Creative owner requests two other current managers. Explicit deadlines, rejection veto, superseding reset votes, exact frozen evidence/current eligibility and original separately authorized finalizers required.",
+        "remaining": "Task11/conditional grants/native current-owner rule execution remain producer prerequisites. Proposed finance-only invalidation of unpaid expired/revoked approval retains Decision/votes and enables original claimant correction; it cannot spend or change paid evidence. This addresses an absent original recovery policy but is not yet authored/tested/accepted.",
+        "deliverables": "approval-compositions/ExpenseReview.can, CreativeRevisionReview.can and README.md comparison; finite writer active, no task credit."
       }
     },
     {
@@ -1556,8 +1559,8 @@
     "review_status": {
       "pr": "https://github.com/veighnsche/canlang/pull/134",
       "revision": "03d9eaf7f7df6e8c1341660dc3aae6f3b2b81991",
-      "state": "Codex_code_and_security_completed_finding_assessed_against_explicit_design",
-      "action": "Codex P2 asks renamed nominal preference fields to inherit main captions. DESIGN.md1018 explicitly permits that caption inheritance only when the receiver retains the source field name; case labels remain inherited independently. Preserve the conforming name check; no correction to this behavior. Completed review is not full-plan acceptance, and later pushes require their own review."
+      "state": "Codex_code_security_completed_caption_producer_reconciliation_pending",
+      "action": "Local DESIGN.md1018 assessment preserves same-name main-caption inheritance, independently of enum-value captions. Coordinator verified owning fixture explicitly omits renamed main legend; Compiler owns reconciliation of the Codex claim. This dependency confines edits to that function/fixture only; other ready work continues. No review acceptance or merge inferred."
     },
     "ci_status": {
       "revision": "6e8692fe6a314cdd7027bbd5998902a30a9c102a",
