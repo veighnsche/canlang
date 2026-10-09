@@ -3525,3 +3525,7 @@ Passing/unsupported example runs do not allocate retained rerun artifacts, so ro
 ### 2026-10-09 — Ordinary team discovery for local app sign-in
 
 Add authenticated GET /auth/teams to Interfaces using Identity memberships, returning only active existing teams for the session user. Cursor pagination keeps output bounded without making later memberships undiscoverable. Preview labels/credentials do not supply membership authority or replace normal CSRF-protected team selection; team names are not invented where the current Identity schema only owns UUID/timezone.
+
+### 2026-10-09 — Bound concurrent exact-input capture reads
+
+Use eight concurrent readers for the full declared input hash and membership scans, retaining stable identity order and waiting for every started reader before propagating failure. The native session check hit its request deadline with sequential scans during actual preview work; optimize the owning capture without reducing the producer inventory or weakening currency.

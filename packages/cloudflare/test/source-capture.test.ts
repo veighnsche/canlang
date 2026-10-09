@@ -125,6 +125,26 @@ describe("one-file source capture", () => {
     expect(await captureIsCurrent(capture)).toBe(true);
   });
 
+  it("keeps sorted identities and digest stable across more than one reader group", async () => {
+    const request = fixture();
+    const packages = Array.from({ length: 24 }, (_, index) => {
+      const name = `package-${String(23 - index).padStart(2, "0")}`;
+      const path = join(request.checkoutRoot, `${name}.js`);
+      writeFileSync(path, `output ${name}`);
+      return { name, path };
+    });
+    const selected = { ...request, packageInputPaths: packages };
+    const first = await captureSingleFileSource(selected);
+    const second = await captureSingleFileSource(selected);
+    expect(first.inputs.map(input => input.name)).toEqual(
+      [...first.inputs.map(input => input.name)].sort((a, b) => a.localeCompare(b)));
+    expect(first.inputs).toEqual(second.inputs);
+    expect(first.epochMaterial).toBe(second.epochMaterial);
+    expect(await captureIsCurrent(first)).toBe(true);
+    writeFileSync(packages[18]!.path, "changed output");
+    expect(await capturedRuntimeInputsAreCurrent(first)).toBe(false);
+  });
+
   it("rediscovers installed output and source membership, including additions and removals", async () => {
     const request = fixture();
     const sourcePath = join(request.checkoutRoot, "runtime.ts");
