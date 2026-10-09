@@ -1785,3 +1785,21 @@ composition remains outside the single-file caller. The incoming existing
 file-tree reconciliation retains the complete checkpoint unadvanced. The sole
 compiler suite failure still requires actual State/Dev mutation-session and
 changed-record dependency projection; no duplicate fixture or unchanged rerun.
+
+**Checked transition producer (unfinished native join), 2026-10-09.** Exact
+reviewed State **bde01621/b94917a2** is consumed, preserving all compiler and
+UI work. Direct literal machine transitions now retain actual old-state CONTROL
+reads and every branch control selecting their changed values, including void
+returns, early returns and ordered immutable aliases. Canonical owning model,
+field, enum endpoints and Transition anchors remain exact; unrelated mutations,
+query/nullable receivers and unsupported closures still decline. Affected
+source facts pass **14/14**, strict all-target Clippy and formatting pass, and
+independent finite review finds no actionable defect. Native transition
+publication still declines: Dev must release the actual State session stage/read/
+finalize consumer preserving issued raw-row identity, followed by compiler
+native inventory/capture and the preserved original replay qualification.
+State's scoped API checks are reused only as prerequisite evidence. Its changed
+installed outputs and this changed compiler source still require combined
+qualification; the earlier **1,321/1** whole result is historical. Existing
+file-tree intake coverage is retained with its complete checkpoint unadvanced.
+Original **58/67**, owner dependencies and precise human holds remain open.

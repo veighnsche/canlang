@@ -4697,3 +4697,18 @@ The coordinator identified a necessary disclosure correction: required private d
 Owning build6/6 passes.32affected State cases qualify across23initial passes,6new passes after fixing the machine's required initial-default fixture, and3focused passes after using actual normalized stored rows and refusing a secret-field grant. Existing State/session cases and four real D1/SQLiteDO cases pass; two native cases retain queued intermediate observations and generating final rows across adapter reopen, one net version/history,16minute execute0/commit0 recovery, saved-value secrecy and revocation.9new memory cases cover actual transition and unique effects, private data/control→public changes, carriers/lifetime, captured failures, bounds/revision/concurrency, query-model mutation, accessors and post-return aliases. Affected actual Cloudflare private receipt frame3/3 passes. Native artifacts remain handbuilt checked descriptors; these results do not certify Compiler closure, process restart or the complete original source workflow. Unchanged outcomes are reused.
 
 Defining prerequisite: Dev consumes the positive root/invocation export in the actual receipt-aware scenario path, stages/reads through one session, preserves issued raw-row identity through its private native `current()`/frame capture, and uses actual finalization without separate overlay/version normalization. Its present wire copy loses that identity. Compiler preserves refusal until complete source influencing closure and real Dev consumption qualify together. Public retained transport, composite/File/Delivery/query/absence/model retention and coherent multi-subject authority remain recorded owner prerequisites. Local unit is unfinished at workflow scope; no remote push, main integration, shared CI repair or feature acceptance is authorized by this checkpoint.
+
+## 2026-10-09 — retain transition write controls before native activation
+
+Admit checked private facts only for exact stored nonnullable model receivers
+and literal transitions of their owning machine enum field. Record the genuine
+old-state read at the Transition anchor as CONTROL and preserve accumulated
+write-selecting controls through branch postdominators and void/early returns.
+Keep the field's canonical enum identity and actual call/source chronology;
+do not widen unrelated mutations or nullable/query receivers. Source14/14,
+strict all-target Clippy, formatting and finite review qualify this bounded
+producer. Consume reviewed bde01621/b94917a2 State provenance/disclosure source
+with incoming existing file-tree reconciliation; complete checkpoint remains
+unadvanced. Native publication remains unfinished until Dev's genuine session
+stage/read/finalize and issued-row identity consumer is released and combined
+original-source replay passes. Earlier whole results do not qualify these edits.
