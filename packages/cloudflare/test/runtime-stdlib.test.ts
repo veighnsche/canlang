@@ -80,6 +80,7 @@ function fakeStore(seed: StoredRow[] = []): Fake {
     },
     readReceipt: unused,
     outboxPending: unused,
+    outboxGet: unused,
     scheduleGet: unused,
     schedulesDue: unused,
     historyFor: unused,
