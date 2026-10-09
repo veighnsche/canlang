@@ -274,7 +274,7 @@ retain their scopes.
 **180676b5** supplies genuine context/row/registered-store capture; exact State
 **08b49784** withholds unsupported multi-member authority. Actual dependency/
 Cloudflare/Testkit build **26/26** and the private frame's **3/3** pass. Compiler
-`--native-scenario-receipts` publishes only complete scalar closures whose
+`--native-scenario-receipts` publishes only complete scalar/ordinary primitive-array closures whose
 every read, choice and return maps to actual native IR. Default compilation
 keeps its existing callable ABI. Each receiver/field evaluates once, observations
 are awaited sequentially, and the executed return is selected after its value.
@@ -289,9 +289,43 @@ and unsupported stored scalar comparisons cannot claim empty proofs.
 
 Dev's actual native compiler caller still needs the released opt-in flag;
 public retained-result projection, complete derived-read/mutation/query/
-composite/hook/lifetime joins and full changed-source qualification remain
-unfinished. No broader reference or separate BDD3 returned/as/live/context/
+composite/hook/lifetime joins remain unfinished. Dev owns the specific public
+transport correction: pre/post source correspondence must escape business-error
+conversion and run when handlers throw, with no invalid-evidence persistence. No broader reference or separate BDD3 returned/as/live/context/
 disclosure/input policy release follows. Original **58/67** and all holds remain.
+
+**Current native producer qualification, 2026-10-09.** Committed compiler
+**95d5b3d** passes **1,319 Rust tests, zero failed or ignored**, across 129
+targets, using Node **24.19.0**, exact draft **5a12eb9e**, actual package/catalog
+outputs and required real completion engines. The outside-sandbox run has no
+permission body skip. Existing strict all-target Clippy/format and unchanged
+editor/LSP results retain their scopes. Reviewed integrated local baseline
+**00a9727e** is consumed by fast-forward with compiler implementation unchanged;
+the coordinator's changed actual alias/CSV fixture **2/2** is reused. Actual
+changed dependency/Cloudflare/Testkit outputs rebuild **26/26**, zero cached.
+The scalar-array extension below has separate affected qualification; public native
+projection remains dependent on Dev's verification correction and actual caller.
+
+**Ordinary primitive-array capture (unfinished join), 2026-10-09.** Checked
+closure and native recipes now admit primitive `T[]`/`T[]?`, including authored
+array elements in actual evaluation order. Dependency identity remains exact;
+checked, IR and emitted inventory independently refuse required stored arrays,
+and nominal/model/nested/nullable-element/query arrays remain unclaimed. Final
+publication also checks the actual emitted result type against State's released
+v1 profile; named enum results preserve their existing canonical inline case IDs.
+Changed source/IR cases pass **11/11**. The expanded actual CLI/native case passes
+**1/1**, covering **31 selected success invocations plus replay**, nullable/empty/
+populated snapshots, original saved arrays after update, exact ordered/lazy
+observations and current-membership withholding. A real observation-load failure
+starts no later observation, commits no domain/history/outbox effect and creates
+no successful association. Malformed arrays receive the owning validation
+refusal; nonarrays refuse before State admission, while malformed admitted array
+elements retain their actual rejected receipts. The earlier native failures were
+incorrect fixture assumptions about those two stages, corrected without runtime
+changes. Wider native/public projection remains Dev-owned and unfinished;
+Final changed-source strict all-target Clippy and formatting pass. Original
+**58/67**, exact holds and reused full95d **1,319** remain distinct.
+
 
 **Unfinished native activation — generated CRUD owner entry, 2026-10-09.**
 Exact local Capability **7df9683e** source/test unit is consumed. Generated CRUD
