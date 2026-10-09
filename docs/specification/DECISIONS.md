@@ -3131,3 +3131,7 @@ Accepted bounded DEL-D03 correction: protect the complete test scratch lifetime 
 ## 2026-10-09 — release controlled mail drip timers
 
 Accepted bounded TECH-SV04 correctness correction: the controlled mail harness releases each delayed response timer when it fires or its response closes, and clears concurrent acquired timers before server socket shutdown. Five focused checks pass, including actual HTTP status/body bytes, peer teardown and concurrent close; strict focused TypeScript checking passes. This is controlled Node resource ownership, with no provider/durable acceptance or replacement savings.
+
+## 2026-10-09 — qualify fanout restart continuation and fresh facts
+
+Accepted finite TECH-W02 durable consumer evidence: an already completed first child cannot strand a later stale claim at pageLimit1 after process restart. Facts changed before admission or during a fence retry drive only fresh B domain/outbox/schedule effects, committed with child outcome/checkpoint; durable reopen preserves them and terminal replay executes no body or revision change. Fresh State/Cloudflare emission and six affected actual D1/workerd DO cases pass without skips. Existing converse evidence is reused; installed/full-source-app/native and original parent gates remain separate, with no reduction credit.
