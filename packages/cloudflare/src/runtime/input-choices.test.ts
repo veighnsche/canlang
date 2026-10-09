@@ -12,9 +12,10 @@ import type { CompileArtifact, DerivedOperationInputs, PresentationContext, Stor
 import { CSRF_FIELD } from '@canlang/contracts';
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { FIXED_NOW, asModel, asId, asVersion, makeRow, makeBatch, asOperation, asOperationId, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
-import { buildSessionCookie, createD1IdentityStore, deriveCsrfToken, ensureIdentitySchema, sha256HexText } from '@canlang/identity';
+import { buildSessionCookie, createD1IdentityStore, deriveCsrfToken, ensureIdentitySchema, issueMcpGrant, sha256HexText } from '@canlang/identity';
 import { catalogFromArtifactOperations, handleOperationRequest, INPUT_CHOICES_VERSION } from '@canlang/interfaces/http/operations';
-import type { HttpDeps } from '@canlang/interfaces';
+import { createMcpHandler } from '@canlang/interfaces/mcp/server';
+import type { HttpDeps, McpDeps } from '@canlang/interfaces';
 import { resolveRequestIdentity } from '@canlang/interfaces';
 import { generatedForm, message, renderPage } from '@canlang/ui';
 import type { BrowserClientOptions } from '../../../ui/dist/src/browser/bootstrap.js';
@@ -23,6 +24,7 @@ import type { HTMLInputElement, HTMLSelectElement } from '../../../ui/node_modul
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { assembleWorker, buildInvoker } from '@canlang/cloudflare/worker/assembly';
 import { gatherBrowserAssets } from '@canlang/cloudflare/deploy/package-assets';
+import { createMemberMcpPermissions } from './mcp-permissions.js';
 
 const fixturePath = resolve('packages/cloudflare/test/fixtures/input-choices.json');
 
@@ -130,7 +132,9 @@ test('genuine dependent choices use current native D1 grants and the original ge
           fetch: request => handleAssetsRequest(assetTable, request) }),
         createOperationHandler: Object.assign(
         (deps: unknown) => (request: Request, operation: string) => handleOperationRequest(deps as HttpDeps, request, operation),
-        { inputChoicesVersion: INPUT_CHOICES_VERSION }) } }, { active: true });
+        { inputChoicesVersion: INPUT_CHOICES_VERSION }) },
+      mcp: { derivedInputs, permissions: createMemberMcpPermissions(artifact),
+        createHandler: deps => createMcpHandler(deps as unknown as McpDeps) } }, { active: true });
     let worker = await assemble();
     const post = (operation: string, inputs: Record<string, unknown>, options: { auth?: boolean; csrf?: boolean; operationId?: string } = {}) =>
       worker.fetch(new Request(`https://test.invalid/api/operations/InputChoices.${operation}`, {
@@ -556,6 +560,37 @@ test('genuine dependent choices use current native D1 grants and the original ge
     // existing HTTP operation POST remains the mutation submission path.
     const readonlyIdentity = (await resolveRequestIdentity(storage.identity,
       new Request('https://test.invalid/form', { headers: { cookie } }), { clock })).identity;
+    assert.equal(readonlyIdentity.actor?.user_id, user.user_id);
+    assert.equal(readonlyIdentity.team?.team_id, team.team_id);
+    assert.equal(readonlyIdentity.membership?.status, 'active');
+    assert.ok(readonlyIdentity.actor); assert.ok(readonlyIdentity.team);
+    const mcpGrant = await issueMcpGrant(storage.identity, { user_id: readonlyIdentity.actor.user_id,
+      team_id: readonlyIdentity.team.team_id, client_id: 'input-choices' }, { clock });
+    const mcp = async (operation: string, inputs: Record<string, unknown>,
+      options: { bearer?: string; operationId?: string } = {}) => {
+      const response = await worker.fetch(new Request('https://test.invalid/mcp', {
+        method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream',
+          authorization: `Bearer ${options.bearer ?? mcpGrant.token}` },
+        body: JSON.stringify({ jsonrpc: '2.0', id: ++sequence, method: 'tools/call',
+          params: { name: `InputChoices.${operation}`, arguments: { operation_id: options.operationId ?? id(), ...inputs } } }),
+      }));
+      const rpc = await response.json() as { error?: { code: string | number; message: string };
+        result?: { content: Array<{ text: string }>; structuredContent?: Record<string, unknown>; isError?: boolean } };
+      const body: Record<string, unknown> = rpc.result === undefined ? rpc : rpc.result.structuredContent ??
+        JSON.parse(rpc.result.content[0]!.text) as Record<string, unknown>;
+      return { status: response.status, isError: rpc.result?.isError, body };
+    };
+    const mcpCommitted = (response: Awaited<ReturnType<typeof mcp>>, result: unknown) => {
+      assert.equal(response.status, 200, JSON.stringify(response)); assert.equal(response.isError, undefined);
+      assert.equal(response.body['status'], 'committed', JSON.stringify(response));
+      assert.deepEqual(response.body['result'], result);
+    };
+    const mcpRefused = (response: Awaited<ReturnType<typeof mcp>>, code: string, expectedMessage?: string) => {
+      assert.equal(response.status, 200, JSON.stringify(response)); assert.equal(response.isError, true);
+      assert.equal(response.body['code'], code, JSON.stringify(response));
+      if (expectedMessage !== undefined) assert.equal(response.body['message'], expectedMessage);
+      assert.equal('result' in response.body, false);
+    };
     const readonlyInvoker = buildInvoker(artifact, asm, countedStore(), { memberships: storage.identity, now: () => FIXED_NOW });
     const sourceRead = (operation: string, inputs: Record<string, unknown>) =>
       readonlyInvoker.invokeRead({ operation: `InputChoices.${operation}`, inputs }, readonlyIdentity);
@@ -599,10 +634,23 @@ test('genuine dependent choices use current native D1 grants and the original ge
     const wrongSiteAssignment = await assigned(user.user_id);
     assert.equal(wrongSiteAssignment.body.code, 'rule_failed', JSON.stringify(wrongSiteAssignment));
     assert.equal(wrongSiteAssignment.body.message, 'forbidden');
+    // Real grant-authenticated MCP calls use the same compiled handler,
+    // typed binding and source guard as the original HTTP assignment.
+    const mcpAssignmentNonce = id();
+    const mcpAssignmentInputs = { ...navigationInput, assignee: { id: reviewer.user_id } };
+    mcpCommitted(await mcp('assign', mcpAssignmentInputs, { operationId: mcpAssignmentNonce }), { id: reviewer.user_id });
+    const mcpAssignmentRevision = await storage.state.readRevision();
+    const mcpAssignmentReplay = await mcp('assign', mcpAssignmentInputs, { operationId: mcpAssignmentNonce });
+    assert.equal(mcpAssignmentReplay.isError, undefined); assert.equal(mcpAssignmentReplay.body['status'], 'replayed');
+    assert.deepEqual(mcpAssignmentReplay.body['result'], { id: reviewer.user_id });
+    assert.equal(await storage.state.readRevision(), mcpAssignmentRevision);
+    mcpRefused(await mcp('assign', { ...navigationInput, assignee: { id: user.user_id } }), 'rule_failed', 'forbidden');
+    mcpRefused(await mcp('assign', { submission: { id: document, version: '1' }, assignee: { id: reviewer.user_id } }), 'not_found');
     for (const optional of [{}, { assignee: null }]) {
       const response = await post('assign', { submission: { id: missingParentSubmission, version: '1' }, ...optional });
       const nullable = await response.json() as { result?: unknown };
       assert.equal(response.status, 200, JSON.stringify(nullable)); assert.equal(nullable.result, null);
+      mcpCommitted(await mcp('assign', { submission: { id: missingParentSubmission, version: '1' }, ...optional }), null);
     }
     const missingParentLookup = await choices('assign/choices/assignee', { submission: { id: missingParentSubmission, version: '1' } });
     assert.equal(missingParentLookup.status, 404); assert.equal(missingParentLookup.body.code, 'not_found');
@@ -612,6 +660,8 @@ test('genuine dependent choices use current native D1 grants and the original ge
     const missingParentResult = await missingParentAssignment.json() as { code?: string; message?: string };
     assert.equal(missingParentAssignment.status, 404); assert.equal(missingParentResult.code, 'not_found');
     assert.equal(missingParentResult.message, 'Parent record not found.');
+    mcpRefused(await mcp('assign', { submission: { id: missingParentSubmission, version: '1' },
+      assignee: { id: reviewer.user_id } }), 'not_found', 'Parent record not found.');
 
     const moveParentSite = await post('bindSite', { target: { id: navigationDocument, version: '1' },
       site: { id: sites[1], version: '1' } });
@@ -624,6 +674,8 @@ test('genuine dependent choices use current native D1 grants and the original ge
     const currentSiteAssignment = await assigned(user.user_id);
     assert.equal(currentSiteAssignment.status, 200, JSON.stringify(currentSiteAssignment));
     assert.deepEqual(currentSiteAssignment.body.result, { id: user.user_id });
+    mcpRefused(await mcp('assign', mcpAssignmentInputs), 'rule_failed', 'forbidden');
+    mcpCommitted(await mcp('assign', { ...navigationInput, assignee: { id: user.user_id } }), { id: user.user_id });
 
     // This separate source control stages a change on the exactly bound
     // admitted parent before evaluating the original assignment predicate.
@@ -633,6 +685,8 @@ test('genuine dependent choices use current native D1 grants and the original ge
       site: { id: sites[0], version: '1' }, assignee: { id: reviewer.user_id } });
     const mismatchedParent = await mismatch.json() as { code?: string; message?: string };
     assert.equal(mismatchedParent.code, 'rule_failed', JSON.stringify(mismatchedParent)); assert.equal(mismatchedParent.message, 'forbidden');
+    mcpRefused(await mcp('assignWithSite', { ...navigationInput, document: { id: document, version: '1' },
+      site: { id: sites[0], version: '1' }, assignee: { id: reviewer.user_id } }), 'rule_failed', 'forbidden');
     assert.deepEqual(await storage.state.load(navigationModel, asId(navigationDocument)), parentBeforeMismatch);
     assert.equal((await storage.state.load(navigationModel, asId(document)))?.version, 1);
     const stagedAssignmentInputs = { ...navigationInput, document: { id: navigationDocument, version: '2' },
@@ -666,10 +720,13 @@ test('genuine dependent choices use current native D1 grants and the original ge
     assert.equal(staleAssignmentChoices.body.code, 'conflict', JSON.stringify(staleAssignmentChoices));
     const staleAssignment = await assigned(reviewer.user_id);
     assert.equal(staleAssignment.body.code, 'conflict', JSON.stringify(staleAssignment));
+    mcpRefused(await mcp('assign', mcpAssignmentInputs), 'conflict');
     assert.deepEqual((await choices('assign/choices/assignee', { submission: { id: navigationSubmission, version: '2' } })).body.choices,
       [{ value: { id: reviewer.user_id }, labels: ['Reviewer', 'Approver', sites[0]] }]);
     const currentAssignment = await assigned(reviewer.user_id, '2');
     assert.equal(currentAssignment.status, 200, JSON.stringify(currentAssignment)); assert.deepEqual(currentAssignment.body.result, { id: reviewer.user_id });
+    mcpCommitted(await mcp('assign', { submission: { id: navigationSubmission, version: '2' },
+      assignee: { id: reviewer.user_id } }), { id: reviewer.user_id });
     assert.deepEqual((await storage.state.load(asModel('InputChoices.Submission'), asId(navigationSubmission)))?.data,
       { note: 'Current navigation draft' });
 
@@ -680,6 +737,11 @@ test('genuine dependent choices use current native D1 grants and the original ge
     assert.equal(assignmentRevokedDuringRead.body.code, 'forbidden');
     assert.equal(await storage.state.readRevision(), revisionBeforeAssignmentRace);
     await storage.identity.reactivateMembership(membership.membership_id, { is_owner: false, roles: [] });
+    revokeOnEmployeeRead = true;
+    mcpRefused(await mcp('assign', { submission: { id: navigationSubmission, version: '2' },
+      assignee: { id: reviewer.user_id } }), 'forbidden');
+    assert.equal(await storage.state.readRevision(), revisionBeforeAssignmentRace);
+    await storage.identity.reactivateMembership(membership.membership_id, { is_owner: false, roles: [] });
 
     await storage.identity.removeMembership(membership.membership_id);
     const revisionBeforeAssignmentRevocation = await storage.state.readRevision();
@@ -688,8 +750,28 @@ test('genuine dependent choices use current native D1 grants and the original ge
     assert.equal(revokedAssignmentLookup.body.choices, undefined);
     const revokedAssignment = await assigned(reviewer.user_id, '2');
     assert.equal(revokedAssignment.status, 403); assert.equal(revokedAssignment.body.code, 'forbidden');
+    const revokedMcpAssignment = await mcp('assign', { submission: { id: navigationSubmission, version: '2' },
+      assignee: { id: reviewer.user_id } });
+    assert.equal(revokedMcpAssignment.status, 401, JSON.stringify(revokedMcpAssignment));
+    assert.equal((revokedMcpAssignment.body['error'] as { code?: string }).code, 'forbidden');
     assert.equal(await storage.state.readRevision(), revisionBeforeAssignmentRevocation);
     await storage.identity.reactivateMembership(membership.membership_id, { is_owner: false, roles: [] });
+
+    // The grant retains its consented team and credential audience. A
+    // session token cannot substitute for it, and revoked grants stay inert.
+    const currentMcpInputs = { submission: { id: navigationSubmission, version: '2' }, assignee: { id: reviewer.user_id } };
+    const mcpCredentialRevision = await storage.state.readRevision();
+    const sessionAsGrant = await mcp('assign', currentMcpInputs, { bearer: token });
+    assert.equal(sessionAsGrant.status, 401); assert.equal((sessionAsGrant.body['error'] as { code?: string }).code, 'forbidden');
+    const foreignTeam = await storage.identity.createTeam({ timezone: 'UTC' });
+    const foreignGrant = await issueMcpGrant(storage.identity, { user_id: user.user_id,
+      team_id: foreignTeam.team_id, client_id: 'input-choices-foreign' }, { clock });
+    const foreignMcp = await mcp('assign', currentMcpInputs, { bearer: foreignGrant.token });
+    assert.equal(foreignMcp.status, 401); assert.equal((foreignMcp.body['error'] as { code?: string }).code, 'forbidden');
+    await storage.identity.revokeMcpGrant(mcpGrant.grant.grant_id);
+    const revokedGrantAssignment = await mcp('assign', currentMcpInputs);
+    assert.equal(revokedGrantAssignment.status, 401); assert.equal((revokedGrantAssignment.body['error'] as { code?: string }).code, 'forbidden');
+    assert.equal(await storage.state.readRevision(), mcpCredentialRevision);
 
     // A hydrated singular reference remains a declared Site value when a
     // generated handler copies it through normal set into another Document.
