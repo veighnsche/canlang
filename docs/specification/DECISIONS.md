@@ -3779,3 +3779,7 @@ Use the installed Playwright macOS credential-store flags for the raw anonymous 
 ### Intake: originating compiler construct-help context
 
 Consume only the six Compiler source/test files released at d64f648b, preserving dev-server source and the existing optional carrier. Reuse released source/CLI4/4 and carrier9/9 results at their owning scope. Originating root/When declaration and field-label branches emit exact context while runtime evidence stays false; they cannot establish a working profile. Joined native/session observations remain due, with profile proof/live ranking dependencies retained.
+
+### Implementation: source-current local Values producer output
+
+Rebuild the stale captured Values binding through its exact locked owning wasm32 and wasm-bindgen0.2.129 producer. Retain generated WASM and matching BUILD metadata; do not change Rust semantics, common gates or frozen external oracles. Values emit/catalog pass and actual binding/bootstrap checks pass25/25. This unblocks local captured consumers without treating generated freshness as whole-app qualification.

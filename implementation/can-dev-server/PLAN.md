@@ -6,6 +6,8 @@ This plan does not replace the [seven-lane platform plan](../PLAN.md). Its paths
 
 ## Current checkpoint
 
+The local captured producer correctly refused the older Values binding. Its exact locked owning wasm32/wasm-bindgen0.2.129 build now succeeds; generated WASM/BUILD metadata is retained, with no Rust semantics or gate repair. Values owning emit and59-entry/15-feature catalog emission pass; the actual generated binding/bootstrap checks pass25/25. Integrated native consumers remain due and no frozen external oracle is replaced.
+
 The exact Compiler d64f648b six-file producer intake emits originating declaration/field-label candidates and the accepted version1 ranking context. Its released source/CLI4/4 and carrier9/9 results are reused at their declared scope; runtime-evidence flags remain false. Joined native rebuilding and actual source-to-session/default-off observation are due. Working profile qualification and live ambiguous ranking remain open, rather than inferred from candidate shape.
 
 The native readonly page polling case passes1/1 in actual Chrome, including hidden-tab polling, authorization, persisted updates and navigation cancellation. Its raw temporary-profile launcher now uses the installed Playwright macOS credential-store flags and jointly consumes navigation/bootstrap waits; the initial document had stalled before any asset request, while the same Worker served HTTP200 to curl. Existing native form results are reused. No production polling/security behavior changed and this is not Office/G2 acceptance.
