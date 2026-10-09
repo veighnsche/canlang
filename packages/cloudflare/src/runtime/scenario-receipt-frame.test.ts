@@ -16,7 +16,7 @@ import { FIXED_NOW, asModel, createMemoryIdentityStore, makeIdentity, makeEnvelo
 import { createContext, type HandlerContext } from './context.js';
 import { bindNativeRecord } from './native-records.js';
 import { openScenarioReceiptFrame } from './scenario-receipt-frame.js';
-import { observeScenarioReceiptDependency, selectScenarioReceiptReturn } from './stdlib.js';
+import { observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, selectScenarioReceiptReturn } from './stdlib.js';
 
 const MODEL = asModel('Bridge.Record'), OP = 'Bridge.saved', APP = 'bridge-component';
 const source = 'package Bridge\nmodel Record do\n  visible: text\nend\n';
@@ -40,19 +40,34 @@ const validation = (error: unknown) => error instanceof StateError && error.code
 const forbidden = (error: unknown) => error instanceof StateError && error.code === 'forbidden';
 const effects = (result: unknown): ExecutionEffects => ({ result, writes: [], history: [], outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [], resolvedDefaults: {} });
 let sequence = 0;
-async function world() {
+async function world(configure?: (slice: ArtifactDescriptorSlice) => void) {
   const backing = createMemoryStorage(), memberships = createMemoryIdentityStore();
   const batches: CommitBatch[] = [];
   const store: StoragePort = { ...backing, commit: async batch => { batches.push(batch); return backing.commit(batch); } };
   const member = await seedMember(memberships, { isOwner: false });
   const identity = makeIdentity({ userId: member.user.user_id, team: member.team, membership: member.membership });
-  const loaded = loadArtifactDescriptors(artifact, { by: 'members' });
+  const slice = structuredClone(artifact); configure?.(slice);
+  const loaded = loadArtifactDescriptors(slice, { by: 'members' });
   const seeded = await seedRow(backing, MODEL, { data: { visible: 'exact selected field' } });
   const row = await backing.load(MODEL, seeded.id);
   assert.ok(row);
   return { store, batches, memberships, identity, row, registry: loaded.registry, app: APP,
-    envelope: makeEnvelope(OP, uuidv7(FIXED_NOW, ++sequence), { record: { id: row.id, version: String(row.version) } }),
+    envelope: makeEnvelope(OP, uuidv7(FIXED_NOW, ++sequence), { record: { id: row.id, version: String(row.version) },
+      ...(configure === undefined ? {} : { prompt: 'original prompt' }) }),
     source: 'test', clock: { nowMs: () => FIXED_NOW } };
+}
+
+function intrinsicFixture(slice: ArtifactDescriptorSlice): void {
+  const operation = slice.operations![0]!;
+  operation.inputs.fields.push({ name: 'prompt', field: { kind: 'string' }, valueType: 'text' as CanTypeId, required: true });
+  operation.result = { ...operation.result!, disclosure: { ...plan, returns: [{
+    ...plan.returns[0]!, intrinsics: [
+      { id: 'operation-id', source: origin, role: 'data', kind: 'operation-id', type: 'text' as CanTypeId },
+      { id: 'original-version', source: origin, role: 'data', kind: 'admitted-reference-version',
+        parameter: 'record', model: MODEL, type: 'int' as CanTypeId },
+      { id: 'prompt-input', source: origin, role: 'data', kind: 'admitted-input', parameter: 'prompt', type: 'text' as CanTypeId },
+    ],
+  }, plan.returns[1]!] } };
 }
 
 function context(w: Awaited<ReturnType<typeof world>>, qualified: Parameters<typeof createContext>[0]['qualified']) {
@@ -118,7 +133,7 @@ async function foreignView(): Promise<object> {
   await invoke({ ...w, execute: async call => {
     const c = context(w, call.context), frame = openScenarioReceiptFrame(c, call, w.store, () => {});
     try {
-      const row = call.recordRefs[0]!.row; view = native(row); frame.bind(view, MODEL, () => row);
+      const row = call.recordRefs[0]!.row; view = native(row); frame.bind(view, MODEL, () => row); frame.bindAdmittedReference(view, call.recordRefs[0]!);
       selectScenarioReceiptReturn(c, 'literal'); frame.assertCompleted(); return effects('literal');
     } finally { frame.close(); }
   } });
@@ -128,8 +143,11 @@ async function foreignView(): Promise<object> {
 it('caught errors in a known frame remain terminal through actual completion and a fenced rejection', async () => {
   const foreign = await foreignView();
   for (const mode of ['copied-row', 'identity-only', 'foreign-row', 'wrong-model', 'substituted-id',
-    'wire-accessor', 'invalid-dependency', 'invalid-return', 'storage-failure'] as const) {
-    const w = await world(), baseline = await w.store.readRevision();
+    'wire-accessor', 'invalid-dependency', 'invalid-return', 'storage-failure',
+    'intrinsic-wrong-operation', 'intrinsic-copied-version', 'intrinsic-foreign-version',
+    'intrinsic-unbound-version', 'intrinsic-wrong-version', 'intrinsic-wrong-input'] as const) {
+    const intrinsic = mode.startsWith('intrinsic-');
+    const w = await world(intrinsic ? intrinsicFixture : undefined), baseline = await w.store.readRevision();
     const failures: unknown[] = []; let first: unknown; let wireGetterReads = 0, fault = false;
     const loadFailure = new Error('selected store load failed');
     const store: StoragePort = mode === 'storage-failure' ? { ...w.store, load: async (model, id) => {
@@ -139,12 +157,16 @@ it('caught errors in a known frame remain terminal through actual completion and
       const c = context({ ...w, store }, call.context);
       const frame = openScenarioReceiptFrame(c, call, store, error => { failures.push(error); });
       try {
-        const row = call.recordRefs[0]!.row, view = native(row);
+        const row = call.recordRefs[0]!.row, view = {};
+        Object.defineProperty(view, 'version', { get: () => { wireGetterReads += 1; throw new Error('metadata getter reread'); } });
+        bindNativeRecord(view, MODEL, row.id, row.version); Object.freeze(view);
         frame.bind(view, MODEL, () => row);
+        if (intrinsic && mode !== 'intrinsic-unbound-version') frame.bindAdmittedReference(view, call.recordRefs[0]!);
         let observed: object = view;
         if (mode === 'copied-row') observed = Object.create(Object.getPrototypeOf(view), Object.getOwnPropertyDescriptors(view));
         if (mode === 'identity-only') observed = native(row);
-        if (mode === 'foreign-row') observed = foreign;
+        if (mode === 'foreign-row' || mode === 'intrinsic-foreign-version') observed = foreign;
+        if (mode === 'intrinsic-copied-version') observed = Object.create(Object.getPrototypeOf(view), Object.getOwnPropertyDescriptors(view));
         if (mode === 'substituted-id') {
           observed = native(row); frame.bind(observed, MODEL, () => ({ ...row, id: 'substituted' as typeof row.id }));
         }
@@ -155,7 +177,11 @@ it('caught errors in a known frame remain terminal through actual completion and
         }
         try {
           fault = mode === 'storage-failure';
-          if (mode === 'invalid-return') selectScenarioReceiptReturn(c, 'unknown');
+          if (mode === 'intrinsic-wrong-operation') await observeScenarioReceiptIntrinsic(c, 'operation-id', 'operation-id', 'wrong operation');
+          else if (mode === 'intrinsic-wrong-input') await observeScenarioReceiptIntrinsic(c, 'prompt-input', 'admitted-input', 'changed prompt');
+          else if (intrinsic) await observeScenarioReceiptIntrinsic(c, 'original-version', 'admitted-reference-version',
+            BigInt(row.version) + (mode === 'intrinsic-wrong-version' ? 1n : 0n), observed);
+          else if (mode === 'invalid-return') selectScenarioReceiptReturn(c, 'unknown');
           else await observeScenarioReceiptDependency(c, mode === 'wrong-model' ? 'Foreign.Record' : MODEL,
             observed, 'visible', mode === 'invalid-dependency' ? 'unknown' : 'visible');
         } catch (error) { first = error; }
@@ -165,7 +191,9 @@ it('caught errors in a known frame remain terminal through actual completion and
         // Catching the bad marker cannot recover through good markers or an
         // empty dependency return. Completion rethrows the original object.
         await assert.rejects(observeScenarioReceiptDependency(c, MODEL, view, 'visible', 'visible'), error => error === first);
+        if (intrinsic) await assert.rejects(observeScenarioReceiptIntrinsic(c, 'operation-id', 'operation-id', call.context.operationId), error => error === first);
         assert.throws(() => selectScenarioReceiptReturn(c, 'literal'), error => error === first);
+        assert.throws(() => frame.assertCompleted(), error => error === first);
         assert.deepEqual(failures, [first]);
         frame.assertCompleted();
         return { ...effects('must not commit'), writes: [{ kind: 'update', model: MODEL, id: row.id,
@@ -181,8 +209,8 @@ it('caught errors in a known frame remain terminal through actual completion and
 });
 
 it('owns detached pending failures and refuses overlapping markers or selection before completion', async () => {
-  for (const mode of ['second-marker', 'selection'] as const) {
-    const w = await world(), baseline = await w.store.readRevision();
+  for (const mode of ['second-marker', 'selection', 'intrinsic-close'] as const) {
+    const w = await world(mode === 'intrinsic-close' ? intrinsicFixture : undefined), baseline = await w.store.readRevision();
     let block = false, release!: () => void, first: unknown, observationLoads = 0;
     const waiting = new Promise<void>(resolve => { release = resolve; }), failures: unknown[] = [];
     const store: StoragePort = { ...w.store, load: async (model, id) => {
@@ -192,20 +220,31 @@ it('owns detached pending failures and refuses overlapping markers or selection 
     await assert.rejects(invoke({ ...w, store, execute: async call => {
       const c = context({ ...w, store }, call.context), frame = openScenarioReceiptFrame(c, call, store, error => { failures.push(error); });
       try {
-        const row = call.recordRefs[0]!.row, view = native(row); frame.bind(view, MODEL, () => row);
+        const row = call.recordRefs[0]!.row, view = native(row); frame.bind(view, MODEL, () => row); frame.bindAdmittedReference(view, call.recordRefs[0]!);
         block = true;
         // Deliberately detached: the test runner would report an unhandled
         // rejection if the framework did not own its rejection observer.
-        void observeScenarioReceiptDependency(c, MODEL, view, 'visible', 'visible');
+        const pending = mode === 'intrinsic-close'
+          ? observeScenarioReceiptIntrinsic(c, 'original-version', 'admitted-reference-version', BigInt(row.version), view)
+          : observeScenarioReceiptDependency(c, MODEL, view, 'visible', 'visible');
+        if (mode === 'intrinsic-close') {
+          assert.equal(observationLoads, 1, 'original-reference intrinsic awaits the actual backing load');
+          frame.close(); release();
+          try { await pending; } catch (error) { first = error; }
+        }
         try {
-          if (mode === 'second-marker') await observeScenarioReceiptDependency(c, MODEL, view, 'visible', 'visible');
+          if (mode === 'intrinsic-close') {
+            await assert.rejects(observeScenarioReceiptIntrinsic(c, 'operation-id', 'operation-id', call.context.operationId), error => error === first);
+          } else if (mode === 'second-marker') await observeScenarioReceiptDependency(c, MODEL, view, 'visible', 'visible');
           else selectScenarioReceiptReturn(c, 'literal');
         } catch (error) { first = error; }
         assert.ok(validation(first), mode);
         assert.equal(observationLoads, 1, 'overlap never starts a second raw State observation');
         assert.throws(() => frame.assertCompleted(), error => error === first);
         release(); await new Promise<void>(resolve => { setImmediate(resolve); });
+        if (mode === 'intrinsic-close') await assert.rejects(observeScenarioReceiptIntrinsic(c, 'operation-id', 'operation-id', call.context.operationId), error => error === first);
         assert.throws(() => selectScenarioReceiptReturn(c, 'literal'), error => error === first);
+        assert.throws(() => frame.assertCompleted(), error => error === first);
         assert.deepEqual(failures, [first]);
         frame.assertCompleted(); return effects('must not commit');
       } finally { release(); frame.close(); }
