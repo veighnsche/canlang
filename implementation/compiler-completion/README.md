@@ -136,7 +136,7 @@ fixture aliases. New native value-query and model-row producer controls pass
 **2/2**, and the four unchanged BDD native cases pass. This fixes lexical
 identity without reopening the separate held BDD consumer-policy work.
 
-**Current local compiler qualification, 2026-10-09.** Published compiler source
+**Previous local compiler qualification, 2026-10-09.** Published compiler source
 **e9a46221** passes **1,291 Rust tests, 0 failed, 0 ignored**, with exact draft
 **5a12eb9e**, actual package/catalog inputs, Node **24.19.0** and required real
 completion engines. The mode-4750 body skip is separately qualified by the
@@ -216,6 +216,53 @@ unbounded lock-target type coverage; the matching guard and nullable/money/ref
 controls resolve it. Native canonical activation, broader reverse selectors,
 hook carriers and current-source whole qualification remain unfinished. The
 coordinator owns local integration; no remote publication follows this unit.
+
+**Local common fixture intake, 2026-10-09.** Exact published Packages
+**9a635da8** B3 malformed-delivery assertion and **6ac7e29** Services deadline
+fixture correction are consumed without independent common repairs. Owning
+build **8/8**, B3 **5/5** and selected real HTTP deadline **1/1** pass, retaining
+nominal refusal, aggregate deadline and exact request-count assertions. Other
+cases and unchanged producer results are reused. This unit stays locally
+committed under the revised integration workflow.
+
+**Unfinished rule/hook join — released policy transport, 2026-10-09.**
+Exact Capability **f4673097** Contracts/State transport and its required
+**d9ea5d8d/3bfaed1f** artifact field/alias adapters are consumed. Checked JSON
+metadata now survives artifact loading separately from module-local native
+callbacks; strict ABI, model/package/module identity, closed metadata and
+accessor refusals remain. Retained-receipt/outbox and public invocation seams
+are excluded. Owning build **6/6** and the complete affected State unit suite
+**1,038/1,038** pass with **zero skips**, including actual D1/DO and permanent
+transport controls. These qualify the released input adapter, not native Can
+argument hydration or canonical policy activation. Dev's private adapter,
+genuine live hook views and explicit reverse plans remain prerequisites;
+current compiler whole qualification is running. No remote publication or
+broader reference credit follows.
+
+**Current local compiler qualification, 2026-10-09.** Combined source and
+installed inputs at **279f6dad** pass **1,301 Rust tests, 0 failed, 0 ignored**,
+with Node **24.19.0**, exact draft **5a12eb9e**, actual catalog and required
+real completion engines. The sandbox's mode-4750 body skip is separately
+qualified by the unchanged exact permission case **1/1** outside the sandbox,
+with no skip. Rust source has not changed since the qualified **7152dabb**
+strict all-target Clippy/format result; unchanged editor client typecheck and
+actual LSP round-trip results are reused. Complete affected State unit
+**1,038/1,038** passes with zero skips. These qualify current source and released
+inputs; canonical native rule activation/hooks and full applications remain
+unfinished. Original completion stays **58/67**, with **9 open** references.
+
+**Open saved-result disclosure prerequisite, 2026-10-09.** Capability's new
+notice requires a checked source dependency plan and complete nominal/model
+container inventory before saved scenario results can be disclosed safely.
+Direct-secret E4011 and current result type metadata do not prove data/control,
+derive or local-call provenance. State/Contracts owns the defining plan ABI,
+disclosure decisions and inventory completeness semantics; no exact release
+has reached this compiler worker. Compiler integration belongs at checked
+Effects/TypeTable anchors before IR loses Return identity, then at shared
+result/inventory publication. Dev owns evaluated row/field/reference capture
+and changed snapshots. This owner prerequisite does not release the separate
+BDD3 returned/as/live/context/disclosure/input policy hold. No speculative
+result API or broader completion is claimed.
 
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
