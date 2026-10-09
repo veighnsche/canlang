@@ -118,6 +118,79 @@ describe('direct pipeline null boundaries (hand-built controls)', () => {
 });
 
 describe('checked stored-field modifiers', () => {
+  it('updates unrelated fields without revalidating hook-cloned legacy arrays and objects', async () => {
+    const { store } = createTestMemoryStorage();
+    const id = asId(nextId());
+    const legacy = { tags: ['a', 'b'], total: { minor: '99', currency: 'USD' }, note: 'before' };
+    await seedStoredRow(store, asModel(JOB), { id, data: legacy });
+    const context = buildContext({ identity: makeIdentity(), operation: asOperation(`${JOB}.update`),
+      operationId: nextId(), app: 'modifier-test', source: 'test', now: FIXED_NOW });
+    const fields = {
+      tags: { required: false, serverOnly: false, valueType: 'text[]', array: { required: false }, max: 1 },
+      total: { required: false, serverOnly: false, valueType: 'money', max: { minor: '10', currency: 'USD' } },
+      note: { required: false, serverOnly: false, valueType: 'text' },
+    } as const;
+    for (const hooks of [[],
+      [{ name: 'noop', ops: ['update' as const], run: (candidate: Record<string, unknown>) => candidate }],
+      [{ name: 'clone', ops: ['update' as const], run: (candidate: Record<string, unknown>) => structuredClone(candidate) }],
+    ]) {
+      const encoded: unknown[] = [];
+      const table = buildModelTable([modelDef(JOB, { fields, hooks })]);
+      const result = await runMutationWrites({ table, store, context,
+        writes: [{ op: 'update', model: asModel(JOB), id, data: { note: 'after' } }],
+        encodeField: (type, value) => { encoded.push([type, value]); return value; },
+      });
+      const write = result.writes[0];
+      assert.ok(write?.kind === 'update');
+      assert.deepEqual(write.row.data, { ...legacy, note: 'after' });
+      assert.deepEqual(result.history[0]?.before, legacy);
+      assert.deepEqual(result.history[0]?.after, write.row.data);
+      assert.deepEqual(encoded, [['text[]', legacy.tags], ['money', legacy.total], ['text', 'after']]);
+      for (const data of [{ tags: legacy.tags }, { total: legacy.total }]) {
+        const error = await captureStateError(runMutationWrites({ table, store, context,
+          writes: [{ op: 'update', model: asModel(JOB), id, data }] }));
+        assert.equal(error.code, 'validation');
+        assert.match(error.message, /Invalid field "(?:tags|total)"/);
+      }
+    }
+    assert.deepEqual((await store.load(asModel(JOB), id))?.data, legacy);
+  });
+
+  it('validates actual array/object hook mutations and rolls back the complete update batch', async () => {
+    const { store } = createTestMemoryStorage();
+    const id = asId(nextId()), stagedId = asId(nextId());
+    const legacy = { tags: ['a', 'b'], total: { minor: '99', currency: 'USD' }, note: 'before' };
+    await seedStoredRow(store, asModel(JOB), { id, data: legacy });
+    const context = buildContext({ identity: makeIdentity(), operation: asOperation(`${JOB}.update`),
+      operationId: nextId(), app: 'modifier-test', source: 'test', now: FIXED_NOW });
+    const fields = {
+      tags: { required: false, serverOnly: false, valueType: 'text[]', array: { required: false }, max: 1 },
+      total: { required: false, serverOnly: false, valueType: 'money', max: { minor: '10', currency: 'USD' } },
+      note: { required: false, serverOnly: false, valueType: 'text' },
+    } as const;
+    const revision = await store.readRevision();
+    for (const field of ['tags', 'total']) {
+      const table = buildModelTable([modelDef(JOB, { fields, uniqueKeys: ['note'], hooks: [{
+        name: 'change', ops: ['update'], run: candidate => {
+          if (field === 'tags') (candidate.tags as string[]).push('c');
+          else (candidate.total as { minor: string }).minor = '100';
+          return candidate;
+        },
+      }] })]);
+      const error = await captureStateError(runMutationWrites({ table, store, context, writes: [
+        { op: 'create', model: asModel(JOB), id: stagedId, data: { tags: [], total: { minor: '0', currency: 'USD' }, note: 'staged' } },
+        { op: 'update', model: asModel(JOB), id, data: { note: 'after' } },
+      ] }));
+      assert.equal(error.code, 'validation');
+      assert.match(error.message, new RegExp(`Invalid field "${field}"`));
+      assert.equal(await store.readRevision(), revision);
+      assert.deepEqual((await store.load(asModel(JOB), id))?.data, legacy);
+      assert.equal(await store.load(asModel(JOB), stagedId), null);
+      assert.deepEqual(await store.historyFor(asModel(JOB), id), []);
+      assert.deepEqual(await store.historyFor(asModel(JOB), stagedId), []);
+    }
+  });
+
   it('archives unchanged legacy fields without normalization and validates only remove-hook changes', async () => {
     const { store } = createTestMemoryStorage();
     const id = asId(nextId());

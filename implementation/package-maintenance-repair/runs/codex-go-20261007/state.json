@@ -4444,6 +4444,12 @@
       "correction": "State registry and model constraint factory retain the exact owning normalized nominal alias type/bounds/format rather than constructing a dangling freshschema. Receiving bounds and wrong/unowned-alias/unsupportedtrim refusals remain.",
       "validation": "Stateowningemit and4targeted artifact/direct-loader/native mutation/ownership controls pass, no skips. Prior native hook/archive controls unchanged and reused.",
       "limit": "Complete alias/nominal/CSV/host qualification remains separate; no broad exemption or original parent closure."
+    },
+    "state_update_hook_constraints": {
+      "state": "implemented and affected checks passed; Codex4232157232",
+      "correction": "Update constraint validation compares hook results by wire content, retaining explicit patch keys. Unchanged cloned legacy arrays/objects do not acquire new constraints; actual hook mutations still validate. Full create/update codec traversal remains.",
+      "validation": "State owning emit and20existing nullable-ref/typed-staging cases pass onNode24, zero skips. No-hook/no-op/cloned-hook unrelated updates retain arrays/objects and all3codec visits; explicit patches and actual in-place hook changes refuse with complete batch/revision/history rollback.",
+      "limit": "Current-head Codex and actual host qualification remain required; no original parent closure."
     }
   }
 }
