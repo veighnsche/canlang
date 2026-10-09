@@ -4463,6 +4463,39 @@ impl<'a> Emitter<'a> {
                 }
                 self.stdlib.insert("transition".to_string());
                 let record = self.lower_expr(record);
+                if let Some(dependencies) = self
+                    .receipt_capture
+                    .as_ref()
+                    .and_then(|recipe| recipe.dependencies.get(&self.receipt_site(*span)))
+                    .cloned()
+                {
+                    self.stdlib
+                        .insert("observeScenarioReceiptDependency".to_string());
+                    let observations = dependencies
+                        .iter()
+                        .map(|dependency| {
+                            format!(
+                                "await observeScenarioReceiptDependency(c,{},$receiptRow,{},{});",
+                                js_string(&dependency.model),
+                                js_string(&dependency.field),
+                                js_string(&dependency.id),
+                            )
+                        })
+                        .collect::<String>();
+                    // Match the checked old-state anchor before the genuine
+                    // transition; the collector gates this until its State
+                    // session consumer can attest intermediate own-write rows.
+                    return vec![(
+                        format!(
+                            "{pad}{{const $receiptRow={record};{observations}await transition(c,{},$receiptRow.id,{},{},{});}}",
+                            js_string(model),
+                            js_string(field),
+                            js_string(from),
+                            js_string(to)
+                        ),
+                        *span,
+                    )];
+                }
                 vec![(
                     format!(
                         "{pad}await transition(c,{},({record}).id,{},{},{});",

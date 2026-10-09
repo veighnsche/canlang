@@ -4712,3 +4712,14 @@ with incoming existing file-tree reconciliation; complete checkpoint remains
 unadvanced. Native publication remains unfinished until Dev's genuine session
 stage/read/finalize and issued-row identity consumer is released and combined
 original-source replay passes. Earlier whole results do not qualify these edits.
+
+## 2026-10-09 — prepare native transition capture under its release gate
+
+Join exact Transition IR sites and own canonical machine-enum identities to
+actual emitted fields/edges, and evaluate one receiver before awaited old-state
+markers and canonical transition. Keep all transition publication gated until
+the genuine Dev session consumer is released. Native fixture compilation/
+refusal controls execute, but Node24 runtime fails the actual fileAssignments
+effect-envelope owner contract; strict Clippy passes. Coordinator's no-write
+branch-control finding against the earlier private source is a required
+correction, not accepted behavior. No workflow/state contract bypass follows.
