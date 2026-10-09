@@ -32,6 +32,7 @@ use crate::codegen::ir::{
     IrPage, IrProgram, IrServer, IrStmt, IrType, IrUi, IrUnOp, ReferencedBuiltin, ScalarFamily,
     TypedExpr, expr_uses_async, is_structural, scalar_family,
 };
+use crate::codegen::model_policies::{LocalPolicies, ModelPolicies, collect_local_policies};
 use crate::diagnostic::Diagnostic;
 use crate::source::Span;
 use serde::ser::{SerializeMap, SerializeStruct};
@@ -1213,6 +1214,8 @@ pub struct JsOutput {
     pub operations: Vec<JsOperation>,
     /// One checked inventory shared by artifact claims and app schemas.
     pub value_types: Option<JsValueTypes>,
+    /// Complete local checked owner-policy declaration coverage, when supported.
+    pub model_policies: Option<Vec<ModelPolicies>>,
     /// `@canlang/stdlib` imports used by the entrypoint.
     pub stdlib_imports: BTreeSet<String>,
     /// `@canlang/ui` imports used by the entrypoint.
@@ -1346,6 +1349,7 @@ pub fn emit_program(ir: &IrProgram) -> JsOutput {
         0,
         0,
     ));
+    let local_policies = collect_local_policies(ir, &module_path(&entry_name));
     let mut body = JsWriter::new();
     // Operation descriptors derive once, up front: the `canApp()`
     // registry and the artifact envelope share them verbatim.
@@ -1358,7 +1362,7 @@ pub fn emit_program(ir: &IrProgram) -> JsOutput {
     }
     emitter.emit_app_definition(&mut body, entry_id);
     emitter.emit_derive_fns(&mut body);
-    emitter.emit_can_app(&mut body, entry_id, &operations);
+    emitter.emit_can_app(&mut body, entry_id, &operations, local_policies.as_ref());
     let mut out = JsWriter::new();
     out.push(
         entry_span,
@@ -1402,6 +1406,7 @@ pub fn emit_program(ir: &IrProgram) -> JsOutput {
         pages,
         operations,
         value_types,
+        model_policies: local_policies.map(|plan| plan.descriptors),
         stdlib_imports,
         ui_imports,
     }
@@ -8440,6 +8445,7 @@ impl<'a> Emitter<'a> {
         out: &mut JsWriter,
         entry: Option<crate::analysis::resolve::ModuleId>,
         operations: &[JsOperation],
+        local_policies: Option<&LocalPolicies>,
     ) {
         let entry_span = entry.map(|id| self.ir.module(id).span).unwrap_or(Span::new(
             crate::source::SourceId(0),
@@ -8493,6 +8499,9 @@ impl<'a> Emitter<'a> {
         self.emit_preferences_valid(out, entry_span);
         self.emit_derives_map(out, entry_span);
         self.emit_hooks_map(out, entry_span);
+        if let Some(plan) = local_policies {
+            self.emit_model_policy_bindings(out, entry_span, plan);
+        }
         self.emit_handler_fns(out);
         // B7 phase-1: the policy manifest inside `canApp()`, from the
         // same builder as `appDefinition`, so the serve loader sees
@@ -8506,6 +8515,37 @@ impl<'a> Emitter<'a> {
             );
         }
         out.push(entry_span, Some("canApp".to_string()), "};}");
+    }
+
+    /// Module callbacks consume genuine native `(c,row)` values. The owning
+    /// runtime wraps these callbacks before handing State its raw-row ABI.
+    fn emit_model_policy_bindings(&mut self, out: &mut JsWriter, span: Span, plan: &LocalPolicies) {
+        let module = &plan.descriptors[0].module;
+        let mut entries = Vec::new();
+        for binding in &plan.bindings {
+            let predicate = binding
+                .predicate
+                .as_ref()
+                .map(|predicate| self.lower_rule_fn(predicate))
+                .unwrap_or_else(|| "(c,row)=>true".to_string());
+            let kind = match binding.kind {
+                crate::codegen::ir::IrModelRuleKind::Invariant => "invariant",
+                crate::codegen::ir::IrModelRuleKind::Lock => "lock",
+            };
+            entries.push(format!(
+                "{{id:{},module:{},ownerPackage:{},model:{},kind:{},evaluate:{predicate}}}",
+                js_string(&binding.id),
+                js_string(module),
+                js_string(&binding.owner_package),
+                js_string(&self.ir.item(binding.model).canonical),
+                js_string(kind)
+            ));
+        }
+        out.push(
+            span,
+            Some("modelPolicyBindings".to_string()),
+            &format!("modelPolicyBindings:[{}],", entries.join(",")),
+        );
     }
 
     /// Lower one `(c, row)` rule function, `async` exactly when the body
