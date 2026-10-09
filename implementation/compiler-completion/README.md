@@ -1907,3 +1907,25 @@ private-field grouping and grouped public coalesce; source8/8, all-target lint
 and formatting pass. The earlier changed-source full run was interrupted for
 this confirmed gap and supplies no whole acceptance. Final source qualification
 remains due; historical83f4/1325 is unchanged.
+
+
+**Local Send/Set influence closure — unfinished Task44 join, 2026-10-10.**
+Checked own scalar assignments and bound capability sends now retain ordered
+payload/read/control influence through actual native sites. Closed TextRequest/
+TextMessage intermediates and matching delivery assignments have exact source
+and target proofs; the native collector requires a complete bijection to emitted
+Send/Set statements and owning field/delivery inventories. Literal effects retain
+branch selectors on both effect and no-effect paths. Source closure16/16 and
+existing facts15/15 pass; genuine native target2/2 preserves its prior reads/
+arrays/derives and six fresh literal/computed/private/public Set cases, physical
+receipts/rows/defaults, replay/current grants/archive/resource invariance. A
+constant result remains frozen after its changed row is archived; unreadable
+required influences withhold dependent values and changed rows. The SAME original
+generation source emits checked cancel/reconcile plans and bound send/Set code.
+Generate still refuses frozen operation/reference metadata; the released State
+intrinsic producer and pending primitive-input contract need the real Compiler/
+Dev joins. No original generation execution or Task44 completion is claimed.
+Strict all-target Clippy/format pass; independent finite review finds no defect.
+Final changed-source whole qualification remains due; historical83/1325 is reused
+only at its source scope. Existing Dev portable grouped-default journey1/1 at
+f4365702 is consumed and reused. Broader nine refs and precise holds remain.
