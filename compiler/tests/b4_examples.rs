@@ -363,6 +363,16 @@ fn caninbox_header_routine_parity() {
         field_cases.iter().map(String::as_str).collect::<Vec<_>>(),
         cases
     );
+    let parameter = program
+        .symbols
+        .iter()
+        .find(|symbol| symbol.canonical == "inbox.review.urgency")
+        .expect("owning review urgency parameter");
+    assert_eq!(
+        program.types.symbol_types.get(&parameter.id),
+        Some(domain),
+        "header parameter and fixture field share the Judgment domain"
+    );
     for (needle, spelling) in [
         ("urgency=routine reason=", "routine"),
         ("urgency=today,", "today"),
@@ -373,6 +383,16 @@ fn caninbox_header_routine_parity() {
             covering(&diags, "E2001", offset).is_empty(),
             "valid {spelling}: {diags:?}"
         );
+        assert_eq!(
+            &text[offset as usize..offset as usize + spelling.len()],
+            spelling
+        );
+        assert!(field_cases.iter().any(|case| case == spelling));
+        // The examples pass validates the header against its parameter and
+        // retracts E2001; only the fixture initializer publishes a type claim.
+        if spelling == "routine" {
+            continue;
+        }
         let key = program
             .types
             .resolved_cases
