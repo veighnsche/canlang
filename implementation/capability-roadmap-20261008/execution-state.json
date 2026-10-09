@@ -1691,16 +1691,23 @@
     },
     "retained_receipt_admission": {
       "state": "defining_API_implemented_tested_canonical_transport_assembly_pending",
-      "source_checkpoint": "cf4be765",
+      "source_checkpoint": "f4673097",
       "API": "Public State invokeRetainedReceiptOnly is the positive installed-support entry and forces receipt-only admission; ordinary admit/invoke/createInvoker also retain the host mode. Exact receipt identity/input hash, current by/membership, existing replay observer; unseen miss not_found before execute/commit. Dev must require the export before restoration and project current access before disclosure.",
       "validation": "5owning Memory/nativeD1/DO and saved-CRUD projection cases pass including16minute/24hour recovery, rejected receipt, identity/hash mismatch and revocation. Owning build22/22. Explicit installed entry owning Memory recovery cases pass2/2, including conflicting untyped mode override refusal; unchanged native/projection results reused.",
-      "owners": "Dev canonical CF forwarding/owner selection and public projection; Packages Interfaces signed restoration consumer. State saved scenario result current grant/secret projection remains open beyond the tested CRUD boundary; low-level results confer no public grant. No signature-window extension or full workflow acceptance."
+      "owners": "Dev canonical CF forwarding/owner selection and public projection; Packages Interfaces signed restoration consumer. State saved scenario result current grant/secret projection remains open beyond the tested CRUD boundary; low-level results confer no public grant. No signature-window extension or full workflow acceptance.",
+      "scenario_projection_prerequisite": {
+        "owner": "Compiler checked source result data/control dependency producer; roadmap State defining saved-scenario association/current-projection API; Dev actual native capture/public transport.",
+        "source_evidence": "DESIGN.md section5 requires private authority-derived scalar dependency tracking. Artifact/Canonical result currently carries type only; Compiler check_secret_return rejects direct secret types and IrStmt.Return has TypedExpr/span, without emitted dependency proof. CF scenarioResult discards native record view identity during encoding; State recordVersions retains no changed snapshots.",
+        "selected_boundary": "Checked versioned result-dependency plan and exact actually evaluated native row/field/reference observations plus committed changed-row snapshots in existing receipt. No body rerun, object-shape provenance or arbitrary user projector. Three independent JEV requests choose checked_result_dependency_plan .98/1/.98, confidence .97/1/.97; advice is not implementation or acceptance.",
+        "remaining": "Define/load complete plan and receipt association; Compiler data/control/derive/local-call closure and nominal/model-container inventory; native host capture; State current original/current secret and grant/lifetime/race projection. Literal/input/generated receipt provenance must remain distinct from private decision-only reads; general saved results remain internal until complete defining joins."
+      }
     },
     "dev_example_control_intake": {
-      "state": "unfinished_exact_source_and_companion_tests_consumed_joined_validation_pending",
+      "state": "source_intake_compiled_owning_native_controls_tested_observer_disposal_owner_prerequisite",
       "released_revision": "53597b39df18da57d0e39d1f0180caee29e8ab7a",
       "scope": "Coordinator-authorized10Cloudflare src/dev files plus9owning tests, preserving default-off external decisions and existing browser executable overrides. No session-socket/foreign records/Values binary intake. Existing createTeamOwnerStorageBoundary present.",
-      "remaining": "Serialized joined CF emission and owning example/control/source capture checks after concurrent feature sources stable; exact missing host/State/Testkit producer evidence if any goes to Dev/Packages/Compiler owners. No whole original example/application acceptance."
+      "remaining": "Serialized joined CF emission and owning example/control/source capture checks after concurrent feature sources stable; exact missing host/State/Testkit producer evidence if any goes to Dev/Packages/Compiler owners. No whole original example/application acceptance.",
+      "validation": "CF owning emit passes; exact six runtime fixture intakes pass71/71 including actualD1/DO. Native actual Dev example-runner2/2 passes after building its required local Testkit package. Control intake has40initial passing controls plus17controls in failed-file rerun under actual owner-private short Darwin temp paths; one genuine observer-disposal assertion at session-example-control.test.ts272 remains and is sent to Dev. No failed permission/source-currency assertion is weakened."
     }
   },
   "live_handoffs": {
