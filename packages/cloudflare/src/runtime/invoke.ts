@@ -1151,6 +1151,8 @@ export interface CanonicalExecutionEffects {
   readonly result: unknown;
   readonly guards?: ReadonlyArray<CanonicalGuardRevalidation>;
   readonly readings?: ReadonlyArray<unknown>;
+  /** Internal producer intent; never admitted from a mutation envelope. */
+  readonly fileAssignments?: readonly { readonly model: string; readonly recordId: string; readonly field: string }[];
 }
 
 /**
@@ -3617,6 +3619,13 @@ async function runScenarioSeam(
   const views = new Map<string, Record<string, unknown>>();
   const recordBindings = new Map<Record<string, unknown>, { model: string; id: string; version: number }>();
   const callable = opts.artifact.callables.find((entry) => entry.id === opts.operation);
+  // This closure is installed only by the retained private-source drivers,
+  // after their owning source/identity admission. Request query options can
+  // never select owner authority or turn an ordinary scenario into a handler.
+  const trustedOwnerReads = callable?.kind === 'handler' && (due !== undefined || cohort !== undefined) &&
+    call.context.kind === 'trusted' && call.context.actor === null && call.context.source === 'schedule' &&
+    typeof call.context.trustedSource === 'string' && call.context.trustedSource.startsWith('schedule:') &&
+    call.checkpoint !== undefined && call.checkpoint.owner === (call.context.team?.teamId ?? call.context.app);
   const recordView = (modelName: string, row: StoredRow): Record<string, unknown> => {
     const key = stagedKey(modelName, row.id);
     const existing = views.get(key);
@@ -3650,6 +3659,7 @@ async function runScenarioSeam(
   const stagedWrites: CanonicalStagedDomainWrite[] = [];
   const reservedVersions = new Map<string, RecordVersion>();
   const stagedHistory: unknown[] = [];
+  const fileAssignments = new Map<string, { model: string; recordId: string; field: string }>();
   const stagedTouches: CanonicalStagedUniqueTouch[] = [];
   const deferredEffects: SystemStaging[] = [];
   const queuedDeliveries = new Map<string, OutboxIntent>();
@@ -3727,11 +3737,11 @@ async function runScenarioSeam(
     builtinRoles: Object.freeze(builtinRoles),
     operation: opts.operation,
     operationId: call.context.operationId,
-    ...(callable?.inputStyle !== "parameters" ? {} : {
+    ...(callable?.inputStyle !== "parameters" && !trustedOwnerReads ? {} : {
       readRecords: async (model: string, query: CanonicalReadQuery) => {
         const rows = await scope.readModel(model, query);
-        for (const row of rows) await viewerNavigation.prepare(model, row);
-        return rows.map(row => projectedRecordView(model, row));
+        for (const row of rows) await (trustedOwnerReads ? ownerNavigation : viewerNavigation).prepare(model, row);
+        return rows.map(row => trustedOwnerReads ? recordView(model, row as StoredRow) : projectedRecordView(model, row));
       },
     }),
     observeDelivery: async (locator, selected) => {
@@ -3742,6 +3752,48 @@ async function runScenarioSeam(
         const binding = recordBindings.get(locator.record) ??
           ownerNavigation.resolveRecord(locator.record) ?? viewerNavigation.resolveRecord(locator.record);
         if (binding === undefined) throw new StateError('validation', 'Delivery observation needs a bound record.');
+        const declaration = opts.artifact.models?.find(model => model.name === binding.model)?.fields
+          .find(field => field.name === locator.field);
+        if (trustedOwnerReads) {
+          if (declaration?.field.kind !== 'delivery' || declaration.array !== undefined ||
+              !loaded.deliveryFields.get(binding.model)?.has(locator.field) || call.checkpoint === undefined) {
+            throw new StateError('validation', 'Owner receipt read needs its owning singular delivery declaration.');
+          }
+          const join = await loadProducerModule(STATE_RECEIPT_JOIN_SPECIFIER, 'state owner receipt join producer');
+          const observeOwner = requireProducerFn(join, 'observeOwnerSelectedReceiptJoin', 'state owner receipt join producer') as unknown as
+            typeof import('@canlang/state/receipt/join').observeOwnerSelectedReceiptJoin;
+          const admission = await loadProducerModule(STATE_ADMISSION_SPECIFIER, 'state owner receipt fence producer');
+          const openFence = requireProducerFn(admission, 'openFenceScope', 'state owner receipt fence producer') as unknown as
+            typeof import('@canlang/state/invocation/admission').openFenceScope;
+          let declaredContext: ReceiptResultContext | undefined;
+          if ('judgment' in declaration.field && declaration.field.judgment === true) {
+            if (loaded.valueTypes === undefined) throw new StateError('validation', 'Judgment receipt has no checked value inventory.');
+            const specification = await loadJudgmentSpecificationResolver(opts.asm, opts.artifact, opts.operation, opts.asm.entryUrl);
+            if (specification === undefined) throw new StateError('validation', 'Judgment receipt has no defining source specification.');
+            declaredContext = createJudgmentReceiptContext(declaration.field,
+              specification(declaration.field.capability), loaded.valueTypes);
+          }
+          const observed = mapReceiptJoinOutcome(await observeOwner({
+            // The structural seam forwards the actual State-owned call object.
+            // State checks its private provenance and live execution identity.
+            call: call as import('@canlang/state/invocation/admission').AdmittedCall,
+            recordVersion: binding.version as RecordVersion,
+            locator: { record: { id: binding.id }, field: locator.field }, selected: [...selected],
+            model: binding.model as ModelName, schema: loaded.deliveryFields as import('@canlang/state/receipt/grants').DeliveryFieldSchema,
+            declaredSource: `${declaration.field.capability}.${declaration.field.operation}`,
+            declaredResult: declaration.field.result,
+            ...(declaredContext === undefined ? {} : { declaredContext }),
+            // State binds this to the exact physical store used at admission.
+            // The provisional overlay cannot mint an owner observation scope.
+            store: opts.store, fence: openFence(call.checkpoint.revision, call.checkpoint.owner),
+            nowMs: call.context.now, observeSelected: await resolveReceiptObserver(opts.observer) as
+              import('@canlang/state/receipt/join').SelectedReceiptObserver,
+          }));
+          servedReadings.push(observed);
+          if (observed.outcome === 'denied') throw new StateError('forbidden', 'Owner delivery observation is not authorized.');
+          return observed.outcome === 'observed'
+            ? sourceReceiptProjection(observed.projection, selected, declaration.field.result) : null;
+        }
         const observed = await invokeSelectedReceiptRead({
           asm: opts.asm, artifact: opts.artifact, operation: RECEIPT_READ_OPERATION,
           inputs: { recordId: binding.id, field: locator.field, selected: [...selected] },
@@ -3753,10 +3805,8 @@ async function runScenarioSeam(
           throw new StateError('forbidden', 'Delivery observation is not authorized.');
         }
         if (observed.outcome !== 'observed') return null;
-        const declaration = opts.artifact.models?.find(model => model.name === binding.model)?.fields
-          .find(field => field.name === locator.field)?.field;
         return sourceReceiptProjection(observed.projection, selected,
-          declaration?.kind === 'delivery' ? declaration.result : undefined);
+          declaration?.field.kind === 'delivery' ? declaration.field.result : undefined);
       } catch (error) {
         recordEngineFailure(error);
         throw error;
@@ -3803,6 +3853,13 @@ async function runScenarioSeam(
         const mutation = `${write.model}.${write.op === 'remove' ? 'delete' : write.op}`;
         if (loaded.unsupportedHookOperations.has(mutation)) {
           throw new StateError('validation', `Operation ${JSON.stringify(mutation)} requires unsupported canonical hooks.`);
+        }
+        if (write.op !== 'remove' && write.data !== undefined) {
+          for (const field of opts.artifact.models?.find(model => model.name === write.model)?.fields ?? []) {
+            if (field.field.kind !== 'file' || !Object.hasOwn(write.data, field.name) || write.data[field.name] === undefined) continue;
+            const assignment = { model: write.model, recordId: write.id, field: field.name };
+            fileAssignments.set(JSON.stringify([assignment.model, assignment.recordId, assignment.field]), assignment);
+          }
         }
         // Delivery tags predate the scalar valueType checkpoint. Their owning
         // artifact declaration still selects Values' exact native/wire codec.
@@ -3893,7 +3950,7 @@ async function runScenarioSeam(
         if (typeof model !== "string" || model === "") {
           throw new Error(`t17b: readModel needs a non-empty string model (wiring bug).`);
         }
-        const native = callable?.inputStyle === 'parameters';
+        const native = callable?.inputStyle === 'parameters' || trustedOwnerReads;
         if (!native) assertServableReadQuery(StateError, query);
         if (loaded.ruledModels.has(model)) {
           throw ruledReadRefusal(StateError, model);
@@ -3903,8 +3960,8 @@ async function runScenarioSeam(
         const sourcePredicate = native && typeof query.where === 'function';
         if (native) {
           if (Object.keys(query).some(key => !['where', 'order', 'limit', 'archived', 'authority'].includes(key)) ||
-              (query.authority !== undefined && query.authority !== 'viewer') ||
-              (query.archived !== undefined && query.archived !== 'exclude')) {
+              (query.authority !== undefined && query.authority !== (trustedOwnerReads ? 'owner' : 'viewer')) ||
+              (query.archived !== undefined && query.archived !== 'exclude' && !(trustedOwnerReads && query.archived === 'include'))) {
             throw new StateError('validation', 'Mutation queries require viewer reads over current records without containment filters.');
           }
           const where = query.where;
@@ -3932,11 +3989,12 @@ async function runScenarioSeam(
           }
           selection = {
             ...(typeof where === 'function' ? { predicate: async (row: Readonly<ProjectedRecord>) => {
-              // False candidates are observations too. Source sees only the
-              // viewer's projection, even when it runs inside a mutation.
+              // False candidates are observations too. Ordinary mutations
+              // retain viewer projections; verified private handlers read
+              // their owning scope through its existing owner navigation.
               dependencies.push(structuredClone(row));
-              await viewerNavigation.prepare(model, row);
-              const matched = await where(projectedRecordView(model, row));
+              await (trustedOwnerReads ? ownerNavigation : viewerNavigation).prepare(model, row);
+              const matched = await where(trustedOwnerReads ? recordView(model, row as StoredRow) : projectedRecordView(model, row));
               if (typeof matched !== 'boolean') throw new StateError('validation', 'Mutation query predicates must return bool.');
               return matched;
             } } : where === undefined ? {} : { where: structuredClone(where) as QueryPredicate }),
@@ -3946,8 +4004,59 @@ async function runScenarioSeam(
         }
         // Staged rows are immutable snapshots. Preserve this query's overlay
         // so a later own write cannot invalidate an earlier observation.
-        const queryStore = native ? withStagedOverlay(opts.store, new Map(staged)) : overlay;
-        const read = (selected: CanonicalReadSelection | undefined) => loaded.producers.invoke.invokeRead({
+        const querySnapshot = new Map(staged);
+        const queryStore = native ? withStagedOverlay(opts.store, querySnapshot) : overlay;
+        const read = async (selected: CanonicalReadSelection | undefined): Promise<CanonicalReadServed> => {
+          if (trustedOwnerReads) {
+            const queryModule = await loadProducerModule('@canlang/state/query/engine', 'trusted owner query producer');
+            const queryRecords = requireProducerFn(queryModule, 'queryRecords', 'trusted owner query producer') as
+              typeof import('@canlang/state/query/engine').queryRecords;
+            const maxCandidates = queryModule['VIEWER_PAGE_MAX_CANDIDATES'];
+            if (typeof maxCandidates !== 'number' || !Number.isSafeInteger(maxCandidates) || maxCandidates < 1 ||
+                maxCandidates >= Number.MAX_SAFE_INTEGER) throw new Error('Trusted owner query has no defining finite transport bound.');
+            if (await opts.store.readRevision() !== navigationRevision) {
+              throw new StateError('conflict', 'State changed during the trusted owner query.');
+            }
+            // Read the complete bounded candidate domain from the actual
+            // store; business limits never choose a materialization budget.
+            const base = await opts.store.query({ model: model as ModelName, authority: 'owner', archived: 'include',
+              order: [{ field: 'id', direction: 'asc' }], limit: maxCandidates + 1 });
+            if (base.length > maxCandidates) throw new StateError('limit', 'Trusted owner query exceeds its candidate budget.');
+            const merged = new Map(base.map(row => [row.id as string, row]));
+            const prefix = `${model}\0`;
+            for (const [key, row] of querySnapshot) {
+              if (!key.startsWith(prefix)) continue;
+              if (row === null) merged.delete(key.slice(prefix.length));
+              else merged.set(row.id, row);
+            }
+            if (merged.size > maxCandidates) throw new StateError('limit', 'Trusted owner query exceeds its candidate budget.');
+            const candidates = [...merged.values()];
+            const descriptor = loaded.models.find(candidate => candidate.name === model);
+            if (descriptor === undefined) throw new StateError('validation', 'Trusted owner query needs its owning declared model.');
+            const nativeQuery = (rows: readonly StoredRow[], final: boolean) => queryRecords({
+              model: model as ModelName, authority: 'owner', modelDescriptor: descriptor,
+              policy: loaded.policy as import('@canlang/state/policy/grants').PolicyTable,
+              context: { actorUserId, teamId }, memberships: opts.memberships,
+              store: { ...opts.store, query: async request => rows.filter(row => request.archived === 'include' || row.archivedAt === null) },
+              archived: query.archived ?? 'exclude',
+              ...(selected?.where === undefined ? {} : { where: selected.where }),
+              ...(selected?.order === undefined ? {} : { order: selected.order }),
+              ...(!final || selected?.limit === undefined ? {} : { limit: selected.limit }),
+            });
+            let served = await nativeQuery(candidates, selected?.predicate === undefined);
+            if (selected?.predicate !== undefined) {
+              const matched: StoredRow[] = [];
+              for (const row of served.rows) {
+                if (await selected.predicate({ ...row, parent: row.parent ?? null })) matched.push(row);
+              }
+              served = await nativeQuery(matched, true);
+            }
+            if (served.revision !== navigationRevision || await opts.store.readRevision() !== navigationRevision) {
+              throw new StateError('conflict', 'State changed during the trusted owner query.');
+            }
+            return { records: served.rows.map(row => ({ ...row, parent: row.parent ?? null })), revision: served.revision };
+          }
+          return loaded.producers.invoke.invokeRead({
           registry: loaded.registry,
           models: loaded.models,
           envelope: { operation: `${model}.read`, inputs: {} },
@@ -3956,7 +4065,8 @@ async function runScenarioSeam(
           policy: loaded.policy,
           store: queryStore,
           memberships: opts.memberships,
-        });
+          });
+        };
         const served = await read(selection);
         if (!Array.isArray(served.records)) {
           throw new Error(`t17b: invokeRead served no records array (invoke/dist skew?)`);
@@ -4138,8 +4248,8 @@ async function runScenarioSeam(
         const stage = requireProducerFn(producer, 'stageCanonicalSend', 'work canonical send producer') as
           typeof import('@canlang/work/kernel/dispatch-staging').stageCanonicalSend;
         let imageCorrelation: import('@canlang/work/kernel/tables').DispatchImageCorrelation | undefined;
-        if (source === 'std.ImagesV1.submit') {
-          const value = boundRequest.arguments['value'];
+        if (['std.ImagesV1.submit', 'std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(source)) {
+          const value = source === 'std.ImagesV1.submit' ? boundRequest.arguments['value'] : boundRequest.arguments;
           if (call.checkpoint === undefined || member(definition, 'id') !== call.context.app ||
               !isUnknownRecord(value) || typeof value['source'] !== 'string' ||
               typeof value['revision'] !== 'string') {
@@ -4271,8 +4381,14 @@ async function runScenarioSeam(
     : makeRecordRef(returnedBinding.model, returnedBinding.id,
       BigInt(reservedVersions.get(stagedKey(returnedBinding.model, returnedBinding.id)) ?? returnedBinding.version));
   const result = scenarioResult(call, loaded, outcome.value, modelReference);
+  const writes = collapseStagedWrites(stagedWrites);
   return {
-    writes: collapseStagedWrites(stagedWrites),
+    writes,
+    // A removed provisional target retains no final file assignment. The
+    // validator still checks every returned intent against its actual net row.
+    fileAssignments: [...fileAssignments.values()].filter(assignment => writes.some(write =>
+      (write.kind === 'insert' || write.kind === 'update') && write.model === assignment.model &&
+      write.row?.id === assignment.recordId)),
     history: [...stagedHistory, ...deferredEffects.flatMap((effects) => effects.history ?? [])].map((entry) => {
       if (!isUnknownRecord(entry)) return entry;
       const first = stagedWrites.find((write) => write.model === entry["model"] &&
@@ -4381,6 +4497,20 @@ async function invokeCanonicalMutation(
           throw new StateError('validation', `Operation ${JSON.stringify(opts.operation)} requires unsupported canonical hooks.`);
         }
         effects = await crudExecute(call);
+        if (kind !== 'delete') {
+          const operation = opts.artifact.operations?.find(entry => entry.name === opts.operation);
+          const owningModel = opts.artifact.models?.find(model => `${model.name}.${kind}` === opts.operation);
+          const supplied = operation?.inputs.fields.filter(field => field.field.kind === 'file' &&
+            Object.hasOwn(opts.inputs, field.name) && opts.inputs[field.name] !== undefined &&
+            owningModel?.fields.some(declaration => declaration.name === field.name && declaration.field.kind === 'file')) ?? [];
+          const assignments = effects.writes.flatMap(effect => {
+            if (!isUnknownRecord(effect) || (effect.kind !== 'insert' && effect.kind !== 'update') ||
+                effect.model !== owningModel?.name || !isUnknownRecord(effect.row) || typeof effect.row.id !== 'string') return [];
+            const recordId = effect.row.id;
+            return supplied.map(field => ({ model: owningModel!.name, recordId, field: field.name }));
+          });
+          effects = { ...effects, fileAssignments: assignments };
+        }
       } else if (kind === "scenario") {
         effects = await runScenarioSeam(loaded, opts, call, occurrenceIds);
       } else {
