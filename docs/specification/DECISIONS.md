@@ -3723,3 +3723,7 @@ The protected bridge now observes matched JSON-RPC tools/call results with isErr
 ## 2026-10-09 — install the workspace browser test producer locally released CI
 
 Accepted finite shared CI correction under the human local Packages assignment: install the lock-selected Playwright Chromium and Linux system dependencies on the workspace runner before its real package/integration suites. The separate browser runner cannot supply those binaries. Preserve all browser/security assertions, required engines and four independent automatic jobs. All three retained workflows pass actionlint and the diff whitespace check; actual new-head Linux execution remains due. Local continuation preserves the two unfinished emergency checkpoints and native preparation HOLD.
+
+## 2026-10-09 — build actual manual gate prerequisites before consumers
+
+Accepted finite shared gate correction: receipt plan2 emits the Values catalog before its assertion and builds the real catalog/compiler plus lock-selected Chromium for Cloudflare/workspace consumers on cold runners. Required producer failures keep dependent gates skipped and the receipt failed. Preserve exact receipt coverage, source/tool identity and all executed-test refusals; pass the required completion-engine flag through the strict Turbo environment. Existing32runner/receipt cases pass, including omitted/reordered/failed prerequisites, and direct ordering checks pass for all3affected profiles. Actual manual Linux execution remains due; no native preparation activation or product acceptance.
