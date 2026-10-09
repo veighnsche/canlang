@@ -41,6 +41,7 @@ import { buildModelTableFromCanonical, type ModelTable } from '../mutation/model
 import { generatedCrudExecute } from '../mutation/crud.js';
 import { createD1Storage, ensureSchema } from './d1.js';
 import { FenceConflictError, StorageConstraintError } from './port.js';
+import { StateError } from '../errors.js';
 import { createInvoker, createReadInvoker } from '../ports/transact.js';
 import { buildPolicyTable, type PolicyTable } from '../policy/grants.js';
 import {
@@ -341,6 +342,66 @@ function durableSuite(
   handles: () => Promise<{ store: StoragePort; secondHandle: () => StoragePort; reset: () => Promise<void> }>,
 ): void {
   describe(`T17a durable data plane (${name})`, () => {
+    it('retained-receipt-only recovers exact retained outcomes and refuses unseen, conflicting or revoked calls', async () => {
+      const { store, secondHandle, reset } = await handles();
+      await reset();
+      const plane = await setupDurablePlane(store, secondHandle);
+      const operation = `${GADGET}.create`;
+      const operationId = uuidv7(FIXED_NOW, 9091);
+      const inputs = { title: 'retained', code: 'D-retained' };
+      const first = await plane.mutate(operation, inputs, operationId);
+      const identity = makeIdentity({ membership: plane.alice.membership, email: plane.alice.user.email });
+      const loaded = loadArtifactDescriptors(durableSlice(), { by: 'members' });
+      const rejectedEnvelope = makeEnvelope(operation, uuidv7(FIXED_NOW, 9092), inputs);
+      const originalInvoker = createInvoker({ registry: loaded.registry, store, memberships: plane.memberships,
+        clock: { nowMs: () => FIXED_NOW } });
+      const rejected = await captureStateError(originalInvoker({ app: APP, source: 'test', identity,
+        envelope: rejectedEnvelope, execute: async () => { throw new StateError('rule_failed', 'Retained rejection.'); },
+      }));
+      const revision = await store.readRevision();
+      let now = FIXED_NOW, executions = 0, commits = 0;
+      const other = secondHandle();
+      const recovery = createInvoker({ registry: loaded.registry,
+        store: { ...other, commit: async batch => { commits += 1; return other.commit(batch); } },
+        memberships: plane.memberships, clock: { nowMs: () => now },
+      });
+      const args = { app: APP, source: 'test', identity, admissionMode: 'retained-receipt-only' as const,
+        envelope: makeEnvelope(operation, operationId, inputs),
+        execute: async (call: Parameters<ReturnType<typeof generatedCrudExecute>>[0]) => {
+          executions += 1; return generatedCrudExecute({ table: plane.table, store: other })(call);
+        },
+      };
+      for (const elapsed of [16 * 60 * 1000, 24 * 60 * 60 * 1000]) {
+        now = FIXED_NOW + elapsed;
+        const replayed = await recovery(args);
+        assert.equal(replayed.status, 'replayed');
+        assert.deepEqual(replayed.result, first.result);
+      }
+      for (const override of [
+        { envelope: { ...args.envelope, operation_id: uuidv7(now, 9093) } },
+        { envelope: { ...args.envelope, operation_id: uuidv7(now - 25 * 60 * 60 * 1000, 9094) } },
+        { app: 'foreign-app' },
+        { identity: makeIdentity({ team: identity.team, userId: 'foreign-user' }) },
+        { identity: makeIdentity({ actor: identity.actor, teamId: 'foreign-team' }) },
+        { envelope: makeEnvelope(`${GADGET}.update`, operationId, inputs) },
+      ]) {
+        assert.equal((await captureStateError(recovery({ ...args, ...override }))).code, 'not_found');
+      }
+      assert.equal((await captureStateError(recovery({ ...args,
+        envelope: { ...args.envelope, inputs: { ...inputs, title: 'changed' } },
+      }))).code, 'conflict');
+      const replayedRejection = await captureStateError(recovery({ ...args, envelope: rejectedEnvelope }));
+      assert.equal(replayedRejection.code, rejected.code);
+      assert.equal(replayedRejection.message, rejected.message);
+      await plane.memberships.removeMembership(plane.alice.membership.membership_id);
+      assert.equal((await captureStateError(recovery(args))).code, 'forbidden');
+      assert.equal(executions, 0);
+      assert.equal(commits, 0);
+      assert.equal(await store.readRevision(), revision);
+      assert.equal((await store.query({ model: asModel(GADGET), authority: 'owner' })).length, 1);
+      assert.equal((await store.historyFor(asModel(GADGET), (first.result as StoredRow).id)).length, 1);
+    });
+
     it('migrates end to end on the real substrate with cross-handle read-back', async () => {
       const { store, secondHandle, reset } = await handles();
       await reset();
