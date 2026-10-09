@@ -19,13 +19,14 @@ import {
   type ArtifactDescriptorSlice,
   type LoadDescriptorSetOptions,
 } from '../invocation/registry.js';
-import { buildModelTableFromCanonical, type ModelTable } from './models.js';
-import { generatedCrudExecute } from './crud.js';
+import { buildModelTable, buildModelTableFromCanonical, type ModelTable } from './models.js';
+import { generatedCrudExecute, type GeneratedCrudOwnerFrameFactory } from './crud.js';
+import { bindOwnerModelPolicies } from './model-policies.js';
 import { invoke, readGeneratedCrudAssociation } from '../invocation/invoke.js';
 import type { CommittedReceiptOutcome } from '../invocation/invoke.js';
 import type { Receipt } from '@canlang/contracts';
 import { FenceConflictError } from '../storage/port.js';
-import { runMutationWrites } from './pipeline.js';
+import { assertOwnerMutationHookContext, runMutationWrites, type OwnerMutationSession } from './pipeline.js';
 import { StateError } from '../errors.js';
 import { decodeValue, encodeValue } from '@canlang/values';
 import { buildContext } from '../invocation/context.js';
@@ -47,6 +48,7 @@ import {
   type SeededMember,
   type TestMembershipStore,
 } from '../../test/invocation/fixtures.js';
+import { field, modelDef } from '../../test/mutation/fixtures.js';
 
 const APP = 'acme-app';
 const GADGET = 'Shop.Gadget';
@@ -741,5 +743,182 @@ describe('T16a generated CRUD: canonical projection', () => {
       store: setup.store,
     });
     assert.deepEqual(denied.records, []);
+  });
+});
+
+describe('generated CRUD: checked owner policies and actual session frames', () => {
+  const bounds = { maxWork: 1000, maxRows: 100 };
+  const identity = { module: 'shop.mjs', ownerPackage: 'Shop', model: asModel(GADGET) };
+
+  it('enforces final invariants and entry locks across create/update/archive with one receipt per call', async () => {
+    const setup = await setupCrud();
+    const loaded = loadArtifactDescriptors(crudSlice(), { by: 'members' });
+    let active = false, opened = 0, closed = 0;
+    const policies = bindOwnerModelPolicies({ table: setup.table, descriptors: [{
+      abi: 'state.owner-model-policies@1', ...identity,
+      rules: [{ kind: 'lock', id: 'stock-lock', fields: ['stock'] },
+        { kind: 'invariant', id: 'nonnegative', dependencies: [] }], hooks: [],
+    }], bindings: [
+      { ...identity, id: 'stock-lock', kind: 'lock', evaluate: (_context, row) => {
+        assert.equal(active, true); return row.data.kind === 'used';
+      } },
+      { ...identity, id: 'nonnegative', kind: 'invariant', evaluate: ({ context }, row) => {
+        assert.equal(active, true); assert.ok(Object.isFrozen(context));
+        return typeof row.data.stock === 'string' && /^\d+$/.test(row.data.stock);
+      } },
+    ] });
+    const execute = generatedCrudExecute({ table: setup.table, store: setup.store,
+      ownerPolicies: policies, ownerBounds: bounds,
+      createOwnerFrame: async ({ call, session, context }) => {
+        assert.equal(context, session.views.context);
+        assert.deepEqual(context, call.context);
+        assert.ok(Object.isFrozen(context) && Object.isFrozen(context.actor));
+        opened += 1; active = true;
+        return { close: async () => { active = false; closed += 1; } };
+      } });
+    const args = { ...callArgs(setup, execute), registry: loaded.registry };
+    const failed = await captureStateError(invoke({ ...args,
+      envelope: makeEnvelope(`${GADGET}.create`, uuidv7(FIXED_NOW, ++crudSeq),
+        { ...baseGadgetInputs('OWNER-BAD'), stock: '-1' }) }));
+    assert.equal(failed.code, 'rule_failed');
+    assert.deepEqual(await snapshotRows(setup.store, GADGET), []);
+    assert.equal(active, false);
+    const id = uuidv7(FIXED_NOW, ++crudSeq);
+    const created = await invoke({ ...args,
+      envelope: makeEnvelope(`${GADGET}.create`, id, baseGadgetInputs('OWNER-OK')) });
+    assert.equal((created.result as StoredRow).data.stock, '0');
+    const changed = await invoke({ ...args, envelope: makeEnvelope(`${GADGET}.update`, uuidv7(FIXED_NOW, ++crudSeq),
+      { record: { id, version: '1' }, stock: '2', kind: 'used' }) });
+    assert.equal((changed.result as StoredRow).version, 2);
+    const locked = await captureStateError(invoke({ ...args,
+      envelope: makeEnvelope(`${GADGET}.update`, uuidv7(FIXED_NOW, ++crudSeq),
+        { record: { id, version: '2' }, stock: '3' }) }));
+    assert.equal(locked.code, 'rule_failed');
+    assert.equal((await setup.store.load(asModel(GADGET), asId(id)))!.data.stock, '2');
+    const archived = await invoke({ ...args,
+      envelope: makeEnvelope(`${GADGET}.delete`, uuidv7(FIXED_NOW, ++crudSeq), { record: { id, version: '2' } }) });
+    assert.equal((archived.result as StoredRow).archivedAt, FIXED_NOW);
+    assert.equal((archived.result as StoredRow).version, 3);
+    assert.equal(opened, 5); assert.equal(closed, opened); assert.equal(active, false);
+  });
+
+  it('returns the finalized target and association when a checked hook adds an earlier sorted secondary write', async () => {
+    const setup = await setupCrud();
+    const audit = asModel('Shop.Audit');
+    const table = buildModelTable([...setup.table.values(),
+      modelDef(audit, { fields: { name: field({ required: true }) }, deleteMode: 'remove' })]);
+    const loaded = loadArtifactDescriptors(crudSlice(), { by: 'members' });
+    let active = false, closed = 0;
+    const policies = bindOwnerModelPolicies({ table, descriptors: [{
+      abi: 'state.owner-model-policies@1', ...identity, rules: [],
+      hooks: [{ id: 'created', op: 'create', operation: asOperation(`${GADGET}.create`) }],
+    }], bindings: [{ ...identity, id: 'created', kind: 'hook', run: (candidate, context) => {
+      assert.equal(active, true); assertOwnerMutationHookContext(context);
+      assert.equal(context.input.title, 'gadget-HOOK');
+      context.stage({ op: 'create', model: audit, id: asId('audit-1'), data: { name: 'created' } });
+      return { ...candidate, title: 'hook-final', internal: 'server-secret' };
+    } }] });
+    const secretFields = ['internal'];
+    const execute = generatedCrudExecute({ table, store: setup.store,
+      ownerPolicies: policies, ownerBounds: bounds,
+      secretFields: new Map([[asModel(GADGET), secretFields]]),
+      createOwnerFrame: async () => { active = true; return { close: () => { active = false; closed += 1; } }; } });
+    const saved: Array<Receipt & { outcome: CommittedReceiptOutcome }> = [];
+    const id = uuidv7(FIXED_NOW, ++crudSeq);
+    const args = { ...callArgs(setup, execute), registry: loaded.registry,
+      envelope: makeEnvelope(`${GADGET}.create`, id, baseGadgetInputs('HOOK')),
+      observeCommittedReceipt: (receipt: Receipt & { outcome: CommittedReceiptOutcome }) => {
+        assert.equal(active, false); saved.push(receipt);
+      } };
+    const result = await invoke(args);
+    assert.equal((result.result as StoredRow).id, id);
+    assert.equal((result.result as StoredRow).data.title, 'hook-final');
+    assert.deepEqual(saved[0]!.outcome.generatedCrud, { kind: 'generated-crud/v1', model: GADGET,
+      record: { id, version: 1 }, secretFields: ['internal'] });
+    assert.deepEqual(saved[0]!.outcome.recordVersions.map(ref => [ref.model, ref.id, ref.version]),
+      [[audit, 'audit-1', 1], [GADGET, id, 1]]);
+    assert.equal((await setup.store.load(audit, asId('audit-1')))!.data.name, 'created');
+    assert.equal(await setup.store.readRevision(), 1);
+    secretFields.push('later');
+    const replay = await invoke(args);
+    assert.equal(replay.status, 'replayed'); assert.equal(closed, 1);
+    assert.deepEqual(replay.result, result.result);
+    assert.deepEqual(saved[1]!.outcome.generatedCrud?.secretFields, ['internal']);
+  });
+
+  it('closes the real frame after candidate when, budgets, and finalizer failure; cleanup failure prevents commit', async () => {
+    for (const failure of ['when', 'budget', 'cleanup'] as const) {
+      const when: QueryPredicate = { op: 'eq', field: 'stock', value: '99' };
+      const setup = await setupCrud(failure === 'when' ? when : undefined);
+      const loaded = loadArtifactDescriptors(crudSlice(), { by: 'members',
+        ...(failure === 'when' ? { when } : {}) });
+      const initial = await invoke({ ...callArgs(setup, generatedCrudExecute({ table: setup.table, store: setup.store })),
+        registry: loaded.registry, envelope: makeEnvelope(`${GADGET}.create`, uuidv7(FIXED_NOW, ++crudSeq),
+          baseGadgetInputs(`FRAME-${failure}`)) });
+      const before = initial.result as StoredRow;
+      const cleanupError = new Error('native frame cleanup failed');
+      let closed = 0;
+      const execute = generatedCrudExecute({ table: setup.table, store: setup.store,
+        ownerBounds: failure === 'budget' ? { maxWork: 1, maxRows: 1 } : bounds,
+        createOwnerFrame: async () => ({ close: () => { closed += 1; if (failure === 'cleanup') throw cleanupError; } }) });
+      await assert.rejects(invoke({ ...callArgs(setup, execute), registry: loaded.registry,
+        envelope: makeEnvelope(`${GADGET}.update`, uuidv7(FIXED_NOW, ++crudSeq),
+          { record: { id: before.id, version: '1' }, title: 'changed' }) }),
+      error => failure === 'cleanup' ? error === cleanupError : error instanceof StateError);
+      assert.equal(closed, 1);
+      assert.deepEqual(await setup.store.load(asModel(GADGET), before.id), before);
+    }
+  });
+
+  it('requires checked policies and explicit bounds, and refuses substitute sessions or cleanup accessors', async () => {
+    const setup = await setupCrud();
+    assert.throws(() => generatedCrudExecute({ table: setup.table, store: setup.store,
+      createOwnerFrame: async () => ({ close: () => {} }) }), /explicit mutation bounds/);
+    const loaded = loadArtifactDescriptors(crudSlice(), { by: 'members' });
+    let opened = 0;
+    const forged = generatedCrudExecute({ table: setup.table, store: setup.store, ownerBounds: bounds,
+      ownerPolicies: { beforeStage: async () => {}, finalize: async () => {}, hooks: new Map() },
+      createOwnerFrame: async () => { opened += 1; return { close: () => {} }; } });
+    const unverified = await captureStateError(invoke({ ...callArgs(setup, forged), registry: loaded.registry,
+      envelope: makeEnvelope(`${GADGET}.create`, uuidv7(FIXED_NOW, ++crudSeq), baseGadgetInputs('FORGED')) }));
+    assert.equal(unverified.code, 'validation'); assert.equal(opened, 0);
+    let getterReads = 0, closed = 0;
+    for (const accessor of [false, true]) {
+      const factory: GeneratedCrudOwnerFrameFactory = async () => accessor
+        ? Object.defineProperty({}, 'close', { get: () => { getterReads += 1; return () => {}; } }) as never
+        : { close: () => { closed += 1; }, session: {} } as never;
+      const execute = generatedCrudExecute({ table: setup.table, store: setup.store,
+        ownerBounds: bounds, createOwnerFrame: factory });
+      const invalid = await captureStateError(invoke({ ...callArgs(setup, execute), registry: loaded.registry,
+        envelope: makeEnvelope(`${GADGET}.create`, uuidv7(FIXED_NOW, ++crudSeq), baseGadgetInputs('FRAME-INVALID')) }));
+      assert.equal(invalid.code, 'validation');
+    }
+    assert.equal(getterReads, 0); assert.equal(closed, 1);
+    assert.deepEqual(await snapshotRows(setup.store, GADGET), []);
+  });
+
+  it('uses the same owner session for hard delete and rejects mixed target identities before opening a frame', async () => {
+    const setup = await setupCrud();
+    const loaded = loadArtifactDescriptors(crudSlice(), { by: 'members' });
+    let opened = 0, closed = 0;
+    const sessions: OwnerMutationSession[] = [];
+    const execute = generatedCrudExecute({ table: setup.table, store: setup.store, ownerBounds: bounds,
+      createOwnerFrame: async ({ session }) => { opened += 1; sessions.push(session);
+        return { close: () => { closed += 1; } }; } });
+    const args = { ...callArgs(setup, execute), registry: loaded.registry };
+    const id = uuidv7(FIXED_NOW, ++crudSeq);
+    await invoke({ ...args, envelope: makeEnvelope(`${KEEPER}.create`, id, { name: 'keeper' }) });
+    const removed = await invoke({ ...args,
+      envelope: makeEnvelope(`${KEEPER}.delete`, uuidv7(FIXED_NOW, ++crudSeq), { record: { id, version: '1' } }) });
+    assert.equal(removed.result, null);
+    assert.equal(await setup.store.load(asModel(KEEPER), asId(id)), null);
+    assert.equal(opened, 2); assert.equal(closed, 2);
+    assert.notEqual(sessions[0], sessions[1]);
+    await assert.rejects(sessions[1]!.read(asModel(KEEPER), asId(id)), /finalized/);
+    await assert.rejects(invoke({ ...args,
+      envelope: makeEnvelope(`${KEEPER}.create`, uuidv7(FIXED_NOW, ++crudSeq), { name: 'mixed' }),
+      execute: async call => execute({ ...call, context: { ...call.context, operation: asOperation(`${GADGET}.create`) } }),
+    }), /operation identities disagree/);
+    assert.equal(opened, 2);
   });
 });

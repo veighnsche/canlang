@@ -2,13 +2,18 @@ app TypedImagesProgress
 use std {WorkflowDefinition,WorkflowInput,ImageRequest}
 use std {ImagesV1 as Images} from=deployment.comfyui
 Given
- Job { label:text="Images", request:delivery(Images.submit)? }
+ Job { label:text="Images", revision:int=0, request:delivery(Images.submit)?, cancellation:delivery(Images.cancel)?, reconciliation:delivery(Images.reconcile)? }
  ProgressNotice { delivery:text }
- policy Job read=members fields=label,request.progress.state,request.progress.outputs,request.progress.sequence
+ policy Job read=members fields=label,revision,request.id,request.progress.state,request.progress.outputs,request.progress.sequence
+ policy Job read=owner fields=label,revision,request.id
 When
  ## Every original progress notification retains its real delivery identity.
  scenario progressed on=Images.submit.progressed
-  do create ProgressNotice {delivery=event.delivery_id} as notice
+  do
+   create ProgressNotice {delivery=event.delivery_id} as notice
+   for job in Job as row where row.request?.id==event.delivery_id and row.label=="Cleanup" limit=1
+    send Images.cancel {source=job.id,revision=job.revision} as cancellation
+    set job {cancellation}
  crud Job by=members fields=label
  ## The receiving member supplies a real finalized workflow artifact.
  scenario generate(job:Job,graph:file,validation:text,prompt:text,revision:int,accept:bool) by=members
@@ -16,8 +21,18 @@ When
    let workflow=WorkflowDefinition {graph,prompt=WorkflowInput {node="6",key="text"},negative=WorkflowInput {node="7",key="text"},width=WorkflowInput {node="5",key="width"},height=WorkflowInput {node="5",key="height"}}
    let value=ImageRequest {source=job.id,revision,workflow,validation,prompt,negative="",width=512,height=512,max_outputs=2,max_duration=30s}
    send Images.submit {value} as attempt
-   set job {request=attempt}
+   set job {request=attempt,revision}
    require accept
+ scenario stop(job:Job) by=members
+  do
+   require job.request!=null
+   send Images.cancel {source=job.id,revision=job.revision} as cancellation
+   set job {cancellation}
+ scenario reconcile(job:Job) by=members
+  do
+   require job.request!=null
+   send Images.reconcile {source=job.id,revision=job.revision} as reconciliation
+   set job {reconciliation}
 Then
  page / title="Image jobs"
   require members
