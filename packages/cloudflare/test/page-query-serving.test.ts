@@ -147,10 +147,10 @@ describe("authored operation forms through defining default Worker", () => {
     const nextId = attributes(afterHtml.match(/<input\b[^>]*name="operation_id"[^>]*>/)![0])["value"];
     expect(nextId).not.toBe(flat["operation_id"]);
 
-    // Drive the emitted bootstrap in installed Chrome over the real Worker
+    // Drive the emitted bootstrap in installed Chromium over the real Worker
     // HTTP origin. Direct submission above remains a separate admitted path.
     const origin = (await worker.ready).origin;
-    const browser = await chromium.launch({ channel: "chrome", headless: true });
+    const browser = await chromium.launch({ headless: true });
     try {
       const context = await browser.newContext();
       try {
@@ -437,11 +437,11 @@ describe("authored readonly state page through native Worker polling", () => {
     };
     const origin = (await worker.ready).origin;
     // Attach without Playwright's main-session focus/active emulation. The
-    // public noDefaults option applies only to this real default Chrome context.
+    // public noDefaults option applies only to this real default Chromium context.
     const profile = join(dir, "chrome-profile");
-    const chrome = spawn("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", [
+    const chrome = spawn(chromium.executablePath(), [
       `--user-data-dir=${profile}`, "--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1",
-      "--no-first-run", "--no-default-browser-check", "about:blank",
+      "--headless=new", "--no-sandbox", "--no-first-run", "--no-default-browser-check", "about:blank",
     ], { stdio: "ignore" });
     let launchError: Error | undefined;
     const chromeStopped = new Promise<void>(resolve => {
@@ -624,7 +624,7 @@ describe("configured authored protected forms through native Worker", () => {
     const target = creation.records[0]!;
     expect(target.version).toBe(1);
     const origin = (await worker.ready).origin;
-    const browser = await chromium.launch({ channel: "chrome", headless: true });
+    const browser = await chromium.launch({ headless: true });
     try {
       const context = await browser.newContext();
       try {
