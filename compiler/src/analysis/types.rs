@@ -1269,10 +1269,16 @@ impl<'a> Typer<'a> {
                 if let Some(binding) = binding.as_ref()
                     && let Some(narrowed) = self.narrowed_binding(cx, binding)
                 {
+                    self.types
+                        .node_types
+                        .insert(NodeKey::of(key_node), narrowed.clone());
                     return (narrowed, tight_span(cx.text, key_node));
                 }
                 let ty =
                     binding.map_or(ResolvedType::Error, |b| self.type_binding(cx, key_node, &b));
+                self.types
+                    .node_types
+                    .insert(NodeKey::of(key_node), ty.clone());
                 (ty, tight_span(cx.text, key_node))
             }
         }
