@@ -832,6 +832,182 @@ test('declared private cohorts freeze sibling handlers and retain checked events
     assert.equal(reopenedHttp.status, 200);
     assert.equal((await reopenedHttp.json() as { status: string }).status, 'replayed');
 
+    // Two simultaneously retained sources rotate on the real installed tick.
+    // An earlier held claim advances navigation, never terminal coverage, and
+    // the exact saved owner position selects the later intent after restart.
+    await ownerMf!.dispose(); ownerMf = undefined;
+    const fairnessInstallation = { bundle: deployment, owner: ownerB.team_id,
+      stateDatabase: 'private-owner-b-fairness' };
+    owners = await openOwners(fairnessInstallation); boundary = await ownerBoundary();
+    trustedB = await boundary.forTrustedScope(scopeB, Date.now());
+    const installedMutation = async (operation: string, inputs: Record<string, unknown>) => {
+      const response = await ownerMf!.dispatchFetch(`https://installed.invalid/api/operations/${APP}.${operation}`, {
+        method: 'POST', headers: { 'content-type': 'application/json', cookie: liveCookie, 'x-csrf-token': liveCsrf },
+        body: JSON.stringify({ operation_id: uuidv7(Date.now(), ++sequence), inputs }),
+      });
+      assert.equal(response.status, 200, await response.clone().text());
+      const result = await response.json() as { status: string; records: Array<{ id: string; version: number }> };
+      assert.equal(result.status, 'committed');
+      return result.records;
+    };
+    const fairParents: Array<{ id: string; version: number }> = [];
+    const fairMembers: Array<Array<{ id: string; version: number }>> = [];
+    for (const cohort of ['earlier', 'later']) {
+      const parent = (await installedMutation('Container.create', { name: `${cohort} live cohort` }))[0]!;
+      fairParents.push(parent);
+      const members: Array<{ id: string; version: number }> = [];
+      for (let child = 0; child < 3; child += 1) {
+        members.push((await installedMutation('Entry.create', {
+          label: `${cohort} before ${child}`, parent: { id: parent.id },
+        }))[0]!);
+      }
+      members.sort((left, right) => left.id.localeCompare(right.id)); fairMembers.push(members);
+    }
+    const fairSources: Array<CanonicalDueScheduleOpts['due']> = [];
+    for (let cohort = 0; cohort < 2; cohort += 1) {
+      const at = Date.now(); const occurrenceId = uuidv7(at, ++sequence);
+      const due = { key: occurrenceId, scope: scopeB, occurrenceId, event: `${APP}.Scoped`, at };
+      await registry.run('work.schedule.put', { ...due,
+        payload: { container: { id: fairParents[cohort]!.id, version: String(fairParents[cohort]!.version) },
+          marker: `${cohort === 0 ? 'earlier' : 'later'} frozen marker` } },
+      { actor: ownerUser.user_id, operation: 'work.schedule.put', operationId: uuidv7(at, ++sequence), now: at },
+      { store: trustedB.store });
+      fairSources.push(due);
+      if (cohort === 0) await scheduledTurn();
+    }
+    // Existing trusted source intake can retain larger finite transport bounds.
+    // The installed consumer must preserve them while enforcing its own budget.
+    assert.equal(outcomeStatus(await invokeDueSourceRoutingCanonical({ artifact, asm, app: APP,
+      handler: `${APP}.scoped`, due: fairSources[1]!, store: trustedB.store, identities: owners.identities,
+      now: Date.now, cohortBounds: { pageLimit: 200, chunkSize: 200 } })), 'completed');
+    const fairIntents = await trustedB.store.query({ model: T34F7_FANOUT_INTENT_MODEL, authority: 'owner',
+      order: [{ field: 'id', direction: 'asc' }], limit: 3 });
+    assert.equal(fairIntents.length, 2);
+    const fairSourceRows = await Promise.all(fairSources.map(source =>
+      trustedB.store.load(WORK_OCCURRENCE_MODEL, asId(source.occurrenceId))));
+    assert.ok(fairSourceRows.every(row => row !== null && readOccurrenceRow(row).status === 'completed'));
+    for (const [index, row] of fairIntents.entries()) {
+      const intent = producers.tables.readFanoutIntentRow(row);
+      assert.equal(intent.sourceOccurrence, fairSources[index]!.occurrenceId);
+      assert.deepEqual(intent.members, fairMembers[index]!.map(member => member.id));
+    }
+    const heldMember = fairMembers[0]![1]!;
+    const heldKey = asId(producers.tables.fanoutChildRowId(fairSources[0]!.occurrenceId, `${APP}.scoped`, heldMember.id));
+    const heldPending = await trustedB.store.load(T34F7_FANOUT_CHILD_MODEL, heldKey); assert.ok(heldPending);
+    const fairClaim = await claimFanoutChild({ store: trustedB.store,
+      child: { parentOccurrence: fairSources[0]!.occurrenceId, handler: `${APP}.scoped`, recordId: heldMember.id },
+      snapshotVersion: heldPending.version, guard: { predicate: null }, frozenInputs: null,
+      readCurrentSnapshot: () => trustedB.store.load(ENTRY, asId(heldMember.id)), evaluateGuard: () => true,
+      fence: { owner: ownerB.team_id, revalidateAuthority: async () =>
+        (await owners.identities.findTeamById(ownerB.team_id)) !== null },
+      policy: { maxAttempts: 3, horizonMs: 60_000 },
+      meta: { actor: `schedule:${APP}.Scoped`, nowMs: Date.now() }, producers });
+    assert.equal(fairClaim.status, 'claimed');
+    const heldRunning = await trustedB.store.load(T34F7_FANOUT_CHILD_MODEL, heldKey); assert.ok(heldRunning);
+    const heldDomain = await trustedB.store.load(ENTRY, asId(heldMember.id)); assert.ok(heldDomain);
+    const heldHistory = await trustedB.store.historyFor(ENTRY, heldDomain.id);
+    // Current parent and child values are reloaded; the admitted source payload
+    // and membership stay immutable. A deleted frozen member remains accounted.
+    await installedMutation('Container.update', {
+      record: { id: fairParents[1]!.id, version: String(fairParents[1]!.version) }, name: 'current later parent',
+    });
+    await installedMutation('Entry.update', {
+      record: { id: fairMembers[1]![1]!.id, version: String(fairMembers[1]![1]!.version) }, label: 'current later child',
+    });
+    await installedMutation('Entry.delete', {
+      record: { id: fairMembers[0]![2]!.id, version: String(fairMembers[0]![2]!.version) },
+    });
+    const deletedMember = await trustedB.store.load(ENTRY, asId(fairMembers[0]![2]!.id)); assert.ok(deletedMember);
+    assert.notEqual(deletedMember.archivedAt, null);
+    const deletedHistory = await trustedB.store.historyFor(ENTRY, deletedMember.id);
+    await scheduledTurn(); // Later first child.
+    await scheduledTurn(); // Owner exhaustion wraps only its scan.
+    await scheduledTurn(); // Earlier held child; no attempt or domain effect.
+    assert.deepEqual(await trustedB.store.load(T34F7_FANOUT_CHILD_MODEL, heldKey), heldRunning);
+    assert.deepEqual(await trustedB.store.load(ENTRY, heldDomain.id), heldDomain);
+    assert.deepEqual(await trustedB.store.historyFor(ENTRY, heldDomain.id), heldHistory);
+    const fairScan = await trustedB.store.load(asModel(FANOUT_OWNER_SCAN_MODEL), liveScanId); assert.ok(fairScan);
+    assert.equal(readFanoutOwnerScanRow(fairScan, ownerB.team_id).lastVisitedIntentId, fairIntents[0]!.id);
+    const earlierNavigationId = asId(fanoutNavigationRowId(ownerB.team_id, fairIntents[0]!.id));
+    const earlierNavigation = await trustedB.store.load(asModel(FANOUT_NAVIGATION_MODEL), earlierNavigationId);
+    assert.ok(earlierNavigation);
+    assert.equal(readFanoutNavigationRow(earlierNavigation, { owner: ownerB.team_id, intentRow: fairIntents[0]! })
+      .lastVisitedChildId, heldKey);
+    const laterPending = await trustedB.store.load(ENTRY, asId(fairMembers[1]![1]!.id)); assert.ok(laterPending);
+    assert.equal(laterPending.data.count, '0');
+    await ownerMf!.dispose(); ownerMf = undefined;
+    owners = await openOwners(fairnessInstallation); boundary = await ownerBoundary();
+    trustedA = await boundary.forTrustedScope(scopeA, Date.now());
+    trustedB = await boundary.forTrustedScope(scopeB, Date.now());
+    assert.deepEqual(await trustedB.store.load(asModel(FANOUT_OWNER_SCAN_MODEL), liveScanId), fairScan);
+    assert.deepEqual(await trustedB.store.load(asModel(FANOUT_NAVIGATION_MODEL), earlierNavigationId), earlierNavigation);
+    assert.deepEqual(await trustedB.store.query({ model: T34F7_FANOUT_INTENT_MODEL, authority: 'owner',
+      order: [{ field: 'id', direction: 'asc' }], limit: 3 }), fairIntents);
+    const fairWorker = await ownerMf!.getWorker();
+    const fairTick = async () => assert.equal((await fairWorker.scheduled({ scheduledTime: new Date(), cron: '* * * * *' })).outcome, 'ok');
+    await fairTick(); // Saved earlier position chooses later second child.
+    const laterAdvanced = await trustedB.store.load(ENTRY, laterPending.id); assert.ok(laterAdvanced);
+    assert.equal(laterAdvanced.version, laterPending.version + 1);
+    assert.equal(laterAdvanced.data.count, '1'); assert.equal(laterAdvanced.data.label, 'later frozen marker');
+    assert.deepEqual(await trustedB.store.load(T34F7_FANOUT_CHILD_MODEL, heldKey), heldRunning);
+    await fairTick(); await fairTick(); // Wrap owner; pin earlier deleted member.
+    let queryCapacity = 0; let childPages = 0;
+    const measuredTick = await createBoundCohortTick({ artifact, asm, identities: owners.identities, scope: scopeB,
+      now: Date.now, ownerStorage: { ...boundary, forTrustedScope: async (scope, time) => {
+        const selected = await boundary.forTrustedScope(scope, time);
+        return { ...selected, store: { ...selected.store, query: async query => {
+          if (query.model === T34F7_FANOUT_CHILD_MODEL) {
+            assert.ok(query.limit !== undefined && query.limit <= 100);
+            queryCapacity += query.limit; childPages += 1;
+          }
+          return selected.store.query(query);
+        } } };
+      } } });
+    await measuredTick.tick(); // Later third child, retaining original 200 bounds.
+    assert.equal(childPages, 2); assert.equal(queryCapacity, 200);
+    assert.deepEqual((await createCanonicalDueCohortBody({ artifact, asm, app: APP,
+      handler: `${APP}.scoped`, due: fairSources[1]!, store: trustedB.store,
+      identities: owners.identities, now: Date.now })).bounds, { pageLimit: 200, chunkSize: 200 });
+    // Release uses the existing checked, finite claim-age policy. It changes no
+    // attempts or business truth; only later installed turns may execute it.
+    const releasedFairClaim = await releaseStaleFanoutClaims({ store: trustedB.store,
+      fanoutId: fairIntents[0]!.id, cursor: null, limit: 3, nowMs: Date.now(), maxClaimAgeMs: 0,
+      meta: { actor: `schedule:${APP}.Scoped`, nowMs: Date.now() }, producers });
+    assert.deepEqual(releasedFairClaim.released, [heldKey]);
+    assert.equal(producers.tables.readFanoutChildRow((await trustedB.store.load(T34F7_FANOUT_CHILD_MODEL, heldKey))!).attempts, 0);
+    for (let turn = 0; turn < 12; turn += 1) await fairTick();
+    const fairChildren = await trustedB.store.query({ model: T34F7_FANOUT_CHILD_MODEL, authority: 'owner',
+      order: [{ field: 'id', direction: 'asc' }], limit: 7 });
+    assert.equal(fairChildren.length, 6);
+    const deletedChild = fairChildren.find(row => producers.tables.readFanoutChildRow(row).recordId === deletedMember.id)!;
+    assert.equal(producers.tables.readFanoutChildRow(deletedChild).causeReason, 'deleted');
+    assert.ok(fairChildren.filter(row => row.id !== deletedChild.id).every(row => {
+      const child = producers.tables.readFanoutChildRow(row); return child.state === 'completed' && child.attempts === 1;
+    }));
+    const fairRows = await trustedB.store.query({ model: ENTRY, authority: 'owner', order: [{ field: 'id', direction: 'asc' }], limit: 7 });
+    const fairHistories = await Promise.all(fairMembers.flat().map(member => trustedB.store.historyFor(ENTRY, asId(member.id))));
+    for (const [index, member] of fairMembers.flat().entries()) {
+      const effects = fairHistories[index]!.filter(entry => entry.operation === `${APP}.scoped`);
+      assert.equal(effects.length, member.id === deletedMember.id ? 0 : 1);
+    }
+    assert.deepEqual(await trustedB.store.load(ENTRY, deletedMember.id), deletedMember);
+    assert.deepEqual(await trustedB.store.historyFor(ENTRY, deletedMember.id), deletedHistory);
+    const fairCheckpoints = await Promise.all(fairIntents.map(row => trustedB.store.load(T34F7_FANOUT_CHECKPOINT_MODEL, row.id)));
+    for (const [index, checkpoint] of fairCheckpoints.entries()) {
+      assert.ok(checkpoint); const coverage = producers.tables.readFanoutCheckpointRow(checkpoint);
+      assert.equal(coverage.cursor, null); assert.deepEqual(coverage.completed, fairMembers[index]!.map(member => member.id));
+    }
+    for (let turn = 0; turn < 8; turn += 1) await fairTick();
+    assert.deepEqual(await trustedB.store.query({ model: ENTRY, authority: 'owner', order: [{ field: 'id', direction: 'asc' }], limit: 7 }), fairRows);
+    assert.deepEqual(await trustedB.store.query({ model: T34F7_FANOUT_CHILD_MODEL, authority: 'owner', order: [{ field: 'id', direction: 'asc' }], limit: 7 }), fairChildren);
+    assert.deepEqual(await Promise.all(fairMembers.flat().map(member => trustedB.store.historyFor(ENTRY, asId(member.id)))), fairHistories);
+    assert.deepEqual(await Promise.all(fairIntents.map(row => trustedB.store.load(T34F7_FANOUT_CHECKPOINT_MODEL, row.id))), fairCheckpoints);
+    assert.deepEqual(await Promise.all(fairSources.map(source =>
+      trustedB.store.load(WORK_OCCURRENCE_MODEL, asId(source.occurrenceId)))), fairSourceRows);
+    assert.equal(await trustedA.store.load(ENTRY, asId(heldMember.id)), null);
+    assert.equal(fallbackCalls, 0);
+    t.diagnostic('Installed two-live-intent rotation: held claim, native restart, fixed query budget, deleted member, release and exact replay passed.');
+
     // Original T34 boundaries through the actual installed scheduler. Each
     // database holds one intent, avoiding repeated visits to earlier completed
     // cohorts. Identity, generated modules and physical owner routing are reused.
