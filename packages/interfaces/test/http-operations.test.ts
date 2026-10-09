@@ -12,7 +12,8 @@ import {
   clearFormBindings,
   registerFormBinding,
 } from '../src/http/formErrors.js';
-import { FORM_REFUSAL_HEADER, handleOperationRequest } from '../src/http/operations.js';
+import { FORM_REFUSAL_HEADER, catalogFromArtifactOperations, handleOperationRequest } from '../src/http/operations.js';
+import { ARTIFACT_VERSION } from '@canlang/contracts';
 import {
   parseCollectionQuery,
   parseFormBody,
@@ -295,6 +296,80 @@ test('form-encoded body coerces JSON values and plain strings; _csrf field works
     operation_id,
     inputs: { qty: 3, label: 'plain' },
   });
+});
+
+test('native delete controls retain exact ref strings and refuse ambiguous or undeclared inputs', async () => {
+  const operation = 'Store.Entry.delete';
+  const t = await createTestDeps({ mutations: { [operation]: envelope => ({ result: {
+    status: 'committed', operation_id: envelope.operation_id, result: envelope.inputs,
+  } }) } });
+  const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: [{
+    name: operation, kind: 'delete', description: '', inputs: { fields: [{ name: 'record',
+      field: { kind: 'ref', model: 'Store.Entry', requireVersion: true }, required: true }] },
+  }] });
+  const csrf = await deriveCsrfToken(t.identity.sessionToken);
+  const params = new URLSearchParams({ operation, operation_id: freshOperationId(), _csrf: csrf,
+    'inputs[record][id]': '123', 'inputs[record][version]': '9007199254740993' });
+  const submit = (body: URLSearchParams) => handleOperationRequest({ ...t.deps, catalog }, opRequest({
+    cookie: t.identity.cookie, contentType: 'application/x-www-form-urlencoded', body: body.toString(),
+  }), operation);
+  assert.equal((await submit(params)).status, 200);
+  assert.deepEqual(t.invoker.mutations[0]?.envelope.inputs, { record: { id: '123', version: '9007199254740993' } });
+  for (const [name, value] of [
+    ['inputs[record][id]', 'other'], ['operation_id', freshOperationId()], ['_csrf', csrf],
+    ['inputs', '{}'], ['inputs[mode]', 'archive'], ['mode', 'archive'], ['inputs[unknown]', 'x'],
+    ['inputs[record][extra]', 'x'], ['inputs[record][version]', '07'],
+  ]) {
+    const invalid = new URLSearchParams(params); invalid.append(name!, value!);
+    assert.equal((await submit(invalid)).status, 400, name!);
+  }
+  for (const missing of ['inputs[record][id]', 'inputs[record][version]']) {
+    const invalid = new URLSearchParams(params); invalid.delete(missing);
+    assert.equal((await submit(invalid)).status, 400, missing);
+  }
+  const badCsrf = new URLSearchParams(params); badCsrf.set('_csrf', 'bad');
+  assert.equal((await submit(badCsrf)).status, 403);
+  const badVersion = new URLSearchParams(params); badVersion.set('inputs[record][version]', 'not-int');
+  assert.equal((await submit(badVersion)).status, 400);
+  assert.equal(t.invoker.mutations.length, 1, 'all refusals precede canonical execution');
+});
+
+test('native create, update and scenario controls project by declarations before canonical validation', async () => {
+  for (const kind of ['create', 'update', 'scenario'] as const) {
+    const operation = kind === 'scenario' ? 'Store.submit' : `Store.Entry.${kind}`;
+    const t = await createTestDeps({ mutations: { [operation]: envelope => ({ result: {
+      status: 'committed', operation_id: envelope.operation_id, result: envelope.inputs,
+    } }) } });
+    const fields = [
+      ...(kind === 'update' ? [{ name: 'record', field: { kind: 'ref' as const, model: 'Store.Entry', requireVersion: true }, required: true }] : []),
+      { name: 'title', field: { kind: 'string' as const }, required: true },
+      { name: 'quantity', field: { kind: 'integer' as const }, required: true },
+      { name: 'enabled', field: { kind: 'boolean' as const }, required: true },
+      { name: 'tags', field: { kind: 'string' as const }, required: true, array: { required: true } },
+    ];
+    const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: [{ name: operation, kind, description: '', inputs: { fields } }] });
+    const root = (name: string) => kind === 'update' ? `inputs[changes][${name}]` : `inputs[${name}]`;
+    const params = new URLSearchParams({ operation, operation_id: freshOperationId(), _csrf: await deriveCsrfToken(t.identity.sessionToken),
+      [root('title')]: '123', [root('quantity')]: '9007199254740993', [root('enabled')]: 'false', [root('tags')]: '["one"]',
+      ...(kind === 'update' ? { 'inputs[record][id]': 'true', 'inputs[record][version]': '7' } : {}),
+    });
+    const submit = (body: URLSearchParams) => handleOperationRequest({ ...t.deps, catalog }, opRequest({
+      cookie: t.identity.cookie, contentType: 'application/x-www-form-urlencoded', body: body.toString(),
+    }), operation);
+    assert.equal((await submit(params)).status, 200, kind);
+    assert.deepEqual(t.invoker.mutations[0]?.envelope.inputs, { title: '123', quantity: '9007199254740993', enabled: false, tags: ['one'],
+      ...(kind === 'update' ? { record: { id: 'true', version: '7' } } : {}),
+    });
+    for (const [name, value] of [[root('tags'), '{}'], [root('quantity'), 'not-int'], [root('enabled'), 'maybe']]) {
+      const invalid = new URLSearchParams(params); invalid.set(name!, value!);
+      assert.equal((await submit(invalid)).status, 400, `${kind}:${name}`);
+    }
+    if (kind === 'update') {
+      const wrongMode = new URLSearchParams(params); wrongMode.set('inputs[title]', 'wrong-root');
+      assert.equal((await submit(wrongMode)).status, 400);
+    }
+    assert.equal(t.invoker.mutations.length, 1);
+  }
 });
 
 test('oversize body is a 429 quota breach', async () => {
