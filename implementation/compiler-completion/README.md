@@ -93,6 +93,16 @@ checkpoint establishes no separate acceptance. State/D1 persistence, full
 ExpenseFlow/application serving, unsupported order/panels and the wider nine
 references remain open; canonical completion stays **58/67**.
 
+The wider codegen run exposed five stale public-profile assertions (**112/117**).
+Reconcile the text `values` payload, source/row form occurrence identities,
+released duration/user input kinds and surgical unsupported-bytes refusal.
+The golden catalog now uses Values' actual optional-locale message signature;
+its localized BDD observation already has a checked binding and lowers normally.
+The corrected **116/117** run and final affected **1/1** fix qualify all 117 cases;
+strict all-target Clippy passes. Testkit still owns trusted formatting context
+and text/locale observation transport; no BDD execution or broader completion
+follows from this structural golden correction.
+
 Current remaining prerequisites are recorded here without reopening accepted
 compiler leaves:
 
@@ -102,7 +112,7 @@ compiler leaves:
 | S9-Q01 | Additional human-text capability sinks and canonical outbound text/locale/release freezing: capability, Contracts, State and Cloudflare owners. Local descriptor alias provenance is implemented; canonical inline-enum UI presentation requires the UI message consumer to recognize `enum(a,b)` without dropping cases. |
 | SEM-R08 | Admitted unknown-nominal callable/facade contract and authority-derived scalar expectation: Values/catalog and defining runtime owners. Existing E6007 refusal remains. |
 | S9-Q02 | Additional default/result intake and observation contracts, private/CRUD/D1 transaction profiles: Contracts, State and Cloudflare owners. Unsupported nested/nonempty/element-nullable enum profiles remain explicit. |
-| S9-Q07 | Specific BDD consumer-policy consultation remains held; human/policy owner must resolve it. Actual result/current-input/live-read transport belongs to Testkit/canonical invocation owners. Imported helpers are already linked. |
+| S9-Q07 | Specific BDD consumer-policy consultation remains held; human/policy owner must resolve it. Actual result/current-input/live-read and localized observation transport, including trusted selected-app formatting/team timezone context, belong to Testkit/canonical invocation owners. Imported helpers and localized selected-call production are already linked. |
 | S9-Q08, OR-06, OUT-R05 | Page admission/current-row disclosure/browser serving, migrations/durable ingestion, installed applications and real GUI/map navigation: Cloudflare, Interfaces, UI, State migration/deployment, application/release and editor/GUI owners. Native map production is already supplied. |
 
 The user has authorized finishing the remaining compiler tasks. Use the [recorded work/review settings](../../docs/research/compiler-library-audit-20261006/resumption/model-allocation.md); overlapping references share work and completed receipts are reused at matching scope. Current completion joins append to the canonical coverage ledger; historical source pins remain unchanged.
