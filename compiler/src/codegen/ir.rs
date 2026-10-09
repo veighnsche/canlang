@@ -8604,9 +8604,11 @@ impl<'a> Cx<'a> {
             return None;
         }
         let admitted: &[&str] = if word == "table" {
-            &["parent", "empty", "limit", "cursor", "columns", "order"]
+            &[
+                "parent", "empty", "limit", "cursor", "columns", "order", "display",
+            ]
         } else {
-            &["parent", "empty", "limit", "cursor", "order"]
+            &["parent", "empty", "limit", "cursor", "order", "display"]
         };
         self.check_ui_attributes(node, word, admitted);
         if kids(node)
@@ -8820,7 +8822,10 @@ impl<'a> Cx<'a> {
             .filter(|n| is_ui_node(n.kind))
             .copied()
             .collect();
-        if word == "table" && !child_nodes.is_empty() {
+        let split = props.iter().any(|(name, value)| {
+            name == "display" && matches!(&value.expr, IrExpr::Text(display) if display == "split")
+        });
+        if word == "table" && !split && !child_nodes.is_empty() {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 "cannot lower table: authored row children have no owning renderRow profile"
@@ -8867,18 +8872,20 @@ impl<'a> Cx<'a> {
                 .row_rewrite
                 .insert(row_name.clone(), row_name.clone());
         }
-        let children = child_nodes
+        let children: Vec<IrUi> = child_nodes
             .iter()
             .filter(|n| !is_gate_leaf(self.db, n))
             .filter_map(|n| self.decode_ui(&unowned, n, row_ctx.clone()))
             .collect();
         let gate = self.decode_gate(scope, node);
+        let row_scope = (word == "list" || (split && !children.is_empty()))
+            .then_some((row_name, "rowView".to_string()));
         Some(IrUi {
             view: None,
             factory: word.to_string(),
             props,
             children,
-            row_scope: (word == "list").then_some((row_name, "rowView".to_string())),
+            row_scope,
             gate,
             span: node.span,
         })

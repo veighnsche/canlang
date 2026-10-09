@@ -44,10 +44,15 @@ const card = Object.freeze({id:uuidv7(FIXED_NOW, 1), version:'1', fields:Object.
 const detail = Object.freeze({id:uuidv7(FIXED_NOW, 2), version:'1', fields:Object.freeze({label:'Nested <Detail>'})});
 const identity = makeIdentity({actor:null, team:null, membership:null});
 const formBindings = await createSourceFormBindings(new Uint8Array(32).fill(93), 'view-reuse-fixture');
-async function render(preferredLocale, hasDetails=true) {
+const columns = Object.entries(generated.appDefinition.models['ViewReuse.Card'].fields)
+  .map(([field, declaration]) => ({field, label:field, type:declaration.type}));
+const attributes = tag => Object.fromEntries([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map(match => [match[1], match[2]]));
+const decodeAttribute = value => value.replaceAll('&quot;', '"').replaceAll('&#39;', "'")
+  .replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');
+async function render(preferredLocale, {url='https://example.test/views', hasDetails=true, available=true, selected=false}={}) {
   const queries = [];
   const context = buildPresentationContext({
-    request:new Request('https://example.test/views', {headers:{'Accept-Language':preferredLocale}}),
+    request:new Request(url, {headers:{'Accept-Language':preferredLocale}}),
     pathname:'/views', isPartial:true, appDefaultLocale:'es', csrfToken:'', principal:identity,
     catalog, formBindings, appId:'ViewReuse', sessionToken:'view-reuse-session', clock:{nowMs:()=>FIXED_NOW},
     query:async (invocation, model, args) => {
@@ -55,7 +60,7 @@ async function render(preferredLocale, hasDetails=true) {
       queries.push({model, args});
       if (model === 'ViewReuse.Card') {
         assert.equal(args.parent, undefined);
-        return {rows:[card], columns:[]};
+        return {rows:available?[card]:[], columns};
       }
       assert.equal(model, 'ViewReuse.Detail', 'no extra model or hidden-field refetch');
       assert.equal(args.parent.id, card.id, 'nested query uses the supplied outer row identity');
@@ -64,10 +69,16 @@ async function render(preferredLocale, hasDetails=true) {
   });
   const bindings = await page.admit(context);
   const html = await page.render(context, bindings);
+  if (!selected) {
+    assert.deepEqual(queries.map(item => item.model), ['ViewReuse.Card'], 'absent/stale/revoked selection never queries details');
+    assert.ok(!html.includes('<form') && !html.includes('role="tablist"'), 'unselected rows never render view controls');
+    assert.ok(!html.includes('Nested &lt;Detail&gt;'));
+    return {context, queries, html};
+  }
   assert.deepEqual(queries.map(item => item.model), ['ViewReuse.Card', 'ViewReuse.Detail', 'ViewReuse.Detail']);
   const oneUse=['Outer &lt;Card&gt;', 'Outer &lt;Card&gt;',
     ...(hasDetails?['Nested &lt;Detail&gt;']:[]),'Outer &lt;Card&gt;', 'Outer &lt;Card&gt;'];
-  assert.deepEqual(html.match(/Outer &lt;Card&gt;|Nested &lt;Detail&gt;/g), [...oneUse,...oneUse],
+  assert.deepEqual(html.replace(/<[^>]*>/g, '').match(/Outer &lt;Card&gt;|Nested &lt;Detail&gt;/g), ['Outer &lt;Card&gt;',...oneUse,...oneUse],
     'each expansion shadows the nested row and restores its own outer row afterward');
   assert.ok(!html.includes('Outer <Card>') && !html.includes('Nested <Detail>'), 'projection text is escaped');
   const statuses=[...html.matchAll(/<span class="([^"]*)" aria-label="([^"]*)">/g)]
@@ -78,7 +89,6 @@ async function render(preferredLocale, hasDetails=true) {
     assert.ok(status[1].split(' ').includes('status-sm'));
     assert.ok(status[2]);
   }
-  const attributes = tag => Object.fromEntries([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map(match => [match[1], match[2]]));
   const radios = [...html.matchAll(/<input\b[^>]*\btype="radio"[^>]*>/g)].map(match => attributes(match[0]));
   const panels = [...html.matchAll(/<div\b[^>]*\brole="tabpanel"[^>]*>/g)].map(match => attributes(match[0]));
   assert.equal(radios.length, 4);
@@ -112,8 +122,6 @@ async function render(preferredLocale, hasDetails=true) {
     return note[0].id;
   });
   assert.equal(new Set(inputIds).size, 2, 'same-operation shows have distinct form controls');
-  const decodeAttribute = value => value.replaceAll('&quot;', '"').replaceAll('&#39;', "'")
-    .replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');
   const boundIdentities = {};
   for (const [operation, expectedCount, caption] of [
     ['ViewReuse.bind_card', 2, 'Bind card'],
@@ -144,22 +152,36 @@ async function render(preferredLocale, hasDetails=true) {
   }
   return {context, radios, panels, queries, html, inputIds, boundIdentities};
 }
-const source = await render('es');
+const unselected = await render('es');
+assert.equal(unselected.context.collectionSelections.size, 0);
+const selectionUrls = [...unselected.html.matchAll(/<a\b[^>]*>/g)].map(match => attributes(match[0]).href)
+  .filter(Boolean).map(href => new URL(decodeAttribute(href), 'https://example.test/views'));
+const selectedUrl = selectionUrls.find(url => [...url.searchParams].some(([key,value]) => key.startsWith('can-row:') && value===card.id));
+assert.ok(selectedUrl, 'actual native split table emits the row selection URL');
+assert.equal(selectedUrl.pathname, '/views');
+const source = await render('es', {url:selectedUrl.href, selected:true});
+assert.deepEqual([...source.context.collectionSelections.values()], [card.id], 'actual Interfaces parses the native selection link');
 assert.equal(ui.resolveMessage(page.title, {preferredLocales:source.context.preferredLocales,
   appDefaultLocale:source.context.appDefaultLocale}).locale, 'fr', 'unavailable viewer locale falls back to checked source');
-const dutch = await render('nl');
+const dutch = await render('nl', {url:selectedUrl.href, selected:true});
 assert.deepEqual(dutch.radios.map(item => item.id), source.radios.map(item => item.id), 'rerender preserves each use identity');
 assert.deepEqual(dutch.panels.map(item => item.id), source.panels.map(item => item.id));
 assert.deepEqual(dutch.inputIds, source.inputIds, 'locale rerender preserves each show/row form control prefix');
 assert.deepEqual(dutch.boundIdentities, source.boundIdentities, 'locale rerender preserves owning signed binding/draft comparisons');
-const empty=await render('es',false);
+const empty=await render('es', {url:selectedUrl.href, selected:true, hasDetails:false});
 assert.equal(empty.html.split('No records.').length-1,2,'omitted empty props reach the released shared UI default');
 assert.deepEqual(empty.radios.map(item=>item.id),source.radios.map(item=>item.id));
 assert.deepEqual(empty.inputIds, source.inputIds, 'nested requery preserves each show/row form control prefix');
 assert.deepEqual(empty.boundIdentities['ViewReuse.bind_card'], source.boundIdentities['ViewReuse.bind_card'],
   'nested requery preserves the outer row action occurrence');
+const unknownUrl = new URL(selectedUrl);
+const selectionKey = [...unknownUrl.searchParams.keys()].find(key => key.startsWith('can-row:'));
+unknownUrl.searchParams.set(selectionKey, uuidv7(FIXED_NOW, 99));
+await render('es', {url:unknownUrl.href});
+await render('es', {url:selectedUrl.href, available:false});
 console.log(JSON.stringify({consumer:'real CLI artifact → public loader/assembler → installed UI page admission/render',
   uses:2, sourceLocale:'fr', rerenderLocale:'nl', nestedRowRestored:true, distinctTabControls:true, nativeBooleanStatus:true, sharedEmptyDefault:true,
   nativeUnboundForms:true, distinctStableFormControls:true, declarationInputLabel:true,
   signedImplicitAndNestedActionBindings:true,
+  nativeSplitSelection:true, absentUnknownRevokedDetailSuppressed:true,
   queriesPerRender:source.queries.map(item => item.model)}));
