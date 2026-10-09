@@ -3625,3 +3625,8 @@ Consume only reviewed67aef2a8's TeamTasks source-correspondence fixture and qual
 ## 2026-10-09 — unfinished cloud shutdown: UI descriptor admission
 
 Preserve the unaccepted compiler UI ownerless-enum descriptor admission delta and related CLI/native controls after the human's emergency stop. The final affected anonymous target is6/8: new stat-description calls have no selected-call facts and new button/native positives have no checked target/option facts; these catalog option profiles were already unsupported, so the expanded fixtures require bounded reconciliation locally. Earlier70caption/header refusal controls passed, and unchanged affected codegen117/117, slots6/6, selected calls7/7 and UI adapter7/7 pass. Independent review was interrupted; no final-source acceptance or strict lint qualification is supplied. Checkpoint publication is preservation only, and cloud execution must not resume.
+
+
+## 2026-10-09 — unfinished cloud shutdown: inline descriptor arrays
+
+Preserve the InlineMessage reflexive loose_equal arm and actual CLI/native array controls for Codex4231479656. The final affected target is2/3: compile/check accepts the arrays, but native raw descriptor count returns0n because IR's expression-child predicate omits MessageValue. The required producer correction remains unfinished; mixed text/named-schema and business text-array refusals pass. Retain the fixture's actual clean-check diagnostics versus successful compile-artifact distinction. No independent final review, current suite acceptance or completion credit is supplied; continuation belongs to the human's local prompt.
