@@ -609,7 +609,7 @@ async function createInstalledDispatcher(
                 originalIntentId: original.original.retained.intent.intentId, correlation: original.correlation, observation },
                 { actor: input.actor, now: input.nowMs(), operation: input.operation,
                   operationId: `${held.claimId}:${options.profile === 'images' ? 'image' : 'text'}-control-pin` }, { store });
-              const controlled = await observeGenerationControl(selected, admission, scope, saved !== null, input.nowMs);
+              const controlled = await observeGenerationControl(selected, admission, scope, saved !== null, () => input.nowMs());
               completions.set(heldKey, { intent: selected, outcome: controlled.answer, owner: input.fence.owner, control: controlled.observation });
               return controlled.answer;
             }
@@ -754,7 +754,7 @@ async function createInstalledDispatcher(
                 if (observedControlOriginals.has(originalId)) continue;
                 observedControlOriginals.add(originalId);
               }
-              const controlled = await observeGenerationControl(intent, admission, retainedContext, true, input.nowMs);
+              const controlled = await observeGenerationControl(intent, admission, retainedContext, true, () => input.nowMs());
               if (controlled.answer.kind === 'delivered') {
                 controlObservations.set(intent.intentId, controlled.observation);
                 evidence.set(intent.intentId, { kind: 'delivered', result: controlled.answer.result });
