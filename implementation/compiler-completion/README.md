@@ -264,6 +264,18 @@ and changed snapshots. This owner prerequisite does not release the separate
 BDD3 returned/as/live/context/disclosure/input policy hold. No speculative
 result API or broader completion is claimed.
 
+**Unfinished native activation — generated CRUD owner entry, 2026-10-09.**
+Exact local Capability **7df9683e** source/test unit is consumed. Generated CRUD
+can stage and finalize through State's checked owner session, with explicit
+bounds and a host frame over the genuine admitted call/session/context.
+Cleanup closes before effects escape; final target association survives sorted
+secondary writes. Owning build **6/6** and generated CRUD **15/15** pass with
+zero skips, retaining original create/update/delete, precondition, receipt,
+codec/default and refusal behavior. These owning Memory checks qualify the
+entry, not native Can hydration. Dev's private adapter and compiler hook/live
+view join remain unfinished. Unchanged earlier checks are reused at their
+recorded scope; no remote publication or reference completion follows.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed
