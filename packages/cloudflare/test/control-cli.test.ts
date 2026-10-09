@@ -23,6 +23,8 @@ describe("Node dev control entry", () => {
       };
       expect(invoke(["help"])).toMatchObject({ status: 0, body: { ok: true, result: { schema: "can.dev.control-help.v1" } } });
       expect(invoke(["unknown"])).toMatchObject({ status: 2, body: { ok: false, code: "UNKNOWN_COMMAND" } });
+      expect(invoke(["construct.help", "--revision", "r1"])).toMatchObject({ status: 2, body: { ok: false, code: "CONSTRUCT_ID_REQUIRED" } });
+      expect(invoke(["rank.lookup", "--revision", "r1"])).toMatchObject({ status: 2, body: { ok: false, code: "RANK_REF_REQUIRED" } });
       expect(invoke(["status", "--root", scratch])).toMatchObject({ status: 1, body: { ok: false, code: "CONTROL_UNAVAILABLE" } });
     } finally {
       rmSync(scratch, { recursive: true, force: true });

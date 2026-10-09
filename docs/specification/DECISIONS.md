@@ -4533,6 +4533,158 @@ Take exact coordinator-released LOCAL6d1cfb8894d78ff9b50f616a11e0cd1d7b1e802a on
 
 The stable combined Cloudflare dependency build22/22 and full changed compiled/nativeD1/receivingSQLite/localHTTP Images case1/1 pass41.34s. Two actual source controls pin one uncertain original; the first sweep observes once, retains one finalized file and original progress occurrence, and defers the second stale observation. After actual adapter reopen and increased current observation ceiling, the second sweep reuses the original terminal evidence without additional HTTP, preserving its receipt, association, source/revision, creation time, pins, schedules, application data and history. This qualifies the existing Images recovery correction. Native Text controls remain unactivated/unexecuted pending the defining Packages policy and this worker's actual adapter implementation; no narrowed second-consumer or full original-app acceptance is inferred.
 
+## 2026-10-09 — preserve checked saved-result closure facts (unfinished)
+
+Analyze only a clean checked cohort before lexical/selected-call facts disappear, and carry complete bounded return-specific facts or whole-scenario declines into IR. Opaque identities use captured source path/digest/declaring module and semantic evaluation/call anchors, never process-local ordinals. Immutable aliases and nonrecursive imported/defaulted derives retain actual evaluation order; returned authority values, query/absence/unknown/composite effects decline. Guard-only authorization and private require reads do not taint independent successful output. Review corrections preserve argument/return chronology, authority dependencies and exact bounded-alias field identity. Private checked/IR7/7 and four analyzer cases pass (the depth fixture correction qualifies its affected1/1; unchanged three reused), including source-order stability and preflight path/depth limits. Corrected finite review has no findings. Canonical plan emission, instrumentable derive/mutation closure and genuine awaited Dev read/return capture remain unfinished; facts alone grant no runtime/disclosure/reference acceptance. Preserve all human holds and local-only integration.
+
+## 2026-10-09 — connect bounded native saved-result capture (unfinished)
+
+Use explicit native-scenario-receipts emission for State hosts; generic callable/UI compilation preserves its existing ABI. Consume exact Dev180676b5 context/row/store lifetime bridge and State08b49784 multi-member refusal, without foreign records or fabricated adapters. Match every selected checked read/choice/return to actual executable IR and emitted model inventory before publishing the whole plan. All executable origins use the real artifact entry module, preserving authoring path/digest; artifact and registry share one serializer. Evaluate receiver/field once, await each read-role observation sequentially, record only executed short-circuit/branch choices, then select exactly one actual return after evaluating its value. Unsupported influences, uninstrumentable derive reads/choices, nominal/alias fields, mutation/composite and unmatched sites remain unclaimed. Direct nullable-model equality/presence and unsupported stored scalar comparison closures now decline rather than publish empty facts. Dependency/Cloudflare/Testkit build26/26, private frame3/3 and genuine CLI/native/State Memory1/1 pass; the latter covers21selected invocations plus replay, matching IDs, original saved value after update, zero replay commits and State current-membership withholding. Source/IR9/9 and four analyzer cases pass at affected scopes. Native caller opt-in, public retained projection and wider source/lifetime closures remain unfinished; full changed-source checks follow this coherent unit. No broader roadmap/BDD policy acceptance or remote publication.
+
+## 2026-10-09 — project saved scenarios through their owning checked association (unfinished)
+
+Use the installed public State invocation association reader and projector for the exact physical receipt from fresh claimed execution, ordinary saved replay and dedicated recovery. Never manufacture an association or return a legacy unassociated saved scalar. Require a current checked plan and positive exports before claimed execution/recovery; preserve fresh unclaimed legacy scenarios. Dedicated recovery builds no CRUD executor and touches no file metadata; ordinary scenario replay also skips attachment repair. State owns secret masks, current policy/lifetime/authority checks and fail-closed withholding. Its current multi-subject authority limit remains an Identity snapshot prerequisite.
+
+Bind disclosure claims and their cached descriptors to the original assembler-issued capability. Verify the whole captured artifact/module/map closure before preload/cache reuse and around import/execution, using the captured portable importer where issued. Presence checks refuse accessors without evaluating them; State still validates descriptor schemas. Copies, independently issued swapped assemblies and changed staged bytes cannot reuse disclosure caches. Seven declaration-labelled State/Identity/installed facade cases pass, including exact saved scalar/record projection, fresh markers, no-write recovery, revoked/current withholding, missing/malformed/legacy refusal and correspondence controls. They qualify this consumer, not source-generated native claims.
+
+Coordinator-released main4a16b90d is intaken with accumulated path allocations retained and the living checkpoint unadvanced. Owning Cloudflare/Testkit emits, source-current local native compiler build, root noEmit and zero-violation package boundaries pass. An initial native-cache/boundary attempt stopped on absent Testkit outputs after a prepare-only dependency task; restore its owning emit and retry the affected checks rather than change gates. Native Node cache/security6/6 and genuine compiled portable native-rule D1/security1/1 then pass, preserving their existing non-scenario scope. Actual Office after the private bridge passes36business observations and2/2examples twice with security/store/cleanup assertions; browser19/19 is reused only at its earlier scope. Compiler's opt-in `--native-scenario-receipts`, complete source/return closure and genuine native→canonical→portable D1 qualification remain prerequisites. No G2–G3 or full-plan acceptance follows.
+
+## 2026-10-09 — retain failed isolated reruns as distinct safe occurrences
+
+Hand the actual completed supported report from the rerun coordinator to its trusted session consumer only after exact source/artifact, single-row counts, resource and cancellation checks. Project a failed row through the existing failure projector, store a new bounded reference with its original source/revision/build and fresh run ID, and retain its exact rerun recipe. Preserve earlier refs until ordinary eviction; passing or refused/cancelled attempts create none. Never reconstruct reports from shortened public outcomes or release actor/mismatch values. Also reject extra report rows before handoff.
+
+Owning Cloudflare emit, coordinator/private session41/41, root noEmit and zero-violation package boundaries pass. Extend the existing genuine native Office failure probe: deliberate1fail/1pass, two distinct failed rerun refs before/after restore, original and prior-ref lookup/list/detail, safe payloads, pinned actual artifact, restored source and verified stop/descriptor removal all pass. Probe failures now return a nonzero exit. These checks qualify the T10/T12 occurrence join; effective-actor detail projection and G2–G3 remain unfinished.
+
+## 2026-10-09 — refuse invalid execution correspondence before canonical commits
+
+Correct08cc's business-caught verification path. Give assembler verification failures a private infrastructure type, preserve them through module-import handling, and check correspondence outside business conversion on every invocation exit through finally. A throwing handler is still post-verified; invalid source evidence supersedes its business rejection and propagates through State's existing non-State-error refusal with no canonical commit. Preserve unchanged-source business errors and their legitimate rejected receipts. No State rejection semantics or importer permissions change.
+
+Declaration-labelled consumer10/10, affected genuine native Node cache/security6/6, owning Cloudflare emit, root noEmit and package boundaries pass. New controls drift after descriptor loading/before handler (zero execution) and during a throwing handler for actual staged JS and maps (one prior execution), requiring zero commit/receipt/domain/history/outbox changes. The positive business rejection records exactly one normal rejected receipt. The first throwing fixture was correctly refused for its Node filesystem import; use a trusted fixture hook for the host drift while retaining real assembly/import gates. Native Compiler/public/portable scenario qualification and G2–G3 remain required.
+
+## 2026-10-09 — select released native receipt emission in the captured State host (unfinished)
+
+Consume exact reviewed coordinator LOCAL main00a9727e while preserving the worker's committed public projection, rerun references and execution-time correspondence correction. Retain both appended decision histories; source/runtime merge cleanly. Use actual `--native-scenario-receipts` in the existing captured compiler caller, whose Cloudflare State stdlib supplies the owning ABI. Preserve captured executable/catalog bytes, exact consumed source checks, changed-input refusal and unsupported first-profile admission. No fallback flag, guessed metadata or generic/UI host marker is added.
+
+Full owning dependency closure26/26, native compiler build, Values catalog59/15, actual compiler/capture5/5, root noEmit and package boundaries pass. The new real native case requires a source-hash-bound scalar plan and actual emitted return marker. A test-only failure message accessed a diagnostics union's absent reason; remove that access and pass the affected root typecheck, reusing unchanged behavior results. Cumulative file-tree coverage is reconciled from its existing checkpoint with prior allocations and holds preserved, checkpoint unadvanced. Genuine compiled canonical/public/portable D1 scenario qualification remains due; no G2–G3 acceptance.
+
+## 2026-10-09 — retain native primitive-array receipt values (unfinished join)
+
+Extend the existing checked closure and native recipe to ordinary primitive T[]/T[]? because released State v1 already admits those exact codecs. Fold authored array elements in order through the existing compatible path product and resource limits; native emission keeps each read observation awaited before later elements and return selection. Refuse required arrays using checked declaration, IR and actual emitted inventory metadata, retaining nominal identities instead of reconstructing primitive aliases. Check the actual published result ID against the released receipt codec profile before emitting metadata or capture; named enum results retain their existing emitted inline case IDs and both cases round-trip. Source/IR11/11 and genuine CLI/native1/1 qualify31success paths plus replay, nullable/empty/populated original snapshots, lazy ordered observations, current authority and real observation-failure fencing. Test corrections distinguish pre-State nonarray refusal from admitted malformed-element rejected receipts. Exact reviewed local00a baseline is consumed without changing compiler implementation, its changed alias/CSV2/2 reused, and actual installed outputs rebuild26/26. Full1319at95d is retained separately; final changed-source strict all-target Clippy and formatting pass. Dev execution-time correspondence correction and actual public/portable consumer remain prerequisites; no full reference/BDD policy or hold release.
+
+## 2026-10-09 — consume captured native compiler opt-in
+
+Merge exact reviewed integrated4c063189/Dev4877 compiler-check caller and its genuine regression onto the committed26efe public/array join, preserving both histories and disjoint native-test edits. Caller passes the actual native receipt flag; owning captured5/build26 results are reused at unchanged scope, with actual installed outputs refreshed. Existing registry covers all six incoming changed paths, keeping the complete semantic/target checkpoint unadvanced. This releases the actual compiler-caller prerequisite without accepting portable/native scenarios or recipient-specific held work.
+
+## 2026-10-09 — qualify generated public saved-scenario recovery
+
+Extend the existing genuine compiler/native fixture, preserving31success paths plus ordinary replay, to the released public retained entry at age16minutes with real StoragePort commit and file-access tripwires. Exact saved scalar/array values survive current updates without changing any physical receipt/domain/history/outbox/schedule state. Real generated CRUD archive withholds saved values through ordinary and dedicated public projection; revoked membership refuses recovery, while internal State projection separately returns its documented empty result. Keep private association metadata outside public output. Actual target1/1, changed-fixture strict Clippy and formatting pass; the fixture's explicit archive-default E3009 was corrected by omission rather than a production workaround. Producer0b79 remains unchanged. Dev owns its existing genuine portable D1 witness; consume the released owner result, without a parallel harness or broader hold/task acceptance.
+
+## 2026-10-09 — qualify native scalar receipts through the real portable consumer (unfinished)
+
+Use a small actual .can witness and owning captured native compiler/caller; require its source/module/hash-bound plans and awaited markers before activation. Run real installed public HTTP/canonical mutations and MCP readback against separate Identity and two owner D1 databases. For dedicated aged recovery, a nonce-gated trusted test host calls the existing API with actual resolved Identity/owner routing and selected-store/file tripwires; it never supplies State associations, assembly evidence, a verdict or projection. Preserve physical receipts, original scalars after updates/stale refs, current archive/revocation/owner/Public refusals and full resources/history. Add copied issuer and source/JS/map correspondence controls.
+
+Final genuine portable D1/security1/1 passes23.99s, with owning Cloudflare emit, root noEmit and zero-violation package boundaries. The compiler correctly refused redundant delete=archive; use the default and retain archive behavior assertions. An initial passing run had its no-commit hook on the boundary envelope, not selected.store; correct that harness wiring, add byte/map controls and rerun the complete affected journey. Intake reviewed main1d0 ancestry with this consumer unit, preserving the actual native flag and all independent records; production source matches the already-built4877/0a3 tuple, whose unchanged results are reused. Reconcile cumulative file-tree coverage without checkpoint advancement. This qualifies direct int/bool native public/portable receipt capture/recovery, not primitive arrays, broad scenario/owner/hook/query profiles, G2–G3 or complete-plan acceptance.
+
+The existing actual Office business probe also passes36security/business observations and2/2authored examples twice on the current3016input capture, with no serving-store changes and successful owned cleanup. SourceRevision b9aa804f6b2f9d15e5446d4435c44e51e8dd017eb8fe2e0127514d7d6658a088, epoch ae0022a3d43bd2babaab31c5fcc226c9efa73b6841f74c7d1cff5311fe1f02a4 and artifact a6981138d5038311cc5ab3c8defab6ef9dfe5b6a8860e7337d13ad0244a372b9 pin this scoped requalification. The frozen Office source remains ba4a6f00a0f53187139a128af725da43fdf437d8a0df72d3671b86d7072362a3; browser19/19 retains its earlier scope and G2–G3 remain open.
+
+## 2026-10-09 — preserve native default replay under current authorization
+
+Treat only bare/grouped checked Actor parameter defaults as the canonical
+default producer's frozen user input, with exact checked `user`/`user?` types
+and a finite group bound. Body Actor values, properties and derive-wrapped
+defaults remain outside the disclosure profile. Actual State replay fixtures
+select native emission and require its descriptor; revoked membership withholds
+public saved results while leaving physical receipt/defaults and handler traces
+unchanged. Five native targets5/5 and checked closure12/12 pass; strict
+all-target Clippy and formatting pass. The joined a291 full run failed on its
+old generic fixture, so historical95d whole qualification does not qualify this
+changed source. Transition write provenance and the exact Dev portable release
+remain separate prerequisites; no empty mutation proof or original-reference
+acceptance follows.
+
+## 2026-10-09 — consume released native arrays through portable saved recovery (unfinished parent)
+
+Intake exact reviewed coordinator main85188b3e/Compiler0b79 at the committed scalar-consumer boundary, preserving both decision histories and all precise holds. Rebuild its owning native compiler and extend the existing genuine .can/installed public/workerd/owner-D1 witness. Use owning T[]/T[]? plans, types and awaited observations; no invented adapter, metadata or duplicate array implementation. Eleven stored scalar/int[]?/bool[]/text[] results cover null, empty and populated int64 strings, original ordinary/dedicated aged replay after changed rows/stale refs, exact receipts/all resources, archive/current authority withholding and issuer/source/JS/map refusals. Keep selected.store commit and file tripwires.
+
+The final full portable journey passes1/1 in53.18s; owning CF emit, root noEmit and zero-violation boundaries pass. The first draft wrongly expected the Compiler Node/Memory bad-element rejection receipt through public HTTP. Actual HTTP validates shape and elements before State: require exact zero-write resources and no receipt for both malformed inputs, then rerun the full affected journey. A test-only inferred field type caused an owning emit failure; use the actual exported ArtifactModelField type and emitted integer/nullable/array descriptor, without guessing int array valueType. Reuse unchanged producer closure/catalog and earlier Office/browser checks only at their recorded scopes. Reconcile cumulative path coverage with checkpoint unadvanced. Required/nested/model/nominal arrays and wider source/owner/hook/query/help/G2–G3 joins remain unqualified.
+
+## 2026-10-09 — retain transition provenance refusal during whole qualification
+
+The source66b whole run completes129targets with1320passed/2failed/0ignored and
+no body skip. Forward the existing real public `int64` export in the isolated
+delivery-progress compiler fixture; its actual owning case1/1 then passes.
+Preserve the state-machine replay assertion and record its exact prerequisite:
+State scenario-receipt273-275 cannot retain an intermediate queued observation
+against a generating final net write; Cloudflare's genuine native view reads
+the staged overlay. Complete compiler literal/write lineage or defining State
+owner-session intermediate observation is required. General changed public
+fields also need their full influencing-read/control closure, since changed
+rows are projected separately from typed results. No empty void association,
+snapshot substitution, raw replay bypass or gate weakening is authorized.
+
+## 2026-10-09 — preserve control usage exit semantics for help and rank lookup
+
+Treat the actual control-client missing construct ID and rank ref codes as usage errors at the installed JSON CLI boundary. Return exit2 for both, keeping help exit0 and unavailable control exit1; no socket, compiler help availability or ranking permission changes. Source-current CF emit and the directly affected installed-entry case1/1 pass with one stdout envelope and no stderr. Consume reviewed coordinator b9ecfd06 via safe fast-forward and rebuild its owning native compiler, retaining unchanged portable-array qualification and all precise holds. Reconcile accumulated file-tree coverage with checkpoint unadvanced. T04/T11 and G2–G3 remain open.
+
+## 2026-10-09 — consume released genuine portable scalar fixture
+
+Merge exact reviewed ec4f79ba/Devda7f5b14 onto65cb8dc7, preserving compiler defaults, array/public recovery and current whole-run failure records. Reuse the genuine portable D1 int/bool1/1 owner result without another fixture. Reconcile all incoming six paths against the existing accumulated registry and retain the complete checkpoint unadvanced. Later portable-array release remains exact intake, not inferred scalar coverage.
+
+The final full portable journey passes1/1 in53.18s; owning CF emit, root noEmit and zero-violation boundaries pass. The first draft wrongly expected the Compiler Node/Memory bad-element rejection receipt through public HTTP. Actual HTTP validates shape and elements before State: require exact zero-write resources and no receipt for both malformed inputs, then rerun the full affected journey. A test-only inferred field type caused an owning emit failure; use the actual exported ArtifactModelField type and emitted integer/nullable/array descriptor, without guessing int array valueType. Reuse unchanged producer closure/catalog and earlier Office/browser checks only at their recorded scopes. Reconcile cumulative path coverage with checkpoint unadvanced. Required/nested/model/nominal arrays and wider source/owner/hook/query/help/G2–G3 joins remain unqualified.
+
+## 2026-10-09 — consume released portable primitive-array receipt journey
+
+Merge exact reviewed b9ecfd06/Devd8bc2a5a onto the portable scalar intake, retaining compiler66b defaults and65cb actual whole-run failures/correction. Reuse the genuine public canonical/portable D1 scalar and nullable/empty/populated primitive-array journey1/1 in53.18s at the owner’s declared source; changed derive profiles still require their own qualification. Existing accumulated paths and both decision histories are retained, complete semantic/target checkpoint unadvanced. No competing harness or broader reference/held-policy acceptance follows.
+
+## 2026-10-09 — capture checked derives at their native invocation sites
+
+Join complete checked derive call chains to actual IR bodies/defaults and exact
+emitted field inventories. Specialize only opted-in native handler calls into
+private async closures with fresh parameter scopes, preserving global derives,
+exports and ordinary UI/generic output. Render authored arguments in the caller
+before entering the callee chain; preserve slot mapping, declaration-ordered
+defaults, explicit override skipping and original lazy operators. Private
+choice keys derive from checked source identities/canonical authored anchors;
+wire dependency origins retain imported path/digest and actual entry transport.
+Bound recursion/depth/sites and omit the whole plan when matching fails.
+Actual CLI/native/public Memory1/1 covers43successpaths+replay, including separate
+import files, repeated/nested/defaulted/lazy reads and saved derived recovery
+under current access; source closure12/12, strict all-targetClippy/fmt and finite
+independent review pass. This uses released State/Dev markers without widening
+mutation/query/composite or held profiles. Changed-source whole qualification
+and transition write provenance remain required; no original-reference credit.
+
+## 2026-10-09 — retain the sole current compiler integration dependency
+
+Current d9c50fe1 whole qualification completes129targets1321passed/1failed/
+0ignored with real engines/Node24/exactdraft/currentcatalog and no body skips.
+The only failure remains actual state-machine replay. Preserve its assertion
+until the real State/Dev owner-session intermediate-row/final-write producer
+and consumer are released and qualified. Observation denial must also protect
+dependent changed public fields; authentic intermediate rows alone do not
+establish that projection. Consume exact reviewed d87213ae caller
+cancellation/usage correction and reuse its owning captured5/5; compiler source
+is unchanged. Incoming paths and accumulated owner records remain registered,
+complete file-tree checkpoint unadvanced. No full original reference, mutation
+activation, held-policy or whole passing-suite claim follows.
+
+## 2026-10-09 — cancel the owned captured compiler before endpoint cleanup
+
+Carry a core-owned stop signal through the actual service check and captured compiler child. Aborting termination retains the first error, signals only that owned ChildProcess, escalates SIGTERM to SIGKILL after250ms if it remains live, and waits for actual close before removing staging. Check/prepare publication retains existing currentness barriers, so cancelled late output never becomes current, history, a failure focus or a serving preview. Preserve ordinary compiler flag/source/catalog semantics and owned preview disposal/error propagation.
+
+Source-current CF emit, all3Node service controls, affected core8/private-session3/genuine native compiler5 (16/16), root noEmit and zero-violation boundaries pass. The new component-labelled slow compiler uses real captured spawn/session/socket lifetime and deliberately emits diagnostics while ignoring SIGTERM. Root strengthens the draft to let the actual socket stop trigger cancellation before joining owner cleanup; it meets3seconds, requires owned child/staging/descriptor/socket absence, and verifies no late check or preview. This proves lifecycle behavior, not fabricated native app acceptance. Earlier genuine portable scalar/array and Office/browser results retain their exact scopes; defining State transition provenance, Compiler working help/profile and G2–G3 remain unfinished.
+
+**Pending producer proposal, not Dev acceptance:** Capability is implementing beginScenarioReceiptMutation over the admitted call/exact physical store and one State-owned OwnerMutationSession. Dev's dependent runtime must preserve actual issued raw rows through native view/capture, stage with scenario cause and consume finalize output without independent version rewrites. The current wireSnapshot clone loses the proposed provenance. Exact source/types/tests have not been released; keep provisional refusal and Compiler unclaimed closure until genuine consumer/combined qualification. No host-assigned proof or overlay registration is authorized by this proposed ABI.
+
+## 2026-10-09 — qualify released local derives through the portable saved consumer (unfinished parent)
+
+Intake exact reviewed53551de7/Compilerd9c50fe1 with the committed compiler-stop correction retained; preserve both decision histories. Extend the existing single-file captured/native/public/portable owner-D1 witness, using only actual owning private derive specializations and checked marker/source plans. Nineteen fresh results cover prior scalar/array cases plus nested/repeated calls, source-ordered named arguments, omitted default vs explicit42 and lazy null/non-null/true/false paths. Preserve exact marker IDs/order, observed physical rows, original ordinary/dedicated aged replay after updates, receipts/all resources, archive withholding and current membership refusal. Pure override remains42 after archive but cannot bypass revocation. Global artifact correspondence is checked through scalar and derived witnesses rather than repeated per saved variation.
+
+Final whole native/portable D1 case1/1 passes37.72s, with owning native build/CF emit, root noEmit and zero-violation boundaries. The initial expected lazy chronology missed the producer's two optional field data/control dependencies; retain both defining IDs and rerun the full affected journey, without changing the producer or weakening equality. Reuse coordinator d87213ae changed native/captured caller5/5 because production source matches; unchanged previous direct and lifecycle results keep their scopes. This caller continues refusing imports/composition; mutation/intermediate-row capture awaits the exact State-owned session/raw-row/finalization ABI, and no T04/T11/G2–G3 or broader profile acceptance is inferred. Reconcile accumulated source/target coverage with checkpoint unadvanced.
+
+## 2026-10-09 — reuse the released portable derive consumer at exact scope
+
+Compiler fast-forwards exact reviewed cd8da1ad/Dev55a0f916, preserving current full-result records and the incoming accumulated file-tree reconciliation with complete checkpoint unadvanced. Production compiler/package source is unchanged; reuse owner genuine public/workerd/Identity+two-ownerD1 journey1/1 in37.72s across19scalar/array/local-derive results, without another fixture or rerun. Imports/composition are outside this single-file caller; State/Dev mutation provenance and dependent changed-record projection remain unreleased, and current state-machine replay assertion stays failing. Original references and precise human holds remain open.
 
 ## 2026-10-09 — bind intermediate scenario receipts to actual owner writes (unfinished)
 
@@ -4557,3 +4709,8 @@ Checkpoint this read-only assessment as unfinished before the coordinator-priori
 ## 2026-10-09 — checkpoint actual empty native file carrier compatibility (unfinished)
 
 The real canonical Cloudflare scalar producer owns an enumerable `fileAssignments: []`; State's claimed-effects snapshot now recognizes and preserves that actual empty immutable carrier. Nonempty assignments remain unsupported until the defining File/lifetime join, and malformed/undefined/hidden/accessor carriers refuse without invoking getters. Keep the complete exact owner tuple and all other authority/source assertions. Two owning cases cover successful scalar snapshot/receipt/replay/projection and eight negative carrier variants; unexecuted at this checkpoint. Coordinator explicitly releases exact reviewed LOCAL bde01621db214c7d70a833542660f3797f928dfd containing genuine Compiler/Dev scalar/derive producer/fixture, excluding private transition activation. Preserve local ea3e assessment and this source/test checkpoint during intake; no reset, replacement fixture, common CI repair or acceptance claim. Qualify the joined actual outputs before release, then resume the separate default-contribution contract.
+
+
+## 2026-10-09 — reconcile reviewed local native producer intake
+
+Intake exact coordinator-reviewed LOCAL `bde01621db214c7d70a833542660f3797f928dfd` onto preserved unfinished worker `c2a8bad21ed7b7489a7699fee98f6d0d85e916a0`. Its actual staged tree and both parent histories since complete `8249342707d3280e88e39e8c911b7e457828f31f` register 1430 commits, 10772 net deltas, 11316 historical paths and 513 history-only paths, excluding both rename endpoints. All prior owners/scopes/allocations and retirement/task gates remain; 9270 inherited deltas still need target allocation. No source/target acceptance or complete checkpoint advance follows. Source correspondence and actual Compiler/Dev scalar/derive fixture are preserved; private transition activation is absent. Joined empty-carrier and whole native fixture qualification remains required, followed by the separately checkpointed input/default contribution contract. Local-only/push holds and Packages shared-gate ownership remain unchanged.
