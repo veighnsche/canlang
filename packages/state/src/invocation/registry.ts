@@ -1,5 +1,5 @@
 import { checkFieldMachine } from '../internal/machine.js';
-import { normalizeSchema, normalizeValueTypes, ValueTypesError, parseTypeId, printTypeId, type NormalizedSchema } from '@canlang/values';
+import { normalizeValueTypes, ValueTypesError, parseTypeId, printTypeId, type NormalizedSchema } from '@canlang/values';
 /**
  * Lane 03 T16a: operation registry — INTERIM engine-local defs plus the
  * generated-descriptor join.
@@ -58,7 +58,7 @@ import type {
 } from '@canlang/contracts';
 import { validateByPredicate, type ByPredicate } from '../policy/roles.js';
 import { validatePredicateShape } from '../policy/grants.js';
-import type { InterimContainment, InterimRefDef } from '../mutation/models.js';
+import { modelFieldConstraintSchema, type InterimContainment, type InterimRefDef } from '../mutation/models.js';
 import {
   createDeliverySchema,
   type DeliveryFieldSchema,
@@ -720,7 +720,8 @@ function checkCanonicalInput(
 }
 
 /** Validate one canonical model descriptor; returns the model name. */
-function checkFieldConstraints(field: Record<string, unknown>, type: CanTypeId | undefined, what: string): void {
+function checkFieldConstraints(field: Record<string, unknown>, type: CanTypeId | undefined, what: string,
+  valueSchema?: NormalizedSchema): void {
   if (!['trim', 'min', 'max'].some(key => Object.hasOwn(field, key))) return;
   if (type === undefined) fail('malformed_descriptor', `Invalid ${what}: constraints require a checked valueType.`);
   for (const key of ['trim', 'min', 'max']) {
@@ -728,15 +729,14 @@ function checkFieldConstraints(field: Record<string, unknown>, type: CanTypeId |
       fail('malformed_descriptor', `Invalid ${what}: ${key} cannot be absent or null when claimed.`);
     }
   }
-  const parsed = parseTypeId(type);
-  const checkedType = parsed.array && parsed.base.kind === 'nominal' ? 'text[]' : type;
   try {
-    normalizeSchema({ contracts: { _CanModelConstraint: { fields: { value: {
-      type: checkedType,
-      ...(Object.hasOwn(field, 'trim') ? { trim: field['trim'] } : {}),
-      ...(Object.hasOwn(field, 'min') ? { min: field['min'] } : {}),
-      ...(Object.hasOwn(field, 'max') ? { max: field['max'] } : {}),
-    } } } } });
+    modelFieldConstraintSchema({
+      required: field['required'] as boolean, serverOnly: field['serverOnly'] as boolean,
+      valueType: type,
+      ...(Object.hasOwn(field, 'trim') ? { trim: field['trim'] as boolean } : {}),
+      ...(Object.hasOwn(field, 'min') ? { min: field['min'] as NonNullable<CanonicalModelDescriptor['fields'][string]['min']> } : {}),
+      ...(Object.hasOwn(field, 'max') ? { max: field['max'] as NonNullable<CanonicalModelDescriptor['fields'][string]['max']> } : {}),
+    }, valueSchema);
   } catch (error) { fail('malformed_descriptor', `Invalid ${what}: ${String(error)}`); }
 }
 
@@ -785,7 +785,7 @@ function checkCanonicalModel(value: unknown, valueSchema?: NormalizedSchema): Ca
       }
     }
     const valueType = checkValueType(fieldValue, what, valueSchema);
-    checkFieldConstraints(fieldValue, valueType, what);
+    checkFieldConstraints(fieldValue, valueType, what, valueSchema);
     checkNominalArray(valueType, array, what, valueSchema);
     fields[fieldName] = {
       ...(valueType !== undefined ? { valueType } : {}),
@@ -1245,7 +1245,7 @@ export function artifactToDescriptorSet(
       }
       const tag: unknown = field.field;
       const valueType = artifactValueType(field as unknown as Record<string, unknown>, what, false, valueSchema);
-      checkFieldConstraints(field as unknown as Record<string, unknown>, valueType, what);
+      checkFieldConstraints(field as unknown as Record<string, unknown>, valueType, what, valueSchema);
       fields[field.name] = {
         ...(valueType !== undefined ? { valueType } : {}),
         ...(Object.hasOwn(field, 'trim') ? { trim: field.trim } : {}),

@@ -3577,3 +3577,7 @@ Preserve native BigInt list-row versions and adapt only the generated delete con
 ### 2026-10-09 — Align affected CI assertions with owning wire and rejection contracts
 
 Keep the File MCP field as the actual closed object with one required nonempty id; no extra fields are admitted. The malformed delivery version test checks both malformed_descriptor and the owning standard/Source Judgment identity/version refusal. These repair stale test expectations while preserving the existing production validators and their negative cases; focused checks pass 8/8 and 5/5.
+
+### 2026-10-09 — Preserve applied fields and scalar alias constraints in canonical writes
+
+Derive constrained update fields from values actually applied, evaluating caller getters once and preserving omitted/undefined legacy data. Structural hook comparisons and explicit transitions still validate real changes. Resolve declared text aliases through the supplied schema across registry/model-table validation; receiving trim precedes both NAME/alias bounds and the receiving intersection. Direct alias validation retains its original semantics. The normalized pre-hook default remains the durable resolved-default receipt and replay value; its review finding did not reproduce. State affected checks pass 49/49, Values schema 110/110 and both source typechecks pass.
