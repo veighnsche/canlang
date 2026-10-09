@@ -4621,3 +4621,7 @@ owner-session intermediate observation is required. General changed public
 fields also need their full influencing-read/control closure, since changed
 rows are projected separately from typed results. No empty void association,
 snapshot substitution, raw replay bypass or gate weakening is authorized.
+
+## 2026-10-09 — preserve control usage exit semantics for help and rank lookup
+
+Treat the actual control-client missing construct ID and rank ref codes as usage errors at the installed JSON CLI boundary. Return exit2 for both, keeping help exit0 and unavailable control exit1; no socket, compiler help availability or ranking permission changes. Source-current CF emit and the directly affected installed-entry case1/1 pass with one stdout envelope and no stderr. Consume reviewed coordinator b9ecfd06 via safe fast-forward and rebuild its owning native compiler, retaining unchanged portable-array qualification and all precise holds. Reconcile accumulated file-tree coverage with checkpoint unadvanced. T04/T11 and G2–G3 remain open.
