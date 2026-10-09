@@ -3664,3 +3664,7 @@ Task41 remains complete at its accepted design stage: original Chat/Knowledge al
 ## 2026-10-09: Preserve unfinished work at human cloud shutdown
 
 The human ended cloud execution immediately. Preserve existing related source/test units as explicit unfinished checkpoints: reviewed Values donor correspondence, real dependent-choice transport lifecycle, complete original dependent-choice source annotations and both concrete approval compositions. Their checkpoint/push does not establish testing, task completion or acceptance. Required comparison README, compiler request-identity example reconciliation, parent delivery observation correction, released Zsh intake and remaining defining execution gates are recorded in the existing execution-state cloud_shutdown_handoff. Continue only through a new human-started local prompt; no cloud replacement/resumption or CI/review wait.
+
+## 2026-10-09: qualify the saved Values correspondence locally
+
+Accepted bounded intake decision: retain the exact released four-donor string-escape inputs and prepared-hook assertions preserved at unfinished checkpoint d3f4fa65. The human-authorized local continuation initialized the exact draft5a12eb9e and installed the frozen lock; owning runtime dependency build22/22 and the changed Values cases10/10 pass. These results qualify that saved consumer component on this host; they do not accept the entire Values package, original workflows or roadmap. Broader unchanged results are reused.
