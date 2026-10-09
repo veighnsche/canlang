@@ -6,9 +6,9 @@
  * claims require their defining joins. Empty field observations prove none of
  * those facts. Every site is scoped by its checked source return/digest/module.
  */
-import type { ArtifactModel, CanTypeId, ModelName, ProjectedRecord,
+import type { ArtifactModel, CanonicalInputDef, CanTypeId, ModelName, ProjectedRecord,
   Receipt, ScenarioReceiptAssociation, ScenarioResultDisclosurePlan, StoragePort, StoredRow } from '@canlang/contracts';
-import { decodeValue, parseTypeId, printTypeId } from '@canlang/values';
+import { decodeValue, encodeValue, parseTypeId, printTypeId, validateValue, type NormalizedSchema } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
 import type { PolicyTable } from '../policy/grants.js';
@@ -137,11 +137,17 @@ interface ModelInventory {
   readonly secrets: readonly string[];
   readonly withheld: readonly string[];
 }
-interface BoundPlan { readonly plan: ScenarioResultDisclosurePlan; readonly type: CanTypeId; readonly models: ReadonlyMap<ModelName, ModelInventory> }
+interface BoundPlan {
+  readonly plan: ScenarioResultDisclosurePlan; readonly type: CanTypeId; readonly models: ReadonlyMap<ModelName, ModelInventory>;
+  readonly inputs: readonly CanonicalInputDef[];
+  readonly arrays: GeneratedOperationDef['inputArrays']; readonly nullableRefs: NonNullable<GeneratedOperationDef['inputNullableRefs']>;
+  readonly valueSchema: NormalizedSchema | undefined; readonly parameterStyle: boolean;
+}
 const boundPlans = new WeakMap<GeneratedOperationDef, BoundPlan>();
 
 /** Registry-owned registration after exact artifact source/callable checking. */
-export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: readonly ArtifactModel[]): void {
+export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: readonly ArtifactModel[],
+  defaults: { readonly parameterStyle: boolean; readonly valueSchema?: NormalizedSchema }): void {
   const claim = def.descriptor.result?.disclosure;
   if (claim === undefined) return;
   if (def.kind !== 'scenario') return invalid('dependency plans belong to mutation scenarios.');
@@ -167,7 +173,9 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   for (const returned of plan.returns) for (const dep of returned.dependencies) {
     if (inventory.get(dep.model)?.fields.get(dep.field) !== dep.type) return invalid('dependency disagrees with declared model field/type inventory.');
   }
-  boundPlans.set(def, { plan, type, models: inventory });
+  boundPlans.set(def, { plan, type, models: inventory, inputs: deepFreeze(dataCopy(def.descriptor.inputs)),
+    arrays: deepFreeze(dataCopy(def.inputArrays)), nullableRefs: deepFreeze(dataCopy(def.inputNullableRefs ?? {})),
+    valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle });
 }
 
 interface Capture {
@@ -204,11 +212,102 @@ interface ReceiptOwnerSession {
   busy: boolean;
   closed: boolean;
   finalized: MutationWritesResult | null;
+  readonly inputDefaults: Record<string, unknown>;
+  readonly computedDefaults: readonly CanonicalInputDef[];
+  computedIndex: number;
 }
 const ownerSessions = new WeakMap<AdmittedCall, ReceiptOwnerSession>();
 const ownerRows = new WeakMap<StoredRow, {
   readonly session: ReceiptOwnerSession; readonly stage: number; readonly model: ModelName;
 }>();
+
+function inputDefaultWire(bound: BoundPlan, field: CanonicalInputDef, wire: unknown): unknown {
+  const saved = dataCopy(wire);
+  if (field.kind === 'delivery' || field.kind === 'ref') return invalid('value default requires its owning declared type.');
+  if (field.kind === 'enum' && field.valueType === undefined) {
+    if (typeof saved !== 'string' || !field.enumValues?.includes(saved)) return invalid('computed enum default is outside its declared cases.');
+    return saved;
+  }
+  if (field.valueType === undefined) return invalid('input default lacks its owning value type.');
+  try {
+    const value = bound.valueSchema === undefined ? decodeValue(field.valueType, saved)
+      : validateValue(bound.valueSchema, field.valueType, saved, 'create');
+    return dataCopy(encodeValue(field.valueType, value));
+  } catch { return invalid('input default disagrees with its owning Values type/schema.'); }
+}
+
+function inputDefaultSlots(call: AdmittedCall, bound: BoundPlan): {
+  inputDefaults: Record<string, unknown>; computedDefaults: readonly CanonicalInputDef[];
+} {
+  const inputDefaults: Record<string, unknown> = {};
+  const computedDefaults: CanonicalInputDef[] = [];
+  if (bound.parameterStyle) for (const field of bound.inputs) {
+    // Default-eligible omissions survive admission. Defaultless ordinary
+    // arrays filled by admission never become native default contributions.
+    if (Object.hasOwn(call.inputs, field.name) || field.kind === 'delivery') continue;
+    if (field.computedDefault === true) computedDefaults.push(field);
+    else if (field.kind !== 'ref' && field.valueType !== undefined) {
+      if (field.default?.kind === 'literal') Object.defineProperty(inputDefaults, field.name, {
+        value: inputDefaultWire(bound, field, field.default.value), enumerable: true });
+      else if (field.valueType.endsWith('?')) Object.defineProperty(inputDefaults, field.name, { value: null, enumerable: true });
+    }
+  }
+  return { inputDefaults, computedDefaults: Object.freeze(computedDefaults) };
+}
+
+/** Called only by the actual verified generated default observer. State owns
+ * omitted slots/type/order/lifetime, while Dev owns expression execution and
+ * private native reference identity. A bulk map or type/module claim cannot
+ * contribute defaults. This API does not itself attest computed arithmetic.
+ */
+export function observeScenarioInputComputedDefault(call: AdmittedCall, store: StoragePort,
+  report: { readonly name: string; readonly wire: unknown }): void {
+  const owner = ownerSessions.get(call);
+  try {
+    capture(call, store);
+    if (owner === undefined || owner.store !== store) return invalid('computed default requires its actual admitted owner session.');
+    ownerHealthy(owner);
+    if (owner.busy || owner.capture.pending !== 0) return invalid('computed default cannot overlap an owner operation.');
+    const observed = object(dataCopy(report), ['name', 'wire']);
+    const field = owner.computedDefaults[owner.computedIndex];
+    if (field === undefined || observed['name'] !== field.name) return invalid('computed defaults require every omitted slot exactly once in declaration order.');
+    let wire: unknown;
+    if (field.kind === 'ref') {
+      if (Object.hasOwn(owner.capture.bound.arrays, field.name) || Object.hasOwn(owner.capture.bound.nullableRefs, field.name)) {
+        return invalid('computed reference requires a singular nonnullable owning slot.');
+      }
+      const candidate = object(observed['wire'], ['id', 'version']);
+      const index = owner.capture.bound.inputs.indexOf(field);
+      const seed = call.recordRefs.find(ref => {
+        const seedIndex = owner.capture.bound.inputs.findIndex(input => input.name === ref.param);
+        const input = owner.capture.bound.inputs[seedIndex];
+        return seedIndex >= 0 && seedIndex < index && input?.kind === 'ref' && input.model === field.model &&
+          ref.model === field.model && !Object.hasOwn(owner.capture.bound.arrays, input.name) &&
+          !Object.hasOwn(owner.capture.bound.nullableRefs, input.name) && candidate['id'] === ref.row.id &&
+          candidate['version'] === String(ref.row.version);
+      });
+      if (seed === undefined) return invalid('computed reference requires an earlier admitted singular nonnullable same-model seed.');
+      try { wire = dataCopy(encodeValue(field.model, decodeValue(field.model, candidate))); }
+      catch { return invalid('invalid computed reference wire.'); }
+    } else wire = inputDefaultWire(owner.capture.bound, field, observed['wire']);
+    Object.defineProperty(owner.inputDefaults, field.name, { value: deepFreeze(wire), enumerable: true });
+    owner.computedIndex += 1;
+  } catch (error) {
+    if (owner !== undefined) owner.capture.poisoned = true;
+    const state = captures.get(call); if (state !== undefined) state.poisoned = true;
+    throw error;
+  }
+}
+
+function finalizedDefaults(owner: ReceiptOwnerSession, modelDefaults: Record<string, unknown>): Record<string, unknown> {
+  if (owner.computedIndex !== owner.computedDefaults.length) return invalid('generated handler omitted a required computed-default contribution.');
+  const union: Record<string, unknown> = dataCopy(modelDefaults);
+  for (const [name, value] of Object.entries(owner.inputDefaults)) {
+    if (Object.hasOwn(union, name)) return invalid('input and model default identities collide.');
+    Object.defineProperty(union, name, { value: dataCopy(value), enumerable: true });
+  }
+  return union;
+}
 
 function ownerHealthy(owner: ReceiptOwnerSession): void {
   assertScenarioReceiptExecution(owner.call, owner.store);
@@ -248,7 +347,8 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
     const bounds = object(dataCopy(input.bounds), ['maxWork', 'maxRows']);
     if (!Number.isSafeInteger(bounds['maxRows']) || (bounds['maxRows'] as number) < 1 ||
         (bounds['maxRows'] as number) > MAX_ITEMS) return invalid('owner row bound exceeds the saved disclosure budget.');
-    const owner: ReceiptOwnerSession = { call, store, capture: state, stage: 0, busy: false, closed: false, finalized: null };
+    const owner: ReceiptOwnerSession = { call, store, capture: state, stage: 0, busy: false, closed: false, finalized: null,
+      ...inputDefaultSlots(call, state.bound), computedIndex: 0 };
     ownerSessions.set(call, owner);
     const session = await ownerOperation(owner, () => beginOwnerMutation({ ...input, context: call.context, store,
       trigger: { revision: call.revision, owner: call.checkpoint?.owner ?? call.context.team?.teamId ?? call.context.app },
@@ -289,10 +389,15 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
         owner.stage += 1;
       }),
       finalize: async () => {
-        const result = await ownerOperation(owner, () => session.finalize());
-        if (result.writes.length > MAX_ITEMS) { state.poisoned = true; return invalid('changed snapshot budget exceeded.'); }
-        owner.finalized = result;
-        return result;
+        try {
+          if (owner.computedIndex !== owner.computedDefaults.length) return invalid('generated handler omitted a required computed-default contribution.');
+          const result = await ownerOperation(owner, () => session.finalize());
+          if (result.writes.length > MAX_ITEMS) return invalid('changed snapshot budget exceeded.');
+          // The actual seal must not alias mutable output from the ordinary
+          // model pipeline; both consumer and retention receive this copy.
+          owner.finalized = deepFreeze(dataCopy({ ...result, resolvedDefaults: finalizedDefaults(owner, result.resolvedDefaults) }));
+          return owner.finalized;
+        } catch (error) { state.poisoned = true; throw error; }
       },
     });
   } catch (error) { state.poisoned = true; throw error; }
