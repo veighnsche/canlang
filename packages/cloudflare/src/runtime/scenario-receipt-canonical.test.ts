@@ -576,6 +576,34 @@ it('refuses a caught cloned intermediate marker before committing staged changes
   assert.deepEqual(w.counters(),{commits:0,files:0,executions:1});
 });
 
+it('retains a caught unsupported query refusal and discards earlier successful owner stages', async () => {
+  const w=await world(false,true,`
+    const old=input.record.visible;
+    await observeScenarioReceiptDependency(c,"Shop.Record",input.record,"visible","old-visible");
+    await set(c,input.record,{visible:"must not partially commit"});
+    try { await c.canonical.readModel("Shop.Record",{}); } catch {}
+    const middle=input.record.visible;
+    await observeScenarioReceiptDependency(c,"Shop.Record",input.record,"visible","middle-visible");
+    selectScenarioReceiptReturn(c,"selected"); return old+"|"+middle;
+  `, artifact=>{artifact.operations![0]!.result={type:'text' as CanTypeId,disclosure:ownerPlan()};});
+  const entry=await w.store.load(model,w.row.id); assert.ok(entry);
+  const before=await w.snapshot(), envelope={...w.envelope,operation_id:uuidv7(FIXED_NOW,++sequence),
+    inputs:{record:{id:entry.id,version:String(entry.version)}}};
+  const batches:Array<Parameters<StoragePort['commit']>[0]>=[];
+  const captureStore:StoragePort={...w.store,commit:async batch=>{batches.push(batch);return w.store.commit(batch);}};
+  const outcome=await buildInvoker(w.artifact,w.asm,captureStore,{appId:app,memberships:w.identities,now:()=>FIXED_NOW})
+    .invokeMutation(envelope,w.identity);
+  assert.ok('error' in outcome,JSON.stringify(outcome)); assert.equal(outcome.error.code,'validation');
+  assert.match(outcome.error.message,/query reads require their defining provenance/);
+  const after=await w.snapshot(); assert.deepEqual({...after,revision:before.revision},before);
+  assert.equal(batches.length,1,'only the real rejected receipt/fence is committed');
+  for(const batch of batches) {assert.deepEqual(batch.writes,[]);assert.deepEqual(batch.history,[]);
+    assert.deepEqual(batch.uniqueClaims,[]);assert.deepEqual(batch.uniqueReleases,[]);
+    assert.deepEqual(batch.outbox,[]);assert.deepEqual(batch.schedules,[]);}
+  const receipt=await w.store.readReceipt({...w.receipt.identity,operationId:envelope.operation_id as OperationId}); assert.ok(receipt);
+  assert.equal(receipt.outcome.status,'rejected'); assert.equal(w.counters().executions,1);
+});
+
 
 it('retains omitted literal/nullable input reports read-only and refuses their mutation join', async () => {
   for(const mutates of [false,true]) {

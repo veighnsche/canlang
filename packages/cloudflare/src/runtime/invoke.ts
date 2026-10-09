@@ -3953,12 +3953,14 @@ async function runScenarioSeam(
   // code (indistinguishable from propagation — the receipt then says
   // exactly what propagation would have said).
   const engineFailures = new Map<string, Error>();
+  let receiptEngineFailure: Error | undefined;
   const recordEngineFailure = (error: unknown): void => {
     // Preserve failures from engine callbacks across the handler's string
     // seam. A plain storage exception must reach State unchanged, so it is
     // retriable rather than saved as an authored rejected receipt.
     if (error instanceof Error) {
       engineFailures.set(error.message, error);
+      if (receiptAware) receiptEngineFailure ??= error;
     }
   };
   const refuseRecordBinding = (text: string): never => {
@@ -4801,6 +4803,10 @@ async function runScenarioSeam(
   };
   const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx,
     observesDefaults ? [argument, observeDefault] : [argument], due !== undefined || cohort !== undefined);
+  // A caught unsupported join or engine refusal cannot convert prior owner
+  // stages into a partial success. Preserve the first actual failure; State
+  // retains its own session poisoning and rejected-receipt semantics.
+  if (receiptEngineFailure !== undefined) throw receiptEngineFailure;
   if (!outcome.ok) {
     // Attributed engine failure first: an uncaught engine `StateError`
     // propagates verbatim, so its message matches the recorded one
