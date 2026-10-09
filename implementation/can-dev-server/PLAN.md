@@ -6,6 +6,8 @@ This plan does not replace the [seven-lane platform plan](../PLAN.md). Its paths
 
 ## Current checkpoint
 
+The exact Compiler d64f648b six-file producer intake emits originating declaration/field-label candidates and the accepted version1 ranking context. Its released source/CLI4/4 and carrier9/9 results are reused at their declared scope; runtime-evidence flags remain false. Joined native rebuilding and actual source-to-session/default-off observation are due. Working profile qualification and live ambiguous ranking remain open, rather than inferred from candidate shape.
+
 The native readonly page polling case passes1/1 in actual Chrome, including hidden-tab polling, authorization, persisted updates and navigation cancellation. Its raw temporary-profile launcher now uses the installed Playwright macOS credential-store flags and jointly consumes navigation/bootstrap waits; the initial document had stalled before any asset request, while the same Worker served HTTP200 to curl. Existing native form results are reused. No production polling/security behavior changed and this is not Office/G2 acceptance.
 
 The bounded runtime fixture joins now declare their actual owning module bytes, read grants/selectors and canonical delivery/user values, rather than claiming unrelated compiled TeamTasks provenance. D3 selected receipt6/6, observer5/5 and durable4/4 pass across affected runs; typed read/effect checks pass. T32 memory cases pass with unchanged results reused and its two final composed-fixture corrections checked2/2; real D1/DO checks pass6/6. CRUD, revocation, replay, rejected receipts, history, cancellation and loud missing-owner assertions remain. These deliberately handbuilt fixtures do not qualify a compiled app or repair shared CI.
