@@ -23,6 +23,8 @@ import {
   newSupersessionRow,
   readDispatchRow,
   readDispatchImageCorrelation,
+  readDispatchImageControlPin,
+  dispatchGenerationTargetProfile,
   readEverySlotRow,
   readOccurrenceRow,
   readScheduleRow,
@@ -49,11 +51,11 @@ function rowWithData(data: unknown): StoredRow {
 }
 
 describe('kernel tables: dispatch rows', () => {
-  it('retains complete original Images correlation and rejects partial or noncanonical revisions', () => {
+  for (const source of ['std.ImagesV1.submit', 'std.TextGenerationV1.generate']) it(`retains ${source} correlation and rejects partial or noncanonical revisions`, () => {
     const correlation = { requestSource: 'arbitrary-business-source', requestRevision: '7',
       requestBinding: 'Acme.Images', requestFrom: 'deployment.images', requestApp: 'Acme', requestOwner: 'team-1' };
     const row = newDispatchRow({ intentId: 'original', operationId: 'different-operation',
-      source: 'std.ImagesV1.submit', occurrenceIndex: 0, originOccurrence: null, ...correlation }, META);
+      source, occurrenceIndex: 0, originOccurrence: null, ...correlation }, META);
     assert.deepEqual(readDispatchImageCorrelation(readDispatchRow(row)), correlation);
     assert.deepEqual(readDispatchImageCorrelation(readDispatchRow(withRowData(row,
       { ...readDispatchRow(row), state: 'uncertain', attempts: 1 }, META, 'work.dispatch'))), correlation);
@@ -69,6 +71,28 @@ describe('kernel tables: dispatch rows', () => {
     Object.defineProperty(accessor, 'requestSource', { get: () => { getters++; return 'bad'; } });
     assert.throws(() => readDispatchImageCorrelation(accessor), KernelTableError);
     assert.equal(getters, 0);
+  });
+
+  it('recognizes exactly the two generation families and reads control pins after retained JSON serialization', () => {
+    const correlation = { requestSource: 'business-source', requestRevision: '7', requestBinding: 'Acme.Generation',
+      requestFrom: 'deployment.generation', requestApp: 'Acme', requestOwner: 'team-1' };
+    const pin = { originalIntentId: 'original', observationStartedAtMs: META.nowMs, observationDeadlineMs: META.nowMs + 1000 };
+    for (const [original, resultName, family] of [['std.ImagesV1.submit', 'ImageRun', 'images'],
+      ['std.TextGenerationV1.generate', 'TextRun', 'text']] as const) {
+      assert.deepEqual(dispatchGenerationTargetProfile(original), { family, role: 'original', originalSource: original, resultName });
+      for (const action of ['cancel', 'reconcile']) {
+        const source = `${original.slice(0, original.lastIndexOf('.'))}.${action}`;
+        assert.deepEqual(dispatchGenerationTargetProfile(source), { family, role: 'control', originalSource: original, resultName });
+        const row = newDispatchRow({ intentId: 'control', operationId: 'control-operation', source,
+          occurrenceIndex: 0, originOccurrence: null, ...correlation }, META);
+        const retained = JSON.parse(JSON.stringify({ ...row, data: { ...row.data, ...pin } })) as StoredRow;
+        assert.deepEqual(readDispatchImageControlPin(readDispatchRow(retained)), pin);
+        assert.throws(() => readDispatchRow({ ...retained, data: { ...retained.data, source: original } }), /disagrees/);
+      }
+    }
+    for (const source of ['std.ImagesV1.generate', 'std.TextGenerationV1.submit', 'std.TextGenerationV2.cancel', 'std.EmailV1.cancel', '__proto__']) {
+      assert.equal(dispatchGenerationTargetProfile(source), null);
+    }
   });
 
   it('builds pending producer rows that read back exactly', () => {

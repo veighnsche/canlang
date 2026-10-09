@@ -33,6 +33,9 @@ import type {
   StoragePort,
   StoredRow,
 } from '@canlang/contracts';
+import type { SystemCommandContext, SystemStaging } from '@canlang/state';
+import { DELIVERY_RESULT_LEAVES } from '@canlang/contracts';
+import { RECEIPT_MODEL, newReceiptRow, readReceiptRow } from '@canlang/state/receipt/tables';
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import {
   FenceConflictError,
@@ -54,7 +57,12 @@ import {
   readFanoutChildRow,
   readFanoutIntentRow,
   withRowData,
+  WORK_DISPATCH_MODEL,
+  readDispatchRow,
+  readDispatchImageControlPin,
 } from './tables.js';
+import { workDispatchStageCommand, workDispatchClaimCommand, workDispatchReleaseCommand,
+  workDispatchPinImageControlCommand, workDispatchStopPendingCommand } from './commands.js';
 
 const META = { nowMs: 1_758_000_000_000, actor: 't34-f2-durable' };
 const OCC = 'occ_durable_1';
@@ -193,6 +201,7 @@ function doProxy(): StoragePort {
     load: (model: ModelName, id: RecordId) => doCall('load', model, id),
     query: (spec: QuerySpec) => doCall('query', spec),
     commit: (batch: CommitBatch) => doCall('commit', batch),
+    outboxGet: (id: string) => doCall('outboxGet', id),
   } as StoragePort;
 }
 
@@ -510,3 +519,82 @@ function durableSuite(name: string, setup: () => Promise<{ store: StoragePort; r
 
 durableSuite('real D1', async () => ({ store: createD1Storage(d1db), reset: resetD1 }));
 durableSuite('real DO SQLite', async () => ({ store: doProxy(), reset: resetDO }));
+
+/** Generation controls reuse these native table adapters. Reopen reconstructs
+ * the adapter over the retained substrate; process-restart survival is unclaimed.
+ */
+function generationControlSuite(name: string, setup: () => Promise<{
+  store: StoragePort; reset: () => Promise<void>; reopen: () => Promise<StoragePort>;
+}>): void {
+  describe(`generation control retained dispatch rows on ${name}`, () => {
+    for (const family of [{ original: 'std.ImagesV1.submit', cancel: 'std.ImagesV1.cancel', result: 'ImageRun' },
+      { original: 'std.TextGenerationV1.generate', cancel: 'std.TextGenerationV1.cancel', result: 'TextRun' }] as const) {
+      it(`${family.original} retains the immutable pin across adapter reopen/reclaim and joins the original pending stop`, async () => {
+        const native = await setup(); await native.reset(); let store = native.store;
+        const originalIntentId = 'generation-original', controlIntentId = 'generation-control';
+        const correlation = { requestSource: 'business-source-distinct-from-operation', requestRevision: '3',
+          requestBinding: 'Acme.Generation', requestFrom: 'deployment.generation', requestApp: 'Acme', requestOwner: 'team-1' };
+        const context = (now = META.nowMs): SystemCommandContext => ({ actor: META.actor, now,
+          operation: 'test.generation', load: store.load, query: store.query });
+        const commitStage = async (effects: SystemStaging) => store.commit({ expectedRevision: await store.readRevision(),
+          writes: effects.writes ?? [], history: [], receipt: null, outbox: effects.outbox ?? [],
+          schedules: [], uniqueClaims: [], uniqueReleases: [], ...(effects.outboxAck === undefined ? {} : { outboxAck: effects.outboxAck }) });
+        const base = { originOperationId: 'origin-operation', occurrenceIndex: 0, originOccurrence: null,
+          guard: null, guardVerdict: null, correlation };
+        const staged = await workDispatchStageCommand.stage({ operationId: 'stage-operation', intents: [
+          { ...base, intentId: originalIntentId, operation: 'Acme.generate', source: family.original,
+            request: { binding: correlation.requestBinding, from: correlation.requestFrom,
+              arguments: { value: { source: correlation.requestSource, revision: correlation.requestRevision } } } },
+          { ...base, intentId: controlIntentId, operation: 'Acme.stop', source: family.cancel,
+            request: { binding: correlation.requestBinding, from: correlation.requestFrom,
+              arguments: { source: correlation.requestSource, revision: correlation.requestRevision } } },
+        ] }, context());
+        const receipt = newReceiptRow({ deliveryId: originalIntentId, revision: 1, status: 'pending', result: null,
+          error: null, contentRef: null, resultExpiresAtMs: null }, META);
+        await commitStage({ ...staged, writes: [...staged.writes!, { kind: 'insert', model: RECEIPT_MODEL as ModelName, row: receipt }] });
+        await commitStage(await workDispatchClaimCommand.stage({ intentId: controlIntentId, claimId: 'control-claim',
+          claimedAtMs: META.nowMs, maxClaimAgeMs: 60_000 }, context()));
+        const args = { intentId: controlIntentId, claimId: 'control-claim', originalIntentId, correlation,
+          observation: { startedAtMs: META.nowMs, deadlineMs: META.nowMs + 1000 } };
+        await commitStage(await workDispatchPinImageControlCommand.stage(args, context()));
+        const pinned = await store.load(WORK_DISPATCH_MODEL, controlIntentId as RecordId); assert.ok(pinned);
+        store = await native.reopen();
+        assert.deepEqual(await store.load(WORK_DISPATCH_MODEL, controlIntentId as RecordId), pinned);
+        const originalCarrier = await store.outboxGet(originalIntentId); assert.ok(originalCarrier);
+        assert.equal(originalCarrier.status, 'pending');
+        assert.deepEqual(readDispatchImageControlPin(readDispatchRow(pinned)), { originalIntentId,
+          observationStartedAtMs: META.nowMs, observationDeadlineMs: META.nowMs + 1000 });
+        const later = META.nowMs + 2000;
+        await commitStage(await workDispatchReleaseCommand.stage({ intentId: controlIntentId, maxClaimAgeMs: 0 }, context(later)));
+        await commitStage(await workDispatchClaimCommand.stage({ intentId: controlIntentId, claimId: 'recovery-claim',
+          claimedAtMs: later, maxClaimAgeMs: 60_000 }, context(later)));
+        const recoveredArgs = { ...args, claimId: 'recovery-claim' };
+        const replay = await workDispatchPinImageControlCommand.stage(recoveredArgs, context(later));
+        assert.equal(replay.writes, undefined); assert.equal((replay.result as { existing: boolean }).existing, true);
+        await assert.rejects(Promise.resolve().then(() => workDispatchPinImageControlCommand.stage({ ...recoveredArgs,
+          observation: { startedAtMs: META.nowMs, deadlineMs: later + 1000 } }, context(later))), /cannot be renewed/);
+        const receiptRevision = (await store.readRevision()) + 1;
+        const stop = await workDispatchStopPendingCommand.stage({ intentId: originalIntentId, correlation, revision: receiptRevision }, context(later));
+        assert.deepEqual(stop.result, { stopped: true, intentId: originalIntentId, receiptRevision });
+        await commitStage(stop);
+        store = await native.reopen();
+        assert.deepEqual(await store.outboxGet(originalIntentId), { ...originalCarrier, status: 'dispatched' });
+        const retained = await store.load(RECEIPT_MODEL as ModelName, originalIntentId as RecordId); assert.ok(retained);
+        assert.equal(readReceiptRow(retained, { source: family.original,
+          declaredResult: { name: family.result, fields: DELIVERY_RESULT_LEAVES[family.result]! },
+          request: { source: correlation.requestSource, revision: correlation.requestRevision } }).receipt.status, 'skipped');
+        const repeated = await workDispatchStopPendingCommand.stage({ intentId: originalIntentId, correlation, revision: receiptRevision }, context(later));
+        assert.equal(repeated.writes, undefined); assert.equal((repeated.result as { reason: string }).reason, 'already-stopped');
+      });
+    }
+  });
+}
+
+generationControlSuite('real D1', async () => ({ store: createD1Storage(d1db), reset: resetD1,
+  reopen: async () => createD1Storage(d1db) }));
+generationControlSuite('real DO SQLite', async () => ({ store: doProxy(), reset: resetDO,
+  reopen: async () => {
+    const response = await doPost('/reopen', {});
+    if (response['ok'] !== true) throw rehydrate(response['error'] as unknown as WorkerErrorJson);
+    return doProxy();
+  } }));
