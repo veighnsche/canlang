@@ -348,12 +348,23 @@ due. No passing rule activation, rejection receipt or fence change is claimed. O
 local main **fdd03cb7** supplies the actual owner-session producer, real Node
 fixture, complete portable State subpath mapping and cache/whole JS-map closure
 revalidation. It replaces the Vitest fixture without relaxing accessor refusal.
-Owning dependency/Cloudflare/Testkit build **24/24** passes; the actual Node
-native target is due at the current compiler-source boundary. The release's
+Owning dependency/Cloudflare/Testkit build **24/24** and the actual Node
+native target **6/6**, zero skips, pass on this compiler branch. The release's
 **6/6** covers original behavior plus copied/swapped/changed-assembly zero-commit
 refusals. Preserve the separate saved-result ABI intake and unfinished private
 marker bridge, hook carriers, BDD3 and outbox holds. No unchanged Rust rerun or
 broader reference credit follows this exact source intake.
+
+**Direct bounded-alias input correction, 2026-10-09.** Scenario input
+publication now consumes the existing checked alias identity instead of widening
+it to text. The descriptor's nominal field and wrapped `valueType` refer to the
+same owning inventory; required, nullable, defaulted and array input behavior
+is preserved. Missing/dangling alias identity omits the whole operation.
+Actual checked/IR and CLI→installed State/Interfaces intake plus bounded Values
+codec **2/2** pass, including empty/bad-name/81-character refusals. Owning codegen
+**121/121**, current strict all-target Clippy and formatting pass. Packages owns
+the complete CSV consumer workflow; no fabricated consumer descriptor or new
+alias identity map is introduced. Original reference counts remain unchanged.
 
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
