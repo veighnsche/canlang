@@ -170,22 +170,27 @@ export function buildFrozenMailRequest(
       'Email attachments must be finalized file references',
     );
   }
-  const unresolved = attachments.filter(
-    (ref) => ctx.sizes.sizeOf(ref) === null,
-  );
-  if (unresolved.length > 0) {
-    throw new MailAttachmentError(attachments.slice());
-  }
+  const frozenAttachments = Object.freeze(attachments.slice());
   let attachmentBytes = 0;
-  for (const ref of attachments) {
-    attachmentBytes += ctx.sizes.sizeOf(ref) as number;
+  let unresolved = false;
+  for (const ref of frozenAttachments) {
+    const size = ctx.sizes.sizeOf(ref);
+    if (size === null || !Number.isSafeInteger(size) || size < 0) {
+      unresolved = true;
+      continue;
+    }
+    attachmentBytes += size;
+    if (!Number.isSafeInteger(attachmentBytes)) unresolved = true;
+  }
+  if (unresolved) {
+    throw new MailAttachmentError(frozenAttachments);
   }
   const request: FrozenMailRequest = {
     deliveryId: ctx.deliveryId,
     to,
     subject,
     body,
-    attachments: Object.freeze(attachments.slice()),
+    attachments: frozenAttachments,
     attachmentBytes,
     createdAt: ctx.createdAt,
   };
