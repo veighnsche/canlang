@@ -927,6 +927,80 @@ it('keeps a caught altered admitted prompt intrinsic poisoned and rolls back suc
   assert.deepEqual(w.counters(),{commits:0,files:0,executions:1});
 });
 
+it('executes a pure saved scope with unrelated generated Text declarations without using optional runtime framework ports', async () => {
+  // This checks execution against absent cached runtime ports. It does not
+  // simulate missing loader exports: installed ESM namespaces are immutable.
+  const textArtifact=JSON.parse(await readFile(new URL('../../test/fixtures/typed-generation-progress.json',import.meta.url),'utf8')) as CompileArtifact;
+  assert.equal(textArtifact.modules.length,1);
+  const textModule=textArtifact.modules[0]!, textSource=textArtifact.sources[0]!;
+  assert.equal(createHash('sha256').update(await readFile(new URL('../../test/fixtures/typed-generation-progress.can',import.meta.url)))
+    .digest('hex'),textSource.sha256,'the unrelated generated binding and delivery model remain source-current');
+  const w=await world(false,true,`
+    await handlerProbe(c,await c.store.load("Shop.Record",input.record.id));
+    const value=input.record.visible;
+    await observeScenarioReceiptDependency(c,"Shop.Record",input.record,"visible","visible-value");
+    selectScenarioReceiptReturn(c,"selected"); return value;
+  `,artifact=>{
+    artifact.sources.push(...textArtifact.sources); artifact.modules.push(...textArtifact.modules);
+    artifact.models!.push(...textArtifact.models!);
+    artifact.modules[0]!.js=`import {appDefinition as generatedTextDefinition} from ${JSON.stringify(`./${textModule.path}`)};\n`+
+      artifact.modules[0]!.js.replace('id:"SavedScenario",policy,models:',
+        'id:"SavedScenario",policy,contracts:generatedTextDefinition.contracts,capabilities:generatedTextDefinition.capabilities,bindings:generatedTextDefinition.bindings,models:');
+  },false);
+  const namespace:unknown=await import(w.asm.moduleUrls[modulePath]!);
+  assert.ok(namespace && typeof namespace==='object' && 'setHandlerProbe' in namespace &&
+    typeof namespace.setHandlerProbe==='function');
+  let closedContext:import('./context.js').HandlerContext|undefined, ownerEntry:unknown, captures=0;
+  namespace.setHandlerProbe((context:import('./context.js').HandlerContext,row:unknown)=>{
+    assert.ok(row && typeof row==='object' && Object.isFrozen(row));
+    closedContext=context; ownerEntry=row; captures++;
+  });
+  const frameworkSnapshot=async()=>Promise.all(
+    [WORK_DISPATCH_MODEL,WORK_SCHEDULE_MODEL,RECEIPT_MODEL as ModelName,RECEIPT_ASSOCIATION_MODEL as ModelName]
+      .map(selected=>w.store.query({model:selected,authority:'owner',archived:'include'})));
+  const before={state:await w.snapshot(),framework:await frameworkSnapshot()};
+  const batches:Array<Parameters<StoragePort['commit']>[0]>=[];
+  const store:StoragePort={...w.store,commit:async batch=>{batches.push(batch);return w.store.commit(batch);}};
+  const producer=w.loaded.producers.invoke;
+  const keys=['bindScenarioReceiptFrameworkProducer','stageScenarioReceiptSend','stageScenarioReceiptDelivery'] as const;
+  const descriptors=Object.getOwnPropertyDescriptors(producer);
+  for(const key of keys) { assert.equal(typeof producer[key],'function'); assert.equal(Reflect.deleteProperty(producer,key),true); }
+  try {
+    const fresh=await buildInvoker(w.artifact,w.asm,store,{appId:app,memberships:w.identities,now:()=>FIXED_NOW})
+      .invokeMutation(w.envelope,w.identity);
+    assert.ok('result' in fresh,JSON.stringify(fresh)); assert.equal(fresh.result.status,'committed');
+    assert.equal(fresh.result.result,w.row.data['visible']); assert.deepEqual(fresh.result.records,[]);
+    assert.equal(captures,1); assert.equal(batches.length,1);
+    const batch=batches[0]!;
+    for(const values of [batch.writes,batch.history,batch.outbox,batch.schedules,batch.uniqueClaims,batch.uniqueReleases])
+      assert.deepEqual(values,[],'pure capture emits no domain or framework effects');
+    assert.ok(batch.receipt); assert.deepEqual(batch.receipt.identity,w.receiptIdentity);
+    assert.equal(batch.receipt.inputHash,await hashInputs(w.envelope.inputs)); assert.deepEqual(batch.receipt.resolvedDefaults,{});
+    const physical=await w.store.readReceipt(w.receiptIdentity); assert.ok(physical); assert.deepEqual(physical,batch.receipt);
+    assert.equal(physical.outcome.status,'committed');
+    if(physical.outcome.status!=='committed') throw new Error('pure saved scope did not commit');
+    assert.deepEqual(physical.outcome.recordVersions,[]);
+    const association=readScenarioReceiptAssociation(physical); assert.ok(association);
+    assert.deepEqual(association.plan,plan()); assert.deepEqual(association.changed,[]);
+    assert.deepEqual(association.observations.map(observation=>observation.row),[ownerEntry]);
+    const after={state:await w.snapshot(),framework:await frameworkSnapshot()};
+    assert.equal(after.state.revision,before.state.revision+1);
+    assert.deepEqual({...after.state,revision:before.state.revision,receipt:before.state.receipt},before.state);
+    assert.deepEqual(after.framework,before.framework);
+    const {selectScenarioReceiptReturn:selectFacade}=await import('./stdlib.js');
+    assert.ok(closedContext);
+    assert.throws(()=>selectFacade(closedContext!,'selected'),/active framework context/,'the actual handler frame closes after capture');
+    for(const dedicated of [false,true]) {
+      const replay=dedicated?await w.invoker(w.readonlyStore,true).invokeRetainedMutation(w.envelope,w.identity)
+        :await w.invoker().invokeMutation(w.envelope,w.identity);
+      assert.ok('result' in replay,JSON.stringify(replay)); assert.equal(replay.result.status,'replayed');
+      assert.deepEqual(replay.result.result,fresh.result.result); assert.deepEqual(replay.result.records,[]);
+      assert.deepEqual({state:await w.snapshot(),framework:await frameworkSnapshot()},after);
+      assert.equal(batches.length,1); assert.equal(captures,1); assert.deepEqual(w.counters(),{commits:0,files:0,executions:1});
+    }
+  } finally { Object.defineProperties(producer,Object.fromEntries(keys.map(key=>[key,descriptors[key]!]))); }
+});
+
 it('joins installed Text sends and assigned deliveries in one saved-scenario fence while caught refusals remain owner-only', async () => {
   // Reuse the exact released generated binding/contracts/capability module,
   // without borrowing its handlers or disclosure markers into this frame.
