@@ -36,6 +36,18 @@ When
    if job.private_choice
     transition job.status idle -> ready
    return 7
+ scenario default_scalar(job:Job,selected:bool=true,optional:text?) -> int by=members
+  do
+   if selected
+    transition job.status idle -> ready
+   return 7
+ scenario computed_scalar(job:Job,choice:bool,selected:bool=choice) -> int by=members
+  do
+   if selected
+    transition job.status idle -> ready
+   return 7
+ scenario default_reference(seed:Job,job:Job=seed) by=members
+  do transition job.status idle -> ready
  scenario quantity(item:Item) -> int by=members
   do return item.quantity
  scenario availability(item:Item) -> bool by=members
