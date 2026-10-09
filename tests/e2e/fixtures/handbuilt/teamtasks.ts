@@ -44,16 +44,18 @@ import type { ArtifactOperation, CompileArtifact } from "@canlang/contracts";
 export const TEAMTASKS_WORKER_NAME = "e2e-teamtasks";
 export const TEAMTASKS_D1_BINDING = "DB";
 export const TEAMTASKS_SOURCE_RELATIVE = "examples/TeamTasks.can";
-// Slice-23 drift analysis (2026-10-05 closeout): the source gained
-// breadcrumbs, form input/textarea children, text-for-badge rows,
-// tooltip/pagination/empty-states and collapse-for-details — Then/UI
-// vocabulary only; Given/When byte-identical, so the Todo D1 schema
-// and the worker's rendered contract (headings, list content with
-// Done/Open + assignee, title form, seed, login) are unaffected and
-// every spec assertion still mirrors the source. Worker verified
-// current; pin re-based to the replanned bytes.
+// Source correspondence review (2026-10-09): compared with the previously
+// pinned source at a4b52d51, the only changes move TeamTasks.preferences.view
+// and TeamNotes.preferences.show_content verbatim from Given to Then.
+// Their fields, defaults and labels are unchanged, as are all records,
+// policies, CRUD declarations, examples and page bodies; TeamOffice is
+// unchanged. The fixture does not implement preference controls or the
+// TeamNotes/TeamOffice pages, so these relocations require no worker or
+// schema changes. Its existing task, login, CSRF and MCP workflows retain
+// the same correspondence, within the fixture-only limits documented above
+// and in teamtasks-worker.mjs; this is not complete compiled-app coverage.
 export const TEAMTASKS_SOURCE_SHA256 =
-  "78020054ba06d0282047d4c400487ea1da070e7ebdb624637f0ff1802683f3d0";
+  "004a2b8e5c78c47b66112aa9c056a0dc6bde11cc6cfd28273fe0e0bd02baafd5";
 
 /**
  * Hand-built D1 schema mirroring the `Todo` record in TeamTasks.can
