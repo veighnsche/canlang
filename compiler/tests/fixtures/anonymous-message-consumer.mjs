@@ -106,7 +106,6 @@ package Wording source="fr"
      text "Static tab body"
    card enumCaption(mode=one,n=6)
     text "Named enum body"
-   button target="/" caption=enumCaption(mode=one,n=8)
    stat 1 description=(("{mode}|{n}"@{nl="{mode,select,one {Eén} other {Twee}}:{n}"}(mode=selectedMode(),n=9)))
    details (("{mode}|{n}"@{nl="{mode,select,one {Eén} other {Twee}}:{n}"}(mode=selectedMode(),n=7)))
     text "Inferred named enum body"
@@ -144,7 +143,7 @@ for(const caption of ['1 kaarten','2 details nl','3 scheidingen','Page:Page','Pr
 }
 assert.equal(captionHtml.match(/Statisch bijschrift/g)?.length,6,'zero-parameter bare/grouped captions render through all five actual UI factories and a valid producer');
 for(const body of ['Static card body','Static details body','Static fieldset body','Static tab body']) assert.ok(captionHtml.includes(body),body);
-for(const caption of ['Eén:6','Eén:7','Eén:8','Eén:9','Named enum body','Inferred named enum body']) assert.ok(captionHtml.includes(caption),caption);
+for(const caption of ['Eén:6','Eén:7','Eén:9','Named enum body','Inferred named enum body']) assert.ok(captionHtml.includes(caption),caption);
 const memberContext={memberships:['members']};
 const values = {
   location:'Brussels', resource:'Meeting room',

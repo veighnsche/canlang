@@ -395,6 +395,10 @@ fn parameterized_message_captions_require_binding_before_publication() {
                 ),
                 ("divider", format!("  divider {caption}\n")),
                 (
+                    "stat description",
+                    format!("  stat 1 description={caption}\n"),
+                ),
+                (
                     "fieldset",
                     format!("  fieldset {caption}\n   text \"Body\"\n"),
                 ),
@@ -487,10 +491,6 @@ fn unsupported_ownerless_enum_ui_descriptors_refuse_before_publication() {
                 "stat description",
                 format!("  stat 1 description={descriptor}\n"),
             ),
-            (
-                "button caption",
-                format!("  button target=\"/\" caption={descriptor}\n"),
-            ),
         ] {
             let input = scratch.path().join("enum-sink.can");
             std::fs::write(&input, format!("{declarations}{body}")).unwrap();
@@ -557,4 +557,38 @@ fn anonymous_messages_compile_and_execute_native_date_time_and_plural_bindings()
         String::from_utf8_lossy(&result.stderr)
     );
     eprint!("{}", String::from_utf8_lossy(&result.stdout));
+}
+
+#[cfg(unix)]
+#[test]
+fn unsupported_button_profile_and_invalid_stat_descriptions_refuse() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    for (body, expected) in [
+        ("  button target=\"/\" caption=\"Button\"\n", "E6008"),
+        ("  stat 1 description=1\n", "E3001"),
+        ("  stat 1 description=missing()\n", "E2001"),
+        ("  stat 1 description=mutate()\n", "E3005"),
+    ] {
+        let input = scratch.path().join("unsupported-option.can");
+        std::fs::write(&input, format!("app OptionRefusals\nGiven\nWhen\n scenario mutate() -> text by=members\n  do\n   return \"Changed\"\nThen\n page / title=\"Options\"\n{body}")).unwrap();
+        let output = std::process::Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["compile", "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(input)
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap();
+        let response: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(output.status.code(), Some(10), "{body}: {response}");
+        assert!(response.get("modules").is_none(), "{body}: {response}");
+        assert!(
+            response["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|d| d["code"] == expected),
+            "{body}: {response}"
+        );
+    }
 }

@@ -8661,7 +8661,20 @@ impl<'a> Cx<'a> {
         for (name, value) in ui_attributes(self.db, node) {
             if let Some(value) = value {
                 let decoded = if name == "description" {
-                    self.decode_ui_header_value(scope, value)
+                    let attribute = kids(node).into_iter().find(|child| {
+                        child.kind == SyntaxKind::Attribute
+                            && kids(child)
+                                .first()
+                                .and_then(|part| name_text(self.db, part))
+                                .as_deref()
+                                == Some("description")
+                    });
+                    let Some(decoded) = attribute.and_then(|attribute| {
+                        self.decode_single_ui_caption(scope, attribute, "stat description")
+                    }) else {
+                        continue;
+                    };
+                    decoded
                 } else {
                     self.decode_word_attr(scope, &name, value)
                 };
