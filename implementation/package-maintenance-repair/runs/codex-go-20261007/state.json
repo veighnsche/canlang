@@ -1443,7 +1443,7 @@
         "prerequisite": "Selected entry source/lock/tool/emit/pack/actual supported-host consumer correspondence; native inventory remains held.",
         "owner": "Each owning package and delivery/release integrator"
       },
-      "current_validation_gap": "Workspace boundary gate retains 102 existing violations. Newly corrected catalog/contract-profile setup and fresh compiled D1 CRUD/browser/MCP consumers are finite checks; supported source/installed/packed correspondence and existing whole-release gates remain required.",
+      "current_validation_gap": "Full actual package boundary guard now0violations. Fresh actual tarball-only declaration/Worker checks expose owning CF Files declaration dependency in dev-only metadata and missing abs from mapped CF stdlib; ready complete corrections and affected installed qualification underway. Native/supported-host/complete release contract gates remain open.",
       "teamtasks_fixture_consumer": {
         "state": "implemented and tested finite owning fixture consumer",
         "files": [
@@ -4326,10 +4326,6 @@
       {
         "prerequisite": "Exact pinned draft5a now available. Pristine CanDo+Employees pilot failsE3001 nullable person and2E3010 active_member derive-purity; retained patched pilot406 provenance refuses changedCanDo and old source emitsE1200 Given preferences+4E2001 preferences/row. Existing15pilot cases all fail at these defining profiles; no skipped/missing-source substitution.",
         "owner": "Draft/Compiler defining source and profile owners; Packages consumes released current-profile fixture/provenance contract"
-      },
-      {
-        "prerequisite": "Actual current-source CI6f46 run37946181674 reaches completion_contract actual_completion_engines but runner zsh compinit aborts on insecure completion directories; real terminal loses initial c and has no compdef. Current local actual bash/zsh/Python full1275cases pass. Owning fixture/environment correction needed; do not skip engines or weaken assertions.",
-        "owner": "Compiler actual completion fixture/runner profile owner (compiler/tests/fixtures/completion-contract/zsh.py); workflow coordination if needed"
       }
     ],
     "review_prerequisite": {
@@ -4344,7 +4340,8 @@
       "followup": "Published Compiler1ee1239d/dac8596f receiving-field/grouped identity source and owning tests consumed with provenance asfe32dea1/c52722e6. Exact matching B1 source-test delta from1a6c7633 and workflow delta from2db9200b consumed; no unrelated compiler implementation or unfinished checkpoint adopted.",
       "gate_followup": "Published37695f6d consumed with provenance as6f807890 (diagnostic layout preserves wire shape, equivalent CLI/BDD traversal/lint, owning foundation/LSP controls). Consume exact2db source formatter hunks,3e5d2cd effects wired-library/each controls and explain E2019 allocation-example distinction, plus released5bb TeamTasks localized golden/catalog profile. Crate-private helpers remain private; no draft diagnostic count rewrite or unrelated Compiler source replacement.",
       "gate_validation": "Current real catalog generated; genuine Rust1.99 format and strict all-target Clippy pass. Full locked/offline Rust suite passes1275cases/121suite summaries, zero failed/ignored/filtered; actual pinned5a draft outcomes, CanInbox header parity and real B1/B2 artifact joins execute without skips. Required actual bash/zsh/Python completion engines enabled. No native preparation activation. Known chained preference caption issue is outside these retained cases and remains Compiler-owned.",
-      "producer_followup": "Consume exact restricted five producer and34matching existing test/fixture deltas from verified owning PR1330f17f6f806babaf8a36c9cfeaa40357e5437aae7. Coherent descriptor/duration/delete-control/caption/preferences producers048a7383/e7d65ad9/c3c12531/f9efbd39/e461c1e2/3082eae1 accompany corpus1d6495d1 and completed Judgment-domain consumerb1209ff6; no corpus-count-only substitution or unrelated loader/workflow replacement."
+      "producer_followup": "Consume exact restricted five producer and34matching existing test/fixture deltas from verified owning PR1330f17f6f806babaf8a36c9cfeaa40357e5437aae7. Coherent descriptor/duration/delete-control/caption/preferences producers048a7383/e7d65ad9/c3c12531/f9efbd39/e461c1e2/3082eae1 accompany corpus1d6495d1 and completed Judgment-domain consumerb1209ff6; no corpus-count-only substitution or unrelated loader/workflow replacement.",
+      "completion_followup": "Consume exact owningc4376ab8b92be5dd7daf6da766bda2dae7d3dc49 zsh fixture: compinit -i still audits and ignores insecure fpath directories without prompt; require successful compdef/bootstrap and use a split ready sentinel. Required actual completion file2/2 passes with an injected real mode0777temporary fpath directory, zero skips. Full unchanged1275source results reused, no engine/assertion weakening."
     },
     "pending_shared_boundary_handoff": {
       "release": "Coordinator exact five-file patch7e114146 consumed via git apply --3way as eac25ce3378009895968b44d29c710d59c328c07 and pushed to PR135. All four code/workflow blob IDs match handoff; newer DECISIONS entries retained.",

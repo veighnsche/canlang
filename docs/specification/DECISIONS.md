@@ -3635,3 +3635,7 @@ Accepted finite Codex4231103231 correction: extend the existing structural regis
 ## 2026-10-09 — retain the owning delivery-version refusal
 
 Accepted finite State test correction: the existing standard delivery version:'one' input intentionally violates the numeric-version contract and correctly fails at identity/version admission. Match that defining diagnostic instead of the retired capability wording; retain both malformed inputs, typed error assertions and the independent missing-result refusal. Owning State TypeScript and the existing B3 delivery-schema file pass5/5 without skips. Actual new-source Linux CI independently reaches zsh completion but its compinit aborts on insecure runner completion directories; this remains a Compiler fixture/environment prerequisite, with assertions and required engines intact.
+
+## 2026-10-09 — consume the audited actual zsh startup prerequisite
+
+Consume exact owning Compilerc4376ab8fixture: compinit -i audits completion paths and ignores insecure directories without prompting; enforce compdef/bootstrap success and prevent terminal command echo from satisfying readiness. The existing required actual completion suite passes2/2 with a real mode0777temporary fpath directory added, without skipping engines or weakening completion assertions. Unchanged full1275source results are reused. This resolves the observed Linux completion prerequisite at its scope; current-head CI/Codex and original broader qualification remain due.
