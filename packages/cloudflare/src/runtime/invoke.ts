@@ -2503,7 +2503,11 @@ export async function loadCanonicalDescriptors(
   artifact: CompileArtifact,
 ): Promise<LoadedCanonicalDescriptors> {
   const cached = canonicalCache.get(artifact);
-  if (cached !== undefined) return cached;
+  if (cached !== undefined) {
+    const ownerControl = localOwnerPolicyControls.get(cached);
+    if (ownerControl !== undefined) await ownerControl.verifyAssembly(asm, artifact);
+    return cached;
+  }
   if (artifact.requires.some((entry) => entry.capability === "state.machines") ||
       artifact.models?.some((model) => model.fields.some((field) => field.machine !== undefined))) {
     const catalogMod = await loadProducerModule("@canlang/state/catalog", "state capability catalog");
@@ -3511,6 +3515,7 @@ function nativeProjectedRecord(loaded: NativeRecordScope, modelName: string, row
 /** This private control is not an executor option or a public context factory. */
 interface LocalOwnerPolicyControl {
   readonly policies: CheckedOwnerModelPolicies;
+  verifyAssembly(asm: AssembledModules, artifact: CompileArtifact): Promise<void>;
   createOwnerFrame(input: { readonly call: CanonicalSeamCall; readonly session: OwnerMutationSession }): { close(): void };
 }
 const localOwnerPolicyControls = new WeakMap<LoadedCanonicalDescriptors, LocalOwnerPolicyControl>();
@@ -3719,7 +3724,19 @@ async function loadLocalOwnerPolicyControl(input: {
     typeof import('@canlang/state/mutation').bindArtifactOwnerModelPolicies;
   const policies = bind({ artifact: input.loaded, table: input.table, modules });
   if (policies === undefined) throw new Error('Claimed local owner policies failed to bind.');
-  return Object.freeze({ policies, createOwnerFrame({ call, session }: { call: CanonicalSeamCall; session: OwnerMutationSession }) {
+  // Capture the issuing assembly and a production path while the initial
+  // carrier is verified. The issuer checks the whole JS/map closure even
+  // when this module namespace is already in the ESM import cache.
+  const verificationPath = modules[0]!.path;
+  return Object.freeze({ policies, async verifyAssembly(asm: AssembledModules, artifact: CompileArtifact) {
+    if (asm !== input.asm) {
+      throw new input.native.producers.errors('validation', 'Native owner policies require their original verified assembly.');
+    }
+    try { await importVerifiedAssemblyModule(asm, verificationPath, artifact); }
+    catch {
+      throw new input.native.producers.errors('validation', 'Native owner assembly no longer matches its captured artifact or module closure.');
+    }
+  }, createOwnerFrame({ call, session }: { call: CanonicalSeamCall; session: OwnerMutationSession }) {
     const context = session.views.context;
     if (!Object.isFrozen(context) || localPolicyContextFacts(context) !== localPolicyContextFacts(call.context) || activeFrames.has(context)) {
       throw new input.native.producers.errors('validation', 'Owner model frame requires the exact fresh admitted session context.');
