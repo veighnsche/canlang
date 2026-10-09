@@ -378,6 +378,12 @@ pub struct IrFieldLabel {
     pub values: Vec<(String, IrMessage)>,
 }
 
+/// Authored label parts before an inherited field caption is resolved.
+struct DecodedFieldLabel {
+    text: Option<IrMessage>,
+    values: Vec<(String, IrMessage)>,
+}
+
 /// One catalog-builtin reference needing an availability check at link time.
 ///
 /// PR5 seeds this from checked call positions; the JS lowering appends the
@@ -942,6 +948,7 @@ pub fn scalar_family(ty: &ResolvedType) -> Option<ScalarFamily> {
         | ResolvedType::Union(_)
         | ResolvedType::Object(_)
         | ResolvedType::Operation(_)
+        | ResolvedType::InlineMessage
         | ResolvedType::Opaque(_) => None,
     }
 }
@@ -961,6 +968,7 @@ pub fn is_structural(ty: &ResolvedType) -> bool {
         | ResolvedType::OperationContext
         | ResolvedType::Enum { .. }
         | ResolvedType::Message(_)
+        | ResolvedType::InlineMessage
         | ResolvedType::Action { .. }
         | ResolvedType::Invocation { .. }
         | ResolvedType::Delivery { .. }
@@ -2568,6 +2576,18 @@ impl<'a> Cx<'a> {
 
     /// Decode a field-label value: plain message or `{text, values}`.
     fn decode_field_label(&mut self, module: ModuleId, key: &NodeKey) -> Option<IrFieldLabel> {
+        let label = self.decode_field_label_parts(module, key)?;
+        Some(IrFieldLabel {
+            text: label.text?,
+            values: label.values,
+        })
+    }
+
+    fn decode_field_label_parts(
+        &mut self,
+        module: ModuleId,
+        key: &NodeKey,
+    ) -> Option<DecodedFieldLabel> {
         let node = self.node(key)?.clone();
         match node.kind {
             SyntaxKind::Label => {
@@ -2588,16 +2608,36 @@ impl<'a> Cx<'a> {
                         _ => {}
                     }
                 }
-                text.map(|text| IrFieldLabel { text, values })
+                Some(DecodedFieldLabel { text, values })
             }
             SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path => self
                 .decode_message_node(module, &node)
-                .map(|text| IrFieldLabel {
-                    text,
+                .map(|text| DecodedFieldLabel {
+                    text: Some(text),
                     values: Vec::new(),
                 }),
             _ => None,
         }
+    }
+
+    fn decode_declared_field_label_parts(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+        owner: SymbolId,
+    ) -> Option<DecodedFieldLabel> {
+        let key =
+            self.program
+                .effects
+                .models
+                .get(&owner)
+                .and_then(|model| model.fields.iter().find(|field| field.field == symbol.id))
+                .or_else(|| {
+                    self.program.effects.records.get(&owner).and_then(|record| {
+                        record.fields.iter().find(|field| field.field == symbol.id)
+                    })
+                })
+                .and_then(|field| field.label)?;
+        self.decode_field_label_parts(symbol.module, &key)
     }
 
     /// Decode one `case=caption` label case.
@@ -2700,6 +2740,13 @@ impl<'a> Cx<'a> {
         }
         let expr = match node.kind {
             SyntaxKind::Literal => self.decode_literal(node),
+            SyntaxKind::MessageValue => self
+                .decode_message_node(scope.module, node)
+                .map(IrExpr::Message)
+                .unwrap_or_else(|| IrExpr::Unsupported {
+                    what: "inline message descriptor".to_string(),
+                    why: "authored descriptor text is unavailable".to_string(),
+                }),
             SyntaxKind::NameRef => self.decode_name_ref(scope, node, &ty),
             SyntaxKind::Group => {
                 return match kids(node).iter().find(|n| is_expression(n.kind)) {
@@ -2949,6 +2996,16 @@ impl<'a> Cx<'a> {
         if let Some(fixture) = scope.bindings.get(&name) {
             let fixture_name = self.local_name(*fixture);
             return member_of("s", &fixture_name, &self.fixture_type(*fixture), node.span);
+        }
+        // These reads refer to checked immutable descriptor lets. Keep their
+        // captured value even when a module message/fixture shares the name.
+        if self
+            .program
+            .types
+            .message_descriptor_references
+            .contains_key(&key)
+        {
+            return IrExpr::Name(name);
         }
         if is_enum_ty(ty) && self.program.types.bound_names.contains(&key) {
             return IrExpr::Name(name);
@@ -3754,12 +3811,20 @@ impl<'a> Cx<'a> {
         // Inline descriptors have no declared parameters. Their syntax supplies
         // text only; the owning checked module supplies source language.
         let inline = descriptor_node.kind == SyntaxKind::MessageValue;
-        let anonymous = self
+        // Resolve only schema provenance. The argument below still lowers the
+        // authored local read, retaining its already evaluated descriptor.
+        let descriptor_key = NodeKey::of(&descriptor_node);
+        let origin = self
             .program
             .types
-            .anonymous_messages
-            .get(&NodeKey::of(&descriptor_node))
-            .cloned();
+            .message_descriptor_references
+            .get(&descriptor_key)
+            .copied()
+            .unwrap_or(descriptor_key);
+        let origin_inline = self
+            .node(&origin)
+            .is_some_and(|node| node.kind == SyntaxKind::MessageValue);
+        let anonymous = self.program.types.anonymous_messages.get(&origin).cloned();
         let args: Vec<_> = arguments
             .iter()
             .enumerate()
@@ -3798,7 +3863,7 @@ impl<'a> Cx<'a> {
                 }
                 (data.source_lang.clone(), params)
             }
-            ResolvedType::Scalar(Scalar::Text) if inline || anonymous.is_some() => {
+            ResolvedType::InlineMessage if origin_inline || anonymous.is_some() => {
                 let Some(module) = self.program.effects.modules.get(&scope.module) else {
                     return unsupported("checked inline descriptor module is unavailable");
                 };
@@ -3840,7 +3905,7 @@ impl<'a> Cx<'a> {
                 | Scalar::Currency,
             ) => Some("text"),
             ResolvedType::Scalar(Scalar::Bool) => Some("bool"),
-            ResolvedType::Enum { owner: Some(_), .. } => Some("enum"),
+            ResolvedType::Enum { .. } => Some("enum"),
             ResolvedType::Scalar(Scalar::Int) => Some("int"),
             ResolvedType::Scalar(Scalar::Decimal) => Some("decimal"),
             ResolvedType::Scalar(Scalar::Money) => Some("money"),
@@ -3861,6 +3926,7 @@ impl<'a> Cx<'a> {
             ResolvedType::Enum {
                 owner: Some(id), ..
             } => self.canonical(*id),
+            ResolvedType::Enum { owner: None, cases } => format!("enum({})", cases.join(",")),
             ResolvedType::Record { symbol, .. }
             | ResolvedType::Message(symbol)
             | ResolvedType::Operation(symbol) => self.canonical(*symbol),
@@ -6989,7 +7055,7 @@ impl<'a> Cx<'a> {
         {
             return TypedExpr::new(
                 IrExpr::Message(message),
-                ResolvedType::Scalar(Scalar::Text),
+                ResolvedType::InlineMessage,
                 node.span,
             );
         }
@@ -7023,7 +7089,53 @@ impl<'a> Cx<'a> {
             ));
         }
         let value = self.decode_expr(scope, header);
-        if !matches!(value.ty, ResolvedType::Scalar(Scalar::Text)) {
+        if let ResolvedType::Message(id) = &value.ty
+            && self
+                .program
+                .effects
+                .messages
+                .get(id)
+                .is_some_and(|message| !message.params.is_empty())
+        {
+            // Immutable aliases retain the checked initializer anchor. Inspect
+            // a bare origin's IR only to classify its binding; never emit or
+            // reevaluate that origin in place of the captured caption value.
+            let mut reference = *header;
+            while reference.kind == SyntaxKind::Group {
+                let Some(inner) = kids(reference).into_iter().find(|n| is_expression(n.kind))
+                else {
+                    break;
+                };
+                reference = inner;
+            }
+            let bare_origin = self
+                .program
+                .types
+                .message_descriptor_references
+                .get(&NodeKey::of(reference))
+                .and_then(|key| self.node(key))
+                .filter(|node| matches!(node.kind, SyntaxKind::NameRef | SyntaxKind::Path))
+                .cloned();
+            let unbound = if let Some(origin) = bare_origin {
+                matches!(self.decode_expr(scope, &origin).expr, IrExpr::Message(message) if message.params.is_empty())
+            } else {
+                matches!(&value.expr, IrExpr::Message(message) if message.params.is_empty())
+            };
+            if unbound {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    format!("cannot lower {word}: parameterized message caption needs a checked call binding"),
+                    header.span,
+                ));
+                return None;
+            }
+        }
+        if !matches!(
+            value.ty,
+            ResolvedType::Scalar(Scalar::Text)
+                | ResolvedType::InlineMessage
+                | ResolvedType::Message(_)
+        ) {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 format!("cannot lower {word}: caption has no checked text profile"),
@@ -7128,7 +7240,8 @@ impl<'a> Cx<'a> {
             ));
             return None;
         }
-        let (_, default, _, _, label, _) = self.decode_field(&symbol, *owner);
+        let (_, default, _, _, _, _) = self.decode_field(&symbol, *owner);
+        let label = self.decode_declared_field_label_parts(&symbol, *owner);
         let inherited_label = if enum_owner != field_id {
             self.program
                 .symbols
@@ -7138,7 +7251,7 @@ impl<'a> Cx<'a> {
                     let SymbolKind::Field { owner, .. } = enum_field.kind else {
                         return None;
                     };
-                    let (_, _, _, _, label, _) = self.decode_field(&enum_field, owner);
+                    let label = self.decode_declared_field_label_parts(&enum_field, owner);
                     label.map(|label| (enum_field.name, label))
                 })
         } else {
@@ -7267,14 +7380,14 @@ impl<'a> Cx<'a> {
             ResolvedType::Unknown,
             target.span,
         );
-        let label = label.or_else(|| {
+        let caption = label.and_then(|label| label.text).or_else(|| {
             inherited_label
                 .filter(|(name, _)| name == &symbol.name)
-                .map(|(_, label)| label)
+                .and_then(|(_, label)| label.text)
         });
-        let caption = label.map(|label| {
+        let caption = caption.map(|caption| {
             TypedExpr::new(
-                IrExpr::Message(label.text),
+                IrExpr::Message(caption),
                 ResolvedType::Scalar(Scalar::Text),
                 target.span,
             )
@@ -8257,6 +8370,7 @@ impl<'a> Cx<'a> {
             ResolvedType::Scalar(Scalar::Bool | Scalar::Text | Scalar::Int)
                 | ResolvedType::Enum { .. }
                 | ResolvedType::Message(_)
+                | ResolvedType::InlineMessage
                 | ResolvedType::Null
         ) {
             self.diags.push(Diagnostic::error(

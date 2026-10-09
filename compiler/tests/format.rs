@@ -72,19 +72,6 @@ fn corpus_files() -> Vec<std::path::PathBuf> {
     files
 }
 
-/// Corpus files that do not parse under the current grammar: file name to
-/// the exact expected diagnostic codes (sorted). The formatter must refuse
-/// these with `FormatError` rather than emit output; the files themselves
-/// are sibling-owned (the `each=` trusted-scenario attribute they use is
-/// not in GRAMMAR.md and the parser rejects it with E1203 — either the
-/// grammar/parser or the two drafts must change, both outside this lane).
-fn expected_corpus_errors(file_name: &str) -> Option<Vec<&'static str>> {
-    match file_name {
-        "CanShift.can" | "CanVolunteer.can" => Some(vec!["E1203", "E1203"]),
-        _ => None,
-    }
-}
-
 #[test]
 fn corpus_formats_cleanly_and_is_idempotent() {
     let files = corpus_files();
@@ -95,55 +82,21 @@ fn corpus_formats_cleanly_and_is_idempotent() {
     );
     let mut failures = Vec::new();
     let mut table = Vec::new();
-    let mut expected_seen = 0usize;
     for path in &files {
         let text = std::fs::read_to_string(path).unwrap();
-        let name = path
-            .file_name()
-            .expect("corpus file must have a name")
-            .to_string_lossy()
-            .into_owned();
-        let expected = expected_corpus_errors(&name);
         match format_source(SourceId(0), &text) {
             Err(error) => {
-                let mut codes: Vec<&str> = error.diagnostics.iter().map(|d| d.code).collect();
-                codes.sort_unstable();
-                match expected {
-                    Some(want) if codes == want => {
-                        expected_seen += 1;
-                        table.push(format!(
-                            "{:>9}  {} (expected {})",
-                            "ERROR",
-                            path.display(),
-                            want.join(",")
-                        ));
-                    }
-                    Some(want) => failures.push(format!(
-                        "{}: expected [{}], got [{codes:?}]",
-                        path.display(),
-                        want.join(",")
-                    )),
-                    None => {
-                        let file = path.display();
-                        let count = error.diagnostics.len();
-                        failures.push(format!("{file}: {count} diagnostic(s)"));
-                        for diagnostic in &error.diagnostics {
-                            let code = diagnostic.code;
-                            let message = &diagnostic.message;
-                            failures.push(format!("  {code} {message}"));
-                        }
-                        table.push(format!("{:>9}  {}", "ERROR", path.display()));
-                    }
+                let file = path.display();
+                let count = error.diagnostics.len();
+                failures.push(format!("{file}: {count} diagnostic(s)"));
+                for diagnostic in &error.diagnostics {
+                    let code = diagnostic.code;
+                    let message = &diagnostic.message;
+                    failures.push(format!("  {code} {message}"));
                 }
+                table.push(format!("{:>9}  {}", "ERROR", path.display()));
             }
             Ok(first) => {
-                if expected.is_some() {
-                    failures.push(format!(
-                        "{}: expected a parse error, but it formatted",
-                        path.display()
-                    ));
-                    continue;
-                }
                 let label = if first.changed {
                     "changed"
                 } else {
@@ -160,6 +113,10 @@ fn corpus_formats_cleanly_and_is_idempotent() {
                         if second.text != first.text {
                             failures.push(format!("{}: not idempotent", path.display()));
                         }
+                        if second.changed {
+                            failures
+                                .push(format!("{}: second format reports changed", path.display()));
+                        }
                         let (before_tree, _) = parse_source(SourceId(0), &text);
                         let (after_tree, _) = parse_source(SourceId(1), &first.text);
                         if cst_signature(&before_tree, &text)
@@ -172,10 +129,6 @@ fn corpus_formats_cleanly_and_is_idempotent() {
             }
         }
     }
-    assert_eq!(
-        expected_seen, 2,
-        "both known-unparseable corpus files must still be present"
-    );
     table.sort();
     println!("corpus format table ({} files):", table.len());
     for row in &table {
@@ -404,6 +357,9 @@ fn already_formatted_files_report_unchanged() {
 
 #[test]
 fn invalid_sources_yield_diagnostics_and_no_output() {
+    let each = "app A\nGiven\n M { x:int }\n event E {}\nWhen\n scenario s on=E each=M as m\n  do\n   set m { x=1 }\nThen\n";
+    let formatted = format_fixed_point(each);
+    assert!(formatted.text.contains("scenario s on=E each=M as m"));
     let cases = [
         (
             "tab indent",
@@ -439,9 +395,9 @@ fn invalid_sources_yield_diagnostics_and_no_output() {
         ("missing sections", "app A\nGiven\n", None),
         ("junk", "app A\nGiven\n ))) \nWhen\nThen\n", None),
         (
-            "each attribute",
-            "app A\nGiven\nWhen\n scenario s on=E each=M as m\n  do\n   set m {x=1}\nThen\n",
-            Some("E1203"),
+            "duplicate each attribute",
+            "app A\nGiven\nWhen\n scenario s on=E each=M as m each=M\n  do\n   set m {x=1}\nThen\n",
+            Some("E1202"),
         ),
     ];
     for (name, text, code) in cases {

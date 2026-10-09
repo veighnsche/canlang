@@ -22,7 +22,9 @@ assert.deepEqual(result.local.args.record,record);assert.equal(result.local.args
 assert(isDecimal(result.local.args.amount));assert.equal(result.local.args.amount.coef,amount.coef);assert.equal(result.local.args.amount.scale,amount.scale);assert.equal(result.local.args.note,'authored');
 assert.deepEqual(Object.keys(result.local.args),['note','amount','record']);
 assert(Object.isFrozen(result.local));assert(Object.isFrozen(result.local.args));assert.equal(result.optional,null);
-await assert.rejects(()=>call('descriptors',{record}),/must be a Can value/);
+const authoredDefaults=await call('descriptors',{record});
+assert.equal(authoredDefaults.local.args.amount.coef,250n);assert.equal(authoredDefaults.local.args.amount.scale,2);assert.equal(authoredDefaults.local.args.note,'hello');
+await assert.rejects(()=>call('descriptors',{record,amount:3.75}),/must be a Can value/);
 const inputs=entry.appDefinition.operations['Invocations.descriptors'].inputs;
 const defaults=await call('descriptors',{record,amount:inputs.amount.default,note:inputs.note.default});
 assert.equal(defaults.local.args.amount.coef,250n);assert.equal(defaults.local.args.amount.scale,2);assert.equal(defaults.local.args.note,'hello');

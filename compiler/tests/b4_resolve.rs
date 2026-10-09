@@ -110,8 +110,8 @@ fn assert_findings(src: &str, diags: &[Diagnostic], expected: &[(&str, &str, usi
 /// A local `export judgment` resolves in its own package: the bound
 /// self-import (DESIGN §8.2, like capabilities), bare and path type
 /// uses, value uses, `send`, `delivery()` and fixture heads. The
-/// derived evaluate/result interface stays opaque (DESIGN:897), so no
-/// member is checked — names resolve, shapes wait for typing.
+/// static specification is a value; calling it is rejected independently
+/// of the bound evaluate dispatch.
 #[test]
 fn judgment_registers_and_self_import_resolves() {
     let src = r#"package p
@@ -132,12 +132,21 @@ fn judgment_registers_and_self_import_resolves() {
    do
     let spec=Triage.specification
     let revision=Triage.specification.revision
-    let frozen=Triage.specification({pick=["a"]})
     send Judge.evaluate {state="hello"} as request
  Then
 "#;
     let diags = check(src, None);
     assert_findings(src, &diags, &[]);
+    let static_call = src.replace(
+        "    let revision=Triage.specification.revision\n",
+        "    let revision=Triage.specification.revision\n    let frozen=Triage.specification({pick=[\"a\"]})\n",
+    );
+    let diags = check(&static_call, None);
+    assert_findings(
+        &static_call,
+        &diags,
+        &[("E3005", "Triage.specification", 3)],
+    );
 }
 
 /// Duplicate judgments collide in the shared package scope.
@@ -146,9 +155,9 @@ fn judgment_duplicate_is_e2002() {
     let src = r#"package p
  Given
   judgment Triage version=1
-   route choice "Pick." {a="A"}
+   route choice "Pick." {a="A",b="B"}
   judgment Triage version=1
-   route choice "Pick." {a="A"}
+   route choice "Pick." {a="A",b="B"}
  When
   scenario s(note:text) by=members
    do

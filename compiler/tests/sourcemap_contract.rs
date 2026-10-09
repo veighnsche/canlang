@@ -153,6 +153,17 @@ fn byte_point_maps_reach_independent_decoder_and_current_consumers() {
     let codec = root.join("node_modules/@jridgewell/sourcemap-codec/dist/sourcemap-codec.mjs");
     let codec = if codec.is_file() {
         codec
+    } else if root
+        .join(
+            "packages/cloudflare/node_modules/@jridgewell/sourcemap-codec/dist/sourcemap-codec.mjs",
+        )
+        .is_file()
+    {
+        // Bun's isolated linker installs this declared consumer dependency
+        // under its owning workspace rather than hoisting it to the root.
+        root.join(
+            "packages/cloudflare/node_modules/@jridgewell/sourcemap-codec/dist/sourcemap-codec.mjs",
+        )
     } else {
         PathBuf::from(std::env::var_os("HOME").unwrap()).join(
             ".bun/install/cache/@jridgewell/sourcemap-codec@1.6.0@@@1/dist/sourcemap-codec.mjs",
