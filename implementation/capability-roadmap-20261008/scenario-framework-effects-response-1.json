@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Verified LOCAL Canlang66c6cf14 on reviewed d392097e. SAME unchanged compiled native Text source SHAa075716... now emits genuine operation-id/original job.version/prompt DATA and late accept CONTROL with Send/Set. Whole nativeD1/localHTTP test fails first real generate because Dev overlay routes Work internal reads through State domain ownerSession. Dev owns read/adapter repair; State owner must define atomic framework-effects join. Work.stageCanonicalSend uses real command to produce work.dispatch writes/outbox and an opaque Values delivery, but returns ordinary mutable SystemStaging without private provenance. CF.stageAuthoredDelivery uses owning State receipt table constructors to produce protected Receipt/association rows; no proof. State ownerSession seals actual net DOMAIN writes/history/uniques/input+model defaults, bounded MAX_ITEMS200 and maxWork, actual issued row/stage identity. State retain compares exact domain seal, then currently projects ALL writes as business changed rows (framework absent inventory refuses). State Invoke snapshots own effects while execution active, closes finally, retains and commits one physical revision/owner fence. Work depends State; State depends Contracts/Values, so adding State->Work dependency creates cycle. No existing neutral universal seal. Dev verified loader authenticates source/module/package functions; State policy binder already checks transport and privately brands before invoke, does not independently attest JS bytes. A fake verifier supplied per-call, model-name allowlist alone, forged carrier, host effect appendix, fake system models, a second commit, or weakening final domain/default equality are prohibited. Work must supply a genuine private WeakMap original carrier seal with actual stage/context/input unchanged; Packages owns that producer. State receipt staging may move from CF into State preserving old shim/API and all replacement/clear/judgment/current receipt rules. State-private framework ledger must be exact admitted call/store/context/checkpoint/owner/revision/source/hash bound, sequential/poisoned on caught failure, bounded/collision-refusing and closed finally. Internal producer readers see only physical+ledger framework rows; source domain rows stay actual owner-session. Framework writes stay outside business disclosure; domain and complete joined final commit correspondence must remain exact. Full workflow acceptance requires same entire case; no narrowed fixture. This question selects necessary defining implementation, not acceptance.",
+    "questions": {
+      "framework_effect_join": {
+        "type": "choice",
+        "instructions": "Which next defining producer join best satisfies the full stated atomic/source/privacy outcomes with least new authority and reliable implementation?",
+        "criteria": {
+          "state_calls_bound_producers": "State privately binds genuine installed Work stage+private reader once at Dev verified-loader registration, not per-call arbitrary callbacks. Actual admitted State API derives immutable input/context and invokes Work itself, immediately verifies exact original private seal and stores bounded detached framework delta. State owns moved receipt/association producer derived from same ledger + actual issued current row/checked owning field. Existing session finalize produces immutable joined commit tuple but keeps original domain tuple separate for exact retention and business projection. Dev forwards requests/actual current rows only, never framework effects; Work and State still own their respective production. Requires finite positive Work seal and Dev loader/API adoption.",
+          "state_admits_original_work_carriers": "Preserve Work emission at actual Dev native send evaluation point. State issues private immutable staging context; genuine Work stage returns private original carrier tied to exact input/context, and Dev forwards that original object to State. State uses genuine verifier bound once through verified loader, consumes once and records exact bounded ledger; State receipt stage derives from ledger/current row. Final domain/merged seals and single commit/privacy stay identical. Minimizes direct stage relocation but adds explicit context issuance, carrier forwarding/single-consumption and duplicate/foreign/copy protocol. Requires same genuine Work proof and verified binder.",
+          "defer_until_full_framework_execution_ABI": "Keep source workflows rejected while first designing/releasing a broader source-attested framework execution ABI that directly includes every allowed send/receipt/schedule in the State execution plan. Existing domain/read/transition components continue. This avoids new runtime transport binding assumptions until fuller Compiler/Work/Dev schema exists, but retains current Task44 absence and adds producer design beyond currently released intrinsic/Send/Set capture. No existing failed case or scaffold is accepted."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "framework_effect_join": {
+        "type": "choice",
+        "choice": "state_calls_bound_producers",
+        "confidence": 0.8,
+        "probabilities": {
+          "state_calls_bound_producers": 0.87,
+          "state_admits_original_work_carriers": 0.13,
+          "defer_until_full_framework_execution_ABI": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1196,
+      "output_tokens": 61
+    }
+  }
+}
