@@ -328,6 +328,10 @@
         "review_read_released": true,
         "commit_pending": false,
         "commit": "a1f3c67a6efe62d03526a849408648bfa2ad5804"
+      },
+      "remaining_prerequisite": {
+        "prerequisite": "Genuine defining descriptor/owner/revision registration and complete scalar/default/lifetime serving joins.",
+        "owner": "Values plus exact compiler/consumer producer owner"
       }
     },
     "TECH-V04": {
@@ -391,6 +395,10 @@
           "read_released": true,
           "commands_released": true
         }
+      },
+      "remaining_prerequisite": {
+        "prerequisite": "Released production codec domain, lossless UTF16/error/carrier/profile and joint retirement/startup contract.",
+        "owner": "Values TS/Rust and actual supported consumer owners"
       }
     },
     "TECH-V05": {
@@ -428,6 +436,10 @@
         "reason": "Generic JEV preauthorization insufficient for specific internal source payload/destination",
         "calls_started": false,
         "no_workaround": true
+      },
+      "remaining_prerequisite": {
+        "prerequisite": "Supported ICU/tzdb/currency release profile and selected raw-zone cache/budget policy with required consequential-choice consultation.",
+        "owner": "Values contract/release-host owners"
       }
     },
     "TECH-S01": {
@@ -525,7 +537,11 @@
       "tool_blocker": "Failed worker interruption retained; source/command cessation and independent local review establish this candidate only; no restart/retry claimed.",
       "root_read_released": true,
       "commit_pending": false,
-      "commit": "89d885a9"
+      "commit": "89d885a9",
+      "remaining_prerequisite": {
+        "prerequisite": "First/replay public result projection, trusted producing-origin provenance and current authority on retained outcomes.",
+        "owner": "State/Cloudflare/Interfaces security contract owners"
+      }
     },
     "TECH-S03": {
       "planning_status": "blocked",
@@ -537,7 +553,11 @@
         "packages/state/src/query/engine.ts",
         "packages/state/src/storage/d1.ts"
       ],
-      "evidence": "security-joins.json"
+      "evidence": "security-joins.json",
+      "remaining_prerequisite": {
+        "prerequisite": "App/mixed-root/page/MCP and installed routing qualification beyond accepted team-owner D1 consumers.",
+        "owner": "State/Cloudflare actual owner-routing integrator"
+      }
     },
     "TECH-W02": {
       "planning_status": "ready",
@@ -628,7 +648,11 @@
         "packages/work-kernel/decisions/recovery.rs",
         "packages/work-kernel/decisions/linkage.rs",
         "packages/cloudflare/src/runtime/invoke.ts"
-      ]
+      ],
+      "remaining_prerequisite": {
+        "prerequisite": "Released synchronous native decision family/facade/demand protocol, production ABI/assets and actual supported installed/durable whole-call consumer.",
+        "owner": "Work-kernel/Cloudflare producer and delivery integrator"
+      }
     },
     "TECH-I01": {
       "planning_status": "blocked",
@@ -679,7 +703,11 @@
       "root_read_released": true,
       "commit_pending": false,
       "parent_limit": "Whole J2 shared-fence, recovery, membership, revocation/current-auth and installed gates remain open",
-      "commit": "33f12d62"
+      "commit": "33f12d62",
+      "remaining_prerequisite": {
+        "prerequisite": "Whole J2 transaction fence, guard, statement and memory contract; recovery/last-owner atomic winner/replay qualification.",
+        "owner": "Identity/Contracts/State transaction contract owners"
+      }
     },
     "TECH-I02": {
       "planning_status": "blocked",
@@ -718,7 +746,11 @@
       "root_read_released": true,
       "commit_pending": false,
       "parent_limit": "Verifier grammar, browser origins, persisted/native/installed/current-authority and whole auth remain open",
-      "commit": "1eeedb6d"
+      "commit": "1eeedb6d",
+      "remaining_prerequisite": {
+        "prerequisite": "Browser presession binding, capped-body/Origin/CSRF versus nonbrowser contract, and revoke-during-effect outcome.",
+        "owner": "Identity/Interfaces/Cloudflare browser/security contract owners"
+      }
     },
     "TECH-F01": {
       "planning_status": "blocked",
@@ -774,7 +806,11 @@
         "review_read_released": true,
         "commit": "98c1e811"
       },
-      "commit": "d450130f"
+      "commit": "d450130f",
+      "remaining_prerequisite": {
+        "prerequisite": "Real atomic/recoverable durable append/count/blob, retry identity and finalization recovery; mounted durable/provider consumer.",
+        "owner": "Files/Interfaces durable upload owners"
+      }
     },
     "TECH-F02": {
       "planning_status": "blocked",
@@ -789,7 +825,11 @@
         "packages/cloudflare/src/worker/assembly.ts",
         "packages/interfaces/src/ingress/routes.ts",
         "packages/interfaces/src/ingress/mapping.ts"
-      ]
+      ],
+      "remaining_prerequisite": {
+        "prerequisite": "Released descriptor availability and attachment/download lifetime, retention continuation and authenticated provider/source occurrence correlation.",
+        "owner": "Files/Interfaces/Cloudflare plus actual descriptor/provider producer owners"
+      }
     },
     "TECH-SV01": {
       "planning_status": "blocked",
@@ -850,7 +890,11 @@
       "commit_pending": false,
       "review_read_released": true,
       "parent_limit": "No physical cancellation settlement, live provider/mounted/security/safe projection or late-outcome/idempotency/media correlation acceptance",
-      "commit": "8c8daeb9"
+      "commit": "8c8daeb9",
+      "remaining_prerequisite": {
+        "prerequisite": "Released provider classification/explanation, evidence lifetime, late outcome/idempotency and media jobId recovery correlation.",
+        "owner": "Services/Cloudflare/Work provider contract owners"
+      }
     },
     "TECH-SV03": {
       "planning_status": "blocked",
@@ -862,7 +906,11 @@
       ],
       "outputs": "/private/tmp/canlang-repair-go-20261007/service-mapping",
       "read_released": true,
-      "result_sha256": "c8b22c143a20f253bc56aa9c1430385d2b1ed94feea832c3323260602961b42c"
+      "result_sha256": "c8b22c143a20f253bc56aa9c1430385d2b1ed94feea832c3323260602961b42c",
+      "remaining_prerequisite": {
+        "prerequisite": "Exact submitted media graph domain/identity/digest contract; generic serializer substitution remains unreleased.",
+        "owner": "Services/Files graph contract owners"
+      }
     },
     "TECH-SV04": {
       "planning_status": "ready",
@@ -939,7 +987,11 @@
         "Current dependency entries/vendor distributions differ from frozen phase/CLI profile; no source-current full assembly acceptance",
         "Function aliases now share defining function identity/name, explicitly compatible type/call contract only"
       ],
-      "commit": "dda0ef6"
+      "commit": "dda0ef6",
+      "remaining_prerequisite": {
+        "prerequisite": "DD009 fresh/stale direct emit and packed archive closure with a real production Work receipt observer; retain exclusions until proven. Native preparation remains held.",
+        "owner": "Cloudflare build/release integrator and Work production observer owner"
+      }
     },
     "DEL-D02": {
       "planning_status": "ready",
@@ -1013,6 +1065,10 @@
             "/private/tmp/canlang-repair-go-20261007/csv-candidate-contract/check/node_modules"
           ]
         }
+      },
+      "remaining_prerequisite": {
+        "prerequisite": "Actual source constraint/specialization producer propagation, complete normalization authority and separately selected SR02 resource profile.",
+        "owner": "Values/compiler descriptor producer plus Interfaces/UI resource contract owners"
       }
     },
     "DEL-C02": {
@@ -1023,7 +1079,11 @@
         "packages/ui/src/csv/confirm.ts",
         "packages/ui/src/csv/preview.ts"
       ],
-      "residual_evidence": "Finite own-data correction passes changed-cell consent refusal; broader consent authority and replay remain open"
+      "residual_evidence": "Finite own-data correction passes changed-cell consent refusal; broader consent authority and replay remain open",
+      "remaining_prerequisite": {
+        "prerequisite": "Frozen app/user/team/session/expiry review binding, private/signed integrity and exact per-row current-authority contract.",
+        "owner": "Interfaces/UI/Identity/State review contract owners"
+      }
     },
     "DEL-C02-order": {
       "planning_status": "ready",
@@ -1080,6 +1140,10 @@
         ],
         "limit": "happy-dom structural Document/Window and actual UI markup; no Chromium/full installed browser/physical transport or broader product closure",
         "commit": "a3c0a9bd8ff62735c8f5d99ba7c033fcdcd0ca49"
+      },
+      "remaining_prerequisite": {
+        "prerequisite": "Settled emitted selector/initializer association and full physical-cancel/resource qualification.",
+        "owner": "UI and actual emitted markup/initializer producer owner"
       }
     },
     "DEL-B02": {
@@ -1115,7 +1179,11 @@
       "review_read_released": true,
       "commit_pending": false,
       "commit": "61e49955",
-      "status": "Finite selected static resources/currentruntimeowner mapping independently accepted; actual page422/query/caller/shell/browser/authorization/upload/export/print still open"
+      "status": "Finite selected static resources/currentruntimeowner mapping independently accepted; actual page422/query/caller/shell/browser/authorization/upload/export/print still open",
+      "remaining_prerequisite": {
+        "prerequisite": "Complete selected mounted auth/files/export/print/resource journey, finalized/retry progress and URL lifetime producer/sink policy.",
+        "owner": "UI/Interfaces/Files actual browser/asset integrators"
+      }
     },
     "DEL-D03": {
       "planning_status": "blocked",
@@ -1219,6 +1287,10 @@
         "validation": "29/29 CLI cases; Cloudflare noEmit TypeScript check passed",
         "behavior": "Protect all work after test scratch acquisition; attempt scope disposal and scratch removal, preserving the first thrown value.",
         "limits": "No run URL lifetime, whole-command budget, native preparation or parent acceptance; no reduction credit."
+      },
+      "remaining_prerequisite": {
+        "prerequisite": "Child/whole-command resource contract, sidecar/general race/partial-effect qualification and run returned-URL lifetime. Test scratch cleanup is complete.",
+        "owner": "Cloudflare command/resource contract owner"
       }
     },
     "DEL-D04": {
@@ -1279,6 +1351,10 @@
         "maintenance": "Original production closure163\u219259 including3imports:104lines removed. Approx776KB newly locked runtime dependencies+234KBdev types; host-only.",
         "dependencies": "acorn8.18.0 eslint-scope8.4.0 estree-walker3.0.3; dev @types/eslint-scope3.7.7; declaredNode>=22 unchanged",
         "commit": "7326dff1"
+      },
+      "remaining_prerequisite": {
+        "prerequisite": "Actual emitted/installed graph/source-map diagnostic correspondence and supported-host lexer/map error/order qualification.",
+        "owner": "Cloudflare plus exact compiler/artifact producer owner"
       }
     },
     "DEL-D05": {
@@ -1294,7 +1370,11 @@
         "packages/cloudflare/preparation/src/protocol.rs",
         "packages/cloudflare/preparation/src/job.rs",
         "packages/cloudflare/preparation/src/main.rs"
-      ]
+      ],
+      "remaining_prerequisite": {
+        "prerequisite": "Explicit human native preparation HOLD; do not activate, publish or default held preparation.",
+        "owner": "Human native preparation release owner"
+      }
     },
     "DEL-R01": {
       "planning_status": "blocked",
@@ -1323,7 +1403,11 @@
       "review": "interfaces-installed-prerequisite.json",
       "read_released": true,
       "commands_released": true,
-      "status": "Finite source-ownedUI/Interfaces/currentCF static stage and runtime mapping accepted; source-derivedcaller/installed/native/fullcurrentclosure gates open"
+      "status": "Finite source-ownedUI/Interfaces/currentCF static stage and runtime mapping accepted; source-derivedcaller/installed/native/fullcurrentclosure gates open",
+      "remaining_prerequisite": {
+        "prerequisite": "Selected entry source/lock/tool/emit/pack/actual supported-host consumer correspondence; native inventory remains held.",
+        "owner": "Each owning package and delivery/release integrator"
+      }
     },
     "DEL-E02": {
       "planning_status": "blocked",
@@ -1383,6 +1467,10 @@
         "model": "gpt-6.1-sol medium for bounded actual caller and failure-path qualification",
         "private_outputs_removed": true,
         "parent_closed": false
+      },
+      "remaining_prerequisite": {
+        "prerequisite": "Each conditional EC cleanup requires its exact retained oracle/loader/type/installed negative gate; native TV04/05 remains held.",
+        "owner": "Testkit/Cloudflare/Values plus State DO fixture owners"
       }
     },
     "REPLAY-IP07": {
@@ -1394,7 +1482,11 @@
         "packages/interfaces/src/envelope/validate.ts"
       ],
       "blocker": "Source-current security join witnesses retained replay bypassing current membership/read grants and saved secret projection; old planning assumption cannot satisfy required revoked-actor negative control",
-      "evidence": "security-joins.json"
+      "evidence": "security-joins.json",
+      "remaining_prerequisite": {
+        "prerequisite": "Canonical retained replay still bypasses current authority and saved-secret result projection; keep Interfaces age guards until released owning repair.",
+        "owner": "State/Cloudflare public-result/security contract owners; Interfaces consumer after release"
+      }
     },
     "PARSER-DP01": {
       "planning_status": "ready",
@@ -1444,6 +1536,17 @@
         "acceptance": "Source2/2 emitted2/2; missing fixture/oracle and stale provenance refusal; all existing observation/assertion/frozen oracle bytes unchanged",
         "commit_pending": false,
         "commit": "dfd0587"
+      },
+      "remaining_prerequisite": {
+        "prerequisite": "Actual native/installed consumer provenance and unchanged independent semantic oracles. Current owning inventory: Identity14, Work9, Values30; current Values donor parity refreshed.",
+        "owner": "Identity/Values/Work-kernel owning runner and actual consumer integrators"
+      },
+      "values_donor_parity_refresh": {
+        "state": "implemented, tested, root-reviewed finite support",
+        "file": "packages/values/conformance/string-escape.json",
+        "change": "Only prepared/plan.ts source donor hash refreshed after committed atomic registration change; all29 donor paths,93strings/23callers, semantic controls/oracle bytes retained.",
+        "validation": "Source2/2 and private current-emitted2/2 pass; existing corruption controls pass; stale fixture and changed source negatives refuse.",
+        "limits": "No production reduction, native/backend/default or whole Values acceptance."
       }
     },
     "TECH-V02-violations": {
@@ -1479,7 +1582,11 @@
         "packages/state/src/invocation/admission.ts",
         "packages/state/src/invocation/replay.ts",
         "packages/work/src/kernel/commands.ts"
-      ]
+      ],
+      "remaining_prerequisite": {
+        "prerequisite": "Selected pre-hash/copy canonical byte/depth/node/work resource profile and exact refusal point.",
+        "owner": "State/Work admission/resource contract owners"
+      }
     },
     "TECH-S04-query": {
       "planning_status": "blocked",
@@ -1490,7 +1597,11 @@
         "packages/state/src/storage/durable-object.ts",
         "packages/work/src/kernel/commands.ts"
       ],
-      "numeric_order_prerequisite": "Released checked State producer; actual CF consumer wiring/qualification pending, distinct from original scan/recovery resource budgets."
+      "numeric_order_prerequisite": "Released checked State producer; actual CF consumer wiring/qualification pending, distinct from original scan/recovery resource budgets.",
+      "remaining_prerequisite": {
+        "prerequisite": "Actual query/full-scan/recover driver budget and refusal/continuation profile.",
+        "owner": "State/Work/storage-driver resource contract owners"
+      }
     },
     "TECH-S04-cohort": {
       "planning_status": "blocked",
@@ -1499,7 +1610,11 @@
         "packages/state/src/fanout/membership.ts",
         "packages/state/src/fanout/progress.ts",
         "packages/cloudflare/src/runtime/invoke.ts"
-      ]
+      ],
+      "remaining_prerequisite": {
+        "prerequisite": "Finite frozen membership representation/load/validation resource and durable continuation contract.",
+        "owner": "State/Cloudflare fanout/resource contract owners"
+      }
     },
     "DEL-U01-appearance": {
       "planning_status": "ready",
@@ -1613,7 +1728,11 @@
     "FINAL-R03": {
       "planning_status": "blocked",
       "state": "blocked on packet prerequisites",
-      "files": []
+      "files": [],
+      "remaining_prerequisite": {
+        "prerequisite": "Selected released producer/consumer evidence with actual supported installed/durable/source correspondence, then existing independent critical joined review.",
+        "owner": "Existing R01/C01 and selected independent critical reviewer"
+      }
     }
   },
   "state_authority": "packet_state is current one-per-packet disposition; dispatched/next_active_packets preserve earlier submissions, not proof of current activity.",
@@ -2722,158 +2841,8 @@
     }
   },
   "live_finite_packets": [
-    {
-      "task": "DEL-B02/DEL-R01 actual page/query/context/caller prerequisite",
-      "agent": "/root/asset_consumer_join",
-      "model": "gpt-6.1-sol",
-      "effort": "high",
-      "status": "Committed1c1fcc9f; actual explicitly authored empty-caption Images variant compiler0 and focused Node26/workerd+D1 consumer1/1 passed. Original bare-list source/artifact422 retained; no shared-default/full-browser/installed/native-preparation claim.",
-      "root_base": "7c8dbe2e751b7a9cbe6e4af7944c87017a9ed520",
-      "blocker": "Bare list is missing required empty message, a confirmed language/UI contract gap; preserve original failure. Qualify only an explicitly authored supported empty-caption variant. Strict formatter remains; no invented compiler default.",
-      "outputs": "/private/tmp/canlang-repair-go-20261007/page-query-implementation",
-      "commands_live": false,
-      "commit": "1c1fcc9f",
-      "direct_outcome": {
-        "source_difference": "list Job empty=\"No jobs yet\"; original source/artifact untouched",
-        "compiler": "Existing released compiler and frozen catalog compile0, normal generated message prop",
-        "consumer": "Existing page-query-serving.test.ts, Node26 Vitest, maxWorkers1/no-file-parallelism;1/1 in7.58s (test4.77s)",
-        "covers": [
-          "Initial empty200",
-          "Real D1 projected rows",
-          "Full/HX/HEAD one-main and poll metadata",
-          "CSS/bootstrap plus3byte-exact resources",
-          "Invalid session403",
-          "Canonical AST predicate/projection/bounds",
-          "Parent/cursor/function/malformed predicate refusals",
-          "Limit overflow refusal"
-        ],
-        "log": "/private/tmp/canlang-repair-go-20261007/page-query-implementation/explicit-empty/focused.log",
-        "original_failure": "/private/tmp/canlang-repair-go-20261007/page-query-implementation/focused-original-bare-list422.log"
-      }
-    },
-    {
-      "task": "TECH-V03/V04 checked scalar/result source ownership",
-      "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
-      "status": "Committed d495469a; metadata-only build4/4 and tests14/14 accepted; runtime conversion/native/installed/parent completion remain open",
-      "contract": "h1-owning-contract.json",
-      "source_paths": [
-        "packages/contracts/src/artifact.ts",
-        "packages/contracts/src/state.ts",
-        "packages/state/src/invocation/registry.ts",
-        "packages/state/src/mutation/models.ts",
-        "packages/state/test/typed-artifact-metadata.test.ts"
-      ],
-      "commit": "d495469a361b862f38a33d08990bf96e12447e53"
-    },
-    {
-      "task": "DEL-B01 real Document visibility/initializer prerequisite",
-      "agent": "/root/browser_visibility_join",
-      "model": "gpt-6.1-sol",
-      "effort": "medium",
-      "status": "Committed a3c0a9bd: direct Document visibility correction, private owning emit and Node2/2 accepted; full browser/installed gates open",
-      "files": [
-        "packages/ui/src/browser/bootstrap.ts",
-        "packages/ui/test/browser-polling-join.test.ts"
-      ],
-      "commit": "a3c0a9bd8ff62735c8f5d99ba7c033fcdcd0ca49"
-    },
-    {
-      "task": "TECH-S04-query defining one-scan State selection prerequisite",
-      "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
-      "status": "Committed256a1796; owning build passed, focused17/17 and root direct diff accepted. Per-call viewer selection only; broader task remains open.",
-      "files": [
-        "packages/state/src/invocation/invoke.ts",
-        "packages/state/src/ports/transact.ts",
-        "packages/state/test/invocation/read-selection.test.ts"
-      ],
-      "validation": {
-        "build": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node scripts/run-tasks.mjs build --filter=@canlang/state --concurrency=1",
-        "test": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node --test packages/state/dist/test/invocation/read-selection.test.js packages/state/dist/src/invocation/invoke-read.test.js",
-        "passed": 17,
-        "new_checks": 6,
-        "existing_checks": 11
-      },
-      "outputs": "packages/state/dist",
-      "limits": "One repository memory/owning query engine path; original durable, installed, revocation/concurrency and whole-query task remain open.",
-      "commit": "256a1796"
-    },
-    {
-      "task": "TECH-V03/V04 ordered State typed-write checkpoint",
-      "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
-      "status": "Committed841f56a8; root-reviewed; isolated owning emit and81focused mutation checks pass (9new). Native default receipt correction retained. Runtime codec/producer/hook/installed joins remain open.",
-      "files": [
-        "packages/state/src/mutation/pipeline.ts",
-        "packages/state/src/mutation/models.ts",
-        "packages/state/test/mutation/typed-staging.test.ts"
-      ],
-      "outputs": "/private/tmp/can-state-typed-td2vqp2p/dist",
-      "validation": "One post-correction isolated State emit and81focused checks; root reuses direct outcome, no rerun/proof chain.",
-      "commit": "841f56a8"
-    },
-    {
-      "task": "DEL-B02/H3 checked app locale metadata reader",
-      "agent": "/root/app_locale_consumer",
-      "model": "gpt-6.1-sol",
-      "effort": "medium",
-      "reason": "Finite existing metadata ingestion point under released compiler contract; no new policy",
-      "files": [
-        "packages/cloudflare/src/worker/assembly.ts::loadAppInfo",
-        "packages/cloudflare/test/app-locale-serving.test.ts"
-      ],
-      "status": "Committed67f51aee and root direct reviewed: owning private TypeScript emit passed;11focused existing assembly factory handoff cases passed. Metadata fixture scope only; actual compiler/durable/installed claims remain open.",
-      "outputs": "/private/tmp/canlang-app-locale-consumer-20261008",
-      "validation": "One private exact owning TypeScript emit and emitted Vitest run;11/11. Private-only missing resolver links and test discovery fixed before behavioral pass, no production weakening.",
-      "commands_live": false,
-      "commit": "67f51aee"
-    },
-    {
-      "task": "DEL-B02/DEL-R01 original owning assembly caller regression migration",
-      "agent": "/root/asset_consumer_join",
-      "model": "gpt-6.1-sol",
-      "effort": "high",
-      "reason": "Actual legacy caller fixtures cross identity/page/operation/file owners; preserve original refusal/journey behavior without interim production fallback",
-      "files": [
-        "packages/cloudflare/test/assembly.test.ts",
-        "packages/cloudflare/test/worker-main.test.ts"
-      ],
-      "status": "Writer released and root direct reviewed: private owning assembly21/21 and main14/14 pass, all original auth/refusal/operation/file/context assertions preserved. Handwritten app entry and actual Interfaces factory replace retired interim setup.",
-      "validation": "Private released source snapshot, no active invoke reads/rebuild. Worker-main14/14 reused; missing Files dependency repaired by copy of genuine current owning output; relevant handwritten source digest/full-HX fixture transport corrected and assembly21/21 passed. No further rerun.",
-      "commands_live": false,
-      "limits": "Handwritten metadata/fixtures remain explicit; real generated page consumer separately passed. No compiler/native/installed/full browser profile claim."
-    },
-    {
-      "task": "H3 trusted selected-app formatting scope",
-      "agent": "/root/trusted_locale_scope",
-      "model": "gpt-6.1-sol",
-      "effort": "medium",
-      "status": "Writer/readers/commands released; root direct reviewed; private owning CF emit and actual canonical bridge1/1 pass; scoped commit pending",
-      "commands_live": false,
-      "files": [
-        "packages/cloudflare/src/runtime/context.ts",
-        "packages/cloudflare/src/runtime/invoke.ts",
-        "packages/cloudflare/src/worker/assembly.ts",
-        "packages/cloudflare/src/runtime/handler-formatting.test.ts"
-      ],
-      "outputs": "/private/tmp/can-handler-formatting-emit.mgt0fA/dist",
-      "validation": "One private owning emit and direct Node canonical scenario1/1. Prior11metadata reader checks reused unchanged.",
-      "scope": "Frozen copied c.formatting.appDefault from existing checked AppInfo passed by host HTTP/MCP factory; team zone separate. Explicit low-level appId preserves absent scope.",
-      "limits": "Handwritten observing body over actual artifact/admission/context; compiler formatting lowering, sourceLang, installed/durable/whole locale outcomes separate."
-    },
-    {
-      "task": "H1 original t16b/t17b fixture contract maintenance",
-      "agent": "/root/legacy_scenario_fixtures",
-      "model": "gpt-6.1-sol",
-      "effort": "medium",
-      "status": "Root direct-reviewed released fixture maintenance; scoped commit pending",
-      "files": [
-        "packages/cloudflare/src/runtime/t16b-canonical.test.ts",
-        "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts",
-        "packages/cloudflare/src/runtime/t17b-durable.test.ts"
-      ],
-      "validation": "Private focused owning emit, original memory62/62 and D1other2/2 pass. First D1case required3obsolete create+set version2\u21921 assertions perDESIGN:103; only affected case rerun1/1 passed including fresh-handle/receipt/history/read/revision assertions.",
-      "commands_live": false,
-      "limits": "Explicitly handwritten synthetic artifacts, not compiler provenance; original authority/error behavior retained, no product runtime fallback."
-    }
+    "TECH-SV04 portable scenario admission",
+    "VERIFY-TV01 source-current Values donor parity"
   ],
   "foreign_runtime_pure_integration_commit": "b5f3f61c5a7aa942cc9e535312bc848fe21cf497",
   "owner_build_test_acceptance": {
@@ -3564,5 +3533,14 @@
     "state": "committed 1c95e75c; State and Cloudflare TypeScript checks pass",
     "file": "packages/cloudflare/src/runtime/invoke.ts",
     "scope": "Existing checked enum result parser/printer imports only."
+  },
+  "current_worker": {
+    "role": "Packages implementation",
+    "workspace": "/workspace/canlang",
+    "source_base": "1527a249c915076c3e87daa5e8a488ac3c5a0e85",
+    "authorization": "Vince current Packages starting prompt; worker-specific instructions remain confined to Packages.",
+    "coordination": "Coordinator verified as local chat 01a11e6b-f4e1-7603-b47d-9d3210c9c6de; no callable send-message-to-thread capability. Dependencies recorded in packet_state.",
+    "examined_queue": "All48 original packet labels examined against existing progress; canonical identities and original acceptance unchanged.",
+    "delivery": "Human coordinator relay authorizes own implementation branch push and draft PR; main sync at coherent boundaries. No main push, merge or deployment."
   }
 }
