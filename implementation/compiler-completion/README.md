@@ -1686,3 +1686,11 @@ the released public scenario projector. Dedicated recovery/current-access and
 portable scenario witnesses remain distinct next checks, not owner handbuilt
 proof substitutions. Original **58/67**, exact holds and broader source joins
 remain open.
+
+**Actual captured caller intake, 2026-10-09.** Reviewed local main **4c063189**
+releases Dev's real `--native-scenario-receipts` compiler argument and genuine
+regression. Exact owning captured **5/5** results are reused; current installed
+dependency/Cloudflare/Testkit outputs rebuild **26/26**, zero cached. The native
+Memory/public fixture owns dedicated recovery and current-access checks. Dev
+owns its already in-progress `native-scenario-receipts-d1.integration.test.ts`
+and `NativeSavedScenario.can` portable witness; no competing harness is created.
