@@ -1828,3 +1828,23 @@ adaptation is restricted to actual transition recipes. Node24 native runtime
 remains owner-blocked on the confirmed `fileAssignments` envelope mismatch;
 session consumer release, omitted-default mutation contribution and combined
 replay/current whole qualification remain required. No broader reference closes.
+
+**Native machine transition join (unfinished wider scope), 2026-10-09.**
+Reviewed **8b6e8d40** supplies Dev22a/5b genuine session consumption and State's
+empty-file carrier repair; coordinator's unchanged native **1/1**, Dev direct
+**18/18** and genuine portable **1/1** across19scalar/array/derive results are
+reused at their exact scopes. This worktree rebuilds installed outputs **26/26**,
+zero cached, and the actual compiler/catalog. Native opt-in now observes exact
+old state before each checked transition through that session. The ORIGINAL
+state-machine consumer passes **1/1**: idle/queued observations, final generating
+version2, ordinary/aged no-write/no-file replay, conflict/rollback and UI
+assertions are preserved. Four real private-selector void/scalar cases withhold
+results and changed records on write AND no-write outcomes while retaining
+physical result/receipt/history. Explicit input-default slots mutate normally;
+omitted-default mutation still refuses without domain writes. Standalone
+machine reads, borrowed enum identities and unrelated mutation profiles remain
+refused. Source15/15 is reused; final strict Clippy/formatting and independent
+finite review pass. Required current-source whole qualification follows this
+unit. State's separate omitted-default contribution contract, Dev's distinct
+portable mutation qualification, original **58/67** and precise holds remain.
+Incoming living registry reconciliations retain the complete checkpoint unadvanced.
