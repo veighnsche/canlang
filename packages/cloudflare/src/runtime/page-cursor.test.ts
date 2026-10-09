@@ -108,19 +108,33 @@ test('explicit hosted page reads bind current query, caller decisions and occurr
     // This isolated memory store is the explicitly supplied test host binding; no deployed routing claim.
     const { store } = createTestMemoryStorage();
     const invoker = buildInvoker(artifact, asm, store, { memberships: identities, now: () => FIXED_NOW });
-    for (let sequence = 1; sequence <= 3; sequence++) {
-      const outcome = await invoker.invokeMutation({ operation: `${model}.create`, inputs: { count: String(sequence) },
-        operation_id: asOperationId(uuidv7(FIXED_NOW, sequence)) }, makeIdentity({ membership: ownerMember, team, email: owner.email }));
-      assert.ok('result' in outcome); assert.equal(outcome.result.status, 'committed');
-    }
     const cursors = await createPageCursorCodec(hostKey);
     const binding = { scope: { app, owner: team.team_id, ownerPackage: app },
       sourceIdentity: await sha256HexText(JSON.stringify(artifact.sources.map(source => [source.path, source.sha256]))), cursors };
     const opts = { artifact, asm, store, identity, memberships: identities, model, now: () => FIXED_NOW, pageReads: binding };
     const args = { page: true as const, occurrence: 'hosted-collection-one', limit: 1 };
+    // `secret` is a declared ordinary text field, withheld from auditor rows
+    // by its grant; declaration evidence carries neither grants nor values.
+    const declarations = [{ field: 'count', type: 'int' }, { field: 'secret', type: 'text' }];
+    const empty = await queryPageRowsCanonical({ ...opts, args });
+    assert.deepEqual(empty.rows, []); assert.deepEqual(empty.columns, []);
+    assert.deepEqual(empty.emptyDeclarations, declarations);
+    assert.equal(empty.nextCursor, undefined);
+    for (let sequence = 1; sequence <= 3; sequence++) {
+      const outcome = await invoker.invokeMutation({ operation: `${model}.create`, inputs: { count: String(sequence) },
+        operation_id: asOperationId(uuidv7(FIXED_NOW, sequence)) }, makeIdentity({ membership: ownerMember, team, email: owner.email }));
+      assert.ok('result' in outcome); assert.equal(outcome.result.status, 'committed');
+    }
+    const filteredEmpty = await queryPageRowsCanonical({ ...opts,
+      args: { ...args, where: { op: 'eq', field: 'count', value: '999' } } });
+    assert.deepEqual(filteredEmpty.rows, []); assert.deepEqual(filteredEmpty.columns, []);
+    assert.deepEqual(filteredEmpty.emptyDeclarations, declarations);
+    assert.equal(filteredEmpty.nextCursor, undefined);
     const first = await queryPageRowsCanonical({ ...opts, args });
     assert.equal(first.rows.length, 1); assert.ok(first.nextCursor);
     assert.deepEqual(Object.keys(first.rows[0]!.fields), ['count']);
+    assert.deepEqual(first.columns.map(column => column.field), ['count']);
+    assert.equal(Object.hasOwn(first, 'emptyDeclarations'), false);
     const second = await queryPageRowsCanonical({ ...opts, args: { ...args, cursor: first.nextCursor } });
     assert.equal(second.rows.length, 1); assert.ok(second.nextCursor);
     assert.notEqual(second.rows[0]!.id, first.rows[0]!.id);
@@ -149,5 +163,9 @@ test('explicit hosted page reads bind current query, caller decisions and occurr
       return token;
     } } };
     await assert.rejects(queryPageRowsCanonical({ ...opts, pageReads: revoking, args }), refuses('forbidden'));
+    await assert.rejects(queryPageRowsCanonical({ ...opts,
+      args: { ...args, where: { op: 'eq', field: 'count', value: '999' } } }), {
+      code: 'validation', message: 'Query path "count" is not granted to this caller.',
+    });
   } finally { await rm(dir, { recursive: true, force: true }); }
 });

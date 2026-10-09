@@ -478,6 +478,33 @@ describe("table", () => {
     assert.equal(html, await renderState({ context, kind: "empty", message: empty }));
   });
 
+  it("validates empty source declarations without rendering headers or invoking row callbacks", async () => {
+    const context = tableContext([], { rows: [], columns: [], emptyDeclarations: [
+      { field: "title", type: "text" }, { field: "count", type: "int" },
+    ] }, { preferredLocales: ["nl"] });
+    const empty = message("Nothing here", { nl: "Niets hier" }); let callbacks = 0;
+    const props = { context, model: "TeamTasks.Todo", columns: ["title", "count"], empty,
+      renderRow: () => { callbacks++; return ["must not render"]; } };
+    const html = await table(props);
+    assert.equal(html, await renderState({ context, kind: "empty", message: empty }));
+    assert.ok(html.includes("Niets hier")); assert.equal(callbacks, 0);
+    const controlled = await table({ ...props, controls: makeControls({ context, search: { query: "milk" } }) });
+    assert.ok(controlled.includes('id="todo-rows"')); assert.ok(controlled.includes("data-toolbar"));
+    assert.ok(controlled.includes("data-no-match")); assert.ok(!controlled.includes("<table"));
+    assert.equal(callbacks, 0);
+    await rejectsWith(() => table({ ...props, columns: ["gone"] }), "missing columns", "gone");
+  });
+
+  it("ignores empty declarations for nonempty denied table columns", async () => {
+    const context = tableContext([], { rows: [row("a", {})], columns: [],
+      emptyDeclarations: [{ field: "title", type: "text" }] });
+    await rejectsWith(() => table({ context, model: "TeamTasks.Todo", columns: ["title"] }), "missing columns", "title");
+    const granted = tableContext([], { rows: [row("a", { title: "Visible title" })], columns: [titleCol],
+      emptyDeclarations: [{ field: "title", type: "bool" }] });
+    const html = await table({ context: granted, model: "TeamTasks.Todo", columns: ["title"] });
+    assert.ok(html.includes(`<td>${isolate("Visible title")}</td>`));
+  });
+
   it("escapes cell text", async () => {
     const seen: SeenCall[] = [];
     const payload = "<script>alert(\"x\")</script>";
@@ -1800,6 +1827,35 @@ describe("board", () => {
       empty,
     });
     assert.equal(html, await renderState({ context, kind: "empty", message: empty }));
+  });
+
+  it("validates empty declarations and renders only the localized board empty state and controls", async () => {
+    const context = boardContext([], { rows: [], columns: [], emptyDeclarations: [
+      { field: "title", type: "text" }, { field: "state", type: "enum" },
+    ] }, { preferredLocales: ["nl"] });
+    const empty = message("Nothing here", { nl: "Niets hier" });
+    const props = { context, model: "TeamTasks.Todo", by: "state", columns: ["title"], empty };
+    const html = await board(props);
+    assert.equal(html, await renderState({ context, kind: "empty", message: empty }));
+    assert.ok(html.includes("Niets hier")); assert.ok(!html.includes("data-group"));
+    const controlled = await board({ ...props, controls: makeControls({ context, search: { query: "milk" } }) });
+    assert.ok(controlled.includes('id="todo-rows"')); assert.ok(controlled.includes("data-toolbar"));
+    assert.ok(controlled.includes("data-no-match")); assert.ok(!controlled.includes("data-group"));
+    await rejectsWith(() => board({ ...props, by: "missing" }), "missing group field", "missing");
+    await rejectsWith(() => board({ ...props, columns: ["gone"] }), "missing columns", "gone");
+    await rejectsWith(() => board({ ...props, by: "title" }), "needs an enum type", '"text"');
+  });
+
+  it("ignores empty declarations for nonempty denied board metadata and group types", async () => {
+    const emptyDeclarations = [{ field: "title", type: "text" }, { field: "state", type: "enum" }];
+    const base = { model: "TeamTasks.Todo", by: "state", columns: ["title"], empty: "No todos" };
+    for (const columns of [[], [titleCol], [stateCol]]) {
+      const context = boardContext([], { rows: [row("a", { state: "open" })], columns, emptyDeclarations });
+      await rejectsWith(() => board({ ...base, context }), columns.includes(stateCol) ? "missing columns" : "missing group field");
+    }
+    const context = boardContext([], { rows: [row("a", { state: "open", title: "Visible" })],
+      columns: [titleCol, { field: "state", type: "text", label: "State" }], emptyDeclarations });
+    await rejectsWith(() => board({ ...base, context }), "needs an enum type", '"text"');
   });
 
   it("wraps rows in the region with toolbar when controlled", async () => {

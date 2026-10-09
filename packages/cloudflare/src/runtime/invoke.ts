@@ -6876,9 +6876,11 @@ export async function queryPageRowsCanonical(
         await cursors!.encode(bindingDigest, page.continuation, (opts.now ?? Date.now)());
       // The owning State invoker rechecks current authority and revision after this transform.
       const visible = new Set(page.records.flatMap(record => Object.keys(record.data)));
+      const declared = loaded.collectionColumns.get(opts.model) ?? [];
       return {
         rows: page.records.map(record => ({ id: record.id, version: String(record.version), fields: record.data })),
-        columns: (loaded.collectionColumns.get(opts.model) ?? []).filter(column => visible.has(column.field)),
+        columns: declared.filter(column => visible.has(column.field)),
+        ...(page.records.length === 0 ? { emptyDeclarations: declared.map(({ field, type }) => ({ field, type })) } : {}),
         ...(nextCursor === undefined ? {} : { nextCursor }),
         ...(page.totalCount === undefined ? {} : { totalCount: page.totalCount }),
       };
@@ -6901,13 +6903,15 @@ export async function queryPageRowsCanonical(
       throw new StateError('validation',
         `Collection matched more than ${selection.limit ?? 25} rows. Narrow the query instead of truncating.`);
     }
-  // Only authorized projected field names can make a declared column visible.
-  // Empty collections expose no field schema; private stored values are never read.
+    // Only actual viewer projection supplies rendering metadata. Empty source
+    // declarations validate names/types only and never establish a field grant.
     const visible = new Set(page.records.flatMap(record => Object.keys(record.data)));
+    const declared = loaded.collectionColumns.get(opts.model) ?? [];
     await navigation?.revalidate();
     return {
       rows: page.records.map(record => ({ id: record.id, version: String(record.version), fields: record.data })),
-      columns: (loaded.collectionColumns.get(opts.model) ?? []).filter(column => visible.has(column.field)),
+      columns: declared.filter(column => visible.has(column.field)),
+      ...(page.records.length === 0 ? { emptyDeclarations: declared.map(({ field, type }) => ({ field, type })) } : {}),
       ...(page.totalCount === undefined ? {} : { totalCount: page.totalCount }),
     };
   });

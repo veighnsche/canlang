@@ -416,6 +416,9 @@ export interface ColumnMeta {
   readonly valueLabels?: Record<string, MessageValue>;
 }
 
+/** Checked source column identity/type, never a field grant or rendering metadata. */
+export type ColumnDeclaration = Pick<ColumnMeta, 'field' | 'type'>;
+
 /**
  * Row-query arguments. Predicates are opaque generated code passed through
  * to the runner; UI never inspects them. Order/filter/search extend this
@@ -445,7 +448,15 @@ export interface ListQueryArgs {
 export interface ListQueryResult {
   readonly rows: readonly RowView[];
   readonly nextCursor?: string;
+  /** Rendering metadata for fields actually present in authorized projected rows. */
   readonly columns: readonly ColumnMeta[];
+  /**
+   * Checked nonsecret/servable declarations supplied only for zero-row results.
+   * Table/board may validate authored names/group types, then render only their
+   * empty state. Never authorizes a header, field value, enum group or export;
+   * nonempty results must ignore it. Absence retains legacy validation behavior.
+   */
+  readonly emptyDeclarations?: readonly ColumnDeclaration[];
   /** Authorized where+search total before limit/cursor, when requested. */
   readonly totalCount?: number;
 }
