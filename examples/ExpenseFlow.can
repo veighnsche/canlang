@@ -2,7 +2,6 @@
 app ExpenseFlow uses=[expenses,reporting]
 package expenses
  Given
-  preferences { status:Expense.status? }
   message label_Expense_decision_note = "Decision note"@{nl="Toelichting op het besluit"}
   role reviewer label="Reviewer"@{nl="Beoordelaar"}
   export Expense {
@@ -74,6 +73,7 @@ package expenses
    require expense.status==submitted and expense.submitted_by!=actor and trim(note)!=""
    do set expense {status=rejected,decision_note=note,decided_by=actor,decided_at=now}
  Then
+  preferences { status:Expense.status? }
   # Prepare expenses and follow their review status. @{nl="Bereid onkosten voor en volg hun beoordelingsstatus."}
   page / title="Expenses"@{nl="Onkosten"}
    breadcrumbs
@@ -109,7 +109,6 @@ package expenses
 package reporting label="Expense reports"@{nl="Onkostenrapporten"}
  use expenses {Expense}
  Given
-  preferences { status:Expense.status=submitted }
   contract Summary { count:int, total:money } label="Expense totals"@{nl="Onkostentotalen"}
   fixture mine=Expense {purpose="Travel",amount=money(25,"EUR"),submitted_by=self,status=submitted}
  When
@@ -123,6 +122,7 @@ package reporting label="Expense reports"@{nl="Onkostenrapporten"}
     submitted -> 1,money(25,"EUR")
     approved -> 0,money(0,"EUR")
  Then
+  preferences { status:Expense.status=submitted }
   # Choose a currency and status to total the expenses visible to you. @{nl="Kies een valuta en status om de voor jou zichtbare onkosten op te tellen."}
   page /reports title="Expense summary"@{nl="Onkostenoverzicht"}
    breadcrumbs

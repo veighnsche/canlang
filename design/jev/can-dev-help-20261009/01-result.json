@@ -1,0 +1,38 @@
+{
+  "request": {
+    "state": "Can is a closed Given/When/Then source language for coding agents. Its GRAMMAR.md is normative for syntax, DESIGN.md owns semantics, and the compiler has position-aware keyword completion without signatures or links. The approved UI catalog has 68 words but is not fully delivered; builtin calls have their own compiler catalog. The user asks for one authoritative help entry per supported construct: signature, meaning, example, availability and stable link. Current grammar prose and compiler delivery status have some stale discrepancies, so help must not imply that a merely approved feature works. Compare ownership choices for a pre-implementation help contract by correctness, drift risk, token-efficient agent response and maintenance cost.",
+    "questions": {
+      "help_ownership": {
+        "type": "choice",
+        "instructions": "Which ownership model should define Can construct help before a dev-server implementation plan?",
+        "criteria": {
+          "compiler_registry": "A versioned machine-readable compiler-owned registry gives every supported construct an ID, signature, meaning, example, availability and link; grammar and design remain normative and consistency checks compare them. Clear API and filtering, with a second maintained representation to keep aligned.",
+          "derived_sources": "Annotate grammar productions, design sections and existing UI/builtin catalogs with help metadata, then generate one versioned index. This minimizes duplicate syntax ownership but requires cross-source generation and availability joins.",
+          "documentation_registry": "Write one canonical Markdown help catalog with explicit stable anchors and fields; use it as the first authoring reference, then convert or generate machine data when the server is implemented. Quick to review but runtime syncing can drift.",
+          "dynamic_completion": "Construct cards on demand from parser expectations and current LSP completion, linking to docs; avoid a registry. Eligibility stays local to syntax but meaning, examples and stable IDs are harder to guarantee."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "help_ownership": {
+        "type": "choice",
+        "choice": "compiler_registry",
+        "confidence": 0.83,
+        "probabilities": {
+          "compiler_registry": 0.87,
+          "derived_sources": 0.08,
+          "documentation_registry": 0.05,
+          "dynamic_completion": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 655,
+      "output_tokens": 54
+    }
+  }
+}

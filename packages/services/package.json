@@ -25,7 +25,9 @@
     "dist/"
   ],
   "dependencies": {
-    "@canlang/contracts": "workspace:*"
+    "@canlang/contracts": "workspace:*",
+    "@canlang/values": "workspace:*",
+    "@noble/hashes": "2.4.0"
   },
   "exports": {
     ".": {
@@ -95,6 +97,10 @@
     "./distribution": {
       "types": "./dist/src/distribution.d.ts",
       "default": "./dist/src/distribution.js"
+    },
+    "./judgments/specification": {
+      "types": "./dist/src/judgments/specification.d.ts",
+      "default": "./dist/src/judgments/specification.js"
     }
   }
 }

@@ -1,0 +1,15 @@
+app ScalarAlias
+use Calendar {day as day_alias,instant as instant_alias}
+Given
+ contract DateRange {aStart:date,aEnd:date,bStart:date,bEnd:date}
+ contract InstantRange {aStart:datetime,aEnd:datetime,bStart:datetime,bEnd:datetime}
+ derive date_overlap(v:DateRange):bool = overlaps(bEnd=day_alias(v.bEnd),aEnd=day_alias(v.aEnd),bStart=day_alias(v.bStart),aStart=day_alias(v.aStart))
+ derive datetime_overlap(v:InstantRange):bool = overlaps(bEnd=instant_alias(v.bEnd),aEnd=instant_alias(v.aEnd),bStart=instant_alias(v.bStart),aStart=instant_alias(v.aStart))
+When
+Then
+package Calendar
+ Given
+  export derive day(v:date):date = v
+  export derive instant(v:datetime):datetime = v
+ When
+ Then

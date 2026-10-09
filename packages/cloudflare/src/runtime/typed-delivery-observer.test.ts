@@ -120,7 +120,9 @@ test('authored delivery association serves current localhost provider results th
       assert.equal(response.body['status'], 'committed', JSON.stringify(response));
       return response.body['result'];
     };
-    const created = committed(await mutate('Entry.create')) as { id: string };
+    const creation = await mutate('Entry.create');
+    assert.equal(committed(creation), null);
+    const created = (creation.body['records'] as Array<{ id: string }>)[0]!;
     const readReceipt = (selected = ['status', 'result'], id = created.id, bearer = grant.token) =>
       mcp('Receipt.read', { recordId: id, field: 'notification', selected }, bearer);
     const notify = async (accept: boolean) => {

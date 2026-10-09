@@ -1,0 +1,38 @@
+{
+  "request": {
+    "state": "For a first supported local development profile, each preview build receives a fresh real D1 and must demonstrate member and outsider behavior through the production Identity/login/session stack. The account tables start empty. Registration cannot complete without a mail sender, which this profile lacks. A verified private Unix control socket is available to the local owner, while preview access is a different bootstrap cookie. The needed actor matrix is two colleagues on one team, another team's member, one signed-in user with no team, and anonymous. Evaluate bootstrap choices for correct authorization evidence, secure handling of local credentials, operational simplicity, and repeatability after rebuilds.",
+    "questions": {
+      "seed_strategy": {
+        "type": "choice",
+        "instructions": "Recommend a first-profile approach and identify any condition that would change the recommendation.",
+        "criteria": {
+          "private_seed": "Seed actual Identity records and memberships on each fresh preview, generate new passwords, and reveal them only in an owner-only control response. Login and team selection in the browser remain unchanged.",
+          "mail_sink": "Include a local mail delivery sink and exercise normal registration to establish the actor matrix. This broadens auth coverage but requires an extra service and orchestration on every reset.",
+          "auth_shortcut": "Use preview access as proof of app membership and let the browser proceed without real login. This reduces work, but invalidates login and policy evidence.",
+          "explicit_env": "Require supplied local credentials, then create corresponding real Identity records in D1. This can suit customized setups, but creates a larger prerequisite for a novice agent."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "seed_strategy": {
+        "type": "choice",
+        "choice": "private_seed",
+        "confidence": 0.87,
+        "probabilities": {
+          "private_seed": 0.9,
+          "mail_sink": 0.1,
+          "auth_shortcut": 0.0,
+          "explicit_env": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 601,
+      "output_tokens": 53
+    }
+  }
+}

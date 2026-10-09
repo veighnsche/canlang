@@ -173,7 +173,7 @@ describe('V02.4 owned admission: prepared-inputs leaf', () => {
           assert.throws(() => loadExecutionDescriptorSet(set, { by: 'public',
             inputArrays: { [OP]: { choice: { required: true } } } }), IncompatibleArtifactError);
           const canonical = set.operations[0]!.inputs[0]!;
-          assert.ok(canonical.kind !== 'ref' && canonical.kind !== 'delivery');
+          assert.ok(canonical.kind === 'enum');
           const { valueType: _claim, ...unclaimed } = canonical;
           assert.throws(() => loadExecutionDescriptorSet({ ...set, operations: [{ ...set.operations[0]!,
             inputs: [unclaimed],

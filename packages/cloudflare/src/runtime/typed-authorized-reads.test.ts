@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
 import type { CompileArtifact, MutationEnvelope, StoragePort } from '@canlang/contracts';
+import { createMemoryIdentityStore as createFullIdentityStore } from '@canlang/identity/testing';
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import {
   FIXED_NOW, asModel, asOperationId, createMemoryIdentityStore,
@@ -79,10 +80,75 @@ test('compiled aggregates use authorized native row fields and live owner read g
       assert.deepEqual((deniedRead.result as { records: unknown[] }).records, []);
       assert.equal(committed(await invoker.invokeMutation(envelope('total'), identity)).result, '0');
     }
+    for (const identity of [ownerIdentity, auditorIdentity]) {
+      assert.equal(committed(await invoker.invokeMutation(envelope('filtered', { minimum: '2' }), identity)).result,
+        '9007199254740993');
+    }
+    assert.equal(committed(await invoker.invokeMutation(envelope('filteredSecret'), ownerIdentity)).result, '2');
+    for (const identity of [auditorIdentity, memberIdentity, anonymous]) {
+      assert.equal(committed(await invoker.invokeMutation(envelope('filteredSecret'), identity)).result, '0');
+    }
+    assert.equal(committed(await invoker.invokeMutation(envelope('filtered', { minimum: '0' }), memberIdentity)).result, '0');
     assert.equal(committed(await invoker.invokeMutation(envelope('staged', { count: '7' }), ownerIdentity)).result,
       '9007199254741001');
     rows = await store.query({ model: MODEL, authority: 'owner' });
     assert.equal(rows.length, 3);
+    assert.equal(committed(await invoker.invokeMutation(envelope('filteredStaged', { count: '13', accept: true }), ownerIdentity)).result, '13');
+    rows = await store.query({ model: MODEL, authority: 'owner' });
+    assert.equal(rows.length, 4);
+    assert.equal(rows.filter(row => row.data.count === '14').length, 1);
+    const ascending = ['1', '7', '14', '9007199254740993'];
+    for (const identity of [ownerIdentity, auditorIdentity]) {
+      assert.deepEqual(committed(await invoker.invokeMutation(envelope('ascending'), identity)).result, ascending);
+      assert.deepEqual(committed(await invoker.invokeMutation(envelope('descending'), identity)).result, [...ascending].reverse());
+    }
+    for (const identity of [memberIdentity, anonymous]) {
+      for (const operation of ['ascending', 'descending']) {
+        const denied = await invoker.invokeMutation(envelope(operation), identity);
+        assert.ok('error' in denied, JSON.stringify(denied));
+        assert.equal(denied.error.code, 'validation');
+        assert.match(denied.error.message, /Query path "count" is not granted/);
+      }
+    }
+    const beforeRollback = rows;
+    const rollbackHistory = await Promise.all(rows.map(row => store.historyFor(MODEL, row.id)));
+    const rejected = await invoker.invokeMutation(envelope('filteredStaged', { count: '17', accept: false }), ownerIdentity);
+    assert.ok('error' in rejected, JSON.stringify(rejected));
+    assert.equal(rejected.error.code, 'rule_failed');
+    assert.deepEqual(await store.query({ model: MODEL, authority: 'owner' }), beforeRollback);
+    assert.deepEqual(await Promise.all(rows.map(row => store.historyFor(MODEL, row.id))), rollbackHistory);
+
+    // The defining memory Identity port removes only the read role after the
+    // actual D1 scan. Public operation admission still succeeds independently.
+    const roleIdentities = createFullIdentityStore({ clock: { nowMs: () => FIXED_NOW } });
+    const roleTeam = await roleIdentities.createTeam({ timezone: 'UTC' });
+    for (const minimum of ['0', '9007199254740994']) {
+      const roleUser = await roleIdentities.createUser({ email: `filtered-${minimum}@example.test`, email_verified: true, password_hash: 'unused' });
+      const roleMember = await roleIdentities.createMembership({ team_id: roleTeam.team_id, user_id: roleUser.user_id,
+        is_owner: false, roles: [{ role: `${APP}.auditor`, granted_at: new Date(FIXED_NOW).toISOString(), granted_by: roleUser.user_id }] });
+      const roleIdentity = makeIdentity({ membership: roleMember, team: roleTeam, email: roleUser.email });
+      let roleRemoved = false;
+      const roleStore: StoragePort = { ...store, async query(spec) {
+        const scanned = await store.query(spec);
+        if (!roleRemoved && spec.model === MODEL && spec.authority === 'viewer') {
+          roleRemoved = true;
+          await roleIdentities.setMembershipRoles(roleMember.membership_id, []);
+        }
+        return scanned;
+      } };
+      const revision = await store.readRevision();
+      const histories = await Promise.all(rows.map(row => store.historyFor(MODEL, row.id)));
+      const revokedFilter = await buildInvoker(artifact, asm, roleStore, { memberships: roleIdentities, now: () => FIXED_NOW })
+        .invokeMutation(envelope('filteredEffect', { minimum }), roleIdentity);
+      assert.equal(roleRemoved, true);
+      assert.equal((await roleIdentities.findMembership(roleTeam.team_id, roleUser.user_id))?.status, 'active');
+      assert.deepEqual((await roleIdentities.findMembership(roleTeam.team_id, roleUser.user_id))?.roles, []);
+      assert.ok('error' in revokedFilter, JSON.stringify(revokedFilter));
+      assert.equal(revokedFilter.error.code, 'forbidden');
+      assert.equal(await store.readRevision(), revision);
+      assert.deepEqual(await store.query({ model: MODEL, authority: 'owner' }), rows);
+      assert.deepEqual(await Promise.all(rows.map(row => store.historyFor(MODEL, row.id))), histories);
+    }
     // A stale identity snapshot cannot preserve owner reads after live membership removal.
     await memberships.removeMembership(owner.membership.membership_id);
     assert.equal(committed(await invoker.invokeMutation(envelope('total'), ownerIdentity)).result, '0');

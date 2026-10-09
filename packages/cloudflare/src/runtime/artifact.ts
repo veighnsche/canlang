@@ -113,6 +113,7 @@ const OPERATION_FIELD_KINDS: ReadonlySet<string> = new Set([
   "boolean",
   "file",
   "enum",
+  "nominal",
   // T15b provider receipt bindings (T04b-ratified
   // `ArtifactDeliveryDescriptor`): valid artifact members, carried
   // through for the registry (which excludes them from framing)
@@ -229,8 +230,9 @@ export function parseArtifactText(text: string, sourcePath: string): LoadedArtif
          !Array.isArray(parsed.requires) || !parsed.requires.some((requirement) => isRecord(requirement) &&
            requirement.capability === "state.parameters" && typeof requirement.min_version === "number" && requirement.min_version >= 1) ||
          !Array.isArray(parsed.operations) || !parsed.operations.some((operation) =>
-           isRecord(operation) && operation.name === callable.id && operation.kind === "scenario"))) {
-      fail(path, `${where}.inputStyle must be parameters on a scenario operation callable`);
+           isRecord(operation) && operation.name === callable.id &&
+           (operation.kind === "scenario" || operation.kind === "read")))) {
+      fail(path, `${where}.inputStyle must be parameters on a scenario or read operation callable`);
     }
     const member: unknown = callable.member;
     if (
@@ -303,7 +305,7 @@ export function parseArtifactText(text: string, sourcePath: string): LoadedArtif
           fail(
             path,
             `${fieldWhere}.field.kind must be one of ` +
-              `ref|string|integer|decimal|money|datetime|duration|user|boolean|file|enum|delivery ` +
+              `ref|string|integer|decimal|money|datetime|duration|user|boolean|file|enum|nominal|delivery ` +
               `(got ${JSON.stringify(schema.kind)})`,
           );
         }
@@ -325,6 +327,9 @@ export function parseArtifactText(text: string, sourcePath: string): LoadedArtif
             fail(path, `${fieldWhere}.field.values must be a non-empty array of strings`);
           }
         }
+        if (schema.kind === "nominal" && !isNonEmptyString(schema.name)) {
+          fail(path, `${fieldWhere}.field.name must be a non-empty nominal name`);
+        }
         if (schema.kind === "delivery") {
           // T15b `ArtifactDeliveryDescriptor` (T04b-ratified):
           // structural presence only. Send-target identity and
@@ -338,8 +343,8 @@ export function parseArtifactText(text: string, sourcePath: string): LoadedArtif
           if (!isNonEmptyString(schema.operation)) {
             fail(path, `${fieldWhere}.field.operation must be a non-empty string`);
           }
-          if (typeof schema.version !== "number") {
-            fail(path, `${fieldWhere}.field.version must be a number`);
+          if (schema.judgment === true ? !isNonEmptyString(schema.version) : typeof schema.version !== "number") {
+            fail(path, `${fieldWhere}.field.version must be ${schema.judgment === true ? 'exact int64 text for a judgment' : 'a number'}`);
           }
           const result: unknown = schema.result;
           if (!isRecord(result)) {

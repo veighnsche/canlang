@@ -1,0 +1,152 @@
+app StaffShiftBoard
+
+Given
+  Team
+    name: Text
+
+  Teammate
+    user: User
+    team: Team
+    active: Boolean = true
+    role: Member | Scheduler = Member
+
+  Shift
+    team: Team
+    title: Text
+    day: Date
+    status: Open | Filled = Open
+    assignee: Teammate?
+
+    rule title is not blank
+    rule status == Open implies assignee == none
+    rule status == Filled implies assignee != none
+    rule assignee != none implies assignee.team == team
+
+  currentTeam: Team
+  currentMember = Teammate where user == currentUser and team == currentTeam and active
+
+  rule Shift may be read only when currentMember exists
+  rule Shift may be changed only through permitted actions
+
+When
+  PostShift(title: Text, day: Date)
+    permit currentMember exists
+    require title is not blank
+    do
+      create Shift(
+        team: currentTeam,
+        title: title,
+        day: day,
+        status: Open,
+        assignee: none
+      )
+
+  EditShift(shift: Shift, title: Text, day: Date)
+    permit currentMember exists and shift.team == currentTeam
+    require shift.status == Open
+    require title is not blank
+    do
+      shift.title = title
+      shift.day = day
+
+  RemoveShift(shift: Shift)
+    permit currentMember exists and shift.team == currentTeam
+    require shift.status == Open
+    do
+      delete shift
+
+  FillShift(shift: Shift, teammate: Teammate)
+    permit currentMember exists and currentMember.role == Scheduler
+    require shift.team == currentTeam
+    require shift.status == Open
+    require teammate.team == currentTeam and teammate.active
+    do
+      atomic
+        shift.assignee = teammate
+        shift.status = Filled
+
+  ReopenShift(shift: Shift)
+    permit currentMember exists and currentMember.role == Scheduler
+    require shift.team == currentTeam
+    require shift.status == Filled
+    do
+      atomic
+        shift.assignee = none
+        shift.status = Open
+
+Then
+  page ShiftBoard
+    permit currentMember exists
+
+    state search: Text = ""
+    state view: Open | Filled = Open
+
+    heading "Team shifts"
+    searchInput search placeholder "Search by title"
+    tabs view options [Open, Filled]
+
+    form "Post an open shift"
+      title: Text
+      day: Date
+      submit PostShift(title, day)
+
+    list Shift
+      where team == currentTeam
+        and status == view
+        and title contains search ignoring case
+      order by day ascending, title ascending
+
+      show title
+      show day
+      show status
+      show assignee.user.name when assignee exists
+
+      when status == Open
+        form "Edit shift"
+          title: Text = shift.title
+          day: Date = shift.day
+          submit EditShift(shift, title, day)
+
+        button "Remove" calls RemoveShift(shift)
+
+        when currentMember.role == Scheduler
+          select teammate from Teammate
+            where team == currentTeam and active
+            label user.name
+          button "Fill shift" calls FillShift(shift, teammate)
+
+      when status == Filled and currentMember.role == Scheduler
+        button "Reopen" calls ReopenShift(shift)
+
+    empty "No matching shifts"
+
+## Behavior examples
+example "A scheduler fills an open shift"
+  given currentMember.role == Scheduler
+  and shift.team == currentTeam
+  and shift.status == Open
+  and teammate.team == currentTeam
+  and teammate.active == true
+  when FillShift(shift, teammate)
+  expect shift.status == Filled
+  and shift.assignee == teammate
+
+example "A member cannot fill a shift"
+  given currentMember.role == Member
+  and shift.status == Open
+  and shift.assignee == none
+  when FillShift(shift, teammate)
+  expect denied
+  and shift.status == Open
+  and shift.assignee == none
+
+example "A filled shift cannot be edited"
+  given currentMember exists
+  and shift.team == currentTeam
+  and shift.status == Filled
+  and shift.title == "Morning cover"
+  and shift.day == Date("2026-10-12")
+  when EditShift(shift, "Evening cover", Date("2026-10-13"))
+  expect denied
+  and shift.title == "Morning cover"
+  and shift.day == Date("2026-10-12")

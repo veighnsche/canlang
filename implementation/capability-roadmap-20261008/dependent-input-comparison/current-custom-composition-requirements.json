@@ -1,0 +1,20 @@
+{
+  "stage": "Current-language custom/if composition REQUIREMENTS, not an implemented controller",
+  "source_shell": "supplementary/CountryRegion-custom-composition-shell-full.can",
+  "same_outcomes_as": "CR-REGION and expected-vectors.json",
+  "existing_operations_only": [
+    "geography.country_choices",
+    "geography.region_choices",
+    "geography.save"
+  ],
+  "no_extra_backend": true,
+  "requirements": [
+    "Use generated canonical save schema and current authorized reference lookup; do not mirror field constraints into custom state or cast IDs.",
+    "Read region_choices only when current typed parent Country exists; ordinary if/require gating around a persisted nested read cannot observe partial sibling draft values by itself.",
+    "Controller owns dependency map and update events, debounce/abort, per-form sequence/context fencing, child invalidation, retained eligible selection, errors/empty presentation and accessible focus.",
+    "Keep current actor/team/source grants and final save reference/revision checks; source lookup is advice, never a authorization grant.",
+    "Keep street/notes unsaved values when only parent/child changes; scoped reads must not disclose ungranted region/country.",
+    "Reuse ordinary read/mutation envelope contracts. Custom read-scenario invocation gate must be released first; never replace it with a hidden privileged list endpoint."
+  ],
+  "comparison_limits": "Manual controller code/cost, browser behavior and current custom read serving remain unimplemented/unmeasured in this packet; source shell bytes alone are not total cost. No arbitrary custom JavaScript is supplied."
+}

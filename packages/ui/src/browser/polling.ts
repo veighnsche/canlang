@@ -205,7 +205,8 @@ export class PollRegion {
     if (this.stopped || mine !== this.sequence) {
       return;
     }
-    this.inflight = null;
+    // Keep the controller owned until body reading settles, so stop or
+    // supersession can also abort a cooperating transport's body read.
     // Re-prove context AFTER the await: a context that changed
     // mid-flight terminates before the response can paint.
     if (this.options.isLoggedOut()) {
@@ -233,6 +234,7 @@ export class PollRegion {
       if (this.stopped || mine !== this.sequence) {
         return;
       }
+      this.inflight = null;
       this.failures += 1;
       const messageText = error instanceof Error ? error.message : String(error);
       this.options.onError?.(`Poll response unreadable: ${messageText}`);
@@ -242,6 +244,7 @@ export class PollRegion {
     if (this.stopped || mine !== this.sequence) {
       return;
     }
+    this.inflight = null;
     // Reading the body is another await: re-prove every paint condition.
     if (this.options.visibility.visibilityState === "hidden") { this.stop("hidden"); return; }
     if (this.options.isLoggedOut()) { this.stop("logout"); return; }
@@ -263,10 +266,9 @@ export class PollRegion {
 }
 
 /**
- * Adapt an injected `SubmitFetch` to poll fetching. SubmitFetch has no
- * abort signal; the adapter races fetch against abort and rejects on
- * abort, so the region's supersede/abort semantics hold with any
- * SubmitFetch implementation.
+ * Forward the poll signal to transports that support it, and race fetch
+ * against abort for injected transports that ignore it. The race drops
+ * obsolete responses; only a cooperating transport cancels its work.
  */
 export function submitFetchPollFetch(fetchImpl: SubmitFetch): PollFetch {
   return (url, init) =>
@@ -275,26 +277,36 @@ export function submitFetchPollFetch(fetchImpl: SubmitFetch): PollFetch {
         reject(new DOMException("Poll request aborted.", "AbortError"));
         return;
       }
+      let released = false;
+      const release = (): void => {
+        if (released) return;
+        released = true;
+        init.signal.removeEventListener("abort", onAbort);
+      };
       const onAbort = (): void => {
+        try { release(); }
+        catch { /* Abort remains the operative failure. */ }
         reject(new DOMException("Poll request aborted.", "AbortError"));
       };
       init.signal.addEventListener("abort", onAbort, { once: true });
       let pending: Promise<SubmitFetchResponse>;
       try {
-        pending = fetchImpl(url, { method: "GET", headers: { "HX-Request": "true", "Accept": "text/html" } });
+        pending = fetchImpl(url, { method: "GET", headers: { "HX-Request": "true", "Accept": "text/html" }, signal: init.signal });
       } catch (error) {
-        try { init.signal.removeEventListener("abort", onAbort); }
+        try { release(); }
         catch { /* The fetch acquisition failure remains operative. */ }
         reject(error);
         return;
       }
       void pending.then(
         (response) => {
-          init.signal.removeEventListener("abort", onAbort);
+          try { release(); }
+          catch (error) { reject(error); return; }
           resolve(response);
         },
         (error: unknown) => {
-          init.signal.removeEventListener("abort", onAbort);
+          try { release(); }
+          catch { /* The transport failure remains operative. */ }
           reject(error);
         },
       );

@@ -1,6 +1,0 @@
-app T
-Given
-When
- scenario g() read=true -> bool by=members
-  do return starts_with(prefix="A",value="AB") and starts_with(value="AB",prefix="A")
-Then

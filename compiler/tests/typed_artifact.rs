@@ -16,6 +16,7 @@ fn empty() -> CompileArtifact {
         callables: vec![],
         operations: vec![],
         models: vec![],
+        value_types: None,
         pages: vec![],
         migrations: vec![],
         requires: vec![],

@@ -1,0 +1,38 @@
+{
+  "request": {
+    "state": "Can's proposed agent-native can dev session would combine source checking, local workerd execution, and optional Jev debugging advice. Verified current facts: compiler diagnostics already have stable codes, source hashes, completeness and omitted counts, primary and some related spans; can explain CODE is a static six-field catalog; generated modules carry source maps; the local runner has in-process dispatch but no dev-session failure trace. The app's business errors are intentionally safe and generic. The goal for the first debugging increment is accurate, concise, source-linked help for a specific failure, without adding a second business semantics engine or hiding uncertainty. Jev remains advisory under every option.",
+    "questions": {
+      "first_increment": {
+        "type": "choice",
+        "instructions": "Which first increment best balances actionable failure explanations, implementation cost, source fidelity, and agent token use for can dev?",
+        "criteria": {
+          "catalog": "Enrich the existing static code catalog with more remedies and examples; each code receives better documentation, while occurrences still need client-side context assembly.",
+          "context": "Add a revision-pinned occurrence explanation that joins existing diagnostic/code data, related declarations, runtime source maps, and observed failure steps; requires new cross-owner integration.",
+          "jev": "Use Jev over compact diagnostic and runtime state to choose likely causes and next checks; quick to pilot, though the result remains probabilistic and depends on an external service.",
+          "session": "Expose the current diagnostic catalog and raw local runtime output through one live dev session; easiest integration, while deeper occurrence explanations wait."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "first_increment": {
+        "type": "choice",
+        "choice": "context",
+        "confidence": 0.48,
+        "probabilities": {
+          "session": 0.31,
+          "jev": 0.01,
+          "context": 0.61,
+          "catalog": 0.07
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 594,
+      "output_tokens": 46
+    }
+  }
+}

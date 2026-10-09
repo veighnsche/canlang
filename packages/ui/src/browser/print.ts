@@ -32,6 +32,8 @@ export interface FetchPrintInput {
   readonly view: string;
   readonly limit?: number;
   readonly cursor?: string;
+  /** Host cancellation; forwarded to transports that support abort. */
+  readonly signal?: AbortSignal;
 }
 
 export type FetchPrintResult =
@@ -40,6 +42,10 @@ export type FetchPrintResult =
 
 function transportError(message: string): ExportBusinessError {
   return { code: "transport", message };
+}
+
+function cancelledError(): ExportBusinessError {
+  return { code: "cancelled", message: "Print request cancelled." };
 }
 
 function printUrl(printBase: string, view: string, limit?: number, cursor?: string): string {
@@ -53,8 +59,9 @@ function printUrl(printBase: string, view: string, limit?: number, cursor?: stri
 /**
  * GET one declared print view as HTML. No caching — every call reads
  * live (current grants per open). Non-HTML 2xx answers, transport
- * throws, and unparseable error bodies map to `{code:'transport'}`;
- * server error JSON digests.
+ * throws (including body reads), and unparseable error bodies map to
+ * `{code:'transport'}`; server error JSON digests. An aborted host signal
+ * fails fast and suppresses late results, even if the transport ignores it.
  */
 export async function fetchPrintView(input: FetchPrintInput): Promise<FetchPrintResult> {
   if (typeof input.printBase !== "string" || input.printBase === "") {
@@ -63,15 +70,27 @@ export async function fetchPrintView(input: FetchPrintInput): Promise<FetchPrint
   if (typeof input.view !== "string" || !PRINT_VIEW_PATTERN.test(input.view)) {
     throw new Error(`fetchPrintView needs a declared view name (got ${JSON.stringify(input.view)})`);
   }
+  if (input.signal?.aborted) {
+    return { ok: false, error: cancelledError() };
+  }
   const url = printUrl(input.printBase, input.view, input.limit, input.cursor);
   let response: SubmitFetchResponse;
+  let body: string;
   try {
-    response = await input.fetchImpl(url, { method: "GET", headers: {} });
-  } catch (error) {
-    const messageText = error instanceof Error ? error.message : String(error);
-    return { ok: false, error: transportError(`Print request failed: ${messageText}`) };
+    response = await input.fetchImpl(url, {
+      method: "GET", headers: {},
+      ...(input.signal === undefined ? {} : { signal: input.signal }),
+    });
+    if (input.signal?.aborted) {
+      return { ok: false, error: cancelledError() };
+    }
+    body = await response.text();
+  } catch {
+    return { ok: false, error: input.signal?.aborted ? cancelledError() : transportError("Print request failed.") };
   }
-  const body = await response.text();
+  if (input.signal?.aborted) {
+    return { ok: false, error: cancelledError() };
+  }
   if (response.status < 200 || response.status >= 300) {
     let parsed: unknown = null;
     try {

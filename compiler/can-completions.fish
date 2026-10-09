@@ -3,7 +3,7 @@
 # (or eval it: `can completions fish | source`).
 # Embedded in the binary too: `can completions fish` prints this file.
 
-set -l commands activate build check compile completions deploy docs explain fmt help lint lsp policy run test
+set -l commands activate build check compile completions deploy dev docs explain fmt help lint lsp policy run test
 
 complete -c can -f -n __fish_use_subcommand -a activate -d 'Thin lane-7 entry: exec can-platform activate (passthrough)'
 complete -c can -f -n __fish_use_subcommand -a build -d 'Thin lane-7 entry: exec can-platform build (passthrough)'
@@ -11,6 +11,7 @@ complete -c can -f -n __fish_use_subcommand -a check -d 'Analyze sources and rep
 complete -c can -f -n __fish_use_subcommand -a compile -d 'Analyze sources and emit the compile artifact'
 complete -c can -f -n __fish_use_subcommand -a completions -d 'Print a shell completion script'
 complete -c can -f -n __fish_use_subcommand -a deploy -d 'Thin lane-7 entry: exec can-platform deploy (passthrough)'
+complete -c can -f -n __fish_use_subcommand -a dev -d 'JSON control for the local development session'
 complete -c can -f -n __fish_use_subcommand -a docs -d 'Generate the localized internal declaration reference'
 complete -c can -f -n __fish_use_subcommand -a explain -d 'Print a diagnostic catalog entry'
 complete -c can -f -n __fish_use_subcommand -a fmt -d 'Format sources in place (or check with --check)'

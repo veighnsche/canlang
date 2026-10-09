@@ -128,7 +128,8 @@ describe("authored operation forms through defining default Worker", () => {
     expect(replayed.kind).toBe("committed");
     if (replayed.kind !== "committed") throw new Error("actual generated form did not replay");
     expect(replayed.result.status).toBe("replayed");
-    expect(replayed.result.result).toEqual(committed.result.result);
+    expect(replayed.result.result).toBeNull();
+    expect(replayed.result.records).toEqual(committed.result.records);
     const body = JSON.stringify({ operation: operation.name, operation_id: flat["operation_id"],
       inputs: projectGeneratedInputs(derived, "create", flat) });
     expect((await fetch(action, { method: "POST", headers: { cookie, "content-type": "application/json", "x-csrf-token": "wrong" }, body })).status).toBe(403);
@@ -284,6 +285,7 @@ describe("authored operation forms through defining default Worker", () => {
         expect(replayResult.status).toBe("replayed");
         expect(browserCreateRequests).toBe(2);
         expect(replayResult.result).toEqual(createdResult.result);
+        expect(replayResult.records).toEqual(createdResult.records);
         await browserExpect(browserForm).toHaveAttribute("data-can-submit-state", "committed");
         expect(await deps.store.readRevision()).toBe(browserRevision);
         expect(await deps.store.query({ model, authority: "owner" })).toEqual(browserRows);
@@ -431,7 +433,7 @@ describe("authored readonly state page through native Worker polling", () => {
           ...(authenticated ? { cookie } : {}) },
         body: JSON.stringify({ operation, operation_id: mintOperationId(), inputs }),
       });
-      const body = await response.json() as { status?: string; result?: { id: string; version: number } };
+      const body = await response.json() as { status?: string; result?: unknown; records?: Array<{ id: string; version: number }> };
       return { response, body };
     };
     const origin = (await worker.ready).origin;
@@ -468,7 +470,8 @@ describe("authored readonly state page through native Worker polling", () => {
         const created = await post("Images.Job.create", {});
         expect(created.response.status, JSON.stringify(created.body)).toBe(200);
         expect(created.body.status).toBe("committed");
-        const job = created.body.result!;
+        expect(created.body.result).toBeNull();
+        const job = created.body.records![0]!;
         expect(job.version).toBe(1);
         await page.reload();
         await browserExpect(page.locator("#can-main .list-row")).toHaveCount(1);
@@ -617,7 +620,9 @@ describe("configured authored protected forms through native Worker", () => {
       post(operation, { operation, operation_id: mintOperationId(), inputs });
     const created = await invoke(create, { label: "Protected target" });
     expect(created.status).toBe(200);
-    const target = (await created.json() as { result: { id: string; version: number } }).result;
+    const creation = await created.json() as { result: null; records: Array<{ id: string; version: number }> };
+    expect(creation.result).toBeNull();
+    const target = creation.records[0]!;
     expect(target.version).toBe(1);
     const origin = (await worker.ready).origin;
     const browser = await chromium.launch(chromeLaunch);

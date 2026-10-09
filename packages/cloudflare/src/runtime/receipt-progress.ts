@@ -1,8 +1,8 @@
-import type { AssociatedReceipt, DomainWrite, ModelName, OutboxIntent, ReceiptError, RecordId } from '@canlang/contracts';
+import type { AssociatedReceipt, DomainWrite, ModelName, OutboxIntent, ReceiptError, ReceiptResultContext, RecordId } from '@canlang/contracts';
 import type { SystemCommandContext, SystemStaging } from '@canlang/state';
 import {
   RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL, readAssociationRow, readReceiptRow,
-  withAssociationRowData, withReceiptRowData,
+  withAssociationRowData, withReceiptRowData, isJudgmentReceiptContext, isJudgmentReceiptPayload,
 } from '@canlang/state/receipt/tables';
 import { applyReceiptProgress } from '@canlang/work/observation/association';
 import { isConsistentCompletion, isTerminalReceiptStatus } from '@canlang/work/receipt';
@@ -13,25 +13,30 @@ export interface ReceiptProgressInput {
   readonly intent: OutboxIntent;
   readonly outcome: { readonly kind: 'delivered'; readonly result: unknown }
     | { readonly kind: 'failed'; readonly error: ReceiptError };
+  /** Exact owning nominal declaration verified by the installed judgment adapter. */
+  readonly context?: ReceiptResultContext;
   /** Revision of the single owner fence receiving these effects. */
   readonly revision: number;
 }
 
 /** Stage retained receipt progress; callers join these writes to their existing fence. */
 export async function stageReceiptProgress(input: ReceiptProgressInput, ctx: SystemCommandContext): Promise<SystemStaging> {
-  const { intent, outcome, revision } = input;
-  if (intent.target !== 'std.EmailV1.send' || typeof intent.intentId !== 'string' || intent.intentId === '') {
-    throw new Error('Receipt progress requires the verified original Email intent.');
+  const { intent, outcome, revision, context } = input;
+  const judgment = isJudgmentReceiptContext(context) && context!.source === intent.target;
+  if ((intent.target !== 'std.EmailV1.send' && !judgment) ||
+      (context !== undefined && !judgment) || typeof intent.intentId !== 'string' || intent.intentId === '') {
+    throw new Error('Receipt progress requires the verified original Email or declared judgment intent.');
   }
   if (!Number.isSafeInteger(revision) || revision < 0) throw new Error('Receipt progress requires a commit revision.');
   const receiptRow = await ctx.load(RECEIPT_MODEL as ModelName, intent.intentId as RecordId);
   if (receiptRow === null) return {};
-  const retained = readReceiptRow(receiptRow);
+  const retained = readReceiptRow(receiptRow, context);
   if (retained.receipt.deliveryId !== intent.intentId) throw new Error('Receipt progress intent identity disagrees.');
   const status = outcome.kind === 'delivered' ? 'succeeded' : 'failed';
   const result = outcome.kind === 'delivered' ? outcome.result : null;
   const error = outcome.kind === 'failed' ? outcome.error : null;
-  if (!isConsistentCompletion(status, result, error)) throw new Error('Receipt progress requires a closed decisive completion.');
+  if (judgment ? !isJudgmentReceiptPayload(status, result, error, context)
+    : !isConsistentCompletion(status, result, error)) throw new Error('Receipt progress requires a closed decisive completion.');
   if (isTerminalReceiptStatus(retained.receipt.status)) return {};
   if (retained.receipt.status !== 'pending') throw new Error('Receipt progress requires a pending receipt.');
   if (revision <= retained.receipt.revision) throw new Error('Receipt progress revision must advance.');
@@ -56,7 +61,7 @@ export async function stageReceiptProgress(input: ReceiptProgressInput, ctx: Sys
     }
     const progress = applyReceiptProgress(association, retained.receipt, {
       delivery_id: intent.intentId, source: intent.target, revision, status, result, error,
-    });
+    }, context);
     if (!progress.applied) throw new Error(`Receipt progress refused: ${progress.reason}.`);
     nextReceipt = progress.receipt;
     writes.push({ kind: 'update', model: RECEIPT_ASSOCIATION_MODEL as ModelName, id: row.id,
@@ -70,6 +75,6 @@ export async function stageReceiptProgress(input: ReceiptProgressInput, ctx: Sys
   writes.push({ kind: 'update', model: RECEIPT_MODEL as ModelName, id: receiptRow.id,
     expectedVersion: receiptRow.version, row: withReceiptRowData(receiptRow, {
       ...nextReceipt, contentRef: retained.contentRef, resultExpiresAtMs: retained.resultExpiresAtMs,
-    }, meta) });
+    }, meta, context) });
   return { writes };
 }

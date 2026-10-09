@@ -1831,7 +1831,9 @@ pub const T13A_NOMINAL_LEAVES: &[StdNominal] = &[
 
 /// The sixteen T13b nominal leaf schemas, in [`T13B_NOMINAL_TYPES`]
 /// order. Per-entry cites name the frozen `services.ts` producer
-/// interface.
+/// interface. The accepted static judgment contract is mirrored here
+/// as a source-owned value shape; this does not claim provider outputs
+/// or normalization are implemented.
 pub const T13B_NOMINAL_LEAVES: &[StdNominal] = &[
     // `TextMessage` (services.ts:754); `role` inlines `TextMessageRole`
     // (services.ts:747) in producer order.
@@ -1993,10 +1995,19 @@ pub const T13B_NOMINAL_LEAVES: &[StdNominal] = &[
             ("detail", "text?"),
         ],
     },
-    // `JudgmentSpec` (services.ts:1005).
+    // `JudgmentSpec` (services.ts:1005); its static source contract is
+    // the full shared specification shape from DESIGN §13.1.
     StdNominal {
         name: "JudgmentSpec",
-        fields: &[("revision", "int")],
+        fields: &[
+            ("declaration", "text"),
+            ("version", "int"),
+            ("revision", "text"),
+            ("language", "locale"),
+            ("noul", "NoulQuestion[]!"),
+            ("choice", "ChoiceQuestion[]!"),
+            ("score", "ScoreQuestion[]!"),
+        ],
     },
     // `KnowledgeRequest` (services.ts:1017).
     StdNominal {
@@ -2025,15 +2036,51 @@ pub const T13B_NOMINAL_LEAVES: &[StdNominal] = &[
     },
 ];
 
+/// Nested judgment value shapes referenced by [`JudgmentSpec`]. These
+/// are resolvable for descriptor construction but remain non-importable
+/// standalone names, matching the existing nested-shape policy.
+pub const T13B_NESTED_NOMINALS: &[StdNominal] = &[
+    StdNominal {
+        name: "JudgmentOption",
+        fields: &[("id", "text"), ("description", "text")],
+    },
+    StdNominal {
+        name: "NoulQuestion",
+        fields: &[
+            ("id", "text"),
+            ("instructions", "text"),
+            ("yes", "text?"),
+            ("no", "text?"),
+        ],
+    },
+    StdNominal {
+        name: "ChoiceQuestion",
+        fields: &[
+            ("id", "text"),
+            ("instructions", "text"),
+            ("options", "JudgmentOption[]!"),
+        ],
+    },
+    StdNominal {
+        name: "ScoreQuestion",
+        fields: &[
+            ("id", "text"),
+            ("instructions", "text"),
+            ("levels", "JudgmentOption[]!"),
+        ],
+    },
+];
+
 /// Look up one nominal leaf schema by accepted nominal name (bare, as
 /// in [`T13A_NOMINAL_TYPES`] / [`T13B_NOMINAL_TYPES`]), across the T13a
-/// and T13b leaf tables. Returns `None` for the scoped-out Handbook
-/// interface, TS-only mapping names, nested non-nominal shapes and
-/// every unknown name: the caller keeps reporting `E3019`.
+/// and T13b leaf/nested tables. Returns `None` for the scoped-out
+/// Handbook interface, TS-only mapping names, other nested non-nominal
+/// shapes and every unknown name: the caller keeps reporting `E3019`.
 pub fn nominal_schema(name: &str) -> Option<&'static StdNominal> {
     T13A_NOMINAL_LEAVES
         .iter()
         .chain(T13B_NOMINAL_LEAVES.iter())
+        .chain(T13B_NESTED_NOMINALS.iter())
         .find(|nominal| nominal.name == name)
 }
 
@@ -2695,12 +2742,20 @@ mod t13c_tests {
                 ("detail", "text?"),
             ]
         );
-        // `JudgmentSpec` (services.ts:1005).
+        // `JudgmentSpec` (services.ts:1005; accepted static shape).
         assert_eq!(
             nominal_schema("JudgmentSpec")
                 .expect("JudgmentSpec schema")
                 .fields,
-            &[("revision", "int")]
+            &[
+                ("declaration", "text"),
+                ("version", "int"),
+                ("revision", "text"),
+                ("language", "locale"),
+                ("noul", "NoulQuestion[]!"),
+                ("choice", "ChoiceQuestion[]!"),
+                ("score", "ScoreQuestion[]!"),
+            ]
         );
         // `KnowledgeRequest` (services.ts:1017).
         assert_eq!(

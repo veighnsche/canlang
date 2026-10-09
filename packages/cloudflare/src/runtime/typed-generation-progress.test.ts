@@ -25,8 +25,8 @@ import { WORK_DISPATCH_MODEL, WORK_SCHEDULE_MODEL, readScheduleRow } from '@canl
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { assembleWorker, buildInvoker, type MutationOutcome } from '@canlang/cloudflare/worker/assembly';
 import { OllamaChatAdapter } from '@canlang/services/models/ollama';
-import { createBoundTextGenerationAdapter } from '@canlang/cloudflare/runtime/bound-text-generation';
-import { createBoundTextGenerationDispatcher } from '@canlang/cloudflare/runtime/bound-dispatch';
+import { createBoundTextGenerationAdapter } from './bound-text-generation.js';
+import { createBoundTextGenerationDispatcher } from './bound-dispatch.js';
 import type { FenceAttemptDispatchFn } from './invoke.js';
 import { createCheckedDeliveryProgressProducer, invokeDueScheduleCanonical } from './invoke.js';
 import { stageTextGenerationProgress } from './text-generation-progress.js';
@@ -163,7 +163,7 @@ test('compiled generation streams controlled provider bytes into granted native 
     const envelope = (operation: string, inputs: MutationEnvelope['inputs']): MutationEnvelope => ({
       operation: `${APP}.${operation}`, operation_id: asOperationId(uuidv7(FIXED_NOW, ++sequence)), inputs,
     });
-    const created = committed(await invoker.invokeMutation(envelope('Job.create', {}), identity)).result as { id: string; version: number };
+    const created = committed(await invoker.invokeMutation(envelope('Job.create', {}), identity)).records![0] as { id: string; version: number };
     const visible = (version: number, caller = identity) => invoker.invokeMutation(envelope('visible', {
       job: { id: created.id, version: String(version) },
     }), caller);

@@ -7,7 +7,7 @@ import {
   type BrowserClient, type BrowserClientOptions, type ComponentBinder,
 } from '../src/browser/bootstrap.js';
 import { submitFetchPollFetch } from '../src/browser/polling.js';
-import type { SubmitFetch } from '../src/client.js';
+import type { SubmitFetch, SubmitFetchInit } from '../src/client.js';
 
 const failures = [undefined, Symbol('failure'), new Error('failure')];
 const main = (text = 'OLD') => `<main id="can-main" data-can-context="owner" data-can-poll data-can-poll-url="/jobs" data-can-poll-interval="1" data-can-poll-context="owner"><p id="state">${text}</p></main>`;
@@ -237,8 +237,71 @@ describe('owned browser lifecycle cleanup', { concurrency: false }, () => {
       const pending = submitFetchPollFetch(transport)('/jobs', { signal: controller.signal });
       if (outcome === 'resolve') { finish(response()); await pending; }
       else if (outcome === 'reject') { const original = Symbol('async'); reject(original); await rejectsValue(pending, original); }
-      else { controller.abort(); await assert.rejects(pending, { name: 'AbortError' }); finish(response()); await settle(); }
+      else {
+        controller.abort(); await assert.rejects(pending, { name: 'AbortError' });
+        assert.equal(getEventListeners(controller.signal, 'abort').length, 0, 'abort releases without waiting for ignored transport');
+        finish(response()); await settle();
+      }
       assert.equal(getEventListeners(controller.signal, 'abort').length, 0);
+    }
+  });
+  it('async adapter cleanup settles and preserves the operative rejection', async () => {
+    for (const original of failures) {
+      for (const outcome of ['resolve', 'reject', 'abort']) {
+        const controller = new AbortController(), secondary = Symbol('async cleanup');
+        const remove = controller.signal.removeEventListener.bind(controller.signal);
+        let releases = 0;
+        Object.defineProperty(controller.signal, 'removeEventListener', { value: (...args: Parameters<AbortSignal['removeEventListener']>) => {
+          releases++; remove(...args); throw secondary;
+        } });
+        let finish!: (value: ReturnType<typeof response>) => void, reject!: (value: unknown) => void;
+        const pending = submitFetchPollFetch((_url, init) => {
+          assert.equal(init.signal, controller.signal);
+          return new Promise((resolve, fail) => { finish = resolve; reject = fail; });
+        })('/jobs', { signal: controller.signal });
+        if (outcome === 'resolve') { finish(response()); await rejectsValue(pending, secondary); }
+        else if (outcome === 'reject') { reject(original); await rejectsValue(pending, original); }
+        else {
+          controller.abort(); await assert.rejects(pending, { name: 'AbortError' });
+          assert.equal(getEventListeners(controller.signal, 'abort').length, 0);
+          reject(original); await settle();
+        }
+        assert.equal(releases, 1);
+        assert.equal(getEventListeners(controller.signal, 'abort').length, 0);
+      }
+    }
+  });
+  it('native polling owns the supported abort signal through the pending response body', async () => {
+    for (const transition of ['stop', 'hidden', 'logout', 'context', 'detach', 'supersede']) {
+      const page = await world(); const finish: Array<(value: string) => void> = [];
+      const signals: AbortSignal[] = []; let reads = 0;
+      Object.defineProperty(page.window, 'fetch', { configurable: true, value: async (_url: string, init: SubmitFetchInit) => {
+        assert.ok(init.signal); signals.push(init.signal);
+        const body = new Promise<string>(resolve => { finish.push(resolve); });
+        return { ...response(), text: () => { reads++; return body; } };
+      } });
+      try {
+        const client = page.native(); page.setClient(client); await page.clock.tick();
+        assert.equal(reads, 1); assert.equal(signals[0]?.aborted, false);
+        if (transition === 'stop') client.stop();
+        else if (transition === 'hidden') {
+          Object.defineProperty(page.window.document, 'visibilityState', { configurable: true, value: 'hidden' });
+          page.window.document.dispatchEvent(new page.window.Event('visibilitychange'));
+        } else if (transition === 'logout') {
+          page.window.document.body.setAttribute('data-can-logged-out', 'true'); await page.clock.tick();
+        } else if (transition === 'context') {
+          page.window.document.getElementById('can-main')!.setAttribute('data-can-context', 'new-owner'); await page.clock.tick();
+        } else if (transition === 'detach') {
+          page.window.document.getElementById('can-main')!.remove(); await page.clock.tick();
+        } else await page.clock.tick();
+        await settle();
+        assert.equal(signals[0]?.aborted, true, transition);
+        if (transition === 'supersede') { assert.equal(signals.length, 2); assert.equal(signals[1]?.aborted, false); }
+        finish[0]!(main('NEW')); await settle();
+        assert.notEqual(page.window.document.getElementById('state')?.textContent, 'NEW', transition);
+        client.stop(); for (const complete of finish) complete(main('NEW')); await settle();
+        assert.ok(signals.every(signal => signal.aborted), transition); page.assertReleased();
+      } finally { await page.close(); }
     }
   });
 });

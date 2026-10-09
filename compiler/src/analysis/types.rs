@@ -51,8 +51,9 @@ use super::catalog::{
     T13B_DELIVERY_OBSERVABLES, nominal_schema, std_capability,
 };
 use super::resolve::{
-    ActorKind, Binding, ContextVar, CrudOp, FixtureTarget, ModelOwner, ModuleId, ResolveTables,
-    ScopedName, SymbolId, SymbolKind, TypeRef, UnresolvedMember, has_error, is_expression,
+    ActorKind, Binding, CheckedJudgment, CheckedJudgmentKind, CheckedValueConstraints, ContextVar,
+    CrudOp, FixtureTarget, ModelOwner, ModuleId, ResolveTables, ScopedName, SymbolId, SymbolKind,
+    TypeRef, UnresolvedMember, has_error, is_expression,
 };
 use super::{
     NodeKey, attribute_parts, attribute_value, file_text, is_name, is_punct, kids, name_text,
@@ -395,6 +396,18 @@ pub struct SelectedCall {
     pub slots: Vec<Option<usize>>,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedAnonymousMessage {
+    pub descriptor: NodeKey,
+    pub arguments: Vec<(String, NodeKey, ResolvedType)>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CheckedJudgmentSpecificationCall {
+    pub judgment: SymbolId,
+    pub options: NodeKey,
+}
+
 /// Only declared T13b delivery observations alias progress to their latest result.
 pub(crate) fn delivery_progress_alias(ty: &ResolvedType) -> bool {
     let ty = ty.nullable_inner().unwrap_or(ty);
@@ -442,6 +455,22 @@ pub enum CheckedChoiceValue {
 /// Types and selected bindings per symbol and typed CST node.
 #[derive(Debug, Clone, Default)]
 pub struct TypeTable {
+    /// Checked local view host models, without executable symbols.
+    pub view_models: HashMap<NodeKey, SymbolId>,
+    /// Successfully checked same-module show targets.
+    pub view_uses: HashMap<NodeKey, NodeKey>,
+    /// Checked declarations: one descriptor owns every derived shape.
+    pub judgments: HashMap<SymbolId, CheckedJudgment>,
+    /// Exact checked generated source constant references.
+    pub judgment_specifications: HashMap<NodeKey, SymbolId>,
+    /// Actual checked runtime specification calls and their options argument.
+    pub judgment_specification_calls: HashMap<NodeKey, CheckedJudgmentSpecificationCall>,
+    /// Owning generated and receiving fields/parameters retain value constraints.
+    pub value_constraints: HashMap<SymbolId, CheckedValueConstraints>,
+    /// Derived symbols have ordinary identities but no authored emission body.
+    pub judgment_generated_symbols: HashSet<SymbolId>,
+    /// Checked required-array field presence, independent of value cardinality.
+    pub judgment_required_arrays: HashSet<SymbolId>,
     /// Exact earlier-parameter identity claimed by an authored bare default.
     pub param_default_copy_sources: HashMap<SymbolId, SymbolId>,
     /// Exact typed cohort-child reads, consumed without spelling rebinding.
@@ -456,6 +485,8 @@ pub struct TypeTable {
     pub delivery_progress_handlers: HashMap<NodeKey, String>,
     /// Selected call authority consumed by IR without rebinding arguments.
     pub selected_calls: HashMap<NodeKey, SelectedCall>,
+    /// Explicit anonymous descriptor bindings, in authored evaluation order.
+    pub(crate) anonymous_messages: HashMap<NodeKey, CheckedAnonymousMessage>,
     /// Subject-domain labels checked for individual finite-enum match arms.
     pub enum_match_cases: HashMap<NodeKey, String>,
     /// Match statements with complete, unique checked subject-domain coverage.
@@ -467,6 +498,8 @@ pub struct TypeTable {
     pub node_types: HashMap<NodeKey, ResolvedType>,
     /// Canonical delivery observation selectors checked against their source owner.
     pub delivery_selectors: HashMap<NodeKey, String>,
+    /// Field-relative signed UI order selectors checked against their own query alias.
+    pub(crate) ui_order_selectors: HashMap<NodeKey, String>,
     /// Additional unbound names found by the types pass (pass 2 `E2001`).
     pub unresolved_names: Vec<NodeKey>,
     /// Unbound names the types pass claimed as unique-expected-enum
@@ -498,6 +531,7 @@ pub fn check_types(
     // Source languages first: message/descriptor variant checks
     // (`E3016` source-repeat) compare against the owning module tag.
     typer.collect_module_sources(trees);
+    typer.collect_judgment_messages(trees);
     typer.phase1(trees);
     typer.phase2(trees);
     typer.check_input_choice_cycles();
@@ -520,12 +554,15 @@ pub fn check_types(
         .iter()
         .filter(|(_, binding)| match binding {
             Binding::External { .. } => true,
-            Binding::Symbol(id) => matches!(
-                tables.symbols[id.0 as usize].kind,
-                SymbolKind::Capability { .. }
-                    | SymbolKind::CapabilityOp { .. }
-                    | SymbolKind::Scenario { .. }
-            ),
+            Binding::Symbol(id) => {
+                tables.judgments.contains(id)
+                    || matches!(
+                        tables.symbols[id.0 as usize].kind,
+                        SymbolKind::Capability { .. }
+                            | SymbolKind::CapabilityOp { .. }
+                            | SymbolKind::Scenario { .. }
+                    )
+            }
             _ => false,
         })
         .map(|(key, binding)| (*key, binding.clone()))
@@ -594,7 +631,10 @@ pub(crate) fn std_schema_type(declared: &str) -> Option<ResolvedType> {
     if let Some(inner) = declared.strip_suffix('?') {
         return std_schema_type(inner).map(|ty| ResolvedType::Nullable(Box::new(ty)));
     }
-    if let Some(element) = declared.strip_suffix("[]") {
+    if let Some(element) = declared
+        .strip_suffix("[]!")
+        .or_else(|| declared.strip_suffix("[]"))
+    {
         return std_schema_type(element).map(|ty| ResolvedType::Array {
             element: Box::new(ty),
             ordered: true,
@@ -626,6 +666,26 @@ fn std_nominal_object(schema: &StdNominal) -> ResolvedType {
     )
 }
 
+fn delivery_status_type() -> ResolvedType {
+    nominal_schema("DeliveryResult")
+        .and_then(|schema| schema.fields.iter().find(|(name, _)| *name == "status"))
+        .map(|(_, kind)| std_nominal_leaf_type(kind))
+        .unwrap_or(ResolvedType::Opaque("delivery status"))
+}
+
+fn delivery_error_type() -> ResolvedType {
+    std_nominal_leaf_type("DeliveryError?")
+}
+
+fn completion_status_type() -> ResolvedType {
+    let mut status = delivery_status_type();
+    if let ResolvedType::Enum { cases, .. } = &mut status {
+        // Pending is a receipt state, never a completion occurrence.
+        cases.retain(|case| case != "pending");
+    }
+    status
+}
+
 /// Map one T13c nominal leaf kind to its checkable type (T14d).
 /// Scalar/enum/array spellings reuse [`std_schema_type`]
 /// (transcribed refinements such as `amount: money` arrive
@@ -642,7 +702,10 @@ fn std_nominal_leaf_type(declared: &str) -> ResolvedType {
     if let Some(inner) = declared.strip_suffix('?') {
         return ResolvedType::Nullable(Box::new(std_nominal_leaf_type(inner)));
     }
-    if let Some(element) = declared.strip_suffix("[]") {
+    if let Some(element) = declared
+        .strip_suffix("[]!")
+        .or_else(|| declared.strip_suffix("[]"))
+    {
         return ResolvedType::Array {
             element: Box::new(std_nominal_leaf_type(element)),
             ordered: true,
@@ -682,6 +745,17 @@ impl<'a> Typer<'a> {
     /// Walk one module's sections, dispatching declarations by kind.
     fn phase2_module(&mut self, file: SourceId, text: &str, module: ModuleId, node: &SyntaxNode) {
         self.phase2_owner_attrs(file, text, module, node);
+        for section in kids(node)
+            .into_iter()
+            .filter(|n| n.kind == SyntaxKind::Section)
+        {
+            for view in kids(section)
+                .into_iter()
+                .filter(|n| n.kind == SyntaxKind::View)
+            {
+                self.phase2_view(file, text, module, view);
+            }
+        }
         for section in kids(node) {
             if section.kind != SyntaxKind::Section {
                 continue;
@@ -709,6 +783,7 @@ impl<'a> Typer<'a> {
                     | SyntaxKind::Retain => self.phase2_rule(file, text, module, item),
                     SyntaxKind::Fixture => self.phase2_fixture(file, text, module, item),
                     SyntaxKind::Capability => self.phase2_capability(file, text, module, item),
+                    SyntaxKind::Judgment => self.phase2_judgment(file, text, module, item),
                     SyntaxKind::Scenario => self.phase2_scenario(file, text, module, item),
                     SyntaxKind::Crud => self.phase2_crud(file, text, module, item),
                     SyntaxKind::Page => self.phase2_page(file, text, module, item),
@@ -3552,6 +3627,10 @@ impl<'a> Typer<'a> {
         // `event` carries the event's record instead of `{opaque}`.
         let on_event = attribute_value(node, "on", text)
             .and_then(|on| self.on_event_payload(module, text, on));
+        let mut example_event = on_event.map(|event| ResolvedType::Record {
+            symbol: event,
+            stored: false,
+        });
         if let Some(event) = on_event {
             env.insert(
                 NarrowKey {
@@ -3571,6 +3650,7 @@ impl<'a> Typer<'a> {
         if let Some(on) = attribute_value(node, "on", text)
             && let Some(envelope) = self.on_completion_payload(module, text, on)
         {
+            example_event = Some(envelope.clone());
             env.insert(
                 NarrowKey {
                     decl: DeclKey::CtxEvent,
@@ -3670,7 +3750,7 @@ impl<'a> Typer<'a> {
         self.current_read = prev_read;
         for child in kids(node) {
             if child.kind == SyntaxKind::Examples && !has_error(child) {
-                self.check_example_headers(file, text, module, child, on_event);
+                self.check_example_headers(file, text, module, child, example_event.as_ref());
             }
         }
     }
@@ -3708,8 +3788,8 @@ impl<'a> Typer<'a> {
 
     /// Delivery envelope behind a handler's `on=Cap.op.completed`
     /// (DESIGN §8): `delivery_id:text`,
-    /// `status:enum(pending,succeeded,failed,unknown,skipped)`,
-    /// `result:R?` from the op's declared result, `error:{opaque}`.
+    /// `status:enum(succeeded,failed,unknown,skipped)`,
+    /// `result:R?` from the op's declared result, `error:DeliveryError?`.
     /// Mirrors the examples pass T35/R24 envelope, with the closed
     /// DESIGN:654 status vocabulary so bare outcomes claim. Anything
     /// else yields `None` (payload stays opaque).
@@ -3752,18 +3832,9 @@ impl<'a> Typer<'a> {
                 "delivery_id".to_string(),
                 ResolvedType::Scalar(Scalar::Text),
             ),
-            (
-                "status".to_string(),
-                ResolvedType::Enum {
-                    cases: ["pending", "succeeded", "failed", "unknown", "skipped"]
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
-                    owner: None,
-                },
-            ),
+            ("status".to_string(), completion_status_type()),
             ("result".to_string(), result),
-            ("error".to_string(), ResolvedType::Opaque("delivery error")),
+            ("error".to_string(), delivery_error_type()),
         ]))
     }
 
@@ -4007,7 +4078,8 @@ impl<'a> Typer<'a> {
             let expected = self.decl_type(param);
             // Only the owning type's immediate `=` introduces a default;
             // choice metadata and a parameter named `choices` never do.
-            let default = field_parts(param_node, text).default;
+            let field = field_parts(param_node, text);
+            let default = field.default;
             if let Some(default) = default {
                 if default.kind == SyntaxKind::NameRef
                     && let Some(Binding::Symbol(seed)) =
@@ -4045,15 +4117,10 @@ impl<'a> Typer<'a> {
                     ));
                 }
             }
-            let parts = kids(param_node);
-            for (j, part) in parts.iter().enumerate() {
-                if is_name(part, text, "label")
-                    && let Some(caption) = parts.get(j + 2)
-                {
-                    let narrow = NarrowEnv::default();
-                    let cx = Self::body_cx(module, file, text, &narrow);
-                    self.check_scalar_caption(&cx, caption, "label");
-                }
+            if let Some(caption) = field.label {
+                let narrow = NarrowEnv::default();
+                let cx = Self::body_cx(module, file, text, &narrow);
+                self.check_scalar_caption(&cx, caption, "label");
             }
             let parts = kids(param_node);
             let choices = parts
@@ -4737,8 +4804,8 @@ impl<'a> Typer<'a> {
 
     /// Check `examples` header bindings lightly: names resolve and enum
     /// cases claim, but only position-independent facts (`E6001`) apply.
-    /// `on_event` carries the handler's validated event payload (T10 C2):
-    /// an `event={...}` literal checks against the event record so nested
+    /// `event_type` carries the handler's validated event payload (T10 C2):
+    /// an `event={...}` literal checks against its record or completion envelope so nested
     /// bare cases claim their enum types; still diagnostic-free here.
     fn check_example_headers(
         &mut self,
@@ -4746,9 +4813,18 @@ impl<'a> Typer<'a> {
         text: &str,
         module: ModuleId,
         node: &SyntaxNode,
-        on_event: Option<SymbolId>,
+        event_type: Option<&ResolvedType>,
     ) {
-        let narrow = NarrowEnv::default();
+        let mut narrow = NarrowEnv::default();
+        if let Some(event_type) = event_type {
+            narrow.insert(
+                NarrowKey {
+                    decl: DeclKey::CtxEvent,
+                    path: Vec::new(),
+                },
+                event_type.clone(),
+            );
+        }
         let cx = Ctx {
             module,
             file,
@@ -4757,18 +4833,28 @@ impl<'a> Typer<'a> {
             strict: false,
             server_default: false,
         };
+        let mut header_facts = NarrowEnv::default();
         for child in kids(node) {
             if child.kind == SyntaxKind::Attribute
                 && let Some((key, value)) = attribute_parts(child)
             {
-                let expect = match on_event {
-                    Some(event) if is_name(key, text, "event") => Some(ResolvedType::Record {
-                        symbol: event,
-                        stored: false,
-                    }),
-                    _ => None,
+                let expect = if is_name(key, text, "event") {
+                    event_type.cloned()
+                } else {
+                    None
                 };
                 self.expr(&cx, value, expect);
+                if is_name(key, text, "event")
+                    && let Some(event_type) = event_type
+                {
+                    self.example_object_nonnull_facts(
+                        text,
+                        value,
+                        event_type,
+                        &mut Vec::new(),
+                        &mut header_facts,
+                    );
+                }
             }
         }
         // Headers retain their type-owned unresolved diagnostics; general
@@ -4778,6 +4864,31 @@ impl<'a> Typer<'a> {
             .into_iter()
             .filter(|n| n.kind == SyntaxKind::ExampleRow)
             .collect();
+        // An input column can replace its header value. Descendant inputs
+        // keep a parent's nonnull proof; equal/ancestor inputs cannot.
+        if let Some(heading) = rows.first() {
+            for part in kids(heading) {
+                if is_punct(part, text, "->") {
+                    break;
+                }
+                if is_expression(part.kind)
+                    && let Some(target) = self.narrow_key_for(&cx, part)
+                {
+                    header_facts.retain(|key, _| {
+                        key.decl != target.decl || !key.path.starts_with(&target.path)
+                    });
+                }
+            }
+        }
+        narrow.extend(header_facts);
+        let cx = Ctx {
+            module,
+            file,
+            text,
+            narrow: &narrow,
+            strict: false,
+            server_default: false,
+        };
         let mut observation_types = Vec::new();
         let mut input_types = Vec::new();
         for (index, row) in rows.iter().enumerate() {
@@ -4867,6 +4978,68 @@ impl<'a> Typer<'a> {
             }
         }
         self.types.unresolved_names.truncate(unresolved_before);
+    }
+
+    /// Only explicit, checked fixture values establish member nonnull facts.
+    /// The proof retains the declared type, never the literal's inferred shape.
+    fn example_object_nonnull_facts(
+        &mut self,
+        text: &str,
+        value: &SyntaxNode,
+        expected: &ResolvedType,
+        path: &mut Vec<String>,
+        facts: &mut NarrowEnv,
+    ) {
+        let value = unwrap_groups(value);
+        if value.kind != SyntaxKind::Object || has_error(value) {
+            return;
+        }
+        let (expected, _) = strip_nullable(expected);
+        for (name, _, supplied) in object_entries(value, text) {
+            let Some(supplied) = supplied else {
+                continue;
+            };
+            let declared = match &expected {
+                ResolvedType::Object(fields) => fields
+                    .iter()
+                    .find(|(field, _)| field == name)
+                    .map(|(_, ty)| ty.clone()),
+                ResolvedType::Record { symbol, .. } => {
+                    let field = self.tables.symbols[symbol.0 as usize]
+                        .fields_of()
+                        .iter()
+                        .find(|field| self.tables.symbols[field.0 as usize].name == name)
+                        .copied();
+                    field.map(|field| self.decl_type(field))
+                }
+                _ => None,
+            };
+            let Some(declared) = declared else {
+                continue;
+            };
+            let Some(actual) = self.types.node_types.get(&NodeKey::of(supplied)) else {
+                continue;
+            };
+            let concrete_object = unwrap_groups(supplied).kind == SyntaxKind::Object;
+            let (actual_inner, _) = strip_nullable(actual);
+            let nonnull =
+                actual.is_proven_nonnull() || (concrete_object && actual_inner.is_proven_nonnull());
+            if !nonnull || !self.types_compatible(&actual_inner, &declared) {
+                continue;
+            }
+            path.push(name.to_string());
+            if let ResolvedType::Nullable(inner) = &declared {
+                facts.insert(
+                    NarrowKey {
+                        decl: DeclKey::CtxEvent,
+                        path: path.clone(),
+                    },
+                    inner.as_ref().clone(),
+                );
+            }
+            self.example_object_nonnull_facts(text, supplied, &declared, path, facts);
+            path.pop();
+        }
     }
 
     // --- Phase 2: labels, messages and captions -------------------------
@@ -5974,7 +6147,12 @@ impl<'a> Typer<'a> {
                     tight_span(cx.text, child),
                 ));
             }
-            let segments = path_segments(path, cx.text);
+            let source_segments = path_segments(path, cx.text);
+            let segments = if what == "order" && node.kind == SyntaxKind::Collection {
+                self.ui_order_segments(cx, node, model, &source_segments)
+            } else {
+                source_segments
+            };
             if segments.is_empty() {
                 continue;
             }
@@ -5995,6 +6173,16 @@ impl<'a> Typer<'a> {
             }
             if self.navigate_selector(cx, node, model, path, &segments, allow_reserved) {
                 selected.push(segments.join("."));
+                if what == "order" && node.kind == SyntaxKind::Collection {
+                    self.types.ui_order_selectors.insert(
+                        NodeKey::of(path),
+                        format!(
+                            "{}{}",
+                            if descending { "-" } else { "" },
+                            segments.join(".")
+                        ),
+                    );
+                }
             }
         }
         selected
@@ -6067,6 +6255,78 @@ impl<'a> Typer<'a> {
             format!("model {}", record_name(self.tables, cx.module, model)),
             name.to_string(),
         );
+    }
+
+    /// Checked terminal type of a UI selector, used only after ordinary
+    /// selector navigation has reported invalid paths. This does not grant
+    /// read access; the query runner still enforces current field grants.
+    fn ui_order_segments<'s>(
+        &self,
+        cx: &Ctx<'_, '_>,
+        collection: &SyntaxNode,
+        model: SymbolId,
+        segments: &[&'s str],
+    ) -> Vec<&'s str> {
+        let alias = kids(collection)
+            .into_iter()
+            .find(|child| is_expression(child.kind))
+            .map(unwrap_groups)
+            .filter(|domain| domain.kind == SyntaxKind::Query)
+            .and_then(|domain| {
+                kids(domain).into_iter().find_map(|clause| {
+                    let parts = kids(clause);
+                    if clause.kind != SyntaxKind::QueryClause
+                        || !parts
+                            .first()
+                            .is_some_and(|part| is_name(part, cx.text, "as"))
+                        || self.aliases.get(&NodeKey::of(clause))
+                            != Some(&ResolvedType::Record {
+                                symbol: model,
+                                stored: true,
+                            })
+                    {
+                        return None;
+                    }
+                    parts.get(1).and_then(|part| name_text(part, cx.text))
+                })
+            });
+        if segments.len() > 1 && alias == segments.first().copied() {
+            segments[1..].to_vec()
+        } else {
+            segments.to_vec()
+        }
+    }
+
+    fn ui_selector_type(&self, model: SymbolId, segments: &[&str]) -> Option<ResolvedType> {
+        let first = *segments.first()?;
+        let mut current = if let Some(field) = self.model_field_named(model, first) {
+            self.decl_type(field)
+        } else if first == "parent" {
+            ResolvedType::Record {
+                symbol: contained_parent_of(self.tables, model)?,
+                stored: true,
+            }
+        } else {
+            reserved_member_type(first)?
+        };
+        for segment in &segments[1..] {
+            current = match current.nullable_inner().unwrap_or(&current) {
+                ResolvedType::Record { symbol, .. } => {
+                    self.decl_type(self.record_field_named(*symbol, segment)?)
+                }
+                ResolvedType::Scalar(Scalar::Money) if *segment == "minor" => {
+                    ResolvedType::Scalar(Scalar::Int)
+                }
+                ResolvedType::Scalar(Scalar::Money) if *segment == "currency" => {
+                    ResolvedType::Scalar(Scalar::Currency)
+                }
+                ResolvedType::Scalar(Scalar::User) if *segment == "id" => {
+                    ResolvedType::Scalar(Scalar::Text)
+                }
+                _ => return None,
+            };
+        }
+        Some(current)
     }
 
     /// Navigate one selector path from `model`: declared fields,
@@ -6597,6 +6857,208 @@ impl<'a> Typer<'a> {
         }
     }
 
+    fn collect_judgment_messages(&mut self, trees: &[(SourceId, SyntaxNode)]) {
+        for (file, tree) in trees {
+            let text = self.text(*file).to_string();
+            for module_node in kids(tree)
+                .into_iter()
+                .filter(|n| matches!(n.kind, SyntaxKind::App | SyntaxKind::Package))
+            {
+                let Some(module) = module_of_node(self.tables, &text, module_node) else {
+                    continue;
+                };
+                for section in kids(module_node)
+                    .into_iter()
+                    .filter(|n| n.kind == SyntaxKind::Section)
+                {
+                    for message in kids(section)
+                        .into_iter()
+                        .filter(|n| n.kind == SyntaxKind::Message)
+                    {
+                        if let Some(id) =
+                            self.decl_symbol(module, &text, message, &["export", "message"])
+                        {
+                            self.judgment_messages.insert(id, message.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Count the actual static source string, following only resolved
+    /// zero-input message declarations. No executable expression is admitted.
+    fn judgment_caption_scalars(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        caption: &SyntaxNode,
+    ) -> Option<usize> {
+        if caption.kind != SyntaxKind::MessageValue {
+            self.check_caption(cx, caption, "judgment caption", None);
+        }
+        let value = match caption.kind {
+            SyntaxKind::Literal => string_literal_value(caption),
+            SyntaxKind::MessageValue => {
+                self.check_message_value(cx, caption, "judgment caption", Some(&[]));
+                kids(caption).into_iter().find_map(string_literal_value)
+            }
+            SyntaxKind::Path => {
+                let id = self
+                    .tables
+                    .node_symbol
+                    .get(&NodeKey::of(caption))
+                    .copied()?;
+                if !matches!(&self.tables.symbols[id.0 as usize].kind, SymbolKind::Message { params } if params.is_empty())
+                {
+                    return None;
+                }
+                let message = self.judgment_messages.get(&id)?.clone();
+                let descriptor = kids(&message)
+                    .into_iter()
+                    .find(|n| n.kind == SyntaxKind::MessageValue)?;
+                let message_module = self.tables.symbols[id.0 as usize].module;
+                let message_text = self.text(message.span.file).to_string();
+                let message_cx =
+                    Self::body_cx(message_module, message.span.file, &message_text, cx.narrow);
+                self.check_message_value(&message_cx, descriptor, "judgment message", Some(&[]));
+                kids(descriptor).into_iter().find_map(string_literal_value)
+            }
+            _ => None,
+        };
+        let Some(value) = value else {
+            self.diags.push(Diagnostic::error(
+                "E3016",
+                "judgment captions must be verified static text or zero-parameter messages"
+                    .to_string(),
+                tight_span(cx.text, caption),
+            ));
+            return None;
+        };
+        let count = value.chars().count();
+        if value.trim().is_empty() || count > 2_000 {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "judgment instruction/criterion must contain 1–2000 Unicode scalars".to_string(),
+                tight_span(cx.text, caption),
+            ));
+        }
+        Some(count)
+    }
+
+    fn phase2_judgment(&mut self, file: SourceId, text: &str, module: ModuleId, node: &SyntaxNode) {
+        let Some(owner) = self.decl_symbol(module, text, node, &["export", "judgment"]) else {
+            return;
+        };
+        let Some(mut judgment) = self.tables.judgment_declarations.get(&owner).cloned() else {
+            return;
+        };
+        let before = self.diags.len();
+        match attribute_value(node, "version", text).and_then(|n| {
+            (n.kind == SyntaxKind::Literal)
+                .then(|| int_literal_value(n, text))
+                .flatten()
+        }) {
+            Some(version) => judgment.version = version,
+            None => self.diags.push(Diagnostic::error(
+                "E3001",
+                "judgment version must be an int literal".to_string(),
+                node.span,
+            )),
+        }
+        if !(1..=32).contains(&judgment.questions.len()) {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "judgment requires 1–32 questions".to_string(),
+                node.span,
+            ));
+        }
+        let narrow = NarrowEnv::default();
+        let cx = Self::body_cx(module, file, text, &narrow);
+        let mut combined = 0;
+        let mut question_names = HashSet::new();
+        let mut complete = true;
+        for item in kids(node)
+            .into_iter()
+            .filter(|n| n.kind == SyntaxKind::JudgmentItem)
+        {
+            let parts = kids(item);
+            let Some(name) = parts.iter().find_map(|n| name_text(n, text)) else {
+                continue;
+            };
+            if !question_names.insert(name.to_string()) {
+                complete = false; // The owning resolver already reported E2002.
+            }
+            let Some(question) = judgment.questions.iter().find(|q| q.name == name) else {
+                complete = false;
+                continue;
+            };
+            let count = if question.kind == CheckedJudgmentKind::Choice {
+                question.options.len()
+            } else {
+                question.levels.len()
+            };
+            let allowed = match question.kind {
+                CheckedJudgmentKind::Noul => true,
+                CheckedJudgmentKind::Choice if question.runtime => count <= 26,
+                CheckedJudgmentKind::Choice => (2..=26).contains(&count),
+                CheckedJudgmentKind::Score => (2..=10).contains(&count),
+            };
+            if !allowed {
+                self.diags.push(Diagnostic::error("E3001", "static judgment choices require 2–26 options; runtime choices permit at most 26 authored options; scores require 2–10 ordered levels".to_string(), item.span));
+            }
+            let mut ids = HashSet::new();
+            for option in question.options.iter().chain(question.levels.iter()) {
+                if question.runtime && !(1..=80).contains(&option.id.chars().count()) {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        "runtime judgment option IDs require 1–80 Unicode scalars matching NAME"
+                            .to_string(),
+                        item.span,
+                    ));
+                }
+                if !ids.insert(&option.id) {
+                    self.diags.push(Diagnostic::error(
+                        "E2002",
+                        format!("duplicate judgment option/level '{}'", option.id),
+                        item.span,
+                    ));
+                }
+            }
+            for caption in parts.iter().copied().filter(|n| {
+                matches!(
+                    n.kind,
+                    SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path
+                )
+            }) {
+                combined += self.judgment_caption_scalars(&cx, caption).unwrap_or(0);
+            }
+            for option in parts
+                .iter()
+                .filter(|n| n.kind == SyntaxKind::JudgmentOption)
+            {
+                for caption in kids(option).into_iter().filter(|n| {
+                    matches!(
+                        n.kind,
+                        SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path
+                    )
+                }) {
+                    combined += self.judgment_caption_scalars(&cx, caption).unwrap_or(0);
+                }
+            }
+        }
+        if combined > 24_000 {
+            self.diags.push(Diagnostic::error(
+                "E3001",
+                "judgment specification exceeds 24000 combined source-language Unicode scalars"
+                    .to_string(),
+                node.span,
+            ));
+        }
+        if complete && before == self.diags.len() {
+            self.types.judgments.insert(owner, judgment);
+        }
+    }
+
     /// Check a capability declaration: `version=` must be an int
     /// literal, operation signatures contribute parameter defaults,
     /// and event schemas check as fields. Operations are
@@ -7017,6 +7479,32 @@ impl<'a> Typer<'a> {
         }
     }
 
+    /// Check declaration-owned UI before publishing any same-module uses.
+    fn phase2_view(&mut self, file: SourceId, text: &str, module: ModuleId, node: &SyntaxNode) {
+        if has_error(node) || node.descendants().any(|n| n.kind == SyntaxKind::Show) {
+            return;
+        }
+        let key = NodeKey::of(node);
+        let Some(model) = self.tables.view_models.get(&key).copied() else {
+            return;
+        };
+        let narrow = NarrowEnv::default();
+        let cx = Self::body_cx(module, file, text, &narrow);
+        let before = self.diags.len();
+        for child in kids(node) {
+            if matches!(
+                child.kind,
+                SyntaxKind::Name | SyntaxKind::Punct | SyntaxKind::Parameter
+            ) {
+                continue;
+            }
+            self.walk_ui_page(&cx, child, SyntaxKind::View);
+        }
+        if self.diags.len() == before {
+            self.types.view_models.insert(key, model);
+        }
+    }
+
     /// Check a page (GRAMMAR `page` row): required static `title=`,
     /// pure-read `data=`, constant `order=`/`poll=`, static `group=`,
     /// `nav=none`, and `refresh=` naming a canonical user mutation
@@ -7142,7 +7630,7 @@ impl<'a> Typer<'a> {
     }
 
     /// Static page text: a string literal, a context-free message
-    /// value or a path to a zero-parameter message (`E3013`).
+    /// value or a resolved reference to a zero-parameter message (`E3013`).
     fn check_page_static_text(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode, what: &str) {
         if invalid_string_literal(node) || string_literal_value(node).is_some() {
             return;
@@ -7163,18 +7651,20 @@ impl<'a> Typer<'a> {
             }
             return;
         }
-        if node.kind == SyntaxKind::Path {
-            let ok = self
-                .tables
-                .node_symbol
-                .get(&NodeKey::of(node))
-                .copied()
-                .is_some_and(|id| {
-                    matches!(
-                        self.tables.symbols[id.0 as usize].kind,
-                        SymbolKind::Message { ref params } if params.is_empty()
-                    )
-                });
+        if matches!(node.kind, SyntaxKind::Path | SyntaxKind::NameRef) {
+            let key = NodeKey::of(node);
+            let symbol = self.tables.node_symbol.get(&key).copied().or_else(|| {
+                match self.tables.node_binding.get(&key) {
+                    Some(Binding::Symbol(id)) => Some(*id),
+                    _ => None,
+                }
+            });
+            let ok = symbol.is_some_and(|id| {
+                matches!(
+                    self.tables.symbols[id.0 as usize].kind,
+                    SymbolKind::Message { ref params } if params.is_empty()
+                )
+            });
             if ok {
                 return;
             }
@@ -7223,6 +7713,65 @@ impl<'a> Typer<'a> {
         let domain = kids(node).iter().find(|n| is_expression(n.kind)).copied();
         let mut row_seed: Option<NarrowEnv> = None;
         match node.kind {
+            SyntaxKind::Show => {
+                let objects: Vec<_> = kids(node)
+                    .into_iter()
+                    .filter(|n| n.kind == SyntaxKind::Object)
+                    .collect();
+                let entries = objects.first().map(|args| object_entries(args, cx.text));
+                let row = entries
+                    .as_ref()
+                    .and_then(|entries| match entries.as_slice() {
+                        [("row", _, Some(value))] if objects.len() == 1 => Some(*value),
+                        _ => None,
+                    });
+                let Some(row) = row else {
+                    self.diags.push(Diagnostic::error(
+                        "E3001",
+                        "show requires exactly the explicit row argument {row=expression}"
+                            .to_string(),
+                        tight_span(cx.text, node),
+                    ));
+                    for args in objects {
+                        self.walk_object_values(cx, args);
+                    }
+                    return;
+                };
+                let before = self.diags.len();
+                let actual = self.expr(cx, row, None);
+                for (name, span) in self.effectful_calls(row, cx.text) {
+                    self.diags.push(Diagnostic::error(
+                        "E3010",
+                        format!("show row argument must be pure; '{name}' is not allowed here"),
+                        span,
+                    ));
+                }
+                let key = NodeKey::of(node);
+                let target = self.tables.show_views.get(&key).copied();
+                if let Some((target, model)) = target.and_then(|target| {
+                    self.types
+                        .view_models
+                        .get(&target)
+                        .copied()
+                        .map(|model| (target, model))
+                }) {
+                    let expected = ResolvedType::Record {
+                        symbol: model,
+                        stored: true,
+                    };
+                    if actual != expected {
+                        self.diags.push(Diagnostic::error(
+                            "E3001",
+                            "show row must be the view's exact nonnullable stored model"
+                                .to_string(),
+                            tight_span(cx.text, row),
+                        ));
+                    } else if self.diags.len() == before {
+                        self.types.view_uses.insert(key, target);
+                    }
+                }
+                return;
+            }
             SyntaxKind::Require => {
                 if let Some(pred) = domain {
                     let ty = self.expr(cx, pred, None);
@@ -7404,6 +7953,49 @@ impl<'a> Typer<'a> {
                             self.check_selectors(cx, node, model, sel, key, true);
                         }
                     }
+                    if let Some(order) = attribute_value(node, "order", cx.text)
+                        && order.kind == SyntaxKind::Selectors
+                    {
+                        self.check_selectors(cx, node, model, order, "order", true);
+                        for selector in kids(order) {
+                            let path = if selector.kind == SyntaxKind::Descending {
+                                kids(selector)
+                                    .iter()
+                                    .find(|part| part.kind == SyntaxKind::Path)
+                                    .copied()
+                            } else {
+                                Some(selector)
+                            };
+                            if let Some(path) = path
+                                && let Some(ty) = self.ui_selector_type(
+                                    model,
+                                    &self.ui_order_segments(
+                                        cx,
+                                        node,
+                                        model,
+                                        &path_segments(path, cx.text),
+                                    ),
+                                )
+                            {
+                                self.check_order_key(cx, path, &ty);
+                            }
+                        }
+                    }
+                    if let Some(search) = attribute_value(node, "search", cx.text) {
+                        for selector in kids(search) {
+                            if let Some(ty) =
+                                self.ui_selector_type(model, &path_segments(selector, cx.text))
+                                && !matches!(ty, ResolvedType::Scalar(s) if s.is_string_like())
+                            {
+                                self.diags.push(Diagnostic::error(
+                                    "E3006",
+                                    "search selectors must name nonnullable text-like fields"
+                                        .to_string(),
+                                    tight_span(cx.text, selector),
+                                ));
+                            }
+                        }
+                    }
                 }
                 if let Some(empty) = attribute_value(node, "empty", cx.text) {
                     let _ = self.expr(cx, empty, None);
@@ -7411,8 +8003,8 @@ impl<'a> Typer<'a> {
                 if let Some(defaults) = attribute_value(node, "defaults", cx.text) {
                     let _ = self.expr(cx, defaults, None);
                 }
-                // `order=` (ui_order) and `display=` values need
-                // runtime catalogs: no check (reported gap).
+                // Preference-dispatched `order=` and `display=` remain
+                // separate runtime profiles; fixed ordering is checked above.
             }
             SyntaxKind::Form => {
                 if let Some(domain) = domain {
@@ -7475,6 +8067,18 @@ impl<'a> Typer<'a> {
             // Catalog positional domains are expressions, like leaf
             // domains; `NAME=word` options stay untyped (PR5 words).
             SyntaxKind::CatalogItem => {
+                if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("count") {
+                    if parent != SyntaxKind::Collection {
+                        self.diags.push(Diagnostic::error(
+                            "E3001",
+                            "count belongs directly inside a list".to_string(),
+                            tight_span(cx.text, node),
+                        ));
+                    }
+                    if let Some(label) = attribute_value(node, "label", cx.text) {
+                        self.check_page_static_text(cx, label, "count label");
+                    }
+                }
                 for child in kids(node) {
                     if is_expression(child.kind) {
                         let _ = self.expr(cx, child, None);
@@ -7533,8 +8137,46 @@ impl<'a> Typer<'a> {
             }
             _ => {}
         }
-        // A `timeline` row seed (above) applies to nested widgets only;
-        // sibling subtrees keep the incoming context.
+        // Direct card/tab gates run before the container's children. Their
+        // stable-path facts belong only to that gated subtree, like row seeds.
+        let gated = matches!(node.kind, SyntaxKind::Card | SyntaxKind::Tab);
+        if gated {
+            let mut env = row_seed.take().unwrap_or_else(|| cx.narrow.clone());
+            for gate in kids(node).into_iter().filter(|child| {
+                child.kind == SyntaxKind::UiLeaf
+                    && kids(child).iter().find_map(|n| name_text(n, cx.text)) == Some("require")
+                    && !has_error(child)
+            }) {
+                let Some(pred) = kids(gate).into_iter().find(|n| is_expression(n.kind)) else {
+                    continue;
+                };
+                let gate_cx = Ctx {
+                    module: cx.module,
+                    file: cx.file,
+                    text: cx.text,
+                    narrow: &env,
+                    strict: cx.strict,
+                    server_default: cx.server_default,
+                };
+                let before = self.diags.len();
+                let ty = self.expr(&gate_cx, pred, None);
+                self.expect_bool(&gate_cx, tight_span(cx.text, pred), &ty, "`require`");
+                for (name, span) in self.effectful_calls(pred, cx.text) {
+                    self.diags.push(Diagnostic::error(
+                        "E3010",
+                        format!("page require must be pure; '{name}' is not allowed here"),
+                        span,
+                    ));
+                }
+                if self.diags.len() == before && ty == ResolvedType::Scalar(Scalar::Bool) {
+                    let mut facts = NarrowEnv::default();
+                    self.collect_narrow(&gate_cx, pred, false, &mut facts);
+                    env.extend(facts);
+                }
+            }
+            row_seed = Some(env);
+        }
+        // Child contexts never escape into sibling subtrees.
         let timeline_cx;
         let inner: &Ctx<'_, '_> = if let Some(ref env) = row_seed {
             timeline_cx = Ctx {
@@ -7550,6 +8192,12 @@ impl<'a> Typer<'a> {
             cx
         };
         for child in kids(node) {
+            if gated
+                && child.kind == SyntaxKind::UiLeaf
+                && kids(child).iter().find_map(|n| name_text(n, cx.text)) == Some("require")
+            {
+                continue;
+            }
             if matches!(child.kind, SyntaxKind::Route | SyntaxKind::Attribute) {
                 continue;
             }
@@ -8689,9 +9337,10 @@ fn scan_argument(chars: &[char], i: &mut usize, slots: &mut Vec<String>, depth: 
         return;
     }
     // Simple (`number`/`date`/`time`) or out-of-profile type: the name
-    // already binds; the interior scans flat so any nested unknown
-    // name keeps failing exactly as before.
+    // already binds. Consume its own closing brace before the enclosing
+    // branch resumes; nested malformed slots still receive the same scan.
     *i = k;
+    scan_message(chars, i, slots, true, depth + 1);
 }
 
 /// Scan the branch list of a well-formed `{name,
@@ -8771,18 +9420,20 @@ fn push_slot(slots: &mut Vec<String>, name: String) {
 /// descriptor, not ordinary text — even though `expr` types it
 /// `text` (inline descriptors declare no `Message` symbol).
 fn is_message_descriptor(node: &SyntaxNode) -> bool {
+    message_descriptor_node(node).is_some()
+}
+
+fn message_descriptor_node(node: &SyntaxNode) -> Option<&SyntaxNode> {
     let mut current = node;
     loop {
         match current.kind {
-            SyntaxKind::MessageValue => return true,
+            SyntaxKind::MessageValue => return Some(current),
             SyntaxKind::Group => {
                 let parts = kids(current);
-                let Some(inner) = parts.iter().find(|n| is_expression(n.kind)) else {
-                    return false;
-                };
+                let inner = parts.iter().find(|n| is_expression(n.kind))?;
                 current = inner;
             }
-            _ => return false,
+            _ => return None,
         }
     }
 }
@@ -9076,6 +9727,7 @@ struct Typer<'a> {
     read_scenarios: HashSet<SymbolId>,
     /// Context-declared queue names per module (send/on= targets).
     queue_names: HashSet<(ModuleId, String)>,
+    judgment_messages: HashMap<SymbolId, SyntaxNode>,
 }
 
 impl<'a> Typer<'a> {
@@ -9117,6 +9769,7 @@ impl<'a> Typer<'a> {
             current_read: false,
             read_scenarios: HashSet::new(),
             queue_names: HashSet::new(),
+            judgment_messages: HashMap::new(),
         }
     }
 
@@ -9347,6 +10000,45 @@ impl<'a> Typer<'a> {
     /// (bad suffixes on resolved types, union arms, action/delivery
     /// targets, non-type annotations) are `E3008`/`E3009`/`E3010`.
     fn phase1(&mut self, trees: &[(SourceId, SyntaxNode)]) {
+        self.decl.extend(self.tables.judgment_types.clone());
+        self.types.value_constraints = self.tables.judgment_value_constraints.clone();
+        for field in self.tables.judgment_types.keys() {
+            self.shapes.insert(
+                *field,
+                (
+                    false,
+                    false,
+                    self.tables.judgment_required_arrays.contains(field),
+                ),
+            );
+        }
+        self.types.judgment_generated_symbols = self.tables.judgment_generated_symbols.clone();
+        self.types.judgment_required_arrays = self.tables.judgment_required_arrays.clone();
+        for (owner, judgment) in &self.tables.judgment_declarations {
+            self.shapes.insert(judgment.state, (false, false, true));
+            for parameter in [judgment.evaluate_options, judgment.specification_options]
+                .into_iter()
+                .flatten()
+            {
+                self.shapes.insert(parameter, (false, false, false));
+            }
+            if let Some(specification) = judgment.specification {
+                self.results.insert(
+                    specification,
+                    Some(ResolvedType::Record {
+                        symbol: self.tables.judgment_standard_records["JudgmentSpec"],
+                        stored: true,
+                    }),
+                );
+            }
+            self.results.insert(
+                judgment.evaluate,
+                Some(ResolvedType::Record {
+                    symbol: *owner,
+                    stored: true,
+                }),
+            );
+        }
         self.phase1_round(trees);
         // Forward field-chain references (`M.s` naming a field declared
         // later) read an absent `decl` entry on the first round and come
@@ -9358,13 +10050,24 @@ impl<'a> Typer<'a> {
         // entry, so `entries + 1` extra rounds always suffice.
         let bound = self.decl.len() + self.results.len() + self.routes.len() + 1;
         for _ in 0..bound {
-            let before = (self.decl.clone(), self.results.clone(), self.routes.clone());
+            let before = (
+                self.decl.clone(),
+                self.results.clone(),
+                self.routes.clone(),
+                self.types.value_constraints.clone(),
+            );
             let mut scratch = Vec::new();
             std::mem::swap(&mut *self.diags, &mut scratch);
             self.phase1_round(trees);
             let round = std::mem::replace(&mut *self.diags, scratch);
             merge_round_diags(self.diags, round);
-            if (self.decl.clone(), self.results.clone(), self.routes.clone()) == before {
+            if (
+                self.decl.clone(),
+                self.results.clone(),
+                self.routes.clone(),
+                self.types.value_constraints.clone(),
+            ) == before
+            {
                 break;
             }
         }
@@ -9418,14 +10121,6 @@ impl<'a> Typer<'a> {
 
     fn phase1_given(&mut self, file: SourceId, text: &str, module: ModuleId, node: &SyntaxNode) {
         match node.kind {
-            SyntaxKind::Preferences => {
-                if let Some(prefs) = self.prefs_symbol(module) {
-                    self.prefs.insert(module, prefs);
-                    for field in node.children.iter().filter(|c| c.kind == SyntaxKind::Field) {
-                        self.phase1_field(file, text, module, prefs, field);
-                    }
-                }
-            }
             SyntaxKind::Model | SyntaxKind::Contract | SyntaxKind::Event => {
                 let head = match node.kind {
                     SyntaxKind::Model => "model",
@@ -9540,6 +10235,15 @@ impl<'a> Typer<'a> {
     }
 
     fn phase1_then(&mut self, file: SourceId, text: &str, module: ModuleId, node: &SyntaxNode) {
+        if node.kind == SyntaxKind::Preferences {
+            if let Some(prefs) = self.prefs_symbol(module) {
+                self.prefs.insert(module, prefs);
+                for field in node.children.iter().filter(|c| c.kind == SyntaxKind::Field) {
+                    self.phase1_field(file, text, module, prefs, field);
+                }
+            }
+            return;
+        }
         if node.kind != SyntaxKind::Page {
             return;
         }
@@ -9599,6 +10303,7 @@ impl<'a> Typer<'a> {
             return;
         };
         let resolved = self.resolve_type_node(file, text, module, type_node, Some(id));
+        self.intersect_reused_constraints(id, field, text, &shape.modifiers);
         // `!` is required-array-input metadata; the value type is the array.
         // Error/Opaque/Unknown already carry their own diagnostic: stay silent.
         if shape.bang
@@ -9672,6 +10377,7 @@ impl<'a> Typer<'a> {
                 continue;
             };
             let resolved = self.resolve_type_node(file, text, module, type_node, Some(*id));
+            self.intersect_reused_constraints(*id, param_node, text, &shape.modifiers);
             self.decl.insert(*id, resolved);
         }
         // Positional mismatch (duplicate parameters already `E2002`):
@@ -9727,6 +10433,60 @@ impl<'a> Typer<'a> {
         self.decl.get(&id).cloned().unwrap_or(ResolvedType::Error)
     }
 
+    fn inherit_value_constraints(&mut self, owner: Option<SymbolId>, source: SymbolId) {
+        if let Some(owner) = owner {
+            if let Some(constraints) = self.types.value_constraints.get(&source).cloned() {
+                self.types.value_constraints.insert(owner, constraints);
+            } else {
+                self.types.value_constraints.remove(&owner);
+            }
+        }
+    }
+
+    /// A receiving declaration narrows inherited bounds without weakening them.
+    fn intersect_reused_constraints(
+        &mut self,
+        id: SymbolId,
+        node: &SyntaxNode,
+        text: &str,
+        modifiers: &[FieldModifier<'_>],
+    ) {
+        let Some(mut constraints) = self.types.value_constraints.get(&id).cloned() else {
+            return;
+        };
+        for modifier in modifiers {
+            let (word, minimum) = match modifier {
+                FieldModifier::Min(word) => (*word, true),
+                FieldModifier::Max(word) => (*word, false),
+                _ => continue,
+            };
+            let Some(bound) = modifier_value(node, word) else {
+                continue;
+            };
+            let Some(value) = int_literal_value(bound, text).filter(|value| *value >= 0) else {
+                self.diags.push(Diagnostic::error(
+                    "E3012",
+                    "a reused judgment value bound requires a nonnegative int literal".to_string(),
+                    tight_span(text, bound),
+                ));
+                continue;
+            };
+            if minimum {
+                constraints.min = Some(constraints.min.map_or(value, |old| old.max(value)));
+            } else {
+                constraints.max = Some(constraints.max.map_or(value, |old| old.min(value)));
+            }
+        }
+        if matches!((constraints.min, constraints.max), (Some(min), Some(max)) if min > max) {
+            self.diags.push(Diagnostic::error(
+                "E3012",
+                "receiving bounds conflict with inherited judgment value bounds".to_string(),
+                tight_span(text, node),
+            ));
+        }
+        self.types.value_constraints.insert(id, constraints);
+    }
+
     /// Resolve one type node. `owner` is the declared field/parameter
     /// symbol for enum ownership (and reuse-cycle reporting).
     fn resolve_type_node(
@@ -9777,6 +10537,17 @@ impl<'a> Typer<'a> {
                     .find(|n| is_type_node(n.kind))
                     .map(|t| self.resolve_type_node(file, text, module, t, owner))
                     .unwrap_or(ResolvedType::Error);
+                // Scalar alias bounds belong to each element. The alias
+                // retains them; outer field bounds describe array length.
+                if matches!(inner, ResolvedType::Scalar(_))
+                    && let Some(owner) = owner
+                    && let Some(constraints) = self.types.value_constraints.get_mut(&owner)
+                    && constraints.alias.is_some()
+                {
+                    constraints.min = None;
+                    constraints.max = None;
+                    constraints.format = None;
+                }
                 match inner {
                     ResolvedType::Error | ResolvedType::Opaque(_) => inner,
                     ResolvedType::Array { .. } => {
@@ -9849,8 +10620,48 @@ impl<'a> Typer<'a> {
                     _ => ResolvedType::Opaque("unknown scalar"),
                 },
             },
-            TypeRef::External => ResolvedType::Opaque("external type"),
-            TypeRef::Symbol(id) => self.symbol_type(file, text, module, id, path.span),
+            TypeRef::External => {
+                let segments = path_segments(path, text);
+                let schema = segments
+                    .first()
+                    .and_then(|name| self.tables.module_scopes[module.0 as usize].prod.get(*name))
+                    .and_then(|binding| match binding {
+                        ScopedName::External { provider, name } if provider == "std" => {
+                            nominal_schema(name)
+                        }
+                        _ => None,
+                    });
+                let Some(schema) = schema else {
+                    return ResolvedType::Opaque("external type");
+                };
+                let mut current = std_nominal_object(schema);
+                for (i, name) in segments.iter().enumerate().skip(1) {
+                    match &current {
+                        ResolvedType::Object(fields) => {
+                            if let Some((_, ty)) = fields.iter().find(|(field, _)| field == *name) {
+                                current = ty.clone();
+                                continue;
+                            }
+                        }
+                        ResolvedType::Opaque(_) | ResolvedType::Unknown | ResolvedType::Error => {
+                            return current;
+                        }
+                        _ => {}
+                    }
+                    self.member_fail(
+                        path,
+                        segment_span(path, i),
+                        self.show(module, &current),
+                        (*name).to_string(),
+                    );
+                    return ResolvedType::Error;
+                }
+                current
+            }
+            TypeRef::Symbol(id) => {
+                self.inherit_value_constraints(owner, id);
+                self.symbol_type(file, text, module, id, path.span)
+            }
             TypeRef::FieldChain {
                 head,
                 fields,
@@ -9869,6 +10680,9 @@ impl<'a> Typer<'a> {
         id: SymbolId,
         span: Span,
     ) -> ResolvedType {
+        if self.tables.judgment_generated_symbols.contains(&id) && self.decl.contains_key(&id) {
+            return self.decl_type(id);
+        }
         let symbol = &self.tables.symbols[id.0 as usize];
         match &symbol.kind {
             SymbolKind::Model { .. }
@@ -9984,6 +10798,7 @@ impl<'a> Typer<'a> {
         if let Some(owner) = owner {
             self.field_reuse_edges.push((owner, field, span));
         }
+        self.inherit_value_constraints(owner, field);
         self.decl_type(field)
     }
 
@@ -10460,6 +11275,11 @@ impl<'a> Typer<'a> {
 
     /// Navigate from an imported head through capability-op segments.
     fn op_at_path(&self, head: SymbolId, segments: &[&str]) -> Option<SymbolId> {
+        if segments == ["evaluate"]
+            && let Some(judgment) = self.tables.judgment_declarations.get(&head)
+        {
+            return Some(judgment.evaluate);
+        }
         if segments.is_empty() {
             return Some(head);
         }
@@ -10582,7 +11402,17 @@ impl<'a> Typer<'a> {
                     cases: bc,
                     owner: bo,
                 },
-            ) => ao == bo && (ao.is_some() || ac == bc),
+            ) => {
+                ao == bo
+                    && (ao.is_some()
+                        || ac == bc
+                        // A terminal completion outcome fits its owning
+                        // receipt status. This exact std relation is one-way;
+                        // named enum identity and other anonymous sets stay strict.
+                        || (ao.is_none()
+                            && *actual == completion_status_type()
+                            && *expected == delivery_status_type()))
+            }
             (
                 ResolvedType::Record {
                     symbol: a,
@@ -10642,9 +11472,12 @@ impl<'a> Typer<'a> {
             (ResolvedType::Union(a), ResolvedType::Union(b)) => a.iter().all(|t| b.contains(t)),
             (ResolvedType::Record { symbol: a, .. }, ResolvedType::Union(b)) => b.contains(a),
             (ResolvedType::Object(a), ResolvedType::Object(b)) => b.iter().all(|(k, t)| {
-                a.iter()
-                    .find(|(ak, _)| ak == k)
-                    .is_some_and(|(_, at)| self.types_compatible(at, t))
+                match a.iter().find(|(ak, _)| ak == k) {
+                    Some((_, at)) => self.types_compatible(at, t),
+                    // Published std object schemas use nullable fields
+                    // for omissible entries, like contract/event fields.
+                    None => matches!(t, ResolvedType::Nullable(_)),
+                }
             }),
             (ResolvedType::Operation(a), ResolvedType::Operation(b)) => a == b,
             _ => false,
@@ -11101,6 +11934,41 @@ impl<'a> Typer<'a> {
         }
         // Model/capability symbol receivers (operations, not fields).
         if let Some(id) = self.symbol_receiver(cx, receiver) {
+            if self.tables.judgments.contains(&id) {
+                if let Some(judgment) = self.tables.judgment_declarations.get(&id) {
+                    if !safe && name == "evaluate" {
+                        return ResolvedType::Operation(judgment.evaluate);
+                    }
+                    if !safe && name == "specification" {
+                        if let Some(function) = judgment.specification {
+                            return ResolvedType::Operation(function);
+                        }
+                        if let Some(symbol) = self
+                            .tables
+                            .judgment_standard_records
+                            .get("JudgmentSpec")
+                            .copied()
+                        {
+                            self.types
+                                .judgment_specifications
+                                .insert(NodeKey::of(node), id);
+                            return ResolvedType::Record {
+                                symbol,
+                                stored: true,
+                            };
+                        }
+                        self.diags.push(Diagnostic::error("E6006", "static judgment specification requires the consumed std.JudgmentSpec schema".to_string(), tight_span(cx.text, node)));
+                        return ResolvedType::Error;
+                    }
+                }
+                self.member_fail(
+                    node,
+                    name_node.span,
+                    format!("judgment {}", record_name(self.tables, cx.module, id)),
+                    name.to_string(),
+                );
+                return ResolvedType::Error;
+            }
             let symbol = &self.tables.symbols[id.0 as usize];
             match &symbol.kind {
                 SymbolKind::Model { .. } => {
@@ -11290,8 +12158,8 @@ impl<'a> Typer<'a> {
                 let op = *op;
                 match name {
                     "id" => Some(ResolvedType::Scalar(Scalar::Text)),
-                    "status" => Some(ResolvedType::Opaque("delivery status")),
-                    "error" => Some(ResolvedType::Opaque("delivery error")),
+                    "status" => Some(delivery_status_type()),
+                    "error" => Some(delivery_error_type()),
                     "result" => Some(match self.results.get(&op).cloned() {
                         Some(Some(ty)) => ResolvedType::Nullable(Box::new(ty)),
                         Some(None) | None => ResolvedType::Null,
@@ -11312,8 +12180,8 @@ impl<'a> Typer<'a> {
                 let (capability, op) = (*capability, *op);
                 match name {
                     "id" => Some(ResolvedType::Scalar(Scalar::Text)),
-                    "status" => Some(ResolvedType::Opaque("delivery status")),
-                    "error" => Some(ResolvedType::Opaque("delivery error")),
+                    "status" => Some(delivery_status_type()),
+                    "error" => Some(delivery_error_type()),
                     // T14d: `attempt.result` types against the
                     // consumed owner result shape (DESIGN §8.1:
                     // `result:R?` is the only nominal-typed leaf).
@@ -13372,7 +14240,7 @@ impl<'a> Typer<'a> {
                 continue;
             };
             let value_node = entry_parts.iter().find(|n| is_expression(n.kind)).copied();
-            let entry_expect = match expect {
+            let entry_expect = match expect.map(|ty| ty.nullable_inner().unwrap_or(ty)) {
                 Some(ResolvedType::Object(exp)) => {
                     exp.iter().find(|(k, _)| k == key).map(|(_, t)| t.clone())
                 }
@@ -14070,7 +14938,22 @@ impl<'a> Typer<'a> {
                     };
                     for value in kids(part) {
                         if is_expression(value.kind) {
-                            let ty = self.expr(&clause_cx, value, None);
+                            // In an order clause, leading '-' selects descending
+                            // order; it does not negate the checked scalar key.
+                            let key = if value.kind == SyntaxKind::Unary
+                                && kids(value).iter().any(|part| is_punct(part, cx.text, "-"))
+                            {
+                                kids(value)
+                                    .into_iter()
+                                    .find(|part| is_expression(part.kind))
+                                    .unwrap_or(value)
+                            } else {
+                                value
+                            };
+                            let ty = self.expr(&clause_cx, key, None);
+                            if !std::ptr::eq(key, value) {
+                                self.types.node_types.insert(NodeKey::of(value), ty.clone());
+                            }
                             self.check_order_key(&clause_cx, value, &ty);
                         }
                     }
@@ -14230,6 +15113,9 @@ impl<'a> Typer<'a> {
             .filter(|n| n.kind == SyntaxKind::Argument)
             .filter_map(|arg| self.read_argument(cx, arg))
             .collect();
+        if let Some(descriptor) = message_descriptor_node(callee) {
+            return self.call_anonymous_message(cx, node, descriptor, &args);
+        }
         // Positional fill first, then named (the parser owns order).
         match self.callee_kind(cx, callee) {
             CalleeKind::Error => ResolvedType::Error,
@@ -14339,6 +15225,15 @@ impl<'a> Typer<'a> {
                     // still invoked with `call` statements.
                     let ty = self.expr(cx, current, None);
                     return match ty {
+                        ResolvedType::Operation(id)
+                            if self.tables.judgment_generated_symbols.contains(&id)
+                                && matches!(
+                                    self.tables.symbols[id.0 as usize].kind,
+                                    SymbolKind::DeriveFn { .. }
+                                ) =>
+                        {
+                            CalleeKind::DeriveFn(id)
+                        }
                         ResolvedType::Operation(id) => CalleeKind::NotCallable(format!(
                             "'{}' is an operation; invoke it with a `call` statement, not an expression call",
                             record_name(self.tables, cx.module, id)
@@ -14463,6 +15358,9 @@ impl<'a> Typer<'a> {
                 }
             }
             if let Some((index, result, _, trial, slots)) = best {
+                for (key, ty) in &trial.literal_retypes {
+                    self.types.node_types.insert(*key, ty.clone());
+                }
                 for (key, ty) in &trial.claimed {
                     self.types.resolved_cases.insert(*key);
                     self.types.node_types.insert(*key, ty.clone());
@@ -14674,7 +15572,7 @@ impl<'a> Typer<'a> {
         // `expr` types `text`).
         let first_is_message = matches!(typed.first(), Some(ResolvedType::Message(_)))
             || (matches!(typed.first(), Some(ResolvedType::Scalar(Scalar::Text)))
-                && is_message_descriptor(args[0].value));
+                && self.is_checked_message_descriptor(args[0].value));
         if first_is_message {
             return;
         }
@@ -14740,6 +15638,7 @@ impl<'a> Typer<'a> {
         what: &str,
     ) -> ResolvedType {
         self.record_call_edge(tight_span(cx.text, node), id);
+        let before = self.diags.len();
         let params = match &self.tables.symbols[id.0 as usize].kind {
             SymbolKind::DeriveFn { params, .. } => params.clone(),
             _ => Vec::new(),
@@ -14755,18 +15654,38 @@ impl<'a> Typer<'a> {
             args,
             &bound,
         );
+        let mut valid_arguments = true;
         for (param, arg) in &bound {
             let expected = self.decl_type(*param);
             let actual = self.expr(cx, arg.value, Some(expected.clone()));
             if !actual.is_error() {
-                self.assign_ok(
+                valid_arguments &= self.assign_ok(
                     cx,
                     tight_span(cx.text, arg.value),
                     &actual,
                     &expected,
                     &format!("argument '{}'", self.tables.symbols[param.0 as usize].name),
                 );
+            } else {
+                valid_arguments = false;
             }
+        }
+        if valid_arguments
+            && self.diags.len() == before
+            && let Some((owner, _)) = self
+                .tables
+                .judgment_declarations
+                .iter()
+                .find(|(_, judgment)| judgment.specification == Some(id))
+            && let Some((_, argument)) = bound.first()
+        {
+            self.types.judgment_specification_calls.insert(
+                NodeKey::of(node),
+                CheckedJudgmentSpecificationCall {
+                    judgment: *owner,
+                    options: NodeKey::of(argument.value),
+                },
+            );
         }
         match self.results.get(&id).cloned() {
             Some(Some(ty)) => ty,
@@ -14775,6 +15694,96 @@ impl<'a> Typer<'a> {
     }
 
     /// Call a message: like a user function, rendering `text`.
+    fn is_checked_message_descriptor(&self, node: &SyntaxNode) -> bool {
+        if is_message_descriptor(node) {
+            return true;
+        }
+        let mut current = node;
+        while current.kind == SyntaxKind::Group {
+            let Some(inner) = kids(current).into_iter().find(|n| is_expression(n.kind)) else {
+                return false;
+            };
+            current = inner;
+        }
+        self.types
+            .anonymous_messages
+            .contains_key(&NodeKey::of(current))
+    }
+
+    fn call_anonymous_message(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        descriptor: &SyntaxNode,
+        args: &[CallArg],
+    ) -> ResolvedType {
+        let before = self.diags.len();
+        let mut slots = Vec::new();
+        for literal in descriptor
+            .descendants()
+            .filter(|n| n.kind == SyntaxKind::Literal)
+        {
+            if let Some(template) = string_literal_value(literal) {
+                for slot in message_slots(&template) {
+                    push_slot(&mut slots, slot);
+                }
+            }
+        }
+        let mut names = Vec::new();
+        let mut arguments = Vec::new();
+        let mut valid = true;
+        for arg in args {
+            let ty = self.expr(cx, arg.value, None);
+            let Some(name) = &arg.name else {
+                self.diags.push(Diagnostic::error(
+                    "E3005",
+                    "anonymous messages require explicit named arguments".to_string(),
+                    tight_span(cx.text, arg.node),
+                ));
+                valid = false;
+                continue;
+            };
+            if names.contains(name) || !slots.contains(name) {
+                self.diags.push(Diagnostic::error(
+                    "E3005",
+                    format!(
+                        "anonymous message argument '{name}' is duplicate or names no placeholder"
+                    ),
+                    tight_span(cx.text, arg.node),
+                ));
+                valid = false;
+            }
+            names.push(name.clone());
+            if !super::examples::message_param_ok(&ty) {
+                if !ty.is_error() {
+                    self.diags.push(Diagnostic::error(
+                        "E5009",
+                        format!("message argument '{name}' must be a nonnullable display value"),
+                        tight_span(cx.text, arg.value),
+                    ));
+                }
+                valid = false;
+            }
+            arguments.push((name.clone(), NodeKey::of(arg.value), ty));
+        }
+        self.check_message_value(cx, descriptor, "anonymous message", Some(&names));
+        if slots.iter().any(|slot| !names.contains(slot)) {
+            valid = false;
+        }
+        if !valid || self.diags.len() != before {
+            return ResolvedType::Error;
+        }
+        self.types.anonymous_messages.insert(
+            NodeKey::of(node),
+            CheckedAnonymousMessage {
+                descriptor: NodeKey::of(descriptor),
+                arguments,
+            },
+        );
+        ResolvedType::Scalar(Scalar::Text)
+    }
+
+    /// Call a named message, preserving its declared signature.
     fn call_message(
         &mut self,
         cx: &Ctx<'_, '_>,
@@ -15077,8 +16086,8 @@ impl<'a> Typer<'a> {
 
     /// Try one overload: bind arguments to parameters (positional
     /// fill, then named), then match each parameter shape. Trial
-    /// bindings are local; enum claims and literal re-types persist
-    /// (a claim is correct whenever the expectation was).
+    /// bindings and contextual types are local; only the selected
+    /// overload commits enum claims and validated literal re-types.
     fn try_overload(
         &mut self,
         cx: &Ctx<'_, '_>,
@@ -15274,7 +16283,7 @@ impl<'a> Typer<'a> {
                     actual,
                     ResolvedType::Message(_) | ResolvedType::Unknown | ResolvedType::Opaque(_)
                 ) || (matches!(actual, ResolvedType::Scalar(Scalar::Text))
-                    && is_message_descriptor(arg.value))
+                    && self.is_checked_message_descriptor(arg.value))
             }
             SigType::ActionTarget => self.match_action_target(cx, arg, actual, trial),
             SigType::ActionBindings => self.match_action_bindings(cx, arg, actual, trial),
@@ -15346,7 +16355,9 @@ impl<'a> Typer<'a> {
         };
         match validated_shape(want, &text) {
             None => {
-                self.record(leaf, ResolvedType::Scalar(want));
+                trial
+                    .literal_retypes
+                    .push((NodeKey::of(leaf), ResolvedType::Scalar(want)));
                 true
             }
             Some(problem) => {
@@ -16030,6 +17041,8 @@ struct Trial {
     cases_fail: Option<(NodeKey, Span, Vec<String>)>,
     /// Enum-case claims, flushed only for the winning overload.
     claimed: Vec<(NodeKey, ResolvedType)>,
+    /// Validated literals do not mark enum cases as resolved.
+    literal_retypes: Vec<(NodeKey, ResolvedType)>,
 }
 
 impl Trial {
@@ -16043,6 +17056,7 @@ impl Trial {
             literal_fail: self.literal_fail.clone(),
             cases_fail: self.cases_fail.clone(),
             claimed: self.claimed.clone(),
+            literal_retypes: self.literal_retypes.clone(),
         }
     }
 
@@ -16052,6 +17066,7 @@ impl Trial {
         self.action_op = fork.action_op;
         self.action_bound = fork.action_bound;
         self.claimed = fork.claimed;
+        self.literal_retypes = fork.literal_retypes;
         // Precise failures merge: keep the earliest evidence.
         if self.literal_fail.is_none() {
             self.literal_fail = fork.literal_fail;

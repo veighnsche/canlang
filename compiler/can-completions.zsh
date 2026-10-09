@@ -13,6 +13,7 @@ _can() {
         'compile:Analyze sources and emit the compile artifact'
         'completions:Print a shell completion script'
         'deploy:Thin lane-7 entry: exec can-platform deploy (passthrough)'
+        'dev:JSON control for the local development session'
         'docs:Generate the localized internal declaration reference'
         'explain:Print a diagnostic catalog entry'
         'fmt:Format sources in place (or check with --check)'
@@ -92,8 +93,8 @@ _can() {
         help)
             _describe -t commands 'can command' commands
             ;;
-        run|test|build|deploy|activate)
-            # Thin lane-7 passthrough: flags belong to can-platform.
+        run|test|build|deploy|activate|dev)
+            # Delegated command: flags belong to its owning client.
             _files
             ;;
     esac

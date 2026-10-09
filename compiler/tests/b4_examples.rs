@@ -771,7 +771,7 @@ fn t02_completion_body_sees_typed_envelope() {
 /// opposing case stays clean.
 #[test]
 fn t02_preferences_invariant_nullable_actor_rejected() {
-    const SRC: &str = "app Probe\nGiven\n derive needs(person:user):bool = true\n preferences { view:enum(all,today)=all }\n invariant preferences: needs(actor)\nWhen\nThen\n";
+    const SRC: &str = "app Probe\nGiven\n derive needs(person:user):bool = true\nWhen\nThen\n preferences { view:enum(all,today)=all }\n invariant preferences: needs(actor)\n";
     let (_program, diags) = check_src(SRC, None);
     assert_eq!(codes(&diags), vec!["E3001"], "{diags:?}");
 }
@@ -780,7 +780,7 @@ fn t02_preferences_invariant_nullable_actor_rejected() {
 /// the same invariant is clean.
 #[test]
 fn t02_preferences_invariant_guarded_actor_accepted() {
-    const SRC: &str = "app Probe\nGiven\n derive needs(person:user):bool = true\n preferences { view:enum(all,today)=all }\n invariant preferences: actor==null or needs(actor)\nWhen\nThen\n";
+    const SRC: &str = "app Probe\nGiven\n derive needs(person:user):bool = true\nWhen\nThen\n preferences { view:enum(all,today)=all }\n invariant preferences: actor==null or needs(actor)\n";
     let (_program, diags) = check_src(SRC, None);
     assert!(
         diags.is_empty(),

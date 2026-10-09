@@ -19,7 +19,7 @@ import type {
   RecordId,
   StoragePort,
 } from '@canlang/contracts';
-import type { ReceiptProperty } from '@canlang/contracts';
+import type { JudgmentSpec, ReceiptProperty } from '@canlang/contracts';
 import { DELIVERY_RESULT_LEAVES } from '@canlang/contracts';
 import { StateError } from '@canlang/state/errors';
 import {
@@ -50,6 +50,7 @@ import {
   assertReceiptJoin,
   associationRowId,
   createReceiptJoinPort,
+  createJudgmentReceiptContext,
   isStoredReceiptPayload,
   newAssociationRow,
   newReceiptRow,
@@ -1457,5 +1458,45 @@ describe('t25 join: canonical ImageRun through the existing granted result', () 
     assertDenied(denied);
     await assert.rejects(observeSelectedReceiptJoin({ ...input, policy: recipientPolicy(['notification.result']) }),
       /inconsistent/);
+  });
+});
+
+
+describe('t25 join: pinned static Judgment declaration context', () => {
+  it('authorizes before context/result inspection and rejects an older result under a changed specification', async () => {
+    const world = await setupWorld();
+    const result = { name: 'inbox.Triage', fields: [
+      { name: 'specification_revision', type: 'text' }, { name: 'model', type: 'text' },
+      { name: 'input_tokens', type: 'int' }, { name: 'output_tokens', type: 'int' },
+      { name: 'human', type: 'inbox.Triage.human' },
+    ] };
+    const valueTypes = { contracts: [result, { name: 'inbox.Triage.human', fields: [{ name: 'probability', type: 'decimal' }] }] };
+    const specification: JudgmentSpec = { declaration: result.name, version: 1n, revision: `sha256:${'a'.repeat(64)}`,
+      language: 'en', noul: [{ id: 'human', instructions: 'Needs staff?', yes: null, no: null }], choice: [], score: [] };
+    const delivery = { kind: 'delivery' as const, judgment: true as const, capability: result.name,
+      operation: 'evaluate' as const, version: '1', result };
+    const context = createJudgmentReceiptContext(delivery, specification, valueTypes);
+    const loaded = loadArtifactDescriptors({ ...DELIVERY_SLICE, valueTypes, models: [{ name: ITEM, deleteMode: 'none',
+      fields: [{ name: 'notification', required: false, serverOnly: false, field: delivery }],
+    }] }, { by: 'members' });
+    const typedWorld = { ...world, schema: loaded.deliveryFields };
+    await seedOwner(world.store);
+    const wire = { specification_revision: specification.revision, model: 'actual-model',
+      input_tokens: '9007199254740993', output_tokens: '18', human: { probability: '0.8' } };
+    await associate(world.store, { source: context.source, status: 'succeeded', result: wire });
+    const input = joinInput(typedWorld, recipientPolicy(['notification.result']), world.alice,
+      { selected: ['result'], declaredSource: context.source, declaredResult: result, declaredContext: context });
+    const observed = await observeSelectedReceiptJoin(input);
+    assertObserved(observed);
+    assert.deepEqual(observed.projection, { result: wire });
+    const changed = createJudgmentReceiptContext({ ...delivery, version: '2' },
+      { ...specification, version: 2n, revision: `sha256:${'b'.repeat(64)}` }, valueTypes);
+    const denied = await observeSelectedReceiptJoin({ ...input, policy: recipientPolicy([]), declaredContext: changed });
+    assertDenied(denied);
+    await assert.rejects(observeSelectedReceiptJoin({ ...input, declaredContext: changed }), /inconsistent/);
+    await assert.rejects(observeSelectedReceiptJoin({ ...input, declaredContext: { ...context, source: 'other.Triage.evaluate' } }),
+      /malformed declared Judgment context/);
+    await assert.rejects(observeSelectedReceiptJoin({ ...input, declaredResult: { ...result, fields: [...result.fields].reverse() } }),
+      /declared context disagrees/);
   });
 });

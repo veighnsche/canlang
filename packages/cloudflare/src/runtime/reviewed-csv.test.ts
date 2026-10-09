@@ -8,7 +8,7 @@ import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
 import type { CompileArtifact, MutationResult, PresentationContext, StoragePort } from '@canlang/contracts';
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
-import { asModel, asOperation, asOperationId } from '@canlang/state/testing/invocation/fixtures';
+import { asModel, asOperation, asOperationId, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
 import { buildSessionCookie, createD1IdentityStore, deriveCsrfToken, ensureIdentitySchema, resolveIdentity, sha256HexText } from '@canlang/identity';
 import { createHttpHandler, handleAuthRequest, handleCsvRequest, handleOperationRequest, catalogFromArtifactOperations } from '@canlang/interfaces';
 import type { HttpDeps } from '@canlang/interfaces';
@@ -196,11 +196,66 @@ test('reviewed CSV commits authored rows through native D1 admission, replay and
     const recoveredResult = recovered.outcome.rows[0]!.result as MutationResult;
     assert.equal(recoveredResult.status, 'replayed');
     assert.equal(recoveredResult.operation_id, lostSelections[0]!.operation_id);
-    assert.deepEqual(recoveredResult.result, lostReceipt.outcome.result);
+    assert.equal(recoveredResult.result, null);
+    assert.deepEqual(recoveredResult.records, [lostReceipt.outcome.result]);
     assert.equal(await state.readRevision(), lostRevision);
     assert.deepEqual(await state.query({ model: MODEL, authority: 'owner' }), lostRows);
     assert.deepEqual(await state.historyFor(MODEL, lostRow.id), lostHistory);
     assert.deepEqual(await state.readReceipt(lostReceiptIdentity), lostReceipt);
+
+    // A genuine source-declared model separates mutation membership from
+    // disclosure authority. Replay must project saved bytes with live grants.
+    const privateModel = asModel(`${APP}.PrivateEntry`);
+    const privateOperation = `${APP}.PrivateEntry.create`;
+    await identities.setMembershipRoles(membership.membership_id, [{ role: `${APP}.auditor`,
+      granted_at: new Date(clock.nowMs()).toISOString(), granted_by: user.user_id }]);
+    const privateCsv = 'label,count\nProtected saved,5\n';
+    const privateReview = await submitCsvReview({ fetchImpl: wire, action: '/api/csv/review', csrf,
+      operation: privateOperation, csv: privateCsv });
+    assert.ok(privateReview.ok, JSON.stringify(privateReview));
+    const privateSelections = await selections(privateCsv, privateReview.review);
+    const privateId = privateSelections[0]!.operation_id;
+    const privateInputs = { label: 'Protected saved', count: '5' };
+    const privateHttp = async (operation: string, operationId: string, inputs: Record<string, unknown>) => {
+      const response = await http(new Request(`https://csv.example.test/api/operations/${operation}`, {
+        method: 'POST', headers: { cookie, 'content-type': 'application/json', 'x-csrf-token': csrf },
+        body: JSON.stringify({ operation_id: operationId, inputs }) }));
+      assert.equal(response.status, 200, await response.clone().text());
+      return await response.json() as MutationResult;
+    };
+    const privateCreated = await privateHttp(privateOperation, privateId, privateInputs);
+    assert.equal(privateCreated.status, 'committed');
+    assert.equal(privateCreated.result, null);
+    assert.deepEqual((privateCreated.records![0] as { data: unknown }).data, privateInputs);
+    await privateHttp(`${APP}.PrivateEntry.update`, uuidv7(clock.nowMs(), 99), {
+      record: { id: privateId, version: '1' }, label: 'Current changed', count: '9' });
+    const privateReplay = await privateHttp(privateOperation, privateId, privateInputs);
+    assert.equal(privateReplay.status, 'replayed');
+    assert.deepEqual(privateReplay.records, privateCreated.records);
+    const privateReceiptIdentity = { app: APP, owner: team.team_id, principal: user.user_id,
+      operation: asOperation(privateOperation), operationId: asOperationId(privateId) };
+    const privateReceipt = await state.readReceipt(privateReceiptIdentity);
+    const privateRows = await state.query({ model: privateModel, authority: 'owner' });
+    assert.equal(privateRows.length, 1);
+    const privateHistory = await state.historyFor(privateModel, privateRows[0]!.id);
+    const privateRevision = await state.readRevision();
+    await identities.setMembershipRoles(membership.membership_id, []);
+    assert.equal((await identities.findMembership(team.team_id, user.user_id))?.status, 'active');
+    const withheldHttp = await privateHttp(privateOperation, privateId, privateInputs);
+    assert.equal(withheldHttp.status, 'replayed');
+    assert.equal(withheldHttp.result, null);
+    assert.deepEqual(withheldHttp.records, []);
+    const withheldCsv = await submitCsvCommit({ ...request, operation: privateOperation, csv: privateCsv,
+      consent: privateReview.review.consent, selections: privateSelections });
+    assert.ok(withheldCsv.ok, JSON.stringify(withheldCsv));
+    const withheld = withheldCsv.outcome.rows[0]!.result as MutationResult;
+    assert.equal(withheld.status, 'replayed');
+    assert.equal(withheld.result, null);
+    assert.deepEqual(withheld.records, []);
+    assert.equal(await state.readRevision(), privateRevision);
+    assert.deepEqual(await state.query({ model: privateModel, authority: 'owner' }), privateRows);
+    assert.deepEqual(await state.historyFor(privateModel, privateRows[0]!.id), privateHistory);
+    assert.deepEqual(await state.readReceipt(privateReceiptIdentity), privateReceipt);
 
     const partialCsv = 'label,count\nBefore revocation,5\nAfter revocation,6\n';
     const partialReview = await review(partialCsv);

@@ -1478,7 +1478,6 @@ fn keywords_at(tree: &SyntaxNode, text: &str, offset: u32) -> Vec<&'static str> 
     if let Some(marker) = enclosing_section_marker(tree, text, offset) {
         return match marker {
             "Given" => vec![
-                "preferences",
                 "contract",
                 "event",
                 "role",
@@ -1494,7 +1493,7 @@ fn keywords_at(tree: &SyntaxNode, text: &str, offset: u32) -> Vec<&'static str> 
                 "export",
             ],
             "When" => vec!["scenario", "crud", "export"],
-            "Then" => vec!["page"],
+            "Then" => vec!["preferences", "page"],
             _ => Vec::new(),
         };
     }

@@ -124,6 +124,8 @@ pub enum SyntaxKind {
     ExampleCall,
     ExpectedError,
     // Presentation -------------------------------------------------------
+    View,
+    Show,
     Page,
     Route,
     RouteStatic,

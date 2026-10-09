@@ -50,6 +50,7 @@ import type {
   CanValue,
   CanonicalModelDescriptor,
   CanonicalNominalResult,
+  CanonicalValueTypes,
   ClaimId,
   CompileArtifact,
   ColumnMeta,
@@ -83,6 +84,7 @@ import type {
   QuerySpec,
   Receipt,
   ReceiptProperty,
+  ReceiptResultContext,
   RecordId,
   RecordVersion,
   ResolvedIdentity,
@@ -99,17 +101,19 @@ import type {
   UniqueClaim,
   UniqueRelease,
 } from "@canlang/contracts";
-import { COLLECTION_DEFAULT_LIMIT, COLLECTION_MAX_LIMIT, DELIVERY_RESULT_LEAVES } from "@canlang/contracts";
-import { decodeValue, encodeValue, isRecordRef, makeRecordRef, normalizeSchema, parseTypeId, printTypeId, validateOperationInput } from "@canlang/values";
-import type { FieldDescriptor, SchemaDescriptor } from "@canlang/values";
+import { DELIVERY_RESULT_LEAVES } from "@canlang/contracts";
+import { decodeValue, encodeValue, isRecordRef, makeRecordRef, normalizeSchema, parseTypeId, printTypeId, validateOperationInput, validateValue } from "@canlang/values";
+import type { FieldDescriptor, NormalizedSchema, SchemaDescriptor } from "@canlang/values";
 import type { SystemCommandContext, SystemStaging } from "@canlang/state";
-import { assertReceiptJoin } from "@canlang/state/receipt/tables";
+import { assertReceiptJoin, createJudgmentReceiptContext } from "@canlang/state/receipt/tables";
 import { retainCommittedFiles, stageFileReferences } from './file-staging.js';
 import { bindNativeRecord } from './native-records.js';
 import type { CanonicalFileBinding, FileAttachment } from './file-staging.js';
 import type { IdentityStore } from "@canlang/identity";
+import { sha256HexText, timingSafeEqualHex } from '@canlang/identity';
 import type { GeneratedOperationDef } from "@canlang/state/invocation/registry";
 import type { AdmittedReadScenarioCall, ReadScenarioResult } from "@canlang/state/invocation/invoke";
+import type { BoundReadPageInvoker } from '@canlang/state/ports/transact';
 import type {
   CanonicalEffectsScope,
   CanonicalReadQuery,
@@ -122,6 +126,11 @@ import type { AssembledModules } from "./modules.js";
 import type { MappedPosition } from "./sourcemap.js";
 import { lookup } from "./sourcemap.js";
 import { stageAuthoredDelivery } from "./receipt-staging.js";
+import { freezeBoundJudgmentRequest } from './bound-judgment.js';
+import { freezeJudgmentSource } from '@canlang/services/judgments/specification';
+import type { StaticJudgmentDescriptor } from '@canlang/services';
+import type { PageReadsBinding } from './page-cursor.js';
+import type { PageCursorDecoded } from './page-cursor.js';
 
 export type { AssembledModules } from "./modules.js";
 export type { HandlerContext } from "./context.js";
@@ -1068,6 +1077,8 @@ interface StateRegistryProducer {
     readonly secretFields: ReadonlyMap<string, ReadonlySet<string>>;
     readonly containment: ReadonlyMap<string, unknown>;
     readonly deliveryFields: ReadonlyMap<string, ReadonlySet<string>>;
+    readonly valueSchema?: NormalizedSchema;
+    readonly valueTypes?: CanonicalValueTypes;
   };
   /**
    * R01: the loader's own whole-set rejection class, for the
@@ -1199,6 +1210,7 @@ interface StateInvokeProducer {
     readonly kind?: 'user' | 'trusted';
     readonly trustedSource?: string;
     readonly execute: (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
+    readonly observeCommittedReceipt?: (receipt: Receipt) => void;
     /**
      * C2/B2 (Q3): serverOnly exclusions for denial currents (mirror of
      * `ConflictServerOnly`). The holder builds it from the loaded
@@ -1207,9 +1219,19 @@ interface StateInvokeProducer {
      */
     readonly conflictServerOnly?: ReadonlyMap<string, ReadonlySet<string>>;
   }): Promise<MutationResult>;
+  projectGeneratedCrudReceipt?(input: {
+    readonly receipt: Receipt;
+    readonly registry: ReadonlyMap<string, unknown>;
+    readonly policy: unknown;
+    readonly app: string;
+    readonly identity: ResolvedIdentity;
+    readonly store: StoragePort;
+    readonly memberships: CanonicalMembershipReader;
+  }): Promise<{ readonly result: null; readonly records: readonly ProjectedRecord[] }>;
   /** T17b: canonical generated-read entry (scenario `records()` calls it per read). */
   invokeRead(input: {
     readonly registry: ReadonlyMap<string, unknown>;
+    readonly models?: ReadonlyArray<CanonicalModelDescriptor>;
     readonly envelope: {
       readonly operation: string;
       readonly inputs: Record<string, unknown>;
@@ -1228,6 +1250,7 @@ interface StateCrudProducer {
     readonly table: unknown;
     readonly store: StoragePort;
     readonly encodeField?: (type: CanTypeId, value: unknown) => unknown;
+    readonly secretFields?: ReadonlyMap<string, readonly string[]>;
   }): (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
 }
 
@@ -1246,6 +1269,7 @@ interface StateModelsProducer {
       readonly serverInits?: ReadonlyMap<string, ReadonlyMap<string, unknown>>;
       readonly nullableFields?: ReadonlyMap<string, ReadonlySet<string>>;
       readonly containment?: ReadonlyMap<string, unknown>;
+      readonly valueSchema?: NormalizedSchema;
     },
   ): unknown;
 }
@@ -1257,11 +1281,19 @@ interface StateModelsProducer {
  * the same dist copy receipts handler failures as rejected outcomes.
  */
 interface StateErrorsProducer {
-  new (code: string, message: string): Error & { readonly code: string };
+  new (code: string, message: string, details?: unknown): Error & { readonly code: string };
 }
 
 /** T17b: structural view of the state transaction-port module (bound read port). */
 interface StateTransactProducer {
+  createReadPageInvoker?(input: {
+    readonly registry: ReadonlyMap<string, unknown>;
+    readonly models: ReadonlyArray<CanonicalModelDescriptor>;
+    readonly containment: ReadonlyMap<string, unknown>;
+    readonly policy: unknown;
+    readonly store: StoragePort;
+    readonly memberships: CanonicalMembershipReader;
+  }): BoundReadPageInvoker;
   createReadScenarioInvoker?(input: {
     readonly registry: ReadonlyMap<string, unknown>;
     readonly policy: unknown;
@@ -1488,12 +1520,18 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
     invoke: {
       invoke: invoke as StateInvokeProducer["invoke"],
       invokeRead: invokeRead as StateInvokeProducer["invokeRead"],
+      ...(typeof invokeMod['projectGeneratedCrudReceipt'] !== 'function' ? {} : {
+        projectGeneratedCrudReceipt: invokeMod['projectGeneratedCrudReceipt'] as NonNullable<StateInvokeProducer['projectGeneratedCrudReceipt']>,
+      }),
     },
     crud: { generatedCrudExecute: generatedCrudExecute as StateCrudProducer["generatedCrudExecute"] },
     models: { buildModelTableFromCanonical: buildModelTableFromCanonical as StateModelsProducer["buildModelTableFromCanonical"] },
     errors: StateError as unknown as StateErrorsProducer,
     transact: {
       createReadInvoker: createReadInvoker as StateTransactProducer["createReadInvoker"],
+      ...(typeof transactMod['createReadPageInvoker'] !== 'function' ? {} : {
+        createReadPageInvoker: transactMod['createReadPageInvoker'] as NonNullable<StateTransactProducer['createReadPageInvoker']>,
+      }),
       ...(typeof transactMod['createReadScenarioInvoker'] !== 'function' ? {} : {
         createReadScenarioInvoker: transactMod['createReadScenarioInvoker'] as NonNullable<StateTransactProducer['createReadScenarioInvoker']>,
       }),
@@ -1624,6 +1662,8 @@ export interface RequiresProvidedVersions {
   readonly state: number;
   readonly values: number;
   readonly inputChoices?: number;
+  /** Present only when assembly has the actual installed v1 cohort tick. */
+  readonly cohorts?: number;
 }
 
 /**
@@ -1640,6 +1680,12 @@ export function assertRequiresFulfilled(
 ): void {
   for (const requirement of requires) {
     const capability = requirement.capability;
+    if (capability === 'state.cohorts') {
+      if (requirement.min_version !== 1 || provided.cohorts !== 1) {
+        throw new Error(`Artifact requires state.cohorts v${requirement.min_version}; its installed consumer is unavailable or incompatible.`);
+      }
+      continue;
+    }
     if (capability === 'interfaces.input-choices') {
       if (provided.inputChoices !== requirement.min_version) {
         throw new Error(`Artifact requires interfaces.input-choices v${requirement.min_version}; its installed consumer is unavailable or incompatible.`);
@@ -1943,9 +1989,14 @@ export interface LoadedCanonicalDescriptors {
   readonly table: unknown;
   readonly policy: unknown;
   readonly ruledModels: ReadonlySet<string>;
+  /** Emitted hooks cannot be skipped by the canonical empty-hook table. */
+  readonly unsupportedHookOperations: ReadonlySet<string>;
   readonly collectionColumns: ReadonlyMap<string, readonly ColumnMeta[]>;
+  readonly secretFields: ReadonlyMap<string, readonly string[]>;
   /** C3/B3: loader-built delivery-field schema, carried for the T25 receipt join (D3 consumes). */
   readonly deliveryFields: ReadonlyMap<string, ReadonlySet<string>>;
+  readonly valueSchema?: NormalizedSchema;
+  readonly valueTypes?: CanonicalValueTypes;
   readonly producers: CanonicalStateProducers;
   /** C2/B2 (Q3): holder-built serverOnly exclusions, passed to every invoke. */
   readonly conflictServerOnly: ReadonlyMap<string, ReadonlySet<string>>;
@@ -2392,6 +2443,63 @@ export function assertStateMachineProducerCapability(artifact: CompileArtifact, 
   }
 }
 
+/** Retain owning emitted hook targets until State supplies canonical hook finalization. */
+async function collectUnsupportedHookOperations(asm: AssembledModules, artifact: CompileArtifact): Promise<ReadonlySet<string>> {
+  const targets = new Set<string>();
+  const seen = new Set<string>();
+  const callableWhere = 'Canonical hook callables';
+  const callables = readMetadataArray(readMetadataMember(artifact, 'callables', callableWhere)?.value, callableWhere, 'callables');
+  const own = (value: unknown, key: string): unknown =>
+    isUnknownRecord(value) ? readMetadataMember(value, key, callableWhere)?.value : undefined;
+  const models = new Set((artifact.models ?? []).map(model => model.name));
+  for (const module of Object.keys(asm.moduleUrls)) {
+    const where = `Canonical hooks module ${JSON.stringify(module)}`;
+    const url = readMetadataMember(asm.moduleUrls, module, where)?.value;
+    if (typeof url !== 'string' || url === '') throw new Error(`${where} has no owning module URL.`);
+    const imported: unknown = await import(url);
+    const factory = isUnknownRecord(imported) ? readMetadataMember(imported, 'canApp', where)?.value : undefined;
+    if (factory === undefined) continue;
+    if (typeof factory !== 'function') throw new Error(`${where} has no callable canApp.`);
+    const registry: unknown = factory();
+    if (!isUnknownRecord(registry)) throw new Error(`${where} has no owning registry.`);
+    const hooks = readMetadataMember(registry, 'hooks', where)?.value;
+    if (hooks === undefined) continue;
+    if (!isUnknownRecord(hooks)) throw new Error(`${where} carries malformed hooks.`);
+    for (const target of Object.keys(hooks)) {
+      const split = target.lastIndexOf('.');
+      const model = target.slice(0, split);
+      const operation = target.slice(split + 1);
+      if (!models.has(model) || !['create', 'update', 'delete'].includes(operation)) {
+        throw new Error(`${where} hook target has no owning model mutation.`);
+      }
+      const hook = readMetadataMember(hooks, target, where)?.value;
+      const name = isUnknownRecord(hook) ? readMetadataMember(hook, 'name', where)?.value : undefined;
+      const run = isUnknownRecord(hook) ? readMetadataMember(hook, 'run', where)?.value : undefined;
+      const ops = isUnknownRecord(hook) ? readMetadataStrings(readMetadataMember(hook, 'ops', where)?.value, where, 'hook ops') : [];
+      const normalized = operation === 'delete' ? 'remove' : operation;
+      if (typeof name !== 'string' || name === '' || typeof run !== 'function' || !ops.includes(normalized)) {
+        throw new Error(`${where} hook has no checked mutation body.`);
+      }
+      const matches = callables.filter(callable => own(callable, 'id') === name && own(callable, 'module') === module &&
+        own(callable, 'kind') === 'handler' && JSON.stringify(readMetadataStrings(own(callable, 'member'), where, 'hook callable member')) ===
+          JSON.stringify(['hooks', target, 'run']));
+      if (matches.length !== 1) throw new Error(`${where} hook lacks its exact owning emitted callable.`);
+      seen.add(`${module}\0${name}`);
+      targets.add(target);
+    }
+  }
+  for (const callable of callables) {
+    if (own(callable, 'kind') !== 'handler') continue;
+    const rawMember = own(callable, 'member');
+    if (rawMember === undefined) continue;
+    const member = readMetadataStrings(rawMember, callableWhere, 'handler callable member');
+    if (member[0] === 'hooks' && !seen.has(`${String(own(callable, 'module'))}\0${String(own(callable, 'id'))}`)) {
+      throw new Error('Canonical hook callable has no owning emitted hook metadata.');
+    }
+  }
+  return targets;
+}
+
 export async function loadCanonicalDescriptors(
   asm: AssembledModules,
   artifact: CompileArtifact,
@@ -2405,6 +2513,7 @@ export async function loadCanonicalDescriptors(
     assertStateMachineProducerCapability(artifact, catalog);
   }
   const producers = await loadCanonicalStateProducers();
+  const unsupportedHookOperations = await collectUnsupportedHookOperations(asm, artifact);
   const ops = readPreloadOperations(artifact);
   const crudBy = new Map<string, CanonicalByPredicate>();
   for (const op of ops) {
@@ -2461,6 +2570,7 @@ export async function loadCanonicalDescriptors(
     serverInits: loaded.serverInits,
     nullableFields: loaded.nullableFields,
     containment: loaded.containment,
+    ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
   });
   // T17b: transcribe the read policy over the LOADED models (validated
   // names + declared fields — never the raw artifact). Ruled models are
@@ -2511,10 +2621,14 @@ export async function loadCanonicalDescriptors(
     table,
     policy,
     ruledModels,
+    unsupportedHookOperations,
     collectionColumns,
+    secretFields: new Map([...loaded.secretFields].map(([model, fields]) => [model, [...fields]])),
     producers,
     conflictServerOnly: buildConflictServerOnly(loaded.models),
     deliveryFields: loaded.deliveryFields,
+    ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
+    ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }),
   };
   canonicalCache.set(artifact, canonical);
   return canonical;
@@ -3011,22 +3125,28 @@ function generatedScenarioDef(call: Pick<CanonicalSeamCall, 'def'>): GeneratedOp
 }
 
 /** Scenario writes may carry native values; stored fields/defaults are wire. */
-function encodeCanonicalField(StateError: StateErrorsProducer, type: CanTypeId, value: unknown): unknown {
+function decodeCanonicalValue(schema: NormalizedSchema | undefined, type: CanTypeId, wire: unknown): CanValue {
+  return schema === undefined ? decodeValue(type, wire) : validateValue(schema, type, wire, 'create');
+}
+
+function encodeCanonicalField(StateError: StateErrorsProducer, type: CanTypeId, value: unknown, schema?: NormalizedSchema): unknown {
   try {
+    let wire: unknown;
     try {
-      return encodeValue(type, value as CanValue);
+      wire = encodeValue(type, value as CanValue);
     } catch {
-      return encodeValue(type, decodeValue(type, value));
+      wire = encodeValue(type, decodeCanonicalValue(schema, type, value));
     }
+    return schema === undefined ? wire : encodeValue(type, validateValue(schema, type, wire, 'create'));
   } catch (error) {
     throw new StateError("validation", message(error));
   }
 }
 
 /** Incoming CRUD fields must use the declared wire representation. */
-function encodeCanonicalWireField(StateError: StateErrorsProducer, type: CanTypeId, value: unknown): unknown {
+function encodeCanonicalWireField(StateError: StateErrorsProducer, type: CanTypeId, value: unknown, schema?: NormalizedSchema): unknown {
   try {
-    return encodeValue(type, decodeValue(type, value));
+    return encodeValue(type, decodeCanonicalValue(schema, type, value));
   } catch (error) {
     throw new StateError("validation", message(error));
   }
@@ -3040,14 +3160,14 @@ function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 're
     if (field.kind !== "ref" && field.kind !== "delivery" && field.valueType !== undefined) {
       try {
         if (!Object.hasOwn(parameters, field.name) && field.default?.kind === "literal") {
-          const value = decodeValue(field.valueType, field.default.value);
+          const value = decodeCanonicalValue(loaded.valueSchema, field.valueType, field.default.value);
           parameters[field.name] = value;
           resolvedDefaults[field.name] = encodeValue(field.valueType, value);
         } else if (!Object.hasOwn(parameters, field.name) && field.computedDefault !== true && field.valueType.endsWith("?")) {
           parameters[field.name] = null;
           resolvedDefaults[field.name] = null;
         } else if (field.kind === "enum" ? Object.hasOwn(parameters, field.name) : parameters[field.name] !== undefined) {
-          parameters[field.name] = decodeValue(field.valueType, parameters[field.name]);
+          parameters[field.name] = decodeCanonicalValue(loaded.valueSchema, field.valueType, parameters[field.name]);
         }
       } catch (error) {
         throw new loaded.producers.errors("validation", message(error));
@@ -3077,7 +3197,9 @@ function scenarioResult(call: Pick<CanonicalSeamCall, 'def'>, loaded: LoadedCano
       }
       return encodeValue(resultType, modelReference);
     }
-    return encodeValue(resultType, value as CanValue);
+    const wire = encodeValue(resultType, value as CanValue);
+    return loaded.valueSchema === undefined ? wire
+      : encodeValue(resultType, validateValue(loaded.valueSchema, resultType, wire, 'create'));
   } catch (error) {
     throw new loaded.producers.errors('validation', message(error));
   }
@@ -3143,7 +3265,7 @@ function nativeProjectedRecord(loaded: LoadedCanonicalDescriptors, modelName: st
   for (const [field, wire] of Object.entries(row.data)) {
     const type = model?.fields[field]?.valueType;
     const target = loaded.refs.get(modelName)?.find(reference => reference.field === field)?.model;
-    record[field] = type !== undefined ? decodeValue(type, wire)
+    record[field] = type !== undefined ? decodeCanonicalValue(loaded.valueSchema, type, wire)
       : target === undefined || wire === null ? wire : decodeValue(target, wire);
   }
   Object.assign(record, nativeRecordMetadata(row));
@@ -3274,7 +3396,7 @@ async function runScenarioSeam(
       enumerable: true, get: () => {
         const wire = current()?.data[field];
         const type = model?.fields[field]?.valueType;
-        return type === undefined || wire === undefined ? wire : decodeValue(type, wire);
+        return type === undefined || wire === undefined ? wire : decodeCanonicalValue(loaded.valueSchema, type, wire);
       },
     });
     // Ordinary references retain admitted metadata while domain reads see
@@ -3300,7 +3422,7 @@ async function runScenarioSeam(
     // matching read grant may expose only part of its data.
     for (const [field, wire] of Object.entries(row.data)) {
       const type = model?.fields[field]?.valueType;
-      record[field] = type === undefined ? wire : decodeValue(type, wire);
+      record[field] = type === undefined ? wire : decodeCanonicalValue(loaded.valueSchema, type, wire);
     }
     Object.assign(record, nativeRecordMetadata(row));
     Object.freeze(record);
@@ -3371,6 +3493,8 @@ async function runScenarioSeam(
             row.data[field.name]) as DeliveryRef | null,
           queued: queuedDeliveries, operationId: call.context.operationId,
           revision: call.checkpoint.revision + 1,
+          ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
+          ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }),
         }, {
           actor: actorUserId ?? call.context.trustedSource ?? "anonymous",
           now: call.context.now, operation: call.context.operation,
@@ -3451,6 +3575,10 @@ async function runScenarioSeam(
         if (typeof write.id !== "string" || write.id === "") {
           throw new Error(`t17b: stageWrite needs a non-empty string record id (wiring bug).`);
         }
+        const mutation = `${write.model}.${write.op === 'remove' ? 'delete' : write.op}`;
+        if (loaded.unsupportedHookOperations.has(mutation)) {
+          throw new StateError('validation', `Operation ${JSON.stringify(mutation)} requires unsupported canonical hooks.`);
+        }
         // Delivery tags predate the scalar valueType checkpoint. Their owning
         // artifact declaration still selects Values' exact native/wire codec.
         const data = write.data === undefined ? undefined : { ...write.data };
@@ -3458,7 +3586,7 @@ async function runScenarioSeam(
           if (field.field.kind !== 'delivery' || data === undefined || !Object.hasOwn(data, field.name)) continue;
           data[field.name] = encodeCanonicalField(StateError,
             `delivery(${field.field.capability}.${field.field.operation})${field.nullable === true ? '?' : ''}`,
-            data[field.name]);
+            data[field.name], loaded.valueSchema);
         }
         const result = await loaded.producers.pipeline.runMutationWrites({
           table: loaded.table,
@@ -3480,7 +3608,7 @@ async function runScenarioSeam(
           // Generated writes carry native values; stored fields and defaults
           // carry wire values. Let this checked type's public codecs admit
           // either representation at the existing late checkpoint.
-          encodeField: (type, value) => encodeCanonicalField(StateError, type, value),
+          encodeField: (type, value) => encodeCanonicalField(StateError, type, value, loaded.valueSchema),
           // T32b: the triggering checkpoint point — hook bodies name it
           // back as their `triggerRevision` when they open fresh
           // transitive scopes. Absent on checkpoint-less calls.
@@ -3532,20 +3660,92 @@ async function runScenarioSeam(
         if (typeof model !== "string" || model === "") {
           throw new Error(`t17b: readModel needs a non-empty string model (wiring bug).`);
         }
-        assertServableReadQuery(StateError, query);
+        const native = callable?.inputStyle === 'parameters';
+        if (!native) assertServableReadQuery(StateError, query);
         if (loaded.ruledModels.has(model)) {
           throw ruledReadRefusal(StateError, model);
         }
-        const served = await loaded.producers.invoke.invokeRead({
+        const dependencies: ProjectedRecord[] = [];
+        let selection: CanonicalReadSelection | undefined;
+        const sourcePredicate = native && typeof query.where === 'function';
+        if (native) {
+          if (Object.keys(query).some(key => !['where', 'order', 'limit', 'archived', 'authority'].includes(key)) ||
+              (query.authority !== undefined && query.authority !== 'viewer') ||
+              (query.archived !== undefined && query.archived !== 'exclude')) {
+            throw new StateError('validation', 'Mutation queries require viewer reads over current records without containment filters.');
+          }
+          const where = query.where;
+          let order: OrderTerm[] | undefined;
+          if (query.order !== undefined) {
+            if (!Array.isArray(query.order) || !query.order.every(term => typeof term === 'string' && term !== '' && term !== '-')) {
+              throw new StateError('validation', 'Mutation query order requires compiler field spellings.');
+            }
+            order = query.order.map((term: string) => ({ field: term.startsWith('-') ? term.slice(1) : term,
+              direction: term.startsWith('-') ? 'desc' : 'asc' }));
+            const metadataOrder = new Set(['id', 'version', 'created', 'updated', 'createdBy', 'updatedBy', 'archivedAt']);
+            const fields = loaded.models.find(candidate => candidate.name === model)?.fields;
+            for (const term of order) {
+              const type = fields?.[term.field]?.valueType?.replace(/\?$/, '');
+              if (!metadataOrder.has(term.field) && !['text', 'bool', 'int', 'decimal', 'money'].includes(type ?? '')) {
+                throw new StateError('validation', 'Mutation query order currently supports metadata, text, bool, int, decimal, and money fields.');
+              }
+            }
+          }
+          const nativeLimit: unknown = query.limit;
+          const limit = typeof nativeLimit === 'bigint' && nativeLimit >= 0n && nativeLimit <= BigInt(Number.MAX_SAFE_INTEGER)
+            ? Number(nativeLimit) : nativeLimit;
+          if (limit !== undefined && (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 0)) {
+            throw new StateError('validation', 'Mutation query limit requires a non-negative safe integer.');
+          }
+          selection = {
+            ...(typeof where === 'function' ? { predicate: async (row: Readonly<ProjectedRecord>) => {
+              // False candidates are observations too. Source sees only the
+              // viewer's projection, even when it runs inside a mutation.
+              dependencies.push(structuredClone(row));
+              const matched = await where(projectedRecordView(model, row));
+              if (typeof matched !== 'boolean') throw new StateError('validation', 'Mutation query predicates must return bool.');
+              return matched;
+            } } : where === undefined ? {} : { where: structuredClone(where) as QueryPredicate }),
+            ...(order === undefined ? {} : { order }),
+            ...(limit === undefined ? {} : { limit: limit as number }),
+          };
+        }
+        // Staged rows are immutable snapshots. Preserve this query's overlay
+        // so a later own write cannot invalidate an earlier observation.
+        const queryStore = native ? withStagedOverlay(opts.store, new Map(staged)) : overlay;
+        const read = (selected: CanonicalReadSelection | undefined) => loaded.producers.invoke.invokeRead({
           registry: loaded.registry,
+          models: loaded.models,
           envelope: { operation: `${model}.read`, inputs: {} },
           identity: opts.identity,
+          ...(selected === undefined ? {} : { selection: selected }),
           policy: loaded.policy,
-          store: overlay,
+          store: queryStore,
           memberships: opts.memberships,
         });
+        const served = await read(selection);
         if (!Array.isArray(served.records)) {
           throw new Error(`t17b: invokeRead served no records array (invoke/dist skew?)`);
+        }
+        if (native) {
+          const assertRevision = async (reading: CanonicalReadServed): Promise<void> => {
+            if (seamTrigger !== undefined && (reading.revision !== seamTrigger.revision ||
+                await opts.store.readRevision() !== seamTrigger.revision)) {
+              throw new StateError('conflict', 'State changed during the mutation query.');
+            }
+          };
+          await assertRevision(served);
+          const projection = (records: readonly ProjectedRecord[]): string => JSON.stringify(
+            sourcePredicate ? [...records].sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0) : records,
+          );
+          const observed = projection(sourcePredicate ? dependencies : served.records);
+          seamGuards.push({ name: `${model}.read`, evaluate: async () => {
+            // Re-admit the complete observed domain with current grants. Never
+            // replay source callbacks or apply their post-filter limit/order.
+            const fresh = await read(sourcePredicate ? undefined : selection);
+            await assertRevision(fresh);
+            return projection(fresh.records) === observed;
+          } });
         }
         // T32b: offer the REAL served object as authorization evidence
         // (an eventual marker would survive to the commit bar).
@@ -3584,6 +3784,7 @@ async function runScenarioSeam(
     recordEngineFailure(failure);
     throw failure;
   };
+  const judgmentSpecification = await loadJudgmentSpecificationResolver(opts.asm, opts.artifact, opts.operation);
   const ctx = createContext({
     caller:
       actorUserId === null
@@ -3593,6 +3794,7 @@ async function runScenarioSeam(
     clock: () => admittedNow,
     memberships: grants,
     canonical: scope,
+    ...(judgmentSpecification === undefined ? {} : { judgmentSpecification }),
     scheduleDeferred: async (key, at, event, payload, ownerPackage) => {
       try {
         const selected = await scheduleScope(ownerPackage);
@@ -3657,46 +3859,55 @@ async function runScenarioSeam(
         const binding = member(member(definition, 'bindings'), bindingKey);
         const capability = member(binding, 'capability');
         const from = member(binding, 'from');
-        if (typeof capability !== 'string' || typeof from !== 'string' || from === '') {
-          throw new Error(`${where} has no exact checked binding ${JSON.stringify(bindingKey)}.`);
-        }
-        const prefix = `${capability}.`;
-        if (!source.startsWith(prefix) || source.slice(prefix.length).includes('.')) {
-          throw new Error(`${where} does not belong to binding ${JSON.stringify(bindingKey)}.`);
-        }
-        const declaration = member(member(definition, 'capabilities'), capability);
-        const operation = member(member(declaration, 'operations'), source.slice(prefix.length));
-        const inputs = member(operation, 'inputs');
-        if (!isUnknownRecord(inputs) || !isUnknownRecord(request)) {
-          throw new Error(`${where} requires its checked operation inputs and an argument object.`);
-        }
-        // Values owns schema admission, omission/default semantics and each
-        // native/wire codec. The adapter supplies the exact owning declaration.
-        const schema = normalizeSchema({
-          contracts: member(definition, 'contracts') ?? {},
-          enums: member(definition, 'enums') ?? {},
-          operations: { [source]: { inputs } },
-        } as SchemaDescriptor);
-        const wire: Record<string, unknown> = Object.create(null);
-        for (const [name, value] of Object.entries(request)) {
-          const field = member(inputs, name) as FieldDescriptor | undefined;
-          wire[name] = field === undefined || value === undefined ? value : encodeValue(field.type, value as CanValue);
-        }
-        const checked = validateOperationInput(schema, source, wire);
-        const args: Record<string, unknown> = Object.create(null);
-        for (const [name, value] of Object.entries(checked)) {
-          const field = member(inputs, name) as FieldDescriptor;
-          args[name] = encodeValue(field.type, value);
+        let boundRequest: BoundCapabilityRequest;
+        if (typeof member(binding, 'judgment') === 'string') {
+          boundRequest = freezeBoundJudgmentRequest({
+            appDefinition: definition, binding: bindingKey, target: source, arguments: request,
+            ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }),
+            ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
+          });
+        } else {
+          if (typeof capability !== 'string' || typeof from !== 'string' || from === '') {
+            throw new Error(`${where} has no exact checked binding ${JSON.stringify(bindingKey)}.`);
+          }
+          const prefix = `${capability}.`;
+          if (!source.startsWith(prefix) || source.slice(prefix.length).includes('.')) {
+            throw new Error(`${where} does not belong to binding ${JSON.stringify(bindingKey)}.`);
+          }
+          const declaration = member(member(definition, 'capabilities'), capability);
+          const operation = member(member(declaration, 'operations'), source.slice(prefix.length));
+          const inputs = member(operation, 'inputs');
+          if (!isUnknownRecord(inputs) || !isUnknownRecord(request)) {
+            throw new Error(`${where} requires its checked operation inputs and an argument object.`);
+          }
+          // Values owns schema admission, omission/default semantics and each
+          // native/wire codec. The adapter supplies the exact owning declaration.
+          const schema = normalizeSchema({
+            contracts: member(definition, 'contracts') ?? {},
+            enums: member(definition, 'enums') ?? {},
+            operations: { [source]: { inputs } },
+          } as SchemaDescriptor);
+          const wire: Record<string, unknown> = Object.create(null);
+          for (const [name, value] of Object.entries(request)) {
+            const field = member(inputs, name) as FieldDescriptor | undefined;
+            wire[name] = field === undefined || value === undefined ? value : encodeValue(field.type, value as CanValue);
+          }
+          const checked = validateOperationInput(schema, source, wire);
+          const args: Record<string, unknown> = Object.create(null);
+          for (const [name, value] of Object.entries(checked)) {
+            const field = member(inputs, name) as FieldDescriptor;
+            args[name] = encodeValue(field.type, value);
+          }
+          boundRequest = { binding: bindingKey, from, arguments: args };
         }
         const producer = await loadProducerModule('@canlang/work/kernel/dispatch-staging', 'work canonical send producer');
         const stage = requireProducerFn(producer, 'stageCanonicalSend', 'work canonical send producer') as
           typeof import('@canlang/work/kernel/dispatch-staging').stageCanonicalSend;
-        const boundRequest: BoundCapabilityRequest = { binding: bindingKey, from, arguments: args };
         const stagedSend = await stage({
           operationId: call.context.operationId, source, occurrenceIndex: sendIndex++,
           request: boundRequest, originOccurrence: due?.occurrenceId ?? cohort?.occurrenceId ?? null,
         }, {
-          actor: actorUserId ?? 'anonymous', now: admittedNow, operation: scope.operation,
+          actor: actorUserId ?? call.context.trustedSource ?? 'anonymous', now: admittedNow, operation: scope.operation,
           load: overlay.load.bind(overlay), query: overlay.query.bind(overlay),
         });
         for (const intent of stagedSend.effects.outbox ?? []) queuedDeliveries.set(intent.intentId, intent);
@@ -3785,18 +3996,22 @@ async function runScenarioSeam(
       const recorded = engineFailures.get(outcome.error);
       if (recorded !== undefined) throw recorded;
     }
+    // The runtime mapper owns this live attribution. State's existing
+    // internal details slot survives rejection wrapping without adding
+    // source paths to the public error or persisted receipt.
+    const details = outcome.mapped === undefined ? undefined : { mapped: outcome.mapped };
     // BusinessError-shaped values keep code+message — defensive only:
     // `invokeWith` stringifies handler failures today, so this branch
     // cannot fire for direct handler throws (attribution above covers
     // them); it stays for a future object-preserving invoke entry.
     if (isSeamBusinessErrorLike(outcome.error)) {
-      throw new StateError(outcome.error.code, outcome.error.message);
+      throw new StateError(outcome.error.code, outcome.error.message, details);
     }
     const message =
       typeof outcome.error === "string" && outcome.error !== ""
         ? outcome.error
         : "The operation was rejected.";
-    throw new StateError("rule_failed", message);
+    throw new StateError("rule_failed", message, details);
   }
   if (observesDefaults && observedDefaults.size !== computedSlots.size) {
     throw new StateError('validation', 'Generated handler omitted a required computed-default report.');
@@ -3850,13 +4065,16 @@ export async function invokeMutationCanonical(
   const crudExecute = loaded.producers.crud.generatedCrudExecute({
     table: loaded.table,
     store: receiptStore,
-    encodeField: (type, value) => encodeCanonicalWireField(StateError, type, value),
+    secretFields: loaded.secretFields,
+    encodeField: (type, value) => encodeCanonicalWireField(StateError, type, value, loaded.valueSchema),
   });
   // One opaque ID per actual schedule ordinal, retained across State retries.
   const occurrenceIds: string[] = [];
   let attachments: FileAttachment[] = [];
+  let committedReceipt: Receipt | undefined;
   const result = await loaded.producers.invoke.invoke({
     registry: loaded.registry,
+    observeCommittedReceipt: receipt => { committedReceipt = receipt; },
     envelope: {
       operation: opts.operation,
       operation_id: opts.operationId,
@@ -3880,6 +4098,9 @@ export async function invokeMutationCanonical(
       const kind = seamDefKind(call.def, opts.operation);
       let effects: CanonicalExecutionEffects;
       if (kind === "create" || kind === "update" || kind === "delete") {
+        if (loaded.unsupportedHookOperations.has(opts.operation)) {
+          throw new StateError('validation', `Operation ${JSON.stringify(opts.operation)} requires unsupported canonical hooks.`);
+        }
         effects = await crudExecute(call);
       } else if (kind === "scenario") {
         effects = await runScenarioSeam(loaded, opts, call, occurrenceIds);
@@ -3904,6 +4125,20 @@ export async function invokeMutationCanonical(
       result: result.result, attachments, store: opts.store, files: opts.files,
       identity: opts.identity, app: opts.app,
     });
+  }
+  // The public generated-CRUD contract maps saved content. Scenario
+  // disclosure remains a separate join; raw retention above stays internal.
+  const kind = seamDefKind(loaded.registry.get(opts.operation), opts.operation);
+  if (kind === 'create' || kind === 'update' || kind === 'delete' ||
+      (committedReceipt !== undefined && Object.hasOwn(committedReceipt.outcome, 'generatedCrud'))) {
+    if (committedReceipt === undefined || loaded.producers.invoke.projectGeneratedCrudReceipt === undefined) {
+      throw new StateError('validation', 'Installed State producer cannot disclose a saved CRUD outcome.');
+    }
+    const projected = await loaded.producers.invoke.projectGeneratedCrudReceipt({
+      receipt: committedReceipt, registry: loaded.registry, policy: loaded.policy,
+      app: opts.app, identity: opts.identity, store: opts.store, memberships: opts.memberships,
+    });
+    return { ...result, ...projected };
   }
   return result;
 }
@@ -4045,6 +4280,49 @@ export interface CanonicalDueScheduleOpts {
 
 function privateSourceMember(value: unknown, key: string): unknown {
   return isUnknownRecord(value) ? readMetadataMember(value, key, 'Private cohort source')?.value : undefined;
+}
+
+/** Import the already-pinned callable module before execution; the installed helper remains synchronous and pure. */
+async function loadJudgmentSpecificationResolver(
+  asm: AssembledModules, artifact: CompileArtifact, operation: string,
+  definingModuleUrl?: string,
+): Promise<HandlerContext['judgmentSpecification']> {
+  const callable = artifact.callables.find(entry => entry.id === operation);
+  const url = definingModuleUrl ?? (callable === undefined ? undefined : asm.moduleUrls[callable.module]);
+  if (url === undefined) return undefined;
+  const where = 'Judgment specification';
+  const own = (value: unknown, key: string): unknown =>
+    isUnknownRecord(value) ? readMetadataMember(value, key, where)?.value : undefined;
+  const definition = own(await import(url), 'appDefinition');
+  const judgments = own(definition, 'judgments');
+  if (judgments === undefined) return undefined;
+  if (!isUnknownRecord(judgments)) throw new Error(`${where} requires checked declaration metadata.`);
+  const specifications = new Map<string, import('@canlang/contracts').JudgmentSpec>();
+  return (qualifiedName, options) => {
+    if (typeof qualifiedName !== 'string' || !Object.hasOwn(judgments, qualifiedName)) {
+      throw new Error(`${where} requires an exact defining declaration.`);
+    }
+    const descriptor = own(judgments, qualifiedName);
+    const language = own(descriptor, 'sourceLanguage');
+    if (!isUnknownRecord(descriptor) || typeof language !== 'string') {
+      throw new Error(`${where} has no checked source language.`);
+    }
+    const questions = readMetadataArray(own(descriptor, 'questions'), where, 'questions');
+    const runtime = questions.some(question => own(question, 'runtime') === true);
+    const cacheable = !runtime && options === undefined;
+    if (cacheable) {
+      const prior = specifications.get(qualifiedName);
+      if (prior !== undefined) return prior;
+    }
+    if (runtime && artifact.valueTypes === undefined) {
+      throw new Error(`${where} has no checked runtime option inventory.`);
+    }
+    const source = { version: own(descriptor, 'version'), questions,
+      ...(runtime ? { valueTypes: artifact.valueTypes } : {}) };
+    const frozen = freezeJudgmentSource(qualifiedName, source as unknown as StaticJudgmentDescriptor, language, options);
+    if (cacheable) specifications.set(qualifiedName, frozen.specification);
+    return frozen.specification;
+  };
 }
 
 function assertDeclaredCohortVersion(artifact: CompileArtifact): void {
@@ -4569,9 +4847,11 @@ export interface CanonicalRetainedHandlerOccurrenceOpts {
 }
 
 class RetainedHandlerOccurrenceChanged extends Error {
-  constructor(readonly outcome: Exclude<import('@canlang/work/kernel/handler-occurrence').RetainedHandlerOccurrenceResult,
+  readonly outcome: Exclude<import('@canlang/work/kernel/handler-occurrence').RetainedHandlerOccurrenceResult, { status: 'ready' }>;
+  constructor(outcome: Exclude<import('@canlang/work/kernel/handler-occurrence').RetainedHandlerOccurrenceResult,
     { status: 'ready' }>) {
     super('Retained handler occurrence changed before execution.');
+    this.outcome = outcome;
   }
 }
 
@@ -4789,6 +5069,7 @@ interface StateReceiptJoinProducer {
   observeSelectedReceiptJoin(input: {
     readonly declaredSource: string;
     readonly declaredResult?: import('@canlang/contracts').CanonicalNominalResult;
+    readonly declaredContext?: ReceiptResultContext;
     readonly locator: { readonly record: { readonly id: string }; readonly field: string };
     readonly selected: ReadonlyArray<string>;
     readonly model: string;
@@ -5177,6 +5458,16 @@ export async function invokeSelectedReceiptRead(
   if (opts.fence !== undefined) {
     opts.fence.enroll({ kind: "record", model, id: owner.id, version: owner.version });
   }
+  let declaredContext: ReceiptResultContext | undefined;
+  if ('judgment' in declaration.field && declaration.field.judgment === true) {
+    if (loaded.valueTypes === undefined) throw new StateError('validation', 'Judgment receipt has no checked value inventory.');
+    // This immutable serving artifact pins the rubric. A receipt from a
+    // different rubric cannot be accepted under a newer active declaration.
+    const specification = await loadJudgmentSpecificationResolver(opts.asm, opts.artifact, opts.operation, opts.asm.entryUrl);
+    if (specification === undefined) throw new StateError('validation', 'Judgment receipt has no defining source specification.');
+    declaredContext = createJudgmentReceiptContext(declaration.field,
+      specification(declaration.field.capability), loaded.valueTypes);
+  }
   const joinMod = await loadProducerModule(STATE_RECEIPT_JOIN_SPECIFIER, "state receipt join producer");
   const observeSelectedReceiptJoin = requireProducerFn(
     joinMod,
@@ -5187,6 +5478,7 @@ export async function invokeSelectedReceiptRead(
   const outcome = await observeSelectedReceiptJoin({
     declaredSource,
     ...(declaredResult === undefined ? {} : { declaredResult }),
+    ...(declaredContext === undefined ? {} : { declaredContext }),
     locator: { record: { id: recordId }, field },
     selected,
     model,
@@ -5244,6 +5536,11 @@ export interface CanonicalReadOpts {
   readonly observer?: SelectedReceiptObserverBinding;
 }
 
+/** Page-only checked host facts; ordinary operation reads retain their existing options. */
+export interface CanonicalPageReadOpts extends Omit<CanonicalReadOpts, 'operation' | 'inputs' | 'selection'> {
+  readonly pageReads?: PageReadsBinding;
+}
+
 /** Source reads have no direct storage access and cannot stage any effect. */
 async function runReadScenarioSeam(
   loaded: LoadedCanonicalDescriptors, opts: CanonicalReadOpts, call: AdmittedReadScenarioCall,
@@ -5264,12 +5561,14 @@ async function runReadScenarioSeam(
   const reader = loaded.producers.transact.createReadInvoker({
     registry: loaded.registry, models: loaded.models, policy: loaded.policy, store: opts.store, memberships: opts.memberships,
   });
-  const readings: Array<{ model: string; query: CanonicalReadQuery; projection: string }> = [];
+  const readings: Array<{ model: string; query: CanonicalReadQuery; projection: string; sourcePredicate: boolean }> = [];
+  const dependencyProjection = (records: readonly ProjectedRecord[]): string => JSON.stringify(
+    [...records].sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
+  );
   const views = new WeakMap<object, { readonly model: string; readonly id: string; readonly version: number }>();
   const decodedRefs = new WeakSet<object>();
   let activeViews = views;
   let activeDecodedRefs = decodedRefs;
-  let rechecking = false;
   const recordView = (model: string, row: StoredRow | ProjectedRecord): Record<string, unknown> => {
     const view = nativeProjectedRecord(loaded, model, row);
     activeViews.set(view, { model, id: row.id, version: row.version });
@@ -5290,7 +5589,7 @@ async function runReadScenarioSeam(
     }
     return view;
   };
-  const readModel = async (model: string, query: CanonicalReadQuery): Promise<CanonicalReadServed> => {
+  const readModel = async (model: string, query: CanonicalReadQuery, dependencies?: ProjectedRecord[]): Promise<CanonicalReadServed> => {
     if (loaded.ruledModels.has(model)) throw ruledReadRefusal(StateError, model);
     if (Object.keys(query).some(key => !['parent', 'where', 'order', 'limit', 'archived', 'authority'].includes(key)) ||
         (query.authority !== undefined && query.authority !== 'viewer') ||
@@ -5333,6 +5632,9 @@ async function runReadScenarioSeam(
       ...(typeof where === 'function' || parentBinding !== undefined ? { predicate: async (row: Readonly<ProjectedRecord>) => {
         if (parentBinding !== undefined && (row.parent?.model !== parentBinding.model || row.parent.id !== parentBinding.id)) return false;
         if (typeof where !== 'function') return true;
+        // Retain every granted observation before source runs, including false
+        // candidates. Nested source reads retain their own domains below.
+        dependencies?.push(structuredClone(row));
         const matched = await where(recordView(model, row));
         if (typeof matched !== 'boolean') throw new StateError('validation', 'Read scenario predicates must return bool.');
         return matched;
@@ -5347,6 +5649,31 @@ async function runReadScenarioSeam(
     }
     return served;
   };
+  const receiptReads: Array<{ binding: { readonly model: string; readonly id: string; readonly version: number };
+    field: string; selected: readonly ReceiptProperty[]; observation: string }> = [];
+  const observeReceipt = async (binding: { readonly model: string; readonly id: string; readonly version: number },
+    field: string, selected: readonly ReceiptProperty[]): Promise<SelectedReceiptServed> => {
+    const fence: SelectedReceiptFence = {
+      revision: call.revision,
+      enroll: dependency => {
+        if (dependency.model === binding.model && dependency.id === binding.id && dependency.version !== binding.version) {
+          throw new StateError('conflict', 'Record changed during the read scenario delivery observation.');
+        }
+      },
+    };
+    const observed = await invokeSelectedReceiptRead({
+      ...opts, operation: RECEIPT_READ_OPERATION,
+      inputs: { recordId: binding.id, field, selected: [...selected] },
+      boundModel: binding.model, fence, now: () => now,
+    });
+    if (await opts.store.readRevision() !== call.revision) {
+      throw new StateError('conflict', 'State changed during the read scenario delivery observation.');
+    }
+    if (observed.outcome === 'denied') {
+      throw new StateError('forbidden', 'Delivery observation is not authorized.');
+    }
+    return observed;
+  };
   const membership = call.membership?.status === 'active' ? call.membership : null;
   const roles = membership?.roles.map(grant => grant.role) ?? [];
   const builtinRoles = ['public', ...(call.actorUserId === null ? [] : ['authenticated']),
@@ -5354,7 +5681,20 @@ async function runReadScenarioSeam(
   const scope: CanonicalEffectsScope = {
     operation: opts.operation, builtinRoles: Object.freeze(builtinRoles),
     stageWrite: refuse, createRecord: refuse, setRecord: refuse, deleteRecord: refuse,
-    observeDelivery: refuse,
+    observeDelivery: async (locator, selected) => {
+      const binding = isUnknownRecord(locator.record) ? views.get(locator.record) : undefined;
+      if (binding === undefined) {
+        throw new StateError('validation', 'Delivery observation needs a record bound in this read scenario.');
+      }
+      const properties = [...selected];
+      const observed = await observeReceipt(binding, locator.field, properties);
+      receiptReads.push({ binding, field: locator.field, selected: properties, observation: JSON.stringify(observed) });
+      if (observed.outcome !== 'observed') return null;
+      const declaration = opts.artifact.models?.find(model => model.name === binding.model)?.fields
+        .find(field => field.name === locator.field)?.field;
+      return sourceReceiptProjection(observed.projection, properties,
+        declaration?.kind === 'delivery' ? declaration.result : undefined);
+    },
     readModel: async (model, query) => {
       // Snapshot the same selector State actually serves; no caller getter is
       // re-evaluated during the final authorization evidence check.
@@ -5362,8 +5702,11 @@ async function runReadScenarioSeam(
         ...(query.where === undefined || typeof query.where === 'function' ? {} : { where: structuredClone(query.where) }),
         ...(query.order === undefined ? {} : { order: structuredClone(query.order) }),
       };
-      const served = await readModel(model, selected);
-      if (!rechecking) readings.push({ model, query: selected, projection: JSON.stringify(served.records) });
+      const sourcePredicate = typeof selected.where === 'function';
+      const dependencies: ProjectedRecord[] | undefined = sourcePredicate ? [] : undefined;
+      const served = await readModel(model, selected, dependencies);
+      readings.push({ model, query: selected, sourcePredicate,
+        projection: dependencies === undefined ? JSON.stringify(served.records) : dependencyProjection(dependencies) });
       return served.records;
     },
     readRecords: async (model, query) =>
@@ -5372,10 +5715,12 @@ async function runReadScenarioSeam(
   const actor = call.actorUserId === null ? null : opts.identity.actor;
   const team = call.teamId === null ? null : opts.identity.team;
   const now = (opts.now ?? Date.now)();
+  const judgmentSpecification = await loadJudgmentSpecificationResolver(opts.asm, opts.artifact, opts.operation);
   const ctx = createContext({
     caller: { userId: call.actorUserId ?? 'anonymous', roles },
     memberships: roles, store: readonlyStore, canonical: scope,
     clock: () => now,
+    ...(judgmentSpecification === undefined ? {} : { judgmentSpecification }),
     sendDeferred: refuse, scheduleDeferred: refuse, cancelDeferred: refuse,
     qualified: {
       actor: actor === null ? null : { userId: call.actorUserId!, email: actor.email, emailVerified: actor.email_verified },
@@ -5399,19 +5744,35 @@ async function runReadScenarioSeam(
     }
     return makeRecordRef(reference.model, row.id, BigInt(row.version));
   });
-  // Rechecks use fresh native provenance and a fixed evidence list. Nested
-  // source queries remain readonly and cannot append another recheck round.
+  // Re-admit each original domain with current grants and the same state fence.
+  // Source callbacks never run again: their complete observed domain includes
+  // false candidates and each independently retained nested or empty read.
   const capturedReadings = [...readings];
-  rechecking = true;
   try {
     for (const reading of capturedReadings) {
       activeViews = new WeakMap(); activeDecodedRefs = new WeakSet();
-      if (JSON.stringify((await readModel(reading.model, reading.query)).records) !== reading.projection) {
+      let query = reading.query;
+      if (reading.sourcePredicate) {
+        // The authored limit applies after its predicate. Applying that limit
+        // or order to the unfiltered dependency domain changes its meaning.
+        const { where: _where, limit: _limit, order: _order, ...domain } = query;
+        query = domain;
+      }
+      const fresh = (await readModel(reading.model, query)).records;
+      const projection = reading.sourcePredicate ? dependencyProjection(fresh) : JSON.stringify(fresh);
+      if (projection !== reading.projection) {
         throw new StateError('forbidden', 'Record read authority changed during the read scenario.');
       }
     }
   } finally {
-    rechecking = false; activeViews = views; activeDecodedRefs = decodedRefs;
+    activeViews = views; activeDecodedRefs = decodedRefs;
+  }
+  // Re-resolve selected leaf grants as well as record projections before disclosure.
+  for (const reading of receiptReads) {
+    const fresh = await observeReceipt(reading.binding, reading.field, reading.selected);
+    if (JSON.stringify(fresh) !== reading.observation) {
+      throw new StateError('forbidden', 'Delivery read authority changed during the read scenario.');
+    }
   }
   return result;
 }
@@ -5468,36 +5829,128 @@ export async function invokeReadCanonical(
 
 /** Page collections retain generated read admission and the defining viewer executor. */
 export async function queryPageRowsCanonical(
-  opts: Omit<CanonicalReadOpts, "operation" | "inputs"> & { readonly model: string; readonly args: ListQueryArgs },
+  opts: CanonicalPageReadOpts & { readonly model: string; readonly args: ListQueryArgs },
 ): Promise<ListQueryResult> {
   const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
   const StateError = loaded.producers.errors;
-  // The outer selection is a plain stable value. State reads these two fields
-  // only after generated read admission, live membership and closed inputs.
-  const selection: CanonicalReadSelection = {
-    get where() {
-      if (opts.args.parent !== undefined || opts.args.cursor !== undefined || typeof opts.args.where === "function") {
-        throw new StateError("validation", "Page queries do not support parent, cursor or function predicates.");
+  if (opts.args.page !== undefined && opts.args.page !== true) {
+    throw new StateError('validation', 'Collection page mode must be explicitly enabled.');
+  }
+  const order: OrderTerm[] | undefined = opts.args.order?.map((term): OrderTerm => {
+    if (typeof term !== 'string' || term === '' || term === '-') {
+      throw new StateError('validation', 'Collection order requires source field spellings.');
+    }
+    return { field: term.startsWith('-') ? term.slice(1) : term,
+      direction: term.startsWith('-') ? 'desc' : 'asc' };
+  });
+  const sourceWhere = opts.args.where;
+  const sourceFilter = typeof sourceWhere === 'function'
+    ? async (record: Readonly<ProjectedRecord>): Promise<boolean> => {
+      const matched: unknown = await sourceWhere(nativeProjectedRecord(loaded, opts.model, record));
+      if (typeof matched !== 'boolean') {
+        throw new StateError('validation', 'Collection source filter must return bool.');
       }
-      return opts.args.where as QueryPredicate;
-    },
-    get limit() {
-      const limit = opts.args.limit ?? COLLECTION_DEFAULT_LIMIT;
-      if (!Number.isInteger(limit) || limit < 1 || limit > COLLECTION_MAX_LIMIT) {
-        throw new StateError("validation", "Invalid collection limit.");
-      }
-      return limit;
-    },
+      return matched;
+    }
+    : undefined;
+  const selection = {
+    ...(sourceFilter !== undefined || opts.args.where === undefined ? {} : { where: opts.args.where as QueryPredicate }),
+    ...(order === undefined ? {} : { order }),
+    ...(opts.args.search === undefined ? {} : { search: opts.args.search }),
+    ...(opts.args.includeCount === undefined ? {} : { includeCount: opts.args.includeCount }),
+    ...(opts.args.limit === undefined ? {} : { limit: opts.args.limit }),
   };
-  const served = await invokeReadCanonical({ ...opts, operation: `${opts.model}.read`, inputs: {}, selection });
-  if (!("records" in served)) throw new Error("page query: canonical model read returned no records");
+  if (opts.args.page === true) {
+    if (sourceFilter !== undefined) {
+      throw new StateError('validation', 'Cursor pages require a stable data-only filter identity.');
+    }
+    assertCanonicalStore(opts.store, `${opts.model}.read`);
+    assertCanonicalMemberships(opts.memberships, `${opts.model}.read`);
+    if (loaded.ruledModels.has(opts.model)) throw ruledReadRefusal(StateError, opts.model);
+    const occurrence = opts.args.occurrence;
+    const binding = opts.pageReads;
+    if (typeof occurrence !== 'string' || occurrence === '' || binding === undefined ||
+        typeof binding.sourceIdentity !== 'string' || binding.sourceIdentity === '' ||
+        typeof binding.scope?.app !== 'string' || binding.scope.app === '' ||
+        typeof binding.scope.owner !== 'string' || binding.scope.owner === '' ||
+        typeof binding.scope.ownerPackage !== 'string' || binding.scope.ownerPackage === '') {
+      throw new StateError('validation', 'Paged collections require a stable occurrence and checked host binding.');
+    }
+    const scope = [binding.scope.app, binding.scope.owner, binding.scope.ownerPackage, binding.sourceIdentity];
+    const cursors = binding.cursors;
+    let decoded: Extract<PageCursorDecoded, { status: 'valid' }> | undefined;
+    if (opts.args.cursor !== undefined) {
+      if (cursors === undefined) throw new StateError('validation', 'Collection pagination is unavailable.');
+      const proof = await cursors.decode(opts.args.cursor, (opts.now ?? Date.now)());
+      if (proof.status === 'valid') decoded = proof;
+      else throw new StateError(proof.status === 'stale' ? 'conflict' : 'validation', proof.status === 'stale'
+        ? 'Collection cursor expired; restart from the first page.' : 'Invalid collection cursor.');
+    }
+    const createReader = loaded.producers.transact.createReadPageInvoker;
+    if (createReader === undefined) throw new Error('State producer has no finite viewer page invoker.');
+    const reader = createReader({ registry: loaded.registry, models: loaded.models, containment: loaded.containment,
+      policy: loaded.policy, store: opts.store, memberships: opts.memberships });
+    const parentModel = opts.artifact.models?.find(model => model.name === opts.model)?.parent;
+    return reader({ envelope: { operation: `${opts.model}.read`, inputs: {} }, identity: opts.identity,
+      selection: {
+        ...selection,
+        ...(opts.args.parent === undefined ? {} : { parent: {
+          model: (parentModel ?? '') as ModelName, id: opts.args.parent.id as RecordId,
+        } }),
+        ...(decoded === undefined ? {} : { continuation: {
+          revision: decoded.position.revision as Revision, after: decoded.position.after as RecordId,
+        } }),
+      },
+    }, async page => {
+      // State constructs this closed tuple after admission; no caller object is hashed.
+      const bindingDigest = await sha256HexText(JSON.stringify([
+        ...scope, opts.model, opts.identity.actor?.user_id ?? null, opts.identity.team?.team_id ?? null,
+        occurrence, page.queryDefinition,
+      ]));
+      if (decoded !== undefined && !timingSafeEqualHex(decoded.bindingDigest, bindingDigest)) {
+        throw new StateError('conflict', 'Collection query or context changed; restart from the first page.');
+      }
+      if (page.continuation !== null && cursors === undefined) {
+        throw new StateError('validation', 'Collection pagination is unavailable.');
+      }
+      const nextCursor = page.continuation === null ? undefined :
+        await cursors!.encode(bindingDigest, page.continuation, (opts.now ?? Date.now)());
+      // The owning State invoker rechecks current authority and revision after this transform.
+      const visible = new Set(page.records.flatMap(record => Object.keys(record.data)));
+      return {
+        rows: page.records.map(record => ({ id: record.id, version: String(record.version), fields: record.data })),
+        columns: (loaded.collectionColumns.get(opts.model) ?? []).filter(column => visible.has(column.field)),
+        ...(nextCursor === undefined ? {} : { nextCursor }),
+        ...(page.totalCount === undefined ? {} : { totalCount: page.totalCount }),
+      };
+    });
+  }
+  if (opts.args.parent !== undefined || opts.args.cursor !== undefined) {
+    throw new StateError('validation', 'Ordinary collection reads do not accept a parent or cursor.');
+  }
+  assertCanonicalStore(opts.store, `${opts.model}.read`);
+  assertCanonicalMemberships(opts.memberships, `${opts.model}.read`);
+  if (loaded.ruledModels.has(opts.model)) throw ruledReadRefusal(StateError, opts.model);
+  const createReader = loaded.producers.transact.createReadPageInvoker;
+  if (createReader === undefined) throw new Error('State producer has no finite viewer page invoker.');
+  const reader = createReader({ registry: loaded.registry, models: loaded.models, containment: loaded.containment,
+    policy: loaded.policy, store: opts.store, memberships: opts.memberships });
+  return reader({ envelope: { operation: `${opts.model}.read`, inputs: {} }, identity: opts.identity,
+    selection, ...(sourceFilter === undefined ? {} : { generatedPredicate: sourceFilter }),
+  }, page => {
+    if (page.continuation !== null) {
+      throw new StateError('validation',
+        `Collection matched more than ${selection.limit ?? 25} rows. Narrow the query instead of truncating.`);
+    }
   // Only authorized projected field names can make a declared column visible.
   // Empty collections expose no field schema; private stored values are never read.
-  const visible = new Set(served.records.flatMap(record => Object.keys(record.data)));
-  return {
-    rows: served.records.map(record => ({ id: record.id, version: String(record.version), fields: record.data })),
-    columns: (loaded.collectionColumns.get(opts.model) ?? []).filter(column => visible.has(column.field)),
-  };
+    const visible = new Set(page.records.flatMap(record => Object.keys(record.data)));
+    return {
+      rows: page.records.map(record => ({ id: record.id, version: String(record.version), fields: record.data })),
+      columns: (loaded.collectionColumns.get(opts.model) ?? []).filter(column => visible.has(column.field)),
+      ...(page.totalCount === undefined ? {} : { totalCount: page.totalCount }),
+    };
+  });
 }
 
 /** Decode only the selected, authorized receipt values for generated Can expressions. */
@@ -5524,7 +5977,7 @@ function sourceReceiptProjection(
 
 /** One page render observes only its admitted rows at one readonly checkpoint. */
 export function createPageReadScopeCanonical(
-  opts: Omit<CanonicalReadOpts, 'operation' | 'inputs' | 'selection'>,
+  opts: CanonicalPageReadOpts,
 ): PageReadScope {
   const bindings = new Map<string, Set<string>>();
   let revision: number | undefined;
@@ -9775,6 +10228,97 @@ export interface RunRetainedFanoutSchedulerTurnOpts extends Omit<RunFanoutSchedu
   readonly retainedIntent: StoredRow;
   /** Co-stage an actual selected intent visit in the named owner scan row. */
   readonly advanceOwnerScan?: boolean;
+  /** Actual host owner boundary for source-authorized navigation without a child. */
+  readonly sourceOwner?: {
+    readonly boundary: import('../worker/assembly.js').TeamOwnerStorageBoundary;
+    readonly scope: import('@canlang/contracts').WorkScope;
+  };
+}
+
+/**
+ * Maintain a selected source's navigation, or wrap an exhausted owner scan.
+ * The actual owner boundary selects storage before any read; a scope or cursor
+ * alone cannot authorize the write. This never reports child completion.
+ */
+export async function maintainFanoutNavigationCanonical(opts: {
+  readonly boundary: import('../worker/assembly.js').TeamOwnerStorageBoundary;
+  readonly scope: import('@canlang/contracts').WorkScope;
+  readonly now: number;
+  readonly intentRow?: StoredRow;
+  readonly advanceOwnerScan?: boolean;
+}): Promise<{ readonly wrapped: boolean; readonly navigationWrite?: DomainWrite }> {
+  const { boundary, now, intentRow, advanceOwnerScan } = opts;
+  const scope = Object.freeze({ ...opts.scope });
+  const { store } = await boundary.forTrustedScope(scope, now);
+  const revision = await store.readRevision();
+  const module = await loadProducerModule('@canlang/state/fanout/navigation', 'state fanout maintenance');
+  const scanModel = requireProducerString(module, 'FANOUT_OWNER_SCAN_MODEL', 'state fanout maintenance') as ModelName;
+  const scanId = requireProducerFn(module, 'fanoutOwnerScanRowId', 'state fanout maintenance') as
+    typeof import('@canlang/state/fanout/navigation').fanoutOwnerScanRowId;
+  const stageScan = requireProducerFn(module, 'stageFanoutOwnerScanWrite', 'state fanout maintenance') as
+    typeof import('@canlang/state/fanout/navigation').stageFanoutOwnerScanWrite;
+  const scan = await store.load(scanModel, scanId(scope.owner) as RecordId);
+  const meta = { actor: 'scheduler:fanout-navigation', nowMs: now };
+  const writes: DomainWrite[] = [];
+  let navigationWrite: DomainWrite | undefined;
+  if (intentRow === undefined) {
+    const query = requireProducerFn(module, 'fanoutOwnerIntentQuery', 'state fanout maintenance') as
+      typeof import('@canlang/state/fanout/navigation').fanoutOwnerIntentQuery;
+    const readScan = requireProducerFn(module, 'readFanoutOwnerScanRow', 'state fanout maintenance') as
+      typeof import('@canlang/state/fanout/navigation').readFanoutOwnerScanRow;
+    if ((await store.query(query({ row: scan, owner: scope.owner, limit: 1 }))).length !== 0 || scan === null ||
+        readScan(scan, scope.owner).lastVisitedIntentId === null) {
+      return { wrapped: false };
+    }
+    writes.push(stageScan({ row: scan, owner: scope.owner, visitedIntentRow: null, meta }));
+  } else {
+    const producers = await loadFanoutStateProducers();
+    const current = await store.load(T34F7_FANOUT_INTENT_MODEL, intentRow.id);
+    if (current === null || current.version !== intentRow.version ||
+        JSON.stringify(producers.tables.readFanoutIntentRow(current)) !==
+          JSON.stringify(producers.tables.readFanoutIntentRow(intentRow))) {
+      throw new Error('Fanout maintenance requires its exact current frozen intent.');
+    }
+    const intent = producers.tables.readFanoutIntentRow(current);
+    const work = await loadProducerModule('@canlang/work/kernel/tables', 'fanout maintenance source');
+    const readSchedule = requireProducerFn(work, 'readScheduleRow', 'fanout maintenance source') as
+      typeof import('@canlang/work/kernel/tables').readScheduleRow;
+    const readReceipt = requireProducerFn(work, 'readOccurrenceRow', 'fanout maintenance source') as
+      typeof import('@canlang/work/kernel/tables').readOccurrenceRow;
+    const sourceRow = await store.load(requireProducerString(work, 'WORK_SCHEDULE_MODEL', 'fanout maintenance source') as ModelName,
+      intent.sourceOccurrence as RecordId);
+    const receiptRow = await store.load(requireProducerString(work, 'WORK_OCCURRENCE_MODEL', 'fanout maintenance source') as ModelName,
+      intent.sourceOccurrence as RecordId);
+    if (sourceRow === null || receiptRow === null) throw new Error('Fanout maintenance lost its admitted source.');
+    const source = readSchedule(sourceRow);
+    const receipt = readReceipt(receiptRow);
+    if (source.scopeApp !== scope.app || source.scopeOwner !== scope.owner || source.scopeOwnerPackage !== scope.ownerPackage ||
+        receipt.status !== 'completed' || !isUnknownRecord(receipt.result) || !Array.isArray(receipt.result.fanouts) ||
+        !receipt.result.fanouts.some((entry: unknown) => isUnknownRecord(entry) &&
+          entry.handler === intent.handler && entry.fanoutId === intent.fanoutId)) {
+      throw new Error('Fanout maintenance source receipt disagrees with its actual owner or retained route.');
+    }
+    const navigationModel = requireProducerString(module, 'FANOUT_NAVIGATION_MODEL', 'state fanout maintenance') as ModelName;
+    const navigationId = requireProducerFn(module, 'fanoutNavigationRowId', 'state fanout maintenance') as
+      typeof import('@canlang/state/fanout/navigation').fanoutNavigationRowId;
+    const stageNavigation = requireProducerFn(module, 'stageFanoutNavigationWrite', 'state fanout maintenance') as
+      typeof import('@canlang/state/fanout/navigation').stageFanoutNavigationWrite;
+    const row = await store.load(navigationModel, navigationId(scope.owner, intent.fanoutId) as RecordId);
+    const childQuery = requireProducerFn(module, 'fanoutNavigationChildQuery', 'state fanout maintenance') as
+      typeof import('@canlang/state/fanout/navigation').fanoutNavigationChildQuery;
+    if ((await store.query(childQuery({ row, owner: scope.owner, intentRow: current, limit: 1 }))).length !== 0) {
+      return { wrapped: false };
+    }
+    navigationWrite = stageNavigation({ row, owner: scope.owner, intentRow: current, visitedChildRow: null, meta });
+    writes.push(navigationWrite);
+    if (advanceOwnerScan === true) writes.push(stageScan({ row: scan, owner: scope.owner, visitedIntentRow: current, meta }));
+  }
+  // Revalidate actual current Identity and persisted physical owner pin nearest
+  // the same revision-fenced maintenance commit; no synthetic child is used.
+  await boundary.forTrustedScope(scope, now);
+  await store.commit({ expectedRevision: revision, writes, history: [], receipt: null,
+    outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [] });
+  return { wrapped: true, ...(navigationWrite === undefined ? {} : { navigationWrite }) };
 }
 
 /** One durable slice, not admission, coverage, or completion. */
@@ -9936,6 +10480,15 @@ export async function runRetainedFanoutSchedulerTurn(
   // Only an actually empty page wraps. A short or truncated page still resumes
   // after its last processed child; wrap never claims terminal coverage.
   if (page.rows.length === 0) {
+    if (opts.sourceOwner !== undefined) {
+      if (opts.sourceOwner.scope.owner !== opts.owner || opts.sourceOwner.scope.app !== opts.invoke.app) {
+        throw new Error('Retained navigation source owner disagrees with its actual invocation.');
+      }
+      const wrap = await maintainFanoutNavigationCanonical({ ...opts.sourceOwner,
+        now: opts.meta.nowMs, intentRow, advanceOwnerScan: opts.advanceOwnerScan === true });
+      if (!wrap.wrapped || wrap.navigationWrite === undefined) throw new Error('Retained source navigation did not wrap.');
+      acceptVisit(wrap.navigationWrite);
+    } else {
     const revision = await opts.store.readRevision();
     const retainedMember = intent.members[0];
     if (retainedMember === undefined) {
@@ -9953,6 +10506,7 @@ export async function runRetainedFanoutSchedulerTurn(
       writes: [visitWrite, ...(scanWrite === null ? [] : [scanWrite])], history: [], receipt: null,
       outbox: [], schedules: [], uniqueClaims: [], uniqueReleases: [] });
     acceptVisit(visitWrite);
+    }
   }
   return { status: 'turn', driven, released: released.released, releaseSkipped: released.skipped,
     cursor: navigationRow === null ? null : navigation.read(navigationRow, binding).lastVisitedChildId,

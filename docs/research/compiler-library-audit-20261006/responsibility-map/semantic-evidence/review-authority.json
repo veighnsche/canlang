@@ -195,6 +195,23 @@
       "different metadata with same dedup key could collapse by defined implementation; no demonstrated defect claim for hypothetical related/severity differences"
     ]
   },
-  "reproducibility": "Scope temporary source paths absent when reviewer attempted read; stdout source hash and emitted JS retained. Root must retain fixture bytes/recipe for exact paired replay.",
-  "mutations": "only review-authority.json/.md; no source, primary evidence, tests, manifests, Git or JEV calls"
+  "reproducibility": "Resolved: cases.json retains full scope-direct/derived/scenario source strings; reviewer SHA256 independently matches all three raw source hashes.",
+  "mutations": "only review-authority.json/.md; no source, primary evidence, tests, manifests, Git or JEV calls",
+  "retained_fixture_checks": [
+    {
+      "id": "scope-direct",
+      "sha256": "9071ea4c18a25958e248ca74ffc75de8fef11f7a16c6ea2645785e12d14f7837",
+      "matches_raw": true
+    },
+    {
+      "id": "scope-derived",
+      "sha256": "e5214f7968b64698aeba23d1c7a73355ed782c23f50cd18727e2ff93e77cff6e",
+      "matches_raw": true
+    },
+    {
+      "id": "scope-scenario",
+      "sha256": "a4f353727a8d01b3bb53170be792c3d21124c136f5ac67ad04acf31d5cf8ffae",
+      "matches_raw": true
+    }
+  ]
 }

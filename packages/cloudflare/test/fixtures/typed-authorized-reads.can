@@ -19,4 +19,27 @@ When
   do
    create Entry {count=count} as entry
    return sum(Entry as visible select visible.count)
+ ## Numeric filters evaluate native projected integers, preserving each viewer's grants.
+ scenario filtered(minimum:int) -> int by=public
+  do return sum(Entry as entry where entry.count>=minimum select entry.count)
+ scenario filteredSecret() -> int by=public
+  do return count(Entry as entry where entry.secret=="sensitive")
+ ## Later own writes must not change the query-time overlay used by its read guard.
+ scenario filteredStaged(count:int,accept:bool) -> int by=owner
+  do
+   create Entry {count=count} as entry
+   let selected=Entry as visible where visible.count==count
+   set entry {count=entry.count+1}
+   require accept
+   return sum(selected as visible select visible.count)
+ ## Admission remains public: losing a read grant must void even an empty selection.
+ scenario filteredEffect(minimum:int) -> int by=public
+  do
+   let selected=Entry as entry where entry.count>=minimum
+   create Entry {count=5} as marker
+   return count(selected)
+ scenario ascending() -> int[] by=public
+  do return Entry as entry order=entry.count select entry.count
+ scenario descending() -> int[] by=public
+  do return Entry as entry order=-entry.count select entry.count
 Then

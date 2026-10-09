@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { createLocalRowScope } from "../dev/row-scope.js";
 /**
  * `can-platform`: lane-07 delegation target for L1's thin
  * `can run|test|build|deploy` entries (IR-03).
@@ -45,9 +44,8 @@ import { createLocalRowScope } from "../dev/row-scope.js";
  *
  * B5-J3: `--artifact` is optional everywhere — absent means zero-config
  * discovery (`./dist/*.artifact.json`, exactly one or loud). `test`
- * boots the local harness via `@canlang/testkit` (dynamic import: the
- * testkit depends on this package, so no static edge) and reports zero
- * executed rows until the lane-01 test-module loader lands. `build`
+ * captures source/current runtime inputs, starts isolated D1 rows, and
+ * refuses zero-row artifacts. `build`
  * validates the artifact + asserts release lockstep. `deploy` runs the
  * compat gate, builds the portable worker bundle (P-B), renders the plan,
  * and writes `<stem>.deploy/` + `<stem>.deploy-plan.json` +
@@ -56,9 +54,7 @@ import { createLocalRowScope } from "../dev/row-scope.js";
  * writes nothing, bare deploy refuses. No path spawns wrangler without
  * `--yes`.
  */
-import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { access, mkdtemp } from "node:fs/promises";
+import { access, mkdtemp, readFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -74,7 +70,11 @@ import { loadArtifactFile, type LoadedArtifact } from "../runtime/artifact.js";
 import { assembleModules } from "../runtime/modules.js";
 import { activate } from "../deploy/activate.js";
 import { probeInstalledRuntime } from "../deploy/installed.js";
-import { assertDistReady, resolveLocalDefaults } from "../dev/zero-config.js";
+import { resolveLocalDefaults } from "../dev/zero-config.js";
+import { prepareLocalPreviewCapture } from "../dev/preview-inputs.js";
+import { captureSingleFileSource, verifyCompilerSources } from "../dev/source-capture.js";
+import { preflightLocalPreviewActivation, produceInstalledPortableBundle } from "../dev/preview-host.js";
+import { loadInstalledExampleTestkit, MissingExampleTestkitError, runCompiledExamples } from "../dev/example-runner.js";
 import { runDocs } from "./docs.js";
 // P02.2: envelope/output helpers, bundle loaders, dist/missing helpers and
 // the prepared build/deploy route live in the preparation host module;
@@ -84,7 +84,6 @@ import {
   PLATFORM_CLI_NAME,
   PLATFORM_CLI_VERSION,
   bundleStem,
-  distRootDir,
   emit,
   fail,
   loadBundleJson,
@@ -327,11 +326,8 @@ async function runActivate(artifactPath: string, env: string | null): Promise<vo
 /* ------------------------------------------------------------------ */
 
 /**
- * `test`: boot the local harness via `@canlang/testkit` (dynamic import
- * — the testkit statically depends on this package, so a static edge
- * would cycle) and report. Zero rows execute until the lane-01
- * test-module loader lands; the harness boot itself is the verified
- * local path.
+ * `test`: capture the exact source and installed runtime, then execute every
+ * compiled row through the real D1-backed canonical invoker.
  */
 async function runTest(artifactPath: string): Promise<void> {
   let loaded: LoadedArtifact;
@@ -340,53 +336,55 @@ async function runTest(artifactPath: string): Promise<void> {
   } catch {
     missingEmission("test", "execute");
   }
-  const defaults = resolveLocalDefaults({ artifactPath });
-  const distRoot = distRootDir();
+  if (loaded.artifact.tests.length === 0) {
+    fail("test", "missing-producer", "compiled artifact has zero example rows; zero-row results cannot pass",
+      { producer: "@canlang/testkit", contract: "compiled ArtifactTestModule rows" });
+  }
+  if (loaded.artifact.sources.length !== 1) {
+    fail("test", "profile-unsupported", "local examples require exactly one captured .can source");
+  }
+  const checkoutRoot = process.cwd();
+  const source = loaded.artifact.sources[0]!;
+  const compilerPath = process.env["CAN_COMPILER_BIN"] ?? join(checkoutRoot, "compiler/target/debug/can");
+  const request = prepareLocalPreviewCapture({
+    checkoutRoot, appPath: source.path, compilerPath,
+    catalogPath: join(checkoutRoot, "packages/values/dist/catalog.json"),
+    helpIndexPath: join(checkoutRoot, "docs/specification/CONSTRUCT-HELP.md"),
+  });
+  const capture = await captureSingleFileSource(request);
+  const sourceVerdict = verifyCompilerSources(capture, { complete: true, sources: loaded.artifact.sources });
+  if (!sourceVerdict.ok) fail("test", "source-stale", `compiled artifact source ${sourceVerdict.reason}`);
+  const activation = await preflightLocalPreviewActivation(loaded.artifact, capture);
+  if (!activation.active) fail("test", "activation-refused", activation.reasons.map(reason => reason.detail).join("; "));
+  const evidence = await produceInstalledPortableBundle({
+    artifact: loaded.artifact, capture, verdict: activation,
+    assets: { browser: true, valuesWasm: true },
+  });
+  let testkit;
   try {
-    await assertDistReady(distRoot);
+    testkit = await loadInstalledExampleTestkit();
   } catch (error) {
-    fail("test", "missing-dist", error instanceof Error ? error.message : String(error));
+    if (error instanceof MissingExampleTestkitError) {
+      fail("test", "missing-producer", error.message,
+        { producer: "@canlang/testkit", contract: "compiled example row executor" });
+    }
+    throw error;
   }
-  const workDir = await mkdtemp(join(tmpdir(), "can-platform-test-"));
-  const stdlibUrl = new URL("../runtime/stdlib.js", import.meta.url).href;
-  const asm = await assembleModules(loaded, { distRoot, workDir, stdlibUrl });
-  const entry = loaded.artifact.modules[0];
-  if (entry === undefined) {
-    fail("test", "invalid-artifact", `artifact ${artifactPath} has no modules`);
-  }
-  const modules: Record<string, string> = {};
-  for (const [name, url] of Object.entries(asm.moduleUrls)) {
-    modules[name] = readFileSync(new URL(url), "utf8");
-  }
-  const scope = await createLocalRowScope(randomUUID(), {
+  const defaults = resolveLocalDefaults({ artifactPath });
+  const result = await runCompiledExamples({
+    artifactBytes: await readFile(artifactPath), artifactLabel: artifactPath,
+    sourceRevision: capture.sourceRevision,
+    worker: {
+      mainModule: evidence.bundle.mainModule,
+      modules: evidence.bundle.modules,
+      binaryModules: evidence.bundle.binaries,
+    },
     workerName: defaults.workerName,
     compatibilityDate: defaults.compatibilityDate,
-    mainModule: entry.path,
-    modules,
-    d1Binding: "DB",
+    d1Binding: "DB", testkit,
   });
-  try {
-    await scope.snapshot();
-  } finally {
-    await scope.dispose();
-  }
-  const artifact = loaded.artifact;
-  process.stderr.write(
-    `test harness: worker ${defaults.workerName} booted, ` +
-      `${artifact.tests.length} test module(s), 0 rows executed\n`,
-  );
-  emit({
-    ok: true,
-    command: "test",
-    workerName: defaults.workerName,
-    modules: artifact.modules.length,
-    testModules: artifact.tests.length,
-    executed: 0,
-    note:
-      "harness boot verified via the platform local scope; row execution needs the " +
-      "lane-01 ArtifactTestModule loader (contract: can compile emission + " +
-      "ArtifactTestModule loader (§13 exampleFixtures))",
-  });
+  emit({ ok: result.ok, command: "test", executed: result.executed, report: result.report });
+  if (!result.ok) process.exitCode = 1;
 }
 
 /** `build`: prepared route; thin CLI delegation (P02.2). */

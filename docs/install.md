@@ -60,7 +60,8 @@ verification scope, tests and explicit opt-in native builds.
 
 For a built source checkout, point `CAN_PLATFORM_BIN` at the executable
 `packages/cloudflare/dist/cli/platform.js`, or put `node_modules/.bin` on
-`PATH`. The public build restores its executable mode.
+`PATH`. For `can dev`, use the sibling `CAN_DEV_BIN` override or the installed
+`can-dev` bin. The public build restores both executable modes.
 
 ## Shell completions
 
@@ -92,3 +93,5 @@ error, never silent output.
   `./can-catalog.json`).
 - `CAN_PLATFORM_BIN`: override path to the `can-platform` binary for the
   thin lane-7 entries (`run`/`test`/`build`/`deploy`/`activate`/`docs`).
+- `CAN_DEV_BIN`: override path to the `can-dev` JSON session client for
+  `can dev`.

@@ -28,7 +28,7 @@
  */
 import { diffReportValues } from "../assertions/equal.js";
 import type { CallerSelection } from "../fixtures/accounts.js";
-import { FixtureSetupError, scopeFacade, type RecipeSuite } from "../fixtures/recipes.js";
+import { FixtureSetupError, scopeFacade, type FixtureRecipeKind, type RecipeSuite } from "../fixtures/recipes.js";
 import type { CallOutcome, RowScope } from "./table.js";
 import type { ReportValue } from "@canlang/contracts";
 
@@ -54,6 +54,8 @@ export type InvokeCall = (call: StepCall) => Promise<CallOutcome>;
 export interface StashedRow {
   readonly fixtures: ReadonlyMap<string, unknown>;
   readonly inputs: unknown;
+  /** Evaluated request-envelope overrides from `request.*` table cells. */
+  readonly request?: unknown;
   /**
    * Table inputs BEFORE row-cell application (same roots the evaluated
    * `inputs` closure returned, so live provisioners can match applied
@@ -69,6 +71,21 @@ export interface StashedRow {
 
 export interface ExampleHooks {
   readonly invokeCall?: InvokeCall;
+  /** Persist and replace fixture values before input/expectation closures run. */
+  readonly prepareFixtures?: (
+    scope: RowScope,
+    fixtures: ReadonlyMap<string, unknown>,
+    required: readonly { readonly name: string; readonly kind: FixtureRecipeKind; readonly label?: string }[],
+  ) => ReadonlyMap<string, unknown> | Promise<ReadonlyMap<string, unknown>>;
+  /** Apply checked row cells to stored fixture roots before the row snapshot. */
+  readonly prepareRowCells?: (input: {
+    readonly scope: RowScope;
+    readonly fixtures: ReadonlyMap<string, unknown>;
+    readonly baselineInputs: unknown;
+    readonly inputs: unknown;
+    readonly selectors: readonly string[];
+    readonly cells: readonly unknown[];
+  }) => Promise<{ readonly fixtures: ReadonlyMap<string, unknown>; readonly inputs: unknown }>;
   /**
    * Supplies the `s` argument observation callbacks read. Defaults to
    * the row's static provisioned values; a live state facade plugs in

@@ -1167,6 +1167,56 @@ test('Checked input claims retain finite owning types and reject inconsistent me
   assert.equal(Object.hasOwn(checkArtifactOperation({ ...op({}), inputs: { fields: [inherited] } }).fields[0]!, 'valueType'), false);
 });
 
+test('Enum input claims preserve ordered cases and reject contradictory channels', () => {
+  const operation = (patch: Record<string, unknown> = {}): ArtifactOperation => ({
+    name: 'Claims.choose', kind: 'read', description: '',
+    inputs: { fields: [{ name: 'state', field: { kind: 'enum', values: ['draft', 'submitted'] },
+      required: false, valueType: 'enum(draft,submitted)', ...patch }] },
+  });
+  for (const array of [false, true]) for (const nullable of [false, true]) {
+    for (const required of [false, true]) for (const requiredArray of array ? [false, true] : [false]) {
+      const valueType = `enum(draft,submitted)${array ? '[]' : ''}${nullable ? '?' : ''}`;
+      const markers = { required, ...(array ? { array: { required: requiredArray } } : {}),
+        ...(nullable ? { nullable: true } : {}) };
+      const op = operation({ valueType, ...markers });
+      const checked = checkArtifactOperation(op).fields[0]!;
+      assert.equal('field' in checked && checked.valueType, valueType);
+      const catalog = catalogFromArtifactOperations({ artifact_version: 1, operations: [op] });
+      assert.deepEqual(catalog.derivedFor('Claims.choose')?.inputs, [{
+        name: 'state', kind: 'enum', enumValues: ['draft', 'submitted'], ...markers,
+      }]);
+      const element = { type: 'string', enum: ['draft', 'submitted'] };
+      const shape = array ? { type: 'array', items: element } : element;
+      assert.deepEqual(propertiesOf(toToolInputSchemaFromArtifact(op)), {
+        state: nullable ? { anyOf: [shape, { type: 'null' }] } : shape,
+      });
+      assert.equal(checkBoundArgument(derivedInput(catalog.derivedFor('Claims.choose')!, 'state'),
+        array ? ['submitted'] : 'submitted'), null);
+      assert.ok(checkBoundArgument(derivedInput(catalog.derivedFor('Claims.choose')!, 'state'),
+        array ? ['archived'] : 'archived'));
+      const nullFailure = checkBoundArgument(derivedInput(catalog.derivedFor('Claims.choose')!, 'state'), null);
+      if (nullable) assert.equal(nullFailure, null);
+      else assert.ok(nullFailure);
+    }
+  }
+  for (const patch of [
+    { valueType: undefined }, { valueType: 'text' }, { valueType: 'enum(submitted,draft)' },
+    { valueType: 'enum(draft)' }, { valueType: 'enum(draft,submitted,archived)' },
+    { valueType: 'enum(draft,draft)' }, { valueType: 'enum(draft,submitted)[][]' },
+    { valueType: 'enum(draft,submitted)[]!' }, { valueType: 'enum(draft,submitted)[]' },
+    { valueType: 'enum(draft,submitted)?' }, { field: { kind: 'string' } },
+    { field: { kind: 'enum', values: ['draft', 'draft'] } },
+    { field: { kind: 'enum', values: ['submitted', 'draft'] } },
+    { field: { kind: 'enum', values: ['draft', 'submitted', 'archived'] } },
+    { nullable: 'yes' }, { nullable: true }, { array: { required: false } },
+    { array: { required: 'yes' } }, { required: 'yes' },
+  ]) {
+    assert.equal(rejectionReason(() => checkArtifactOperation(operation(patch))), 'malformed_descriptor');
+    assert.equal(rejectionReason(() => catalogFromArtifactOperations({ artifact_version: 1,
+      operations: [operation(patch)] })), 'malformed_descriptor');
+  }
+});
+
 test('File input claims derive through the catalog and reject inconsistent profiles', () => {
   const operation = (patch: Record<string, unknown> = {}) => ({
     name: 'Claims.attach', kind: 'read', description: '',
