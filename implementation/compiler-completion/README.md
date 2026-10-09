@@ -83,6 +83,16 @@ Codex review of **1ee1239d** completed and identified grouped-target identity
 loss. Unwrapping syntax groups only for the checked field lookup fixes direct,
 single and nested inline/borrowed targets; the actual grouped HTTP/UI case and
 business-field refusal controls pass. Independent review accepts this correction.
+Codex review of **2db9200b** then identified dropped values-only receiving
+labels. Private decoded label parts now retain optional text and case maps
+independently, preserving the required public IR label shape. Actual
+English/Dutch pages pass **1/1** for same-name inherited captions, renamed
+values-only overrides and explicit whole labels, with existing receiving
+save/default/current/version, CSRF/case/stale/revocation controls intact.
+Field captions retain DESIGN's same-name inheritance rule; case labels inherit
+across names. The affected ExpenseFlow golden **1/1**, strict all-target Clippy
+and compiler-wide formatting pass. Independent HIGH source review accepts
+this bounded correction; current published-head Codex review remains due.
 
 Both affected structural goldens now pass **1/1** each, with positive inline and
 borrowed Tabs payload/save metadata in place of retired refusals. ExpenseFlow's
@@ -172,8 +182,15 @@ rejects unpublished draft5a12eb9e. Capability released **697022af** for the
 Contracts ES2022 workflow and runtime-only optional Testkit import. Its narrow
 source/workflow patches are consumed here; the actual Contracts command and
 Cloudflare owning build pass. These two prerequisites are released, not
-unavailable-owner blockers. The coordinator owns the shared package-boundary
-script correction; exported self-references are preserved while it is prepared.
+unavailable-owner blockers. Hosted CI at **17dfb0d5** confirms Contracts/editor
+and B1 pass and the package build now succeeds. The coordinator owns the
+exposed package-boundary script failure at example-runner.ts:47; exported
+self-references remain unchanged. B2 typechecking now exposes Cloudflare test
+Headers/DOM/JSON-import/signature errors, owned by its package/test owner.
+E2E reaches fixture compilation but lacks the real catalog and uses Given
+preferences; its workflow/fixture owner must reconcile setup and source syntax,
+plus missing CanDo draft and stale handbuilt TeamTasks source-hash fixtures.
+Compiler catalog, syntax and hash guards are preserved.
 The ready Compiler CI repair reconciles B1's stale three-diagnostic pin to the
 seven exact current tooltip/collapse/breadcrumb/edit/filter refusals, retaining
 exit10, complete diagnostics, zero other codes and no published artifact.

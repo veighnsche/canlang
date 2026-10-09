@@ -378,6 +378,12 @@ pub struct IrFieldLabel {
     pub values: Vec<(String, IrMessage)>,
 }
 
+/// Authored label parts before an inherited field caption is resolved.
+struct DecodedFieldLabel {
+    text: Option<IrMessage>,
+    values: Vec<(String, IrMessage)>,
+}
+
 /// One catalog-builtin reference needing an availability check at link time.
 ///
 /// PR5 seeds this from checked call positions; the JS lowering appends the
@@ -2570,6 +2576,18 @@ impl<'a> Cx<'a> {
 
     /// Decode a field-label value: plain message or `{text, values}`.
     fn decode_field_label(&mut self, module: ModuleId, key: &NodeKey) -> Option<IrFieldLabel> {
+        let label = self.decode_field_label_parts(module, key)?;
+        Some(IrFieldLabel {
+            text: label.text?,
+            values: label.values,
+        })
+    }
+
+    fn decode_field_label_parts(
+        &mut self,
+        module: ModuleId,
+        key: &NodeKey,
+    ) -> Option<DecodedFieldLabel> {
         let node = self.node(key)?.clone();
         match node.kind {
             SyntaxKind::Label => {
@@ -2590,16 +2608,36 @@ impl<'a> Cx<'a> {
                         _ => {}
                     }
                 }
-                text.map(|text| IrFieldLabel { text, values })
+                Some(DecodedFieldLabel { text, values })
             }
             SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path => self
                 .decode_message_node(module, &node)
-                .map(|text| IrFieldLabel {
-                    text,
+                .map(|text| DecodedFieldLabel {
+                    text: Some(text),
                     values: Vec::new(),
                 }),
             _ => None,
         }
+    }
+
+    fn decode_declared_field_label_parts(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+        owner: SymbolId,
+    ) -> Option<DecodedFieldLabel> {
+        let key =
+            self.program
+                .effects
+                .models
+                .get(&owner)
+                .and_then(|model| model.fields.iter().find(|field| field.field == symbol.id))
+                .or_else(|| {
+                    self.program.effects.records.get(&owner).and_then(|record| {
+                        record.fields.iter().find(|field| field.field == symbol.id)
+                    })
+                })
+                .and_then(|field| field.label)?;
+        self.decode_field_label_parts(symbol.module, &key)
     }
 
     /// Decode one `case=caption` label case.
@@ -7161,7 +7199,8 @@ impl<'a> Cx<'a> {
             ));
             return None;
         }
-        let (_, default, _, _, label, _) = self.decode_field(&symbol, *owner);
+        let (_, default, _, _, _, _) = self.decode_field(&symbol, *owner);
+        let label = self.decode_declared_field_label_parts(&symbol, *owner);
         let inherited_label = if enum_owner != field_id {
             self.program
                 .symbols
@@ -7171,7 +7210,7 @@ impl<'a> Cx<'a> {
                     let SymbolKind::Field { owner, .. } = enum_field.kind else {
                         return None;
                     };
-                    let (_, _, _, _, label, _) = self.decode_field(&enum_field, owner);
+                    let label = self.decode_declared_field_label_parts(&enum_field, owner);
                     label.map(|label| (enum_field.name, label))
                 })
         } else {
@@ -7300,14 +7339,14 @@ impl<'a> Cx<'a> {
             ResolvedType::Unknown,
             target.span,
         );
-        let label = label.or_else(|| {
+        let caption = label.and_then(|label| label.text).or_else(|| {
             inherited_label
                 .filter(|(name, _)| name == &symbol.name)
-                .map(|(_, label)| label)
+                .and_then(|(_, label)| label.text)
         });
-        let caption = label.map(|label| {
+        let caption = caption.map(|caption| {
             TypedExpr::new(
-                IrExpr::Message(label.text),
+                IrExpr::Message(caption),
                 ResolvedType::Scalar(Scalar::Text),
                 target.span,
             )
