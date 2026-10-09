@@ -1520,14 +1520,29 @@
     },
     "review_status": {
       "pr": "https://github.com/veighnsche/canlang/pull/134",
-      "revision": "72dcdbb247b2165518f3a25387eaf5933f9cb4bb",
+      "revision": "697022afc62d06a4ec3d909eb78bacdf44ab0ff9",
       "state": "Codex_code_and_security_reviews_completed_no_new_findings",
-      "action": "Actual Codex summary records both completed reviews for72dcdbb2; no current-revision findings. Older b68bc71 findings corrected and affected checks pass. Subsequent pushed changes still require their own Codex review; no whole-plan acceptance inferred."
+      "action": "Actual Codex summary records both completed reviews for697022af; no new findings. Subsequent pushed integration still requires its own Codex review; no whole-plan acceptance inferred."
     },
     "ci_status": {
-      "revision": "72dcdbb247b2165518f3a25387eaf5933f9cb4bb",
-      "implemented_tested_corrections": "Cloudflare optional late-bound Testkit resolution (owning build22/22 and typecheck without Testkit output pass); isolated Contracts ES2022 target (exact command passes).",
-      "remaining": "B1 current UI profile/entrypoint pins require released Compiler producers+matching tests fromPR133; consume exact focused revision rather than duplicate correction. Rust/Tools required draft5a12eb9e unavailable from remote, publisher/coordinator prerequisite. Subsequent head CI pending; prior Codex no-findings review does not establish CI or whole-plan completion."
+      "revision": "697022afc62d06a4ec3d909eb78bacdf44ab0ff9",
+      "implemented_tested_corrections": "Optional late-bound Testkit/Contracts ES2022 fixes now pass their CI boundaries. Consume released Compiler048a7383/1ee1239d/dac8596f and matching exact codegen5bb5a5f5/B1 file1a6c7633: current native semantic/runtime/UI checks11/11, codegen117/117 and strict B1 joins2/2 pass. Original input_choices artifact is byte-identical after current-CLI regeneration.",
+      "remaining": "Rust/Tools checkout: unpublished draft5a12eb9e, draft publisher/coordinator. Workspace106 package-boundary violations, Package/Work owners (including unchanged Work kernel source-route test). B2 root test types/config, Package build/Interfaces owners. E2E original TeamTasks source/artifact mismatch requires genuine fixture regeneration, source/fixture owner (no pin-only substitution). Conformance scenario File argument expectation disagrees with closed id carrier, Interfaces/Contracts owner. Subsequent head CI not yet run; Codex no-findings review does not establish CI or whole-plan completion."
+    },
+    "compiler_consumer_integration": {
+      "producer_pr": "https://github.com/veighnsche/canlang/pull/133",
+      "producer_revisions": [
+        "048a738309e51116aef074875f108b6be835b701",
+        "1ee1239d277ef2bc432dc3da54fe422dc563b4e0",
+        "dac8596fe34f3f5dad254308419a359fea60c918"
+      ],
+      "consumed_commits": [
+        "0fd5b83f",
+        "ba68853a",
+        "c3362272"
+      ],
+      "test_files": "Exact released codegen.rs at5bb5a5f51230bc9d7873b97f105881bce34d9686 and b1_join.rs at1a6c76337b419e6f0524dfc37141242dfda6f7f9; no unrelated compiler branch changes consumed.",
+      "validation": "Direct source-current Cargo checks pass: anonymous message semantic/native3/3, UI adapter7/7, generated nominal preference public HTTP/Identity/UI1/1, codegen117/117, B1 artifact joins2/2. Initial structural golden failure revealed omitted producer test dependency; exact released file consumed and affected suite passes. Conditional model-rule/read-grant/full application acceptance remains open."
     }
   },
   "live_handoffs": {
