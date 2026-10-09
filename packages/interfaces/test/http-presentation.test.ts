@@ -9,6 +9,8 @@ import { DEFAULT_THEME } from '@canlang/contracts';
 import type {
   AdmittedBindings,
   PageDescriptor,
+  PageDeliveryObserver,
+  PageRecordsReader,
   PresentationContext,
   ResolvedIdentity,
   RowQueryRunner,
@@ -103,6 +105,37 @@ test('page source roles require an active membership matching the selected actor
   }
   const owner = buildPageSourceContext({ ...identity, membership: { ...identity.membership!, roles: [] } });
   assert.deepEqual(owner.memberships, []);
+});
+
+test('presentation installs exact scoped native readers without exposing effects or losing source facts', async () => {
+  const principal = fakeIdentity();
+  const source = buildPageSourceContext(principal);
+  const records = [{ id: 'row-one', title: 'Granted title' }];
+  const selectors = { where: { authored: true }, authority: 'viewer' as const };
+  const readRecords: PageRecordsReader = async (model, query) => {
+    assert.equal(model, 'TestApp.Todo');
+    assert.equal(query, selectors);
+    return records;
+  };
+  const observeDelivery: PageDeliveryObserver = async () => null;
+  const context = buildPresentationContext({ request: testRequest('/hello'), pathname: '/hello',
+    isPartial: false, appDefaultLocale: 'en', csrfToken: '', principal, source,
+    query: fakeQuery(), readRecords, observeDelivery });
+  assert.equal(context.canonical?.builtinRoles, source.canonical.builtinRoles);
+  assert.equal(context.canonical?.readRecords, readRecords);
+  assert.equal(context.canonical?.observeDelivery, observeDelivery);
+  assert.equal(await context.canonical!.readRecords!('TestApp.Todo', selectors), records);
+  assert.deepEqual(Object.keys(context.canonical!), ['builtinRoles', 'readRecords', 'observeDelivery']);
+  assert.equal(Object.isFrozen(context.canonical), true);
+  assert.equal('readRecords' in source.canonical, false);
+});
+
+test('unbound presentation source reads explicitly refuse', async () => {
+  const context = buildPresentationContext({ request: testRequest('/hello'), pathname: '/hello',
+    isPartial: true, appDefaultLocale: 'en', csrfToken: '', principal: fakeIdentity(), query: fakeQuery() });
+  await assert.rejects(context.canonical!.readRecords!('TestApp.Todo', {}), {
+    code: 'validation', message: 'Authorized page source reads are not configured.', retryable: false,
+  });
 });
 
 test('buildPresentationContext honors isPartial and caps locale tags at 10', () => {
