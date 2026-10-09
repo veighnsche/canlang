@@ -69,6 +69,7 @@ fn operation_order_omissions_and_present_empty_metadata() {
         description: "é😀\n\t\u{8}\u{c}\u{1}\"\\".into(),
         inputs: vec![input],
         result: None,
+        disclosure: None,
     };
     assert_eq!(
         operations_json(&[operation]),

@@ -432,3 +432,70 @@ fn erroneous_unresolved_and_recursive_cohorts_publish_no_private_map() {
         assert!(program.scenario_disclosures().is_empty());
     }
 }
+
+#[test]
+fn nullable_model_presence_comparisons_decline_but_scalar_presence_is_supported() {
+    let source = r#"app Presence
+Given
+ Item {optional:text?}
+ policy Item read=members
+When
+ scenario equal(item:Item?) -> bool by=members
+  do return item==null
+ scenario unequal(item:Item?) -> bool by=members
+  do return null!=item
+ scenario control(item:Item?) -> int by=members
+  do
+   if item!=null
+    return 1
+   else
+    return 2
+ scenario scalar(item:Item) -> bool by=members
+  do return item.optional==null
+Then
+"#;
+    let (_, program) = checked(&[("presence.can", source)]);
+    for name in ["equal", "unequal", "control"] {
+        let ScenarioDisclosure::Declined(value) = fact(&program, &format!("Presence.{name}"))
+        else {
+            panic!("{name} must decline reference-presence influence");
+        };
+        assert!(
+            value
+                .influences
+                .iter()
+                .any(|i| i.kind == InfluenceKind::AbsentReference)
+        );
+    }
+    let value = complete(&program, "Presence.scalar");
+    assert_eq!(value.returns.len(), 1);
+    assert_eq!(value.returns[0].dependencies.len(), 1);
+    assert_eq!(value.returns[0].dependencies[0].type_id, "text?");
+}
+
+#[test]
+fn unsupported_stored_scalar_types_decline_even_when_the_result_is_boolean() {
+    let source = r#"app StoredTypes
+Given
+ Item {address:email,content:bytes,attachment:file?,private_value:secret? server=random_secret()}
+ policy Item read=members
+When
+ scenario address(item:Item,value:email) -> bool by=members
+  do return item.address==value
+ scenario content(item:Item,value:bytes) -> bool by=members
+  do return item.content==value
+ scenario attachment(item:Item) -> bool by=members
+  do return item.attachment==null
+ scenario private_value(item:Item) -> bool by=members
+  do return item.private_value==null
+Then
+"#;
+    let (_, program) = checked(&[("stored-types.can", source)]);
+    for name in ["address", "content", "attachment", "private_value"] {
+        let ScenarioDisclosure::Declined(value) = fact(&program, &format!("StoredTypes.{name}"))
+        else {
+            panic!("{name} must decline the unsupported stored dependency type");
+        };
+        assert_eq!(value.reason, "unsupported stored field type");
+    }
+}

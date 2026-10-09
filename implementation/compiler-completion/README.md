@@ -266,14 +266,32 @@ actual evaluation recipes in IR. Private source/IR **7/7** and four analyzer
 cases qualify immutable aliases, imported/defaulted derives, branch/short-
 circuit order, exact source identities and whole-decline/resource boundaries.
 Review corrected argument/return chronology, authority-dependent values and
-stored bounded-alias identity. These are private facts: canonical plan emission
-and genuine evaluated read/return capture remain unfinished. Derive sites and
-mutation/query/composite profiles must stay unpublished until their complete
-lowering and observation joins exist. Dev owns the genuine native context/row/
-registered-store bridge and lifetime. No source/native workflow, broader
-reference or separate BDD3 returned/as/live/context/disclosure/input policy
-release follows. Corrected shared baseline **3204bca9** is consumed with affected
-dependency/Cloudflare build **22/22**; unchanged owner checks retain their scopes.
+stored bounded-alias identity. Corrected shared baseline **3204bca9** is consumed
+with affected dependency/Cloudflare build **22/22**; unchanged owner checks
+retain their scopes.
+
+**Bounded native saved-result producer (unfinished), 2026-10-09.** Exact Dev
+**180676b5** supplies genuine context/row/registered-store capture; exact State
+**08b49784** withholds unsupported multi-member authority. Actual dependency/
+Cloudflare/Testkit build **26/26** and the private frame's **3/3** pass. Compiler
+`--native-scenario-receipts` publishes only complete scalar closures whose
+every read, choice and return maps to actual native IR. Default compilation
+keeps its existing callable ABI. Each receiver/field evaluates once, observations
+are awaited sequentially, and the executed return is selected after its value.
+Artifact and registry share the same descriptor serializer and actual entry
+module identity. Genuine CLI→installed native assembly→State Memory **1/1**
+passes **21 selected invocations plus replay**, including data/control IDs,
+short-circuit/coalesce/alias order, enum-input match, void fallthrough, refusal,
+saved original value after row change, no replay commits and current-membership
+withholding through State's released projection. Conservative source repairs
+qualify **9/9** checked/IR cases and four analyzer cases: nullable model presence
+and unsupported stored scalar comparisons cannot claim empty proofs.
+
+Dev's actual native compiler caller still needs the released opt-in flag;
+public retained-result projection, complete derived-read/mutation/query/
+composite/hook/lifetime joins and full changed-source qualification remain
+unfinished. No broader reference or separate BDD3 returned/as/live/context/
+disclosure/input policy release follows. Original **58/67** and all holds remain.
 
 **Unfinished native activation — generated CRUD owner entry, 2026-10-09.**
 Exact local Capability **7df9683e** source/test unit is consumed. Generated CRUD

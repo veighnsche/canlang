@@ -88,6 +88,7 @@ pub struct DisclosureReturn {
 #[derive(Debug, Clone)]
 pub struct CheckedScenarioDisclosure {
     pub scenario: SymbolId,
+    pub node: NodeKey,
     pub source: DisclosureSource,
     pub returns: Vec<DisclosureReturn>,
 }
@@ -218,6 +219,7 @@ pub fn analyze_scenario_disclosure(
             }
             Ok(CheckedScenarioDisclosure {
                 scenario: scenario.scenario,
+                node: scenario.node,
                 source,
                 returns,
             })
@@ -310,6 +312,9 @@ impl Closure<'_> {
         field: SymbolId,
         ty: &ResolvedType,
     ) -> Result<String, DisclosureDecline> {
+        if !result_type(ty) {
+            return Err(self.fail(key, "unsupported stored field type"));
+        }
         let Some(alias) = self
             .types
             .value_constraints
@@ -623,19 +628,22 @@ impl Closure<'_> {
                             .get(n.span.start as usize..n.span.end as usize)
                     })
                     .ok_or_else(|| self.fail(key, "missing checked operator"))?;
+                if matches!(op, "??" | "==" | "!=")
+                    && children.iter().any(|operand| {
+                        matches!(self.types.node_types.get(&NodeKey::of(operand)),
+                            Some(ResolvedType::Nullable(inner))
+                                if matches!(inner.as_ref(), ResolvedType::Record { .. }))
+                    })
+                {
+                    return Err(self.influence(
+                        key,
+                        module,
+                        &[InfluenceKind::AbsentReference],
+                        "nullable reference selection or comparison",
+                    ));
+                }
                 let left = self.expr(NodeKey::of(children[0]), module, env, calls)?;
                 if matches!(op, "and" | "or" | "??") {
-                    if op == "??"
-                        && matches!(self.types.node_types.get(&NodeKey::of(children[0])),
-                        Some(ResolvedType::Nullable(inner)) if matches!(inner.as_ref(), ResolvedType::Record { .. }))
-                    {
-                        return Err(self.influence(
-                            key,
-                            module,
-                            &[InfluenceKind::AbsentReference],
-                            "nullable reference selection",
-                        ));
-                    }
                     let right = self.expr(NodeKey::of(children[1]), module, env, calls)?;
                     if left.len().saturating_mul(right.len().saturating_add(1)) > 1024 {
                         return Err(self.fail(key, "short-circuit path bound"));
@@ -1284,6 +1292,9 @@ fn result_type(ty: &ResolvedType) -> bool {
 }
 
 fn exact_type_id(ty: &ResolvedType, resolve: &ResolveTables) -> Option<String> {
+    if !result_type(ty) {
+        return None;
+    }
     let mut ty = ty;
     let mut suffix = String::new();
     for _ in 0..64 {

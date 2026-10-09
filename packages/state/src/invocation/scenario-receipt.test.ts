@@ -179,6 +179,57 @@ describe('execution-associated saved scenario disclosure', () => {
     assert.deepEqual(await w.store.readReceipt(receipt.identity), receipt);
   });
 
+  it('withholds stable and oscillating multi-member authority profiles pending a coherent Identity snapshot', async () => {
+    for (const mode of ['stable', 'oscillating'] as const) {
+      const w = await world(); const receipt = await save(w);
+      const seededSubject = await seedMember(w.memberships, { teamId: w.member.team.team_id,
+        isOwner: false, roles: ['Shop.review'] });
+      const caller = w.member.membership, subject = seededSubject.membership;
+      const registry = loadArtifactDescriptors(artifact(), { by: { and: ['members',
+        { roleSubject: { role: 'Shop.review', person: subject.user_id } }] } }).registry;
+      const policy = buildPolicyTable([{ model: MODEL, secretFields: [],
+        grants: [{ by: 'members', fields: ['visible', 'private', 'token'] }] }]);
+      const snapshot = async () => ({ revision: await w.store.readRevision(),
+        row: await w.store.load(MODEL, w.row.id), history: await w.store.historyFor(MODEL, w.row.id),
+        outbox: await w.store.outboxPending(), receipt: await w.store.readReceipt(receipt.identity) });
+      const before = await snapshot();
+      // Port concurrency control, not Identity/native mutation proof. The
+      // owning Identity remove/reactivate/setRoles operations preserve IDs
+      // and can repeat updated_at under a fixed clock; model that interleave.
+      let liveCaller = caller, liveSubject = subject;
+      const memberships = { findMembership: async (team: string, user: string) => {
+        if (mode === 'oscillating') {
+          assert.equal(team, caller.team_id);
+          if (user === caller.user_id) {
+            liveSubject = { ...subject, status: 'removed', roles: [] };
+            liveCaller = { ...caller, status: 'active' };
+          } else {
+            assert.equal(user, subject.user_id);
+            liveCaller = { ...caller, status: 'removed' };
+            liveSubject = { ...subject, status: 'active' };
+          }
+          assert.equal(liveCaller.status === 'active' && liveSubject.status === 'active' &&
+            liveSubject.roles.some(role => role.role === 'Shop.review'), false);
+          return user === caller.user_id ? liveCaller : liveSubject;
+        }
+        const current = await w.memberships.findMembership(team, user);
+        assert.equal(current?.status, 'active');
+        return current;
+      } };
+      // Per-person values repeat in both variants; only the stable variant
+      // has a jointly authorized point in the underlying current profile.
+      const sampledCaller = await memberships.findMembership(caller.team_id, caller.user_id);
+      const sampledSubject = await memberships.findMembership(subject.team_id, subject.user_id);
+      assert.equal(sampledCaller?.status, 'active'); assert.equal(sampledSubject?.status, 'active');
+      assert.ok(sampledSubject?.roles.some(role => role.role === 'Shop.review'));
+      assert.deepEqual(await memberships.findMembership(caller.team_id, caller.user_id), sampledCaller);
+      assert.deepEqual(await memberships.findMembership(subject.team_id, subject.user_id), sampledSubject);
+      assert.deepEqual(await projectScenarioReceipt({ ...w, registry, policy, memberships, receipt }),
+        { result: null, records: [] });
+      assert.deepEqual(await snapshot(), before);
+    }
+  });
+
   it('accepts final provisional own-row reads and refuses intermediate or uncaptured reads before domain commit', async () => {
     for (const mode of ['final', 'intermediate', 'missing'] as const) {
       const w = await world();

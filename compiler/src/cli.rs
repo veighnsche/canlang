@@ -293,7 +293,12 @@ pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult
     match cmd.as_str() {
         "check" => run_check_like(cmd, &parsed.operands, parsed.format, analyzer),
         "lint" => run_lint(&parsed.operands, parsed.format, parsed.fix, analyzer),
-        "compile" => run_compile(&parsed.operands, parsed.format, analyzer),
+        "compile" => run_compile(
+            &parsed.operands,
+            parsed.format,
+            analyzer,
+            parsed.native_scenario_receipts,
+        ),
         "fmt" => {
             if parsed.format_set {
                 return DispatchResult::tool_error(
@@ -447,6 +452,7 @@ struct ParsedArgs {
     /// `can lint --fix`: compute machine fixes and report them (JSON
     /// gains a sorted `fixes` array; text gains one `fix` line each).
     fix: bool,
+    native_scenario_receipts: bool,
     /// `can docs --locale=TAG`: requested reference locale (selected by
     /// the TS renderer; absent means the app default plus source fallback).
     locale: Option<String>,
@@ -472,6 +478,7 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
         catalog_set: false,
         fmt_check: false,
         fix: false,
+        native_scenario_receipts: false,
         locale: None,
         locale_set: false,
         out: None,
@@ -497,6 +504,8 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
                 parsed.fmt_check = true;
             } else if arg == "--fix" {
                 parsed.fix = true;
+            } else if arg == "--native-scenario-receipts" {
+                parsed.native_scenario_receipts = true;
             } else if let Some(value) = arg.strip_prefix("--format=") {
                 parsed.format = parse_format(value)?;
                 parsed.format_set = true;
@@ -563,6 +572,9 @@ fn parse_args(args: &[String]) -> Result<ParsedArgs, String> {
     }
     if parsed.fix && parsed.subcommand.as_deref() != Some("lint") {
         return Err("--fix only applies to can lint".to_string());
+    }
+    if parsed.native_scenario_receipts && parsed.subcommand.as_deref() != Some("compile") {
+        return Err("--native-scenario-receipts only applies to can compile".to_string());
     }
     if parsed.locale_set && parsed.subcommand.as_deref() != Some("docs") {
         return Err("--locale only applies to can docs".to_string());
@@ -639,6 +651,7 @@ Options:
   --format=json|text   Machine or human output (check, compile, lint, explain, policy; docs diagnostics only)
   --catalog=PATH       Producer catalog (check, compile, lint, policy, docs; else CAN_CATALOG,
                        ./can-catalog.json, ./packages/values/dist/catalog.json)
+  --native-scenario-receipts  Emit retained-result capture for the native State runtime (compile only)
   --locale=TAG         Reference locale (docs only; default is the app default + source fallback)
   --out=PATH           Write the reference to PATH instead of stdout (docs only; never a .can source)
   -h, --help           Show help (global or `can <COMMAND> --help`)
@@ -663,7 +676,7 @@ fn command_help(cmd: &str) -> String {
         "lint" => format!(
             "can {cmd} — analyze sources, then run lint rules over the checked program (recommended rules; warnings/informational only, never blocking)\n\nUsage: can {cmd} [--fix] [--format=json|text] [--catalog=PATH] FILE.can...\n\nAnalysis errors report diagnostics with exit 10 and no lint findings. On a clean analysis the lint findings print as the diagnostic envelope (exit 0: warnings never block). With --fix, machine fixes are computed and reported (JSON gains a sorted `fixes` array; text gains one `fix` line per fix); nothing is written.\n\nExit codes: 0 findings-or-clean, 10 analysis errors reported, 2 tool failure.\n"
         ),
-        "compile" => "can compile — analyze sources and emit the compile artifact\n\nUsage: can compile [--format=json|text] [--catalog=PATH] FILE.can...\n\nText lists one emitted module path per line; json prints the artifact envelope. Analysis or emission errors (E6006/E6007/E6008) report diagnostics instead of an artifact.\n\nExit codes: 0 emitted, 10 errors reported, 2 tool failure.\n".to_string(),
+        "compile" => "can compile — analyze sources and emit the compile artifact\n\nUsage: can compile [--format=json|text] [--catalog=PATH] [--native-scenario-receipts] FILE.can...\n\nText lists one emitted module path per line; json prints the artifact envelope. --native-scenario-receipts emits complete supported retained-result capture for the native State runtime; use its Cloudflare runtime stdlib facade. Analysis or emission errors (E6006/E6007/E6008) report diagnostics instead of an artifact.\n\nExit codes: 0 emitted, 10 errors reported, 2 tool failure.\n".to_string(),
         "explain" => "can explain — print a diagnostic catalog entry\n\nUsage: can explain [--format=json|text] CODE\n\nExit codes: 0 printed, 2 unknown code (E7003) or bad usage.\n".to_string(),
         "fmt" => "can fmt — format sources canonically\n\nUsage: can fmt [--check] [FILE.can...|-]\n\nFormats each file in place, writing only files that change. With no operands, or `-`, reads stdin and writes the formatted text to stdout. `--check` writes nothing and lists the files that differ instead. Parse failures print the machine-JSON diagnostic envelope on stdout and write nothing. Exit codes: 0 clean, 10 errors or differences reported, 2 tool failure.\n".to_string(),
         "lsp" => "can lsp — run the language server over stdio\n\nUsage: can lsp\n\nSpeaks Content-Length JSON-RPC; see the transport module docs.\nStdin EOF shuts the server down with the lifecycle exit code; a\nshutdown request followed by the exit notification exits 0, exit\nwithout shutdown exits 1.\n\nExit codes: 0 clean shutdown (shutdown+exit, or stdin EOF), 1 exit without shutdown, 2 tool failure.\n".to_string(),
@@ -761,6 +774,7 @@ fn run_compile(
     operands: &[String],
     format: OutputFormat,
     analyzer: &dyn Analyzer,
+    native_scenario_receipts: bool,
 ) -> DispatchResult {
     if operands.is_empty() {
         return DispatchResult::tool_error(
@@ -799,7 +813,10 @@ fn run_compile(
         db: &db,
         result: &result,
         catalog: owned.catalog.as_ref(),
-        options: crate::codegen::EmitOptions::new(),
+        options: crate::codegen::EmitOptions {
+            native_scenario_receipts,
+            ..crate::codegen::EmitOptions::new()
+        },
     };
     let (artifact, emit_diags) = crate::codegen::emit(&program, &sources);
     for diagnostic in emit_diags {
