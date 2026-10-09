@@ -4,6 +4,9 @@
  * input inventory; the session owns capture, revisions, and promotion.
  */
 import { createHash, randomUUID } from "node:crypto";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { ActivationVerdict, CompileArtifact } from "@canlang/contracts";
 import { CSRF_FIELD, PRESESSION_FIELD, TEAM_FIELD } from "@canlang/contracts";
 import { deriveCsrfToken, parseSessionCookie } from "@canlang/identity";
@@ -76,7 +79,7 @@ export interface LocalPreviewBuilderOptions {
   /** Trusted T06 producer runs the actual activation gates for this local build. */
   readonly activationVerdict?: (artifact: CompileArtifact, capture: SingleFileCapture) => Promise<ActivationVerdict>;
   /** Recheck the same gates on the serving Worker's actual DB before exposure. */
-  readonly confirmRunningActivation?: (artifact: CompileArtifact, capture: SingleFileCapture, db: D1Database, databaseId: string) => Promise<ActivationVerdict>;
+  readonly confirmRunningActivation?: (artifact: CompileArtifact, capture: SingleFileCapture, db: D1Database, databaseId: string, owner: string) => Promise<ActivationVerdict>;
   /** Trusted installed-package producer. No provider means no ready preview. */
   readonly produceBundle?: (request: LocalPreviewBundleRequest) => Promise<PortableBundleEvidence>;
   /** T06 host configuration, called only after the protected loopback origin exists. */
@@ -95,6 +98,8 @@ export interface LocalPreviewActor {
 export interface LocalPreviewSeed {
   readonly actors: readonly LocalPreviewActor[];
   readonly probe: { readonly email: string; readonly password: string; readonly teamId: string };
+  /** Trusted Identity producer output; never selected by browser request data. */
+  readonly owners: readonly { readonly owner: string; readonly binding: string }[];
 }
 
 export type LocalPreviewWithActors = SessionServicePreview & {
@@ -259,7 +264,7 @@ export function selectPreviewWorkerVars(options: LocalPreviewBuilderOptions, ori
     fail("RESOURCE_INVALID", "preview Worker vars must be an object");
   }
   if (vars !== undefined && Object.keys(vars).some(key => [
-    "DB", "STATE_DB", "CAN_STATE_OWNER", "CAN_STATE_INITIALIZE_FRESH", "CAN_AUTH_ORIGIN",
+    "DB", "STATE_DB", "STATE_CEDAR_DB", "STATE_OAK_DB", "CAN_STATE_OWNER", "CAN_STATE_OWNERS", "CAN_STATE_INITIALIZE_FRESH", "CAN_AUTH_ORIGIN",
   ].includes(key))) {
     fail("RESOURCE_INVALID", "preview Worker vars cannot replace D1, owner or selected auth origin bindings");
   }
@@ -378,6 +383,7 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
     if (!(await captureIsCurrent(capture))) fail("SOURCE_CHANGED", "preview inputs changed during bundle production");
     let worker: LocalDev | null = null;
     let bridge: ProtectedPreview | null = null;
+    let persistence: string | null = null;
     try {
       // The bridge is inaccessible until issueOpenUrl is returned after all
       // probes. Its chosen origin can therefore configure the real auth host.
@@ -389,34 +395,58 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
       });
       const vars = selectPreviewWorkerVars(options, bridge.url);
       const databaseId = `can-preview-${randomUUID()}`;
+      if (options.seedLocalActors === undefined) {
+        fail("IDENTITY_UNAVAILABLE", "real local Identity seed producer is unavailable");
+      }
+      persistence = await mkdtemp(join(tmpdir(), "can-preview-d1-"));
+      const provisioning = await startLocalDev({
+        workerName: `can-preview-provision-${randomUUID()}`,
+        compatibilityDate: PINNED_COMPATIBILITY_DATE,
+        mainModule: "provision.js",
+        modules: { "provision.js": "export default { fetch() { return new Response(null, {status:404}); } };" },
+        d1Databases: [{ binding: "DB", id: databaseId }],
+        d1Persist: persistence,
+      });
+      let seed: LocalPreviewSeed;
+      try { seed = await options.seedLocalActors(await provisioning.getD1Database("DB")); }
+      finally { await provisioning.dispose(); }
+      if (seed.actors.length !== 4 || !seed.actors.some(actor => actor.email === seed.probe.email && actor.password === seed.probe.password) ||
+          seed.owners.length !== 2 || new Set(seed.owners.map(owner => owner.owner)).size !== 2 ||
+          new Set(seed.owners.map(owner => owner.binding)).size !== 2 ||
+          !seed.owners.some(owner => owner.owner === seed.probe.teamId) ||
+          seed.owners.some(owner => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(owner.owner) ||
+            !["STATE_CEDAR_DB", "STATE_OAK_DB"].includes(owner.binding))) {
+        fail("IDENTITY_UNAVAILABLE", "real local Identity seed did not provide the expected isolated team matrix");
+      }
+      const ownerDatabases = seed.owners.map(owner => ({ ...owner, id: `can-preview-owner-${randomUUID()}` }));
       worker = await startLocalDev({
         workerName: `can-preview-${randomUUID()}`,
         compatibilityDate: PINNED_COMPATIBILITY_DATE,
         mainModule: bundle.mainModule,
         modules: bundle.modules,
         binaryModules: bundle.binaries,
-        d1Databases: [{ binding: "DB", id: databaseId }],
-        vars,
+        d1Databases: [{ binding: "DB", id: databaseId }, ...ownerDatabases.map(owner => ({ binding: owner.binding, id: owner.id }))],
+        d1Persist: persistence,
+        vars: { ...vars, CAN_STATE_OWNERS: { version: 1, owners: ownerDatabases.map(owner => ({
+          owner: owner.owner, binding: owner.binding, initializeFresh: true,
+        })) } },
       });
       if (options.confirmRunningActivation === undefined) {
         fail("ACTIVATION_UNAVAILABLE", "serving D1 activation confirmation is unavailable");
       }
-      const runningVerdict = await options.confirmRunningActivation(artifact, capture, await worker.getD1Database("DB"), databaseId);
-      if (runningVerdict.active !== true) {
-        fail("ACTIVATION_REFUSED", "serving D1 activation gates refused this preview build");
-      }
-      if (options.seedLocalActors === undefined) {
-        fail("IDENTITY_UNAVAILABLE", "real local Identity seed producer is unavailable");
-      }
-      const seed = await options.seedLocalActors(await worker.getD1Database("DB"));
-      if (seed.actors.length !== 4 || !seed.actors.some(actor => actor.email === seed.probe.email && actor.password === seed.probe.password)) {
-        fail("IDENTITY_UNAVAILABLE", "real local Identity seed did not provide the expected member matrix");
+      for (const owner of ownerDatabases) {
+        const runningVerdict = await options.confirmRunningActivation(artifact, capture,
+          await worker.getD1Database(owner.binding), owner.id, owner.owner);
+        if (runningVerdict.active !== true) {
+          fail("ACTIVATION_REFUSED", "serving owner D1 activation gates refused this preview build");
+        }
       }
       await probeWorker(worker, bundle, bridge.url, seed);
       if (!(await captureIsCurrent(capture))) fail("SOURCE_CHANGED", "preview inputs changed during startup");
       const protectedBridge = bridge;
       const builtWorker = worker;
       const builtBundle = bundle;
+      const ownedPersistence = persistence;
       const exactArtifactBytes = new Uint8Array(artifactBytes);
       const workerName = `can-preview-examples-${randomUUID()}`;
       let actors: readonly LocalPreviewActor[] | null = seed.actors;
@@ -450,13 +480,17 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
           if (disposing !== null) return disposing;
           actors = null;
           disposing = (async () => {
-            try { await protectedBridge.close(); } finally { await builtWorker.dispose(); }
+            try { await protectedBridge.close(); }
+            finally { try { await builtWorker.dispose(); } finally { await rm(ownedPersistence, { recursive: true, force: true }); } }
           })();
           return disposing;
         },
       };
     } catch (error) {
-      try { await bridge?.close(); } finally { await worker?.dispose(); }
+      try { await bridge?.close(); }
+      finally { try { await worker?.dispose(); } finally {
+        if (persistence !== null) await rm(persistence, { recursive: true, force: true });
+      } }
       throw error;
     }
   };

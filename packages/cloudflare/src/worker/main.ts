@@ -62,7 +62,7 @@
 
 import type { ActivationVerdict, CompileArtifact, PageDescriptor, StoragePort, WorkScope } from "@canlang/contracts";
 import type { IdentityStore } from '@canlang/identity';
-import type { StateTeamBinding } from '../runtime/env-assembly.js';
+import type { StateTeamBinding, StateTeamBindings } from '../runtime/env-assembly.js';
 import type { PagePreferenceStore } from '@canlang/interfaces';
 import type { createD1OwnerRouter } from '@canlang/state/storage/owner-router';
 import type { AssembledModules } from "../runtime/modules.js";
@@ -142,6 +142,7 @@ export interface ProductionDeps {
   readonly identityStore: unknown;
   readonly preferences?: PagePreferenceStore;
   readonly stateTeam?: StateTeamBinding;
+  readonly stateTeams?: StateTeamBindings;
 }
 
 /**
@@ -706,13 +707,25 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
     if (cohortRequirement !== undefined && cohortRequirement.min_version !== 1) {
       throw new Error('deploy main: installed cohort tick requires exact state.cohorts version 1');
     }
+    if (deps.stateTeam !== undefined && deps.stateTeams !== undefined) {
+      throw new Error('deploy main: selected State has both legacy and multi-owner routes');
+    }
+    if (deps.stateTeams !== undefined &&
+        (cohortRequirement !== undefined || staged.artifact.callables.some(callable => callable.kind === 'handler'))) {
+      throw new Error('deploy main: multi-owner State does not support cohort or scheduled handler scope');
+    }
     if (staged.verdict.active && cohortRequirement !== undefined && deps.stateTeam === undefined) {
       throw new Error('deploy main: installed cohort tick requires explicit CAN_STATE_OWNER and separate STATE_DB');
     }
     let ownerStorage: TeamOwnerStorageBoundary | undefined;
     let scope: WorkScope | undefined;
-    if (deps.stateTeam !== undefined) {
-      const selected = Object.freeze({ ...deps.stateTeam });
+    if (deps.stateTeam !== undefined || deps.stateTeams !== undefined) {
+      const selected = deps.stateTeam;
+      const routes = deps.stateTeams ?? (selected === undefined ? [] : [selected]);
+      if (routes.length === 0 || routes.length > 16 || new Set(routes.map(route => route.owner)).size !== routes.length ||
+          new Set(routes.map(route => route.db)).size !== routes.length) {
+        throw new Error('deploy main: selected State requires distinct nonempty owner routes');
+      }
       const entry: unknown = await import(staged.modules.entryUrl);
       const definition = isRecord(entry) ? entry['appDefinition'] : undefined;
       if (!isRecord(definition) || typeof definition['id'] !== 'string' || definition['id'] === '' ||
@@ -721,13 +734,16 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
       }
       const app = definition['id'];
       const createRouter = await getOwnerRouterFactory();
-      const router = createRouter({ resolveBinding: requested => requested.app === app && requested.owner === selected.owner
-        ? { app, owner: selected.owner, db: selected.db,
-            ...(selected.initializeFresh === true ? { initializeFresh: true } : {}) }
-        : null });
+      const byOwner = new Map(routes.map(route => [route.owner, Object.freeze({ ...route })]));
+      const router = createRouter({ resolveBinding: requested => {
+        if (requested.app !== app) return null;
+        const route = byOwner.get(requested.owner);
+        return route === undefined ? null : { app, owner: route.owner, db: route.db,
+          ...(route.initializeFresh === true ? { initializeFresh: true } : {}) };
+      } });
       ownerStorage = await (await getOwnerStorageFactory())({ artifact: staged.artifact, asm: staged.modules,
         app, identities: deps.identityStore as IdentityStore, router });
-      scope = { app, owner: selected.owner, ownerPackage: app };
+      if (selected !== undefined) scope = { app, owner: selected.owner, ownerPackage: app };
     }
     const needsTick = cohortRequirement !== undefined || staged.artifact.callables.some(callable => callable.kind === 'handler');
     const cohorts = staged.verdict.active && needsTick && ownerStorage !== undefined && scope !== undefined

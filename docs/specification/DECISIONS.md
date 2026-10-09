@@ -3545,3 +3545,7 @@ Revalidate exact captured runtime inputs around Testkit loading and row executio
 ### 2026-10-09 — Carry source field modifiers into canonical writes
 
 Add optional flat trim/min/max model-field claims to the artifact and canonical contracts, with bounds in Values' wire form. State validates claims through Values and normalizes caller/default/hook candidates at its shared write checkpoints, before unique claims and persistence, preserving authorization order. Absent claims remain absent; appDefinition metadata is not a guessed substitute. The compiler emission remains an explicit producer prerequisite for the frozen Office check.
+
+### 2026-10-09 — Join physically isolated verified-team preview storage
+
+Use a private D1 provisioning handoff for real Identity, then distinct Cedar/Oak State bindings through the existing owner router and persisted app/team pins. Trusted mapping is bounded and closed, with global State unavailable; request data cannot provision or select a foreign binding. Page checkpoints and example fixtures/invocation consume that boundary, preserving declared public/authenticated/member gates and normal revocation checks. Snapshots cover every row D1 binding and disposal removes the owned preview directory. Whole Office qualification remains due after the installed join.

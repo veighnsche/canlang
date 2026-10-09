@@ -144,6 +144,71 @@ function fullEnv(): Record<string, unknown> {
 }
 
 describe("deploy worker main", () => {
+  it("passes distinct trusted multi-owner bindings to one router and no cohort scope", async () => {
+    const dir = tempDir();
+    const entryUrl = writeModule(dir, "multi-app.mjs",
+      'export const appDefinition = { id: "TeamTasks", packages: { TeamTasks: {} } };');
+    const staged: StagedDeployment = {
+      artifact: fixtureArtifact([], []),
+      modules: { dir, entryUrl, moduleUrls: {} },
+      verdict: ACTIVE_VERDICT,
+    };
+    const cedarDb = { name: "cedar" };
+    const oakDb = { name: "oak" };
+    const routes = [
+      { owner: "cedar", db: cedarDb, initializeFresh: true },
+      { owner: "oak", db: oakDb, initializeFresh: true },
+    ] as unknown as NonNullable<ProductionDeps["stateTeams"]>;
+    let resolve: ((scope: { app: string; owner: string }) => unknown) | undefined;
+    let routed = false;
+    let assembled = false;
+    const fetch = createMainFetch({
+      loadStagedDeployment: async () => staged,
+      loadProductionDeps: async () => ({ store: stubStore(), identityStore: {}, stateTeams: routes }),
+      loadOwnerRouterFactory: async () => input => {
+        resolve = input.resolveBinding;
+        return { ownerScopedStoragePort: async () => stubStore() };
+      },
+      loadOwnerStorageFactory: async () => input => {
+        routed = true;
+        expect(input.app).toBe("TeamTasks");
+        return { app: input.app, forIdentity: async () => stubStore(),
+          forTrustedScope: async () => ({ identity: {} as never, store: stubStore() }) };
+      },
+      loadAssembleWorker: async () => async (_artifact, _modules, deps) => {
+        assembled = true;
+        expect(deps.ownerStorage?.app).toBe("TeamTasks");
+        expect(deps.cohorts).toBeUndefined();
+        return { fetch: async () => new Response("ready"), pageCount: 0, opCount: 0 };
+      },
+    });
+    expect((await fetch(new Request("http://localhost/"), fullEnv())).status).toBe(200);
+    expect(routed && assembled).toBe(true);
+    expect(resolve?.({ app: "TeamTasks", owner: "cedar" })).toMatchObject({ owner: "cedar", db: cedarDb, initializeFresh: true });
+    expect(resolve?.({ app: "TeamTasks", owner: "oak" })).toMatchObject({ owner: "oak", db: oakDb, initializeFresh: true });
+    expect(resolve?.({ app: "TeamTasks", owner: "other" })).toBeNull();
+    expect(resolve?.({ app: "OtherApp", owner: "cedar" })).toBeNull();
+  });
+
+  it("refuses multi-owner scheduled/cohort work before building an owner router", async () => {
+    const dir = tempDir();
+    const entryUrl = writeModule(dir, "multi-app.mjs",
+      'export const appDefinition = { id: "TeamTasks", packages: { TeamTasks: {} } };');
+    let routed = false;
+    const artifact = fixtureArtifact([], []);
+    artifact.requires.push({ capability: "state.cohorts", min_version: 1 });
+    const fetch = createMainFetch({
+      loadStagedDeployment: async () => ({ artifact, modules: { dir, entryUrl, moduleUrls: {} }, verdict: ACTIVE_VERDICT }),
+      loadProductionDeps: async () => ({ store: stubStore(), identityStore: {},
+        stateTeams: [{ owner: "cedar", db: {} as never }] }),
+      loadOwnerRouterFactory: async () => { routed = true; throw new Error("unexpected owner router"); },
+    });
+    const result = await fetch(new Request("http://localhost/"), fullEnv());
+    expect(result.status).toBe(500);
+    expect(JSON.stringify(await result.json())).toContain("multi-owner State does not support cohort");
+    expect(routed).toBe(false);
+  });
+
   it("default-exports a fetch handler (the P-B deploy main)", () => {
     expect(typeof workerMain.fetch).toBe("function");
   });
