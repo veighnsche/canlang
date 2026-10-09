@@ -12,7 +12,7 @@
  */
 
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
-import { encodeValue, validateValue } from '@canlang/values';
+import { encodeValue, trim, validateValue } from '@canlang/values';
 import type {
   CanTypeId,
   DomainWrite,
@@ -489,7 +489,11 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
       const value = candidate[field];
       if (value === undefined || value === null) continue;
       try {
-        const wire = input.encodeField?.(fieldDef.valueType, value) ?? value;
+        // Receiving normalization precedes an installed source alias codec:
+        // that codec must validate the normalized value, while alias and
+        // receiving bounds still run in the Values schema below.
+        const receiving = fieldDef.trim === true && typeof value === 'string' ? trim(value) : value;
+        const wire = input.encodeField?.(fieldDef.valueType, receiving) ?? receiving;
         const normalized = validateValue(constraint.schema, constraint.type, { value: wire }, 'create') as Readonly<Record<string, unknown>>;
         const stored = encodeValue(fieldDef.valueType, normalized['value'] as Parameters<typeof encodeValue>[1]);
         safeSet(candidate, field, jsonClone(stored, `Field ${JSON.stringify(field)}`));
