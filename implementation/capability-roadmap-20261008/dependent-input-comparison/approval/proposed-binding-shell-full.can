@@ -50,7 +50,6 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
   message label_reviewer = "Reviewer"@{nl="Beoordelaar"}
   message label_Submission_note = "Note"@{nl="Notitie"}
   message label_Submission_reviewer_email = "Reviewer email"@{nl="E-mail beoordelaar"}
-  preferences { review_state:Submission.state? label="Initial review state filter"@{nl="Eerste filter beoordelingsstatus"}, versions_open:bool=false label="Expand submitted version history"@{nl="Ingediende versiehistorie uitklappen"} }
  When
   # Read eligible reviewers through current work-field grants. @{nl="Lees geschikte beoordelaars via actuele werkveldtoegang."}
   scenario reviewer_choices(document:Document) read=true -> Employee[] by=members label="Choose reviewer"@{nl="Beoordelaar kiezen"}
@@ -269,6 +268,7 @@ package approve label="Document review"@{nl="Documentbeoordeling"}
      set notice {delivery=attempt}
 
  Then
+  preferences { review_state:Submission.state? label="Initial review state filter"@{nl="Eerste filter beoordelingsstatus"}, versions_open:bool=false label="Expand submitted version history"@{nl="Ingediende versiehistorie uitklappen"} }
   # Submit and follow your own exact document versions. @{nl="Dien je eigen exacte documentversies in en volg ze."}
   page /documents title="My submissions"@{nl="Mijn inzendingen"}
    require members
