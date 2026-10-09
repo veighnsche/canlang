@@ -5,7 +5,7 @@
 use std::collections::{HashMap, HashSet};
 
 use super::effects::{Effect, EffectTables, EffectVerb};
-use super::resolve::{Binding, ResolveTables, SymbolKind};
+use super::resolve::{Binding, ContextVar, ResolveTables, SymbolKind};
 use super::types::SelectedCallTarget;
 use super::{ModuleId, NodeKey, ResolvedType, Scalar, SymbolId, TypeTable};
 use crate::source::{SourceDb, SourceId, sha256_hex};
@@ -174,6 +174,9 @@ pub fn analyze_scenario_disclosure(
                 // Defaults execute before the body. Inspect their complete
                 // closure even when the result never consumes this parameter.
                 if let Some(default) = param.default {
+                    if cx.admitted_actor_default(default, ty) {
+                        continue;
+                    }
                     let alternatives = cx.expr(default, scenario.module, &flow.env, &[])?;
                     if alternatives
                         .iter()
@@ -304,6 +307,45 @@ impl Closure<'_> {
         let result = self.expr(key, module, env, calls);
         self.authorization = prior;
         result
+    }
+
+    /// The canonical input-default producer owns this admitted, frozen value.
+    /// This exception applies only to a checked Actor parameter default; body
+    /// context reads still pass through ordinary closure inspection and decline.
+    fn admitted_actor_default(&self, key: NodeKey, declared: &ResolvedType) -> bool {
+        let user = |ty: &ResolvedType| match ty {
+            ResolvedType::Scalar(Scalar::User) => true,
+            ResolvedType::Nullable(inner) => {
+                matches!(inner.as_ref(), ResolvedType::Scalar(Scalar::User))
+            }
+            _ => false,
+        };
+        if !user(declared) || !self.types.node_types.get(&key).is_some_and(user) {
+            return false;
+        }
+        let mut key = key;
+        for _ in 0..64 {
+            let Some(node) = self.nodes.get(&key) else {
+                return false;
+            };
+            if node.kind != SyntaxKind::Group {
+                return node.kind == SyntaxKind::NameRef
+                    && self.types.node_types.get(&key).is_some_and(user)
+                    && matches!(
+                        self.resolve.node_binding.get(&key),
+                        Some(Binding::Context(ContextVar::Actor(_)))
+                    );
+            }
+            let mut children = node.children.iter().filter(|child| expression(child.kind));
+            let Some(child) = children.next() else {
+                return false;
+            };
+            if children.next().is_some() {
+                return false;
+            }
+            key = NodeKey::of(child);
+        }
+        false
     }
 
     fn field_type_id(

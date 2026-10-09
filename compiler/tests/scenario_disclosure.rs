@@ -568,3 +568,53 @@ fn array_paths_retain_the_existing_finite_cartesian_bound() {
     };
     assert!(value.reason.contains("path bound"));
 }
+
+#[test]
+fn actor_defaults_are_admitted_inputs_without_admitting_body_context_reads() {
+    let source = r#"app ActorDefaults
+Given
+ derive actor_copy(value:user?):user? = value
+When
+ scenario nullable(value:user?=actor) -> user? by=members
+  do return value
+ scenario grouped(value:user?=(actor)) -> user? by=members
+  do return value
+ scenario direct() -> user by=members
+  do return actor
+ scenario grouped_body() -> user by=members
+  do return (actor)
+ scenario derived_default(value:user?=actor_copy(actor)) -> user? by=members
+  do return value
+ scenario body_property() -> bool by=members
+  do return actor.email_verified
+Then
+"#;
+    let (db, program) = checked(&[("actor-defaults.can", source)]);
+    for name in ["nullable", "grouped"] {
+        let value = complete(&program, &format!("ActorDefaults.{name}"));
+        origins(&db, value);
+        let symbol = program
+            .symbols
+            .iter()
+            .find(|symbol| symbol.canonical == format!("ActorDefaults.{name}"))
+            .unwrap();
+        let expected = canlang_compiler::analysis::ResolvedType::Nullable(Box::new(
+            canlang_compiler::analysis::ResolvedType::Scalar(
+                canlang_compiler::analysis::Scalar::User,
+            ),
+        ));
+        assert_eq!(program.types.symbol_results[&symbol.id], Some(expected));
+        assert_eq!(value.returns.len(), 1);
+        assert!(value.returns[0].dependencies.is_empty());
+        assert!(value.returns[0].decisions.is_empty());
+    }
+    for name in ["direct", "grouped_body", "derived_default", "body_property"] {
+        assert!(
+            matches!(
+                fact(&program, &format!("ActorDefaults.{name}")),
+                ScenarioDisclosure::Declined(_)
+            ),
+            "{name}"
+        );
+    }
+}
