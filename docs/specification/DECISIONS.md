@@ -3569,3 +3569,7 @@ Apply the existing vendor test exclusion to flat Worker dist siblings as well. U
 ### 2026-10-09 — Render authored nullable inputs without requiring an extra clear control
 
 Interfaces form preparation permits the generated optional explicit-null companion to be omitted from authored controls. A blank optional scalar still projects omission; canonical create resolves its null default. Required version, currency and datetime-fold companions retain their existing refusal, as do unknown/duplicate/non-writable authored controls. Office's two source-owned create controls remain the complete intended authoring surface; focused presentation checks pass 18/18, with the installed browser workflow still due.
+
+## 2026-10-09 — encode delete identity at the owning UI boundary
+
+Preserve native BigInt list-row versions and adapt only the generated delete control's record to the public MutationRef decimal-string contract. A local capture evaluates the authored record expression once in prop order and forwards only id/version; existing gates and canonical permissions remain. Actual UI hidden fields and canonical Memory archive/stale/revoked controls pass1/1, with separate exact presentation/native arithmetic above2^53 and no widened State version claim. The affected factory golden1/1 and focused strict Clippy pass; independent HIGH review accepts the finite correction. Dev's populated Office Supplies consumer can use this producer revision; full application acceptance is unestablished.
