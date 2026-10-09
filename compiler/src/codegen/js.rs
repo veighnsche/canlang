@@ -5341,12 +5341,24 @@ impl<'a> Emitter<'a> {
             members.push("nav:\"none\"".to_string());
         }
         if !page.preference_fields.is_empty() {
-            let fields = page.preference_fields.iter().map(|field| format!(
-                "{{name:{},options:[{}],defaultValue:{}}}",
-                js_string(&field.name),
-                field.options.iter().map(|value| js_string(value)).collect::<Vec<_>>().join(","),
-                js_string(&field.default_value),
-            )).collect::<Vec<_>>().join(",");
+            let fields = page
+                .preference_fields
+                .iter()
+                .map(|field| {
+                    format!(
+                        "{{name:{},options:[{}],defaultValue:{}}}",
+                        js_string(&field.name),
+                        field
+                            .options
+                            .iter()
+                            .map(|value| js_string(value))
+                            .collect::<Vec<_>>()
+                            .join(","),
+                        js_string(&field.default_value),
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(",");
             members.push(format!("preferenceFields:[{fields}]"));
         }
         // `poll=`/`refresh=` (DESIGN §9): the cadence as exact-BigInt
