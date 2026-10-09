@@ -4,7 +4,7 @@ export const PROFILES = ['values', 'state', 'stdlib', 'identity', 'ui', 'interfa
 export const NATIVE_PROFILES = ['cloudflare', 'workspace'];
 export const NATIVE_TOOLCHAIN = '1.99.0';
 export const NATIVE_CRATE = 'packages/cloudflare/preparation';
-export const PLAN_VERSION = 1;
+export const PLAN_VERSION = 2;
 
 export function nativeTargetDir(runnerTemp, profile) {
   return path.join(runnerTemp, 'ts-gate-native', profile);
@@ -46,6 +46,15 @@ export function gatePlan(profile, cwd, { runnerTemp, platform = process.platform
     add('cargo-version', 'native', cargo);
     add('native-build', 'native', build, { timeoutMs: 900000, env: { CARGO_TARGET_DIR: targetDir } });
   }
+  // Cold runners must produce the same compiler/catalog/browser inputs used
+  // by their real consumers; build phases fail closed before those tests.
+  if (profile === 'values' || NATIVE_PROFILES.includes(profile)) {
+    add('catalog', 'build', ['bun', 'run', 'catalog']);
+  }
+  if (NATIVE_PROFILES.includes(profile)) {
+    add('compiler-build', 'build', ['bun', 'run', 'build:compiler'], { timeoutMs: 900000 });
+    add('chromium-install', 'build', ['bunx', 'playwright', 'install', '--with-deps', 'chromium'], { timeoutMs: 900000 });
+  }
   const testOptions = { isTest: true, env: nativeBin ? { CAN_PREPARATION_BIN: nativeBin } : null };
   if (profile === 'workspace') {
     add('boundaries', 'gate', ['bun', 'run', 'check:boundaries']);
@@ -61,7 +70,6 @@ export function gatePlan(profile, cwd, { runnerTemp, platform = process.platform
       add('tests', 'gate', ['bun', 'run', 'test'], { ...testOptions, cwd: packageCwd });
     }
     if (profile === 'cloudflare') add('runtime-tests', 'gate', ['node', '--test', 'packages/cloudflare/dist/**/*.test.js'], testOptions);
-    if (profile === 'values') add('catalog', 'gate', ['bun', 'run', 'catalog'], { cwd: packageCwd });
   }
   add('clean-tree', 'final', ['git', 'diff', '--exit-code', 'HEAD']);
   return plan;

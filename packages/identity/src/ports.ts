@@ -119,8 +119,13 @@ export interface IdentityStore {
   }): Promise<Membership>;
   findMembership(team_id: TeamId, user_id: UserId): Promise<Membership | null>;
   findMembershipById(membership_id: MembershipId): Promise<Membership | null>;
-  /** All memberships (any status) for one user; backs the team switcher. */
+  /** All memberships (any status) for one user; includes removed history. */
   listUserMemberships(user_id: UserId): Promise<readonly Membership[]>;
+  /** Active memberships joined to live teams, ascending team_id after the
+   * exclusive cursor. At most 101 projections: 100 displayed plus lookahead.
+   * Filtering, ordering and bounding happen in the owning store query. */
+  listActiveUserTeamsPage(user_id: UserId, after: TeamId | null):
+    Promise<readonly Pick<Team, 'team_id' | 'timezone'>[]>;
   /** Active owners only; backs the last-owner removal/demotion guard. */
   listActiveOwners(team_id: TeamId): Promise<readonly Membership[]>;
   setMembershipRoles(

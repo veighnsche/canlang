@@ -33,7 +33,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type {
   CompileArtifact,
   ModelName,
@@ -142,7 +142,9 @@ function freshOperationId(atMs: number): string {
 }
 
 function stubAsm(dir: string, moduleUrls: Record<string, string>): AssembledModules {
-  return { dir, entryUrl: "fixture-entry", moduleUrls };
+  const entryUrl = Object.values(moduleUrls)[0];
+  assert.ok(entryUrl !== undefined, "fixture must assemble its actual app entry");
+  return { dir, entryUrl, moduleUrls };
 }
 
 interface SeededIdentity {
@@ -237,6 +239,7 @@ const throwing = () => { throw new Error("t32b-proof: CRUD handler must never ru
 export function canApp() {
   return {
     calls,
+    read: { "Todo.read.1": () => true },
     policy: {
       operations: {
         "acme.Todo.create": { by: ["members"] },
@@ -278,6 +281,13 @@ export function canApp() {
     }
   };
 }
+export const appDefinition = {
+  id: "TeamTasks", policy: canApp().policy,
+  models: { "acme.Todo": {
+    readGrants: [{ rule: "Todo.read.1", by: ["public"] }],
+    fields: { title: { type: "text" }, done: { type: "bool" } },
+  } },
+};
 `;
 
 interface FixtureModule {
@@ -295,8 +305,8 @@ function fenceArtifact(module: string): CompileArtifact {
     artifact_version: 1,
     language_version: "t32b-fixture/0 (hand-written T15a shape; NOT compiler output)",
     tool_version: "t32b-fixture/0",
-    sources: [{ path: "examples/TeamTasks.can", sha256: "fixture-not-a-digest" }],
-    modules: [],
+    sources: [{ path: module, sha256: createHash("sha256").update(FENCE_MODULE, "utf8").digest("hex") }],
+    modules: [{ path: module, js: FENCE_MODULE }],
     callables: [
       { id: "acme.Todo.create", kind: "operation", module, export: "Todo_create", member: ["Todo", "create"] },
       { id: "acme.Shop.place", kind: "operation", module, export: "Shop_place", member: ["Shop", "place"] },
@@ -1452,6 +1462,7 @@ const throwing = () => { throw new Error("t32c-proof: CRUD handler must never ru
 export function canApp() {
   return {
     calls,
+    read: { "Team.read.1": () => true, "Member.read.1": () => true, "Plain.read.1": () => true },
     policy: {
       roles: [],
       models: {
@@ -1533,11 +1544,25 @@ export function canApp() {
     },
   };
 }
+export const appDefinition = {
+  id: "TeamTasks", policy: canApp().policy,
+  models: {
+    "Shop.Team": { readGrants: [{ rule: "Team.read.1", by: ["members"] }], fields: {
+      name: { type: "text" }, owner: { type: "user" }, stock: { type: "int" }, kind: { type: "enum" },
+      note: { type: "text" }, tags: { type: "text" }, flags: { type: "text" },
+      made: { type: "datetime" }, by: { type: "user" }, token: { type: "secret" },
+    } },
+    "Shop.Member": { readGrants: [{ rule: "Member.read.1", by: ["members"] }], fields: {
+      name: { type: "text" }, buddy: { type: "user" }, nick: { type: "text" }, state: { type: "enum" }, seen: { type: "datetime" },
+    } },
+    "acme.Plain": { readGrants: [{ rule: "Plain.read.1", by: ["members"] }], fields: { title: { type: "text" } } },
+  },
+};
 `;
 
 /**
- * Production T18 shop slice (ops + models verbatim from the REAL
- * compiler artifact JSON) plus a serverOnly-free model (empty
+ * Production T18 shop models from the REAL compiler artifact JSON,
+ * with the legacy text-shaped user inputs rebound to their owning user kind plus a serverOnly-free model (empty
  * exclusion-set proof) and the probe scenarios. Callables point at
  * the C2 fixture module (top-level CRUD tripwires, nested probes).
  */
@@ -1554,7 +1579,11 @@ function c2Artifact(module: string): CompileArtifact {
   const t18Operations = t18.operations ?? [];
   assert.ok(t18Operations.length > 0, "T18 slice needs operations");
   const operations = [
-    ...t18Operations.filter((op) => keepOps.has(op.name as string)),
+    ...t18Operations.filter((op) => keepOps.has(op.name as string)).map(op => ({
+      ...op, inputs: { fields: op.inputs.fields.map(field =>
+        field.name === "owner" || field.name === "buddy"
+          ? { ...field, field: { kind: "user" as const } } : field) },
+    })),
     {
       name: "acme.Plain.create",
       kind: "create",
@@ -1580,13 +1609,13 @@ function c2Artifact(module: string): CompileArtifact {
       name: "acme.Probe.selfCancel",
       kind: "scenario",
       description: "",
-      inputs: { fields: [strInput("key", true), strInput("owner", true)] },
+      inputs: { fields: [strInput("key", true), { name: "owner", field: { kind: "user" }, required: true }] },
     },
     {
       name: "acme.Probe.updateRemove",
       kind: "scenario",
       description: "",
-      inputs: { fields: [strInput("key", true), strInput("owner", true)] },
+      inputs: { fields: [strInput("key", true), { name: "owner", field: { kind: "user" }, required: true }] },
     },
     {
       name: "acme.Probe.archiveTouch",
@@ -1598,13 +1627,13 @@ function c2Artifact(module: string): CompileArtifact {
       name: "acme.Probe.orphanMember",
       kind: "scenario",
       description: "",
-      inputs: { fields: [strInput("key", true), strInput("owner", true)] },
+      inputs: { fields: [strInput("key", true), { name: "owner", field: { kind: "user" }, required: true }] },
     },
     {
       name: "acme.Probe.ghostMember",
       kind: "scenario",
       description: "",
-      inputs: { fields: [strInput("key", true), strInput("owner", true)] },
+      inputs: { fields: [strInput("key", true), { name: "owner", field: { kind: "user" }, required: true }] },
     },
   ];
   const t18Models = t18.models ?? [];
@@ -1643,8 +1672,8 @@ function c2Artifact(module: string): CompileArtifact {
     artifact_version: 1,
     language_version: t18.language_version,
     tool_version: t18.tool_version,
-    sources: t18.sources,
-    modules: [],
+    sources: [{ path: module, sha256: createHash("sha256").update(C2_MODULE, "utf8").digest("hex") }],
+    modules: [{ path: module, js: C2_MODULE }],
     callables,
     pages: [],
     requires: t18.requires,
@@ -1711,7 +1740,7 @@ describe("T32c C2 site 1+5 (serverInits + nullable fill through CRUD create)", (
     const outcome = await invoker.invokeMutation(
       mutationEnvelope("Shop.Team.create", freshOperationId(seed.now), {
         name: "alpha",
-        owner: seed.memberId,
+        owner: { id: seed.memberId },
         flags: [],
       }),
       identity,
@@ -1742,7 +1771,7 @@ describe("T32c C2 site 3+4 (conflict currents + assembly mirror, bb1ca7a)", () =
     const created = await invoker.invokeMutation(
       mutationEnvelope("Shop.Team.create", freshOperationId(seed.now), {
         name: "alpha",
-        owner: seed.memberId,
+        owner: { id: seed.memberId },
         flags: [],
       }),
       identity,
@@ -1764,6 +1793,7 @@ describe("T32c C2 site 3+4 (conflict currents + assembly mirror, bb1ca7a)", () =
       mutationEnvelope("Shop.Team.update", freshOperationId(seed.now), {
         record: { id, version: "1" },
         name: "charlie",
+        tags: [],
       }),
       identity,
     );
@@ -1775,8 +1805,8 @@ describe("T32c C2 site 3+4 (conflict currents + assembly mirror, bb1ca7a)", () =
     assert.equal(conflict.current.id, id);
     assert.equal(conflict.current.version, 2);
     // submitted∩row minus serverOnly (made/by) minus secrets (token):
-    // the submitted field with its CURRENT value, plus the admitted
-    // normalization (absent optional arrays fill []).
+    // both submitted fields carry their CURRENT values. Update omission
+    // preserves arrays; explicit [] keeps empty-array disclosure covered.
     assert.deepEqual(conflict.current.values, { name: "bravo", tags: [] });
     assert.ok(typeof conflict.current.updated === "string" && conflict.current.updated !== "");
     assert.ok(typeof conflict.current.updatedBy === "string" && conflict.current.updatedBy !== "");
@@ -1835,7 +1865,7 @@ describe("T32c C2 site 2 (scenario archive gate on stageWrite)", () => {
     const created = await invoker.invokeMutation(
       mutationEnvelope("Shop.Team.create", freshOperationId(seed.now), {
         name: "doomed",
-        owner: seed.memberId,
+        owner: { id: seed.memberId },
         flags: [],
       }),
       identity,
@@ -1874,7 +1904,7 @@ describe("T32c C2 site 1+5 (containment enforcement on the child model)", () => 
     const created = await invoker.invokeMutation(
       mutationEnvelope("Shop.Team.create", freshOperationId(seed.now), {
         name: "parent",
-        owner: seed.memberId,
+        owner: { id: seed.memberId },
         flags: [],
       }),
       identity,
@@ -1896,13 +1926,13 @@ describe("T32c C2 site 1+5 (containment enforcement on the child model)", () => 
     const member = members[0];
     assert.ok(member !== undefined);
     assert.deepEqual(member.parent, { model: "Shop.Team", id: team.id });
-    assert.equal(member.data["buddy"], seed.memberId);
+    assert.deepEqual(member.data["buddy"], { id: seed.memberId });
     assert.equal(member.data["nick"], null);
     assert.equal(member.data["seen"], new Date(seed.now).toISOString());
     const orphan = await invoker.invokeMutation(
       mutationEnvelope("acme.Probe.orphanMember", freshOperationId(seed.now), {
         key: "o1",
-        owner: seed.memberId,
+        owner: { id: seed.memberId },
       }),
       identity,
     );
@@ -1926,7 +1956,7 @@ describe("T32c C2 site 1+5 (containment enforcement on the child model)", () => 
     const scenarioGhost = await invoker.invokeMutation(
       mutationEnvelope("acme.Probe.ghostMember", freshOperationId(seed.now), {
         key: "g2",
-        owner: seed.memberId,
+        owner: { id: seed.memberId },
       }),
       identity,
     );
@@ -1957,7 +1987,7 @@ describe("T32c C2 self-cancel netting verdict (B1, production shape)", () => {
     const outcome = await invoker.invokeMutation(
       mutationEnvelope("acme.Probe.selfCancel", freshOperationId(seed.now), {
         key: "tmp-1",
-        owner: seed.memberId,
+        owner: { id: seed.memberId },
       }),
       identity,
     );
@@ -1988,7 +2018,7 @@ describe("T32c C2 self-cancel netting verdict (B1, production shape)", () => {
     const outcome = await invoker.invokeMutation(
       mutationEnvelope("acme.Probe.updateRemove", freshOperationId(seed.now), {
         key: "tmp-2",
-        owner: seed.memberId,
+        owner: { id: seed.memberId },
       }),
       identity,
     );

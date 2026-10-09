@@ -32,7 +32,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { Miniflare } from "miniflare";
 import type { D1Database } from "@cloudflare/workers-types";
 import type {
@@ -70,15 +70,23 @@ import type { SelectedReceiptObserverBinding } from "./invoke.js";
 /* Shared fixtures (self-contained: no cross-test imports).            */
 /* ------------------------------------------------------------------ */
 
-const OPS_MODULE = `export function canApp() {
-  return {
-    policy: {
-      operations: {},
-      models: {
-        "acme.Item": { read: ["Item.read.1"], public: ["Item.read.1"] },
-      },
+/** Owning hand-built module bytes; declarations and public read selectors agree. */
+const OPS_MODULE = `const modelPolicy = {
+  "acme.Item": { read: ["Item.read.1"], public: ["Item.read.1"] },
+};
+export const appDefinition = {
+  id: "ReceiptUnit",
+  models: {
+    "acme.Item": {
+      readGrants: [{ rule: "Item.read.1", by: ["public"] }],
+      fields: { title: { type: "text" }, notification: { type: "delivery", operation: "std.EmailV1.send", nullable: true } },
     },
-  };
+  },
+  policy: { operations: {}, models: modelPolicy },
+};
+const readRules = { "Item.read.1": () => true };
+export function canApp() {
+  return { policy: appDefinition.policy, read: readRules };
 }
 `;
 
@@ -87,7 +95,7 @@ function receiptArtifact(): CompileArtifact {
     artifact_version: 1,
     language_version: "d3b-durable-fixture/0 (hand-written T15a shape; NOT compiler output)",
     tool_version: "d3b-durable-fixture/0",
-    sources: [{ path: "examples/TeamTasks.can", sha256: "fixture-not-a-digest" }],
+    sources: [{ path: "ops.mjs", sha256: createHash("sha256").update(OPS_MODULE, "utf8").digest("hex") }],
     modules: [],
     callables: [],
     pages: [],
@@ -138,7 +146,7 @@ function stubAsm(): AssembledModules {
   writeFileSync(opsPath, OPS_MODULE);
   return {
     dir,
-    entryUrl: "fixture-entry",
+    entryUrl: pathToFileURL(opsPath).href,
     moduleUrls: { "ops.mjs": pathToFileURL(opsPath).href },
   };
 }
@@ -190,7 +198,7 @@ async function seedWorld(store: StoragePort, now: number): Promise<void> {
           updatedBy: "member@d3b.test",
           archivedAt: null,
           parent: null,
-          data: { title: "item-1", notification: "decoy-id" },
+          data: { title: "item-1", notification: null },
         } as StoredRow,
       },
     ],
@@ -201,10 +209,15 @@ async function seedWorld(store: StoragePort, now: number): Promise<void> {
     uniqueClaims: [],
     uniqueReleases: [],
   });
+  const owner = await store.load("acme.Item" as ModelName, "item-1" as RecordId);
+  assert.ok(owner);
   const meta = { nowMs: now, actor: "member@d3b.test" };
   await store.commit({
     expectedRevision: await store.readRevision(),
     writes: [
+      { kind: "update", model: "acme.Item" as ModelName, id: owner.id, expectedVersion: owner.version,
+        row: { ...owner, version: (owner.version + 1) as RecordVersion, updated: now,
+          data: { ...owner.data, notification: { id: "del_1", operation: "std.EmailV1.send" } } } },
       {
         kind: "insert",
         model: RECEIPT_ASSOCIATION_MODEL as ModelName,
@@ -214,7 +227,7 @@ async function seedWorld(store: StoragePort, now: number): Promise<void> {
             recordId: "item-1",
             field: "notification",
             deliveryId: "del_1",
-            source: "mailroom.Mail.send",
+            source: "std.EmailV1.send",
             revision: 3,
           },
           meta,
@@ -228,7 +241,7 @@ async function seedWorld(store: StoragePort, now: number): Promise<void> {
             deliveryId: "del_1",
             revision: 3,
             status: "succeeded",
-            result: { ok: 1 },
+            result: { reference: "accepted-1" },
             error: null,
             contentRef: null,
             resultExpiresAtMs: null,
@@ -305,7 +318,7 @@ describe("Q4 path A: served Receipt.read over real miniflare D1", () => {
     });
     assert.equal(served.outcome, "observed");
     if (served.outcome !== "observed") throw new Error("unreachable");
-    assert.deepEqual(served.projection, { status: "succeeded", result: { ok: 1 } });
+    assert.deepEqual(served.projection, { status: "succeeded", result: { reference: "accepted-1" } });
     assert.ok(calls.length >= 1);
   });
 });
@@ -316,23 +329,34 @@ describe("Q4 path A: served Receipt.read over real miniflare D1", () => {
 
 const EMPTY_MAP: SourceMap = {
   version: 3,
-  file: "app.can",
+  file: "app/main.js",
   sources: [],
   sourcesContent: [],
   names: [],
   mappings: "",
 };
 
+/** Hand-built bundle module source, not emitted Can or a native compiler witness. */
+const BUNDLE_MODULE = `export const appDefinition = { id: "ReceiptBundleFixture" };
+export const descriptor = {
+  owner: "test",
+  path: "/main",
+  title: "Main",
+  admit: async () => ({}),
+  render: async () => "<h1>fixture-main</h1>",
+};
+`;
+
 function bundleArtifact(): CompileArtifact {
   return {
     artifact_version: 1,
-    language_version: "1.0.0",
-    tool_version: "0.1.0",
-    sources: [{ path: "app.can", sha256: "0".repeat(64) }],
+    language_version: "d3b-bundle-fixture/0 (hand-written; NOT compiler output)",
+    tool_version: "d3b-bundle-fixture/0",
+    sources: [{ path: "app/main.js", sha256: createHash("sha256").update(BUNDLE_MODULE, "utf8").digest("hex") }],
     modules: [
       {
         path: "app/main.js",
-        js: `export const descriptor = {\n  owner: "test",\n  path: "/main",\n  title: "Main",\n  admit: async () => ({}),\n  render: async () => "<h1>fixture-main</h1>",\n};\n`,
+        js: BUNDLE_MODULE,
         map: { ...EMPTY_MAP },
       },
     ],
@@ -389,11 +413,15 @@ describe("Q4 path B: staged bundle fail-closed pre-B", () => {
       d1Databases: [{ binding: "DB", id: "d3b-durable-boot-db" }],
     });
     try {
-      // Binding gate passes with DB present: the fixture page
-      // renders (proves boot + assembly, not just no-crash).
+      // Binding gate passes with DB present: the defining Interfaces
+      // page handler renders the full shell and the exact fixture body.
       const response = await dev.dispatch("/main");
       assert.equal(response.status, 200);
-      assert.equal(await response.text(), "<h1>fixture-main</h1>");
+      assert.match(response.headers.get("content-type") ?? "", /^text\/html(?:;|$)/);
+      const html = await response.text();
+      assert.match(html, /^<!DOCTYPE html>/);
+      assert.match(html, /<title>Main — ReceiptBundleFixture<\/title>/);
+      assert.equal(html.match(/<main id="can-main">([\s\S]*?)<\/main>/)?.[1], "<h1>fixture-main</h1>");
     } finally {
       await dev.dispose();
     }

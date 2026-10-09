@@ -11,18 +11,17 @@
 //!
 //! * Zero error-severity analysis diagnostics: B1 needs a supported source.
 //! * TeamTasks: `E6006 == 0` (every needed position bridged),
-//!   `E6007 == 0` (real catalog pins every builtin), `E6008 == 4`
-//!   (the pinned unlowered-UI-factory positions `tooltip`/`collapse`,
-//!   plus bound tabs and authored collection order).
+//!   `E6007 == 0` (real catalog pins every builtin), `E6008 == 7`
+//!   (tooltip/collapse, breadcrumbs, bare edits and the list filter).
 //!   NOTE: `can compile` (CLI policy) refuses to print an artifact
 //!   while `E6008`s report; this test drives `emit()` directly to pin
 //!   the artifact SHAPE those diagnostics accompany. A zero-`E6008`
 //!   source (`demo.can`, TeamTasks minus the unlowered lines)
 //!   compiles end to end via the CLI; see the phase-2 evidence note.
-//! * ExpenseFlow (B2a): `E6006 == 0`, `E6007 == 0`, `E6008 == 2`
-//!   with the real catalog — bound tabs and authored collection order
-//!   are explicitly refused; other factories, gates, slots, value
-//!   queries and the causal sequence lower.
+//! * ExpenseFlow (B2a): `E6006 == 0`, `E6007 == 0`, `E6008 == 8`
+//!   with the real catalog: exact unsupported UI profiles remain refused;
+//!   nominal preference tabs, fixed order and named slots retain their
+//!   owning transport. Multi-value stat remains explicitly unavailable.
 //! * Entrypoint markers pinned from real emission (model shapes, CRUD
 //!   operations, page descriptors); no metadata spread.
 //! * Pages: exactly the 2 declared descriptors, exports resolved.
@@ -177,7 +176,7 @@ fn b1_teamtasks_artifact() {
     let (artifact, emit_diags) = emit(&program, &sources);
 
     // Exact emission profile: bridged (E6006=0), pinned (E6007=0),
-    // 4 explicit UI refusals (E6008). Nothing else may appear.
+    // Seven exact unsupported UI profiles (E6008). Nothing else may appear.
     // (A2b closed the `delete` gap: bare delete lowers to deleteRecord.)
     for d in &emit_diags {
         if d.code != "E6006" && d.code != "E6007" && d.code != "E6008" {
@@ -201,15 +200,24 @@ fn b1_teamtasks_artifact() {
             "expected zero E6007 with the real catalog, got {e6007}"
         ));
     }
-    if e6008 != 4 {
-        failures.push(format!("expected E6008=4 pinned UI refusals, got {e6008}"));
+    if e6008 != 7 {
+        failures.push(format!("expected E6008=7 pinned UI refusals, got {e6008}"));
     }
-    for word in ["tooltip", "collapse", "bound tabs", "collection order"] {
-        if !emit_diags
+    for (profile, expected) in [
+        ("cannot lower tooltip:", 1),
+        ("cannot lower collapse:", 1),
+        ("cannot lower breadcrumbs:", 2),
+        ("cannot lower edit:", 2),
+        ("cannot lower list: option filter", 1),
+        ("cannot lower bound tabs", 0),
+        ("cannot lower collection order", 0),
+    ] {
+        let actual = emit_diags
             .iter()
-            .any(|d| d.code == "E6008" && d.message.contains(word))
-        {
-            failures.push(format!("expected a pinned E6008 for `{word}`"));
+            .filter(|d| d.code == "E6008" && d.message.starts_with(profile))
+            .count();
+        if actual != expected {
+            failures.push(format!("expected {profile} count {expected}, got {actual}"));
         }
     }
 
@@ -304,8 +312,8 @@ fn b2_expenseflow_artifact() {
     let (artifact, emit_diags) = emit(&program, &sources);
 
     // Exact emission profile: everything bridges (E6006=0), pins
-    // (E6007=0); bound tabs and authored collection order are refused
-    // explicitly (E6008=2). Nothing else may appear.
+    // (E6007=0); eight exact unsupported UI profiles retain E6008.
+    // Nominal preference tabs and fixed collection order are supported.
     for d in &emit_diags {
         if d.code != "E6006" && d.code != "E6007" && d.code != "E6008" {
             failures.push(format!("unexpected codegen code {}: {}", d.code, d.message));
@@ -328,16 +336,30 @@ fn b2_expenseflow_artifact() {
             "expected zero E6007 with the real catalog, got {e6007}"
         ));
     }
-    if e6008 != 2 {
-        failures.push(format!("expected E6008=2 UI refusals, got {e6008}"));
+    if e6008 != 8 {
+        failures.push(format!("expected E6008=8 UI refusals, got {e6008}"));
     }
-    for word in ["bound tabs", "collection order"] {
-        if !emit_diags
+    for (profile, expected) in [
+        ("cannot lower breadcrumbs:", 2),
+        ("cannot lower edit:", 1),
+        ("cannot lower action:", 1),
+        ("cannot lower history:", 1),
+        ("cannot lower stat:", 1),
+        ("cannot lower list: option filter", 1),
+        ("cannot lower list: option defaults", 1),
+        ("cannot lower bound tabs", 0),
+        ("cannot lower collection order", 0),
+    ] {
+        let actual = emit_diags
             .iter()
-            .any(|d| d.code == "E6008" && d.message.contains(word))
-        {
-            failures.push(format!("expected a pinned E6008 for `{word}`"));
+            .filter(|d| d.code == "E6008" && d.message.starts_with(profile))
+            .count();
+        if actual != expected {
+            failures.push(format!("expected {profile} count {expected}, got {actual}"));
         }
+    }
+    if !emit_diags.iter().any(|d| d.code == "E6008" && d.message == "cannot lower stat: only one value header without a slotted suite has an owning factory profile") {
+        failures.push("missing precise multi-value stat refusal".to_string());
     }
 
     // Artifact shape per artifact.ts.
@@ -413,13 +435,25 @@ fn validate_expenseflow_artifact(
         "pages:[$can$p$657870656e7365733a64657363726970746f723a2f,$can$p$7265706f7274696e673a64657363726970746f723a2f7265706f727473]",
         "$can$u$62726561646372756d6273({context:c})",
         "$can$u$6261646765({context:$can$l$313a726f7756696577,value:$can$l$303a726f77.status})",
-        "$can$u$736c6f74({context:$can$l$313a726f7756696577,name:\"content\"",
-        "$can$u$73746174({context:c,values:[result.count,result.total]})",
+        "binding:{name:\"status\",options:",
+        "current:preferences.status,version:c.preferenceVersions.reporting.status,postTo:c.pollUrl ?? c.path",
+        "preferenceFields:[{name:\"status\",options:[\"draft\",\"submitted\",\"approved\",\"rejected\"],defaultValue:\"submitted\"}]",
+        "order:[\"-created\"]",
+        "$can$l$313a726f7756696577.prepareForm({operation:\"expenses.approve\",arguments:{expense:$can$l$303a726f77}",
+        "$can$l$313a726f7756696577.prepareForm({operation:\"expenses.reject\",arguments:{expense:$can$l$303a726f77}",
         "$can$l$31303a73656c6563746564.map(($can$l$31313a657870656e7365)=>$can$l$31313a657870656e7365.amount)",
     ] {
         if !entry.contains(marker) {
             failures.push(format!("entrypoint missing {marker:?}"));
         }
+    }
+    if entry.matches("content:[").count() != 2 || entry.contains("$can$u$736c6f74({") {
+        failures.push(
+            "modal content must use exactly two named suites, without a slot factory".to_string(),
+        );
+    }
+    if entry.contains("values:[result.count,result.total]") {
+        failures.push("refused multi-value stat must not forward its values".to_string());
     }
     if entry.contains("...appDefinition") {
         failures.push("entrypoint spreads metadata (...appDefinition)".to_string());
@@ -671,9 +705,14 @@ fn validate_artifact(artifact: &CompileArtifact, expected_sha: &str, failures: &
     let entry = &artifact.modules[0].js;
     for marker in [
         "id:\"TeamOffice\"",
-        "\"TeamTasks.Todo\":{label:$can$u$6d657373616765(\"Task\",{nl:\"Taak\"})",
+        "\"TeamTasks.Todo\":{label:$can$h$636865636b65645f6d657373616765(\"Task\",{nl:\"Taak\"},undefined,\"en\")",
         "\"TeamNotes.Note\":{",
         "\"TeamTasks.Todo.create\":",
+        "binding:{name:\"view\",options:[{value:\"all\",label:$can$h$636865636b65645f6d657373616765(\"All tasks\"",
+        "current:preferences.view,version:c.preferenceVersions.TeamTasks.view,postTo:c.pollUrl ?? c.path",
+        "preferenceFields:[{name:\"view\",options:[\"all\",\"unfinished\",\"finished\"],defaultValue:\"all\"}]",
+        "order:[\"-created\"]",
+        "search:[\"title\"]",
         "pages:[$can$p$5465616d5461736b733a64657363726970746f723a2f,$can$p$5465616d4e6f7465733a64657363726970746f723a2f6e6f746573]",
     ] {
         if !entry.contains(marker) {
