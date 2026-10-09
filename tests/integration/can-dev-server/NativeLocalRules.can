@@ -1,0 +1,11 @@
+## Native local model policies consumed through canonical memory State.
+app NativeLocalRules
+Given
+ Item {quantity:int,label:text,locked:bool=false,state:enum(open,closed)=open}
+ policy Item read=members
+ invariant Item: row.quantity>=0 and row.quantity-1<row.quantity
+ lock Item fields=label when=row.locked
+ invariant Item: row.state==open or row.quantity<=100
+When
+ crud Item by=members fields=quantity,label,locked,state delete=remove
+Then
