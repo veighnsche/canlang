@@ -362,7 +362,7 @@ async function runTest(artifactPath: string): Promise<void> {
   });
   let testkit;
   try {
-    testkit = await loadInstalledExampleTestkit();
+    testkit = await loadInstalledExampleTestkit(checkoutRoot);
   } catch (error) {
     if (error instanceof MissingExampleTestkitError) {
       fail("test", "missing-producer", error.message,

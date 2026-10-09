@@ -81,7 +81,7 @@ function walkFiles(root: string, base: string, append: (path: string) => void, a
 }
 
 /** Recompute this exact installed output closure before a bundle is accepted. */
-export function installedPortableBundleInputs(): readonly NamedInputPath[] {
+export function installedPortableBundleInputs(applicationRoot = process.cwd()): readonly NamedInputPath[] {
   const selected = new Map<string, string>();
   const seenPackages = new Set<string>();
   const externalQueue: Array<{ specifier: string; from: string }> = [];
@@ -107,7 +107,7 @@ export function installedPortableBundleInputs(): readonly NamedInputPath[] {
       }
     }
   };
-  for (const specifier of OWNED_EXPORTS) addPackage(require.resolve(specifier), true);
+  for (const specifier of OWNED_EXPORTS) addPackage(resolveOwned(specifier, applicationRoot), true);
   for (const [specifier, owner] of EXTERNAL_IMPORTS) {
     externalQueue.push({ specifier, from: packageRoot(require.resolve(owner)).root });
   }
@@ -119,12 +119,18 @@ export function installedPortableBundleInputs(): readonly NamedInputPath[] {
 }
 
 /** Source membership is captured too, so a checkout edit invalidates old dist evidence. */
-export function installedOwnedSourceInputs(): readonly NamedInputPath[] {
+function resolveOwned(specifier: string, applicationRoot: string): string {
+  return specifier === "@canlang/testkit"
+    ? createRequire(resolve(applicationRoot, "package.json")).resolve(specifier)
+    : require.resolve(specifier);
+}
+
+export function installedOwnedSourceInputs(applicationRoot = process.cwd()): readonly NamedInputPath[] {
   const paths = new Map<string, string>();
   const seen = new Set<string>();
-  const installed = installedPortableBundleInputs();
+  const installed = installedPortableBundleInputs(applicationRoot);
   for (const specifier of OWNED_EXPORTS) {
-    const pkg = packageRoot(require.resolve(specifier));
+    const pkg = packageRoot(resolveOwned(specifier, applicationRoot));
     if (seen.has(pkg.root)) continue;
     seen.add(pkg.root);
     const sourceDirectories = pkg.name === "@canlang/values"
@@ -231,11 +237,11 @@ export function installedLocalPreviewInputInventory(checkoutRoot: string, compil
   const grammar = join(realpathSync(checkoutRoot), "docs", "specification", "GRAMMAR.md");
   if (!statSync(grammar).isFile()) throw new Error("preview inputs: installed grammar reference is unavailable");
   return {
-    packageInputPaths: installedPortableBundleInputs(),
+    packageInputPaths: installedPortableBundleInputs(checkoutRoot),
     extraInputPaths: [
       { name: "bun", path: bunExecutable() },
       { name: "grammar", path: grammar },
-      ...installedOwnedSourceInputs(),
+      ...installedOwnedSourceInputs(checkoutRoot),
       ...compilerSourceInputs(checkoutRoot, compilerPath),
     ],
   };
