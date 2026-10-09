@@ -6,6 +6,8 @@ This plan does not replace the [seven-lane platform plan](../PLAN.md). Its paths
 
 ## Current checkpoint
 
+Exact Interfaces3c846ee6 declared native-control decoding and Services6ac7e298 expiry-before-retry test are consumed, excluding foreign records and saved-age restoration changes. Current Interfaces source checks pass42/42 plus form-binding5/5; real Services HTTP expiry1/1 passes. The decoder preserves exact scalar/ref strings and refuses duplicate/mixed/undeclared controls. Its acknowledged unchecked partial-form checkbox gap remains; absent controls cannot safely imply false. Joined emit and full actual Office browser remain due.
+
 The source/recheck refusal-observer control now waits only through an explicit superseded publication, then requires valid/current/ready before its unchanged unsubscribe/retained-failure assertions. The whole affected private-session suite passes12/12. A superseded check correctly retains the old serving owner; it cannot qualify replacement cleanup.
 
 **Local publication instruction:** the human's coordinator now integrates committed units into local main. This worker continues only in its assigned checkout, commits coherent units and unfinished checkpoints, and does not push, merge, switch main or wait for remote automated review. Other recipient-specific holds remain unchanged.
