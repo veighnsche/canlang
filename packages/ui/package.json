@@ -24,6 +24,10 @@
       "types": "./dist/src/browser/print.d.ts",
       "default": "./dist/src/browser/print.js"
     },
+    "./browser/bootstrap": {
+      "types": "./dist/src/browser/bootstrap.d.ts",
+      "default": "./dist/src/browser/bootstrap.js"
+    },
     "./csv/grammar": {
       "types": "./dist/src/csv/grammar.d.ts",
       "default": "./dist/src/csv/grammar.js"

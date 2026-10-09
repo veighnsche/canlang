@@ -4324,21 +4324,21 @@
     "pull_request": "https://github.com/veighnsche/canlang/pull/135",
     "ci_prerequisites": [
       {
-        "prerequisite": "Six real Cloudflare bypasses remain: input-choices test UI imports(3), compiler-check Values catalog path(1), construct-help Values/UI source imports(2). Exact owning release required before workspace boundary gate passes.",
-        "owner": "Dev server worker, coordinating through local chat01a11e6b-f4e1-7603-b47d-9d3210c9c6de"
-      },
-      {
         "prerequisite": "Exact pinned draft5a now available. Pristine CanDo+Employees pilot failsE3001 nullable person and2E3010 active_member derive-purity; retained patched pilot406 provenance refuses changedCanDo and old source emitsE1200 Given preferences+4E2001 preferences/row. Existing15pilot cases all fail at these defining profiles; no skipped/missing-source substitution.",
         "owner": "Draft/Compiler defining source and profile owners; Packages consumes released current-profile fixture/provenance contract"
       },
       {
         "prerequisite": "Released owning formatter, diagnostic/lint and effects harness fixes consumed; fmt/strictalltargetClippy and affected48+1+1+1pass. Exact pinned5a/current producer still disagrees with retained draft_outcome_table on38files; no blind count rewrite. Full actualRust acceptance requires defining current-source outcome profile release.",
         "owner": "Compiler worker PR133 and defining pinned draft source/profile owner"
+      },
+      {
+        "prerequisite": "Genuine inputchoices nativeD1/DOM postcommit invalidation loop does not start expected held request (emittedtest287/sourcecorrespondence); preserve current assertions and resolve actual public UI/consumer lifecycle contract.",
+        "owner": "Packages UI consumer; published Dev owning prerequisite inspection in progress"
       }
     ],
     "review_prerequisite": {
-      "prerequisite": "Consume relevant Codex code/security review after this coherent released dependency/gate update;740ab20b completed without new findings.",
-      "owner": "Codex automated reviewer; Packages consumes revision findings"
+      "prerequisite": "Actualbc377code/securitycompleted; actionable4230912689 borrowed preference chain loses immediateFacade value captions. PublishedCompiler7bed/e461/3082 retains rootEnum.owner lookup; exact owning chain correction required. Current later Work/Dev/source revisions require relevant completed Codex review.",
+      "owner": "Compiler preference declaration/IR owner, then Packages consumes; Codex current-revision review"
     },
     "ci_observed_revision": "Actual new consolidatedCI1644 run37941358998: language tools pass; packagebuilds and compilerformat/lint prerequisites pass; workspace fails exact6Dev-boundaries, browser30pass/15pilot-source/provenancefail, compiler reaches36analysispass/1retaineddraft-outcome-fail after other early suites. Matches local defining blockers; no blanketLinux/fullworkspace/Rust/app acceptance. Work finite observer93passes locally outside held preparation.",
     "released_compiler_dependency": {
@@ -4373,6 +4373,11 @@
       "validation": "Changed prerequisite consumed once in existing pristine/patched pilot checks and real full Rust fmt/Clippy/test commands; actual source/compilation failures recorded separately."
     },
     "workflow_consolidation_owner": "Coordinator exact50e28439 payload consumed and published as1644cd4a2e3f63c06615869d784830560a2f8bb8 AFTER source146aca0d; one4jobci.yml,exact10deletions,READMEparagraph/decisionappend. release.yml andts-gates.yml unchanged. Unchanged officialactionlint1.7.12/YAML/fresh exactdraftcheckout+26build/16guard/40tools results reused; actualnewLinuxgraph remains unaccepted. Prior guard source remains byteidentical toeac25release. Old finite reservation ends; future conflicts route through coordinator.",
-    "work_registered_observer": "VERIFY-TV01 existing registered observer now runs in private platformtemp root (canonical ancestor/symlink containment; checkout refused). GenuineNode24/Rust1.99 frozen TS/native93case comparison and existing controls pass. No oracle changes, held preparation activation or parent/fullnative acceptance."
+    "work_registered_observer": "VERIFY-TV01 existing registered observer now runs in private platformtemp root (canonical ancestor/symlink containment; checkout refused). GenuineNode24/Rust1.99 frozen TS/native93case comparison and existing controls pass. No oracle changes, held preparation activation or parent/fullnative acceptance.",
+    "dev_boundary_release": {
+      "release": "Verified Dev992b3d0ae188d96941a387d538cba11a48692bdb plus2421f900e058ed45771a2a02338fa446ea0d8c4f consumed as narrow owning exports/distribution/manifests/happyDOMlock and three affected test inputs. Preserve unrelated CLIbin/runner implementation; final inputchoices test matches2421 public imports/types.",
+      "validation": "FrozenBun1.4.2 install and Values/Cloudflare TypeScriptpass; actual fullguard13packages/862JS-TS reports0violations. Existing constructhelp4/4 and real Office compilerconsumer4/4pass after owning Values build. Genuine nativeD1/DOM inputchoices case reaches postcommit invalidation loop then fails waiting for held choice request; lifecycle qualification unfinished, actual issue being inspected.",
+      "limits": "No guard relaxation/assertion removal, no wholeworkspace/app/release acceptance; complete choice lifecycle remains necessary."
+    }
   }
 }
