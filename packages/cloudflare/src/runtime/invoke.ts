@@ -3268,7 +3268,7 @@ function encodeCanonicalWireField(StateError: StateErrorsProducer, type: CanType
 }
 
 /** Clone admitted snapshots; decode only their loader-owned type associations. */
-function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 'recordRefs'>, loaded: LoadedCanonicalDescriptors, recordView: (model: string, row: StoredRow) => Record<string, unknown>, resolvedDefaults?: Record<string, unknown>): Record<string, unknown> {
+function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 'recordRefs'>, loaded: LoadedCanonicalDescriptors, recordView: (model: string, row: StoredRow) => Record<string, unknown>, resolvedDefaults?: Record<string, unknown>, receiptFrame?: ScenarioReceiptFrame): Record<string, unknown> {
   const parameters: Record<string, unknown> = Object.assign(Object.create(null), structuredClone(call.inputs));
   const def = generatedScenarioDef(call);
   for (const field of def?.descriptor.inputs ?? []) {
@@ -3290,7 +3290,9 @@ function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 're
     }
   }
   for (const ref of call.recordRefs ?? []) {
-    parameters[ref.param] = recordView(ref.model, ref.row);
+    const view = recordView(ref.model, ref.row);
+    receiptFrame?.bindAdmittedReference(view, ref);
+    parameters[ref.param] = view;
   }
   return parameters;
 }
@@ -4725,14 +4727,14 @@ async function runScenarioSeam(
     if (row === null) throw new StateError('conflict', 'Admitted scenario owner record is no longer present.');
     await ownerNavigation.prepare(ref.model, row);
   }
-  const parameters = cohort === undefined ? undefined : scenarioParameters(call, loaded, recordView, resolvedDefaults);
+  const parameters = cohort === undefined ? undefined : scenarioParameters(call, loaded, recordView, resolvedDefaults, scenarioReceiptFrame);
   const argument = cohort !== undefined
     ? { event: Object.fromEntries(cohort.eventFields.map(name => [name, parameters![name]])),
       ...(cohort.bind === null ? {} : { [cohort.bind]: parameters![cohort.refInput] }) }
     : due !== undefined
-    ? { event: scenarioParameters(call, loaded, recordView, resolvedDefaults) }
+    ? { event: scenarioParameters(call, loaded, recordView, resolvedDefaults, scenarioReceiptFrame) }
     : callable?.inputStyle === "parameters"
-    ? scenarioParameters(call, loaded, recordView, ownerSession === undefined ? resolvedDefaults : undefined)
+    ? scenarioParameters(call, loaded, recordView, ownerSession === undefined ? resolvedDefaults : undefined, scenarioReceiptFrame)
     : { operation_id: call.context.operationId, inputs: call.inputs };
   const observesDefaults = due === undefined && cohort === undefined && callable?.inputStyle === 'parameters';
   const defaultDef = generatedScenarioDef(call);

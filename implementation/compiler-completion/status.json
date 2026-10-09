@@ -480,11 +480,11 @@
     "base": "f436570234178816f8ecb5b11ced9c37f3c182f3",
     "source_checks": "16/16",
     "facts_target": "15/15",
-    "native_target": "2/2 Node24.19 zero skips; prior scalar/array/derive plus6fresh Set cases",
+    "native_target": "2/2 Node24.19 zero skips: original Text cancel/reconcile compile capture, plus actual scalar/array/derive and six fresh Set runtime cases. Native Send execution remains unqualified.",
     "strict_clippy_exit": 0,
     "format_exit": 0,
     "scope": "Actual ownscalar/nullable-null/computed/conditional private-public Set, complete checked boundSend/TextRequest/TextMessage/deliverycarrier source proofs; exactactualIRbijection; write/no-write controls and replay/currentgrant/archive invariance. Original cancel/reconcile compile plans/bindings qualify.",
-    "remaining": "Generate metadata source/native join to exact released State intrinsic producer plus pending required primitive prompt/accept contract and genuine Dev adapter/wholeoriginalworkflow; finalwhole compiler. Held/broadrefs unchanged."
+    "remaining": "Compiler original generate producer is implemented with released intrinsic/input contracts; exact reviewed Dev3f0077 native observer is consumed in this merge. Actual original Text workflow and final changed-source compiler qualification remain due. Native Send execution and broad refs/holds remain unqualified."
   },
   "scenario_intrinsics": {
     "state": "compiler_producer_output_qualified_native_and_whole_unfinished",
