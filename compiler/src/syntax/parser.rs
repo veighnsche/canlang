@@ -5988,7 +5988,8 @@ impl<'a> Parser<'a> {
         if top && word != "page" && word != "view" {
             return Err(Fail::new(
                 "E1200",
-                "Then accepts preferences schemas, preference invariants, views and pages".to_string(),
+                "Then accepts preferences schemas, preference invariants, views and pages"
+                    .to_string(),
                 head.span,
             ));
         }
