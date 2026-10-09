@@ -239,7 +239,7 @@ genuine live hook views and explicit reverse plans remain prerequisites;
 current compiler whole qualification is running. No remote publication or
 broader reference credit follows.
 
-**Current local compiler qualification, 2026-10-09.** Combined source and
+**Previous local compiler qualification, 2026-10-09.** Combined source and
 installed inputs at **279f6dad** pass **1,301 Rust tests, 0 failed, 0 ignored**,
 with Node **24.19.0**, exact draft **5a12eb9e**, actual catalog and required
 real completion engines. The sandbox's mode-4750 body skip is separately
@@ -318,6 +318,28 @@ package identity, once/order, schedule/cancel and later-failure controls remain.
 This is callable ABI qualification using declared host doubles, not persistence
 or fabricated canonical admission. Final combined qualification follows the
 coordinator's released local integration baseline.
+
+**Current combined compiler qualification and unfinished native consumer, 2026-10-09.**
+Shared baseline **2640a9f9** is consumed at **cd4d42bb**. The actual full compiler
+suite passes **1,303/1,303**, zero failed/ignored, with Node **24.19.0**, required
+real completion engines and unchanged exact draft **5a12eb9e**. Current strict
+all-target Clippy and formatting pass. The unchanged exact mode-4750 outside-
+sandbox case and editor/client/LSP results are reused at their recorded scope.
+Required post-merge file-tree registration is reconciled without advancing the
+complete checkpoint. Existing Decimal literal lowering and static date/time
+partition already satisfy their compiler leaves; timezone release qualification
+remains Values/runtime-owned, with no repeated checks or new reference credit.
+
+The native policy fixture now selects the defining Cloudflare runtime stdlib,
+which supplies genuine context-bound CRUD helpers. Actual Values WASM, package
+and Testkit builds followed by catalog generation refresh stale installed inputs
+without a tracked generated-output change. Actual source compilation/assembly
+then reaches all three native cases, but all **3 fail before policy execution**:
+canonical hook module intake rejects the generated `canApp` namespace export as
+accessor metadata. No passing rule activation, rejection receipt or fence change
+is claimed. Dev owns that exact intake/activation prerequisite; its unfinished
+activation release is separate from the released portability repair. Original
+**58/67**, nine open references, BDD3 and outbox holds remain unchanged.
 
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.

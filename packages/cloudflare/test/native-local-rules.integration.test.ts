@@ -52,7 +52,7 @@ beforeAll(async () => {
   assert.deepEqual(policies.hooks, []);
   staging = await mkdtemp(join(tmpdir(), 'can-native-local-rules-'));
   asm = await assembleModules({ artifact, sourcePath: source }, { workDir: staging,
-    stdlibUrl: pathToFileURL(require.resolve('@canlang/stdlib')).href });
+    stdlibUrl: pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href });
 }, 120000);
 afterAll(async () => {
   try { if (capture) assert.equal(await captureIsCurrent(capture), true, 'consumer must finish source-current'); }
