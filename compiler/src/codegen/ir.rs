@@ -6910,7 +6910,9 @@ impl<'a> Cx<'a> {
                     .copied();
                 if bound_target.is_some() && kids(node).iter().any(|n| n.kind == SyntaxKind::Tab) {
                     self.diags.push(Diagnostic::error(
-                        "E6008", "cannot lower bound tabs with authored tab panels".to_string(), node.span,
+                        "E6008",
+                        "cannot lower bound tabs with authored tab panels".to_string(),
+                        node.span,
                     ));
                     return None;
                 }

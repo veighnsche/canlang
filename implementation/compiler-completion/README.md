@@ -79,6 +79,14 @@ checkpoint establishes no separate acceptance. State/D1 persistence, full
 ExpenseFlow/application serving, unsupported order/panels and the wider nine
 references remain open; canonical completion stays **58/67**.
 
+The ready Compiler CI repair reconciles B1's stale three-diagnostic pin to the
+seven exact current tooltip/collapse/breadcrumb/edit/filter refusals, retaining
+exit10, complete diagnostics, zero other codes and no published artifact.
+Its actual CLI/catalog gate passes; unchanged STRICT joins **2/2** and build
+results are reused. Compiler-wide `cargo fmt --check` also passes after layout-only
+corrections to existing upstream lines; source behavior and the integrated
+results are reused. No passing hosted CI or full-plan acceptance follows.
+
 The user has authorized finishing the remaining compiler tasks. Use the [recorded work/review settings](../../docs/research/compiler-library-audit-20261006/resumption/model-allocation.md); overlapping references share work and completed receipts are reused at matching scope. Current completion joins append to the canonical coverage ledger; historical source pins remain unchanged.
 
 | Reference | Current outcome |
