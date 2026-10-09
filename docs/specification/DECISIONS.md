@@ -3650,3 +3650,8 @@ Treat top-level example request.operation_id as text, matching the actual exampl
 ## 2026-10-09 — qualify generic inline-descriptor self-unification
 
 Reuse the saved InlineMessage equality for generic choose instead of duplicating a type special case. Extend the actual native array target with both booleans, eager argument order, first-failure identity and text/named-schema refusals; it passes3/3. Computed anonymous-descriptor formatting remains a separate checked-schema provenance prerequisite, with no API or broader-reference expansion.
+
+
+## 2026-10-09 — consume owning workspace Chromium prerequisite
+
+Consume only Packages c99159501cab7420001999f046c110292f80ee26's workspace CI Chromium/system dependency installation for actual browser consumers. Preserve branch-specific compiler decisions and the existing foreign package ledger instead of importing owner execution claims. The published patch is reused; consuming-head Linux execution remains due.

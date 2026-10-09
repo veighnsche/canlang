@@ -52,6 +52,8 @@ jobs:
         run: bun run catalog
       - name: Build compiler for compiled runtime fixtures
         run: bun run build:compiler
+      - name: Install Chromium and system dependencies for workspace tests
+        run: bunx playwright install --with-deps chromium
       - name: Test all package and integration suites
         env:
           CAN_PREPARATION_BIN: ${{ runner.temp }}/can-integration-preparation/debug/can-preparation
