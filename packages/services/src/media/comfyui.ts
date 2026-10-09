@@ -89,6 +89,8 @@ export interface ComfyUIImagesInstallation {
   readonly workflow: WorkflowDefinition;
   /** Explicit deployment policy: std source has no seed field. */
   readonly seed: { readonly kind: 'fixed'; readonly value: number };
+  /** Finite cancel/reconcile window ceiling; defaults to the transport timeout. */
+  readonly maxObservationDurationMs?: number;
 }
 
 interface ImageBudget {
@@ -493,9 +495,11 @@ export class ComfyUINativeAdapter implements MediaPort {
 
   /**
    * Thin full-request installation over this actual graph/map and transport.
-   * Caller persistence of the original request, IDs and deadline is required;
-   * this adapter has no lifecycle store and cannot detect caller renewal.
-   * Expiry bounds observation/transport, never proves that GPU work stopped.
+   * Caller persistence of the original request, IDs, generation deadline and
+   * any control window is required; this stateless adapter cannot prove when
+   * submission began or detect caller renewal of a retained window.
+   * Late observation needs its own finite window. Neither deadline proves
+   * that GPU work stopped.
    */
   installImages(config: ComfyUIImagesInstallation): InstalledImages {
     const binding = config.binding;
@@ -520,6 +524,12 @@ export class ComfyUINativeAdapter implements MediaPort {
     ) {
       throw new MappingValidationError('Installation requires supported finite adapter ceilings');
     }
+    const maxObservationDurationMs = Object.hasOwn(config, 'maxObservationDurationMs')
+      ? config.maxObservationDurationMs : this.http.timeoutMs;
+    if (typeof maxObservationDurationMs !== 'number' || !Number.isSafeInteger(maxObservationDurationMs) ||
+        maxObservationDurationMs <= 0 || maxObservationDurationMs > 2_147_483_647) {
+      throw new MappingValidationError('Installation requires a supported finite observation ceiling');
+    }
     const graph = frozenCopy(this.graph);
     const mapping = frozenCopy(this.mapping);
     // Validate the exact pinned map/digest once; this is not arbitrary graph inspection.
@@ -543,7 +553,7 @@ export class ComfyUINativeAdapter implements MediaPort {
       maxDownloadBytes: this.downloadHttp.maxBodyBytes,
       maxOutputs: this.maxOutputs,
     });
-    const prepare = (input: ImageRequest, options: InstalledImageOptions) => {
+    const prepare = (input: ImageRequest, options: InstalledImageOptions, control = false) => {
       const startedAt = performance.now();
       const now = Date.now();
       if (!exactFields(input, REQUEST_FIELDS)) {
@@ -572,17 +582,32 @@ export class ComfyUINativeAdapter implements MediaPort {
         throw new MappingValidationError('Image request budgets exceed or do not fit the installation');
       }
       if (
-        !exactFields(options, ['deliveryId', 'jobId', 'deadlineMs']) ||
+        !exactFields(options, Object.hasOwn(options ?? {}, 'observation')
+          ? ['deliveryId', 'jobId', 'deadlineMs', 'observation'] : ['deliveryId', 'jobId', 'deadlineMs']) ||
         typeof options.deliveryId !== 'string' || options.deliveryId.length === 0 ||
         typeof options.jobId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(options.jobId) ||
-        !Number.isSafeInteger(options.deadlineMs) || options.deadlineMs <= now ||
+        !Number.isSafeInteger(options.deadlineMs) || options.deadlineMs <= 0 ||
         options.deadlineMs - now > Number(input.max_duration)
       ) {
-        throw new MappingValidationError('Image lifecycle requires original delivery/UUID job identities and a supported unexpired deadline');
+        throw new MappingValidationError('Image lifecycle requires original delivery/UUID job identities and a supported finite generation deadline');
+      }
+      let deadlineMs = options.deadlineMs;
+      if (Object.hasOwn(options, 'observation')) {
+        const observation = options.observation;
+        if (!control || observation === undefined || !exactFields(observation, ['startedAtMs', 'deadlineMs']) ||
+            Reflect.ownKeys(observation).length !== 2 ||
+            !Number.isSafeInteger(observation.startedAtMs) || observation.startedAtMs < 0 || observation.startedAtMs > now ||
+            !Number.isSafeInteger(observation.deadlineMs) || observation.deadlineMs <= now ||
+            observation.deadlineMs - observation.startedAtMs > maxObservationDurationMs) {
+          throw new MappingValidationError('Image control requires an original bounded observation window; submit cannot override its deadline');
+        }
+        deadlineMs = observation.deadlineMs;
+      } else if (deadlineMs <= now) {
+        throw new MappingValidationError('Image lifecycle requires an unexpired deadline or an explicit control observation window');
       }
       const budget: ImageBudget = {
-        deadlineMs: options.deadlineMs,
-        monotonicDeadline: startedAt + (options.deadlineMs - now),
+        deadlineMs,
+        monotonicDeadline: startedAt + (deadlineMs - now),
         maxOutputs: input.max_outputs,
       };
       const original = { deliveryId: options.deliveryId, jobId: options.jobId };
@@ -595,7 +620,7 @@ export class ComfyUINativeAdapter implements MediaPort {
       binding: frozenCopy(binding),
       workflow,
       validation: mapping.graphDigest,
-      policy: Object.freeze({ seed, maxOutputs: lower.maxOutputs, maxDurationMs: lower.http.timeoutMs, maxOutputBytes: lower.downloadHttp.maxBodyBytes }),
+      policy: Object.freeze({ seed, maxOutputs: lower.maxOutputs, maxDurationMs: lower.http.timeoutMs, maxObservationDurationMs, maxOutputBytes: lower.downloadHttp.maxBodyBytes }),
       images: Object.freeze({
         submit: async (input: ImageRequest, options: InstalledImageOptions) => {
           const { budget, original, projected } = prepare(input, options);
@@ -607,11 +632,11 @@ export class ComfyUINativeAdapter implements MediaPort {
           return completion;
         },
         reconcile: (input: ImageRequest, options: InstalledImageOptions) => {
-          const { budget, original } = prepare(input, options);
+          const { budget, original } = prepare(input, options, true);
           return lower.reconcileWithBudget(original.jobId, original, budget);
         },
         cancel: (input: ImageRequest, options: InstalledImageOptions) => {
-          const { budget, original } = prepare(input, options);
+          const { budget, original } = prepare(input, options, true);
           return lower.cancelWithBudget(original.jobId, original, budget);
         },
       }),

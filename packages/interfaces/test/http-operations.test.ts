@@ -223,12 +223,37 @@ test('unknown operation name shape and unknown catalog entry are not_found', asy
   const t = await setup();
   const body = jsonOpBody();
   const authed = { cookie: t.identity.cookie, csrf: t.csrf, contentType: 'application/json', body };
-  for (const name of ['nope', 'a.b.c.d', 'acme.nope', '1acme.order']) {
+  for (const name of ['nope', 'a.b.c.d', 'acme.nope', '1acme.order', 'acme..order', 'acme.release-skipped', 'acme/order']) {
     const res = await handleOperationRequest(t.deps, opRequest(authed), name);
     assert.equal(res.status, 404, name);
     assert.equal((await res.json() as { code: string }).code, 'not_found');
   }
   assert.equal(t.invoker.mutations.length, 0);
+});
+
+test('source underscore identifiers retain their operation identity over HTTP', async () => {
+  const names = ['CanCreative.release_skipped', '_acme._order', 'ac_me.Order_item.update'];
+  const t = await createTestDeps({
+    shapes: Object.fromEntries(names.map(name => [name, { allowed: ['qty'], required: ['qty'] }])),
+    mutations: Object.fromEntries(names.map(name => [name, (envelope) => ({
+      result: { status: 'committed', operation_id: envelope.operation_id, result: null },
+    })])),
+  });
+  const csrf = await deriveCsrfToken(t.identity.sessionToken);
+  for (const name of names) {
+    const operation_id = freshOperationId();
+    const response = await handleOperationRequest(t.deps, testRequest(`/api/operations/${name}`, {
+      method: 'POST', cookie: t.identity.cookie,
+      headers: { 'content-type': 'application/json', 'x-csrf-token': csrf },
+      body: JSON.stringify({ operation: name, operation_id, inputs: { qty: 1 } }),
+    }), name);
+    assert.equal(response.status, 200, name);
+    assert.equal((await response.json() as { status: string }).status, 'committed');
+    const call = t.invoker.mutations.at(-1); assert.ok(call);
+    assert.deepEqual(call.envelope, { operation: name, operation_id, inputs: { qty: 1 } });
+    assert.equal(call.identity.actor?.user_id, t.identity.userId);
+  }
+  assert.equal(t.invoker.mutations.length, names.length);
 });
 
 test('unknown input member and missing required input are validation', async () => {

@@ -628,7 +628,7 @@ export interface AssemblyDeps {
   now?: () => number;
   cohorts?: CohortTickBinding;
   ownerStorage?: TeamOwnerStorageBoundary;
-  /** Explicit qualified host page binding; the production owner routing gate still applies. */
+  /** Explicit qualified host page binding for its selected physical store. */
   pageReads?: PageReadsBinding;
   /** Installed owning Work observer for generated selected delivery reads. */
   selectedReceiptObserver?: SelectedReceiptObserverBinding;
@@ -992,13 +992,28 @@ export async function createTeamOwnerStorageBoundary(input: {
     throw new Error('assembly: owner routing requires the exact declared app and packages');
   }
   const packages = new Set(Object.keys(definition['packages']));
+  const { StateError } = await import('@canlang/state/errors');
+  const storeForTeam = async (teamId: string): Promise<StoragePort> => {
+    if (await identities.findTeamById(teamId) === null) {
+      throw new StateError('forbidden', 'A current team is required.');
+    }
+    try {
+      return await router.ownerScopedStoragePort({ app, owner: teamId });
+    } catch {
+      // Trusted host configuration may refuse an unknown or incorrectly pinned
+      // route. Never expose its storage details or fall back to another owner.
+      throw new StateError('forbidden', 'Team storage is unavailable.');
+    }
+  };
   const forIdentity = async (identity: ResolvedIdentity): Promise<StoragePort> => {
     const team = identity.team;
-    if (team === null || typeof team?.team_id !== 'string' || team.team_id === '' ||
-        await identities.findTeamById(team.team_id) === null) {
-      throw new Error('assembly: owner routing requires a current concrete Identity team');
+    if (team === null || typeof team?.team_id !== 'string' || team.team_id === '') {
+      throw new StateError('forbidden', 'A current team is required.');
     }
-    return router.ownerScopedStoragePort({ app, owner: team.team_id });
+    // Storage selection grants no business authority. Canonical State keeps
+    // public/authenticated gates valid without membership and revalidates
+    // member-only grants before disclosure.
+    return storeForTeam(team.team_id);
   };
   return Object.freeze({ app, forIdentity,
     async forTrustedScope(scope: WorkScope, now: number) {
@@ -1011,7 +1026,7 @@ export async function createTeamOwnerStorageBoundary(input: {
       if (identity.actor !== null || identity.team?.team_id !== scope.owner) {
         throw new Error('assembly: trusted owner routing identity disagrees with Work scope');
       }
-      return { identity, store: await forIdentity(identity) };
+      return { identity, store: await storeForTeam(scope.owner) };
     },
   });
 }
@@ -1858,10 +1873,6 @@ export async function assembleWorker(
   }
 
   const { descriptors } = await loadPageRegistry(artifact, asm);
-  if (deps.ownerStorage !== undefined && descriptors.length !== 0) {
-    throw new Error('assembly: selected team owner storage has no qualified page routing boundary.');
-  }
-
   const browserAssets = await deps.http?.loadBrowserAssets?.(descriptors);
   if (descriptors.length > 0 && deps.http?.createPageHandler === undefined) {
     throw new Error("assembly: selected pages require the defining handlePageRequest join");
@@ -1883,6 +1894,23 @@ export async function assembleWorker(
     const createReadScope = await loadSiblingFn<
       typeof import("../runtime/invoke.js").createPageReadScopeCanonical
     >("../runtime/invoke.js", "runtime/invoke.ts", "createPageReadScopeCanonical");
+    const assertPageBinding = (identity: ResolvedIdentity): void => {
+      if (deps.ownerStorage !== undefined && deps.pageReads !== undefined &&
+          (deps.pageReads.scope.app !== appInfo.appId || deps.pageReads.scope.owner !== identity.team?.team_id)) {
+        // Cursor bindings assert the exact physical store; selecting a team
+        // never changes a trusted host's assertion into a different owner's.
+        throw { code: 'forbidden', message: 'Page storage binding is unavailable.', retryable: false };
+      }
+    };
+    const scopeFor = (identity: ResolvedIdentity, store: StoragePort): PageReadScope => {
+      assertPageBinding(identity);
+      return createReadScope({
+        asm, artifact, identity, store,
+        memberships: deps.identityStore as CanonicalMembershipReader, now,
+        ...(deps.pageReads === undefined ? {} : { pageReads: deps.pageReads }),
+        ...(deps.selectedReceiptObserver === undefined ? {} : { observer: deps.selectedReceiptObserver }),
+      });
+    };
     pageHandler = deps.http.createPageHandler({
       ...(deps.http.formBindings === undefined ? {} : { formBindings: deps.http.formBindings }),
       ...(deps.http.preferences === undefined ? {} : { preferences: deps.http.preferences }),
@@ -1890,15 +1918,34 @@ export async function assembleWorker(
       catalog: createArtifactCatalog(artifact, deps.http.derivedInputs),
       logger: httpLogger,
       clock: { nowMs: now }, identity: { store: deps.identityStore },
-      createReadScope: identity => createReadScope({
-        asm, artifact, identity, store: deps.store,
-        memberships: deps.identityStore as CanonicalMembershipReader, now,
-        ...(deps.pageReads === undefined ? {} : { pageReads: deps.pageReads }),
-        ...(deps.selectedReceiptObserver === undefined ? {} : { observer: deps.selectedReceiptObserver }),
-      }),
+      createReadScope: identity => {
+        const boundary = deps.ownerStorage;
+        if (boundary === undefined) return scopeFor(identity, deps.store);
+        // Resolve exactly once per request, inside the render read path where
+        // Interfaces preserves canonical business refusals. All checkpoints,
+        // collections and selected receipts share this one physical store.
+        let scope: Promise<PageReadScope> | undefined;
+        const selected = (): Promise<PageReadScope> => scope ??= (async () => {
+          assertPageBinding(identity);
+          return scopeFor(identity, await boundary.forIdentity(identity));
+        })();
+        return Object.freeze({
+          query: async (_invocation: unknown, model: Parameters<RowQueryRunner>[1], args: Parameters<RowQueryRunner>[2]) =>
+            (await selected()).query(identity, model, args),
+          observeDelivery: async (locator: Parameters<NonNullable<PageReadScope['observeDelivery']>>[0],
+            fields: Parameters<NonNullable<PageReadScope['observeDelivery']>>[1]) => {
+            const observe = (await selected()).observeDelivery;
+            if (observe === undefined) throw new Error('assembly: canonical page receipt reader is unavailable.');
+            return observe(locator, fields);
+          },
+        });
+      },
       query: async (invocation, model, args) => {
-        return queryRows({ asm, artifact, model, args, identity: invocation as ResolvedIdentity,
-          store: deps.store, memberships: deps.identityStore as CanonicalMembershipReader, now,
+        const identity = invocation as ResolvedIdentity;
+        assertPageBinding(identity);
+        const store = deps.ownerStorage === undefined ? deps.store : await deps.ownerStorage.forIdentity(identity);
+        return queryRows({ asm, artifact, model, args, identity,
+          store, memberships: deps.identityStore as CanonicalMembershipReader, now,
           ...(deps.pageReads === undefined ? {} : { pageReads: deps.pageReads }) });
       },
     });

@@ -1,0 +1,30 @@
+{
+  "state": "We need an executable defining boundary between State and the compiler for Can's original full model-rule workflows. Source inspection shows rule IDs only inside generated module registries: Job.require.1/Job.lock.1 exist, but checked model artifacts publish neither rule links nor dependency closure. Hooks lack event.input, complete fixed context and nullable removed-after. The runtime currently invokes a fresh State write pipeline for each helper, layers provisional records and repairs versions later. That pipeline already validates typed defaults, references, uniques, machines and ordered history, yet interim locks protect whole rows and invariants materialize models without an accounting bound. Binding those callbacks today would examine intermediate helper state. The accepted design requires final affected-row invariants, relevant dependent-row reevaluation including absence and collection changes, owner-local authority decisions with no result grants and refusal on excessive work. Locks cover declared fields in pre-state, allow unchanged values and archive, reject locked removal save actual expiry disposal, and allow a lock-establishing transaction to fill final values. Ordinary existing references retain v throughout one operation, while all writes reserve v+1 once; new rows use1. CRUD hooks receive immutable typed before/input, controlled native pending after at reserved version or null when unavailable; delete hooks may reject only. Scenario mutations do not rerun CRUD hooks. Plan one defining State owner session for staging, reading and finalization, producing the existing commit effects rather than another storage engine. Producer intake must check module/model identity, member order, callable ABI, selectors, hook trigger/context and dependency work. Consider all options at equal complete scope: rollback, replay, authority, native values, final reference deletion, dependency budgets and all real queries/hooks remain obligations. The existing explicit unsupported intake must stay until that obligation is actually met. Your response is uncertain advisory selection, not acceptance.",
+  "questions": {
+    "lock_prestate": {
+      "type": "choice",
+      "instructions": "For conditional field protection, which baseline fits the documented ability of one operation to establish and finish a lock?",
+      "criteria": {
+        "transaction_entry": "Freeze the original row as lock baseline for the full admitted operation. Ordered staging may complete newly locked fields before commit; subsequent operations are protected. State records that baseline once.",
+        "ordered_write": "Recompute pre-state from the current provisional row for every staged write. A lock introduced by an earlier write restricts following writes, requiring authoring final locked fields at introduction. Reuses interim behavior at the cost of that composition restriction."
+      }
+    },
+    "dependency_execution": {
+      "type": "choice",
+      "instructions": "Pick the most appropriate complete dependency contract, charging both compiler and runtime complexity fairly.",
+      "criteria": {
+        "checked_reverse_plans": "Require checked emitted forward dependencies and reverse selection instructions over exact owning relationships and predicates. The runtime uses a common work allowance to recheck relevant final rows, including missing/collection-sensitive cases. Higher upfront compiler effort buys selective execution.",
+        "bounded_conservative_scans": "Publish sound model/owner dependency coverage, then enumerate every owner row that could matter with shared finite accounting. This avoids fine reverse plans initially, but large legitimate owners may exceed the budget and must refuse rather than truncate.",
+        "dynamic_read_tracking": "Capture reads and query memberships during evaluation and use their checked absence/collection coverage to invalidate affected rows. Runtime discovery must reach a bounded stable set; reduced static work entails more tracking and soundness obligations."
+      }
+    },
+    "execution_binding": {
+      "type": "choice",
+      "instructions": "Select the callable representation with the lowest justified total cost while maintaining every stated workflow requirement.",
+      "criteria": {
+        "checked_native_bindings": "Use checked module-qualified links to current generated predicates, with a complete typed callback/context boundary and State-owned limited query access. No replacement interpreter, but compiler linkage, dependency and proper native-hook producers are still necessary.",
+        "serializable_rule_ir": "Introduce an emitted rule tree and defining State evaluator covering native values, query authority, hooks and ordering completely. It makes the runtime representation explicit but incurs another interpreter and the same finalization/dependency duties."
+      }
+    }
+  }
+}

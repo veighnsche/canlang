@@ -13,16 +13,16 @@ import {
 } from "./session-socket.js";
 
 const COMMANDS = [
-  "start", "discover", "status", "check", "diagnostics", "diagnostic.detail", "construct.help", "failure.lookup", "failure.detail",
-  "preview.status", "preview.open", "stop",
+  "start", "discover", "status", "check", "diagnostics", "diagnostic.detail", "construct.help", "construct.rank", "rank.lookup", "failure.lookup", "failure.detail", "failures",
+  "preview.status", "preview.open", "example.run", "example.rerun", "stop",
 ] as const;
 type Command = typeof COMMANDS[number];
 type Flag = "--root" | "--session" | "--app" | "--profile" | "--revision" |
   "--expected-revision" | "--index" | "--after" | "--limit" | "--ref" | "--capture" |
-  "--source" | "--compiler" | "--catalog" | "--help-index" | "--id";
+  "--source" | "--compiler" | "--catalog" | "--help-index" | "--id" | "--operation" | "--row";
 const FLAGS: ReadonlySet<string> = new Set<Flag>([
   "--root", "--session", "--app", "--profile", "--revision", "--expected-revision",
-  "--index", "--after", "--limit", "--ref", "--capture", "--source", "--compiler", "--catalog", "--help-index", "--id",
+  "--index", "--after", "--limit", "--ref", "--capture", "--source", "--compiler", "--catalog", "--help-index", "--id", "--operation", "--row",
 ]);
 
 export type DevControlEnvelope =
@@ -43,8 +43,11 @@ function help(): DevControlEnvelope {
     start: ["--source PATH or --capture PATH"], discover: [], status: [], check: [],
     diagnostics: ["--revision rN"], "diagnostic.detail": ["--revision rN", "--index N"],
     "construct.help": ["--revision rN", "--id can.v1.CONSTRUCT"],
+    "construct.rank": ["--revision rN", "--index N"], "rank.lookup": ["--revision rN", "--ref SHA256"],
     "failure.lookup": ["--ref SESSION/rN/dN"], "failure.detail": ["--ref SESSION/rN/dN"],
+    failures: ["--revision rN"],
     "preview.status": [], "preview.open": [], stop: [],
+    "example.run": ["--expected-revision rN"], "example.rerun": ["--ref SESSION/rN/RUN/fCASE_ENTRY"],
   };
   return {
     ok: true, command: "help", session: null,
@@ -60,12 +63,16 @@ function help(): DevControlEnvelope {
         diagnostics: ["--revision", "--after", "--limit"],
         "diagnostic.detail": ["--revision", "--index"],
         "construct.help": ["--revision", "--id"],
+        "construct.rank": ["--revision", "--index"], "rank.lookup": ["--revision", "--ref"],
         "failure.lookup": ["--ref"],
         "failure.detail": ["--ref"],
+        failures: ["--revision", "--after", "--limit"],
+        "example.run": ["--expected-revision", "--operation", "--row"],
+        "example.rerun": ["--ref"],
       },
       start_defaults: { root: "current directory", compiler: "compiler/target/debug/can",
         catalog: "packages/values/dist/catalog.json", help_index: "docs/specification/CONSTRUCT-HELP.md" },
-      unavailable: ["example.run", "example.rerun"],
+      unavailable: [],
     },
   };
 }
@@ -137,18 +144,20 @@ export async function runDevControlArgv(argv: readonly string[], deps: ControlCl
   const allowed = new Set<string>(selected === "start"
     ? ["--root", "--app", "--source", "--capture", "--compiler", "--catalog", "--help-index"]
     : ["--root", "--session", "--app", "--profile"]);
-  if (selected === "check") allowed.add("--expected-revision");
-  if (selected === "diagnostics" || selected === "diagnostic.detail" || selected === "construct.help") allowed.add("--revision");
-  if (selected === "diagnostics") { allowed.add("--after"); allowed.add("--limit"); }
-  if (selected === "diagnostic.detail") allowed.add("--index");
+  if (selected === "check" || selected === "example.run") allowed.add("--expected-revision");
+  if (selected === "example.run") { allowed.add("--operation"); allowed.add("--row"); }
+  if (selected === "diagnostics" || selected === "diagnostic.detail" || selected === "construct.help" || selected === "construct.rank" || selected === "rank.lookup" || selected === "failures") allowed.add("--revision");
+  if (selected === "diagnostics" || selected === "failures") { allowed.add("--after"); allowed.add("--limit"); }
+  if (selected === "diagnostic.detail" || selected === "construct.rank") allowed.add("--index");
+  if (selected === "rank.lookup") allowed.add("--ref");
   if (selected === "construct.help") allowed.add("--id");
-  if (selected === "failure.lookup" || selected === "failure.detail") allowed.add("--ref");
+  if (selected === "failure.lookup" || selected === "failure.detail" || selected === "example.rerun") allowed.add("--ref");
   if ([...values.keys()].some(flag => !allowed.has(flag))) {
     return fail(command, "INVALID_ARGUMENTS", "flag does not apply to this command");
   }
   const revision = values.get("--revision");
   const expectedRevision = values.get("--expected-revision");
-  if ((selected === "diagnostics" || selected === "diagnostic.detail" || selected === "construct.help") && !/^r[1-9][0-9]*$/.test(revision ?? "")) {
+  if ((selected === "diagnostics" || selected === "diagnostic.detail" || selected === "construct.help" || selected === "construct.rank" || selected === "rank.lookup" || selected === "failures") && !/^r[1-9][0-9]*$/.test(revision ?? "")) {
     return fail(command, "REVISION_REQUIRED", "revisioned lookup needs --revision rN");
   }
   const constructId = values.get("--id");
@@ -158,15 +167,28 @@ export async function runDevControlArgv(argv: readonly string[], deps: ControlCl
   if (expectedRevision !== undefined && !/^r[1-9][0-9]*$/.test(expectedRevision)) {
     return fail(command, "INVALID_REVISION", "expected revision must be rN");
   }
+  if (selected === "example.run" && expectedRevision === undefined) {
+    return fail(command, "REVISION_REQUIRED", "example run needs --expected-revision rN");
+  }
+  const operation = values.get("--operation");
+  const rowIndex = values.has("--row") ? parseInteger(values.get("--row"), 0) : undefined;
+  if (selected === "example.run" && ((operation === undefined) !== (rowIndex === undefined) || rowIndex === null ||
+      (operation !== undefined && !/^[A-Za-z_][A-Za-z0-9_.]{0,199}$/.test(operation)))) {
+    return fail(command, "INVALID_ARGUMENTS", "selected example needs --operation NAME and --row N");
+  }
   const ref = values.get("--ref");
-  if ((selected === "failure.lookup" || selected === "failure.detail") &&
-      !/^[A-Za-z0-9_-]{1,64}\/r[1-9][0-9]*\/d(0|[1-9][0-9]*)$/.test(ref ?? "")) {
-    return fail(command, "FAILURE_REF_REQUIRED", "failure lookup needs a captured compiler ref");
+  if ((selected === "failure.lookup" || selected === "failure.detail" || selected === "example.rerun") &&
+      !/^[A-Za-z0-9_-]{1,64}\/r[1-9][0-9]*\/(?:d(?:0|[1-9][0-9]*)|[A-Za-z0-9_-]{1,64}\/f[0-9]+(?:_[0-9]+)?)$/.test(ref ?? "")) {
+    return fail(command, "FAILURE_REF_REQUIRED", "failure lookup needs a retained compiler or example ref");
+  }
+  if (selected === "rank.lookup" && !/^[0-9a-f]{64}$/.test(ref ?? "")) {
+    return fail(command, "RANK_REF_REQUIRED", "rank lookup needs a pending SHA256 ref");
   }
   const index = values.get("--index") === undefined ? null : parseInteger(values.get("--index"), 0);
-  const after = values.get("--after") === undefined ? null : parseInteger(values.get("--after"), 0);
+  const afterRaw = values.get("--after");
+  const after = afterRaw === undefined ? null : afterRaw === "-1" ? -1 : parseInteger(afterRaw, 0);
   const limit = values.get("--limit") === undefined ? null : parseInteger(values.get("--limit"), 1);
-  if ((selected === "diagnostic.detail" && index === null) ||
+  if (((selected === "diagnostic.detail" || selected === "construct.rank") && index === null) ||
       (values.has("--after") && after === null) || (values.has("--limit") && (limit === null || limit > 25))) {
     return fail(command, "INVALID_ARGUMENTS", "diagnostic index/cursor/limit is invalid");
   }
@@ -219,12 +241,15 @@ export async function runDevControlArgv(argv: readonly string[], deps: ControlCl
       return { ok: true, command: selected, session: stopped.session, result: { schema: "can.dev.stop.v1", stopped: true } };
     }
     const owner = await (deps.discover ?? discoverSessionSocket)(lookup);
-    const payload = selected === "check" && expectedRevision !== undefined
+    const payload = selected === "example.run"
+      ? { expectedRevision, ...(operation === undefined ? {} : { operation, rowIndex }) }
+      : selected === "check" && expectedRevision !== undefined
       ? { expectedRevision }
-      : selected === "diagnostics" ? { revision, ...(after === null ? {} : { after }), ...(limit === null ? {} : { limit }) }
-      : selected === "diagnostic.detail" ? { revision, index }
+      : selected === "diagnostics" || selected === "failures" ? { revision, ...(after === null ? {} : { after }), ...(limit === null ? {} : { limit }) }
+      : selected === "diagnostic.detail" || selected === "construct.rank" ? { revision, index }
+      : selected === "rank.lookup" ? { revision, ref }
       : selected === "construct.help" ? { revision, id: constructId }
-      : selected === "failure.lookup" || selected === "failure.detail" ? { ref }
+      : selected === "failure.lookup" || selected === "failure.detail" || selected === "example.rerun" ? { ref }
       : undefined;
     const result = await owner.request({ command: selected, ...(payload === undefined ? {} : { payload }) });
     return { ok: true, command: selected, session: owner.identity.sessionId, result };

@@ -6,7 +6,8 @@
  * this module only authors the lane-04 command array for assembly
  * composition (`[...l3Commands, ...WORK_SYSTEM_COMMANDS]`). Every stage
  * is type-conformant to the landed L3 S6 `SystemCommandDef` (verified by
- * `tsc`, type-only import — no runtime dependency on `@canlang/state`).
+ * `tsc`). The Images pending-stop stage reuses the declared State dependency
+ * for its owning receipt codec; it never opens a transaction.
  *
  * Fence-correctness rules honored here:
  * - Readers-only contexts: stages use `load`/`query` and return staged
@@ -16,7 +17,7 @@
  *   and exactly one wins.
  * - Query results are re-filtered exactly in-stage; predicates only
  *   narrow scans.
- * - Stages throw `KernelTableError` (plain `Error`) on invalid input or
+ * - Stages throw owning table errors (plain `Error`) on invalid input or
  *   missing rows. Verified: the registry propagates stage errors raw
  *   (it maps commit errors only), so no `StateError` import is needed
  *   or used.
@@ -26,9 +27,13 @@
  */
 import type {
   DomainWrite,
+  ModelName,
+  ReceiptResultContext,
   RecordId,
   StoredRow,
 } from '@canlang/contracts';
+import { DELIVERY_RESULT_LEAVES } from '@canlang/contracts';
+import { RECEIPT_MODEL, readReceiptRow, withReceiptRowData } from '@canlang/state/receipt/tables';
 import type {
   SystemCommandDef,
 } from '@canlang/state';
@@ -48,6 +53,9 @@ import {
   everySlotRowId,
   newEverySlotRow,
   readDispatchRow,
+  readDispatchImageCorrelation,
+  readDispatchImageControlPin,
+  DISPATCH_IMAGE_CORRELATION_FIELDS,
   readEverySlotRow,
 } from './tables.js';
 import { checkArgs, argString, argNullableString, argRecord, argInstant } from './arguments.js';
@@ -162,6 +170,152 @@ export function createWorkDispatchClaimCommand(
 
 /** Default claim command preserves the existing registry's unknown-availability profile. */
 export const workDispatchClaimCommand: SystemCommandDef = createWorkDispatchClaimCommand();
+
+/**
+ * Stop an ORIGINAL Images submit before its first queued receipt commits.
+ * The caller joins these effects, the current association and control outcome
+ * in its existing owner fence. `revision` is that batch's owner checkpoint.
+ * A held provider claim is revoked; its later progress cannot hold the claim.
+ * A queued result is evidence of transport admission and is never skippable.
+ */
+export const workDispatchStopPendingCommand: SystemCommandDef = {
+  name: 'work.dispatch.stop-pending',
+  stage: async (args, ctx) => {
+    const what = 'work.dispatch.stop-pending';
+    checkArgs(args, what);
+    if (Reflect.ownKeys(args).length !== 3 ||
+        Reflect.ownKeys(args).some(key => !['intentId', 'correlation', 'revision'].includes(key as string))) {
+      throw new KernelTableError(`${what}: requires exactly intentId, correlation and revision.`);
+    }
+    const intentId = argString(args, 'intentId', what);
+    const revision = args['revision'];
+    if (typeof revision !== 'number' || !Number.isSafeInteger(revision) || revision < 1) {
+      throw new KernelTableError(`${what}: revision must be a safe positive owner checkpoint.`);
+    }
+    const expected = argRecord(args, 'correlation', what);
+    if (Reflect.ownKeys(expected).length !== DISPATCH_IMAGE_CORRELATION_FIELDS.length ||
+        Reflect.ownKeys(expected).some(key => typeof key !== 'string' ||
+          !DISPATCH_IMAGE_CORRELATION_FIELDS.includes(key as typeof DISPATCH_IMAGE_CORRELATION_FIELDS[number]))) {
+      throw new KernelTableError(`${what}: requires exactly the original Images correlation.`);
+    }
+    const correlation = readDispatchImageCorrelation(expected);
+    const { row, data } = await loadDispatchRow(ctx, intentId, what);
+    const retained = readDispatchImageCorrelation(data);
+    if (row.id !== intentId || data.intentId !== intentId || row.archivedAt !== null ||
+        data.source !== 'std.ImagesV1.submit' || correlation === null || retained === null ||
+        DISPATCH_IMAGE_CORRELATION_FIELDS.some(field => correlation[field] !== retained[field])) {
+      throw new KernelTableError(`${what}: original submit identity or retained correlation disagrees.`);
+    }
+    const receiptRow = await ctx.load(RECEIPT_MODEL as ModelName, intentId as RecordId);
+    if (receiptRow === null || receiptRow.archivedAt !== null) {
+      throw new KernelTableError(`${what}: original receipt is missing.`);
+    }
+    const context: ReceiptResultContext = {
+      source: data.source,
+      declaredResult: { name: 'ImageRun', fields: DELIVERY_RESULT_LEAVES['ImageRun']! },
+      request: { source: retained.requestSource, revision: retained.requestRevision },
+    };
+    const stored = readReceiptRow(receiptRow, context);
+    const receipt = stored.receipt;
+    // State's generic reader normalizes omitted nulls; this defining boundary
+    // requires actual retained fields before asserting transport never began.
+    if (!Object.hasOwn(receiptRow.data, 'result') || !Object.hasOwn(receiptRow.data, 'error')) {
+      throw new KernelTableError(`${what}: original receipt must retain result and error explicitly.`);
+    }
+    const noOp = (reason: string) => ({ result: { stopped: false, reason, intentId,
+      state: data.state, receiptStatus: receipt.status } });
+    if (data.guardVerdict === false && receipt.status === 'skipped' && receipt.result === null) return noOp('already-stopped');
+    if (receipt.result !== null) return noOp('receipt-started');
+    if (receipt.status !== 'pending') return noOp('receipt-settled');
+    if (data.state !== 'pending' && data.state !== 'claimed') return noOp('settled');
+    if (data.attempts !== 0 || data.firstAttemptAtMs !== null) return noOp('attempted');
+    if ((data.state === 'claimed' && (data.claimId === null || data.claimedAtMs === null)) ||
+        receipt.error !== null || stored.contentRef !== null || stored.resultExpiresAtMs !== null ||
+        receiptRow.data['result'] !== null || receiptRow.data['error'] !== null) {
+      throw new KernelTableError(`${what}: original pre-transport claim or receipt is inconsistent.`);
+    }
+    if (revision <= receipt.revision) {
+      throw new KernelTableError(`${what}: owner checkpoint must advance the original receipt.`);
+    }
+    const nextReceipt = withReceiptRowData(receiptRow, {
+      deliveryId: intentId, revision, status: 'skipped', result: null, error: null,
+      contentRef: null, resultExpiresAtMs: null,
+    }, { nowMs: ctx.now, actor: ctx.actor }, context);
+    return {
+      writes: [
+        updateWrite(row, { ...data, state: 'pending', guardVerdict: false,
+          claimId: null, claimedAtMs: null }, ctx, WORK_DISPATCH_MODEL, what),
+        { kind: 'update', model: RECEIPT_MODEL as ModelName, id: receiptRow.id,
+          expectedVersion: receiptRow.version, row: nextReceipt },
+      ],
+      outboxAck: [intentId],
+      result: { stopped: true, intentId, receiptRevision: revision },
+    };
+  },
+};
+
+/** Persist an immutable per-control original submit/window under its holding claim before HTTP. */
+export const workDispatchPinImageControlCommand: SystemCommandDef = {
+  name: 'work.dispatch.pin-image-control',
+  stage: async (args, ctx) => {
+    const what = 'work.dispatch.pin-image-control';
+    checkArgs(args, what);
+    const keys = ['intentId', 'claimId', 'originalIntentId', 'correlation', 'observation'];
+    if (Reflect.ownKeys(args).length !== keys.length || Reflect.ownKeys(args).some(key => !keys.includes(key as string))) {
+      throw new KernelTableError(`${what}: requires exact control identity, claim, original identity, correlation and observation.`);
+    }
+    const intentId = argString(args, 'intentId', what), claimId = argString(args, 'claimId', what);
+    const originalIntentId = argString(args, 'originalIntentId', what);
+    const expected = argRecord(args, 'correlation', what);
+    if (Reflect.ownKeys(expected).length !== DISPATCH_IMAGE_CORRELATION_FIELDS.length ||
+        Reflect.ownKeys(expected).some(key => typeof key !== 'string' ||
+          !DISPATCH_IMAGE_CORRELATION_FIELDS.includes(key as typeof DISPATCH_IMAGE_CORRELATION_FIELDS[number]))) {
+      throw new KernelTableError(`${what}: requires exactly the original Images correlation.`);
+    }
+    const correlation = readDispatchImageCorrelation(expected);
+    const observation = argRecord(args, 'observation', what);
+    if (Reflect.ownKeys(observation).length !== 2 || Reflect.ownKeys(observation).some(key => key !== 'startedAtMs' && key !== 'deadlineMs')) {
+      throw new KernelTableError(`${what}: observation requires exactly startedAtMs and deadlineMs.`);
+    }
+    const started = Object.getOwnPropertyDescriptor(observation, 'startedAtMs');
+    const deadline = Object.getOwnPropertyDescriptor(observation, 'deadlineMs');
+    if (started === undefined || !('value' in started) || deadline === undefined || !('value' in deadline)) {
+      throw new KernelTableError(`${what}: observation requires retained own data, without accessors.`);
+    }
+    const pin = readDispatchImageControlPin({ originalIntentId,
+      observationStartedAtMs: started.value, observationDeadlineMs: deadline.value });
+    const { row, data } = await loadDispatchRow(ctx, intentId, what);
+    const controlCorrelation = readDispatchImageCorrelation(data);
+    const original = await loadDispatchRow(ctx, originalIntentId, what);
+    const originalCorrelation = readDispatchImageCorrelation(original.data);
+    if (intentId === originalIntentId || row.id !== intentId || data.intentId !== intentId || row.archivedAt !== null ||
+        !['std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(data.source) ||
+        original.row.id !== originalIntentId || original.data.intentId !== originalIntentId || original.row.archivedAt !== null ||
+        original.data.source !== 'std.ImagesV1.submit' || correlation === null || controlCorrelation === null || originalCorrelation === null ||
+        DISPATCH_IMAGE_CORRELATION_FIELDS.some(field => correlation[field] !== controlCorrelation[field] || correlation[field] !== originalCorrelation[field])) {
+      throw new KernelTableError(`${what}: retained control/original identities and correlation disagree.`);
+    }
+    if (data.state !== 'claimed' || data.claimId !== claimId || data.claimedAtMs === null) {
+      throw new KernelTableError(`${what}: claim does not hold the original Images control.`);
+    }
+    const retained = readDispatchImageControlPin(data);
+    if (pin === null || pin.observationStartedAtMs !== row.created) {
+      throw new KernelTableError(`${what}: observation must start at the original control creation.`);
+    }
+    if (retained !== null) {
+      if (retained.originalIntentId !== pin.originalIntentId || retained.observationStartedAtMs !== pin.observationStartedAtMs ||
+          retained.observationDeadlineMs !== pin.observationDeadlineMs) {
+        throw new KernelTableError(`${what}: retained original/window cannot be renewed or replaced.`);
+      }
+      return { result: { pinned: true, existing: true, intentId, ...retained } };
+    }
+    if (pin.observationStartedAtMs > ctx.now || pin.observationDeadlineMs <= ctx.now) {
+      throw new KernelTableError(`${what}: original control observation window is not active.`);
+    }
+    return { writes: [updateWrite(row, { ...data, ...pin }, ctx, WORK_DISPATCH_MODEL, what)],
+      result: { pinned: true, existing: false, intentId, ...pin } };
+  },
+};
 
 const TERMINAL_ATTEMPT_STATES: ReadonlySet<string> = new Set([
   'delivered',
@@ -531,6 +685,8 @@ export const workEveryAdvanceSlotCommand: SystemCommandDef = {
  */
 export const WORK_SYSTEM_COMMANDS: readonly SystemCommandDef[] = [
   workDispatchClaimCommand,
+  workDispatchStopPendingCommand,
+  workDispatchPinImageControlCommand,
   workDispatchRecordAttemptCommand,
   workDispatchRequeueCommand,
   workDispatchReleaseCommand,
@@ -643,8 +799,8 @@ export const workDispatchRecoverCommand: SystemCommandDef = {
  * T24a staging-join commands for assembly composition. T24b wires these
  * alongside `WORK_SYSTEM_COMMANDS`
  * (`[...l3Commands, ...WORK_SYSTEM_COMMANDS, ...WORK_DISPATCH_STAGE_COMMANDS]`)
- * and bumps the registry-shape count pin in `kernel-commands.test.ts`
- * from 9 to 11; until then this array stays the T24a composition unit
+ * plus the Images stop/pin commands yield 13 composed Work commands;
+ * this array stays the T24a composition unit
  * (verified composed-with-L3 in `t24a-staging-join.test.ts`).
  */
 export const WORK_DISPATCH_STAGE_COMMANDS: readonly SystemCommandDef[] = [

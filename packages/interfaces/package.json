@@ -24,6 +24,10 @@
       "types": "./dist/src/http/formErrors.d.ts",
       "default": "./dist/src/http/formErrors.js"
     },
+    "./http/assets": {
+      "types": "./dist/src/http/assets.d.ts",
+      "default": "./dist/src/http/assets.js"
+    },
     "./uploads/kernel": {
       "types": "./dist/src/uploads/kernel.d.ts",
       "default": "./dist/src/uploads/kernel.js"

@@ -24,6 +24,29 @@ export async function stageFileReferences(input: {
 }): Promise<{ readonly guards: CanonicalGuardRevalidation[]; readonly attachments: FileAttachment[] }> {
   const attachments: FileAttachment[] = [];
   const guards: CanonicalGuardRevalidation[] = [];
+  const assigned = new Set<string>();
+  const assignmentKey = (model: string, recordId: string, field: string) => JSON.stringify([model, recordId, field]);
+  if (input.effects.fileAssignments !== undefined) {
+    if (!Array.isArray(input.effects.fileAssignments)) input.refuse('File assignment intent must be an internal list.');
+    for (const assignment of input.effects.fileAssignments) {
+      if (assignment === null || typeof assignment !== 'object' ||
+          Object.keys(assignment).length !== 3 || Object.keys(assignment).some(key => !['model', 'recordId', 'field'].includes(key)) ||
+          typeof assignment.model !== 'string' || typeof assignment.recordId !== 'string' || typeof assignment.field !== 'string') {
+        input.refuse('File assignment intent must name exactly its model, record and field.');
+      }
+      const declaration = input.artifact.models?.find(model => model.name === assignment.model)?.fields
+        .find(field => field.name === assignment.field && field.field.kind === 'file');
+      const targets = input.effects.writes.filter(effect => {
+        if (effect === null || typeof effect !== 'object' || !('kind' in effect) || !('model' in effect)) return false;
+        const write = effect as DomainWrite;
+        return (write.kind === 'insert' || write.kind === 'update') && write.model === assignment.model &&
+          write.row?.id === assignment.recordId && write.row.data !== null && typeof write.row.data === 'object' &&
+          Object.hasOwn(write.row.data, assignment.field);
+      });
+      if (declaration === undefined || targets.length !== 1) input.refuse('File assignment intent needs its checked field and actual final target row.');
+      assigned.add(assignmentKey(assignment.model, assignment.recordId, assignment.field));
+    }
+  }
   for (const effect of input.effects.writes ?? []) {
     if (effect === null || typeof effect !== 'object' || !('kind' in effect) || !('model' in effect)) continue;
     const write = effect as DomainWrite;
@@ -37,7 +60,8 @@ export async function stageFileReferences(input: {
     for (const field of fields) {
       const wire = (row.data as Record<string, unknown>)[field.name];
       if (wire === null || wire === undefined) continue;
-      if (JSON.stringify(previous?.data[field.name]) === JSON.stringify(wire)) continue;
+      if (!assigned.has(assignmentKey(write.model, row.id, field.name)) &&
+          JSON.stringify(previous?.data[field.name]) === JSON.stringify(wire)) continue;
       const native = decodeValue(`file${field.array === undefined ? '' : '[]'}`, wire);
       const values = Array.isArray(native) ? native : [native];
       for (const value of values) {
