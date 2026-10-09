@@ -4,16 +4,16 @@
  */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { CanTypeId, Receipt, ScenarioResultDisclosurePlan, StoragePort } from '@canlang/contracts';
+import type { CanTypeId, OperationId, OperationName, Receipt, ScenarioResultDisclosurePlan, StoragePort } from '@canlang/contracts';
 import { createMemoryStorage } from '../storage/memory.js';
 import { StateError } from '../errors.js';
 import { buildPolicyTable } from '../policy/grants.js';
-import { loadArtifactDescriptors, loadExecutionDescriptorSet, type ArtifactDescriptorSlice } from './registry.js';
+import { IncompatibleArtifactError, loadArtifactDescriptors, loadExecutionDescriptorSet, type ArtifactDescriptorSlice } from './registry.js';
 import { invoke, invokeRetainedReceiptOnly, type ExecutionEffects } from './invoke.js';
-import { observeScenarioReceiptDependency, selectScenarioReceiptReturn,
+import { observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, selectScenarioReceiptReturn,
   readScenarioReceiptAssociation, projectScenarioReceipt, snapshotScenarioReceiptEffects } from './scenario-receipt.js';
 import { FIXED_NOW, asModel, asVersion, createMemoryIdentityStore, makeIdentity, makeEnvelope,
-  seedMember, seedRow, updateRow, uuidv7 } from '../../test/invocation/fixtures.js';
+  seedMember, seedRow, updateRow, uuidv7, makeBatch } from '../../test/invocation/fixtures.js';
 
 const MODEL = asModel('Shop.Record'); const OP = 'Shop.saved'; const APP = 'saved-scenario-app';
 let sequence = 0;
@@ -74,7 +74,235 @@ async function save(w: Awaited<ReturnType<typeof world>>, changed = true): Promi
   assert.ok(receipt); return receipt;
 }
 
+function intrinsicArtifact(version = true, type = 'text'): ArtifactDescriptorSlice {
+  const slice = artifact();
+  slice.operations![0]!.result = { type: type as CanTypeId, disclosure: {
+    version: 1, source: origin(), returns: [{ id: 'intrinsic-result', source: origin(), influences: [], dependencies: [],
+      intrinsics: [
+        { id: 'invocation', source: origin(), role: 'data', kind: 'operation-id', type: 'text' as CanTypeId },
+        ...(version ? [{ id: 'original-version', source: origin(), role: 'control' as const,
+          kind: 'admitted-reference-version' as const, parameter: 'record', model: MODEL, type: 'int' as CanTypeId }] : []),
+      ] }] } };
+  return slice;
+}
+
+async function saveIntrinsics(w: Awaited<ReturnType<typeof world>>, version = true): Promise<Receipt> {
+  let receipt: Receipt | undefined;
+  await invoke({ ...w, execute: async call => {
+    const reference = call.recordRefs[0]!, original = reference.row;
+    await observeScenarioReceiptIntrinsic(call, w.store, {
+      dependencyId: 'invocation', kind: 'operation-id', wire: call.context.operationId });
+    if (version) await observeScenarioReceiptIntrinsic(call, w.store, {
+      dependencyId: 'original-version', kind: 'admitted-reference-version', reference, wire: String(original.version) });
+    selectScenarioReceiptReturn(call, w.store, 'intrinsic-result');
+    return { ...emptyEffects(version ? `${call.context.operationId}:${original.version}` : call.context.operationId),
+      writes: [{ kind: 'update', model: MODEL, id: original.id, expectedVersion: original.version,
+        row: { ...original, version: asVersion(original.version + 1), data: { ...original.data, visible: 'intrinsic committed' } } }] };
+  }, observeCommittedReceipt: value => { receipt = value; } });
+  assert.ok(receipt); return receipt;
+}
+
+async function assertIntrinsicRejection(w: Awaited<ReturnType<typeof world>>, revision: number, code: string): Promise<void> {
+  // Business rejection deliberately commits one receipt/fence revision.
+  assert.equal(await w.store.readRevision(), revision + 1);
+  const receipt = await w.store.readReceipt({ app: APP, owner: w.member.team.team_id,
+    principal: w.member.user.user_id, operation: OP as OperationName, operationId: w.envelope.operation_id as OperationId });
+  assert.ok(receipt); assert.equal(receipt.outcome.status, 'rejected');
+  if (receipt.outcome.status !== 'rejected') throw new Error('Expected rejection receipt');
+  assert.equal(receipt.outcome.code, code);
+  assert.deepEqual(await w.store.load(MODEL, w.row.id), { ...w.row, parent: w.row.parent ?? null });
+  assert.deepEqual(await w.store.historyFor(MODEL, w.row.id), []);
+  assert.deepEqual(await w.store.outboxPending(), []);
+  assert.deepEqual(await w.store.schedulesDue(FIXED_NOW, 10), []);
+}
+
 describe('execution-associated saved scenario disclosure', () => {
+  it('retains exact invocation identity and original admitted version through writes and receipt-only recovery', async () => {
+    const w = await world(intrinsicArtifact()); const receipt = await saveIntrinsics(w);
+    const association = readScenarioReceiptAssociation(receipt); assert.ok(association?.intrinsics);
+    assert.equal(association.intrinsics[0]!.wire, w.envelope.operation_id);
+    const version = association.intrinsics[1]!;
+    assert.equal(version.kind, 'admitted-reference-version');
+    if (version.kind !== 'admitted-reference-version') throw new Error('original version observation');
+    assert.equal(version.wire, String(w.row.version));
+    assert.equal(version.row.version, w.row.version);
+    assert.ok(version.secretFields.includes('token'));
+    assert.equal(association.changed[0]!.row.version, w.row.version + 1);
+    const current = await w.store.load(MODEL, w.row.id); assert.ok(current);
+    await updateRow(w.store, MODEL, current, { data: { ...current.data, visible: 'current version three' } });
+    const revision = await w.store.readRevision(); let executes = 0, commits = 0;
+    assert.equal((await invokeRetainedReceiptOnly({ ...w, clock: { nowMs: () => FIXED_NOW + 16 * 60_000 },
+      store: { ...w.store, commit: async batch => { commits++; return w.store.commit(batch); } },
+      execute: async () => { executes++; throw new Error('recovery must not execute'); } })).status, 'replayed');
+    const projected = await projectScenarioReceipt({ ...w, receipt });
+    assert.equal(projected.result, `${w.envelope.operation_id}:${w.row.version}`);
+    assert.equal(projected.records[0]!.version, w.row.version + 1);
+    assert.equal(projected.records[0]!.data['visible'], 'intrinsic committed');
+    assert.equal(Object.hasOwn(projected.records[0]!.data, 'token'), false);
+    assert.equal(executes, 0); assert.equal(commits, 0);
+    assert.equal(await w.store.readRevision(), revision);
+    assert.deepEqual(await w.store.readReceipt(receipt.identity), receipt);
+  });
+
+  it('withholds original-version results under current permission and row lifetime loss', async () => {
+    for (const loss of ['permission', 'archive', 'delete', 'recreate'] as const) {
+      const w = await world(intrinsicArtifact()); const receipt = await saveIntrinsics(w);
+      let policy = w.policy;
+      if (loss === 'permission') policy = buildPolicyTable([{ model: MODEL, secretFields: [], grants: [] }]);
+      else {
+        const current = await w.store.load(MODEL, w.row.id); assert.ok(current);
+        if (loss === 'archive') await updateRow(w.store, MODEL, current, { archivedAt: FIXED_NOW + 1 });
+        else {
+          await w.store.commit(makeBatch(await w.store.readRevision(), {
+            writes: [{ kind: 'remove', model: MODEL, id: current.id, expectedVersion: current.version }] }));
+          if (loss === 'recreate') await w.store.commit(makeBatch(await w.store.readRevision(), {
+            writes: [{ kind: 'insert', model: MODEL, row: { ...current, created: current.created + 1 } }] }));
+        }
+      }
+      const revision = await w.store.readRevision();
+      assert.deepEqual(await projectScenarioReceipt({ ...w, policy, receipt }), { result: null, records: [] }, loss);
+      assert.equal(await w.store.readRevision(), revision);
+      assert.deepEqual(await w.store.readReceipt(receipt.identity), receipt);
+    }
+  });
+
+  it('projects invocation identity only for its exact retained caller and current operation authority', async () => {
+    const w = await world(intrinsicArtifact(false)); const receipt = await saveIntrinsics(w, false);
+    const noRows = buildPolicyTable([{ model: MODEL, secretFields: [], grants: [] }]);
+    assert.deepEqual(await projectScenarioReceipt({ ...w, policy: noRows, receipt }), {
+      result: w.envelope.operation_id, records: [] });
+    const noBy = loadArtifactDescriptors(intrinsicArtifact(false), { by: { role: 'Shop.denied' } }).registry;
+    assert.deepEqual(await projectScenarioReceipt({ ...w, registry: noBy, receipt }), { result: null, records: [] });
+    await assert.rejects(projectScenarioReceipt({ ...w, app: 'foreign', receipt }), forbidden);
+    await assert.rejects(projectScenarioReceipt({ ...w, identity: makeIdentity({ userId: 'foreign', team: w.member.team }), receipt }), forbidden);
+    await w.memberships.removeMembership(w.member.membership.membership_id);
+    assert.deepEqual(await projectScenarioReceipt({ ...w, receipt }), { result: null, records: [] });
+  });
+
+  it('refuses spoofed, copied, foreign, accessor and closed intrinsic reports and poisons caught failures', async () => {
+    for (const invalid of ['operation-wire', 'version-wire', 'copied-reference', 'foreign-dependency', 'accessor'] as const) {
+      const w = await world(intrinsicArtifact()); const revision = await w.store.readRevision(); let getters = 0;
+      await assert.rejects(invoke({ ...w, execute: async call => {
+        const reference = call.recordRefs[0]!;
+        if (invalid === 'operation-wire') await assert.rejects(observeScenarioReceiptIntrinsic(call, w.store, {
+          dependencyId: 'invocation', kind: 'operation-id', wire: uuidv7(FIXED_NOW, ++sequence) }), validation);
+        else {
+          const report = { dependencyId: invalid === 'foreign-dependency' ? 'foreign' : 'original-version',
+            kind: 'admitted-reference-version' as const, reference: invalid === 'copied-reference' ? { ...reference } : reference,
+            wire: invalid === 'version-wire' ? String(reference.row.version + 1) : String(reference.row.version) };
+          if (invalid === 'accessor') Object.defineProperty(report, 'wire', { enumerable: true,
+            get: () => { getters++; return String(reference.row.version); } });
+          await assert.rejects(observeScenarioReceiptIntrinsic(call, w.store, report), validation);
+        }
+        // Catching the failed report cannot restore a usable capture or commit.
+        assert.throws(() => selectScenarioReceiptReturn(call, w.store, 'intrinsic-result'), validation);
+        return emptyEffects('spoofed');
+      } }), validation);
+      assert.equal(getters, 0); await assertIntrinsicRejection(w, revision, 'validation');
+    }
+    for (const foreign of ['call', 'store'] as const) {
+      const w = await world(intrinsicArtifact(false)); const revision = await w.store.readRevision();
+      await assert.rejects(invoke({ ...w, execute: async call => {
+        await observeScenarioReceiptIntrinsic(foreign === 'call' ? { ...call } : call,
+          foreign === 'store' ? { ...w.store } : w.store,
+          { dependencyId: 'invocation', kind: 'operation-id', wire: call.context.operationId });
+        return emptyEffects(call.context.operationId);
+      } }), forbidden);
+      await assertIntrinsicRejection(w, revision, 'forbidden');
+    }
+    const w = await world(intrinsicArtifact(false)); let closed: Parameters<typeof observeScenarioReceiptIntrinsic>[0] | undefined;
+    await invoke({ ...w, execute: async call => {
+      closed = call;
+      await observeScenarioReceiptIntrinsic(call, w.store, { dependencyId: 'invocation', kind: 'operation-id', wire: call.context.operationId });
+      selectScenarioReceiptReturn(call, w.store, 'intrinsic-result'); return emptyEffects(call.context.operationId);
+    } });
+    assert.ok(closed);
+    await assert.rejects(observeScenarioReceiptIntrinsic(closed, w.store, {
+      dependencyId: 'invocation', kind: 'operation-id', wire: closed.context.operationId }), forbidden);
+    const receipt = await saveIntrinsics(await world(intrinsicArtifact()));
+    for (const index of [0, 1]) {
+      const tampered = structuredClone(receipt);
+      (tampered.outcome as unknown as { scenario: { intrinsics: Array<{ wire: string }> } }).scenario.intrinsics[index]!.wire = '999';
+      assert.throws(() => readScenarioReceiptAssociation(tampered), validation);
+    }
+  });
+
+  it('requires intrinsic capture even for implicit void and rejects unsupported reference parameter profiles', async () => {
+    const w = await world(intrinsicArtifact(true, 'void')); const revision = await w.store.readRevision();
+    await assert.rejects(invoke({ ...w, execute: async () => emptyEffects(null) }), validation);
+    await assertIntrinsicRejection(w, revision, 'validation');
+    for (const profile of ['optional', 'nullable', 'array', 'unversioned'] as const) {
+      const slice = intrinsicArtifact(); const reference = slice.operations![0]!.inputs.fields[0]!;
+      if (profile === 'optional') reference.required = false;
+      if (profile === 'nullable') reference.nullable = true;
+      if (profile === 'array') reference.array = { required: false };
+      if (profile === 'unversioned' && reference.field.kind === 'ref') reference.field.requireVersion = false;
+      assert.throws(() => loadArtifactDescriptors(slice, { by: 'members' }), IncompatibleArtifactError, profile);
+    }
+  });
+
+  it('keeps metadata version distinct from declared data.version and refuses malformed intrinsic plans and saved reports', async () => {
+    const slice = intrinsicArtifact();
+    slice.models![0]!.fields.push({ name: 'version', field: { kind: 'integer' }, required: true, serverOnly: false });
+    const returned = slice.operations![0]!.result!.disclosure!.returns[0]!;
+    (returned.dependencies as unknown[]).push({ id: 'data-version', source: origin(), role: 'data',
+      model: MODEL, field: 'version', type: 'int' });
+    const w = await world(slice); const current = await w.store.load(MODEL, w.row.id); assert.ok(current);
+    const row = await updateRow(w.store, MODEL, current, { data: { ...current.data, version: '99' } });
+    const policy = buildPolicyTable([{ model: MODEL, secretFields: [], grants: [{ by: 'members', fields: ['version'] }] }]);
+    let receipt: Receipt | undefined;
+    await invoke({ ...w, envelope: makeEnvelope(OP, uuidv7(FIXED_NOW, ++sequence), {
+      record: { id: row.id, version: String(row.version) } }), execute: async call => {
+      const reference = call.recordRefs[0]!;
+      await observeScenarioReceiptDependency(call, w.store, { dependencyId: 'data-version', model: MODEL,
+        field: 'version', row: reference.row });
+      await observeScenarioReceiptIntrinsic(call, w.store, { dependencyId: 'invocation', kind: 'operation-id', wire: call.context.operationId });
+      await observeScenarioReceiptIntrinsic(call, w.store, { dependencyId: 'original-version', kind: 'admitted-reference-version',
+        reference, wire: String(reference.row.version) });
+      selectScenarioReceiptReturn(call, w.store, 'intrinsic-result'); return emptyEffects(`${reference.row.version}:99`);
+    }, observeCommittedReceipt: value => { receipt = value; } });
+    assert.ok(receipt);
+    assert.deepEqual(await projectScenarioReceipt({ ...w, policy, receipt }), { result: null, records: [] },
+      'a metadata grant named version cannot establish access to the declared data.version dependency');
+    assert.equal(readScenarioReceiptAssociation(receipt)!.observations[0]!.row.data['version'], '99');
+    const original = readScenarioReceiptAssociation(receipt)!.intrinsics![1]!;
+    assert.equal(original.wire, String(row.version));
+    for (const malformed of ['type', 'kind', 'source', 'duplicate', 'null'] as const) {
+      const bad = intrinsicArtifact();
+      const entry = bad.operations![0]!.result!.disclosure!.returns[0]!;
+      const intrinsics = entry.intrinsics! as unknown as Array<Record<string, unknown>>;
+      if (malformed === 'type') intrinsics[0]!['type'] = 'int';
+      if (malformed === 'kind') intrinsics[0]!['kind'] = 'current-reference-version';
+      if (malformed === 'source') intrinsics[0]!['source'] = { ...origin(), sha256: 'b'.repeat(64) };
+      if (malformed === 'duplicate') intrinsics.push({ ...intrinsics[0]! });
+      if (malformed === 'null') (entry as unknown as Record<string, unknown>)['intrinsics'] = null;
+      assert.throws(() => loadArtifactDescriptors(bad, { by: 'members' }), IncompatibleArtifactError, malformed);
+    }
+    const badReceipt = structuredClone(receipt);
+    (badReceipt.outcome as unknown as { scenario: Record<string, unknown> }).scenario['intrinsics'] = null;
+    assert.throws(() => readScenarioReceiptAssociation(badReceipt), validation);
+  });
+
+  it('poisons intrinsic capture when admitted identity is tampered during its awaited reference read', async () => {
+    const w = await world(intrinsicArtifact()); const revision = await w.store.readRevision();
+    let active: Parameters<typeof observeScenarioReceiptIntrinsic>[0] | undefined;
+    const store: StoragePort = { ...w.store, load: async (model, id) => {
+      const row = await w.store.load(model, id);
+      if (active !== undefined) (active.context as { operationId: string }).operationId = uuidv7(FIXED_NOW, ++sequence);
+      return row;
+    } };
+    await assert.rejects(invoke({ ...w, store, execute: async call => {
+      active = call; const operationId = call.context.operationId;
+      await assert.rejects(observeScenarioReceiptIntrinsic(call, store, { dependencyId: 'original-version',
+        kind: 'admitted-reference-version', reference: call.recordRefs[0]!, wire: String(call.recordRefs[0]!.row.version) }), forbidden);
+      (call.context as { operationId: string }).operationId = operationId;
+      active = undefined;
+      assert.throws(() => selectScenarioReceiptReturn(call, store, 'intrinsic-result'), validation);
+      return emptyEffects('caught tamper');
+    } }), validation);
+    await assertIntrinsicRejection(w, revision, 'validation');
+  });
+
   it('preserves an own empty file assignment carrier through scalar receipt snapshot, replay and projection', async () => {
     const w = await world(); let receipt: Receipt | undefined; let executes = 0;
     const assignments: unknown[] = [];
