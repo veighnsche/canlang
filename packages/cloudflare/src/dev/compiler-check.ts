@@ -68,7 +68,7 @@ async function verifiedBytes(entry: CapturedFileIdentity): Promise<Buffer> {
 function runStagedCompiler(executable: string, catalog: string, capture: SingleFileCapture): Promise<{ code: number | null; stdout: string; stdoutBytes: Uint8Array; stderr: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn(executable, [
-      "compile", "--format=json", `--catalog=${catalog}`, capture.compilerOperand,
+      "compile", "--format=json", "--native-scenario-receipts", `--catalog=${catalog}`, capture.compilerOperand,
     ], {
       cwd: capture.root,
       shell: false,
