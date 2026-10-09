@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import type { CompileArtifact } from '@canlang/contracts';
 import type { SingleFileCapture } from '../src/dev/source-capture.js';
 
-const mocks = vi.hoisted(() => ({ start: vi.fn(), close: vi.fn(), dispose: vi.fn() }));
+const mocks = vi.hoisted(() => ({ start: vi.fn(), close: vi.fn(), dispose: vi.fn(), activate: vi.fn() }));
 vi.mock('../src/dev/local-run.js', () => ({ startLocalDev: mocks.start }));
 vi.mock('../src/dev/preview-bridge.js', () => ({ startProtectedPreview: async () => ({
   url: 'http://127.0.0.1:43217', close: mocks.close,
@@ -45,7 +45,7 @@ async function setup(models: unknown[] | undefined, active = true) {
   const confirm = vi.fn(async (..._args: Parameters<NonNullable<Parameters<typeof createLocalPreviewBuilder>[0]['confirmRunningActivation']>>) => active ? ({ active: true as const }) : ({ active: false as const, reasons: [] }));
   const build = createLocalPreviewBuilder({
     resources: { d1: { binding: 'DB', availability: 'real_local' }, identity: { backingBinding: 'DB', availability: 'real_local' } },
-    activationVerdict: async () => ({ active: true }), confirmRunningActivation: confirm,
+    activationVerdict: mocks.activate.mockImplementation(async () => ({ active: true })), confirmRunningActivation: confirm,
     seedLocalActors: async () => ({ owners, actors: Array.from({ length: 4 }, (_, i) => ({
       label: String(i), email: `a${i}`, password: 'password', teams: [],
     })), probe: { email: 'a0', password: 'password', teamId: owners[0]!.owner } }),
@@ -77,7 +77,7 @@ it('model-free preview refuses inactive serving global DB', async () => {
 });
 
 it('model-backed preview keeps separate owner DBs and both owner activation checks', async () => {
-  const result = await setup([{}]);
+  const result = await setup([{ name: 'Office.Supply' }, { name: 'Office.Item', parent: 'Office.Supply' }]);
   expect(result.failure).toBe(result.probeReached);
   const options = mocks.start.mock.calls[1]![0];
   expect(options.d1Databases).toHaveLength(3);
@@ -92,7 +92,7 @@ it('model-backed preview keeps separate owner DBs and both owner activation chec
 });
 
 it('model-backed preview still refuses inactive owner activation', async () => {
-  const result = await setup([{}], false);
+  const result = await setup([{ name: 'Office.Supply' }], false);
   expect(result.failure.code).toBe('ACTIVATION_REFUSED');
   expect(result.failure.message).toContain('owner D1');
   expect(result.confirm).toHaveBeenCalledTimes(1);
@@ -107,4 +107,50 @@ it('omitted models use global DB activation without owner configuration', async 
   expect(result.confirm).toHaveBeenCalledTimes(1);
   expect(result.confirm.mock.calls[0]![2]).toBe(result.dbs.get('DB'));
   expect(result.confirm.mock.calls[0]).toHaveLength(4);
+});
+
+it('app roots and their contained children use existing global DB activation without team routes', async () => {
+  const result = await setup([{ name: 'Office.Child', parent: 'Office.Config' },
+    { name: 'Office.Config', scope: 'app' }, { name: 'Office.Settings', scope: 'app' }]);
+  expect(result.failure).toBe(result.probeReached);
+  const options = mocks.start.mock.calls[1]![0];
+  expect(options.d1Databases).toHaveLength(1);
+  expect(options.vars).not.toHaveProperty('CAN_STATE_OWNERS');
+  expect(result.confirm).toHaveBeenCalledTimes(1);
+  expect(result.confirm.mock.calls[0]![2]).toBe(result.dbs.get('DB'));
+  expect(result.confirm.mock.calls[0]).toHaveLength(4);
+});
+
+it('app-scoped preview still refuses inactive serving global DB', async () => {
+  const result = await setup([{ name: 'Office.Config', scope: 'app' }], false);
+  expect(result.failure.code).toBe('ACTIVATION_REFUSED');
+  expect(result.failure.message).toContain('global D1');
+});
+
+it('mixed app/team roots refuse before activation or Worker allocation', async () => {
+  const result = await setup([{ name: 'Office.Config', scope: 'app' }, { name: 'Office.Supply' }]);
+  expect(result.failure).toMatchObject({ name: 'PreviewAdmissionError', code: 'MIXED_OWNER_PROFILE_UNSUPPORTED' });
+  expect(result.failure.message).toContain('storage-selection API');
+  expect(mocks.activate).not.toHaveBeenCalled();
+  expect(mocks.start).not.toHaveBeenCalled();
+  expect(result.confirm).not.toHaveBeenCalled();
+});
+
+it.each([
+  [[{ name: 'Office.Supply' }, { name: 'Office.Supply' }]],
+  [[{ name: 'Office.Child', parent: 'Office.Missing' }]],
+  [[{ name: 'Office.Child', parent: 'Office.Child' }]],
+  [[{ name: 'Office.A', parent: 'Office.B' }, { name: 'Office.B', parent: 'Office.A' }]],
+  [[{ name: 'Office.Config', scope: 'team' }]],
+  [[{ name: 'Office.Child', parent: 'Office.Config', scope: 'app' }, { name: 'Office.Config', scope: 'app' }]],
+  [[{ name: 'Office.Child', parent: '' }]],
+  [[{ name: '' }]],
+  [[{}]],
+  [[null]],
+])('malformed containment refuses before activation or Worker allocation: %j', async models => {
+  const result = await setup(models);
+  expect(result.failure).toMatchObject({ name: 'PreviewAdmissionError', code: 'MODEL_OWNERSHIP_INVALID' });
+  expect(mocks.activate).not.toHaveBeenCalled();
+  expect(mocks.start).not.toHaveBeenCalled();
+  expect(result.confirm).not.toHaveBeenCalled();
 });

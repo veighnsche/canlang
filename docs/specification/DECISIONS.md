@@ -3783,3 +3783,7 @@ Consume only the six Compiler source/test files released at d64f648b, preserving
 ### Implementation: source-current local Values producer output
 
 Rebuild the stale captured Values binding through its exact locked owning wasm32 and wasm-bindgen0.2.129 producer. Retain generated WASM and matching BUILD metadata; do not change Rust semantics, common gates or frozen external oracles. Values emit/catalog pass and actual binding/bootstrap checks pass25/25. This unblocks local captured consumers without treating generated freshness as whole-app qualification.
+
+### Implementation: local preview ownership-root admission
+
+Classify authoritative model containment roots before activating or allocating workers. Empty/app-only artifacts use the existing global store and its activation gate; team-only artifacts use existing pinned team stores. Validate unique names, ancestry, scope and cycles. Orchestration18/18 passes; actual app-only consumption is due. Mixed app/team models refuse explicitly because the owning invocation/page boundary lacks model-aware selection and cross-owner semantics; retain that named API prerequisite instead of relaxing team admission or duplicating State routing.
