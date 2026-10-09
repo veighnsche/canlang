@@ -1,5 +1,5 @@
-import type { CanonicalValueTypes, FieldMachine } from "./state.js";
-import type { CanTypeId } from "./values.js";
+import type { CanonicalOwnerModelPolicies, CanonicalValueTypes, FieldMachine } from "./state.js";
+import type { CanTypeId, WireValue } from "./values.js";
 import type { InputChoiceBinding } from "./wire.js";
 
 /**
@@ -317,6 +317,10 @@ export type ArtifactModelFieldType =
 export interface ArtifactModelField {
   /** Checked source type association; text requires this claim beside the collapsed string tag. */
   valueType?: CanTypeId;
+  /** Checked field normalization and inclusive wire-form bounds. */
+  trim?: boolean;
+  min?: WireValue;
+  max?: WireValue;
   /** Opt-in flat lifecycle, with static operation-owned edges. */
   machine?: FieldMachine;
   /** Field name (model-local). */
@@ -472,6 +476,9 @@ export interface CompileArtifact {
    * folds each model's `fields` array into a record by `name`.
    */
   models?: ArtifactModel[];
+  /** Checked source-ordered metadata; native callbacks live separately in each emitted
+   * module's canApp().modelPolicyBindings, never in this JSON claim. Omission is legacy. */
+  modelPolicies?: CanonicalOwnerModelPolicies[];
   /** Checked source nominal definitions used by field/input/result claims. */
   valueTypes?: CanonicalValueTypes;
   /** Page descriptors in source order. */

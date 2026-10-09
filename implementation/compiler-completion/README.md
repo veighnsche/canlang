@@ -225,6 +225,20 @@ nominal refusal, aggregate deadline and exact request-count assertions. Other
 cases and unchanged producer results are reused. This unit stays locally
 committed under the revised integration workflow.
 
+**Unfinished rule/hook join — released policy transport, 2026-10-09.**
+Exact Capability **f4673097** Contracts/State transport and its required
+**d9ea5d8d/3bfaed1f** artifact field/alias adapters are consumed. Checked JSON
+metadata now survives artifact loading separately from module-local native
+callbacks; strict ABI, model/package/module identity, closed metadata and
+accessor refusals remain. Retained-receipt/outbox and public invocation seams
+are excluded. Owning build **6/6** and the complete affected State unit suite
+**1,038/1,038** pass with **zero skips**, including actual D1/DO and permanent
+transport controls. These qualify the released input adapter, not native Can
+argument hydration or canonical policy activation. Dev's private adapter,
+genuine live hook views and explicit reverse plans remain prerequisites;
+current compiler whole qualification is running. No remote publication or
+broader reference credit follows.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed
