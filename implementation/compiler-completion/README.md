@@ -21,6 +21,14 @@ checking pipeline; the optional diagnostic carrier remains. Library/binary
 bounded repair. Can Dev **T04's compiler inventory/help-data owner** must release
 the real producer and selected-profile proofs before enabling the hook.
 
+Strict all-target Clippy then exposed the new extension's enlarged diagnostic
+error layout and upstream CLI/BDD traversal lints. Boxing the optional extension
+preserves its wire shape; exact short-circuit/traversal rewrites and the LSP
+token chunk correction preserve behavior. Foundation **9/9**, typed LSP **9/9**
+and actual BDD bindings **4/4** pass. Independent review accepts the bounded
+repair, including its newly introduced Rust field source-compatibility change;
+final strict Clippy remains due after the ready alias source unit.
+
 Current corpus qualification is blocked on the upstream draft gitlink
 **5a12eb9e**: its remote rejects that exact commit as unavailable. The existing
 clean draft checkout at **a55a0f7** is preserved; its counts cannot qualify the
@@ -32,6 +40,18 @@ The coordinator/draft publisher owns this prerequisite. Upstream's
 anonymous-message, query and helper releases supersede the pre-sync leads;
 the duplicate unvalidated anonymous producer is retained only in local branch
 `codex/compiler-anonymous-unfinished-checkpoint`, without acceptance credit.
+
+Current remaining prerequisites are recorded here without reopening accepted
+compiler leaves:
+
+| References | Required prerequisite and owner |
+| --- | --- |
+| SEM-R05, S9-Q05 | Release-pinned timezone dataset/membership and wider temporal profiles: Values/runtime release owner. Structural timezone admission remains bounded. |
+| S9-Q01 | Additional human-text capability sinks and canonical outbound text/locale/release freezing: capability, Contracts, State and Cloudflare owners. Local anonymous alias provenance is a ready compiler leaf; canonical inline-enum UI presentation requires the UI message consumer to recognize `enum(a,b)` without dropping cases. |
+| SEM-R08 | Admitted unknown-nominal callable/facade contract and authority-derived scalar expectation: Values/catalog and defining runtime owners. Existing E6007 refusal remains. |
+| S9-Q02 | Additional default/result intake and observation contracts, private/CRUD/D1 transaction profiles: Contracts, State and Cloudflare owners. Unsupported nested/nonempty/element-nullable enum profiles remain explicit. |
+| S9-Q07 | Specific BDD consumer-policy consultation remains held; human/policy owner must resolve it. Actual result/current-input/live-read transport belongs to Testkit/canonical invocation owners. Imported helpers are already linked. |
+| S9-Q08, OR-06, OUT-R05 | Page admission/current-row disclosure/browser serving, migrations/durable ingestion, installed applications and real GUI/map navigation: Cloudflare, Interfaces, UI, State migration/deployment, application/release and editor/GUI owners. Native map production is already supplied. |
 
 The user has authorized finishing the remaining compiler tasks. Use the [recorded work/review settings](../../docs/research/compiler-library-audit-20261006/resumption/model-allocation.md); overlapping references share work and completed receipts are reused at matching scope. Current completion joins append to the canonical coverage ledger; historical source pins remain unchanged.
 
