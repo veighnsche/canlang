@@ -27,6 +27,7 @@ fn local_views_bind_rows_once_and_keep_native_occurrences_distinct() {
     let (ir, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let uses = &ir.modules[0].pages[0].render[0].children;
+    assert_eq!(ir.modules[0].pages[0].render[0].factory, "table");
     assert_eq!(uses.len(), 2);
     assert_ne!(
         uses[0].view.as_ref().unwrap().identity,
@@ -108,6 +109,18 @@ fn local_views_bind_rows_once_and_keep_native_occurrences_distinct() {
         (
             "extra-row",
             source.replace("{row=chosen(row)}", "{row=chosen(row),extra=row}"),
+        ),
+        (
+            "table-children-without-split",
+            source.replace(" display=split", ""),
+        ),
+        (
+            "unknown-table-display",
+            source.replace("display=split", "display=drawer"),
+        ),
+        (
+            "authored-table-occurrence",
+            source.replace("display=split", "display=split occurrence=\"forged\""),
         ),
         ("wrong-model", source.replace("row:Card", "row:Detail")),
         (

@@ -16,7 +16,7 @@ When
   do let supplied=attempt
 Then
  page /views title="Views"
-  list Card empty="No cards"
+  table Card columns=title,flag empty="No cards" display=split
    show card_body {row=chosen(row)}
    show card_body {row=chosen(row)}
  view card_body(row:Card)
