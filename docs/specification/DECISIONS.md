@@ -3521,3 +3521,7 @@ The Cloudflare row adapter must read the expectation produced by the owning Test
 ### 2026-10-09 — Retain failed rerun recipes and canonical retry guidance
 
 Passing/unsupported example runs do not allocate retained rerun artifacts, so routine successful checks cannot evict an earlier failed row. Safe HTTP failure projection preserves a validated retryable boolean or the owning closed-code default while withholding raw response details. These address the Codex review of 890ed600; bounded failed-artifact eviction remains explicit.
+
+### 2026-10-09 — Ordinary team discovery for local app sign-in
+
+Add authenticated GET /auth/teams to Interfaces using Identity memberships, returning only active existing teams for the session user. Cursor pagination keeps output bounded without making later memberships undiscoverable. Preview labels/credentials do not supply membership authority or replace normal CSRF-protected team selection; team names are not invented where the current Identity schema only owns UUID/timezone.
