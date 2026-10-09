@@ -1,7 +1,6 @@
 /** Narrow checked singular-ref null controls; hand-built pipeline cases are labeled. */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { encodeValue } from '@canlang/values';
 import type { StoredRow } from '@canlang/contracts';
 import { loadArtifactDescriptors, type ArtifactDescriptorSlice } from '../invocation/registry.js';
 import { buildModelTable, buildModelTableFromCanonical, type InterimFieldDef } from './models.js';
