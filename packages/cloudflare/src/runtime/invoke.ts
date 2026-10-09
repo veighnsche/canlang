@@ -124,7 +124,7 @@ import type {
 } from "./context.js";
 import { createContext } from "./context.js";
 import type { AssembledModules } from "./modules.js";
-import { importVerifiedAssemblyModule } from './modules.js';
+import { importVerifiedAssemblyModule } from './assembly-verification.js';
 import type { MappedPosition } from "./sourcemap.js";
 import { lookup } from "./sourcemap.js";
 import { stageAuthoredDelivery } from "./receipt-staging.js";
@@ -3395,7 +3395,7 @@ async function loadLocalOwnerPolicyControl(input: {
           };
           const refuse = (): never => { assertLive(); throw new input.native.producers.errors('validation', 'Local owner model rules cannot access storage.'); };
           const store: StoragePort = Object.freeze({ readRevision: refuse, load: refuse, query: refuse, commit: refuse,
-            readReceipt: refuse, outboxPending: refuse, scheduleGet: refuse, schedulesDue: refuse, historyFor: refuse,
+            readReceipt: refuse, outboxGet: refuse, outboxPending: refuse, scheduleGet: refuse, schedulesDue: refuse, historyFor: refuse,
             readInstalledSnapshot: refuse, readMigrationProgress: refuse, readStagedRows: refuse, stageMigrationRows: refuse,
             publishMigrationChunk: refuse, flipInstalledSnapshot: refuse, readMigrationOutcomes: refuse,
             recordMigrationFailure: refuse, discardStagedRows: refuse, readMigrationFailure: refuse });
