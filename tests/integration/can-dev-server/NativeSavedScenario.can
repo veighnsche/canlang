@@ -1,8 +1,10 @@
-## Finite native scalar, primitive-array and local-derive receipt capture and current-authority recovery witness.
+## Finite native scalar, array, derive and machine receipt capture and current-authority recovery witness.
 app NativeSavedScenario
 Given
  Item {quantity:int,label:text,available:bool=true,optional:int?,values:int[]?,flags:bool[],names:text[]}
  policy Item read=members
+ Job {status:enum(idle,queued,generating,ready)=idle machine,private_choice:bool=false}
+ policy Job read=members fields=status
  derive read_quantity(item:Item):int = item.quantity
  derive nested_quantity(item:Item):int = read_quantity(item)+1
  derive difference(first:int,second:int):int = first-second
@@ -11,6 +13,29 @@ Given
  derive enabled(item:Item):bool = item.available
 When
  crud Item by=members fields=quantity,label,available,optional,values,flags,names
+ crud Job by=members fields=private_choice
+ scenario advance(job:Job) by=members
+  do
+   let alias=job
+   transition job.status idle -> queued
+   require job.status==queued and alias.status==queued
+   transition job.status queued -> generating
+   require job.status==generating
+ scenario finish(job:Job) by=members
+  do transition job.status generating -> ready
+ scenario rollback(job:Job) by=members
+  do
+   transition job.status idle -> queued
+   transition job.status idle -> queued
+ scenario optional(job:Job) by=members
+  do
+   if job.private_choice
+    transition job.status idle -> ready
+ scenario optional_scalar(job:Job) -> int by=members
+  do
+   if job.private_choice
+    transition job.status idle -> ready
+   return 7
  scenario quantity(item:Item) -> int by=members
   do return item.quantity
  scenario availability(item:Item) -> bool by=members
