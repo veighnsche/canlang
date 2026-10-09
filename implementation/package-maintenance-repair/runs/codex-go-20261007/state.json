@@ -539,7 +539,7 @@
       "commit_pending": false,
       "commit": "89d885a9",
       "remaining_prerequisite": {
-        "prerequisite": "Checked CRUD first/replay provenance and current disclosure have landed and HTTP/CSV consumer is complete. Remaining legitimate scenario producing-origin/dependency provenance and current first/replay disclosure, logical lifetime/physical owner correspondence and remaining supported consumers.",
+        "prerequisite": "Checked CRUD first/replay provenance and current disclosure have landed and HTTP/CSV consumer is complete. Remaining legitimate scenario producing-origin/dependency provenance and current first/replay disclosure, logical lifetime/physical owner correspondence and remaining supported consumers. Expiredsourceform retainedCRUD replay additionally requires canonical retained-only admission; original completeHTTPclaim did not cover this lease join.",
         "owner": "State/Cloudflare/Interfaces security owners; exact scenario producer"
       }
     },
@@ -1580,6 +1580,12 @@
         "behavior": "Retain strict lexical admission and fresh demand order; for trusted checked CRUD let canonical State read retained receipt before unseen age. Old matching HTTP/CSV replay observes current disclosure without repeated effects; changed reuse conflicts, unseen expired/future and pre-provenance receipts refuse.",
         "validation": "Current Interfaces emit and58/58 affected envelope/HTTP/CSV checks; fresh Cloudflare external emit/noEmit and1/1 actual source-generated D1 HTTP/CSV workflow pass without skips. Trace covers receipt/current-row reads, one cached metadata lookup, no commit, revoked read grants/membership and unchanged history/receipt/revision.",
         "limits": "Scenario/legacy catalog and MCP age gates unchanged. Full packet/original security/installed/native gates remain open; no replacement savings."
+      },
+      "source_form_replay_prerequisite": {
+        "state": "blocked; no expiry bypass implemented",
+        "prerequisite": "Canonical retained-receipt-only admission that refuses absentreceipt before execution/commit, trusted Cloudflare forwarding and Interfaces expired immutable signed-claim restoration only through thatmode. ExistingOperationInvoker has no suchcontract; tokenlease15min is shorter than unseenUUIDv7age24h.",
+        "owner": "State/Cloudflare/Interfaces defining security contract/producer owner, routed to coordinator for exact release.",
+        "preserved": "Signature/canonicalbytes/revision/schema/nonce/app/session/actor/team/editableclaims, freshlease, scenarioage/lease, current credential/disclosure and no new mutation from expiredtoken. Greater-than24h-only workaround skipped as incomplete."
       }
     },
     "PARSER-DP01": {
@@ -4332,12 +4338,12 @@
         "owner": "Packages shared CI owner"
       },
       {
-        "prerequisite": "Codex4231375347: published InlineMessage has no self-unification arm for generic choose composition. Preserve descriptors as distinct from text and consume owning producer plus regression when released.",
+        "prerequisite": "Finite published Compiler575/076/e40source/test release consumed; real catalog and locked offline owning3cases pass. Current-head/full-host qualification separate.",
         "owner": "Compiler checked type/unification producer"
       }
     ],
     "review_prerequisite": {
-      "prerequisite": "Codex4230912689 borrowed preference chain loses immediate Facade captions; verified publishedCompiler0f17 retains rootEnum.owner lookup, exact owning correction required. Registry4231103231 corrected through actual6f46source. Values-only4231103245 covered by consumede461 and passing actual nominal consumer. Current/new-head Codex code/security review required; e000 summary previously running.",
+      "prerequisite": "Chained immediate-owner captionf1c84d32 and InlineMessage575/076/e40 exact Compiler release available for narrowintake. Form-binding lease/retainedreplay prerequisite recorded underREPLAY-IP07; actual current-head Codex review remains due. Registry parallel-history premise checked against canonical ancestry, current structural registration afterfinalsource remains due.",
       "owner": "Compiler preference declaration/IR owner, then Packages consumes; Codex current-revision review"
     },
     "ci_observed_revision": "Actual newCI6f46 run37946181674: Tools pass; zero boundary and build/typecheck prerequisites pass. Workspace State B3 malformed-version diagnostic mismatch now corrected and local5cases pass. Compiler current corpus/early joins pass and reaches actual zsh completion; compinit rejects insecure runner directories (owning fixture/environment prerequisite). Browser30pass/15fail at retained CanDo/Employees and patched-source provenance profiles. Current revision Codex summary running; no green whole-workspace/app acceptance.",
@@ -4422,6 +4428,11 @@
       "contract": "@canlang/interfaces/http/operations exportsFORM_REFUSAL_HEADER=can-form-refusal. HTML business-refusal full pages/fragments carry JSON{version:1,code:closed BusinessErrorCode,retryable:boolean}; no prose, inputs, fields, identifiers or private values. JSON path unchanged.",
       "validation": "Interfaces emit and22existing HTTP operation/refusal/security/body checks pass without skips; code/retryability and exact bounded metadata asserted, normal drafts retained, JSON header absent.",
       "consumer": "Dev owns bridge consumption and independent MCP structuredContent/isError observation."
+    },
+    "inline_message_release": {
+      "source": "Exact published57573511self-unification arm/test slice plus0769125einline-array IR ande40b2901generic choose witness consumed; no unrelated unfinished checkpoints.",
+      "validation": "After genuine catalog emission59entries/15features, Rust1.99 locked/offline anonymous_message_coverage3/3passes. Both choose conditions, eager authored construction/read order, native captured identity/counts, first-failure identity and text/named mixing refusals execute.",
+      "limit": "Computed anonymous descriptor formatting profile remains separate; current-head review/full compiler acceptance due."
     }
   }
 }
