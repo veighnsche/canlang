@@ -3739,3 +3739,7 @@ Identity owns listActiveUserTeamsPage(user, exclusiveCursor): active memberships
 ## 2026-10-09 — submit only declared canonical delete inputs
 
 Accepted finite UI correction: deleteRecord sends the checked record plus operation/request identity, CSRF and timezone controls. Remove undeclared inputs[mode]; the declared operation owns archive/remove behavior while DeleteProps.mode continues selecting Archive/Delete wording and warning/error tone. Exact parsed forms preserve record id/version and the original caller operation_id. Owning UI emit and94existing form cases pass without skips, including both modes and hostile inputs. Generated UUIDv7 and real Office deletion qualification remain with their Compiler/Dev owners.
+
+## 2026-10-09 — expose bounded structured facts on HTML form refusals
+
+Accepted finite Interfaces contract: FORM_REFUSAL_HEADER exports can-form-refusal on full-page and fragment business-error responses, carrying JSON{version:1,code:BusinessErrorCode,retryable:boolean}. The producer admits only the closed code vocabulary and strict boolean; it never includes prose, draft values, fields or identifiers. Existing HTML rendering/status and JSON error transport remain intact. Interfaces emit and22HTTP operation cases pass, covering nonretryable/retryable facts, preserved drafts, absence from ordinary JSON, auth/CSRF and body/refusal behavior. Dev consumes this owning header and independently qualifies its bridge/MCP behavior.
