@@ -35,8 +35,8 @@ function preparedFixture() {
 describe("private core separation keeps public TS behavior", () => {
   it("retains exact schema/wire exports and hides internal authority symbols", () => {
     assert.deepEqual(Object.keys(publicSchema).sort(), [
-      "ENGINE_RESOLVED", "UPDATE_OMITTED", "isEngineResolved", "isUpdateOmitted",
-      "normalizeSchema", "validateOperationInput", "validateValue",
+      "ENGINE_RESOLVED", "UPDATE_OMITTED", "ValueTypesError", "isEngineResolved", "isUpdateOmitted",
+      "normalizeSchema", "normalizeValueTypes", "validateOperationInput", "validateValue",
     ].sort());
     assert.deepEqual(Object.keys(publicWire).sort(), ["decodeValue", "encodeValue"]);
     for (const name of ["hasFactorySchemaLineage", "validateValueTsCore", "validateOperationInputTsCore",
