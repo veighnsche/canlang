@@ -35,4 +35,12 @@ describe("diffReportValues", () => {
       { observation: "t", expected: [1], actual: { "0": 1 } },
     ]);
   });
+
+  it("keeps bigint mismatches serializable without changing comparison", () => {
+    const same = diffReportValues("quantity", 8n as never, 8n as never);
+    expect(same).toEqual([]);
+    const mismatch = diffReportValues("quantity", 8n as never, 9n as never);
+    expect(mismatch).toEqual([{ observation: "quantity", expected: { $bigint: "8" }, actual: { $bigint: "9" } }]);
+    expect(() => JSON.stringify(mismatch)).not.toThrow();
+  });
 });

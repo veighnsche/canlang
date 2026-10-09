@@ -4,6 +4,17 @@ function isRecord(value: ReportValue): value is { readonly [key: string]: Report
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function diagnosticValue(value: unknown): ReportValue {
+  if (typeof value === "bigint") return { $bigint: value.toString() };
+  if (value === undefined) return { $undefined: true };
+  if (typeof value === "number" && !Number.isFinite(value)) return { $number: String(value) };
+  if (Array.isArray(value)) return value.map(diagnosticValue);
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, diagnosticValue(item)]));
+  }
+  return value as ReportValue;
+}
+
 /**
  * Deep-typed comparison of one observation. Returns every mismatch with its
  * JSON path; an empty list means equal. Primitives compare with `Object.is`
@@ -27,7 +38,7 @@ function compareAtPath(
   mismatches: ObservationMismatch[],
 ): void {
   if (typeof expected !== typeof actual || Array.isArray(expected) !== Array.isArray(actual)) {
-    mismatches.push({ observation: path, expected, actual });
+    mismatches.push({ observation: path, expected: diagnosticValue(expected), actual: diagnosticValue(actual) });
     return;
   }
   if (Array.isArray(expected) && Array.isArray(actual)) {
@@ -49,8 +60,8 @@ function compareAtPath(
       if (!(key in expected) || !(key in actual)) {
         mismatches.push({
           observation: `${path}.${key}`,
-          expected: key in expected ? (expected[key] ?? null) : null,
-          actual: key in actual ? (actual[key] ?? null) : null,
+          expected: key in expected ? diagnosticValue(expected[key]) : null,
+          actual: key in actual ? diagnosticValue(actual[key]) : null,
         });
         continue;
       }
@@ -59,6 +70,6 @@ function compareAtPath(
     return;
   }
   if (!Object.is(expected, actual)) {
-    mismatches.push({ observation: path, expected, actual });
+    mismatches.push({ observation: path, expected: diagnosticValue(expected), actual: diagnosticValue(actual) });
   }
 }
