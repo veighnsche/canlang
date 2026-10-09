@@ -469,8 +469,17 @@ fn golden_teamtasks_structure() {
         "app description"
     );
     assert!(
-        !entry.contains("selector:\"TeamTasks.view\""),
-        "refused tabs selector is absent"
+        entry.contains("$can$u$74616273({context:c,id:\"can-tabs-m0-f0-s")
+            && entry.contains("binding:{name:\"view\",options:[{value:\"all\",label:$can$h$636865636b65645f6d657373616765(\"All tasks\""),
+        "bound tabs consumes the authored preference options and captions"
+    );
+    assert!(
+        entry.contains("current:preferences.view,version:c.preferenceVersions.TeamTasks.view,postTo:c.pollUrl ?? c.path"),
+        "bound tabs consumes the current value and request-owned save route"
+    );
+    assert!(
+        entry.contains("preferenceFields:[{name:\"view\",options:[\"all\",\"unfinished\",\"finished\"],defaultValue:\"all\"}]"),
+        "page declares the exact source preference save allowlist"
     );
     let form_occurrence = entry
         .split_once("c.prepareForm({operation:\"TeamTasks.Todo.create\",fields:[\"title\",\"assignee\"],display:\"inline\",occurrence:")
@@ -761,7 +770,7 @@ fn golden_teamtasks_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        9,
+        8,
         "unsupported count: {diags:?}"
     );
     for (word, n) in [("tooltip", 1), ("collapse", 1)] {
@@ -791,16 +800,14 @@ fn golden_teamtasks_structure() {
             "{profile} refusal"
         );
     }
-    for word in ["bound tabs"] {
-        assert_eq!(
-            diags
-                .iter()
-                .filter(|d| d.code == "E6008" && d.message.contains(word))
-                .count(),
-            1,
-            "{word} refusal"
-        );
-    }
+    assert_eq!(
+        diags
+            .iter()
+            .filter(|d| d.code == "E6008" && d.message.contains("bound tabs"))
+            .count(),
+        0,
+        "owned enum preference tabs lower without refusal"
+    );
     if let Some(node) = find_node() {
         for module in &artifact.modules {
             node_check(&node, &module.js, &module.path);
@@ -1340,7 +1347,7 @@ fn golden_expenseflow_structure() {
         "sequence request override with exact error"
     );
     assert!(
-        approve.contains("{observations:async(c,s,b)=>([b.submitted_claim?.status]),expected:async(c,s,b)=>([\"submitted\"]),types:[\"expenses.Expense.status\"]}"),
+        approve.contains("{observations:async(c,s,b)=>([(b.submitted_claim ?? null)?.status]),expected:async(c,s,b)=>([\"submitted\"]),types:[\"expenses.Expense.status\"]}"),
         "checked sequence assertion metadata"
     );
     assert!(
@@ -1437,16 +1444,14 @@ fn golden_expenseflow_structure() {
             "{profile} refusal"
         );
     }
-    for word in ["bound tabs"] {
-        assert_eq!(
-            diags
-                .iter()
-                .filter(|d| d.code == "E6008" && d.message.contains(word))
-                .count(),
-            1,
-            "{word} refusal"
-        );
-    }
+    assert_eq!(
+        diags
+            .iter()
+            .filter(|d| d.code == "E6008" && d.message.contains("bound tabs"))
+            .count(),
+        1,
+        "bound tabs refusal"
+    );
     for test in &artifact.tests {
         assert!(
             !test.module.js.contains("throw new Error"),
