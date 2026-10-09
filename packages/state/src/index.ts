@@ -150,7 +150,7 @@ export type { ClockPort } from './invocation/context.js';
 export { invokeRetainedReceiptOnly, type ExecuteHandler } from './invocation/invoke.js';
 export {
   observeScenarioReceiptDependency, selectScenarioReceiptReturn,
-  beginScenarioReceiptMutation, type ScenarioReceiptMutationInput,
+  beginScenarioReceiptMutation, observeScenarioInputComputedDefault, type ScenarioReceiptMutationInput,
   readScenarioReceiptAssociation, projectScenarioReceipt, type ProjectScenarioReceiptInput,
 } from './invocation/scenario-receipt.js';
 export type { ScenarioReceiptSourceOrigin, ScenarioResultDisclosurePlan, ScenarioReceiptAssociation } from '@canlang/contracts';
