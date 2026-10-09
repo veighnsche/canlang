@@ -4416,6 +4416,12 @@
       "state": "blocked; skip without edits",
       "prerequisite": "Exact Dev-owned complete joined/paginated Identity ports/D1/testing producer plus corrected /auth/teams consumer with actual production D1 budget checks. Existing422ebfb6consumer is published but required joined producer absent.",
       "owner": "Dev worker per coordinator explicit ownership clarification; Packages consumes exact coherent release."
+    },
+    "form_refusal_metadata": {
+      "state": "implemented and affected checks passed",
+      "contract": "@canlang/interfaces/http/operations exportsFORM_REFUSAL_HEADER=can-form-refusal. HTML business-refusal full pages/fragments carry JSON{version:1,code:closed BusinessErrorCode,retryable:boolean}; no prose, inputs, fields, identifiers or private values. JSON path unchanged.",
+      "validation": "Interfaces emit and22existing HTTP operation/refusal/security/body checks pass without skips; code/retryability and exact bounded metadata asserted, normal drafts retained, JSON header absent.",
+      "consumer": "Dev owns bridge consumption and independent MCP structuredContent/isError observation."
     }
   }
 }
