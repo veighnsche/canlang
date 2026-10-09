@@ -8,9 +8,14 @@ import type { CompiledExampleInput } from "../src/dev/example-runner.js";
 import { attachDevSessionService, startDevSessionService } from "../src/dev/session-service.js";
 import { runDevControlArgv } from "../src/dev/control-client.js";
 
-const producer = vi.hoisted(() => ({ calls: [] as unknown[] }));
+const producer = vi.hoisted(() => ({ calls: [] as unknown[], routing: undefined as unknown }));
 vi.mock("../src/dev/compiler-check.js", () => ({
-  compileCapturedSingleFile: async (capture: { compilerOperand: string; sourceSha256: string }) => ({
+  compileCapturedSingleFile: async (capture: { compilerOperand: string; sourceSha256: string }) => producer.routing !== undefined ? {
+    kind: "diagnostics", envelope: { tool: "can", tool_version: "test-compiler", language_version: "1.0", schema_version: 1,
+      sources: [{ id: 0, path: capture.compilerOperand, sha256: capture.sourceSha256 }], complete: true, omitted: 0,
+      diagnostics: [{ code: "E1001", severity: "error", message: "source error", primary: { file: 0, start: 0, end: 1 },
+        related: [], tags: [], construct_candidates: producer.routing }] },
+  } : ({
     kind: "artifact", capture,
     artifact: { tool_version: "test-compiler", language_version: "1.0",
       sources: [{ path: capture.compilerOperand, sha256: capture.sourceSha256 }] },
@@ -43,7 +48,28 @@ vi.mock("../src/dev/example-runner.js", () => ({
 const scratch: string[] = [];
 afterEach(() => {
   producer.calls.length = 0;
+  producer.routing = undefined;
   for (const path of scratch.splice(0)) rmSync(path, { recursive: true, force: true });
+});
+
+it("retains compiler routing by revision without turning unqualified grammar IDs into working help", async () => {
+  const fixture = await ownerFixture();
+  try {
+    producer.routing = { version: 1, disposition: "structural", ids: [], complete: false };
+    const first = await fixture.client.request({ command: "check" }) as { revision: string; state: string };
+    expect(first.state).toBe("errors");
+    const query = async (revision: string) => fixture.client.request({ command: "diagnostic.detail", payload: { revision, index: 0 } });
+    expect(await query(first.revision)).toMatchObject({ diagnostic: { construct_candidates: {
+      disposition: "structural", complete: false,
+    } }, construct_help: { candidateCoverage: "unknown", cards: [] } });
+    writeFileSync(fixture.app, "app Office\nGiven\nWhen\nThen\n## exact slot\n");
+    producer.routing = { version: 1, disposition: "exact", slot: "given_type", ids: ["can.v1.type.builtin.text"], complete: true };
+    const second = await fixture.client.request({ command: "check" }) as { revision: string };
+    expect(await query(second.revision)).toMatchObject({ diagnostic: { construct_candidates: {
+      disposition: "exact", ids: ["can.v1.type.builtin.text"],
+    } }, construct_help: { candidateCoverage: "unknown", cards: [] } });
+    expect(await query(first.revision)).toMatchObject({ diagnostic: { construct_candidates: { disposition: "structural" } } });
+  } finally { await fixture.owner.stop(); }
 });
 
 async function ownerFixture() {

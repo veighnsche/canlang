@@ -6,7 +6,9 @@ import { CATALOG } from "../../values/src/catalog.js";
 import { UI_CATALOG } from "../../ui/src/catalog.js";
 import {
   createConstructHelpIndex,
+  joinCompilerConstructCandidates,
   loadConstructHelpIndex,
+  parseCompilerConstructCandidates,
   type ConstructHelpInputs,
   type QualifiedConstructProof,
 } from "../src/dev/construct-help.js";
@@ -111,5 +113,44 @@ describe("captured construct help", () => {
     expect(index.exactType("Text", "office-supplies-local-v1")?.status).toBe("unavailable");
     expect(index.exactType("Text", "office-supplies-local-v1", proof("can.v1.type.builtin.text", index.revision, index.compilerSha256))?.status)
       .toBe("working");
+  });
+
+  it("preserves structural and no-suggestion compiler routing", async () => {
+    const index = createConstructHelpIndex(await inputs());
+    const structural = { version: 1, disposition: "structural", ids: [], complete: false };
+    expect(joinCompilerConstructCandidates(index, structural, "office-supplies-local-v1"))
+      .toMatchObject({ disposition: "structural", candidateCoverage: "unknown", cards: [] });
+    const none = { version: 1, disposition: "none", slot: "given.rule", ids: [], complete: true };
+    expect(joinCompilerConstructCandidates(index, none, "office-supplies-local-v1"))
+      .toMatchObject({ disposition: "none", candidateCoverage: "complete", cards: [] });
+    expect(joinCompilerConstructCandidates(index, { ...none, complete: false }, "office-supplies-local-v1"))
+      .toMatchObject({ disposition: "none", candidateCoverage: "unknown", cards: [] });
+  });
+
+  it("bounds and validates compiler IDs before joining captured proof-gated cards", async () => {
+    const index = createConstructHelpIndex(await inputs());
+    const exact = { version: 1, disposition: "exact", slot: "given.rule", ids: ["can.v1.policy"], complete: true };
+    expect(joinCompilerConstructCandidates(index, exact, "office-supplies-local-v1"))
+      .toMatchObject({ disposition: "exact", candidateCoverage: "unknown", cards: [{ id: "can.v1.policy", status: "unavailable" }] });
+    expect(joinCompilerConstructCandidates(index, { ...exact, complete: false }, "office-supplies-local-v1"))
+      .toMatchObject({ disposition: "exact", candidateCoverage: "unknown", cards: [] });
+    expect(joinCompilerConstructCandidates(index, exact, "office-supplies-local-v1",
+      [proof("can.v1.policy", index.revision, index.compilerSha256)]))
+      .toMatchObject({ disposition: "exact", candidateCoverage: "complete", cards: [{ id: "can.v1.policy", status: "working" }] });
+    expect(joinCompilerConstructCandidates(index, exact, "office-supplies-local-v1",
+      [proof("can.v1.policy", hash("old"), index.compilerSha256)]).candidateCoverage).toBe("unknown");
+    for (const bad of [
+      null, { ...exact, version: 2 }, { ...exact, slot: "" }, { ...exact, ids: [] },
+      { ...exact, ids: ["can.v1.policy", "can.v1.policy"] },
+      { ...exact, ids: Array(9).fill("can.v1.policy") },
+      { ...exact, ids: [`can.v1.${"x".repeat(100)}`] },
+      { ...exact, disposition: "structural" }, { ...exact, disposition: "unknown" },
+      { ...exact, disposition: "none" }, { ...exact, complete: "true" },
+      { version: 1, disposition: "structural", ids: [], complete: true },
+    ]) {
+      expect(parseCompilerConstructCandidates(bad).disposition).toBe("unknown");
+      expect(joinCompilerConstructCandidates(index, bad, "office-supplies-local-v1"))
+        .toMatchObject({ disposition: "unknown", candidateCoverage: "unknown", cards: [] });
+    }
   });
 });
