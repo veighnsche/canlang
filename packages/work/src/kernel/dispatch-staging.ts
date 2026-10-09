@@ -15,6 +15,7 @@ import type { StageOutboxIntentInput } from '../intent/staging.js';
 import {
   KernelTableError, WORK_DISPATCH_MODEL, newDispatchRow, readDispatchRow,
   DISPATCH_IMAGE_CORRELATION_FIELDS, readDispatchImageCorrelation, type DispatchImageCorrelation,
+  dispatchGenerationTargetProfile,
 } from './tables.js';
 
 /** L3 staging bound (`STAGING_MAX_ID_LENGTH`); length is UTF-16 units. */
@@ -34,26 +35,27 @@ interface ParsedStageIntent {
   correlation: DispatchImageCorrelation | null;
 }
 
-function argImageCorrelation(record: Readonly<Record<string, unknown>>, source: string,
+function argGenerationCorrelation(record: Readonly<Record<string, unknown>>, source: string,
   request: Record<string, unknown>, what: string): DispatchImageCorrelation | null {
   if (!Object.hasOwn(record, 'correlation')) return null;
   const raw = argRecord(record, 'correlation', what);
   if (Reflect.ownKeys(raw).length !== DISPATCH_IMAGE_CORRELATION_FIELDS.length ||
       Reflect.ownKeys(raw).some(key => typeof key !== 'string' || !DISPATCH_IMAGE_CORRELATION_FIELDS.includes(key as typeof DISPATCH_IMAGE_CORRELATION_FIELDS[number]))) {
-    throw new KernelTableError(`${what}: original Images correlation has unknown or missing fields.`);
+    throw new KernelTableError(`${what}: original generation correlation has unknown or missing fields.`);
   }
   const correlation = readDispatchImageCorrelation(raw);
   const args = request['arguments'];
-  const control = source === 'std.ImagesV1.cancel' || source === 'std.ImagesV1.reconcile';
+  const profile = dispatchGenerationTargetProfile(source);
+  const control = profile?.role === 'control';
   const value = typeof args === 'object' && args !== null && !Array.isArray(args)
     ? control ? args : (args as Record<string, unknown>)['value'] : undefined;
-  if ((!control && source !== 'std.ImagesV1.submit') || correlation === null ||
+  if (profile === null || correlation === null ||
       request['binding'] !== correlation.requestBinding || request['from'] !== correlation.requestFrom ||
       typeof value !== 'object' || value === null || Array.isArray(value) ||
       (control && (Reflect.ownKeys(value).length !== 2 || Reflect.ownKeys(value).some(key => key !== 'source' && key !== 'revision'))) ||
       (value as Record<string, unknown>)['source'] !== correlation.requestSource ||
       (value as Record<string, unknown>)['revision'] !== correlation.requestRevision) {
-    throw new KernelTableError(`${what}: original Images correlation disagrees with its retained carrier.`);
+    throw new KernelTableError(`${what}: original generation correlation disagrees with its retained carrier.`);
   }
   return correlation;
 }
@@ -143,7 +145,7 @@ function parseStageIntent(
     guard,
     guardVerdict: verdict,
     fanout: argFanout(record, item),
-    correlation: argImageCorrelation(record, source, request, item),
+    correlation: argGenerationCorrelation(record, source, request, item),
   };
 }
 
@@ -299,10 +301,10 @@ export async function stageCanonicalSend(
   let correlation: DispatchImageCorrelation | undefined;
   if (input.correlation !== undefined) {
     if (Reflect.ownKeys(input.correlation).length !== DISPATCH_IMAGE_CORRELATION_FIELDS.length) {
-      throw new KernelTableError('Canonical send original Images correlation has unknown or missing fields.');
+      throw new KernelTableError('Canonical send original generation correlation has unknown or missing fields.');
     }
     correlation = readDispatchImageCorrelation(input.correlation) ?? undefined;
-    if (correlation === undefined) throw new KernelTableError('Canonical send original Images correlation is missing.');
+    if (correlation === undefined) throw new KernelTableError('Canonical send original generation correlation is missing.');
   }
   const staged = await stageOutboxIntentAsync(input);
   const item = staged.item;

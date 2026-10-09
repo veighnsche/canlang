@@ -63,6 +63,13 @@ const NOW = 1_758_000_000_000;
 const ACTOR = 'dispatcher-test';
 const MAX_AGE = 60_000;
 
+const GENERATION_FAMILIES = [
+  { name: 'Images', original: 'std.ImagesV1.submit', cancel: 'std.ImagesV1.cancel', reconcile: 'std.ImagesV1.reconcile',
+    result: 'ImageRun', binding: 'Acme.Images', from: 'deployment.images', queued: { outputs: [], charged_jobs: null } },
+  { name: 'TextGeneration', original: 'std.TextGenerationV1.generate', cancel: 'std.TextGenerationV1.cancel', reconcile: 'std.TextGenerationV1.reconcile',
+    result: 'TextRun', binding: 'Acme.Text', from: 'deployment.llm', queued: { content: '', used_tokens: null } },
+] as const;
+
 function seed(
   entries: ReadonlyArray<{ model: ModelName; row: StoredRow }>,
 ): Map<string, StoredRow> {
@@ -146,13 +153,13 @@ describe('kernel commands: registry shape', () => {
   });
 });
 
-describe('kernel commands: dispatch.pin-image-control', () => {
+for (const family of GENERATION_FAMILIES) describe(`kernel commands: ${family.name} dispatch.pin-image-control`, () => {
   const correlation = { requestSource: 'Acme.Draft.poster', requestRevision: '3',
-    requestBinding: 'Acme.Images', requestFrom: 'deployment.images', requestApp: 'Acme', requestOwner: 'team-1' };
+    requestBinding: family.binding, requestFrom: family.from, requestApp: 'Acme', requestOwner: 'team-1' };
   const originalIntentId = 'original-image';
-  const original = dispatchRow(originalIntentId, { source: 'std.ImagesV1.submit', ...correlation });
+  const original = dispatchRow(originalIntentId, { source: family.original, ...correlation });
   const control = (over: Record<string, unknown> = {}) => dispatchRow('control-image', {
-    source: 'std.ImagesV1.cancel', state: 'claimed', claimId: 'control-claim', claimedAtMs: NOW,
+    source: family.cancel, state: 'claimed', claimId: 'control-claim', claimedAtMs: NOW,
     ...correlation, ...over,
   });
   const args = { intentId: 'control-image', claimId: 'control-claim', originalIntentId, correlation,
@@ -161,8 +168,8 @@ describe('kernel commands: dispatch.pin-image-control', () => {
     { model: WORK_DISPATCH_MODEL, row }, { model: WORK_DISPATCH_MODEL, row: submit },
   ]));
 
-  it('pins the exact original and fixed window under either real control claim, then preserves expired replay', async () => {
-    for (const source of ['std.ImagesV1.cancel', 'std.ImagesV1.reconcile']) {
+  it('pins the exact original and fixed window under either real control claim, then preserves serialized expired replay', async () => {
+    for (const source of [family.cancel, family.reconcile]) {
       const row = control({ source });
       const staged = await runStage(workDispatchPinImageControlCommand.stage, args, ctx(row));
       assert.equal(staged.writes?.length, 1);
@@ -173,22 +180,40 @@ describe('kernel commands: dispatch.pin-image-control', () => {
       assert.deepEqual(readDispatchImageControlPin(readDispatchRow(write.row)), pin);
       assert.deepEqual(readDispatchRow(write.row), { ...readDispatchRow(row), ...pin });
       assert.equal(staged.outboxAck, undefined);
-      const replay = await runStage(workDispatchPinImageControlCommand.stage, args, { ...ctx(write.row), now: NOW + 2000 });
+      const replay = await runStage(workDispatchPinImageControlCommand.stage, args, { ...ctx(JSON.parse(JSON.stringify(write.row)) as StoredRow), now: NOW + 2000 });
       assert.equal(replay.writes, undefined);
       assert.deepEqual(replay.result, { pinned: true, existing: true, intentId: row.id, ...pin });
       await assert.rejects(runStage(workDispatchPinImageControlCommand.stage, {
         ...args, observation: { startedAtMs: NOW, deadlineMs: NOW + 2000 },
       }, ctx(write.row)), /cannot be renewed/);
+      const replacement = dispatchRow('another-original', { source: family.original, ...correlation });
+      await assert.rejects(runStage(workDispatchPinImageControlCommand.stage, {
+        ...args, originalIntentId: replacement.id,
+      }, ctx(write.row, replacement)), /cannot be renewed or replaced/);
     }
   });
 
+  it('refuses another generation family even with identical retained correlation', async () => {
+    const foreign = GENERATION_FAMILIES.find(other => other.name !== family.name)!;
+    const otherOriginal = dispatchRow(originalIntentId, { source: foreign.original, ...correlation });
+    await assert.rejects(runStage(workDispatchPinImageControlCommand.stage, args, ctx(control(), otherOriginal)), /identities and correlation disagree/);
+    const staged = await runStage(workDispatchPinImageControlCommand.stage, args, ctx());
+    const pinned = staged.writes![0]!; assert.ok(pinned.kind === 'update');
+    // A persisted pin cannot be replayed after its original target changes family.
+    await assert.rejects(runStage(workDispatchPinImageControlCommand.stage, args, ctx(pinned.row, otherOriginal)), /identities and correlation disagree/);
+  });
+
   it('refuses foreign correlation, identity, claim, malformed/future/expired or over-cap windows without writes', async () => {
-    for (const over of [{ claimId: 'lost' }, { state: 'pending' }, { source: 'std.ImagesV1.submit' },
+    for (const field of Object.keys(correlation) as Array<keyof typeof correlation>) {
+      const altered = { ...correlation, [field]: field === 'requestRevision' ? '4' : 'different' };
+      await assert.rejects(runStage(workDispatchPinImageControlCommand.stage, { ...args, correlation: altered }, ctx()), /identities and correlation disagree/);
+    }
+    for (const over of [{ claimId: 'lost' }, { state: 'pending' }, { source: family.original },
       { intentId: 'foreign' }, { claimedAtMs: null }, { requestOwner: 'foreign' }]) {
       await assert.rejects(runStage(workDispatchPinImageControlCommand.stage, args, ctx(control(over))));
     }
     await assert.rejects(runStage(workDispatchPinImageControlCommand.stage, args,
-      ctx(control(), dispatchRow(originalIntentId, { ...correlation, source: 'std.ImagesV1.reconcile' }))));
+      ctx(control(), dispatchRow(originalIntentId, { ...correlation, source: family.reconcile }))));
     for (const observation of [{ startedAtMs: NOW + 1, deadlineMs: NOW + 1000 },
       { startedAtMs: NOW, deadlineMs: NOW }, { startedAtMs: NOW, deadlineMs: Infinity },
       { startedAtMs: NOW, deadlineMs: NOW + 2_147_483_648 },
@@ -203,12 +228,12 @@ describe('kernel commands: dispatch.pin-image-control', () => {
   });
 });
 
-describe('kernel commands: dispatch.stop-pending', () => {
+for (const family of GENERATION_FAMILIES) describe(`kernel commands: ${family.name} dispatch.stop-pending`, () => {
   const intentId = 'op_images#0';
   const correlation = { requestSource: 'Acme.Draft.poster', requestRevision: '3',
-    requestBinding: 'Acme.Images', requestFrom: 'deployment.images', requestApp: 'Acme', requestOwner: 'team-1' };
-  const context = { source: 'std.ImagesV1.submit',
-    declaredResult: { name: 'ImageRun', fields: DELIVERY_RESULT_LEAVES['ImageRun']! },
+    requestBinding: family.binding, requestFrom: family.from, requestApp: 'Acme', requestOwner: 'team-1' };
+  const context = { source: family.original,
+    declaredResult: { name: family.result, fields: DELIVERY_RESULT_LEAVES[family.result]! },
     request: { source: correlation.requestSource, revision: correlation.requestRevision } };
   const args = { intentId, correlation, revision: 10 };
   const original = (over: Record<string, unknown> = {}) => dispatchRow(intentId, {
@@ -252,7 +277,7 @@ describe('kernel commands: dispatch.stop-pending', () => {
 
   it('never skips actual queued progress, terminal receipts, settled dispatches or an earlier attempt', async () => {
     const queued = { source: correlation.requestSource, revision: '3',
-      state: 'queued', outputs: [], detail: null, sequence: '0', charged_jobs: null };
+      state: 'queued', ...family.queued, detail: null, sequence: '0' };
     for (const [row, retained, reason] of [
       [original({ state: 'claimed', claimId: 'provider-claim', claimedAtMs: NOW }), receipt({ result: queued }), 'receipt-started'],
       [original(), receipt({ status: 'succeeded' }), 'receipt-settled'],
@@ -266,8 +291,19 @@ describe('kernel commands: dispatch.stop-pending', () => {
     }
   });
 
+  it('refuses another family typed progress rather than treating it as an untouched receipt', async () => {
+    const foreign = GENERATION_FAMILIES.find(other => other.name !== family.name)!;
+    const result = { source: correlation.requestSource, revision: correlation.requestRevision,
+      state: 'queued', sequence: '0', detail: null, ...foreign.queued };
+    await assert.rejects(runStage(workDispatchStopPendingCommand.stage, args, ctx(original(), receipt({ result }))));
+    for (const missing of ['result', 'error']) {
+      const retained = receipt(); const data = { ...retained.data }; delete data[missing];
+      await assert.rejects(runStage(workDispatchStopPendingCommand.stage, args, ctx(original(), { ...retained, data })), /retain result and error explicitly/);
+    }
+  });
+
   it('refuses malformed original identity, correlation, receipt and checkpoints without stages', async () => {
-    for (const over of [{ source: 'std.ImagesV1.cancel' }, { requestOwner: 'foreign' },
+    for (const over of [{ source: family.cancel }, { requestOwner: 'foreign' },
       { requestRevision: '03' }, { intentId: 'different' }, { state: 'claimed' }]) {
       await assert.rejects(runStage(workDispatchStopPendingCommand.stage, args, ctx(original(over))));
     }
