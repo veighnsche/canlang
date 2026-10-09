@@ -162,7 +162,7 @@ canApp = function() {
       () => c.canonical.setRecord(inputs.counter, {}), () => c.canonical.deleteRecord(inputs.counter, "remove"),
       () => c.sendDeferred("unbound.send", {}, "unbound"),
       () => c.scheduleDeferred("read", c.now, "unbound", {}, "${APP}"),
-      () => c.cancelDeferred("read", "${APP}"), () => c.canonical.observeDelivery({}, []),
+      () => c.cancelDeferred("read", "${APP}"),
     ]) {
       let refused = false;
       try { await effect(); } catch (error) {
@@ -170,6 +170,14 @@ canApp = function() {
       }
       if (!refused) throw new Error("read effect or bypass reached its provider");
     }
+    // Delivery observation is a viewer read, not an effect. The unbound
+    // locator must still fail at its owning binding gate before a provider.
+    let observationRefused = false;
+    try { await c.canonical.observeDelivery({}, []); } catch (error) {
+      observationRefused = error.code === "validation" &&
+        error.message === "Delivery observation needs a record bound in this read scenario.";
+    }
+    if (!observationRefused) throw new Error("unbound delivery observation reached its provider");
     return read(c, inputs);
   };
   return registry;
