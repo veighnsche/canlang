@@ -24,6 +24,11 @@
  * constants — loaded from their built dists into the miniflare module map
  * under `vendor/`. A missing dist fails loud naming the exact build
  * command; the loader never stubs a producer.
+ * Identity is bundled from its public built exports, including its testing
+ * store, so installed dependencies and Worker-conditioned package imports
+ * resolve into one closure rather than leaking bare imports into workerd.
+ * The fixture's public UI rendering APIs are bundled the same way, including
+ * their Values codecs and installed dependencies.
  *
  * MCP bundling: the `/mcp` leg additionally serves `vendor/mcp/bundle.js`,
  * a single self-contained ESM module built at load time by `bun build
@@ -45,8 +50,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { join, relative } from "node:path";
 import type { LocalD1 } from "@canlang/cloudflare";
 import { distribution as contractsDistribution } from "@canlang/contracts/distribution";
-import { distribution as uiDistribution } from "@canlang/ui/distribution";
-import { distribution as identityDistribution } from "@canlang/identity/distribution";
 import type { CompileArtifact, StoragePort } from "@canlang/contracts";
 import {
   assertCompiledIdentity,
@@ -189,8 +192,38 @@ function resolveBuiltModule(specifier: string, buildCommand: string): string {
 function buildMcpBundle(root: string): string {
   resolveBuiltModule("@canlang/interfaces/mcp/server", "bun run --filter @canlang/interfaces build");
   resolveBuiltModule("@canlang/cloudflare/runtime/mcp-registry", "bun run --filter @canlang/cloudflare build");
-  const entry = join(root, "tests/e2e/fixtures/handbuilt/mcp-bundle-entry.js");
-  const workDir = mkdtempSync(join(tmpdir(), "can-e2e-mcp-bundle-"));
+  return buildWorkerBundle(root, "MCP", "mcp-bundle-entry.js",
+    ["createMcpHandler", "createArtifactRegistry", "createArtifactCatalog"],
+    "the MCP SDK must resolve (run `bun install`) and both producer dists must be built");
+}
+
+/** Bundle public Identity APIs and their installed dependency closure once. */
+function buildIdentityBundle(root: string): string {
+  resolveBuiltModule("@canlang/identity", "bun run --filter @canlang/identity build");
+  resolveBuiltModule("@canlang/identity/testing", "bun run --filter @canlang/identity build");
+  return buildWorkerBundle(root, "Identity", "identity-bundle-entry.js",
+    ["IdentityError", "resolveIdentity", "verifyCsrfToken", "createMemoryIdentityStore"],
+    "Identity dependencies must resolve (run `bun install`) and its producer dist must be built");
+}
+
+/** Bundle the worker's real UI rendering APIs and their Values closure. */
+function buildUiBundle(root: string): string {
+  resolveBuiltModule("@canlang/ui", "bun run --filter @canlang/ui build");
+  resolveBuiltModule("@canlang/values", "bun run --filter @canlang/values build");
+  return buildWorkerBundle(root, "UI", "ui-bundle-entry.js",
+    ["card", "escapeHtml", "renderLogin", "text", "title"],
+    "UI dependencies must resolve (run `bun install`) and UI/Values producer dists must be built");
+}
+
+function buildWorkerBundle(
+  root: string,
+  producer: string,
+  entryName: string,
+  markers: readonly string[],
+  prerequisites: string,
+): string {
+  const entry = join(root, "tests/e2e/fixtures/handbuilt", entryName);
+  const workDir = mkdtempSync(join(tmpdir(), `can-e2e-${producer.toLowerCase()}-bundle-`));
   const outFile = join(workDir, "bundle.mjs");
   let contents: string;
   try {
@@ -204,13 +237,13 @@ function buildMcpBundle(root: string): string {
       const detail = err instanceof Error ? err.message : String(err);
       if (detail.includes("ENOENT")) {
         throw new Error(
-          "e2e loader: `bun` is not on PATH, needed to bundle the MCP handler chain; " +
+          `e2e loader: \`bun\` is not on PATH, needed to bundle ${producer}; ` +
             "install bun (https://bun.sh) or run e2e via `bun run test:e2e`",
         );
       }
       throw new Error(
-        `e2e loader: MCP bundle build failed (\`bun build ${entry}\`); ` +
-          `the MCP SDK must resolve (run \`bun install\`) and both producer dists must be built. ` +
+        `e2e loader: ${producer} bundle build failed (\`bun build ${entry}\`); ` +
+          `${prerequisites}. ` +
           `Underlying error: ${detail}`,
       );
     }
@@ -224,10 +257,10 @@ function buildMcpBundle(root: string): string {
     throw thrown;
   }
   rmSync(workDir, { recursive: true, force: true });
-  for (const marker of ["createMcpHandler", "createArtifactRegistry", "createArtifactCatalog"]) {
+  for (const marker of markers) {
     if (!contents.includes(marker)) {
       throw new Error(
-        `e2e loader: MCP bundle build dropped ${marker}; refusing a skewed bundle ` +
+        `e2e loader: ${producer} bundle build dropped ${marker}; refusing a skewed bundle ` +
           `(rebuild the producer dists and retry)`,
       );
     }
@@ -247,14 +280,17 @@ function loadHandbuiltTeamTasks(root: string): WorkerAssembly {
   }
   const modules: Record<string, string> = { "worker.mjs": buildTeamTasksWorkerSource() };
   modules["vendor/mcp/bundle.js"] = buildMcpBundle(root);
+  modules["vendor/identity/index.js"] = buildIdentityBundle(root);
+  modules["vendor/ui/index.js"] = buildUiBundle(root);
+  // Both fixture imports share the same bundled Identity module instance.
+  modules["vendor/identity/testing.js"] =
+    'export { createMemoryIdentityStore } from "./index.js";\n';
   // The worker's registry input, stamped from the SAME entries the artifact
   // JSON carries (one source of truth: TEAMTASKS_OPERATIONS).
   modules["vendor/mcp/fixture-ops.js"] =
     `export const FIXTURE_OPERATIONS = ${JSON.stringify(TEAMTASKS_OPERATIONS)};\n`;
   for (const tree of [
     readVendorTree(contractsDistribution.modules, "vendor/contracts", "bun run --filter @canlang/contracts build"),
-    readVendorTree(uiDistribution.modules, "vendor/ui", "bun run --filter @canlang/ui build"),
-    readVendorTree(identityDistribution.modules, "vendor/identity", "bun run --filter @canlang/identity build"),
   ]) {
     for (const [name, contents] of Object.entries(tree)) modules[name] = contents;
   }
