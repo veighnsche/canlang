@@ -9,12 +9,13 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
-import type { CanTypeId, CompileArtifact, ModelName, OperationId, ProjectedRecord, Receipt, RecordId, RecordVersion, ScenarioResultDisclosurePlan,
+import type { CanTypeId, CompileArtifact, ModelName, OperationId, ProjectedRecord, Receipt, RecordId, RecordVersion, ScenarioReceiptAssociation, ScenarioResultDisclosurePlan,
   StoragePort } from '@canlang/contracts';
 import { resolveIdentity, sha256HexText } from '@canlang/identity';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { invoke, observeScenarioReceiptDependency, selectScenarioReceiptReturn, readScenarioReceiptAssociation } from '@canlang/state/invocation';
+import { hashInputs } from '@canlang/state/invocation/replay';
 import { seedRow, updateRow, uuidv7, FIXED_NOW } from '@canlang/state/testing/invocation/fixtures';
 import { assembleModules } from './modules.js';
 import { AssemblyCorrespondenceError } from './assembly-verification.js';
@@ -46,7 +47,7 @@ function plan(): ScenarioResultDisclosurePlan {
 }
 function declaration(legacy = false, fresh = false, handlerBody?: string): CompileArtifact {
   // Data-only read selector provenance, not Function.toString() inference.
-  const js = `${fresh ? 'import { set, observeScenarioReceiptDependency, selectScenarioReceiptReturn } from "@canlang/stdlib";' : ''}let executions=0;
+  const js = `${fresh ? 'import { set, observeScenarioReceiptDependency, observeScenarioReceiptIntrinsic, selectScenarioReceiptReturn } from "@canlang/stdlib";' : ''}let executions=0;
 export const executionCount=()=>executions;
 let handlerProbe;
 export const setHandlerProbe=probe=>{handlerProbe=probe;};
@@ -72,7 +73,7 @@ export function canApp(){return {policy,read:{"Record.read.1":()=>true},Shop:{sa
       ...(legacy ? {} : { result: { type: 'text' as CanTypeId, disclosure: plan() } }) }],
   };
 }
-async function world(legacy = false, fresh = false, handlerBody?: string, configure?: (artifact: CompileArtifact) => void) {
+async function world(legacy = false, fresh = false, handlerBody?: string, configure?: (artifact: CompileArtifact) => void, seedSavedReceipt = true) {
   const artifact = declaration(legacy, fresh, handlerBody); configure?.(artifact);
   const dir = await mkdtemp(join(tmpdir(), 'can-scenario-receipt-')); dirs.push(dir);
   const asm = await assembleModules({ artifact, sourcePath: source }, { workDir: dir,
@@ -91,25 +92,31 @@ async function world(legacy = false, fresh = false, handlerBody?: string, config
   const envelope = { operation, operation_id: uuidv7(FIXED_NOW, ++sequence),
     inputs: Object.fromEntries(artifact.operations![0]!.inputs.fields.filter(field=>field.field.kind==='ref')
       .map(field=>[field.name,{id:row.id,version:String(row.version)}])) };
+  const receiptIdentity: Receipt['identity'] = { app, owner: team.team_id, principal: user.user_id,
+    operation: operation as Receipt['identity']['operation'], operationId: envelope.operation_id as OperationId };
   let receipt: Receipt | undefined;
-  // Only State's active admitted execution creates the association. No receipt
-  // or association metadata is supplied by this executor or a request.
-  await invoke({ registry: loaded.registry as Parameters<typeof invoke>[0]['registry'], envelope,
-    app, identity, store, memberships: identities, source: 'consumer fixture', clock: { nowMs: () => FIXED_NOW },
-    execute: async call => {
-      const original = call.recordRefs[0]!.row;
-      if (!legacy) {
-        const returned = artifact.operations![0]!.result!.disclosure!.returns[0]!;
-        for (const dependency of returned.dependencies) await observeScenarioReceiptDependency(call, store,
-          { dependencyId: dependency.id, model, row: original, field: dependency.field });
-        selectScenarioReceiptReturn(call, store, returned.id);
-      }
-      return { result: artifact.operations![0]!.result?.type === 'void' ? null : original.data['visible'], writes: [{ kind: 'update', model, id: original.id,
-        expectedVersion: original.version, row: { ...original, version: (original.version+1) as RecordVersion,
-          data: { ...original.data, visible: 'committed visible' } } }], history: [], outbox: [], schedules: [],
-        uniqueClaims: [], uniqueReleases: [], resolvedDefaults: {} };
-    }, observeCommittedReceipt: value => { receipt = value; } });
-  assert.ok(receipt);
+  // Intrinsic consumer cases must execute their actual generated-shaped handler;
+  // the older field-only seed executor cannot complete their intrinsic plan.
+  if (seedSavedReceipt) {
+    // Only State's active admitted execution creates the association. No receipt
+    // or association metadata is supplied by this executor or a request.
+    await invoke({ registry: loaded.registry as Parameters<typeof invoke>[0]['registry'], envelope,
+      app, identity, store, memberships: identities, source: 'consumer fixture', clock: { nowMs: () => FIXED_NOW },
+      execute: async call => {
+        const original = call.recordRefs[0]!.row;
+        if (!legacy) {
+          const returned = artifact.operations![0]!.result!.disclosure!.returns[0]!;
+          for (const dependency of returned.dependencies) await observeScenarioReceiptDependency(call, store,
+            { dependencyId: dependency.id, model, row: original, field: dependency.field });
+          selectScenarioReceiptReturn(call, store, returned.id);
+        }
+        return { result: artifact.operations![0]!.result?.type === 'void' ? null : original.data['visible'], writes: [{ kind: 'update', model, id: original.id,
+          expectedVersion: original.version, row: { ...original, version: (original.version+1) as RecordVersion,
+            data: { ...original.data, visible: 'committed visible' } } }], history: [], outbox: [], schedules: [],
+          uniqueClaims: [], uniqueReleases: [], resolvedDefaults: {} };
+      }, observeCommittedReceipt: value => { receipt = value; } });
+    assert.ok(receipt);
+  }
   const namespace: unknown = await import(asm.moduleUrls[modulePath]!);
   assert.ok(namespace && typeof namespace === 'object' && 'executionCount' in namespace);
   const executionCount = (namespace as { executionCount: () => number }).executionCount;
@@ -120,13 +127,13 @@ async function world(legacy = false, fresh = false, handlerBody?: string, config
   const invoker = (selected = readonlyStore, aged = false) => buildInvoker(artifact, asm, selected,
     { appId: app, memberships: identities, now: () => FIXED_NOW+(aged ? 16*60000 : 0),
       files: fileTripwire as NonNullable<NonNullable<Parameters<typeof buildInvoker>[3]>['files']> });
-  const snapshot = async () => ({ receipt: await store.readReceipt(receipt!.identity), revision: await store.readRevision(),
+  const snapshot = async () => ({ receipt: await store.readReceipt(receiptIdentity), revision: await store.readRevision(),
     rows: await store.query({ model, authority: 'owner', archived: 'include' }),
     history: probe.historyFor(model, row.id), outbox: probe.outboxAll(),
     schedules: await store.schedulesDue(Number.MAX_SAFE_INTEGER, 100) });
   const counters = () => ({ commits, files, executions: executionCount() });
   return { artifact, asm, loaded, store, readonlyStore, invoker, snapshot, counters, identities, identity, membership,
-    row, envelope, receipt, legacy };
+    row, envelope, receiptIdentity, get receipt(): Receipt { assert.ok(receipt, 'world has no seeded receipt'); return receipt; }, legacy };
 }
 
 it('projects original saved scalar and changed snapshots through ordinary and dedicated transport with no execution, commit or file access', async () => {
@@ -768,4 +775,150 @@ it('forwards computed references only after private seed proof and refuses copie
       assert.deepEqual(w.counters(),{commits:0,files:0,executions:1});
     }
   }
+});
+
+/** Declaration-labelled intrinsic sites. This exercises the installed facade
+ * and State's protected original admission, not native Compiler acceptance. */
+function ownerIntrinsicPlan(): ScenarioResultDisclosurePlan {
+  const base=ownerPlan(), origin={path:source,sha256:sha,module:modulePath};
+  return {...base,returns:[{...base.returns[0]!,intrinsics:[
+    {id:'invocation-id',source:origin,role:'data',kind:'operation-id',type:'text' as CanTypeId},
+    {id:'record-version-before',source:origin,role:'data',kind:'admitted-reference-version',parameter:'record',model,type:'int' as CanTypeId},
+    {id:'alias-version-before',source:origin,role:'data',kind:'admitted-reference-version',parameter:'alias',model,type:'int' as CanTypeId},
+    {id:'prompt-input',source:origin,role:'data',kind:'admitted-input',parameter:'prompt',type:'text' as CanTypeId},
+    {id:'accept-input',source:origin,role:'control',kind:'admitted-input',parameter:'accept',type:'bool' as CanTypeId},
+    {id:'record-version-after',source:origin,role:'data',kind:'admitted-reference-version',parameter:'record',model,type:'int' as CanTypeId},
+    {id:'alias-version-after',source:origin,role:'data',kind:'admitted-reference-version',parameter:'alias',model,type:'int' as CanTypeId},
+  ]}]};
+}
+function configureOwnerIntrinsics(artifact: CompileArtifact): void {
+  artifact.operations![0]!.inputs.fields.push(
+    {name:'alias',field:{kind:'ref',model,requireVersion:true},required:true},
+    {name:'prompt',field:{kind:'string'},valueType:'text' as CanTypeId,required:true},
+    {name:'accept',field:{kind:'boolean'},required:true},
+  );
+  artifact.operations![0]!.result={type:'text' as CanTypeId,disclosure:ownerIntrinsicPlan()};
+}
+function intrinsicOwnerHandler(caughtAlteredPrompt=false): string {
+  return `
+    if(input.record!==input.alias) throw new Error("admitted equal-row parameters did not share the cached native view");
+    const invocation=c.operation.id;
+    const originalVersion=input.record.version, aliasVersion=input.alias.version;
+    if(typeof invocation!=="string" || typeof originalVersion!=="bigint" || typeof aliasVersion!=="bigint")
+      throw new Error("intrinsic sites did not receive actual native scalar types");
+    if(input.prompt!=="required original prompt" || input.accept!==false) throw new Error("required admitted scalar changed");
+    await observeScenarioReceiptIntrinsic(c,"invocation-id","operation-id",invocation);
+    await observeScenarioReceiptIntrinsic(c,"record-version-before","admitted-reference-version",originalVersion,input.record);
+    await observeScenarioReceiptIntrinsic(c,"alias-version-before","admitted-reference-version",aliasVersion,input.alias);
+    await observeScenarioReceiptIntrinsic(c,"prompt-input","admitted-input",input.prompt);
+    await observeScenarioReceiptIntrinsic(c,"accept-input","admitted-input",input.accept);
+    const old=input.record.visible;
+    await observeScenarioReceiptDependency(c,"Shop.Record",input.record,"visible","old-visible");
+    const middle=await set(c,input.record,{visible:"intrinsic middle"});
+    const value=middle.visible;
+    await observeScenarioReceiptDependency(c,"Shop.Record",middle,"visible","middle-visible");
+    await set(c,middle,{visible:"intrinsic final"});
+    const afterVersion=input.record.version, aliasAfterVersion=input.alias.version;
+    if(afterVersion!==originalVersion || aliasAfterVersion!==aliasVersion)
+      throw new Error("provisional row version replaced the original admitted reference metadata");
+    await observeScenarioReceiptIntrinsic(c,"record-version-after","admitted-reference-version",afterVersion,input.record);
+    await observeScenarioReceiptIntrinsic(c,"alias-version-after","admitted-reference-version",aliasAfterVersion,input.alias);
+    ${caughtAlteredPrompt ? `
+      try { await observeScenarioReceiptIntrinsic(c,"prompt-input","admitted-input",input.prompt+" altered"); } catch {}
+      try { selectScenarioReceiptReturn(c,"selected"); } catch {}
+    ` : 'selectScenarioReceiptReturn(c,"selected");'}
+    return JSON.stringify([invocation,String(originalVersion),String(aliasVersion),String(afterVersion),String(aliasAfterVersion),old,value,input.prompt,input.accept]);
+  `;
+}
+
+it('retains actual operation, original same-view parameter versions and required scalar intrinsics through owner stages and recovery', async () => {
+  const w=await world(false,true,intrinsicOwnerHandler(),configureOwnerIntrinsics,false);
+  const entry=await w.store.load(model,w.row.id); assert.ok(entry);
+  const envelope={...w.envelope,inputs:{record:{id:entry.id,version:String(entry.version)},
+    alias:{id:entry.id,version:String(entry.version)},prompt:'required original prompt',accept:false}};
+  const before=await w.snapshot(), batches:Array<Parameters<StoragePort['commit']>[0]>=[];
+  const captureStore:StoragePort={...w.store,commit:async batch=>{batches.push(batch);return w.store.commit(batch);}};
+  const fresh=await buildInvoker(w.artifact,w.asm,captureStore,{appId:app,memberships:w.identities,now:()=>FIXED_NOW})
+    .invokeMutation(envelope,w.identity);
+  assert.ok('result' in fresh,JSON.stringify(fresh)); assert.equal(fresh.result.status,'committed');
+  const expected=JSON.stringify([envelope.operation_id,...Array(4).fill(String(entry.version)),
+    entry.data['visible'],'intrinsic middle','required original prompt',false]);
+  assert.equal(fresh.result.result,expected); assert.equal(w.counters().executions,1);
+  assert.equal(batches.length,1,'one actual canonical owner commit');
+  const batch=batches[0]!; assert.equal(batch.writes.length,1); assert.equal(batch.history.length,1);
+  const write=batch.writes[0]!; assert.equal(write.kind,'update'); if(write.kind!=='update') throw new Error('expected net update');
+  assert.equal(write.expectedVersion,entry.version); assert.equal(write.row.version,entry.version+1);
+  assert.deepEqual(write.row.data,{...entry.data,visible:'intrinsic final'});
+  assert.deepEqual(batch.history[0]!.before,entry.data); assert.deepEqual(batch.history[0]!.after,write.row.data);
+  assert.deepEqual(batch.outbox,[]); assert.deepEqual(batch.schedules,[]);
+  assert.deepEqual(batch.uniqueClaims,[]); assert.deepEqual(batch.uniqueReleases,[]);
+  const physical=await w.store.readReceipt(w.receiptIdentity); assert.ok(physical);
+  assert.equal(physical.outcome.status,'committed'); assert.deepEqual(physical.resolvedDefaults,{});
+  assert.equal(physical.inputHash,await hashInputs(envelope.inputs));
+  assert.equal(physical.identity.operationId,envelope.operation_id); assert.deepEqual(await w.store.load(model,entry.id),write.row);
+  const after=await w.snapshot(); assert.equal(after.revision,before.revision+1); assert.equal(after.history.length,before.history.length+1);
+  assert.deepEqual(after.outbox,before.outbox); assert.deepEqual(after.schedules,before.schedules);
+  const association=readScenarioReceiptAssociation(physical); assert.ok(association);
+  assert.deepEqual(association.plan,ownerIntrinsicPlan()); assert.equal(association.returnId,'selected');
+  assert.deepEqual(association.observations.map(value=>value.dependencyId),['old-visible','middle-visible']);
+  assert.deepEqual(association.observations[0]!.row,entry);
+  assert.equal(association.observations[1]!.row.version,entry.version+1);
+  assert.deepEqual(association.observations[1]!.row.data,{...entry.data,visible:'intrinsic middle'});
+  assert.deepEqual(association.changed.map(value=>value.row),[write.row]); assert.ok(association.intrinsics);
+  assert.deepEqual(association.intrinsics.map(value=>value.dependencyId),['invocation-id','record-version-before',
+    'alias-version-before','prompt-input','accept-input','record-version-after','alias-version-after']);
+  assert.deepEqual(association.intrinsics[0],{dependencyId:'invocation-id',kind:'operation-id',wire:envelope.operation_id});
+  assert.deepEqual(association.intrinsics[3],{dependencyId:'prompt-input',kind:'admitted-input',wire:'required original prompt'});
+  assert.deepEqual(association.intrinsics[4],{dependencyId:'accept-input',kind:'admitted-input',wire:false});
+  for(const index of [1,2,5,6]) {
+    const observed: NonNullable<ScenarioReceiptAssociation['intrinsics']>[number]=association.intrinsics[index]!;
+    assert.equal(observed.kind,'admitted-reference-version');
+    if(observed.kind!=='admitted-reference-version') throw new Error('expected original reference observation');
+    assert.equal(observed.wire,String(entry.version)); assert.equal(observed.model,model); assert.deepEqual(observed.row,entry);
+    assert.ok(observed.secretFields.includes('token'));
+  }
+  assert.equal(projectedRecords(fresh.result)[0]?.data['visible'],'intrinsic final');
+  assert.equal(Object.hasOwn(projectedRecords(fresh.result)[0]!.data,'token'),false);
+  assert.equal(JSON.stringify(fresh).includes('scenario-result/v1'),false);
+  const committed=await w.store.load(model,entry.id); assert.ok(committed);
+  await updateRow(w.store,model,committed,{data:{...committed.data,visible:'later physical value'}});
+  const retainedBefore={state:await w.snapshot(),physical:await w.store.readReceipt(physical.identity)};
+  for(const dedicated of [false,true]) {
+    const replay=dedicated?await w.invoker(w.readonlyStore,true).invokeRetainedMutation(envelope,w.identity)
+      :await w.invoker().invokeMutation(envelope,w.identity);
+    assert.ok('result' in replay,JSON.stringify(replay)); assert.equal(replay.result.status,'replayed');
+    assert.equal(replay.result.result,expected); assert.deepEqual(replay.result.records,fresh.result.records);
+    assert.equal(JSON.stringify(replay).includes('scenario-result/v1'),false);
+    assert.deepEqual({state:await w.snapshot(),physical:await w.store.readReceipt(physical.identity)},retainedBefore);
+    assert.deepEqual(w.counters(),{commits:0,files:0,executions:1});
+  }
+});
+
+it('keeps a caught altered admitted prompt intrinsic poisoned and rolls back successful owner stages', async () => {
+  const w=await world(false,true,intrinsicOwnerHandler(true),configureOwnerIntrinsics,false);
+  const entry=await w.store.load(model,w.row.id); assert.ok(entry);
+  const envelope={...w.envelope,inputs:{record:{id:entry.id,version:String(entry.version)},
+    alias:{id:entry.id,version:String(entry.version)},prompt:'required original prompt',accept:false}};
+  const before=await w.snapshot(), batches:Array<Parameters<StoragePort['commit']>[0]>=[];
+  const captureStore:StoragePort={...w.store,commit:async batch=>{batches.push(batch);return w.store.commit(batch);}};
+  const fresh=await buildInvoker(w.artifact,w.asm,captureStore,{appId:app,memberships:w.identities,now:()=>FIXED_NOW})
+    .invokeMutation(envelope,w.identity);
+  assert.ok('error' in fresh,JSON.stringify(fresh)); assert.equal(fresh.error.code,'validation');
+  assert.equal(fresh.error.message,'Saved scenario: intrinsic input differs from its original canonical admitted wire.');
+  assert.equal(w.counters().executions,1); assert.equal(batches.length,1,'exactly one rejected receipt/fence commit');
+  const batch=batches[0]!; assert.deepEqual(batch.writes,[]); assert.deepEqual(batch.history,[]);
+  assert.deepEqual(batch.outbox,[]); assert.deepEqual(batch.schedules,[]);
+  assert.deepEqual(batch.uniqueClaims,[]); assert.deepEqual(batch.uniqueReleases,[]); assert.ok(batch.receipt);
+  assert.equal(batch.receipt.outcome.status,'rejected'); assert.deepEqual(batch.receipt.resolvedDefaults,{});
+  assert.deepEqual(batch.receipt.identity,w.receiptIdentity);
+  assert.equal(batch.receipt.inputHash,await hashInputs(envelope.inputs));
+  const after=await w.snapshot(); assert.deepEqual(after.rows,before.rows); assert.deepEqual(after.history,before.history);
+  assert.deepEqual(after.outbox,before.outbox); assert.deepEqual(after.schedules,before.schedules);
+  assert.equal(after.revision,before.revision+1); assert.deepEqual(after.receipt,batch.receipt);
+  const physical=await w.store.readReceipt(w.receiptIdentity); assert.ok(physical); assert.equal(physical.outcome.status,'rejected');
+  if(physical.outcome.status!=='rejected') throw new Error('expected rejected intrinsic receipt');
+  assert.equal(physical.outcome.code,'validation'); assert.equal(physical.outcome.message,fresh.error.message);
+  assert.equal(readScenarioReceiptAssociation(physical),null);
+  assert.deepEqual(await w.store.load(model,entry.id),entry);
+  assert.deepEqual(w.counters(),{commits:0,files:0,executions:1});
 });
