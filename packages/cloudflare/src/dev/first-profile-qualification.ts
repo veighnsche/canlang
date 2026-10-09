@@ -70,6 +70,15 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
     assert.ok(compiled.artifact.operations?.some(item=>item.name===`${model}.${kind}` && item.kind===kind));
   const total = compiled.artifact.operations?.find(item=>item.name===`${app}.total`); assert.ok(total);
   assert.equal(total.kind,'read'); assert.equal(total.result?.type,'int');
+  const renameOperation = `${app}.rename`;
+  const rename = compiled.artifact.operations?.find(item=>item.name===renameOperation); assert.ok(rename);
+  assert.equal(rename.kind,'scenario'); assert.equal(rename.result?.type,'void');
+  const renamePlan = rename.result?.disclosure; assert.ok(renamePlan);
+  const renameCallable = compiled.artifact.callables.find(item=>item.id===renameOperation && item.kind==='operation'); assert.ok(renameCallable);
+  assert.equal(renameCallable.inputStyle,'parameters'); assert.equal(renameCallable.module,renamePlan.source.module);
+  assert.ok(compiled.artifact.modules.some(item=>item.path===renameCallable.module));
+  assert.ok(renamePlan.returns.some(result=>result.intrinsics?.some(intrinsic=>
+    intrinsic.kind==='admitted-input' && intrinsic.parameter==='name' && intrinsic.type==='text')));
   const qualified = new Map<string, Qualification>();
   const pass = (ids: readonly string[], runtimeCheck: string, exampleCheck?: string) => {
     check(); for (const id of ids) qualified.set(id, Object.freeze({ id, runtimeCheck, ...(exampleCheck ? { exampleCheck } : {}) }));
@@ -201,6 +210,69 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
     const nullableProjection = nullable.body.records.map(object).find(value => object(value.data).name==='Nullable'); assert.ok(nullableProjection);
     assert.equal(JSON.parse((await stored(string(nullableProjection.id)))!.data).quantity,null);
     pass(['can.v1.type.nullable'],'HelpOffice: explicit null and omitted nullable int persist as native wire null');
+    // The actual second member executes Compiler's checked Set/void scenario
+    // on the existing nullable row, using its original admitted reference.
+    const renameEntry = await stored(string(nullableProjection.id)); assert.ok(renameEntry); assert.equal(renameEntry.version,1);
+    const renameInputs = {supply:{id:renameEntry.id,version:'1'},name:'Shared nullable paper'};
+    const beforeRename = await snapshot(), renamedScenario = await invoke(ben,renameOperation,renameInputs);
+    assert.equal(renamedScenario.status,200); assert.equal(renamedScenario.body.status,'committed');
+    assert.equal(renamedScenario.body.result,null);
+    const renameCurrent = await stored(renameEntry.id); assert.ok(renameCurrent); assert.equal(renameCurrent.version,2);
+    assert.deepEqual(JSON.parse(renameCurrent.data),{...JSON.parse(renameEntry.data),name:renameInputs.name});
+    assert.ok(Array.isArray(renamedScenario.body.records));
+    const renameProjection = renamedScenario.body.records.map(object).find(value=>value.id===renameEntry.id); assert.ok(renameProjection);
+    assert.equal(String(renameProjection.version),'2'); assert.deepEqual(renameProjection.data,JSON.parse(renameCurrent.data));
+    assert.equal(JSON.stringify(renamedScenario.body).includes('scenario-result/v1'),false);
+    const renameReceipt = await db.prepare('SELECT * FROM receipts WHERE operation_id=?').bind(renamedScenario.id).first<Record<string,unknown>>(); assert.ok(renameReceipt);
+    assert.equal(renameReceipt.app,app); assert.equal(renameReceipt.owner,ben.owner); assert.equal(renameReceipt.principal,ben.principal);
+    assert.equal(renameReceipt.operation,renameOperation); assert.equal(renameReceipt.input_hash,await hashInputs(renameInputs));
+    assert.deepEqual(JSON.parse(string(renameReceipt.resolved_defaults)),{});
+    const savedRename = object(JSON.parse(string(renameReceipt.outcome))); assert.equal(savedRename.status,'committed'); assert.equal(savedRename.result,null);
+    const association = object(savedRename.scenario); assert.equal(association.kind,'scenario-result/v1');
+    assert.deepEqual(association.plan,renamePlan); assert.equal(association.resultType,'void');
+    assert.ok(Array.isArray(association.intrinsics));
+    const selectedRenameReturn = renamePlan.returns.find(value=>value.id===association.returnId); assert.ok(selectedRenameReturn);
+    const renameInputDependency = selectedRenameReturn.intrinsics?.find(value=>value.kind==='admitted-input' && value.parameter==='name'); assert.ok(renameInputDependency);
+    assert.ok(association.intrinsics.some(value=>{const intrinsic=object(value);return intrinsic.dependencyId===renameInputDependency.id && intrinsic.kind==='admitted-input' && intrinsic.wire===renameInputs.name;}));
+    const afterRename = await snapshot(), ownBefore = beforeRename[ava.owner]!, ownAfter = afterRename[ava.owner]!;
+    assert.equal(ownAfter.receipts!.length,ownBefore.receipts!.length+1);
+    assert.deepEqual(ownAfter.receipts!.filter(value=>object(JSON.parse(value)).operation_id!==renamedScenario.id),ownBefore.receipts);
+    assert.equal(ownAfter.records!.length,ownBefore.records!.length);
+    const originalStored = ownBefore.records!.map(value=>object(JSON.parse(value))).find(value=>value.model===model && value.id===renameEntry.id); assert.ok(originalStored);
+    const currentStored = ownAfter.records!.map(value=>object(JSON.parse(value))).find(value=>value.model===model && value.id===renameEntry.id); assert.ok(currentStored);
+    assert.deepEqual(currentStored,{...originalStored,version:2,data:renameCurrent.data,updated:renameReceipt.created_at,updated_by:ben.principal});
+    assert.ok(Array.isArray(association.changed)); assert.equal(association.changed.length,1);
+    const savedChanged = object(association.changed[0]); assert.equal(savedChanged.model,model);
+    assert.equal(object(savedChanged.row).id,renameEntry.id); assert.equal(object(savedChanged.row).version,2);
+    assert.deepEqual(object(savedChanged.row).data,JSON.parse(renameCurrent.data));
+    assert.deepEqual(savedRename.recordVersions,[{model,id:renameEntry.id,version:2}]);
+    assert.deepEqual(ownAfter.records!.filter(value=>object(JSON.parse(value)).id!==renameEntry.id),ownBefore.records!.filter(value=>object(JSON.parse(value)).id!==renameEntry.id));
+    assert.equal(ownAfter.history!.length,ownBefore.history!.length+1);
+    assert.deepEqual(ownAfter.history!.filter(value=>object(JSON.parse(value)).operation_id!==renamedScenario.id),ownBefore.history);
+    const history = ownAfter.history!.map(value=>object(JSON.parse(value))).filter(value=>value.operation_id===renamedScenario.id);
+    assert.equal(history.length,1); assert.equal(history[0]!.model,model); assert.equal(history[0]!.record_id,renameEntry.id);
+    assert.equal(history[0]!.version,2); assert.equal(history[0]!.operation,renameOperation); assert.equal(history[0]!.actor,ben.principal);
+    assert.deepEqual(JSON.parse(string(history[0]!.before)),JSON.parse(renameEntry.data));
+    assert.deepEqual(JSON.parse(string(history[0]!.after)),JSON.parse(renameCurrent.data));
+    const fence = object(JSON.parse(ownBefore.fence![0]!)), nextFence = object(JSON.parse(ownAfter.fence![0]!));
+    assert.deepEqual(nextFence,{...fence,revision:Number(fence.revision)+1}); assert.equal(renameReceipt.committed_revision,nextFence.revision);
+    assert.equal(ownAfter.fence_log!.length,ownBefore.fence_log!.length+1);
+    assert.deepEqual(ownAfter.fence_log!.filter(value=>object(JSON.parse(value)).revision!==nextFence.revision),ownBefore.fence_log);
+    assert.deepEqual(ownAfter.fence_log!.map(value=>object(JSON.parse(value))).find(value=>value.revision===nextFence.revision),
+      {revision:nextFence.revision,operation:renameOperation,at:renameReceipt.created_at});
+    const changedTables = new Set(['records','receipts','history','fence','fence_log']);
+    assert.deepEqual(Object.keys(afterRename),Object.keys(beforeRename));
+    for(const [owner,tables] of Object.entries(beforeRename)) {
+      assert.deepEqual(Object.keys(afterRename[owner]!),Object.keys(tables));
+      for(const [name,rows] of Object.entries(tables)) if(owner!==ava.owner || !changedTables.has(name)) assert.deepEqual(afterRename[owner]![name],rows);
+    }
+    const renameReplay = await invoke(ben,renameOperation,renameInputs,renamedScenario.id);
+    assert.equal(renameReplay.status,200); assert.equal(renameReplay.body.status,'replayed');
+    assert.equal(renameReplay.body.result,null); assert.deepEqual(renameReplay.body.records,renamedScenario.body.records);
+    assert.deepEqual(await snapshot(),afterRename,'same scenario envelope preserves original receipt/history and all resources');
+    const foreignRename = await invoke(cal,renameOperation,{supply:{id:renameEntry.id,version:'2'},name:'Foreign rename'});
+    assert.ok(foreignRename.status>=400); assert.equal(foreignRename.body.code,'not_found');
+    assert.deepEqual(await snapshot(),afterRename,'foreign-owner scenario reference refuses before any write');
     await refusal(ava,'create',{name:'Closed',available:false},'validation',false);
     for (const actor of [dee,null]) await refusal(actor,'create',{name:'Forbidden'},'forbidden',false);
     await refusal(cal,'update',{record:{id:row.id,version:'1'},name:'Foreign'},'not_found',false);
@@ -228,6 +300,9 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
     const listed = await read(`${model}.read`); assert.equal(listed.status,200);
     const content = object(object(listed.body.result).structuredContent); assert.ok(Array.isArray(content.records));
     assert.ok(content.records.some(value=>object(value).id===row.id));
+    const sharedRename = content.records.map(object).find(value=>value.id===renameEntry.id); assert.ok(sharedRename);
+    assert.equal(String(sharedRename.version),'2'); assert.deepEqual(sharedRename.data,JSON.parse(renameCurrent.data));
+    pass(['can.v1.when.scenario.user'],'HelpOffice: Ben executes checked rename Set/void with admitted name on original nullable version1; one version2/history/receipt, shared readback, exact replay and foreign-owner refusal preserve all unrelated resources');
     const beforeReadDenials = await snapshot();
     const foreignRead = await read(`${model}.read`,cal,calToken); assert.equal(foreignRead.status,200);
     assert.notEqual(object(foreignRead.body.result).isError,true);
@@ -275,6 +350,16 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
             : 'HelpOffice: actual compiled Supply.update outsider row observes forbidden and no effects in isolated D1/Identity',
           `${model}.update#${rowIndex}: passed`);
       }
+      check(); const scenarioRow = await runCompiledExamples({...preview.exampleInput(),testkit,...(signal===undefined?{}:{signal}),runId:callId(),
+        selectedRow:{operation:renameOperation,rowIndex:0}});
+      assert.deepEqual(await snapshot(),before,'actual isolated authored rename row preserves all serving resources');
+      const scenarioFailures = scenarioRow.report.cases.flatMap(entry=>entry.kind==='table' ? entry.rows
+        .filter(row=>row.outcome!=='passed').map(({rowIndex,outcome,detail,mismatches})=>
+          ({operation:entry.operation,rowIndex,outcome,detail,mismatches})) : []);
+      assert.equal(scenarioRow.ok,true,`selected actual authored rename row must pass: ${JSON.stringify(scenarioFailures)}`);
+      assert.equal(scenarioRow.executed,1); assert.equal(scenarioRow.report.summary.total,1); assert.equal(scenarioRow.report.summary.passed,1);
+      assert.equal(scenarioRow.report.summary.failed,0); assert.equal(scenarioRow.report.summary.setupFailed,0); assert.equal(scenarioRow.report.summary.unsupported,0);
+      pass(['can.v1.examples.table.scenario'],'HelpOffice: actual compiled rename row uses other member and editable model fixture, observes New paper after checked Set in isolated D1/Identity',`${renameOperation}#0: passed`);
     }
     check(); assert.equal(await captureIsCurrent(fixture),true); assert.equal(await captureIsCurrent(capture),true);
     return Object.freeze([...qualified.values()]);
@@ -333,7 +418,7 @@ export function createInstalledFirstProfileQualification() {
       producerInputsDigest:request.producerInputsDigest,messageKinds:Object.freeze([]),
       proofs:Object.freeze(actual.map(record=>Object.freeze({ ...record,indexRevision:request.indexRevision,
         profile:FIRST_PROFILE,compilerSha256:request.compilerSha256,
-        compilerCheck:`compiler/tests/construct_help.rs::first_profile_compiler_cards_have_checked_source_and_emitted_owners[${record.id}]; executed captured native compile ${fixturePath} sha256:${fixtureIdentity.sha256}; complete source identity verified; ${record.exampleCheck ? 'emitted compiled example suite consumed by owning Testkit' : record.id==='can.v1.when.scenario.read' || record.id==='can.v1.builtin.count' ? 'emitted HelpOffice.total read descriptor consumed by public MCP' : 'emitted Supply CRUD/model descriptors consumed by public runtime'}` }))) });
+        compilerCheck:`compiler/tests/construct_help.rs::first_profile_compiler_cards_have_checked_source_and_emitted_owners[${record.id}]; executed captured native compile ${fixturePath} sha256:${fixtureIdentity.sha256}; complete source identity verified; ${record.exampleCheck ? 'emitted compiled example suite consumed by owning Testkit' : record.id==='can.v1.when.scenario.read' || record.id==='can.v1.builtin.count' ? 'emitted HelpOffice.total read descriptor consumed by public MCP' : record.id==='can.v1.when.scenario.user' ? 'emitted HelpOffice.rename checked Set/disclosure and parameter callable consumed by public runtime' : 'emitted Supply CRUD/model descriptors consumed by public runtime'}` }))) });
     signal?.throwIfAborted(); completed.set(key,result);
     while(completed.size>4) completed.delete(completed.keys().next().value!);
     return result;
