@@ -1,13 +1,14 @@
 /** Saved scenario disclosure. Compiler supplies the complete checked return
  * closure; the native host reports only actually evaluated private bindings.
  * Capture is available only during invoke, never from a request envelope.
- * This version supports scalar Values profiles and declared scalar fields.
+ * This version supports scalar Values profiles, declared scalar fields and
+ * explicitly checked admitted intrinsics (operation id/primitive input/original ref version).
  * Nominal/model/container/File/Delivery, query influence and absent-reference
  * claims require their defining joins. Empty field observations prove none of
  * those facts. Every site is scoped by its checked source return/digest/module.
  */
 import type { ArtifactModel, CanonicalInputDef, CanTypeId, ModelName, ProjectedRecord,
-  Receipt, ScenarioReceiptAssociation, ScenarioResultDisclosurePlan, StoragePort, StoredRow } from '@canlang/contracts';
+  Receipt, ScenarioReceiptAssociation, ScenarioReceiptIntrinsicDependency, ScenarioResultDisclosurePlan, StoragePort, StoredRow } from '@canlang/contracts';
 import { decodeValue, encodeValue, parseTypeId, printTypeId, validateValue, type NormalizedSchema } from '@canlang/values';
 import { StateError } from '../errors.js';
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
@@ -104,7 +105,8 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
   if (returns.length === 0) return invalid('at least one checked return path required.');
   const ids = new Set<string>(); const dependencies = new Map<string, string>();
   for (const entry of returns) {
-    const returned = object(entry, ['id', 'source', 'dependencies', 'influences']); const id = text(returned['id']);
+    const returned = object(entry, ['id', 'source', 'dependencies', 'influences',
+      ...(typeof entry === 'object' && entry !== null && Object.hasOwn(entry, 'intrinsics') ? ['intrinsics'] : [])]); const id = text(returned['id']);
     origin(returned['source']);
     if (ids.has(id)) return invalid('duplicate return identity.'); ids.add(id);
     const influences = list(returned['influences']);
@@ -123,6 +125,28 @@ export function checkScenarioResultDisclosurePlan(value: unknown): ScenarioResul
       if (dependency['role'] !== 'data' && dependency['role'] !== 'control') return invalid('unknown dependency role.');
       if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(text(dependency['field']))) return invalid('only declared direct scalar fields are supported.');
       scalarType(dependency['type']);
+      const encoded = stableStringify(dependency);
+      if (local.has(depId) || (dependencies.has(depId) && dependencies.get(depId) !== encoded)) return invalid('dependency identity drifts.');
+      local.add(depId); dependencies.set(depId, encoded);
+    }
+    for (const item of list(Object.hasOwn(returned, 'intrinsics') ? returned['intrinsics'] : [])) {
+      const kind = (item as Record<string, unknown>)?.['kind'];
+      const dependency = object(item, ['id', 'source', 'role', 'type', 'kind',
+        ...(kind === 'admitted-reference-version' ? ['parameter', 'model'] : kind === 'admitted-input' ? ['parameter'] : [])]);
+      origin(dependency['source']); const depId = text(dependency['id']);
+      if (dependency['role'] !== 'data' && dependency['role'] !== 'control') return invalid('unknown intrinsic role.');
+      if (kind === 'operation-id') {
+        if (dependency['type'] !== 'text') return invalid('operation identity requires text wire.');
+      } else if (kind === 'admitted-input') {
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(text(dependency['parameter'])) || !primitiveInputType(dependency['type'])) {
+          return invalid('admitted input requires a direct parameter and supported primitive type.');
+        }
+      } else if (kind === 'admitted-reference-version') {
+        text(dependency['model']);
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(text(dependency['parameter'])) || dependency['type'] !== 'int') {
+          return invalid('original reference version requires a direct parameter and int wire.');
+        }
+      } else return invalid('unsupported intrinsic dependency.');
       const encoded = stableStringify(dependency);
       if (local.has(depId) || (dependencies.has(depId) && dependencies.get(depId) !== encoded)) return invalid('dependency identity drifts.');
       local.add(depId); dependencies.set(depId, encoded);
@@ -173,10 +197,45 @@ export function bindScenarioReceiptPlan(def: GeneratedOperationDef, models: read
   for (const returned of plan.returns) for (const dep of returned.dependencies) {
     if (inventory.get(dep.model)?.fields.get(dep.field) !== dep.type) return invalid('dependency disagrees with declared model field/type inventory.');
   }
+  for (const returned of plan.returns) for (const dep of returned.intrinsics ?? []) {
+    if (dep.kind === 'admitted-reference-version' && (!inventory.has(dep.model) || !versionedReferenceInput(def, dep))) {
+      return invalid('original version requires its declared required singular versioned reference input.');
+    }
+    if (dep.kind === 'admitted-input' && !primitiveInput(def, dep)) return invalid('intrinsic input disagrees with its required singular primitive declaration.');
+  }
   boundPlans.set(def, { plan, type, models: inventory, inputs: deepFreeze(dataCopy(def.descriptor.inputs)),
     arrays: deepFreeze(dataCopy(def.inputArrays)), nullableRefs: deepFreeze(dataCopy(def.inputNullableRefs ?? {})),
     valueSchema: defaults.valueSchema, parameterStyle: defaults.parameterStyle });
 }
+
+function primitiveInputType(type: unknown): type is CanTypeId {
+  return typeof type === 'string' && /^(text|bool|int|date|datetime|decimal|money|duration|user)$/.test(type);
+}
+
+function primitiveInput(def: GeneratedOperationDef, dependency: ScenarioReceiptIntrinsicDependency): boolean {
+  if (dependency.kind !== 'admitted-input') return false;
+  const input = def.descriptor.inputs.find(field => field.name === dependency.parameter);
+  if (input === undefined || input.kind === 'ref' || input.kind === 'nominal' || input.kind === 'delivery' ||
+      !input.required || input.default !== undefined || input.computedDefault === true ||
+      def.inputArrays[dependency.parameter] !== undefined) return false;
+  const types: Partial<Record<typeof input.kind, string>> = { string: 'text', boolean: 'bool', integer: 'int',
+    datetime: 'datetime', decimal: 'decimal', money: 'money', duration: 'duration', user: 'user' };
+  // A collapsed legacy string tag proves neither text nor nullability.
+  // Artifact intake derives unambiguous builtin associations, while canonical
+  // producers must supply the exact owning checked type for this new claim.
+  const base = types[input.kind], type = input.valueType;
+  return base !== undefined && primitiveInputType(type) && type === dependency.type &&
+    (type === base || input.kind === 'string' && type === 'date');
+}
+
+function versionedReferenceInput(def: GeneratedOperationDef, dependency: ScenarioReceiptIntrinsicDependency): boolean {
+  if (dependency.kind !== 'admitted-reference-version') return false;
+  const input = def.descriptor.inputs.find(field => field.name === dependency.parameter);
+  return input?.kind === 'ref' && input.model === dependency.model && input.required && input.versioned &&
+    def.inputArrays[dependency.parameter] === undefined && def.inputNullableRefs?.[dependency.parameter] !== true;
+}
+
+type IntrinsicObservation = NonNullable<ScenarioReceiptAssociation['intrinsics']>[number];
 
 interface Capture {
   readonly bound: BoundPlan;
@@ -186,6 +245,7 @@ interface Capture {
   readonly observations: Array<ScenarioReceiptAssociation['observations'][number] & {
     readonly stored: boolean; readonly ownerSession: boolean;
   }>;
+  readonly intrinsics: IntrinsicObservation[];
 }
 const captures = new WeakMap<AdmittedCall, Capture>();
 function capture(call: AdmittedCall, store: StoragePort): Capture {
@@ -194,7 +254,7 @@ function capture(call: AdmittedCall, store: StoragePort): Capture {
     const bound = boundPlans.get(call.def as GeneratedOperationDef);
     if (bound === undefined) return invalid('no loader-verified source dependency plan.');
     let value = captures.get(call);
-    if (value === undefined) { value = { bound, returnId: null, poisoned: false, pending: 0, observations: [] }; captures.set(call, value); }
+    if (value === undefined) { value = { bound, returnId: null, poisoned: false, pending: 0, observations: [], intrinsics: [] }; captures.set(call, value); }
     if (value.poisoned) return invalid('capture is poisoned.');
     return value;
   } catch (error) {
@@ -338,7 +398,7 @@ export async function beginScenarioReceiptMutation(call: AdmittedCall, store: St
   input: ScenarioReceiptMutationInput): Promise<OwnerMutationSession> {
   const state = capture(call, store);
   try {
-    if (ownerSessions.has(call) || state.pending !== 0 || state.observations.length !== 0 || state.returnId !== null) return invalid('one owner session must begin before scenario observations/return completion.');
+    if (ownerSessions.has(call) || state.pending !== 0 || state.observations.length !== 0 || state.intrinsics.length !== 0 || state.returnId !== null) return invalid('one owner session must begin before scenario observations/return completion.');
     if (typeof input !== 'object' || input === null || Array.isArray(input) ||
         ![Object.prototype, null].includes(Object.getPrototypeOf(input)) ||
         Reflect.ownKeys(input).some(key => typeof key !== 'string' || !['table', 'bounds', 'policies', 'encodeField'].includes(key) ||
@@ -484,7 +544,7 @@ export async function observeScenarioReceiptDependency(call: AdmittedCall, store
     object(observed, ['dependencyId', 'model', 'row', 'field']);
     const dependency = state.bound.plan.returns.flatMap(entry => entry.dependencies).find(dep => dep.id === observed.dependencyId);
     if (dependency === undefined || dependency.model !== observed.model || dependency.field !== observed.field) return invalid('native observation disagrees with its checked dependency.');
-    if (state.observations.length >= MAX_ITEMS) return invalid('observation budget exceeded.');
+    if (state.observations.length + state.intrinsics.length >= MAX_ITEMS) return invalid('observation budget exceeded.');
     const row = checkedRow(observed.row); scalarWire(dependency.type, getDataPath(row.data, dependency.field));
     if (row.archivedAt !== null) return invalid('cannot observe an archived row.');
     if (owner !== undefined) {
@@ -511,6 +571,83 @@ export async function observeScenarioReceiptDependency(call: AdmittedCall, store
   finally { if (acquired) { state.pending -= 1; if (owner !== undefined) owner.busy = false; } }
 }
 
+export type ScenarioReceiptIntrinsicInput = {
+  readonly dependencyId: string; readonly kind: 'operation-id'; readonly wire: string;
+} | {
+  readonly dependencyId: string; readonly kind: 'admitted-input'; readonly wire: unknown;
+} | {
+  readonly dependencyId: string; readonly kind: 'admitted-reference-version'; readonly wire: string;
+  /** Exact original admitted slot, selected only after the host checks its
+   * private native binding. Copies and current-stage rows are not this slot. */
+  readonly reference: AdmittedCall['recordRefs'][number];
+};
+
+/** Host reports an actually evaluated checked intrinsic site. State derives
+ * identity/version from its protected admission and checks the host's encoded
+ * value. This does not attest native evaluation: the verified generated host
+ * must check its actual operation/ref binding before calling this producer.
+ */
+export async function observeScenarioReceiptIntrinsic(call: AdmittedCall, store: StoragePort,
+  input: ScenarioReceiptIntrinsicInput): Promise<void> {
+  const state = capture(call, store); const owner = ownerSessions.get(call);
+  let acquired = false;
+  try {
+    if (state.pending !== 0 || owner?.busy === true) return invalid('concurrent observations are forbidden.');
+    if (state.returnId !== null) return invalid('observation cannot follow the selected return.');
+    if (owner !== undefined) ownerHealthy(owner);
+    const observed = dataCopy(input);
+    const kind = typeof observed === 'object' && observed !== null ? observed.kind : undefined;
+    object(observed, ['dependencyId', 'kind', 'wire',
+      ...(kind === 'admitted-reference-version' ? ['reference'] : [])]);
+    const dependency = state.bound.plan.returns.flatMap(entry => entry.intrinsics ?? [])
+      .find(dep => dep.id === observed.dependencyId);
+    if (dependency === undefined || dependency.kind !== observed.kind) return invalid('native intrinsic disagrees with its checked dependency.');
+    if (state.observations.length + state.intrinsics.length >= MAX_ITEMS) return invalid('observation budget exceeded.');
+    let observation: IntrinsicObservation;
+    if (dependency.kind === 'operation-id') {
+      if (observed.wire !== call.context.operationId) return invalid('intrinsic identity differs from the admitted operation.');
+      observation = { dependencyId: dependency.id, kind: dependency.kind, wire: call.context.operationId };
+    } else if (dependency.kind === 'admitted-input') {
+      const member = Object.getOwnPropertyDescriptor(call.inputs, dependency.parameter);
+      if (member === undefined || !('value' in member) || !member.enumerable) return invalid('intrinsic input must be an own supplied admitted slot.');
+      const wire = dataCopy(member.value); scalarWire(dependency.type, wire);
+      if (stableStringify(wire) !== stableStringify(observed.wire) ||
+          stableStringify(encodeValue(dependency.type, decodeValue(dependency.type, wire))) !== stableStringify(wire)) {
+        return invalid('intrinsic input differs from its original canonical admitted wire.');
+      }
+      observation = { dependencyId: dependency.id, kind: dependency.kind, wire };
+    } else {
+      const member = Object.getOwnPropertyDescriptor(input, 'reference');
+      const reference = call.recordRefs.find(ref => ref.param === dependency.parameter);
+      if (member === undefined || !('value' in member) || reference === undefined || member.value !== reference ||
+          reference.model !== dependency.model || reference.id !== reference.row.id ||
+          reference.expectedVersion !== reference.row.version || observed.wire !== String(reference.row.version)) {
+        return invalid('intrinsic version requires its exact original admitted reference and wire.');
+      }
+      const row = checkedRow(dataCopy(reference.row));
+      if (row.archivedAt !== null) return invalid('cannot observe an archived reference.');
+      const secrets = state.bound.models.get(reference.model)!.secrets;
+      if (secrets.length > MAX_ITEMS) return invalid('original secrecy inventory exceeds its finite budget.');
+      observation = { dependencyId: dependency.id, kind: dependency.kind, wire: String(row.version),
+        model: reference.model, row, secretFields: [...secrets] };
+    }
+    if (owner !== undefined) owner.busy = true;
+    state.pending += 1; acquired = true;
+    if (observation.kind === 'admitted-reference-version') {
+      const current = await store.load(observation.model, observation.row.id);
+      capture(call, store);
+      if (current === null || stableStringify(dataCopy(current)) !== stableStringify(observation.row)) {
+        return invalid('original admitted reference moved before intrinsic capture.');
+      }
+    }
+    const revision = await store.readRevision(); capture(call, store);
+    if (revision !== call.revision) throw new StateError('conflict', 'Scenario intrinsic moved beyond its admitted revision.');
+    scalarWire(dependency.type, observation.wire);
+    state.intrinsics.push(observation);
+  } catch (error) { state.poisoned = true; throw error; }
+  finally { if (acquired) { state.pending -= 1; if (owner !== undefined) owner.busy = false; } }
+}
+
 /** The emitted selected return path determines required reads; unrelated private
  * decision-only reads do not become dependencies of literal/input results.
  */
@@ -520,7 +657,8 @@ export function selectScenarioReceiptReturn(call: AdmittedCall, store: StoragePo
     if (state.pending !== 0 || ownerSessions.get(call)?.busy === true) { state.poisoned = true; return invalid('return selection cannot precede pending owner reads/observations.'); }
     const returned = state.bound.plan.returns.find(entry => entry.id === returnId);
     if (state.returnId !== null || returned === undefined) return invalid('one actual checked return path required.');
-    if (returned.dependencies.some(dep => !state.observations.some(entry => entry.dependencyId === dep.id))) {
+    if (returned.dependencies.some(dep => !state.observations.some(entry => entry.dependencyId === dep.id)) ||
+        returned.intrinsics?.some(dep => !state.intrinsics.some(entry => entry.dependencyId === dep.id))) {
       return invalid('required observations must complete before selecting the actual return.');
     }
     state.returnId = returnId;
@@ -563,8 +701,9 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
   if (bound === undefined) return undefined;
   // One checked empty path permits the ordinary implicit void return. Its
   // success receipt carries no business result and still saves changed rows.
-  if (bound.type === 'void' && bound.plan.returns.length === 1 && bound.plan.returns[0]!.dependencies.length === 0) {
-    state ??= { bound, returnId: null, poisoned: false, pending: 0, observations: [] };
+  if (bound.type === 'void' && bound.plan.returns.length === 1 && bound.plan.returns[0]!.dependencies.length === 0 &&
+      (bound.plan.returns[0]!.intrinsics?.length ?? 0) === 0) {
+    state ??= { bound, returnId: null, poisoned: false, pending: 0, observations: [], intrinsics: [] };
     state.returnId ??= bound.plan.returns[0]!.id;
   }
   if (state === undefined || state.returnId === null) return invalid('checked scenario omitted its actual return capture.');
@@ -574,6 +713,9 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
   const required = new Set(returned.dependencies.map(dep => dep.id));
   const observed = state.observations.filter(entry => required.has(entry.dependencyId));
   if (returned.dependencies.some(dep => !observed.some(entry => entry.dependencyId === dep.id))) return invalid('required return dependency was not evaluated/captured.');
+  const intrinsicIds = new Set(returned.intrinsics?.map(dep => dep.id));
+  const intrinsics = state.intrinsics.filter(entry => intrinsicIds.has(entry.dependencyId));
+  if (returned.intrinsics?.some(dep => !intrinsics.some(entry => entry.dependencyId === dep.id))) return invalid('required intrinsic was not evaluated/captured.');
   if (writes.length > MAX_ITEMS) return invalid('changed snapshot budget exceeded.');
   const changed: ScenarioReceiptAssociation['changed'][number][] = [];
   const identities = new Set<string>();
@@ -595,7 +737,8 @@ export function retainScenarioReceipt(call: AdmittedCall, effects: ExecutionEffe
     return invalid('provisional read is not the final committed own-row snapshot; owner-session join required.');
   }
   return deepFreeze(dataCopy({ kind: 'scenario-result/v1' as const, plan: bound.plan, resultType: bound.type,
-    returnId: state.returnId, observations: observed.map(({ stored: _stored, ownerSession: _ownerSession, ...entry }) => entry), changed }));
+    returnId: state.returnId, observations: observed.map(({ stored: _stored, ownerSession: _ownerSession, ...entry }) => entry),
+    ...(returned.intrinsics === undefined ? {} : { intrinsics }), changed }));
 }
 
 /** Legacy receipts are unassociated; malformed recognized metadata refuses. */
@@ -603,7 +746,9 @@ export function readScenarioReceiptAssociation(receipt: Receipt): ScenarioReceip
   receipt = dataCopy(receipt);
   if (!Object.hasOwn(receipt.outcome, 'scenario')) return null;
   if (receipt.outcome.status !== 'committed') return invalid('association requires a committed outcome.');
-  const value = object(dataCopy(receipt.outcome.scenario), ['kind', 'plan', 'resultType', 'returnId', 'observations', 'changed']);
+  const scenario = dataCopy(receipt.outcome.scenario);
+  const value = object(scenario, ['kind', 'plan', 'resultType', 'returnId', 'observations', 'changed',
+    ...(typeof scenario === 'object' && scenario !== null && Object.hasOwn(scenario, 'intrinsics') ? ['intrinsics'] : [])]);
   if (value['kind'] !== 'scenario-result/v1') return invalid('unknown association version.');
   const plan = checkScenarioResultDisclosurePlan(value['plan']); const resultType = scalarType(value['resultType']);
   const returned = plan.returns.find(entry => entry.id === value['returnId']);
@@ -617,6 +762,29 @@ export function readScenarioReceiptAssociation(receipt: Receipt): ScenarioReceip
     const row = checkedRow(observation['row']); scalarWire(dependency.type, getDataPath(row.data, dependency.field)); paths(observation['secretFields']);
   }
   if (returned.dependencies.some(dep => !observations.some(entry => (entry as Record<string, unknown>)['dependencyId'] === dep.id))) return invalid('missing saved dependency.');
+  const intrinsics = list(Object.hasOwn(value, 'intrinsics') ? value['intrinsics'] : []);
+  if (observations.length + intrinsics.length > MAX_ITEMS) return invalid('observation budget exceeded.');
+  for (const entry of intrinsics) {
+    const kind = (entry as Record<string, unknown>)?.['kind'];
+    const observation = object(entry, ['dependencyId', 'kind', 'wire',
+      ...(kind === 'admitted-reference-version' ? ['model', 'row', 'secretFields'] : [])]);
+    const dependency = returned.intrinsics?.find(dep => dep.id === observation['dependencyId']);
+    if (dependency === undefined || dependency.kind !== kind) return invalid('foreign saved intrinsic.');
+    scalarWire(dependency.type, observation['wire']);
+    if (kind === 'operation-id') {
+      if (observation['wire'] !== receipt.identity.operationId) return invalid('saved intrinsic identity differs from its receipt.');
+    } else if (kind === 'admitted-input') {
+      if (stableStringify(encodeValue(dependency.type, decodeValue(dependency.type, observation['wire']))) !==
+          stableStringify(observation['wire'])) return invalid('invalid saved canonical input wire.');
+    } else {
+      const row = checkedRow(observation['row']); paths(observation['secretFields']);
+      if (dependency.kind !== 'admitted-reference-version' || dependency.model !== observation['model'] ||
+          row.archivedAt !== null || observation['wire'] !== String(row.version)) return invalid('invalid saved original reference version.');
+    }
+  }
+  if (returned.intrinsics?.some(dep => !intrinsics.some(entry => (entry as Record<string, unknown>)['dependencyId'] === dep.id))) {
+    return invalid('missing saved intrinsic.');
+  }
   const changed = list(value['changed']); const identities = new Set<string>();
   for (const entry of changed) {
     const change = object(entry, ['model', 'row', 'secretFields', 'withheldFields', 'fieldTypes']); text(change['model']);
@@ -695,6 +863,19 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
       if (currentBound.models.get(observation.model)?.fields.get(dependency.field) !== dependency.type || projection === null ||
           !Object.hasOwn(projection.data, dependency.field) ||
           stableStringify(projection.data[dependency.field]) !== stableStringify(observation.row.data[dependency.field])) dependenciesReadable = false;
+    }
+    for (const observation of association.intrinsics ?? []) {
+      const dependency = returned.intrinsics!.find(dep => dep.id === observation.dependencyId)!;
+      // Operation id belongs to this exact retained invocation and current
+      // operation authority above; it does not confer business-row access.
+      if (observation.kind === 'operation-id') continue;
+      if (observation.kind === 'admitted-input') {
+        if (!primitiveInput(def as GeneratedOperationDef, dependency)) dependenciesReadable = false;
+        continue;
+      }
+      if (!versionedReferenceInput(def as GeneratedOperationDef, dependency)) { dependenciesReadable = false; continue; }
+      const projection = await savedProjection(observation.model, observation.row, observation.secretFields, []);
+      if (projection === null || String(projection.version) !== observation.wire) dependenciesReadable = false;
     }
     const records: ProjectedRecord[] = [];
     for (const changed of association.changed) {

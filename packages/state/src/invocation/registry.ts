@@ -1621,7 +1621,8 @@ export function artifactToDescriptorSet(
         if (callable['kind']!.value === 'operation' && callable['id']!.value === operation.name && callable['module']!.value === source.module) matches += 1;
       }
       const origins = [source, ...result.disclosure.returns.flatMap(returned =>
-        [returned.source, ...returned.dependencies.map(dependency => dependency.source)])];
+        [returned.source, ...returned.dependencies.map(dependency => dependency.source),
+          ...(returned.intrinsics ?? []).map(dependency => dependency.source)])];
       if (origins.some(origin => !sources?.some(entry => entry.path === origin.path && entry.sha256 === origin.sha256) ||
             !modulePaths.includes(origin.module)) || matches !== 1) {
         fail('malformed_descriptor', 'Scenario dependency plan disagrees with its exact artifact source/callable module.');
