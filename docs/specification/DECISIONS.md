@@ -3675,3 +3675,8 @@ Replace the generated operation-route operationId with one call to the existing 
 ## 2026-10-09 — consume defining delete form input projection
 
 Consume exactly Packages1704023b478d00f0452ee68f8bb36706beb290fc's UI forms source and owning test correction: mode remains presentation, and only declared protected record fields become business inputs. Preserve branch-specific compiler decisions and the foreign package ledger. The real generated compiler delete fixture must now submit the emitted UUIDv7 identity and all declared form inputs unchanged; keep the raw extra-mode refusal control. Owner UI94/94 is reused at its original scope, with affected generated compiler qualification due.
+
+
+## 2026-10-09 — qualify unchanged compiler source and corrected delete consumer
+
+The22903771 compiler source passes1,281Rust tests under actual Node24/catalog/draft inputs and required completion engines, strict all-target Clippy/format and real editor type/LSP checks. The sandbox mode4750 body skip is separately qualified by its exact existing test outside the sandbox. Consume the released UI1704023b form projection; rebuilt owning output and generated nonce/all-business-input canonical commit/replay1/1 pass, preserving explicit extra-mode refusal. Reuse unchanged compiler results rather than repeat the whole suite. Codex229's portable page-query-serving browser finding is a verified Packages/Cloudflare consumer prerequisite; later heads still require current review/CI. Original58/67 completion and recipient-specific holds remain unchanged.
