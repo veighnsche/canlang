@@ -236,7 +236,7 @@ fn checked_scalar_alias_void_and_ir_facts_have_exact_origins() {
 }
 
 #[test]
-fn whole_decline_never_certifies_query_absence_composite_model_or_effect() {
+fn whole_decline_never_certifies_query_absence_composite_model_or_unsupported_effect() {
     let source = r#"app Refused
 Given
  Item {title:text}
@@ -263,7 +263,7 @@ When
 Then
 "#;
     let (_, program) = checked(&[("refused.can", source)]);
-    for name in ["query", "absent", "composite", "model", "called", "changed"] {
+    for name in ["query", "absent", "composite", "model", "called"] {
         assert!(
             matches!(
                 fact(&program, &format!("Refused.{name}")),
@@ -272,6 +272,16 @@ Then
             "{name} must decline the entire closure"
         );
     }
+    let changed = complete(&program, "Refused.changed");
+    assert_eq!(changed.effects.len(), 1);
+    assert!(matches!(
+        changed.effects[0].kind,
+        canlang_compiler::analysis::scenario_disclosure::DisclosureEffectKind::Set { .. }
+    ));
+    assert!(
+        changed.returns[0].dependencies.is_empty(),
+        "a checked constant assignment retains its effect proof without inventing a stored read"
+    );
     let ScenarioDisclosure::Declined(absent) = fact(&program, "Refused.absent") else {
         unreachable!()
     };
@@ -719,7 +729,7 @@ Then
 }
 
 #[test]
-fn transition_support_does_not_admit_other_mutations_or_query_receivers() {
+fn transition_and_scalar_set_support_do_not_admit_delete_or_query_receivers() {
     let source = r#"app MachineRefusals
 Given
  Job {state:enum(idle,ready)=idle machine,value:int}
@@ -741,7 +751,7 @@ When
 Then
 "#;
     let (_, program) = checked(&[("machine-refusals.can", source)]);
-    for name in ["written", "queried", "deleted"] {
+    for name in ["queried", "deleted"] {
         assert!(
             matches!(
                 fact(&program, &format!("MachineRefusals.{name}")),
@@ -750,6 +760,14 @@ Then
             "{name}"
         );
     }
+    let written = complete(&program, "MachineRefusals.written");
+    assert_eq!(written.effects.len(), 1);
+    assert!(matches!(
+        written.effects[0].kind,
+        canlang_compiler::analysis::scenario_disclosure::DisclosureEffectKind::Set { .. }
+    ));
+    assert_eq!(written.returns[0].dependencies.len(), 1);
+    assert_eq!(written.returns[0].dependencies[0].field_name, "state");
     let source = "app MissingMachine\nGiven\n Job {state:enum(idle,ready)=idle}\nWhen\n scenario bad(job:Job) by=members\n  do transition job.state idle -> ready\nThen\n";
     let mut db = SourceDb::new();
     let file = db.add("missing-machine.can".into(), source.into());
