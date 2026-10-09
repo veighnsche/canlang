@@ -27,7 +27,12 @@ Then
     )
     .unwrap();
     let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
-        .args(["compile", "--format=json", "--catalog"])
+        .args([
+            "compile",
+            "--native-scenario-receipts",
+            "--format=json",
+            "--catalog",
+        ])
         .arg(root.join("packages/values/dist/catalog.json"))
         .arg(&input)
         .env_remove("CAN_CATALOG")
@@ -57,6 +62,9 @@ const {buildInvoker}=await load('@canlang/cloudflare/worker/assembly');
 const {createTestMemoryStorage}=await load('@canlang/state/storage/memory');
 const {FIXED_NOW,createMemoryIdentityStore,seedMember,makeIdentity,uuidv7}=await load('@canlang/state/testing/invocation/fixtures');
 const artifact=JSON.parse(readFileSync(resolve(base,'artifact.json'),'utf8'));
+const capture=artifact.operations.find(operation=>operation.name.endsWith('.selected'))?.result?.disclosure;
+assert.equal(capture?.version,1,'actual native host requires a complete emitted scenario disclosure plan');
+assert.ok(capture.returns.length>0);
 const id='AnonymousActorDefaults.selected',memberOnly='AnonymousActorDefaults.memberOnly';
 const descriptor=artifact.operations.find(operation=>operation.name===id);
 assert.equal(descriptor.kind,'scenario');assert.equal(descriptor.inputs.fields.length,1);
