@@ -4301,8 +4301,8 @@
         "owner": "Draft submodule publisher/upstream coordinator"
       },
       {
-        "prerequisite": "Workspace package-boundary gate reports102 existing violations (93source-resolution/5cross-package-import/4cross-package-path); changed reviewed-csv file sites are unchanged imports. Requires source-resolution interpretation and offending owning test input/API releases; no new admission helper/manifest violation identified.",
-        "owner": "Workspace boundary checker owner and original offending consumer owners"
+        "prerequisite": "Coordinator exact five-file shared CI patch released; State producer-fixture read repaired through byte-exact owning test inputs and affected check passes. Consume handoff before assessing current remaining real Dev-owned bypasses.",
+        "owner": "Packages consumes coordinator CI handoff; Dev owns six Cloudflare consumer bypasses"
       },
       {
         "prerequisite": "After catalog setup, original e2e retained pilots still need published draft 5a12eb9e plus owning workflow initialization; patched pilot has unresolved active_member/datetime/preferences and Given/Then profile mismatch. Handbuilt TeamTasks guard refuses current source 004a2b8e5c78 vs witness 78020054ba06: owning actual source/fixture correspondence required, no hash-only bypass.",
@@ -4328,6 +4328,11 @@
     "capability_gate_input": {
       "release": "Capability697022afc62d06a4ec3d909eb78bacdf44ab0ff9 standaloneContracts targetES2022 consumed with existingES2023lib, matching tsconfig.base. Exact changed standalone checkpasses.",
       "optional_testkit": "No source delta needed: existing Packages applicationRoot createRequire resolve/fileURL runtime import already avoids static declaration dependency, preserves export/init errors and stronger application resolution. Preserve published Dev a37 joined expected getter; no duplicate source replacement."
+    },
+    "state_fixture_gate": {
+      "status": "implemented and affected validation passed",
+      "input": "State test owns byte-exact NumericControl source/artifact fixture copies; validates retained producer source hash before all unchanged typed metadata assertions. Original compiler provenance remains unchanged.",
+      "validation": "Owning State TypeScript build passes; released NumericControl artifact retains integer metadata and unknown legacy result passes1/1. Full guard assessed after exact coordinator release."
     }
   }
 }
