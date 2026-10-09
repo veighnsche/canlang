@@ -4924,3 +4924,18 @@ The coordinator confirms unchanged Task44's required prompt:text and accept:bool
 State requires an own supplied admitted slot, validates/round-trips its owning Values wire, compares the actual reported encoded binding and rechecks unchanged private invoke/store/context/inputs/references/hash lifetime after awaiting the admitted revision. Keep original whitespace/empty text/false exactly; save only selected intrinsic sites. Recovery verifies exact retained receipt/caller/current operation authority and matching current input type/profile, without native execution or row authority from caller input. Existing row influence/secrecy/lifetime and revision/membership refusals remain. Dev owns actual evaluated native binding attestation; Compiler owns complete roles/source closure and matching typed metadata.
 
 New owning graph6/6 and final State emission pass. Five affected Memory cases5/5 pass182ms with exact empty/false wires,16minute execute0 recovery, changed raw-input hash conflicts, no inferred row grant, current type drift, required/profile/source/copy/spoof/unknown legacy/malformed actual wire and awaited tamper/poison refusals. Extend the same actual D1/SQLiteDO owner cases2/2 pass1.56s with original whitespace/newline prompt and false after provisional staging, persisted/reopened exact intrinsic carriers and later original-version recovery. Actual public root/invocation exports agree; unchanged41 earlier State outcomes reused. Checked handbuilt metadata qualifies the State producer, not original compiled Task44 or broader input families. Coordinator manual release and actual Compiler/Dev source/native consumer remain necessary; native-preparation and local-only holds unchanged.
+
+## 2026-10-10 — checked Send and scalar Set receipt provenance
+
+The bounded native profile retains actual ordered read influence for checked
+own scalar Set and bound capability Send, using private source/target/field
+proofs matched exhaustively to emitted IR. Delivery carriers remain typed
+source-owned values rather than invented stored-field reads. Closed std request
+composites retain member-specific provenance and authored evaluation order. A
+private effect-existence counter preserves selectors on both conditional
+effect/no-effect paths, including read-free writes/sends. Metadata, nullable
+delivery inspection, dispatch guards, foreign/reference writes and unsupported
+effects still refuse this profile. Source16/16, facts15/15, actualnative2/2 and
+strict lint/format pass; the original cancel/reconcile compiler join is covered.
+Original generate execution awaits the State intrinsic/primitive-input and Dev
+consumer joins; no broader application or Task44 acceptance follows.
