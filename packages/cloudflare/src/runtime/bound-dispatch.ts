@@ -59,7 +59,10 @@ export type BoundMailDriveOutcome = DriveDispatchOutcome
         readonly triggerRevision: { readonly revision: number } } };
 
 export type BoundMailRecoveryOptions = Omit<RecoverySweepOpts,
-  'registry' | 'store' | 'joinPort' | 'readEvidence'>;
+  'registry' | 'store' | 'joinPort' | 'readEvidence' | 'revalidateReconciledReceipt'> & {
+  /** Images observation and acknowledgement use the actual current host fence. */
+  readonly admission?: Pick<BoundMailDriveOptions, 'fence' | 'evaluateGuard' | 'readStateSnapshot'>;
+};
 
 export interface BoundMailDispatcher {
   drive(options: BoundMailDriveOptions): Promise<BoundMailDriveOutcome>;
@@ -341,6 +344,34 @@ async function createInstalledDispatcher(
       if (!Number.isInteger(input.limit) || input.limit < 1) {
         throw new Error('Installed mail recovery needs a positive integer scan limit.');
       }
+      const admitImagesRecovery = async (intent: OutboxIntent, expectedRevision?: number) => {
+        const admitted = input.admission;
+        if (admitted === undefined || admitted.fence.owner === '' ||
+            typeof admitted.fence.revalidateAuthority !== 'function' ||
+            typeof admitted.evaluateGuard !== 'function' || typeof admitted.readStateSnapshot !== 'function') {
+          throw new Error('Images recovery requires its actual current host owner admission.');
+        }
+        const producer = await loadFenceAdmissionProducer();
+        const checkpoint = (await producer.openTransitiveScope(store, admitted.fence.owner)).snapshot();
+        const trigger = admitted.fence.triggerRevision;
+        if (trigger !== undefined && (!Number.isSafeInteger(trigger.revision) || trigger.revision < 0 ||
+            checkpoint.revision === trigger.revision)) {
+          throw new Error('Images recovery cannot inherit its triggering checkpoint.');
+        }
+        const guard = intent.dispatchGuard ?? null;
+        const snapshot = guard === null ? null : await admitted.readStateSnapshot(intent);
+        if (guard !== null && admitted.evaluateGuard(guard, intent.arguments, snapshot) !== true) {
+          throw new Error('Images recovery original dispatch guard no longer holds.');
+        }
+        if (await admitted.fence.revalidateAuthority() !== true) {
+          throw new Error('Images recovery current authority was revoked.');
+        }
+        if (await store.readRevision() !== checkpoint.revision ||
+            (expectedRevision !== undefined && checkpoint.revision !== expectedRevision)) {
+          throw new Error('Images recovery admission revision changed.');
+        }
+        return checkpoint;
+      };
       // Services is asynchronous, while Work's planner reads evidence
       // synchronously. Only confirmed evidence crosses this small join.
       await refreshPending();
@@ -358,6 +389,7 @@ async function createInstalledDispatcher(
         if (dispatch.state !== 'uncertain') continue;
         const intent = pending.get(dispatch.intentId);
         if (intent === undefined || !options.adapter.available(intent)) continue;
+        if (options.profile === 'images') await admitImagesRecovery(intent);
         const retained = !rich ? null
           : await readRetainedEvidence({ intent,
             context: requireResultContext(intent.intentId) }, retainedContext);
@@ -394,11 +426,21 @@ async function createInstalledDispatcher(
       }
       const outcome = await runRecoverySweep({ ...input, registry, store, joinPort,
         readEvidence: id => evidence.get(id) ?? null,
+        ...(options.profile !== 'images' ? {} : { revalidateReconciledReceipt: async (
+          { intentId, revision }: { readonly intentId: string; readonly revision: number },
+        ) => {
+          const intent = pending.get(intentId);
+          if (intent === undefined || !options.adapter.available(intent)) {
+            throw new Error('Images recovery acknowledgement lost its original pending intent.');
+          }
+          await admitImagesRecovery(intent, revision);
+        } }),
         stageReconciledReceipt: async ({ intentId, evidence: answer, revision, context }) => {
           const intent = pending.get(intentId);
           if (intent === undefined || !options.adapter.available(intent)) {
             throw new Error('Reconciled mail lost its installed original intent.');
           }
+          const admitted = options.profile === 'images' ? await admitImagesRecovery(intent, revision - 1) : undefined;
           if (retainedEvidence.has(intentId)) {
             // Re-read the original terminal receipt in the recovery batch's
             // scope. Its progress was already committed: only acknowledge the
@@ -430,14 +472,17 @@ async function createInstalledDispatcher(
           const outcome = answer.kind === 'delivered'
             ? { kind: 'delivered' as const, result: answer.result }
             : { kind: 'failed' as const, error: { code: answer.code, message: answer.message } };
-          if (progressed !== undefined) {
+          if (progressed !== undefined && admitted === undefined) {
             throw new Error('New recovered progress needs the original admitted owner fence before occurrence staging.');
           }
           return (!rich
             ? await stageReceiptProgress({ intent, outcome, revision,
               ...(options.profile === 'judgment' ? { context: requireResultContext(intent.intentId) } : {}) }, context)
             : await stageRichProgress({ intent, context: requireResultContext(intent.intentId), revision,
-              ...(outcome.kind === 'delivered' ? { progress: outcome.result as RichRunWire } : { outcome }) }, context)).writes ?? [];
+              ...(progressed === undefined || admitted === undefined ? {} : {
+                progressed: { producer: progressed, owner: admitted.owner },
+              }),
+              ...(outcome.kind === 'delivered' ? { progress: outcome.result as RichRunWire } : { outcome }) }, context));
         } });
       await refreshPending();
       return outcome;
