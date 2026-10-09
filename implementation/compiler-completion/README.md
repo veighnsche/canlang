@@ -94,7 +94,22 @@ save/default/current/version, CSRF/case/stale/revocation controls intact.
 Field captions retain DESIGN's same-name inheritance rule; case labels inherit
 across names. The affected ExpenseFlow golden **1/1**, strict all-target Clippy
 and compiler-wide formatting pass. Independent HIGH source review accepts
-this bounded correction; current published-head Codex review remains due.
+this bounded correction. Codex review of e461c1e2 completed and exposed the
+parameterized-caption producer correction below.
+
+Codex's e461c1e2 caption finding is corrected at the owning value producer:
+parameterized message declarations require ordinary call bindings; bare values
+refuse with E3005, and object-style message construction refuses with E3008.
+The UI decoder additionally refuses unbound checked message origins without
+reevaluating captured values. Proper bound/default/static producers and message
+type annotations remain supported; model/contract/event constructors retain
+their existing paths. The actual CLI/native target passes **7/7**, including
+20 caption, 15 producer and 27 object-constructor refusal controls with no
+published modules, plus actual UI positives. Nominal construction and owning
+message lowering pass **1/1** each; unchanged selected calls **7/7**, message
+slots **6/6** and effects **48/48** are reused. Strict all-target Clippy passes.
+Independent HIGH review accepts the final constructor correction. Codex review
+of the next published revision remains required; no broader completion follows.
 
 Both affected structural goldens now pass **1/1** each, with positive inline and
 borrowed Tabs payload/save metadata in place of retired refusals. ExpenseFlow's
