@@ -1061,8 +1061,12 @@ describe('media: installed std Images full requests', () => {
         assert.equal(paths.length, 3); // history, first output, timed-out second; never third.
         assert.ok(elapsed < 420, `aggregate deadline elapsed ${elapsed}ms`);
         assert.equal(original.deadlineMs < Date.now() + 10, true);
+        // Released Services6ac7e298: transport rounds remaining time down;
+        // establish actual expiry of the original or retained observation lease.
         const deadlineMs = original.observation?.deadlineMs ?? original.deadlineMs;
-        await new Promise<void>(resolve => setTimeout(resolve, Math.max(0, deadlineMs - Date.now())));
+        while (Date.now() < deadlineMs) {
+          await new Promise<void>(resolve => setTimeout(resolve, deadlineMs - Date.now()));
+        }
         await assert.rejects(async () => installed.images.reconcile(requestFor(), original), MappingValidationError);
         assert.equal(paths.length, 3);
       }
