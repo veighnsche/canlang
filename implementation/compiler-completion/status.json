@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-09T18:30:28Z",
+  "updated_utc": "2026-10-09T19:51:10Z",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -84,28 +84,28 @@
   ],
   "counting_policy": "Count canonical reference once. Reuse17previously accepted bounded references; add only full recorded finding/retention outcomes. Partial joins/components do not close their broader reference. Wider host/application and future-source requirements remain separately explicit. These references overlap and are not67independent implementations.",
   "suite": {
-    "passed": 1303,
+    "passed": 1319,
     "failed": 0,
     "ignored": 0,
-    "source_commit": "cd4d42bb8649ce8cf1f9f6d25cac94211fd52146",
+    "source_commit": "95d5b3d68fb6943759ed68863d25871e84179ddc",
     "node": "24.19.0",
     "completion_require_engines": true,
     "strict_clippy_exit": 0,
     "format_exit": 0,
-    "optional_body_skips": 1,
+    "optional_body_skips": 0,
     "separate_native_mode_qualification": {
       "passed": 1,
       "mode_4750_body_skipped": false,
       "source_commit": "279f6dadba1ccdb404734a1bd1e5e9169039dc8b"
     },
     "subsequent_owner_intake": "Exact Packages ebd2ad08 UI forms/four-test unit: owning build6/6 and126/126 cases pass, zero skips; compiler source unchanged,1291/lint/editor results reused. Prior Values prepared-hook8/8 remains unchanged. Exact Dev2a5d2c72 native polling fixture passes affected1/1 in10.8seconds; two unchanged form/browser successes reused. Exact Dev57b1eb57 six-file runtime fixture unit passes owning build22/22 and71/71 affected cases with zero skips, including actual workerd/D1; hand-built fixtures remain labelled and unchanged compiler results reused. Exact Capability62a0a87e dependency-complete owner lifecycle build6/6 and affected mutation156/156 zero skips; installed runtime changed, consuming compiler/native qualification remains due. Exact Packages9a635da8/6ac7e29 common fixture corrections: build8/8,B3 5/5 and selected realHTTPdeadline1/1 pass; no common source repair or remote publication. Exact Capability f4673097 transport plus required d9ea5d8d/3bfaed1f artifact adapters: build6/6 and affected whole State unit1038/1038 pass, zero skips, actualD1/DO; excludes retained-receipt/outbox/public invoker seams. Native hydration/activation remains unfinished. Exact local Capability7df9683e generated CRUD owner entry: build6/6 and owning Memory15/15 zero skips; native private frame hydration remains unfinished. Exact local Capability7788df1a positive installed owner-session entry: build6/6 and owning CRUD17/17 zero skips; native adaptation/hook activation remain unfinished.",
-    "reused_results": "Unchanged exact mode4750 outside-sandbox case at279f6dad and recorded editor/client/real LSP results reused; sandbox whole run reports one mode4750 body skip."
+    "reused_results": "Unchanged editor/client/real LSP results reused. Full current95d outside-sandbox run includes actual mode4750 permission body, no skip. Exact coordinator integrated00a changed alias/CSV fixture2/2 reused; installed dependencies rebuilt26/26 zero cached."
   },
   "latest_component": {
-    "commit": "cd4d42bb8649ce8cf1f9f6d25cac94211fd52146",
-    "state": "historical_combined_compiler_qualification",
-    "outcome": "Combined local baseline2640a9f9 plus private ordinary-contract event correction: full1303/1303 zero failed/ignored, required real completion engines/Node24/exactdraft, current strict all-target Clippy and format pass. Existing exact outside-sandbox mode4750/editor results reused. Native fixture selects defining Cloudflare runtime facade; actual source compilation/assembly reaches3cases after genuine installed-input refresh, all3fail before policy execution because Vitest transforms canApp to accessor metadata, which strict runtime refuses. Real Node replacement and native activation are exact Dev intake prerequisites; no production policy inference.",
-    "remaining": "Dev owns native module intake and owner policy activation, genuine hook before/after/input/context/live views. Capability owns saved-result dependency ABI/native observation wrapper and complete nominal/model-container semantics. Values/runtime owns release-pinned timezone data qualification. Original58/67 nine open references, BDD3/outbox holds and human local-only workflow remain."
+    "commit": "95d5b3d68fb6943759ed68863d25871e84179ddc",
+    "state": "primitive_array_affected_qualified_broader_join_unfinished",
+    "outcome": "Full1319/1319 zero failed/ignored/skips, required real completion/Node24/exactdraft, existing strict all-target Clippy/format. Genuine CLI/native/State Memory1/1 covers21invocations+replay and direct released State projection; private frame3/3, source facts9/9+4 units. Exact integrated00a intake preserves newer owner sources; changed alias/CSV2/2 result reused; current installed build26/26 zero cached. Changed primitive-array source/IR11/11 and native1/1 cover31successpaths+replay; exact published-result codec gate preserves inline case publication; final strict all-target Clippy and formatting pass.",
+    "remaining": "Dev public execution-time source verification correction and actual native compiler flag caller; primitive-array slice is affected-qualified; public runtime consumer intake/actual joined qualification remains due. Broader derive/mutation/query/hooks/lifetime/release/application profiles and precise BDD3/outbox/native human holds remain open. Original58/67 unchanged."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -160,7 +160,7 @@
     "../../compiler/tests/read_enum_default_runtime.rs",
     "../../compiler/tests/enum_result_runtime.rs"
   ],
-  "current_source_work": "Ordinary closed-contract schema/result producer and native storage/projection2/2 plus private event ABI2/2 are qualified; combined full compiler1303/1303, strict all-target Clippy and formatting pass atcd4d42bb. Native owner policy fixture facade is corrected, but actual3cases allfail before policy execution because Vitest transforms canApp namespace exports into accessors; strict runtime refusal is preserved, and no production policy inference follows. Dev exact Node fixture/activation intake remains due. Dev activation and hook carriers, Capability saved-result ABI/native observations, Values timezone release and application/GUI owner profiles remain prerequisites. No reference-count or broader runtime credit; original58/67 and separate human holds preserved. Exact State/Contracts7132e243 receipt plan/API source+tests consumed, build6/6 and consuming ordinary-contract native2/2 pass; owner47Memory+2durable unchanged results reused. Checked source/path producer and genuine Dev marker bridge remain unfinished. Exact reviewed fdd native policy source passes current real Node6/6, zero skips, owning build24/24. Direct bounded alias input publication now preserves nominal owner/wrappers: checked/IR plus actualCLI-State/Interfaces/Values2/2, codegen121/121 and strict Clippy/format pass. Packages owns completeCSV consumer; original counts/holds unchanged. Clean-cohort saved-result analysis now retains bounded source-derived return/data/control/evaluation facts in IR: private checked/IR7/7 and four analyzer cases qualify chronology, immutable aliases/imported derives, exact origins and resource/refusal limits; corrected finite review has no findings. Canonical emission/genuine Dev observation remains unfinished; no runtime, reference or held-policy credit. Corrected shared3204 intake build22/22 passes. Exact Dev180/State08b intake plus opt-in native scalar producer now passes actualCLI-installed native-State Memory1/1 with21selected paths/replays/current-membership State withholding, owning build26/26 and privateframe3/3. Artifacts/registry share complete matched IR plans; default generic compilation unchanged. Source presence/unsupported scalar fixes qualified9/9 plus4units. Dev native compiler opt-in/public transport and broader derive/mutation/query/composite/hook lifetimes remain unfinished; full changed-source qualification due.",
+  "current_source_work": "Committed95d native producer qualified by full1319/1319 zero failed/ignored/body-skips with Node24/exactdraft/requiredrealcompletion; strict all-target Clippy/format and unchanged editor/LSP scopes retained. Exact reviewed integrated00a fast-forward preserves owner sources; changed genuine alias/CSV2/2 reused, actual installed outputs build26/26 zero cached. Changed primitive-array producer source/IR11/11 and genuine CLI/native1/1 cover31success paths+replay, exact snapshots/lazy ordered observations/current authority/real failure fencing; final published-result codec gate matches the existing named-enum inline case publication. Native target failures were malformed-input fixture-stage assumptions plus an incorrect named-enum omission expectation; actual existing inline case publication is preserved. Final changed-source strict all-target Clippy and formatting pass. Dev execution-time source correspondence correction and actual native caller/public transport remain exact prerequisites. Wider derived read/mutation/query/model/nominal/hook/lifetime/timezone/application/browser profiles remain unfinished, original58/67 nine open. BDD3/outbox/native recipient-specific human holds preserved; local coordinator integration only.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
