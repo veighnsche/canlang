@@ -1,5 +1,5 @@
 import { startLocalDev, type LocalDev } from "./local-run.js";
-import type { ReportValue } from "@canlang/contracts";
+import { BUSINESS_ERROR_CODES, type ReportValue, type StateErrorCode } from "@canlang/contracts";
 
 export interface LocalRowScopeOptions {
   workerName: string;
@@ -45,6 +45,10 @@ function toReportValue(value: unknown): ReportValue {
   throw new Error(`snapshot cannot encode value of type ${typeof value}`);
 }
 
+function isStateErrorCode(value: unknown): value is StateErrorCode {
+  return typeof value === "string" && (BUSINESS_ERROR_CODES as readonly string[]).includes(value);
+}
+
 async function snapshotD1(dev: LocalDev, binding: string): Promise<ReportValue> {
   const db = await dev.getD1Database(binding);
   const tables = await db
@@ -79,8 +83,8 @@ async function snapshotD1(dev: LocalDev, binding: string): Promise<ReportValue> 
         }
         if ((parsed as { status: string }).status === "rejected") {
           const rejection = parsed as Record<string, unknown>;
-          if (typeof rejection["code"] !== "string" || typeof rejection["message"] !== "string" ||
-              Object.hasOwn(rejection, "result") || Object.hasOwn(rejection, "recordVersions")) {
+          if (Object.keys(rejection).length !== 3 || !isStateErrorCode(rejection["code"]) ||
+              typeof rejection["message"] !== "string") {
             throw new Error("snapshot: rejection receipt is not canonical");
           }
           return false;

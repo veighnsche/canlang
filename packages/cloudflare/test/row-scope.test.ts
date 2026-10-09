@@ -14,15 +14,23 @@ describe("isolated example row snapshots", () => {
     try {
       const db = await scope.dev.getD1Database("DB");
       await db.exec("CREATE TABLE fence (value INTEGER); CREATE TABLE fence_log (value INTEGER); CREATE TABLE receipts (outcome TEXT); CREATE TABLE records (value INTEGER);");
+      const insertReceipt = async (outcome: unknown) => {
+        await db.prepare("INSERT INTO receipts(outcome) VALUES (?)").bind(JSON.stringify(outcome)).run();
+      };
       const before = await scope.snapshot();
-      await db.exec("INSERT INTO fence VALUES (1); INSERT INTO fence_log VALUES (2); INSERT INTO receipts VALUES ('{\"status\":\"rejected\",\"code\":\"forbidden\",\"message\":\"denied\"}');");
+      await db.exec("INSERT INTO fence VALUES (1); INSERT INTO fence_log VALUES (2);");
+      await insertReceipt({ status: "rejected", code: "forbidden", message: "denied" });
       expect(await scope.snapshot()).toEqual(before);
-      await db.exec("INSERT INTO receipts VALUES ('{\"status\":\"committed\",\"result\":null}');");
+      await insertReceipt({ status: "committed", result: null });
       expect(await scope.snapshot()).not.toEqual(before);
       await db.exec("DELETE FROM receipts WHERE outcome LIKE '%committed%'");
-      await db.exec("INSERT INTO receipts VALUES ('{\"status\":\"rejected\",\"result\":\"hidden effect\"}');");
+      await insertReceipt({ status: "rejected", code: "forbidden", message: "denied", effect: "hidden effect" });
       await expect(scope.snapshot()).rejects.toThrow("rejection receipt is not canonical");
       await db.exec("DELETE FROM receipts WHERE outcome LIKE '%hidden effect%'");
+      await insertReceipt({ status: "rejected", code: "invented_code", message: "denied" });
+      await expect(scope.snapshot()).rejects.toThrow("rejection receipt is not canonical");
+      await db.exec("DELETE FROM receipts WHERE outcome LIKE '%invented_code%'");
+      expect(await scope.snapshot()).toEqual(before);
       await db.exec("INSERT INTO records VALUES (4)");
       expect(await scope.snapshot()).not.toEqual(before);
     } finally {

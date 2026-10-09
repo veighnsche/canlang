@@ -9,7 +9,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { ArtifactModelField, ClosedInputs, CompileArtifact, ExampleCaseResult, ExampleReport, FqOperationName, ModelName, OperationId, RecordId, RecordVersion, ReportValue, ResolvedCaller, ResolvedIdentity, StoragePort, StoredRow, TableCaseResult } from "@canlang/contracts";
 import { createD1IdentityStore, ensureIdentitySchema, resolveIdentity, sha256HexText, toInstant, type IdentityStore } from "@canlang/identity";
@@ -35,17 +35,15 @@ export class MissingExampleTestkitError extends Error {
   }
 }
 
-/** Late-bind the optional test producer without a Cloudflare package cycle. */
-export async function loadInstalledExampleTestkit(): Promise<ExampleTestkitPort> {
-  let resolved: string;
+/** Resolve the optional producer from the invoking application, avoiding a package cycle. */
+export async function loadInstalledExampleTestkit(applicationRoot: string): Promise<ExampleTestkitPort> {
+  let entry: string;
   try {
-    resolved = createRequire(import.meta.url).resolve("@canlang/testkit");
+    entry = createRequire(resolve(applicationRoot, "package.json")).resolve("@canlang/testkit");
   } catch {
     throw new MissingExampleTestkitError();
   }
-  // Keep this late-bound: testkit depends on Cloudflare and is deliberately
-  // absent from this package's static dependency graph.
-  const kit = await import(pathToFileURL(resolved).href);
+  const kit = await import(pathToFileURL(entry).href);
   requirement(kit.loadExampleSuite, "testkit loader");
   requirement(kit.runTable, "testkit table runner");
   requirement(kit.createReport, "testkit report builder");
@@ -340,7 +338,11 @@ async function createRowScope(input: CompiledExampleInput, moduleIndex: number, 
     };
     return scope;
   } catch (error) {
-    await base.dispose();
+    try {
+      await base.dispose();
+    } catch {
+      // Preserve the provisioning failure after attempting owned disposal.
+    }
     throw error;
   }
 }
@@ -641,6 +643,7 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
   assertNoModuleCollisions(artifact);
   const digest = createHash("sha256").update(input.artifactBytes).digest("hex");
   const workDir = await mkdtemp(join(tmpdir(), "can-example-modules-"));
+  let failed = false;
   try {
     // The production and test modules share one checked relative-import
     // graph on disk; only the separate portable Worker map enters workerd.
@@ -756,7 +759,14 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
       executed: report.summary.total,
       report,
     };
+  } catch (error) {
+    failed = true;
+    throw error;
   } finally {
-    await rm(workDir, { force: true, recursive: true });
+    try {
+      await rm(workDir, { force: true, recursive: true });
+    } catch (error) {
+      if (!failed) throw error;
+    }
   }
 }

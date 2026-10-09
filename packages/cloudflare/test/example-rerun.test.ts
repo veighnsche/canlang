@@ -1,11 +1,54 @@
 import { createHash } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ExampleReport, TableRowResult } from "@canlang/contracts";
-import type { CompiledExampleInput } from "../src/dev/example-runner.js";
+import { loadInstalledExampleTestkit, MissingExampleTestkitError, runCompiledExamples, type CompiledExampleInput } from "../src/dev/example-runner.js";
 import { ExampleRerunCoordinator, ExampleRerunError, type ExampleAttemptResult } from "../src/dev/example-rerun.js";
 
 const caller = { account: "u-1", team: "current" as const, roles: ["members"], authenticated: true };
 const selector = { operation: "Office.supplies", rowIndex: 1 };
+
+describe("application-owned installed example producer", () => {
+  const roots: string[] = [];
+  afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
+  function application(source?: string): { root: string; entry: string } {
+    const root = mkdtempSync(join(tmpdir(), "can-example-application-"));
+    roots.push(root);
+    writeFileSync(join(root, "package.json"), JSON.stringify({ type: "module", dependencies: {
+      "@canlang/cloudflare": "0.1.0", "@canlang/testkit": "0.1.0",
+    } }));
+    const packageRoot = join(root, "node_modules", "@canlang", "testkit");
+    const entry = join(packageRoot, "entry.js");
+    if (source !== undefined) {
+      mkdirSync(packageRoot, { recursive: true });
+      writeFileSync(join(packageRoot, "package.json"), JSON.stringify({ type: "module", exports: "./entry.js" }));
+      writeFileSync(entry, source);
+    }
+    return { root, entry };
+  }
+  it("loads the application's exported entry and reuses its actual module identity", async () => {
+    const first = application('export function loadExampleSuite() {} export function runTable() { return "first-app"; } export function createReport() {} export function fixtureValuesOf() {}');
+    const second = application('export function loadExampleSuite() {} export function runTable() { return "second-app"; } export function createReport() {} export function fixtureValuesOf() {}');
+    const kit = await loadInstalledExampleTestkit(first.root);
+    expect(kit).toBe(await import(pathToFileURL(first.entry).href));
+    expect(kit.runTable()).toBe("first-app");
+    expect((await loadInstalledExampleTestkit(second.root)).runTable()).toBe("second-app");
+  });
+  it("refuses a missing application installation even when the workspace has Testkit", async () => {
+    await expect(loadInstalledExampleTestkit(application().root)).rejects.toBeInstanceOf(MissingExampleTestkitError);
+  });
+  it("retains malformed-export validation at the owning check", async () => {
+    const { root } = application('export function loadExampleSuite() {} export const runTable = 1;');
+    await expect(loadInstalledExampleTestkit(root)).rejects.toThrow("example runner: missing testkit table runner producer");
+  });
+  it("retains import-time producer failures instead of relabeling them missing", async () => {
+    const { root } = application('throw new Error("producer initialization sentinel");');
+    await expect(loadInstalledExampleTestkit(root)).rejects.toThrow("producer initialization sentinel");
+  });
+});
 
 function failedResult(bytes: Uint8Array, sourceRevision: string, detail: string,
                       idempotency?: ExampleAttemptResult["idempotency"]): ExampleAttemptResult {
@@ -119,5 +162,107 @@ describe("revision-pinned isolated example rerun", () => {
     expect(() => coordinator.recordFailure({ artifactRef: artifact.artifactRef, selector,
       runId: "original", result: failure })).toThrowError(ExampleRerunError);
     coordinator.close();
+  });
+});
+
+const scratch = vi.hoisted(() => ({
+  directories: [] as string[], events: [] as string[], failures: new Map<string, unknown>(), createScope: false,
+}));
+vi.mock("node:fs/promises", async (original) => {
+  const fs = await original<typeof import("node:fs/promises")>();
+  return {
+    ...fs,
+    mkdtemp: async (prefix: string) => {
+      scratch.events.push("acquire");
+      if (scratch.failures.has("acquire")) throw scratch.failures.get("acquire");
+      const directory = await fs.mkdtemp(prefix); scratch.directories.push(directory); return directory;
+    },
+    rm: async (directory: string, options: { force: boolean; recursive: boolean }) => {
+      scratch.events.push("remove");
+      if (scratch.failures.has("remove")) throw scratch.failures.get("remove");
+      await fs.rm(directory, options);
+    },
+  };
+});
+vi.mock("../src/runtime/artifact.js", async (original) => ({
+  ...await original<typeof import("../src/runtime/artifact.js")>(),
+  parseArtifactText: () => ({ artifact: { modules: [{ path: "worker.js" }], tests: [{ scope: "Office.supplies", fixtures: [], module: { path: "examples.js" } }] } }),
+}));
+vi.mock("../src/runtime/modules.js", async (original) => ({
+  ...await original<typeof import("../src/runtime/modules.js")>(),
+  assembleModules: async () => {
+    scratch.events.push("assemble");
+    if (scratch.failures.has("assemble")) throw scratch.failures.get("assemble");
+    return { moduleUrls: { "examples.js": "file:///examples.js" } };
+  },
+}));
+vi.mock("../src/dev/row-scope.js", () => ({
+  createLocalRowScope: async () => {
+    scratch.events.push("scope");
+    if (scratch.failures.has("scope")) throw scratch.failures.get("scope");
+    return {
+      dev: { getD1Database: async () => {
+        scratch.events.push("database");
+        throw scratch.failures.get("database");
+      } },
+      dispose: async () => {
+        scratch.events.push("dispose");
+        if (scratch.failures.has("dispose")) throw scratch.failures.get("dispose");
+      },
+    };
+  },
+}));
+
+describe("compiled example producer scratch lifetime", () => {
+  afterEach(() => {
+    for (const directory of scratch.directories) rmSync(directory, { recursive: true, force: true });
+    scratch.directories = []; scratch.events = []; scratch.failures.clear(); scratch.createScope = false;
+  });
+  function run(): ReturnType<typeof runCompiledExamples> {
+    const received = input(new Uint8Array([1, 2, 3]));
+    const stage = (name: string) => {
+      scratch.events.push(name);
+      if (scratch.failures.has(name)) throw scratch.failures.get(name);
+    };
+    return runCompiledExamples({ ...received, testkit: {
+      loadExampleSuite: async () => { stage("suite"); return {
+        rows: [{ rowIndex: 1, caller: { kind: "public" }, seed: [], setup() {}, invoke() {}, observe() {} }], userFixtures: [],
+      }; },
+      runTable: async (spec: { createScope(row: number): Promise<unknown> }) => {
+        stage("table");
+        if (scratch.createScope) await spec.createScope(1);
+        return { kind: "table", rows: [{}] };
+      },
+      createReport: () => ({ addCase() {}, build: () => {
+        stage("report"); return { summary: { total: 1, failed: 0, setupFailed: 0, unsupported: 0 } };
+      } }),
+      fixtureValuesOf() {},
+    } });
+  }
+  it("returns only after removing acquired scratch", async () => {
+    expect(await run()).toMatchObject({ ok: true, executed: 1 });
+    expect(scratch.events).toEqual(["acquire", "assemble", "suite", "table", "report", "remove"]);
+    expect(existsSync(scratch.directories[0]!)).toBe(false);
+  });
+  it.each(["acquire", "assemble", "suite", "table", "report", "remove"])("preserves %s failure and attempts owned cleanup", async stage => {
+    const failure = new Error(`${stage} sentinel`); scratch.failures.set(stage, failure);
+    await expect(run()).rejects.toBe(failure);
+    const phases = ["acquire", "assemble", "suite", "table", "report", "remove"];
+    const expected = phases.slice(0, phases.indexOf(stage) + 1);
+    if (stage !== "acquire" && stage !== "remove") expected.push("remove");
+    expect(scratch.events).toEqual(expected);
+  });
+  it("retains body failure when removal also fails", async () => {
+    const failure = new Error("suite sentinel"); scratch.failures.set("suite", failure);
+    scratch.failures.set("remove", new Error("cleanup sentinel"));
+    await expect(run()).rejects.toBe(failure);
+    expect(scratch.events).toEqual(["acquire", "assemble", "suite", "remove"]);
+  });
+  it("disposes an acquired row scope after database provisioning failure", async () => {
+    scratch.createScope = true;
+    const failure = new Error("database sentinel"); scratch.failures.set("database", failure);
+    scratch.failures.set("dispose", new Error("dispose sentinel"));
+    await expect(run()).rejects.toBe(failure);
+    expect(scratch.events).toEqual(["acquire", "assemble", "suite", "table", "scope", "database", "dispose", "remove"]);
   });
 });
