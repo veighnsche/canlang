@@ -2,18 +2,23 @@
  * First-profile owner service. The socket is control-only; compiler, source
  * capture, and preview behavior stay with their owning producers.
  */
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import type { CompileArtifact, Diagnostic, DiagnosticResult, DiagnosticSpan } from "@canlang/contracts";
+import type { BusinessError, CompileArtifact, Diagnostic, DiagnosticResult, DiagnosticSpan } from "@canlang/contracts";
 import { compileCapturedSingleFile } from "./compiler-check.js";
-import { loadConstructHelpIndex, type CatalogFact, type ConstructHelpIndex } from "./construct-help.js";
-import type { CompiledExampleInput } from "./example-runner.js";
-import { projectCompilerFailure, type FailureProjection } from "./failure-occurrence.js";
+import { FIRST_PROFILE, joinCompilerConstructCandidates, loadConstructHelpIndex, parseCompilerConstructCandidates,
+  type CatalogFact, type CompilerConstructCandidates, type ConstructHelpIndex, type QualifiedConstructProof } from "./construct-help.js";
+import { loadInstalledExampleTestkit, runCompiledExamples, type CompiledExampleInput } from "./example-runner.js";
+import { ExampleRerunCoordinator, type ExampleRerunResult } from "./example-rerun.js";
+import { projectBusinessRefusal, projectCompilerFailure, projectExampleFailure, type FailureProjection } from "./failure-occurrence.js";
+import { ConstructRanker, type ConstructRankerOptions, type JevChoiceTransport, type RankResult } from "./jev-ranker.js";
+import { installedLocalPreviewInputInventory } from "./preview-inputs.js";
 import { DevRevisionConflictError, DevSessionCore, type DevCheck, type DevPreview } from "./session-core.js";
 import {
   captureSingleFileSource,
+  capturedRuntimeInputsAreCurrent,
   type SingleFileCapture,
   type SingleFileCaptureRequest,
 } from "./source-capture.js";
@@ -33,7 +38,6 @@ const MAX_DIAGNOSTICS = 256;
 const MAX_MESSAGE = 600;
 const MAX_REASON = 300;
 const MAX_PAGE = 25;
-const UNSUPPORTED_COMMANDS = ["example.run", "example.rerun"] as const;
 
 const COMMAND_HELP = [
   { name: "help", required: [], optional: [], output: "can.dev.help.v1", availability: "always" },
@@ -42,10 +46,15 @@ const COMMAND_HELP = [
   { name: "diagnostics", required: [{ name: "revision", type: "revision" }], optional: [{ name: "after", type: "integer>=-1" }, { name: "limit", type: "integer:1..25" }], output: "can.dev.diagnostics.v1", availability: "captured_revision" },
   { name: "diagnostic.detail", required: [{ name: "revision", type: "revision" }, { name: "index", type: "integer>=0" }], optional: [], output: "can.dev.diagnostic.v1", availability: "captured_revision" },
   { name: "construct.help", required: [{ name: "revision", type: "revision" }, { name: "id", type: "construct_id" }], optional: [], output: "can.dev.construct-help.v1", availability: "captured_revision" },
+  { name: "construct.rank", required: [{ name: "revision", type: "revision" }, { name: "index", type: "integer>=0" }], optional: [], output: "can.dev.construct-rank.v1", availability: "current_captured_diagnostic" },
+  { name: "rank.lookup", required: [{ name: "revision", type: "revision" }, { name: "ref", type: "rank_ref" }], optional: [], output: "can.dev.construct-rank.v1", availability: "current_pending_rank" },
   { name: "failure.lookup", required: [{ name: "ref", type: "failure_ref" }], optional: [], output: "can.dev.failure.v1", availability: "captured_revision" },
   { name: "failure.detail", required: [{ name: "ref", type: "failure_ref" }], optional: [], output: "can.dev.failure-detail.v1", availability: "captured_revision" },
+  { name: "failures", required: [{ name: "revision", type: "revision" }], optional: [{ name: "after", type: "integer>=-1" }, { name: "limit", type: "integer:1..25" }], output: "can.dev.failures.v1", availability: "captured_revision" },
   { name: "preview.status", required: [], optional: [], output: "can.dev.preview.v1", availability: "always" },
   { name: "preview.open", required: [], optional: [], output: "can.dev.preview-open.v1", availability: "serving_preview" },
+  { name: "example.run", required: [{ name: "expectedRevision", type: "revision" }], optional: [{ name: "operation", type: "operation" }, { name: "rowIndex", type: "integer>=0" }], output: "can.dev.example-run.v1", availability: "current_verified_artifact" },
+  { name: "example.rerun", required: [{ name: "ref", type: "failure_ref" }], optional: [], output: "can.dev.example-rerun.v1", availability: "retained_failed_row" },
   { name: "stop", required: [], optional: [], output: "can.dev.stop.v1", availability: "always" },
 ] as const;
 
@@ -61,12 +70,47 @@ export interface SessionServicePreview extends DevPreview {
   }[];
   /** Exact admitted artifact and verified Worker recipe for isolated rows. */
   exampleInput?(): Omit<CompiledExampleInput, "selectedRow" | "runId" | "testkit">;
+  /** Actual bounded business refusal; no request headers, credentials or raw response detail. */
+  observeRefusals?(handler: (event: { requestId: string; status: number; error: BusinessError; transport?: "mcp" }) => void): () => void;
+}
+
+/** Trusted host evidence, never accepted from socket callers. No live proofs are supplied by default. */
+export interface SessionConstructQualification {
+  readonly resourceProfile: string;
+  readonly authoringProfile: typeof FIRST_PROFILE;
+  readonly indexRevision: string;
+  readonly compilerSha256: string;
+  /** Hash of exact captured producer identities, independent of application source. */
+  readonly producerInputsDigest: string;
+  /** Finite owning normalized diagnostic branches qualified for bounded ranking. */
+  readonly messageKinds: readonly string[];
+  readonly proofs: readonly QualifiedConstructProof[];
+}
+
+export interface SessionConstructQualificationRequest {
+  readonly resourceProfile: string;
+  readonly authoringProfile: typeof FIRST_PROFILE;
+  readonly indexRevision: string;
+  readonly compilerSha256: string;
+  readonly producerInputsDigest: string;
+  readonly inputs: SingleFileCapture["inputs"];
+}
+
+export interface SessionConstructRankingOptions {
+  readonly qualify?: (request: SessionConstructQualificationRequest) => SessionConstructQualification | null;
+  readonly transport?: JevChoiceTransport;
+  /** Host policy defaults to no external disclosure. */
+  readonly allowExternal?: () => boolean;
+  readonly inlineBudgetMs?: number;
+  readonly providerDeadlineMs?: number;
+  readonly maxCache?: number;
 }
 
 export interface SessionServiceOptions {
   selectedApp: string;
   capture: SingleFileCaptureRequest;
   runtimeDir?: string;
+  constructRanking?: SessionConstructRankingOptions;
   /** Trusted host builder must admit real bindings and own all runtime cleanup. */
   previewBuilder?: (artifact: CompileArtifact, capture: SingleFileCapture,
     artifactBytes: Uint8Array) => Promise<SessionServicePreview>;
@@ -105,9 +149,11 @@ interface CapturedDiagnostic {
   primary: DiagnosticSpan;
   related: Diagnostic["related"];
   tags: string[];
+  construct_candidates?: CompilerConstructCandidates;
 }
 
 interface SessionCheckDetail {
+  captureInputDigest: string;
   kind: "artifact" | "diagnostics" | "profile_unsupported" | "capture_incomplete" | "tool_failure";
   source: { path: string; sha256: string };
   diagnostics: CapturedDiagnostic[];
@@ -145,6 +191,22 @@ function short(value: string, max: number): string {
   return value.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").slice(0, max);
 }
 
+/** Runtime values require effective-actor projection; owner control alone cannot release them. */
+function safeRerunResult(result: ExampleRerunResult): Record<string, unknown> {
+  const attempt = (value: NonNullable<ExampleRerunResult["original"]>) => ({
+    run_id: value.runId, observed_at: value.observedAt, outcome: value.row.outcome,
+    row_index: value.row.rowIndex, idempotency: value.idempotency.kind,
+  });
+  return {
+    schema: "can.dev.example-rerun.v1", ok: result.ok, kind: result.kind, replay: result.replay,
+    ...(result.original === undefined ? {} : { original: attempt(result.original) }),
+    ...(result.rerun === undefined ? {} : { rerun: attempt(result.rerun) }),
+    ...(result.ok ? { artifact: result.artifact, inputs: result.inputs }
+      : { code: result.code, detail: "The retained example rerun could not complete." }),
+    evidence: { missing: ["actor_projection_unavailable", "runtime_detail_unreleased", "trace_unavailable"] },
+  };
+}
+
 function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -159,6 +221,24 @@ function validSpan(value: unknown, sourceBytes: number): value is DiagnosticSpan
   const item = record(value);
   return item !== null && item.file === 0 && integer(item.start) && integer(item.end) &&
     item.start <= item.end && item.end <= sourceBytes;
+}
+
+/** A keyword span may not point inside a comment or string literal. */
+function sourceKeywordAt(bytes: Buffer, start: number): boolean {
+  let quote = 0;
+  let comment = false;
+  for (let offset = 0; offset < start; offset++) {
+    const byte = bytes[offset]!;
+    if (comment) { if (byte === 10 || byte === 13) comment = false; continue; }
+    if (quote !== 0) {
+      if (byte === 92) { offset++; continue; }
+      if (byte === quote) quote = 0;
+      continue;
+    }
+    if (byte === 35) comment = true;
+    else if (byte === 34 || byte === 39 || byte === 96) quote = byte;
+  }
+  return quote === 0 && !comment;
 }
 
 function diagnosticsFrom(value: readonly unknown[], sourceBytes: number): CapturedDiagnostic[] | null {
@@ -186,6 +266,9 @@ function diagnosticsFrom(value: readonly unknown[], sourceBytes: number): Captur
       primary: { file: item.primary.file, start: item.primary.start, end: item.primary.end },
       related,
       tags: item.tags.slice(0, 12).map(tag => short(tag as string, 40)),
+      ...(item.construct_candidates === undefined ? {} : {
+        construct_candidates: parseCompilerConstructCandidates(item.construct_candidates),
+      }),
     });
   }
   return diagnostics;
@@ -194,24 +277,27 @@ function diagnosticsFrom(value: readonly unknown[], sourceBytes: number): Captur
 function failureDetail(capture: SingleFileCapture, kind: SessionCheckDetail["kind"], reason: string,
   helpIndexRevision: string | null): SessionCheckDetail {
   return {
-    kind,
+    kind, captureInputDigest: capture.epochMaterial,
     source: { path: capture.compilerOperand, sha256: capture.sourceSha256 },
     diagnostics: [], reported: 0, compilerOmitted: 0, serviceOmitted: 0,
     reason: short(reason, MAX_REASON), toolVersion: null, languageVersion: null, helpIndexRevision,
   };
 }
 
-function capturedInput(capture: SingleFileCapture, path: string): { sha256: string; canonicalPath: string } {
-  const selected = capture.inputs.find(input => input.canonicalPath === resolve(capture.root, path) &&
+function capturedInput(capture: SingleFileCapture, path: string, producer?: RegExp): { sha256: string; canonicalPath: string } {
+  const matches = capture.inputs.filter(input => (input.canonicalPath === resolve(capture.root, path) ||
+    producer?.test(input.name) === true) &&
     input.state === "present" && typeof input.sha256 === "string");
+  const selected = matches.length === 1 ? matches[0] : undefined;
   if (selected === undefined || typeof selected.sha256 !== "string" || selected.canonicalPath === null) {
     throw new Error(`construct help input is absent: ${path}`);
   }
   return { sha256: selected.sha256, canonicalPath: selected.canonicalPath };
 }
 
-async function capturedCatalog(capture: SingleFileCapture, path: string, exportName: string): Promise<readonly CatalogFact[]> {
-  const input = capturedInput(capture, path);
+async function capturedCatalog(capture: SingleFileCapture, path: string, exportName: string,
+  producer?: RegExp): Promise<readonly CatalogFact[]> {
+  const input = capturedInput(capture, path, producer);
   const hash = async (): Promise<string> => createHash("sha256").update(await readFile(input.canonicalPath)).digest("hex");
   if (await hash() !== input.sha256) throw new Error(`construct help catalog changed after capture: ${path}`);
   const module = await import(`${pathToFileURL(input.canonicalPath).href}?can-dev=${input.sha256}`) as Record<string, unknown>;
@@ -226,11 +312,15 @@ async function capturedHelpIndex(capture: SingleFileCapture): Promise<ConstructH
   const help = capture.inputs.find(input => input.name === "help-index" && input.state === "present");
   if (!compiler?.sha256 || !help?.sha256) throw new Error("construct help compiler or document input is missing");
   const grammar = capturedInput(capture, "docs/specification/GRAMMAR.md");
-  const values = capturedInput(capture, "packages/values/src/catalog.ts");
-  const ui = capturedInput(capture, "packages/ui/src/catalog.ts");
+  const values = capturedInput(capture, "packages/values/src/catalog.ts",
+    /^extra:source:@canlang\/values@[^/]+\/src\/catalog\.ts$/);
+  const ui = capturedInput(capture, "packages/ui/src/catalog.ts",
+    /^extra:source:@canlang\/ui@[^/]+\/src\/catalog\.ts$/);
   const [valuesEntries, uiEntries] = await Promise.all([
-    capturedCatalog(capture, "packages/values/dist/src/catalog.js", "CATALOG"),
-    capturedCatalog(capture, "packages/ui/dist/src/catalog.js", "UI_CATALOG"),
+    capturedCatalog(capture, "packages/values/dist/src/catalog.js", "CATALOG",
+      /^package:@canlang\/values@[^/]+\/dist\/src\/catalog\.js$/),
+    capturedCatalog(capture, "packages/ui/dist/src/catalog.js", "UI_CATALOG",
+      /^package:@canlang\/ui@[^/]+\/dist\/src\/catalog\.js$/),
   ]);
   return loadConstructHelpIndex(capture.root, {
     languageVersion: "1.0", compiler: { sha256: compiler.sha256 }, grammar: { sha256: grammar.sha256 },
@@ -355,18 +445,46 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
   const captures = new Map<string, SingleFileCapture>();
   const helpByDigest = new Map<string, ConstructHelpIndex>();
   const checkedHelp = new Map<string, ConstructHelpIndex>();
+  const checkedCaptures = new Map<string, SingleFileCapture>();
+  const pendingRanks = new Map<string, { revision: string; helpRevision: string }>();
   const artifacts = new Map<string, { artifact: CompileArtifact; bytes: Uint8Array }>();
   const previews = new Map<string, SessionServicePreview>();
+  const exampleFailures = new Map<string, { projection: FailureProjection; cursor: number; rerunRef?: string }>();
+  let failureCursor = 0;
+  const exampleCaptures = new Map<string, SingleFileCapture>();
+  let exampleQueue: Promise<unknown> = Promise.resolve();
+  const stopExamples = new AbortController();
+  const reruns = new ExampleRerunCoordinator({
+    resourcesReady: async ({ fixtureRecipeId }) => {
+      const captured = exampleCaptures.get(fixtureRecipeId);
+      return captured !== undefined && await capturedRuntimeInputsAreCurrent(captured)
+        ? { available: true } : { available: false, reason: "retained runtime inputs changed or were evicted" };
+    },
+  });
   let latestCapture: SingleFileCapture | null = null;
+  let sessionProducerIdentity: string | null = null;
   const core = new DevSessionCore<SessionCheckDetail, SessionServicePreview>({
     async capture() {
-      const captured = await captureSingleFileSource(options.capture);
+      const request = options.capture.inputInventory === "installed-local-preview"
+        ? { ...options.capture, ...installedLocalPreviewInputInventory(options.capture.checkoutRoot, options.capture.compilerPath) }
+        : options.capture;
+      const captured = await captureSingleFileSource(request);
+      // Node retains the service and Testkit's transitive imports for this
+      // process. A newly admitted package hash cannot reload that graph.
+      const producerIdentity = createHash("sha256").update(JSON.stringify(captured.inputs
+        .filter(input => input.name.startsWith("package:"))
+        .map(input => [input.name, input.canonicalPath, input.sha256]))).digest("hex");
+      if (sessionProducerIdentity !== null && sessionProducerIdentity !== producerIdentity) {
+        throw new Error("installed runtime producer changed; stop and restart this session to consume its new modules");
+      }
+      sessionProducerIdentity = producerIdentity;
       let help = helpByDigest.get(captured.epochMaterial);
       if (help === undefined && captured.inputs.some(input => input.name === "extra:grammar" && input.state === "present")) {
         help = await capturedHelpIndex(captured);
         helpByDigest.set(captured.epochMaterial, help);
       }
       latestCapture = captured;
+      core.watchDirectories(await watchDirectories(request, captured));
       captures.set(captured.epochMaterial, captured);
       while (captures.size > 4) {
         const oldest = captures.keys().next().value!;
@@ -393,7 +511,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
           return {
             complete: true, passed: true,
             detail: {
-              kind: "artifact" as const,
+              kind: "artifact" as const, captureInputDigest: captured.epochMaterial,
               source: { path: captured.compilerOperand, sha256: captured.sourceSha256 },
               diagnostics: [], reported: 0, compilerOmitted: 0, serviceOmitted: 0,
               reason: null, toolVersion: result.artifact.tool_version,
@@ -404,15 +522,15 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         if (result.kind !== "diagnostics") {
           return { complete: false, passed: false, detail: failureDetail(captured, result.kind, result.reason, helpIndexRevision) };
         }
-        const envelope = result.envelope as typeof result.envelope & { omitted?: unknown; tool_version?: unknown; language_version?: unknown };
+        const envelope = result.envelope as typeof result.envelope & { omitted?: unknown; complete?: unknown; tool_version?: unknown; language_version?: unknown };
         const diagnostics = diagnosticsFrom(envelope.diagnostics, captured.sourceBytes);
         if (diagnostics === null || !integer(envelope.omitted)) {
           return { complete: false, passed: false, detail: failureDetail(captured, "tool_failure", "compiler diagnostic envelope has invalid fields", helpIndexRevision) };
         }
         return {
-          complete: true, passed: false,
+          complete: envelope.complete === true, passed: false,
           detail: {
-            kind: "diagnostics", source: { path: captured.compilerOperand, sha256: captured.sourceSha256 },
+            kind: "diagnostics", captureInputDigest: captured.epochMaterial, source: { path: captured.compilerOperand, sha256: captured.sourceSha256 },
             diagnostics, reported: envelope.diagnostics.length,
             compilerOmitted: envelope.omitted,
             serviceOmitted: Math.max(0, envelope.diagnostics.length - diagnostics.length),
@@ -436,6 +554,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       if (captured === undefined || selected === undefined) {
         throw new SessionSocketError("PREVIEW_UNAVAILABLE", "verified artifact is unavailable");
       }
+      const buildRevision = core.status().revision!;
       const preview = await options.previewBuilder(selected.artifact, captured, selected.bytes);
       if (!preview || typeof preview.id !== "string" || preview.id.length === 0 || typeof preview.dispose !== "function") {
         throw new SessionSocketError("PREVIEW_UNAVAILABLE", "preview builder returned no disposable build");
@@ -444,12 +563,23 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         await preview.dispose();
         throw new SessionSocketError("PREVIEW_UNAVAILABLE", "preview builder reused a live build identity");
       }
+      const unobserve = preview.observeRefusals?.(event => {
+        if (core.status().servingBuild !== preview.id || stopping !== null) return;
+        const projection = projectBusinessRefusal({ context: {
+          session: socket!.identity.sessionId, revision: buildRevision,
+          sourceRevision: captured.sourceRevision, sourcePaths: [captured.compilerOperand], servingBuild: preview.id,
+        }, requestId: event.requestId, error: event.error, status: event.status,
+          ...(event.transport === undefined ? {} : { transport: event.transport }), phase: "unknown" });
+        exampleFailures.set(projection.occurrence.ref, { projection, cursor: failureCursor++ });
+        while (exampleFailures.size > 64) exampleFailures.delete(exampleFailures.keys().next().value!);
+      });
       const wrapped: SessionServicePreview = {
         id: preview.id,
         ...(preview.issueOpenUrl === undefined ? {} : { issueOpenUrl: () => preview.issueOpenUrl!() }),
         ...(preview.issueLocalActors === undefined ? {} : { issueLocalActors: () => preview.issueLocalActors!() }),
         ...(preview.exampleInput === undefined ? {} : { exampleInput: () => preview.exampleInput!() }),
         async dispose() {
+          unobserve?.();
           if (previews.get(preview.id) === wrapped) previews.delete(preview.id);
           await preview.dispose();
         },
@@ -490,6 +620,10 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       const index = [...helpByDigest.values()].find(candidate =>
         candidate.revision === result.check.detail.helpIndexRevision);
       if (index !== undefined) checkedHelp.set(result.revision, index);
+      const captured = captures.get(result.check.detail.captureInputDigest);
+      if (captured !== undefined) checkedCaptures.set(result.revision, Object.freeze({ ...captured,
+        inputs: Object.freeze(captured.inputs.map(input => Object.freeze({ ...input }))) }));
+      while (checkedCaptures.size > 8) checkedCaptures.delete(checkedCaptures.keys().next().value!);
       while (checkedHelp.size > 8) checkedHelp.delete(checkedHelp.keys().next().value!);
     }
     return checkResponse(socket?.identity.sessionId ?? "starting", core, result, options.previewBuilder !== undefined);
@@ -497,13 +631,21 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
 
   const stop = (): Promise<void> => {
     if (stopping !== null) return stopping;
+    stopExamples.abort();
+    ranker.close();
+    pendingRanks.clear();
     stopping = (async () => {
       let stopError: unknown;
       try { await core.stop(); } catch (error) { stopError = error; }
+      await exampleQueue;
+      reruns.close();
+      exampleCaptures.clear();
+      exampleFailures.clear();
       try { await socket?.stop(); } catch (error) { stopError ??= error; }
       captures.clear();
       helpByDigest.clear();
       checkedHelp.clear();
+      checkedCaptures.clear();
       artifacts.clear();
       previews.clear();
       if (stopError !== undefined) throw stopError;
@@ -515,6 +657,99 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
     const found = core.detail(revision);
     if ("error" in found) throw new SessionSocketError("REVISION_UNAVAILABLE", "captured revision is unavailable");
     return found;
+  };
+
+  const rankCurrent = (revision: string, helpRevision: string): boolean => {
+    const state = core.status();
+    const capture = checkedCaptures.get(revision);
+    return stopping === null && state.revision === revision && !state.dirty &&
+      state.captureError === null && state.checkRevision === revision && capture !== undefined &&
+      latestCapture?.epochMaterial === capture.epochMaterial && checkedHelp.get(revision)?.revision === helpRevision;
+  };
+  const ranking = options.constructRanking;
+  const rankerOptions: ConstructRankerOptions = {
+    allowExternal: () => { try { return ranking?.allowExternal?.() === true; } catch { return false; } },
+    isCurrent: rankCurrent,
+    ...(ranking?.inlineBudgetMs === undefined ? {} : { inlineBudgetMs: ranking.inlineBudgetMs }),
+    ...(ranking?.providerDeadlineMs === undefined ? {} : { providerDeadlineMs: ranking.providerDeadlineMs }),
+    ...(ranking?.maxCache === undefined ? {} : { maxCache: ranking.maxCache }),
+  };
+  const ranker = new ConstructRanker(ranking?.transport, rankerOptions);
+
+  const qualification = (capture: SingleFileCapture, index: ConstructHelpIndex): SessionConstructQualification | null => {
+    const inputs = Object.freeze(capture.inputs.map(input => Object.freeze({ ...input })));
+    const request = Object.freeze({ resourceProfile: capture.profile, authoringProfile: FIRST_PROFILE,
+      indexRevision: index.revision, compilerSha256: index.compilerSha256,
+      producerInputsDigest: createHash("sha256").update(JSON.stringify(capture.inputs)).digest("hex"), inputs });
+    let bundle: SessionConstructQualification | null;
+    try { bundle = ranking?.qualify?.(request) ?? null; } catch { return null; }
+    if (bundle === null || Object.keys(bundle).some(key => !["resourceProfile", "authoringProfile", "indexRevision",
+        "compilerSha256", "producerInputsDigest", "messageKinds", "proofs"].includes(key)) ||
+        !Object.isFrozen(bundle) || bundle.resourceProfile !== request.resourceProfile ||
+        bundle.authoringProfile !== FIRST_PROFILE || bundle.indexRevision !== request.indexRevision ||
+        bundle.compilerSha256 !== request.compilerSha256 || bundle.producerInputsDigest !== request.producerInputsDigest ||
+        !Array.isArray(bundle.messageKinds) || !Object.isFrozen(bundle.messageKinds) || bundle.messageKinds.length === 0 ||
+        bundle.messageKinds.length > 64 || new Set(bundle.messageKinds).size !== bundle.messageKinds.length ||
+        bundle.messageKinds.some(kind => typeof kind !== "string" || !/^[a-z][a-z0-9_]{0,63}$/.test(kind)) ||
+        !Array.isArray(bundle.proofs) || !Object.isFrozen(bundle.proofs) || bundle.proofs.length > 278 ||
+        new Set(bundle.proofs.map(proof => proof?.id)).size !== bundle.proofs.length ||
+        bundle.proofs.some(proof => proof === null || typeof proof !== "object" || !Object.isFrozen(proof) ||
+          typeof proof.id !== "string" || !/^can\.v1\.[a-z0-9_.-]{1,100}$/.test(proof.id) ||
+          proof.profile !== FIRST_PROFILE || proof.indexRevision !== request.indexRevision ||
+          proof.compilerSha256 !== request.compilerSha256 ||
+          typeof proof.compilerCheck !== "string" || !proof.compilerCheck ||
+          typeof proof.runtimeCheck !== "string" || !proof.runtimeCheck ||
+          (proof.exampleCheck !== undefined && proof.exampleCheck !== null && typeof proof.exampleCheck !== "string"))) return null;
+    return bundle;
+  };
+
+  const rankDiagnostic = async (revision: string, diagnosticIndex: number): Promise<RankResult> => {
+    const found = detail(revision);
+    const diagnostic = found.check.detail.diagnostics[diagnosticIndex];
+    if (diagnostic === undefined) throw new SessionSocketError("DIAGNOSTIC_UNAVAILABLE", "diagnostic index is unavailable");
+    const index = checkedHelp.get(revision);
+    const capture = checkedCaptures.get(revision);
+    const state = core.status();
+    if (stopping !== null || state.revision !== revision || state.dirty || state.captureError !== null || state.checkRevision !== revision) {
+      return { state: "stale", reason: "source or help revision changed" };
+    }
+    const routing = diagnostic.construct_candidates;
+    if (routing?.disposition === "structural") return { state: "structural", reason: "authoring slot is not reliable" };
+    if (routing?.disposition === "none" && routing.complete && found.check.complete &&
+        found.check.detail.compilerOmitted === 0 && found.check.detail.serviceOmitted === 0) return { state: "none" };
+    if (index === undefined || capture === undefined) {
+      return { state: "candidate_coverage_unknown", reason: "captured help or producer inputs are unavailable" };
+    }
+    if (!rankCurrent(revision, index.revision)) return { state: "stale", reason: "source or help revision changed" };
+    if (routing?.disposition !== "exact" || !routing.complete || routing.context === undefined) {
+      return { state: "candidate_coverage_unknown", reason: "captured compiler ranking context is incomplete" };
+    }
+    const context = routing.context;
+    const bytes = Buffer.from(capture.sourceText, "utf8");
+    const span = diagnostic.primary;
+    const exactSourceSpan = context.exactSourceSpan && bytes.length === capture.sourceBytes &&
+      createHash("sha256").update(bytes).digest("hex") === capture.sourceSha256 &&
+      sourceKeywordAt(bytes, span.start) &&
+      bytes.subarray(span.start, span.end).equals(Buffer.from(context.guess, "utf8")) &&
+      (span.start === 0 || !/[A-Za-z0-9_]/.test(String.fromCharCode(bytes[span.start - 1]!))) &&
+      (span.end === bytes.length || !/[A-Za-z0-9_]/.test(String.fromCharCode(bytes[span.end]!)));
+    if (!context.recoveryComplete || !context.nameFilterComplete || !exactSourceSpan) {
+      return { state: "ineligible", reason: "diagnostic or source capture is incomplete" };
+    }
+    const bundle = qualification(capture, index);
+    if (bundle === null || !bundle.messageKinds.includes(context.messageKind)) {
+      return { state: "candidate_coverage_unknown", reason: "host profile or diagnostic branch qualification is unavailable" };
+    }
+    const selected = joinCompilerConstructCandidates(index, routing, FIRST_PROFILE, bundle.proofs);
+    return ranker.rank({ ref: diagnosticRef(socket!.identity.sessionId, revision, diagnosticIndex),
+      revision, helpRevision: index.revision, diagnosticCode: diagnostic.code, sourceHash: capture.sourceSha256,
+      span: { start: span.start, end: span.end }, messageKind: context.messageKind, section: context.section,
+      slot: routing.slot, guess: context.guess, complete: found.check.complete,
+      omitted: found.check.detail.compilerOmitted + found.check.detail.serviceOmitted, exactSourceSpan,
+      structuralRecovery: context.structuralRecovery, candidateCoverage: selected.candidateCoverage,
+      unsupportedBehaviorProven: context.unsupportedBehaviorProven, materialIntentChoice: context.materialIntentChoice,
+      evidenceSufficient: context.evidenceSufficient, cards: selected.cards.map(card => ({ id: card.id,
+        section: card.section, signature: card.signature, meaning: card.meaning, availability: card.status })) });
   };
 
   const compilerFailure = (ref: string): FailureProjection => {
@@ -547,14 +782,14 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
     });
   };
 
-  const handle = async (command: SessionSocketCommand): Promise<unknown> => {
+  const handle = async (command: SessionSocketCommand, requestSignal: AbortSignal): Promise<unknown> => {
     const payload = record(command.payload);
     if (command.command === "help") {
       return {
         schema: "can.dev.help.v1", protocol: SESSION_SOCKET_PROTOCOL,
         session: socket?.identity.sessionId,
         commands: COMMAND_HELP,
-        unavailable: UNSUPPORTED_COMMANDS.map(name => ({ name, code: "FEATURE_UNAVAILABLE" })),
+        unavailable: [],
       };
     }
     if (command.command === "status") return status();
@@ -583,6 +818,11 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
           ref: diagnosticRef(socket!.identity.sessionId, revision, payload.index),
           source: found.check.detail.source,
           diagnostic: diagnostics[payload.index],
+          construct_help: checkedHelp.has(revision)
+            ? joinCompilerConstructCandidates(checkedHelp.get(revision)!,
+              diagnostics[payload.index]!.construct_candidates, options.capture.profile)
+            : { disposition: "unknown", slot: null, candidateCoverage: "unknown", cards: [],
+              reason: "captured help index is unavailable" },
           evidence: { source_excerpt: "unavailable", trace: "unavailable" },
         };
       }
@@ -610,6 +850,42 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         next_after: last + 1 < diagnostics.length ? last : null,
       };
     }
+    if (command.command === "construct.rank" || command.command === "rank.lookup") {
+      const revision = payload?.revision;
+      const allowed = command.command === "construct.rank" ? ["revision", "index"] : ["revision", "ref"];
+      if (typeof revision !== "string" || !/^r[1-9][0-9]*$/.test(revision) || payload === null ||
+          Object.keys(payload).some(key => !allowed.includes(key))) {
+        throw new SessionSocketError("INVALID_REQUEST", "ranking needs only a captured revision and diagnostic index or pending ref");
+      }
+      await core.refresh().catch(() => undefined);
+      let result: RankResult;
+      if (command.command === "construct.rank") {
+        if (!integer(payload.index)) throw new SessionSocketError("INVALID_REQUEST", "ranking needs a diagnostic index");
+        result = await rankDiagnostic(revision, payload.index);
+      } else {
+        if (typeof payload.ref !== "string" || !/^[0-9a-f]{64}$/.test(payload.ref)) {
+          throw new SessionSocketError("INVALID_REQUEST", "rank lookup needs a pending ref");
+        }
+        const pending = pendingRanks.get(payload.ref);
+        if (pending === undefined || pending.revision !== revision) {
+          throw new SessionSocketError("RANK_UNAVAILABLE", "pending rank does not select this revision");
+        }
+        result = ranker.lookup(payload.ref);
+      }
+      await core.refresh().catch(() => undefined);
+      const helpRevision = checkedHelp.get(revision)?.revision;
+      const state = core.status();
+      if (stopping !== null || state.revision !== revision || state.dirty || state.captureError !== null ||
+          state.checkRevision !== revision || (helpRevision !== undefined && !rankCurrent(revision, helpRevision))) {
+        result = { state: "stale", reason: "source or help revision changed" };
+      }
+      if (result.state === "pending") {
+        pendingRanks.set(result.ref, { revision, helpRevision: helpRevision! });
+        while (pendingRanks.size > (ranking?.maxCache ?? 64)) pendingRanks.delete(pendingRanks.keys().next().value!);
+      }
+      return { schema: "can.dev.construct-rank.v1", session: socket!.identity.sessionId, revision,
+        index_revision: helpRevision ?? null, result };
+    }
     if (command.command === "construct.help") {
       const revision = payload?.revision;
       const id = payload?.id;
@@ -634,7 +910,14 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
     if (command.command === "failure.lookup" || command.command === "failure.detail") {
       const ref = payload?.ref;
       if (typeof ref !== "string") throw new SessionSocketError("INVALID_FAILURE_REF", "failure ref is required");
-      const projection = compilerFailure(ref);
+      if (!ref.startsWith(`${socket!.identity.sessionId}/`)) {
+        throw new SessionSocketError("INVALID_FAILURE_REF", "failure ref does not select this session");
+      }
+      const runtime = exampleFailures.get(ref);
+      if (runtime === undefined && !/^.+\/r[1-9][0-9]*\/d[0-9]+$/.test(ref)) {
+        throw new SessionSocketError("FAILURE_UNAVAILABLE", "captured runtime failure is unavailable");
+      }
+      const projection = runtime?.projection ?? compilerFailure(ref);
       if (command.command === "failure.lookup") return projection.occurrence;
       return {
         schema: "can.dev.failure-detail.v1", ref: projection.occurrence.ref,
@@ -642,10 +925,135 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         detail: projection.detail,
       };
     }
+    if (command.command === "failures") {
+      const revision = payload?.revision;
+      const after = payload?.after ?? -1;
+      const limit = payload?.limit ?? 1;
+      if (typeof revision !== "string" || !/^r[1-9][0-9]*$/.test(revision) ||
+          !integer(after, -1) || !integer(limit, 1) || limit > MAX_PAGE) {
+        throw new SessionSocketError("INVALID_REQUEST", "failure list needs a captured revision and bounded cursor");
+      }
+      detail(revision);
+      const retained = [...exampleFailures.values()].filter(value => value.projection.occurrence.revision === revision);
+      const available = retained.filter(value => value.cursor > after);
+      const page = available.slice(0, limit);
+      return { schema: "can.dev.failures.v1", session: socket!.identity.sessionId, revision,
+        origins: ["example", "http"], total_retained: retained.length,
+        failures: page.map(value => value.projection.occurrence),
+        next_after: available.length > page.length ? page.at(-1)!.cursor : null };
+    }
+    if (command.command === "example.run" || command.command === "example.rerun") {
+      const signal = AbortSignal.any([requestSignal, stopExamples.signal]);
+      const requireActive = (): void => {
+        if (signal.aborted) throw new SessionSocketError(stopExamples.signal.aborted ? "SESSION_STOPPED" : "REQUEST_CANCELLED",
+          stopExamples.signal.aborted ? "session is stopping" : "example request was cancelled");
+      };
+      const work = exampleQueue.then(async () => {
+        requireActive();
+        if (stopping !== null) throw new SessionSocketError("SESSION_STOPPED", "session is stopping");
+        if (command.command === "example.rerun") {
+          const ref = payload?.ref;
+          if (typeof ref !== "string" || !ref.startsWith(`${socket!.identity.sessionId}/`)) {
+            throw new SessionSocketError("INVALID_FAILURE_REF", "failure ref does not select this session");
+          }
+          const failure = exampleFailures.get(ref);
+          if (failure?.rerunRef === undefined) {
+            throw new SessionSocketError("RERUN_UNAVAILABLE", "retained failure has no supported example row");
+          }
+          const result = await reruns.rerun(failure.rerunRef, signal);
+          requireActive();
+          return safeRerunResult(result);
+        }
+        const expectedRevision = payload?.expectedRevision;
+        if (typeof expectedRevision !== "string" || !/^r[1-9][0-9]*$/.test(expectedRevision)) {
+          throw new SessionSocketError("REVISION_REQUIRED", "example run needs the expected revision");
+        }
+        const operation = payload?.operation;
+        const rowIndex = payload?.rowIndex;
+        if ((operation === undefined) !== (rowIndex === undefined) ||
+            (operation !== undefined && (typeof operation !== "string" || operation.length > 200 || !integer(rowIndex)))) {
+          throw new SessionSocketError("INVALID_REQUEST", "selected row needs an operation and nonnegative row index");
+        }
+        await core.refresh();
+        const state = core.status();
+        if (state.revision !== expectedRevision || state.dirty || state.servingRevision !== expectedRevision) {
+          throw new SessionSocketError("REVISION_CONFLICT", "example run requires the current admitted build");
+        }
+        const preview = state.servingBuild === null ? undefined : previews.get(state.servingBuild);
+        if (preview?.exampleInput === undefined || latestCapture === null) {
+          throw new SessionSocketError("EXAMPLES_UNAVAILABLE", "serving build has no verified example recipe");
+        }
+        const captured = latestCapture;
+        const recipe = preview.exampleInput();
+        if (recipe.sourceRevision !== state.sourceRevision) {
+          throw new SessionSocketError("EXAMPLES_UNAVAILABLE", "example recipe differs from the admitted source");
+        }
+        const requireCapturedRuntime = async (): Promise<void> => {
+          requireActive();
+          if (!(await capturedRuntimeInputsAreCurrent(captured))) {
+            throw new SessionSocketError("CAPTURE_CHANGED", "captured example runtime inputs changed; stop and restart this session");
+          }
+          requireActive();
+        };
+        await requireCapturedRuntime();
+        const input = { ...recipe, testkit: await loadInstalledExampleTestkit(captured.root) };
+        await requireCapturedRuntime();
+        const artifactDigest = createHash("sha256").update(input.artifactBytes).digest("hex");
+        const runId = randomUUID();
+        const result = await runCompiledExamples({ ...input, runId, signal,
+          ...(typeof operation === "string" ? { selectedRow: { operation, rowIndex: rowIndex as number } } : {}) });
+        await core.refresh().catch(() => undefined);
+        // Do not retain evidence from a row that ran against changed producer
+        // bytes, even when the selected source itself still has the same hash.
+        await requireCapturedRuntime();
+        // Passing and unsupported runs have no row to rerun. They must not
+        // consume the bounded artifacts backing earlier failure references.
+        const rerunnable = result.report.cases.some(example => example.kind === "table" &&
+          example.rows.some(row => row.outcome === "failed" || row.outcome === "setup-failed"));
+        const artifact = rerunnable ? reruns.retainArtifact({ revision: expectedRevision,
+          fixtureRecipeId: captured.epochMaterial, runtimeProfileId: options.capture.profile, input }) : null;
+        if (artifact !== null) {
+          exampleCaptures.delete(captured.epochMaterial);
+          exampleCaptures.set(captured.epochMaterial, captured);
+          while (exampleCaptures.size > 8) exampleCaptures.delete(exampleCaptures.keys().next().value!);
+        }
+        const failures: FailureProjection["occurrence"][] = [];
+        for (const [caseIndex, example] of result.report.cases.entries()) {
+          const entries = example.kind === "table" ? example.rows : example.steps;
+          for (const [entryIndex, entry] of entries.entries()) {
+            if (entry.outcome === "passed") continue;
+            const projection = projectExampleFailure({ context: {
+              session: socket!.identity.sessionId, revision: expectedRevision, sourceRevision: captured.sourceRevision,
+              sourcePaths: [captured.compilerOperand], servingBuild: state.servingBuild!,
+            }, report: result.report, artifactSourceRevision: captured.sourceRevision, runId, caseIndex, entryIndex });
+            let rerunRef: string | undefined;
+            if (example.kind === "table" && artifact !== null && entry.outcome !== "unsupported") {
+              rerunRef = reruns.recordFailure({ artifactRef: artifact.artifactRef, runId, result,
+                selector: { operation: example.operation, rowIndex: example.rows[entryIndex]!.rowIndex } }).failureRef;
+            }
+            exampleFailures.set(projection.occurrence.ref, { projection, cursor: failureCursor++,
+              ...(rerunRef === undefined ? {} : { rerunRef }) });
+            failures.push(projection.occurrence);
+            while (exampleFailures.size > 64) exampleFailures.delete(exampleFailures.keys().next().value!);
+          }
+        }
+        return { schema: "can.dev.example-run.v1", session: socket!.identity.sessionId, revision: expectedRevision,
+          source_revision: captured.sourceRevision, serving_build: state.servingBuild, artifact_digest: artifactDigest,
+          run_id: runId, current: core.status().revision === expectedRevision && !core.status().dirty,
+          ok: result.ok, executed: result.executed, summary: result.report.summary,
+          focus: failures[Math.max(0, failures.length - 64)] ?? null,
+          failures_retained: Math.min(failures.length, 64), failures_omitted: Math.max(0, failures.length - 64),
+          replay: { available: false, reason: "no_restore_capsule" } };
+      }).catch(error => { requireActive(); throw error; });
+      exampleQueue = work.then(() => undefined, () => undefined);
+      return work;
+    }
     if (command.command === "preview.status") {
       const state = status();
       return { schema: "can.dev.preview.v1", session: state.session, state: state.preview,
-        serving_revision: state.serving_revision, serving_build: state.serving_build, stale: state.stale };
+        serving_revision: state.serving_revision, serving_build: state.serving_build, stale: state.stale,
+        failure_focus: [...exampleFailures.values()].reverse().find(value =>
+          value.projection.occurrence.serving_build === state.serving_build)?.projection.occurrence ?? null };
     }
     if (command.command === "preview.open") {
       const build = core.status().servingBuild;
@@ -662,9 +1070,6 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       setTimeout(() => { void stop().catch(() => undefined); }, 100).unref();
       return { schema: "can.dev.stop.v1", session: socket?.identity.sessionId, stopping: true };
     }
-    if (UNSUPPORTED_COMMANDS.some(name => name === command.command)) {
-      throw new SessionSocketError("FEATURE_UNAVAILABLE", "control command has no joined producer");
-    }
     throw new SessionSocketError("UNKNOWN_COMMAND", "control command is unsupported");
   };
 
@@ -676,6 +1081,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       app: options.selectedApp,
       profile: options.capture.profile,
       ...(options.runtimeDir === undefined ? {} : { runtimeDir: options.runtimeDir }),
+      requestTimeoutMs: 60_000,
       handle,
     });
   } catch (error) {

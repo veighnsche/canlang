@@ -52,3 +52,55 @@ it("refuses invalid queries before socket access and surfaces owner mismatch", a
   });
   expect(mismatched).toEqual({ ok: false, command: "status", code: "SESSION_MISMATCH", detail: "wrong session" });
 });
+
+it("pins example runs and routes retained example and HTTP refs without loosening selection", async () => {
+  const deps = { cwd: "/repo", discover: async () => owner };
+  expect(await runDevControlArgv(["example.run"], deps)).toMatchObject({ ok: false, code: "REVISION_REQUIRED" });
+  expect(await runDevControlArgv(["example.run", "--expected-revision", "r3", "--row", "0"], deps))
+    .toMatchObject({ ok: false, code: "INVALID_ARGUMENTS" });
+  expect(await runDevControlArgv(["example.run", "--expected-revision", "r3", "--operation", "Office.Supply.update", "--row", "1"], deps))
+    .toMatchObject({ ok: true, result: { command: "example.run", payload: {
+      expectedRevision: "r3", operation: "Office.Supply.update", rowIndex: 1,
+    } } });
+  expect(await runDevControlArgv(["example.rerun", "--ref", "s1/r3/run1/f0_1"], deps))
+    .toMatchObject({ ok: true, result: { command: "example.rerun", payload: { ref: "s1/r3/run1/f0_1" } } });
+  expect(await runDevControlArgv(["failure.detail", "--ref", "s1/r3/request1/f0"], deps))
+    .toMatchObject({ ok: true, result: { command: "failure.detail", payload: { ref: "s1/r3/request1/f0" } } });
+  expect(await runDevControlArgv(["failures", "--revision", "r3", "--limit", "2"], deps))
+    .toMatchObject({ ok: true, result: { command: "failures", payload: { revision: "r3", limit: 2 } } });
+});
+
+it("forwards only the initial negative list cursor and keeps other numeric bounds", async () => {
+  let discoveries = 0;
+  const deps = { cwd: "/repo", discover: async () => { discoveries++; return owner; } };
+  for (const command of ["diagnostics", "failures"]) {
+    expect(await runDevControlArgv([command, "--revision", "r3", "--after", "-1"], deps))
+      .toMatchObject({ ok: true, result: { command, payload: { revision: "r3", after: -1 } } });
+    expect(await runDevControlArgv([command, "--revision", "r3", "--after", "0"], deps))
+      .toMatchObject({ ok: true, result: { command, payload: { revision: "r3", after: 0 } } });
+    for (const invalid of ["-2", "-0", "01", "1.5"]) {
+      expect(await runDevControlArgv([command, "--revision", "r3", "--after", invalid], deps))
+        .toMatchObject({ ok: false, code: "INVALID_ARGUMENTS" });
+    }
+  }
+  expect(await runDevControlArgv(["failures", "--revision", "r3", "--limit", "-1"], deps))
+    .toMatchObject({ ok: false, code: "INVALID_ARGUMENTS" });
+  expect(await runDevControlArgv(["diagnostic.detail", "--revision", "r3", "--index", "-1"], deps))
+    .toMatchObject({ ok: false, code: "INVALID_ARGUMENTS" });
+  expect(discoveries).toBe(4);
+});
+
+it("pins construct ranking and pending lookups and accepts no caller evidence", async () => {
+  let calls = 0;
+  const deps = { cwd: "/repo", discover: async () => { calls++; return owner; } };
+  const ref = "a".repeat(64);
+  expect(await runDevControlArgv(["construct.rank", "--revision", "r3", "--index", "0"], deps))
+    .toMatchObject({ ok: true, result: { command: "construct.rank", payload: { revision: "r3", index: 0 } } });
+  expect(await runDevControlArgv(["rank.lookup", "--revision", "r3", "--ref", ref], deps))
+    .toMatchObject({ ok: true, result: { command: "rank.lookup", payload: { revision: "r3", ref } } });
+  expect(await runDevControlArgv(["construct.rank", "--index", "0"], deps)).toMatchObject({ ok: false, code: "REVISION_REQUIRED" });
+  expect(await runDevControlArgv(["construct.rank", "--revision", "r3"], deps)).toMatchObject({ ok: false, code: "INVALID_ARGUMENTS" });
+  expect(await runDevControlArgv(["rank.lookup", "--revision", "r3", "--ref", "arbitrary"], deps)).toMatchObject({ ok: false, code: "RANK_REF_REQUIRED" });
+  expect(await runDevControlArgv(["construct.rank", "--revision", "r3", "--index", "0", "--context", "{}"], deps)).toMatchObject({ ok: false, code: "INVALID_ARGUMENTS" });
+  expect(calls).toBe(2);
+});
