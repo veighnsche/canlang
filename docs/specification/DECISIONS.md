@@ -4619,3 +4619,51 @@ Carry a core-owned stop signal through the actual service check and captured com
 Source-current CF emit, all3Node service controls, affected core8/private-session3/genuine native compiler5 (16/16), root noEmit and zero-violation boundaries pass. The new component-labelled slow compiler uses real captured spawn/session/socket lifetime and deliberately emits diagnostics while ignoring SIGTERM. Root strengthens the draft to let the actual socket stop trigger cancellation before joining owner cleanup; it meets3seconds, requires owned child/staging/descriptor/socket absence, and verifies no late check or preview. This proves lifecycle behavior, not fabricated native app acceptance. Earlier genuine portable scalar/array and Office/browser results retain their exact scopes; defining State transition provenance, Compiler working help/profile and G2–G3 remain unfinished.
 
 **Pending producer proposal, not Dev acceptance:** Capability is implementing beginScenarioReceiptMutation over the admitted call/exact physical store and one State-owned OwnerMutationSession. Dev's dependent runtime must preserve actual issued raw rows through native view/capture, stage with scenario cause and consume finalize output without independent version rewrites. The current wireSnapshot clone loses the proposed provenance. Exact source/types/tests have not been released; keep provisional refusal and Compiler unclaimed closure until genuine consumer/combined qualification. No host-assigned proof or overlay registration is authorized by this proposed ABI.
+
+## 2026-10-09 — retain transition provenance refusal during whole qualification
+
+The source66b whole run completes129targets with1320passed/2failed/0ignored and
+no body skip. Forward the existing real public `int64` export in the isolated
+delivery-progress compiler fixture; its actual owning case1/1 then passes.
+Preserve the state-machine replay assertion and record its exact prerequisite:
+State scenario-receipt273-275 cannot retain an intermediate queued observation
+against a generating final net write; Cloudflare's genuine native view reads
+the staged overlay. Complete compiler literal/write lineage or defining State
+owner-session intermediate observation is required. General changed public
+fields also need their full influencing-read/control closure, since changed
+rows are projected separately from typed results. No empty void association,
+snapshot substitution, raw replay bypass or gate weakening is authorized.
+
+## 2026-10-09 — consume released genuine portable scalar fixture
+
+Merge exact reviewed ec4f79ba/Devda7f5b14 onto65cb8dc7, preserving compiler defaults, array/public recovery and current whole-run failure records. Reuse the genuine portable D1 int/bool1/1 owner result without another fixture. Reconcile all incoming six paths against the existing accumulated registry and retain the complete checkpoint unadvanced. Later portable-array release remains exact intake, not inferred scalar coverage.
+
+The final full portable journey passes1/1 in53.18s; owning CF emit, root noEmit and zero-violation boundaries pass. The first draft wrongly expected the Compiler Node/Memory bad-element rejection receipt through public HTTP. Actual HTTP validates shape and elements before State: require exact zero-write resources and no receipt for both malformed inputs, then rerun the full affected journey. A test-only inferred field type caused an owning emit failure; use the actual exported ArtifactModelField type and emitted integer/nullable/array descriptor, without guessing int array valueType. Reuse unchanged producer closure/catalog and earlier Office/browser checks only at their recorded scopes. Reconcile cumulative path coverage with checkpoint unadvanced. Required/nested/model/nominal arrays and wider source/owner/hook/query/help/G2–G3 joins remain unqualified.
+
+## 2026-10-09 — consume released portable primitive-array receipt journey
+
+Merge exact reviewed b9ecfd06/Devd8bc2a5a onto the portable scalar intake, retaining compiler66b defaults and65cb actual whole-run failures/correction. Reuse the genuine public canonical/portable D1 scalar and nullable/empty/populated primitive-array journey1/1 in53.18s at the owner’s declared source; changed derive profiles still require their own qualification. Existing accumulated paths and both decision histories are retained, complete semantic/target checkpoint unadvanced. No competing harness or broader reference/held-policy acceptance follows.
+
+## 2026-10-09 — capture checked derives at their native invocation sites
+
+Join complete checked derive call chains to actual IR bodies/defaults and exact
+emitted field inventories. Specialize only opted-in native handler calls into
+private async closures with fresh parameter scopes, preserving global derives,
+exports and ordinary UI/generic output. Render authored arguments in the caller
+before entering the callee chain; preserve slot mapping, declaration-ordered
+defaults, explicit override skipping and original lazy operators. Private
+choice keys derive from checked source identities/canonical authored anchors;
+wire dependency origins retain imported path/digest and actual entry transport.
+Bound recursion/depth/sites and omit the whole plan when matching fails.
+Actual CLI/native/public Memory1/1 covers43successpaths+replay, including separate
+import files, repeated/nested/defaulted/lazy reads and saved derived recovery
+under current access; source closure12/12, strict all-targetClippy/fmt and finite
+independent review pass. This uses released State/Dev markers without widening
+mutation/query/composite or held profiles. Changed-source whole qualification
+and transition write provenance remain required; no original-reference credit.
+
+## 2026-10-09 — qualify released local derives through the portable saved consumer (unfinished parent)
+
+Intake exact reviewed53551de7/Compilerd9c50fe1 with the committed compiler-stop correction retained; preserve both decision histories. Extend the existing single-file captured/native/public/portable owner-D1 witness, using only actual owning private derive specializations and checked marker/source plans. Nineteen fresh results cover prior scalar/array cases plus nested/repeated calls, source-ordered named arguments, omitted default vs explicit42 and lazy null/non-null/true/false paths. Preserve exact marker IDs/order, observed physical rows, original ordinary/dedicated aged replay after updates, receipts/all resources, archive withholding and current membership refusal. Pure override remains42 after archive but cannot bypass revocation. Global artifact correspondence is checked through scalar and derived witnesses rather than repeated per saved variation.
+
+Final whole native/portable D1 case1/1 passes37.72s, with owning native build/CF emit, root noEmit and zero-violation boundaries. The initial expected lazy chronology missed the producer's two optional field data/control dependencies; retain both defining IDs and rerun the full affected journey, without changing the producer or weakening equality. Reuse coordinator d87213ae changed native/captured caller5/5 because production source matches; unchanged previous direct and lifecycle results keep their scopes. This caller continues refusing imports/composition; mutation/intermediate-row capture awaits the exact State-owned session/raw-row/finalization ABI, and no T04/T11/G2–G3 or broader profile acceptance is inferred. Reconcile accumulated source/target coverage with checkpoint unadvanced.

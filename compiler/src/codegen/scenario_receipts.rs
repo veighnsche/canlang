@@ -8,11 +8,12 @@ use crate::analysis::scenario_disclosure::{
     DependencyRole, DisclosureChoice, DisclosureSource, ScenarioDisclosure,
 };
 use crate::analysis::{ResolvedType, Scalar};
-use crate::source::Span;
+use crate::source::{Span, sha256_hex};
 use crate::syntax::SyntaxKind;
 
 use super::ir::{
-    IrBinOp, IrExpr, IrGuard, IrItem, IrItemKind, IrProgram, IrStmt, IrType, TypedExpr,
+    IrBinOp, IrCallTarget, IrDefault, IrExpr, IrGuard, IrItem, IrItemKind, IrProgram, IrStmt,
+    IrType, TypedExpr,
 };
 use super::js::{JsModel, JsModelField, JsModelFieldType};
 
@@ -78,11 +79,17 @@ pub(super) enum NativeDecisionKind {
     Coalesce,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(super) struct NativeSite {
+    pub calls: Vec<Span>,
+    pub span: Span,
+}
+
 #[derive(Debug, Clone)]
 pub(super) struct NativeReturn {
     pub id: String,
     pub span: Span,
-    pub decisions: Vec<(Span, DisclosureChoice)>,
+    pub decisions: Vec<(String, DisclosureChoice)>,
     pub implicit: bool,
 }
 
@@ -90,8 +97,10 @@ pub(super) struct NativeReturn {
 pub(super) struct NativeScenarioReceipt {
     pub plan: ReceiptDisclosurePlan,
     /// One observation site may supply both data and control identities.
-    pub dependencies: HashMap<Span, Vec<NativeDependency>>,
-    pub decisions: HashMap<Span, NativeDecisionKind>,
+    pub dependencies: HashMap<NativeSite, Vec<NativeDependency>>,
+    pub decisions: HashMap<NativeSite, NativeDecisionKind>,
+    pub decision_keys: HashMap<NativeSite, String>,
+    pub calls: HashMap<NativeSite, String>,
     pub returns: Vec<NativeReturn>,
 }
 
@@ -142,7 +151,7 @@ pub(super) fn collect_native_scenario_receipt(
         return None;
     }
     let source = transport_source(&checked.source, entry_module)?;
-    let sites = Sites::collect(by, guards, effects)?;
+    let sites = Sites::collect(ir, by, guards, effects)?;
     let mut recipe = NativeScenarioReceipt {
         plan: ReceiptDisclosurePlan {
             version: 1,
@@ -151,11 +160,19 @@ pub(super) fn collect_native_scenario_receipt(
         },
         dependencies: HashMap::new(),
         decisions: HashMap::new(),
+        decision_keys: HashMap::new(),
+        calls: sites.calls.clone(),
         returns: Vec::new(),
     };
+    let mut source_origins = HashMap::new();
+    source_origins.insert(
+        (checked.node.file, checked.source.module.clone()),
+        checked.source.clone(),
+    );
     let mut return_ids = HashSet::new();
     let mut matched_returns = HashSet::new();
-    let mut dependency_ids = HashMap::<String, (Span, String, String, String, ReceiptRole)>::new();
+    let mut dependency_ids =
+        HashMap::<String, (NativeSite, String, String, String, ReceiptRole)>::new();
     // State's v1 own-data parser bounds each array/global dependency inventory
     // at 200 and the closed plan traversal at 20,000 JSON nodes.
     let mut data_nodes: usize = 7;
@@ -204,18 +221,16 @@ pub(super) fn collect_native_scenario_receipt(
             dependencies: Vec::new(),
         };
         for decision in &returned.decisions {
-            if !decision.calls.is_empty() || decision.node.file != checked.node.file {
-                return None;
-            }
-            let span = node_span(decision.node);
+            let site = checked_site(decision.node, &decision.calls)?;
+            let span = site.span;
             if native_return
                 .decisions
                 .iter()
-                .any(|(seen, _)| *seen == span)
+                .any(|(seen, _)| recipe.decision_keys.get(&site) == Some(seen))
             {
                 return None;
             }
-            let kind = *sites.decisions.get(&span)?;
+            let kind = *sites.decisions.get(&site)?;
             let expected = match kind {
                 NativeDecisionKind::If => SyntaxKind::If,
                 NativeDecisionKind::Match => SyntaxKind::Match,
@@ -224,29 +239,51 @@ pub(super) fn collect_native_scenario_receipt(
             if decision.node.kind != expected as u8 {
                 return None;
             }
-            if !valid_choice(kind, &decision.choice, sites.matches.get(&span)) {
+            if !valid_choice(kind, &decision.choice, sites.matches.get(&site)) {
                 return None;
             }
             if recipe
                 .decisions
-                .insert(span, kind)
+                .insert(site.clone(), kind)
                 .is_some_and(|old| old != kind)
             {
                 return None;
             }
-            native_return
-                .decisions
-                .push((span, decision.choice.clone()));
+            let key = if let Some(key) = recipe.decision_keys.get(&site) {
+                key.clone()
+            } else {
+                // The checked opaque return identity already incorporates exact
+                // declaring source bytes and canonical call-chain origins.
+                let mut stamp =
+                    format!("receipt-choice:{}:{}:{}", returned.id, span.start, span.end);
+                for anchor in site.calls.iter().chain(std::iter::once(&span)) {
+                    let owner = owning_module(ir, *anchor)?;
+                    stamp.push_str(&format!(":{}:{}:{}", owner.name, anchor.start, anchor.end));
+                }
+                let key = sha256_hex(stamp.as_bytes());
+                recipe.decision_keys.insert(site, key.clone());
+                key
+            };
+            native_return.decisions.push((key, decision.choice.clone()));
         }
         for dependency in &returned.dependencies {
-            if !dependency.calls.is_empty()
-                || dependency.node.file != checked.node.file
-                || dependency.node.kind != SyntaxKind::Member as u8
+            if dependency.node.kind != SyntaxKind::Member as u8
                 || dependency.id.is_empty()
-                || dependency.source != checked.source
+                || !source_matches(ir, &dependency.source, node_span(dependency.node))
                 || !supported_type_id(&dependency.type_id)
                 || !direct_field_name(&dependency.field_name)
             {
+                return None;
+            }
+            let source_key = (dependency.node.file, dependency.source.module.clone());
+            if let Some(previous) = source_origins.get(&source_key) {
+                if previous != &dependency.source {
+                    return None;
+                }
+            } else {
+                source_origins.insert(source_key, dependency.source.clone());
+            }
+            if dependency.calls.is_empty() && dependency.source != checked.source {
                 return None;
             }
             if plan_return
@@ -256,8 +293,8 @@ pub(super) fn collect_native_scenario_receipt(
             {
                 return None;
             }
-            let span = node_span(dependency.node);
-            let expressions = sites.members.get(&span)?;
+            let site = checked_site(dependency.node, &dependency.calls)?;
+            let expressions = sites.members.get(&site)?;
             if expressions.len() != 1 {
                 return None;
             }
@@ -319,7 +356,7 @@ pub(super) fn collect_native_scenario_receipt(
                 DependencyRole::Control => ReceiptRole::Control,
             };
             let identity = (
-                span,
+                site.clone(),
                 dependency.model_name.clone(),
                 dependency.field_name.clone(),
                 dependency.type_id.clone(),
@@ -340,7 +377,7 @@ pub(super) fn collect_native_scenario_receipt(
                     return None;
                 }
             }
-            let observed = recipe.dependencies.entry(span).or_default();
+            let observed = recipe.dependencies.entry(site).or_default();
             if !observed.iter().any(|read| read.id == dependency.id) {
                 observed.push(NativeDependency {
                     id: dependency.id.clone(),
@@ -492,9 +529,10 @@ fn valid_choice(
 
 #[derive(Default)]
 struct Sites<'a> {
-    members: HashMap<Span, Vec<&'a TypedExpr>>,
-    decisions: HashMap<Span, NativeDecisionKind>,
-    matches: HashMap<Span, HashSet<String>>,
+    members: HashMap<NativeSite, Vec<&'a TypedExpr>>,
+    decisions: HashMap<NativeSite, NativeDecisionKind>,
+    matches: HashMap<NativeSite, HashSet<String>>,
+    calls: HashMap<NativeSite, String>,
     returns: HashSet<Span>,
 }
 
@@ -505,35 +543,63 @@ enum Visit<'a> {
 }
 
 impl<'a> Sites<'a> {
-    fn collect(by: &'a [IrGuard], guards: &'a [IrStmt], effects: &'a [IrStmt]) -> Option<Self> {
+    fn collect(
+        ir: &'a IrProgram,
+        by: &'a [IrGuard],
+        guards: &'a [IrStmt],
+        effects: &'a [IrStmt],
+    ) -> Option<Self> {
         let mut out = Self::default();
         let mut pending = Vec::new();
-        pending.extend(by.iter().map(Visit::Guard));
-        pending.extend(guards.iter().chain(effects).map(Visit::Statement));
+        pending.extend(
+            by.iter()
+                .map(|guard| (Visit::Guard(guard), Walk::default())),
+        );
+        pending.extend(
+            guards
+                .iter()
+                .chain(effects)
+                .map(|statement| (Visit::Statement(statement), Walk::default())),
+        );
         let mut visited = 0;
-        while let Some(site) = pending.pop() {
+        while let Some((site, context)) = pending.pop() {
             visited += 1;
             if visited > 16384 || pending.len() > 16384 {
                 return None;
             }
+            if context.depth >= 64 {
+                return None;
+            }
+            let mut child = context.clone();
+            child.depth += 1;
+            macro_rules! push {
+                ($site:expr) => {
+                    pending.push(($site, child.clone()))
+                };
+            }
+            macro_rules! extend {
+                ($sites:expr) => {
+                    pending.extend($sites.map(|site| (site, child.clone())))
+                };
+            }
             match site {
                 Visit::Guard(guard) => match guard {
                     IrGuard::Role(_) => {}
-                    IrGuard::Subject { person, .. } => pending.push(Visit::Expression(person)),
-                    IrGuard::Expr(expr) => pending.push(Visit::Expression(expr)),
+                    IrGuard::Subject { person, .. } => push!(Visit::Expression(person)),
+                    IrGuard::Expr(expr) => push!(Visit::Expression(expr)),
                     IrGuard::And(guards) | IrGuard::Or(guards) => {
-                        pending.extend(guards.iter().map(Visit::Guard))
+                        extend!(guards.iter().map(Visit::Guard))
                     }
-                    IrGuard::Not(guard) => pending.push(Visit::Guard(guard)),
+                    IrGuard::Not(guard) => push!(Visit::Guard(guard)),
                 },
                 Visit::Statement(statement) => match statement {
-                    IrStmt::Let { value, .. } => pending.push(Visit::Expression(value)),
-                    IrStmt::Require { cond, .. } => pending.push(Visit::Expression(cond)),
+                    IrStmt::Let { value, .. } => push!(Visit::Expression(value)),
+                    IrStmt::Require { cond, .. } => push!(Visit::Expression(cond)),
                     IrStmt::Return { value, span } => {
                         if !out.returns.insert(*span) {
                             return None;
                         }
-                        pending.extend(value.iter().map(Visit::Expression));
+                        extend!(value.iter().map(Visit::Expression));
                     }
                     IrStmt::If {
                         cond,
@@ -543,13 +609,13 @@ impl<'a> Sites<'a> {
                     } => {
                         if out
                             .decisions
-                            .insert(*span, NativeDecisionKind::If)
+                            .insert(context.site(*span), NativeDecisionKind::If)
                             .is_some()
                         {
                             return None;
                         }
-                        pending.push(Visit::Expression(cond));
-                        pending.extend(then_branch.iter().chain(else_branch).map(Visit::Statement));
+                        push!(Visit::Expression(cond));
+                        extend!(then_branch.iter().chain(else_branch).map(Visit::Statement));
                     }
                     IrStmt::Match {
                         subject,
@@ -558,7 +624,7 @@ impl<'a> Sites<'a> {
                     } => {
                         if out
                             .decisions
-                            .insert(*span, NativeDecisionKind::Match)
+                            .insert(context.site(*span), NativeDecisionKind::Match)
                             .is_some()
                         {
                             return None;
@@ -567,10 +633,10 @@ impl<'a> Sites<'a> {
                         if cases.len() != arms.len() {
                             return None;
                         }
-                        out.matches.insert(*span, cases);
-                        pending.push(Visit::Expression(subject));
+                        out.matches.insert(context.site(*span), cases);
+                        push!(Visit::Expression(subject));
                         for arm in arms {
-                            pending.extend(arm.body.iter().map(Visit::Statement));
+                            extend!(arm.body.iter().map(Visit::Statement));
                         }
                     }
                     _ => return None,
@@ -578,10 +644,10 @@ impl<'a> Sites<'a> {
                 Visit::Expression(expression) => match &expression.expr {
                     IrExpr::Member { base, .. } => {
                         out.members
-                            .entry(expression.span)
+                            .entry(context.site(expression.span))
                             .or_default()
                             .push(expression);
-                        pending.push(Visit::Expression(base));
+                        push!(Visit::Expression(base));
                     }
                     IrExpr::Binary { op, left, right } => {
                         let kind = match op {
@@ -591,22 +657,89 @@ impl<'a> Sites<'a> {
                             _ => None,
                         };
                         if let Some(kind) = kind
-                            && out.decisions.insert(expression.span, kind).is_some()
+                            && out
+                                .decisions
+                                .insert(context.site(expression.span), kind)
+                                .is_some()
                         {
                             return None;
                         }
-                        pending.push(Visit::Expression(left));
-                        pending.push(Visit::Expression(right));
+                        push!(Visit::Expression(left));
+                        push!(Visit::Expression(right));
                     }
                     IrExpr::Array(items) => {
                         if !native_result_type(&expression.ty) {
                             return None;
                         }
-                        pending.extend(items.iter().map(Visit::Expression));
+                        extend!(items.iter().map(Visit::Expression));
                     }
-                    IrExpr::Unary { operand, .. } => pending.push(Visit::Expression(operand)),
-                    IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. } => {
-                        pending.extend(args.iter().map(Visit::Expression))
+                    IrExpr::Unary { operand, .. } => push!(Visit::Expression(operand)),
+                    IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
+                        extend!(args.iter().map(Visit::Expression));
+                        if let IrCallTarget::DeriveFn(canonical) = target {
+                            if context.owners.contains(canonical) || context.calls.len() >= 64 {
+                                return None;
+                            }
+                            let mut candidates =
+                                ir.items.iter().filter(|item| item.canonical == *canonical);
+                            let callee = candidates.next()?;
+                            if candidates.next().is_some() {
+                                return None;
+                            }
+                            let IrItemKind::DeriveFn {
+                                params,
+                                expr: Some(body),
+                                ..
+                            } = &callee.kind
+                            else {
+                                return None;
+                            };
+                            if params.len() > 256 {
+                                return None;
+                            }
+                            let slots = match &expression.expr {
+                                IrExpr::BoundCall { slots, .. } => slots.clone(),
+                                _ => (0..args.len()).map(Some).collect(),
+                            };
+                            if slots.len() != params.len()
+                                || slots.iter().flatten().any(|index| *index >= args.len())
+                                || (0..args.len()).any(|index| {
+                                    slots.iter().filter(|slot| **slot == Some(index)).count() != 1
+                                })
+                            {
+                                return None;
+                            }
+                            let call_site = context.site(expression.span);
+                            if out.calls.insert(call_site, canonical.clone()).is_some() {
+                                return None;
+                            }
+                            let mut nested = child.clone();
+                            nested.calls.push(expression.span);
+                            nested.owners.push(canonical.clone());
+                            if owning_module(ir, body.span)?.id != callee.module {
+                                return None;
+                            }
+                            pending.push((Visit::Expression(body), nested.clone()));
+                            for (id, slot) in params.iter().zip(slots) {
+                                let param = ir.items.get(id.0 as usize)?;
+                                let IrItemKind::Param { owner, default, .. } = &param.kind else {
+                                    return None;
+                                };
+                                if param.id != *id || *owner != callee.id {
+                                    return None;
+                                }
+                                if slot.is_none() {
+                                    let default = match default.as_ref()? {
+                                        IrDefault::Literal(expr)
+                                        | IrDefault::Computed { expr, .. } => expr,
+                                    };
+                                    if owning_module(ir, default.span)?.id != callee.module {
+                                        return None;
+                                    }
+                                    pending.push((Visit::Expression(default), nested.clone()));
+                                }
+                            }
+                        }
                     }
                     IrExpr::Int(_)
                     | IrExpr::Decimal(_)
@@ -619,7 +752,7 @@ impl<'a> Sites<'a> {
                     | IrExpr::Datetime(_)
                     | IrExpr::Name(_) => {}
                     IrExpr::HasRole { person, .. } => {
-                        pending.extend(person.iter().map(|person| Visit::Expression(person)))
+                        extend!(person.iter().map(|person| Visit::Expression(person)))
                     }
                     _ => return None,
                 },
@@ -627,4 +760,47 @@ impl<'a> Sites<'a> {
         }
         Some(out)
     }
+}
+
+#[derive(Clone, Default)]
+struct Walk {
+    calls: Vec<Span>,
+    owners: Vec<String>,
+    depth: usize,
+}
+impl Walk {
+    fn site(&self, span: Span) -> NativeSite {
+        NativeSite {
+            calls: self.calls.clone(),
+            span,
+        }
+    }
+}
+fn checked_site(
+    node: crate::analysis::NodeKey,
+    calls: &[crate::analysis::NodeKey],
+) -> Option<NativeSite> {
+    if calls.len() > 64 || calls.iter().any(|call| call.kind != SyntaxKind::Call as u8) {
+        return None;
+    }
+    Some(NativeSite {
+        calls: calls.iter().copied().map(node_span).collect(),
+        span: node_span(node),
+    })
+}
+fn owning_module(ir: &IrProgram, span: Span) -> Option<&super::ir::IrModule> {
+    let mut candidates = ir.modules.iter().filter(|module| {
+        module.file == span.file && module.span.start <= span.start && span.end <= module.span.end
+    });
+    let owner = candidates.next()?;
+    candidates.next().is_none().then_some(owner)
+}
+fn source_matches(ir: &IrProgram, source: &DisclosureSource, span: Span) -> bool {
+    owning_module(ir, span).is_some_and(|module| module.name == source.module)
+        && !source.path.is_empty()
+        && source.sha256.len() == 64
+        && source
+            .sha256
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
 }
