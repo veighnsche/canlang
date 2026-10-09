@@ -9,6 +9,10 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   workspace:
     runs-on: ubuntu-latest
@@ -76,9 +80,8 @@ jobs:
   tools:
     runs-on: ubuntu-latest
     steps:
+      # These tests do not consume the separately published draft corpus.
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
       - name: Run JEV caller tests (mocked, no credentials)
         run: python3 -m unittest discover -s tools -p "test_jev.py"
       - name: Run parser boundary tests (excluding stale corpus test)
@@ -95,9 +98,15 @@ jobs:
           result = unittest.TextTestRunner(verbosity=1).run(suite)
           sys.exit(0 if result.wasSuccessful() else 1)
           "
-      - name: Parse the .can corpus (informational; known prototype drift)
-        # The draft corpus evolved past the Python prototype parser (exit 1,
-        # owned by the draft coordinator / lane-1 Rust parser track, not this
-        # gate). Kept visible but non-blocking until B4 reconciles them.
-        continue-on-error: true
+  prototype-corpus:
+    # The existing prototype corpus check is informational. Keep its source
+    # prerequisite and failure visible without blocking independent tool tests.
+    name: Draft prototype corpus (informational)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Parse the .can corpus (known prototype drift)
         run: python3 tools/can_parser.py draft examples
