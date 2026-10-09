@@ -1,0 +1,341 @@
+{
+  "task": "SEQ-007",
+  "stage": "raw expected comparison cases; independent checker must review before value decision",
+  "actual_runtime_browser_token_adoption": "unmeasured",
+  "vectors": [
+    {
+      "id": "D-01",
+      "witness": "country-region",
+      "kind": "interaction",
+      "trigger": "Empty partial save draft has country absent and street/notes pending edits.",
+      "expected_all_equivalent_alternatives": "No region lookup or final save. Child unavailable/empty; unrelated drafts retained. This absent prerequisite state is not a complete canonical submission.",
+      "source_anchors": [],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "D-02",
+      "witness": "country-region",
+      "kind": "interaction",
+      "trigger": "Typed current readable country=alpha, lookup succeeds with north/south.",
+      "expected_all_equivalent_alternatives": "Child choices only granted active Region refs belonging alpha; label names are display only. Selection passed as actual ref; no copied input schema or raw ID cast.",
+      "source_anchors": [],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "D-03",
+      "witness": "country-region",
+      "kind": "interaction",
+      "trigger": "country alpha->beta after region=north selected while notes edited.",
+      "expected_all_equivalent_alternatives": "Clear incompatible north immediately, invalidate alpha request; beta choices include west. Keep notes/street; save with alpha/north combination not silently copied into beta.",
+      "source_anchors": [],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "D-04",
+      "witness": "country-region",
+      "kind": "interaction",
+      "trigger": "Lookup1(alpha) delayed; switch beta and Lookup2 succeeds [west]; canceled Lookup1 later returns [north,south].",
+      "expected_all_equivalent_alternatives": "Late response discarded by owning form/context/sequence fence even if abort failed; beta/west not replaced. Cancellation alone cannot enforce correctness.",
+      "source_anchors": [],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "D-05",
+      "witness": "country-region",
+      "kind": "interaction",
+      "trigger": "Same alpha/context lookup refresh includes selected north; reorder choices or rename north to another name unique within alpha.",
+      "expected_all_equivalent_alternatives": "Retain the actual still-eligible north reference; labels/order do not define identity. If the refreshed result excludes north, clear it while preserving unrelated drafts. Equal labels are separately exercised by approval A-02 using the original two Alex employee fixtures; do not create duplicate Region.name values within alpha.",
+      "source_anchors": [
+        "implementation/capability-roadmap-20261008/dependent-input-comparison/supplementary/CountryRegion-current-nested-full.can:15",
+        "draft/CanApprove.can:36",
+        "draft/CanApprove.can:37",
+        "draft/CanApprove.can:61"
+      ],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "D-06",
+      "witness": "country-region",
+      "kind": "interaction",
+      "trigger": "Alpha active/current but all authorized Regions inactive or no Regions.",
+      "expected_all_equivalent_alternatives": "Truthful empty children and unavailable final selection. No all-country fallback, invisible retained child or false read failure.",
+      "source_anchors": [],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "D-07",
+      "witness": "country-region",
+      "kind": "interaction",
+      "trigger": "Lookup transient failure versus denied parent grant versus malformed result.",
+      "expected_all_equivalent_alternatives": "Explicit distinguish read error from authorized empty. No leaked/cached cross-scope choices; repairable parent/notes remain, unsafe child unavailable until verified compatible result; no automatic save.",
+      "source_anchors": [],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "D-08",
+      "witness": "country-region",
+      "kind": "interaction",
+      "trigger": "Change current Country.allowed removing caller or team membership while request is in flight; old response arrives; final save attempted.",
+      "expected_all_equivalent_alternatives": "Reject/withhold unauthorized candidates; context invalidates stale response. Final save rechecks membership/ref grants/current allowed relation and safely rejects; correctable street/notes retained.",
+      "source_anchors": [],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "D-09",
+      "witness": "country-region",
+      "kind": "interaction",
+      "trigger": "Candidate north.parent moves alpha->beta or active false after selection but before save.",
+      "expected_all_equivalent_alternatives": "Current reference/version/relation/active check fails final save, with no Address created. Lookup selection is advisory, never ownership/eligibility authority.",
+      "source_anchors": [],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "D-10",
+      "witness": "country-region",
+      "kind": "interaction",
+      "trigger": "Pass hidden/hidden_region foreign scope ref or Region from beta with country alpha using direct MCP/canonical envelope, without lookup.",
+      "expected_all_equivalent_alternatives": "Exact owning canonical inputs and current guards deny; no Address effects or disclosure. MCP can invoke valid save directly without browser draft dance but cannot bypass relation/membership.",
+      "source_anchors": [],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "D-11",
+      "witness": "country-region",
+      "kind": "interaction",
+      "trigger": "Two /address form instances A/B each have a region lookup pending for alpha, with separate per-instance request identity. B retains alpha/north and unrelated typed draft fields. Change country in A to beta, cancel A's pending alpha lookup, then let both old A and still-pending B responses arrive.",
+      "expected_all_equivalent_alternatives": "Invalidate only A's child selection and retire/fence A's old lookup. A's change/cancellation must neither abort B's pending request nor mutate B's parent, child, unrelated draft, selection or focus. B's still-current successful response may retain eligible north only in B. Even if abort of A fails, its late response cannot populate either A or B; responses are scoped to their own form and current context.",
+      "source_anchors": [],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "D-12",
+      "witness": "country-region",
+      "kind": "interaction",
+      "trigger": "Keyboard country selection -> loading -> region list -> empty/error; cancel modal/reconnect.",
+      "expected_all_equivalent_alternatives": "Accessible labels/announced changes and logical focus; related child invalidated without discarding notes/street; current authorized state reread on reconnect; no implicit save.",
+      "source_anchors": [],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "D-13",
+      "witness": "country-region",
+      "kind": "interaction",
+      "trigger": "101 authorized active Regions for selected country versus exactly100.",
+      "expected_all_equivalent_alternatives": "Supplementary source read rejects >100 explicitly rather than truncating as complete; <=100 may return bounded compatible result under owning work/query limits. Binding never invents a different max.",
+      "source_anchors": [],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "D-14",
+      "witness": "country-region",
+      "kind": "interaction",
+      "trigger": "Valid save response lost; canonical saved-operation retry versus different changed payload under same operation identity.",
+      "expected_all_equivalent_alternatives": "Original saved Address returned once; changed same-ID payload conflict; no second creation. Lookup retry never executes save.",
+      "source_anchors": [],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "A-01",
+      "witness": "approval",
+      "kind": "source-comparison",
+      "trigger": "Original /documents reviewer_choices has document bound to current persisted Document row.",
+      "expected_all_equivalent_alternatives": "Do not claim it reads a partial sibling draft location. Current source already supplies authorized candidate list and candidate.user-bound canonical submit; proposed picker may reduce duplicated presentation only.",
+      "source_anchors": [
+        "draft/CanApprove.can:293",
+        "draft/CanApprove.md:83"
+      ],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "A-02",
+      "witness": "approval",
+      "kind": "interaction",
+      "trigger": "Candidates two Alex accounts, missing work name, descriptive work role Reviewer without actual approve.reviewer; caller/submitter.",
+      "expected_all_equivalent_alternatives": "Display disambiguating current readable name/user/role/home with opaque ref fallback; select actual user. Exclude caller/submitter; role text grants nothing.",
+      "source_anchors": [
+        "draft/CanApprove.can:56",
+        "draft/CanApprove.can:59"
+      ],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "A-03",
+      "witness": "approval",
+      "kind": "interaction",
+      "trigger": "Current scoped coordinator vs unrelated reviewer invokes choices; nonstaff null-scope submitter with empty authorized Employee work list.",
+      "expected_all_equivalent_alternatives": "Only permitted source query; work leaf grants applied. Truthful empty list does not narrow existing opaque user role-only null-scope admissions. Keep canonical unassisted input path; candidate lookup remains advice.",
+      "source_anchors": [
+        "draft/CanApprove.md:73",
+        "draft/CanApprove.md:83"
+      ],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "A-04",
+      "witness": "approval",
+      "kind": "interaction",
+      "trigger": "Document form instance switches from docA/siteA to docB/siteB; earlier choices response later arrives.",
+      "expected_all_equivalent_alternatives": "Invalidate incompatible selected user and old parent response; requery bound current persisted Document. Keep compatible correctable file/note/email/due according to canonical document context; do not label this as partial-sibling grammar.",
+      "source_anchors": [
+        "draft/CanApprove.can:93",
+        "draft/CanApprove.can:293"
+      ],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "A-05",
+      "witness": "approval",
+      "kind": "interaction",
+      "trigger": "Assignee loses actual reviewer role/team/site eligibility after picker result but before canonical submit or assign.",
+      "expected_all_equivalent_alternatives": "Current role/distinct-account/site/ref/version checks reject final action; candidate read did not grant authority. Preserve correctable unrelated fields. Coordinator recovery remains ordinary assign, never quorum/admission bypass.",
+      "source_anchors": [
+        "draft/CanApprove.can:93",
+        "draft/CanApprove.can:199",
+        "draft/CanApprove.md:77"
+      ],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "A-06",
+      "witness": "approval",
+      "kind": "interaction",
+      "trigger": "Submit document stale envelope; reassign current Submission while old assignment modal open; old selected assignee retained.",
+      "expected_all_equivalent_alternatives": "Canonical current document/submission version conflict before effects. Refresh under current bound parent/grants; old selected candidate never authorizes stale write.",
+      "source_anchors": [
+        "draft/CanApprove.can:104",
+        "draft/CanApprove.can:205"
+      ],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "A-07",
+      "witness": "approval",
+      "kind": "interaction",
+      "trigger": "Choices read fails/unavailable, empty granted list, revoked Employee work fields or unreadable label home/name projection.",
+      "expected_all_equivalent_alternatives": "Error/empty/unreadable distinct; no authority-mode authentication directory/hidden-leaf display. Final opaque canonical assignee submission still follows original guards where its role-only scope permits.",
+      "source_anchors": [
+        "draft/CanApprove.md:83",
+        "draft/shared/Employees.can:11"
+      ],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "A-08",
+      "witness": "approval",
+      "kind": "interaction",
+      "trigger": "Reassignment on pending exact submission versus approved/rejected/withdrawn; selection of submitter.",
+      "expected_all_equivalent_alternatives": "ONE eligible distinct reviewer assigned; increment assignment/history/request and due replacement only when current pending revision. Finalized/self selections rejected under original implementation.",
+      "source_anchors": [
+        "draft/CanApprove.can:198",
+        "draft/CanApprove.can:219"
+      ],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "R-01",
+      "witness": "rent-advisory",
+      "kind": "source-comparison",
+      "trigger": "Change canonical from/until/quantity while availability pending; new response displayed then old read succeeds.",
+      "expected_all_equivalent_alternatives": "Current nested flow requires explicit matching check; any hypothetical custom advisory controller fences old response/price/terms. Minimal candidate-list binding does not convert scalar WorkspaceAvailability into choices.",
+      "source_anchors": [
+        "draft/CanRent.can:149",
+        "draft/CanRent.can:1584"
+      ],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "R-02",
+      "witness": "rent-advisory",
+      "kind": "interaction",
+      "trigger": "available=true, another customer commits last capacity before hold; customer/company-booker grant revoked.",
+      "expected_all_equivalent_alternatives": "Hold rechecks canonical free/current customer/account/staff permissions; stale lookup reserves nothing and cannot authorize hold. Capacity failure creates no fabricated confirmed booking/payment/allowance.",
+      "source_anchors": [
+        "draft/CanRent.can:427",
+        "draft/CanRent.md:45"
+      ],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "R-03",
+      "witness": "rent-advisory",
+      "kind": "source-comparison",
+      "trigger": "Public availability result versus hidden customer records; desired amenities changed before hold.",
+      "expected_all_equivalent_alternatives": "Result remains published resource/price advice without customer data. Amenities is absent from hold inputs; no enforced amenity reservation promise or automatic benefit invented.",
+      "source_anchors": [
+        "draft/CanRent.can:406",
+        "draft/CanRent.can:427"
+      ],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "C-01",
+      "witness": "all",
+      "kind": "future-contract",
+      "trigger": "Binding target changed from canonical authorized read to submit/save/hold or arbitrary query/client JavaScript.",
+      "expected_all_equivalent_alternatives": "Future checker rejects mutation/arbitrary expression/extra backend before rendering or invocation; current alternative must use same existing canonical read routes.",
+      "source_anchors": [],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "C-02",
+      "witness": "all",
+      "kind": "future-contract",
+      "trigger": "Read parameter maps missing/wrong-type/unknown canonical input, optional prerequisite absent or ambient caller input captured.",
+      "expected_all_equivalent_alternatives": "Future checker rejects invalid mapping; absent legitimate typed parent prevents lookup only. No repeated copied schema, implicit authority context or synthetic default country/document.",
+      "source_anchors": [],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "C-03",
+      "witness": "all",
+      "kind": "future-contract",
+      "trigger": "Dependent child maps its own value into parent requirement or two children form dependency cycle.",
+      "expected_all_equivalent_alternatives": "Future checked graph rejects cycles; no infinite lookup/late response loop.",
+      "source_anchors": [],
+      "status": "independent expected-case check required; unexecuted"
+    },
+    {
+      "id": "C-04",
+      "witness": "all",
+      "kind": "future-contract",
+      "trigger": "Evaluate static result type/bound incompatibility separately from current Employee.private_notes leaf grants. Do not treat private_notes as universally unreadable or HR membership as access to an unrelated approval read.",
+      "expected_all_equivalent_alternatives": "Future static checking rejects incompatible or unproved bounded result contracts. Current authorized leaf serving denies private_notes to an ordinary non-HR caller reading another employee through work-field grants; actual HR or authenticated own-row policy bodies grant that leaf on their scoped Employee read. These positive grant bodies do not add private labels to the proposed work-label sketch or authorize reviewer_choices independently.",
+      "source_anchors": [
+        "draft/shared/Employees.can:6",
+        "draft/shared/Employees.can:10",
+        "draft/shared/Employees.can:11",
+        "draft/shared/Employees.can:12",
+        "draft/CanApprove.can:56",
+        "draft/CanApprove.can:57",
+        "draft/CanApprove.can:58"
+      ],
+      "status": "independent expected-case check required; unexecuted",
+      "subcases": [
+        {
+          "id": "C-04-STATIC",
+          "trigger": "Replace a required checked bounded Region[] result with an unbounded, malformed or scalar foreign contract, or use Employee.private_notes:text? as the value for assignee:user.",
+          "expected": "Proposed checker rejects the static bound/type incompatibility; no cast, singleton workaround or silently global choices. No current implemented diagnostic is claimed."
+        },
+        {
+          "id": "C-04-LEAF-DENY",
+          "trigger": "An ordinary current member satisfying Employee work-read eligibility has no hr role and is not the other candidate row.user; request private_notes from that row.",
+          "expected": "Current policy body at Employees.can:11 grants only listed work fields. No current leaf grant permits private_notes for this caller/row; authorized serving withholds or denies it without leakage. This is a dynamic caller/row grant case, separate from static result compatibility; runtime execution remains unmeasured."
+        },
+        {
+          "id": "C-04-LEAF-GRANTED",
+          "trigger": "Reference actual Employee read grant body for a current hr caller (Employees.can:10), or authenticated caller on row.user==actor (Employees.can:12).",
+          "expected": "These bodies contain no fields restriction and therefore provide the private_notes leaf grant for the scoped Employee read. Revocation or loss of own-row scope removes the corresponding grant. This is source grant evidence only; it does not bypass reviewer_choices document/work requirements, return the excluded caller as a candidate, or change the proposed fixed work-label policy."
+        }
+      ]
+    },
+    {
+      "id": "C-05",
+      "witness": "all",
+      "kind": "future-contract",
+      "trigger": "Consumer lacks capability/version for proposed checked metadata.",
+      "expected_all_equivalent_alternatives": "Explicit compatibility failure rather than ignoring binding and exposing unfiltered child choices. Current sources remain diagnostics; sketch is not implemented artifact metadata.",
+      "source_anchors": [],
+      "status": "independent expected-case check required; unexecuted"
+    }
+  ]
+}

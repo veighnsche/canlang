@@ -30,15 +30,13 @@
       "title": "Agree file ownership and handoffs",
       "model": "gpt-6-luna",
       "reasoning_effort": "medium",
-      "state": "nullable_committed_pure_helper_frozen_selected_page_private_handoff_active_shared_owners_retained",
+      "state": "complete_at_ownership_setup_scope",
       "evidence": [
         "ownership-matrix.md"
       ],
-      "next_gate": [
-        "SEQ-001"
-      ],
+      "next_gate": [],
       "conditional_gates": [],
-      "acceptance_scope": "The bounded nullable-ref writer received the exact State-source handoff. Package ownership of shared Git, DECISIONS and file-tree bookkeeping remains in force."
+      "acceptance_scope": "Current source-domain matrix and narrow live handoffs are established under the human-appointed coordinator. Human instructions supersede blanket future-write release gates: disjoint edits and private/light checks proceed without grants; coordinate only actual same-file, index or shared-output collisions. Ongoing coordination remains a duty, not an unfinished setup criterion. Product acceptance and human holds are unchanged."
     },
     {
       "id": "SEQ-003",
@@ -129,25 +127,25 @@
       "title": "Qualify actual emitted metadata",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "medium",
-      "state": "partial_metadata_qualified_pure_helper_independently_accepted_and_committed",
+      "state": "complete_at_selected_emitted_metadata_scope",
       "evidence": [
         "f1-metadata/REPORT.md",
         "runtime-pure-helpers/REPORT.md"
       ],
-      "next_gate": [
-        "SEQ-005"
-      ],
+      "next_gate": [],
       "conditional_gates": [],
       "worker": "/root/roadmap_f1_metadata_probe",
-      "acceptance_scope": "Three direct existing Values helpers (int64, datetime, compareInstant) were independently accepted and integrated in b5f3f61c. H1 typed metadata is authored; the package owner reports one build (4/4) and 14/14 focused tests passed, with package commit d495469a. This bounded metadata slice does not close full SEQ-008.",
-      "unresolved_gate": "Broader canonical representability, actual typed scalar/default/input/hydration, duration publication and ownership contracts remain. NumericControl typed conversion and int64 hydration require State/runtime handoffs; original runtime execution and exact void-result replay remain open.",
+      "acceptance_scope": "Original selected emitted-metadata stage is accepted using actual compiler-produced models/operations and production consumers, with the supported declaration/type matrix. Int/datetime/text/bool/decimal/money/date/duration/user scalar/array/nullable profiles, literal defaults, managed attribution/bindings and bound-reference versions are qualified. Required selected UI props retain their accepted actual-factory results. Source identity/unsupported claims and selected unsupported behaviors refuse explicitly; handbuilt descriptors do not replace the actual source witnesses.",
+      "unresolved_gate": null,
       "commit": "b5f3f61c5a7aa942cc9e535312bc848fe21cf497",
       "current_metadata_substep": {
-        "scope": "H1 shared typed metadata only; no typed execution activation",
-        "owner_reported_result": "one canonical build4/4 and one focused Node test invocation14/14 passed",
-        "integration": "ready for package-owned scoped commit",
-        "full_task_complete": false
-      }
+        "scope": "Selected source-owned typed metadata and actual production consumers",
+        "full_task_complete": true,
+        "latest_component": "User producer66c3b567; actual User D1/affected CRUD7/7"
+      },
+      "accepted_outputs": "Existing producer facts/status and actual fixture JSON hold the supported type/schema summary; no new digest/proof packet. Latest User producer66c3b567: actual source0, producer2/2, private owning builds; State metadata18/18 and CF actual User D1 plus affected CRUD7/7 pass.",
+      "dependency_scope": "SEQ-005 versioned producer/consumer handoffs used by this selected scope are accepted; broader contract preparation/held choices remain open.",
+      "remaining_workflow_limits": "No complete application/proposal, new unsupported declaration/profile, physical tenant partition, directory/active-assignment, broad hook/trusted-event, installed/deployed/native or Task11 rule activation acceptance. These remain existing explicit workflow duties."
     },
     {
       "id": "SEQ-009",
@@ -155,20 +153,20 @@
       "title": "Qualify canonical mutation and replay",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "high",
-      "state": "bounded_nullable_repair_accepted_and_committed_broader_f1_open",
+      "state": "complete_at_selected_durable_mutation_replay_scope",
       "evidence": [
         "f1-invocation/REPORT.md",
         "f1-invocation/runtime-results.json",
         "nullable-ref-repair/REPORT.md"
       ],
-      "next_gate": [
-        "SEQ-008"
-      ],
+      "next_gate": [],
       "conditional_gates": [],
       "worker": "/root/roadmap_f1_invocation",
-      "acceptance_scope": "The bounded nullable-ref correction is committed as 06bc25d1. Full canonical mutation/replay still requires typed input/default/hydration, exact void-result replay, context and installed-provider contracts.",
-      "unresolved_gate": "Bounded nullable correction is committed after exact source-contract lease,97owning checks, real unchanged-artifact D1 qualification and independent review. Full canonical mutation/replay still requires typed input/default/hydration, exact void-result replay, context and installed-provider contracts.",
-      "commit": "06bc25d1dd12fec6bd1f66502f93b09dddab1b06"
+      "acceptance_scope": "Original selected compiled durable-operation route and its authorization, reference, defaults/managed fields, rollback, duplicate invocation and persisted restart/replay criteria are accepted. Actual compiler-produced source/artifact and owning canonical D1 test1/1 passed after CF tsc; unchanged scalar/metadata results are reused.",
+      "unresolved_gate": null,
+      "commit": "fef7b985",
+      "dependency_scope": "SEQ-008 actual producer/consumer metadata used by this selected route is accepted; broader SEQ-008 remains open. Named prerequisites use the precise accepted output, not entire producer completion.",
+      "broader_f1_remaining": "No physical tenant/store partition, deployed/current-secret/read-revocation, new persisted actor-carrier or broad context/hooks/native/installed claim. Wider original F1 and full journeys, including exact void-result profiles where not already qualified, remain tracked in existing workflow tasks and package/compiler lists."
     },
     {
       "id": "SEQ-010",
@@ -176,7 +174,7 @@
       "title": "Carry verified context through every used scope",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "high",
-      "state": "bounded_context_binding_independently_accepted_and_committed",
+      "state": "user_scope_context_consumer_committed_complete_matrix_open",
       "evidence": [
         "verified-context-inventory/README.md",
         "verified-context-repair/REPORT.md"
@@ -196,7 +194,12 @@
         "evidence": "authenticated-actor-carrier-facts/README.md",
         "scope": "Read-only user codec/clone/JSON facts only; no adopted fullactorcarrier. Enumerableextra facts surviveclone/JSON/membercopy; typedencode erases anddecode refuses. Actualfield/returnmutation notexecuted."
       },
-      "commit": "29f9d7b7eb74146569b9b370ff0b01d1a772548a"
+      "commit": "29f9d7b7eb74146569b9b370ff0b01d1a772548a",
+      "current_scope": "Next ready independent roadmap lane: genuine source-file context carrier witness in a used scope not yet qualified, preserving actor/team/clock/operation, actor-null/wrong-scope and applicable denial/replay/restart, locale/timezone holds and all original Task10 scopes. Accepted metadata/context outcomes reused; no new contract or full-task credit.",
+      "consumer_owner": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+      "active_consumer": "Selected actual authenticated HTTP/MCP+D1 Identity/State context case accepted/committed a3864762188c009ca1c071dc103908083ff6e9bd. Accepted one changed native batch3/3, CF emit0 and portable link1/1 reused. Hooks/other used scopes and complete original context matrix remain open; no full Task10 credit.",
+      "consumer_commit": "a3864762188c009ca1c071dc103908083ff6e9bd",
+      "computed_default_component": "Mutating own-marker consumerf2a52505 retained. Genuine viewer read-scenario producer e38474fd + State admission/runtime e1204fdb + actual CF typed-scenario consumer3/3, compile0 and emit0 accepted at this component scope. Omitted/default/supplied values use real emitted handler and current-authority/no-receipt route; source/output/handles released, scoped CF commit pending. Full used-context/hooks/matrix and broader default/ref/host profiles remain open; no Task10 completion credit."
     },
     {
       "id": "SEQ-011",
@@ -218,14 +221,15 @@
       "title": "Enforce current authorized reads and fences",
       "model": "gpt-6-astra",
       "reasoning_effort": "medium",
-      "state": "not_started",
+      "state": "complete_at_selected_authorized_read_fence_scope",
       "evidence": [],
-      "next_gate": [
-        "SEQ-009",
-        "SEQ-010"
-      ],
+      "next_gate": [],
       "conditional_gates": [],
-      "acceptance_scope": "A State read-selection precursor passed one build and 17/17 focused tests, then was handed to the package Git owner. This is not full Task 12 acceptance."
+      "acceptance_scope": "Original selected current-authorization read/fence outputs are accepted: actual emitted source on canonical D1 plus affected read-policy cases33/33, CF tsc passed. Populated owner/auditor/public/member policies withhold unreadable fields; stale grant removal and mid-read revocation refuse without domain effects. Native arithmetic, staged reads and projection-only decoding are qualified. Relevant durable rollback/version controls from SEQ-009 and unchanged legacy outcomes are reused.",
+      "commit": "fc3a0e08",
+      "producer_commit": "551bd729",
+      "dependency_scope": "Accepted SEQ-009 durable owner route and precise SEQ-010 verified primitive user scope (6b495357) used by this consumer. Broader SEQ-010 completion is not a blanket prerequisite.",
+      "limits_retained": "Only checked actor-only exactly-single-role grants are supported by this join. Callback predicates, limit/order and row/function/compound grant policies remain explicitly unsupported; physical tenant partition, deployed/installed/native profiles and broader hook/trusted context workflows remain open in existing full workflow scopes. No complete proposal is claimed."
     },
     {
       "id": "SEQ-013",
@@ -233,13 +237,22 @@
       "title": "Produce complete canonical form descriptors",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "medium",
-      "state": "not_started",
-      "evidence": [],
-      "next_gate": [
-        "SEQ-008",
-        "SEQ-010"
+      "state": "complete_at_selected_canonical_form_descriptor_scope",
+      "evidence": [
+        "../../packages/cloudflare/test/fixtures/typed-operation-forms.can",
+        "../../packages/cloudflare/test/fixtures/typed-operation-forms.json",
+        "../../packages/cloudflare/test/page-query-serving.test.ts",
+        "../../packages/cloudflare/test/mcp-route.test.ts"
       ],
-      "conditional_gates": []
+      "next_gate": [],
+      "conditional_gates": [],
+      "current_scope": "Derive complete selected form/action metadata from owning operation declarations and actual factories, preserving original browser/MCP/CSRF/validation/draft gates. Exact accepted metadata/context outputs permit progress; no blanket whole-parent wait.",
+      "acceptance_scope": "Owning operation declarations produce the selected complete form/action metadata without duplicated schema: required editable inputs once, actual labels/factory props, defaults/constraints, server-managed fields, protected singular references and versions, and owning identities. Source producer/factory outcomes are reused; the genuine compiled Entry.update and configured native Chrome/Worker/D1 case pass with prefill, omitted count and managed owner preservation.",
+      "unresolved_gate": null,
+      "accepted_outputs": "Defining861edef5 plus genuine compiled Entry.update; affected configured protected source/Chrome/Worker/D1 case1/1 (~7.7s). Existing unbound1/1, readonly1/1, native MCP13300570 and unchanged producer/owner outcomes reused. Completed six-path form slice committed by package owner at5dd9c84a; no extra verification tree.",
+      "dependency_scope": "Exact accepted SEQ008 metadata, SEQ009 canonical durable commit/replay, SEQ010 verified invocation context, SEQ012 authorized reads and relevant readonly refresh outputs. Whole parent completion is not an extra gate.",
+      "limits_retained": "Selected supported source create/rename/update forms only. Scalar fixed bindings, arrays, files and remote handles remain unavailable; broader F3/application/proposal, installed/deployed/native release and Task15 visibility/other-profile duties remain open.",
+      "consumer_commit": "5dd9c84a"
     },
     {
       "id": "SEQ-014",
@@ -247,14 +260,21 @@
       "title": "Join browser and MCP submissions",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "high",
-      "state": "not_started",
-      "evidence": [],
-      "next_gate": [
-        "SEQ-009",
-        "SEQ-012",
-        "SEQ-013"
+      "state": "complete_at_selected_browser_mcp_submission_scope",
+      "evidence": [
+        "../../packages/cloudflare/test/fixtures/typed-operation-forms.can",
+        "../../packages/cloudflare/test/fixtures/typed-operation-forms.json",
+        "../../packages/cloudflare/test/page-query-serving.test.ts",
+        "../../packages/cloudflare/test/mcp-route.test.ts"
       ],
-      "conditional_gates": []
+      "next_gate": [],
+      "conditional_gates": [],
+      "acceptance_scope": "Actual emitted forms use served browser assets and the canonical Worker/D1 target with session/team/CSRF, protected values and reference versions. The selected protected native case passes denial of overrides/invalid seals without effects, canonical defaults/receipts/replay, stale409 with a correctable draft, refreshed authority and successful retry. Prior actual unbound validation/revocation and native MCP13300570 identity/grant/default/create/rename/replay/invalid/revocation results are reused at the same canonical admission seam.",
+      "unresolved_gate": null,
+      "accepted_outputs": "Defining861edef5 plus genuine compiled Entry.update; affected configured protected source/Chrome/Worker/D1 case1/1 (~7.7s). Existing unbound1/1, readonly1/1, native MCP13300570 and unchanged producer/owner outcomes reused. Completed six-path form slice committed by package owner at5dd9c84a; no extra verification tree.",
+      "dependency_scope": "Exact accepted SEQ008 metadata, SEQ009 canonical durable commit/replay, SEQ010 verified invocation context, SEQ012 authorized reads and relevant readonly refresh outputs. Whole parent completion is not an extra gate.",
+      "limits_retained": "Selected supported source create/rename/update forms only. Scalar fixed bindings, arrays, files and remote handles remain unavailable; broader F3/application/proposal, installed/deployed/native release and Task15 visibility/other-profile duties remain open.",
+      "consumer_commit": "5dd9c84a"
     },
     {
       "id": "SEQ-015",
@@ -262,7 +282,7 @@
       "title": "Qualify a read-only page and installed polling",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "medium",
-      "state": "current_producer_page_correspondence_independently_accepted_broader_readonly_polling_open",
+      "state": "complete_at_original_installed_readonly_polling_scope",
       "evidence": [
         "../../compiler/tests/state_machines.rs",
         "../../compiler/tests/fixtures/state-machine-consumer.mjs",
@@ -270,14 +290,14 @@
         "../compiler-completion/selected-page-cli-handoff.json",
         "selected-page-refresh/report.md"
       ],
-      "next_gate": [
-        "SEQ-008",
-        "SEQ-010",
-        "SEQ-012"
-      ],
+      "next_gate": [],
       "conditional_gates": [],
-      "acceptance_scope": "The unchanged Images source and compiled artifact correspond for the selected memory consumer. This producer check does not qualify production authorized queries/read fences, verified page context, browser/assets/installed mount/cache or full Task 15.",
-      "unresolved_gate": "Supplied syntheticidentity/memory/store.load query/fixedpoll token remain testcontext. Production authorizedquery/readfences, verified pagecontext, actualbrowser/assets/installedmount/cache and compatibility gates remain open with package owner."
+      "acceptance_scope": "Actual compiled supported Images variant (explicit empty caption only), genuine production session/team canonical HTTP create/advance/finish, public anonymous Chrome with served assets/bootstrap and 2s HX polling Generating→Image ready, canonical D1 ready version3/history1,2,2,3 and anonymous mutation403/no effects passed1/1. Prior producer correspondence reused. Forms/actions are not prerequisites; broad producer completion is not a gate. Extended SAME native readonly source case passed1/1 (~9s): empty/idle, Generating→ready, cancellation of late HX response after navigation and same-directory D1 restart with unchanged row/history. Public anonymous policy makes logout/revocation inapplicable for this selected source; no wider private-policy claim.",
+      "acceptance_summary": "Original selected public read-only compiled Images page, real installed bundle/worker/assets/session/D1 rendering and polling qualify. SAME owning native case1/1 passed using installed Chrome disposable profile/public connectOverCDP noDefaults/default context: actual sibling-tab visibility visible→hidden, HX polling pauses beyond2s cadence, authenticated canonical finish while hidden emits noHX, visible restoration resumes actual ready HX. Existing empty/idle/navigation-late-response/restart/public anonymous mutation403 criteria remain in the same case. Playwright default focus emulation was the actual harness cause; no synthetic property/event/visibility override. Source-specific public anonymous policy makes logout/revocation inapplicable, as previously accepted. Actual missing35 module/export/import bundle links corrected and routes pass. Original task15 selected installed read-only scope complete; private policy/forms/actions/Images provider/progress/model-rule and wider package/release scopes remain separate.",
+      "current_work": {
+        "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+        "status": "Original installed read-only task accepted; source frozen and released to package Git owner. Actual changed visibility case reused once after harness/bundle correction."
+      }
     },
     {
       "id": "SEQ-016",
@@ -285,13 +305,21 @@
       "title": "Qualify refresh with editable forms",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "medium",
-      "state": "not_started",
-      "evidence": [],
-      "next_gate": [
-        "SEQ-014",
-        "SEQ-015"
+      "state": "complete_at_selected_editable_form_refresh_scope",
+      "evidence": [
+        "../../packages/cloudflare/test/fixtures/typed-operation-forms.can",
+        "../../packages/cloudflare/test/fixtures/typed-operation-forms.json",
+        "../../packages/cloudflare/test/page-query-serving.test.ts",
+        "../../packages/cloudflare/test/mcp-route.test.ts"
       ],
-      "conditional_gates": []
+      "next_gate": [],
+      "conditional_gates": [],
+      "acceptance_scope": "Actual selected Chrome/served bootstrap/Worker/D1 polling preserves dirty values and focus through compatible refresh, including version conflict recovery while installing fresh action/version/CSRF and sealed nonce/proof authority. Prior real unbound refresh/revocation proves inaccessible-control withdrawal and denial of a fresh request; accepted late-response/navigation controls and owner obsolete-result checks cover stale context at the selected scope. No extra tests or proof packet were added.",
+      "unresolved_gate": null,
+      "accepted_outputs": "Defining861edef5 plus genuine compiled Entry.update; affected configured protected source/Chrome/Worker/D1 case1/1 (~7.7s). Existing unbound1/1, readonly1/1, native MCP13300570 and unchanged producer/owner outcomes reused. Completed six-path form slice committed by package owner at5dd9c84a; no extra verification tree.",
+      "dependency_scope": "Exact accepted SEQ008 metadata, SEQ009 canonical durable commit/replay, SEQ010 verified invocation context, SEQ012 authorized reads and relevant readonly refresh outputs. Whole parent completion is not an extra gate.",
+      "limits_retained": "Selected supported source create/rename/update forms only. Scalar fixed bindings, arrays, files and remote handles remain unavailable; broader F3/application/proposal, installed/deployed/native release and Task15 visibility/other-profile duties remain open.",
+      "consumer_commit": "5dd9c84a"
     },
     {
       "id": "SEQ-017",
@@ -299,12 +327,12 @@
       "title": "Stage a generated external effect atomically",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "high",
-      "state": "not_started",
-      "evidence": [],
-      "next_gate": [
-        "SEQ-009",
-        "SEQ-010"
+      "state": "complete_at_selected_compiled_atomic_send_scope",
+      "evidence": [
+        "../../packages/cloudflare/test/fixtures/typed-durable-send.can",
+        "../../packages/cloudflare/test/fixtures/typed-durable-send.json"
       ],
+      "next_gate": [],
       "conditional_gates": [
         {
           "when": "operation declares rules or current spending predicates",
@@ -314,7 +342,13 @@
           ],
           "reason": "Apply the operation-specific rule and authority gates before accepting this generated send."
         }
-      ]
+      ],
+      "acceptance_scope": "Original selected atomic-staging deliverable/done_when met: genuine primitive EmailV1 unconditional bound send executes inside one canonical D1 transaction. Corrected compilerab25b5c7 and carrier78c4ef76 route exact logical binding/from with owning normalized inputs. Later guard failure leaves no domain/outbox/work.dispatch effects while retaining the negative receipt; success creates one ordered occurrence0 request. Exact replay and same-directory reopen preserve domain/history/revision/outbox/kernel and positive/negative receipts without another logical request.",
+      "unresolved_gate": null,
+      "accepted_outputs": "One genuine source/artifact regeneration; CF normal emit0; affected actual native D1 case1/1 and affected deploy-bundle portable real Work/Values closure case1/1 passed. Incorrect numeric ref-version test input was corrected to canonical wire string without a runtime change. Completed consumer committed by package owner atbeea59b2; no producer reruns or new proof packet. Optional when explicitly refuses before callback/context; owning changed helper1/1 and emit0 pass, selected unchanged D1/bundle results reused.",
+      "dependency_scope": "Exact accepted009 durable canonical transaction and010 verified context outputs. Selected operation has no declared rules/current spending predicates, so the original conditional011/012 prerequisite is inapplicable here.",
+      "limits_retained": "Primitive EmailV1 unconditional request staging only. Conditional rules/when and nominal request conversion remain unqualified where applicable. Original broader F4 dispatch eligibility, installed provider/current binding authority, retry/unknown and provider crash/reconcile gates remain open in019/018 and complete workflows; no deployment/provider execution or full F4 acceptance.",
+      "consumer_commit": "beea59b256f623e9581f23bb2faa0c4891f8a6c7"
     },
     {
       "id": "SEQ-018",
@@ -322,12 +356,20 @@
       "title": "Qualify a scoped durable dispatcher and provider",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "high",
-      "state": "not_started",
+      "state": "complete_at_selected_installed_email_dispatch_provider_scope",
       "evidence": [],
-      "next_gate": [
-        "SEQ-017"
-      ],
-      "conditional_gates": []
+      "next_gate": [],
+      "conditional_gates": [],
+      "runtime_owner": "01a10c5a-0fb5-7343-9659-c3efab311c0c",
+      "consumer_owner": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+      "current_scope": "Services type-only installed-mail port3f8c1d91 emitted/released directly to roadmap. Exact operative handoff remains in package run installed-bound-provider-handoff.json; finite selected EmailV1/owned localhost+D1 consumer is pending, with no external email/paid call/native preparation/publication authority.",
+      "acceptance_scope": "Original selected provider producer→outbox→installed dispatcher trace qualified by actual Node/nativeD1/D1Identity/ownedlocalhost Email journey. Stable identity through claim/crash/retry/reconcile, unknown acceptance no blind resend, authoritative result association+ack accepted in81dbe2e9 after concrete replay/transient defects repaired. Existing direct outcomes reused; no different provider or whole-F4 qualification.",
+      "claim_gate_release": "Work8addb074bfceea3ec15e49b6bb050f2065f26fca emitted;22 affected checks and emit0 pass. Owning claim factory retains one lifecycle owner and invokes availability callback before claim writes; direct exact handoff reached roadmap. Actual installed-provider consumer remains unqualified.",
+      "actual_consumer_result": "Selected native Node installed Email/runtime + owned localhost HTTP + persistent D1 + genuine compiled send case1/1 and CF normal emit0 pass. Missing/mismatched installation refuses before claim writes/dynamic ports. Postclaim interruption/reopen/stale recovery preserves original intent ID; malformed response remains uncertain; real404 reconcile does not blindly retry; second reopen confirmed reconcile retains ID and ack attempts1. Exact five-path frozen slice sent directly to package owner for scoped acceptance/commit. No remote provider/default workerd/multicapability/receipt-observer claim; completed count stays13 pending owner acceptance.",
+      "current_acceptance_blocker": "None at accepted selected original Email provider scope; broader scopes remain separate.",
+      "recovery_repair": "Evidence scan aligned to planner intent-ID order. Actual three-case native D1 batch3/3, CF emit0 and changed portable bundle mapping1/1 accepted once; owner handoff includes provider, due and context slices. Reuse unchanged results.",
+      "consumer_commit": "81dbe2e9",
+      "accepted_at_original_selected_scope": true
     },
     {
       "id": "SEQ-019",
@@ -335,13 +377,33 @@
       "title": "Qualify keyed scheduling and dispatch guards",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "high",
-      "state": "not_started",
+      "state": "complete_at_selected_keyed_schedule_current_due_scope",
       "evidence": [],
-      "next_gate": [
-        "SEQ-009",
-        "SEQ-010"
-      ],
-      "conditional_gates": []
+      "next_gate": [],
+      "conditional_gates": [],
+      "current_scope": "Original selected keyed schedule/replacement/cancellation and current dispatch eligibility. Compiler owns checked source keys/verified occurrences/context; package owns defining Work ports; roadmap owns actual CF/D1 consumer. Reuse existing contracts/outcomes and repair demonstrated missing seams.",
+      "source_producer_owner": "01a1171b-4061-7cf0-b42b-21f8f136fba0",
+      "runtime_owner": "01a10c5a-0fb5-7343-9659-c3efab311c0c",
+      "consumer_owner": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+      "dependency_scope": "Accepted exact SEQ009 durable canonical operation and SEQ010 verified context outputs used here; no whole Task17 dependency or blanket parent gate.",
+      "acceptance_scope": "Original selected keyed schedule/replace/cancel, current-record eligibility, duplicate/obsolete/restart and no-human-consent behavior qualified. Actual postcommit lost-response retry closes original selected-effect unknown/crash/replay remainder in final due case accepted81dbe2e9. Prior occurrence/fence/rollback controls reused; no general deployed scheduler/whole-parent claim.",
+      "runtime_progress": "Roadmap agreed compiler lexical ownerPackage options for schedule/cancel. Existing Work stages take scope{app,owner,ownerPackage}, read-only context and return writes/schedules/effects for the same canonical fence. Portable public release is with package; compiler owns compatible event input descriptors/existing trusted-handler linkage and nominal/model-ref identity. CF consumer owns due-timer admission/current eligibility.",
+      "producer_progress": "On-disk events[canonical].inputs canonical Values descriptors and simple declared-event operations[handler].event/existing handler linkage; model-ref identity/arrays/wire defaults retained. Final native/build release accepted at01dc0651; built compiler ready. Runtime scope/current-ref/occurrence/same-fence admission remains with owners; unsupported trigger/cohort profiles refuse.",
+      "runtime_release": "a9ed6865657ca4d18c0b00992bb600407063c804: emitted @canlang/work/kernel/schedule-staging workSchedulePutCommand/workScheduleCancelCommand, existing reader context and same-fence SystemStaging. Owning33/33 and emit0 accepted; direct handoff already reached roadmap.",
+      "runtime_limits": "Defining portable put/cancel and due gate are released. Actual CF/D1 due handler/current authority/receipt/rollback/restart remains for roadmap. Already-admitted without receipt and broader profiles remain open; no full Task19 acceptance.",
+      "occurrence_identity_contract": "Existing runtime-owned OccurrenceIdPort uses host crypto.randomUUID once per received invocation/actual schedule ordinal, with bounded invocation-local memo across owner-fence retries. Receipt replay and committed lineage preserve original identity; replacement gets a fresh identity. No source-input ID, every-slot allocation, new hash recipe or deterministic format guarantee. Package already routed this decision to roadmap; due-head admission remains a separate missing owning seam.",
+      "producer_release": "01dc06512a79e9709629beb25f03c582405a3ee9; final compiler/target/debug/can built/released. Native Values/declared-handler/scheduling1/1, changed plain schedule golden1/1 and strict library Clippy pass. Source payload requires all fields even defaults/arrays; owning wire defaults are separate. Exact final release routed to roadmap; actual CF/D1/due qualification remains unfinished.",
+      "reference_contract": "Resolved existing source/Values semantics: preserve canonical model/id and supplied observed version in stored wire using owning ref/codec. Verified native projected version participates in capture; no stripping/view snapshot. Trusted due admission reads current authority/row; hydrated handler ref version and write guards use current row version. Capture grants no authority/bypass. Enqueue scalar version must be an explicitly declared event field. Existing public codec versionless/versioned roundtrips passed; exact contract routed to roadmap/package decision owner, conversion wait cleared.",
+      "due_gate_release": "Work8addb074bfceea3ec15e49b6bb050f2065f26fca emitted;22 affected checks and emit0 pass. stageDueSchedule admits first-pending current head/original time/scope/version with existing receipt replay; no independent commit/actor/scheduler. Direct exact handoff reached roadmap. Consumer joins current typed handler and terminal receipt in the same fence; transient outcome drops all, terminal authored require retains consumption/failed receipt only.",
+      "accepted_consumer_component": "Genuine source put/cancel actual nativeD1 case1/1 and normal CF emit0; changed six-module portable bundle mapping1/1. Capturedv2/v3 retained, later guard drops domain/schedule, lineage replacement/cancellation/replay/same-directory reopen pass. Full original019 is unfinished.",
+      "pending_handler_profile": "Owning private descriptor86a8be55, typed State classifiera4027f21 and Work receipt65acd49e released and consumed. No pending profile agreement or API release.",
+      "handler_profile_agreement": "Package State/Work owner agrees private flat ArtifactOperation inputs in operations[handler].invocation; source handler/c,{event} unchanged, no public operation. CF wraps State-admitted current fields. Private requireVersion:false follows authoritative Work due/current-head/scope/time validation only; saved/public versions unchanged. Existing State current authority/ref enrollment/trusted attribution/fence preserved; unsupported compounds refuse. Compiler released to produce exact descriptor.",
+      "private_producer_release": "86a8be5505805f694bbcb6c29bae97dee2060113 committed; existing native scheduling case1/1 and strict lib Clippy pass; final can build completed/released. Existing flat ArtifactOperation serializer: result:{type:void}, text[] valueType for tags, literal wire default17; canonical model ref requireVersion:false only in agreed private profile. Unsupported structural event omits whole descriptor, no public handler. Exact release/shape routed to consumer.",
+      "terminal_runtime_releases": "Statea4027f21 authored-require failure/classifier emitted5/5 and Work65acd49e portable identical occurrence receipt stage emitted3/3; direct owning API handoffs reached roadmap. Actual due/raw-failure/terminal-receipt qualification remains open; schedule/cancel consumer1586af1e accepted narrowly.",
+      "actual_due_consumer_result": "Actual private verified due/current-row D1 case passes: typed terminal-false failure retains consumption/negative receipt and drops provisional domain writes; generic transient failure drops all; actual fence retry preserves opaque occurrence ID and one commit; obsolete/cancelled/duplicate/reopen/no-human-actor controls pass. Included in native D1 batch3/3, CF emit0 and changed bundle mapping1/1. Source released directly to package owner; original full scope awaits owner acceptance, count unchanged. Package owner accepted and committed de3cd6938a19ec5bab80188c8190c6d252d15225 with no reruns; selected one-handler Node/nativeD1 scope only. Current authority-expiry, memory identity, default deployed scheduling, multi-handler/reference-array limits remain explicit in owning notes.",
+      "consumer_commit": "81dbe2e9",
+      "remaining_scope": "No original selected keyed scheduling remainder; broader hosted/authority/multi-handler/reference-array profiles remain separate.",
+      "accepted_at_original_selected_scope": true
     },
     {
       "id": "SEQ-020",
@@ -349,13 +411,20 @@
       "title": "Qualify a scoped authorized receipt observer",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "high",
-      "state": "not_started",
+      "state": "complete_at_selected_authorized_email_receipt_observer_scope",
       "evidence": [],
-      "next_gate": [
-        "SEQ-018",
-        "SEQ-012"
-      ],
-      "conditional_gates": []
+      "next_gate": [],
+      "conditional_gates": [],
+      "dependency_scope": "Exact selected provider/association outputs from018 are not yet accepted; current observer qualification remains open. Accepted012 current read/fence and017 compiled-send outputs may be reused at their exact scopes. No whole-parent gate on independent preparation.",
+      "current_scope": "Genuine typed-delivery-observer.can lowering released in compiler bdab357663c446d4ce0e88577cc4d935b0e6a7fc with final rebuilt can. Existing Values delivery(std.EmailV1.send), nullable app-field profile and shared delivery helper pass actual frozen source and affected checks. Release routed to roadmap for actual runtime consumer. Reserved Receipt.read producer metadata is compiler work in progress; no fabricated consumer artifact.",
+      "association_owner_findings": "Existing Work applyReceiptProgress and State receipt/association constructors/join located by package owner; no runtime persistence caller. Missing checked source/current-admission recordModel/id, declared delivery field/source and revision binding must be resolved rather than inferred from provider reference. Exact port findings routed to roadmap; source lowering preparation remains active, observer/disclosure original gates unfinished.",
+      "producer_release": "bdab357663c446d4ce0e88577cc4d935b0e6a7fc; final can build after this and decoder c0a633b2 completed. Existing native delivery-field1/1, four affected T15b4/4 and strict library Clippy pass. Actual selected provider association/authorized observer/disclosure gates remain unfinished.",
+      "receipt_read_producer_release": "f1d63d0a31a4906bcc368aa4e8c7cb0ef2f51161 released/routed: genuine joined singular delivery fields emit existing Receipt.read required recordId:text, field:text, selected:text[] (array.required:false), appDefinition kind:read/read:true/by:public and matching canApp metadata. Actual frozen source→installed State loader native1/1 and strict library Clippy pass; source canonical collision refuses E6008/no modules. Local/unjoined/array route not advertised. Final can build succeeded; ready /Users/vince/Projects/canlang/compiler/target/debug/can release routed to consumer. Actual association/current grants/authorized observer remains unfinished; no full Task20 credit.",
+      "source_ownership_release": "Package owner directly released invoke.ts/bundle.ts after due commitde3cd6938a19ec5bab80188c8190c6d252d15225 for finite020 integration; root did not duplicate direct handoff. Existing Work command/State receipt composition remains one authoritative expectedRevision commit with dispatch+receipt assertions, no new public factory/API; actual association/observer remains unfinished.",
+      "active_consumer": "Final scoped consumer accepted/committed81dbe2e9; defining and affected outcomes reused. Deeper generation result projection is independent021 work.",
+      "consumer_commit": "81dbe2e9",
+      "acceptance_scope": "Original selected actual MCP/persistentD1 observer binds owning Email operation/result source and authoritative current delivery. Status/result selection, current readers, replacement/supersession/stale association, leaf denial before protected disclosure and replay/transient retry accepted in final81dbe2e9 journey. Stateab8cf1d3 current-source/owner guard adopted; no different result type/provider/deep generation policy or whole-F5 claim.",
+      "accepted_at_original_selected_scope": true
     },
     {
       "id": "SEQ-021",
@@ -363,12 +432,23 @@
       "title": "Qualify typed generation progress",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "high",
-      "state": "not_started",
+      "state": "in_progress_original_generation_progress_native_negatives",
       "evidence": [],
       "next_gate": [
         "SEQ-020"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "current_scope": "Genuine generation source-read prefix qualified in actual CF/native D1 case1/1 after compiler768e9e44; emit0. Exact child-only grant, pending/unassociated null, denied parent/status/id, outsider and live membership revocation; scoped source committeded19f33e. Installed Services profile2928194c directly released; real tokenizer absent, no production tokenization/whole provider workflow credit. Work final retained-receipt/pending-replay producer remains active. Rich-progress defining lifecycle and actual installed provider profile remain producer work; no provider stream or full original021 completion claimed.",
+      "consumer_read_commit": "ed19f33e73c40ad47569e924cbe332d89e88d0b2",
+      "installed_profile_producer_commit": "2928194ccfff837c8cfefa7636e7f60c7824b5d1",
+      "current_work": {
+        "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+        "scope": "Original21 direct actual native stage refusal gaps in existing typed-generation-progress.test.ts: reordered/conflicting duplicate/terminal mutation/source-version mismatch using existing successful terminal row and unchanged producer.",
+        "producer_release": "Existing typed-generation-progress.can/.json and real private event/native D1 progress5417247d; contextual enum default producer a05e6c76/1eadd4c4 and current observer CLI released.",
+        "reuse": "Prior controlled provider bytes/source version/sequence/late usage/duplicates/private due/replacement/cancel/response loss/reopen/unknown/current disclosure/revocation outcomes reused; no separate rerun. Existing matching released Generation/progress runtime output; unready48 assembly/cohort-tick wiring not included in claim or capture.",
+        "limits": "One changed owning case; controlled tokenized provider profile, production tokenizer/provider/account/routing and full original21 remain open. No new proof packet or helper.",
+        "direct_outcome": "Changed existing typed-generation-progress.test.ts actual native D1 case1/1(27.63s), no failure/repeat, only34 direct boundary assertion lines added. Running-row exact replay no writes; conflicting same-revision, older receipt, stale sequence at newer receipt and wrong original source/request revision refuse. Terminal equal-checkpoint changed payload returns saved replay; newer content/verified-usage rewrite refuses. Receipt/current revision/progress occurrence rows remain unchanged by refusals. Existing controlled provider/tokenization/reopen/authority/recovery matrix passed in same case, no separate reruns. Test frozen for focused Package capture; no source/full21 credit."
+      }
     },
     {
       "id": "SEQ-022",
@@ -397,13 +477,16 @@
       "title": "Qualify generic canonical file transfer",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "high",
-      "state": "not_started",
+      "state": "complete_at_selected_native_generic_file_transfer_scope",
       "evidence": [],
-      "next_gate": [
-        "SEQ-009",
-        "SEQ-010"
-      ],
-      "conditional_gates": []
+      "next_gate": [],
+      "conditional_gates": [],
+      "current_scope": "Original selected generic real-byte transfer accepted: package-owned backendc2d04992 plus actual public UI submitGeneratedForm/native CF+Interfaces HTTP/session/CSRF consumer1/1; same owning workflow joins SQLite upload/finalize, canonical File{id}, State native D1 attachment/read/reopen/current revocation. Invalid CSRF leaves metadata/State unchanged. Final UI/CF emits0; unchanged backend1/1 and portable bundle1/1 reused. UI six-path source delta committed795ebadd; accepted consumer outcome reused.",
+      "consumer_owner": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+      "accepted_at_original_selected_scope": true,
+      "consumer_commit": "c2d04992",
+      "acceptance_scope": "Explicit SQLite bytes/native D1/current credential+record-grant generic browser/MCP scope. Original file-specific durable finalize/association, failure/replay/retention/current-authorization outcomes accepted by backend owner and reused with genuine client consumer. No generated-provider finalization requested, so conditional F6/T27 gate does not apply. No Chrome DOM, R2/default Worker, shared-principal, hosted or whole-F7/proposal credit.",
+      "consumer_ui_commit": "795ebadd6911a149271a70276c27c4e663b583bb"
     },
     {
       "id": "SEQ-024",
@@ -411,13 +494,19 @@
       "title": "Finalize provider outputs into the receiving app",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "high",
-      "state": "not_started",
+      "state": "in_progress_installed_image_producer",
       "evidence": [],
       "next_gate": [
         "SEQ-021",
         "SEQ-023"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "current_work": {
+        "owner_thread": "01a10c5a-0fb5-7343-9659-c3efab311c0c",
+        "scope": "Existing ImagesV1/ComfyUI full ImageRequest producer and finite ImageRun/result-array admission; original output correlation/policy gates retained.",
+        "status": "Services installed Images component committed: emit0, changed owning7/7 and relevant existing3/3 accepted. Full ImageRun/receiving Files/consumer/current policy qualification remains open.",
+        "services_commit": "c35fc990"
+      }
     },
     {
       "id": "SEQ-025",
@@ -425,7 +514,7 @@
       "title": "Render the complete generation lifecycle",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "medium",
-      "state": "not_started",
+      "state": "in_progress_page_observer_direct_consumer",
       "evidence": [],
       "next_gate": [
         "SEQ-014",
@@ -440,7 +529,12 @@
           ],
           "reason": "Progress/guard UI preparation may proceed before file finalization; real gallery acceptance requires it."
         }
-      ]
+      ],
+      "current_work": {
+        "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+        "scope": "Genuine Can page/request-scoped authorized receipt observer.",
+        "status": "Genuine page artifact through matching CLI compile0; Contracts/Interfaces/CF emits0 reused; affected existing native Generation case1/1 in23.18s. Package owns scoped9-path commit. Original full lifecycle/profile gates retained; no full task credit."
+      }
     },
     {
       "id": "SEQ-026",
@@ -480,13 +574,20 @@
       "title": "Choose the bounded exhaustive surface",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "high",
-      "state": "not_started",
-      "evidence": [],
-      "next_gate": [
-        "SEQ-005",
-        "SEQ-006"
+      "state": "complete_at_selected_enum_only_match_contract_scope",
+      "evidence": [
+        "../../docs/specification/DECISIONS.md",
+        "enum-comparison/README.md",
+        "enum-comparison/contract-advice"
       ],
-      "conditional_gates": []
+      "next_gate": [],
+      "conditional_gates": [],
+      "current_work": {
+        "owner_thread": "01a1171b-4061-7cf0-b42b-21f8f136fba0",
+        "scope": "Original enum-only match versus stronger conditional coverage value/semantic decision; then ready compiler coverage/lowering tasks29/30.",
+        "status": "Accepted original contract-stage decision published; compiler implementing owning coverage/lowering. No code execution or whole-proposal credit from this specification task."
+      },
+      "acceptance_scope": "Original SEQ028 finite surface/value/semantic contract accepted in DECISIONS: optional enum-only match for explicit missing/new/duplicate-case rejection, subject-owned declared enum identity, guarded nonnullable once-subject, scoped typed arms and ordered effects. Split/weak surface advice retained; no token/adoption saving claim. Coverage/lowering/tooling/runtime qualification remain tasks29-32."
     },
     {
       "id": "SEQ-029",
@@ -494,12 +595,21 @@
       "title": "Implement the selected enum coverage analysis",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "medium",
-      "state": "not_started",
-      "evidence": [],
-      "next_gate": [
-        "SEQ-028"
+      "state": "complete_at_selected_enum_only_match_analysis_scope",
+      "evidence": [
+        "../../../compiler",
+        "enum-comparison/contract-advice",
+        "../../docs/specification/DECISIONS.md"
       ],
-      "conditional_gates": []
+      "next_gate": [],
+      "conditional_gates": [],
+      "current_work": {
+        "owner_thread": "01a1171b-4061-7cf0-b42b-21f8f136fba0",
+        "scope": "Selected optional enum-only match coverage/lowering in owning compiler paths.",
+        "status": "Original coverage/checking stage accepted from owning direct outcome; no repeated diagnostics or wider task credit.",
+        "commit": "24b7e91d5ae5a440f9e4ca99ec89b5d334155557"
+      },
+      "acceptance_scope": "Original selected closed parser/CST/resolver/type/effect and diagnostic stage accepted at24b7e91d. Genuine source/native owning case1/1 covers missing/new/duplicate/foreign/nonnullable/wrong-return/branch-scope/wildcard controls with declared enum identity/checked full coverage; ordinary intentional if preserved. Lowering rollback, tooling/specification and3original handlers remain separate tasks30-32."
     },
     {
       "id": "SEQ-030",
@@ -507,12 +617,23 @@
       "title": "Lower exhaustive branches through existing execution",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "high",
-      "state": "not_started",
-      "evidence": [],
-      "next_gate": [
-        "SEQ-029"
+      "state": "complete_at_emitted_enum_handler_owner_transaction_scope",
+      "evidence": [
+        "../../compiler",
+        "../../packages/cloudflare/src/runtime/generated-machines.test.ts",
+        "../../packages/cloudflare/test/fixtures/generated-machines.can",
+        "../../packages/cloudflare/test/fixtures/generated-machines.json"
       ],
-      "conditional_gates": []
+      "next_gate": [],
+      "conditional_gates": [],
+      "current_work": {
+        "owner_thread": "01a10c5a-0fb5-7343-9659-c3efab311c0c",
+        "scope": "Released compiler lowering joined to existing owner transaction through genuinely compiled handler.",
+        "status": "Original30 owning fixture/test outcome committed; all index/source/output handles released. No unchanged check repeated.",
+        "compiler_commit": "24b7e91d5ae5a440f9e4ca99ec89b5d334155557",
+        "commit": "737fdf1a9f1081262796e8628a7ece5c9bc17f3e"
+      },
+      "acceptance_scope": "Original emitted finite-handler/evaluation/effect stage accepted by joining released24b7e91d once-subject/one-branch/scoped-bindings/returns outcomes with owning generated-machines changed native rollback case1/1, genuine source compiled by current released CLI/private CFemit0. Match→set→later require failure preserves domain record/version/history/outbox; existing rejection receipt advances global revision once and replay adds nothing. Paired success writes once/replays unchanged. Original scenarios preserved, no State production edit, failed revision expectation corrected to original receipt contract. Canonical Node/State memory scope only; no D1/durable/whole proposal acceptance and no repeated unchanged cases."
     },
     {
       "id": "SEQ-031",
@@ -520,13 +641,21 @@
       "title": "Complete enum tooling and specification",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "medium",
-      "state": "not_started",
-      "evidence": [],
-      "next_gate": [
-        "SEQ-029",
-        "SEQ-030"
+      "state": "complete_at_selected_enum_tooling_and_specification_scope",
+      "evidence": [
+        "../../compiler",
+        "../../docs/specification/GRAMMAR.md",
+        "../../docs/specification/DESIGN.md"
       ],
-      "conditional_gates": []
+      "next_gate": [],
+      "conditional_gates": [],
+      "current_work": {
+        "owner_thread": "01a1171b-4061-7cf0-b42b-21f8f136fba0",
+        "scope": "Original enum formatter/descriptions/completion/lint/LSP and exact grammar/design contract against released compiler slice.",
+        "status": "Original declared tooling/specification stage accepted; source/build released.",
+        "commit": "eed80627118ae1499eb4d417e4508fda737d3be3"
+      },
+      "acceptance_scope": "Original formatter/descriptions/completion/lint/LSP and exact grammar/design stage accepted from source889ee036 and tooling eed80627118ae1499eb4d417e4508fda737d3be3. Four owning direct changed-behavior cases pass: formatter/reparse/leaf stability, checked EnumMember completion/tokens and lexical exclusion, per-arm lint scopes, actual stdio LSP versioned coverage diagnostics/tokens/completion/ranges/description refusal. Only failed invalid text-addition fixture corrected and lint/pending LSP ran; passed formatter/IDE and execution29/30 reused. Pattern expansion and actual later-failure rollback/three-handler qualification remain separate."
     },
     {
       "id": "SEQ-032",
@@ -534,13 +663,19 @@
       "title": "Independently qualify exhaustive handling",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "medium",
-      "state": "not_started",
-      "evidence": [],
-      "next_gate": [
-        "SEQ-030",
-        "SEQ-031"
+      "state": "complete_at_original_three_handler_qualification_scope",
+      "evidence": [
+        "../../compiler/tests/enum_handlers_runtime.rs",
+        "enum-comparison/measurements.json",
+        "enum-comparison/packet-source-costs.json"
       ],
-      "conditional_gates": []
+      "next_gate": [],
+      "conditional_gates": [],
+      "current_work": {
+        "owner_thread": "01a1171b-4061-7cf0-b42b-21f8f136fba0",
+        "status": "Original declared task stage accepted; broader gaps remain in their owning tasks."
+      },
+      "acceptance_summary": "Original three genuinely compiled handlers and six owning-domain case-set mutations passed the new direct native case1/1. Captions, once/order, original current membership/employee/location/role/eligibility controls and checked role-vs-lexical-Bool identity qualify. Original29/30/31 omission/tooling/rollback outcomes reused. Edited approval/ordinary authored source costs updated from owning compiler measurements; unchanged Generation/effects retained. Bounded current-state async membership host is truthful; installed active_member E6007, full-app/shared Employees migration and model-BPE/overall savings remain open."
     },
     {
       "id": "SEQ-033",
@@ -548,13 +683,20 @@
       "title": "Specify the dependent input contract",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "high",
-      "state": "not_started",
-      "evidence": [],
-      "next_gate": [
-        "SEQ-005",
-        "SEQ-007"
+      "state": "complete_at_bounded_dependent_input_contract_stage",
+      "evidence": [
+        "../../docs/specification/DECISIONS.md",
+        "dependent-input-comparison"
       ],
-      "conditional_gates": []
+      "next_gate": [],
+      "conditional_gates": [],
+      "current_work": {
+        "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+        "scope": "Original bounded dependent-input contract, reusing existing comparison and accepted form/read-scenario owner scopes.",
+        "status": "Original declared task stage accepted; unchanged owning validation reused. Later full workflow gates remain separate.",
+        "commit": "ded8103f"
+      },
+      "acceptance_scope": "Original closed typed InputChoiceBinding contract and bounded value gate accepted from published DECISIONS: CountryRegion partial-country assistance, child clearing/fencing and retained drafts; CanApprove earns reuse only and CanRent scalar advisory stays separate. Split JEV advice/uncertainty retained. Existing owning schema, bounded authorized reads, grants and final server business checks preserved; no second schema, mutation target or implicit privilege. No browser/adoption/total-token or wholeN9 acceptance."
     },
     {
       "id": "SEQ-034",
@@ -562,14 +704,22 @@
       "title": "Implement the checked dependent descriptor",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "medium",
-      "state": "not_started",
-      "evidence": [],
-      "next_gate": [
-        "SEQ-012",
-        "SEQ-014",
-        "SEQ-033"
+      "state": "complete_at_checked_dependent_descriptor_producer_scope",
+      "evidence": [
+        "../../compiler/tests/fixtures/input_choices.can",
+        "../../compiler/tests/input_choices.rs",
+        "../../compiler"
       ],
-      "conditional_gates": []
+      "next_gate": [],
+      "conditional_gates": [],
+      "current_work": {
+        "owner_thread": "01a1171b-4061-7cf0-b42b-21f8f136fba0",
+        "scope": "Minimal operation-owned candidate notation and checked descriptor from defining Task33 shape.",
+        "status": "Original declared task stage accepted; unchanged owning validation reused. Later full workflow gates remain separate.",
+        "source_notation_proposal": "Owning parameter choices={read=read_operation(named=current_param.path),value=\"selected_field\",labels=[\"label_field\"]}; omit value for whole model record. Canonical callee/schema/current-input paths derived by checker, no executable annotation or copied wire schema.",
+        "commit": "829f1510d5f771c495bb5bd43c741862c0d56034"
+      },
+      "acceptance_scope": "Original versioned checked producer metadata accepted from actual source/artifact/public descriptors and owning focused source/native nonexecution case1/1. Canonical read identity/current-input paths, record-or-field values and labels derived; wrong mappings/types, unavailable inputs, mutation targets and cycles refuse E3001/no modules. Existing defaults/requiredness/captions intact. interfaces.input-choices@1 uses existing unsupported-consumer refusal; no serving or browser capability claimed. Installed records helper gap remains with actual route consumer; tasks35-37 remain open."
     },
     {
       "id": "SEQ-035",
@@ -577,14 +727,20 @@
       "title": "Implement the authorized lookup route",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "high",
-      "state": "not_started",
-      "evidence": [],
-      "next_gate": [
-        "SEQ-012",
-        "SEQ-014",
-        "SEQ-033"
+      "state": "complete_at_original_authorized_lookup_route_scope",
+      "evidence": [
+        "../../packages/interfaces/src/http/input-choices.ts",
+        "../../packages/cloudflare/src/runtime/input-choices.ts",
+        "../../packages/cloudflare/src/runtime/native-records.ts",
+        "../../packages/cloudflare/src/runtime/input-choices.test.ts"
       ],
-      "conditional_gates": []
+      "next_gate": [],
+      "conditional_gates": [],
+      "current_work": {
+        "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+        "status": "Original declared task stage accepted; broader gaps remain in their owning tasks."
+      },
+      "acceptance_summary": "Original lookup route qualifies genuine compiler input_choices.can artifact, current persistent D1 grants/Identity/session/CSRF, bounded safe projections, missing prerequisite/no query, country-region and submission.parent containment, stale version/current membership revocation, mutation-free lookups and normal canonical final-operation receipt replay. Existing native composed case1/1 passed after actual producer fixes, with one changed State/CF emit. Original36 remaining control behavior and original37 conditional-model/application comparison stay open."
     },
     {
       "id": "SEQ-036",
@@ -592,13 +748,20 @@
       "title": "Implement dependent control interaction",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "medium",
-      "state": "not_started",
-      "evidence": [],
-      "next_gate": [
-        "SEQ-014",
-        "SEQ-033"
+      "state": "complete_at_original_dependent_control_interaction_scope",
+      "evidence": [
+        "../../packages/ui/src/browser/bootstrap.ts",
+        "../../packages/ui/src/forms.ts",
+        "../../packages/ui/test/t20a-generated-forms.test.ts",
+        "../../packages/cloudflare/src/runtime/input-choices.test.ts"
       ],
-      "conditional_gates": []
+      "next_gate": [],
+      "conditional_gates": [],
+      "current_work": {
+        "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+        "status": "Original declared control task accepted; source released for focused integration. Next independent original48 bridge uses existing canonical State per-child admission."
+      },
+      "acceptance_summary": "Original dependent-control behavior qualifies genuine compiler source/generated forms/persistent D1/native DOM: bounded150ms debounce collapses3rapid parent changes; native AbortSignal cancellation on supersession/stop/context/replacement; sequence/context fencing retains cleared children and rejects held late replies; live loading/absent/empty/real-CSRF error states; prerequisite focus and two-form identity preserved; native selects retain browser-owned keyboard behavior, no fabricated Arrow-key claim. Unrelated drafts/defaults/normal canonical submission and stored receipt replay remain intact. Literal user-prefill and optional blank-user omission/default real branches corrected. Changed existing UI cases2/2 and composed native case1/1 passed after relevant UI/browser-assets/CF emit0; unchanged outcomes reused. Source released to Git owner; original37 conditional-model/full-application comparisons remain open."
     },
     {
       "id": "SEQ-037",
@@ -606,14 +769,19 @@
       "title": "Qualify dependent forms vertically",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "high",
-      "state": "not_started",
+      "state": "blocked_original_conditional_model_rule_prerequisite",
       "evidence": [],
       "next_gate": [
         "SEQ-034",
         "SEQ-035",
         "SEQ-036"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "current_work": {
+        "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+        "scope": "Original two genuine witness vertical/current authority/final selection/browser-MCP/source-navigation criteria.",
+        "status": "Original CountryRegion/CanApprove conditional-grant models require original11 model-rule producer, whose exact external payload hold remains. Actual CF runReadScenarioSeam refuses ruled models; parent/related navigation also retained. No substitute witness or full37 closure. Independent24/35/36 work continues."
+      }
     },
     {
       "id": "SEQ-038",
@@ -684,12 +852,17 @@
       "title": "Prove accounting units and ownership",
       "model": "gpt-6-astra",
       "reasoning_effort": "high",
-      "state": "not_started",
-      "evidence": [],
+      "state": "complete_at_original_units_owner_boundary_design",
+      "evidence": [
+        "design/language-proposals-20261007/implementation-plan.md#task-41-selected-units-and-owner-boundary",
+        "design/language-proposals-20261007/jev/accounting-owner-selection.json"
+      ],
       "next_gate": [
         "SEQ-005"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "previous_state": "not_started",
+      "accepted_outcome": "Original preparation/contract-selection deliverable accepted: actual Chat token allowance and Knowledge unfinished-question slots, integer units/max/owner and usage provenance/late/unknown commitments, same-owner versus staged alternatives at identical outcomes, expected race/crash/replay/upgrade cases. No forbidden cross-owner atomicity, universal nonnegative debt rule or unsupported hard money cap. JEV3 advice retained. Tasks42/43 implementation and parent D5 runtime gates remain open."
     },
     {
       "id": "SEQ-042",
@@ -801,7 +974,7 @@
       "title": "Qualify the existing cohort executor",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "high",
-      "state": "not_started",
+      "state": "in_progress_original_compiled_cohort_executor",
       "evidence": [],
       "next_gate": [
         "SEQ-009",
@@ -816,7 +989,16 @@
           ],
           "reason": "Qualify the selected child provider/durable dispatcher; internal canonical children do not wait for image generation."
         }
-      ]
+      ],
+      "current_work": {
+        "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+        "status": "Genuine ordinary and declared-event private cohort components directly qualified. Five released private-cohort paths frozen for Package capture; no duplicate validation. Continue original full task through default installed Worker cohort fulfillment and mixed ordinary/cohort event intake; preserve broader original matrix and explicit unsupported trigger gates.",
+        "accepted_component": "Ordinary genuine compiled public-child/nativeD1 case1/1 and four affected version/fresh/fence/claim cases4/4 pass. Full admitted call/guards/readings/unique/default/result and checkpoint share existing State unit; authored postwrite rollback, frozen late-insert exclusion/2+1bounded turns, actual lost response→D1 reopen/no repeat, owner revocation and real role guard race qualify. Compiler private each source-event admission remains required; no full48 credit.",
+        "producer_release": "Compiler genuine declared-event producer captured b40a5390/own followup7126ef6f; current installed target requirement retained. Declared events/model/nonnull anchored collection only; hook/Every/progress E6008 remain. No new compiler producer or second State engine is needed for the accepted component.",
+        "accepted_private_component": "Current CLI0/CF emit0; same owning genuine D1 private case1/1 (~8.1s) after exact retained schedule:event trustedSource pin, wrong-principal refusal with no domain/history writes. All matching sweep/unbound cohort handlers initialize in the same source-receipt revision; frozen payload/bounds/membership survive reopen. Null actor/current owner/private registry/child source forwarding/body effects/receipt/rollback/late exclusion/fair turns/replay/typed parent reload qualified. Two unchanged affected ordinary/private-due cases2/2 reused. Exact internal state.cohorts@1 constructor only; default Worker does not fulfill globally, mixed ordinary/cohort source currently refuses. Full48 remains open.",
+        "defining_owner_prerequisites": "Package State/Work owns durable bounded execution cursor and intent-scan resume/rotation; checkpoint.cursor presently admission admit/N, scheduler cursor caller-owned, so restart-at-null fairness is unqualified. Mixed intake needs an actual retained source-to-handler routing/admission producer and selector, with atomic routing/cohort intake but independent ordinary handler executions/receipts. State ordinary private admission and existing trusted guard-revalidation limits remain explicit. No second engine/unbounded substitution.",
+        "mixed_handler_semantics": "Defining Package worker confirms DESIGN§6 independent handler occurrence/receipt; later handler cannot reject already committed event source. Source-atomic ordinary body grouping withdrawn. Atomic durable routing/admission creates independent handler occurrences/cohort intents; each body/outcome remains separate. Existing Work lacks retained source-to-handler routing/admission/stored selector. Balanced preauthorized JEV3 addresses consequential new minimal producer/cursor design, preserving accepted semantics; no worker/resource hold."
+      }
     },
     {
       "id": "SEQ-049",
@@ -824,12 +1006,12 @@
       "title": "Qualify reviewed CSV invocation",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "medium",
-      "state": "not_started",
-      "evidence": [],
-      "next_gate": [
-        "SEQ-012",
-        "SEQ-014"
+      "state": "complete_at_original_reviewed_csv_canonical_d1_scope",
+      "evidence": [
+        "../../packages/interfaces/src/index.ts",
+        "../../packages/cloudflare/src/runtime/reviewed-csv.test.ts"
       ],
+      "next_gate": [],
       "conditional_gates": [
         {
           "when": "selected CSV inputs contain files",
@@ -838,7 +1020,13 @@
           ],
           "reason": "Consume the applicable finalized file bridge."
         }
-      ]
+      ],
+      "current_work": {
+        "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+        "scope": "Original source-derived parse/preview/confirm/per-row canonical operation invocation and declared negatives.",
+        "status": "Original49 declared qualification accepted; focused two-file source commit requested from Package Git owner. No duplicate check or proof packet."
+      },
+      "acceptance_scope": "Original source-derived parse/preview/confirm/per-row canonical invocation accepted from final owning native case1/1 (~2sec), relevantCFemit0. Real source catalog/FormData/public Interfaces HTTP routes/canonicalD1 defaults/managed owner/history/receipts; invalid/duplicate/excluded rows retained, changed consent invokes none, reversed selection preserves authored order. Actual postcommit response loss reports transport uncertainty; explicit same-key retry replays stored result without extra writes. Real midbatch membership removal preserves first committed row/refuses second, later batch denied before invocation. Unchanged operation/form outcomes reused. Source focused export/test commit is with Package Git owner. No new bulk syntax/full50/cohort acceptance; selected inputs use no additional file gate."
     },
     {
       "id": "SEQ-050",
@@ -846,13 +1034,14 @@
       "title": "Decide and implement only a thin bulk surface",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "high",
-      "state": "not_started",
+      "state": "complete_at_original_bulk_value_comparison_no_sugar_decision",
       "evidence": [],
       "next_gate": [
         "SEQ-048",
         "SEQ-049"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "accepted_outcome": "Original value comparison and optional-binding stage complete: existing CSV derives owning schema/defaults without duplicate app DTO; genuine ordinary cohort source is concise, private cohorts require their distinct guards. No demonstrated residual net authoring saving; retain existing engine/surface. A future repeated mounting/discovery need may justify reconsideration. No implementation selected, no new scheduler/scan/schema/privilege change; broader Task48 caller/resource gates remain open."
     },
     {
       "id": "SEQ-051",
@@ -902,7 +1091,7 @@
       "title": "Pilot versioned calendar helpers",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "high",
-      "state": "not_started",
+      "state": "deferred_pending_original_two_matching_consumer_trigger",
       "evidence": [],
       "next_gate": [
         "SEQ-005"
@@ -915,7 +1104,12 @@
           ],
           "reason": "Pure versioned date calculation remains independent."
         }
-      ]
+      ],
+      "current_work": {
+        "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+        "conditional_trigger_assessment": "Source-only CanBook uses shared opening helpers/explicit windows and start-minus-one-hour reminder; CanLeave uses versioned employee working-date accounting; shared Locations owns opening snapshots; CanMember uses monthly boundaries. No two matching holiday-adjusted deadline/recurrence policies, shared holiday authority or pinned timezone-data revision requirement established.",
+        "disposition": "Defer original conditional pilot: no files/checks/helper/grammar/durable qualification or completion credit. Preserve original53/C7 vectors and exact owner prerequisites; reconsider when two real workflows need the same versioned calendar policy."
+      }
     },
     {
       "id": "SEQ-054",
@@ -936,11 +1130,9 @@
       "title": "Measure and conditionally pilot push",
       "model": "gpt-6.1-sol",
       "reasoning_effort": "high",
-      "state": "not_started",
+      "state": "complete_at_original_polling_measurement_no_pilot_decision",
       "evidence": [],
-      "next_gate": [
-        "SEQ-015"
-      ],
+      "next_gate": [],
       "conditional_gates": [
         {
           "when": "push refreshes editable forms",
@@ -949,7 +1141,27 @@
           ],
           "reason": "Read-only push consumes the read-only installed route from task15."
         }
-      ]
+      ],
+      "current_work": {
+        "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+        "status": "Original conditional measurement/no-pilot stage accepted; Package records decision in existing DECISIONS. No further measurement or push implementation assigned."
+      },
+      "acceptance_scope": "Original conditional measurement stage accepted: installed Chrome unified-headless profile, ten actual native-visible HX-polling documents, authored2s cadence, genuine installed Worker/persistent D1/Identity/session CSRF. Predeclared20s steady and50 actual canonical mutation-start-to-render samples qualify; p95=1659ms<=3000ms and maximum steady HTTP page reads/client/s=0.496<=1. Polling meets both selected workload targets, so no push pilot is warranted at this stage. Reuse accepted original15 hidden/navigation/restart/public policy outcomes; no visibility/focus override or new transport.",
+      "acceptance_summary": "Conditional no-pilot decision recorded from the owning actual measurement. Five real create/advance/finish rounds produced50 samples; steady20.176s, each of ten clients10 HX HTTP page reads, no HX errors. One Chrome process cleaned. Separate headless profile does not qualify ten headed desktop windows; counts are HTTP page reads, not physical SQL. Wider workloads/private policy/push semantics remain unqualified; reopen transport consideration only if an actual workload misses its declared target. No additional runner, proof packet or rerun.",
+      "measurement": {
+        "profile": "installed Chrome unified-headless; native visibility/HX",
+        "clients": 10,
+        "poll_interval_seconds": 2,
+        "steady_seconds": 20.176,
+        "steady_http_reads_per_client": 10,
+        "mutation_to_render_samples": 50,
+        "p95_freshness_ms": 1659,
+        "p95_target_ms": 3000,
+        "max_http_page_reads_per_client_per_second": 0.496,
+        "load_target_per_client_per_second": 1,
+        "hx_errors": 0,
+        "disposition": "retain polling; no conditional push pilot for this workload"
+      }
     },
     {
       "id": "SEQ-056",
@@ -957,13 +1169,35 @@
       "title": "Reconsider bounded durable await only after evidence",
       "model": "gpt-6-astra",
       "reasoning_effort": "high",
-      "state": "not_started",
-      "evidence": [],
-      "next_gate": [
-        "SEQ-018",
-        "SEQ-020"
+      "state": "complete_at_original_bounded_await_reconsideration_scope",
+      "evidence": [
+        "../../packages/cloudflare/test/fixtures/typed-delivery-observer.can",
+        "../../packages/cloudflare/test/fixtures/typed-keyed-schedule.can",
+        "../../packages/cloudflare/src/runtime/typed-delivery-observer.test.ts"
       ],
-      "conditional_gates": []
+      "next_gate": [],
+      "conditional_gates": [],
+      "acceptance_scope": "Original reconsideration-only stage accepted from two actual selected qualified compositions: typed-delivery-observer (original018/020,81dbe2e9) and typed-keyed-schedule (original019 accepted native due/response-loss outcomes). Existing direct checks are reused. Email current associated receipts/uncertainty and timer current due/row/response-loss paths remain distinct; business records/history, rollback, native reopen/replay and current authority stay with existing canonical Work/CF owners. No application continuation counter/program counter/checkpoint/captured stack duplication or residual saving is demonstrated.",
+      "acceptance_summary": "Retain existing concrete send/set/require and set/schedule/require compositions/helpers; defer bounded durable-await syntax. This completes the value/reconsideration record, not the broad durable-workflow proposal or deployed/provider/upgrade release. No new source/wire/state protocol or implementation assignment, so no additional tests or JEV calls are triggered. Fresh verified JEV3 and complete authority/unknown/crash/replay/upgrade contract remain prerequisites before any future new continuation implementation.",
+      "comparison": {
+        "current_helpers": {
+          "stage": "implemented and qualified at the selected native profiles",
+          "application_work": "small send/set/require and set/schedule/require; explicit business records/history",
+          "owner_work": "stable identities, fences, retry/reconciliation, delivery/timer receipts, current authority and native reopen"
+        },
+        "bounded_await": {
+          "stage": "unimplemented alternative",
+          "possible_value": "Could shorten a future longer sequential consumer with repeated application-owned continuation plumbing.",
+          "observed_value": "No such duplicated plumbing or residual saving in either selected qualified composition.",
+          "required_preservation": "Business records/history, current authority, unknown results, crash gaps, receipt replay, stable identities and upgrades must remain explicit in any future contract."
+        },
+        "decision": "retain current helpers; defer syntax",
+        "uncertainty": "The comparison does not qualify broader providers, deployed hosts or upgrade paths, and does not exclude value in a future actual consumer with demonstrated residual duplication."
+      },
+      "current_work": {
+        "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+        "status": "Original reconsideration deliverable accepted. No await implementation or verification assignment; Package records decision in existing DECISIONS."
+      }
     },
     {
       "id": "SEQ-057",
@@ -984,12 +1218,17 @@
       "title": "Reconsider package parameters only after concrete reuse",
       "model": "gpt-6-astra",
       "reasoning_effort": "high",
-      "state": "not_started",
+      "state": "deferred_pending_original_two_working_packages_reuse_trigger",
       "evidence": [],
       "next_gate": [
         "SEQ-005"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "current_work": {
+        "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
+        "conditional_trigger_assessment": "Source-only Expense/Purchase approval bodies differ in immutable evidence, rejection/outcome reasons, active-budget/funds guards, roles/parents/disclosure/effects. Factoring bodies still needs explicit bindings/guards/identity/order; no complete net saving established. Employees/Locations/Suppliers already share owning declarations/policies/CRUD through imports.",
+        "disposition": "Defer syntax; original H12 gate needs two working same-protocol packages with stable duplication beyond imports/templates, including full binding/permission/identity/migration/effect costs. Nominal/owner/role/migration contract and fresh JEV3 remain required before syntax. No files/checks/implementation or full58 credit."
+      }
     },
     {
       "id": "SEQ-059",
@@ -1089,18 +1328,43 @@
       "status": "active_bounded_snapshot_probe"
     }
   ],
-  "updated_utc": "2026-10-08T01:20:00Z",
+  "updated_utc": "2026-10-08T15:57:26Z",
   "progress_reporting": {
     "user_requested": true,
     "format": "done / 63 after every finished roadmap task; report partial slices separately without incrementing full-task count",
     "completed_tasks": [
       "SEQ-001",
+      "SEQ-002",
       "SEQ-003",
       "SEQ-004",
       "SEQ-006",
-      "SEQ-007"
+      "SEQ-007",
+      "SEQ-008",
+      "SEQ-009",
+      "SEQ-012",
+      "SEQ-013",
+      "SEQ-014",
+      "SEQ-015",
+      "SEQ-016",
+      "SEQ-017",
+      "SEQ-018",
+      "SEQ-019",
+      "SEQ-020",
+      "SEQ-023",
+      "SEQ-028",
+      "SEQ-029",
+      "SEQ-030",
+      "SEQ-031",
+      "SEQ-032",
+      "SEQ-033",
+      "SEQ-034",
+      "SEQ-035",
+      "SEQ-036",
+      "SEQ-049",
+      "SEQ-055",
+      "SEQ-056"
     ],
-    "done": 5,
+    "done": 30,
     "total": 63,
     "acceptance_rule": "A task counts when its declared deliverable/done_when and applicable stage/owner/original gates are accepted; bounded implementation substeps do not close parent tasks. Per-slice/conditional tasks retain their specific gates."
   },
@@ -1110,7 +1374,7 @@
       "Keep implementation moving on disjoint owned paths; coordinator performs no code review.",
       "Reuse accepted unchanged results; repeat focused checks only for relevant edits, failures or concrete unresolved risks.",
       "Do not generate nested evidence packets, reviews of reviews or tests of testing code.",
-      "Serialize heavy local builds within measured Mac RAM capacity; lightweight checks and editing continue.",
+      "Measure current memory and active processes before genuinely heavy allocation; serialize only measured pressure or actual output conflicts. Lightweight checks and disjoint editing proceed.",
       "Report full roadmap completion separately from bounded substeps; preserve existing product scope and human holds."
     ]
   },

@@ -1,0 +1,49 @@
+{
+  "scope": "public frozen Values APIs and standard JS only; hypothetical ordinary enumerable extended user object, no adopted actor carrier",
+  "factory": {
+    "kind": "user",
+    "id": "actor-one"
+  },
+  "factoryKeys": [
+    "kind",
+    "id"
+  ],
+  "extendedRecognized": true,
+  "identityEqual": true,
+  "typedUserWire": {
+    "id": "actor-one"
+  },
+  "decodeIdOnly": {
+    "ok": true,
+    "value": {
+      "kind": "user",
+      "id": "actor-one"
+    }
+  },
+  "decodeExtraFacts": {
+    "ok": false,
+    "name": "SchemaError",
+    "message": "schema validation failed with 2 violation(s)"
+  },
+  "memberCopiedUserKeys": [
+    "kind",
+    "id",
+    "email",
+    "email_verified"
+  ],
+  "memberRawJSON": "{\"kind\":\"member\",\"id\":\"member-one\",\"user\":{\"kind\":\"user\",\"id\":\"actor-one\",\"email\":\"actor@example.test\",\"email_verified\":true},\"team\":\"team-one\"}",
+  "typedMemberWire": {
+    "id": "member-one",
+    "user": {
+      "id": "actor-one"
+    },
+    "team": "team-one"
+  },
+  "extendedRawJSON": "{\"kind\":\"user\",\"id\":\"actor-one\",\"email\":\"actor@example.test\",\"email_verified\":true}",
+  "extendedStructuredClone": {
+    "kind": "user",
+    "id": "actor-one",
+    "email": "actor@example.test",
+    "email_verified": true
+  }
+}

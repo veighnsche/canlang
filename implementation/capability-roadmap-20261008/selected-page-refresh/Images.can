@@ -1,0 +1,34 @@
+app Images
+Given
+ Job { title:text="test", status:enum(idle,queued,generating,ready,failed)=idle machine }
+ policy Job read=public
+When
+ crud Job by=public fields=title
+ scenario advance(job:Job) by=public
+  do
+   let alias=job
+   transition job.status idle -> queued
+   require job.status==queued and alias.status==queued
+   transition job.status queued -> generating
+   require job.status==generating
+ scenario finish(job:Job) by=public
+  do transition job.status generating -> ready
+ scenario rollback(job:Job) by=public
+  do
+   transition job.status idle -> queued
+   transition job.status idle -> queued
+ scenario branch(job:Job,pass:bool) by=public
+  do
+   if pass
+    transition job.status generating -> ready
+   else
+    transition job.status generating -> failed
+Then
+ page / title="Images" poll=2s
+  list Job
+   alert
+    require row.status==generating
+    text "Generating"
+   alert
+    require row.status==ready
+    text "Image ready"
