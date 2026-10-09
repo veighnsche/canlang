@@ -864,11 +864,11 @@
       ],
       "conditional_gates": [],
       "worker_update": {
-        "state": "complete_concrete_source_authoring_in_progress_execution_gates_open",
+        "state": "unfinished_concrete_expense_authoring_checkpoint_creative_and_comparison_pending",
         "prerequisite": "Two complete ordinary expense/image-revision approval compositions and package/template comparison can now be authored from exact draft5a12eb9e; explicit reviewer/quorum/expiry domain policies remain required. Executed self/duplicate/ineligible/stale/revoked/concurrent controls retain task11 rule/context prerequisites.",
         "owner": "Compiler/Contracts defining rule/context producers; application/source preparation and consumer implementation remain this worker\u2019s task.",
         "selected_policy": "JEV3 recommends named_roster (.99/.99/.97; confidence .98/.98/.95), advisory only. Expense keeps assigned primary and eligible distinct secondary; Creative owner requests two other current managers. Explicit deadlines, rejection veto, superseding reset votes, exact frozen evidence/current eligibility and original separately authorized finalizers required.",
-        "remaining": "Task11/conditional grants/native current-owner rule execution remain producer prerequisites. Proposed finance-only invalidation of unpaid expired/revoked approval retains Decision/votes and enables original claimant correction; it cannot spend or change paid evidence. This addresses an absent original recovery policy but is not yet authored/tested/accepted.",
+        "remaining": "ExpenseReview.can retains full original and authors named review/evidence/finalization/unpaid recovery; checkpoint remains unfinished. Direct current CLI reports2 inherited Employee E3010 and5 new E3001 order=-round alias errors to fix. Full authored controls/presentation, CreativeRevisionReview.can and README comparison remain in progress; Task11/grant/current-owner execution still required. No testing/acceptance or task credit.",
         "deliverables": "approval-compositions/ExpenseReview.can, CreativeRevisionReview.can and README.md comparison; finite writer active, no task credit."
       }
     },
