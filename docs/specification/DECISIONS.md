@@ -3609,3 +3609,8 @@ Consume only Compiler PR133 e7d65ad9's owning nominal-duration type correction a
 ## 2026-10-09: Use owning APIs for the actual dependent-choice consumer
 
 Consume coordinator CI/boundary releases eac25ce3 and1644cd4a, plus Packages2742f700's State-owned NumericControl input; preserve current runtime/tests and reuse unchanged shared guard/tools/build/static validation. Replace five genuine sibling-output bypasses in the dependent-choice consumer with typed package exports of the existing UI bootstrap and Interfaces asset handler, using the already exported SubmitFetchInit. No duplicate implementation, shim or assertion removal. Owning CF build22/22 and the original nativeD1/happyDOM/served Chromium/MCP case1/1 (48.88s) pass. The first acquisition used the wrong executable variable; the corrected actual configured browser rerun passes. Current branch boundary validation leaves four Dev-owned consumers; the replaced historical job names are no longer current CI gates.
+
+
+## 2026-10-09: Reconcile the original used-context matrix
+
+Use the published exact draft5a12eb9e to complete the existing Creative/Chat/Approve context inventory, retaining historical observations and accepted selected native user evidence separately. Current qualified user/read/due/retained constructors and formatting producers supersede former blanket missing-context claims. Hook contextual expressions explicitly refuse until the defining native carrier is released; complete conditional grants, original trusted provenance/current authority and page/formatting controls retain their owners. This is source preparation only: no new execution, acceptance or task credit.

@@ -199,7 +199,14 @@
       "consumer_owner": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
       "active_consumer": "Selected actual authenticated HTTP/MCP+D1 Identity/State context case accepted/committed a3864762188c009ca1c071dc103908083ff6e9bd. Accepted one changed native batch3/3, CF emit0 and portable link1/1 reused. Hooks/other used scopes and complete original context matrix remain open; no full Task10 credit.",
       "consumer_commit": "a3864762188c009ca1c071dc103908083ff6e9bd",
-      "computed_default_component": "Mutating own-marker consumerf2a52505 retained. Genuine viewer read-scenario producer e38474fd + State admission/runtime e1204fdb + actual CF typed-scenario consumer3/3, compile0 and emit0 accepted at this component scope. Omitted/default/supplied values use real emitted handler and current-authority/no-receipt route; source/output/handles released, scoped CF commit pending. Full used-context/hooks/matrix and broader default/ref/host profiles remain open; no Task10 completion credit."
+      "computed_default_component": "Mutating own-marker consumerf2a52505 retained. Genuine viewer read-scenario producer e38474fd + State admission/runtime e1204fdb + actual CF typed-scenario consumer3/3, compile0 and emit0 accepted at this component scope. Omitted/default/supplied values use real emitted handler and current-authority/no-receipt route; source/output/handles released, scoped CF commit pending. Full used-context/hooks/matrix and broader default/ref/host profiles remain open; no Task10 completion credit.",
+      "worker_update": {
+        "state": "source_current_used_scope_inventory_prepared_execution_gates_open",
+        "source_revision": "6e8692fe6a314cdd7027bbd5998902a30a9c102a",
+        "draft_revision": "5a12eb9ebb136ffa4e5ce352663f92affba25bc2",
+        "scope": "Existing verified-context-inventory now covers complete current Creative/Chat/Approve user scenarios, CRUD, hooks, trusted handlers and pages plus shared Employee/Location dependencies. Current canonical user/read/retained/due/native context and formatting producers supersede stale blanket absence claims; historical observations and selected accepted a386 native3/3/emit0/portable1/1 evidence remain separately scoped.",
+        "prerequisite": "Compiler/Contracts checked native hook/event/input/reserved-version and conditional/subject grant/dependency producers; State final transaction enforcement; original trusted ingress/current-authority and page/formatting qualification from Work/Services/Identity/Interfaces/Compiler/Values/CF owners. Inventory does not accept those workflows or add task credit."
+      }
     },
     {
       "id": "SEQ-011",
