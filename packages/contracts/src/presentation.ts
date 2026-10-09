@@ -410,6 +410,10 @@ export interface ColumnMeta {
 export interface ListQueryArgs {
   readonly parent?: { readonly id: string };
   readonly where?: unknown;
+  /** Explicit finite page profile; omission retains ordinary read overflow refusal. */
+  readonly page?: true;
+  /** Stable collection identity for cursor binding; required by the page profile. */
+  readonly occurrence?: string;
   /**
    * Requested page size, 1..100. UI rejects anything outside; the runner
    * defaults to 25 rows when absent and rejects overflow by design.
@@ -507,6 +511,8 @@ export interface ListProps {
   readonly where?: unknown;
   readonly limit?: number;
   readonly cursor?: string;
+  /** Explicit finite page read, independent of presentation layout. */
+  readonly page?: true;
   readonly display?: "split";
   /** Stable source collection occurrence; required when display is split. */
   readonly occurrence?: string;
@@ -524,6 +530,8 @@ export interface TableProps {
   readonly where?: unknown;
   readonly limit?: number;
   readonly cursor?: string;
+  /** Explicit finite page read, independent of presentation layout. */
+  readonly page?: true;
   readonly display?: "split";
   /** Stable source collection occurrence; required when display is split. */
   readonly occurrence?: string;
