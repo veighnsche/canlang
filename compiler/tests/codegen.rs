@@ -5336,6 +5336,37 @@ fn t15a_structural_literal_default() {
     );
 }
 
+/// Stored-field normalization and literal bounds remain visible in the
+/// source-derived artifact consumed by State/Values.
+#[test]
+fn t15a_model_field_modifiers_reach_artifact() {
+    let src = "app FieldModifiers\nGiven\n Item { title:text trim min=1 max=160, amount:decimal min=1.20 max=5.00 }\n policy Item read=members\nWhen\n crud Item by=members fields=title,amount\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    assert!(diags.iter().all(|d| d.code != "E6006"), "{diags:?}");
+    let model = t15a_model(&artifact, "FieldModifiers.Item");
+    let title = t15a_field(model, "title");
+    assert_eq!(title.trim, Some(true));
+    assert_eq!(title.min, Some(serde_json::Value::from(1)));
+    assert_eq!(title.max, Some(serde_json::Value::from(160)));
+    let amount = t15a_field(model, "amount");
+    assert_eq!(amount.trim, None);
+    assert_eq!(amount.min, Some(serde_json::Value::String("1.20".into())));
+    assert_eq!(amount.max, Some(serde_json::Value::String("5.00".into())));
+    assert!(title.to_json().contains("\"trim\":true"));
+    assert!(title.to_json().contains("\"min\":1"));
+    assert!(title.to_json().contains("\"max\":160"));
+}
+
+#[test]
+fn t15a_unrepresentable_model_field_bound_is_diagnostic() {
+    let src = "app FieldBound\nGiven\n Item { title:text min=1+2 }\n policy Item read=members\nWhen\n crud Item by=members fields=title\nThen\n";
+    let (_program, _artifact, diags) = d03_emit(src);
+    assert!(
+        diags.iter().any(|d| d.code == "E6008" && d.message.contains("model field bound")),
+        "unrepresentable checked bound must not disappear from artifact metadata: {diags:?}"
+    );
+}
+
 // --- T15b provider-descriptor join -------------------------------------------
 
 /// T15b fake `std` operation with no T13c result nominal: drives the

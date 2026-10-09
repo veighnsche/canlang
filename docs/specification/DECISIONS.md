@@ -3631,3 +3631,7 @@ Accepted the existing Interfaces preference handler and canonical refusal mapper
 ## 2026-10-09 — Keep affected Cloudflare CI fixtures on current contracts
 
 Accepted typed test-host/fixture corrections for current Undici fetch values, JSON import attributes, immutable runtime mocks and exact optional control/business-error fields. Runtime staging fixtures retain real entry bytes/hash, app policy and selector provenance. Browser cases use Playwright’s installed Chromium, including the unchanged native CDP visibility path. Root noEmit passes; bridge/control 13/13 and runtime stdlib 20/20 pass, MCP/module-import checks pass, and the three previously failed browser launches now pass their actual assertions. No checks are disabled and no production admission is widened.
+
+## 2026-10-09 — unfinished stored-field modifier producer join
+
+Checkpoint the T02 native artifact join for authored stored-field trim and literal bounds, using the current Contracts wire claims and exact numeric representation. Unrepresentable static claims refuse explicitly instead of disappearing. Required/null/default/server ownership remains separate; derived and unconstrained fields omit claims. The first affected build found an i128-to-JSON conversion error, now corrected through checked u64 conversion for bounded lengths; focused tests are running. This checkpoint is not validation or Office O01 acceptance.
