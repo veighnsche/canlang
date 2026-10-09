@@ -3517,3 +3517,7 @@ The dev preview freshness gate exposed a stale tracked Values WASM binary. Regen
 ### 2026-10-09 — Preserve setup-owned compiled example expectations
 
 The Cloudflare row adapter must read the expectation produced by the owning Testkit setup at assertion time. Forward that property through the row wrapper; do not retain its pre-setup placeholder or derive an oracle from the business result. A real Testkit/D1 success-and-denial regression passes, while actual Office/Generation reruns remain required after rebuilding the consumer.
+
+### 2026-10-09 — Retain failed rerun recipes and canonical retry guidance
+
+Passing/unsupported example runs do not allocate retained rerun artifacts, so routine successful checks cannot evict an earlier failed row. Safe HTTP failure projection preserves a validated retryable boolean or the owning closed-code default while withholding raw response details. These address the Codex review of 890ed600; bounded failed-artifact eviction remains explicit.

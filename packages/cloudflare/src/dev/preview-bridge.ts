@@ -6,7 +6,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { BusinessError } from "@canlang/contracts";
-import { isBusinessErrorCode, PUBLIC_ERROR_MESSAGES } from "@canlang/interfaces";
+import { buildBusinessError, isBusinessErrorCode } from "@canlang/interfaces";
 import type { LocalDev } from "./local-run.js";
 
 const BOOTSTRAP_PATH = "/_can_dev/preview/bootstrap";
@@ -47,7 +47,7 @@ export interface ProtectedPreview {
   close(): Promise<void>;
 }
 
-/** Project only the closed business code; response prose and field values are untrusted. */
+/** Project the closed code and boolean retry policy; response prose and values are untrusted. */
 function observedError(response: Response, body: Buffer): BusinessError | null {
   if (response.status < 400 || body.length === 0 || body.length > MAX_OBSERVED_ERROR_BYTES ||
       !(response.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return null;
@@ -59,7 +59,8 @@ function observedError(response: Response, body: Buffer): BusinessError | null {
   if (candidate === null || typeof candidate !== "object" || Array.isArray(candidate)) return null;
   const error = candidate as Record<string, unknown>;
   if (!isBusinessErrorCode(error.code) || typeof error.message !== "string") return null;
-  return { code: error.code, message: PUBLIC_ERROR_MESSAGES[error.code] };
+  return buildBusinessError(error.code, undefined,
+    typeof error.retryable === "boolean" ? { retryable: error.retryable } : undefined);
 }
 
 function positiveLimit(value: number, name: string): number {
