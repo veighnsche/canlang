@@ -28,6 +28,25 @@ anonymous-message, query and helper releases supersede the pre-sync leads;
 the duplicate unvalidated anonymous producer is retained only in local branch
 `codex/compiler-anonymous-unfinished-checkpoint`, without acceptance credit.
 
+The current compiler alias leaf retains checked descriptor provenance through
+immutable, grouped and chained locals. IR lowers raw descriptors through the
+existing owning decoder and reads captured anonymous/named values before any
+same-spelling module reconstruction. The actual native case passes **1/1** with
+real Values/UI imports, named dependent defaults, source locale, getter order,
+first-failure identity and module-name collisions. Semantic alias controls pass
+**1/1**; selected-call regressions pass **7/7**, named slot controls **6/6** and
+raw anonymous coverage **1/1**. Independent HIGH review accepted the corrected
+producer/consumer paths. The real UI/stdlib dependency closure rebuilt
+successfully (**10/10** tasks) to replace stale installed outputs.
+
+Ownerless enums now retain canonical ordered `enum(a,b)` IDs and the existing
+Values `enum` presentation tag; named/anonymous native formatting and hostile
+structural operands are qualified in that same case. Actual UI formatting still
+rejects the canonical ID. UI must release exact finite-enum recognition and
+case-preserving admission; Values presentation currently checks string shape,
+not membership, and direct registry calls do not qualify typed input admission.
+This is a bounded compiler leaf, with no broader reference/count completion.
+
 The user has authorized finishing the remaining compiler tasks. Use the [recorded work/review settings](../../docs/research/compiler-library-audit-20261006/resumption/model-allocation.md); overlapping references share work and completed receipts are reused at matching scope. Current completion joins append to the canonical coverage ledger; historical source pins remain unchanged.
 
 | Reference | Current outcome |
