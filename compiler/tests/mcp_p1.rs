@@ -63,7 +63,7 @@ When
 Then
  # Browse the shop.
  page / title="Shop"
-  breadcrumbs
+  text "Shop"
 "#;
 
 /// Hermetic golden catalog (mirrors `codegen.rs`): availability is pinned
@@ -261,11 +261,12 @@ fn operations_descriptors_golden() {
         };
         keys.sort_unstable();
         let name = op.get("name").and_then(Json::as_str).unwrap();
-        let expected_keys: &[&str] = if ["Shop.approve", "Shop.restock"].contains(&name) {
-            &["description", "inputs", "kind", "name", "result"]
-        } else {
-            &["description", "inputs", "kind", "name"]
-        };
+        let expected_keys: &[&str] =
+            if ["Shop.approve", "Shop.restock", "Shop.describe"].contains(&name) {
+                &["description", "inputs", "kind", "name", "result"]
+            } else {
+                &["description", "inputs", "kind", "name"]
+            };
         assert_eq!(keys, expected_keys, "contract keys for {op:?}");
     }
 
@@ -412,6 +413,12 @@ fn operations_descriptors_golden() {
         Some("Describe one gadget briefly.")
     );
     assert_ref_field(describe, "gadget", "Shop.Gadget", false, true);
+    assert!(
+        matches!(describe.get("result"), Some(Json::Obj(fields))
+            if fields.len() == 1 && fields[0].0 == "type"
+                && fields[0].1.as_str() == Some("text")),
+        "the declared read result is exactly {{type:\"text\"}}: {describe:?}"
+    );
 
     // The entrypoint `canApp()` registry carries the same descriptors.
     let entry = &artifact.modules[0].js;
@@ -448,7 +455,7 @@ fn operations_descriptors_golden() {
 /// derivation adds nothing.
 #[test]
 fn trusted_handlers_excluded_from_descriptors() {
-    let src = "app Shop\nGiven\n Gadget { title:text }\n policy Gadget read=members\nWhen\n scenario audit on=teams.member_removed\n  do\n   let x = 1\nThen\n page / title=\"Shop\"\n  breadcrumbs\n";
+    let src = "app Shop\nGiven\n Gadget { title:text }\n policy Gadget read=members\nWhen\n scenario audit on=teams.member_removed\n  do\n   let x = 1\nThen\n page / title=\"Shop\"\n  text \"Shop\"\n";
     let (artifact, diags, catalog_path) = compile_source(src);
     let _ = std::fs::remove_file(&catalog_path);
     assert_eq!(diags.len(), 1, "only the trigger diagnostic: {diags:?}");
@@ -485,7 +492,7 @@ fn trusted_handlers_excluded_from_descriptors() {
 /// Never an ambiguous closed schema.
 #[test]
 fn record_field_collision_omits_update_and_delete() {
-    let src = "app Shop\nGiven\n Gadget { title:text, record:text }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title,record\nThen\n page / title=\"Shop\"\n  breadcrumbs\n";
+    let src = "app Shop\nGiven\n Gadget { title:text, record:text }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title,record\nThen\n page / title=\"Shop\"\n  text \"Shop\"\n";
     let (artifact, diags, catalog_path) = compile_source(src);
     let _ = std::fs::remove_file(&catalog_path);
     assert!(diags.is_empty(), "collision omits silently: {diags:?}");

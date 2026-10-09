@@ -404,6 +404,9 @@ fn already_formatted_files_report_unchanged() {
 
 #[test]
 fn invalid_sources_yield_diagnostics_and_no_output() {
+    let each = "app A\nGiven\n M { x:int }\n event E {}\nWhen\n scenario s on=E each=M as m\n  do\n   set m { x=1 }\nThen\n";
+    let formatted = format_fixed_point(each);
+    assert!(formatted.text.contains("scenario s on=E each=M as m"));
     let cases = [
         (
             "tab indent",
@@ -439,9 +442,9 @@ fn invalid_sources_yield_diagnostics_and_no_output() {
         ("missing sections", "app A\nGiven\n", None),
         ("junk", "app A\nGiven\n ))) \nWhen\nThen\n", None),
         (
-            "each attribute",
-            "app A\nGiven\nWhen\n scenario s on=E each=M as m\n  do\n   set m {x=1}\nThen\n",
-            Some("E1203"),
+            "duplicate each attribute",
+            "app A\nGiven\nWhen\n scenario s on=E each=M as m each=M\n  do\n   set m {x=1}\nThen\n",
+            Some("E1202"),
         ),
     ];
     for (name, text, code) in cases {

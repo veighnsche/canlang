@@ -118,6 +118,12 @@ Complete TextRequest construction/fixtures and wrong-kind/duration/member
 controls qualify the existing **282** semantic cases (281 reused plus the
 corrected fixture **1/1**); the actual native nominal consumer passes **1/1**.
 Independent review accepts this exact mapping without weakening compatibility.
+Descriptor-only controls use supported presentation fixtures while retaining
+strict input/result schemas and refusals (**21/21**). Narrow runtime facades now
+re-export the actual public ValueError; invocation defaults and invalid values,
+plus valid/duplicate-each formatter controls, pass **5/5**. Released scalar and
+static-judgment/default/result controls pass **14/14**; their invalid-result,
+literal/overflow, nullable-reference and Corpus refusal gates remain intact.
 
 Current remaining prerequisites are recorded here without reopening accepted
 compiler leaves:

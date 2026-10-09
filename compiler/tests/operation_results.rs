@@ -439,16 +439,8 @@ fn invalid_result_body_never_publishes_a_successful_artifact() {
             "E3001",
         ),
         (
-            "app Invalid\nGiven\nWhen\n scenario instant(raw:text,value:datetime=datetime(raw)) read=true -> datetime by=members\n  do return value\nThen\n",
-            "E6008",
-        ),
-        (
             "app Invalid\nGiven\nWhen\n scenario day() read=true -> date by=members\n  do return date(\"2030-02-30\")\nThen\n",
             "E3001",
-        ),
-        (
-            "app Invalid\nGiven\nWhen\n scenario day(raw:text,value:date=date(raw)) read=true -> date by=members\n  do return value\nThen\n",
-            "E6008",
         ),
         (
             "app Invalid\nGiven\n Ledger {cash:money=money(92233720368547758.08,\"EUR\")}\nWhen\nThen\n",
@@ -456,14 +448,6 @@ fn invalid_result_body_never_publishes_a_successful_artifact() {
         ),
         (
             "app Invalid\nGiven\n Ledger {coins:money[]=[money(92233720368547758.08,\"EUR\")]}\nWhen\nThen\n",
-            "E6008",
-        ),
-        (
-            "app Invalid\nGiven\nWhen\n scenario cash(raw:decimal,value:money=money(raw,\"EUR\")) read=true -> money by=members\n  do return value\nThen\n",
-            "E6008",
-        ),
-        (
-            "app Invalid\nGiven\nWhen\n scenario coins(raw:decimal,value:money[]=[money(raw,\"EUR\")]) read=true -> money[] by=members\n  do return value\nThen\n",
             "E6008",
         ),
     ] {
@@ -479,5 +463,69 @@ fn invalid_result_body_never_publishes_a_successful_artifact() {
             "{response}"
         );
         assert!(response.get("operations").is_none(), "{response}");
+    }
+}
+
+#[test]
+fn dynamic_native_defaults_publish_computed_presence_without_wire_values() {
+    for (source, name, profile) in [
+        (
+            "app Invalid\nGiven\nWhen\n scenario instant(raw:text,value:datetime=datetime(raw)) read=true -> datetime by=members\n  do return value\nThen\n",
+            "Invalid.instant",
+            "datetime",
+        ),
+        (
+            "app Invalid\nGiven\nWhen\n scenario day(raw:text,value:date=date(raw)) read=true -> date by=members\n  do return value\nThen\n",
+            "Invalid.day",
+            "date",
+        ),
+        (
+            "app Invalid\nGiven\nWhen\n scenario cash(raw:decimal,value:money=money(raw,\"EUR\")) read=true -> money by=members\n  do return value\nThen\n",
+            "Invalid.cash",
+            "money",
+        ),
+        (
+            "app Invalid\nGiven\nWhen\n scenario coins(raw:decimal,value:money[]=[money(raw,\"EUR\")]) read=true -> money[] by=members\n  do return value\nThen\n",
+            "Invalid.coins",
+            "money[]",
+        ),
+    ] {
+        let output = compile(source);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        let artifact: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert!(artifact.get("diagnostics").is_none(), "{artifact}");
+        let selected = operation(&artifact, name);
+        assert_eq!(selected["result"], json!({"type":profile}));
+        let fields = selected["inputs"]["fields"].as_array().unwrap();
+        assert_eq!(fields.len(), 2);
+        let value = &fields[1];
+        assert_eq!(value["name"], "value");
+        assert_eq!(value["computedDefault"], true);
+        assert_eq!(value["required"], false);
+        assert!(value.get("nullable").is_none());
+        if profile == "date" {
+            assert_eq!(value["valueType"], "date");
+        } else {
+            assert!(value.get("valueType").is_none());
+        }
+        assert_eq!(
+            value["field"]["kind"],
+            match profile {
+                "datetime" => "datetime",
+                "date" => "string",
+                _ => "money",
+            }
+        );
+        assert_eq!(value.get("array").is_some(), profile.ends_with("[]"));
+        assert!(
+            value.get("default").is_none(),
+            "no fabricated wire default: {value}"
+        );
+        let entry = artifact["modules"][0]["js"].as_str().unwrap();
+        assert!(entry.contains("computedDefault:true"), "{entry}");
     }
 }
