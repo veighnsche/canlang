@@ -1473,13 +1473,23 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
     match factory {
         "card" => matches!(key, "title" | "layout"),
         "collapse" => matches!(key, "caption" | "open" | "id" | "variant"),
-        "tabs" => matches!(key, "id" | "size" | "variant"),
+        "tabs" => matches!(key, "id" | "size" | "variant" | "binding" | "caption"),
         "title" => matches!(key, "text" | "level"),
         "text" => key == "values",
         "content" => key == "value",
         "list" => matches!(
             key,
-            "model" | "parent" | "where" | "limit" | "cursor" | "empty" | "display" | "page"
+            "model"
+                | "parent"
+                | "where"
+                | "limit"
+                | "cursor"
+                | "empty"
+                | "display"
+                | "page"
+                | "order"
+                | "search"
+                | "count"
         ),
         "table" => matches!(
             key,
@@ -2725,11 +2735,16 @@ impl<'a> Emitter<'a> {
                 } else {
                     "."
                 };
-                if object_key(field) == *field {
+                let member = if object_key(field) == *field {
                     format!("{base_text}{op}{field}")
                 } else {
                     let optional = if op == "?." { "?." } else { "" };
                     format!("{base_text}{optional}[{}]", js_string(field))
+                };
+                if expr.ty.nullable_inner().is_some() {
+                    format!("({member} ?? null)")
+                } else {
+                    member
                 }
             }
             IrExpr::Call { target, args } => self.lower_call(target, args, span),
@@ -2782,15 +2797,38 @@ impl<'a> Emitter<'a> {
                 }
                 self.stdlib.insert("delivery".to_string());
                 let record_text = self.lower_expr(record);
-                let selected = js_string(&props.join("."));
+                // Error is one authorized receipt leaf. Its closed payload
+                // members are projected locally, never new receipt selectors.
+                let error_projection =
+                    props.first().is_some_and(|prop| prop == "error") && props.len() > 1;
+                let selected = js_string(&if error_projection {
+                    "error".to_string()
+                } else {
+                    props.join(".")
+                });
                 let observed = format!(
                     "(await delivery(c,{{record:{record_text},field:{}}},[{selected}]))",
                     js_string(field)
                 );
-                if expr.ty.nullable_inner().is_some() {
-                    format!("({observed}?.[{selected}] ?? null)")
+                let nullable = expr.ty.nullable_inner().is_some();
+                let mut projected = if nullable {
+                    format!("{observed}?.[{selected}]")
                 } else {
                     format!("{observed}[{selected}]")
+                };
+                if error_projection {
+                    for field in &props[1..] {
+                        projected.push_str(&format!(
+                            "{}[{}]",
+                            if nullable { "?." } else { "" },
+                            js_string(field)
+                        ));
+                    }
+                }
+                if nullable {
+                    format!("({projected} ?? null)")
+                } else {
+                    projected
                 }
             }
             IrExpr::Message(message) => self.lower_message(message),
@@ -5187,9 +5225,10 @@ impl<'a> Emitter<'a> {
             ));
         }
         format!(
-            "preferences:{{{app}:{{{entries}}}}},",
+            "preferences:{{{app}:{{{entries},...(c.preferences?.[{owner_key}]??{{}})}}}},",
             app = object_key(owner),
-            entries = entries.join(",")
+            entries = entries.join(","),
+            owner_key = js_string(owner),
         )
     }
 
@@ -5215,6 +5254,15 @@ impl<'a> Emitter<'a> {
         }
         if page.nav_none {
             members.push("nav:\"none\"".to_string());
+        }
+        if !page.preference_fields.is_empty() {
+            let fields = page.preference_fields.iter().map(|field| format!(
+                "{{name:{},options:[{}],defaultValue:{}}}",
+                js_string(&field.name),
+                field.options.iter().map(|value| js_string(value)).collect::<Vec<_>>().join(","),
+                js_string(&field.default_value),
+            )).collect::<Vec<_>>().join(",");
+            members.push(format!("preferenceFields:[{fields}]"));
         }
         // `poll=`/`refresh=` (DESIGN §9): the cadence as exact-BigInt
         // millis plus the canonical refresh mutation. Sparse like the

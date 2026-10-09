@@ -533,22 +533,21 @@ fn golden_teamtasks_structure() {
         "list predicate lambda"
     );
     assert!(
-        !entry.contains("search:[\"title\"]")
-            && !entry.contains("filter:[\"done\"]")
-            && ["search", "filter"].iter().all(|option| {
-                diags.iter().any(|d| {
-                    d.code == "E6008"
-                        && d.message
-                            == format!(
-                                "cannot lower list: option {option} has no consumed factory profile"
-                            )
-                })
-            }),
-        "unavailable list options are refused"
+        entry.contains("search:[\"title\"]"),
+        "source search selectors"
     );
     assert!(
-        !entry.contains("order:[\"-created\"]"),
-        "refused collection order is absent"
+        entry.contains("order:[\"-created\"]"),
+        "source fixed ordering"
+    );
+    assert!(
+        !entry.contains("filter:[\"done\"]")
+            && diags.iter().any(|d| {
+                d.code == "E6008"
+                    && d.message
+                        == "cannot lower list: option filter has no consumed factory profile"
+            }),
+        "unavailable filter option is refused"
     );
     assert!(
         entry.contains("renderRow:($can$l$313a726f77,$can$l$323a726f7756696577)=>"),
@@ -762,7 +761,7 @@ fn golden_teamtasks_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        12,
+        9,
         "unsupported count: {diags:?}"
     );
     for (word, n) in [("tooltip", 1), ("collapse", 1)] {
@@ -779,7 +778,7 @@ fn golden_teamtasks_structure() {
         ("cannot lower breadcrumbs:", 2),
         ("cannot lower pagination:", 0),
         ("cannot lower edit:", 2),
-        ("cannot lower list: option search", 2),
+        ("cannot lower list: option search", 0),
         ("cannot lower list: option filter", 1),
         ("cannot lower list: option display", 0),
     ] {
@@ -792,7 +791,7 @@ fn golden_teamtasks_structure() {
             "{profile} refusal"
         );
     }
-    for word in ["bound tabs", "collection order"] {
+    for word in ["bound tabs"] {
         assert_eq!(
             diags
                 .iter()
@@ -1065,7 +1064,17 @@ fn golden_expenseflow_structure() {
     assert!(entry.contains("export function canApp()"), "canApp factory");
     assert!(
         entry.contains("async \"expenses.submit\"(c,{expense:$can$l$323a657870656e7365}){"),
-        "submit body"
+        "submit body; actual handler signatures, guards and effects:\n{}",
+        entry
+            .lines()
+            .filter(|line| {
+                line.starts_with("async \"expenses.")
+                    || line.starts_with("async \"reporting.summarize\"")
+                    || line.starts_with("check(")
+                    || line.starts_with("await set(")
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
     );
     assert!(
         entry.contains(
@@ -1142,7 +1151,7 @@ fn golden_expenseflow_structure() {
         "row badge"
     );
     assert!(
-        entry.contains("$can$l$303a726f77.status === \"rejected\" ? $can$u$616c657274({context:$can$l$313a726f7756696577,children:[$can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$l$303a726f77.decision_note]})]}) : null"),
+        entry.contains("$can$l$303a726f77.status === \"rejected\" ? $can$u$616c657274({context:$can$l$313a726f7756696577,children:[$can$u$74657874({context:$can$l$313a726f7756696577,values:[($can$l$303a726f77.decision_note ?? null)]})]}) : null"),
         "gated alert"
     );
     assert!(
@@ -1219,8 +1228,8 @@ fn golden_expenseflow_structure() {
         "refused tabs selector is absent"
     );
     assert!(
-        !entry.contains("order:"),
-        "refused collection order is absent"
+        entry.contains("order:[\"-created\"]"),
+        "authored fixed collection order is consumed"
     );
     // Callables cover scenarios and generated CRUD ops (no delete).
     let callable_ids: Vec<&str> = artifact.callables.iter().map(|c| c.id.as_str()).collect();
@@ -1387,7 +1396,7 @@ fn golden_expenseflow_structure() {
     // Zero E6006 (tables and the approve sequence all bridge), zero
     // E6007 (the golden catalog verifies every referenced builtin),
     // BDD calls and dependent assertion types consume owning checked facts.
-    // Bound tabs, authored collection order and the unavailable UI carrier
+    // Bound tabs and unavailable UI carrier
     // profiles are explicitly refused; this is a test-only partial artifact.
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6006").count(),
@@ -1405,7 +1414,7 @@ fn golden_expenseflow_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        10,
+        9,
         "owning UI profile refusals: {diags:?}"
     );
     for (profile, count) in [
@@ -1428,7 +1437,7 @@ fn golden_expenseflow_structure() {
             "{profile} refusal"
         );
     }
-    for word in ["bound tabs", "collection order"] {
+    for word in ["bound tabs"] {
         assert_eq!(
             diags
                 .iter()
@@ -2350,8 +2359,8 @@ fn gap_helper_scalar_money_product() {
 }
 
 /// Delivery: the sole observation helper with compiler-resolved
-/// provenance and a static property list. Oracle: `CanCheck.mjs`
-/// (`(await delivery(c,{record:row,field:"delivery"},["status"]))?.status ?? null`).
+/// provenance and a static property list. Checked IR represents the selected
+/// nullable leaf, so observation and projection lower together.
 #[test]
 fn construct_delivery() {
     let ir = fixture_ir();
@@ -2365,28 +2374,29 @@ fn construct_delivery() {
             field: "delivery".to_string(),
             props: vec!["status".to_string()],
         },
-        ResolvedType::Nullable(Box::new(ResolvedType::Object(vec![]))),
+        ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::Text))),
     );
     let (text, imports, diags) = lower(&ir, &read);
     assert_eq!(
         text,
-        "await delivery(c,{record:row,field:\"delivery\"},[\"status\"])"
+        "((await delivery(c,{record:row,field:\"delivery\"},[\"status\"]))?.[\"status\"] ?? null)"
     );
     assert!(imports.iter().any(|i| i.contains("delivery")));
     assert!(diags.is_empty());
-    // Nullable access reads the checked locator first, then selects.
+    // A separate ordinary nullable object uses the same null normalization.
     let selected = typed(
         IrExpr::Member {
-            base: Box::new(read),
+            base: Box::new(typed(
+                IrExpr::Name("receipt".to_string()),
+                ResolvedType::Nullable(Box::new(ResolvedType::Object(vec![]))),
+            )),
             field: "status".to_string(),
         },
         ResolvedType::Nullable(Box::new(ResolvedType::Scalar(Scalar::Text))),
     );
-    let (text, _, _) = lower(&ir, &selected);
-    assert_eq!(
-        text,
-        "(await delivery(c,{record:row,field:\"delivery\"},[\"status\"]))?.status"
-    );
+    let (text, _, diags) = lower(&ir, &selected);
+    assert_eq!(text, "(receipt?.status ?? null)");
+    assert!(diags.is_empty());
 }
 
 /// Guards: `by` lowers to `check(hasRole(...) || ..., "forbidden")`;
@@ -2711,6 +2721,7 @@ fn construct_pages_admit_render() {
         poll: None,
         refresh: None,
         admit: vec![IrGuard::Role("expense.reviewer".to_string())],
+        preference_fields: vec![],
         render: vec![IrUi {
             view: None,
             factory: "table".to_string(),
@@ -2740,6 +2751,7 @@ fn construct_pages_admit_render() {
         poll: None,
         refresh: None,
         admit: vec![],
+        preference_fields: vec![],
         render: vec![],
         fn_name: "minePage".to_string(),
         descriptor_name: "minePageDescriptor".to_string(),
@@ -2809,6 +2821,7 @@ fn construct_page_preferences_preamble_reads_bindings() {
         poll: None,
         refresh: None,
         admit: vec![],
+        preference_fields: vec![],
         render: vec![IrUi {
             view: None,
             factory: "text".to_string(),
@@ -2842,8 +2855,8 @@ fn construct_page_preferences_preamble_reads_bindings() {
         module.js
     );
     assert!(
-        !module.js.contains("c.preferences"),
-        "no pctx preferences read:\n{}",
+        !module.js.contains("const preferences=c.preferences"),
+        "render reads admitted preference snapshot:\n{}",
         module.js
     );
     let (diags, _, _, _) = emitter.finish();
@@ -2906,6 +2919,7 @@ fn construct_page_admit_returns_preference_defaults() {
         poll: None,
         refresh: None,
         admit: vec![],
+        preference_fields: vec![],
         render: vec![],
         fn_name: "prefsPage".to_string(),
         descriptor_name: "prefsPageDescriptor".to_string(),
@@ -2915,7 +2929,7 @@ fn construct_page_admit_returns_preference_defaults() {
     let module = out.finish("test.mjs".to_string());
     assert!(
         module.js.contains(
-            "admit:async(c,routeBindings={})=>{return {preferences:{demo:{view:\"all\"}},};}"
+            "admit:async(c,routeBindings={})=>{return {preferences:{demo:{view:\"all\",...(c.preferences?.[\"demo\"]??{})}},};}"
         ),
         "admit returns prefs:\\n{}",
         module.js

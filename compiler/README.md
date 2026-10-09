@@ -1,7 +1,7 @@
 # CanLang compiler
 
 A Rust compiler with pinned, focused infrastructure libraries: library crate
-`canlang_compiler` plus the `can` binary. Fifteen subcommands, one dispatch
+`canlang_compiler` plus the `can` binary. Sixteen subcommands, one dispatch
 (`src/cli.rs`), exit
 0 clean / 10 errors reported / 2 tool failure:
 
@@ -13,6 +13,8 @@ A Rust compiler with pinned, focused infrastructure libraries: library crate
 - `run`, `test`, `build`, `deploy`, `activate` — thin lane-7 entries that
   exec `can-platform` with argument passthrough (override with
   `CAN_PLATFORM_BIN`); never a second engine.
+- `dev` — thin entry to the `can-dev` JSON session client (override with
+  `CAN_DEV_BIN`); `can dev help` lists available control commands.
 - `completions bash|zsh|fish` — print the shell completion script
   (also shipped as `can-completions.<shell>` in this directory).
 - `help [COMMAND]` — alias for `--help`.

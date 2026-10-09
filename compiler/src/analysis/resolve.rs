@@ -1257,8 +1257,8 @@ impl<'a> Resolver<'a> {
                 Some("score") => CheckedJudgmentKind::Score,
                 _ => continue,
             };
-            let runtime = kind == CheckedJudgmentKind::Choice
-                && Self::judgment_runtime_marker(item, text);
+            let runtime =
+                kind == CheckedJudgmentKind::Choice && Self::judgment_runtime_marker(item, text);
             let captions: Vec<_> = parts
                 .iter()
                 .copied()

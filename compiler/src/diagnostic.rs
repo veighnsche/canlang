@@ -38,6 +38,26 @@ pub struct Related {
     pub message: String,
 }
 
+/// Compiler-owned construct inventory for one diagnosed source position.
+///
+/// The IDs name Can help cards, not fixes. `complete` only covers the
+/// indicated grammar slot; a development profile must separately prove that
+/// each card works in its selected compiler and runtime revision.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct ConstructCandidates {
+    /// Shape version of this optional diagnostic extension.
+    pub version: u32,
+    /// `exact`, `structural`, `none`, or `unknown`.
+    pub disposition: &'static str,
+    /// Checked grammar position, when one survived parsing.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slot: Option<&'static str>,
+    /// Complete candidate IDs only when `complete` is true.
+    pub ids: Vec<&'static str>,
+    /// False whenever recovery or unsupported context prevents coverage.
+    pub complete: bool,
+}
+
 /// One diagnostic: stable code, severity, message and spans.
 #[derive(Debug, Clone)]
 pub struct Diagnostic {
@@ -54,6 +74,9 @@ pub struct Diagnostic {
     pub related: Vec<Related>,
     /// Documented machine tags, e.g. `unnecessary`.
     pub tags: Vec<String>,
+    /// Optional source-derived construct routing, absent when the compiler
+    /// cannot establish a useful authoring slot.
+    pub construct_candidates: Option<ConstructCandidates>,
 }
 
 impl Diagnostic {
@@ -66,6 +89,7 @@ impl Diagnostic {
             primary,
             related: Vec::new(),
             tags: Vec::new(),
+            construct_candidates: None,
         }
     }
 
@@ -162,6 +186,8 @@ struct DiagnosticJson<'a> {
     primary: SpanJson,
     related: Vec<RelatedJson<'a>>,
     tags: &'a [String],
+    #[serde(skip_serializing_if = "Option::is_none")]
+    construct_candidates: Option<&'a ConstructCandidates>,
 }
 
 #[derive(serde::Serialize)]
@@ -226,6 +252,7 @@ impl serde::Serialize for DiagnosticResult {
                         })
                         .collect(),
                     tags: &diagnostic.tags,
+                    construct_candidates: diagnostic.construct_candidates.as_ref(),
                 })
                 .collect(),
             omitted: self.omitted,

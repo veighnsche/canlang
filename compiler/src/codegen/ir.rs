@@ -776,6 +776,8 @@ struct Cx<'a> {
     page_fns: HashSet<String>,
     /// Preferences validator name per module (filled by rule maps).
     preference_validators: HashMap<ModuleId, String>,
+    /// Collected while decoding one page's bound tabs.
+    page_preference_fields: Vec<IrPreferenceField>,
     diags: Vec<Diagnostic>,
 }
 
@@ -814,6 +816,7 @@ impl<'a> Cx<'a> {
             g13_seen: HashSet::new(),
             page_fns: HashSet::new(),
             preference_validators: HashMap::new(),
+            page_preference_fields: Vec::new(),
             diags: Vec::new(),
         }
     }
@@ -1053,6 +1056,8 @@ pub enum IrExpr {
     DeliveryRead {
         record: Box<TypedExpr>,
         field: String,
+        /// Checked access chain; error members project from the authorized
+        /// `error` leaf locally rather than naming additional receipt leaves.
         props: Vec<String>,
     },
     /// Inline message descriptor → `message(...)`.
@@ -1612,6 +1617,8 @@ pub struct IrPage {
     pub refresh: Option<String>,
     /// Admission guards in source order.
     pub admit: Vec<IrGuard>,
+    /// Source-owned enum selectors saved through this page's POST route.
+    pub preference_fields: Vec<IrPreferenceField>,
     /// Render body: UI factory nodes in source order.
     pub render: Vec<IrUi>,
     /// Page function name.
@@ -1620,6 +1627,13 @@ pub struct IrPage {
     pub descriptor_name: String,
     /// Declaration span.
     pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct IrPreferenceField {
+    pub name: String,
+    pub options: Vec<String>,
+    pub default_value: String,
 }
 
 // --- Test artifacts (PR5 contract, lowered by `bdd`) -----------------------
@@ -2478,7 +2492,7 @@ impl<'a> Cx<'a> {
     }
 
     /// Decode a label/message value node: `MessageValue` text plus
-    /// variants, or a `Path` message reference (inlined).
+    /// variants, or a resolved zero-parameter message reference (inlined).
     fn decode_message_value(&mut self, module: ModuleId, key: &NodeKey) -> Option<IrMessage> {
         let node = self.node(key)?.clone();
         self.decode_message_node(module, &node)
@@ -2521,13 +2535,13 @@ impl<'a> Cx<'a> {
                     params: Vec::new(),
                 })
             }
-            SyntaxKind::Path => {
+            SyntaxKind::Path | SyntaxKind::NameRef => {
                 let name = path_text(self.db, node);
                 match self.resolve_member(module, &name) {
                     Some((id, _))
                         if matches!(
                             self.program.symbols.get(id.0 as usize).map(|s| &s.kind),
-                            Some(SymbolKind::Message { .. })
+                            Some(SymbolKind::Message { params }) if params.is_empty()
                         ) =>
                     {
                         self.program
@@ -6477,20 +6491,9 @@ impl<'a> Cx<'a> {
         let scope = Scope::module(module);
         let node = self.node(&page.node).cloned();
         let title = page.title.as_ref().and_then(|key| {
-            // Titles are static captions or context-free message values.
+            // Titles include checked references to zero-parameter messages.
             let title_node = self.node(key)?.clone();
-            if title_node.kind == SyntaxKind::MessageValue {
-                self.decode_message_node(module, &title_node)
-            } else if title_node.kind == SyntaxKind::Literal {
-                literal_string(self.db, &title_node).map(|source| IrMessage {
-                    source,
-                    source_lang: source_lang.clone(),
-                    variants: Vec::new(),
-                    params: Vec::new(),
-                })
-            } else {
-                None
-            }
+            self.decode_message_node(module, &title_node)
         });
         let title = title.unwrap_or_else(|| {
             self.gap(
@@ -6512,6 +6515,7 @@ impl<'a> Cx<'a> {
             .unwrap_or_else(|| ("/".to_string(), None, None, false, None, None));
         let mut admit = Vec::new();
         let mut render = Vec::new();
+        self.page_preference_fields.clear();
         if let Some(node) = node.as_ref() {
             for child in kids(node) {
                 match child.kind {
@@ -6564,6 +6568,7 @@ impl<'a> Cx<'a> {
             poll,
             refresh,
             admit,
+            preference_fields: std::mem::take(&mut self.page_preference_fields),
             render,
             fn_name,
             descriptor_name,
@@ -6873,14 +6878,13 @@ impl<'a> Cx<'a> {
                         self.diags.push(Diagnostic::error("E6008", "cannot lower tabs: only tab item children have an owning factory profile".to_string(), child.span));
                     }
                 }
-                if let Some(target) = kids(node)
+                let bound_target = kids(node)
                     .iter()
                     .find(|n| is_expression(n.kind) || n.kind == SyntaxKind::MessageValue)
-                {
+                    .copied();
+                if bound_target.is_some() && kids(node).iter().any(|n| n.kind == SyntaxKind::Tab) {
                     self.diags.push(Diagnostic::error(
-                        "E6008",
-                        "cannot lower bound tabs: canonical owned preference binding and save lifecycle are not implemented".to_string(),
-                        target.span,
+                        "E6008", "cannot lower bound tabs with authored tab panels".to_string(), node.span,
                     ));
                     return None;
                 }
@@ -6902,6 +6906,13 @@ impl<'a> Cx<'a> {
                         && let Some(value) = value
                     {
                         props.push((name.clone(), self.decode_word_attr(scope, &name, value)));
+                    }
+                }
+                if let Some(target) = bound_target {
+                    let (binding, caption) = self.decode_bound_tabs(scope, target)?;
+                    props.push(("binding".to_string(), binding));
+                    if let Some(caption) = caption {
+                        props.push(("caption".to_string(), caption));
                     }
                 }
                 let children = kids(node)
@@ -7019,6 +7030,97 @@ impl<'a> Cx<'a> {
             return None;
         }
         Some(value)
+    }
+
+    /// One transient panel payload consumed only by its owning `tabs`.
+    fn decode_bound_tabs(
+        &mut self,
+        scope: &Scope,
+        target: &SyntaxNode,
+    ) -> Option<(TypedExpr, Option<TypedExpr>)> {
+        let current = self.decode_expr(scope, target);
+        let (cases, field_id) = match &current.ty {
+            ResolvedType::Enum { cases, owner: Some(field_id) } => (cases.clone(), *field_id),
+            _ => {
+                self.diags.push(Diagnostic::error(
+                    "E6008", "bound tabs needs a checked owned enum preference".to_string(), target.span,
+                ));
+                return None;
+            }
+        };
+        let IrExpr::Member { base, field } = &current.expr else {
+            self.diags.push(Diagnostic::error(
+                "E6008", "bound tabs needs a direct preferences field".to_string(), target.span,
+            ));
+            return None;
+        };
+        if !matches!(&base.expr, IrExpr::Name(name) if name == "preferences") {
+            self.diags.push(Diagnostic::error(
+                "E6008", "bound tabs needs a direct preferences field".to_string(), target.span,
+            ));
+            return None;
+        }
+        let Some(symbol) = self.program.symbols.get(field_id.0 as usize).cloned() else {
+            self.diags.push(Diagnostic::error("E6008", "bound tabs field has no checked declaration".to_string(), target.span));
+            return None;
+        };
+        let SymbolKind::Field { owner, .. } = &symbol.kind else {
+            self.diags.push(Diagnostic::error("E6008", "bound tabs field has no preference owner".to_string(), target.span));
+            return None;
+        };
+        if symbol.module != scope.module || symbol.name != *field ||
+            !matches!(self.program.symbols.get(owner.0 as usize).map(|item| &item.kind), Some(SymbolKind::Preferences { .. })) {
+            self.diags.push(Diagnostic::error("E6008", "bound tabs field has no local preference owner".to_string(), target.span));
+            return None;
+        }
+        let (_, default, _, _, label, _) = self.decode_field(&symbol, *owner);
+        let Some(IrDefault::Literal(default)) = default else {
+            self.diags.push(Diagnostic::error("E6008", "bound tabs preference needs a literal enum default".to_string(), target.span));
+            return None;
+        };
+        let IrExpr::Text(default_value) = default.expr else {
+            self.diags.push(Diagnostic::error("E6008", "bound tabs preference default must be an enum case".to_string(), target.span));
+            return None;
+        };
+        if cases.is_empty() || !cases.contains(&default_value) {
+            self.diags.push(Diagnostic::error("E6008", "bound tabs preference default is not a listed case".to_string(), target.span));
+            return None;
+        }
+        if !self.page_preference_fields.iter().any(|item| item.name == symbol.name) {
+            self.page_preference_fields.push(IrPreferenceField {
+                name: symbol.name.clone(), options: cases.clone(), default_value,
+            });
+        }
+        let text = |value: String| TypedExpr::new(IrExpr::Text(value), ResolvedType::Scalar(Scalar::Text), target.span);
+        let options = cases.into_iter().map(|case| {
+            let caption = label.as_ref().and_then(|label| label.values.iter().find(|(value, _)| value == &case))
+                .map(|(_, caption)| TypedExpr::new(IrExpr::Message(caption.clone()), ResolvedType::Scalar(Scalar::Text), target.span))
+                .unwrap_or_else(|| text(case.clone()));
+            TypedExpr::new(IrExpr::Object(vec![("value".to_string(), text(case)), ("label".to_string(), caption)]),
+                ResolvedType::Unknown, target.span)
+        }).collect();
+        let ctx = TypedExpr::new(IrExpr::Name("c".to_string()), ResolvedType::Unknown, target.span);
+        let member = |base: TypedExpr, field: String| TypedExpr::new(
+            IrExpr::Member { base: Box::new(base), field }, ResolvedType::Unknown, target.span,
+        );
+        let module_name = self.program.modules.iter().find(|module| module.id == scope.module)?.name.clone();
+        let version = member(member(member(ctx.clone(), "preferenceVersions".to_string()), module_name), symbol.name.clone());
+        let post_to = TypedExpr::new(IrExpr::Binary {
+            op: IrBinOp::Coalesce,
+            left: Box::new(member(ctx.clone(), "pollUrl".to_string())),
+            right: Box::new(member(ctx, "path".to_string())),
+        }, ResolvedType::Scalar(Scalar::Text), target.span);
+        let binding = TypedExpr::new(IrExpr::Object(vec![
+            ("name".to_string(), text(symbol.name)),
+            ("options".to_string(), TypedExpr::new(IrExpr::Array(options), ResolvedType::Unknown, target.span)),
+            ("current".to_string(), current),
+            ("version".to_string(), version),
+            ("postTo".to_string(), post_to),
+        ]), ResolvedType::Unknown, target.span);
+        let caption = label.map(|label| TypedExpr::new(
+            IrExpr::Message(label.text), ResolvedType::Scalar(Scalar::Text), target.span,
+        ));
+        Some((binding, caption))
     }
 
     /// One transient panel payload consumed only by its owning `tabs`.
@@ -8777,7 +8879,9 @@ impl<'a> Cx<'a> {
                 "parent", "empty", "limit", "cursor", "columns", "order", "display",
             ]
         } else {
-            &["parent", "empty", "limit", "cursor", "order", "display"]
+            &[
+                "parent", "empty", "limit", "cursor", "order", "search", "display",
+            ]
         };
         self.check_ui_attributes(node, word, admitted);
         if kids(node)
@@ -8892,20 +8996,53 @@ impl<'a> Cx<'a> {
             if !admitted.contains(&name.as_str()) {
                 continue;
             }
-            if name == "order" {
-                self.diags.push(Diagnostic::error(
-                    "E6008",
-                    "cannot lower collection order: the owning query profile does not forward authored ordering".to_string(),
-                    value.span,
-                ));
-                continue;
-            }
             match name.as_str() {
-                "search" | "filter" | "columns" => {
+                "order" | "search" | "filter" | "columns" => {
+                    if name == "order" && word != "list" {
+                        self.diags.push(Diagnostic::error(
+                            "E6008",
+                            "cannot lower table order: the table query profile does not forward authored ordering".to_string(),
+                            value.span,
+                        ));
+                        continue;
+                    }
+                    if name == "order" && value.kind != SyntaxKind::Selectors {
+                        self.diags.push(Diagnostic::error(
+                            "E6008",
+                            "cannot lower collection order: preference-dispatched ordering has no query profile".to_string(),
+                            value.span,
+                        ));
+                        continue;
+                    }
                     let strings = if value.kind == SyntaxKind::Selectors {
                         kids(value)
                             .iter()
                             .flat_map(|path| {
+                                if name == "order" {
+                                    let key = if path.kind == SyntaxKind::Descending {
+                                        kids(path)
+                                            .into_iter()
+                                            .find(|child| child.kind == SyntaxKind::Path)
+                                    } else {
+                                        Some(*path)
+                                    };
+                                    return key
+                                        .and_then(|key| {
+                                            self.program
+                                                .types
+                                                .ui_order_selectors
+                                                .get(&NodeKey::of(key))
+                                        })
+                                        .cloned()
+                                        .map(|canonical| vec![canonical])
+                                        .unwrap_or_else(|| {
+                                            self.gap(
+                                                "UI order selector has no checked field-relative path".to_string(),
+                                                path.span,
+                                            );
+                                            Vec::new()
+                                        });
+                                }
                                 self.program
                                     .types
                                     .delivery_selectors
@@ -8991,6 +9128,63 @@ impl<'a> Cx<'a> {
             .filter(|n| is_ui_node(n.kind))
             .copied()
             .collect();
+        let counts: Vec<_> = child_nodes
+            .iter()
+            .copied()
+            .filter(|child| ui_word(self.db, child) == "count")
+            .collect();
+        if let Some(count) = counts.first() {
+            let attributes = ui_attributes(self.db, count);
+            let label = attributes
+                .iter()
+                .find(|(name, _)| name == "label")
+                .and_then(|(_, value)| *value);
+            if counts.len() > 1
+                || attributes.len() != 1
+                || label.is_none()
+                || kids(count)
+                    .iter()
+                    .any(|child| is_expression(child.kind) || is_ui_node(child.kind))
+            {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower count: one list-level count with a static label and no body is supported".to_string(),
+                    count.span,
+                ));
+            } else if word != "list" {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower count: count belongs to a list".to_string(),
+                    count.span,
+                ));
+            } else if let Some(label) = label {
+                if let Some(message) = self.decode_message_node(scope.module, label) {
+                    props.push((
+                        "count".to_string(),
+                        TypedExpr::new(
+                            IrExpr::Object(vec![(
+                                "label".to_string(),
+                                TypedExpr::new(
+                                    IrExpr::Message(message),
+                                    ResolvedType::Scalar(Scalar::Text),
+                                    label.span,
+                                ),
+                            )]),
+                            ResolvedType::Unknown,
+                            count.span,
+                        ),
+                    ));
+                } else {
+                    self.diags.push(Diagnostic::error(
+                        "E6008",
+                        "cannot lower count: label must be static text or a context-free message"
+                            .to_string(),
+                        label.span,
+                    ));
+                }
+            }
+        }
+        child_nodes.retain(|child| ui_word(self.db, child) != "count");
         let pagination: Vec<_> = child_nodes
             .iter()
             .copied()

@@ -10,10 +10,9 @@ The current installed native case passed1/1(0.59s) after correcting the real
 contained-list model/parent payload omission found in its first0/1(0.61s) run.
 It verifies two uses, localization, distinct controls and projected nested rows.
 After the owning releases, the changed case passed1/1(4.75s) with native bool
-status and omitted-empty shared default on actual empty nested queries. The
-selected action-bearing CanBook table contract remains open: action/table-row
-and split selection payloads plus prepared-form per-use edit identity remain. Nested show definitions and prepared forms refuse;
-this finite producer result grants no full original52/compiler-reference credit.
+status and omitted-empty shared default on actual empty nested queries. Later sections qualify protected actions/forms, split selection, page markers
+and bound row edits. Nested show definitions and the wider CanBook application
+contract remain open; this finite producer result grants no full original52/compiler-reference credit.
 
 The source-side final check `cargo clippy --manifest-path compiler/Cargo.toml
 --locked --offline -j2 --lib --bin can -- -D warnings` passes (exit 0, 5.60s;
@@ -60,3 +59,47 @@ action-content control, focused Clippy
 passes (exit 0, 2.93s; handle `30727`). The scoped rustfmt check also passes;
 the only formatting correction was test-line wrapping, with no semantic change
 or rerun afterward. No unrelated native case or broader suite was run.
+
+## Native split-table view case
+
+The current affected view case passes **1/1** (0.38s) through the real
+compiler/artifact, installed Interfaces selection parser and released UI table
+split consumer. The native href selects the current projection and renders two
+unchanged views with signed outer/nested actions, tab and form labels stable
+across locale changes and requery. Absent, unknown and currently absent
+projected rows produce no callback, detail query or form. The producer accepts
+`display=split` with private stable collection-occurrence/table `row_scope`;
+ordinary table children without split, unknown display values and source
+occurrences refuse. The test uses a controlled authorized-query port only: it
+does not claim actual State principal revocation, D1, viewport/key focus, or full
+CanBook execution. The owning Roadmap14 renders and Interfaces12 result are
+reused.
+
+The changed-source build passes (11.52s), focused Clippy passes (exit 0, 3.22s;
+handle `40408`), and scoped rustfmt checks pass after test-only wrapping. This
+adds only the finite split-view case; full52 pagination/parent/cursor/filters/
+order/defaults, `time`/`by`/`require`, held11 and full CanBook remain open. The
+original **58/67** count is unchanged.
+
+
+## Paged collection and bound row edit case
+
+The same case now passes **1/1** (0.80s) with `pagination` on the split table
+and two plain nested list expansions. The marker reaches the native query as
+`page:true`; compiler-owned occurrences remain distinct and stable across
+locale/selection changes and nested requery. Split alone does not request a
+page. Marker placement, headers, attributes, bodies and repetition refuse;
+authored private `page`/`occurrence` attributes retain parser refusals.
+
+Authored Card and Detail row edits select their checked enabled CRUD update
+and writable fields. The actual installed preparer/UI renders the source field
+captions and projected initial values, seals only each record's ID/version,
+and preserves distinct stable controls/binding/draft identities. Generated
+preparation is once per source expansion. Outside-row, disabled-update and
+unsupported edit fields/headers/attributes/bodies refuse. The controlled
+query-port scope remains: current grant/version dispatch, full State/D1 paging
+and complete CanBook/dev-server acceptance are not qualified by this case.
+The two affected goldens pass after correcting their protected-form and
+admitted pagination/split expectations; the exposed multiline source-map
+writer bug is fixed with unchanged emitted JavaScript. Focused lib/bin Clippy
+and scoped formatting pass. Compiler completion remains **58/67**.

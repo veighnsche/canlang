@@ -4,22 +4,12 @@
 //! no authorization, protected-binding or preference-save lifecycle claim.
 
 #[test]
-fn unsupported_preference_tabs_and_order_refuse_at_the_authored_profile() {
+fn unsupported_dynamic_order_refuses_at_the_authored_profile() {
     use std::path::PathBuf;
     use std::process::Command;
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
     let prefix = "app BoundUi\nGiven\n Todo { title:text }\n policy Todo read=public\nWhen\nThen\n preferences { view:enum(all,finished)=all label={text=\"View\",values={all=\"All\",finished=\"Finished\"}} }\n page / title=\"Page\"\n";
     for (body, profile, authored) in [
-        (
-            "  tabs preferences.view\n",
-            "bound tabs",
-            "preferences.view",
-        ),
-        (
-            "  list Todo order=title empty=\"No tasks\"\n   text row.title\n",
-            "collection order",
-            "title",
-        ),
         (
             "  list Todo order={by=preferences.view,default=[-created],cases={finished=[title]}} empty=\"No tasks\"\n   text row.title\n",
             "collection order",
@@ -60,6 +50,75 @@ fn unsupported_preference_tabs_and_order_refuse_at_the_authored_profile() {
             "blocked profile published modules"
         );
     }
+}
+
+#[test]
+fn bound_tabs_emit_source_options_and_request_owned_save_route() {
+    use std::path::PathBuf;
+    use std::process::Command;
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let source = "app BoundUi\nGiven\n Todo { title:text }\n policy Todo read=public\nWhen\nThen\n preferences { view:enum(all,finished)=all label={text=\"View\",values={all=\"All\",finished=\"Finished\"}} }\n page / title=\"Page\"\n  tabs preferences.view\n";
+    let scratch = tempfile::tempdir().unwrap();
+    let path = scratch.path().join("profile.can");
+    std::fs::write(&path, source).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(path)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stdout));
+    let compiled: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let js = compiled["modules"][0]["js"].as_str().unwrap();
+    assert!(js.contains("preferenceFields:[{name:\"view\",options:[\"all\",\"finished\"],defaultValue:\"all\"}]"), "{js}");
+    assert!(js.contains("postTo:c.pollUrl ?? c.path"), "{js}");
+    assert!(js.contains("version:c.preferenceVersions.BoundUi.view"), "{js}");
+    assert!(js.contains("current:preferences.view"), "{js}");
+}
+
+#[test]
+fn fixed_order_search_and_count_are_owned_by_the_list() {
+    use std::path::PathBuf;
+    use std::process::Command;
+
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let source = concat!(
+        "app CollectionContract\n",
+        "Given\n",
+        " Todo { title:text }\n",
+        " policy Todo read=public\n",
+        "When\nThen\n",
+        " page / title=\"Tasks\"\n",
+        "  list Todo order=title search=title empty=\"No tasks\"\n",
+        "   count label=\"Tasks in this view\"\n",
+        "   text row.title\n",
+    );
+    let scratch = tempfile::tempdir().unwrap();
+    let path = scratch.path().join("collection.can");
+    std::fs::write(&path, source).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(path)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let artifact: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let js = artifact["modules"][0]["js"].as_str().unwrap();
+    for owned_prop in ["order:[\"title\"]", "search:[\"title\"]", "count:{label:"] {
+        assert!(js.contains(owned_prop), "missing {owned_prop}: {js}");
+    }
+    assert_eq!(js.matches("count:{label:").count(), 1, "{js}");
+    assert!(
+        js.find("count:{label:").unwrap() < js.find("renderRow:").unwrap(),
+        "count must belong to the list, before its row closure: {js}"
+    );
 }
 
 #[test]
