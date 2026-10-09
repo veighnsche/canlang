@@ -4460,22 +4460,24 @@ async function runScenarioSeam(
         const producer = await loadProducerModule('@canlang/work/kernel/dispatch-staging', 'work canonical send producer');
         const stage = requireProducerFn(producer, 'stageCanonicalSend', 'work canonical send producer') as
           typeof import('@canlang/work/kernel/dispatch-staging').stageCanonicalSend;
-        let imageCorrelation: import('@canlang/work/kernel/tables').DispatchImageCorrelation | undefined;
-        if (['std.ImagesV1.submit', 'std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(source)) {
-          const value = source === 'std.ImagesV1.submit' ? boundRequest.arguments['value'] : boundRequest.arguments;
+        let generationCorrelation: import('@canlang/work/kernel/tables').DispatchImageCorrelation | undefined;
+        if (['std.ImagesV1.submit', 'std.ImagesV1.cancel', 'std.ImagesV1.reconcile',
+            'std.TextGenerationV1.generate', 'std.TextGenerationV1.cancel', 'std.TextGenerationV1.reconcile'].includes(source)) {
+          const original = source === 'std.ImagesV1.submit' || source === 'std.TextGenerationV1.generate';
+          const value = original ? boundRequest.arguments['value'] : boundRequest.arguments;
           if (call.checkpoint === undefined || member(definition, 'id') !== call.context.app ||
               !isUnknownRecord(value) || typeof value['source'] !== 'string' ||
               typeof value['revision'] !== 'string') {
             throw new Error(`${where} lost its checked request or admitted owner checkpoint.`);
           }
-          imageCorrelation = { requestSource: value['source'], requestRevision: value['revision'],
+          generationCorrelation = { requestSource: value['source'], requestRevision: value['revision'],
             requestBinding: boundRequest.binding, requestFrom: boundRequest.from,
             requestApp: call.context.app, requestOwner: call.checkpoint.owner };
         }
         const stagedSend = await stage({
           operationId: call.context.operationId, source, occurrenceIndex: sendIndex++,
           request: boundRequest, originOccurrence: due?.occurrenceId ?? cohort?.occurrenceId ?? null,
-          ...(imageCorrelation === undefined ? {} : { correlation: imageCorrelation }),
+          ...(generationCorrelation === undefined ? {} : { correlation: generationCorrelation }),
         }, {
           actor: actorUserId ?? call.context.trustedSource ?? 'anonymous', now: admittedNow, operation: scope.operation,
           load: overlay.load.bind(overlay), query: overlay.query.bind(overlay),
