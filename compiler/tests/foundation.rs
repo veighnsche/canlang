@@ -186,6 +186,7 @@ fn diagnostic_optional_construct_candidates_preserve_wire_shape() {
         slot: Some("Given.item"),
         ids: vec!["model", "contract"],
         complete: false,
+        context: None,
     }));
     result.push(diagnostic);
     let wire: serde_json::Value = serde_json::from_str(&result.to_json()).unwrap();

@@ -3775,3 +3775,7 @@ Join the bounded Cloudflare fixtures to actual owning module hashes, declaration
 ### Implementation: native browser temporary-profile startup
 
 Use the installed Playwright macOS credential-store flags for the raw anonymous Chrome profile. The actual initial document stalled before receiving a response or requesting bootstrap; the same live Worker served HTTP200 to curl. Consume navigation/bootstrap waits together to avoid an unhandled rejection. The affected native readonly polling check passes1/1 in10 seconds with hidden-tab, authorization, persistence and navigation-cancellation assertions intact; unchanged native form results are reused. No production polling fix or whole-app acceptance is claimed.
+
+### Intake: originating compiler construct-help context
+
+Consume only the six Compiler source/test files released at d64f648b, preserving dev-server source and the existing optional carrier. Reuse released source/CLI4/4 and carrier9/9 results at their owning scope. Originating root/When declaration and field-label branches emit exact context while runtime evidence stays false; they cannot establish a working profile. Joined native/session observations remain due, with profile proof/live ranking dependencies retained.

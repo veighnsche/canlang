@@ -56,6 +56,26 @@ pub struct ConstructCandidates {
     pub ids: Vec<&'static str>,
     /// False whenever recovery or unsupported context prevents coverage.
     pub complete: bool,
+    /// Optional source attestations; availability evidence is owned elsewhere.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context: Option<ConstructRankingContext>,
+}
+
+/// Versioned source context accepted by the development help consumer.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConstructRankingContext {
+    pub version: u32,
+    pub message_kind: &'static str,
+    pub section: &'static str,
+    pub guess: String,
+    pub exact_source_span: bool,
+    pub structural_recovery: bool,
+    pub recovery_complete: bool,
+    pub name_filter_complete: bool,
+    pub material_intent_choice: bool,
+    pub evidence_sufficient: bool,
+    pub unsupported_behavior_proven: bool,
 }
 
 /// One diagnostic: stable code, severity, message and spans.
