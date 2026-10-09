@@ -1930,6 +1930,11 @@ export async function assembleWorker(
           return scopeFor(identity, await boundary.forIdentity(identity));
         })();
         return Object.freeze({
+          readRecords: async (model: string, query: Parameters<NonNullable<PageReadScope['readRecords']>>[1]) => {
+            const read = (await selected()).readRecords;
+            if (read === undefined) throw new Error('assembly: canonical page source reader is unavailable.');
+            return read(model, query);
+          },
           query: async (_invocation: unknown, model: Parameters<RowQueryRunner>[1], args: Parameters<RowQueryRunner>[2]) =>
             (await selected()).query(identity, model, args),
           observeDelivery: async (locator: Parameters<NonNullable<PageReadScope['observeDelivery']>>[0],
