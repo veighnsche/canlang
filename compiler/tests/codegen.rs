@@ -682,25 +682,22 @@ fn golden_teamtasks_structure() {
         "selectors"
     );
     assert!(
-        suite.contains("observations:[async(c,s)=>s.task.done,async(c,s)=>(() => { throw new Error(\"call has no lowering\"); })()"),
-        "unchecked observation stays loud:\n{suite}"
+        suite.contains("observations:[async(c,s)=>s.task.done,async(c,s)=>(($can$a$30)=>$can$h$6c6f63616c697a65645f666f726d6174(c,$can$a$30[0],$can$a$30[1],\"en\",[[\"n\",\"int\",\"int\"]]))"),
+        "checked localized observation preserves the descriptor signature:\n{suite}"
     );
-    let missing: Vec<_> = diags
-        .iter()
-        .filter(|d| {
+    assert!(
+        !diags.iter().any(|d| {
             d.code == "E6008"
                 && d.message == "cannot lower call: checked selected-call binding is not published"
-        })
-        .collect();
-    assert_eq!(
-        missing.len(),
-        1,
-        "untyped BDD format observation: {diags:?}"
+        }),
+        "owning format signature selects the BDD observation: {diags:?}"
     );
-    let span = missing[0].primary;
-    assert_eq!(
-        &db.get(id).unwrap().text[span.start as usize..span.end as usize],
-        "format(task_count(count(Todo)),locale=\"nl\")"
+    assert!(
+        suite.contains(
+            "value:await count(await records(c,\"TeamTasks.Todo\",{}))}},\"en\"),\"nl\"])"
+        ) && suite.contains("message formatting requires checked selected-app scope")
+            && suite.contains("message formatting requires admitted team timezone"),
+        "localized execution keeps its admitted context requirements:\n{suite}"
     );
     assert!(
         suite.contains("values:async(c,s)=>([\"members\",true,1n])"),
@@ -761,7 +758,7 @@ fn golden_teamtasks_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        9,
+        7,
         "unsupported count: {diags:?}"
     );
     for (word, n) in [("tooltip", 1), ("collapse", 1)] {
@@ -791,16 +788,14 @@ fn golden_teamtasks_structure() {
             "{profile} refusal"
         );
     }
-    for word in ["bound tabs"] {
-        assert_eq!(
-            diags
-                .iter()
-                .filter(|d| d.code == "E6008" && d.message.contains(word))
-                .count(),
-            1,
-            "{word} refusal"
-        );
-    }
+    assert_eq!(
+        diags
+            .iter()
+            .filter(|d| d.code == "E6008" && d.message.contains("bound tabs"))
+            .count(),
+        0,
+        "owned enum preference tabs lower without refusal"
+    );
     if let Some(node) = find_node() {
         for module in &artifact.modules {
             node_check(&node, &module.js, &module.path);
@@ -3318,7 +3313,7 @@ fn golden_catalog() -> (Catalog, PathBuf) {
 {"id":"sum","kind":"builtin","signature":"sum(domain:C<T>,currency:currency)->money","effects":"state-read","availability":"implemented","owner":"lane-02"},
 {"id":"money","kind":"builtin","signature":"money(minor:int,currency:currency)->money","effects":"pure","availability":"implemented","owner":"lane-02"},
 {"id":"trim","kind":"builtin","signature":"trim(value:text)->text","effects":"pure","availability":"implemented","owner":"lane-02"},
-{"id":"format","kind":"builtin","signature":"format(descriptor:message)->text","effects":"pure","availability":"implemented","owner":"lane-02"},
+{"id":"format","kind":"builtin","signature":"format(descriptor:message,locale:locale?)->text","effects":"pure","availability":"implemented","owner":"lane-02"},
 {"id":"random_secret","kind":"builtin","signature":"random_secret()->secret","effects":"server-default-only","availability":"external","owner":"lane-03"}
 ]}"#,
     )
