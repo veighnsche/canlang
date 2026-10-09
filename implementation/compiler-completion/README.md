@@ -297,6 +297,16 @@ the positive State owner-entry intake; saved-result
 replay disclosure, BDD3 and broader nominal/model-container workflows remain
 unfinished. No original reference count closes from this finite correction.
 
+**Unfinished native activation — positive installed owner support, 2026-10-09.**
+Exact local Capability **7788df1a** adds the dedicated
+`generatedCrudExecuteOwnerSession` export: missing/invalid explicit bounds or
+native frame refuse before mutation instead of relying on optional arguments
+an older producer could ignore. Captured cleanup retains its real frame receiver.
+Owning build **6/6** and generated CRUD **17/17** pass with zero skips. This
+completes the defining entry prerequisite; native adaptation and hook/live-view
+production remain with their recorded owners. Final compiler qualification
+uses these current installed inputs.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed
