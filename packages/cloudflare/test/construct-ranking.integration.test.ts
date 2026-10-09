@@ -112,11 +112,12 @@ it("joins only actual current first-profile runtime and example outcomes through
   const qualify=createInstalledFirstProfileQualification();
   let qualifications=0, providerCalls=0;
   const observed:SessionConstructQualification[]=[];
+  const qualificationFailures:unknown[]=[];
   const owner=await startDevSessionService({selectedApp:"T",runtimeDir,
     capture:prepareLocalPreviewCapture({checkoutRoot:project,appPath,
       compilerPath:join(project,"compiler/target/debug/can"),catalogPath:join(project,"packages/values/dist/catalog.json"),
       helpIndexPath:join(project,"docs/specification/CONSTRUCT-HELP.md")}),
-    constructRanking:{qualify:async(request,signal)=>{qualifications++;const bundle=await qualify(request,signal);if(bundle)observed.push(bundle);return bundle;},
+    constructRanking:{qualify:async(request,signal)=>{qualifications++;try{const bundle=await qualify(request,signal);if(bundle)observed.push(bundle);return bundle;}catch(error){qualificationFailures.push(error);throw error;}},
       transport:{choose:async()=>{providerCalls++;throw new Error("no live ranking branch was qualified");}}}});
   try {
     const client=await attachDevSessionService({checkoutRoot:project,app:"T",profile:"local-d1-identity",runtimeDir});
@@ -125,6 +126,9 @@ it("joins only actual current first-profile runtime and example outcomes through
     const detail=await client.request({command:"diagnostic.detail",payload:{revision:checked.revision,index:0}}) as {
       construct_help:{candidateCoverage:string;grammarCoverage:string;classification:{id:string;profile:string;working:string}[]};
       diagnostic:{construct_candidates:CompilerConstructCandidates}};
+    // Production keeps failed qualification unknown; this positive integration
+    // case must report its original producer/runtime failure before card checks.
+    if(qualificationFailures.length)throw qualificationFailures[0];
     expect(detail.construct_help.grammarCoverage).toBe("complete");
     expect(detail.construct_help.candidateCoverage).toBe("unknown");
     expect(detail.construct_help.classification).toContainEqual({id:"can.v1.when.scenario.read",profile:"included",working:"qualified"});
