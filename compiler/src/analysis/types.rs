@@ -11833,7 +11833,23 @@ impl<'a> Typer<'a> {
                 ResolvedType::Error
             }
             SymbolKind::Role => ResolvedType::Scalar(Scalar::Bool),
-            SymbolKind::Message { .. } => ResolvedType::Message(id),
+            SymbolKind::Message { params } => {
+                if params.is_empty() {
+                    ResolvedType::Message(id)
+                } else {
+                    if cx.strict {
+                        self.diags.push(Diagnostic::error(
+                            "E3005",
+                            format!(
+                                "parameterized message '{}' is not a bare value; use an ordinary call to bind its parameters",
+                                record_name(self.tables, cx.module, id)
+                            ),
+                            tight_span(cx.text, node),
+                        ));
+                    }
+                    ResolvedType::Error
+                }
+            }
             SymbolKind::Scenario { .. }
             | SymbolKind::CapabilityOp { .. }
             | SymbolKind::CrudOp { .. } => ResolvedType::Operation(id),
@@ -14458,7 +14474,8 @@ impl<'a> Typer<'a> {
 
     /// Type a `Construct` (`Head {…}`): the head resolves as a type
     /// (recorded [`TypeRef`]); entries check against model/contract/
-    /// event fields or message parameters. Unknown entries are
+    /// event fields. Message values use ordinary calls or static references,
+    /// never object-style construction. Unknown entries are
     /// `E2013`, value mismatches `E3001`, missing required fields
     /// `E3001`, supplied server fields `E3001`.
     fn type_construct(&mut self, cx: &Ctx<'_, '_>, node: &SyntaxNode) -> ResolvedType {
@@ -14477,13 +14494,30 @@ impl<'a> Typer<'a> {
                     symbol: id,
                     stored: false,
                 },
-                SymbolKind::Message { .. } => ResolvedType::Message(id),
+                SymbolKind::Message { params } => {
+                    if cx.strict {
+                        let guidance = if params.is_empty() {
+                            "reference a zero-parameter message directly"
+                        } else {
+                            "use an ordinary call to bind its parameters"
+                        };
+                        self.diags.push(Diagnostic::error(
+                            "E3008",
+                            format!(
+                                "cannot construct message '{}' with an object; {guidance}",
+                                record_name(self.tables, cx.module, id)
+                            ),
+                            tight_span(cx.text, head),
+                        ));
+                    }
+                    return ResolvedType::Error;
+                }
                 _ => {
                     if cx.strict {
                         self.diags.push(Diagnostic::error(
                             "E3008",
                             format!(
-                                "cannot construct '{}'; only models, contracts, events and messages construct",
+                                "cannot construct '{}'; only models, contracts and events construct",
                                 record_name(self.tables, cx.module, id)
                             ),
                             tight_span(cx.text, head),
@@ -14506,7 +14540,7 @@ impl<'a> Typer<'a> {
                 if cx.strict {
                     self.diags.push(Diagnostic::error(
                         "E3008",
-                        "cannot construct a field path; name a model, contract, event or message"
+                        "cannot construct a field path; name a model, contract or event"
                             .to_string(),
                         tight_span(cx.text, head),
                     ));

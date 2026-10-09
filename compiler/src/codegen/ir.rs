@@ -7049,6 +7049,47 @@ impl<'a> Cx<'a> {
             ));
         }
         let value = self.decode_expr(scope, header);
+        if let ResolvedType::Message(id) = &value.ty
+            && self
+                .program
+                .effects
+                .messages
+                .get(id)
+                .is_some_and(|message| !message.params.is_empty())
+        {
+            // Immutable aliases retain the checked initializer anchor. Inspect
+            // a bare origin's IR only to classify its binding; never emit or
+            // reevaluate that origin in place of the captured caption value.
+            let mut reference = *header;
+            while reference.kind == SyntaxKind::Group {
+                let Some(inner) = kids(reference).into_iter().find(|n| is_expression(n.kind))
+                else {
+                    break;
+                };
+                reference = inner;
+            }
+            let bare_origin = self
+                .program
+                .types
+                .message_descriptor_references
+                .get(&NodeKey::of(reference))
+                .and_then(|key| self.node(key))
+                .filter(|node| matches!(node.kind, SyntaxKind::NameRef | SyntaxKind::Path))
+                .cloned();
+            let unbound = if let Some(origin) = bare_origin {
+                matches!(self.decode_expr(scope, &origin).expr, IrExpr::Message(message) if message.params.is_empty())
+            } else {
+                matches!(&value.expr, IrExpr::Message(message) if message.params.is_empty())
+            };
+            if unbound {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    format!("cannot lower {word}: parameterized message caption needs a checked call binding"),
+                    header.span,
+                ));
+                return None;
+            }
+        }
         if !matches!(
             value.ty,
             ResolvedType::Scalar(Scalar::Text)
