@@ -21,6 +21,8 @@ export interface PreviewRefusal {
   readonly requestId: string;
   readonly status: number;
   readonly error: BusinessError;
+  /** MCP tool errors retain their actual successful HTTP transport status. */
+  readonly transport?: "mcp";
 }
 
 /** Node and Fetch manage these headers; they must not be copied verbatim. */
@@ -48,19 +50,44 @@ export interface ProtectedPreview {
 }
 
 /** Project the closed code and boolean retry policy; response prose and values are untrusted. */
-function observedError(response: Response, body: Buffer): BusinessError | null {
-  if (response.status < 400 || body.length === 0 || body.length > MAX_OBSERVED_ERROR_BYTES ||
+function observedError(response: Response, body: Buffer, request: {
+  method: string; pathname: string; body: Buffer;
+}): { error: BusinessError; transport?: "mcp" } | null {
+  if (body.length === 0 || body.length > MAX_OBSERVED_ERROR_BYTES ||
       !(response.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return null;
   let parsed: unknown;
   try { parsed = JSON.parse(body.toString("utf8")); } catch { return null; }
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
   const root = parsed as Record<string, unknown>;
-  const candidate = root.error ?? root;
+  let candidate: unknown;
+  let transport: "mcp" | undefined;
+  if (response.status >= 400) candidate = root.error ?? root;
+  else {
+    // Success values and protocol errors are not business refusals. Match the
+    // owning tools/call envelope rather than interpreting arbitrary JSON.
+    if (response.status !== 200 || request.method !== "POST" || request.pathname !== "/mcp" ||
+        root.jsonrpc !== "2.0" || root.error !== undefined) return null;
+    let call: Record<string, unknown>;
+    try {
+      const raw: unknown = JSON.parse(request.body.toString("utf8"));
+      if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+      call = raw as Record<string, unknown>;
+    } catch { return null; }
+    if (call.jsonrpc !== "2.0" || call.method !== "tools/call" ||
+        (typeof call.id !== "string" && !(typeof call.id === "number" && Number.isSafeInteger(call.id))) ||
+        root.id !== call.id) return null;
+    const result = root.result;
+    if (result === null || typeof result !== "object" || Array.isArray(result) ||
+        (result as Record<string, unknown>).isError !== true) return null;
+    candidate = (result as Record<string, unknown>).structuredContent;
+    transport = "mcp";
+  }
   if (candidate === null || typeof candidate !== "object" || Array.isArray(candidate)) return null;
   const error = candidate as Record<string, unknown>;
   if (!isBusinessErrorCode(error.code) || typeof error.message !== "string") return null;
-  return buildBusinessError(error.code, undefined,
-    typeof error.retryable === "boolean" ? { retryable: error.retryable } : undefined);
+  return { error: buildBusinessError(error.code, undefined,
+    typeof error.retryable === "boolean" ? { retryable: error.retryable } : undefined),
+    ...(transport === undefined ? {} : { transport }) };
 }
 
 function positiveLimit(value: number, name: string): number {
@@ -276,9 +303,9 @@ export async function startProtectedPreview(
       if (controller.signal.aborted) return;
       const bytes = Buffer.from(responseBody);
       if (relay(reply, workerResponse, bytes) && refusalObservers.size > 0) {
-        const error = observedError(workerResponse, bytes);
-        if (error !== null) {
-          const event = { requestId: randomUUID(), status: workerResponse.status, error };
+        const observation = observedError(workerResponse, bytes, { method, pathname: url.pathname, body });
+        if (observation !== null) {
+          const event = { requestId: randomUUID(), status: workerResponse.status, ...observation };
           for (const observer of refusalObservers) {
             try { observer(event); } catch { /* Observation cannot affect the response. */ }
           }
