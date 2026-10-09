@@ -27,7 +27,12 @@ Then
     )
     .unwrap();
     let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
-        .args(["compile", "--format=json", "--catalog"])
+        .args([
+            "compile",
+            "--native-scenario-receipts",
+            "--format=json",
+            "--catalog",
+        ])
         .arg(root.join("packages/values/dist/catalog.json"))
         .arg(&input)
         .env_remove("CAN_CATALOG")
@@ -57,6 +62,9 @@ const {buildInvoker}=await load('@canlang/cloudflare/worker/assembly');
 const {createTestMemoryStorage}=await load('@canlang/state/storage/memory');
 const {FIXED_NOW,createMemoryIdentityStore,seedMember,makeIdentity,uuidv7}=await load('@canlang/state/testing/invocation/fixtures');
 const artifact=JSON.parse(readFileSync(resolve(base,'artifact.json'),'utf8'));
+const capture=artifact.operations.find(operation=>operation.name.endsWith('.selected'))?.result?.disclosure;
+assert.equal(capture?.version,1,'actual native host requires a complete emitted scenario disclosure plan');
+assert.ok(capture.returns.length>0);
 const id='ResolvedDefaults.selected',descriptor=artifact.operations.find(operation=>operation.name===id);
 assert.equal(descriptor.kind,'scenario');
 assert.deepEqual(descriptor.inputs.fields.map(field=>[field.name,field.field,field.required]),[
@@ -97,6 +105,7 @@ function committed(outcome,status='committed'){
  assert.ok('result' in outcome,JSON.stringify(outcome));assert.equal(outcome.result.status,status);
  assert.equal(outcome.result.result,'B');return outcome.result;
 }
+function masked(outcome){assert.ok('result' in outcome,JSON.stringify(outcome));assert.equal(outcome.result.status,'replayed');assert.equal(outcome.result.result,null);assert.equal(JSON.stringify(outcome).includes('scenario-result/v1'),false);}
 function rejected(outcome,code){assert.ok('error' in outcome,JSON.stringify(outcome));assert.equal(outcome.error.code,code);}
 const omitted=envelope({seed:'b'});
 committed(await invoke(omitted));
@@ -116,11 +125,11 @@ assert.deepEqual(trace,[['admission','members',true],['check',true],['check',fal
 const failedReceipt=await receipt(failure);assert.ok(failedReceipt);
 assert.equal(failedReceipt.outcome.status,'rejected');assert.deepEqual(failedReceipt.resolvedDefaults,{});
 await memberships.removeMembership(member.membership.membership_id);
-// Existing policy is receipt-first: a matching raw-input hash replays its
-// saved outcome before current membership admission, with no handler execution.
-committed(await invoke(omitted),'replayed');assert.deepEqual(trace,[]);
+// Retention remains receipt-first; current authority withholds public saved
+// values after revocation, without changing physical receipts or rerunning defaults.
+masked(await invoke(omitted));assert.deepEqual(trace,[]);
 assert.deepEqual(await receipt(omitted),saved);
-committed(await invoke(override),'replayed');assert.deepEqual(trace,[]);
+masked(await invoke(override));assert.deepEqual(trace,[]);
 assert.deepEqual(await receipt(override),overrideReceipt);
 rejected(await invoke(failure),'rule_failed');assert.deepEqual(trace,[]);
 assert.deepEqual(await receipt(failure),failedReceipt);
