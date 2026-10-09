@@ -3651,3 +3651,7 @@ Move the physical-owner component test out of production src/worker ownership. P
 ## 2026-10-09 — Normalize receiving aliases before base encoding
 
 Correct Codex’s current-head alias finding through the Values-owned Unicode trim producer before the model field’s deployed encoder. Run the existing alias and receiving-schema checks afterward, preserving NAME rules, both bounds, defaults and post-hook validation. The 12 affected State cases pass, including padded valid text, direct bare-alias rejection and invalid normalized name/bounds with no writes or revision changes.
+
+## 2026-10-09 — Admit the documented initial failure cursor
+
+Accept exact `-1` only for the supported diagnostics/failures after cursor, keeping nonnegative indexes and bounded page sizes. The real CLI/client/private socket check lists the first failure page with that payload. Run the package’s declared installed can-dev entry for standalone Node envelope assertions, preserving its resource/dependency layout rather than relocating bundled public package resources. All 8 owning cases and Cloudflare noEmit pass; source-current installed cursor validation follows the normal owning rebuild.
