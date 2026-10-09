@@ -14,6 +14,9 @@ import {
 import { validateCallInputs } from '../src/invocation/admission.js';
 import { prepareOperationInputs, validatePreparedInputs } from '../src/invocation/prepared-inputs.js';
 import { buildModelTable, buildModelTableFromCanonical } from '../src/mutation/models.js';
+import { runMutationWrites } from '../src/mutation/pipeline.js';
+import { createTestMemoryStorage } from '../src/storage/memory.js';
+import { pipelineContext, asId, captureStateError } from './mutation/fixtures.js';
 
 const model = 'Example.Job' as ModelName;
 const operation = 'Example.inspect' as OperationName;
@@ -797,6 +800,55 @@ function nominalArtifact(): ArtifactDescriptorSlice {
   raw.operations![0]!.result = { type: 'Example.Decision' };
   return raw;
 }
+
+test('bounded nominal alias fields retain the owning alias through both loaders and mutation constraints', async () => {
+  const aliasName = 'ChangeReview.pick.choice';
+  const raw = artifact();
+  raw.valueTypes = { contracts: [], aliases: [{ name: aliasName, type: 'text', min: 2, max: 6, format: 'name' }] };
+  raw.models![0]!.fields = [{ name: 'choice', field: { kind: 'nominal', name: aliasName },
+    valueType: aliasName, required: true, serverOnly: false, min: 1, max: 5 }];
+  const converted = artifactToDescriptorSet(raw);
+  const loaded = [loadArtifactDescriptors(raw, opts), loadExecutionDescriptorSet(converted.set, opts)];
+  for (const descriptors of loaded) {
+    assert.ok(descriptors.valueSchema);
+    const table = buildModelTableFromCanonical(descriptors.models, { valueSchema: descriptors.valueSchema });
+    assert.equal(table.get(model)!.fields.choice!.valueType, aliasName);
+    assert.equal(descriptors.valueSchema!.aliases![aliasName]!.lengthMin, 2);
+    assert.equal(descriptors.valueSchema!.aliases![aliasName]!.lengthMax, 6);
+    assert.throws(() => buildModelTableFromCanonical(descriptors.models), /Invalid valueType/);
+    const { store } = createTestMemoryStorage();
+    const run = (choice: string) => runMutationWrites({ table, store, context: pipelineContext({ operation: 'Example.Job.create' }),
+      writes: [{ op: 'create', model, id: asId('alias-row'), data: { choice } }] });
+    const accepted = await run('ab');
+    assert.ok(accepted.writes[0]?.kind === 'insert');
+    assert.equal(accepted.writes[0].row.data.choice, 'ab');
+    for (const choice of ['a', 'abcdef', 'a b']) {
+      const error = await captureStateError(run(choice));
+      assert.equal(error.code, 'validation');
+      assert.match(error.message, /Invalid field "choice"/);
+    }
+    assert.equal(await store.load(model, asId('alias-row')), null);
+    assert.equal(await store.readRevision(), 0);
+  }
+  const dangling = (action: () => unknown) => assert.throws(action,
+    error => error instanceof IncompatibleArtifactError && error.reason === 'dangling_reference');
+  const changes: Array<[(candidate: ArtifactDescriptorSlice) => void, 'dangling_reference' | 'malformed_descriptor']> = [
+    [candidate => { delete candidate.valueTypes; }, 'dangling_reference'],
+    [candidate => { candidate.models![0]!.fields[0]!.valueType = 'ChangeReview.other.choice'; }, 'dangling_reference'],
+    [candidate => { candidate.models![0]!.fields[0]!.min = 7; candidate.models![0]!.fields[0]!.max = 8; }, 'malformed_descriptor'],
+    [candidate => { (candidate.models![0]!.fields[0]! as unknown as Record<string, unknown>).trim = 'yes'; }, 'malformed_descriptor'],
+  ];
+  for (const [change, reason] of changes) {
+    const candidate = structuredClone(raw); change(candidate);
+    assert.throws(() => loadArtifactDescriptors(candidate, opts),
+      error => error instanceof IncompatibleArtifactError && error.reason === reason);
+  }
+  const inherited = Object.assign(Object.create({ valueTypes: raw.valueTypes }), raw);
+  delete inherited.valueTypes;
+  dangling(() => loadArtifactDescriptors(inherited, opts));
+  const { valueTypes: _valueTypes, ...unowned } = structuredClone(converted.set);
+  incompatible(() => loadExecutionDescriptorSet(unowned, opts));
+});
 
 test('source nominal inventory reaches operation intake and the final model table', () => {
   const raw = nominalArtifact();
