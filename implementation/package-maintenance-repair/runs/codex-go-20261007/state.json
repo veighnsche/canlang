@@ -1090,6 +1090,13 @@
       "remaining_prerequisite": {
         "prerequisite": "Actual source constraint/specialization producer propagation, complete normalization authority and separately selected SR02 resource profile.",
         "owner": "Values/compiler descriptor producer plus Interfaces/UI resource contract owners"
+      },
+      "stored_field_constraint_slice": {
+        "state": "implemented by owning Compiler release, consumed and affected producer/consumer checks passed; Codex4232157221",
+        "source": "Exact published8f4cd883e47e63718993d5e37798538d1898d3e1 JS model field/builder/serializer and codegen/typed artifact/typed descriptor tests consumed; no unrelated Compiler source or plan.",
+        "behavior": "Stored fields emit checked trim and exact literal min/max. Safe text/array lengths are numbers; large integer/decimal bounds preserve wire spelling. Unsafe length/nonliteral bounds refuseE6008 instead of disappearing.",
+        "validation": "Rust1.99locked/offline19codegen+2typedArtifact+6typedDescriptors pass; changed-source format passes. Direct genuine currentCLI/catalog artifact\u2192State loader/canonical model table\u2192emitted increment hook\u2192Mutation/Memory passes trim/native2n\u2192stored3, decimal1.20/5.00 and array1/2bounds. Nine invalid blank/upper/lower/array/hook-overflow cases refuse with atomic revision/row/history rollback; inclusive endpoints pass. Initial probe overasserted optional enum valueType, corrected before successful real run.",
+        "limit": "Bounded nominal text-alias source profile, complete specialization/CSV/resource/installed/durable joins and original parent obligations remain separate; existing finite alias loader controls retained."
       }
     },
     "DEL-C02": {
@@ -4465,6 +4472,13 @@
       "correction": "applyCallerData records only actually applied fields after existing validation, undefined omission and cloning. Update constraint tracking uses that set without rereading patch getters; hook content comparison and full codec traversal remain.",
       "validation": "State owning emit and12existing nullable-ref cases pass onNode24, zero skips. Omitted/known undefined preserve legacy array/object/text and full codec traversal; explicit null stays null; explicit invalid, unknown undefined, machine and server-only refusal precedence remain. Initial new machine fixture omitted its required default, corrected before final pass.",
       "limit": "Current-head review and original complete parent qualification remain required."
+    },
+    "stored_field_modifier_release": {
+      "state": "implemented by owning Compiler release, consumed and affected producer/consumer checks passed; Codex4232157221",
+      "source": "Exact published8f4cd883e47e63718993d5e37798538d1898d3e1 JS model field/builder/serializer and codegen/typed artifact/typed descriptor tests consumed; no unrelated Compiler source or plan.",
+      "behavior": "Stored fields emit checked trim and exact literal min/max. Safe text/array lengths are numbers; large integer/decimal bounds preserve wire spelling. Unsafe length/nonliteral bounds refuseE6008 instead of disappearing.",
+      "validation": "Rust1.99locked/offline19codegen+2typedArtifact+6typedDescriptors pass; changed-source format passes. Direct genuine currentCLI/catalog artifact\u2192State loader/canonical model table\u2192emitted increment hook\u2192Mutation/Memory passes trim/native2n\u2192stored3, decimal1.20/5.00 and array1/2bounds. Nine invalid blank/upper/lower/array/hook-overflow cases refuse with atomic revision/row/history rollback; inclusive endpoints pass. Initial probe overasserted optional enum valueType, corrected before successful real run.",
+      "limit": "Bounded nominal text-alias source profile, complete specialization/CSV/resource/installed/durable joins and original parent obligations remain separate; existing finite alias loader controls retained."
     }
   }
 }
