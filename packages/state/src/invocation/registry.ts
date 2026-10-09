@@ -2,6 +2,7 @@ import { StateError } from '../errors.js';
 import { checkOwnerModelPolicyDescriptors } from '../mutation/model-policies.js';
 import { checkFieldMachine } from '../internal/machine.js';
 import { normalizeValueTypes, ValueTypesError, parseTypeId, printTypeId, type NormalizedSchema } from '@canlang/values';
+import { bindScenarioReceiptPlan, checkScenarioResultDisclosurePlan } from './scenario-receipt.js';
 /**
  * Lane 03 T16a: operation registry — INTERIM engine-local defs plus the
  * generated-descriptor join.
@@ -210,7 +211,7 @@ export interface LoadedDescriptorSet {
 export type ArtifactDescriptorSlice = Pick<
   CompileArtifact,
   'artifact_version' | 'operations' | 'models'
-> & Partial<Pick<CompileArtifact, 'sources' | 'valueTypes' | 'modelPolicies' | 'modules'>>;
+> & Partial<Pick<CompileArtifact, 'sources' | 'valueTypes' | 'modelPolicies' | 'modules' | 'callables'>>;
 
 /**
  * T18 engine-resolvable server initializer (closed subset of L1
@@ -355,11 +356,15 @@ function checkResult(
   valueSchema?: NormalizedSchema,
 ): CanonicalOperationDescriptor['result'] {
   if (!Object.hasOwn(holder, 'result')) return undefined;
-  const result = holder['result'];
+  const resultMember = Object.getOwnPropertyDescriptor(holder, 'result');
+  if (resultMember === undefined || !('value' in resultMember)) fail('malformed_descriptor', `Invalid ${what}: result requires own data.`);
+  const result = resultMember.value;
   if (!isRecord(result) || !Object.hasOwn(result, 'type')) {
     fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration/user/file profile, canonical inline enum profile or bare void.`);
   }
-  const type = result['type'];
+  const typeMember = Object.getOwnPropertyDescriptor(result, 'type');
+  if (typeMember === undefined || !('value' in typeMember)) fail('malformed_descriptor', `Invalid ${what}: result type requires own data.`);
+  const type = typeMember.value;
   const scalarOrVoid = type === 'void' || (typeof type === 'string' &&
     /^(int|datetime|text|bool|decimal|money|date|duration|user|file)(\[\])?\??$/.test(type));
   let inlineEnumResult = false;
@@ -379,6 +384,17 @@ function checkResult(
   }
   if (!scalarOrVoid && !inlineEnumResult && !knownModelResult && !checkedNominal(type, valueSchema)) {
     fail('malformed_descriptor', `Invalid ${what}: result must declare an int/datetime/text/bool/decimal/money/date/duration/user/file profile, canonical inline enum profile or bare void; scenarios and reads may also declare a known qualified model, and reads a model[].`);
+  }
+  if ('disclosure' in result && !Object.hasOwn(result, 'disclosure')) {
+    fail('malformed_descriptor', `Invalid ${what}: scenario disclosure requires own data.`);
+  }
+  const claim = Object.getOwnPropertyDescriptor(result, 'disclosure');
+  if (claim !== undefined) {
+    if (!('value' in claim) || kind !== 'scenario' || Object.keys(result).some(key => !['type', 'disclosure'].includes(key))) {
+      fail('malformed_descriptor', `Invalid ${what}: scenario disclosure requires closed source data.`);
+    }
+    try { return Object.freeze({ type: type as CanTypeId, disclosure: checkScenarioResultDisclosurePlan(claim.value) }); }
+    catch (error) { fail('malformed_descriptor', error instanceof Error ? error.message : 'Invalid scenario dependency plan.'); }
   }
   return Object.freeze({ type: type as CanTypeId });
 }
@@ -1013,6 +1029,9 @@ function loadCheckedDescriptorSet(
       inputs.push(checked);
     }
     const result = checkResult(operation, `operation ${JSON.stringify(opName)}`, kind, modelNames, valueSchema);
+    if (result?.disclosure !== undefined && checked === undefined) {
+      fail('malformed_descriptor', 'Scenario disclosure requires the defining artifact source/callable/model inventory.');
+    }
     const descriptor: CanonicalOperationDescriptor = {
       name: opName as OperationName,
       kind: kind as CanonicalOperationDescriptor['kind'],
@@ -1583,6 +1602,30 @@ export function artifactToDescriptorSet(
       }
     }
     const result = checkResult(operation as unknown as Record<string, unknown>, `operation ${JSON.stringify(operation.name)}`, operation.kind, modelNames, valueSchema);
+    if (result?.disclosure !== undefined) {
+      const source = result.disclosure.source;
+      const modulePaths = artifactPolicyModulePaths(artifact as unknown as Record<string, unknown>);
+      const callableMember = Object.getOwnPropertyDescriptor(artifact, 'callables');
+      if (callableMember === undefined || !('value' in callableMember) || !Array.isArray(callableMember.value)) {
+        fail('malformed_descriptor', 'Scenario dependency plan requires its actual callable inventory.');
+      }
+      let matches = 0;
+      for (let i = 0; i < callableMember.value.length; i += 1) {
+        const item = Object.getOwnPropertyDescriptor(callableMember.value, String(i));
+        if (item === undefined || !('value' in item) || !isRecord(item.value)) fail('malformed_descriptor', 'Invalid scenario callable inventory.');
+        const callable = Object.getOwnPropertyDescriptors(item.value);
+        for (const key of ['kind', 'id', 'module']) if (callable[key] === undefined || !('value' in callable[key]!)) {
+          fail('malformed_descriptor', 'Scenario callable identity requires own data.');
+        }
+        if (callable['kind']!.value === 'operation' && callable['id']!.value === operation.name && callable['module']!.value === source.module) matches += 1;
+      }
+      const origins = [source, ...result.disclosure.returns.flatMap(returned =>
+        [returned.source, ...returned.dependencies.map(dependency => dependency.source)])];
+      if (origins.some(origin => !sources?.some(entry => entry.path === origin.path && entry.sha256 === origin.sha256) ||
+            !modulePaths.includes(origin.module)) || matches !== 1) {
+        fail('malformed_descriptor', 'Scenario dependency plan disagrees with its exact artifact source/callable module.');
+      }
+    }
     operations.push({
       name: operation.name as OperationName,
       kind: operation.kind as CanonicalOperationDescriptor['kind'],
@@ -1645,6 +1688,11 @@ export function loadArtifactDescriptors(
     inputArrays: converted.inputArrays,
     inputNullableRefs: converted.inputNullableRefs,
   }, converted);
+  for (const def of loaded.registry.values()) {
+    if (!isGeneratedOperationDef(def) || def.descriptor.result?.disclosure === undefined) continue;
+    try { bindScenarioReceiptPlan(def, artifact.models ?? []); }
+    catch (error) { fail('malformed_descriptor', error instanceof Error ? error.message : 'Invalid scenario disclosure inventory.'); }
+  }
   const refs: Map<ModelName, ReadonlyArray<InterimRefDef>> = new Map();
   for (const [model, modelRefs] of converted.refs) {
     refs.set(model, deepFreezeLoaded([...modelRefs]));
