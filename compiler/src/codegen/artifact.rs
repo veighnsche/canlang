@@ -208,6 +208,8 @@ pub struct CompileArtifact {
     /// Checked standard/custom value type contracts and enum declarations,
     /// when the source program owns any such values.
     pub value_types: Option<crate::codegen::js::JsValueTypes>,
+    /// Checked complete owner-policy descriptors for the supported native profile.
+    pub model_policies: Option<Vec<crate::codegen::model_policies::ModelPolicies>>,
     /// Page descriptors in source order.
     pub pages: Vec<ArtifactPage>,
     /// Lowered migration transitions in source order (B3-I1 registry).
@@ -396,6 +398,7 @@ pub fn assemble(
         operations: js.operations.clone(),
         models,
         value_types: js.value_types.clone(),
+        model_policies: js.model_policies.clone(),
         pages,
         migrations,
         requires,
@@ -600,6 +603,7 @@ pub fn to_json(artifact: &CompileArtifact) -> String {
         operations: &artifact.operations,
         models: &artifact.models,
         value_types: artifact.value_types.as_ref(),
+        model_policies: artifact.model_policies.as_deref(),
         pages: artifact
             .pages
             .iter()
@@ -666,6 +670,8 @@ struct ArtifactWire<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "valueTypes")]
     value_types: Option<&'a crate::codegen::js::JsValueTypes>,
+    #[serde(rename = "modelPolicies", skip_serializing_if = "Option::is_none")]
+    model_policies: Option<&'a [crate::codegen::model_policies::ModelPolicies]>,
     pages: Vec<PageWire<'a>>,
     migrations: Vec<MigrationWire<'a>>,
     requires: Vec<RequirementWire<'a>>,
