@@ -268,6 +268,9 @@ export const workDispatchStageCommand: SystemCommandDef = {
   },
 };
 
+// Preserve the genuine producer even if a legacy caller replaces the exported command method.
+const stageCanonicalDispatch = workDispatchStageCommand.stage;
+
 /** One provisional delivery and its effects; neither is committed here. */
 export interface CanonicalSendStaging {
   readonly effects: SystemStaging;
@@ -277,6 +280,144 @@ export interface CanonicalSendStaging {
 /** Correlation is supplied only by the genuine checked request/scope producer. */
 export interface CanonicalSendInput extends StageOutboxIntentInput {
   readonly correlation?: DispatchImageCorrelation;
+}
+
+interface CanonicalSendSeal {
+  readonly input: CanonicalSendInput;
+  readonly context: SystemCommandContext;
+  readonly inputSnapshot: unknown;
+  readonly contextSnapshot: Readonly<SystemCommandContext>;
+}
+const canonicalSendSeals = new WeakMap<object, CanonicalSendSeal>();
+
+/** Strict iterative own-JSON copy: shared subgraphs are harmless; cycles are not. */
+function copySendData(value: unknown, requireFrozen: boolean): { readonly value: unknown } | null {
+  const primitive = (item: unknown): boolean => item === null || typeof item === 'string' ||
+    typeof item === 'boolean' || typeof item === 'number' && Number.isFinite(item);
+  if (primitive(value)) return { value };
+  type Frame = { source: object; target: object; keys: string[]; index: number };
+  const copies = new Map<object, object>(), active = new Set<object>();
+  const prepare = (source: unknown): Frame | null => {
+    if (typeof source !== 'object' || source === null || requireFrozen && !Object.isFrozen(source)) return null;
+    const proto = Object.getPrototypeOf(source);
+    const array = Array.isArray(source);
+    if (array ? proto !== Array.prototype : proto !== Object.prototype && proto !== null) return null;
+    const keys = Reflect.ownKeys(source);
+    if (keys.some(key => typeof key !== 'string')) return null;
+    const names = keys as string[];
+    if (array) {
+      const length = Object.getOwnPropertyDescriptor(source, 'length');
+      if (length === undefined || !('value' in length) || typeof length.value !== 'number' ||
+          names.length !== length.value + 1 || names.some(key => key !== 'length' &&
+            (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= length.value))) return null;
+    }
+    const fields = array ? names.filter(key => key !== 'length') : names;
+    for (const key of fields) {
+      const member = Object.getOwnPropertyDescriptor(source, key);
+      if (member === undefined || !('value' in member) || !member.enumerable) return null;
+    }
+    const target: object = array ? [] : Object.create(proto) as object;
+    copies.set(source, target); active.add(source);
+    return { source, target, keys: fields, index: 0 };
+  };
+  const first = prepare(value); if (first === null) return null;
+  const stack = [first];
+  while (stack.length !== 0) {
+    const frame = stack[stack.length - 1]!;
+    if (frame.index === frame.keys.length) {
+      Object.freeze(frame.target); active.delete(frame.source); stack.pop(); continue;
+    }
+    const key = frame.keys[frame.index++]!;
+    const member = Object.getOwnPropertyDescriptor(frame.source, key);
+    if (member === undefined || !('value' in member) || !member.enumerable) return null;
+    let copied: unknown = member.value;
+    if (!primitive(copied)) {
+      if (typeof copied !== 'object' || copied === null || active.has(copied)) return null;
+      const previous = copies.get(copied);
+      if (previous !== undefined) copied = previous;
+      else {
+        const child = prepare(copied); if (child === null) return null;
+        copied = child.target; stack.push(child);
+      }
+    }
+    Object.defineProperty(frame.target, key, { value: copied, enumerable: true });
+  }
+  return { value: first.target };
+}
+
+function sameSendData(left: unknown, right: unknown): boolean {
+  const pending: Array<[unknown, unknown]> = [[left, right]];
+  const compared = new Map<object, Set<object>>();
+  while (pending.length !== 0) {
+    const [a, b] = pending.pop()!;
+    if (Object.is(a, b)) continue;
+    if (typeof a !== 'object' || a === null || typeof b !== 'object' || b === null ||
+        Object.getPrototypeOf(a) !== Object.getPrototypeOf(b)) return false;
+    const visited = compared.get(a) ?? new Set<object>();
+    if (visited.has(b)) continue;
+    visited.add(b); compared.set(a, visited);
+    const keys = Reflect.ownKeys(a), other = new Set(Reflect.ownKeys(b));
+    if (keys.length !== other.size || keys.some(key => !other.has(key))) return false;
+    for (const key of keys) {
+      const x = Object.getOwnPropertyDescriptor(a, key), y = Object.getOwnPropertyDescriptor(b, key);
+      if (x === undefined || y === undefined || !('value' in x) || !('value' in y) || x.enumerable !== y.enumerable) return false;
+      pending.push([x.value, y.value]);
+    }
+  }
+  return true;
+}
+
+function captureCanonicalSend(input: CanonicalSendInput, context: SystemCommandContext): CanonicalSendSeal | null {
+  try {
+    return captureCanonicalSendData(input, context);
+  } catch {
+    // Exotic/refused descriptors cannot grant provenance or alter legacy staging eligibility.
+    return null;
+  }
+}
+
+function captureCanonicalSendData(input: CanonicalSendInput, context: SystemCommandContext): CanonicalSendSeal | null {
+  const inputCopy = copySendData(input, true);
+  if (inputCopy === null || typeof inputCopy.value !== 'object' || inputCopy.value === null || Array.isArray(inputCopy.value)) return null;
+  const keys = Reflect.ownKeys(inputCopy.value);
+  const required = ['operationId', 'source', 'occurrenceIndex', 'request', 'originOccurrence'];
+  if (required.some(key => !keys.includes(key)) || keys.some(key => !required.includes(key as string) && key !== 'correlation')) return null;
+  if (!keys.includes('correlation') && Reflect.has(input, 'correlation')) return null;
+  if (typeof context !== 'object' || context === null || !Object.isFrozen(context) ||
+      (Object.getPrototypeOf(context) !== Object.prototype && Object.getPrototypeOf(context) !== null)) return null;
+  const contextKeys = ['actor', 'now', 'operation', 'load', 'query'];
+  if (Reflect.ownKeys(context).length !== contextKeys.length) return null;
+  const snapshot = Object.create(Object.getPrototypeOf(context)) as Record<string, unknown>;
+  for (const key of contextKeys) {
+    const member = Object.getOwnPropertyDescriptor(context, key);
+    if (member === undefined || !('value' in member) || !member.enumerable) return null;
+    Object.defineProperty(snapshot, key, { value: member.value, enumerable: true });
+  }
+  if (typeof snapshot['actor'] !== 'string' || snapshot['actor'] === '' ||
+      typeof snapshot['operation'] !== 'string' || snapshot['operation'] === '' ||
+      typeof snapshot['now'] !== 'number' || !Number.isFinite(snapshot['now']) || snapshot['now'] < 0 ||
+      typeof snapshot['load'] !== 'function' || typeof snapshot['query'] !== 'function') return null;
+  return { input, context, inputSnapshot: inputCopy.value,
+    contextSnapshot: Object.freeze(snapshot) as unknown as SystemCommandContext };
+}
+
+/**
+ * Read and consume genuine Work staging from the exact original input/context.
+ * Positive evidence requires a fully frozen own-data input and a frozen context
+ * with its exact reader functions; mutable legacy calls remain unsealed.
+ * State owns active invocation lifetime, storage authority and the fenced commit.
+ */
+export function readCanonicalSendStaging(
+  value: unknown, expectedInput: CanonicalSendInput, expectedContext: SystemCommandContext,
+): CanonicalSendStaging | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const seal = canonicalSendSeals.get(value);
+  if (seal === undefined || seal.input !== expectedInput || seal.context !== expectedContext) return null;
+  const current = captureCanonicalSend(expectedInput, expectedContext);
+  if (current === null || !sameSendData(current.inputSnapshot, seal.inputSnapshot) ||
+      !sameSendData(current.contextSnapshot, seal.contextSnapshot)) return null;
+  canonicalSendSeals.delete(value);
+  return value as CanonicalSendStaging;
 }
 
 /**
@@ -297,6 +438,7 @@ export async function stageCanonicalSend(
   input: CanonicalSendInput,
   ctx: SystemCommandContext,
 ): Promise<CanonicalSendStaging> {
+  const seal = captureCanonicalSend(input, ctx);
   const stageContext = { ...ctx };
   let correlation: DispatchImageCorrelation | undefined;
   if (input.correlation !== undefined) {
@@ -308,7 +450,7 @@ export async function stageCanonicalSend(
   }
   const staged = await stageOutboxIntentAsync(input);
   const item = staged.item;
-  const effects = await workDispatchStageCommand.stage({
+  const effects = await stageCanonicalDispatch({
     operationId: item.operationId,
     intents: [{
       intentId: item.id,
@@ -323,5 +465,19 @@ export async function stageCanonicalSend(
       ...(correlation === undefined ? {} : { correlation }),
     }],
   }, stageContext);
-  return { effects, delivery: makeDeliveryRef(item.id, item.source) };
+  const delivery = makeDeliveryRef(item.id, item.source);
+  if (seal !== null) {
+    const current = captureCanonicalSend(input, ctx);
+    if (current !== null && sameSendData(current.inputSnapshot, seal.inputSnapshot) &&
+        sameSendData(current.contextSnapshot, seal.contextSnapshot)) {
+      const copied = copySendData(effects, false);
+      if (copied !== null) {
+        const carrier = Object.freeze({ effects: copied.value as SystemStaging, delivery });
+        canonicalSendSeals.set(carrier, seal);
+        return carrier;
+      }
+    }
+  }
+  // Legacy staging remains structural; only the strict immutable profile is sealed.
+  return { effects, delivery };
 }

@@ -52,7 +52,7 @@ import {
   workDispatchStageCommand,
   workDispatchPinImageControlCommand,
 } from '../src/kernel/commands.js';
-import { stageCanonicalSend, type CanonicalSendInput } from '../src/kernel/dispatch-staging.js';
+import { stageCanonicalSend, readCanonicalSendStaging, type CanonicalSendInput } from '../src/kernel/dispatch-staging.js';
 import {
   lifecycleOf,
   isTerminalLifecycle,
@@ -512,6 +512,177 @@ describe('t24a planRecoveryScan: resuming interrupted claims', () => {
 });
 
 describe('t24a work.dispatch.stage command', () => {
+  function sealedSendFixture() {
+    const stored = seed([]);
+    const ctx = Object.freeze({ ...fakeCtx(stored), operation: 'Acme.notify' });
+    const arguments_ = Object.freeze(Object.fromEntries([
+      ['to', 'a@example.com'], ['__proto__', 'own request value'],
+      ['tags', Object.freeze(['ready'])],
+    ]));
+    const request = Object.freeze({ binding: 'Acme.Mail', from: 'deployment.primaryMail', arguments: arguments_ });
+    const input: CanonicalSendInput = Object.freeze({ operationId: 'sealed-origin', source: 'std.EmailV1.send',
+      occurrenceIndex: 2, originOccurrence: null, request });
+    return { stored, ctx, input };
+  }
+
+  it('seals a genuine immutable send once with detached effects, native delivery and exact provenance, including replay', async () => {
+    const { stored, ctx, input } = sealedSendFixture();
+    const staged = await stageCanonicalSend(input, ctx);
+    assert.equal(stored.size, 0, 'staging does not commit');
+    assert.deepEqual(staged.delivery, { kind: 'delivery', id: stageOutboxIntent(input).item.id, operation: input.source });
+    assert.ok(Object.isFrozen(staged)); assert.ok(Object.isFrozen(staged.delivery));
+    const effects = staged.effects;
+    assert.ok(Object.isFrozen(effects));
+    assert.ok(Object.isFrozen(effects.writes)); assert.ok(Object.isFrozen(effects.outbox));
+    assert.ok(Object.isFrozen(effects.result));
+    const write = effects.writes![0]!; assert.ok(write.kind === 'insert');
+    assert.ok(Object.isFrozen(write)); assert.ok(Object.isFrozen(write.row)); assert.ok(Object.isFrozen(write.row.data));
+    assert.equal(write.model, WORK_DISPATCH_MODEL);
+    assert.equal(write.row.createdBy, ctx.actor); assert.equal(write.row.updatedBy, ctx.actor);
+    assert.equal(write.row.created, ctx.now); assert.equal(write.row.updated, ctx.now);
+    const origin = readDispatchRow(write.row);
+    assert.equal(origin.operationId, input.operationId); assert.equal(origin.source, input.source);
+    assert.equal(origin.occurrenceIndex, input.occurrenceIndex); assert.equal(origin.originOccurrence, null);
+    const outbox = effects.outbox![0]!;
+    assert.ok(Object.isFrozen(outbox)); assert.ok(Object.isFrozen(outbox.arguments));
+    assert.notEqual(outbox.arguments, input.request);
+    const retained = outbox.arguments['arguments'] as Record<string, unknown>;
+    assert.notEqual(retained, (input.request as Record<string, unknown>)['arguments']);
+    assert.ok(Object.isFrozen(retained)); assert.ok(Object.isFrozen(retained['tags']));
+    assert.equal(Object.hasOwn(retained, '__proto__'), true);
+    assert.equal(retained['__proto__'], 'own request value');
+    assert.equal(outbox.operation, ctx.operation); assert.equal(outbox.operationId, input.operationId);
+    assert.equal(outbox.target, input.source); assert.equal(outbox.occurrenceIndex, input.occurrenceIndex);
+    assert.equal(Reflect.set(write.row.data, 'source', 'foreign'), false);
+    assert.throws(() => Reflect.apply(Array.prototype.push, effects.outbox, [outbox]), TypeError);
+    assert.equal(readCanonicalSendStaging(staged, input, ctx), staged);
+    assert.equal(readCanonicalSendStaging(staged, input, ctx), null);
+    stored.set(`${WORK_DISPATCH_MODEL}\0${write.row.id}`, write.row);
+    const replay = await stageCanonicalSend(input, ctx);
+    assert.deepEqual(replay.delivery, staged.delivery);
+    assert.deepEqual(replay.effects.writes, []); assert.deepEqual(replay.effects.outbox, []);
+    assert.equal(readCanonicalSendStaging(replay, input, ctx), replay);
+    assert.equal(readCanonicalSendStaging(replay, input, ctx), null);
+  });
+
+  it('refuses copied, inherited and accessor send carriers without executing carrier getters', async () => {
+    const { input, ctx } = sealedSendFixture(); const staged = await stageCanonicalSend(input, ctx);
+    let getters = 0;
+    const accessor = Object.defineProperty({}, 'effects', { enumerable: true, get: () => { getters++; return staged.effects; } });
+    for (const candidate of [{ ...staged }, Object.create(staged), accessor]) {
+      assert.equal(readCanonicalSendStaging(candidate, input, ctx), null);
+    }
+    assert.equal(getters, 0);
+    assert.equal(readCanonicalSendStaging(staged, input, ctx), staged);
+  });
+
+  it('keeps the sealed producer bound when the exported command method is replaced', async () => {
+    const { input, ctx } = sealedSendFixture();
+    const original = workDispatchStageCommand.stage;
+    let substitutedCalls = 0;
+    assert.equal(Reflect.set(workDispatchStageCommand, 'stage', async () => {
+      substitutedCalls++;
+      return { writes: [], outbox: [], result: { fabricated: true } };
+    }), true);
+    try {
+      const staged = await stageCanonicalSend(input, ctx);
+      assert.equal(substitutedCalls, 0);
+      assert.equal(staged.effects.writes?.length, 1);
+      assert.equal(staged.effects.outbox?.length, 1);
+      assert.equal(staged.effects.outbox?.[0]?.operationId, input.operationId);
+      assert.equal(staged.effects.outbox?.[0]?.target, input.source);
+      assert.equal(readCanonicalSendStaging(staged, input, ctx), staged);
+      assert.equal(readCanonicalSendStaging(staged, input, ctx), null);
+    } finally {
+      assert.equal(Reflect.set(workDispatchStageCommand, 'stage', original), true);
+    }
+  });
+
+  it('refuses identical foreign input/context identities and changed reader functions without consuming the genuine seal', async () => {
+    const { input, ctx } = sealedSendFixture(); const staged = await stageCanonicalSend(input, ctx);
+    assert.equal(readCanonicalSendStaging(staged, Object.freeze({ ...input }), ctx), null);
+    assert.equal(readCanonicalSendStaging(staged, input, Object.freeze({ ...ctx })), null);
+    assert.equal(readCanonicalSendStaging(staged, input, Object.freeze({ ...ctx, load: async () => null })), null);
+    assert.equal(readCanonicalSendStaging(staged, input, Object.freeze({ ...ctx, query: async () => [] })), null);
+    assert.equal(readCanonicalSendStaging(staged, input, ctx), staged);
+  });
+
+  it('keeps mutable and nested-mutable legacy sends unsealed, including mutable contexts', async () => {
+    for (const mode of ['input', 'request', 'arguments', 'context'] as const) {
+      const fixture = sealedSendFixture();
+      const request = fixture.input.request as Record<string, unknown>;
+      const input: CanonicalSendInput = mode === 'input' ? { ...fixture.input }
+        : mode === 'request' ? Object.freeze({ ...fixture.input, request: { ...request } })
+        : mode === 'arguments' ? Object.freeze({ ...fixture.input, request: Object.freeze({ ...request,
+          arguments: { ...(request['arguments'] as Record<string, unknown>) } }) }) : fixture.input;
+      const ctx = mode === 'context' ? { ...fixture.ctx } : fixture.ctx;
+      const staged = await stageCanonicalSend(input, ctx);
+      assert.equal(readCanonicalSendStaging(staged, input, ctx), null, mode);
+      assert.equal(fixture.stored.size, 0);
+      assert.equal(staged.effects.writes?.length, 1);
+    }
+  });
+
+  it('never seals a send whose original input changes during an awaited owning load', async () => {
+    const fixture = sealedSendFixture(); const input = { ...fixture.input };
+    let loads = 0;
+    const ctx = Object.freeze({ ...fixture.ctx, load: async () => {
+      loads++; input.operationId = 'changed-after-capture'; Object.freeze(input); return null;
+    } });
+    const staged = await stageCanonicalSend(input, ctx);
+    assert.equal(loads, 1);
+    assert.equal(staged.effects.outbox?.[0]?.operationId, 'sealed-origin');
+    assert.equal(readCanonicalSendStaging(staged, input, ctx), null);
+  });
+
+  it('leaves accessor, inherited, symbolic, nonplain and cyclic legacy payloads outside the positive profile', async () => {
+    for (const mode of ['accessor-input', 'inherited-context', 'inherited-request', 'symbol-input', 'nonplain-payload', 'cyclic-payload'] as const) {
+      const fixture = sealedSendFixture();
+      const request = fixture.input.request as Record<string, unknown>;
+      let input: CanonicalSendInput = fixture.input; let ctx: SystemCommandContext = fixture.ctx;
+      if (mode === 'accessor-input') {
+        const candidate = { ...fixture.input };
+        Object.defineProperty(candidate, 'operationId', { enumerable: true, get: () => fixture.input.operationId });
+        input = Object.freeze(candidate);
+      } else if (mode === 'inherited-context') {
+        ctx = Object.freeze(Object.assign(Object.create({ foreign: true }), fixture.ctx)) as SystemCommandContext;
+      } else if (mode === 'inherited-request') {
+        input = Object.freeze({ ...fixture.input,
+          request: Object.freeze(Object.assign(Object.create({ foreign: true }), request)) });
+      } else if (mode === 'symbol-input') {
+        input = Object.freeze({ ...fixture.input, [Symbol('foreign')]: true });
+      } else {
+        const payload: Record<string, unknown> = mode === 'nonplain-payload'
+          ? { value: Object.freeze(new Date(NOW)) } : {};
+        if (mode === 'cyclic-payload') payload['self'] = payload;
+        Object.freeze(payload);
+        input = Object.freeze({ ...fixture.input, request: Object.freeze({ ...request, arguments: payload }) });
+      }
+      const staged = await stageCanonicalSend(input, ctx);
+      assert.equal(readCanonicalSendStaging(staged, input, ctx), null, mode);
+      assert.equal(fixture.stored.size, 0);
+    }
+  });
+
+  it('seals null-prototype inputs and checked frozen generation correlation while refusing a mutable correlation', async () => {
+    for (const mutable of [false, true]) {
+      const stored = seed([]); const ctx = Object.freeze(Object.assign(Object.create(null), fakeCtx(stored))) as SystemCommandContext;
+      const correlation = { requestSource: 'business-source', requestRevision: '3', requestBinding: 'Acme.Text',
+        requestFrom: 'deployment.text', requestApp: 'Acme', requestOwner: 'team-1' };
+      if (!mutable) Object.freeze(correlation);
+      const request = Object.freeze({ binding: correlation.requestBinding, from: correlation.requestFrom,
+        arguments: Object.freeze({ value: Object.freeze({ source: correlation.requestSource, revision: correlation.requestRevision }) }) });
+      const input = Object.freeze(Object.assign(Object.create(null), { operationId: 'correlated-origin',
+        source: 'std.TextGenerationV1.generate', occurrenceIndex: 0, originOccurrence: null, request, correlation })) as CanonicalSendInput;
+      const staged = await stageCanonicalSend(input, ctx);
+      const write = staged.effects.writes![0]!; assert.ok(write.kind === 'insert');
+      assert.deepEqual(readDispatchImageCorrelation(readDispatchRow(write.row)), correlation);
+      assert.equal(readCanonicalSendStaging(staged, input, ctx), mutable ? null : staged);
+      assert.equal(readCanonicalSendStaging(staged, input, ctx), null);
+      assert.equal(stored.size, 0);
+    }
+  });
+
   for (const originalSource of ['std.ImagesV1.submit', 'std.TextGenerationV1.generate']) it(`stages checked ${originalSource} correlation, refuses replay drift and preserves it through claims`, async () => {
     const stored = seed([]); const ctx = { ...fakeCtx(stored), operation: 'Acme.generate' };
     const correlation = { requestSource: 'business-source-is-not-operation', requestRevision: '3',
