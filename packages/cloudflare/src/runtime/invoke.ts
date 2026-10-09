@@ -4847,9 +4847,11 @@ export interface CanonicalRetainedHandlerOccurrenceOpts {
 }
 
 class RetainedHandlerOccurrenceChanged extends Error {
-  constructor(readonly outcome: Exclude<import('@canlang/work/kernel/handler-occurrence').RetainedHandlerOccurrenceResult,
+  readonly outcome: Exclude<import('@canlang/work/kernel/handler-occurrence').RetainedHandlerOccurrenceResult, { status: 'ready' }>;
+  constructor(outcome: Exclude<import('@canlang/work/kernel/handler-occurrence').RetainedHandlerOccurrenceResult,
     { status: 'ready' }>) {
     super('Retained handler occurrence changed before execution.');
+    this.outcome = outcome;
   }
 }
 
