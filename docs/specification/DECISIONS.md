@@ -4901,6 +4901,21 @@ Consume exact coordinator-reviewed LOCAL main763d277b and Compiler8947510c/f302e
 
 The unchanged whole harness passes1/1 in63.24s with19 original scalar/array/derive plus24 machine/default fresh outcomes, including eleven new stored-read/override cases; cleanup succeeds. Current native build and CF emit, root noEmit and boundaries890files/1191expressions/zero violations pass. No runtime or shared gate repair was needed. Reuse unchanged State/direct/package/catalog checks at their scopes; Compiler still owns final whole qualification for its changed source. General Set/Send/composite/effect capture and T04/T11/Office/G2–G3 remain unfinished. Preserve complete checkpoint and local-only/manual integration holds.
 
+
+## 2026-10-10 — checked Send and scalar Set receipt provenance
+
+The bounded native profile retains actual ordered read influence for checked
+own scalar Set and bound capability Send, using private source/target/field
+proofs matched exhaustively to emitted IR. Delivery carriers remain typed
+source-owned values rather than invented stored-field reads. Closed std request
+composites retain member-specific provenance and authored evaluation order. A
+private effect-existence counter preserves selectors on both conditional
+effect/no-effect paths, including read-free writes/sends. Metadata, nullable
+delivery inspection, dispatch guards, foreign/reference writes and unsupported
+effects still refuse this profile. Source16/16, facts15/15, actualnative2/2 and
+strict lint/format pass; the original cancel/reconcile compiler join is covered.
+Original generate execution awaits the State intrinsic/primitive-input and Dev
+consumer joins; no broader application or Task44 acceptance follows.
 ## 2026-10-10 — consume the reviewed saved scenario prerequisite locally
 
 At clean Packages56008fac, merge only coordinator-reviewed local main6b1a641a without conflicts, preserving installed Text observation ceiling, checked CSV and shared writer fixtures. Reuse source registryaba11b3f: all10810 staged net predecessor/successor paths since complete82493427 are registered. Retain original owner allocations, unfinished source/consumer qualifications, exact native and local-only holds, and unadvanced complete checkpoint. No fresh runtime validation or parent acceptance is inferred from intake. State owns the finite admitted operation identity/original reference version dependency contract; Compiler owns actual source closure/lowering and Dev owns the private native observer.
@@ -4925,21 +4940,34 @@ State requires an own supplied admitted slot, validates/round-trips its owning V
 
 New owning graph6/6 and final State emission pass. Five affected Memory cases5/5 pass182ms with exact empty/false wires,16minute execute0 recovery, changed raw-input hash conflicts, no inferred row grant, current type drift, required/profile/source/copy/spoof/unknown legacy/malformed actual wire and awaited tamper/poison refusals. Extend the same actual D1/SQLiteDO owner cases2/2 pass1.56s with original whitespace/newline prompt and false after provisional staging, persisted/reopened exact intrinsic carriers and later original-version recovery. Actual public root/invocation exports agree; unchanged41 earlier State outcomes reused. Checked handbuilt metadata qualifies the State producer, not original compiled Task44 or broader input families. Coordinator manual release and actual Compiler/Dev source/native consumer remain necessary; native-preparation and local-only holds unchanged.
 
-## 2026-10-10 — checked Send and scalar Set receipt provenance
 
-The bounded native profile retains actual ordered read influence for checked
-own scalar Set and bound capability Send, using private source/target/field
-proofs matched exhaustively to emitted IR. Delivery carriers remain typed
-source-owned values rather than invented stored-field reads. Closed std request
-composites retain member-specific provenance and authored evaluation order. A
-private effect-existence counter preserves selectors on both conditional
-effect/no-effect paths, including read-free writes/sends. Metadata, nullable
-delivery inspection, dispatch guards, foreign/reference writes and unsupported
-effects still refuse this profile. Source16/16, facts15/15, actualnative2/2 and
-strict lint/format pass; the original cancel/reconcile compiler join is covered.
-Original generate execution awaits the State intrinsic/primitive-input and Dev
-consumer joins; no broader application or Task44 acceptance follows.
+## 2026-10-10 — emit checked admitted intrinsic capture at actual evaluation sites
 
+Use the defining additive State intrinsic contract for operation identity, original
+required versioned reference metadata and explicitly supplied required builtin
+scalar inputs. Preserve declaration/parameter/call-chain/source identities; do not
+substitute model fields, current staged versions or nominally reused scalar types.
+Evaluate each original expression once before the private awaited Dev facade.
+Successful primitive requirements influence effects before or after writes while
+existing independent-return/stored-guard authorization policy remains unchanged.
+Native input descriptors name the exact checked primitive type; generic ABI is
+unchanged. The checker publishes actual shorthand lexical types at their key
+nodes and IR retains those anchors rather than inventing Unknown assignments.
+
+Source23/23, facts15/15, actual intrinsic CLI1/1 and unchanged original generation
+CLI1/1, strict lint/format pass. The four original generation facts are now
+complete in compiler output. Native adapter/original workflow and whole changed-
+source acceptance remain unfinished; broader refs and precise holds stay open.
+
+
+## 2026-10-10 — retain all admitted intrinsic requirements on successful effects
+
+Correct the finite guard closure identified in manual review: every supported
+intrinsic kind controls successful effects, whether the requirement precedes or
+follows the effect. Preserve the established independent-return/stored-guard
+policy. Six direct source paths1/1 and actual output1/1 with four effect guards
+pass; strict lint/format pass. The existing native fixture extension remains
+prepared and unexecuted until the exact released Dev observer is consumed.
 ## 2026-10-10 — connect real profile execution to private help qualification (unfinished)
 
 Use the existing frozen SessionConstructQualification carrier through an awaitable daemon-owned provider, never socket-supplied flags. Capture the existing Compiler first-profile fixture/test and current installed compiler/help/runtime/resource inputs. Execute the exact fixture through ordinary local D1/Identity/HTTP/MCP and owning authored-row APIs before adding any corresponding card. Preserve missing UI/user/scenario/example halves as unqualified. Empty diagnostic branch inventory can supply help proofs only; parser intent flags and live ranking remain unchanged. Full producer currency is independent of app edits, checked before/after each join; refresh actual source before ranking. Abort private work on request/session cancellation, wait for its owned cleanup and discard late outcomes. Bound completed tuple caching includes honest unknown refusals; cancellation/source races cache nothing.

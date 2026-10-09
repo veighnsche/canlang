@@ -3370,11 +3370,30 @@ impl<'a> Cx<'a> {
                 .find(|n| is_expression(n.kind) && n.kind != SyntaxKind::Argument)
                 .map(|n| self.decode_expr(scope, n))
                 .unwrap_or_else(|| {
-                    TypedExpr::new(IrExpr::Name(key.clone()), ResolvedType::Unknown, child.span)
+                    let anchor = NodeKey::of(parts[0]);
+                    self.shorthand_value(&key, anchor)
                 });
             entries.push((key, value));
         }
         IrExpr::Object(entries)
+    }
+
+    /// Preserve the lexical type checked at an actual shorthand key. The
+    /// owning type pass supplies this fact; field expectations are not a
+    /// substitute for the value's binding type.
+    fn shorthand_value(&self, name: &str, key: NodeKey) -> TypedExpr {
+        let ty = self
+            .program
+            .types
+            .node_types
+            .get(&key)
+            .cloned()
+            .unwrap_or(ResolvedType::Unknown);
+        TypedExpr::new(
+            IrExpr::Name(name.to_string()),
+            ty,
+            Span::new(key.file, key.start, key.end),
+        )
     }
 
     /// Decode member access, wrapping delivery-typed bases in the sole
@@ -5270,9 +5289,7 @@ impl<'a> Cx<'a> {
                     .value
                     .as_ref()
                     .map(|key| self.decode_anchored(scope, key, "effect argument"));
-                let value = value.unwrap_or_else(|| {
-                    TypedExpr::new(IrExpr::Name(arg.key.clone()), ResolvedType::Unknown, span)
-                });
+                let value = value.unwrap_or_else(|| self.shorthand_value(&arg.key, arg.key_node));
                 (arg.key.clone(), value)
             })
             .collect();

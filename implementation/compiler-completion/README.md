@@ -1929,3 +1929,46 @@ Strict all-target Clippy/format pass; independent finite review finds no defect.
 Final changed-source whole qualification remains due; historical83/1325 is reused
 only at its source scope. Existing Dev portable grouped-default journey1/1 at
 f4365702 is consumed and reused. Broader nine refs and precise holds remain.
+
+
+**Admitted intrinsic compiler producer — unfinished native/whole join, 2026-10-10.**
+Exact reviewed State4396/078cac74 is consumed. The SAME original generation
+source now emits complete operation-id, original required job.version, prompt
+DATA and late accept CONTROL attribution, alongside its existing Send/Set proofs.
+Actual checked occurrences preserve aliases, grouping, derive origins and
+authored once-only evaluation. Generated markers use the Dev-accepted private
+facade; native descriptors carry exact checked primitive valueType. Shorthand
+keys now retain the checker's actual lexical type and source anchor through IR,
+so required scalar Set/Send shorthand publishes the same complete plan. Reused
+field types, optional/default/array/enum inputs retain their separate profiles;
+nullable/versionless/default reference metadata and other context still decline.
+Source23/23, existing facts15/15, actual CLI intrinsic output1/1 and SAME original
+generation output1/1 pass; strict all-target Clippy and formatting pass. A type-
+reuse admission mistake and a shorthand type/anchor gap were corrected before
+these results. This qualifies the compiler producer/output only. Dev's exact
+private native observer release, actual original Text workflow and final changed-
+source whole qualification remain required. No 67-reference or Task44 completion
+is inferred; historical83/1325 and all precise holds retain their scopes.
+
+
+**Intrinsic requirement-control correction — unfinished runtime join, 2026-10-10.**
+Coordinator review found operation-id/original-version requirements were omitted
+from successful-effect CONTROL while primitive requirements were retained. All
+supported intrinsic guards now govern effects before and after writes, preserving
+independent-return and stored-guard policy. The focused six-path source case1/1
+and actual CLI output case1/1 with four before/after guards pass; strict all-target
+lint/format pass. Unrelated earlier source/output results are reused. The SAME
+native consumer is prepared for actual operation/input/original-version capture,
+post-Set original metadata, later writes, aged recovery and archive withholding;
+that body remains unexecuted pending exact reviewed Dev observer intake. No native
+or whole acceptance follows from this coherent unfinished checkpoint.
+
+
+At the exact local `12a3209b`/`ec3c2f50` tuple, the reviewed Dev observer is consumed.
+Owning graph26/26 with zero cached tasks, actual bin and catalog59/15 refresh
+complete. The current target passes3/3 on Node24.19 with zero skips: two real
+compile-output checks and the SAME Memory/native receipt workflow. Actual
+operation/input/original-version capture, post-Set metadata after later writes,
+ordinary/dedicated16minute no-effect recovery and archive/current-grant controls
+are qualified at that scope. The required full changed-source run is in progress;
+no whole result or Dev original Text workflow acceptance is inferred.
