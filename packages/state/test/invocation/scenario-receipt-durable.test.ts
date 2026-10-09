@@ -15,7 +15,7 @@ import { buildModelTableFromCanonical } from '../../src/mutation/models.js';
 import { runMutationWrites } from '../../src/mutation/pipeline.js';
 import { loadArtifactDescriptors, type ArtifactDescriptorSlice } from '../../src/invocation/registry.js';
 import { invoke, invokeRetainedReceiptOnly } from '../../src/invocation/invoke.js';
-import { observeScenarioReceiptDependency, selectScenarioReceiptReturn,
+import { beginScenarioReceiptMutation, observeScenarioReceiptDependency, selectScenarioReceiptReturn,
   readScenarioReceiptAssociation, projectScenarioReceipt } from '../../src/invocation/scenario-receipt.js';
 import { FIXED_NOW, asModel, createMemoryIdentityStore, makeBatch, makeIdentity, makeEnvelope,
   seedMember, seedRow, uuidv7 } from './fixtures.js';
@@ -166,13 +166,99 @@ for (const substrate of ['d1', 'do'] as const) {
       const masked = await projectScenarioReceipt({ ...input, store, receipt: retained,
         policy: buildPolicyTable([{ model: MODEL, secretFields: ['visible'],
           grants: [{ by: 'members', fields: ['private', 'token'] }] }]) });
-      assert.equal(masked.result, null); assert.equal(masked.records.length, 1);
-      assert.deepEqual(masked.records[0]!.data, { private: 'private choice' });
+      assert.deepEqual(masked, { result: null, records: [] });
       await memberships.removeMembership(member.membership.membership_id);
       assert.deepEqual(await projectScenarioReceipt({ ...input, store, policy, receipt: retained }), { result: null, records: [] });
       await assert.rejects(invokeRetainedReceiptOnly(recovery), stateCode('forbidden'));
       assert.equal(executes, 0); assert.equal(commits, 0);
       assert.deepEqual(await snapshot(), before);
+    } finally {
+      await native.dispose();
+    }
+  });
+
+  test(`State scenario owner ABI retains an intermediate control read across native ${substrate} adapter reopen`, async () => {
+    // Hand-built checked plan exercises the State ABI, not Compiler emission
+    // or a generated native source binding. The session issues the real row.
+    const native = await nativeStore(substrate);
+    try {
+      let store = native.store;
+      const memberships = createMemoryIdentityStore();
+      const member = await seedMember(memberships, { isOwner: false, roles: ['Shop.reader'] });
+      const identity = makeIdentity({ userId: member.user.user_id, team: member.team, membership: member.membership });
+      const slice = artifact();
+      slice.operations![0]!.result = { type: 'void' as CanTypeId, disclosure: { version: 1, source: origin(), returns: [
+        { id: 'queued-control', source: origin(), influences: [], dependencies: [
+          { id: 'queued', source: origin(), role: 'control', model: MODEL, field: 'visible', type: 'text' as CanTypeId },
+        ] },
+      ] } };
+      const loaded = loadArtifactDescriptors(slice, { by: 'members' });
+      const table = buildModelTableFromCanonical(loaded.models, { refs: loaded.refs });
+      await seedRow(store, MODEL, { id: 'owner-session-row', data: {
+        visible: 'created', private: 'private choice', token: 'original secret',
+      } });
+      const original = await store.load(MODEL, 'owner-session-row' as import('@canlang/contracts').RecordId); assert.ok(original);
+      const input = { registry: loaded.registry, app: APP, identity, memberships, source: 'test',
+        envelope: makeEnvelope(OP, uuidv7(FIXED_NOW, 9711), { record: { id: original.id, version: String(original.version) } }),
+        clock: { nowMs: () => FIXED_NOW } };
+      let receipt: Receipt | undefined;
+      await invoke({ ...input, store, execute: async call => {
+        const session = await beginScenarioReceiptMutation(call, store, { table, bounds: { maxWork: 1000, maxRows: 20 } });
+        await session.stage({ op: 'update', model: MODEL, id: original.id, data: { visible: 'queued' } }, { cause: 'scenario' });
+        const queued = await session.read(MODEL, original.id); assert.ok(queued);
+        assert.equal(queued.data.visible, 'queued'); assert.equal(queued.version, original.version + 1);
+        await observeScenarioReceiptDependency(call, store, { dependencyId: 'queued', model: MODEL, row: queued, field: 'visible' });
+        selectScenarioReceiptReturn(call, store, 'queued-control');
+        await session.stage({ op: 'update', model: MODEL, id: original.id, data: { visible: 'generating' } }, { cause: 'scenario' });
+        const final = await session.read(MODEL, original.id); assert.ok(final);
+        assert.equal(final.data.visible, 'generating'); assert.equal(final.version, queued.version);
+        const effects = await session.finalize();
+        assert.equal(effects.writes.length, 1); assert.equal(effects.history.length, 1);
+        assert.equal(effects.history[0]!.before?.visible, 'created'); assert.equal(effects.history[0]!.after?.visible, 'generating');
+        assert.deepEqual(await store.load(MODEL, original.id), original, 'intermediate and final writes remain provisional');
+        return { ...effects, outbox: [], result: null };
+      }, observeCommittedReceipt: value => { receipt = value; } });
+      assert.ok(receipt); const retained = receipt;
+      const association = readScenarioReceiptAssociation(retained); assert.ok(association);
+      assert.equal(association.observations[0]!.row.data.visible, 'queued');
+      assert.equal(association.changed[0]!.row.data.visible, 'generating');
+      assert.equal(association.changed[0]!.row.version, original.version + 1);
+      assert.equal((await store.historyFor(MODEL, original.id)).length, 1);
+      store = await native.reopen();
+      assert.deepEqual(await store.readReceipt(retained.identity), retained);
+      assert.deepEqual(await store.load(MODEL, original.id), association.changed[0]!.row);
+      let executes = 0, commits = 0;
+      const recoveryStore: StoragePort = { ...store, commit: async batch => { commits++; return store.commit(batch); } };
+      const recovery = { ...input, store: recoveryStore, clock: { nowMs: () => FIXED_NOW + 16 * 60_000 },
+        execute: async () => { executes++; throw new Error('Retained owner session must not execute'); } };
+      const replay = await invokeRetainedReceiptOnly(recovery);
+      assert.equal(replay.status, 'replayed'); assert.equal(replay.result, null);
+      const later = await runMutationWrites({ table, store,
+        context: pipelineContext({ operation: 'Shop.Record.update', operationId: uuidv7(FIXED_NOW, 9712), now: FIXED_NOW + 1 }),
+        writes: [{ op: 'update', model: MODEL, id: original.id, data: { visible: 'current running' } }] });
+      await store.commit(makeBatch(await store.readRevision(), later));
+      const policy = buildPolicyTable([{ model: MODEL, secretFields: [], grants: [
+        { by: { role: 'Shop.reader' }, fields: ['visible', 'private', 'token'] },
+      ] }]);
+      const projected = await projectScenarioReceipt({ ...input, store, policy, receipt: retained });
+      assert.deepEqual(projected.records[0]!.data, { visible: 'generating', private: 'private choice' });
+
+      // Original secrets remain protected after declassification; new current
+      // secrecy also masks saved final values independently of the void result.
+      const currentSlice = structuredClone(slice);
+      const privateField = currentSlice.models![0]!.fields.find(field => field.name === 'private')!;
+      privateField.field = { kind: 'secret' }; privateField.required = false; privateField.serverOnly = true;
+      privateField.default = { kind: 'server', init: 'random_secret' };
+      const tokenField = currentSlice.models![0]!.fields.find(field => field.name === 'token')!;
+      tokenField.field = { kind: 'string' }; tokenField.serverOnly = false; delete tokenField.default;
+      const currentRegistry = loadArtifactDescriptors(currentSlice, { by: 'members' }).registry;
+      const revision = await store.readRevision();
+      const masked = await projectScenarioReceipt({ ...input, registry: currentRegistry, store, policy, receipt: retained });
+      assert.deepEqual(masked.records[0]!.data, { visible: 'generating' });
+      await memberships.removeMembership(member.membership.membership_id);
+      assert.deepEqual(await projectScenarioReceipt({ ...input, registry: currentRegistry, store, policy, receipt: retained }), { result: null, records: [] });
+      await assert.rejects(invokeRetainedReceiptOnly(recovery), stateCode('forbidden'));
+      assert.equal(executes, 0); assert.equal(commits, 0); assert.equal(await store.readRevision(), revision);
     } finally {
       await native.dispose();
     }

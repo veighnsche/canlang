@@ -74,7 +74,7 @@ import { StateError, storageToStateError } from '../errors.js';
 import { stageEffectsStaging } from '../effects/staging.js';
 import { checkFanoutChildId } from '../fanout/cohort.js';
 import { FenceConflictError, StorageConstraintError } from '../storage/port.js';
-import { retainScenarioReceipt } from './scenario-receipt.js';
+import { closeScenarioReceiptExecution, retainScenarioReceipt, snapshotScenarioReceiptEffects } from './scenario-receipt.js';
 
 /** Fenced-commit attempts per invocation, per DESIGN §7. */
 export const MAX_ADMISSION_ATTEMPTS = 3;
@@ -470,7 +470,9 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
         if (isGeneratedOperationDef(def) && def.descriptor.result?.disclosure !== undefined) {
           assertScenarioReceiptExecution(call, input.store);
         }
+        raw = snapshotScenarioReceiptEffects(call, raw);
       } finally {
+        closeScenarioReceiptExecution(call);
         activeAdmittedExecutions.delete(call);
         scenarioExecutions.delete(call);
       }
@@ -484,7 +486,7 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
       );
       // Association comes only from the active capture, never executor output.
       if (Object.hasOwn(raw, 'scenario')) throw new StateError('validation', 'Executor cannot supply a saved scenario association.');
-      const scenario = retainScenarioReceipt(call, raw.writes, raw.result);
+      const scenario = retainScenarioReceipt(call, raw);
       effects = { ...raw, outbox: staged.outbox, schedules: staged.schedules,
         ...(scenario === undefined ? {} : { scenario }) };
     } catch (error) {
