@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-09T01:02:52.511016+00:00",
+  "updated_utc": "2026-10-09T01:03:59.701094+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -3181,6 +3181,11 @@
       "model_reason": "Cross-package session/security/installedhost boundary warrants high; reuse existing algorithms and consumer, no broadreview.",
       "validation": "PrivateInterfaces/CFemit0; existingauth18/18; actualportableworkerd/localD1consumer1/1 in1958ms,handle20365 completed, using actualD1limiter.",
       "limits": "Explicit trustedhost configonly. Defaultenvauth provision/mail delivery/fullOfficeSupplies remainopen; no Nodebrowserbundle qualification."
+    },
+    "caninvoice_checked_source_batch": {
+      "status": "Released eight-line source reviewed and locally committed; all scenario headers unchanged",
+      "validation": "One affected check complete/omitted0,Invoice64,total313,Rent26,Book0,other providers unchanged; no newdiagnostics.",
+      "limits": "Source admission only; no runtime/whole52/root48 credit, public IDs preserved."
     }
   },
   "live_finite_packets": [
