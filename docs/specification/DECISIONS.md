@@ -3672,3 +3672,11 @@ Accepted bounded intake decision: retain the exact released four-donor string-es
 ## 2026-10-09: preserve complete dependent-choice source and qualify transport
 
 Accepted consumer decision: capture request hold state before actual worker suspension and drain released transports before disposing D1/browser ports, preserving first-error identity. The original nativeD1/happyDOM/installed Chrome/MCP case passes1/1 (33.75s), with owning build22/22. Move the approval shell's unchanged preference declaration to Then to match exact draft5a12eb9e; full shared-provider checking then retains precisely the original four diagnostics. CountryRegion checks cleanly but its four genuine presentation lowering refusals remain. Full two-witness conditional-grant/model-rule/navigation/UI qualification stays open with defining Compiler/Contracts/UI owners; the saved source checkpoint is not whole-task acceptance.
+
+## 2026-10-09: complete the ordinary approval source comparison
+
+Proposed approval policies remain separately labeled: two named eligible reviewers, explicit deadline/veto/supersession and distinct original business finalizers, with unpaid Expense invalidation as additional proposed domain recovery. Complete ordinary compositions and their package/template comparison retain all original Expense10/Creative12 scenarios and pages; body changes are restricted to decide/reimburse/publish. Full current provider-closure checks retain Expense's original2/Creative's original7 diagnostics plus8/6 request.operation_id admission errors. Compiler/rule/grant/context/browser/provider execution remains open; authored completeness does not accept SEQ-038 or SEQ-040 or establish a reusable approval package.
+
+## 2026-10-09: consume the released Zsh completion consumer
+
+Accepted finite prerequisite intake: copy exact Compiler c4376ab8 Zsh fixture without reimplementing its insecure-path audit, bootstrap refusal or echo-safe readiness. Actual Bash/Zsh completion engines pass1/1 with engine presence required (20.54s). The change is independently qualified; broader compiler producer work remains with its owner.
