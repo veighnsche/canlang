@@ -1871,12 +1871,75 @@ impl<'a> Emitter<'a> {
     }
 
     fn collect_judgment_value_types(&mut self) -> Option<JsValueTypes> {
-        if !self
+        let has_judgment = self
             .ir
             .items
             .iter()
-            .any(|item| matches!(item.kind, IrItemKind::Judgment { .. }))
-        {
+            .any(|item| matches!(item.kind, IrItemKind::Judgment { .. }));
+        // Ordinary contracts use the same released inventory, independently
+        // of whether a Judgment happens to be present. Admit whole checked
+        // closures only; unknown/model-containing shapes gain no new claim.
+        fn supported_field(ir: &IrProgram, ty: &ResolvedType, contracts: &[SymbolId]) -> bool {
+            let outer = match ty {
+                ResolvedType::Nullable(inner) => inner.as_ref(),
+                ty => ty,
+            };
+            let base = match outer {
+                ResolvedType::Array { element, .. } => element.as_ref(),
+                ty => ty,
+            };
+            match base {
+                ResolvedType::Scalar(
+                    Scalar::Int
+                    | Scalar::Text
+                    | Scalar::Bool
+                    | Scalar::Decimal
+                    | Scalar::Money
+                    | Scalar::Date
+                    | Scalar::Datetime
+                    | Scalar::Duration,
+                ) => checked_value_profile(ty).is_some(),
+                // Declaration identity distinguishes a contract from a model;
+                // reused named-contract field types also carry `stored:true`.
+                ResolvedType::Record { symbol, .. } => contracts.contains(symbol),
+                ResolvedType::Enum {
+                    owner: Some(owner),
+                    cases,
+                } => {
+                    !cases.is_empty()
+                        && ir.items.get(owner.0 as usize).is_some_and(|item| {
+                            item.id == *owner && matches!(item.kind, IrItemKind::Field { .. })
+                        })
+                }
+                _ => false,
+            }
+        }
+        let mut ordinary_contracts = Vec::new();
+        loop {
+            let before = ordinary_contracts.len();
+            for item in &self.ir.items {
+                let IrItemKind::Contract { fields, .. } = &item.kind else {
+                    continue;
+                };
+                if ordinary_contracts.contains(&item.id) {
+                    continue;
+                }
+                if fields.iter().all(|id| {
+                    self.ir.items.get(id.0 as usize).is_some_and(|field| {
+                        field.id == *id
+                            && matches!(&field.kind, IrItemKind::Field {
+                        owner, ty: IrType::Known(ty), ..
+                    } if *owner == item.id && supported_field(self.ir, ty, &ordinary_contracts))
+                    })
+                }) {
+                    ordinary_contracts.push(item.id);
+                }
+            }
+            if before == ordinary_contracts.len() {
+                break;
+            }
+        }
+        if !has_judgment && ordinary_contracts.is_empty() {
             return None;
         }
         let mut inventory = JsValueTypes::default();
@@ -1893,8 +1956,12 @@ impl<'a> Emitter<'a> {
             }
             let fields = match &item.kind {
                 IrItemKind::Judgment { result_fields, .. } => result_fields,
-                IrItemKind::JudgmentGenerated(IrJudgmentGenerated::Contract { fields })
-                | IrItemKind::Contract { fields, .. } => fields,
+                IrItemKind::JudgmentGenerated(IrJudgmentGenerated::Contract { fields }) => fields,
+                IrItemKind::Contract { fields, .. }
+                    if has_judgment || ordinary_contracts.contains(&item.id) =>
+                {
+                    fields
+                }
                 _ => continue,
             };
             let mut leaves = Vec::new();
@@ -8283,7 +8350,7 @@ impl<'a> Emitter<'a> {
 
     /// Split one field type into its element tag, top-level nullability
     /// and array flag. Total: unknown and dangling rows degrade to
-    /// `other` without diagnostics (descriptors never fail compilation).
+    /// `other` without diagnostics. Static bound admission is checked separately.
     fn model_field_parts(&self, ty: &IrType) -> (JsModelFieldType, bool, bool) {
         let resolved = match ty {
             IrType::Known(resolved) => resolved,

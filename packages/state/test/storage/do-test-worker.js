@@ -69,6 +69,11 @@ export class TestDO {
         this.state.storage.sql.exec('UPDATE fence SET revision = 0 WHERE id = 1');
         return Response.json({ ok: true });
       }
+      if (request.method === 'POST' && url.pathname === '/reopen') {
+        await ensureSchema(this.state.storage);
+        this.store = createDOStorage(this.state.storage);
+        return Response.json({ ok: true });
+      }
       if (request.method === 'POST' && url.pathname === '/exec') {
         const { sql, params } = await request.json();
         const rows = this.state.storage.sql.exec(sql, ...(params ?? [])).toArray();

@@ -751,8 +751,7 @@ function checkCanonicalInput(
 }
 
 /** Validate one canonical model descriptor; returns the model name. */
-function checkFieldConstraints(field: Record<string, unknown>, type: CanTypeId | undefined, what: string,
-  valueSchema?: NormalizedSchema): void {
+function checkFieldConstraints(field: Record<string, unknown>, type: CanTypeId | undefined, what: string, valueSchema?: NormalizedSchema): void {
   if (!['trim', 'min', 'max'].some(key => Object.hasOwn(field, key))) return;
   if (type === undefined) fail('malformed_descriptor', `Invalid ${what}: constraints require a checked valueType.`);
   for (const key of ['trim', 'min', 'max']) {
@@ -761,9 +760,7 @@ function checkFieldConstraints(field: Record<string, unknown>, type: CanTypeId |
     }
   }
   try {
-    modelFieldConstraintSchema({
-      required: field['required'] as boolean, serverOnly: field['serverOnly'] as boolean,
-      valueType: type,
+    modelFieldConstraintSchema({ valueType: type,
       ...(Object.hasOwn(field, 'trim') ? { trim: field['trim'] as boolean } : {}),
       ...(Object.hasOwn(field, 'min') ? { min: field['min'] as NonNullable<CanonicalModelDescriptor['fields'][string]['min']> } : {}),
       ...(Object.hasOwn(field, 'max') ? { max: field['max'] as NonNullable<CanonicalModelDescriptor['fields'][string]['max']> } : {}),

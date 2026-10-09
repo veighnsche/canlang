@@ -107,7 +107,7 @@ import type { FieldDescriptor, NormalizedSchema, SchemaDescriptor } from "@canla
 import type { SystemCommandContext, SystemStaging } from "@canlang/state";
 import { assertReceiptJoin, createJudgmentReceiptContext } from "@canlang/state/receipt/tables";
 import { retainCommittedFiles, stageFileReferences } from './file-staging.js';
-import { bindNativeRecord } from './native-records.js';
+import { bindNativeRecord, bindNativeReference, nativeRecordReference } from './native-records.js';
 import type { CanonicalFileBinding, FileAttachment } from './file-staging.js';
 import type { IdentityStore } from "@canlang/identity";
 import { sha256HexText, timingSafeEqualHex } from '@canlang/identity';
@@ -1090,6 +1090,8 @@ export interface CanonicalSeamCall {
   readonly context: InvocationContext;
   readonly def: unknown;
   readonly inputs: Record<string, unknown>;
+  /** The defining State admission's revision, including checkpoint-less callers. */
+  readonly revision?: Revision;
   readonly recordRefs?: readonly { readonly param: string; readonly model: ModelName; readonly row: StoredRow }[];
   readonly checkpoint?: {
     readonly revision: Revision;
@@ -1130,6 +1132,8 @@ export interface CanonicalExecutionEffects {
   readonly result: unknown;
   readonly guards?: ReadonlyArray<CanonicalGuardRevalidation>;
   readonly readings?: ReadonlyArray<unknown>;
+  /** Internal producer intent; never admitted from a mutation envelope. */
+  readonly fileAssignments?: readonly { readonly model: string; readonly recordId: string; readonly field: string }[];
 }
 
 /**
@@ -1739,6 +1743,7 @@ export function withCanonicalCommitGuard(store: StoragePort, operation: string):
     },
     readReceipt: (identity) => store.readReceipt(identity),
     outboxPending: () => store.outboxPending(),
+    outboxGet: (id) => store.outboxGet(id),
     scheduleGet: (key) => store.scheduleGet(key),
     schedulesDue: (now, limit) => store.schedulesDue(now, limit),
     historyFor: (model, recordId) => store.historyFor(model, recordId),
@@ -2823,6 +2828,7 @@ export function withStagedOverlay(store: StoragePort, staged: StagedRowView): St
     },
     readReceipt: (identity) => store.readReceipt(identity),
     outboxPending: () => store.outboxPending(),
+    outboxGet: (id) => store.outboxGet(id),
     scheduleGet: (key) => store.scheduleGet(key),
     schedulesDue: (now, limit) => store.schedulesDue(now, limit),
     historyFor: (model, recordId) => store.historyFor(model, recordId),
@@ -3236,6 +3242,12 @@ async function readScenarioResult(
       references.push(makeRecordRef(binding.model, binding.id, BigInt(binding.version)));
       continue;
     }
+    const linked = nativeRecordReference(record);
+    if (linked !== undefined) {
+      if (linked.model !== model.name) return refuse();
+      references.push(await authorizeReference(linked));
+      continue;
+    }
     if (decodedRefs.has(record) && isRecordRef(record) && record.model === model.name) {
       references.push(await authorizeReference(record));
       continue;
@@ -3246,10 +3258,203 @@ async function readScenarioResult(
 }
 function freezeScenarioSnapshot(value: unknown): unknown {
   if (value !== null && typeof value === "object") {
-    for (const child of Object.values(value)) freezeScenarioSnapshot(child);
+    // Native navigation accessors must remain lazy: freezing a view cannot
+    // execute a source read or move its failure ahead of an authored guard.
+    for (const descriptor of Object.values(Object.getOwnPropertyDescriptors(value))) {
+      if ('value' in descriptor) freezeScenarioSnapshot(descriptor.value);
+    }
     Object.freeze(value);
   }
   return value;
+}
+
+/** Exact-row containment reads; no model scan or business-reference expansion. */
+async function createContainmentNavigation(input: {
+  readonly loaded: LoadedCanonicalDescriptors;
+  readonly store: StoragePort;
+  readonly revision: Revision;
+  readonly actorUserId: string | null;
+  readonly teamId: string | null;
+  readonly memberships: CanonicalMembershipReader;
+  readonly authority: 'viewer' | 'owner';
+  readonly failure?: (error: unknown) => void;
+}) {
+  const { loaded, store } = input;
+  const StateError = loaded.producers.errors;
+  type Entry = { readonly model: string; readonly row?: StoredRow | ProjectedRecord;
+    readonly error?: unknown; view?: Record<string, unknown>; reference?: Record<string, unknown> };
+  const prepared = new WeakMap<object, Entry>();
+  const references = new WeakMap<object, Entry>();
+  const projectionSources = new WeakMap<object, StoredRow>();
+  const used = new Set<Entry>();
+  let reads = 0;
+  let viewerProducers: Promise<{
+    project: typeof import('@canlang/state/query/engine').projectCurrentRecordForViewer;
+    by: typeof import('@canlang/state/policy/roles').evaluateBy;
+  }> | undefined;
+  const viewer = () => viewerProducers ??= (async () => {
+    const query = await loadProducerModule('@canlang/state/query/engine', 'containment viewer projection');
+    const roles = await loadProducerModule('@canlang/state/policy/roles', 'containment read admission');
+    return {
+      project: requireProducerFn(query, 'projectCurrentRecordForViewer', 'containment viewer projection') as
+        typeof import('@canlang/state/query/engine').projectCurrentRecordForViewer,
+      by: requireProducerFn(roles, 'evaluateBy', 'containment read admission') as
+        typeof import('@canlang/state/policy/roles').evaluateBy,
+    };
+  })();
+  const load = async (model: string, id: string, basis?: StoredRow): Promise<StoredRow | ProjectedRecord> => {
+    const row = basis ?? await store.load(model as ModelName, id as RecordId);
+    if (row === null || row.id !== id || row.archivedAt !== null) throw new StateError('not_found', 'Parent record not found.');
+    if (input.authority === 'owner') return freezeScenarioSnapshot(structuredClone(row)) as StoredRow;
+    const def = generatedScenarioDef({ def: loaded.registry.get(`${model}.read`) });
+    if (def?.descriptor.kind !== 'read' || def.descriptor.inputs.length !== 0 ||
+        !loaded.models.some(candidate => candidate.name === model)) {
+      throw new StateError('validation', 'Parent navigation requires a checked model read.');
+    }
+    const membership = input.actorUserId !== null && input.teamId !== null
+      ? await input.memberships.findMembership(input.teamId, input.actorUserId) : null;
+    const context = { actorUserId: input.actorUserId, teamId: input.teamId, membership, memberships: input.memberships };
+    const producer = await viewer();
+    if (!(await producer.by(def.by, context))) throw new StateError('not_found', 'Parent record not found.');
+    const policy = loaded.policy as ReadonlyMap<ModelName, import('@canlang/state/policy/grants').InterimModelPolicy>;
+    const visible = await producer.project({ policy: policy.get(model as ModelName), context, row });
+    if (visible.record === null) throw new StateError('not_found', 'Parent record not found.');
+    const projected = freezeScenarioSnapshot(structuredClone(visible.record)) as ProjectedRecord;
+    projectionSources.set(projected, freezeScenarioSnapshot(structuredClone(row)) as StoredRow);
+    return projected;
+  };
+  const prepare = async (model: string, row: StoredRow | ProjectedRecord,
+    path: ReadonlySet<string> = new Set(), depth = 0): Promise<void> => {
+    if (prepared.has(row)) return;
+    const ownership = loaded.containment.get(model);
+    if (!isUnknownRecord(ownership) || typeof ownership.parent !== 'string') return;
+    const target = ownership.parent;
+    let entry: Entry;
+    try {
+      // Validate the checked ancestry independently of native view caches:
+      // aliases of a cyclic row must not mask a descendant's deferred error.
+      const ancestors = new Set<string>();
+      let ancestor = model;
+      for (;;) {
+        const scope = loaded.containment.get(ancestor);
+        if (!isUnknownRecord(scope) || typeof scope.parent !== 'string') break;
+        if (ancestors.has(ancestor) || ancestors.size >= 32) {
+          throw new StateError('validation', 'Parent navigation exceeds its containment bound.');
+        }
+        ancestors.add(ancestor);
+        ancestor = scope.parent;
+      }
+      if (depth >= 32 || path.has(model) || ++reads > 256) {
+        throw new StateError('validation', 'Parent navigation exceeds its containment bound.');
+      }
+      if (row.parent === null || row.parent === undefined || row.parent.model !== target ||
+          !loaded.models.some(candidate => candidate.name === target)) {
+        throw new StateError('not_found', 'Parent record not found.');
+      }
+      const parent = await load(target, row.parent.id);
+      if (await store.readRevision() !== input.revision) {
+        throw new StateError('conflict', 'State changed during parent navigation.');
+      }
+      entry = { model: target, row: parent };
+      prepared.set(row, entry);
+      await prepare(target, parent, new Set([...path, model]), depth + 1);
+      return;
+    } catch (error) { entry = { model: target, error }; }
+    // Source access, rather than speculative preparation, raises the failure.
+    prepared.set(row, entry);
+  };
+  const attach = (record: Record<string, unknown>, model: string, row: StoredRow | ProjectedRecord,
+    view: (model: string, row: StoredRow | ProjectedRecord) => Record<string, unknown>): void => {
+    const ownership = loaded.containment.get(model);
+    if (!isUnknownRecord(ownership) || typeof ownership.parent !== 'string') return;
+    Object.defineProperty(record, 'parent', { enumerable: true, get: () => {
+      const entry = prepared.get(row);
+      try {
+        if (entry === undefined) throw new StateError('validation', 'Parent navigation was not prepared.');
+        if (row.parent === null || row.parent === undefined || row.parent.model !== ownership.parent) {
+          throw new StateError('not_found', 'Parent record not found.');
+        }
+        if (entry.reference !== undefined) return entry.reference;
+        const identity = makeRecordRef(row.parent.model, row.parent.id);
+        const shape: Record<string, unknown> = Object.create(null);
+        shape.id = identity.id;
+        Object.freeze(shape);
+        const fields = loaded.models.find(candidate => candidate.name === identity.model)?.fields ?? {};
+        const metadata = new Set(['version', 'created', 'updated', 'created_by', 'updated_by', 'archived_at', 'parent']);
+        const reference = new Proxy(shape, {
+          get: (target, property, receiver) => {
+            // Identity comparison and collection selection need only the
+            // private granted link. Public business names never carry tags.
+            if (property === 'id' || typeof property === 'symbol') {
+              return Reflect.get(target, property, receiver);
+            }
+            if (!Object.hasOwn(fields, property) && !metadata.has(property)) return undefined;
+            try {
+              if (entry.error !== undefined) throw entry.error;
+              if (entry.row === undefined) throw new StateError('not_found', 'Parent record not found.');
+              used.add(entry);
+              const parent = entry.view ??= view(entry.model, entry.row);
+              return Reflect.get(parent, property);
+            } catch (error) { input.failure?.(error); throw error; }
+          },
+        });
+        bindNativeReference(reference, identity);
+        references.set(reference, entry);
+        return entry.reference = reference;
+      } catch (error) { input.failure?.(error); throw error; }
+    } });
+  };
+  const revalidate = async (): Promise<void> => {
+    for (const entry of used) {
+      // Own later writes do not rewrite an earlier query's observed domain.
+      // The canonical revision fences committed changes; current grants are
+      // re-evaluated over the original provisional row at this source read.
+      let current: StoredRow | ProjectedRecord;
+      try {
+        current = await load(entry.model, entry.row!.id,
+          input.authority === 'viewer' ? projectionSources.get(entry.row!) : undefined);
+      } catch (error) {
+        if (error instanceof StateError && (error.code === 'not_found' || error.code === 'forbidden')) {
+          throw new StateError('forbidden', 'Parent read authority changed during the operation.');
+        }
+        throw error;
+      }
+      if (await store.readRevision() !== input.revision) {
+        throw new StateError('conflict', 'State changed during parent navigation.');
+      }
+      if (input.authority === 'viewer' && JSON.stringify(current) !== JSON.stringify(entry.row)) {
+        throw new StateError('forbidden', 'Parent read authority changed during the operation.');
+      }
+    }
+  };
+  const reject = (error: unknown): never => { input.failure?.(error); throw error; };
+  const isWithheld = (row: StoredRow | ProjectedRecord, field: string): boolean => {
+    const basis = projectionSources.get(row);
+    return basis !== undefined && Object.hasOwn(basis.data, field) && !Object.hasOwn(row.data, field);
+  };
+  const authorizeReference = async (reference: ReturnType<typeof makeRecordRef>) => {
+    if (++reads > 256) throw new StateError('validation', 'Parent navigation exceeds its containment bound.');
+    const row = await load(reference.model, reference.id);
+    if (await store.readRevision() !== input.revision) {
+      throw new StateError('conflict', 'State changed during parent navigation.');
+    }
+    if (reference.version !== undefined && reference.version !== BigInt(row.version)) {
+      throw new StateError('conflict', 'Returned reference record version changed.');
+    }
+    used.add({ model: reference.model, row });
+    return makeRecordRef(reference.model, row.id, BigInt(row.version));
+  };
+  const resolveRecord = (reference: object) => {
+    const entry = references.get(reference);
+    if (entry === undefined) return undefined;
+    try {
+      if (entry.error !== undefined) throw entry.error;
+      if (entry.row === undefined) throw new StateError('not_found', 'Parent record not found.');
+      used.add(entry);
+      return { model: entry.model, id: entry.row.id, version: entry.row.version };
+    } catch (error) { return reject(error); }
+  };
+  return { prepare, attach, revalidate, reject, isWithheld, authorizeReference, resolveRecord };
 }
 
 function nativeRecordMetadata(row: StoredRow | ProjectedRecord): Record<string, unknown> {
@@ -3263,21 +3468,37 @@ function nativeRecordMetadata(row: StoredRow | ProjectedRecord): Record<string, 
   };
 }
 
-/** Only actual projected fields enter a native read view. */
 type NativeRecordScope = Pick<LoadedCanonicalDescriptors, 'models' | 'refs' | 'containment' | 'producers' | 'valueSchema'>;
 
-function nativeProjectedRecord(loaded: NativeRecordScope, modelName: string, row: StoredRow | ProjectedRecord): Record<string, unknown> {
-  const model = loaded.models.find(candidate => candidate.name === modelName);
+/** Decode only the defining loader's scalar and singular-reference associations. */
+function nativeRecordField(loaded: NativeRecordScope, modelName: string, field: string, wire: unknown): unknown {
+  if (wire === undefined) return wire;
+  const type = loaded.models.find(model => model.name === modelName)?.fields[field]?.valueType;
+  if (type !== undefined) return decodeCanonicalValue(loaded.valueSchema, type, wire);
+  const target = loaded.refs.get(modelName)?.find(reference => reference.field === field)?.model;
+  return target === undefined || wire === null ? wire : decodeValue(target, wire);
+}
+
+/** Only actual projected fields enter a native read view. */
+function nativeProjectedRecord(loaded: NativeRecordScope, modelName: string, row: StoredRow | ProjectedRecord,
+  navigation?: Awaited<ReturnType<typeof createContainmentNavigation>>,
+  parentView?: (model: string, row: StoredRow | ProjectedRecord) => Record<string, unknown>): Record<string, unknown> {
   const record: Record<string, unknown> = Object.create(null);
   for (const [field, wire] of Object.entries(row.data)) {
-    const type = model?.fields[field]?.valueType;
-    const target = loaded.refs.get(modelName)?.find(reference => reference.field === field)?.model;
-    record[field] = type !== undefined ? decodeCanonicalValue(loaded.valueSchema, type, wire)
-      : target === undefined || wire === null ? wire : decodeValue(target, wire);
+    record[field] = nativeRecordField(loaded, modelName, field, wire);
   }
   Object.assign(record, nativeRecordMetadata(row));
   const ownership = loaded.containment.get(modelName);
-  if (isUnknownRecord(ownership) && typeof ownership.parent === 'string') {
+  if (navigation !== undefined && parentView !== undefined) {
+    navigation.attach(record, modelName, row, parentView);
+    // Only an actual omission by State projection is a denied field. A
+    // legitimately absent optional stored value keeps its existing carrier.
+    for (const field of Object.keys(loaded.models.find(model => model.name === modelName)?.fields ?? {})) {
+      if (navigation.isWithheld(row, field)) Object.defineProperty(record, field, { get: () => {
+        return navigation.reject(new loaded.producers.errors('forbidden', 'Record field is not readable.'));
+      } });
+    }
+  } else if (isUnknownRecord(ownership) && typeof ownership.parent === 'string') {
     if (row.parent != null && row.parent.model !== ownership.parent) {
       throw new loaded.producers.errors('validation', 'Stored parent disagrees with its declared model.');
     }
@@ -3613,9 +3834,25 @@ async function runScenarioSeam(
     throw error;
   };
   const staged: Map<string, StoredRow | null> = new Map();
+  const overlay = withStagedOverlay(opts.store, staged);
+  const navigationRevision = call.revision ?? seamTrigger?.revision ?? await opts.store.readRevision();
+  const ownerNavigation = await createContainmentNavigation({ loaded, store: overlay,
+    revision: navigationRevision, actorUserId, teamId, memberships: opts.memberships,
+    authority: 'owner', failure: recordEngineFailure });
+  const viewerNavigation = await createContainmentNavigation({ loaded, store: overlay,
+    revision: navigationRevision, actorUserId, teamId, memberships: opts.memberships,
+    authority: 'viewer', failure: recordEngineFailure });
+  seamGuards.push({ name: 'parent.read', evaluate: async () => { await viewerNavigation.revalidate(); return true; } });
   const views = new Map<string, Record<string, unknown>>();
   const recordBindings = new Map<Record<string, unknown>, { model: string; id: string; version: number }>();
   const callable = opts.artifact.callables.find((entry) => entry.id === opts.operation);
+  // This closure is installed only by the retained private-source drivers,
+  // after their owning source/identity admission. Request query options can
+  // never select owner authority or turn an ordinary scenario into a handler.
+  const trustedOwnerReads = callable?.kind === 'handler' && (due !== undefined || cohort !== undefined) &&
+    call.context.kind === 'trusted' && call.context.actor === null && call.context.source === 'schedule' &&
+    typeof call.context.trustedSource === 'string' && call.context.trustedSource.startsWith('schedule:') &&
+    call.checkpoint !== undefined && call.checkpoint.owner === (call.context.team?.teamId ?? call.context.app);
   const recordView = (modelName: string, row: StoredRow): Record<string, unknown> => {
     const key = stagedKey(modelName, row.id);
     const existing = views.get(key);
@@ -3627,20 +3864,13 @@ async function runScenarioSeam(
     for (const field of Object.keys(model?.fields ?? snapshot.data)) Object.defineProperty(record, field, {
       enumerable: true, get: () => {
         const wire = current()?.data[field];
-        const type = model?.fields[field]?.valueType;
-        return type === undefined || wire === undefined ? wire : decodeCanonicalValue(loaded.valueSchema, type, wire);
+        return nativeRecordField(loaded, modelName, field, wire);
       },
     });
     // Ordinary references retain admitted metadata while domain reads see
     // provisional writes; reserved post-write versions belong to staged rows.
     Object.assign(record, nativeRecordMetadata(row));
-    const ownership = loaded.containment.get(modelName);
-    if (isUnknownRecord(ownership) && typeof ownership.parent === 'string') {
-      if (row.parent != null && row.parent.model !== ownership.parent) {
-        return refuseRecordBinding('Stored parent disagrees with its declared model.');
-      }
-      record.parent = row.parent == null ? null : makeRecordRef(row.parent.model, row.parent.id);
-    }
+    ownerNavigation.attach(record, modelName, row, (model, parent) => recordView(model, parent as StoredRow));
     bindNativeRecord(record, modelName, row.id, row.version);
     Object.freeze(record);
     views.set(key, record);
@@ -3648,23 +3878,15 @@ async function runScenarioSeam(
     return record;
   };
   const projectedRecordView = (modelName: string, row: ProjectedRecord): Record<string, unknown> => {
-    const model = loaded.models.find((model) => model.name === modelName);
-    const record: Record<string, unknown> = Object.create(null);
-    // Do not reuse a full parameter/write view or load the stored row: a
-    // matching read grant may expose only part of its data.
-    for (const [field, wire] of Object.entries(row.data)) {
-      const type = model?.fields[field]?.valueType;
-      record[field] = type === undefined ? wire : decodeCanonicalValue(loaded.valueSchema, type, wire);
-    }
-    Object.assign(record, nativeRecordMetadata(row));
-    Object.freeze(record);
+    const record = nativeProjectedRecord(loaded, modelName, row, viewerNavigation,
+      (model, parent) => projectedRecordView(model, parent as ProjectedRecord));
     recordBindings.set(record, { model: modelName, id: row.id, version: row.version });
     return record;
   };
-  const overlay = withStagedOverlay(opts.store, staged);
   const stagedWrites: CanonicalStagedDomainWrite[] = [];
   const reservedVersions = new Map<string, RecordVersion>();
   const stagedHistory: unknown[] = [];
+  const fileAssignments = new Map<string, { model: string; recordId: string; field: string }>();
   const stagedTouches: CanonicalStagedUniqueTouch[] = [];
   const deferredEffects: SystemStaging[] = [];
   const queuedDeliveries = new Map<string, OutboxIntent>();
@@ -3742,17 +3964,63 @@ async function runScenarioSeam(
     builtinRoles: Object.freeze(builtinRoles),
     operation: opts.operation,
     operationId: call.context.operationId,
-    ...(callable?.inputStyle !== "parameters" ? {} : {
-      readRecords: async (model: string, query: CanonicalReadQuery) =>
-        (await scope.readModel(model, query)).map((row) => projectedRecordView(model, row)),
+    ...(callable?.inputStyle !== "parameters" && !trustedOwnerReads ? {} : {
+      readRecords: async (model: string, query: CanonicalReadQuery) => {
+        const rows = await scope.readModel(model, query);
+        for (const row of rows) await (trustedOwnerReads ? ownerNavigation : viewerNavigation).prepare(model, row);
+        return rows.map(row => trustedOwnerReads ? recordView(model, row as StoredRow) : projectedRecordView(model, row));
+      },
     }),
     observeDelivery: async (locator, selected) => {
       try {
         if (!isUnknownRecord(locator.record)) {
           throw new StateError('validation', 'Delivery observation needs a bound record.');
         }
-        const binding = recordBindings.get(locator.record);
+        const binding = recordBindings.get(locator.record) ??
+          ownerNavigation.resolveRecord(locator.record) ?? viewerNavigation.resolveRecord(locator.record);
         if (binding === undefined) throw new StateError('validation', 'Delivery observation needs a bound record.');
+        const declaration = opts.artifact.models?.find(model => model.name === binding.model)?.fields
+          .find(field => field.name === locator.field);
+        if (trustedOwnerReads) {
+          if (declaration?.field.kind !== 'delivery' || declaration.array !== undefined ||
+              !loaded.deliveryFields.get(binding.model)?.has(locator.field) || call.checkpoint === undefined) {
+            throw new StateError('validation', 'Owner receipt read needs its owning singular delivery declaration.');
+          }
+          const join = await loadProducerModule(STATE_RECEIPT_JOIN_SPECIFIER, 'state owner receipt join producer');
+          const observeOwner = requireProducerFn(join, 'observeOwnerSelectedReceiptJoin', 'state owner receipt join producer') as unknown as
+            typeof import('@canlang/state/receipt/join').observeOwnerSelectedReceiptJoin;
+          const admission = await loadProducerModule(STATE_ADMISSION_SPECIFIER, 'state owner receipt fence producer');
+          const openFence = requireProducerFn(admission, 'openFenceScope', 'state owner receipt fence producer') as unknown as
+            typeof import('@canlang/state/invocation/admission').openFenceScope;
+          let declaredContext: ReceiptResultContext | undefined;
+          if ('judgment' in declaration.field && declaration.field.judgment === true) {
+            if (loaded.valueTypes === undefined) throw new StateError('validation', 'Judgment receipt has no checked value inventory.');
+            const specification = await loadJudgmentSpecificationResolver(opts.asm, opts.artifact, opts.operation, opts.asm.entryUrl);
+            if (specification === undefined) throw new StateError('validation', 'Judgment receipt has no defining source specification.');
+            declaredContext = createJudgmentReceiptContext(declaration.field,
+              specification(declaration.field.capability), loaded.valueTypes);
+          }
+          const observed = mapReceiptJoinOutcome(await observeOwner({
+            // The structural seam forwards the actual State-owned call object.
+            // State checks its private provenance and live execution identity.
+            call: call as import('@canlang/state/invocation/admission').AdmittedCall,
+            recordVersion: binding.version as RecordVersion,
+            locator: { record: { id: binding.id }, field: locator.field }, selected: [...selected],
+            model: binding.model as ModelName, schema: loaded.deliveryFields as import('@canlang/state/receipt/grants').DeliveryFieldSchema,
+            declaredSource: `${declaration.field.capability}.${declaration.field.operation}`,
+            declaredResult: declaration.field.result,
+            ...(declaredContext === undefined ? {} : { declaredContext }),
+            // State binds this to the exact physical store used at admission.
+            // The provisional overlay cannot mint an owner observation scope.
+            store: opts.store, fence: openFence(call.checkpoint.revision, call.checkpoint.owner),
+            nowMs: call.context.now, observeSelected: await resolveReceiptObserver(opts.observer) as
+              import('@canlang/state/receipt/join').SelectedReceiptObserver,
+          }));
+          servedReadings.push(observed);
+          if (observed.outcome === 'denied') throw new StateError('forbidden', 'Owner delivery observation is not authorized.');
+          return observed.outcome === 'observed'
+            ? sourceReceiptProjection(observed.projection, selected, declaration.field.result) : null;
+        }
         const observed = await invokeSelectedReceiptRead({
           asm: opts.asm, artifact: opts.artifact, operation: RECEIPT_READ_OPERATION,
           inputs: { recordId: binding.id, field: locator.field, selected: [...selected] },
@@ -3764,10 +4032,8 @@ async function runScenarioSeam(
           throw new StateError('forbidden', 'Delivery observation is not authorized.');
         }
         if (observed.outcome !== 'observed') return null;
-        const declaration = opts.artifact.models?.find(model => model.name === binding.model)?.fields
-          .find(field => field.name === locator.field)?.field;
         return sourceReceiptProjection(observed.projection, selected,
-          declaration?.kind === 'delivery' ? declaration.result : undefined);
+          declaration?.field.kind === 'delivery' ? declaration.field.result : undefined);
       } catch (error) {
         recordEngineFailure(error);
         throw error;
@@ -3778,18 +4044,22 @@ async function runScenarioSeam(
       const row = await scope.stageWrite({ op: "create", model, id, data });
       if (row === null) throw new StateError("validation", "Create staged no record.");
       await stageDeliveryAssignments(model, row, data);
+      await ownerNavigation.prepare(model, row);
       return recordView(model, row);
     },
     setRecord: async (record, data) => {
-      const binding = recordBindings.get(record);
+      const binding = recordBindings.get(record) ??
+        ownerNavigation.resolveRecord(record) ?? viewerNavigation.resolveRecord(record);
       if (binding === undefined) return refuseRecordBinding("Set needs a record bound in this operation.");
       const row = await scope.stageWrite({ op: "update", ...binding, data });
       if (row === null) throw new StateError("validation", "Set staged no record.");
       await stageDeliveryAssignments(binding.model, row, data);
+      await ownerNavigation.prepare(binding.model, row);
       return recordView(binding.model, row);
     },
     deleteRecord: async (record, mode) => {
-      const binding = recordBindings.get(record);
+      const binding = recordBindings.get(record) ??
+        ownerNavigation.resolveRecord(record) ?? viewerNavigation.resolveRecord(record);
       if (binding === undefined) return refuseRecordBinding("Delete needs a record bound in this operation.");
       if (loaded.models.find((model) => model.name === binding.model)?.deleteMode !== mode) {
         refuseRecordBinding("Delete mode must match the model declaration.");
@@ -3811,9 +4081,24 @@ async function runScenarioSeam(
         if (loaded.unsupportedHookOperations.has(mutation)) {
           throw new StateError('validation', `Operation ${JSON.stringify(mutation)} requires unsupported canonical hooks.`);
         }
+        if (write.op !== 'remove' && write.data !== undefined) {
+          for (const field of opts.artifact.models?.find(model => model.name === write.model)?.fields ?? []) {
+            if (field.field.kind !== 'file' || !Object.hasOwn(write.data, field.name) || write.data[field.name] === undefined) continue;
+            const assignment = { model: write.model, recordId: write.id, field: field.name };
+            fileAssignments.set(JSON.stringify([assignment.model, assignment.recordId, assignment.field]), assignment);
+          }
+        }
         // Delivery tags predate the scalar valueType checkpoint. Their owning
         // artifact declaration still selects Values' exact native/wire codec.
         const data = write.data === undefined ? undefined : { ...write.data };
+        for (const reference of loaded.refs.get(write.model) ?? []) {
+          if (data === undefined || !Object.hasOwn(data, reference.field) || data[reference.field] === null) continue;
+          const identity = nativeRecordReference(data[reference.field]);
+          // Stored links carry identity, not the alias's admitted metadata or
+          // projected business fields. State retains referential admission.
+          const value = identity === undefined ? data[reference.field] : makeRecordRef(identity.model, identity.id);
+          data[reference.field] = encodeCanonicalField(StateError, reference.model, value);
+        }
         for (const field of opts.artifact.models?.find(model => model.name === write.model)?.fields ?? []) {
           if (field.field.kind !== 'delivery' || data === undefined || !Object.hasOwn(data, field.name)) continue;
           data[field.name] = encodeCanonicalField(StateError,
@@ -3892,7 +4177,7 @@ async function runScenarioSeam(
         if (typeof model !== "string" || model === "") {
           throw new Error(`t17b: readModel needs a non-empty string model (wiring bug).`);
         }
-        const native = callable?.inputStyle === 'parameters';
+        const native = callable?.inputStyle === 'parameters' || trustedOwnerReads;
         if (!native) assertServableReadQuery(StateError, query);
         if (loaded.ruledModels.has(model)) {
           throw ruledReadRefusal(StateError, model);
@@ -3902,8 +4187,8 @@ async function runScenarioSeam(
         const sourcePredicate = native && typeof query.where === 'function';
         if (native) {
           if (Object.keys(query).some(key => !['where', 'order', 'limit', 'archived', 'authority'].includes(key)) ||
-              (query.authority !== undefined && query.authority !== 'viewer') ||
-              (query.archived !== undefined && query.archived !== 'exclude')) {
+              (query.authority !== undefined && query.authority !== (trustedOwnerReads ? 'owner' : 'viewer')) ||
+              (query.archived !== undefined && query.archived !== 'exclude' && !(trustedOwnerReads && query.archived === 'include'))) {
             throw new StateError('validation', 'Mutation queries require viewer reads over current records without containment filters.');
           }
           const where = query.where;
@@ -3931,10 +4216,12 @@ async function runScenarioSeam(
           }
           selection = {
             ...(typeof where === 'function' ? { predicate: async (row: Readonly<ProjectedRecord>) => {
-              // False candidates are observations too. Source sees only the
-              // viewer's projection, even when it runs inside a mutation.
+              // False candidates are observations too. Ordinary mutations
+              // retain viewer projections; verified private handlers read
+              // their owning scope through its existing owner navigation.
               dependencies.push(structuredClone(row));
-              const matched = await where(projectedRecordView(model, row));
+              await (trustedOwnerReads ? ownerNavigation : viewerNavigation).prepare(model, row);
+              const matched = await where(trustedOwnerReads ? recordView(model, row as StoredRow) : projectedRecordView(model, row));
               if (typeof matched !== 'boolean') throw new StateError('validation', 'Mutation query predicates must return bool.');
               return matched;
             } } : where === undefined ? {} : { where: structuredClone(where) as QueryPredicate }),
@@ -3944,8 +4231,59 @@ async function runScenarioSeam(
         }
         // Staged rows are immutable snapshots. Preserve this query's overlay
         // so a later own write cannot invalidate an earlier observation.
-        const queryStore = native ? withStagedOverlay(opts.store, new Map(staged)) : overlay;
-        const read = (selected: CanonicalReadSelection | undefined) => loaded.producers.invoke.invokeRead({
+        const querySnapshot = new Map(staged);
+        const queryStore = native ? withStagedOverlay(opts.store, querySnapshot) : overlay;
+        const read = async (selected: CanonicalReadSelection | undefined): Promise<CanonicalReadServed> => {
+          if (trustedOwnerReads) {
+            const queryModule = await loadProducerModule('@canlang/state/query/engine', 'trusted owner query producer');
+            const queryRecords = requireProducerFn(queryModule, 'queryRecords', 'trusted owner query producer') as
+              typeof import('@canlang/state/query/engine').queryRecords;
+            const maxCandidates = queryModule['VIEWER_PAGE_MAX_CANDIDATES'];
+            if (typeof maxCandidates !== 'number' || !Number.isSafeInteger(maxCandidates) || maxCandidates < 1 ||
+                maxCandidates >= Number.MAX_SAFE_INTEGER) throw new Error('Trusted owner query has no defining finite transport bound.');
+            if (await opts.store.readRevision() !== navigationRevision) {
+              throw new StateError('conflict', 'State changed during the trusted owner query.');
+            }
+            // Read the complete bounded candidate domain from the actual
+            // store; business limits never choose a materialization budget.
+            const base = await opts.store.query({ model: model as ModelName, authority: 'owner', archived: 'include',
+              order: [{ field: 'id', direction: 'asc' }], limit: maxCandidates + 1 });
+            if (base.length > maxCandidates) throw new StateError('limit', 'Trusted owner query exceeds its candidate budget.');
+            const merged = new Map(base.map(row => [row.id as string, row]));
+            const prefix = `${model}\0`;
+            for (const [key, row] of querySnapshot) {
+              if (!key.startsWith(prefix)) continue;
+              if (row === null) merged.delete(key.slice(prefix.length));
+              else merged.set(row.id, row);
+            }
+            if (merged.size > maxCandidates) throw new StateError('limit', 'Trusted owner query exceeds its candidate budget.');
+            const candidates = [...merged.values()];
+            const descriptor = loaded.models.find(candidate => candidate.name === model);
+            if (descriptor === undefined) throw new StateError('validation', 'Trusted owner query needs its owning declared model.');
+            const nativeQuery = (rows: readonly StoredRow[], final: boolean) => queryRecords({
+              model: model as ModelName, authority: 'owner', modelDescriptor: descriptor,
+              policy: loaded.policy as import('@canlang/state/policy/grants').PolicyTable,
+              context: { actorUserId, teamId }, memberships: opts.memberships,
+              store: { ...opts.store, query: async request => rows.filter(row => request.archived === 'include' || row.archivedAt === null) },
+              archived: query.archived ?? 'exclude',
+              ...(selected?.where === undefined ? {} : { where: selected.where }),
+              ...(selected?.order === undefined ? {} : { order: selected.order }),
+              ...(!final || selected?.limit === undefined ? {} : { limit: selected.limit }),
+            });
+            let served = await nativeQuery(candidates, selected?.predicate === undefined);
+            if (selected?.predicate !== undefined) {
+              const matched: StoredRow[] = [];
+              for (const row of served.rows) {
+                if (await selected.predicate({ ...row, parent: row.parent ?? null })) matched.push(row);
+              }
+              served = await nativeQuery(matched, true);
+            }
+            if (served.revision !== navigationRevision || await opts.store.readRevision() !== navigationRevision) {
+              throw new StateError('conflict', 'State changed during the trusted owner query.');
+            }
+            return { records: served.rows.map(row => ({ ...row, parent: row.parent ?? null })), revision: served.revision };
+          }
+          return loaded.producers.invoke.invokeRead({
           registry: loaded.registry,
           models: loaded.models,
           envelope: { operation: `${model}.read`, inputs: {} },
@@ -3954,7 +4292,8 @@ async function runScenarioSeam(
           policy: loaded.policy,
           store: queryStore,
           memberships: opts.memberships,
-        });
+          });
+        };
         const served = await read(selection);
         if (!Array.isArray(served.records)) {
           throw new Error(`t17b: invokeRead served no records array (invoke/dist skew?)`);
@@ -4135,9 +4474,22 @@ async function runScenarioSeam(
         const producer = await loadProducerModule('@canlang/work/kernel/dispatch-staging', 'work canonical send producer');
         const stage = requireProducerFn(producer, 'stageCanonicalSend', 'work canonical send producer') as
           typeof import('@canlang/work/kernel/dispatch-staging').stageCanonicalSend;
+        let imageCorrelation: import('@canlang/work/kernel/tables').DispatchImageCorrelation | undefined;
+        if (['std.ImagesV1.submit', 'std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(source)) {
+          const value = source === 'std.ImagesV1.submit' ? boundRequest.arguments['value'] : boundRequest.arguments;
+          if (call.checkpoint === undefined || member(definition, 'id') !== call.context.app ||
+              !isUnknownRecord(value) || typeof value['source'] !== 'string' ||
+              typeof value['revision'] !== 'string') {
+            throw new Error(`${where} lost its checked request or admitted owner checkpoint.`);
+          }
+          imageCorrelation = { requestSource: value['source'], requestRevision: value['revision'],
+            requestBinding: boundRequest.binding, requestFrom: boundRequest.from,
+            requestApp: call.context.app, requestOwner: call.checkpoint.owner };
+        }
         const stagedSend = await stage({
           operationId: call.context.operationId, source, occurrenceIndex: sendIndex++,
           request: boundRequest, originOccurrence: due?.occurrenceId ?? cohort?.occurrenceId ?? null,
+          ...(imageCorrelation === undefined ? {} : { correlation: imageCorrelation }),
         }, {
           actor: actorUserId ?? call.context.trustedSource ?? 'anonymous', now: admittedNow, operation: scope.operation,
           load: overlay.load.bind(overlay), query: overlay.query.bind(overlay),
@@ -4154,6 +4506,7 @@ async function runScenarioSeam(
     qualified: call.context,
     ...(opts.formatting === undefined ? {} : { formatting: opts.formatting }),
   });
+  for (const ref of call.recordRefs ?? []) await ownerNavigation.prepare(ref.model, ref.row);
   const parameters = cohort === undefined ? undefined : scenarioParameters(call, loaded, recordView, resolvedDefaults);
   const argument = cohort !== undefined
     ? { event: Object.fromEntries(cohort.eventFields.map(name => [name, parameters![name]])),
@@ -4255,8 +4608,14 @@ async function runScenarioSeam(
     : makeRecordRef(returnedBinding.model, returnedBinding.id,
       BigInt(reservedVersions.get(stagedKey(returnedBinding.model, returnedBinding.id)) ?? returnedBinding.version));
   const result = scenarioResult(call, loaded, outcome.value, modelReference);
+  const writes = collapseStagedWrites(stagedWrites);
   return {
-    writes: collapseStagedWrites(stagedWrites),
+    writes,
+    // A removed provisional target retains no final file assignment. The
+    // validator still checks every returned intent against its actual net row.
+    fileAssignments: [...fileAssignments.values()].filter(assignment => writes.some(write =>
+      (write.kind === 'insert' || write.kind === 'update') && write.model === assignment.model &&
+      write.row?.id === assignment.recordId)),
     history: [...stagedHistory, ...deferredEffects.flatMap((effects) => effects.history ?? [])].map((entry) => {
       if (!isUnknownRecord(entry)) return entry;
       const first = stagedWrites.find((write) => write.model === entry["model"] &&
@@ -4383,6 +4742,20 @@ async function invokeCanonicalMutation(
           throw new StateError('validation', `Operation ${JSON.stringify(opts.operation)} requires unsupported canonical hooks.`);
         }
         effects = await crudExecute(call);
+        if (kind !== 'delete') {
+          const operation = opts.artifact.operations?.find(entry => entry.name === opts.operation);
+          const owningModel = opts.artifact.models?.find(model => `${model.name}.${kind}` === opts.operation);
+          const supplied = operation?.inputs.fields.filter(field => field.field.kind === 'file' &&
+            Object.hasOwn(opts.inputs, field.name) && opts.inputs[field.name] !== undefined &&
+            owningModel?.fields.some(declaration => declaration.name === field.name && declaration.field.kind === 'file')) ?? [];
+          const assignments = effects.writes.flatMap(effect => {
+            if (!isUnknownRecord(effect) || (effect.kind !== 'insert' && effect.kind !== 'update') ||
+                effect.model !== owningModel?.name || !isUnknownRecord(effect.row) || typeof effect.row.id !== 'string') return [];
+            const recordId = effect.row.id;
+            return supplied.map(field => ({ model: owningModel!.name, recordId, field: field.name }));
+          });
+          effects = { ...effects, fileAssignments: assignments };
+        }
       } else if (kind === "scenario") {
         effects = await runScenarioSeam(loaded, opts, call, occurrenceIds);
       } else {
@@ -5833,12 +6206,18 @@ async function runReadScenarioSeam(
   const readonlyStore: StoragePort = {
     readRevision: () => opts.store.readRevision(),
     load: refuse, query: refuse, commit: refuse, readReceipt: refuse,
-    outboxPending: refuse, scheduleGet: refuse, schedulesDue: refuse, historyFor: refuse,
+    outboxPending: refuse, outboxGet: refuse, scheduleGet: refuse, schedulesDue: refuse, historyFor: refuse,
     readInstalledSnapshot: refuse, readMigrationProgress: refuse, readStagedRows: refuse,
     stageMigrationRows: refuse, publishMigrationChunk: refuse, flipInstalledSnapshot: refuse,
     readMigrationOutcomes: refuse, recordMigrationFailure: refuse, discardStagedRows: refuse,
     readMigrationFailure: refuse,
   };
+  const navigationFailures = new Map<string, Error>();
+  const navigation = await createContainmentNavigation({ loaded, store: opts.store,
+    revision: call.revision, actorUserId: call.actorUserId, teamId: call.teamId,
+    memberships: opts.memberships, authority: 'viewer', failure: error => {
+      if (error instanceof Error) navigationFailures.set(error.message, error);
+    } });
   const reader = loaded.producers.transact.createReadInvoker({
     registry: loaded.registry, models: loaded.models, policy: loaded.policy, store: opts.store, memberships: opts.memberships,
   });
@@ -5851,17 +6230,18 @@ async function runReadScenarioSeam(
   let activeViews = views;
   let activeDecodedRefs = decodedRefs;
   const recordView = (model: string, row: StoredRow | ProjectedRecord): Record<string, unknown> => {
-    const view = nativeProjectedRecord(loaded, model, row);
+    const view = nativeProjectedRecord(loaded, model, row, navigation, recordView);
     activeViews.set(view, { model, id: row.id, version: row.version });
     for (const declared of loaded.refs.get(model) ?? []) {
+      if (!Object.hasOwn(row.data, declared.field)) continue;
       const reference = view[declared.field];
       if (isRecordRef(reference) && reference.model === declared.model) activeDecodedRefs.add(reference);
     }
-    if (isRecordRef(view.parent) && row.parent?.model === view.parent.model) activeDecodedRefs.add(view.parent);
+    // Reading the parent accessor here would turn preparation into execution.
     for (const [field, descriptor] of Object.entries(loaded.models.find(candidate => candidate.name === model)?.fields ?? {})) {
       const type = descriptor.valueType?.replace(/\?$/, '');
       const target = loaded.models.find(candidate => type === candidate.name || type === `${candidate.name}[]`);
-      if (target === undefined) continue;
+      if (target === undefined || !Object.hasOwn(row.data, field)) continue;
       const native = view[field];
       const values = type?.endsWith('[]') ? (Array.isArray(native) ? native : []) : [native];
       for (const reference of values) {
@@ -5879,7 +6259,7 @@ async function runReadScenarioSeam(
     }
     const parent = query.parent;
     const parentBinding = typeof parent === 'object' && parent !== null
-      ? views.get(parent) ?? activeViews.get(parent) : undefined;
+      ? views.get(parent) ?? activeViews.get(parent) ?? nativeRecordReference(parent) : undefined;
     if (parent !== undefined && (parentBinding === undefined ||
         opts.artifact.models?.find(candidate => candidate.name === model)?.parent !== parentBinding.model)) {
       throw new StateError('validation', 'Containment queries require the authorized declared parent record.');
@@ -5916,6 +6296,7 @@ async function runReadScenarioSeam(
         // Retain every granted observation before source runs, including false
         // candidates. Nested source reads retain their own domains below.
         dependencies?.push(structuredClone(row));
+        await navigation.prepare(model, row);
         const matched = await where(recordView(model, row));
         if (typeof matched !== 'boolean') throw new StateError('validation', 'Read scenario predicates must return bool.');
         return matched;
@@ -5963,18 +6344,23 @@ async function runReadScenarioSeam(
     operation: opts.operation, builtinRoles: Object.freeze(builtinRoles),
     stageWrite: refuse, createRecord: refuse, setRecord: refuse, deleteRecord: refuse,
     observeDelivery: async (locator, selected) => {
-      const binding = isUnknownRecord(locator.record) ? views.get(locator.record) : undefined;
-      if (binding === undefined) {
-        throw new StateError('validation', 'Delivery observation needs a record bound in this read scenario.');
+      try {
+        const binding = isUnknownRecord(locator.record)
+          ? views.get(locator.record) ?? navigation.resolveRecord(locator.record) : undefined;
+        if (binding === undefined) {
+          throw new StateError('validation', 'Delivery observation needs a record bound in this read scenario.');
+        }
+        const properties = [...selected];
+        const observed = await observeReceipt(binding, locator.field, properties);
+        receiptReads.push({ binding, field: locator.field, selected: properties, observation: JSON.stringify(observed) });
+        if (observed.outcome !== 'observed') return null;
+        const declaration = opts.artifact.models?.find(model => model.name === binding.model)?.fields
+          .find(field => field.name === locator.field)?.field;
+        return sourceReceiptProjection(observed.projection, properties,
+          declaration?.kind === 'delivery' ? declaration.result : undefined);
+      } catch (error) {
+        return navigation.reject(error);
       }
-      const properties = [...selected];
-      const observed = await observeReceipt(binding, locator.field, properties);
-      receiptReads.push({ binding, field: locator.field, selected: properties, observation: JSON.stringify(observed) });
-      if (observed.outcome !== 'observed') return null;
-      const declaration = opts.artifact.models?.find(model => model.name === binding.model)?.fields
-        .find(field => field.name === locator.field)?.field;
-      return sourceReceiptProjection(observed.projection, properties,
-        declaration?.kind === 'delivery' ? declaration.result : undefined);
     },
     readModel: async (model, query) => {
       // Snapshot the same selector State actually serves; no caller getter is
@@ -5990,8 +6376,11 @@ async function runReadScenarioSeam(
         projection: dependencies === undefined ? JSON.stringify(served.records) : dependencyProjection(dependencies) });
       return served.records;
     },
-    readRecords: async (model, query) =>
-      (await scope.readModel(model, query)).map(row => recordView(model, row)),
+    readRecords: async (model, query) => {
+      const rows = await scope.readModel(model, query);
+      for (const row of rows) await navigation.prepare(model, row);
+      return rows.map(row => recordView(model, row));
+    },
   };
   const actor = call.actorUserId === null ? null : opts.identity.actor;
   const team = call.teamId === null ? null : opts.identity.team;
@@ -6010,21 +6399,19 @@ async function runReadScenarioSeam(
     },
     ...(opts.formatting === undefined ? {} : { formatting: opts.formatting }),
   });
+  for (const ref of call.recordRefs) await navigation.prepare(ref.model, ref.row);
   const parameters = scenarioParameters(call, loaded,
     recordView, Object.create(null) as Record<string, unknown>);
   const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx, [parameters], true);
-  if (!outcome.ok) throw new StateError('rule_failed', outcome.error ?? 'The read operation was rejected.');
-  const result = await readScenarioResult(call, loaded, outcome.value, views, decodedRefs, async reference => {
-    // A granted link permits identity comparison; returning its target as a
-    // model-array member additionally requires that target's current viewer read.
-    const rows = await scope.readModel(reference.model, { where: { op: 'eq', field: 'id', value: reference.id }, limit: 1 });
-    const row = rows.find(candidate => candidate.id === reference.id);
-    if (row === undefined) throw new StateError('not_found', 'Returned reference record not found.');
-    if (reference.version !== undefined && reference.version !== BigInt(row.version)) {
-      throw new StateError('conflict', 'Returned reference record version changed.');
-    }
-    return makeRecordRef(reference.model, row.id, BigInt(row.version));
-  });
+  if (!outcome.ok) {
+    const recorded = typeof outcome.error === 'string' ? navigationFailures.get(outcome.error) : undefined;
+    if (recorded !== undefined) throw recorded;
+    throw new StateError('rule_failed', outcome.error ?? 'The read operation was rejected.');
+  }
+  // A granted link permits identity comparison; returning the target also
+  // requires its current viewer admission and exact-row projection.
+  const result = await readScenarioResult(call, loaded, outcome.value, views, decodedRefs, navigation.authorizeReference);
+  await navigation.revalidate();
   // Re-admit each original domain with current grants and the same state fence.
   // Source callbacks never run again: their complete observed domain includes
   // false candidates and each independently retained nested or empty read.
@@ -6125,9 +6512,17 @@ export async function queryPageRowsCanonical(
       direction: term.startsWith('-') ? 'desc' : 'asc' };
   });
   const sourceWhere = opts.args.where;
+  const navigation = typeof sourceWhere === 'function' ? await createContainmentNavigation({
+    loaded, store: opts.store, revision: await opts.store.readRevision(),
+    actorUserId: opts.identity.actor?.user_id ?? null, teamId: opts.identity.team?.team_id ?? null,
+    memberships: opts.memberships, authority: 'viewer',
+  }) : undefined;
+  const recordView = (model: string, row: StoredRow | ProjectedRecord): Record<string, unknown> =>
+    nativeProjectedRecord(loaded, model, row, navigation, recordView);
   const sourceFilter = typeof sourceWhere === 'function'
     ? async (record: Readonly<ProjectedRecord>): Promise<boolean> => {
-      const matched: unknown = await sourceWhere(nativeProjectedRecord(loaded, opts.model, record));
+      await navigation!.prepare(opts.model, record);
+      const matched: unknown = await sourceWhere(recordView(opts.model, record));
       if (typeof matched !== 'boolean') {
         throw new StateError('validation', 'Collection source filter must return bool.');
       }
@@ -6218,7 +6613,7 @@ export async function queryPageRowsCanonical(
     policy: loaded.policy, store: opts.store, memberships: opts.memberships });
   return reader({ envelope: { operation: `${opts.model}.read`, inputs: {} }, identity: opts.identity,
     selection, ...(sourceFilter === undefined ? {} : { generatedPredicate: sourceFilter }),
-  }, page => {
+  }, async page => {
     if (page.continuation !== null) {
       throw new StateError('validation',
         `Collection matched more than ${selection.limit ?? 25} rows. Narrow the query instead of truncating.`);
@@ -6226,6 +6621,7 @@ export async function queryPageRowsCanonical(
   // Only authorized projected field names can make a declared column visible.
   // Empty collections expose no field schema; private stored values are never read.
     const visible = new Set(page.records.flatMap(record => Object.keys(record.data)));
+    await navigation?.revalidate();
     return {
       rows: page.records.map(record => ({ id: record.id, version: String(record.version), fields: record.data })),
       columns: (loaded.collectionColumns.get(opts.model) ?? []).filter(column => visible.has(column.field)),
@@ -6511,6 +6907,7 @@ export function withDispatchJoinPort(store: StoragePort, port: DispatchJoinPort)
     commit: (batch) => port.commitJoin(batch),
     readReceipt: (identity) => store.readReceipt(identity),
     outboxPending: () => store.outboxPending(),
+    outboxGet: (id) => store.outboxGet(id),
     scheduleGet: (key) => store.scheduleGet(key),
     schedulesDue: (now, limit) => store.schedulesDue(now, limit),
     historyFor: (model, recordId) => store.historyFor(model, recordId),
@@ -7731,13 +8128,18 @@ export interface RecoverySweepOpts {
   readonly planRecoveryScan: DispatchRecoveryPlanner;
   /** Injected reconcile-evidence reader (provider-evidence plumbing). */
   readonly readEvidence: DispatchEvidenceReader;
-  /** Installed provider receipt writes share the original reconcile fence. */
+  /** Installed provider receipt staging shares the original reconcile fence. */
   readonly stageReconciledReceipt?: (input: {
     readonly intentId: string;
     readonly evidence: Exclude<DispatchReconcileEvidence, { readonly kind: 'not-found' }>;
     readonly revision: number;
     readonly context: SystemCommandContext;
-  }) => Promise<readonly import('@canlang/contracts').DomainWrite[]>;
+  }) => Promise<readonly import('@canlang/contracts').DomainWrite[] | SystemStaging>;
+  /** Recheck the original owner admission after staging, immediately before commit. */
+  readonly revalidateReconciledReceipt?: (input: {
+    readonly intentId: string;
+    readonly revision: number;
+  }) => Promise<void>;
 }
 
 /** T24b: one requeue act outcome (retry and dead lists alike). */
@@ -7845,13 +8247,19 @@ async function commitReconcile(input: {
   readonly intentId: string;
   readonly evidence: DispatchReconcileEvidence;
   readonly stageReconciledReceipt?: RecoverySweepOpts['stageReconciledReceipt'];
+  readonly revalidateReconciledReceipt?: RecoverySweepOpts['revalidateReconciledReceipt'];
 }): Promise<{ readonly reconciled: true; readonly state: string } | { readonly reconciled: false; readonly reason: string }> {
   const revision = await input.store.readRevision();
   const row = await input.store.load(T24B_WORK_DISPATCH_MODEL, input.intentId as RecordId);
   if (row === null) {
     return { reconciled: false, reason: "row-missing" };
   }
-  const data = readDispatchExecutionRow(row);
+  // Recovery writes must retain the complete defining Work row. The local
+  // planner projection omits optional original-request correlation metadata.
+  const tables = await loadProducerModule('@canlang/work/kernel/tables', 'dispatch reconciliation row');
+  const readRow = requireProducerFn(tables, 'readDispatchRow', 'dispatch reconciliation row') as
+    typeof import('@canlang/work/kernel/tables').readDispatchRow;
+  const data = readRow(row);
   if (data.state !== "uncertain") {
     return { reconciled: false, reason: "state-changed" };
   }
@@ -7867,11 +8275,15 @@ async function commitReconcile(input: {
           errorCode: input.evidence.code,
           errorMessage: input.evidence.message,
         };
-  const receiptWrites = await input.stageReconciledReceipt?.({
+  const stagedReceipt = await input.stageReconciledReceipt?.({
     intentId: input.intentId, evidence: input.evidence, revision: revision + 1,
     context: { actor: input.actor, now: input.now, operation: input.operation,
       load: input.store.load.bind(input.store), query: input.store.query.bind(input.store) },
-  }) ?? [];
+  }) ?? {};
+  // Keep the full defining staging result: progress occurrences may schedule
+  // their original handlers. Legacy receipt-only consumers still return writes.
+  const receiptStaging: SystemStaging = Array.isArray(stagedReceipt)
+    ? { writes: stagedReceipt } : stagedReceipt as SystemStaging;
   // Attempts UNCHANGED (reconcile parity with `reconcileUncertain` —
   // reconcile resolves ambiguity, it is not an attempt); failed
   // evidence carries no classification, so `retryClass` stays null
@@ -7892,16 +8304,17 @@ async function commitReconcile(input: {
           data: { ...nextData },
         },
       },
-      ...receiptWrites,
+      ...(receiptStaging.writes ?? []),
     ],
-    history: [],
+    history: receiptStaging.history ?? [],
     receipt: null,
-    outbox: [],
-    schedules: [],
-    uniqueClaims: [],
-    uniqueReleases: [],
-    outboxAck: [input.intentId],
+    outbox: receiptStaging.outbox ?? [],
+    schedules: receiptStaging.schedules ?? [],
+    uniqueClaims: receiptStaging.uniqueClaims ?? [],
+    uniqueReleases: receiptStaging.uniqueReleases ?? [],
+    outboxAck: [...new Set([input.intentId, ...(receiptStaging.outboxAck ?? [])])],
   };
+  await input.revalidateReconciledReceipt?.({ intentId: input.intentId, revision });
   await input.joinPort.commitJoin(batch);
   return { reconciled: true, state: input.evidence.kind };
 }
@@ -8077,6 +8490,7 @@ export async function runRecoverySweep(opts: RecoverySweepOpts): Promise<Recover
       intentId,
       evidence: current,
       ...(opts.stageReconciledReceipt === undefined ? {} : { stageReconciledReceipt: opts.stageReconciledReceipt }),
+      ...(opts.revalidateReconciledReceipt === undefined ? {} : { revalidateReconciledReceipt: opts.revalidateReconciledReceipt }),
     });
     if (outcome.reconciled) {
       reconciled.push({ intentId, state: outcome.state });

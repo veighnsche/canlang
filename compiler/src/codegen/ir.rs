@@ -2665,6 +2665,59 @@ impl<'a> Cx<'a> {
         self.decode_field_label_parts(symbol.module, &key)
     }
 
+    /// Reused fields inherit the immediately referenced declaration first.
+    /// Case overrides compose through the checked chain; text captions only
+    /// cross a reuse edge when both fields keep the same name.
+    fn decode_reused_field_label_parts(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+    ) -> Option<DecodedFieldLabel> {
+        let mut chain = Vec::new();
+        let mut current = symbol.clone();
+        let mut seen = HashSet::new();
+        while seen.insert(current.id) {
+            let SymbolKind::Field { owner, .. } = &current.kind else {
+                break;
+            };
+            chain.push((
+                current.name.clone(),
+                self.decode_declared_field_label_parts(&current, *owner),
+            ));
+            let next = self
+                .program
+                .types
+                .field_reuse_sources
+                .get(&current.id)
+                .copied();
+            let Some(next) = next
+                .and_then(|id| self.program.symbols.get(id.0 as usize))
+                .cloned()
+            else {
+                break;
+            };
+            current = next;
+        }
+        let mut inherited: Option<(String, DecodedFieldLabel)> = None;
+        for (name, declared) in chain.into_iter().rev() {
+            let mut label = declared.unwrap_or(DecodedFieldLabel {
+                text: None,
+                values: Vec::new(),
+            });
+            if let Some((source_name, source)) = inherited {
+                if label.text.is_none() && name == source_name {
+                    label.text = source.text;
+                }
+                for (case, caption) in source.values {
+                    if !label.values.iter().any(|(declared, _)| declared == &case) {
+                        label.values.push((case, caption));
+                    }
+                }
+            }
+            inherited = Some((name, label));
+        }
+        inherited.map(|(_, label)| label)
+    }
+
     /// Decode one `case=caption` label case.
     fn decode_label_case(
         &mut self,
@@ -3229,6 +3282,7 @@ fn is_expression(kind: SyntaxKind) -> bool {
     matches!(
         kind,
         SyntaxKind::Literal
+            | SyntaxKind::MessageValue
             | SyntaxKind::NameRef
             | SyntaxKind::Group
             | SyntaxKind::Array
@@ -7095,16 +7149,90 @@ impl<'a> Cx<'a> {
     }
 
     fn decode_ui_header_value(&mut self, scope: &Scope, node: &SyntaxNode) -> TypedExpr {
-        if node.kind == SyntaxKind::MessageValue
+        let value = if node.kind == SyntaxKind::MessageValue
             && let Some(message) = self.decode_message_node(scope.module, node)
         {
-            return TypedExpr::new(
+            TypedExpr::new(
                 IrExpr::Message(message),
                 ResolvedType::InlineMessage,
                 node.span,
-            );
+            )
+        } else {
+            self.decode_expr(scope, node)
+        };
+        self.check_ui_message_parameter_profile(node, &value);
+        value
+    }
+
+    /// UI and Values own different parameter profiles. Check only the owning
+    /// schema here; descriptor construction and captured argument reads remain
+    /// in their original expression and evaluation order.
+    fn check_ui_message_parameter_profile(&mut self, node: &SyntaxNode, value: &TypedExpr) {
+        let problem = match value.ty.nullable_inner().unwrap_or(&value.ty) {
+            ResolvedType::Message(id) => match self.program.effects.messages.get(id) {
+                Some(message) => message.params.iter().find_map(|param| {
+                    match self.program.types.symbol_types.get(&param.param) {
+                        Some(ty) => {
+                            matches!(ty, ResolvedType::Enum { owner: None, .. }).then(|| {
+                                format!(
+                                    "message parameter '{}' uses unsupported UI type {}",
+                                    self.local_name(param.param),
+                                    self.type_id(ty)
+                                )
+                            })
+                        }
+                        None => Some(format!(
+                            "message parameter '{}' has no checked UI type",
+                            self.local_name(param.param)
+                        )),
+                    }
+                }),
+                None => Some("named message has no checked UI parameter schema".to_string()),
+            },
+            ResolvedType::InlineMessage => {
+                let mut reference = node;
+                while reference.kind == SyntaxKind::Group {
+                    let Some(inner) = kids(reference).into_iter().find(|n| is_expression(n.kind))
+                    else {
+                        break;
+                    };
+                    reference = inner;
+                }
+                let key = NodeKey::of(reference);
+                let origin = self
+                    .program
+                    .types
+                    .message_descriptor_references
+                    .get(&key)
+                    .copied()
+                    .unwrap_or(key);
+                if let Some(binding) = self.program.types.anonymous_messages.get(&origin) {
+                    binding.arguments.iter().find_map(|(name, _, ty)| {
+                        matches!(ty, ResolvedType::Enum { owner: None, .. }).then(|| {
+                            format!(
+                                "message parameter '{name}' uses unsupported UI type {}",
+                                self.type_id(ty)
+                            )
+                        })
+                    })
+                } else if self
+                    .node(&origin)
+                    .is_some_and(|node| node.kind == SyntaxKind::MessageValue)
+                {
+                    None
+                } else {
+                    Some("inline message has no checked UI parameter schema".to_string())
+                }
+            }
+            _ => None,
+        };
+        if let Some(problem) = problem {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                format!("cannot render UI descriptor: {problem}"),
+                node.span,
+            ));
         }
-        self.decode_expr(scope, node)
     }
 
     /// Captioned factories consume exactly one checked text/message header.
@@ -7134,6 +7262,7 @@ impl<'a> Cx<'a> {
             ));
         }
         let value = self.decode_expr(scope, header);
+        self.check_ui_message_parameter_profile(header, &value);
         if let ResolvedType::Message(id) = &value.ty
             && self
                 .program
@@ -7198,11 +7327,11 @@ impl<'a> Cx<'a> {
         target: &SyntaxNode,
     ) -> Option<(TypedExpr, Option<TypedExpr>)> {
         let current = self.decode_expr(scope, target);
-        let (cases, enum_owner) = match &current.ty {
+        let cases = match &current.ty {
             ResolvedType::Enum {
                 cases,
-                owner: Some(enum_owner),
-            } => (cases.clone(), *enum_owner),
+                owner: Some(_),
+            } => cases.clone(),
             _ => {
                 self.diags.push(Diagnostic::error(
                     "E6008",
@@ -7286,22 +7415,7 @@ impl<'a> Cx<'a> {
             return None;
         }
         let (_, default, _, _, _, _) = self.decode_field(&symbol, *owner);
-        let label = self.decode_declared_field_label_parts(&symbol, *owner);
-        let inherited_label = if enum_owner != field_id {
-            self.program
-                .symbols
-                .get(enum_owner.0 as usize)
-                .cloned()
-                .and_then(|enum_field| {
-                    let SymbolKind::Field { owner, .. } = enum_field.kind else {
-                        return None;
-                    };
-                    let label = self.decode_declared_field_label_parts(&enum_field, owner);
-                    label.map(|label| (enum_field.name, label))
-                })
-        } else {
-            None
-        };
+        let label = self.decode_reused_field_label_parts(&symbol);
         let Some(IrDefault::Literal(default)) = default else {
             self.diags.push(Diagnostic::error(
                 "E6008",
@@ -7350,11 +7464,6 @@ impl<'a> Cx<'a> {
                 let caption = label
                     .as_ref()
                     .and_then(|label| label.values.iter().find(|(value, _)| value == &case))
-                    .or_else(|| {
-                        inherited_label.as_ref().and_then(|(_, label)| {
-                            label.values.iter().find(|(value, _)| value == &case)
-                        })
-                    })
                     .map(|(_, caption)| {
                         TypedExpr::new(
                             IrExpr::Message(caption.clone()),
@@ -7425,11 +7534,7 @@ impl<'a> Cx<'a> {
             ResolvedType::Unknown,
             target.span,
         );
-        let caption = label.and_then(|label| label.text).or_else(|| {
-            inherited_label
-                .filter(|(name, _)| name == &symbol.name)
-                .and_then(|(_, label)| label.text)
-        });
+        let caption = label.and_then(|label| label.text);
         let caption = caption.map(|caption| {
             TypedExpr::new(
                 IrExpr::Message(caption),
@@ -8182,7 +8287,12 @@ impl<'a> Cx<'a> {
                     )),
                 }
             } else {
-                props.push((name.clone(), self.decode_expr(scope, value)));
+                let decoded = if name == "caption" {
+                    self.decode_ui_header_value(scope, value)
+                } else {
+                    self.decode_expr(scope, value)
+                };
+                props.push((name.clone(), decoded));
             }
         }
         if bindings == 0 {
@@ -8624,7 +8734,25 @@ impl<'a> Cx<'a> {
         }
         for (name, value) in ui_attributes(self.db, node) {
             if let Some(value) = value {
-                props.push((name.clone(), self.decode_word_attr(scope, &name, value)));
+                let decoded = if name == "description" {
+                    let attribute = kids(node).into_iter().find(|child| {
+                        child.kind == SyntaxKind::Attribute
+                            && kids(child)
+                                .first()
+                                .and_then(|part| name_text(self.db, part))
+                                .as_deref()
+                                == Some("description")
+                    });
+                    let Some(decoded) = attribute.and_then(|attribute| {
+                        self.decode_single_ui_caption(scope, attribute, "stat description")
+                    }) else {
+                        continue;
+                    };
+                    decoded
+                } else {
+                    self.decode_word_attr(scope, &name, value)
+                };
+                props.push((name.clone(), decoded));
             }
         }
         IrUi {
@@ -8740,7 +8868,11 @@ impl<'a> Cx<'a> {
                 value.span,
             );
         }
-        self.decode_expr(scope, value)
+        let decoded = self.decode_expr(scope, value);
+        if matches!(name, "caption" | "title" | "text" | "label" | "submit") {
+            self.check_ui_message_parameter_profile(value, &decoded);
+        }
+        decoded
     }
 
     /// Decode a `form` node: operation plus display/arguments/fields/submit.
@@ -8926,7 +9058,11 @@ impl<'a> Cx<'a> {
                 }
                 "arguments" | "submit" => {
                     if let Some(value) = value {
-                        props.push((name, self.decode_expr(scope, value)));
+                        let decoded = self.decode_expr(scope, value);
+                        if name == "submit" {
+                            self.check_ui_message_parameter_profile(value, &decoded);
+                        }
+                        props.push((name, decoded));
                     }
                 }
                 "fields" => {
@@ -9801,7 +9937,14 @@ impl<'a> Cx<'a> {
         }
         for (name, value) in ui_attributes(self.db, node) {
             if let Some(value) = value {
-                props.push((name, self.decode_expr(scope, value)));
+                let decoded = self.decode_expr(scope, value);
+                if matches!(
+                    name.as_str(),
+                    "caption" | "title" | "text" | "label" | "submit"
+                ) {
+                    self.check_ui_message_parameter_profile(value, &decoded);
+                }
+                props.push((name, decoded));
             }
         }
         let children = self.decode_ui_children(scope, node, row_ctx);

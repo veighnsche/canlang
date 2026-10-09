@@ -14,6 +14,7 @@ import {
 } from '../src/http/formErrors.js';
 import { FORM_REFUSAL_HEADER, catalogFromArtifactOperations, handleOperationRequest } from '../src/http/operations.js';
 import { ARTIFACT_VERSION } from '@canlang/contracts';
+import { NATIVE_BOOLEAN_PRESENCE_PREFIX } from '@canlang/ui';
 import {
   parseCollectionQuery,
   parseFormBody,
@@ -222,12 +223,37 @@ test('unknown operation name shape and unknown catalog entry are not_found', asy
   const t = await setup();
   const body = jsonOpBody();
   const authed = { cookie: t.identity.cookie, csrf: t.csrf, contentType: 'application/json', body };
-  for (const name of ['nope', 'a.b.c.d', 'acme.nope', '1acme.order']) {
+  for (const name of ['nope', 'a.b.c.d', 'acme.nope', '1acme.order', 'acme..order', 'acme.release-skipped', 'acme/order']) {
     const res = await handleOperationRequest(t.deps, opRequest(authed), name);
     assert.equal(res.status, 404, name);
     assert.equal((await res.json() as { code: string }).code, 'not_found');
   }
   assert.equal(t.invoker.mutations.length, 0);
+});
+
+test('source underscore identifiers retain their operation identity over HTTP', async () => {
+  const names = ['CanCreative.release_skipped', '_acme._order', 'ac_me.Order_item.update'];
+  const t = await createTestDeps({
+    shapes: Object.fromEntries(names.map(name => [name, { allowed: ['qty'], required: ['qty'] }])),
+    mutations: Object.fromEntries(names.map(name => [name, (envelope) => ({
+      result: { status: 'committed', operation_id: envelope.operation_id, result: null },
+    })])),
+  });
+  const csrf = await deriveCsrfToken(t.identity.sessionToken);
+  for (const name of names) {
+    const operation_id = freshOperationId();
+    const response = await handleOperationRequest(t.deps, testRequest(`/api/operations/${name}`, {
+      method: 'POST', cookie: t.identity.cookie,
+      headers: { 'content-type': 'application/json', 'x-csrf-token': csrf },
+      body: JSON.stringify({ operation: name, operation_id, inputs: { qty: 1 } }),
+    }), name);
+    assert.equal(response.status, 200, name);
+    assert.equal((await response.json() as { status: string }).status, 'committed');
+    const call = t.invoker.mutations.at(-1); assert.ok(call);
+    assert.deepEqual(call.envelope, { operation: name, operation_id, inputs: { qty: 1 } });
+    assert.equal(call.identity.actor?.user_id, t.identity.userId);
+  }
+  assert.equal(t.invoker.mutations.length, names.length);
 });
 
 test('unknown input member and missing required input are validation', async () => {
@@ -346,18 +372,21 @@ test('native create, update and scenario controls project by declarations before
       { name: 'quantity', field: { kind: 'integer' as const }, required: true },
       { name: 'enabled', field: { kind: 'boolean' as const }, required: true },
       { name: 'tags', field: { kind: 'string' as const }, required: true, array: { required: true } },
+      { name: 'flags', field: { kind: 'boolean' as const }, required: false, array: { required: false } },
+      { name: 'requiredFlags', field: { kind: 'boolean' as const }, required: true, array: { required: true } },
     ];
     const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: [{ name: operation, kind, description: '', inputs: { fields } }] });
     const root = (name: string) => kind === 'update' ? `inputs[changes][${name}]` : `inputs[${name}]`;
     const params = new URLSearchParams({ operation, operation_id: freshOperationId(), _csrf: await deriveCsrfToken(t.identity.sessionToken),
       [root('title')]: '123', [root('quantity')]: '9007199254740993', [root('enabled')]: 'false', [root('tags')]: '["one"]',
+      [root('requiredFlags')]: '[]',
       ...(kind === 'update' ? { 'inputs[record][id]': 'true', 'inputs[record][version]': '7' } : {}),
     });
     const submit = (body: URLSearchParams) => handleOperationRequest({ ...t.deps, catalog }, opRequest({
       cookie: t.identity.cookie, contentType: 'application/x-www-form-urlencoded', body: body.toString(),
     }), operation);
     assert.equal((await submit(params)).status, 200, kind);
-    assert.deepEqual(t.invoker.mutations[0]?.envelope.inputs, { title: '123', quantity: '9007199254740993', enabled: false, tags: ['one'],
+    assert.deepEqual(t.invoker.mutations[0]?.envelope.inputs, { title: '123', quantity: '9007199254740993', enabled: false, tags: ['one'], requiredFlags: [],
       ...(kind === 'update' ? { record: { id: 'true', version: '7' } } : {}),
     });
     for (const [name, value] of [[root('tags'), '{}'], [root('quantity'), 'not-int'], [root('enabled'), 'maybe']]) {
@@ -369,6 +398,21 @@ test('native create, update and scenario controls project by declarations before
       assert.equal((await submit(wrongMode)).status, 400);
     }
     assert.equal(t.invoker.mutations.length, 1);
+    const arrayMarker = NATIVE_BOOLEAN_PRESENCE_PREFIX + root('flags');
+    const absentArray = new URLSearchParams(params); absentArray.set(arrayMarker, 'true');
+    assert.equal((await submit(absentArray)).status, 200);
+    assert.equal(Object.hasOwn(t.invoker.mutations.at(-1)!.envelope.inputs, 'flags'), false, 'array presence never synthesizes false');
+    const invalidArray = new URLSearchParams(absentArray); invalidArray.set(root('flags'), 'true');
+    assert.equal((await submit(invalidArray)).status, 400);
+    const validArray = new URLSearchParams(absentArray); validArray.set(root('flags'), '[false,true]');
+    assert.equal((await submit(validArray)).status, 200);
+    assert.deepEqual(t.invoker.mutations.at(-1)!.envelope.inputs['flags'], [false, true]);
+    for (const raw of [undefined, 'true']) {
+      const requiredArray = new URLSearchParams(params);
+      requiredArray.set(NATIVE_BOOLEAN_PRESENCE_PREFIX + root('requiredFlags'), 'true');
+      if (raw === undefined) requiredArray.delete(root('requiredFlags')); else requiredArray.set(root('requiredFlags'), raw);
+      assert.equal((await submit(requiredArray)).status, 400, 'required array still needs JSON-array text');
+    }
   }
 });
 
