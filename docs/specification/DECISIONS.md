@@ -3615,3 +3615,8 @@ Consolidated8aa7eaee CI passes Compiler/editor and Language tools, with current 
 ## 2026-10-09 — consume current Cloudflare test types and native metadata
 
 Consume only publishedbe2bc253569fb1976d5defff0bcac7b73a82e121's five owning test files. Keep actual native import/data-property metadata, source-bound fixture module/digest, canonical invocation scope and effect refusals; do not bypass producer admission for Vitest accessor namespaces. Root typecheck40/40, actual zero-violation guard and four affected runtime/preview/import/MCP targets151/151 pass. The page target has3engine-startup failures (missing Chrome distribution and a hardcoded macOS application path) plus1explicit selected-Images-artifact skip, preserved in logs; Cloudflare's package/test owner retains portable real-browser startup and selected-input qualification. No passing page/browser workflow or foreign worker-record copy follows from this bounded intake.
+
+
+## 2026-10-09 — consume the qualified handbuilt browser dependency closure
+
+Consume only reviewed67aef2a8's TeamTasks source-correspondence fixture and qualifiedb11cc7c8's owning artifact loader plus public Identity/UI bundle entries. Preserve explicit fixture limits, every browser/auth/CSRF/MCP assertion and one shared Identity instance; installed producer dependencies are bundled for Worker execution without aliases or stubs. Actual Chromium scaffold/TeamTasks/MCP15/15 passes after installing the real engine in the workspace cache; the initial6/15 run failed nine missing-engine cases and remains in the environment log. This separate handbuilt profile does not change compiled assembly, repair CanDo pilot source or establish whole-application acceptance.
