@@ -489,4 +489,3 @@ package creative
     list row.RevisionReviewVote order=voted_at
      pagination
      text row.voter,row.approved,row.reason,row.voted_at
-

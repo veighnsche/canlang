@@ -103,6 +103,7 @@ describe('B3 loader: deliveryFields channel', () => {
         ),
       (error: unknown) =>
         error instanceof IncompatibleArtifactError &&
+        error.reason === 'malformed_descriptor' &&
         /delivery identity\/version must match its standard or source Judgment profile\./.test(error.message),
     );
     assert.throws(

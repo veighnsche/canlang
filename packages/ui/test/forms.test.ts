@@ -13,6 +13,7 @@ import type {
 import type { FieldError, SealedActionHandle } from "@canlang/contracts";
 import { message } from "../src/messages.js";
 import { input } from "../src/controls.js";
+import { loadHtml } from "./harness.js";
 import {
   action,
   actions,
@@ -20,6 +21,7 @@ import {
   edit,
   form,
   formatDatetimeLocal,
+  NATIVE_BOOLEAN_PRESENCE_PREFIX,
   pointerToFieldName,
 } from "../src/forms.js";
 
@@ -402,6 +404,15 @@ describe("form field widgets", () => {
     assert.ok(html.includes('type="checkbox" name="inputs[on]" id="f1-on" value="true" checked'));
     assert.ok(html.includes('class="toggle"'));
     assert.ok(!html.includes('name="inputs[off]" id="f1-off" value="true" checked'));
+    const page = await loadHtml(html);
+    try {
+      const data = new page.window.FormData(page.document.querySelector('form')!);
+      assert.deepEqual(data.getAll('inputs[on]'), ['true']);
+      assert.deepEqual(data.getAll('inputs[off]'), []);
+      assert.deepEqual(data.getAll(NATIVE_BOOLEAN_PRESENCE_PREFIX + 'inputs[on]'), ['true']);
+      assert.deepEqual(data.getAll(NATIVE_BOOLEAN_PRESENCE_PREFIX + 'inputs[off]'), ['true']);
+      assert.equal(data.has(NATIVE_BOOLEAN_PRESENCE_PREFIX + 'inputs[unrendered]'), false);
+    } finally { await page.close(); }
     await assert.rejects(
       form(makeFormProps({ fields: [field("b", { type: "bool", value: "yes" })] })),
       /type bool needs a boolean value/,
@@ -583,6 +594,7 @@ describe("required and readonly fields", () => {
     );
     assert.ok(html.includes('<input type="hidden" name="inputs[on]" value="true">'));
     assert.ok(html.includes('<input type="hidden" name="inputs[off]" value="false">'));
+    assert.ok(!html.includes(NATIVE_BOOLEAN_PRESENCE_PREFIX));
   });
 
   it("disables readonly selects and duplicates the selection", async () => {
@@ -843,6 +855,25 @@ describe("edit", () => {
 });
 
 describe("deleteRecord", () => {
+  async function assertDeleteInputs(html: string, timeZone = "UTC"): Promise<void> {
+    const page = await loadHtml(html);
+    try {
+      const forms = page.document.querySelectorAll("form");
+      assert.equal(forms.length, 1);
+      const inputs = forms[0]!.querySelectorAll("input");
+      assert.deepEqual(Array.from(inputs, input => [input.type, input.name, input.value]), [
+        ["hidden", "operation", "TeamTasks.Todo.delete"],
+        ["hidden", "operation_id", "op-del-1"],
+        ["hidden", CSRF_FIELD, "csrf-123"],
+        ["hidden", "timezone", timeZone],
+        ["hidden", "inputs[record][id]", "r1"],
+        ["hidden", "inputs[record][version]", "3"],
+      ]);
+    } finally {
+      await page.close();
+    }
+  }
+
   it("renders a remove confirmation with an error-toned submit", async () => {
     const html = await deleteRecord(makeDeleteProps());
     assert.ok(html.includes('<section class="card bg-base-100 shadow">'));
@@ -854,15 +885,15 @@ describe("deleteRecord", () => {
     assert.ok(html.includes(`name="${CSRF_FIELD}" value="csrf-123"`));
     assert.ok(html.includes('<input type="hidden" name="timezone" value="UTC">'));
     assert.ok(html.includes('<input type="hidden" name="inputs[record][id]" value="r1">'));
-    assert.ok(html.includes('<input type="hidden" name="inputs[mode]" value="remove">'));
+    await assertDeleteInputs(html);
     assert.ok(html.includes('<button type="submit" class="btn btn-error">Delete</button>'));
     assert.ok(!html.includes("btn-ghost"));
     assert.equal(idRefCount(html), 0);
   });
 
   it("renders an archive confirmation with a warning-toned submit", async () => {
-    const html = await deleteRecord(makeDeleteProps({ mode: "archive" }));
-    assert.ok(html.includes('<input type="hidden" name="inputs[mode]" value="archive">'));
+    const html = await deleteRecord(makeDeleteProps({ mode: "archive", timeZone: "Europe/Brussels" }));
+    await assertDeleteInputs(html, "Europe/Brussels");
     assert.ok(html.includes('<button type="submit" class="btn btn-warning">Archive</button>'));
   });
 

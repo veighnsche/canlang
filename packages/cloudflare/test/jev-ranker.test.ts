@@ -79,6 +79,26 @@ describe("bounded construct ranking", () => {
     expect(await ranker.rank({ ...occurrence, cards: [cards[0]!] })).toMatchObject({ state: "stale" });
   });
 
+  it("accepts compiler slot spelling and bounds without weakening local eligibility", async () => {
+    let calls = 0;
+    const ranker = new ConstructRanker({ choose: async () => { calls++; throw new Error("unexpected"); } }, {
+      allowExternal: () => false, isCurrent: () => true,
+    });
+    for (const slot of ["given.rule", "given-rule", "page_item", `a${"b".repeat(95)}`]) {
+      expect(await ranker.rank({ ...occurrence, slot, cards: [cards[0]!] }))
+        .toMatchObject({ state: "deterministic", card: cards[0] });
+      expect(await ranker.rank({ ...occurrence, slot })).toMatchObject({ state: "ranking_disallowed" });
+    }
+    for (const slot of [null, "", ".given", "-given", "Given.rule", "given/rule", "given rule", "given\nrule", `a${"b".repeat(96)}`]) {
+      expect(await ranker.rank({ ...occurrence, slot, cards: [cards[0]!] })).toMatchObject({ state: "structural" });
+    }
+    expect(await ranker.rank({ ...occurrence, slot: "given.rule", structuralRecovery: true }))
+      .toMatchObject({ state: "structural" });
+    expect(await ranker.rank({ ...occurrence, slot: "given.rule", cards: [], unsupportedBehaviorProven: true }))
+      .toMatchObject({ state: "none" });
+    expect(calls).toBe(0);
+  });
+
   it("sends only bounded structured evidence, validates a rank, and caches it", async () => {
     let calls = 0;
     const ranker = new ConstructRanker({ choose: async (request) => {
@@ -136,4 +156,21 @@ describe("bounded construct ranking", () => {
     await new Promise(resolve => setTimeout(resolve, 15));
     expect(ranker.lookup(pending.state === "pending" ? pending.ref : "")).toEqual({ state: "ranking_unavailable", reason: "timeout" });
   });
+});
+
+it("cancels bounded retained calls on eviction and closes without awaiting an uncooperative transport", async () => {
+  const signals: AbortSignal[] = [];
+  const ranker = new ConstructRanker({ choose: (_request, signal) => {
+    signals.push(signal); return new Promise(() => {});
+  } }, { allowExternal: () => true, isCurrent: () => true, inlineBudgetMs: 1, providerDeadlineMs: 10000, maxCache: 1 });
+  const first = await ranker.rank(occurrence);
+  const second = await ranker.rank({ ...occurrence, ref: "s1/r1/d1" });
+  expect(first.state).toBe("pending");
+  expect(second.state).toBe("pending");
+  expect(signals[0]!.aborted).toBe(true);
+  expect(ranker.lookup(first.state === "pending" ? first.ref : "")).toMatchObject({ state: "ranking_unavailable", reason: "invalid_response" });
+  ranker.close();
+  expect(signals[1]!.aborted).toBe(true);
+  expect(ranker.lookup(second.state === "pending" ? second.ref : "")).toMatchObject({ state: "ranking_unavailable", reason: "cancelled" });
+  expect(await ranker.rank(occurrence)).toMatchObject({ state: "ranking_unavailable", reason: "cancelled" });
 });

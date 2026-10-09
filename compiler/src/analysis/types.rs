@@ -481,6 +481,8 @@ pub struct TypeTable {
     pub cohort_child_references: HashMap<NodeKey, SymbolId>,
     /// Exact checked bare-role value references, preserving lexical collisions.
     pub role_references: HashMap<NodeKey, SymbolId>,
+    /// Immediate checked field reuse source, preserving declaration-owned labels.
+    pub(crate) field_reuse_sources: HashMap<SymbolId, SymbolId>,
     /// Receiving preference fields, independent of a borrowed enum's owner.
     pub(crate) preference_field_references: HashMap<NodeKey, SymbolId>,
     /// Optional checked assistance; final input typing/defaults/grants are unchanged.
@@ -8092,6 +8094,31 @@ impl<'a> Typer<'a> {
             // Catalog positional domains are expressions, like leaf
             // domains; `NAME=word` options stay untyped (PR5 words).
             SyntaxKind::CatalogItem => {
+                if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("stat")
+                    && let Some(value) = attribute_value(node, "description", cx.text)
+                {
+                    let ty = self.expr(cx, value, None);
+                    if !matches!(
+                        ty,
+                        ResolvedType::Scalar(Scalar::Text)
+                            | ResolvedType::InlineMessage
+                            | ResolvedType::Message(_)
+                            | ResolvedType::Error
+                    ) {
+                        self.diags.push(Diagnostic::error(
+                            "E3001",
+                            "stat description needs text or a message descriptor".to_string(),
+                            tight_span(cx.text, value),
+                        ));
+                    }
+                    for (name, span) in self.effectful_calls(value, cx.text) {
+                        self.diags.push(Diagnostic::error(
+                            "E3010",
+                            format!("stat description must be pure; '{name}' is not allowed here"),
+                            span,
+                        ));
+                    }
+                }
                 if kids(node).iter().find_map(|n| name_text(n, cx.text)) == Some("count") {
                     if parent != SyntaxKind::Collection {
                         self.diags.push(Diagnostic::error(
@@ -10822,6 +10849,7 @@ impl<'a> Typer<'a> {
     ) -> ResolvedType {
         if let Some(owner) = owner {
             self.field_reuse_edges.push((owner, field, span));
+            self.types.field_reuse_sources.insert(owner, field);
         }
         self.inherit_value_constraints(owner, field);
         self.decl_type(field)
@@ -17038,6 +17066,7 @@ fn loose_equal(a: &ResolvedType, b: &ResolvedType) -> bool {
         ) => ao == bo && (ao.is_some() || ac == bc),
         (ResolvedType::Record { symbol: a, .. }, ResolvedType::Record { symbol: b, .. }) => a == b,
         (ResolvedType::Message(a), ResolvedType::Message(b)) => a == b,
+        (ResolvedType::InlineMessage, ResolvedType::InlineMessage) => true,
         (
             ResolvedType::Action {
                 targets: a,
