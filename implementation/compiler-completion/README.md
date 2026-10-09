@@ -103,7 +103,7 @@ strict all-target Clippy passes. Testkit still owns trusted formatting context
 and text/locale observation transport; no BDD execution or broader completion
 follows from this structural golden correction.
 
-The current compiler integration attempt reports **1,223 passed, 46 failed**
+The compiler integration attempt at **5bb5a5f5** reports **1,223 passed, 46 failed**
 across 33 failed targets. Source-matching Cloudflare outputs and draft5a12eb9e
 are distinct prerequisites; ready stale source controls are corrected separately.
 Released `each` parsing, judgment choice/callability and checked-locale plain
@@ -134,6 +134,17 @@ precision above 2^53 remains distinct from State's version domain. The affected
 factory golden passes **1/1**, focused strict Clippy passes and independent
 HIGH review accepts this boundary. Dev can consume the published PR revision;
 full Office Supplies/application acceptance remains with its owner.
+
+The public Services/Cloudflare builds now pass after restoring the frozen
+dependency closure. All **41 non-corpus failures** from that integration attempt
+pass affected checks: actual consumers retain once/order, fresh grants, history,
+replay/rollback, native scalar/result and UI behavior. CRUD fixtures consume the
+canonical disclosed `records` while requiring a null business result; Judgment
+descriptors retain the checked source locale. The independent source-map codec
+resolves its declared owning workspace under Bun's isolated linker, and omitted
+list `empty` wording reaches the shared UI default beside the authored caption.
+Five corpus checks remain blocked on the unchanged unavailable draft revision;
+no passing whole-suite or full-plan acceptance is claimed.
 
 Current remaining prerequisites are recorded here without reopening accepted
 compiler leaves:

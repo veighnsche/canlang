@@ -70,9 +70,17 @@ async function invoke(name,inputs){
  lastRequest={operation:name,operation_id:uuidv7(FIXED_NOW,++sequence),inputs};
  return invoker.invokeMutation(lastRequest,identity);
 }
-function committed(outcome){
+function committed(outcome,expectedRecords=1){
  assert.ok('result' in outcome,JSON.stringify(outcome));
- assert.equal(outcome.result.status,'committed');return outcome.result.result;
+ assert.equal(outcome.result.status,'committed');
+ assert.equal(outcome.result.result,null,'generated CRUD has no declared business result');
+ assert.equal(outcome.result.records.length,expectedRecords,'exact disclosed changed records');
+ if(expectedRecords===0)return null;
+ const row=outcome.result.records[0];
+ assert.deepEqual(Object.keys(row).sort(),['archivedAt','created','createdBy','data','id','parent','updated','updatedBy','version']);
+ assert.equal(typeof row.id,'string');assert.ok(row.id.length>0);
+ assert.ok(Number.isSafeInteger(row.version)&&row.version>0);
+ return row;
 }
 async function receipt(){
  const saved=await store.readReceipt({app:'HookOrder',owner:identity.team.team_id,
