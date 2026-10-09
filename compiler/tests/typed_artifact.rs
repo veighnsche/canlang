@@ -110,6 +110,9 @@ fn populated_artifact_preserves_order_omissions_and_embedded_json() {
             value_type: None,
             required: false,
             nullable: false,
+            trim: None,
+            min: None,
+            max: None,
             server_only: false,
             array_required: None,
             default: Some(JsFieldDefault::Literal(
