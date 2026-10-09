@@ -4328,15 +4328,15 @@
         "owner": "Draft/Compiler defining source and profile owners; Packages consumes released current-profile fixture/provenance contract"
       },
       {
-        "prerequisite": "State B3 malformed-delivery negative currently hits earlier identity/version rejection instead of its intended envelope refusal; legitimate owning fixture input correction ready.",
-        "owner": "Packages State owning test input; finite writer state_and_work_correctness"
+        "prerequisite": "Actual current-source CI6f46 run37946181674 reaches completion_contract actual_completion_engines but runner zsh compinit aborts on insecure completion directories; real terminal loses initial c and has no compdef. Current local actual bash/zsh/Python full1275cases pass. Owning fixture/environment correction needed; do not skip engines or weaken assertions.",
+        "owner": "Compiler actual completion fixture/runner profile owner (compiler/tests/fixtures/completion-contract/zsh.py); workflow coordination if needed"
       }
     ],
     "review_prerequisite": {
       "prerequisite": "Codex4230912689 borrowed preference chain loses immediate Facade captions; verified publishedCompiler0f17 retains rootEnum.owner lookup, exact owning correction required. Registry4231103231 corrected through actual6f46source. Values-only4231103245 covered by consumede461 and passing actual nominal consumer. Current/new-head Codex code/security review required; e000 summary previously running.",
       "owner": "Compiler preference declaration/IR owner, then Packages consumes; Codex current-revision review"
     },
-    "ci_observed_revision": "Actual consolidatedCIe00098bc run37945564650: Tools pass; zero boundary and build/typecheck prerequisites pass. Workspace exposes State B3 malformed-envelope test using invalid identity/version before intended guard; finite owning test input correction ready. Compiler stops at old corpus table before newly consumed6f46producer/corpus closure (current local1275pass). Browser30pass/15fail at retained CanDo/Employees and patched-source provenance profiles. New6f46run/review require relevant completion; no green whole-workspace/app acceptance.",
+    "ci_observed_revision": "Actual newCI6f46 run37946181674: Tools pass; zero boundary and build/typecheck prerequisites pass. Workspace State B3 malformed-version diagnostic mismatch now corrected and local5cases pass. Compiler current corpus/early joins pass and reaches actual zsh completion; compinit rejects insecure runner directories (owning fixture/environment prerequisite). Browser30pass/15fail at retained CanDo/Employees and patched-source provenance profiles. Current revision Codex summary running; no green whole-workspace/app acceptance.",
     "released_compiler_dependency": {
       "release": "Compiler PR1334cb5c55d04afe0c8d4641e9fe9501465baec8f96 cherry-picked with provenance asd2788779cee855bc940cf212208e0c049d9abd99; source delta exactly absent module declaration/two calls. Conflicting documentation retained at its owning historical scope.",
       "validation": "Rust1.99 locked offline B1 actual-catalog joins2/2, zeroSKIP; actual nominal generated/public Interfaces/UI/Identity Memory preference consumer1/1. Fresh locked compiler build passes and exact released workflow block provesTeamTasks exit10, seven precise errorE6008 profiles, complete diagnostic JSON/omitted0/no artifact fields. Unsupported source profiles remain refused; no whole-app/help/corpus acceptance.",
@@ -4358,7 +4358,8 @@
     "state_fixture_gate": {
       "status": "implemented and affected validation passed",
       "input": "State test owns byte-exact NumericControl source/artifact fixture copies; validates retained producer source hash before all unchanged typed metadata assertions. Original compiler provenance remains unchanged.",
-      "validation": "Owning State TypeScript build passes; released NumericControl artifact retains integer metadata and unknown legacy result passes1/1. Full guard assessed after exact coordinator release."
+      "validation": "Owning State TypeScript build passes; released NumericControl artifact retains integer metadata and unknown legacy result passes1/1. Full guard assessed after exact coordinator release.",
+      "delivery_followup": "Existing B3 malformed envelope case intentionally supplies standard version one (string), correctly rejected at current identity/version guard. Replace only retired diagnostic predicate with defining profile text; keep both inputs, typed error checks and missing-result assertion. Owning State TypeScript and existing full file5/5 pass, zero skips."
     },
     "teamtasks_fixture_gate": {
       "status": "implemented; existing affected consumer qualification passed",
