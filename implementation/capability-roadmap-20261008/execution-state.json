@@ -535,7 +535,13 @@
       "accepted_at_original_selected_scope": true,
       "consumer_commit": "c2d04992",
       "acceptance_scope": "Explicit SQLite bytes/native D1/current credential+record-grant generic browser/MCP scope. Original file-specific durable finalize/association, failure/replay/retention/current-authorization outcomes accepted by backend owner and reused with genuine client consumer. No generated-provider finalization requested, so conditional F6/T27 gate does not apply. No Chrome DOM, R2/default Worker, shared-principal, hosted or whole-F7/proposal credit.",
-      "consumer_ui_commit": "795ebadd6911a149271a70276c27c4e663b583bb"
+      "consumer_ui_commit": "795ebadd6911a149271a70276c27c4e663b583bb",
+      "worker_update": {
+        "state": "implemented_tested_native_receiving_retention_component",
+        "implemented": "SQLite receiving bindings expose the existing retention kernel inside their real transaction and receipt metadata description. Invalid clocks refuse before mutation. Original source write intent carries checked declared File assignments before State row coalescing: explicit identical references revalidate current receiving authority/lifetime, while omitted unchanged fields retain normal update behavior. No client assignment marker is admitted.",
+        "validation": "Owning Files portable retention8/8 reused unchanged. CF owning emit and expanded genuine compiled attachment/nativeD1/receivingSQLite journey1/1 (2.69s) pass: open/completed uploads expire, actual aged orphan collection, attachment survival, interrupted whole-sweep rollback/reopen/retry, byte expiry/redacted metadata/provenance, current download/explicit same-reference reattach refusal, exact persisted rejected-receipt revisions with unchanged domain/history, and label-only mutation after expiry without byte renewal.",
+        "remaining": "This is the explicit native receiving policy component. Full original applications, hosted/default Worker byte storage profiles and any bounded background sweep service remain separate required scopes; no wider provider/application acceptance is inferred."
+      }
     },
     {
       "id": "SEQ-024",
@@ -1500,7 +1506,7 @@
       "status": "active_bounded_snapshot_probe"
     }
   ],
-  "updated_utc": "2026-10-09T17:52:48.176797Z",
+  "updated_utc": "2026-10-09T17:53:35.154318Z",
   "progress_reporting": {
     "user_requested": true,
     "format": "done / 63 after every finished roadmap task; report partial slices separately without incrementing full-task count",

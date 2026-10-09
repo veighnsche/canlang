@@ -14,6 +14,8 @@ import {
   finalizeUpload,
   readFinalizedBytes,
   recordAttachment,
+  authorizeAttach,
+  blobKeyForFile,
   storedState,
 } from '../src/finalize/index.js';
 import { describeForReceipt, runRetention } from '../src/retention/index.js';
@@ -164,5 +166,42 @@ describe('retention and garbage collection', () => {
     const second = runRetention(h.retention, config);
     assert.deepEqual(second, { orphaned: [], expired: [], sweptIntents: [] });
     assert.equal(describeForReceipt(h.retention, 'file_999'), null);
+  });
+
+  it('refuses invalid policy or clock before changing metadata or bytes', () => {
+    const h = makeHarness(); const ref = finalizedRef(h);
+    const metadata = h.files.get(ref);
+    for (const nowMs of [NaN, Infinity, -1]) {
+      assert.throws(() => runRetention({ ...h.retention, clock: { nowMs: () => nowMs } },
+        { unattachedHorizonMs: HORIZON_MS, retentionMs: RETENTION_MS }), /clock/);
+    }
+    for (const value of [NaN, Infinity, -1]) {
+      assert.throws(() => runRetention(h.retention, { unattachedHorizonMs: value, retentionMs: RETENTION_MS }), /horizons/);
+      assert.throws(() => runRetention(h.retention, { unattachedHorizonMs: HORIZON_MS, retentionMs: value }), /horizons/);
+    }
+    assert.deepEqual(h.files.get(ref), metadata);
+    assert.deepEqual(readFinalizedBytes(h.finalize, ref, RECEIVER), PDF_BYTES);
+  });
+
+  it('terminal file metadata refuses reads and attachments until interrupted byte cleanup retries', () => {
+    const h = makeHarness(); const ref = finalizedRef(h);
+    const original = h.files.get(ref)!;
+    h.clock.advanceBy(RETENTION_MS);
+    const config = { unattachedHorizonMs: HORIZON_MS, retentionMs: RETENTION_MS };
+    let interrupted = false;
+    assert.throws(() => runRetention({ ...h.retention, blobs: { ...h.blobs,
+      write: h.blobs.write.bind(h.blobs), append: h.blobs.append.bind(h.blobs),
+      read: h.blobs.read.bind(h.blobs), sizeOf: h.blobs.sizeOf.bind(h.blobs),
+      remove(key) { interrupted = true; assert.equal(key, blobKeyForFile(ref)); throw new Error('Byte cleanup interrupted'); },
+    } }, config), /cleanup interrupted/);
+    assert.equal(interrupted, true);
+    assert.equal(h.files.get(ref)?.state, 'expired');
+    assert.deepEqual(h.files.get(ref)?.file, original.file);
+    assert.equal(h.blobs.sizeOf(blobKeyForFile(ref)), PDF_BYTES.length);
+    assert.equal(readFinalizedBytes(h.finalize, ref, RECEIVER), null);
+    assert.deepEqual(authorizeAttach(h.finalize, ref, RECEIVER), { status: 'failed', reason: 'expired' });
+    assert.equal(describeForReceipt(h.retention, ref)?.status, 'redacted');
+    assert.deepEqual(runRetention(h.retention, config), { orphaned: [], expired: [], sweptIntents: [] });
+    assert.equal(h.blobs.sizeOf(blobKeyForFile(ref)), null);
   });
 });
