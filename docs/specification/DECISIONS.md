@@ -3699,3 +3699,7 @@ Apply Packages’ `67aef2a8` witness correspondence and `b11cc7c8` public Identi
 ## 2026-10-09 — Consume the released audited Zsh completion bootstrap
 
 Apply Compiler `c4376ab8`’s exact real-engine fixture correction. Audit fpath and remove insecure paths before ordinary compinit, retaining the audit and all emitted completion output assertions without interactive prompts. The unchanged prior full native suite passed locally; the two affected required-engine cases pass for this joined fixture. Hosted Linux compiler/editor qualification remains scoped to its actual head.
+
+## 2026-10-09 — unfinished emergency cloud preservation
+
+The human ended cloud execution for cost and limited remaining work to preservation. Preserve the unapplied T04 branch-local structural patch and reusable credential-free probe source in the dev-server handoff, together with the interrupted Office result. Do not treat this checkpoint as implemented, tested, accepted or a completed plan. The last partial Office browser run stopped at delete status; local continuation must resolve that seam and the remaining original task list. Preserve the clean exact draft pin; exclude private runtime credentials/captures, caches, dependencies and generated outputs. No further cloud implementation, review or CI waiting follows.
