@@ -174,7 +174,7 @@ export interface IdentityDeps {
  * Assembled HTTP dependencies. The L7 worker assembly constructs these
  * from environment bindings at B1; S4 tests construct them directly.
  */
-/** Page serving uses the owning identity store and authorized collection runner. */
+/** Page serving uses the owning identity store and authorized request readers. */
 export interface PageHttpDeps {
   readonly app: AppInfo;
   readonly pages: PageRegistry;
@@ -183,7 +183,11 @@ export interface PageHttpDeps {
   readonly identity: Pick<IdentityDeps, 'store'>;
   /** Absent joins refuse queries; non-query pages need no collection backend. */
   readonly query?: RowQueryRunner;
-  /** Construct once after verified page admission; the owner binds current read authority. */
+  /**
+   * Construct once after verified page admission. The owner binds collection,
+   * native source-expression and receipt reads to the same current authority,
+   * checked source and physical-store snapshot. No storage/mutation scope escapes.
+   */
   readonly createReadScope?: (identity: ResolvedIdentity) => PageReadScope | Promise<PageReadScope>;
   /** The same checked operation catalog used by canonical HTTP submission. */
   readonly catalog?: SchemaCatalog;

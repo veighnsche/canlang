@@ -16,11 +16,13 @@
 import { DEFAULT_THEME } from '@canlang/contracts';
 import { makeUserRef } from '@canlang/values';
 import { createOperationFormPreparer } from './forms.js';
+import { buildBusinessError } from '../errors/envelope.js';
 import { systemInterfacesClock } from '../ports.js';
 import type { InterfacesClock, SchemaCatalog, SourceFormBindings } from '../ports.js';
 import type {
   PageSourceContext,
   PageDeliveryObserver,
+  PageRecordsReader,
   PresentationContext,
   ResolvedIdentity,
   RowQueryRunner,
@@ -28,6 +30,11 @@ import type {
 
 /** Bounds locator extraction only; the complete page query stays in polling state. */
 const COLLECTION_SELECTION_QUERY_MAX_CHARS = 8_192;
+
+/** Rendering without an owning native viewer reader must refuse explicitly. */
+const unavailablePageRecords: PageRecordsReader = async () => {
+  throw buildBusinessError('validation', 'Authorized page source reads are not configured.');
+};
 
 /** Inputs to {@link buildPresentationContext}, all dispatcher-supplied. */
 export interface BuildPresentationContextInput {
@@ -54,6 +61,8 @@ export interface BuildPresentationContextInput {
   readonly sessionToken?: string | null;
   /** Row-query runner bound before the call. */
   readonly query: RowQueryRunner;
+  /** Native source-expression reader from the same admitted request scope. */
+  readonly readRecords?: PageRecordsReader;
   readonly observeDelivery?: PageDeliveryObserver;
 }
 
@@ -114,8 +123,10 @@ export function buildPresentationContext(
   }
   const context: PresentationContext = {
     ...source,
-    canonical: input.observeDelivery === undefined ? source.canonical : Object.freeze({
-      ...source.canonical, observeDelivery: input.observeDelivery,
+    canonical: Object.freeze({
+      ...source.canonical,
+      readRecords: input.readRecords ?? unavailablePageRecords,
+      ...(input.observeDelivery === undefined ? {} : { observeDelivery: input.observeDelivery }),
     }),
     preferredLocales: parseAcceptLanguage(input.request.headers.get('accept-language')),
     appDefaultLocale: input.appDefaultLocale,
