@@ -111,6 +111,14 @@ Codex review of **22903771** adds the shared portable-browser consumer blocker
 above; later published heads still require their own Codex review/CI. Original
 completion remains **58/67**, with **9 open** owner-dependent references.
 
+**Local prerequisite — checked stored-field modifiers, 2026-10-09.**
+Exact producer inputs **1cf28c52** and related **0e8073bc** now retain authored
+trim and exact literal min/max in stored model artifacts. Safe text/array
+lengths remain numeric; large signed integer and decimal bounds preserve
+their exact wire spelling. Unsafe lengths and nonliteral bounds refuse E6008.
+Affected codegen **19/19** and typed artifact/descriptor **8/8** pass. Current
+compiler whole qualification and application/State consumption are separate.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed
