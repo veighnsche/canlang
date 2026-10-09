@@ -224,6 +224,17 @@ export function compilerSourceInputs(checkoutRoot: string, compilerPath: string)
   return paths.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+/** Optional owning qualification recipes; absence never blocks ordinary preview. */
+export function firstProfileQualificationInputs(checkoutRoot: string): readonly NamedInputPath[] {
+  const root = realpathSync(checkoutRoot);
+  return [
+    { name: "construct-profile:compiler-test", path: join(root,"compiler/tests/construct_help.rs") },
+    { name: "construct-profile:fixture", path: join(root,"compiler/tests/fixtures/construct-help-first-profile.can") },
+  ].filter(input => {
+    try { return statSync(input.path).isFile(); } catch { return false; }
+  });
+}
+
 /** The compiler catalog must be the current installed Values catalog. */
 export function assertInstalledCatalog(checkoutRoot: string, selectedPath: string): void {
   const values = packageRoot(require.resolve("@canlang/values/distribution"));
@@ -254,6 +265,7 @@ export function installedLocalPreviewInputInventory(checkoutRoot: string, compil
       { name: "grammar", path: grammar },
       ...installedOwnedSourceInputs(checkoutRoot),
       ...compilerSourceInputs(checkoutRoot, compilerPath),
+      ...firstProfileQualificationInputs(checkoutRoot),
     ],
   };
 }
