@@ -4968,3 +4968,33 @@ Owning Interfaces graph10/10 and final emission pass; existing page/presentation
 Consume the exact PageRecordsReader producer and bind it to the existing canonical scope and lazy selected physical owner. Native expression reads use defining unpaginated State projection, Values/native reference conversion and viewer containment navigation. Preserve selectors and finite explicit limits or refuse unsupported/private/owner/archive forms. Compare current projected authority after conversion and revalidate the shared revision/navigation before disclosure; source predicates run once and their complete authorized candidate domain is compared without executing them again. Collection and receipt readers share that actual scope; renderer arguments cannot replace identity or storage.
 
 The existing real two-owner D1/Identity consumer passes1/1 with131 native rows, exact codecs/readable keys, four correctly filtered/ordered rows with131 source evaluations, private-model withholding, explicit selector refusals, fixed owner and a raced actual membership revocation before disclosure. Source-current package graph/native Compiler/catalog and CF/root strict checks pass at their stated scopes. Individual read checks do not establish final render-close or server cancellation. Full41-card compiled/native profile and parent-source breadth remain unfinished; keep the original positive test, existing holds and source/security assertions.
+
+
+## 2026-10-10 — emit checked admitted intrinsic capture at actual evaluation sites
+
+Use the defining additive State intrinsic contract for operation identity, original
+required versioned reference metadata and explicitly supplied required builtin
+scalar inputs. Preserve declaration/parameter/call-chain/source identities; do not
+substitute model fields, current staged versions or nominally reused scalar types.
+Evaluate each original expression once before the private awaited Dev facade.
+Successful primitive requirements influence effects before or after writes while
+existing independent-return/stored-guard authorization policy remains unchanged.
+Native input descriptors name the exact checked primitive type; generic ABI is
+unchanged. The checker publishes actual shorthand lexical types at their key
+nodes and IR retains those anchors rather than inventing Unknown assignments.
+
+Source23/23, facts15/15, actual intrinsic CLI1/1 and unchanged original generation
+CLI1/1, strict lint/format pass. The four original generation facts are now
+complete in compiler output. Native adapter/original workflow and whole changed-
+source acceptance remain unfinished; broader refs and precise holds stay open.
+
+
+
+## 2026-10-10 — retain all admitted intrinsic requirements on successful effects
+
+Correct the finite guard closure identified in manual review: every supported
+intrinsic kind controls successful effects, whether the requirement precedes or
+follows the effect. Preserve the established independent-return/stored-guard
+policy. Six direct source paths1/1 and actual output1/1 with four effect guards
+pass; strict lint/format pass. The existing native fixture extension remains
+prepared and unexecuted until the exact released Dev observer is consumed.
