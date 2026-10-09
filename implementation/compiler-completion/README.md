@@ -2,6 +2,15 @@
 
 Current completion is **58 of 67 references**, with **9 remaining including partial work**. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
+The fresh cloud compiler validation repair uses the public `analysis::effects`
+pass in its integration harness, preserving crate-private helper ownership.
+Its unchanged 43 cases and five corrected cohort cases pass; the two failed
+analysis checks and one authoring check also pass after reconciling current
+declared-event grammar, descriptive E2019 capacity examples and seven observed
+draft diagnostic counts. The prior setup failures remain in the environment
+logs. These are validation corrections; no broader reference or current whole
+suite acceptance follows.
+
 The user has authorized finishing the remaining compiler tasks. Use the [recorded work/review settings](../../docs/research/compiler-library-audit-20261006/resumption/model-allocation.md); overlapping references share work and completed receipts are reused at matching scope. Current completion joins append to the canonical coverage ledger; historical source pins remain unchanged.
 
 | Reference | Current outcome |
