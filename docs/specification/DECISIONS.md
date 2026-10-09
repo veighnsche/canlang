@@ -3754,3 +3754,7 @@ The same permanent native2/2 also qualifies generated CRUD contract inputs, exac
 ## 2026-10-09 — consume positive installed owner-session support
 
 Consume exact local Capability7788df1a4f795d63a61f954e862c568155d65929 dedicated generatedCrudExecuteOwnerSession source/export/test unit. Require explicit own bounds and native frame, refuse older/malformed support before mutation, and invoke captured cleanup with its original frame receiver. Owning build6/6 and generatedCRUD17/17 pass without skips. This qualifies the defining entry prerequisite without claiming native Can hydration or hook activation; final compiler checks use the changed installed inputs.
+
+## 2026-10-09 — preserve private event coverage for supported ordinary contracts
+
+Replace the schedule fixture's obsolete closed-Packet refusal expectation with exact private nominal metadata, actual emitted schema normalization and nested-payload validation before its generated handler. Keep a model-containing contract as the explicit whole-descriptor omission control, and retain package/order/schedule/cancel/later-failure assertions. Owning2/2 passes; the fixture remains labelled callable ABI with host doubles, not canonical persistence. Final combined qualification uses the coordinator-released local baseline.

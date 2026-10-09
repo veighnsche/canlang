@@ -120,7 +120,7 @@ fn ordinary_schedule_uses_checked_declaring_package() {
     let scratch = tempfile::tempdir().unwrap();
     let mut source = "app Composed uses=[alpha,beta]\n".to_string();
     for owner in ["alpha", "beta"] {
-        source.push_str(&format!("package {owner}\n Given\n  Entry {{timer:text,due:datetime,title:text}}\n  policy Entry read=members\n  contract Packet {{message:text}}\n  event Compound {{plain:text,details:Packet}}\n  event Due {{entry:Entry,note:text min=1 max=16 trim,tags:text[] max=3,count:int=17 min=0 max=20}}\n When\n  scenario compound on=Compound\n   do require true\n  scenario fire on=Due\n   do require event.entry.title==\"Authored\"\n  scenario arm(record:Entry) by=members\n   do schedule record.timer at=record.due event=Due {{entry=record,note=record.title,tags=[],count=17}}\n  scenario stop(record:Entry) by=members\n   do cancel record.timer\n  scenario later_failure(record:Entry) by=members\n   do\n    schedule record.timer at=record.due event=Due {{entry=record,note=record.title,tags=[],count=17}}\n    require false\n    cancel record.timer\n Then\n"));
+        source.push_str(&format!("package {owner}\n Given\n  Entry {{timer:text,due:datetime,title:text}}\n  policy Entry read=members\n  contract Packet {{message:text}}\n  contract UnsupportedPacket {{entry:Entry}}\n  event UnsupportedCompound {{plain:text,details:UnsupportedPacket}}\n  event Compound {{plain:text,details:Packet}}\n  event Due {{entry:Entry,note:text min=1 max=16 trim,tags:text[] max=3,count:int=17 min=0 max=20}}\n When\n  scenario compound on=Compound\n   do require event.details.message==\"Nested\"\n  scenario unsupported_compound on=UnsupportedCompound\n   do require true\n  scenario fire on=Due\n   do require event.entry.title==\"Authored\"\n  scenario arm(record:Entry) by=members\n   do schedule record.timer at=record.due event=Due {{entry=record,note=record.title,tags=[],count=17}}\n  scenario stop(record:Entry) by=members\n   do cancel record.timer\n  scenario later_failure(record:Entry) by=members\n   do\n    schedule record.timer at=record.due event=Due {{entry=record,note=record.title,tags=[],count=17}}\n    require false\n    cancel record.timer\n Then\n"));
     }
     let input = scratch.path().join("schedule.can");
     std::fs::write(&input, &source).unwrap();
@@ -217,7 +217,31 @@ for(const owner of ['alpha','beta']){
  });
  assert(!artifact.operations.some(operation=>operation.name===`${owner}.fire`));
  assert.equal(entry.appDefinition.operations[`${owner}.compound`].event,`${owner}.Compound`);
- assert.equal(entry.appDefinition.operations[`${owner}.compound`].invocation,undefined,'unsupported structural contract omits the whole private descriptor');
+ assert.deepEqual(entry.appDefinition.operations[`${owner}.compound`].invocation,{
+  name:`${owner}.compound`,kind:'scenario',description:'',result:{type:'void'},inputs:{fields:[
+   {name:'plain',field:{kind:'string'},valueType:'text',required:true},
+   {name:'details',field:{kind:'nominal',name:`${owner}.Packet`},valueType:`${owner}.Packet`,required:true},
+  ]},
+ });
+ assert.deepEqual(entry.appDefinition.events[`${owner}.Compound`].inputs,{plain:{type:'text'},details:{type:`${owner}.Packet`}});
+ const packet=artifact.valueTypes.contracts.find(contract=>contract.name===`${owner}.Packet`);
+ assert.deepEqual(packet,{name:`${owner}.Packet`,fields:[{name:'message',type:'text'}]});
+ const contracts=Object.fromEntries(artifact.valueTypes.contracts.map(contract=>[contract.name,{fields:Object.fromEntries(contract.fields.map(({name,...field})=>[name,field]))}]));
+ const compoundSchema=normalizeSchema({contracts,operations:{[`${owner}.Compound`]:{inputs:entry.appDefinition.events[`${owner}.Compound`].inputs}}});
+ const compoundPayload=validateOperationInput(compoundSchema,`${owner}.Compound`,{plain:'Outer',details:{message:'Nested'}});
+ assert.deepEqual(compoundPayload,{plain:'Outer',details:{message:'Nested'}});
+ for(const wire of [
+  {plain:'Outer'}, {plain:'Outer',details:{}},
+  {plain:'Outer',details:{message:'Nested',extra:true}},
+  {plain:'Outer',details:{message:17}}, {plain:'Outer',details:'Nested'},
+  {plain:'Outer',details:{message:'Nested'},extra:true},
+ ])assert.throws(()=>validateOperationInput(compoundSchema,`${owner}.Compound`,wire));
+ trace.length=0;await callable(`${owner}.compound`)(context,{event:compoundPayload});
+ assert.deepEqual(trace,[['check',true]]);
+ assert.equal(entry.appDefinition.operations[`${owner}.unsupported_compound`].event,`${owner}.UnsupportedCompound`);
+ assert.equal(entry.appDefinition.operations[`${owner}.unsupported_compound`].invocation,undefined,'model-containing contract omits the whole private descriptor');
+ assert(!artifact.valueTypes.contracts.some(contract=>contract.name===`${owner}.UnsupportedPacket`));
+ assert(!artifact.operations.some(operation=>operation.name===`${owner}.unsupported_compound`));
  assert(!artifact.operations.some(operation=>operation.name===`${owner}.compound`));
  assert.equal(artifact.callables.find(item=>item.id===`${owner}.fire`).kind,'handler');
  const current=record(owner);let inputReads=0;const input={};Object.defineProperty(input,'record',{get(){inputReads++;return current;}});
