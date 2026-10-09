@@ -1,9 +1,9 @@
-//! Required actual-list profile: CLI refusal and the unchanged real empty-query sink.
+//! Actual-list empty captions: shared default and authored localized messages.
 #![cfg(unix)]
 use std::{path::Path, process::Command};
 
 #[test]
-fn list_requires_empty_and_explicit_message_reaches_real_empty_query() {
+fn list_default_and_explicit_message_reach_real_empty_query() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let scratch = tempfile::tempdir().unwrap();
     let source = scratch.path().join("list.can");
@@ -17,61 +17,42 @@ fn list_requires_empty_and_explicit_message_reaches_real_empty_query() {
             .output()
             .unwrap()
     };
-    std::fs::write(&source, input).unwrap();
-    let refused = compile();
-    assert_eq!(refused.status.code(), Some(10));
-    let diagnostics: serde_json::Value = serde_json::from_slice(&refused.stdout).unwrap();
-    assert!(
-        diagnostics.get("modules").is_none(),
-        "no artifact publication"
-    );
-    let errors = diagnostics["diagnostics"].as_array().unwrap();
-    assert_eq!(errors.len(), 1, "{diagnostics}");
-    let error = &errors[0];
-    assert_eq!(error["code"], "E6008");
-    assert!(
-        error["message"]
-            .as_str()
-            .unwrap()
-            .contains("ListProps.empty")
-    );
-    let start = error["primary"]["start"].as_u64().unwrap() as usize;
-    let end = error["primary"]["end"].as_u64().unwrap() as usize;
-    assert!(
-        input[start..end].trim_start().starts_with("list Job"),
-        "owning source anchor"
-    );
-
-    std::fs::write(
-        &source,
-        input.replace(
-            "list Job",
-            "list Job empty=\"No jobs yet\"@{nl=\"Nog geen taken\"}",
-        ),
-    )
-    .unwrap();
-    let compiled = compile();
-    assert!(
-        compiled.status.success(),
-        "{}\n{}",
-        String::from_utf8_lossy(&compiled.stdout),
-        String::from_utf8_lossy(&compiled.stderr)
-    );
-    let artifact = scratch.path().join("artifact.json");
-    std::fs::write(&artifact, compiled.stdout).unwrap();
     let runner =
         Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/list-empty-consumer.mjs");
-    let consumed = Command::new("node")
-        .arg(runner)
-        .arg(root)
-        .arg(&artifact)
-        .arg(scratch.path())
-        .output()
-        .unwrap();
-    assert!(
-        consumed.status.success(),
-        "{}\n{}",
-        String::from_utf8_lossy(&consumed.stdout),
-        String::from_utf8_lossy(&consumed.stderr)
-    );
+    for (name, authored, expected) in [
+        ("default", input.to_string(), "Geen gegevens."),
+        (
+            "explicit",
+            input.replace(
+                "list Job",
+                "list Job empty=\"No jobs yet\"@{nl=\"Nog geen taken\"}",
+            ),
+            "Nog geen taken",
+        ),
+    ] {
+        std::fs::write(&source, authored).unwrap();
+        let compiled = compile();
+        assert!(
+            compiled.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&compiled.stdout),
+            String::from_utf8_lossy(&compiled.stderr)
+        );
+        let artifact = scratch.path().join(format!("{name}.json"));
+        std::fs::write(&artifact, compiled.stdout).unwrap();
+        let consumed = Command::new("node")
+            .arg(&runner)
+            .arg(root)
+            .arg(&artifact)
+            .arg(scratch.path().join(name))
+            .arg(expected)
+            .output()
+            .unwrap();
+        assert!(
+            consumed.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&consumed.stdout),
+            String::from_utf8_lossy(&consumed.stderr)
+        );
+    }
 }
