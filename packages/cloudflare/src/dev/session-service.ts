@@ -784,11 +784,21 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         if (recipe.sourceRevision !== state.sourceRevision) {
           throw new SessionSocketError("EXAMPLES_UNAVAILABLE", "example recipe differs from the admitted source");
         }
+        const requireCapturedRuntime = async (): Promise<void> => {
+          if (!(await capturedRuntimeInputsAreCurrent(captured))) {
+            throw new SessionSocketError("CAPTURE_CHANGED", "captured example runtime inputs changed; stop and restart this session");
+          }
+        };
+        await requireCapturedRuntime();
         const input = { ...recipe, testkit: await loadInstalledExampleTestkit(captured.root) };
+        await requireCapturedRuntime();
         const artifactDigest = createHash("sha256").update(input.artifactBytes).digest("hex");
         const runId = randomUUID();
         const result = await runCompiledExamples({ ...input, runId,
           ...(typeof operation === "string" ? { selectedRow: { operation, rowIndex: rowIndex as number } } : {}) });
+        // Do not retain evidence from a row that ran against changed producer
+        // bytes, even when the selected source itself still has the same hash.
+        await requireCapturedRuntime();
         // Passing and unsupported runs have no row to rerun. They must not
         // consume the bounded artifacts backing earlier failure references.
         const rerunnable = result.report.cases.some(example => example.kind === "table" &&
