@@ -205,7 +205,7 @@ fn canapp_operations(entry: &str) -> &str {
 }
 
 const SHOP_GIVEN: &str = "app Shop\nGiven\n Gadget { title:text }\n policy Gadget read=members\n";
-const SHOP_THEN: &str = "Then\n page / title=\"Shop\"\n  breadcrumbs\n";
+const SHOP_THEN: &str = "Then\n page / title=\"Shop\"\n  text \"Shop\"\n";
 
 fn scenario_src(header: &str) -> String {
     format!(
@@ -270,9 +270,9 @@ fn expose_rejected_on_trusted_handler() {
 
 // Parser: @{desc} ----------------------------------------------------------
 
-const DESC_PARAM: &str = "app Shop\nGiven\n Gadget { title:text }\n policy Gadget read=members\nWhen\n scenario approve(gadget:Gadget @{desc=\"The gadget to approve.\"},note:text? @{desc=\"Optional note.\"}) by=members\n  do set gadget {title=\"x\"}\nThen\n page / title=\"Shop\"\n  breadcrumbs\n";
+const DESC_PARAM: &str = "app Shop\nGiven\n Gadget { title:text }\n policy Gadget read=members\nWhen\n scenario approve(gadget:Gadget @{desc=\"The gadget to approve.\"},note:text? @{desc=\"Optional note.\"}) by=members\n  do set gadget {title=\"x\"}\nThen\n page / title=\"Shop\"\n  text \"Shop\"\n";
 
-const DESC_FIELD: &str = "app Shop\nGiven\n Gadget { title:text @{desc=\"Display title.\"}, stock:int=0 @{desc=\"Units on hand.\"} }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title,stock\nThen\n page / title=\"Shop\"\n  breadcrumbs\n";
+const DESC_FIELD: &str = "app Shop\nGiven\n Gadget { title:text @{desc=\"Display title.\"}, stock:int=0 @{desc=\"Units on hand.\"} }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title,stock\nThen\n page / title=\"Shop\"\n  text \"Shop\"\n";
 
 #[test]
 fn desc_parses_on_param_and_field() {
@@ -288,7 +288,7 @@ fn desc_parses_on_param_and_field() {
 
 #[test]
 fn desc_parses_after_label() {
-    let src = "app Shop\nGiven\n Gadget { title:text label=\"Title\" @{desc=\"Display title.\"} }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title\nThen\n page / title=\"Shop\"\n  breadcrumbs\n";
+    let src = "app Shop\nGiven\n Gadget { title:text label=\"Title\" @{desc=\"Display title.\"} }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title\nThen\n page / title=\"Shop\"\n  text \"Shop\"\n";
     assert_clean(src);
     let src = scenario_src("by=members").replace(
         "scenario approve(gadget:Gadget)",
@@ -299,7 +299,7 @@ fn desc_parses_after_label() {
 
 #[test]
 fn desc_non_literal_rejected() {
-    let src = "app Shop\nGiven\n Gadget { title:text @{desc=42} }\n policy Gadget read=members\nWhen\nThen\n page / title=\"Shop\"\n  breadcrumbs\n";
+    let src = "app Shop\nGiven\n Gadget { title:text @{desc=42} }\n policy Gadget read=members\nWhen\nThen\n page / title=\"Shop\"\n  text \"Shop\"\n";
     let (_tree, diags) = assert_codes(src, &["E1214"]);
     assert!(
         diags[0].message.contains("desc"),
@@ -310,7 +310,7 @@ fn desc_non_literal_rejected() {
 
 #[test]
 fn desc_unknown_key_rejected() {
-    let src = "app Shop\nGiven\n Gadget { title:text @{nl=\"Titel\"} }\n policy Gadget read=members\nWhen\nThen\n page / title=\"Shop\"\n  breadcrumbs\n";
+    let src = "app Shop\nGiven\n Gadget { title:text @{nl=\"Titel\"} }\n policy Gadget read=members\nWhen\nThen\n page / title=\"Shop\"\n  text \"Shop\"\n";
     let (_tree, diags) = assert_codes(src, &["E1214"]);
     assert!(
         diags[0].message.contains("nl"),
@@ -321,13 +321,13 @@ fn desc_unknown_key_rejected() {
 
 #[test]
 fn desc_empty_rejected() {
-    let src = "app Shop\nGiven\n Gadget { title:text @{} }\n policy Gadget read=members\nWhen\nThen\n page / title=\"Shop\"\n  breadcrumbs\n";
+    let src = "app Shop\nGiven\n Gadget { title:text @{} }\n policy Gadget read=members\nWhen\nThen\n page / title=\"Shop\"\n  text \"Shop\"\n";
     assert_codes(src, &["E1214"]);
 }
 
 #[test]
 fn desc_marker_must_be_contiguous() {
-    let src = "app Shop\nGiven\n Gadget { title:text @ {desc=\"x\"} }\n policy Gadget read=members\nWhen\nThen\n page / title=\"Shop\"\n  breadcrumbs\n";
+    let src = "app Shop\nGiven\n Gadget { title:text @ {desc=\"x\"} }\n policy Gadget read=members\nWhen\nThen\n page / title=\"Shop\"\n  text \"Shop\"\n";
     assert_codes(src, &["E1214"]);
 }
 
@@ -397,7 +397,7 @@ fn expose_none_skipped_from_operations() {
 
 #[test]
 fn desc_verbatim_in_field_descriptors() {
-    let src = "app Shop\nGiven\n Gadget { title:text @{desc=\"Display title.\"}, stock:int=0 }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title,stock\n scenario approve(gadget:Gadget @{desc=\"The gadget to approve.\"},note:text?) by=members\n  do set gadget {title=\"x\"}\nThen\n page / title=\"Shop\"\n  breadcrumbs\n";
+    let src = "app Shop\nGiven\n Gadget { title:text @{desc=\"Display title.\"}, stock:int=0 }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title,stock\n scenario approve(gadget:Gadget @{desc=\"The gadget to approve.\"},note:text?) by=members\n  do set gadget {title=\"x\"}\nThen\n page / title=\"Shop\"\n  text \"Shop\"\n";
     let (artifact, diags, catalog_path) = compile_source(src);
     let _ = std::fs::remove_file(&catalog_path);
     assert!(diags.is_empty(), "fixture emits clean: {diags:?}");
@@ -445,7 +445,7 @@ fn desc_verbatim_in_field_descriptors() {
 
 #[test]
 fn crud_op_inherits_label_caption_for_description() {
-    let src = "app Shop\nGiven\n Gadget { title:text }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title label={create=\"Add\"}\nThen\n page / title=\"Shop\"\n  breadcrumbs\n";
+    let src = "app Shop\nGiven\n Gadget { title:text }\n policy Gadget read=members\nWhen\n crud Gadget by=members fields=title label={create=\"Add\"}\nThen\n page / title=\"Shop\"\n  text \"Shop\"\n";
     let (artifact, diags, catalog_path) = compile_source(src);
     let _ = std::fs::remove_file(&catalog_path);
     assert!(diags.is_empty(), "fixture emits clean: {diags:?}");
@@ -466,7 +466,7 @@ fn crud_op_inherits_label_caption_for_description() {
 
 #[test]
 fn policy_emits_no_input_read_op() {
-    let src = "app Shop\nGiven\n Gadget { title:text }\n policy Gadget read=members\n Vault { code:text }\nWhen\nThen\n page / title=\"Shop\"\n  breadcrumbs\n";
+    let src = "app Shop\nGiven\n Gadget { title:text }\n policy Gadget read=members\n Vault { code:text }\nWhen\nThen\n page / title=\"Shop\"\n  text \"Shop\"\n";
     let (artifact, diags, catalog_path) = compile_source(src);
     let _ = std::fs::remove_file(&catalog_path);
     assert!(diags.is_empty(), "fixture emits clean: {diags:?}");
