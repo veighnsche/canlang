@@ -942,6 +942,7 @@ pub fn scalar_family(ty: &ResolvedType) -> Option<ScalarFamily> {
         | ResolvedType::Union(_)
         | ResolvedType::Object(_)
         | ResolvedType::Operation(_)
+        | ResolvedType::InlineMessage
         | ResolvedType::Opaque(_) => None,
     }
 }
@@ -961,6 +962,7 @@ pub fn is_structural(ty: &ResolvedType) -> bool {
         | ResolvedType::OperationContext
         | ResolvedType::Enum { .. }
         | ResolvedType::Message(_)
+        | ResolvedType::InlineMessage
         | ResolvedType::Action { .. }
         | ResolvedType::Invocation { .. }
         | ResolvedType::Delivery { .. }
@@ -3823,7 +3825,7 @@ impl<'a> Cx<'a> {
                 }
                 (data.source_lang.clone(), params)
             }
-            ResolvedType::Scalar(Scalar::Text) if origin_inline || anonymous.is_some() => {
+            ResolvedType::InlineMessage if origin_inline || anonymous.is_some() => {
                 let Some(module) = self.program.effects.modules.get(&scope.module) else {
                     return unsupported("checked inline descriptor module is unavailable");
                 };
@@ -7013,7 +7015,7 @@ impl<'a> Cx<'a> {
         {
             return TypedExpr::new(
                 IrExpr::Message(message),
-                ResolvedType::Scalar(Scalar::Text),
+                ResolvedType::InlineMessage,
                 node.span,
             );
         }
@@ -7047,7 +7049,12 @@ impl<'a> Cx<'a> {
             ));
         }
         let value = self.decode_expr(scope, header);
-        if !matches!(value.ty, ResolvedType::Scalar(Scalar::Text)) {
+        if !matches!(
+            value.ty,
+            ResolvedType::Scalar(Scalar::Text)
+                | ResolvedType::InlineMessage
+                | ResolvedType::Message(_)
+        ) {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 format!("cannot lower {word}: caption has no checked text profile"),
@@ -8281,6 +8288,7 @@ impl<'a> Cx<'a> {
             ResolvedType::Scalar(Scalar::Bool | Scalar::Text | Scalar::Int)
                 | ResolvedType::Enum { .. }
                 | ResolvedType::Message(_)
+                | ResolvedType::InlineMessage
                 | ResolvedType::Null
         ) {
             self.diags.push(Diagnostic::error(
