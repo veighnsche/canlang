@@ -5045,6 +5045,15 @@ impl<'a> Emitter<'a> {
             };
             props.push(format!("{}:{value}", object_key(key)));
         }
+        if node.factory == "deleteRecord" {
+            // Mint once in the rendered occurrence. The enclosing gate also
+            // encloses this call; its hidden value survives form resubmission.
+            self.ui.insert("mintOperationId".to_string());
+            props.push(format!(
+                "operationId:{}()",
+                binding_ident("u", "mintOperationId")
+            ));
+        }
         match &node.row_scope {
             Some((row, view)) => {
                 self.enter_scope();

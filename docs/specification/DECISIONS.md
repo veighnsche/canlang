@@ -3665,3 +3665,8 @@ Consume only Packages 040d38e3a2d7524fff913f01210ad2f169442230's .github/ci/gate
 ## 2026-10-09 — inherit preference captions from checked immediate reuse
 
 Retain immediate field reuse identities in the checked type table. Compose Tabs case captions through each declared source with nearest and receiving overrides; inherit text only along same-name edges. Keep receiving preference identity/default/version/save ownership. Actual adapter8/8 and generated HTTP/UI lifecycle1/1 pass, including bilingual rendering and existing authorization/CSRF/case/stale controls; independent finite review accepts the boundary. No source-name reconstruction or foreign API is added.
+
+
+## 2026-10-09 — mint generated delete replay identity at the UI occurrence
+
+Replace the generated operation-route operationId with one call to the existing public UI UUIDv7 minter inside each rendered/gated delete occurrence. Keep operation/action/archive and protected record encoding separate; resubmissions reuse the hidden nonce while rerenders get fresh identities. Actual native delete1/1 and owning codegen1/1 pass with unchanged nonce canonical commit/replay, stale/current-membership refusal and gated no-mint behavior. The native fixture also explicitly refuses raw record+mode intake: the existing UI inputs[mode]=archive directive is a defining UI/Interfaces/Dev projection prerequisite, not additional compiler business-input admission. No full browser/Office acceptance follows.

@@ -78,6 +78,19 @@ nearest/receiving overrides, ancestor fallback, translations, renamed receiving
 fields and unchanged owner/default/version/save/refusal behavior. Independent
 finite review accepts this producer/consumer boundary. No wider reference closes.
 
+
+**Local prerequisite — delete form replay identity, 2026-10-09.** Generated
+delete controls now call the public UI UUIDv7 minter once inside each rendered,
+gated occurrence, replacing the static operation-route identity. The actual
+native delete consumer **1/1** and owning codegen case **1/1** pass: hidden nonce
+is submitted unchanged, replay returns the saved outcome, rerender gets a fresh
+nonce, stale version/current membership still refuse and gated controls mint
+nothing. The same fixture explicitly witnesses the separate raw-mode blocker:
+UI emits `inputs[mode]=archive`, while canonical delete accepts record only and
+refuses record+mode with validation. Full posted-form mode projection belongs
+to UI/Interfaces/Dev and is routed to the coordinator; no full Office workflow
+acceptance is claimed by this compiler identity correction.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed
@@ -389,6 +402,9 @@ compiler leaves:
 | S9-Q02 | Additional default/result intake and observation contracts, private/CRUD/D1 transaction profiles: Contracts, State and Cloudflare owners. Unsupported nested/nonempty/element-nullable enum profiles remain explicit. |
 | S9-Q07 | Specific BDD consumer-policy consultation remains held; human/policy owner must resolve it. Actual result/current-input/live-read and localized observation transport, including trusted selected-app formatting/team timezone context, belong to Testkit/canonical invocation owners. Imported helpers and localized selected-call production are already linked. |
 | S9-Q08, OR-06, OUT-R05 | Page admission/current-row disclosure/browser serving, migrations/durable ingestion, installed applications and real GUI/map navigation: Cloudflare, Interfaces, UI, State migration/deployment, application/release and editor/GUI owners. Native map production is already supplied. |
+| Office delete workflow | UI/Interfaces/Dev: reconcile the existing `inputs[mode]=archive` form directive with canonical record-only delete intake. Compiler now supplies the exact rendered UUIDv7 nonce; raw record+mode refusal is a permanent native witness. |
+| Rule/hook producer join | Capability SEQ-011 defines State/Contracts finalization, dependency/lock selectors and native context carriers; compiler consumes the concrete defining release. Current design notes are a prerequisite, not a human hold. |
+| Dev T04/T11 | Dev owns the finite qualified candidate/card/profile contract; compiler supplies checked diagnostic facts after that release. The optional carrier alone does not establish a producer or profile admission. |
 
 The user has authorized finishing the remaining compiler tasks. Use the [recorded work/review settings](../../docs/research/compiler-library-audit-20261006/resumption/model-allocation.md); overlapping references share work and completed receipts are reused at matching scope. Current completion joins append to the canonical coverage ledger; historical source pins remain unchanged.
 
