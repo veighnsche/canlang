@@ -1,7 +1,7 @@
 # B1 join gate: b1_join test + TeamTasks.can honest-gap pin against the REAL
 # lane-02 catalog. build-catalog emits packages/values/dist/catalog.json;
 # b1-gate proves the join test PASSES (not skips) and the CLI pins exit 10
-# with exactly 10xE6008 and zero other error codes.
+# with exactly seven source-profile E6008 refusals and no artifact.
 name: b1-join
 
 on:
@@ -75,16 +75,36 @@ jobs:
       - name: Build can
         run: cargo build --locked
         working-directory: compiler
-      - name: Honest-gap pin (exit 10, 3xE6008, zero other codes)
+      - name: Honest-gap pin (exit 10, seven exact E6008 refusals, no artifact)
         run: |
           set +e
-          ./target/debug/can compile ../examples/TeamTasks.can --catalog ../packages/values/dist/catalog.json > /tmp/team_tasks.log 2>&1
+          ./target/debug/can compile ../examples/TeamTasks.can --format=json --catalog ../packages/values/dist/catalog.json > /tmp/team_tasks.json
           code=$?
-          cat /tmp/team_tasks.log
+          set -e
+          cat /tmp/team_tasks.json
           [ "$code" -eq 10 ] || { echo "FAIL: expected exit 10, got $code"; exit 1; }
-          e6008=$(grep -c "E6008" /tmp/team_tasks.log)
-          [ "$e6008" -eq 3 ] || { echo "FAIL: expected exactly 3 E6008 lines, got $e6008"; exit 1; }
-          other=$(grep -oE "E[0-9]{4}" /tmp/team_tasks.log | grep -v "E6008" | wc -l)
-          [ "$other" -eq 0 ] || { echo "FAIL: $other non-E6008 error codes present"; exit 1; }
-          echo "proves: TeamTasks.can exits 10 with exactly 3 E6008 (tooltip/delete/collapse) and zero other codes"
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFileSync} from 'node:fs';
+          const result = JSON.parse(readFileSync('/tmp/team_tasks.json', 'utf8'));
+          assert.equal(result.tool, 'can');
+          assert.equal(result.schema_version, 1);
+          assert.equal(result.complete, true);
+          assert.equal(result.omitted, 0);
+          assert.equal(result.diagnostics.length, 7);
+          assert.ok(result.diagnostics.every(d => d.code === 'E6008' && d.severity === 'error'));
+          for (const [profile, count] of [
+            ['cannot lower tooltip:', 1],
+            ['cannot lower collapse:', 1],
+            ['cannot lower breadcrumbs:', 2],
+            ['cannot lower edit:', 2],
+            ['cannot lower list: option filter', 1],
+          ]) {
+            assert.equal(result.diagnostics.filter(d => d.message.startsWith(profile)).length, count, profile);
+          }
+          for (const key of ['artifact_version', 'modules', 'operations', 'models', 'tests']) {
+            assert.ok(!Object.hasOwn(result, key), `blocked compile published ${key}`);
+          }
+          NODE
+          echo "proves: TeamTasks.can exits 10 with tooltip/collapse x1, breadcrumbs/edit x2, filter x1, zero other codes and no artifact"
         working-directory: compiler
