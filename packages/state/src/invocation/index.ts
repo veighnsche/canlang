@@ -22,6 +22,7 @@ export {
 export { stableStringify, hashInputs } from './replay.js';
 export {
   observeScenarioReceiptDependency, selectScenarioReceiptReturn,
+  beginScenarioReceiptMutation, type ScenarioReceiptMutationInput,
   readScenarioReceiptAssociation, projectScenarioReceipt, type ProjectScenarioReceiptInput,
 } from './scenario-receipt.js';
 export {
