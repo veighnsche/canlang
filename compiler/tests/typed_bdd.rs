@@ -10,6 +10,7 @@ fn ir() -> IrProgram {
         items: vec![],
         catalog_version: String::new(),
         value_constraints: Default::default(),
+        scenario_disclosures: Default::default(),
         referenced_builtins: vec![],
         read_rules: vec![],
         invariants: vec![],

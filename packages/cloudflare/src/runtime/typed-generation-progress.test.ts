@@ -21,7 +21,7 @@ import { WORK_SYSTEM_COMMANDS, WORK_DISPATCH_STAGE_COMMANDS, createWorkDispatchC
 import { attemptDispatch } from '@canlang/work/dispatch';
 import { classifyFailure } from '@canlang/work/receipt';
 import { planRecoveryScan } from '@canlang/work/recovery';
-import { WORK_DISPATCH_MODEL, WORK_SCHEDULE_MODEL, readScheduleRow } from '@canlang/work/kernel/tables';
+import { WORK_DISPATCH_MODEL, WORK_SCHEDULE_MODEL, readDispatchImageControlPin, readScheduleRow } from '@canlang/work/kernel/tables';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { assembleWorker, buildInvoker, type MutationOutcome } from '@canlang/cloudflare/worker/assembly';
 import { OllamaChatAdapter } from '@canlang/services/models/ollama';
@@ -133,7 +133,8 @@ test('compiled generation streams controlled provider bytes into granted native 
       uiUrl: import.meta.resolve('@canlang/ui'),
     });
     const progressed = await createCheckedDeliveryProgressProducer({ asm, artifact, app: APP });
-    const invokerFor = () => buildInvoker(artifact, asm, store, { memberships: identities, now: () => FIXED_NOW,
+    let dispatchNow = FIXED_NOW;
+    const invokerFor = () => buildInvoker(artifact, asm, store, { memberships: identities, now: () => dispatchNow,
       selectedReceiptObserver: { observeSelectedReceipt: (input: unknown) =>
         observeSelectedReceipt(input as Parameters<typeof observeSelectedReceipt>[0]) } });
     let invoker = invokerFor();
@@ -178,6 +179,16 @@ test('compiled generation streams controlled provider bytes into granted native 
     assert.ok((await pageHtml()).includes('Awaiting generation'));
     const unassociated = await readReceipt(['result.content']);
     assert.equal(readBody(unassociated)['outcome'], 'null-association');
+    const unstartedOwner = await store.load(MODEL, asId(created.id));
+    const unstartedHistory = await store.historyFor(MODEL, asId(created.id));
+    for (const operation of ['cancel', 'reconcile']) {
+      assert.ok('error' in await invoker.invokeMutation(envelope(operation, {
+        job: { id: created.id, version: String(created.version) },
+      }), identity));
+      assert.deepEqual(await store.load(MODEL, asId(created.id)), unstartedOwner);
+      assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), unstartedHistory);
+      assert.equal((await store.outboxPending()).length, 0);
+    }
     const original = envelope('generate', { job: { id: created.id, version: String(created.version) },
       prompt: 'Actual compiled request', accept: true });
     committed(await invoker.invokeMutation(original, identity));
@@ -201,6 +212,8 @@ test('compiled generation streams controlled provider bytes into granted native 
     const job = await store.load(MODEL, asId(created.id));
     assert.equal(job?.version, 2);
     assert.deepEqual(job?.data['request'], { id: intent.intentId, operation: intent.target });
+    assert.equal(job?.data['request_source'], original.operation_id);
+    assert.equal(job?.data['request_revision'], String(created.version));
     const associationRow = await store.load(asModel(RECEIPT_ASSOCIATION_MODEL),
       asId(associationRowId(MODEL, created.id, 'request')));
     assert.ok(associationRow);
@@ -239,9 +252,24 @@ test('compiled generation streams controlled provider bytes into granted native 
     assert.equal(provider.requests.length, 0);
     const installed = model.installTextGeneration({ ...installation,
       countInputTokens: request => localChatTokens(request.messages).length });
+    const nativeCompletions = new Map<string, { readonly status: string; readonly result: unknown }>();
+    const nativeCompletionWaiters = new Map<string, () => void>();
+    // Passive observation of the actual Ollama handle. done() returns its
+    // shared settled promise; forwarding returns that exact handle untouched.
+    const observeInstalled = (actual: typeof installed): typeof installed => ({ ...actual, text: { ...actual.text,
+      generateStream(input, options) {
+        const handle = actual.text.generateStream(input, options), done = handle.done();
+        assert.equal(handle.done(), done);
+        void done.then(completion => {
+          nativeCompletions.set(options.deliveryId, completion);
+          nativeCompletionWaiters.get(options.deliveryId)?.();
+        });
+        return handle;
+      },
+    } });
     let adapter = createBoundTextGenerationAdapter({ appDefinition: definition, binding,
       resolveInstalledTextGeneration: deployment => {
-        assert.equal(deployment, binding.deployment); return installed;
+        assert.equal(deployment, binding.deployment); return observeInstalled(installed);
       } });
     assert.equal(adapter.available(intent), true);
     const resultContext = adapter.resultContext(intent); assert.ok(resultContext);
@@ -252,7 +280,7 @@ test('compiled generation streams controlled provider bytes into granted native 
         countInputTokens: request => localChatTokens(request.messages).length });
       return createBoundTextGenerationAdapter({ appDefinition: definition, binding,
         resolveInstalledTextGeneration: deployment => {
-          assert.equal(deployment, binding.deployment); return freshInstallation;
+          assert.equal(deployment, binding.deployment); return observeInstalled(freshInstallation);
         } });
     };
 
@@ -273,6 +301,11 @@ test('compiled generation streams controlled provider bytes into granted native 
     let terminalResponseLost = false;
     let recordFaultIntent: OutboxIntent | null = null;
     let recordCommitsInterrupted = 0;
+    let heldProgressIntent: OutboxIntent | null = null;
+    let heldProgressResolve: (() => void) | null = null;
+    let stalledProgressIntent: OutboxIntent | null = null;
+    let stalledProgressResolve: (() => void) | null = null;
+    let releaseStalledProgress: Promise<void> | null = null;
     const dispatcherFor = () => createBoundTextGenerationDispatcher({ store: { ...store,
       async commit(set) {
         const recordFault = recordFaultIntent;
@@ -290,6 +323,24 @@ test('compiled generation streams controlled provider bytes into granted native 
           throw new Error('Process stopped before native dispatch record commit.');
         }
         const committedSet = await store.commit(set);
+        if (stalledProgressIntent !== null && set.writes.some(write => write.model === RECEIPT_MODEL &&
+            (write.kind === 'insert' ? write.row.id : write.id) === stalledProgressIntent!.intentId)) {
+          const actual = await store.load(asModel(RECEIPT_MODEL), asId(stalledProgressIntent.intentId)); assert.ok(actual);
+          const context = adapter.resultContext(stalledProgressIntent); assert.ok(context);
+          const run = readReceiptRow(actual, context).receipt.result as Record<string, unknown> | null;
+          if (run?.['state'] === 'running' && run['content'] === 'Local ') {
+            stalledProgressIntent = null;
+            stalledProgressResolve?.();
+            await releaseStalledProgress;
+          }
+        }
+        if (heldProgressIntent !== null && set.writes.some(write => write.model === RECEIPT_MODEL &&
+            (write.kind === 'insert' ? write.row.id : write.id) === heldProgressIntent!.intentId)) {
+          const actual = await store.load(asModel(RECEIPT_MODEL), asId(heldProgressIntent.intentId)); assert.ok(actual);
+          const context = adapter.resultContext(heldProgressIntent); assert.ok(context);
+          const run = readReceiptRow(actual, context).receipt.result as Record<string, unknown> | null;
+          if (run?.['state'] === 'running' && run['content'] === 'Local ') heldProgressResolve?.();
+        }
         if (terminalFaultIntent !== null && set.writes.some(write => write.model === RECEIPT_MODEL &&
             (write.kind === 'insert' ? write.row.id : write.id) === terminalFaultIntent!.intentId)) {
           const actual = await store.load(asModel(RECEIPT_MODEL), asId(terminalFaultIntent.intentId)); assert.ok(actual);
@@ -337,7 +388,6 @@ test('compiled generation streams controlled provider bytes into granted native 
     }, adapter, progressed, workCommands: WORK_SYSTEM_COMMANDS, stageCommands: WORK_DISPATCH_STAGE_COMMANDS,
       createClaimCommand: createWorkDispatchClaimCommand });
     let dispatcher = await dispatcherFor();
-    let dispatchNow = FIXED_NOW;
     const drive = (intentId: string) => dispatcher.drive({ intentId, actor: user.user_id,
       operation: 'test.generation.drive', nowMs: () => dispatchNow, nextClaimId: () => `claim-${++sequence}`,
       maxClaimAgeMs: 60_000, claimOperationId: asOperationId(uuidv7(FIXED_NOW, ++sequence)),
@@ -348,7 +398,47 @@ test('compiled generation streams controlled provider bytes into granted native 
     });
     const recover = () => dispatcher.recover({ actor: user.user_id, operation: 'test.generation.recover',
       nowMs: () => dispatchNow, maxClaimAgeMs: 60_000, policy: { maxAttempts: 3, horizonMs: 3_600_000 },
-      limit: 10, operationIdForStep: () => asOperationId(uuidv7(FIXED_NOW, ++sequence)), planRecoveryScan });
+      limit: 10, operationIdForStep: () => asOperationId(uuidv7(FIXED_NOW, ++sequence)), planRecoveryScan,
+      admission: { evaluateGuard: () => true, readStateSnapshot: () => null,
+        fence: { owner: team.team_id, attemptDispatch: attemptDispatch as FenceAttemptDispatchFn,
+          revalidateAuthority: async () => (await identities.findMembership(team.team_id, user.user_id))?.status === 'active' } } });
+    const control = async (operation: 'cancel' | 'reconcile', recordId = created.id) => {
+      const before = await store.load(MODEL, asId(recordId)); assert.ok(before);
+      const priorHistory = await store.historyFor(MODEL, before.id);
+      const mutation = envelope(operation, { job: { id: before.id, version: String(before.version) } });
+      committed(await invoker.invokeMutation(mutation, identity));
+      const selected = (await store.outboxPending()).find(row => row.operationId === mutation.operation_id);
+      assert.ok(selected);
+      assert.equal(selected.target, `std.TextGenerationV1.${operation}`);
+      assert.equal(selected.operation, mutation.operation);
+      assert.notEqual(selected.operationId, before.data['request_source']);
+      assert.deepEqual(selected.arguments, { binding: `${APP}.LLM`, from: 'deployment.llm', arguments: {
+        source: before.data['request_source'], revision: before.data['request_revision'],
+      } });
+      const field = operation === 'cancel' ? 'stop' : 'probe';
+      const after = await store.load(MODEL, before.id); assert.ok(after);
+      assert.equal(after.version, before.version + 1);
+      assert.deepEqual(after.data, { ...before.data, [field]: { id: selected.intentId, operation: selected.target } });
+      const history = await store.historyFor(MODEL, before.id);
+      assert.equal(history.length, priorHistory.length + 1);
+      assert.deepEqual(history.slice(0, priorHistory.length), priorHistory);
+      const linked = await store.load(asModel(RECEIPT_ASSOCIATION_MODEL),
+        asId(associationRowId(MODEL, before.id, field))); assert.ok(linked);
+      assert.equal(readAssociationRow(linked).deliveryId, selected.intentId);
+      const originalLinked = await store.load(asModel(RECEIPT_ASSOCIATION_MODEL),
+        asId(associationRowId(MODEL, before.id, 'request'))); assert.ok(originalLinked);
+      assert.equal(readAssociationRow(originalLinked).deliveryId,
+        (before.data['request'] as { id: string }).id);
+      return { mutation, intent: selected, field, before, after };
+    };
+    const controlProjection = async (field: 'stop' | 'probe', recordId = created.id) => {
+      const body = readBody(await invoker.invokeRead({ operation: 'Receipt.read', inputs: {
+        recordId, field, selected: ['result.state', 'result.content', 'result.used_tokens'],
+      } }, identity));
+      assert.equal(body['outcome'], 'observed');
+      assert.ok(typeof body['projection'] === 'object' && body['projection'] !== null && !Array.isArray(body['projection']));
+      return body['projection'] as Record<string, unknown>;
+    };
     const originalHistory = await store.historyFor(MODEL, asId(created.id));
     assert.equal((await drive(intent.intentId)).status, 'recorded');
     assert.equal(provider.requests.length, 1);
@@ -429,7 +519,10 @@ test('compiled generation streams controlled provider bytes into granted native 
     assert.ok('result' in replayed, JSON.stringify(replayed));
     assert.equal(replayed.result.status, 'replayed');
     assert.equal((await drive(intent.intentId)).status, 'not-pending');
-    assert.equal(await adapter.cancel(intent), null);
+    const completedStop = await control('cancel');
+    assert.equal((await drive(completedStop.intent.intentId)).status, 'recorded');
+    assert.deepEqual(await controlProjection('stop'), { 'result.state': final['state'],
+      'result.content': final['content'], 'result.used_tokens': final['used_tokens'] });
     assert.equal(provider.requests.length, 1);
     assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), originalOccurrences);
 
@@ -440,7 +533,8 @@ test('compiled generation streams controlled provider bytes into granted native 
     await ensureSchema(reopenedDatabase); store = createD1Storage(reopenedDatabase);
     invoker = invokerFor(); dispatcher = await dispatcherFor();
     assert.deepEqual(readBody(await readReceipt(['result.content']))['projection'], { 'result.content': 'Local answer.' });
-    assert.equal(committed(await visible(2)).result, 'Local answer.');
+    const reopenedOwner = await store.load(MODEL, asId(created.id)); assert.ok(reopenedOwner);
+    assert.equal(committed(await visible(reopenedOwner.version)).result, 'Local answer.');
     assert.equal((await drive(intent.intentId)).status, 'not-pending');
     assert.equal(provider.requests.length, 1);
 
@@ -473,10 +567,15 @@ test('compiled generation streams controlled provider bytes into granted native 
     assert.deepEqual(await store.query({ model: asModel(`${APP}.ProgressNotice`), authority: 'owner' }), notices);
     assert.equal((await store.schedulesDue(FIXED_NOW, 100)).length, 0);
 
-    const generate = async (prompt: string, accept = true) => {
-      const current = await store.load(MODEL, asId(created.id)); assert.ok(current);
+    const generate = async (prompt: string, accept = true, recordId = created.id) => {
+      const current = await store.load(MODEL, asId(recordId)); assert.ok(current);
       const mutation = envelope('generate', { job: { id: current.id, version: String(current.version) }, prompt, accept });
       const answer = await invoker.invokeMutation(mutation, identity);
+      if ('result' in answer && answer.result.status === 'committed') {
+        const frozen = await store.load(MODEL, current.id); assert.ok(frozen);
+        assert.equal(frozen.data['request_source'], mutation.operation_id);
+        assert.equal(frozen.data['request_revision'], String(current.version));
+      }
       return { mutation, answer };
     };
     const beforeRejected = await store.load(MODEL, asId(created.id));
@@ -490,6 +589,40 @@ test('compiled generation streams controlled provider bytes into granted native 
       prompt: 'Stale source version', accept: true }), identity);
     assert.ok('error' in stale, JSON.stringify(stale));
     assert.equal((await store.outboxPending()).length, 0);
+
+    // Compiled controls stop both untouched and genuinely claimed originals
+    // before their durable queue checkpoint. Neither path sends provider bytes.
+    const beforePendingRequests = provider.requests.length;
+    for (const state of ['pending', 'claimed'] as const) {
+      const sent = await generate(`Actual ${state} before queue`); committed(sent.answer);
+      const originalIntent = (await store.outboxPending()).find(row => row.operationId === sent.mutation.operation_id);
+      assert.ok(originalIntent);
+      if (state === 'claimed') {
+        await identities.removeMembership(membership.membership_id);
+        try { assert.equal((await drive(originalIntent.intentId)).status, 'refused-revoked'); }
+        finally { await identities.reactivateMembership(membership.membership_id, { is_owner: false, roles: [] }); }
+        const claimed = await store.load(WORK_DISPATCH_MODEL, asId(originalIntent.intentId)); assert.ok(claimed);
+        assert.equal(claimed.data['state'], 'claimed'); assert.notEqual(claimed.data['claimId'], null);
+      }
+      const originalRow = await store.load(asModel(RECEIPT_MODEL), asId(originalIntent.intentId)); assert.ok(originalRow);
+      const context = adapter.resultContext(originalIntent); assert.ok(context);
+      assert.equal(readReceiptRow(originalRow, context).receipt.status, 'pending');
+      assert.equal(readReceiptRow(originalRow, context).receipt.result, null);
+      const stop = await control('cancel'), answer = await drive(stop.intent.intentId);
+      assert.equal(answer.status, 'recorded'); assert.ok('state' in answer); assert.equal(answer.state, 'delivered');
+      const skippedRow = await store.load(asModel(RECEIPT_MODEL), asId(originalIntent.intentId)); assert.ok(skippedRow);
+      const skipped = readReceiptRow(skippedRow, context).receipt;
+      assert.equal(skipped.status, 'skipped'); assert.equal(skipped.result, null);
+      assert.deepEqual(await controlProjection('stop'), { 'result.state': 'cancelled', 'result.content': '', 'result.used_tokens': null });
+      const stopped = await store.load(WORK_DISPATCH_MODEL, asId(originalIntent.intentId)); assert.ok(stopped);
+      assert.equal(stopped.data['guardVerdict'], false); assert.equal(stopped.data['claimId'], null);
+      const pinned = await store.load(WORK_DISPATCH_MODEL, asId(stop.intent.intentId)); assert.ok(pinned);
+      assert.deepEqual(readDispatchImageControlPin(pinned.data), { originalIntentId: originalIntent.intentId,
+        observationStartedAtMs: pinned.created, observationDeadlineMs: pinned.created + installed.profile.maxDurationMs });
+      assert.equal((await drive(originalIntent.intentId)).status, 'not-pending');
+      assert.equal((await drive(stop.intent.intentId)).status, 'not-pending');
+      assert.equal(provider.requests.length, beforePendingRequests);
+    }
 
     // Actual parser failures preserve their failed/unknown state; neither an
     // incomplete stream nor malformed NDJSON can become a successful TextRun.
@@ -543,17 +676,67 @@ test('compiled generation streams controlled provider bytes into granted native 
     provider.setMode('held');
     const cancelled = await generate('Actual cancelled transport'); committed(cancelled.answer);
     const cancelledIntent = (await store.outboxPending()).find(row => row.operationId === cancelled.mutation.operation_id); assert.ok(cancelledIntent);
+    heldProgressIntent = cancelledIntent;
+    const heldProgress = new Promise<void>(resolve => { heldProgressResolve = resolve; });
     const waitingRequest = provider.nextRequest();
     const cancellingDrive = drive(cancelledIntent.intentId);
     await Promise.race([waitingRequest, cancellingDrive.then(() => {
       throw new Error('Held generation finished before the actual provider request.');
     })]);
-    const cancellation = await adapter.cancel(cancelledIntent);
-    assert.equal(cancellation?.kind, 'delivered');
+    await Promise.race([heldProgress, cancellingDrive.then(() => {
+      throw new Error('Held generation finished before its native content checkpoint.');
+    })]);
+    heldProgressIntent = null; heldProgressResolve = null;
+    const heldOwner = await store.load(MODEL, asId(created.id)); assert.ok(heldOwner);
+    const heldHistory = await store.historyFor(MODEL, heldOwner.id);
+    const heldOutbox = await store.outboxPending();
+    for (const [caller, version] of [[outsiderIdentity, heldOwner.version], [identity, heldOwner.version - 1]] as const) {
+      assert.ok('error' in await invoker.invokeMutation(envelope('cancel', {
+        job: { id: heldOwner.id, version: String(version) },
+      }), caller));
+      assert.deepEqual(await store.load(MODEL, heldOwner.id), heldOwner);
+      assert.deepEqual(await store.historyFor(MODEL, heldOwner.id), heldHistory);
+      assert.deepEqual(await store.outboxPending(), heldOutbox);
+    }
+    const cancellation = await control('cancel');
+    assert.equal(cancellation.before.data['request_source'], cancelled.mutation.operation_id);
+    const cancelRequests = provider.requests.length;
+    assert.equal((await drive(cancellation.intent.intentId)).status, 'recorded');
     assert.equal((await cancellingDrive).status, 'recorded');
     const cancelledRow = await store.load(asModel(RECEIPT_MODEL), asId(cancelledIntent.intentId)); assert.ok(cancelledRow);
     const cancelledContext = adapter.resultContext(cancelledIntent); assert.ok(cancelledContext);
-    assert.equal((readReceiptRow(cancelledRow, cancelledContext).receipt.result as Record<string, unknown>)['state'], 'cancelled');
+    const cancelledRun = readReceiptRow(cancelledRow, cancelledContext).receipt.result as Record<string, unknown>;
+    assert.equal(cancelledRun['state'], 'cancelled');
+    assert.equal(cancelledRun['source'], cancelled.mutation.operation_id);
+    assert.equal(cancelledRun['revision'], cancellation.before.data['request_revision']);
+    assert.equal(cancelledRun['content'], 'Local ');
+    assert.equal(cancelledRun['used_tokens'], null);
+    assert.deepEqual(await controlProjection('stop'), { 'result.state': 'cancelled',
+      'result.content': cancelledRun['content'], 'result.used_tokens': cancelledRun['used_tokens'] });
+    const stoppedOwner = await store.load(MODEL, asId(created.id));
+    const stoppedHistory = await store.historyFor(MODEL, asId(created.id));
+    const stoppedOutbox = await store.outboxPending();
+    const repeatedStop = await invoker.invokeMutation(cancellation.mutation, identity);
+    assert.ok('result' in repeatedStop, JSON.stringify(repeatedStop));
+    assert.equal(repeatedStop.result.status, 'replayed');
+    assert.equal((await drive(cancellation.intent.intentId)).status, 'not-pending');
+    assert.equal(provider.requests.length, cancelRequests);
+    assert.deepEqual(await store.load(MODEL, asId(created.id)), stoppedOwner);
+    assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), stoppedHistory);
+    assert.deepEqual(await store.outboxPending(), stoppedOutbox);
+    assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(cancelledIntent.intentId)), cancelledRow);
+    const stoppedRevision = await store.readRevision();
+    await assert.rejects(stageTextGenerationProgress({ intent: cancelledIntent, context: cancelledContext,
+      revision: readReceiptRow(cancelledRow, cancelledContext).receipt.revision + 1,
+      progress: { ...cancelledRun, state: 'succeeded', content: 'Late success cannot replace cancellation',
+        sequence: String(BigInt(String(cancelledRun['sequence'])) + 1n) } as unknown as
+          import('./bound-text-generation.js').TextRunWire,
+      progressed: { producer: progressed, owner: team.team_id } },
+    { actor: user.user_id, now: FIXED_NOW, operation: 'test.generation.cancelled-late-success',
+      load: store.load.bind(store), query: store.query.bind(store) }), error =>
+      error instanceof Error && 'code' in error && error.code === 'validation');
+    assert.equal(await store.readRevision(), stoppedRevision);
+    assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(cancelledIntent.intentId)), cancelledRow);
     assert.ok((await pageHtml()).includes('Cancelled'));
     provider.setMode('complete');
 
@@ -588,7 +771,6 @@ test('compiled generation streams controlled provider bytes into granted native 
     const durableHistory = await store.historyFor(MODEL, asId(created.id));
     assert.deepEqual(await store.outboxPending(), [lostIntent]);
     const terminalRequests = provider.requests.length;
-    assert.equal(await adapter.reconcile(lostIntent), null);
     assert.equal(provider.requests.length, terminalRequests);
     await worker.dispose(); worker = openWorker();
     const terminalDatabase = await worker.getD1Database('DB') as unknown as D1Database;
@@ -618,6 +800,17 @@ test('compiled generation streams controlled provider bytes into granted native 
       asId(associationRowId(MODEL, created.id, 'request'))), durableAssociation);
     assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), durableHistory);
     assert.equal(provider.requests.length, terminalRequests);
+    const terminalProbe = await control('reconcile');
+    assert.equal(terminalProbe.before.data['request_source'], lost.mutation.operation_id);
+    assert.equal(terminalProbe.before.data['request_revision'], String(beforeTerminalLoss.version));
+    assert.equal((await drive(terminalProbe.intent.intentId)).status, 'recorded');
+    assert.deepEqual(await controlProjection('probe'), { 'result.state': 'succeeded',
+      'result.content': durableRun['content'], 'result.used_tokens': durableRun['used_tokens'] });
+    assert.equal(provider.requests.length, terminalRequests);
+    assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(lostIntent.intentId)), durableTerminalRow);
+    assert.deepEqual(await store.load(asModel(RECEIPT_ASSOCIATION_MODEL),
+      asId(associationRowId(MODEL, created.id, 'request'))), durableAssociation);
+    assert.deepEqual(await store.load(MODEL, asId(created.id)), terminalProbe.after);
 
     // A process can die after real receipt progress but before Work records it.
     // A fresh stale-claim drive admits the retained terminal/unknown observation.
@@ -737,6 +930,28 @@ test('compiled generation streams controlled provider bytes into granted native 
       'result.state': 'unknown', 'result.content': unknownRun['content'],
     });
     assert.ok((await pageHtml()).includes('Unknown'));
+    // A fresh admitted source control after reopening uses the frozen original
+    // correlation. Missing durable provider evidence cannot become success.
+    const unknownProbe = await control('reconcile');
+    assert.equal(unknownProbe.before.data['request_source'], interrupted.mutation.operation_id);
+    assert.equal(unknownProbe.before.data['request_revision'], String(beforeInterruption.version));
+    const probeHistory = await store.historyFor(MODEL, asId(created.id));
+    const unknownControl = await drive(unknownProbe.intent.intentId);
+    assert.equal(unknownControl.status, 'recorded');
+    assert.ok('state' in unknownControl, JSON.stringify(unknownControl));
+    assert.equal(unknownControl.state, 'uncertain');
+    const probeProjection = await controlProjection('probe');
+    assert.ok(probeProjection['result.state'] === null || probeProjection['result.state'] === 'unknown');
+    if (probeProjection['result.content'] !== null) assert.equal(probeProjection['result.content'], unknownRun['content']);
+    assert.equal(probeProjection['result.used_tokens'], null);
+    assert.equal(provider.requests.length, requestsBeforeRecovery);
+    assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(interruptedIntent.intentId)), receiptBeforeRestart);
+    assert.deepEqual(await store.load(WORK_DISPATCH_MODEL, asId(interruptedIntent.intentId)), dispatchBeforeRestart);
+    assert.deepEqual(await store.load(asModel(RECEIPT_ASSOCIATION_MODEL),
+      asId(associationRowId(MODEL, created.id, 'request'))), associationBeforeRestart);
+    assert.deepEqual(await store.load(MODEL, asId(created.id)), unknownProbe.after);
+    assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), probeHistory);
+    assert.ok((await store.outboxPending()).some(row => row.intentId === unknownProbe.intent.intentId));
     const outsiderPage = await pageResponse(outsiderCookie);
     assert.equal(outsiderPage.status, 403);
     const outsiderHtml = await outsiderPage.text();
@@ -745,13 +960,111 @@ test('compiled generation streams controlled provider bytes into granted native 
     const hiddenRecovery = await readReceipt(['result.content'], outsiderIdentity);
     assert.ok('error' in hiddenRecovery || readBody(hiddenRecovery)['outcome'] === 'denied', JSON.stringify(hiddenRecovery));
 
+    // An uncertain control retains one window from its actual native creation.
+    // Reopening beyond that deadline cannot renew observation or emit progress.
+    const probeDispatch = await store.load(WORK_DISPATCH_MODEL, asId(unknownProbe.intent.intentId)); assert.ok(probeDispatch);
+    const probePin = readDispatchImageControlPin(probeDispatch.data); assert.ok(probePin);
+    assert.deepEqual(probePin, { originalIntentId: interruptedIntent.intentId,
+      observationStartedAtMs: probeDispatch.created,
+      observationDeadlineMs: probeDispatch.created + installed.profile.maxDurationMs });
+    assert.equal(installed.profile.maxDurationMs, 30_000);
+    const probeReceipt = await store.load(asModel(RECEIPT_MODEL), asId(unknownProbe.intent.intentId)); assert.ok(probeReceipt);
+    const beforeExpiredSchedules = await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' });
+    const beforeExpiredNotices = await store.query({ model: asModel(`${APP}.ProgressNotice`), authority: 'owner' });
+    dispatchNow = probePin.observationDeadlineMs + 1;
+    await worker.dispose(); worker = openWorker();
+    const expiredDatabase = await worker.getD1Database('DB') as unknown as D1Database;
+    await ensureSchema(expiredDatabase); store = createD1Storage(expiredDatabase);
+    invoker = invokerFor(); adapter = freshAdapter(); dispatcher = await dispatcherFor();
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const expiredRecovery = await recover();
+      assert.ok(expiredRecovery.awaiting.includes(unknownProbe.intent.intentId));
+      assert.equal(expiredRecovery.reconciled.length, 0); assert.equal(expiredRecovery.retried.length, 0);
+      assert.deepEqual(await store.load(WORK_DISPATCH_MODEL, asId(unknownProbe.intent.intentId)), probeDispatch);
+      assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(unknownProbe.intent.intentId)), probeReceipt);
+      assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(interruptedIntent.intentId)), receiptBeforeRestart);
+      assert.deepEqual(await store.load(MODEL, asId(created.id)), unknownProbe.after);
+      assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), probeHistory);
+      assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), beforeExpiredSchedules);
+      assert.deepEqual(await store.query({ model: asModel(`${APP}.ProgressNotice`), authority: 'owner' }), beforeExpiredNotices);
+      assert.equal(provider.requests.length, requestsBeforeRecovery);
+    }
+
+    // Provider success wins before cancellation, while its real durable
+    // progress callback is stalled. Control expiry neither aborts the run nor
+    // manufactures success; releasing the callback commits genuine late bytes.
+    provider.setMode('complete');
+    const racingJob = committed(await invoker.invokeMutation(envelope('Job.create', {}), identity)).records![0] as { id: string; version: number };
+    const racing = await generate('Actual success racing control expiry', true, racingJob.id); committed(racing.answer);
+    const racingIntent = (await store.outboxPending()).find(row => row.operationId === racing.mutation.operation_id);
+    assert.ok(racingIntent);
+    const racingContext = adapter.resultContext(racingIntent); assert.ok(racingContext);
+    stalledProgressIntent = racingIntent;
+    const stalled = new Promise<void>(resolve => { stalledProgressResolve = resolve; });
+    let release: (() => void) | undefined;
+    releaseStalledProgress = new Promise<void>(resolve => { release = resolve; });
+    const completed = new Promise<void>(resolve => { nativeCompletionWaiters.set(racingIntent.intentId, resolve); });
+    const racingDrive = drive(racingIntent.intentId);
+    await Promise.race([stalled, racingDrive.then(() => { throw new Error('Original finished before durable callback stall.'); })]);
+    await Promise.race([completed, racingDrive.then(() => { throw new Error('Original finished before real provider completion.'); })]);
+    const nativeCompletion = nativeCompletions.get(racingIntent.intentId); assert.ok(nativeCompletion);
+    assert.equal(nativeCompletion.status, 'succeeded');
+    const partialRow = await store.load(asModel(RECEIPT_MODEL), asId(racingIntent.intentId)); assert.ok(partialRow);
+    const partial = readReceiptRow(partialRow, racingContext).receipt;
+    assert.equal((partial.result as Record<string, unknown>)['state'], 'running');
+    assert.equal((partial.result as Record<string, unknown>)['content'], 'Local ');
+    assert.equal((partial.result as Record<string, unknown>)['used_tokens'], null);
+    const racingStop = await control('cancel', racingJob.id);
+    const beforeRacingDispatch = await store.load(WORK_DISPATCH_MODEL, asId(racingStop.intent.intentId)); assert.ok(beforeRacingDispatch);
+    const racingRequests = provider.requests.length;
+    const racingSchedules = await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' });
+    dispatchNow = beforeRacingDispatch.created + installed.profile.maxDurationMs - 50;
+    try {
+      const timedOut = await drive(racingStop.intent.intentId);
+      assert.equal(timedOut.status, 'recorded'); assert.ok('state' in timedOut); assert.equal(timedOut.state, 'uncertain');
+      const timedOutDispatch = await store.load(WORK_DISPATCH_MODEL, asId(racingStop.intent.intentId)); assert.ok(timedOutDispatch);
+      assert.deepEqual(readDispatchImageControlPin(timedOutDispatch.data), { originalIntentId: racingIntent.intentId,
+        observationStartedAtMs: beforeRacingDispatch.created,
+        observationDeadlineMs: beforeRacingDispatch.created + installed.profile.maxDurationMs });
+      assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(racingIntent.intentId)), partialRow);
+      assert.equal((await store.load(WORK_DISPATCH_MODEL, asId(racingIntent.intentId)))?.data['state'], 'claimed');
+      assert.deepEqual(await controlProjection('stop', racingJob.id), { 'result.state': null, 'result.content': null, 'result.used_tokens': null });
+      assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), racingSchedules);
+      assert.equal(provider.requests.length, racingRequests);
+    } finally { release?.(); }
+    assert.equal((await racingDrive).status, 'recorded');
+    releaseStalledProgress = null; stalledProgressResolve = null; nativeCompletionWaiters.delete(racingIntent.intentId);
+    const racingRow = await store.load(asModel(RECEIPT_MODEL), asId(racingIntent.intentId)); assert.ok(racingRow);
+    const racingRun = readReceiptRow(racingRow, racingContext).receipt.result as Record<string, unknown>;
+    assert.equal(racingRun['state'], 'succeeded'); assert.equal(racingRun['content'], 'Local answer.');
+    assert.equal(racingRun['used_tokens'], String(localChatTokens(provider.requests.at(-1)!.messages).length +
+      new TextEncoder().encode('Local answer.').length));
+    assert.equal(racingRun['source'], racing.mutation.operation_id);
+    const beforeLateJoinSchedules = await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' });
+    dispatchNow = beforeRacingDispatch.created + installed.profile.maxDurationMs + 1;
+    const lateJoin = await recover();
+    assert.ok(lateJoin.reconciled.some(row => row.intentId === racingStop.intent.intentId && row.state === 'delivered'));
+    assert.deepEqual(await controlProjection('stop', racingJob.id), { 'result.state': 'succeeded',
+      'result.content': racingRun['content'], 'result.used_tokens': racingRun['used_tokens'] });
+    assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(racingIntent.intentId)), racingRow);
+    const lateDispatch = await store.load(WORK_DISPATCH_MODEL, asId(racingStop.intent.intentId)); assert.ok(lateDispatch);
+    assert.deepEqual(readDispatchImageControlPin(lateDispatch.data), { originalIntentId: racingIntent.intentId,
+      observationStartedAtMs: beforeRacingDispatch.created,
+      observationDeadlineMs: beforeRacingDispatch.created + installed.profile.maxDurationMs });
+    assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), beforeLateJoinSchedules);
+    assert.equal(provider.requests.length, racingRequests);
+
     await identities.removeMembership(membership.membership_id);
     const revokedPage = await pageResponse();
     assert.equal(revokedPage.status, 403);
     assert.equal((await revokedPage.text()).includes('Local answer.'), false);
     const revokedRead = await readReceipt(['result.content']);
     assert.ok('error' in revokedRead || readBody(revokedRead)['outcome'] === 'denied', JSON.stringify(revokedRead));
-    assert.ok('error' in await visible(recoveryOwner.version));
+    assert.ok('error' in await visible(unknownProbe.after.version));
+    const revokedOwner = await store.load(MODEL, asId(created.id)); assert.ok(revokedOwner);
+    assert.ok('error' in await invoker.invokeMutation(envelope('cancel', {
+      job: { id: created.id, version: String(revokedOwner.version) },
+    }), identity));
   } finally {
     await worker.dispose();
     await provider.close();

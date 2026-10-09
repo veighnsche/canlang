@@ -85,6 +85,15 @@ interface FailureRecord extends FailedExampleRef {
   readonly expiresAt: number;
 }
 
+/** Trusted host handoff of the actual validated report; never a socket payload. */
+export interface CompletedExampleRerunAttempt {
+  readonly artifact: RetainedExampleRef;
+  readonly fixtureRecipeId: string;
+  readonly selector: ExampleSelector;
+  readonly runId: string;
+  readonly result: ExampleAttemptResult;
+}
+
 export interface ExampleRerunPorts {
   /** Must run a selected row through the real adapter with a fresh row scope. */
   readonly runSelected?: (input: CompiledExampleInput) => Promise<ExampleAttemptResult>;
@@ -314,7 +323,8 @@ export class ExampleRerunCoordinator {
     return structuredClone(record);
   }
 
-  async rerun(failureRef: string, signal?: AbortSignal): Promise<ExampleRerunResult> {
+  async rerun(failureRef: string, signal?: AbortSignal,
+    completed?: (attempt: CompletedExampleRerunAttempt) => void): Promise<ExampleRerunResult> {
     assertNotAborted(signal);
     this.assertOpen();
     this.prune();
@@ -370,16 +380,25 @@ export class ExampleRerunCoordinator {
     assertNotAborted(signal);
     if (!available.available) return refusal("resource_unavailable", available.reason, failure.original);
     const row = oneRow(result.report, failure.selector);
+    const example = result.report.cases[0];
     if (result.report.artifact.digest !== retained.ref.artifactDigest ||
         result.report.artifact.sourceRevision !== retained.ref.sourceRevision ||
         result.executed !== 1 || result.report.summary.total !== 1 ||
-        result.report.cases.length !== 1 || row === null || !singleRowCountsMatch(result.report, row)) {
+        result.report.cases.length !== 1 || example?.kind !== "table" || example.rows.length !== 1 ||
+        row === null || !singleRowCountsMatch(result.report, row)) {
       return refusal("rerun_incomplete", "selected run did not return exactly one row for the pinned artifact", failure.original);
     }
     const observed = attempt(runId, result, row);
     if (row.outcome === "unsupported") {
       return refusal("row_unsupported", "selected row is unsupported by the retained runtime", failure.original, observed);
     }
+    assertNotAborted(signal);
+    this.assertOpen();
+    // Only a validated, supported actual report crosses this trusted boundary.
+    // Copies prevent the consumer changing the producer's returned observation.
+    completed?.({ artifact: structuredClone(retained.ref), fixtureRecipeId: retained.fixtureRecipeId,
+      selector: structuredClone(failure.selector), runId, result: structuredClone(result) });
+    assertNotAborted(signal);
     return {
       ok: true,
       kind: "isolated_example_rerun",

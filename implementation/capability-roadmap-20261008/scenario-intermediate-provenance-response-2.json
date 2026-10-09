@@ -1,0 +1,36 @@
+{
+  "request": {
+    "state": "Verified local Canlang State/Dev source facts at ba757330: actual Invoke brands an admitted call for its exact physical StoragePort, context, checkpoint and active execute lifetime. Saved scenario receipt capture requires a loader-checked complete return dependency plan and actual native observations. Current observer accepts physical row correspondence or equality with the final net changed row. A real void Images.advance requires observing an intermediate queued row, then transitions the same record to generating; final-only correspondence refuses it. Native host presently calls legacy runMutationWrites separately per staged write against its own overlay, rewrites reserved versions and copies staged rows; that overlay has no State-owned admitted-call provenance. Existing State beginOwnerMutation owns one bounded serial provisional map, physical revision, entry rows, ordered writes including hook secondaries, one reserved version per record, and deferred final invariants; finalize nets writes/history/uniques/schedules. It does not bind to an actual admitted call. Native receipt view captures a separate finite wire copy. Proposed positive State factory binds one actual owner session to the active call and exact physical store, derives context/trigger, issues immutable read objects with private stage identity, and privately seals final effects. The observer could verify only exact issued current-stage objects, retain intermediate snapshots internally, and Invoke compare returned effects with actual sealed final effects after closing execution. Dev must route actual staging/reads through that session and preserve issued raw row identity; a generic public registration, executor boolean, copied-row branding or claimed write set must not qualify. Failed/concurrent/stale/closed operations poison the session and cannot be caught to produce success. Complete compiled native workflow remains unfinished until Dev and Compiler consume the producer. Scope excludes common CI and unrelated tests; preserve source closure, original/current secrecy and grants. Assessment asks about an implementation choice, not acceptance.",
+    "questions": {
+      "intermediate_provenance": {
+        "type": "choice",
+        "instructions": "Given the same checked call, intermediate queued observation and final generating mutation, which owner boundary best completes receipt provenance without trusting executor proof?",
+        "criteria": {
+          "final_only_until_other_producer": "Refuse intermediate disclosure using existing final-row correspondence and defer the complete workflow to a later genuine provenance producer. Maintains the current safe boundary with little work, while retaining the known functional gap.",
+          "admitted_owner_session": "Bind the existing canonical owner mutation session to actual active Invoke and physical store, privately validate issued current-stage snapshots and seal the real net effects. Have Dev adopt that one session for genuine mutations. Avoids trusting host snapshots and reuses complete ordered writes, but adds a producer ABI plus consumer work and concurrency/closure validation.",
+          "legacy_private_ordered_producer": "Create an additional State-authoritative sequential one-write adapter with its own verified overlay, version reservation and net effect seal. Keeps the host call shape if genuinely used for all writes; public overlay proof is forbidden. Requires implementing ownership comparable to the existing session a second time."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "intermediate_provenance": {
+        "type": "choice",
+        "choice": "admitted_owner_session",
+        "confidence": 1.0,
+        "probabilities": {
+          "final_only_until_other_producer": 0.0,
+          "admitted_owner_session": 1.0,
+          "legacy_private_ordered_producer": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 888,
+      "output_tokens": 59
+    }
+  }
+}
