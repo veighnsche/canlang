@@ -397,3 +397,46 @@ describe("compiled example producer scratch lifetime", () => {
   );
 
 });
+
+it("hands off only completed validated attempts and leaves cancelled, invalid and evicted runs unobserved", async () => {
+  const bytes = Uint8Array.from(Buffer.from("completed-handoff-artifact"));
+  let mode: "valid" | "invalid" | "cancel" = "valid";
+  const cancel = new AbortController();
+  const observe = vi.fn();
+  const coordinator = new ExampleRerunCoordinator({ resourcesReady: async () => ({ available: true }),
+    runSelected: async received => {
+      const result = failedResult(received.artifactBytes, received.sourceRevision, "PRIVATE_REPORT_DETAIL");
+      if (mode === "invalid") result.report.artifact.digest = "different-artifact";
+      if (mode === "cancel") cancel.abort();
+      return result;
+    } }, { maxArtifacts: 1 });
+  const artifact = coordinator.retainArtifact({ revision: "r17", fixtureRecipeId: "recipe",
+    runtimeProfileId: "profile", input: input(bytes) });
+  const failure = coordinator.recordFailure({ artifactRef: artifact.artifactRef, selector,
+    runId: "original", result: failedResult(bytes, "source-17", "original") });
+  try {
+    mode = "invalid";
+    expect(await coordinator.rerun(failure.failureRef, undefined, observe)).toMatchObject({ ok: false, code: "rerun_incomplete" });
+    expect(observe).not.toHaveBeenCalled();
+    mode = "cancel";
+    await expect(coordinator.rerun(failure.failureRef, cancel.signal, observe)).rejects.toMatchObject({ name: "AbortError" });
+    expect(observe).not.toHaveBeenCalled();
+    mode = "valid";
+    const rerun = await coordinator.rerun(failure.failureRef, undefined, observe);
+    expect(rerun.ok).toBe(true);
+    if (!rerun.ok) throw new Error(rerun.detail);
+    expect(observe).toHaveBeenCalledTimes(1);
+    const handed = observe.mock.calls[0]![0] as import("../src/dev/example-rerun.js").CompletedExampleRerunAttempt;
+    expect(handed).toMatchObject({ artifact, fixtureRecipeId: "recipe", selector, runId: rerun.rerun.runId,
+      result: { executed: 1, report: { artifact: { digest: artifact.artifactDigest, sourceRevision: "source-17" } } } });
+    expect(handed.runId).not.toBe(failure.original.runId);
+    const table = handed.result.report.cases[0]!;
+    if (table.kind !== "table") throw new Error("handoff is not table");
+    table.rows[0]!.detail = "external mutation";
+    expect(rerun.rerun.row.detail).toBe("PRIVATE_REPORT_DETAIL");
+    coordinator.retainArtifact({ revision: "r18", fixtureRecipeId: "other-recipe", runtimeProfileId: "profile",
+      input: input(Uint8Array.from(Buffer.from("other-artifact"))) });
+    expect(await coordinator.rerun(failure.failureRef, undefined, observe)).toMatchObject({ ok: false, code: "artifact_unavailable" });
+    expect(observe).toHaveBeenCalledTimes(1);
+  } finally { coordinator.close(); }
+});
