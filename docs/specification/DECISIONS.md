@@ -4586,3 +4586,18 @@ Use a small actual .can witness and owning captured native compiler/caller; requ
 Final genuine portable D1/security1/1 passes23.99s, with owning Cloudflare emit, root noEmit and zero-violation package boundaries. The compiler correctly refused redundant delete=archive; use the default and retain archive behavior assertions. An initial passing run had its no-commit hook on the boundary envelope, not selected.store; correct that harness wiring, add byte/map controls and rerun the complete affected journey. Intake reviewed main1d0 ancestry with this consumer unit, preserving the actual native flag and all independent records; production source matches the already-built4877/0a3 tuple, whose unchanged results are reused. Reconcile cumulative file-tree coverage without checkpoint advancement. This qualifies direct int/bool native public/portable receipt capture/recovery, not primitive arrays, broad scenario/owner/hook/query profiles, G2–G3 or complete-plan acceptance.
 
 The existing actual Office business probe also passes36security/business observations and2/2authored examples twice on the current3016input capture, with no serving-store changes and successful owned cleanup. SourceRevision b9aa804f6b2f9d15e5446d4435c44e51e8dd017eb8fe2e0127514d7d6658a088, epoch ae0022a3d43bd2babaab31c5fcc226c9efa73b6841f74c7d1cff5311fe1f02a4 and artifact a6981138d5038311cc5ab3c8defab6ef9dfe5b6a8860e7337d13ad0244a372b9 pin this scoped requalification. The frozen Office source remains ba4a6f00a0f53187139a128af725da43fdf437d8a0df72d3671b86d7072362a3; browser19/19 retains its earlier scope and G2–G3 remain open.
+
+## 2026-10-09 — preserve native default replay under current authorization
+
+Treat only bare/grouped checked Actor parameter defaults as the canonical
+default producer's frozen user input, with exact checked `user`/`user?` types
+and a finite group bound. Body Actor values, properties and derive-wrapped
+defaults remain outside the disclosure profile. Actual State replay fixtures
+select native emission and require its descriptor; revoked membership withholds
+public saved results while leaving physical receipt/defaults and handler traces
+unchanged. Five native targets5/5 and checked closure12/12 pass; strict
+all-target Clippy and formatting pass. The joined a291 full run failed on its
+old generic fixture, so historical95d whole qualification does not qualify this
+changed source. Transition write provenance and the exact Dev portable release
+remain separate prerequisites; no empty mutation proof or original-reference
+acceptance follows.

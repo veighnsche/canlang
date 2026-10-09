@@ -1710,3 +1710,18 @@ attribute restores the authored default and the complete case passes. Changed
 fixture strict Clippy and formatting pass; producer source is unchanged from
 **0b79ebc1**. Dev's in-progress portable D1 witness remains its exact prerequisite;
 no competing fixture, wider reference or held-policy acceptance follows.
+
+**Native default/replay consumer correction (unfinished wider join), 2026-10-09.**
+The joined full run at **a29186ab** stopped at the actor-default replay fixture:
+its generic compilation lacked the native association now required by public
+saved-result projection. Five actual State-host fixtures now opt into native
+receipt emission and assert their emitted plans. Canonical Actor defaults are
+admitted only as checked, immutable `user?` input carriers; body Actor reads,
+properties and derive-wrapped defaults still decline. All five native targets
+pass **5/5**; checked closure facts pass **12/12**, and strict all-target Clippy
+and formatting pass. Public replay after membership revocation withholds the
+result while retaining the exact original physical result/defaults and never
+reruns the handler. An invalid nonnullable Actor-default test was corrected
+without changing the language contract. Historical **1,319** remains tied to
+**95d5b3d**; changed-source full qualification and transition-write provenance
+remain required. Original **58/67** and human holds are unchanged.
