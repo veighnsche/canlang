@@ -41,7 +41,10 @@ export async function loadInstalledExampleTestkit(): Promise<ExampleTestkitPort>
   } catch {
     throw new MissingExampleTestkitError();
   }
-  const kit = await import("@canlang/testkit");
+  // Keep this as a runtime-only optional edge: a literal specifier makes
+  // TypeScript resolve testkit while building Cloudflare, creating a cycle.
+  const testkitSpecifier: string = "@canlang/testkit";
+  const kit = await import(testkitSpecifier) as unknown as ExampleTestkitPort;
   requirement(kit.loadExampleSuite, "testkit loader");
   requirement(kit.runTable, "testkit table runner");
   requirement(kit.createReport, "testkit report builder");
