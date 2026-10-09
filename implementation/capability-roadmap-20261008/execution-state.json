@@ -280,7 +280,13 @@
       "accepted_outputs": "Defining861edef5 plus genuine compiled Entry.update; affected configured protected source/Chrome/Worker/D1 case1/1 (~7.7s). Existing unbound1/1, readonly1/1, native MCP13300570 and unchanged producer/owner outcomes reused. Completed six-path form slice committed by package owner at5dd9c84a; no extra verification tree.",
       "dependency_scope": "Exact accepted SEQ008 metadata, SEQ009 canonical durable commit/replay, SEQ010 verified invocation context, SEQ012 authorized reads and relevant readonly refresh outputs. Whole parent completion is not an extra gate.",
       "limits_retained": "Selected supported source create/rename/update forms only. Scalar fixed bindings, arrays, files and remote handles remain unavailable; broader F3/application/proposal, installed/deployed/native release and Task15 visibility/other-profile duties remain open.",
-      "consumer_commit": "5dd9c84a"
+      "consumer_commit": "5dd9c84a",
+      "worker_update": {
+        "state": "implemented_tested_source_identifier_http_join",
+        "implemented": "HTTP operation-name admission uses the existing compiler identifier vocabulary, including underscore in app/model/scenario segments; real release_skipped recovery names retain original canonical identity.",
+        "validation": "Owning Interfaces emission10/10 and affected HTTP dispatch22/22 pass, including original operation/envelope/actor and malformed/cross-route refusal controls. Actual regenerated copy_site consumer is prepared, affected nativeD1 case pending with required parent-navigation join.",
+        "remaining": "Selected earlier browser/MCP acceptance is preserved; full original application workflows still require their defining source/rule/provider gates."
+      }
     },
     {
       "id": "SEQ-015",
@@ -1502,9 +1508,9 @@
     },
     "review_status": {
       "pr": "https://github.com/veighnsche/canlang/pull/134",
-      "revision": "b68bc71ff8f910d16cd8923ca719614c045b9982",
-      "state": "Codex_b68bc71_findings_corrected_and_affected_validation_passed_current_update_pending",
-      "action": "Both P1 findings addressed: bound model-alias reference identities and configured Chromium/acquisition cleanup. Owning emission22/22 and affected existing nativeD1/browser case1/1 pass. Subsequent pushed head still needs its own Codex review; only Codex counts under latest human instruction."
+      "revision": "72dcdbb247b2165518f3a25387eaf5933f9cb4bb",
+      "state": "Codex_code_and_security_reviews_completed_no_new_findings",
+      "action": "Actual Codex summary records both completed reviews for72dcdbb2; no current-revision findings. Older b68bc71 findings corrected and affected checks pass. Subsequent pushed changes still require their own Codex review; no whole-plan acceptance inferred."
     }
   },
   "live_handoffs": {
