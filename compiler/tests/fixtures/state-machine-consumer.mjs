@@ -22,6 +22,8 @@ assert.deepEqual(artifact.models[0].fields.find(f=>f.name==='status').machine, {
   {from:'generating',to:'ready',operation:'Images.branch'},
   {from:'generating',to:'failed',operation:'Images.branch'},
   {from:'idle',to:'ready',operation:'Images.defaults'},
+  {from:'idle',to:'ready',operation:'Images.private_defaults'},
+  {from:'idle',to:'ready',operation:'Images.public_defaults'},
   {from:'idle',to:'ready',operation:'Images.optional'},
   {from:'idle',to:'ready',operation:'Images.optional_scalar'},
  ]
@@ -140,18 +142,96 @@ assert.ok('result' in finished,JSON.stringify(finished));
 const ready=await html();
 assert.match(ready,/Image ready/);
 assert.doesNotMatch(ready,/Generating/);
-// Explicit slots use the real session; omitted-default mutation stays refused
-// until State releases the defining frozen input-default contribution contract.
-const explicit=createdRecord(await invoke('Images.Job.create',{}));
-const defaultAllowed=await invoke('Images.defaults',{job:{id:explicit.id,version:'1'},selected:true});
-assert.ok('result' in defaultAllowed,JSON.stringify(defaultAllowed));assert.equal(defaultAllowed.result.status,'committed');
-assert.equal((await store.load('Images.Job',explicit.id)).data.status,'ready');
-const omitted=createdRecord(await invoke('Images.Job.create',{}));
-const omittedBefore={row:await store.load('Images.Job',omitted.id),history:await store.historyFor('Images.Job',omitted.id)};
-const defaultDenied=await invoke('Images.defaults',{job:{id:omitted.id,version:'1'}});
-assert.ok('error' in defaultDenied,JSON.stringify(defaultDenied));assert.equal(defaultDenied.error.code,'validation');
-assert.deepEqual(await store.load('Images.Job',omitted.id),omittedBefore.row);
-assert.deepEqual(await store.historyFor('Images.Job',omitted.id),omittedBefore.history);
+// Replay projects the original changed row after later writes, then withholds
+// it when the actual generated archive removes current disclosure authority.
+const renamed=await invoke('Images.Job.update',{record:{id:row.id,version:'3'},title:'changed'});
+assert.ok('result' in renamed,JSON.stringify(renamed));
+assert.equal((await store.load('Images.Job',row.id)).data.title,'changed');
+const savedAfterChange=async()=>({revision:await store.readRevision(),row:await store.load('Images.Job',row.id),
+ history:await store.historyFor('Images.Job',row.id),receipt:await store.readReceipt(receiptIdentity),
+ outbox:await store.outboxPending(),schedules:await store.schedulesDue(now+86400000,100)});
+let preserved=await savedAfterChange();
+const advanceRequest={operation:'Images.advance',operation_id:envelopeId,inputs:input};
+for(const dedicated of [false,true]){
+ const recovered=await (dedicated?retainedInvoker.invokeRetainedMutation(advanceRequest,identity):invoker.invokeMutation(advanceRequest,identity));
+ assert.ok('result' in recovered,JSON.stringify(recovered));assert.equal(recovered.result.status,'replayed');
+ assert.deepEqual(recovered.result.records,advanced.result.records,'the original generating/title/version snapshot survives later ready/renamed rows');
+ assert.deepEqual(await savedAfterChange(),preserved);
+}
+const live=await store.load('Images.Job',row.id);
+const archived=await invoke('Images.Job.delete',{record:{id:row.id,version:String(live.version)}});
+assert.ok('result' in archived,JSON.stringify(archived));
+assert.notEqual((await store.load('Images.Job',row.id)).archivedAt,null);
+preserved=await savedAfterChange();
+for(const dedicated of [false,true]){
+ const recovered=await (dedicated?retainedInvoker.invokeRetainedMutation(advanceRequest,identity):invoker.invokeMutation(advanceRequest,identity));
+ assert.ok('result' in recovered,JSON.stringify(recovered));assert.equal(recovered.result.status,'replayed');
+ assert.equal(recovered.result.result,null);assert.deepEqual(recovered.result.records,[],'current archive withholds the saved changed row');
+ assert.deepEqual(await savedAfterChange(),preserved);
+}
+// Omitted defaults freeze the genuinely evaluated header value in the saved
+// receipt. Explicit values skip that expression and retain raw-input identity.
+async function defaultCase(operation, creation, supplied, selected, privateDefault=false) {
+ const created=createdRecord(await invoke('Images.Job.create',creation));
+ const inputs={job:{id:created.id,version:'1'},...(supplied===undefined?{}:{selected:supplied})};
+ const request={operation,operation_id:operationId(),inputs};
+ const outcome=await invoker.invokeMutation(request,identity);
+ assert.ok('result' in outcome,JSON.stringify(outcome));assert.equal(outcome.result.status,'committed');
+ const withheld=privateDefault&&supplied===undefined;
+ assert.equal(outcome.result.result,operation==='Images.defaults'||withheld?null:'7');
+ assert.equal(outcome.result.records.length,selected&&!withheld?1:0);
+ const physical=await store.load('Images.Job',created.id);
+ assert.equal(physical.data.status,selected?'ready':'idle');assert.equal(physical.version,selected?2:1);
+ const key={app:'Images',owner:'app',principal:'public',operation,operationId:request.operation_id};
+ const receipt=await store.readReceipt(key),association=readScenarioReceiptAssociation(receipt);
+ assert.ok(association,'actual header execution owns a saved source association');
+ assert.equal(association.resultType,operation==='Images.defaults'?'void':'int');
+ assert.deepEqual(receipt.resolvedDefaults,supplied===undefined?{selected}:{});
+ assert.equal(receipt.outcome.result,operation==='Images.defaults'?null:'7');
+ assert.deepEqual(association.plan,artifact.operations.find(value=>value.name===operation).result.disclosure);
+ const returned=association.plan.returns.find(value=>value.id===association.returnId);
+ assert.ok(returned,'actual header and body choices select one declared path');
+ const headerField=operation==='Images.private_defaults'?'private_choice':operation==='Images.public_defaults'?'public_choice':null;
+ const fields=[...(headerField&&supplied===undefined?[headerField]:[]),...(selected?['status']:[])];
+ assert.deepEqual(returned.dependencies.map(value=>value.field),fields,'default read precedes the transition old-state read');
+ for(const dependency of returned.dependencies){assert.equal(dependency.model,'Images.Job');assert.equal(dependency.role,'control');}
+ assert.deepEqual(association.observations.map(value=>value.dependencyId),returned.dependencies.map(value=>value.id));
+ assert.equal(association.changed.length,selected?1:0);
+ if(selected)assert.deepEqual(association.changed[0].row,physical);
+ if(headerField&&supplied===undefined){
+  assert.equal(association.observations[0].row.data[headerField],creation[headerField]);
+  assert.equal(returned.dependencies[0].type,headerField==='private_choice'?'bool':'bool?');
+ }
+ if(supplied!==undefined)assert.equal(returned.dependencies.some(value=>value.field===headerField),false,'provided header bypasses default observations');
+ const before={revision:await store.readRevision(),row:physical,history:await store.historyFor('Images.Job',created.id),receipt,
+  outbox:await store.outboxPending(),schedules:await store.schedulesDue(now+86400000,100)};
+ for(const dedicated of [false,true]){
+  const recovered=await (dedicated?retainedInvoker.invokeRetainedMutation(request,identity):retainedInvoker.invokeMutation(request,identity));
+  assert.ok('result' in recovered,JSON.stringify(recovered));assert.equal(recovered.result.status,'replayed');
+  assert.deepEqual(recovered.result.result,outcome.result.result);assert.deepEqual(recovered.result.records,outcome.result.records);
+  assert.equal(await store.readRevision(),before.revision);assert.deepEqual(await store.load('Images.Job',created.id),before.row);
+  assert.deepEqual(await store.historyFor('Images.Job',created.id),before.history);assert.deepEqual(await store.readReceipt(key),before.receipt);
+  assert.deepEqual(await store.outboxPending(),before.outbox);assert.deepEqual(await store.schedulesDue(now+86400000,100),before.schedules);
+ }
+ const changedRaw={...request,inputs:{job:inputs.job,...(supplied===undefined?{selected}: {})}};
+ for(const dedicated of [false,true]){
+  const conflict=await (dedicated?retainedInvoker.invokeRetainedMutation(changedRaw,identity):retainedInvoker.invokeMutation(changedRaw,identity));
+  assert.ok('error' in conflict,JSON.stringify(conflict));assert.equal(conflict.error.code,'conflict','omission and explicit default are distinct raw requests');
+ }
+ assert.equal(await store.readRevision(),before.revision);assert.deepEqual(await store.readReceipt(key),receipt);
+ assert.deepEqual(await store.load('Images.Job',created.id),before.row);assert.deepEqual(await store.historyFor('Images.Job',created.id),before.history);
+ assert.deepEqual(await store.outboxPending(),before.outbox);assert.deepEqual(await store.schedulesDue(now+86400000,100),before.schedules);
+ return association.returnId;
+}
+for(const supplied of [undefined,true,false])await defaultCase('Images.defaults',{},supplied,supplied??true);
+for(const choice of [true,false]){
+ await defaultCase('Images.private_defaults',{private_choice:choice},undefined,choice,true);
+ await defaultCase('Images.private_defaults',{private_choice:choice},!choice,!choice,true);
+}
+const publicDefaultReturns=[];
+for(const choice of [null,true,false])publicDefaultReturns.push(await defaultCase('Images.public_defaults',{public_choice:choice},undefined,choice??false));
+assert.notEqual(publicDefaultReturns[0],publicDefaultReturns[2],'null coalesce RHS and false RHS-skipped select distinct exact paths');
+for(const supplied of [false,true])await defaultCase('Images.public_defaults',{public_choice:null},supplied,supplied);
 // A private selector controls changed-record existence on BOTH outcomes.
 for(const operation of ['Images.optional','Images.optional_scalar']) for(const choice of [true,false]){
  const created=createdRecord(await invoke('Images.Job.create',{private_choice:choice}));
@@ -183,4 +263,4 @@ for(const operation of ['Images.optional','Images.optional_scalar']) for(const c
  }
 }
 assert.equal(retainedCommits,0);assert.equal(fileReads,0);
-console.log('compiled machine: graph, gated capability, canonical creation/ordered transitions/replay/conflict/rollback, projected state UI, private optional-write withholding, frozen input-default refusal and no-write retained recovery verified');
+console.log('compiled machine: graph, gated capability, canonical creation/ordered transitions/replay/conflict/rollback, projected state UI, private optional-write withholding, frozen literal/private/public computed defaults, omission identity conflicts and no-write retained recovery verified');

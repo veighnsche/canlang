@@ -1,0 +1,42 @@
+## Compiler-half fixture for the finite Office supplies authoring profile.
+## Runtime availability and inline example execution are qualified separately.
+app HelpOffice
+Given
+ role reviewer
+ Supply {name:text trim min=1 max=160,quantity:int?,available:bool=true,stock:int=0,locked:bool=false}
+ policy Supply read=members
+ invariant Supply: row.stock>=0
+ lock Supply fields=name when=row.locked
+ derive heading():text = "Team supplies"
+ fixture editable=Supply {name="Printer paper",quantity=4}
+ fixture person=user {roles=[reviewer]}
+When
+ crud Supply by=members fields=name,quantity,available,stock,locked create_fields=name,quantity
+  examples update record=editable
+   as,changes.name,changes.quantity -> record.name,record.quantity
+   other,"A4 paper",8 -> "A4 paper",8
+   outsider,"Private change",9 -> error(forbidden)
+ scenario rename(supply:Supply,name:text) by=members
+  do
+   let accepted=name
+   set supply {name=accepted}
+  examples seed=[editable] supply=editable
+   as,name -> editable.name
+   other,"New paper" -> "New paper"
+ scenario total() read=true -> int by=members
+  do return count(Supply)
+Then
+ preferences {view:enum(all,available)=all}
+ page / title="Office supplies"
+  card "Add a supply"
+   form Supply.create fields=name,quantity display=inline
+    input name
+    input quantity
+  card heading()
+   tabs preferences.view
+   stat count(Supply) description="Visible supplies"
+   list Supply as supply where preferences.view==all or supply.available order=name empty="No supplies"
+    text row.name,row.quantity,row.available
+    edit fields=name,quantity,available
+    delete
+   table Supply columns=name,stock,available empty="No stock"

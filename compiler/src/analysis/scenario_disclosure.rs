@@ -73,6 +73,8 @@ pub enum DisclosureChoice {
     Match(String),
     RhsEvaluated,
     RhsSkipped,
+    DefaultEvaluated,
+    DefaultProvided,
 }
 
 #[derive(Debug, Clone)]
@@ -149,13 +151,13 @@ pub fn analyze_scenario_disclosure(
                 return Err(cx.fail(scenario.node, "unsupported result shape"));
             }
             let source = cx.source(scenario.module, scenario.node)?;
-            let mut flow = Flow::default();
+            let mut flows = vec![Flow::default()];
             for param in &scenario.params {
                 let ty = types
                     .symbol_types
                     .get(&param.param)
                     .ok_or_else(|| cx.fail(param.node, "missing parameter type"))?;
-                let mut value = ValuePath::default();
+                let mut supplied = ValuePath::default();
                 if let ResolvedType::Record {
                     symbol,
                     stored: true,
@@ -165,31 +167,85 @@ pub fn analyze_scenario_disclosure(
                         Some(SymbolKind::Model { .. })
                     )
                 {
-                    value.record = Some(*symbol);
+                    supplied.record = Some(*symbol);
                 }
-                flow.env.insert(Local::Symbol(param.param), value);
-                if flow.env.len() > 256 {
+                let mut next = Vec::new();
+                for flow in flows {
+                    // Only prior declaration bindings exist while this default
+                    // executes. An explicit input is already admitted and frozen.
+                    let alternatives = match param.default {
+                        Some(default) if !cx.admitted_actor_default(default, ty) => {
+                            Some((default, cx.expr(default, scenario.module, &flow.env, &[])?))
+                        }
+                        _ => None,
+                    };
+                    if let Some((default, alternatives)) = alternatives
+                        && alternatives
+                            .iter()
+                            .any(|value| !value.reads.is_empty() || !value.decisions.is_empty())
+                    {
+                        let provided = DisclosureDecision {
+                            node: default,
+                            calls: Vec::new(),
+                            choice: DisclosureChoice::DefaultProvided,
+                        };
+                        let mut provided_flow = flow.clone();
+                        let mut frozen = supplied.clone();
+                        frozen.decisions.push(provided.clone());
+                        provided_flow.env.insert(Local::Symbol(param.param), frozen);
+                        provided_flow.evaluated.push(provided);
+                        next.push(provided_flow);
+                        for mut value in alternatives {
+                            if !compatible(&flow.evaluated, &value.decisions) {
+                                continue;
+                            }
+                            let decision = DisclosureDecision {
+                                node: default,
+                                calls: Vec::new(),
+                                choice: DisclosureChoice::DefaultEvaluated,
+                            };
+                            let mut evaluated = flow.clone();
+                            evaluated.evaluated.push(decision.clone());
+                            for observed in &value.observed {
+                                if !evaluated.observed.contains(observed) {
+                                    evaluated.observed.push(observed.clone());
+                                }
+                            }
+                            for choice in &value.decisions {
+                                if !evaluated.evaluated.contains(choice) {
+                                    evaluated.evaluated.push(choice.clone());
+                                }
+                            }
+                            value.decisions.push(decision);
+                            evaluated.env.insert(Local::Symbol(param.param), value);
+                            next.push(evaluated);
+                            if next.len() > 1024 {
+                                return Err(
+                                    cx.fail(default, "parameter default evaluation path bound")
+                                );
+                            }
+                        }
+                    } else {
+                        let mut path = flow;
+                        path.env
+                            .insert(Local::Symbol(param.param), supplied.clone());
+                        next.push(path);
+                    }
+                    if next.len() > 1024 {
+                        return Err(cx.fail(param.node, "parameter default evaluation path bound"));
+                    }
+                }
+                if next.iter().any(|flow| flow.env.len() > 256) {
                     return Err(cx.fail(param.node, "binding closure bound"));
                 }
-                // Defaults execute before the body. Inspect their complete
-                // closure even when the result never consumes this parameter.
-                if let Some(default) = param.default {
-                    if cx.admitted_actor_default(default, ty) {
-                        continue;
-                    }
-                    let alternatives = cx.expr(default, scenario.module, &flow.env, &[])?;
-                    if alternatives
-                        .iter()
-                        .any(|p| !p.reads.is_empty() || !p.decisions.is_empty())
-                    {
-                        return Err(cx.fail(default, "state-dependent parameter default"));
-                    }
-                }
+                flows = next;
             }
             if let Some(by) = scenario.by {
-                cx.authorization_expr(by, scenario.module, &flow.env, &[])?;
+                for flow in &flows {
+                    cx.authorization_expr(by, scenario.module, &flow.env, &[])?;
+                }
             }
-            let (guards, _) = cx.statements(&scenario.guards, scenario.module, vec![flow], &[])?;
+            let (guards, _) = cx.statements(&scenario.guards, scenario.module, flows, &[])?;
             let (continuing, mut returns) =
                 cx.statements(&scenario.effects, scenario.module, guards, &[])?;
             if !continuing.is_empty() {
@@ -469,6 +525,8 @@ impl Closure<'_> {
                         DisclosureChoice::Match(case) => format!("match:{}:{case}", case.len()),
                         DisclosureChoice::RhsEvaluated => "rhs-evaluated".to_string(),
                         DisclosureChoice::RhsSkipped => "rhs-skipped".to_string(),
+                        DisclosureChoice::DefaultEvaluated => "default-evaluated".to_string(),
+                        DisclosureChoice::DefaultProvided => "default-provided".to_string(),
                     }
                 ))
             })
@@ -1539,10 +1597,19 @@ impl Closure<'_> {
 }
 
 fn compatible(left: &[DisclosureDecision], right: &[DisclosureDecision]) -> bool {
+    let default_selection = |choice: &DisclosureChoice| {
+        matches!(
+            choice,
+            DisclosureChoice::DefaultEvaluated | DisclosureChoice::DefaultProvided
+        )
+    };
     !left.iter().any(|a| {
-        right
-            .iter()
-            .any(|b| a.node == b.node && a.calls == b.calls && a.choice != b.choice)
+        right.iter().any(|b| {
+            a.node == b.node
+                && a.calls == b.calls
+                && default_selection(&a.choice) == default_selection(&b.choice)
+                && a.choice != b.choice
+        })
     })
 }
 
@@ -1658,6 +1725,127 @@ mod tests {
                 "referencing v cannot reevaluate its coalesce"
             );
             assert!(returned.dependencies.is_empty());
+        }
+    }
+
+    #[test]
+    fn stored_defaults_bind_prior_declarations_and_supplied_overrides_cut_reads() {
+        let source = "app Bounds\nGiven\n Item {value:int}\n policy Item read=members\nWhen\n scenario probe(item:Item,first:int=item.value,second:int=first) -> int by=members\n  do return second\nThen\n";
+        let ScenarioDisclosure::Complete(plan) = checked(source) else {
+            panic!("checked stored defaults must establish omitted and supplied paths")
+        };
+        assert_eq!(plan.returns.len(), 4);
+        for returned in &plan.returns {
+            assert_eq!(returned.decisions.len(), 2);
+            assert_eq!(
+                returned
+                    .decisions
+                    .iter()
+                    .map(|d| source[d.node.start as usize..d.node.end as usize].trim())
+                    .collect::<Vec<_>>(),
+                ["item.value", "first"]
+            );
+            let both_evaluated = returned
+                .decisions
+                .iter()
+                .all(|d| d.choice == DisclosureChoice::DefaultEvaluated);
+            assert_eq!(returned.dependencies.len(), usize::from(both_evaluated));
+            if both_evaluated {
+                assert_eq!(returned.dependencies[0].field_name, "value");
+                assert_eq!(returned.dependencies[0].role, DependencyRole::Data);
+            }
+        }
+        assert_eq!(
+            plan.returns
+                .iter()
+                .map(|p| &p.id)
+                .collect::<HashSet<_>>()
+                .len(),
+            4
+        );
+    }
+
+    #[test]
+    fn stored_default_selector_becomes_control_but_unused_default_data_is_pruned() {
+        let source = "app Bounds\nGiven\n Item {available:bool}\n policy Item read=members\nWhen\n scenario probe(item:Item,selected:bool=item.available) -> int by=members\n  do\n   if selected\n    return 1\n   else\n    return 2\nThen\n";
+        let ScenarioDisclosure::Complete(plan) = checked(source) else {
+            panic!("default selector closure must qualify")
+        };
+        assert_eq!(plan.returns.len(), 4);
+        for returned in plan.returns {
+            assert_eq!(returned.decisions.len(), 2);
+            assert_eq!(
+                source[returned.decisions[0].node.start as usize
+                    ..returned.decisions[0].node.end as usize]
+                    .trim(),
+                "item.available"
+            );
+            let evaluated = returned.decisions[0].choice == DisclosureChoice::DefaultEvaluated;
+            assert_eq!(returned.dependencies.len(), usize::from(evaluated));
+            assert!(
+                returned
+                    .dependencies
+                    .iter()
+                    .all(|d| d.role == DependencyRole::Control)
+            );
+        }
+        let unused = source.replace(
+            "   if selected\n    return 1\n   else\n    return 2",
+            "   return 1",
+        );
+        let ScenarioDisclosure::Complete(plan) = checked(&unused) else {
+            panic!("independent return must keep only actual default choice")
+        };
+        assert_eq!(plan.returns.len(), 2);
+        assert!(
+            plan.returns
+                .iter()
+                .all(|p| p.dependencies.is_empty() && p.decisions.len() == 1)
+        );
+    }
+
+    #[test]
+    fn stored_default_path_expansion_retains_finite_bound() {
+        let defaults = (0..11)
+            .map(|i| format!("v{i}:int=item.value"))
+            .collect::<Vec<_>>()
+            .join(",");
+        let source = format!(
+            "app Bounds\nGiven\n Item {{value:int}}\n policy Item read=members\nWhen\n scenario probe(item:Item,{defaults}) -> int by=members\n  do return 1\nThen\n"
+        );
+        let ScenarioDisclosure::Declined(reason) = checked(&source) else {
+            panic!("default omission choices must obey the path limit")
+        };
+        assert_eq!(reason.reason, "parameter default evaluation path bound");
+    }
+
+    #[test]
+    fn default_selection_and_inner_coalesce_share_anchor_without_conflicting() {
+        let source = "app Bounds\nGiven\n Item {available:bool?}\n policy Item read=members\nWhen\n scenario probe(item:Item,selected:bool=item.available ?? false) -> bool by=members\n  do return selected\nThen\n";
+        let ScenarioDisclosure::Complete(plan) = checked(source) else {
+            panic!("default omission and its own coalesce are independent decisions")
+        };
+        assert_eq!(plan.returns.len(), 3);
+        let supplied = plan
+            .returns
+            .iter()
+            .find(|p| p.decisions[0].choice == DisclosureChoice::DefaultProvided)
+            .unwrap();
+        assert!(supplied.dependencies.is_empty());
+        assert_eq!(supplied.decisions.len(), 1);
+        for omitted in plan
+            .returns
+            .iter()
+            .filter(|p| p.decisions[0].choice == DisclosureChoice::DefaultEvaluated)
+        {
+            assert_eq!(omitted.decisions.len(), 2);
+            assert_eq!(omitted.decisions[0].node, omitted.decisions[1].node);
+            assert!(matches!(
+                omitted.decisions[1].choice,
+                DisclosureChoice::RhsEvaluated | DisclosureChoice::RhsSkipped
+            ));
+            assert!(!omitted.dependencies.is_empty());
+            assert!(compatible(&omitted.decisions, &omitted.decisions));
         }
     }
 

@@ -1848,3 +1848,51 @@ finite review pass. Required current-source whole qualification follows this
 unit. State's separate omitted-default contribution contract, Dev's distinct
 portable mutation qualification, original **58/67** and precise holds remain.
 Incoming living registry reconciliations retain the complete checkpoint unadvanced.
+
+**Current whole and original changed-row recovery, 2026-10-09.** Exact source
+**83f4f137** passes all **129 targets: 1,325 passed, 0 failed, 0 ignored,
+0 filtered**, required real engines/Node24 and actual permission bodies with
+zero skips. The historical state-machine replay failure is cleared. Production
+source is unchanged by the related consumer extension: actual original machine
+**1/1** additionally proves both ordinary and aged replay retain original
+generating/title/version snapshots after later ready/renamed writes, then
+withhold them after real generated archive. Physical rows/history/receipts,
+revision/outbox/schedules remain unchanged by recovery; commit/file tripwires
+remain zero. Strict lint/format and unchanged editor/LSP outcomes are reused.
+State omitted-default API146 and Dev's distinct portable mutation release remain
+exact reviewed intakes to consume; no current-source default-mutation acceptance
+is inferred. T04's compiler half is the next ready finite unit; Dev owns exact
+profile classification, trusted live qualification and distinguishing ranking
+evidence. Full grammar inventories and parser evidence=false remain intact.
+Original **58/67**, owner dependencies and precise human holds remain.
+
+
+**Local T04 compiler half — first authoring profile, 2026-10-09.** The existing
+construct-help target passes **6/6**. One complete Office source checks and
+compiles all **41** declared first-profile cards, with exact CST card anchors,
+actual model/rule/operation/page/fixture/example output and called UI factories.
+Four controls refuse invalid invariant types, unknown assigned fields, unknown
+stat options and unsupported authored table children; the positive table uses
+its canonical columns path. Proof identities are
+`compiler/tests/construct_help.rs::first_profile_compiler_cards_have_checked_source_and_emitted_owners[card-id]`.
+Runtime/example execution and the production trusted current-proof provider
+remain Dev-owned. Grammar inventories and ambiguous-intent evidence flags remain
+unchanged; this compiler half grants no working-card or ranking acceptance.
+
+
+**Local stored-read scenario defaults — unfinished whole qualification, 2026-10-09.**
+Reviewed State/Dev default contributions are consumed from local main2e4d6471.
+Checked source paths now evaluate omitted defaults in declaration order with
+earlier bindings and actual read provenance; supplied values skip those defaults.
+Native collection matches each real default IR site and the generated header
+records omission separately from an expression decision at the same span. The
+original machine target passes **4/4** through Node24 and installed State/CF,
+including literal defaults, private/public stored-field defaults, nullable
+coalesce, physical writes/defaults, current-read withholding, raw-input conflicts
+and ordinary/dedicated aged recovery with physical-resource invariance. Source
+closure checks pass **8/8**, strict all-target Clippy and formatting pass; finite
+independent review finds no defect. Build26/26 and current59-entry catalog supply
+the actual consumer prerequisites. Whole83f4/1325 remains historical until the
+changed-source full run completes. Task44 original generation sends/assignments
+remain the next compiler prerequisite; frozen operation/reference metadata needs
+Packages' defining State dependency contract. Existing broad refs and holds remain.
