@@ -487,6 +487,10 @@ pub struct TypeTable {
     pub selected_calls: HashMap<NodeKey, SelectedCall>,
     /// Explicit anonymous descriptor bindings, in authored evaluation order.
     pub(crate) anonymous_messages: HashMap<NodeKey, CheckedAnonymousMessage>,
+    /// Immutable local references to an authored inline descriptor, checked
+    /// bound anonymous call or typed named message. Carries provenance, never
+    /// copied operands.
+    pub(crate) message_descriptor_references: HashMap<NodeKey, NodeKey>,
     /// Subject-domain labels checked for individual finite-enum match arms.
     pub enum_match_cases: HashMap<NodeKey, String>,
     /// Match statements with complete, unique checked subject-domain coverage.
@@ -1323,6 +1327,15 @@ impl<'a> Typer<'a> {
             return;
         };
         let ty = self.expr(cx, value, None);
+        if !ty.is_error()
+            && let Some(descriptor) = self.checked_message_descriptor_origin(value).or_else(|| {
+                matches!(ty, ResolvedType::Message(_)).then(|| NodeKey::of(unwrap_groups(value)))
+            })
+        {
+            self.types
+                .message_descriptor_references
+                .insert(NodeKey::of(node), descriptor);
+        }
         self.lets.insert(NodeKey::of(node), ty);
     }
 
@@ -11737,6 +11750,12 @@ impl<'a> Typer<'a> {
                 }
             }
             Binding::Let { node: key } => {
+                if let Some(descriptor) = self.types.message_descriptor_references.get(key).copied()
+                {
+                    self.types
+                        .message_descriptor_references
+                        .insert(NodeKey::of(node), descriptor);
+                }
                 self.lets.get(key).cloned().unwrap_or(ResolvedType::Error)
             }
             Binding::ForItem { node: key } => {
@@ -15695,19 +15714,20 @@ impl<'a> Typer<'a> {
 
     /// Call a message: like a user function, rendering `text`.
     fn is_checked_message_descriptor(&self, node: &SyntaxNode) -> bool {
-        if is_message_descriptor(node) {
-            return true;
-        }
+        self.checked_message_descriptor_origin(node).is_some()
+    }
+
+    fn checked_message_descriptor_origin(&self, node: &SyntaxNode) -> Option<NodeKey> {
         let mut current = node;
         while current.kind == SyntaxKind::Group {
-            let Some(inner) = kids(current).into_iter().find(|n| is_expression(n.kind)) else {
-                return false;
-            };
-            current = inner;
+            current = kids(current).into_iter().find(|n| is_expression(n.kind))?;
         }
-        self.types
-            .anonymous_messages
-            .contains_key(&NodeKey::of(current))
+        let key = NodeKey::of(current);
+        if is_message_descriptor(current) || self.types.anonymous_messages.contains_key(&key) {
+            Some(key)
+        } else {
+            self.types.message_descriptor_references.get(&key).copied()
+        }
     }
 
     fn call_anonymous_message(
