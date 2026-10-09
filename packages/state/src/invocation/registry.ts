@@ -1702,7 +1702,8 @@ export function loadArtifactDescriptors(
         fail('malformed_descriptor', 'Scenario default callable input style requires own parameter-style data.');
       }
       bindScenarioReceiptPlan(def, artifact.models ?? [], { parameterStyle: style?.value === 'parameters',
-        ...(converted.valueSchema !== undefined ? { valueSchema: converted.valueSchema } : {}) });
+        ...(converted.valueSchema !== undefined ? { valueSchema: converted.valueSchema } : {}),
+        ...(loaded.valueTypes !== undefined ? { valueTypes: loaded.valueTypes } : {}) });
     }
     catch (error) { fail('malformed_descriptor', error instanceof Error ? error.message : 'Invalid scenario disclosure inventory.'); }
   }

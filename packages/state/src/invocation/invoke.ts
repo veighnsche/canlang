@@ -642,7 +642,11 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
       outcome: {
         status: 'committed',
         result: effects.result,
-        recordVersions: recordVersionsOf(effects.writes),
+        // Saved scenario association is State's exact business-row carrier.
+        // Genuine framework rows share the fence, never business disclosure.
+        // Complete joined writes remain sealed and committed below.
+        recordVersions: effects.scenario === undefined ? recordVersionsOf(effects.writes)
+          : effects.scenario.changed.map(({ model, row }) => ({ model, id: row.id, version: row.version })),
         ...(effects.generatedCrud === undefined ? {} : { generatedCrud: effects.generatedCrud }),
         ...(effects.scenario === undefined ? {} : { scenario: effects.scenario }),
       },
