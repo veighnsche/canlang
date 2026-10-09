@@ -43,6 +43,8 @@ pub mod bdd;
 mod defaults;
 pub mod ir;
 pub mod js;
+pub mod model_policies;
+pub mod model_policy_profile;
 pub mod sourcemap;
 
 use crate::analysis::CheckedProgram;
@@ -181,6 +183,7 @@ fn empty_artifact(db: &SourceDb) -> CompileArtifact {
         operations: Vec::new(),
         models: Vec::new(),
         value_types: None,
+        model_policies: None,
         pages: Vec::new(),
         migrations: Vec::new(),
         requires: Vec::new(),
