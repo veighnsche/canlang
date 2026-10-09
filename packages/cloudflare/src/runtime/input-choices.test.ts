@@ -15,6 +15,8 @@ import { catalogFromArtifactOperations, handleOperationRequest, INPUT_CHOICES_VE
 import type { HttpDeps } from '@canlang/interfaces';
 import { generatedForm } from '@canlang/ui';
 import type { SubmitFetch, SubmitFetchInit } from '@canlang/ui';
+import type { BrowserClientOptions } from '../../../ui/dist/src/browser/bootstrap.js';
+import type { HTMLInputElement, HTMLSelectElement } from '../../../ui/node_modules/happy-dom/lib/index.js';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { assembleWorker } from '@canlang/cloudflare/worker/assembly';
 
@@ -144,8 +146,8 @@ test('genuine dependent choices use current native D1 grants and the original ge
       corrupt(field); assert.throws(() => catalogFromArtifactOperations(malformed));
     }
 
-    const { Window } = createRequire(import.meta.resolve('@canlang/ui'))('happy-dom');
-    const { startBrowserClient } = await import(new URL('./browser/bootstrap.js', import.meta.resolve('@canlang/ui')).href);
+    const { Window } = createRequire(import.meta.resolve('@canlang/ui'))('happy-dom') as typeof import('../../../ui/node_modules/happy-dom/lib/index.js');
+    const { startBrowserClient } = await import('../../../ui/dist/src/browser/bootstrap.js');
     const window = new Window({ url: 'https://test.invalid/form' });
     const context: PresentationContext = { preferredLocales: [], appDefaultLocale: 'en',
       theme: { mode: 'light', accent: 'blue', density: 'comfortable' }, path: '/form', pollContext: 'choices/member/team',
@@ -172,7 +174,7 @@ test('genuine dependent choices use current native D1 grants and the original ge
       if (hold && url.includes('/choices/')) await new Promise<void>(resolve => releases.push(resolve));
       return response;
     };
-    let client = startBrowserClient({ window, fetchImpl });
+    let client = startBrowserClient({ window: window as unknown as BrowserClientOptions['window'], fetchImpl });
     const wait = async (condition: () => boolean) => {
       for (let attempt = 0; attempt < 300; attempt++) {
         if (condition()) return;
