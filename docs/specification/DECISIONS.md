@@ -4894,3 +4894,9 @@ not drop the execution association when expression lowering removes Group. Inner
 field and coalesce decisions keep their actual expression sites. The original
 consumer passes4/4 with nested grouping, with source8/8 and strict lint/format;
 final whole qualification remains pending.
+
+## 2026-10-10 — qualify stored-read defaults in the same portable D1 workflow
+
+Consume exact coordinator-reviewed LOCAL main763d277b and Compiler8947510c/f302e506 grouped-default anchors, preserving the same native source, portable public HTTP/MCP and actual Identity/two-owner D1 journey. Add grouped private stored reads and nullable public int/coalesce defaults, followed by a later default using the prior binding. Explicit prior/final values bypass stored observations and contribute only genuinely omitted slots. Keep complete source/choice/read order, exact finalized physical defaults, original raw omission-versus-supply conflicts and private withholding on both write/no-write outcomes. Later physical changes make admitted refs stale; ordinary and aged dedicated recovery retain original receipt results/records with exact resources and commit/file tripwires, then obey current archive/revoked/foreign-owner/nonmember/Public and issuer/source/JS/map controls.
+
+The unchanged whole harness passes1/1 in63.24s with19 original scalar/array/derive plus24 machine/default fresh outcomes, including eleven new stored-read/override cases; cleanup succeeds. Current native build and CF emit, root noEmit and boundaries890files/1191expressions/zero violations pass. No runtime or shared gate repair was needed. Reuse unchanged State/direct/package/catalog checks at their scopes; Compiler still owns final whole qualification for its changed source. General Set/Send/composite/effect capture and T04/T11/Office/G2–G3 remain unfinished. Preserve complete checkpoint and local-only/manual integration holds.
