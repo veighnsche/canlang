@@ -3670,3 +3670,8 @@ Retain immediate field reuse identities in the checked type table. Compose Tabs 
 ## 2026-10-09 — mint generated delete replay identity at the UI occurrence
 
 Replace the generated operation-route operationId with one call to the existing public UI UUIDv7 minter inside each rendered/gated delete occurrence. Keep operation/action/archive and protected record encoding separate; resubmissions reuse the hidden nonce while rerenders get fresh identities. Actual native delete1/1 and owning codegen1/1 pass with unchanged nonce canonical commit/replay, stale/current-membership refusal and gated no-mint behavior. The native fixture also explicitly refuses raw record+mode intake: the existing UI inputs[mode]=archive directive is a defining UI/Interfaces/Dev projection prerequisite, not additional compiler business-input admission. No full browser/Office acceptance follows.
+
+
+## 2026-10-09 — consume defining delete form input projection
+
+Consume exactly Packages1704023b478d00f0452ee68f8bb36706beb290fc's UI forms source and owning test correction: mode remains presentation, and only declared protected record fields become business inputs. Preserve branch-specific compiler decisions and the foreign package ledger. The real generated compiler delete fixture must now submit the emitted UUIDv7 identity and all declared form inputs unchanged; keep the raw extra-mode refusal control. Owner UI94/94 is reused at its original scope, with affected generated compiler qualification due.

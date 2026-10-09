@@ -962,7 +962,8 @@ export async function edit(props: EditProps): Promise<string> {
 
 /**
  * Archive/remove confirmation card: item heading, confirm copy, and a POST
- * form carrying the record, operation, CSRF token and mode.
+ * form carrying the record and request controls. Mode selects presentation;
+ * the declared operation owns archive/remove behavior.
  */
 export async function deleteRecord(props: DeleteProps): Promise<string> {
   const heading = escapeHtml(resolveCaption(props.itemLabel, props.context));
@@ -984,7 +985,6 @@ export async function deleteRecord(props: DeleteProps): Promise<string> {
     hidden(CSRF_FIELD, props.context.csrfToken) +
     hidden("timezone", props.timeZone ?? "UTC") +
     recordHiddens(props.record) +
-    hidden("inputs[mode]", props.mode) +
     `<div class="flex gap-4"><button type="submit" class="btn ${tone}">${submitLabel}</button>${cancelLink(props.cancelHref, props.context)}</div>` +
     `</form></div></section>`
   );
