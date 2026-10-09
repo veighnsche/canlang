@@ -12,6 +12,8 @@ import { createTestMemoryStorage } from '../storage/memory.js';
 import { FIXED_NOW, asId, asModel, asOperation, captureStateError, createMemoryIdentityStore,
   makeEnvelope, makeIdentity, seedMember, uuidv7 } from '../../test/invocation/fixtures.js';
 import { modelDef } from '../../test/mutation/fixtures.js';
+import { encodeValue, normalizeSchema, validateValue } from '@canlang/values';
+import type { CanValue } from '@canlang/contracts/values';
 
 const ACCOUNT = 'Null.Account', JOB = 'Null.Job';
 let sequence = 9000;
@@ -196,5 +198,30 @@ describe('checked stored-field modifiers', () => {
       hooks: [{ name: 'invalidate', ops: ['create'], run: candidate => ({ ...candidate, title: '   ' }) }] })]);
     const rejection = await captureStateError(run(invalid));
     assert.equal(rejection.code, 'validation');
+  });
+
+  it('bounds nominal contract arrays without losing codec shape or colliding with schema names', async () => {
+    const valueSchema = normalizeSchema({ contracts: {
+      _CanModelConstraint: { fields: { value: { type: 'text' } } },
+      'Test.Item': { fields: { id: { type: 'text' }, label: { type: 'text' } } },
+    }, enums: { _CanModelConstraint_: { cases: ['A'] } },
+    aliases: { _CanModelConstraint__: { type: 'text', min: 1, max: 3, format: 'name' } } });
+    const table = buildModelTable([modelDef(JOB, { fields: {
+      items: { required: false, serverOnly: false, valueType: 'Test.Item[]',
+        array: { required: false }, min: 1, max: 2 },
+    } })], { valueSchema });
+    const { store } = createTestMemoryStorage();
+    const context = buildContext({ identity: makeIdentity(), operation: asOperation(`${JOB}.create`),
+      operationId: nextId(), app: 'modifier-test', source: 'test', now: FIXED_NOW });
+    const run = (items: unknown[]) => runMutationWrites({ table, store, context,
+      encodeField: (type, value) => encodeValue(type, validateValue(valueSchema, type, value, 'create') as CanValue),
+      writes: [{ op: 'create', model: asModel(JOB), id: asId(nextId()), data: { items } }] });
+    const good = await run([{ id: 'item-1', label: 'one' }]);
+    if (good.writes[0]?.kind !== 'insert') throw new Error('expected insert');
+    assert.deepEqual(good.writes[0].row.data.items, [{ id: 'item-1', label: 'one' }]);
+    const missing = await captureStateError(run([{ id: 'item-1' }]));
+    assert.equal(missing.code, 'validation');
+    const tooMany = await captureStateError(run([{ id: '1', label: 'a' }, { id: '2', label: 'b' }, { id: '3', label: 'c' }]));
+    assert.equal(tooMany.code, 'validation');
   });
 });
