@@ -36,6 +36,20 @@ supply the prerequisite. This finite correction supersedes the array shutdown
 failure; UI descriptor admission and current-source whole qualification remain
 unfinished. Original completion remains **58/67**, with **9 open** references.
 
+
+**Local continuation — UI descriptor admission, 2026-10-09.** The saved
+ownerless-enum sink correction now executes through checked named/anonymous,
+grouped and producer-returned descriptors. Stat descriptions gain resolved,
+typed, pure caption expressions and the existing bound-caption decoder; actual
+native UI renders the supported nominal-enum description. Button remains an
+explicit unsupported source-profile refusal. The affected bindings target
+passes its eight descriptor/native cases; the new option-refusal target passes
+**1/1** after correcting the operation-expression refusal expectation to E3005.
+Affected codegen **117/117**, slots **6/6**, selected calls **7/7** and UI adapter
+**7/7** pass. Values ownerless-enum formatting remains admitted; its UI runtime
+profile remains owner-blocked and fails before artifact publication. These
+finite checks supersede the shutdown failures, without broader completion.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed

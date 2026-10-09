@@ -3635,3 +3635,8 @@ Preserve the InlineMessage reflexive loose_equal arm and actual CLI/native array
 ## 2026-10-09 — retain inline descriptor array elements locally
 
 Include `MessageValue` in IR expression-child recognition so arrays accepted by the saved reflexive InlineMessage typing retain their raw/grouped elements. Preserve ordinary business text arrays and mixed/text/named-schema descriptor refusals. The production CLI/native coverage target passes 3/3 after supplying the local locked package/catalog prerequisites. This is a finite implementation choice; independent review and current-source integrated qualification remain separate, with no original reference-count increase.
+
+
+## 2026-10-09 — close checked UI descriptor admission locally
+
+Retain the saved sink-specific ownerless-enum refusal while admitting supported descriptor profiles to real UI factories. Stat description expressions now resolve/typecheck with purity and reuse bound caption admission, including bare-parameterized refusal; retain button as an explicit unsupported source-profile control. Native supported captions and descriptions pass; affected bindings eight cases plus the corrected option-refusal case1/1, codegen117/117, slots6/6, selected calls7/7 and adapter7/7 pass. The first option-control run expected E3010 where operation expression calls already refuse E3005; only that diagnostic expectation changed. Values formatting remains supported, and canonical enum UI recognition remains its owning prerequisite. No whole-source or full-reference acceptance follows.
