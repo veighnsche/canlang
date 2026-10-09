@@ -45,8 +45,11 @@ export {
 } from './crud.js';
 export {
   bindOwnerModelPolicies,
+  bindArtifactOwnerModelPolicies,
+  checkOwnerModelPolicyDescriptors,
   assertCheckedOwnerModelPolicies,
   type CheckedOwnerModelPolicies,
+  type SourceVerifiedOwnerModelPolicyModule,
   type OwnerModelChange,
   type OwnerModelReadView,
   type OwnerModelPolicyViews,
