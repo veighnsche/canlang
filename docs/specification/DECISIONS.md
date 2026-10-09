@@ -3627,3 +3627,7 @@ Accepted the coordinator’s final four-job CI and shared exported-self-referenc
 ## 2026-10-09 — Connect deployed page preference POSTs
 
 Accepted the existing Interfaces preference handler and canonical refusal mapper as the deployed page POST consumer. Export its helpers in the real HTTP bundle and dispatch POST in the Worker default factory, preserving GET/HEAD and full page deps. Actual default-loader checks pass 17/17, including CSRF, actor/team admission, owner isolation, stale versions and 400/403/409 responses; the bundle export check passes. The protected Office edit already persists; its full tab/delete/shared-view browser consumer remains due after the source rebuild.
+
+## 2026-10-09 — Keep affected Cloudflare CI fixtures on current contracts
+
+Accepted typed test-host/fixture corrections for current Undici fetch values, JSON import attributes, immutable runtime mocks and exact optional control/business-error fields. Runtime staging fixtures retain real entry bytes/hash, app policy and selector provenance. Browser cases use Playwright’s installed Chromium, including the unchanged native CDP visibility path. Root noEmit passes; bridge/control 13/13 and runtime stdlib 20/20 pass, MCP/module-import checks pass, and the three previously failed browser launches now pass their actual assertions. No checks are disabled and no production admission is widened.

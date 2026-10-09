@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { posix } from "node:path";
 import { decode } from "@jridgewell/sourcemap-codec";
-import corpus from "./fixtures/import-policy-contract.json";
+import corpus from "./fixtures/import-policy-contract.json" with { type: "json" };
 import { rewriteModuleImports, scanModuleImports, validateArtifactModuleImports, type ImportErrorPrefix } from "../src/deploy/module-imports.js";
 
 interface Control {
