@@ -126,7 +126,7 @@ import type {
 } from "./context.js";
 import { createContext } from "./context.js";
 import type { AssembledModules } from "./modules.js";
-import { importVerifiedAssemblyModule } from './assembly-verification.js';
+import { importVerifiedAssemblyModule, verifyAssemblerModuleCapability } from './assembly-verification.js';
 import type { MappedPosition } from "./sourcemap.js";
 import { lookup } from "./sourcemap.js";
 import { stageAuthoredDelivery } from "./receipt-staging.js";
@@ -363,7 +363,11 @@ async function invokeWith(
   }
   let mod: Record<string, unknown>;
   try {
-    mod = (await import(moduleUrl)) as Record<string, unknown>;
+    const checkedScenario = requiresScenarioCorrespondence(artifact);
+    if (checkedScenario) await verifyScenarioAssembly(asm, artifact, canonicalCache.get(artifact)?.scenarioAssembly);
+    mod = (checkedScenario
+      ? await importVerifiedAssemblyModule(asm, callable.module, artifact)
+      : await import(moduleUrl)) as Record<string, unknown>;
   } catch (error) {
     return {
       ok: false,
@@ -443,7 +447,10 @@ async function invokeWith(
   }
   const fn = current as (ctx: HandlerContext, ...args: unknown[]) => unknown;
   try {
+    const checkedScenario = requiresScenarioCorrespondence(artifact);
+    if (checkedScenario) await verifyScenarioAssembly(asm, artifact, canonicalCache.get(artifact)?.scenarioAssembly);
     const value = await fn(ctx, ...(args ?? []));
+    if (checkedScenario) await verifyScenarioAssembly(asm, artifact, canonicalCache.get(artifact)?.scenarioAssembly);
     return { ok: true, value };
   } catch (error) {
     if (preserveThrown) throw error;
@@ -1208,6 +1215,8 @@ interface StateInvokeProducer {
      */
     readonly conflictServerOnly?: ReadonlyMap<string, ReadonlySet<string>>;
   }): Promise<MutationResult>;
+  readonly readScenarioReceiptAssociation?: typeof import('@canlang/state/invocation').readScenarioReceiptAssociation;
+  readonly projectScenarioReceipt?: typeof import('@canlang/state/invocation').projectScenarioReceipt;
   projectGeneratedCrudReceipt?(input: {
     readonly receipt: Receipt;
     readonly registry: ReadonlyMap<string, unknown>;
@@ -1452,6 +1461,7 @@ function requireProducerFn(
 async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
   const registryMod = await loadProducerModule(STATE_REGISTRY_SPECIFIER, "state registry producer");
   const invokeMod = await loadProducerModule(STATE_INVOKE_SPECIFIER, "state invoke producer");
+  const scenarioMod = await loadProducerModule('@canlang/state/invocation', 'state scenario receipt producer');
   const crudMod = await loadProducerModule(STATE_CRUD_SPECIFIER, "state CRUD producer");
   const modelsMod = await loadProducerModule(STATE_MODELS_SPECIFIER, "state models producer");
   const errorsMod = await loadProducerModule(STATE_ERRORS_SPECIFIER, "state errors producer");
@@ -1513,6 +1523,12 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
         invokeRetainedReceiptOnly: invokeMod['invokeRetainedReceiptOnly'] as NonNullable<StateInvokeProducer['invokeRetainedReceiptOnly']>,
       }),
       invokeRead: invokeRead as StateInvokeProducer["invokeRead"],
+      ...(typeof scenarioMod['readScenarioReceiptAssociation'] !== 'function' ? {} : {
+        readScenarioReceiptAssociation: scenarioMod['readScenarioReceiptAssociation'] as NonNullable<StateInvokeProducer['readScenarioReceiptAssociation']>,
+      }),
+      ...(typeof scenarioMod['projectScenarioReceipt'] !== 'function' ? {} : {
+        projectScenarioReceipt: scenarioMod['projectScenarioReceipt'] as NonNullable<StateInvokeProducer['projectScenarioReceipt']>,
+      }),
       ...(typeof invokeMod['projectGeneratedCrudReceipt'] !== 'function' ? {} : {
         projectGeneratedCrudReceipt: invokeMod['projectGeneratedCrudReceipt'] as NonNullable<StateInvokeProducer['projectGeneratedCrudReceipt']>,
       }),
@@ -2008,7 +2024,56 @@ export interface LoadedCanonicalDescriptors {
  * Assembly preloads (failing before serving); standalone invokers
  * load lazily on first canonical call.
  */
-const canonicalCache = new WeakMap<CompileArtifact, LoadedCanonicalDescriptors>();
+const canonicalCache = new WeakMap<CompileArtifact, {
+  loaded: LoadedCanonicalDescriptors;
+  scenarioAssembly?: AssembledModules;
+}>();
+
+/** Presence gate only: State still owns descriptor/claim schema validation. */
+function claimsScenarioDisclosure(artifact: CompileArtifact): boolean {
+  const descriptor = (object: object, key: string): PropertyDescriptor | undefined => {
+    for (let current: object | null = object; current !== null; current = Object.getPrototypeOf(current) as object | null) {
+      const found = Object.getOwnPropertyDescriptor(current, key);
+      if (found !== undefined) return found;
+    }
+    return undefined;
+  };
+  const operations = descriptor(artifact, 'operations');
+  if (operations === undefined) return false;
+  if (!('value' in operations)) throw new Error('Scenario source correspondence requires data-only operation metadata.');
+  const entries: unknown = operations.value;
+  if (!Array.isArray(entries)) return false;
+  for (let index = 0; index < entries.length; index++) {
+    const entry = descriptor(entries, String(index));
+    if (entry === undefined) continue;
+    if (!('value' in entry)) throw new Error('Scenario source correspondence requires data-only operation metadata.');
+    if (!isUnknownRecord(entry.value)) continue;
+    const result = descriptor(entry.value, 'result');
+    if (result === undefined) continue;
+    if (!('value' in result)) throw new Error('Scenario source correspondence requires data-only result metadata.');
+    if (isUnknownRecord(result.value)) {
+      const disclosure = descriptor(result.value, 'disclosure');
+      if (disclosure !== undefined) {
+        if (!('value' in disclosure)) throw new Error('Scenario source correspondence requires data-only disclosure metadata.');
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function requiresScenarioCorrespondence(artifact: CompileArtifact): boolean {
+  const claimed = claimsScenarioDisclosure(artifact);
+  return claimed || canonicalCache.get(artifact)?.scenarioAssembly !== undefined;
+}
+
+async function verifyScenarioAssembly(asm: AssembledModules, artifact: CompileArtifact,
+  original?: AssembledModules): Promise<void> {
+  if (original !== undefined && asm !== original) {
+    throw new Error('Scenario disclosure requires its original verified assembly.');
+  }
+  await verifyAssemblerModuleCapability(asm, artifact);
+}
 
 function assertServableModelRules(where: string, metadata: unknown, verifiedOwner = false): void {
   if (!isUnknownRecord(metadata)) return;
@@ -2504,12 +2569,17 @@ export async function loadCanonicalDescriptors(
   asm: AssembledModules,
   artifact: CompileArtifact,
 ): Promise<LoadedCanonicalDescriptors> {
+  const claimedScenario = claimsScenarioDisclosure(artifact);
   const cached = canonicalCache.get(artifact);
   if (cached !== undefined) {
-    const ownerControl = localOwnerPolicyControls.get(cached);
+    if (cached.scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact, cached.scenarioAssembly);
+    else if (claimedScenario) throw new Error('Scenario disclosure differs from its cached source plan.');
+    const ownerControl = localOwnerPolicyControls.get(cached.loaded);
     if (ownerControl !== undefined) await ownerControl.verifyAssembly(asm, artifact);
-    return cached;
+    return cached.loaded;
   }
+  const scenarioAssembly = claimedScenario ? asm : undefined;
+  if (scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact);
   if (artifact.requires.some((entry) => entry.capability === "state.machines") ||
       artifact.models?.some((model) => model.fields.some((field) => field.machine !== undefined))) {
     const catalogMod = await loadProducerModule("@canlang/state/catalog", "state capability catalog");
@@ -2646,7 +2716,8 @@ export async function loadCanonicalDescriptors(
     ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }),
   };
   if (ownerPolicyControl !== undefined) localOwnerPolicyControls.set(canonical, ownerPolicyControl);
-  canonicalCache.set(artifact, canonical);
+  if (scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact, scenarioAssembly);
+  canonicalCache.set(artifact, { loaded: canonical, ...(scenarioAssembly === undefined ? {} : { scenarioAssembly }) });
   return canonical;
 }
 
@@ -4697,15 +4768,28 @@ async function invokeCanonicalMutation(
   if (invoke === undefined) {
     throw new StateError('validation', 'Installed State producer lacks retained-receipt-only recovery.');
   }
+  const checkedScenario = generatedScenarioDef({ def: loaded.registry.get(opts.operation) });
+  if (checkedScenario?.descriptor.kind === 'scenario' && checkedScenario.descriptor.result?.disclosure !== undefined &&
+      (loaded.producers.invoke.readScenarioReceiptAssociation === undefined || loaded.producers.invoke.projectScenarioReceipt === undefined)) {
+    throw new StateError('validation', 'Installed State producer cannot disclose a saved scenario outcome.');
+  }
   if (receiptOnly) {
     if (!loaded.registry.has(opts.operation)) {
       throw new StateError('validation', `Unknown operation ${JSON.stringify(opts.operation)}.`);
     }
     const kind = seamDefKind(loaded.registry.get(opts.operation), opts.operation);
-    if (kind !== 'create' && kind !== 'update' && kind !== 'delete') {
-      throw new StateError('validation', 'Retained scenario disclosure requires the owning current-access projection.');
+    if (kind === 'scenario') {
+      if (checkedScenario?.descriptor.result?.disclosure === undefined) {
+        throw new StateError('validation', 'Retained scenario disclosure requires its current checked source plan.');
+      }
+      if (loaded.producers.invoke.readScenarioReceiptAssociation === undefined ||
+          loaded.producers.invoke.projectScenarioReceipt === undefined) {
+        throw new StateError('validation', 'Installed State producer cannot disclose a saved scenario outcome.');
+      }
+    } else if (kind !== 'create' && kind !== 'update' && kind !== 'delete') {
+      throw new StateError('validation', 'Retained recovery requires a checked mutation operation.');
     }
-    if (loaded.producers.invoke.projectGeneratedCrudReceipt === undefined) {
+    if (kind !== 'scenario' && loaded.producers.invoke.projectGeneratedCrudReceipt === undefined) {
       throw new StateError('validation', 'Installed State producer cannot disclose a saved CRUD outcome.');
     }
   }
@@ -4716,29 +4800,31 @@ async function invokeCanonicalMutation(
     // State invoke owns fence retries; retain the native storage exception.
     return opts.store.commit(batch);
   } });
-  const ownerControl = localOwnerPolicyControls.get(loaded);
-  const crudInput = {
-    table: loaded.table,
-    store: receiptStore,
-    secretFields: loaded.secretFields,
-    encodeField: (type: CanTypeId, value: unknown) => encodeCanonicalWireField(StateError, type, value, loaded.valueSchema),
-  };
-  let crudExecute: (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
-  if (ownerControl === undefined) {
-    crudExecute = loaded.producers.crud.generatedCrudExecute(crudInput);
-  } else {
-    const executeOwner = loaded.producers.crud.generatedCrudExecuteOwnerSession;
-    if (typeof executeOwner !== 'function') {
-      throw new StateError('validation', 'Installed State producer lacks generatedCrudExecuteOwnerSession.');
+  let crudExecute: ((call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>) | undefined;
+  if (!receiptOnly) {
+    const ownerControl = localOwnerPolicyControls.get(loaded);
+    const crudInput = {
+      table: loaded.table,
+      store: receiptStore,
+      secretFields: loaded.secretFields,
+      encodeField: (type: CanTypeId, value: unknown) => encodeCanonicalWireField(StateError, type, value, loaded.valueSchema),
+    };
+    if (ownerControl === undefined) {
+      crudExecute = loaded.producers.crud.generatedCrudExecute(crudInput);
+    } else {
+      const executeOwner = loaded.producers.crud.generatedCrudExecuteOwnerSession;
+      if (typeof executeOwner !== 'function') {
+        throw new StateError('validation', 'Installed State producer lacks generatedCrudExecuteOwnerSession.');
+      }
+      const execute = executeOwner({ ...crudInput, table: loaded.table as ModelTable,
+        secretFields: loaded.secretFields as ReadonlyMap<ModelName, readonly string[]>,
+        ownerPolicies: ownerControl.policies,
+        ownerBounds: Object.freeze({ maxRows: 1_000, maxWork: 10_000 }),
+        createOwnerFrame: async ({ call, session }) => ownerControl.createOwnerFrame({ call, session }),
+      });
+      // Canonical admission supplies the defining State call at this seam.
+      crudExecute = execute as unknown as (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
     }
-    const execute = executeOwner({ ...crudInput, table: loaded.table as ModelTable,
-      secretFields: loaded.secretFields as ReadonlyMap<ModelName, readonly string[]>,
-      ownerPolicies: ownerControl.policies,
-      ownerBounds: Object.freeze({ maxRows: 1_000, maxWork: 10_000 }),
-      createOwnerFrame: async ({ call, session }) => ownerControl.createOwnerFrame({ call, session }),
-    });
-    // Canonical admission supplies the defining State call at this seam.
-    crudExecute = execute as unknown as (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
   }
   // One opaque ID per actual schedule ordinal, retained across State retries.
   const occurrenceIds: string[] = [];
@@ -4774,6 +4860,7 @@ async function invokeCanonicalMutation(
         if (loaded.unsupportedHookOperations.has(opts.operation)) {
           throw new StateError('validation', `Operation ${JSON.stringify(opts.operation)} requires unsupported canonical hooks.`);
         }
+        if (crudExecute === undefined) throw new Error('Canonical CRUD execution factory was not initialized.');
         effects = await crudExecute(call);
         if (kind !== 'delete') {
           const operation = opts.artifact.operations?.find(entry => entry.name === opts.operation);
@@ -4803,19 +4890,38 @@ async function invokeCanonicalMutation(
       return { ...effects, guards: [...effects.guards ?? [], ...stagedFiles.guards] };
     },
   });
-  if (!receiptOnly && opts.files !== undefined) {
-    // File metadata and State are separate durable stores in this native host.
-    // A lost attachment response is repaired on the same State-receipted retry;
-    // it never repeats the domain mutation or pretends to be one SQL transaction.
+  const kind = seamDefKind(loaded.registry.get(opts.operation), opts.operation);
+  const claimsScenario = committedReceipt !== undefined && Object.hasOwn(committedReceipt.outcome, 'scenario');
+  let scenarioProjection: { readonly result: unknown; readonly records: readonly ProjectedRecord[] } | undefined;
+  if (claimsScenario || checkedScenario?.descriptor.result?.disclosure !== undefined ||
+      kind === 'scenario' && (receiptOnly || result.status === 'replayed')) {
+    const producer = loaded.producers.invoke;
+    if (committedReceipt === undefined || producer.readScenarioReceiptAssociation === undefined ||
+        producer.projectScenarioReceipt === undefined) {
+      throw new StateError('validation', 'Installed State producer cannot disclose a saved scenario outcome.');
+    }
+    // Recognized malformed metadata throws in State; legacy saved values are
+    // never disclosed raw or upgraded with an association inferred here.
+    if (producer.readScenarioReceiptAssociation(committedReceipt) === null) {
+      throw new StateError('validation', 'Saved scenario has no supported execution association.');
+    }
+    scenarioProjection = await producer.projectScenarioReceipt({ receipt: committedReceipt,
+      registry: loaded.registry as Parameters<NonNullable<StateInvokeProducer['projectScenarioReceipt']>>[0]['registry'],
+      policy: loaded.policy as Parameters<NonNullable<StateInvokeProducer['projectScenarioReceipt']>>[0]['policy'],
+      app: opts.app, identity: opts.identity, store: opts.store, memberships: opts.memberships,
+    });
+  }
+  if (!receiptOnly && opts.files !== undefined && !(kind === 'scenario' && result.status === 'replayed')) {
+    // Ordinary fresh operations retain the existing attachment repair behavior.
+    // Scenario recovery/projected replay performs no file metadata access.
     await retainCommittedFiles({
       artifact: opts.artifact, operation: opts.operation, inputs: opts.inputs,
       result: result.result, attachments, store: opts.store, files: opts.files,
       identity: opts.identity, app: opts.app,
     });
   }
-  // The public generated-CRUD contract maps saved content. Scenario
-  // disclosure remains a separate join; raw retention above stays internal.
-  const kind = seamDefKind(loaded.registry.get(opts.operation), opts.operation);
+  if (scenarioProjection !== undefined) return { ...result, ...scenarioProjection };
+  // Generated CRUD keeps its defining saved-outcome projection.
   if (kind === 'create' || kind === 'update' || kind === 'delete' ||
       (committedReceipt !== undefined && Object.hasOwn(committedReceipt.outcome, 'generatedCrud'))) {
     if (committedReceipt === undefined || loaded.producers.invoke.projectGeneratedCrudReceipt === undefined) {
