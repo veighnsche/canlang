@@ -578,6 +578,12 @@ export function createD1IdentityStore(
         .all<MembershipRow>();
       return result.results.map(toMembership);
     },
+    async listActiveUserTeamsPage(user_id, after) {
+      const result = await db.prepare(
+        `SELECT t.team_id, t.timezone FROM identity_memberships AS m INNER JOIN identity_teams AS t ON t.team_id = m.team_id WHERE m.user_id = ? AND m.status = 'active' AND (? IS NULL OR t.team_id > ?) ORDER BY t.team_id ASC LIMIT 101`,
+      ).bind(user_id, after, after).all<Pick<Team, 'team_id' | 'timezone'>>();
+      return result.results;
+    },
     async listActiveOwners(team_id) {
       const result = await db
         .prepare(

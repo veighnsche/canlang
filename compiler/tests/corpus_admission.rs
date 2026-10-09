@@ -78,7 +78,7 @@ fn local_foreign_alias_and_unchecked_model_refuse_shipping() {
 }
 
 #[test]
-fn grammar_and_judgment_refusals_remain_separate() {
+fn grammar_refusal_and_static_judgment_admission_remain_separate() {
     for command in ["check", "compile"] {
         let (code, output) = cli(command, "bare", "json");
         assert_eq!(code, 10, "{output}");
@@ -87,11 +87,13 @@ fn grammar_and_judgment_refusals_remain_separate() {
     }
     assert_eq!(cli("check", "judgment", "json").0, 0);
     let (code, output) = cli("compile", "judgment", "json");
-    assert_eq!(code, 10, "{output}");
-    let rejected: Value = serde_json::from_str(&output).unwrap();
-    assert_eq!(rejected["diagnostics"].as_array().unwrap().len(), 1);
-    assert_eq!(rejected["diagnostics"][0]["code"], "E6006");
-    assert!(rejected.get("artifact_version").is_none());
+    assert_eq!(code, 0, "{output}");
+    let artifact: Value = serde_json::from_str(&output).unwrap();
+    assert!(artifact.get("diagnostics").is_none());
+    let js = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(js.contains("judgments:{\"Decisions.Verdict\":{sourceLanguage:\"en\",version:1n,questions:[{name:\"acceptable\",kind:\"noul\",instructions:"), "{js}");
+    assert!(js.contains("(\"Acceptable?\",{},undefined,\"en\")"), "{js}");
+    assert_eq!(js.matches("kind:\"noul\"").count(), 1);
 }
 
 #[test]

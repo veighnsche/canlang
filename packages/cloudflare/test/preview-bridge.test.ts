@@ -127,16 +127,17 @@ describe("protected local preview", () => {
       let signal: AbortSignal | undefined;
       const dev: Pick<LocalDev, "dispatchUrl"> = {
         dispatchUrl: async (_url, init) => {
-          signal = init?.signal;
+          signal = init?.signal ?? undefined;
           if (stage === "dispatch") {
             entered();
             return new Promise<Awaited<ReturnType<LocalDev["dispatchUrl"]>>>(() => {});
           }
           const response = new Response("unused");
-          response.arrayBuffer = () => {
+          // Install the intentionally nonsettling body reader on this fixture only.
+          Object.defineProperty(response, "arrayBuffer", { value: () => {
             entered();
             return new Promise<ArrayBuffer>(() => {});
-          };
+          } });
           return response as Awaited<ReturnType<LocalDev["dispatchUrl"]>>;
         },
       };

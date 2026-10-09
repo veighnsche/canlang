@@ -314,11 +314,8 @@ fn canfeedback_176_planned_elides() {
     assert!(hits.is_empty(), "G1 proposed now elides: {hits:?}");
 }
 
-/// CanInbox `urgency=routine` parity: the examples header keeps its
-/// `E2001` exactly like the fixture `urgency=today` — both are
-/// G3-blocked (`Triage.urgency.level` carries no expected enum until
-/// judgment resolution lands), so neither position elides. The
-/// invariant is parity itself: header and fixture must agree.
+/// CanInbox header and fixture cases share the checked Judgment urgency domain.
+/// Foreign cases and unowned opaque level words retain unresolved-name diagnostics.
 #[test]
 fn caninbox_header_routine_parity() {
     let Some(catalog) = real_catalog() else {
@@ -326,23 +323,137 @@ fn caninbox_header_routine_parity() {
         return;
     };
     let (db, id, text) = load_draft("CanInbox.can");
-    let (_program, diags) = check_program(&db, &[id], Some(&catalog));
-    let (start, _) = span_of(&text, "urgency=routine reason=", 1);
-    let header = covering(&diags, "E2001", start + "urgency=".len() as u32);
-    let (start, _) = span_of(&text, "urgency=today,", 1);
-    let fixture = covering(&diags, "E2001", start + "urgency=".len() as u32);
+    let (program, diags) = check_program(&db, &[id], Some(&catalog));
+    let judgment = program
+        .types
+        .judgments
+        .iter()
+        .find_map(|(symbol, judgment)| {
+            (program.symbols[symbol.0 as usize].canonical == "inbox.Triage").then_some(judgment)
+        })
+        .expect("owning Triage Judgment");
+    let urgency = judgment
+        .questions
+        .iter()
+        .find(|question| question.name == "urgency")
+        .expect("declared urgency score");
+    let cases: Vec<_> = urgency
+        .levels
+        .iter()
+        .map(|level| level.id.as_str())
+        .collect();
+    assert_eq!(cases, ["routine", "today", "immediate"]);
+    let field = program
+        .symbols
+        .iter()
+        .find(|symbol| symbol.canonical == "inbox.Review.urgency")
+        .expect("Review urgency field");
+    let domain = program
+        .types
+        .symbol_types
+        .get(&field.id)
+        .expect("checked Judgment field type");
+    let canlang_compiler::analysis::ResolvedType::Enum {
+        cases: field_cases, ..
+    } = domain
+    else {
+        panic!("Judgment urgency field must be enum: {domain:?}");
+    };
     assert_eq!(
-        header.len(),
-        fixture.len(),
-        "header and fixture agree (G3-blocked today): header={header:?} fixture={fixture:?}"
+        field_cases.iter().map(String::as_str).collect::<Vec<_>>(),
+        cases
     );
-    assert_eq!(header.len(), 1, "G3-blocked sites keep E2001");
-    // P3 control: opaque `urgency={...level=routine...}` has no expected
-    // enum, so its E2001 must survive.
+    let parameter = program
+        .symbols
+        .iter()
+        .find(|symbol| symbol.canonical == "inbox.review.urgency")
+        .expect("owning review urgency parameter");
+    assert_eq!(
+        program.types.symbol_types.get(&parameter.id),
+        Some(domain),
+        "header parameter and fixture field share the Judgment domain"
+    );
+    for (needle, spelling) in [
+        ("urgency=routine reason=", "routine"),
+        ("urgency=today,", "today"),
+    ] {
+        let (start, _) = span_of(&text, needle, 1);
+        let offset = start + "urgency=".len() as u32;
+        assert!(
+            covering(&diags, "E2001", offset).is_empty(),
+            "valid {spelling}: {diags:?}"
+        );
+        assert_eq!(
+            &text[offset as usize..offset as usize + spelling.len()],
+            spelling
+        );
+        assert!(field_cases.iter().any(|case| case == spelling));
+        // The examples pass validates the header against its parameter and
+        // retracts E2001; only the fixture initializer publishes a type claim.
+        if spelling == "routine" {
+            continue;
+        }
+        let key = program
+            .types
+            .resolved_cases
+            .iter()
+            .find(|key| {
+                if key.file != id || key.kind != canlang_compiler::syntax::SyntaxKind::NameRef as u8 {
+                    return false;
+                }
+                let raw = &text[key.start as usize..key.end as usize];
+                let leading = raw.len() - raw.trim_start().len();
+                key.start + leading as u32 == offset && raw.trim() == spelling
+            })
+            .unwrap_or_else(|| {
+                let nearby: Vec<_> = program.types.resolved_cases.iter()
+                    .filter(|key| key.file == id && key.start <= offset && offset < key.end)
+                    .map(|key| (key, &text[key.start as usize..key.end as usize], program.types.node_types.get(key)))
+                    .collect();
+                panic!("{spelling} needs a NameRef claim at authored offset {offset}; nearby claims={nearby:?}");
+            });
+        assert_eq!(
+            program.types.node_types.get(key),
+            Some(domain),
+            "{spelling} owning enum"
+        );
+    }
+    // Provider result snapshots have no owning urgency-level expected type.
     let (start, _) = span_of(&text, "level=routine", 1);
     let offset = start + "level=".len() as u32;
     let hits = covering(&diags, "E2001", offset);
     assert_eq!(hits.len(), 1, "opaque level=routine keeps E2001");
+    assert_eq!(
+        &text[hits[0].primary.start as usize..hits[0].primary.end as usize],
+        "routine"
+    );
+
+    let foreign = text
+        .replace("urgency=routine reason=", "urgency=foreign_urgency reason=")
+        .replace("urgency=today,", "urgency=foreign_urgency,");
+    let (foreign_program, foreign_diags) = check_src(&foreign, Some(&catalog));
+    for needle in [
+        "urgency=foreign_urgency reason=",
+        "urgency=foreign_urgency,",
+    ] {
+        let (start, _) = span_of(&foreign, needle, 1);
+        let offset = start + "urgency=".len() as u32;
+        let hits = covering(&foreign_diags, "E2001", offset);
+        assert_eq!(
+            hits.len(),
+            1,
+            "foreign urgency remains unresolved: {foreign_diags:?}"
+        );
+        assert_eq!(
+            &foreign[hits[0].primary.start as usize..hits[0].primary.end as usize],
+            "foreign_urgency"
+        );
+        assert!(!foreign_program.types.resolved_cases.iter().any(|key| {
+            let raw = &foreign[key.start as usize..key.end as usize];
+            let leading = raw.len() - raw.trim_start().len();
+            key.start + leading as u32 == offset && raw.trim() == "foreign_urgency"
+        }));
+    }
 }
 
 // --- Emission parity ---------------------------------------------------------

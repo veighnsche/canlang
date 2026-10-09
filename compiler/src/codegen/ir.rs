@@ -378,6 +378,12 @@ pub struct IrFieldLabel {
     pub values: Vec<(String, IrMessage)>,
 }
 
+/// Authored label parts before an inherited field caption is resolved.
+struct DecodedFieldLabel {
+    text: Option<IrMessage>,
+    values: Vec<(String, IrMessage)>,
+}
+
 /// One catalog-builtin reference needing an availability check at link time.
 ///
 /// PR5 seeds this from checked call positions; the JS lowering appends the
@@ -942,6 +948,7 @@ pub fn scalar_family(ty: &ResolvedType) -> Option<ScalarFamily> {
         | ResolvedType::Union(_)
         | ResolvedType::Object(_)
         | ResolvedType::Operation(_)
+        | ResolvedType::InlineMessage
         | ResolvedType::Opaque(_) => None,
     }
 }
@@ -961,6 +968,7 @@ pub fn is_structural(ty: &ResolvedType) -> bool {
         | ResolvedType::OperationContext
         | ResolvedType::Enum { .. }
         | ResolvedType::Message(_)
+        | ResolvedType::InlineMessage
         | ResolvedType::Action { .. }
         | ResolvedType::Invocation { .. }
         | ResolvedType::Delivery { .. }
@@ -2568,6 +2576,18 @@ impl<'a> Cx<'a> {
 
     /// Decode a field-label value: plain message or `{text, values}`.
     fn decode_field_label(&mut self, module: ModuleId, key: &NodeKey) -> Option<IrFieldLabel> {
+        let label = self.decode_field_label_parts(module, key)?;
+        Some(IrFieldLabel {
+            text: label.text?,
+            values: label.values,
+        })
+    }
+
+    fn decode_field_label_parts(
+        &mut self,
+        module: ModuleId,
+        key: &NodeKey,
+    ) -> Option<DecodedFieldLabel> {
         let node = self.node(key)?.clone();
         match node.kind {
             SyntaxKind::Label => {
@@ -2588,16 +2608,89 @@ impl<'a> Cx<'a> {
                         _ => {}
                     }
                 }
-                text.map(|text| IrFieldLabel { text, values })
+                Some(DecodedFieldLabel { text, values })
             }
             SyntaxKind::Literal | SyntaxKind::MessageValue | SyntaxKind::Path => self
                 .decode_message_node(module, &node)
-                .map(|text| IrFieldLabel {
-                    text,
+                .map(|text| DecodedFieldLabel {
+                    text: Some(text),
                     values: Vec::new(),
                 }),
             _ => None,
         }
+    }
+
+    fn decode_declared_field_label_parts(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+        owner: SymbolId,
+    ) -> Option<DecodedFieldLabel> {
+        let key =
+            self.program
+                .effects
+                .models
+                .get(&owner)
+                .and_then(|model| model.fields.iter().find(|field| field.field == symbol.id))
+                .or_else(|| {
+                    self.program.effects.records.get(&owner).and_then(|record| {
+                        record.fields.iter().find(|field| field.field == symbol.id)
+                    })
+                })
+                .and_then(|field| field.label)?;
+        self.decode_field_label_parts(symbol.module, &key)
+    }
+
+    /// Reused fields inherit the immediately referenced declaration first.
+    /// Case overrides compose through the checked chain; text captions only
+    /// cross a reuse edge when both fields keep the same name.
+    fn decode_reused_field_label_parts(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+    ) -> Option<DecodedFieldLabel> {
+        let mut chain = Vec::new();
+        let mut current = symbol.clone();
+        let mut seen = HashSet::new();
+        while seen.insert(current.id) {
+            let SymbolKind::Field { owner, .. } = &current.kind else {
+                break;
+            };
+            chain.push((
+                current.name.clone(),
+                self.decode_declared_field_label_parts(&current, *owner),
+            ));
+            let next = self
+                .program
+                .types
+                .field_reuse_sources
+                .get(&current.id)
+                .copied();
+            let Some(next) = next
+                .and_then(|id| self.program.symbols.get(id.0 as usize))
+                .cloned()
+            else {
+                break;
+            };
+            current = next;
+        }
+        let mut inherited: Option<(String, DecodedFieldLabel)> = None;
+        for (name, declared) in chain.into_iter().rev() {
+            let mut label = declared.unwrap_or(DecodedFieldLabel {
+                text: None,
+                values: Vec::new(),
+            });
+            if let Some((source_name, source)) = inherited {
+                if label.text.is_none() && name == source_name {
+                    label.text = source.text;
+                }
+                for (case, caption) in source.values {
+                    if !label.values.iter().any(|(declared, _)| declared == &case) {
+                        label.values.push((case, caption));
+                    }
+                }
+            }
+            inherited = Some((name, label));
+        }
+        inherited.map(|(_, label)| label)
     }
 
     /// Decode one `case=caption` label case.
@@ -2700,6 +2793,13 @@ impl<'a> Cx<'a> {
         }
         let expr = match node.kind {
             SyntaxKind::Literal => self.decode_literal(node),
+            SyntaxKind::MessageValue => self
+                .decode_message_node(scope.module, node)
+                .map(IrExpr::Message)
+                .unwrap_or_else(|| IrExpr::Unsupported {
+                    what: "inline message descriptor".to_string(),
+                    why: "authored descriptor text is unavailable".to_string(),
+                }),
             SyntaxKind::NameRef => self.decode_name_ref(scope, node, &ty),
             SyntaxKind::Group => {
                 return match kids(node).iter().find(|n| is_expression(n.kind)) {
@@ -2950,6 +3050,16 @@ impl<'a> Cx<'a> {
             let fixture_name = self.local_name(*fixture);
             return member_of("s", &fixture_name, &self.fixture_type(*fixture), node.span);
         }
+        // These reads refer to checked immutable descriptor lets. Keep their
+        // captured value even when a module message/fixture shares the name.
+        if self
+            .program
+            .types
+            .message_descriptor_references
+            .contains_key(&key)
+        {
+            return IrExpr::Name(name);
+        }
         if is_enum_ty(ty) && self.program.types.bound_names.contains(&key) {
             return IrExpr::Name(name);
         }
@@ -3147,6 +3257,7 @@ fn is_expression(kind: SyntaxKind) -> bool {
     matches!(
         kind,
         SyntaxKind::Literal
+            | SyntaxKind::MessageValue
             | SyntaxKind::NameRef
             | SyntaxKind::Group
             | SyntaxKind::Array
@@ -3754,12 +3865,20 @@ impl<'a> Cx<'a> {
         // Inline descriptors have no declared parameters. Their syntax supplies
         // text only; the owning checked module supplies source language.
         let inline = descriptor_node.kind == SyntaxKind::MessageValue;
-        let anonymous = self
+        // Resolve only schema provenance. The argument below still lowers the
+        // authored local read, retaining its already evaluated descriptor.
+        let descriptor_key = NodeKey::of(&descriptor_node);
+        let origin = self
             .program
             .types
-            .anonymous_messages
-            .get(&NodeKey::of(&descriptor_node))
-            .cloned();
+            .message_descriptor_references
+            .get(&descriptor_key)
+            .copied()
+            .unwrap_or(descriptor_key);
+        let origin_inline = self
+            .node(&origin)
+            .is_some_and(|node| node.kind == SyntaxKind::MessageValue);
+        let anonymous = self.program.types.anonymous_messages.get(&origin).cloned();
         let args: Vec<_> = arguments
             .iter()
             .enumerate()
@@ -3798,7 +3917,7 @@ impl<'a> Cx<'a> {
                 }
                 (data.source_lang.clone(), params)
             }
-            ResolvedType::Scalar(Scalar::Text) if inline || anonymous.is_some() => {
+            ResolvedType::InlineMessage if origin_inline || anonymous.is_some() => {
                 let Some(module) = self.program.effects.modules.get(&scope.module) else {
                     return unsupported("checked inline descriptor module is unavailable");
                 };
@@ -3840,7 +3959,7 @@ impl<'a> Cx<'a> {
                 | Scalar::Currency,
             ) => Some("text"),
             ResolvedType::Scalar(Scalar::Bool) => Some("bool"),
-            ResolvedType::Enum { owner: Some(_), .. } => Some("enum"),
+            ResolvedType::Enum { .. } => Some("enum"),
             ResolvedType::Scalar(Scalar::Int) => Some("int"),
             ResolvedType::Scalar(Scalar::Decimal) => Some("decimal"),
             ResolvedType::Scalar(Scalar::Money) => Some("money"),
@@ -3861,6 +3980,7 @@ impl<'a> Cx<'a> {
             ResolvedType::Enum {
                 owner: Some(id), ..
             } => self.canonical(*id),
+            ResolvedType::Enum { owner: None, cases } => format!("enum({})", cases.join(",")),
             ResolvedType::Record { symbol, .. }
             | ResolvedType::Message(symbol)
             | ResolvedType::Operation(symbol) => self.canonical(*symbol),
@@ -6884,7 +7004,9 @@ impl<'a> Cx<'a> {
                     .copied();
                 if bound_target.is_some() && kids(node).iter().any(|n| n.kind == SyntaxKind::Tab) {
                     self.diags.push(Diagnostic::error(
-                        "E6008", "cannot lower bound tabs with authored tab panels".to_string(), node.span,
+                        "E6008",
+                        "cannot lower bound tabs with authored tab panels".to_string(),
+                        node.span,
                     ));
                     return None;
                 }
@@ -6987,7 +7109,7 @@ impl<'a> Cx<'a> {
         {
             return TypedExpr::new(
                 IrExpr::Message(message),
-                ResolvedType::Scalar(Scalar::Text),
+                ResolvedType::InlineMessage,
                 node.span,
             );
         }
@@ -7021,7 +7143,53 @@ impl<'a> Cx<'a> {
             ));
         }
         let value = self.decode_expr(scope, header);
-        if !matches!(value.ty, ResolvedType::Scalar(Scalar::Text)) {
+        if let ResolvedType::Message(id) = &value.ty
+            && self
+                .program
+                .effects
+                .messages
+                .get(id)
+                .is_some_and(|message| !message.params.is_empty())
+        {
+            // Immutable aliases retain the checked initializer anchor. Inspect
+            // a bare origin's IR only to classify its binding; never emit or
+            // reevaluate that origin in place of the captured caption value.
+            let mut reference = *header;
+            while reference.kind == SyntaxKind::Group {
+                let Some(inner) = kids(reference).into_iter().find(|n| is_expression(n.kind))
+                else {
+                    break;
+                };
+                reference = inner;
+            }
+            let bare_origin = self
+                .program
+                .types
+                .message_descriptor_references
+                .get(&NodeKey::of(reference))
+                .and_then(|key| self.node(key))
+                .filter(|node| matches!(node.kind, SyntaxKind::NameRef | SyntaxKind::Path))
+                .cloned();
+            let unbound = if let Some(origin) = bare_origin {
+                matches!(self.decode_expr(scope, &origin).expr, IrExpr::Message(message) if message.params.is_empty())
+            } else {
+                matches!(&value.expr, IrExpr::Message(message) if message.params.is_empty())
+            };
+            if unbound {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    format!("cannot lower {word}: parameterized message caption needs a checked call binding"),
+                    header.span,
+                ));
+                return None;
+            }
+        }
+        if !matches!(
+            value.ty,
+            ResolvedType::Scalar(Scalar::Text)
+                | ResolvedType::InlineMessage
+                | ResolvedType::Message(_)
+        ) {
             self.diags.push(Diagnostic::error(
                 "E6008",
                 format!("cannot lower {word}: caption has no checked text profile"),
@@ -7039,87 +7207,221 @@ impl<'a> Cx<'a> {
         target: &SyntaxNode,
     ) -> Option<(TypedExpr, Option<TypedExpr>)> {
         let current = self.decode_expr(scope, target);
-        let (cases, field_id) = match &current.ty {
-            ResolvedType::Enum { cases, owner: Some(field_id) } => (cases.clone(), *field_id),
+        let cases = match &current.ty {
+            ResolvedType::Enum {
+                cases,
+                owner: Some(_),
+            } => cases.clone(),
             _ => {
                 self.diags.push(Diagnostic::error(
-                    "E6008", "bound tabs needs a checked owned enum preference".to_string(), target.span,
+                    "E6008",
+                    "bound tabs needs a checked owned enum preference".to_string(),
+                    target.span,
                 ));
                 return None;
             }
         };
+        let mut identity_target = target;
+        while identity_target.kind == SyntaxKind::Group {
+            let Some(inner) = kids(identity_target)
+                .into_iter()
+                .find(|node| is_expression(node.kind))
+            else {
+                break;
+            };
+            identity_target = inner;
+        }
+        let Some(field_id) = self
+            .program
+            .types
+            .preference_field_references
+            .get(&NodeKey::of(identity_target))
+            .copied()
+        else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "bound tabs field has no checked preference identity".to_string(),
+                target.span,
+            ));
+            return None;
+        };
         let IrExpr::Member { base, field } = &current.expr else {
             self.diags.push(Diagnostic::error(
-                "E6008", "bound tabs needs a direct preferences field".to_string(), target.span,
+                "E6008",
+                "bound tabs needs a direct preferences field".to_string(),
+                target.span,
             ));
             return None;
         };
         if !matches!(&base.expr, IrExpr::Name(name) if name == "preferences") {
             self.diags.push(Diagnostic::error(
-                "E6008", "bound tabs needs a direct preferences field".to_string(), target.span,
+                "E6008",
+                "bound tabs needs a direct preferences field".to_string(),
+                target.span,
             ));
             return None;
         }
         let Some(symbol) = self.program.symbols.get(field_id.0 as usize).cloned() else {
-            self.diags.push(Diagnostic::error("E6008", "bound tabs field has no checked declaration".to_string(), target.span));
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "bound tabs field has no checked declaration".to_string(),
+                target.span,
+            ));
             return None;
         };
         let SymbolKind::Field { owner, .. } = &symbol.kind else {
-            self.diags.push(Diagnostic::error("E6008", "bound tabs field has no preference owner".to_string(), target.span));
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "bound tabs field has no preference owner".to_string(),
+                target.span,
+            ));
             return None;
         };
-        if symbol.module != scope.module || symbol.name != *field ||
-            !matches!(self.program.symbols.get(owner.0 as usize).map(|item| &item.kind), Some(SymbolKind::Preferences { .. })) {
-            self.diags.push(Diagnostic::error("E6008", "bound tabs field has no local preference owner".to_string(), target.span));
+        if symbol.module != scope.module
+            || symbol.name != *field
+            || !matches!(
+                self.program
+                    .symbols
+                    .get(owner.0 as usize)
+                    .map(|item| &item.kind),
+                Some(SymbolKind::Preferences { .. })
+            )
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "bound tabs field has no local preference owner".to_string(),
+                target.span,
+            ));
             return None;
         }
-        let (_, default, _, _, label, _) = self.decode_field(&symbol, *owner);
+        let (_, default, _, _, _, _) = self.decode_field(&symbol, *owner);
+        let label = self.decode_reused_field_label_parts(&symbol);
         let Some(IrDefault::Literal(default)) = default else {
-            self.diags.push(Diagnostic::error("E6008", "bound tabs preference needs a literal enum default".to_string(), target.span));
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "bound tabs preference needs a literal enum default".to_string(),
+                target.span,
+            ));
             return None;
         };
         let IrExpr::Text(default_value) = default.expr else {
-            self.diags.push(Diagnostic::error("E6008", "bound tabs preference default must be an enum case".to_string(), target.span));
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "bound tabs preference default must be an enum case".to_string(),
+                target.span,
+            ));
             return None;
         };
         if cases.is_empty() || !cases.contains(&default_value) {
-            self.diags.push(Diagnostic::error("E6008", "bound tabs preference default is not a listed case".to_string(), target.span));
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "bound tabs preference default is not a listed case".to_string(),
+                target.span,
+            ));
             return None;
         }
-        if !self.page_preference_fields.iter().any(|item| item.name == symbol.name) {
+        if !self
+            .page_preference_fields
+            .iter()
+            .any(|item| item.name == symbol.name)
+        {
             self.page_preference_fields.push(IrPreferenceField {
-                name: symbol.name.clone(), options: cases.clone(), default_value,
+                name: symbol.name.clone(),
+                options: cases.clone(),
+                default_value,
             });
         }
-        let text = |value: String| TypedExpr::new(IrExpr::Text(value), ResolvedType::Scalar(Scalar::Text), target.span);
-        let options = cases.into_iter().map(|case| {
-            let caption = label.as_ref().and_then(|label| label.values.iter().find(|(value, _)| value == &case))
-                .map(|(_, caption)| TypedExpr::new(IrExpr::Message(caption.clone()), ResolvedType::Scalar(Scalar::Text), target.span))
-                .unwrap_or_else(|| text(case.clone()));
-            TypedExpr::new(IrExpr::Object(vec![("value".to_string(), text(case)), ("label".to_string(), caption)]),
-                ResolvedType::Unknown, target.span)
-        }).collect();
-        let ctx = TypedExpr::new(IrExpr::Name("c".to_string()), ResolvedType::Unknown, target.span);
-        let member = |base: TypedExpr, field: String| TypedExpr::new(
-            IrExpr::Member { base: Box::new(base), field }, ResolvedType::Unknown, target.span,
+        let text = |value: String| {
+            TypedExpr::new(
+                IrExpr::Text(value),
+                ResolvedType::Scalar(Scalar::Text),
+                target.span,
+            )
+        };
+        let options = cases
+            .into_iter()
+            .map(|case| {
+                let caption = label
+                    .as_ref()
+                    .and_then(|label| label.values.iter().find(|(value, _)| value == &case))
+                    .map(|(_, caption)| {
+                        TypedExpr::new(
+                            IrExpr::Message(caption.clone()),
+                            ResolvedType::Scalar(Scalar::Text),
+                            target.span,
+                        )
+                    })
+                    .unwrap_or_else(|| text(case.clone()));
+                TypedExpr::new(
+                    IrExpr::Object(vec![
+                        ("value".to_string(), text(case)),
+                        ("label".to_string(), caption),
+                    ]),
+                    ResolvedType::Unknown,
+                    target.span,
+                )
+            })
+            .collect();
+        let ctx = TypedExpr::new(
+            IrExpr::Name("c".to_string()),
+            ResolvedType::Unknown,
+            target.span,
         );
-        let module_name = self.program.modules.iter().find(|module| module.id == scope.module)?.name.clone();
-        let version = member(member(member(ctx.clone(), "preferenceVersions".to_string()), module_name), symbol.name.clone());
-        let post_to = TypedExpr::new(IrExpr::Binary {
-            op: IrBinOp::Coalesce,
-            left: Box::new(member(ctx.clone(), "pollUrl".to_string())),
-            right: Box::new(member(ctx, "path".to_string())),
-        }, ResolvedType::Scalar(Scalar::Text), target.span);
-        let binding = TypedExpr::new(IrExpr::Object(vec![
-            ("name".to_string(), text(symbol.name)),
-            ("options".to_string(), TypedExpr::new(IrExpr::Array(options), ResolvedType::Unknown, target.span)),
-            ("current".to_string(), current),
-            ("version".to_string(), version),
-            ("postTo".to_string(), post_to),
-        ]), ResolvedType::Unknown, target.span);
-        let caption = label.map(|label| TypedExpr::new(
-            IrExpr::Message(label.text), ResolvedType::Scalar(Scalar::Text), target.span,
-        ));
+        let member = |base: TypedExpr, field: String| {
+            TypedExpr::new(
+                IrExpr::Member {
+                    base: Box::new(base),
+                    field,
+                },
+                ResolvedType::Unknown,
+                target.span,
+            )
+        };
+        let module_name = self
+            .program
+            .modules
+            .iter()
+            .find(|module| module.id == scope.module)?
+            .name
+            .clone();
+        let version = member(
+            member(
+                member(ctx.clone(), "preferenceVersions".to_string()),
+                module_name,
+            ),
+            symbol.name.clone(),
+        );
+        let post_to = TypedExpr::new(
+            IrExpr::Binary {
+                op: IrBinOp::Coalesce,
+                left: Box::new(member(ctx.clone(), "pollUrl".to_string())),
+                right: Box::new(member(ctx, "path".to_string())),
+            },
+            ResolvedType::Scalar(Scalar::Text),
+            target.span,
+        );
+        let binding = TypedExpr::new(
+            IrExpr::Object(vec![
+                ("name".to_string(), text(symbol.name.clone())),
+                (
+                    "options".to_string(),
+                    TypedExpr::new(IrExpr::Array(options), ResolvedType::Unknown, target.span),
+                ),
+                ("current".to_string(), current),
+                ("version".to_string(), version),
+                ("postTo".to_string(), post_to),
+            ]),
+            ResolvedType::Unknown,
+            target.span,
+        );
+        let caption = label.and_then(|label| label.text);
+        let caption = caption.map(|caption| {
+            TypedExpr::new(
+                IrExpr::Message(caption),
+                ResolvedType::Scalar(Scalar::Text),
+                target.span,
+            )
+        });
         Some((binding, caption))
     }
 
@@ -8098,6 +8400,7 @@ impl<'a> Cx<'a> {
             ResolvedType::Scalar(Scalar::Bool | Scalar::Text | Scalar::Int)
                 | ResolvedType::Enum { .. }
                 | ResolvedType::Message(_)
+                | ResolvedType::InlineMessage
                 | ResolvedType::Null
         ) {
             self.diags.push(Diagnostic::error(
@@ -9368,7 +9671,6 @@ impl<'a> Cx<'a> {
             "action".to_string(),
             text(format!("/api/operations/{canonical}")),
         ));
-        props.push(("operationId".to_string(), text(canonical.clone())));
         let label_key = self
             .program
             .effects

@@ -328,6 +328,10 @@
         "review_read_released": true,
         "commit_pending": false,
         "commit": "a1f3c67a6efe62d03526a849408648bfa2ad5804"
+      },
+      "remaining_prerequisite": {
+        "prerequisite": "Genuine defining descriptor/owner/revision registration and complete scalar/default/lifetime serving joins.",
+        "owner": "Values plus exact compiler/consumer producer owner"
       }
     },
     "TECH-V04": {
@@ -391,6 +395,10 @@
           "read_released": true,
           "commands_released": true
         }
+      },
+      "remaining_prerequisite": {
+        "prerequisite": "Released production codec domain, lossless UTF16/error/carrier/profile and joint retirement/startup contract.",
+        "owner": "Values TS/Rust and actual supported consumer owners"
       }
     },
     "TECH-V05": {
@@ -428,6 +436,10 @@
         "reason": "Generic JEV preauthorization insufficient for specific internal source payload/destination",
         "calls_started": false,
         "no_workaround": true
+      },
+      "remaining_prerequisite": {
+        "prerequisite": "Supported ICU/tzdb/currency release profile and selected raw-zone cache/budget policy with required consequential-choice consultation.",
+        "owner": "Values contract/release-host owners"
       }
     },
     "TECH-S01": {
@@ -525,7 +537,11 @@
       "tool_blocker": "Failed worker interruption retained; source/command cessation and independent local review establish this candidate only; no restart/retry claimed.",
       "root_read_released": true,
       "commit_pending": false,
-      "commit": "89d885a9"
+      "commit": "89d885a9",
+      "remaining_prerequisite": {
+        "prerequisite": "Checked CRUD first/replay provenance and current disclosure have landed and HTTP/CSV consumer is complete. Remaining legitimate scenario producing-origin/dependency provenance and current first/replay disclosure, logical lifetime/physical owner correspondence and remaining supported consumers. Expiredsourceform retainedCRUD replay additionally requires canonical retained-only admission; original completeHTTPclaim did not cover this lease join.",
+        "owner": "State/Cloudflare/Interfaces security owners; exact scenario producer"
+      }
     },
     "TECH-S03": {
       "planning_status": "blocked",
@@ -537,7 +553,11 @@
         "packages/state/src/query/engine.ts",
         "packages/state/src/storage/d1.ts"
       ],
-      "evidence": "security-joins.json"
+      "evidence": "security-joins.json",
+      "remaining_prerequisite": {
+        "prerequisite": "App/mixed-root/page/MCP and installed routing qualification beyond accepted team-owner D1 consumers.",
+        "owner": "State/Cloudflare actual owner-routing integrator"
+      }
     },
     "TECH-W02": {
       "planning_status": "ready",
@@ -612,6 +632,13 @@
         "state": "Accepted actual default Worker consumer, 1/1 owning case on real workerd/native D1",
         "scope": "Concrete team/all-team model roots; immutable module map fetch/scheduled, both handler kinds, waitUntil, replay, zero-member exhaustion and fresh-isolate persisted D1 restart",
         "limits": "No remote deployment; broader resource/owner/app-root and parent T26 outcomes remain separate"
+      },
+      "durable_restart_qualification": {
+        "state": "tested and root-reviewed finite current TS/D1/DO scheduler scope; broader packet remains partial",
+        "file": "packages/cloudflare/src/runtime/t34-f7-fanout-durable.test.ts",
+        "validation": "Fresh State and Cloudflare TypeScript emits pass; node --test --test-name-pattern=\"terminal prefix|fresh admitted B\" packages/cloudflare/dist/runtime/t34-f7-fanout-durable.test.js passes 6/6 with no skips.",
+        "coverage": "Completed first child cannot strand later stale child at pageLimit1 after restart; B admitted facts drive independent durable domain/outbox/schedule effects before admission and after fence retry, with atomic checkpoint and terminal replay.",
+        "limits": "Real D1/workerd DO fixtures; no installed/full source-app/native or global parent acceptance, no reduction credit."
       }
     },
     "TECH-W03": {
@@ -627,7 +654,11 @@
         "packages/work-kernel/decisions/recovery.rs",
         "packages/work-kernel/decisions/linkage.rs",
         "packages/cloudflare/src/runtime/invoke.ts"
-      ]
+      ],
+      "remaining_prerequisite": {
+        "prerequisite": "Released synchronous native decision family/facade/demand protocol, production ABI/assets and actual supported installed/durable whole-call consumer.",
+        "owner": "Work-kernel/Cloudflare producer and delivery integrator"
+      }
     },
     "TECH-I01": {
       "planning_status": "blocked",
@@ -678,7 +709,11 @@
       "root_read_released": true,
       "commit_pending": false,
       "parent_limit": "Whole J2 shared-fence, recovery, membership, revocation/current-auth and installed gates remain open",
-      "commit": "33f12d62"
+      "commit": "33f12d62",
+      "remaining_prerequisite": {
+        "prerequisite": "Whole J2 transaction fence, guard, statement and memory contract; recovery/last-owner atomic winner/replay qualification.",
+        "owner": "Identity/Contracts/State transaction contract owners"
+      }
     },
     "TECH-I02": {
       "planning_status": "blocked",
@@ -717,7 +752,11 @@
       "root_read_released": true,
       "commit_pending": false,
       "parent_limit": "Verifier grammar, browser origins, persisted/native/installed/current-authority and whole auth remain open",
-      "commit": "1eeedb6d"
+      "commit": "1eeedb6d",
+      "remaining_prerequisite": {
+        "prerequisite": "Browser presession binding, capped-body/Origin/CSRF versus nonbrowser contract, and revoke-during-effect outcome.",
+        "owner": "Identity/Interfaces/Cloudflare browser/security contract owners"
+      }
     },
     "TECH-F01": {
       "planning_status": "blocked",
@@ -773,7 +812,11 @@
         "review_read_released": true,
         "commit": "98c1e811"
       },
-      "commit": "d450130f"
+      "commit": "d450130f",
+      "remaining_prerequisite": {
+        "prerequisite": "Append staging/count drift now refuses before another write; retry identity and durable atomic/recoverable append/count/blob and separate finalization publication phases still need owning contracts/producer plus mounted/provider qualification.",
+        "owner": "Files durable storage/finalization owner; Interfaces upload consumer"
+      }
     },
     "TECH-F02": {
       "planning_status": "blocked",
@@ -788,7 +831,11 @@
         "packages/cloudflare/src/worker/assembly.ts",
         "packages/interfaces/src/ingress/routes.ts",
         "packages/interfaces/src/ingress/mapping.ts"
-      ]
+      ],
+      "remaining_prerequisite": {
+        "prerequisite": "Persisted terminal tombstone retry cleanup has landed. Remaining descriptor availability, attachment/download lifetime, resumable retention beyond full listAll and authenticated provider/source occurrence/age/replay/effect association.",
+        "owner": "Files/Interfaces/Cloudflare; actual descriptor/provider/source producers"
+      }
     },
     "TECH-SV01": {
       "planning_status": "blocked",
@@ -849,7 +896,11 @@
       "commit_pending": false,
       "review_read_released": true,
       "parent_limit": "No physical cancellation settlement, live provider/mounted/security/safe projection or late-outcome/idempotency/media correlation acceptance",
-      "commit": "8c8daeb9"
+      "commit": "8c8daeb9",
+      "remaining_prerequisite": {
+        "prerequisite": "Released provider classification/explanation, evidence lifetime, late outcome/idempotency and media jobId recovery correlation.",
+        "owner": "Services/Cloudflare/Work provider contract owners"
+      }
     },
     "TECH-SV03": {
       "planning_status": "blocked",
@@ -861,7 +912,11 @@
       ],
       "outputs": "/private/tmp/canlang-repair-go-20261007/service-mapping",
       "read_released": true,
-      "result_sha256": "c8b22c143a20f253bc56aa9c1430385d2b1ed94feea832c3323260602961b42c"
+      "result_sha256": "c8b22c143a20f253bc56aa9c1430385d2b1ed94feea832c3323260602961b42c",
+      "remaining_prerequisite": {
+        "prerequisite": "Exact submitted media graph domain/identity/digest contract; generic serializer substitution remains unreleased.",
+        "owner": "Services/Files graph contract owners"
+      }
     },
     "TECH-SV04": {
       "planning_status": "ready",
@@ -884,7 +939,32 @@
       "readable_reduction": 87,
       "full_closure_reduction": 84,
       "measurement": "AST token leaves exclude trivia; previous raw scanner absolute counts corrected, saving delta unchanged",
-      "commit": "4d6a781"
+      "commit": "4d6a781",
+      "mail_drip_cleanup": {
+        "state": "implemented, tested, root-reviewed",
+        "files": [
+          "packages/services/src/ports.ts",
+          "packages/services/test/private-harness-leaves.test.ts"
+        ],
+        "behavior": "Release acquired drip timers on firing or response teardown, and clear concurrent timers before closing server sockets.",
+        "validation": "5/5 focused actual HTTP/helper tests; strict focused TypeScript check passed",
+        "limits": "Controlled Node harness only; no reduction credit or provider/durable acceptance."
+      },
+      "portable_admission": {
+        "state": "implemented, tested and root-reviewed finite Node/Worker caller consolidation; original broad provider gates unchanged",
+        "files": [
+          "packages/services/src/internal/scenario-admission.ts",
+          "packages/services/src/scenarios.ts",
+          "packages/services/src/ports.ts",
+          "packages/services/src/models/harness.ts",
+          "packages/services/src/judgments/harness.ts",
+          "packages/testkit/src/fixtures/playback.ts"
+        ],
+        "closure": "Pure package subpath exports shared admission/types; testkit runtime dependency/lock updated. Preserve caller errors, media Buffer/atob reconstruction, table coercion differences and lifecycle owners.",
+        "validation": "Node41/41 and differential/actual workerd55/55; services strict emit and focused playback TypeScript pass. Type alias completion has identical union tokens/runtime emissions and services noEmit passes; reuse unchanged runtime results.",
+        "reduction": "Against9ecb2759 complete6-TS-owner/2manifest/lockclosure:3295->3044readable(-251); declarations357->323; total3652->3367(-285). Correctness timer overhead included; no overlapping historical/shared-leaf credit, test or generated savings.",
+        "limits": "Controlled scripted fixtures; no durable/live provider acceptance or native default/retirement."
+      }
     },
     "DEL-D01": {
       "planning_status": "ready",
@@ -928,7 +1008,11 @@
         "Current dependency entries/vendor distributions differ from frozen phase/CLI profile; no source-current full assembly acceptance",
         "Function aliases now share defining function identity/name, explicitly compatible type/call contract only"
       ],
-      "commit": "dda0ef6"
+      "commit": "dda0ef6",
+      "remaining_prerequisite": {
+        "prerequisite": "DD009 fresh/stale direct emit and packed archive closure with a real production Work receipt observer; retain exclusions until proven. Native preparation remains held.",
+        "owner": "Cloudflare build/release integrator and Work production observer owner"
+      }
     },
     "DEL-D02": {
       "planning_status": "ready",
@@ -1002,6 +1086,17 @@
             "/private/tmp/canlang-repair-go-20261007/csv-candidate-contract/check/node_modules"
           ]
         }
+      },
+      "remaining_prerequisite": {
+        "prerequisite": "Finite checked literal text/int/decimal/array constraints now reach actual artifact/State/Memory and native hooks. Complete nominal text-alias/specialization/CSV normalization authority, source consumers and separately selectedSR02resource/installed/durable joins remain open.",
+        "owner": "Values/Compiler defining descriptors plus Interfaces/UI resource/current-context contract owners; retain original packet acceptance"
+      },
+      "stored_field_constraint_slice": {
+        "state": "implemented by owning Compiler release, consumed and affected producer/consumer checks passed; Codex4232157221",
+        "source": "Exact published8f4cd883e47e63718993d5e37798538d1898d3e1 JS model field/builder/serializer and codegen/typed artifact/typed descriptor tests consumed; no unrelated Compiler source or plan.",
+        "behavior": "Stored fields emit checked trim and exact literal min/max. Safe text/array lengths are numbers; large integer/decimal bounds preserve wire spelling. Unsafe length/nonliteral bounds refuseE6008 instead of disappearing.",
+        "validation": "Rust1.99locked/offline19codegen+2typedArtifact+6typedDescriptors pass; changed-source format passes. Direct genuine currentCLI/catalog artifact\u2192State loader/canonical model table\u2192emitted increment hook\u2192Mutation/Memory passes trim/native2n\u2192stored3, decimal1.20/5.00 and array1/2bounds. Nine invalid blank/upper/lower/array/hook-overflow cases refuse with atomic revision/row/history rollback; inclusive endpoints pass. Initial probe overasserted optional enum valueType, corrected before successful real run.",
+        "limit": "Bounded nominal text-alias source profile, complete specialization/CSV/resource/installed/durable joins and original parent obligations remain separate; existing finite alias loader controls retained."
       }
     },
     "DEL-C02": {
@@ -1012,7 +1107,11 @@
         "packages/ui/src/csv/confirm.ts",
         "packages/ui/src/csv/preview.ts"
       ],
-      "residual_evidence": "Finite own-data correction passes changed-cell consent refusal; broader consent authority and replay remain open"
+      "residual_evidence": "Finite own-data correction passes changed-cell consent refusal; broader consent authority and replay remain open",
+      "remaining_prerequisite": {
+        "prerequisite": "Checked CRUD aged replay has landed. Remaining frozen app/user/team/session/time/expiry review binding, selected private/signed integrity, per-row review authority and scenario disclosure before scenario age delegation.",
+        "owner": "Interfaces/UI/Identity/State review owners; scenario disclosure producer"
+      }
     },
     "DEL-C02-order": {
       "planning_status": "ready",
@@ -1069,6 +1168,10 @@
         ],
         "limit": "happy-dom structural Document/Window and actual UI markup; no Chromium/full installed browser/physical transport or broader product closure",
         "commit": "a3c0a9bd8ff62735c8f5d99ba7c033fcdcd0ca49"
+      },
+      "remaining_prerequisite": {
+        "prerequisite": "Settled emitted selector/initializer association and full physical-cancel/resource qualification.",
+        "owner": "UI and actual emitted markup/initializer producer owner"
       }
     },
     "DEL-B02": {
@@ -1104,7 +1207,11 @@
       "review_read_released": true,
       "commit_pending": false,
       "commit": "61e49955",
-      "status": "Finite selected static resources/currentruntimeowner mapping independently accepted; actual page422/query/caller/shell/browser/authorization/upload/export/print still open"
+      "status": "Finite selected static resources/currentruntimeowner mapping independently accepted; actual page422/query/caller/shell/browser/authorization/upload/export/print still open",
+      "remaining_prerequisite": {
+        "prerequisite": "Complete selected mounted auth/files/export/print/resource journey, finalized/retry progress and URL lifetime producer/sink policy.",
+        "owner": "UI/Interfaces/Files actual browser/asset integrators"
+      }
     },
     "DEL-D03": {
       "planning_status": "blocked",
@@ -1198,7 +1305,35 @@
       "planned_collision_review": "planned-output-collision-independent-review.json",
       "source_pin": "8ccf7b1178df87cdb02c1312bf4e2314680697034b5391fdad6a062ed80a7f85",
       "planned_test_pin": "c3d09faf0da8ac9e27d1f756d5491906dec4ee7f0452a6312c19d240c37536f8",
-      "planned_collision_commit": "788e5352ea989fafc4677af27f72e61f70f4738c"
+      "planned_collision_commit": "788e5352ea989fafc4677af27f72e61f70f4738c",
+      "test_scratch_cleanup": {
+        "state": "implemented and tested at actual post-main example producer; wider packet remains partial",
+        "files": [
+          "packages/cloudflare/src/dev/example-runner.ts",
+          "packages/cloudflare/test/cli.test.ts",
+          "packages/cloudflare/test/example-rerun.test.ts"
+        ],
+        "behavior": "Preserve upstream complete capture/activation/compiled-example execution. Attempt defining scratch removal and acquired scope disposal without masking the original execution/provisioning failure.",
+        "validation": "CLI29/29 and actual runner/rerun20/20; current shared dependency emissions, full Cloudflare external emit and noEmit now pass.",
+        "limits": "No whole-command budget/run returned-URL/native preparation acceptance; no reduction credit."
+      },
+      "remaining_prerequisite": {
+        "prerequisite": "Child/whole-command resource contract, sidecar/general race/partial-effect qualification and run returned-URL lifetime. Test scratch cleanup is complete.",
+        "owner": "Cloudflare command/resource contract owner"
+      },
+      "application_testkit_loader": {
+        "state": "implemented, tested, root-reviewed finite optional producer/consumer join",
+        "files": [
+          "packages/cloudflare/src/dev/example-runner.ts",
+          "packages/cloudflare/src/cli/platform.ts",
+          "packages/cloudflare/test/example-rerun.test.ts",
+          "packages/cloudflare/test/cli.test.ts",
+          "packages/cloudflare/README.md"
+        ],
+        "behavior": "Resolve the actual exported Testkit entry from the invoking application manifest/root and import its file URL; keep structural port and real Testkit-to-Cloudflare dependency without reverse build edge. CLI forwards captured root. Application explicitly installs both packages; absent installation, malformed exports and import-time faults stay distinct.",
+        "validation": "Private strict Cloudflare emit and53/53 focused loader/CLI checks. Clean private Cloudflare emit with no Testkit dist, then Testkit emit, both pass; actual source-emitted Testkit resolves from application and retains identical module identity.",
+        "limits": "No packed installed compiled-row/whole command/native acceptance; existing complete execution producer unchanged, broader installed/resource gates remain open."
+      }
     },
     "DEL-D04": {
       "planning_status": "blocked",
@@ -1258,6 +1393,10 @@
         "maintenance": "Original production closure163\u219259 including3imports:104lines removed. Approx776KB newly locked runtime dependencies+234KBdev types; host-only.",
         "dependencies": "acorn8.18.0 eslint-scope8.4.0 estree-walker3.0.3; dev @types/eslint-scope3.7.7; declaredNode>=22 unchanged",
         "commit": "7326dff1"
+      },
+      "remaining_prerequisite": {
+        "prerequisite": "Actual emitted/installed graph/source-map diagnostic correspondence and supported-host lexer/map error/order qualification.",
+        "owner": "Cloudflare plus exact compiler/artifact producer owner"
       }
     },
     "DEL-D05": {
@@ -1273,7 +1412,11 @@
         "packages/cloudflare/preparation/src/protocol.rs",
         "packages/cloudflare/preparation/src/job.rs",
         "packages/cloudflare/preparation/src/main.rs"
-      ]
+      ],
+      "remaining_prerequisite": {
+        "prerequisite": "Explicit human native preparation HOLD; do not activate, publish or default held preparation.",
+        "owner": "Human native preparation release owner"
+      }
     },
     "DEL-R01": {
       "planning_status": "blocked",
@@ -1302,7 +1445,22 @@
       "review": "interfaces-installed-prerequisite.json",
       "read_released": true,
       "commands_released": true,
-      "status": "Finite source-ownedUI/Interfaces/currentCF static stage and runtime mapping accepted; source-derivedcaller/installed/native/fullcurrentclosure gates open"
+      "status": "Finite source-ownedUI/Interfaces/currentCF static stage and runtime mapping accepted; source-derivedcaller/installed/native/fullcurrentclosure gates open",
+      "remaining_prerequisite": {
+        "prerequisite": "Selected entry source/lock/tool/emit/pack/actual supported-host consumer correspondence; native inventory remains held.",
+        "owner": "Each owning package and delivery/release integrator"
+      },
+      "current_validation_gap": "Emergency unfinished checkpoint: CF public Files type dependency moved to production dependencies with owning Bun lock; mapped stdlib reexports real Values abs; existing installed Worker fixture executes abs and declares its own appDefinition.id. Frozen install/all26build/full0boundary and installed declarations170exports/13owners passed before latest UI edits;797thirdparty diagnostics retained. Initial Worker checks exposed abs then missing defining app identity; latest corrected Worker run was in flight at shutdown and is not accepted. Rebuild current affected outputs before reusing installed correspondence. Native/supported-host/complete release gates remain open.",
+      "teamtasks_fixture_consumer": {
+        "state": "implemented and tested finite owning fixture consumer",
+        "files": [
+          "tests/e2e/fixtures/handbuilt/teamtasks.ts",
+          "tests/e2e/fixtures/artifact-loader.ts",
+          "tests/e2e/fixtures/handbuilt/identity-bundle-entry.js",
+          "tests/e2e/fixtures/handbuilt/ui-bundle-entry.js"
+        ],
+        "validation": "Existing15Chromium/workerd cases and e2e TypeScriptpass; realpublicIdentity/UIclosures, sourcecorrespondence review, auth/CSRF/permissions/D1/MCP assertions unchanged. Genuine draft/compiled/fullrelease remainder separatelyblocked."
+      }
     },
     "DEL-E02": {
       "planning_status": "blocked",
@@ -1362,18 +1520,86 @@
         "model": "gpt-6.1-sol medium for bounded actual caller and failure-path qualification",
         "private_outputs_removed": true,
         "parent_closed": false
+      },
+      "remaining_prerequisite": {
+        "prerequisite": "Each conditional EC cleanup requires its exact retained oracle/loader/type/installed negative gate; native TV04/05 remains held.",
+        "owner": "Testkit/Cloudflare/Values plus State DO fixture owners"
+      },
+      "released_example_expected_getter": {
+        "prerequisite": "Published Dev server PR132a37a700e combines Packages application-root loader/caller and both cleanup paths with live row.expected getter. Consumed as isolated published producer; Dev T07 owns upstream integration, no duplicate source patch.",
+        "owner": "Dev server T07 worker via coordinator01a11e6b-f4e1-7603-b47d-9d3210c9c6de",
+        "scope": "Exact example-runner/caller join, no package-wide lock or parent acceptance.",
+        "validation": "Isolated actual a37a700e source strict CF emit passes. Packages existing example-rerun24/CLI29 plus published real Testkit/D1 setup success/denial case1 pass54/54; source runner/caller unchanged in private consumer. Initial published CLI tests lacked their emitted prerequisite; owning emit and Packages current CLI consumer resolve that setup failure.",
+        "limits": "Real Testkit/table/D1 actor setup with injected invocation hooks; no canonical compiled/packed installed application or whole-app acceptance."
+      },
+      "cloudflare_current_test_alignment": {
+        "state": "implemented, tested and root-reviewed finite owning type/fixture repair",
+        "files": [
+          "packages/cloudflare/test/mcp-route.test.ts",
+          "packages/cloudflare/test/module-imports-contract.test.ts",
+          "packages/cloudflare/test/page-query-serving.test.ts",
+          "packages/cloudflare/test/preview-bridge.test.ts",
+          "packages/cloudflare/test/runtime-stdlib.test.ts"
+        ],
+        "behavior": "Align actual Node/workerd request adapters, JSON import attributes, browser callback types, deliberate hung-body fault injection and immutable context construction. Await current async scope refusals. Canonical fixture publishes its actual entry/source digest and unchanged policy/read grants; native emitted assembly namespace preserves defining accessor refusal. Existing compiled journey follows canonical null-result/projected-record output and selected Lobby app identity, preserving full CRUD and strengthening replay no-effects/fresh-handle receipt/history checks. CI emits actual Values catalog before compiled consumers; standalone contract boundary check uses established ES2023 library profile.",
+        "validation": "Final root TypeScript tsconfig.check and e2e harness checks pass. Existing MCP suite 16/16 passes, including fresh compiled canonical memory cases and frozen genuine compiled Worker/D1 case. Browser owner uses pinned Playwright Chromium rather than system/macOS-only Chrome; all 3 active actual Worker/Chromium cases pass. Existing compiled-identity/journey run passed 5 provenance cases; corrected complete D1 CRUD/receipt/history/replay consumer passes its only failed case 1/1, unchanged 5 reused. Canonical stdlib20/20 and unchanged import-policy/preview115 prior checks reused. Fresh compiler emission of the exact typed-operation-forms/typed-state-page authored sources also passes the existing affected native MCP1/browser3 cases4/4 in an isolated consumer. Private setup initially lacked referenced package configs/miniflare bindings; restore actual owning links, reuse the 15 unchanged passing MCP cases and run only the four unreached producer legs. Public pinned catalog task passes5/5.",
+        "limits": "Fresh compiled CRUD and forms/state-page producer emissions verify exact current source/tool stamps and current locale-helper output. Actual D1/Worker/Chromium cases retain permission, replay, sealed-binding, stale-response and visibility assertions. Identity remains the documented memory double only in compiled-journey; fresh adapter handle is not process restart. Optional Images browser case still awaits its exact owning artifact. No native preparation activation, full installed/packed/release/whole-app or original parent acceptance.",
+        "newly_released_consumer_files": [
+          "packages/cloudflare/test/page-query-serving.test.ts",
+          "tests/e2e/apps/compiled-journey.spec.ts",
+          ".github/workflows/e2e.yml",
+          ".github/workflows/lane-01.yml"
+        ]
+      },
+      "teamtasks_fixture_consumer": {
+        "state": "implemented and tested finite owning fixture consumer",
+        "files": [
+          "tests/e2e/fixtures/handbuilt/teamtasks.ts",
+          "tests/e2e/fixtures/artifact-loader.ts",
+          "tests/e2e/fixtures/handbuilt/identity-bundle-entry.js",
+          "tests/e2e/fixtures/handbuilt/ui-bundle-entry.js"
+        ],
+        "validation": "Existing15Chromium/workerd cases and e2e TypeScriptpass; realpublicIdentity/UIclosures, sourcecorrespondence review, auth/CSRF/permissions/D1/MCP assertions unchanged. Genuine draft/compiled/fullrelease remainder separatelyblocked."
       }
     },
     "REPLAY-IP07": {
-      "planning_status": "ready",
-      "state": "blocked on actual canonical authority/projection repair before lifting Interfaces age gate",
+      "planning_status": "blocked",
+      "state": "Checked CRUD HTTP/CSV implemented, tested and root-reviewed; full packet partial pending scenario authority/result provenance",
       "files": [
         "packages/interfaces/src/http/operations.ts",
         "packages/interfaces/src/http/csv.ts",
         "packages/interfaces/src/envelope/validate.ts"
       ],
-      "blocker": "Source-current security join witnesses retained replay bypassing current membership/read grants and saved secret projection; old planning assumption cannot satisfy required revoked-actor negative control",
-      "evidence": "security-joins.json"
+      "blocker": "Remaining scenario retained replay lacks current authority/result provenance; its existing Interfaces age gate cannot safely be lifted.",
+      "evidence": "security-joins.json",
+      "remaining_prerequisite": {
+        "prerequisite": "Checked CRUD projection/HTTP/CSV slice qualified at its recorded scope. Remaining scenario execution-owned provenance/current-authority projection and expired signed source-form receipt-only lease join must land before transport age/lease gates can safely lift.",
+        "owner": "Capability State/Contracts API; Dev trusted Cloudflare canonical/assembly forwarding; Packages subsequent Interfaces consumer"
+      },
+      "checked_crud_consumer": {
+        "state": "implemented, tested, root-reviewed finite current producer/consumer join",
+        "files": [
+          "packages/interfaces/src/envelope/validate.ts",
+          "packages/interfaces/src/http/operations.ts",
+          "packages/interfaces/src/http/csv.ts",
+          "packages/cloudflare/src/runtime/reviewed-csv.test.ts"
+        ],
+        "behavior": "Retain strict lexical admission and fresh demand order; for trusted checked CRUD let canonical State read retained receipt before unseen age. Old matching HTTP/CSV replay observes current disclosure without repeated effects; changed reuse conflicts, unseen expired/future and pre-provenance receipts refuse.",
+        "validation": "Current Interfaces emit and58/58 affected envelope/HTTP/CSV checks; fresh Cloudflare external emit/noEmit and1/1 actual source-generated D1 HTTP/CSV workflow pass without skips. Trace covers receipt/current-row reads, one cached metadata lookup, no commit, revoked read grants/membership and unchanged history/receipt/revision.",
+        "limits": "Scenario/legacy catalog and MCP age gates unchanged. Full packet/original security/installed/native gates remain open; no replacement savings."
+      },
+      "source_form_replay_prerequisite": {
+        "state": "State/Contracts prerequisite consumed and affected qualification passed; Interfaces expiry restoration blocked on published trusted Dev forwarding",
+        "prerequisite": "Dev trusted Cloudflare canonical/assembly forwarding of host-only retained-receipt-only admission. Then Packages verifies expired immutable signed CRUD claims and restores only through that mode. No expiry bypass implemented; fresh token lease remains15min and scenario age/lease stays unchanged.",
+        "owner": "Dev owns exact trusted Cloudflare forwarding release; Packages subsequent Interfaces consumer. Capability State/Contracts API cf4be765 is published/qualified by198c3813/62a0a87e and consumed here.",
+        "preserved": "Signature/canonicalbytes/revision/schema/nonce/app/session/actor/team/editableclaims, freshlease, scenarioage/lease, current credential/disclosure and no new mutation from expiredtoken. Greater-than24h-only workaround skipped as incomplete.",
+        "state_api_release": {
+          "source": "Exact cf4be765ee4390e1ec110aaa78f871a890f77ac3 six State/Contracts source and three owning test files; later owning198c3813/62a0a87e qualification verified. No unrelated owner-session, pipeline or service source imported.",
+          "behavior": "Host-only retained-receipt-only refuses unseen identities before execute/commit; exact receipt identity/hash required, current authority and saved-outcome observer/disclosure retained. Ordinary execution admission remains default.",
+          "validation": "Contracts then State emits pass; Node24 five exact retained-receipt-only cases pass with zero skips, including Memory and actual workerd D1/DO.16min/24h replay, saved rejection, changed hashes/identity, current grant/membership revocation and zero execution/commit/history change execute.",
+          "limit": "Interfaces expired form restoration and actual forwarded HTTP remain blocked; no full parent/product/native or current-head review acceptance."
+        }
+      }
     },
     "PARSER-DP01": {
       "planning_status": "ready",
@@ -1404,7 +1630,7 @@
         "identity_default_discovery": "accepted 13 unique emitted source/test files; private actual default 92/92 and root source-test 12/12",
         "work_default_resources": "accepted original oracle/fixture staged byte-equally; private actual default 464/464 and root numeric 74/74; missing fixture refuses",
         "values_string_contract": "accepted source/emitted owning recipe with current donor provenance; existing semantic assertions and frozen oracle unchanged",
-        "full_native_observer": "open original gate, not executed",
+        "full_native_observer": "Existing finite registered observer executed successfully93/93 on genuineRust1.99/Node24 after scratch-path portability correction; frozen fixtures and source/emit stability unchanged. Unsampled cases and native fault details/own-key/StateError envelope gaps remain explicit; no complete native/default/Wasm/installed acceptance.",
         "identity_work_commit": "e29ff90"
       },
       "values_slice": {
@@ -1423,6 +1649,30 @@
         "acceptance": "Source2/2 emitted2/2; missing fixture/oracle and stale provenance refusal; all existing observation/assertion/frozen oracle bytes unchanged",
         "commit_pending": false,
         "commit": "dfd0587"
+      },
+      "remaining_prerequisite": {
+        "prerequisite": "Actual native/installed consumer provenance and unchanged independent semantic oracles. Current owning inventory: Identity14, Work9, Values30; current Values donor parity refreshed.",
+        "owner": "Identity/Values/Work-kernel owning runner and actual consumer integrators"
+      },
+      "values_donor_parity_refresh": {
+        "state": "implemented, tested, root-reviewed finite support",
+        "file": "packages/values/test/string-escape.contract.test.ts",
+        "change": "Keep full frozen29-donor corpus unchanged; explicitly admit the reviewed distribution.ts successor adding only the owning catalog locator. Require exact current source correspondence before comparing all93strings/23callers and corruption controls with recorded observations.",
+        "validation": "Current owning Values TypeScript passes; source Bun1.4.2 and emitted Node24 existing string/prepared contract cases each10/10 pass, zero skips. Intentional ValueTypesError/normalizeValueTypes public inventory already present; every private-authority and runtime/string assertion retained.",
+        "limits": "No production reduction, native/backend/default or whole Values acceptance."
+      },
+      "values_public_export_inventory": {
+        "state": "implemented, tested, root-reviewed finite CI assertion repair",
+        "file": "packages/values/test/prepared-hook.test.ts",
+        "behavior": "Explicit exact public schema inventory includes intentionally released ValueTypesError and normalizeValueTypes; all internal-authority exclusions and semantic assertions unchanged.",
+        "validation": "Current owning Values TypeScript, source and emitted prepared-hook cases each8/8 pass; correct intentional ValueTypesError/normalizeValueTypes inventory already present, no assertion edit required. Full package/PR gate not claimed from these affected checks."
+      },
+      "registered_native_observer": {
+        "file": "packages/work-kernel/conformance/registered-differential.mjs",
+        "state": "finite existing qualification passed; original broader gates remain open",
+        "private_result": "/tmp/can-packages-work-registered-differential/registered-differential.json",
+        "validation": "Fresh strict owning TS emit and offline locked registeredRust observer compare93original frozen cases, including faults/random demand and existing detection controls; fixture/source/emit guards pass. Checkout output refusal verified before writes.",
+        "limits": "Original unsampled coverage, full native fault details/own-key/StateError identity, parser/provenance/transport/ref lifecycle and Wasm/default/installed consumers remain unqualified."
       }
     },
     "TECH-V02-violations": {
@@ -1458,7 +1708,11 @@
         "packages/state/src/invocation/admission.ts",
         "packages/state/src/invocation/replay.ts",
         "packages/work/src/kernel/commands.ts"
-      ]
+      ],
+      "remaining_prerequisite": {
+        "prerequisite": "Selected pre-hash/copy canonical byte/depth/node/work resource profile and exact refusal point.",
+        "owner": "State/Work admission/resource contract owners"
+      }
     },
     "TECH-S04-query": {
       "planning_status": "blocked",
@@ -1469,7 +1723,11 @@
         "packages/state/src/storage/durable-object.ts",
         "packages/work/src/kernel/commands.ts"
       ],
-      "numeric_order_prerequisite": "Released checked State producer; actual CF consumer wiring/qualification pending, distinct from original scan/recovery resource budgets."
+      "numeric_order_prerequisite": "Released checked State producer; actual CF consumer wiring/qualification pending, distinct from original scan/recovery resource budgets.",
+      "remaining_prerequisite": {
+        "prerequisite": "Actual query/full-scan/recover driver budget and refusal/continuation profile.",
+        "owner": "State/Work/storage-driver resource contract owners"
+      }
     },
     "TECH-S04-cohort": {
       "planning_status": "blocked",
@@ -1478,7 +1736,11 @@
         "packages/state/src/fanout/membership.ts",
         "packages/state/src/fanout/progress.ts",
         "packages/cloudflare/src/runtime/invoke.ts"
-      ]
+      ],
+      "remaining_prerequisite": {
+        "prerequisite": "Finite frozen membership representation/load/validation resource and durable continuation contract.",
+        "owner": "State/Cloudflare fanout/resource contract owners"
+      }
     },
     "DEL-U01-appearance": {
       "planning_status": "ready",
@@ -1587,12 +1849,22 @@
       "review": "canonical-json-independent-review.json",
       "readable_reduction": 7,
       "full_closure_reduction": 6,
-      "commit": "b055ca6"
+      "commit": "b055ca6",
+      "mcp_file_schema_test": {
+        "state": "implemented, tested, root-reviewed finite owning CI assertion correction",
+        "file": "packages/interfaces/test/mcp-tools.test.ts",
+        "behavior": "Exact advertised File shape now matches accepted WireFile closed object requiring nonempty id. Preserve adjacent money/enum/ref/datetime/required and all semantic/security assertions; no source/oracle change.",
+        "validation": "Fresh Interfaces emit and owning existing MCP tools8/8 pass, no skips; actual bound File codec/workflow evidence unchanged and reused."
+      }
     },
     "FINAL-R03": {
       "planning_status": "blocked",
       "state": "blocked on packet prerequisites",
-      "files": []
+      "files": [],
+      "remaining_prerequisite": {
+        "prerequisite": "Selected released producer/consumer evidence with actual supported installed/durable/source correspondence, then existing independent critical joined review.",
+        "owner": "Existing R01/C01 and selected independent critical reviewer"
+      }
     }
   },
   "state_authority": "packet_state is current one-per-packet disposition; dispatched/next_active_packets preserve earlier submissions, not proof of current activity.",
@@ -1626,7 +1898,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-09T01:41:16.956660+00:00",
+  "updated_utc": "2026-10-09T17:24:09.747731Z",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -3275,160 +3547,7 @@
       "limits": "Stock original order restored under authority design, its source design issue remains; nested UI propagation and public identities held with owners. Full task counts unchanged."
     }
   },
-  "live_finite_packets": [
-    {
-      "task": "DEL-B02/DEL-R01 actual page/query/context/caller prerequisite",
-      "agent": "/root/asset_consumer_join",
-      "model": "gpt-6.1-sol",
-      "effort": "high",
-      "status": "Committed1c1fcc9f; actual explicitly authored empty-caption Images variant compiler0 and focused Node26/workerd+D1 consumer1/1 passed. Original bare-list source/artifact422 retained; no shared-default/full-browser/installed/native-preparation claim.",
-      "root_base": "7c8dbe2e751b7a9cbe6e4af7944c87017a9ed520",
-      "blocker": "Bare list is missing required empty message, a confirmed language/UI contract gap; preserve original failure. Qualify only an explicitly authored supported empty-caption variant. Strict formatter remains; no invented compiler default.",
-      "outputs": "/private/tmp/canlang-repair-go-20261007/page-query-implementation",
-      "commands_live": false,
-      "commit": "1c1fcc9f",
-      "direct_outcome": {
-        "source_difference": "list Job empty=\"No jobs yet\"; original source/artifact untouched",
-        "compiler": "Existing released compiler and frozen catalog compile0, normal generated message prop",
-        "consumer": "Existing page-query-serving.test.ts, Node26 Vitest, maxWorkers1/no-file-parallelism;1/1 in7.58s (test4.77s)",
-        "covers": [
-          "Initial empty200",
-          "Real D1 projected rows",
-          "Full/HX/HEAD one-main and poll metadata",
-          "CSS/bootstrap plus3byte-exact resources",
-          "Invalid session403",
-          "Canonical AST predicate/projection/bounds",
-          "Parent/cursor/function/malformed predicate refusals",
-          "Limit overflow refusal"
-        ],
-        "log": "/private/tmp/canlang-repair-go-20261007/page-query-implementation/explicit-empty/focused.log",
-        "original_failure": "/private/tmp/canlang-repair-go-20261007/page-query-implementation/focused-original-bare-list422.log"
-      }
-    },
-    {
-      "task": "TECH-V03/V04 checked scalar/result source ownership",
-      "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
-      "status": "Committed d495469a; metadata-only build4/4 and tests14/14 accepted; runtime conversion/native/installed/parent completion remain open",
-      "contract": "h1-owning-contract.json",
-      "source_paths": [
-        "packages/contracts/src/artifact.ts",
-        "packages/contracts/src/state.ts",
-        "packages/state/src/invocation/registry.ts",
-        "packages/state/src/mutation/models.ts",
-        "packages/state/test/typed-artifact-metadata.test.ts"
-      ],
-      "commit": "d495469a361b862f38a33d08990bf96e12447e53"
-    },
-    {
-      "task": "DEL-B01 real Document visibility/initializer prerequisite",
-      "agent": "/root/browser_visibility_join",
-      "model": "gpt-6.1-sol",
-      "effort": "medium",
-      "status": "Committed a3c0a9bd: direct Document visibility correction, private owning emit and Node2/2 accepted; full browser/installed gates open",
-      "files": [
-        "packages/ui/src/browser/bootstrap.ts",
-        "packages/ui/test/browser-polling-join.test.ts"
-      ],
-      "commit": "a3c0a9bd8ff62735c8f5d99ba7c033fcdcd0ca49"
-    },
-    {
-      "task": "TECH-S04-query defining one-scan State selection prerequisite",
-      "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
-      "status": "Committed256a1796; owning build passed, focused17/17 and root direct diff accepted. Per-call viewer selection only; broader task remains open.",
-      "files": [
-        "packages/state/src/invocation/invoke.ts",
-        "packages/state/src/ports/transact.ts",
-        "packages/state/test/invocation/read-selection.test.ts"
-      ],
-      "validation": {
-        "build": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node scripts/run-tasks.mjs build --filter=@canlang/state --concurrency=1",
-        "test": "/Users/vince/.vite-plus/js_runtime/node/24.21.0/bin/node --test packages/state/dist/test/invocation/read-selection.test.js packages/state/dist/src/invocation/invoke-read.test.js",
-        "passed": 17,
-        "new_checks": 6,
-        "existing_checks": 11
-      },
-      "outputs": "packages/state/dist",
-      "limits": "One repository memory/owning query engine path; original durable, installed, revocation/concurrency and whole-query task remain open.",
-      "commit": "256a1796"
-    },
-    {
-      "task": "TECH-V03/V04 ordered State typed-write checkpoint",
-      "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
-      "status": "Committed841f56a8; root-reviewed; isolated owning emit and81focused mutation checks pass (9new). Native default receipt correction retained. Runtime codec/producer/hook/installed joins remain open.",
-      "files": [
-        "packages/state/src/mutation/pipeline.ts",
-        "packages/state/src/mutation/models.ts",
-        "packages/state/test/mutation/typed-staging.test.ts"
-      ],
-      "outputs": "/private/tmp/can-state-typed-td2vqp2p/dist",
-      "validation": "One post-correction isolated State emit and81focused checks; root reuses direct outcome, no rerun/proof chain.",
-      "commit": "841f56a8"
-    },
-    {
-      "task": "DEL-B02/H3 checked app locale metadata reader",
-      "agent": "/root/app_locale_consumer",
-      "model": "gpt-6.1-sol",
-      "effort": "medium",
-      "reason": "Finite existing metadata ingestion point under released compiler contract; no new policy",
-      "files": [
-        "packages/cloudflare/src/worker/assembly.ts::loadAppInfo",
-        "packages/cloudflare/test/app-locale-serving.test.ts"
-      ],
-      "status": "Committed67f51aee and root direct reviewed: owning private TypeScript emit passed;11focused existing assembly factory handoff cases passed. Metadata fixture scope only; actual compiler/durable/installed claims remain open.",
-      "outputs": "/private/tmp/canlang-app-locale-consumer-20261008",
-      "validation": "One private exact owning TypeScript emit and emitted Vitest run;11/11. Private-only missing resolver links and test discovery fixed before behavioral pass, no production weakening.",
-      "commands_live": false,
-      "commit": "67f51aee"
-    },
-    {
-      "task": "DEL-B02/DEL-R01 original owning assembly caller regression migration",
-      "agent": "/root/asset_consumer_join",
-      "model": "gpt-6.1-sol",
-      "effort": "high",
-      "reason": "Actual legacy caller fixtures cross identity/page/operation/file owners; preserve original refusal/journey behavior without interim production fallback",
-      "files": [
-        "packages/cloudflare/test/assembly.test.ts",
-        "packages/cloudflare/test/worker-main.test.ts"
-      ],
-      "status": "Writer released and root direct reviewed: private owning assembly21/21 and main14/14 pass, all original auth/refusal/operation/file/context assertions preserved. Handwritten app entry and actual Interfaces factory replace retired interim setup.",
-      "validation": "Private released source snapshot, no active invoke reads/rebuild. Worker-main14/14 reused; missing Files dependency repaired by copy of genuine current owning output; relevant handwritten source digest/full-HX fixture transport corrected and assembly21/21 passed. No further rerun.",
-      "commands_live": false,
-      "limits": "Handwritten metadata/fixtures remain explicit; real generated page consumer separately passed. No compiler/native/installed/full browser profile claim."
-    },
-    {
-      "task": "H3 trusted selected-app formatting scope",
-      "agent": "/root/trusted_locale_scope",
-      "model": "gpt-6.1-sol",
-      "effort": "medium",
-      "status": "Writer/readers/commands released; root direct reviewed; private owning CF emit and actual canonical bridge1/1 pass; scoped commit pending",
-      "commands_live": false,
-      "files": [
-        "packages/cloudflare/src/runtime/context.ts",
-        "packages/cloudflare/src/runtime/invoke.ts",
-        "packages/cloudflare/src/worker/assembly.ts",
-        "packages/cloudflare/src/runtime/handler-formatting.test.ts"
-      ],
-      "outputs": "/private/tmp/can-handler-formatting-emit.mgt0fA/dist",
-      "validation": "One private owning emit and direct Node canonical scenario1/1. Prior11metadata reader checks reused unchanged.",
-      "scope": "Frozen copied c.formatting.appDefault from existing checked AppInfo passed by host HTTP/MCP factory; team zone separate. Explicit low-level appId preserves absent scope.",
-      "limits": "Handwritten observing body over actual artifact/admission/context; compiler formatting lowering, sourceLang, installed/durable/whole locale outcomes separate."
-    },
-    {
-      "task": "H1 original t16b/t17b fixture contract maintenance",
-      "agent": "/root/legacy_scenario_fixtures",
-      "model": "gpt-6.1-sol",
-      "effort": "medium",
-      "status": "Root direct-reviewed released fixture maintenance; scoped commit pending",
-      "files": [
-        "packages/cloudflare/src/runtime/t16b-canonical.test.ts",
-        "packages/cloudflare/src/runtime/t17b-cloudflare-flip.test.ts",
-        "packages/cloudflare/src/runtime/t17b-durable.test.ts"
-      ],
-      "validation": "Private focused owning emit, original memory62/62 and D1other2/2 pass. First D1case required3obsolete create+set version2\u21921 assertions perDESIGN:103; only affected case rerun1/1 passed including fresh-handle/receipt/history/read/revision assertions.",
-      "commands_live": false,
-      "limits": "Explicitly handwritten synthetic artifacts, not compiler provenance; original authority/error behavior retained, no product runtime fallback."
-    }
-  ],
+  "live_finite_packets": [],
   "foreign_runtime_pure_integration_commit": "b5f3f61c5a7aa942cc9e535312bc848fe21cf497",
   "owner_build_test_acceptance": {
     "root_record": "interfaces-owner-build-root-review.json",
@@ -4204,5 +4323,182 @@
       "/private/tmp/canlang-repair-go-20261007/retained-admission-chunk-check/output",
       "/private/tmp/canlang-enum-claim-state"
     ]
+  },
+  "enum_result_import_correction": {
+    "state": "committed 1c95e75c; State and Cloudflare TypeScript checks pass",
+    "file": "packages/cloudflare/src/runtime/invoke.ts",
+    "scope": "Existing checked enum result parser/printer imports only."
+  },
+  "current_worker": {
+    "role": "Packages implementation",
+    "workspace": "/Users/vince/Projects/canlang/.worktrees/packages",
+    "source_base": "1527a249c915076c3e87daa5e8a488ac3c5a0e85",
+    "authorization": "Human local continuation from ebd2ad08; sole shared CI/common gate owner; existing48packet scope and native preparation HOLD preserved.",
+    "coordination": "Human-appointed coordinator01a11e6b-f4e1-7603-b47d-9d3210c9c6de; actionable exact prerequisite and shared repair handoffs through existing local chat.",
+    "examined_queue": "All48existing one-per-packet dispositions examined; historical20finished/15partial/12open-or-blocked/1human-held accounting preserved. Ready shared gates and exact released State/UI/Interfaces/Compiler/Identity joins implemented and checked at their recorded scopes. Remaining28parent identities retain defining producer/contract/host prerequisites or the preparation HOLD; no original333duty closure claim.",
+    "delivery": "Local coherent units through6ac7e298 published via existingPR135 branch; exact shared/package/foreign intakes and affected outcomes recorded here and released to appointed local coordinator. Native form consumer is the next coherent unit; remaining parent dependencies and current-head review/CI stay open. No merge/main push/deployment/cloud continuation.",
+    "last_upstream_sync": "ExistingPR upstream repeatedly inspected and pulled ff-only/no-recurse-submodules with no divergence; exact Compiler/Dev published prerequisites fetched/verified before finite intake. Primary checkout and other worktrees untouched.",
+    "review_process": "Actual Codex bf6517e1review5472554211: native update clone4232157232fixedad3856a9; missing Compiler modifier4232157221fixed owning8f4release consumedb3d06edf. Actual01a6review5472670410: ignored undefined patch4232259618fixed8521ccfa. Earlier alias/chained caption/InlineMessage/Chromium/zsh findings corrected at recorded scopes. Pending/older reviews never qualify the current head; CodeRabbit/CodeRebits ignored.",
+    "filetree_reconciliation": "Accumulated structural correspondence through exactsourceb3d06edf273439bf846bdb5721c4efa48ed9ef91:1079commits/10677net rows/11219historical paths/511history-only. Prior allocations retained;2new existing-package test rows remain inherited-unallocated, pending9175. Exact diff/history/counts and retained6f46/591ancestry pass. Complete82493427semantic checkpoint remains unadvanced; no recursive bookkeeping or product acceptance.",
+    "pull_request": "https://github.com/veighnsche/canlang/pull/135",
+    "ci_prerequisites": [
+      {
+        "prerequisite": "Exact pinned draft5a now available. Pristine CanDo+Employees pilot failsE3001 nullable person and2E3010 active_member derive-purity; retained patched pilot406 provenance refuses changedCanDo and old source emitsE1200 Given preferences+4E2001 preferences/row. Existing15pilot cases all fail at these defining profiles; no skipped/missing-source substitution.",
+        "owner": "Draft/Compiler defining source and profile owners; Packages consumes released current-profile fixture/provenance contract"
+      },
+      {
+        "prerequisite": "Implemented workspace-runner Chromium installation before actual test:all. Existing browser-job installation cannot serve a different runner. All three consolidated workflows pass actionlint; actual Linux execution after publication remains due.",
+        "owner": "Packages shared CI owner"
+      },
+      {
+        "prerequisite": "Finite published Compiler575/076/e40source/test release consumed; real catalog and locked offline owning3cases pass. Current-head/full-host qualification separate.",
+        "owner": "Compiler checked type/unification producer"
+      }
+    ],
+    "review_prerequisite": {
+      "prerequisite": "Coordinator manual local integration review under new human instruction; no remote pushes or automated-review waits. State/Contracts retained-only API consumed and five owning cases qualified; Dev trusted forwarding still required before Packages expired signed-claim restoration. Draft/Compiler15pilot fixtures retain real producer/consumer obligations.",
+      "owner": "Assigned Capability/Dev/Compiler/Draft defining producers; Packages consumes coherent exact releases and owns Interfaces restoration"
+    },
+    "ci_observed_revision": "dd03c53dCI37962368169: Compiler/editor and Language tools pass; workspace fails Services early-retry deadline assertion now corrected/qualified at exact1-case scope; browser15failed/30passed retains existing pilot producer/profile prerequisites. Current7d0d1274/full Linux/manual receipt and Codex qualification pending.",
+    "released_compiler_dependency": {
+      "release": "Compiler PR1334cb5c55d04afe0c8d4641e9fe9501465baec8f96 cherry-picked with provenance asd2788779cee855bc940cf212208e0c049d9abd99; source delta exactly absent module declaration/two calls. Conflicting documentation retained at its owning historical scope.",
+      "validation": "Rust1.99 locked offline B1 actual-catalog joins2/2, zeroSKIP; actual nominal generated/public Interfaces/UI/Identity Memory preference consumer1/1. Fresh locked compiler build passes and exact released workflow block provesTeamTasks exit10, seven precise errorE6008 profiles, complete diagnostic JSON/omitted0/no artifact fields. Unsupported source profiles remain refused; no whole-app/help/corpus acceptance.",
+      "limits": "No construct-help/inventory implementation, broad compiler/corpus acceptance or foreign implementation duplication. Actual available cached Rust/Bun tools found outside PATH; package consumer checks can resume without native preparation activation.",
+      "followup": "Published Compiler1ee1239d/dac8596f receiving-field/grouped identity source and owning tests consumed with provenance asfe32dea1/c52722e6. Exact matching B1 source-test delta from1a6c7633 and workflow delta from2db9200b consumed; no unrelated compiler implementation or unfinished checkpoint adopted.",
+      "gate_followup": "Published37695f6d consumed with provenance as6f807890 (diagnostic layout preserves wire shape, equivalent CLI/BDD traversal/lint, owning foundation/LSP controls). Consume exact2db source formatter hunks,3e5d2cd effects wired-library/each controls and explain E2019 allocation-example distinction, plus released5bb TeamTasks localized golden/catalog profile. Crate-private helpers remain private; no draft diagnostic count rewrite or unrelated Compiler source replacement.",
+      "gate_validation": "Current real catalog generated; genuine Rust1.99 format and strict all-target Clippy pass. Full locked/offline Rust suite passes1275cases/121suite summaries, zero failed/ignored/filtered; actual pinned5a draft outcomes, CanInbox header parity and real B1/B2 artifact joins execute without skips. Required actual bash/zsh/Python completion engines enabled. No native preparation activation. Known chained preference caption issue is outside these retained cases and remains Compiler-owned.",
+      "producer_followup": "Consume exact restricted five producer and34matching existing test/fixture deltas from verified owning PR1330f17f6f806babaf8a36c9cfeaa40357e5437aae7. Coherent descriptor/duration/delete-control/caption/preferences producers048a7383/e7d65ad9/c3c12531/f9efbd39/e461c1e2/3082eae1 accompany corpus1d6495d1 and completed Judgment-domain consumerb1209ff6; no corpus-count-only substitution or unrelated loader/workflow replacement.",
+      "completion_followup": "Consume exact owningc4376ab8b92be5dd7daf6da766bda2dae7d3dc49 zsh fixture: compinit -i still audits and ignores insecure fpath directories without prompt; require successful compdef/bootstrap and use a split ready sentinel. Required actual completion file2/2 passes with an injected real mode0777temporary fpath directory, zero skips. Full unchanged1275source results reused, no engine/assertion weakening."
+    },
+    "pending_shared_boundary_handoff": {
+      "release": "Coordinator exact five-file patch7e114146 consumed via git apply --3way as eac25ce3378009895968b44d29c710d59c328c07 and pushed to PR135. All four code/workflow blob IDs match handoff; newer DECISIONS entries retained.",
+      "validation": "Reuse unchanged owning handoff: locked install,26build tasks,16guard cases,YAML,3mockedJEV+37parser cases. Actual current full guard now reports6Dev-ownedCloudflare bypasses; State fixture read fixed. No whole-workspace acceptance.",
+      "status": "consumed and published; exact SHA reported here, no confirmed coordinator receipt"
+    },
+    "capability_gate_input": {
+      "release": "Capability697022afc62d06a4ec3d909eb78bacdf44ab0ff9 standaloneContracts targetES2022 consumed with existingES2023lib, matching tsconfig.base. Exact changed standalone checkpasses.",
+      "optional_testkit": "No source delta needed: existing Packages applicationRoot createRequire resolve/fileURL runtime import already avoids static declaration dependency, preserves export/init errors and stronger application resolution. Preserve published Dev a37 joined expected getter; no duplicate source replacement."
+    },
+    "state_fixture_gate": {
+      "status": "implemented and affected validation passed",
+      "input": "State test owns byte-exact NumericControl source/artifact fixture copies; validates retained producer source hash before all unchanged typed metadata assertions. Original compiler provenance remains unchanged.",
+      "validation": "Owning State TypeScript build passes; released NumericControl artifact retains integer metadata and unknown legacy result passes1/1. Full guard assessed after exact coordinator release.",
+      "delivery_followup": "Existing B3 malformed envelope case intentionally supplies standard version one (string), correctly rejected at current identity/version guard. Replace only retired diagnostic predicate with defining profile text; keep both inputs, typed error checks and missing-result assertion. Owning State TypeScript and existing full file5/5 pass, zero skips."
+    },
+    "teamtasks_fixture_gate": {
+      "status": "implemented; existing affected consumer qualification passed",
+      "input": "Compared prior a4b52d51 source against current004a2b8e: only verbatim TeamTasks.view and TeamNotes.show_content declarations relocate Given to Then; all fixture-covered records/policies/CRUD/pages unchanged. Honest source witness/comment updated; no preference/Notes/Office completeness claim.",
+      "validation": "Existing15 scaffold/TeamTasks/MCP Chromium/workerd cases pass after bundling real public Identity/testing and UI/Values installed closures; owning e2e TypeScript passes. Auth/session/CSRF/grant/denied projection/HTTP-MCP parity/D1 assertions retained. Fixture-only scope; no preferences/Notes/Office/complete compiled-app acceptance."
+    },
+    "draft_source_release": {
+      "release": "Human-authorized coordinator publication of EXISTING tracked5a12eb9ebb136ffa4e5ce352663f92affba25bc2 to canlang-drafts codex/ci-corpus-20261009 fetched; exact detached pinned checkout restored. Prior clean a55a0f7 HEAD preserved at draft branch codex/packages-preserved-draft-20261009; no local edits discarded, pointer/main/source unchanged.",
+      "validation": "Changed prerequisite consumed once in existing pristine/patched pilot checks and real full Rust fmt/Clippy/test commands; actual source/compilation failures recorded separately."
+    },
+    "workflow_consolidation_owner": "Coordinator exact50e28439 payload consumed and published as1644cd4a2e3f63c06615869d784830560a2f8bb8 AFTER source146aca0d; one4jobci.yml,exact10deletions,READMEparagraph/decisionappend. release.yml andts-gates.yml unchanged. Unchanged officialactionlint1.7.12/YAML/fresh exactdraftcheckout+26build/16guard/40tools results reused; actualnewLinuxgraph remains unaccepted. Prior guard source remains byteidentical toeac25release. Old finite reservation ends; future conflicts route through coordinator.",
+    "work_registered_observer": "VERIFY-TV01 existing registered observer now runs in private platformtemp root (canonical ancestor/symlink containment; checkout refused). GenuineNode24/Rust1.99 frozen TS/native93case comparison and existing controls pass. No oracle changes, held preparation activation or parent/fullnative acceptance.",
+    "dev_boundary_release": {
+      "release": "Verified Dev992b3d0ae188d96941a387d538cba11a48692bdb plus2421f900e058ed45771a2a02338fa446ea0d8c4f consumed as narrow owning exports/distribution/manifests/happyDOMlock and three affected test inputs. Preserve unrelated CLIbin/runner implementation; final inputchoices test matches2421 public imports/types.",
+      "validation": "Frozen Bun1.4.2 install and Values/Cloudflare TypeScript pass; actual full guard13packages/862JS-TS reports0violations. Existing constructhelp4/4 and real Office compilerconsumer4/4 pass after owning Values build. Genuine nativeD1/DOM inputchoices workflow now passes1/1: request-phase hold captured before worker yield; tracked real requests drain before ports close, preserving original failures and all auth/CSRF/grant/cancellation/invalidation/reopen assertions.",
+      "limits": "Qualified finite owning boundary and actual choice lifecycle inputs; no guard relaxation, assertion removal or whole-workspace/app/release acceptance."
+    },
+    "values_gate_qualification": "Owning source and emitted string/prepared contracts each10/10 pass on genuine Bun1.4.2/Node24 after current TypeScript. Keep frozen corpus/oracle and semantic corruption controls; explicit reviewed distribution.ts catalog locator donor successor only. Public ValueTypesError inventory already complete. Dev consolidatedCI Values findings resolved at Packages owning source; no whole Values/native acceptance.",
+    "shutdown": "Human emergency stops all cloud implementation/checks/reviews. Preserve open source in unfinished related commits on existing codex/packages-repair-20261009/PR135, push only that branch, then stop. Human local continuation: /Users/vince/.codex/worktrees/cloud-packages/canlang; no replacement task launched. Nested draft is clean at tracked5a, priora55 already on remote branches; parent gitlink unchanged. Non-cache ignored/untracked task source absent.",
+    "installed_closure_checkpoint": "Existing gates qualify source1bfef3bf public-port/package closure onNode24 after40/40workspace typecheck and26/26build. Isolated declarations170exports/13owners pass with797third-party diagnostics retained (scratchpxGAdy). Isolated Worker passes installed-only/no checkout reads,207modules,authrefusal,real workerd/Wasm ABI/add-int,missing/corrupt asset negatives (scratchKt7M3R). Later State undefined patch and Compiler modifier delta separately have owning controls/direct join; unchanged installed consumer results reused at this scope, no full feature/host release acceptance.",
+    "ui_gate_checkpoint": "Qualified locally after clean current producer build26/26: affected catalog/messages/shell/t20b existing126/126 pass with zero skips on Node24.19/Bun1.4.2. Frozen wrappers/native identity, exact trusted bootstrap/hostile probes and canonical File/ordered violations/original cause all exercised. Full UI/security acceptance remains separate.",
+    "local_continuation": {
+      "checkpoint": "ebd2ad084eb3b5608dbb335b125c085a58d52c47",
+      "branch": "codex/local-packages",
+      "upstream": "origin/codex/packages-repair-20261009",
+      "sync": "Repeated ff-only/no-recurse-submodules own-upstream pulls; no divergent history/reset or foreign branch import. Coherent units committed before switching; existingPR branch only.",
+      "held": "Native preparation/release activation and all other recipient-specific human holds preserved; local execution only.",
+      "integration": "Appointed coordinator forwarded the new human instruction: remaining work stays local, coherent commits/unfinished checkpoints only, no remote pushes or automated-review waits. Coordinator alone manually reviews/merges into local main. Required affected local checks and recipient-specific holds remain."
+    },
+    "shared_gate_repairs": {
+      "workspace_chromium": "c9915950 published; all3workflow actionlint passes; actual Linux workspace tests run browser consumers without the former missing-Chromium error. Foreign runtime source/fixture failures remain visible.",
+      "manual_receipts": "Plan2 builds Values catalog before its real tests, and catalog/compiler/Chromium before Cloudflare/workspace consumers. Existing32receipt/runner cases pass with full omission/reorder/failed prerequisite refusals. Direct3profile ordering assertions pass. Native preparation debug prerequisite remains private; activation held.",
+      "completion_engines": "CAN_COMPLETION_REQUIRE_ENGINES explicitly passes strict Turbo environment to existing native compiler test entry; automatic CI direct Cargo already retained it.",
+      "remaining": "Current-head Linux/manual receipt qualification and foreign browser pilot producer joins remain required; prior32CF runtime fixture prerequisite consumed and affected71cases pass.",
+      "services_deadline_case": "CI37962368169dd03c53d exposed retry before wall expiry: transport floors remaining budget and existing assertion allows10msremaining. Existing Services case now reaches original deadline before testing expired retry; aggregate<420ms, exact first bytes/partial count and three requests/no third output/no retry request retained. Services emit and actual Node24 HTTP case1/1pass zero skips; adapter unchanged.",
+      "native_polling_fixture": {
+        "source": "Only two functional fixture hunks from exact published Compiler79e6b016ec67ff23eea520888cf9e01191e98461: native temporary Chromium profile credential-store flags and combined navigation/bootstrap observation. All product/visibility/polling/cancellation/HTTP/history assertions preserved.",
+        "validation": "Cloudflare owning emit passes. Actual local Mac Worker/Chromium readonly polling case passes1/1 with3unselected,10.879s; initial sandbox localhostEPERM did not qualify behavior, identical escalated retry passes.",
+        "limit": "Exact native case only; broader browser pilot source/profile and mounted workflow gates remain with their owners. Native preparation/release activation HOLD retained."
+      }
+    },
+    "stdlib_gate": "CurrentCI ebd2ad08 failed explicit141export surface because existing owning choose was omitted from140inventory. Add only choose; preserve exact equality and producer binding identity. Owning emit/assembly4/4 pass; existing Values choose behavior controls reused.",
+    "canonical_delete_form": {
+      "state": "implemented and affected checks passed",
+      "source": "Existing compiler Delete descriptor accepts record only; archive/remove behavior belongs to declared operation.",
+      "correction": "DeleteProps.mode remains presentation caption/tone; hidden fields are exactly operation, unchanged caller operation_id, CSRF, timezone and record{id,version}. Remove undeclared inputs[mode].",
+      "validation": "UI emit and94existing cases pass. Exact Compiler nonce229+7fe consumed27f520af and actual generated canonical form/archive/replay/current-grant consumer1/1passes; full Office/D1/browser qualification remains Dev-owned.",
+      "native_http_consumer": {
+        "state": "implemented and affected checks passed",
+        "behavior": "Operation-only urlencoded reader refuses duplicate controls and mixed JSON/bracket inputs. Owning derived declarations allow exact native names, UI-owned typed projection handles create/update/scenario, and delete preserves exact record id/version strings. Unknown/mode controls, schema/protected-ref/CSRF denials precede invocation; JSON behavior unchanged.",
+        "validation": "Interfaces emit and46existing affected HTTP/presentation cases pass zero skips. Actual .can compilation\u2192UI delete rendering\u2192native successful controls\u2192HTTP\u2192real Cloudflare invoker\u2192State Memory archives once, replays exact rendered nonce without revision/history changes and refuses stale409, duplicate/unknown mode/missing/malformed version/CSRF with no effects.",
+        "limit": "Office full browser consumer remains Dev-owned. Partial native forms require owning checkbox presence/false evidence to distinguish unchecked from unrendered declarations; no absent-field inference or new producer behavior. Expired signed binding restoration still blocked on Dev forwarding. No full parent/current-head acceptance."
+      }
+    },
+    "state_modifier_release": {
+      "prerequisite": "Consumed exact published792d8161b525a4ae2574f846b81e5938876b7ed9 six source/test files: Contracts artifact/state and State registry/models/pipeline/nullable-ref. No Dev plan or historical acceptance imported.",
+      "correction": "Constrained native values remain native through hooks; Values wire views validate bounds, trim alone normalizes, existing post-hook/default encoding remains. Archive constrains/encodes only hook-changed fields, preserving unchanged legacy values and history.",
+      "validation": "Contracts and State owning emits pass. Existing modifier/typed staging/remove29cases pass; after root correction to unchanged archive codec traversal,3affected archive/native controls pass with zero skips. Arithmetic create/update/defaults, pre/post-hook bounds and rollback/unique recovery/history covered.",
+      "limit": "Defining generated/full consumer joins and current-head review remain required; no native preparation activation."
+    },
+    "auth_team_budget": {
+      "state": "implemented by owning Dev release, consumed and affected checks passed",
+      "source": "Verified published422ebfb6f48d410a3170096fac0d00db87228577 original Interfaces route baseline plus1084c1a102d005236a57d7a3665c7a5a524dc8d2 joined/paginated Identity ports/D1/testing, Interfaces consumer and matching Cloudflare structural port/actual D1 test. No Dev plan or unrelated producer imported.",
+      "behavior": "Store joins active memberships to live teams, ordered after exclusive cursor with LIMIT101. Auth route displays100 plus lookahead, never resolves each team separately; auth/cache/cursor/refusal controls retained.",
+      "validation": "Identity/Interfaces/Cloudflare project emits and31existing team/auth unit cases pass onNode24. Actual workerd D1 consumer1/1passes after sandbox-localhost EPERM rerun:205teams produce100/100/5pages, exactly5queries per request with one discovery INNER JOIN, removed/dangling/foreign exclusions and revoked403.",
+      "owner": "Dev producer/feature consumer; Packages exact released dependency intake",
+      "limit": "Installed feature qualification/current-head review remains due; original Identity parent obligations remain open."
+    },
+    "form_refusal_metadata": {
+      "state": "implemented and affected checks passed",
+      "contract": "@canlang/interfaces/http/operations exportsFORM_REFUSAL_HEADER=can-form-refusal. HTML business-refusal full pages/fragments carry JSON{version:1,code:closed BusinessErrorCode,retryable:boolean}; no prose, inputs, fields, identifiers or private values. JSON path unchanged.",
+      "validation": "Interfaces emit and22existing HTTP operation/refusal/security/body checks pass without skips; code/retryability and exact bounded metadata asserted, normal drafts retained, JSON header absent.",
+      "consumer": "Dev owns bridge consumption and independent MCP structuredContent/isError observation."
+    },
+    "inline_message_release": {
+      "source": "Exact published57573511self-unification arm/test slice plus0769125einline-array IR ande40b2901generic choose witness consumed; no unrelated unfinished checkpoints.",
+      "validation": "After genuine catalog emission59entries/15features, Rust1.99 locked/offline anonymous_message_coverage3/3passes. Both choose conditions, eager authored construction/read order, native captured identity/counts, first-failure identity and text/named mixing refusals execute.",
+      "limit": "Computed anonymous descriptor formatting profile remains separate; current-head review/full compiler acceptance due."
+    },
+    "chained_caption_release": {
+      "source": "Consumed exact published f1c84d322e2958d3537e61832a4667c3d3494db5 four source/test files; owning Types immediate reuse identity and IR nearest/receiving caption composition preserved.",
+      "validation": "Rust1.99 locked/offline ui_adapter8/8 and actual nominal_preference_runtime1/1pass; generated HTTP/UI preference lifecycle preserves receiving identity/default/version/save and existing refusals.",
+      "limit": "No unrelated feature checkpoint or full-plan acceptance; current-head review required."
+    },
+    "state_alias_constraint": {
+      "state": "implemented and affected checks passed",
+      "correction": "State registry and model constraint factory retain the exact owning normalized nominal alias type/bounds/format rather than constructing a dangling freshschema. Receiving bounds and wrong/unowned-alias/unsupportedtrim refusals remain.",
+      "validation": "Stateowningemit and4targeted artifact/direct-loader/native mutation/ownership controls pass, no skips. Prior native hook/archive controls unchanged and reused.",
+      "limit": "Complete alias/nominal/CSV/host qualification remains separate; no broad exemption or original parent closure."
+    },
+    "state_update_hook_constraints": {
+      "state": "implemented and affected checks passed; Codex4232157232",
+      "correction": "Update constraint validation compares hook results by wire content, retaining explicit patch keys. Unchanged cloned legacy arrays/objects do not acquire new constraints; actual hook mutations still validate. Full create/update codec traversal remains.",
+      "validation": "State owning emit and20existing nullable-ref/typed-staging cases pass onNode24, zero skips. No-hook/no-op/cloned-hook unrelated updates retain arrays/objects and all3codec visits; explicit patches and actual in-place hook changes refuse with complete batch/revision/history rollback.",
+      "limit": "Current-head Codex and actual host qualification remain required; no original parent closure."
+    },
+    "delete_nonce_release": {
+      "source": "Consume exact published Compiler229037712960a7b7fc0bf891607a2a87a235a7d5 nonce IR/JS and controls plus7fe7fe35cddcf1f3d2ffd43a7395129097514652 corrected canonical UI consumer. No unrelated Compiler plan or source.",
+      "behavior": "Generated delete mints UUIDv7 once per visible rendered control, keeps the same hidden identity for submit/replay, and mints none inside an omitted gate. Canonical business fields remain record-only; undeclared mode still refuses.",
+      "validation": "Rust1.99 locked/offline focused codegen1/1 and actual generated delete_control_runtime1/1pass. Source native version arithmetic/precision, exact UI wire identity, archive/replay/stale and revoked grant controls execute. Initial shared filter selected no runtime case; corrected unfiltered owning target executes1/1.",
+      "limit": "Complete Office browser/durable workflow remains Dev-owned; current-head/full-plan review is separate."
+    },
+    "state_update_undefined": {
+      "state": "implemented and affected checks passed; Codex4232259618",
+      "correction": "applyCallerData records only actually applied fields after existing validation, undefined omission and cloning. Update constraint tracking uses that set without rereading patch getters; hook content comparison and full codec traversal remain.",
+      "validation": "State owning emit and12existing nullable-ref cases pass onNode24, zero skips. Omitted/known undefined preserve legacy array/object/text and full codec traversal; explicit null stays null; explicit invalid, unknown undefined, machine and server-only refusal precedence remain. Initial new machine fixture omitted its required default, corrected before final pass.",
+      "limit": "Current-head review and original complete parent qualification remain required."
+    },
+    "stored_field_modifier_release": "See authoritative packet_state.DEL-C01.stored_field_constraint_slice; exact8f4producer consumedb3d06edf,27Rust controls plus real emitted-artifact/State join qualified at its finite scope.",
+    "runtime_fixture_release": {
+      "state": "exact owning Dev release consumed and joined affected qualification passed",
+      "source": "Published57b1eb575a7682ef725ab91bbdaa655d2d4c4248 six runtime test files only; no Dev plan/decisions or unrelated source imported.",
+      "correction": "D3b/T32b fixtures own actual module hashes, selected entries, policy/read selectors and canonical receipt references. Composed T18 user bindings and submitted-intersection current fields remain explicit. Delivery observation asserts its exact unbound viewer-read refusal; effect bypass guards remain.",
+      "validation": "Cloudflare owning TypeScript emit passes; Node24 six-file suite71/71passes, zero skips. Real D1/DO fencing, source/receipt/observer refusals, revoke/retry/replay/history/self-cancel and actual compiled typed scenarios execute. All six paths already registered; complete semantic checkpoint unchanged.",
+      "limit": "Resolves the prior32-case missing-fixture join at this scope; full/current-head Linux CI, browser pilot producers and original parent security/host qualification remain open. Native preparation HOLD retained."
+    }
   }
 }

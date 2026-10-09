@@ -9,13 +9,12 @@ fn unsupported_dynamic_order_refuses_at_the_authored_profile() {
     use std::process::Command;
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
     let prefix = "app BoundUi\nGiven\n Todo { title:text }\n policy Todo read=public\nWhen\nThen\n preferences { view:enum(all,finished)=all label={text=\"View\",values={all=\"All\",finished=\"Finished\"}} }\n page / title=\"Page\"\n";
-    for (body, profile, authored) in [
-        (
+    {
+        let (body, profile, authored) = (
             "  list Todo order={by=preferences.view,default=[-created],cases={finished=[title]}} empty=\"No tasks\"\n   text row.title\n",
             "collection order",
             "{by=preferences.view,default=[-created],cases={finished=[title]}}",
-        ),
-    ] {
+        );
         let scratch = tempfile::tempdir().unwrap();
         let source = prefix.to_string() + body;
         let path = scratch.path().join("profile.can");
@@ -68,13 +67,182 @@ fn bound_tabs_emit_source_options_and_request_owned_save_route() {
         .env_remove("CAN_CATALOG")
         .output()
         .unwrap();
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stdout));
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
     let compiled: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     let js = compiled["modules"][0]["js"].as_str().unwrap();
-    assert!(js.contains("preferenceFields:[{name:\"view\",options:[\"all\",\"finished\"],defaultValue:\"all\"}]"), "{js}");
+    assert!(
+        js.contains(
+            "preferenceFields:[{name:\"view\",options:[\"all\",\"finished\"],defaultValue:\"all\"}]"
+        ),
+        "{js}"
+    );
     assert!(js.contains("postTo:c.pollUrl ?? c.path"), "{js}");
-    assert!(js.contains("version:c.preferenceVersions.BoundUi.view"), "{js}");
+    assert!(
+        js.contains("version:c.preferenceVersions.BoundUi.view"),
+        "{js}"
+    );
     assert!(js.contains("current:preferences.view"), "{js}");
+}
+
+#[test]
+fn nominal_preference_tabs_keep_the_receiving_field_and_refuse_foreign_bindings() {
+    use std::{path::PathBuf, process::Command};
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let scratch = tempfile::tempdir().unwrap();
+    let prefix = "app NominalTabs\nGiven\n Expense { status:enum(draft,submitted,approved)=draft label={text=\"Status\",values={draft=\"Draft\",submitted=\"Submitted\",approved=\"Approved\"}} }\n policy Expense read=public\nWhen\nThen\n";
+    let run = |body: &str| {
+        let path = scratch.path().join("nominal.can");
+        std::fs::write(&path, prefix.to_string() + body).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["compile", "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(path)
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap();
+        let artifact: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        (output, artifact)
+    };
+    let (output, artifact) = run(
+        " preferences { selection:Expense.status=submitted label={text=\"Review\",values={approved=\"Accepted\"}} }\n page / title=\"Page\"\n  tabs preferences.selection\n",
+    );
+    assert!(output.status.success(), "{artifact}");
+    let js = artifact["modules"][0]["js"].as_str().unwrap();
+    assert!(js.contains("preferenceFields:[{name:\"selection\",options:[\"draft\",\"submitted\",\"approved\"],defaultValue:\"submitted\"}]"), "{js}");
+    assert!(
+        js.contains("version:c.preferenceVersions.NominalTabs.selection"),
+        "{js}"
+    );
+    assert!(js.contains("current:preferences.selection"), "{js}");
+    for label in ["Draft", "Submitted", "Accepted", "Review"] {
+        assert!(js.contains(label), "missing {label}: {js}");
+    }
+    for body in [
+        " preferences { selection:Expense.status? }\n page / title=\"Page\"\n  tabs preferences.selection\n",
+        " preferences { selection:Expense.status=foreign }\n page / title=\"Page\"\n  tabs preferences.selection\n",
+        " page / title=\"Page\"\n  list Expense empty=\"Empty\"\n   tabs row.status\n",
+        " page / title=\"Page\"\n  list Expense empty=\"Empty\"\n   tabs ((row.status))\n",
+    ] {
+        let (output, artifact) = run(body);
+        assert!(
+            !output.status.success(),
+            "unsupported binding published: {body}"
+        );
+        assert!(artifact.get("modules").is_none(), "{artifact}");
+        assert!(
+            artifact["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|diagnostic| diagnostic["code"]
+                    .as_str()
+                    .is_some_and(|code| code.starts_with('E'))),
+            "{artifact}"
+        );
+    }
+}
+
+#[test]
+fn chained_preference_tabs_use_nearest_labels_and_receiving_identity() {
+    use std::{path::PathBuf, process::Command};
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let scratch = tempfile::tempdir().unwrap();
+    for (status, selection) in [
+        ("preferences.status", "preferences.selection"),
+        ("((preferences.status))", "(preferences.selection)"),
+    ] {
+        let source = format!(
+            "app ChainedTabs\nGiven\n Expense {{status:enum(draft,submitted,approved)=draft label={{text=\"Status\",values={{draft=\"Draft\",submitted=\"Submitted\",approved=\"Approved\"}}}}}}\n Bridge {{status:Expense.status=approved label={{text=\"Bridge status\",values={{draft=\"Bridge draft\",approved=\"Bridge approved\"}}}}}}\n policy Expense read=public\n policy Bridge read=public\nWhen\nThen\n preferences {{status:Bridge.status=submitted label={{values={{approved=\"Accepted status\"}}}},selection:Bridge.status=draft label={{values={{approved=\"Accepted selection\"}}}}}}\n page / title=\"Page\"\n  tabs {status}\n  tabs {selection}\n"
+        );
+        let path = scratch.path().join("chained.can");
+        std::fs::write(&path, source).unwrap();
+        let output = Command::new(env!("CARGO_BIN_EXE_can"))
+            .args(["compile", "--format=json", "--catalog"])
+            .arg(root.join("packages/values/dist/catalog.json"))
+            .arg(path)
+            .env_remove("CAN_CATALOG")
+            .output()
+            .unwrap();
+        let artifact: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert!(output.status.success(), "{artifact}");
+        let js = artifact["modules"][0]["js"].as_str().unwrap();
+        assert!(js.contains("preferenceFields:[{name:\"status\",options:[\"draft\",\"submitted\",\"approved\"],defaultValue:\"submitted\"},{name:\"selection\",options:[\"draft\",\"submitted\",\"approved\"],defaultValue:\"draft\"}]"), "{js}");
+        for field in ["status", "selection"] {
+            assert!(js.contains(&format!("current:preferences.{field}")), "{js}");
+            assert!(
+                js.contains(&format!("version:c.preferenceVersions.ChainedTabs.{field}")),
+                "{js}"
+            );
+        }
+        let render = js
+            .split("export async function ")
+            .nth(1)
+            .unwrap()
+            .split("export const appDefinition")
+            .next()
+            .unwrap();
+        for caption in [
+            "Bridge status",
+            "Bridge draft",
+            "Submitted",
+            "Accepted status",
+            "Accepted selection",
+        ] {
+            assert!(render.contains(&format!("\"{caption}\"")), "{render}");
+        }
+        for ancestor in ["Status", "Draft", "Approved", "Bridge approved"] {
+            assert!(!render.contains(&format!("\"{ancestor}\"")), "{render}");
+        }
+        assert_eq!(
+            render.matches("caption:").count(),
+            1,
+            "renamed field must not inherit a legend: {render}"
+        );
+        assert!(render.contains("postTo:c.pollUrl ?? c.path"), "{render}");
+    }
+}
+
+#[test]
+fn grouped_preference_tabs_keep_inline_and_borrowed_checked_identities() {
+    use std::{path::PathBuf, process::Command};
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let scratch = tempfile::tempdir().unwrap();
+    for annotation in ["enum(draft,submitted)", "Expense.status"] {
+        for target in [
+            "preferences.view",
+            "(preferences.view)",
+            "((preferences.view))",
+        ] {
+            let source = format!(
+                "app GroupedTabs\nGiven\n Expense {{status:enum(draft,submitted)=draft}}\n policy Expense read=public\nWhen\nThen\n preferences {{view:{annotation}=submitted}}\n page / title=\"Page\"\n  tabs {target}\n"
+            );
+            let path = scratch.path().join("grouped.can");
+            std::fs::write(&path, source).unwrap();
+            let output = Command::new(env!("CARGO_BIN_EXE_can"))
+                .args(["compile", "--format=json", "--catalog"])
+                .arg(root.join("packages/values/dist/catalog.json"))
+                .arg(path)
+                .env_remove("CAN_CATALOG")
+                .output()
+                .unwrap();
+            let artifact: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+            assert!(
+                output.status.success(),
+                "{annotation}: {target}: {artifact}"
+            );
+            let js = artifact["modules"][0]["js"].as_str().unwrap();
+            assert!(js.contains("preferenceFields:[{name:\"view\",options:[\"draft\",\"submitted\"],defaultValue:\"submitted\"}]"), "{js}");
+            assert!(js.contains("current:preferences.view"), "{js}");
+            assert!(
+                js.contains("version:c.preferenceVersions.GroupedTabs.view"),
+                "{js}"
+            );
+        }
+    }
 }
 
 #[test]

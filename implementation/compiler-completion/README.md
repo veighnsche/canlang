@@ -2,6 +2,17 @@
 
 Current completion is **58 of 67 references**, with **9 remaining including partial work**. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
+After synchronization to upstream **9ecb2759**, the compiler failed E0583:
+the unfinished construct-candidate annotation hook referenced an absent source
+module. Removing only that declaration and its two calls restores the existing
+checking pipeline; the optional diagnostic carrier remains. Library/binary
+`cargo check --locked --offline` passes, and independent review accepts this
+bounded repair. Can Dev **T04's compiler inventory/help-data owner** must release
+the real producer and selected-profile proofs before enabling the hook.
+
+
+Current corpus qualification remains with the compiler worker and the coordinator/draft publisher: the upstream **5a12eb9e** gitlink is unavailable from its remote. The published source repair does not release construct help or qualify that corpus.
+
 The user has authorized finishing the remaining compiler tasks. Use the [recorded work/review settings](../../docs/research/compiler-library-audit-20261006/resumption/model-allocation.md); overlapping references share work and completed receipts are reused at matching scope. Current completion joins append to the canonical coverage ledger; historical source pins remain unchanged.
 
 | Reference | Current outcome |
@@ -929,3 +940,47 @@ goldens pass (**1/1** each, 0.16s/0.21s). They exposed a real multiline writer
 mapping gap, now fixed by attributing every physical emitted line without
 changing JavaScript bytes or source-disclosure policy. Final focused lib/bin
 Clippy passes (4.56s), and scoped formatting passes. Counters remain **58/67**.
+
+The next ready preference leaf separates the exact receiving Preferences field
+from its borrowed enum owner. Source Tabs now preserve nominal cases/inherited
+labels and receiving overrides/defaults, while saving under the receiving
+module/field/current version. The actual generated page passes **1/1** through
+public Interfaces/UI, real Identity fixtures and a Memory preference-store
+port: saved-current rendering, owner/default metadata, CSRF/case/stale-version
+and anonymous/revoked-member refusals all qualify. The new receiving-identity
+controls and unchanged inline Tabs case pass **1/1** each. Independent review
+accepts the source and lifecycle scope after strengthening the checked-status
+assertion. Identity and Interfaces owning builds both pass.
+
+Both affected structural goldens now pass **1/1** each, with positive inline and
+borrowed Tabs payload/save metadata in place of retired refusals. ExpenseFlow's
+sequence assertion preserves the emitted nullable binding normalization before
+member access; call/expected/type assertions remain. Strict all-target Clippy,
+scoped formatting and diff checks pass. The earlier `unfinished` structural
+checkpoint establishes no separate acceptance. State/D1 persistence, full
+ExpenseFlow/application serving, unsupported order/panels and the wider nine
+references remain open; canonical completion stays **58/67**.
+
+Codex review of **1ee1239d** completed and identified grouped-target identity
+loss. Unwrapping syntax groups only for the checked field lookup fixes direct,
+single and nested inline/borrowed targets; the actual grouped HTTP/UI case and
+business-field refusal controls pass. Independent review accepts this correction.
+Strict all-target Clippy then exposed the new extension's enlarged diagnostic
+error layout and upstream CLI/BDD traversal lints. Boxing the optional extension
+preserves its wire shape; exact short-circuit/traversal rewrites and the LSP
+token chunk correction preserve behavior. Foundation **9/9**, typed LSP **9/9**
+and actual BDD bindings **4/4** pass. Independent review accepts the bounded
+repair, including its newly introduced Rust field source-compatibility change;
+final strict Clippy remains due after the ready alias source unit.
+
+Current remaining prerequisites are recorded here without reopening accepted
+compiler leaves:
+
+| References | Required prerequisite and owner |
+| --- | --- |
+| SEM-R05, S9-Q05 | Release-pinned timezone dataset/membership and wider temporal profiles: Values/runtime release owner. Structural timezone admission remains bounded. |
+| S9-Q01 | Additional human-text capability sinks and canonical outbound text/locale/release freezing: capability, Contracts, State and Cloudflare owners. Local anonymous alias provenance is a ready compiler leaf; canonical inline-enum UI presentation requires the UI message consumer to recognize `enum(a,b)` without dropping cases. |
+| SEM-R08 | Admitted unknown-nominal callable/facade contract and authority-derived scalar expectation: Values/catalog and defining runtime owners. Existing E6007 refusal remains. |
+| S9-Q02 | Additional default/result intake and observation contracts, private/CRUD/D1 transaction profiles: Contracts, State and Cloudflare owners. Unsupported nested/nonempty/element-nullable enum profiles remain explicit. |
+| S9-Q07 | Specific BDD consumer-policy consultation remains held; human/policy owner must resolve it. Actual result/current-input/live-read transport belongs to Testkit/canonical invocation owners. Imported helpers are already linked. |
+| S9-Q08, OR-06, OUT-R05 | Page admission/current-row disclosure/browser serving, migrations/durable ingestion, installed applications and real GUI/map navigation: Cloudflare, Interfaces, UI, State migration/deployment, application/release and editor/GUI owners. Native map production is already supplied. |

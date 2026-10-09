@@ -1,11 +1,12 @@
 /**
  * JSON auth endpoints over the real @canlang/identity stack (S4).
  *
- * Interim page contract (pending L5 screens): the GET routes return JSON
- * form descriptors `{form, fields, postTo, csrfField}` describing the form
- * the future page will render — they are NOT the pages, and they never
- * consume tokens. Only the login GET mutates state (one throttled
- * pre-session row per call); every other GET is side-effect-free.
+ * Interim page contract (pending L5 screens): form GET routes return JSON
+ * descriptors `{form, fields, postTo, csrfField}` describing the form
+ * the future page will render; team discovery returns a bounded list.
+ * These are not pages and do not consume tokens. Only the login GET mutates
+ * state (one throttled pre-session row per call); every other GET, including team discovery,
+ * is side-effect-free.
  *
  * Method/path matrix: only the documented method+subpath pairs dispatch;
  * every other combination (unknown `/auth/*` subpath, wrong method) is
@@ -87,6 +88,8 @@ export interface AuthFormDescriptor {
  * keys on `${route}:${clientKey}`.
  */
 const LOGIN_DESCRIPTOR_THROTTLE = '/auth/login/descriptor';
+const MAX_LISTED_TEAMS = 100;
+const TEAM_CURSOR = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 function descriptor(form: string, fields: readonly AuthFormField[], postTo: string): AuthFormDescriptor {
   return { form, fields, postTo, csrfField: CSRF_FIELD };
@@ -110,7 +113,8 @@ function deny(deps: AuthHttpDeps, error: BusinessError, route: string): Response
   return jsonErrorResponse(
     body,
     status,
-    retryAfterMs === null ? undefined : { 'retry-after': String(Math.max(1, Math.ceil(retryAfterMs / 1000))) },
+    { 'cache-control': 'no-store',
+      ...(retryAfterMs === null ? {} : { 'retry-after': String(Math.max(1, Math.ceil(retryAfterMs / 1000))) }) },
   );
 }
 
@@ -283,6 +287,25 @@ async function handleSelectTeam(deps: AuthHttpDeps, request: Request): Promise<R
   return jsonOk({ ok: true, team_id });
 }
 
+/** Discover only the current session actor's active, live team memberships. */
+async function handleTeams(deps: AuthHttpDeps, request: Request): Promise<Response> {
+  const { identity, sessionToken } = await resolveRequestIdentity(deps.identity.store, request, { clock: deps.clock });
+  if (sessionToken === null || identity.actor === null) {
+    throw new IdentityError('forbidden', 'Authentication required.');
+  }
+  const params = new URL(request.url).searchParams;
+  const cursors = params.getAll('after');
+  if (params.size !== cursors.length || cursors.length > 1 ||
+      (cursors.length === 1 && !TEAM_CURSOR.test(cursors[0] ?? ''))) {
+    throw new IdentityError('validation', 'Invalid team cursor.');
+  }
+  const after = cursors[0] ?? null;
+  const page = await deps.identity.store.listActiveUserTeamsPage(identity.actor.user_id, after);
+  const teams = page.slice(0, MAX_LISTED_TEAMS);
+  const truncated = page.length > MAX_LISTED_TEAMS;
+  return jsonOk({ teams, truncated, next_after: truncated ? teams.at(-1)!.team_id : null }, { 'cache-control': 'no-store' });
+}
+
 async function handleSelectTeamClear(deps: AuthHttpDeps, request: Request): Promise<Response> {
   const { sessionToken } = await resolveRequestIdentity(deps.identity.store, request, {
     clock: deps.clock,
@@ -330,10 +353,10 @@ const SELECT_TEAM_DESCRIPTOR = (): AuthFormDescriptor =>
   descriptor('select-team', [{ name: TEAM_FIELD, type: 'text', required: true }], '/auth/select-team');
 
 /**
- * Dispatch one `/auth/*` request. GETs return interim form descriptors
- * (the login GET mints a throttled pre-session token; the rest are
- * side-effect-free); POSTs run the identity flows above. Anything
- * unmapped is `not_found` JSON.
+ * Dispatch one `/auth/*` request. Form GETs return interim descriptors;
+ * team discovery returns active memberships. The login GET mints a throttled
+ * pre-session token; the other GETs are side-effect-free. POSTs run the
+ * identity flows above. Anything unmapped is `not_found` JSON.
  */
 export async function handleAuthRequest(deps: AuthHttpDeps, request: Request): Promise<Response> {
   const pathname = new URL(request.url).pathname;
@@ -345,6 +368,7 @@ export async function handleAuthRequest(deps: AuthHttpDeps, request: Request): P
     if (method === 'GET' && pathname === '/auth/verify') return jsonOk(VERIFY_DESCRIPTOR());
     if (method === 'GET' && pathname === '/auth/recover') return jsonOk(RECOVER_DESCRIPTOR());
     if (method === 'GET' && pathname === '/auth/select-team') return jsonOk(SELECT_TEAM_DESCRIPTOR());
+    if (method === 'GET' && pathname === '/auth/teams') return await handleTeams(deps, request);
     if (method === 'POST' && pathname === '/auth/register') return await handleRegister(deps, request);
     if (method === 'POST' && pathname === '/auth/verify') return await handleVerifyPost(deps, request);
     if (method === 'POST' && pathname === '/auth/login') return await handleLogin(deps, request);
@@ -366,6 +390,6 @@ export async function handleAuthRequest(deps: AuthHttpDeps, request: Request): P
     void incidentId;
     const error = fromUnknown(err);
     const { status, body } = toHttpResponse(error);
-    return jsonErrorResponse(body, status);
+    return jsonErrorResponse(body, status, { 'cache-control': 'no-store' });
   }
 }

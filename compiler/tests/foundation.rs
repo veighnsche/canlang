@@ -170,6 +170,38 @@ fn diagnostic_populated_envelope_exact_bytes_and_order() {
 }
 
 #[test]
+fn diagnostic_optional_construct_candidates_preserve_wire_shape() {
+    use canlang_compiler::diagnostic::ConstructCandidates;
+    use canlang_compiler::source::SourceId;
+
+    let mut result = DiagnosticResult::new("0.1.0", "1.0", 1);
+    let mut diagnostic = Diagnostic::error(
+        "E1200",
+        "unexpected item".into(),
+        Span::new(SourceId(0), 0, 1),
+    );
+    diagnostic.construct_candidates = Some(Box::new(ConstructCandidates {
+        version: 1,
+        disposition: "structural",
+        slot: Some("Given.item"),
+        ids: vec!["model", "contract"],
+        complete: false,
+    }));
+    result.push(diagnostic);
+    let wire: serde_json::Value = serde_json::from_str(&result.to_json()).unwrap();
+    assert_eq!(
+        wire["diagnostics"][0]["construct_candidates"],
+        serde_json::json!({
+            "version": 1,
+            "disposition": "structural",
+            "slot": "Given.item",
+            "ids": ["model", "contract"],
+            "complete": false
+        })
+    );
+}
+
+#[test]
 fn diagnostic_control_and_unicode_exact_bytes() {
     use canlang_compiler::diagnostic::{Related, SourceEntry};
     use canlang_compiler::source::SourceId;

@@ -12,7 +12,8 @@ import {
   clearFormBindings,
   registerFormBinding,
 } from '../src/http/formErrors.js';
-import { handleOperationRequest } from '../src/http/operations.js';
+import { FORM_REFUSAL_HEADER, catalogFromArtifactOperations, handleOperationRequest } from '../src/http/operations.js';
+import { ARTIFACT_VERSION } from '@canlang/contracts';
 import {
   parseCollectionQuery,
   parseFormBody,
@@ -84,12 +85,12 @@ function bindOrderForm(): void {
   });
 }
 
-async function setupFailing() {
+async function setupFailing(code: 'rule_failed' | 'busy' = 'rule_failed') {
   const t = await createTestDeps({
     shapes: SHAPES,
     mutations: {
       [OP]: () => ({
-        error: buildBusinessError('rule_failed', 'Too many ordered.', {
+        error: buildBusinessError(code, 'Too many ordered.', {
           fields: [{ path: '/qty', code: 'rule_failed', message: 'Too many ordered.' }],
         }),
       }),
@@ -297,6 +298,80 @@ test('form-encoded body coerces JSON values and plain strings; _csrf field works
   });
 });
 
+test('native delete controls retain exact ref strings and refuse ambiguous or undeclared inputs', async () => {
+  const operation = 'Store.Entry.delete';
+  const t = await createTestDeps({ mutations: { [operation]: envelope => ({ result: {
+    status: 'committed', operation_id: envelope.operation_id, result: envelope.inputs,
+  } }) } });
+  const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: [{
+    name: operation, kind: 'delete', description: '', inputs: { fields: [{ name: 'record',
+      field: { kind: 'ref', model: 'Store.Entry', requireVersion: true }, required: true }] },
+  }] });
+  const csrf = await deriveCsrfToken(t.identity.sessionToken);
+  const params = new URLSearchParams({ operation, operation_id: freshOperationId(), _csrf: csrf,
+    'inputs[record][id]': '123', 'inputs[record][version]': '9007199254740993' });
+  const submit = (body: URLSearchParams) => handleOperationRequest({ ...t.deps, catalog }, opRequest({
+    cookie: t.identity.cookie, contentType: 'application/x-www-form-urlencoded', body: body.toString(),
+  }), operation);
+  assert.equal((await submit(params)).status, 200);
+  assert.deepEqual(t.invoker.mutations[0]?.envelope.inputs, { record: { id: '123', version: '9007199254740993' } });
+  for (const [name, value] of [
+    ['inputs[record][id]', 'other'], ['operation_id', freshOperationId()], ['_csrf', csrf],
+    ['inputs', '{}'], ['inputs[mode]', 'archive'], ['mode', 'archive'], ['inputs[unknown]', 'x'],
+    ['inputs[record][extra]', 'x'], ['inputs[record][version]', '07'],
+  ]) {
+    const invalid = new URLSearchParams(params); invalid.append(name!, value!);
+    assert.equal((await submit(invalid)).status, 400, name!);
+  }
+  for (const missing of ['inputs[record][id]', 'inputs[record][version]']) {
+    const invalid = new URLSearchParams(params); invalid.delete(missing);
+    assert.equal((await submit(invalid)).status, 400, missing);
+  }
+  const badCsrf = new URLSearchParams(params); badCsrf.set('_csrf', 'bad');
+  assert.equal((await submit(badCsrf)).status, 403);
+  const badVersion = new URLSearchParams(params); badVersion.set('inputs[record][version]', 'not-int');
+  assert.equal((await submit(badVersion)).status, 400);
+  assert.equal(t.invoker.mutations.length, 1, 'all refusals precede canonical execution');
+});
+
+test('native create, update and scenario controls project by declarations before canonical validation', async () => {
+  for (const kind of ['create', 'update', 'scenario'] as const) {
+    const operation = kind === 'scenario' ? 'Store.submit' : `Store.Entry.${kind}`;
+    const t = await createTestDeps({ mutations: { [operation]: envelope => ({ result: {
+      status: 'committed', operation_id: envelope.operation_id, result: envelope.inputs,
+    } }) } });
+    const fields = [
+      ...(kind === 'update' ? [{ name: 'record', field: { kind: 'ref' as const, model: 'Store.Entry', requireVersion: true }, required: true }] : []),
+      { name: 'title', field: { kind: 'string' as const }, required: true },
+      { name: 'quantity', field: { kind: 'integer' as const }, required: true },
+      { name: 'enabled', field: { kind: 'boolean' as const }, required: true },
+      { name: 'tags', field: { kind: 'string' as const }, required: true, array: { required: true } },
+    ];
+    const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: [{ name: operation, kind, description: '', inputs: { fields } }] });
+    const root = (name: string) => kind === 'update' ? `inputs[changes][${name}]` : `inputs[${name}]`;
+    const params = new URLSearchParams({ operation, operation_id: freshOperationId(), _csrf: await deriveCsrfToken(t.identity.sessionToken),
+      [root('title')]: '123', [root('quantity')]: '9007199254740993', [root('enabled')]: 'false', [root('tags')]: '["one"]',
+      ...(kind === 'update' ? { 'inputs[record][id]': 'true', 'inputs[record][version]': '7' } : {}),
+    });
+    const submit = (body: URLSearchParams) => handleOperationRequest({ ...t.deps, catalog }, opRequest({
+      cookie: t.identity.cookie, contentType: 'application/x-www-form-urlencoded', body: body.toString(),
+    }), operation);
+    assert.equal((await submit(params)).status, 200, kind);
+    assert.deepEqual(t.invoker.mutations[0]?.envelope.inputs, { title: '123', quantity: '9007199254740993', enabled: false, tags: ['one'],
+      ...(kind === 'update' ? { record: { id: 'true', version: '7' } } : {}),
+    });
+    for (const [name, value] of [[root('tags'), '{}'], [root('quantity'), 'not-int'], [root('enabled'), 'maybe']]) {
+      const invalid = new URLSearchParams(params); invalid.set(name!, value!);
+      assert.equal((await submit(invalid)).status, 400, `${kind}:${name}`);
+    }
+    if (kind === 'update') {
+      const wrongMode = new URLSearchParams(params); wrongMode.set('inputs[title]', 'wrong-root');
+      assert.equal((await submit(wrongMode)).status, 400);
+    }
+    assert.equal(t.invoker.mutations.length, 1);
+  }
+});
+
 test('oversize body is a 429 quota breach', async () => {
   const t = await setup();
   const res = await handleOperationRequest(
@@ -397,6 +472,9 @@ test('B3-I5: Accept text/html re-renders the failed POST as a full page with dra
     assert.equal(res.status, 422);
     assert.ok((res.headers.get('content-type') ?? '').startsWith('text/html'));
     assert.ok((res.headers.get('vary') ?? '').includes('Accept'));
+    assert.deepEqual(JSON.parse(res.headers.get(FORM_REFUSAL_HEADER)!), {
+      version: 1, code: 'rule_failed', retryable: false,
+    });
     const html = await res.text();
     assert.ok(html.startsWith('<!DOCTYPE html>'), 'full-page branch');
     assert.ok(html.includes('Too many ordered.'), 'inline field error');
@@ -427,10 +505,32 @@ test('B3-I5: HX-Request re-renders a bare fragment without the document shell', 
     );
     assert.equal(res.status, 422);
     assert.ok((res.headers.get('content-type') ?? '').startsWith('text/html'));
+    assert.deepEqual(JSON.parse(res.headers.get(FORM_REFUSAL_HEADER)!), {
+      version: 1, code: 'rule_failed', retryable: false,
+    });
     const html = await res.text();
     assert.ok(!html.includes('<html'), 'fragment branch: no document shell');
     assert.ok(html.includes('id="order-form-form"'), 'stable swap target');
     assert.ok(html.includes('Too many ordered.'), 'inline field error');
+  } finally {
+    clearFormBindings();
+  }
+});
+
+test('HTML refusals expose only closed code and retryability, with no prose or draft data', async () => {
+  const t = await setupFailing('busy');
+  bindOrderForm();
+  try {
+    const res = await handleOperationRequest(t.deps, opRequest({
+      cookie: t.identity.cookie, csrf: t.csrf, contentType: 'application/json', accept: 'text/html',
+      body: jsonOpBody({ inputs: { qty: 9, label: 'private-draft-value' } }),
+    }), OP);
+    assert.equal(res.status, 503);
+    const fact = res.headers.get(FORM_REFUSAL_HEADER)!;
+    assert.deepEqual(JSON.parse(fact), { version: 1, code: 'busy', retryable: true });
+    assert.ok(!fact.includes('private-draft-value'));
+    assert.ok(!fact.includes('Too many ordered.'));
+    assert.ok((await res.text()).includes('private-draft-value'), 'normal form redisplay is preserved');
   } finally {
     clearFormBindings();
   }
@@ -454,6 +554,7 @@ test('B3-I5: JSON stays the default without HTML headers, even with a binding', 
       );
       assert.equal(res.status, 422, `accept=${accept ?? '(absent)'}`);
       assert.ok((res.headers.get('content-type') ?? '').startsWith('application/json'));
+      assert.equal(res.headers.get(FORM_REFUSAL_HEADER), null);
       assert.equal((await res.json() as { code: string }).code, 'rule_failed');
     }
   } finally {

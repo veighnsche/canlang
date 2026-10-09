@@ -416,7 +416,9 @@ describe("component catalog", () => {
       // csv/parse.ts: text parsing and error guards (FP.CSV); csvReviewForm is cataloged.
       CSV_CSRF_HEADER: "csrf header-name constant, not a component",
       CSV_UI_MAX_ROWS: "row-cap constant, not a component",
+      checkCsvHeader: "CSV writable-header admission helper, not a component",
       digestBusinessError: "error digest helper, not a component",
+      mapCsvCells: "CSV declared-input cell mapper, not a component",
       parseCsvText: "text parser, not a component",
       // csv/preview.ts: review payload parsers/submitter (FP.CSV); csvPreviewSection is cataloged.
       parseReviewPayload: "form-data parser, not a component",

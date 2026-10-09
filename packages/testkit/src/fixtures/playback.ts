@@ -17,18 +17,12 @@
  * Workerd-safe: no `node:` imports, no Buffer. Base64 uses the
  * `atob`/`btoa` globals (present in workerd and node 22+).
  *
- * This module imports NOTHING from services source — not even types.
- * `@canlang/services` has no build, and TS-source imports break both
- * the testkit emit (`rootDir` violation) and the root strict check
- * (L4's local flags fall short of workspace strictness; hardening
- * requested). The script/table shapes below mirror L4's
- * `Controlled*` contracts structurally, and the differential suite
- * feeds the REAL `SCENARIO_TABLES` through this handler, so any L4
- * shape drift fails loudly at runtime (unknown kind/key) instead of
- * slipping through. When services gains a build, prefer its package
- * exports (same precedent as the S8b files pin).
+ * Portable admission and script types come from the services pure subpath.
+ * Node harness transport and media Buffer decoding remain in their owners;
+ * playback retains its local error class, atob decoding and seed lifecycle.
  */
 
+import { createScenarioAdmission, type MailScript, type ModelsScript, type JudgmentsScript } from '@canlang/services/scenario-admission';
 import { parseSeedRef } from "./seeds.js";
 
 /**
@@ -49,41 +43,7 @@ export interface PlaybackScenarioTable {
   readonly script: unknown;
 }
 
-/** Mirrors L4's mail `ControlledScenario` (`ports.ts`). */
-export type MailScript =
-  | { readonly kind: "accept" }
-  | { readonly kind: "reject"; readonly status: number; readonly body: unknown }
-  | { readonly kind: "flaky-then-accept"; readonly failures: number }
-  | { readonly kind: "invalid-schema"; readonly body: unknown }
-  | {
-      readonly kind: "hang";
-      readonly reconcile: "accepted" | "rejected" | "pending";
-    }
-  | {
-      readonly kind: "redirect";
-      readonly status: number;
-      readonly location: string;
-    }
-  | { readonly kind: "drip"; readonly delayMs: number };
-
-/** Mirrors L4's `ControlledOllamaScenario` (`models/harness.ts`). */
-export type ModelsScript =
-  | { readonly kind: "final"; readonly body: unknown }
-  | {
-      readonly kind: "stream";
-      readonly lines: readonly unknown[];
-      readonly lineDelayMs?: number;
-    }
-  | { readonly kind: "reject"; readonly status: number; readonly body: unknown }
-  | { readonly kind: "hang" }
-  | { readonly kind: "invalid-schema"; readonly body: unknown };
-
-/** Mirrors L4's `ControlledSystemOneScenario` (`judgments/harness.ts`). */
-export type JudgmentsScript =
-  | { readonly kind: "accept"; readonly body: unknown }
-  | { readonly kind: "reject"; readonly status: number; readonly body: unknown }
-  | { readonly kind: "hang" }
-  | { readonly kind: "invalid-schema"; readonly body: unknown };
+export type { MailScript, ModelsScript, JudgmentsScript } from '@canlang/services/scenario-admission';
 
 /** One logged request, shaped as the union of the four harness logs. */
 export interface PlaybackLogEntry {
@@ -178,110 +138,16 @@ interface PlaybackMediaScript {
   readonly cancelStatus: number | undefined;
 }
 
-const MEDIA_KINDS: ReadonlySet<string> = new Set([
-  "accept",
-  "reject-prompt",
-  "hang-submit",
-  "hang-all",
-]);
-
-const MEDIA_KEYS: Readonly<Record<string, ReadonlySet<string>>> = {
-  "accept": new Set([
-    "kind",
-    "history",
-    "filesBase64",
-    "promptBody",
-    "cancelStatus",
-  ]),
-  "reject-prompt": new Set(["kind", "status", "body", "cancelStatus"]),
-  "hang-submit": new Set(["kind", "history", "filesBase64", "cancelStatus"]),
-  "hang-all": new Set(["kind", "cancelStatus"]),
-};
-
 const MEDIA_BASE64_PATTERN = /^[A-Za-z0-9+/]*={0,2}$/;
-
-function playbackRecord(value: unknown, what: string): Record<string, unknown> {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new PlaybackScriptError(`${what} must be an object.`);
-  }
-  return value as Record<string, unknown>;
-}
-
-function playbackKind(
-  record: Record<string, unknown>,
-  what: string,
-  kinds: ReadonlySet<string>,
-): string {
-  if (typeof record["kind"] !== "string" || !kinds.has(record["kind"])) {
-    throw new PlaybackScriptError(
-      `${what} has an unknown kind ${JSON.stringify(record["kind"])}.`,
-    );
-  }
-  return record["kind"];
-}
-
-function playbackKeys(
-  record: Record<string, unknown>,
-  what: string,
-  allowed: ReadonlySet<string>,
-): void {
-  for (const key of Object.keys(record)) {
-    if (!allowed.has(key)) {
-      throw new PlaybackScriptError(
-        `${what} has an unknown key ${JSON.stringify(key)}.`,
-      );
-    }
-  }
-}
-
-function playbackStatus(value: unknown, what: string): number {
-  if (
-    typeof value !== "number" ||
-    !Number.isInteger(value) ||
-    value < 100 ||
-    value > 599
-  ) {
-    throw new PlaybackScriptError(`${what} must be an integer HTTP status.`);
-  }
-  return value;
-}
-
-function playbackJsonSafe(value: unknown, what: string): void {
-  const seen = new Set<object>();
-  const visit = (node: unknown, path: string): void => {
-    if (node === null) return;
-    switch (typeof node) {
-      case "string":
-      case "boolean":
-        return;
-      case "number":
-        if (!Number.isFinite(node)) {
-          throw new PlaybackScriptError(`${what}${path} must be finite JSON.`);
-        }
-        return;
-      case "undefined":
-      case "function":
-      case "symbol":
-      case "bigint":
-        throw new PlaybackScriptError(`${what}${path} is not JSON-safe.`);
-      case "object": {
-        if (seen.has(node)) {
-          throw new PlaybackScriptError(`${what}${path} is cyclic.`);
-        }
-        seen.add(node);
-        if (Array.isArray(node)) {
-          node.forEach((entry, index) => visit(entry, `${path}[${index}]`));
-          return;
-        }
-        for (const [key, entry] of Object.entries(node)) {
-          visit(entry, `${path}.${key}`);
-        }
-        return;
-      }
-    }
-  };
-  visit(value, "");
-}
+const {
+  checkRecord: playbackRecord,
+  checkKeys: playbackKeys,
+  checkStatus: playbackStatus,
+  checkMailScript: checkPlaybackMailScript,
+  checkModelsScript: checkPlaybackModelsScript,
+  checkJudgmentsScript: checkPlaybackJudgmentsScript,
+  checkMediaScript,
+} = createScenarioAdmission(PlaybackScriptError);
 
 /** Strict standard-base64 check with a verified round-trip. */
 function decodePlaybackBase64File(
@@ -323,10 +189,7 @@ function decodePlaybackBase64File(
 }
 
 function decodePlaybackMediaScript(script: unknown): PlaybackMediaScript {
-  const record = playbackRecord(script, "media script");
-  const kind = playbackKind(record, "media script", MEDIA_KINDS);
-  playbackKeys(record, "media script", MEDIA_KEYS[kind] ?? new Set(["kind"]));
-  playbackJsonSafe(record, "media script");
+  const { record, kind } = checkMediaScript(script);
   let history: Readonly<Record<string, unknown>> = {};
   if (record["history"] !== undefined) {
     history = playbackRecord(record["history"], "media history");
@@ -369,194 +232,6 @@ function decodePlaybackMediaScript(script: unknown): PlaybackMediaScript {
     return { scenario, cancelStatus };
   }
   return { scenario: { kind: "hang-all" }, cancelStatus };
-}
-
-// Mail/models/judgments validation mirrors L4's `checkMailScript`/
-// `checkModelsScript`/`checkJudgmentsScript` (`scenarios.ts`) with
-// identical strictness, minus the services import (see header).
-
-function playbackDelay(value: unknown, what: string): number {
-  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
-    throw new PlaybackScriptError(`${what} must be a finite delay >= 0.`);
-  }
-  return value;
-}
-
-const PLAYBACK_MAIL_KINDS: ReadonlySet<string> = new Set([
-  "accept",
-  "reject",
-  "flaky-then-accept",
-  "invalid-schema",
-  "hang",
-  "redirect",
-  "drip",
-]);
-
-const PLAYBACK_MAIL_KEYS: Readonly<Record<string, ReadonlySet<string>>> = {
-  "accept": new Set(["kind"]),
-  "reject": new Set(["kind", "status", "body"]),
-  "flaky-then-accept": new Set(["kind", "failures"]),
-  "invalid-schema": new Set(["kind", "body"]),
-  "hang": new Set(["kind", "reconcile"]),
-  "redirect": new Set(["kind", "status", "location"]),
-  "drip": new Set(["kind", "delayMs"]),
-};
-
-const PLAYBACK_MAIL_RECONCILE: ReadonlySet<string> = new Set([
-  "accepted",
-  "rejected",
-  "pending",
-]);
-
-function checkPlaybackMailScript(script: unknown): MailScript {
-  const record = playbackRecord(script, "mail script");
-  const kind = playbackKind(record, "mail script", PLAYBACK_MAIL_KINDS);
-  playbackKeys(
-    record,
-    "mail script",
-    PLAYBACK_MAIL_KEYS[kind] ?? new Set(["kind"]),
-  );
-  playbackJsonSafe(record, "mail script");
-  switch (kind) {
-    case "reject":
-      playbackStatus(record["status"], "mail reject status");
-      if (!("body" in record)) {
-        throw new PlaybackScriptError("mail reject needs a body.");
-      }
-      break;
-    case "flaky-then-accept": {
-      const failures = record["failures"];
-      if (
-        typeof failures !== "number" ||
-        !Number.isInteger(failures) ||
-        failures < 0
-      ) {
-        throw new PlaybackScriptError(
-          "mail flaky failures must be an integer >= 0.",
-        );
-      }
-      break;
-    }
-    case "invalid-schema":
-      if (!("body" in record)) {
-        throw new PlaybackScriptError("mail invalid-schema needs a body.");
-      }
-      break;
-    case "hang":
-      if (
-        typeof record["reconcile"] !== "string" ||
-        !PLAYBACK_MAIL_RECONCILE.has(record["reconcile"])
-      ) {
-        throw new PlaybackScriptError(
-          "mail hang reconcile must be accepted, rejected or pending.",
-        );
-      }
-      break;
-    case "redirect":
-      playbackStatus(record["status"], "mail redirect status");
-      if (
-        typeof record["location"] !== "string" ||
-        record["location"] === ""
-      ) {
-        throw new PlaybackScriptError("mail redirect needs a location.");
-      }
-      break;
-    case "drip":
-      playbackDelay(record["delayMs"], "mail drip delayMs");
-      break;
-  }
-  return record as unknown as MailScript;
-}
-
-const PLAYBACK_MODELS_KINDS: ReadonlySet<string> = new Set([
-  "final",
-  "stream",
-  "reject",
-  "hang",
-  "invalid-schema",
-]);
-
-const PLAYBACK_MODELS_KEYS: Readonly<Record<string, ReadonlySet<string>>> = {
-  "final": new Set(["kind", "body"]),
-  "stream": new Set(["kind", "lines", "lineDelayMs"]),
-  "reject": new Set(["kind", "status", "body"]),
-  "hang": new Set(["kind"]),
-  "invalid-schema": new Set(["kind", "body"]),
-};
-
-function checkPlaybackModelsScript(script: unknown): ModelsScript {
-  const record = playbackRecord(script, "models script");
-  const kind = playbackKind(record, "models script", PLAYBACK_MODELS_KINDS);
-  playbackKeys(
-    record,
-    "models script",
-    PLAYBACK_MODELS_KEYS[kind] ?? new Set(["kind"]),
-  );
-  playbackJsonSafe(record, "models script");
-  switch (kind) {
-    case "final":
-    case "invalid-schema":
-      if (!("body" in record)) {
-        throw new PlaybackScriptError(`models ${kind} needs a body.`);
-      }
-      break;
-    case "stream":
-      if (!Array.isArray(record["lines"])) {
-        throw new PlaybackScriptError("models stream needs a lines array.");
-      }
-      if (record["lineDelayMs"] !== undefined) {
-        playbackDelay(record["lineDelayMs"], "models stream lineDelayMs");
-      }
-      break;
-    case "reject":
-      playbackStatus(record["status"], "models reject status");
-      if (!("body" in record)) {
-        throw new PlaybackScriptError("models reject needs a body.");
-      }
-      break;
-  }
-  return record as unknown as ModelsScript;
-}
-
-const PLAYBACK_JUDGMENTS_KINDS: ReadonlySet<string> = new Set([
-  "accept",
-  "reject",
-  "hang",
-  "invalid-schema",
-]);
-
-const PLAYBACK_JUDGMENTS_KEYS: Readonly<Record<string, ReadonlySet<string>>> = {
-  "accept": new Set(["kind", "body"]),
-  "reject": new Set(["kind", "status", "body"]),
-  "hang": new Set(["kind"]),
-  "invalid-schema": new Set(["kind", "body"]),
-};
-
-function checkPlaybackJudgmentsScript(script: unknown): JudgmentsScript {
-  const record = playbackRecord(script, "judgments script");
-  const kind = playbackKind(
-    record,
-    "judgments script",
-    PLAYBACK_JUDGMENTS_KINDS,
-  );
-  playbackKeys(
-    record,
-    "judgments script",
-    PLAYBACK_JUDGMENTS_KEYS[kind] ?? new Set(["kind"]),
-  );
-  playbackJsonSafe(record, "judgments script");
-  if (kind === "accept" || kind === "invalid-schema") {
-    if (!("body" in record)) {
-      throw new PlaybackScriptError(`judgments ${kind} needs a body.`);
-    }
-  }
-  if (kind === "reject") {
-    playbackStatus(record["status"], "judgments reject status");
-    if (!("body" in record)) {
-      throw new PlaybackScriptError("judgments reject needs a body.");
-    }
-  }
-  return record as unknown as JudgmentsScript;
 }
 
 // Per-seed runtime state. Each seed behaves as its own harness

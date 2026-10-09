@@ -12,11 +12,11 @@
 //! `tests/` and are listed in `CompileArtifact.tests`, erased from
 //! production bundles.
 
+use crate::analysis::types::ResolvedType;
 use crate::codegen::ir::{
     IrExpr, IrFixture, IrFixtureKind, IrItem, IrItemKind, IrProgram, IrQueryDomain, IrSequence,
     IrStep, IrTable, IrTableRow, TypedExpr,
 };
-use crate::analysis::types::ResolvedType;
 use crate::codegen::js::{Emitter, JsModule, JsWriter, binding_ident, js_string};
 use crate::diagnostic::Diagnostic;
 use crate::source::Span;
@@ -176,37 +176,71 @@ pub fn emit_suite(
 /// common binding, and rewrite that table's checked expressions to `s.name`.
 /// The recipe and its dependencies join the suite before lowering; rows never
 /// close over a production parameter that the test factory does not receive.
-fn complete_table_fixture_bindings(ir: &IrProgram, suite: &BddSuite) -> (Vec<IrFixture>, Vec<IrTable>) {
-    let Some(module) = ir.items.iter().find(|item| item.canonical == suite.scope).map(|item| item.module) else {
+fn complete_table_fixture_bindings(
+    ir: &IrProgram,
+    suite: &BddSuite,
+) -> (Vec<IrFixture>, Vec<IrTable>) {
+    let Some(module) = ir
+        .items
+        .iter()
+        .find(|item| item.canonical == suite.scope)
+        .map(|item| item.module)
+    else {
         return (suite.fixtures.clone(), suite.tables.clone());
     };
-    let recipes: Vec<&IrFixture> = ir.items.iter().filter_map(|item| {
-        if item.module != module { return None; }
-        match &item.kind {
-            IrItemKind::Fixture { recipe: Some(recipe), .. } => Some(recipe),
-            _ => None,
-        }
-    }).collect();
-    let by_name: HashMap<&str, &IrFixture> = recipes.iter().map(|recipe| (recipe.name.as_str(), *recipe)).collect();
-    let mut needed: HashSet<String> = suite.fixtures.iter().map(|fixture| fixture.name.clone()).collect();
+    let recipes: Vec<&IrFixture> = ir
+        .items
+        .iter()
+        .filter_map(|item| {
+            if item.module != module {
+                return None;
+            }
+            match &item.kind {
+                IrItemKind::Fixture {
+                    recipe: Some(recipe),
+                    ..
+                } => Some(recipe),
+                _ => None,
+            }
+        })
+        .collect();
+    let by_name: HashMap<&str, &IrFixture> = recipes
+        .iter()
+        .map(|recipe| (recipe.name.as_str(), *recipe))
+        .collect();
+    let mut needed: HashSet<String> = suite
+        .fixtures
+        .iter()
+        .map(|fixture| fixture.name.clone())
+        .collect();
     let mut tables = suite.tables.clone();
     for table in &mut tables {
         let mut aliases = HashMap::new();
         if let IrExpr::Object(entries) = &table.inputs.expr {
             for (_, value) in entries {
-                if let IrExpr::Name(name) = &value.expr && by_name.contains_key(name.as_str()) {
+                if let IrExpr::Name(name) = &value.expr
+                    && by_name.contains_key(name.as_str())
+                {
                     aliases.insert(name.clone(), name.clone());
                     needed.insert(name.clone());
-                    if !table.dependencies.contains(name) { table.dependencies.push(name.clone()); }
+                    if !table.dependencies.contains(name) {
+                        table.dependencies.push(name.clone());
+                    }
                 }
             }
         }
-        if aliases.is_empty() { continue; }
+        if aliases.is_empty() {
+            continue;
+        }
         rewrite_fixture_names(&mut table.inputs, &aliases);
-        for observation in &mut table.observations { rewrite_fixture_names(observation, &aliases); }
+        for observation in &mut table.observations {
+            rewrite_fixture_names(observation, &aliases);
+        }
         for row in &mut table.rows {
             rewrite_fixture_names(&mut row.values, &aliases);
-            if let Some(expected) = &mut row.expected { rewrite_fixture_names(expected, &aliases); }
+            if let Some(expected) = &mut row.expected {
+                rewrite_fixture_names(expected, &aliases);
+            }
         }
     }
     loop {
@@ -216,11 +250,15 @@ fn complete_table_fixture_bindings(ir: &IrProgram, suite: &BddSuite) -> (Vec<IrF
                 needed.extend(recipe.dependencies.iter().cloned());
             }
         }
-        if needed.len() == before { break; }
+        if needed.len() == before {
+            break;
+        }
     }
     let mut fixtures = suite.fixtures.clone();
     for recipe in recipes {
-        if needed.contains(&recipe.name) && !fixtures.iter().any(|fixture| fixture.name == recipe.name) {
+        if needed.contains(&recipe.name)
+            && !fixtures.iter().any(|fixture| fixture.name == recipe.name)
+        {
             fixtures.push(recipe.clone());
         }
     }
@@ -232,44 +270,84 @@ fn rewrite_fixture_names(expr: &mut TypedExpr, aliases: &HashMap<String, String>
         IrExpr::Name(name) if aliases.contains_key(name) => {
             let fixture = aliases.get(name).expect("checked alias").clone();
             expr.expr = IrExpr::Member {
-                base: Box::new(TypedExpr::new(IrExpr::Name("s".to_string()), ResolvedType::Unknown, expr.span)),
+                base: Box::new(TypedExpr::new(
+                    IrExpr::Name("s".to_string()),
+                    ResolvedType::Unknown,
+                    expr.span,
+                )),
                 field: fixture,
             };
         }
-        IrExpr::Member { base, .. } | IrExpr::Unary { operand: base, .. }
+        IrExpr::Member { base, .. }
+        | IrExpr::Unary { operand: base, .. }
         | IrExpr::DeliveryRead { record: base, .. } => rewrite_fixture_names(base, aliases),
-        IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }
-        | IrExpr::Array(args) | IrExpr::Format { args, .. } => {
-            for arg in args { rewrite_fixture_names(arg, aliases); }
+        IrExpr::Call { args, .. }
+        | IrExpr::BoundCall { args, .. }
+        | IrExpr::Array(args)
+        | IrExpr::Format { args, .. } => {
+            for arg in args {
+                rewrite_fixture_names(arg, aliases);
+            }
         }
         IrExpr::Binary { left, right, .. } => {
             rewrite_fixture_names(left, aliases);
             rewrite_fixture_names(right, aliases);
         }
         IrExpr::Object(entries) => {
-            for (_, value) in entries { rewrite_fixture_names(value, aliases); }
+            for (_, value) in entries {
+                rewrite_fixture_names(value, aliases);
+            }
         }
         IrExpr::Query(query) => {
-            if let IrQueryDomain::Value { base, .. } = &mut query.domain { rewrite_fixture_names(base, aliases); }
-            for value in [&mut query.parent, &mut query.where_pred, &mut query.limit, &mut query.archived, &mut query.select] {
-                if let Some(value) = value { rewrite_fixture_names(value, aliases); }
+            if let IrQueryDomain::Value { base, .. } = &mut query.domain {
+                rewrite_fixture_names(base, aliases);
+            }
+            for value in [
+                &mut query.parent,
+                &mut query.where_pred,
+                &mut query.limit,
+                &mut query.archived,
+                &mut query.select,
+            ]
+            .into_iter()
+            .flatten()
+            {
+                rewrite_fixture_names(value, aliases);
             }
         }
         IrExpr::Message(message) => {
-            for param in &mut message.params { rewrite_fixture_names(&mut param.value, aliases); }
-        }
-        IrExpr::MessageCall { descriptor, args, params } => {
-            for param in &mut descriptor.params { rewrite_fixture_names(&mut param.value, aliases); }
-            for arg in args { rewrite_fixture_names(arg, aliases); }
-            for param in params {
-                if let Some(default) = &mut param.default { rewrite_fixture_names(default, aliases); }
+            for param in &mut message.params {
+                rewrite_fixture_names(&mut param.value, aliases);
             }
         }
-        IrExpr::JudgmentSpecification { options, .. } => {
-            if let Some(options) = options { rewrite_fixture_names(options, aliases); }
+        IrExpr::MessageCall {
+            descriptor,
+            args,
+            params,
+        } => {
+            for param in &mut descriptor.params {
+                rewrite_fixture_names(&mut param.value, aliases);
+            }
+            for arg in args {
+                rewrite_fixture_names(arg, aliases);
+            }
+            for param in params {
+                if let Some(default) = &mut param.default {
+                    rewrite_fixture_names(default, aliases);
+                }
+            }
         }
-        IrExpr::HasRole { person, .. } => {
-            if let Some(person) = person { rewrite_fixture_names(person, aliases); }
+        IrExpr::JudgmentSpecification {
+            options: Some(options),
+            ..
+        } => {
+            rewrite_fixture_names(options, aliases);
+        }
+        IrExpr::HasRole {
+            person: Some(person),
+            ..
+        } => {
+            rewrite_fixture_names(person, aliases);
         }
         IrExpr::Lambda { param, body } => {
             let mut visible = aliases.clone();

@@ -18,6 +18,7 @@ import type {
   HistoryEntry,
   ModelName,
   Membership,
+  MutationAdmissionMode,
   OperationName,
   OutboxIntent,
   ProjectedRecord,
@@ -316,7 +317,7 @@ function fenceRevalidationIdentity(
  * envelope keeps rejecting reads (T16b pins the query-port pointer; T17b
  * routes assembly reads to `invokeRead`).
  */
-export async function invoke(input: {
+export interface InvokeMutationInput {
   registry: OperationRegistry;
   envelope: MutationEnvelope;
   identity: ResolvedIdentity;
@@ -329,6 +330,8 @@ export async function invoke(input: {
   kind?: AdmissionKind;
   trustedSource?: string;
   execute: ExecuteHandler;
+  /** Host-only admission selection; omitted keeps ordinary mutation admission. */
+  admissionMode?: MutationAdmissionMode;
   /** Synchronous observation after durability; failures never retry execution. */
   observeCommittedReceipt?: (receipt: Receipt & { readonly outcome: CommittedReceiptOutcome }) => void;
   /**
@@ -338,7 +341,9 @@ export async function invoke(input: {
    * stale-ref denials carry metadata-only currents.
    */
   conflictServerOnly?: ConflictServerOnly;
-}): Promise<MutationResult> {
+}
+
+export async function invoke(input: InvokeMutationInput): Promise<MutationResult> {
   const def = input.registry.get(input.envelope.operation);
   if (def === undefined) {
     throw new StateError('validation', `Unknown operation "${input.envelope.operation}".`);
@@ -369,6 +374,7 @@ export async function invoke(input: {
       context,
       store: input.store,
       memberships: input.memberships,
+      ...(input.admissionMode === undefined ? {} : { admissionMode: input.admissionMode }),
       ...(input.conflictServerOnly !== undefined
         ? { conflictServerOnly: input.conflictServerOnly }
         : {}),
