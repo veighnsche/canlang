@@ -180,6 +180,20 @@ labelled and confer no new compiler output qualification. Unchanged compiler
 **1,291/lint/editor** results are reused; whole application/current-head CI and
 Codex review remain separate.
 
+**Unfinished rule/hook join — defining State intake, 2026-10-09.**
+Published Capability **62a0a87e** supplies the exact **bf112697/198c381**
+owner-policy loader, owner-session lifecycle and two permanent owning tests,
+with their required checked field-constraint/native-hook precursor hunks.
+The finite intake excludes retained-receipt/outbox seams and foreign records.
+Owning build **6/6** and all affected mutation cases **156/156**, including
+native D1/DO, pass with zero skips. Compiler source remains unchanged, but
+these changed installed runtime producers require their consuming native
+qualification. Artifact `modelPolicies`/registry `modelPolicyBindings` and
+exact emitted-module identity are pinned by the coordinator; their defining
+transport is not yet published. Checked compiler origins, native hydration,
+fixed hook carriers, dependency plans and real source/native activation remain
+unfinished; existing canonical unsupported activation remains in force.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed
