@@ -3680,3 +3680,7 @@ Proposed approval policies remain separately labeled: two named eligible reviewe
 ## 2026-10-09: consume the released Zsh completion consumer
 
 Accepted finite prerequisite intake: copy exact Compiler c4376ab8 Zsh fixture without reimplementing its insecure-path audit, bootstrap refusal or echo-safe readiness. Actual Bash/Zsh completion engines pass1/1 with engine presence required (20.54s). The change is independently qualified; broader compiler producer work remains with its owner.
+
+## 2026-10-09 — install the workspace browser test producer locally released CI
+
+Accepted finite shared CI correction under the human local Packages assignment: install the lock-selected Playwright Chromium and Linux system dependencies on the workspace runner before its real package/integration suites. The separate browser runner cannot supply those binaries. Preserve all browser/security assertions, required engines and four independent automatic jobs. All three retained workflows pass actionlint and the diff whitespace check; actual new-head Linux execution remains due. Local continuation preserves the two unfinished emergency checkpoints and native preparation HOLD.
