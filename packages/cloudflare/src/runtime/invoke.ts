@@ -100,7 +100,7 @@ import type {
   UniqueRelease,
 } from "@canlang/contracts";
 import { COLLECTION_DEFAULT_LIMIT, COLLECTION_MAX_LIMIT, DELIVERY_RESULT_LEAVES } from "@canlang/contracts";
-import { decodeValue, encodeValue, isRecordRef, makeRecordRef, normalizeSchema, validateOperationInput } from "@canlang/values";
+import { decodeValue, encodeValue, isRecordRef, makeRecordRef, normalizeSchema, parseTypeId, printTypeId, validateOperationInput } from "@canlang/values";
 import type { FieldDescriptor, SchemaDescriptor } from "@canlang/values";
 import type { SystemCommandContext, SystemStaging } from "@canlang/state";
 import { assertReceiptJoin } from "@canlang/state/receipt/tables";
