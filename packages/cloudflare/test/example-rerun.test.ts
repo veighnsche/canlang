@@ -1,12 +1,54 @@
 import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ExampleReport, TableRowResult } from "@canlang/contracts";
-import { existsSync, rmSync } from "node:fs";
-import { runCompiledExamples, type CompiledExampleInput } from "../src/dev/example-runner.js";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { loadInstalledExampleTestkit, MissingExampleTestkitError, runCompiledExamples, type CompiledExampleInput } from "../src/dev/example-runner.js";
 import { ExampleRerunCoordinator, ExampleRerunError, type ExampleAttemptResult } from "../src/dev/example-rerun.js";
 
 const caller = { account: "u-1", team: "current" as const, roles: ["members"], authenticated: true };
 const selector = { operation: "Office.supplies", rowIndex: 1 };
+
+describe("application-owned installed example producer", () => {
+  const roots: string[] = [];
+  afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
+  function application(source?: string): { root: string; entry: string } {
+    const root = mkdtempSync(join(tmpdir(), "can-example-application-"));
+    roots.push(root);
+    writeFileSync(join(root, "package.json"), JSON.stringify({ type: "module", dependencies: {
+      "@canlang/cloudflare": "0.1.0", "@canlang/testkit": "0.1.0",
+    } }));
+    const packageRoot = join(root, "node_modules", "@canlang", "testkit");
+    const entry = join(packageRoot, "entry.js");
+    if (source !== undefined) {
+      mkdirSync(packageRoot, { recursive: true });
+      writeFileSync(join(packageRoot, "package.json"), JSON.stringify({ type: "module", exports: "./entry.js" }));
+      writeFileSync(entry, source);
+    }
+    return { root, entry };
+  }
+  it("loads the application's exported entry and reuses its actual module identity", async () => {
+    const first = application('export function loadExampleSuite() {} export function runTable() { return "first-app"; } export function createReport() {} export function fixtureValuesOf() {}');
+    const second = application('export function loadExampleSuite() {} export function runTable() { return "second-app"; } export function createReport() {} export function fixtureValuesOf() {}');
+    const kit = await loadInstalledExampleTestkit(first.root);
+    expect(kit).toBe(await import(pathToFileURL(first.entry).href));
+    expect(kit.runTable()).toBe("first-app");
+    expect((await loadInstalledExampleTestkit(second.root)).runTable()).toBe("second-app");
+  });
+  it("refuses a missing application installation even when the workspace has Testkit", async () => {
+    await expect(loadInstalledExampleTestkit(application().root)).rejects.toBeInstanceOf(MissingExampleTestkitError);
+  });
+  it("retains malformed-export validation at the owning check", async () => {
+    const { root } = application('export function loadExampleSuite() {} export const runTable = 1;');
+    await expect(loadInstalledExampleTestkit(root)).rejects.toThrow("example runner: missing testkit table runner producer");
+  });
+  it("retains import-time producer failures instead of relabeling them missing", async () => {
+    const { root } = application('throw new Error("producer initialization sentinel");');
+    await expect(loadInstalledExampleTestkit(root)).rejects.toThrow("producer initialization sentinel");
+  });
+});
 
 function failedResult(bytes: Uint8Array, sourceRevision: string, detail: string,
                       idempotency?: ExampleAttemptResult["idempotency"]): ExampleAttemptResult {

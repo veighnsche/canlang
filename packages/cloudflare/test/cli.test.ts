@@ -211,7 +211,11 @@ vi.mock("../src/dev/preview-host.js", () => ({
 }));
 vi.mock("../src/dev/example-runner.js", () => ({
   MissingExampleTestkitError: class extends Error {},
-  loadInstalledExampleTestkit: async () => { exampleStage("testkit"); return "testkit-port"; },
+  loadInstalledExampleTestkit: async (applicationRoot: string) => {
+    expect(applicationRoot).toBe(process.cwd());
+    exampleStage("testkit");
+    return "testkit-port";
+  },
   runCompiledExamples: async (input: unknown) => {
     exampleStage("execute");
     expect(input).toEqual({

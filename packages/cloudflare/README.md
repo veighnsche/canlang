@@ -58,5 +58,14 @@ is honored in subcommand position too (`can-platform run --help`),
 because L1 thin entries pass flags through verbatim. Exit 0
 carries `{ok:true,...}`; exit 2 carries `{ok:false,command,code,detail}`
 with `code` one of `usage`, `missing-artifact`, `missing-producer`
-(names `producer` + `contract`), and exit 1 `internal`. Until L1 emission
-and the L3 engine land, all four commands report `missing-producer`.
+(names `producer` + `contract`), and exit 1 `internal`.
+
+To execute compiled example rows with `can test` or `can-platform test`, the
+invoking application explicitly installs both `@canlang/cloudflare` and
+`@canlang/testkit`. Run the command from that application's root. Testkit
+resolves through the application's package installation and exported entry;
+Cloudflare does not supply it transitively because Testkit already depends on
+Cloudflare's local row runtime. An absent installation reports
+`missing-producer`; module initialization failures and malformed producer
+exports retain their own errors. Source capture, activation, compiled rows,
+and the portable Worker prerequisites still apply.
