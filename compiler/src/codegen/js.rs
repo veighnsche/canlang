@@ -1469,11 +1469,11 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
         "content" => key == "value",
         "list" => matches!(
             key,
-            "model" | "parent" | "where" | "limit" | "cursor" | "empty"
+            "model" | "parent" | "where" | "limit" | "cursor" | "empty" | "display"
         ),
         "table" => matches!(
             key,
-            "model" | "parent" | "where" | "limit" | "cursor" | "empty" | "columns"
+            "model" | "parent" | "where" | "limit" | "cursor" | "empty" | "columns" | "display"
         ),
         "form" => matches!(
             key,
@@ -1562,6 +1562,7 @@ fn ui_option_words(factory: &str, key: &str) -> Option<&'static [&'static str]> 
         "side" => Some(&["start", "end"]),
         "layout" => Some(&["stack", "columns"]),
         "display" if factory == "form" => Some(&["inline", "drawer"]),
+        "display" if matches!(factory, "list" | "table") => Some(&["split"]),
         _ => None,
     }
 }
@@ -4917,6 +4918,21 @@ impl<'a> Emitter<'a> {
             && node.props.iter().any(|(key, _)| key == "id")
             && node.children.iter().all(|child| child.factory == "tabItem");
         let mut props = vec![format!("context:{ctx}")];
+        if matches!(node.factory.as_str(), "list" | "table")
+            && form_prop_text(node, "display").as_deref() == Some("split")
+        {
+            // A URL locator names this source collection occurrence. The
+            // owning factory selects only from its fresh authorized result.
+            props.push(format!(
+                "occurrence:{}+encodeURIComponent(JSON.stringify([{}.path,{}]))",
+                js_string(&format!(
+                    "can-collection-f{}-s{}-",
+                    node.span.file.0, node.span.start
+                )),
+                ctx,
+                occurrences.join(",")
+            ));
+        }
         for (key, value) in &node.props {
             let value = if node.factory == "text" && key == "values" {
                 self.lower_expr(value)
