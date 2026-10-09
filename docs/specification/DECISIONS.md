@@ -3826,3 +3826,8 @@ SQLite receiving bindings now run the existing retention kernel inside their act
 ## 2026-10-09: consume the owning applied-field update repair
 
 Consume exact Packages8521ccfa source/test hunks into the existing local owner-session pipeline. Its caller-data helper tracks only applied known nonundefined values, preserving unknown-field and machine/server-only refusal precedence, explicit null and existing structural-content hook comparison. No common gate or workflow implementation is reproduced. State build6/6 and affected nullable/modifier13/13 pass; genuine source and broader qualification results are reused where unchanged.
+
+
+## 2026-10-09: require positive owner-session CRUD support
+
+Dev must require the actual `generatedCrudExecuteOwnerSession` export before selecting native owner execution: an older additive-options executor can silently ignore the new session inputs. The dedicated entry requires own explicit bounds and frame factory, validates claimed checked policies and forces State's real owner session without legacy fallback. Keep the original executor compatible. Captured cleanup executes with its original verified frame receiver via call, even if a rule replaces the close member. State build6/6 and generated CRUD17/17 pass, including invalid/missing/getter/budget refusals before frame/domain work and receiver-dependent success/failure. Native Can source/hook assembly remains its genuine producer/consumer requirement.
