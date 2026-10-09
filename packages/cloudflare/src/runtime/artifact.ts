@@ -230,8 +230,9 @@ export function parseArtifactText(text: string, sourcePath: string): LoadedArtif
          !Array.isArray(parsed.requires) || !parsed.requires.some((requirement) => isRecord(requirement) &&
            requirement.capability === "state.parameters" && typeof requirement.min_version === "number" && requirement.min_version >= 1) ||
          !Array.isArray(parsed.operations) || !parsed.operations.some((operation) =>
-           isRecord(operation) && operation.name === callable.id && operation.kind === "scenario"))) {
-      fail(path, `${where}.inputStyle must be parameters on a scenario operation callable`);
+           isRecord(operation) && operation.name === callable.id &&
+           (operation.kind === "scenario" || operation.kind === "read")))) {
+      fail(path, `${where}.inputStyle must be parameters on a scenario or read operation callable`);
     }
     const member: unknown = callable.member;
     if (

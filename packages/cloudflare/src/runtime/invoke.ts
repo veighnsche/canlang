@@ -5649,6 +5649,31 @@ async function runReadScenarioSeam(
     }
     return served;
   };
+  const receiptReads: Array<{ binding: { readonly model: string; readonly id: string; readonly version: number };
+    field: string; selected: readonly ReceiptProperty[]; observation: string }> = [];
+  const observeReceipt = async (binding: { readonly model: string; readonly id: string; readonly version: number },
+    field: string, selected: readonly ReceiptProperty[]): Promise<SelectedReceiptServed> => {
+    const fence: SelectedReceiptFence = {
+      revision: call.revision,
+      enroll: dependency => {
+        if (dependency.model === binding.model && dependency.id === binding.id && dependency.version !== binding.version) {
+          throw new StateError('conflict', 'Record changed during the read scenario delivery observation.');
+        }
+      },
+    };
+    const observed = await invokeSelectedReceiptRead({
+      ...opts, operation: RECEIPT_READ_OPERATION,
+      inputs: { recordId: binding.id, field, selected: [...selected] },
+      boundModel: binding.model, fence, now: () => now,
+    });
+    if (await opts.store.readRevision() !== call.revision) {
+      throw new StateError('conflict', 'State changed during the read scenario delivery observation.');
+    }
+    if (observed.outcome === 'denied') {
+      throw new StateError('forbidden', 'Delivery observation is not authorized.');
+    }
+    return observed;
+  };
   const membership = call.membership?.status === 'active' ? call.membership : null;
   const roles = membership?.roles.map(grant => grant.role) ?? [];
   const builtinRoles = ['public', ...(call.actorUserId === null ? [] : ['authenticated']),
@@ -5656,7 +5681,20 @@ async function runReadScenarioSeam(
   const scope: CanonicalEffectsScope = {
     operation: opts.operation, builtinRoles: Object.freeze(builtinRoles),
     stageWrite: refuse, createRecord: refuse, setRecord: refuse, deleteRecord: refuse,
-    observeDelivery: refuse,
+    observeDelivery: async (locator, selected) => {
+      const binding = isUnknownRecord(locator.record) ? views.get(locator.record) : undefined;
+      if (binding === undefined) {
+        throw new StateError('validation', 'Delivery observation needs a record bound in this read scenario.');
+      }
+      const properties = [...selected];
+      const observed = await observeReceipt(binding, locator.field, properties);
+      receiptReads.push({ binding, field: locator.field, selected: properties, observation: JSON.stringify(observed) });
+      if (observed.outcome !== 'observed') return null;
+      const declaration = opts.artifact.models?.find(model => model.name === binding.model)?.fields
+        .find(field => field.name === locator.field)?.field;
+      return sourceReceiptProjection(observed.projection, properties,
+        declaration?.kind === 'delivery' ? declaration.result : undefined);
+    },
     readModel: async (model, query) => {
       // Snapshot the same selector State actually serves; no caller getter is
       // re-evaluated during the final authorization evidence check.
@@ -5728,6 +5766,13 @@ async function runReadScenarioSeam(
     }
   } finally {
     activeViews = views; activeDecodedRefs = decodedRefs;
+  }
+  // Re-resolve selected leaf grants as well as record projections before disclosure.
+  for (const reading of receiptReads) {
+    const fresh = await observeReceipt(reading.binding, reading.field, reading.selected);
+    if (JSON.stringify(fresh) !== reading.observation) {
+      throw new StateError('forbidden', 'Delivery read authority changed during the read scenario.');
+    }
   }
   return result;
 }
