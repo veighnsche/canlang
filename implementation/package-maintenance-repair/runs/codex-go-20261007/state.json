@@ -1497,6 +1497,19 @@
           "tests/e2e/fixtures/handbuilt/ui-bundle-entry.js"
         ],
         "validation": "Existing15Chromium/workerd cases and e2e TypeScriptpass; realpublicIdentity/UIclosures, sourcecorrespondence review, auth/CSRF/permissions/D1/MCP assertions unchanged. Genuine draft/compiled/fullrelease remainder separatelyblocked."
+      },
+      "writer_fixture_slice": {
+        "state": "Implemented and affected local checks passed; coordinator manual review pending",
+        "source": "Only exact Devab63d29747d8b04b65068d600a746f61dfe3d5d8 writer source and7086cf97f0c0d4733aa4e6527e4937a643b5530a existing internal digest export consumed. Foreign native-D1 test predecessor is absent at this base, so its feature fixture is not duplicated/imported; native owner qualification remains separate.",
+        "files": [
+          "packages/cloudflare/src/deploy/bundle.ts",
+          "packages/cloudflare/test/mixed-output-controls.test.ts",
+          "packages/cloudflare/test/mixed-output-rejection.test.ts",
+          "packages/cloudflare/test/mixed-output-containment.test.ts"
+        ],
+        "behavior": "Three common fixture producers use owning bundleSha256 over actual module bytes/counts, replacing placeholders. Real writers snapshot actual bytes and enforce text/mixed/resource metadata before publication. Four legitimate positive scratch paths canonicalize the actual directory to avoid Mac /var alias; product symlink refusal unchanged. Keep all mutated-digest/layout/prototype/resource/containment/sentinel/no-partial-output assertions.",
+        "validation": "CF owning emit passed. Three affected suites initially28pass/4fail, all4positives fail only Mac temp-alias symlink guard after truthful digest. Correct positive scratch paths; affected4/4rerun pass with11unselected, unchanged28reuse. No native/browser/fullworkspace rerun or whole release acceptance.",
+        "limit": "Finite actual local filesystem writer/common-gate consumer only; owning native-D1 feature, installed/supported-host/release and exact native/timezone holds remain separate."
       }
     },
     "DEL-E02": {
@@ -4481,7 +4494,8 @@
         "source": "Only two functional fixture hunks from exact published Compiler79e6b016ec67ff23eea520888cf9e01191e98461: native temporary Chromium profile credential-store flags and combined navigation/bootstrap observation. All product/visibility/polling/cancellation/HTTP/history assertions preserved.",
         "validation": "Cloudflare owning emit passes. Actual local Mac Worker/Chromium readonly polling case passes1/1 with3unselected,10.879s; initial sandbox localhostEPERM did not qualify behavior, identical escalated retry passes.",
         "limit": "Exact native case only; broader browser pilot source/profile and mounted workflow gates remain with their owners. Native preparation/release activation HOLD retained."
-      }
+      },
+      "writer_fixtures": "Exact owning ab63/7086 writer/digest inputs consumed; all3fixtureproducers truthful, complete32affected outcomes qualified by28unchanged+4correctedpositives. Existing fail-closed metadata/containment/resource/no-partial assertions preserved; no digest duplicate or foreign native fixture implementation."
     },
     "stdlib_gate": "CurrentCI ebd2ad08 failed explicit141export surface because existing owning choose was omitted from140inventory. Add only choose; preserve exact equality and producer binding identity. Owning emit/assembly4/4 pass; existing Values choose behavior controls reused.",
     "canonical_delete_form": {
