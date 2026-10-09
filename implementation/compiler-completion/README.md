@@ -1878,3 +1878,21 @@ its canonical columns path. Proof identities are
 Runtime/example execution and the production trusted current-proof provider
 remain Dev-owned. Grammar inventories and ambiguous-intent evidence flags remain
 unchanged; this compiler half grants no working-card or ranking acceptance.
+
+
+**Local stored-read scenario defaults — unfinished whole qualification, 2026-10-09.**
+Reviewed State/Dev default contributions are consumed from local main2e4d6471.
+Checked source paths now evaluate omitted defaults in declaration order with
+earlier bindings and actual read provenance; supplied values skip those defaults.
+Native collection matches each real default IR site and the generated header
+records omission separately from an expression decision at the same span. The
+original machine target passes **4/4** through Node24 and installed State/CF,
+including literal defaults, private/public stored-field defaults, nullable
+coalesce, physical writes/defaults, current-read withholding, raw-input conflicts
+and ordinary/dedicated aged recovery with physical-resource invariance. Source
+closure checks pass **8/8**, strict all-target Clippy and formatting pass; finite
+independent review finds no defect. Build26/26 and current59-entry catalog supply
+the actual consumer prerequisites. Whole83f4/1325 remains historical until the
+changed-source full run completes. Task44 original generation sends/assignments
+remain the next compiler prerequisite; frozen operation/reference metadata needs
+Packages' defining State dependency contract. Existing broad refs and holds remain.

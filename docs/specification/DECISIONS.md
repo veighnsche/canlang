@@ -4849,3 +4849,19 @@ author-intent evidence. The selected table uses canonical columns; authored
 row children without an owning render profile explicitly refuse. The existing
 construct-help target passes6/6. Dev owns exact-current qualification/provider
 and runtime/example joins; broader T04 acceptance remains unfinished.
+
+
+## 2026-10-09 — capture stored-read scenario parameter defaults
+
+Omitted scenario defaults carry their complete checked influencing read closure
+into subsequent parameters, selectors, writes and returned values. Supplied
+inputs remain frozen and skip default evaluation. Exact source-expression sites
+own internal omission choices; native site identity separates omission from a
+coalesce decision sharing that same expression span. Actual generated evaluation
+records choice/read observations before the existing typed default observer
+forwards each value to the genuine State owner session. Public dependency ABI is
+unchanged. The original native machine consumer passes4/4 with private withholding,
+nullable/public defaults, explicit overrides, physical default values and aged
+recovery/conflicts. Source checks8/8, lint/format pass; whole qualification is
+pending for this changed source. Broader mutations/sends and held profiles remain
+unimplemented rather than silently acquiring coverage.
