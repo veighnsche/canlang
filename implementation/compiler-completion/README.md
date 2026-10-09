@@ -96,7 +96,7 @@ added undeclared mode still refuses. Full HTTP/D1/browser Office qualification
 remains Dev-owned.
 
 
-**Local current-source qualification, 2026-10-09.** Compiler source at
+**Previous local compiler qualification, 2026-10-09.** Compiler source at
 **22903771** passes **1,281 Rust tests, 0 failed, 0 ignored**, using bundled
 Node **24.19.0**, the actual built package/catalog inputs, exact draft **5a12eb9e**
 and `CAN_COMPLETION_REQUIRE_ENGINES=1`. Corpus and all real completion engines
@@ -135,6 +135,20 @@ outer clauses keep fixture scope; where/select binders shadow same-named
 fixture aliases. New native value-query and model-row producer controls pass
 **2/2**, and the four unchanged BDD native cases pass. This fixes lexical
 identity without reopening the separate held BDD consumer-policy work.
+
+**Current local compiler qualification, 2026-10-09.** Published compiler source
+**e9a46221** passes **1,291 Rust tests, 0 failed, 0 ignored**, with exact draft
+**5a12eb9e**, actual package/catalog inputs, Node **24.19.0** and required real
+completion engines. The mode-4750 body skip is separately qualified by the
+exact existing permission test outside the sandbox at this source. Strict
+all-target Clippy, formatting, editor client typecheck and actual LSP round-trip
+pass. Exact Packages Values export reconciliation passes owning build **4/4**
+and prepared-hook **8/8**. CI **37960370295** verifies compiler/editor and
+language-tools at this exact head; workspace now stops at owning UI
+catalog/messages/shell/file assertions, while the pilot browser source still
+fails. Current-head Codex review is pending. Original **58/67** coverage and
+the nine owner-dependent references remain; these source checks do not
+establish whole application, live ranking or browser acceptance.
 
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
@@ -452,6 +466,7 @@ compiler leaves:
 | Dev T04/T11 | Compiler supplies the finite originating parser producer against verified published Dev4d3da681 context shape; source/CLI4/4 and carrier9/9 pass. Dev owns source/profile/card evidence and runtime/example qualification. Evidence flags remain false, so grammar inventory does not establish live ranking or working availability. |
 | Workspace browser gate | Exact Dev3c45c18c portable Chromium unit is consumed. Actual local native forms/browser2/2 pass; readonly CDP bootstrap times out, and selected Images profile skips without its artifact. Dev owns the lifecycle/selected-artifact prerequisite. No workflows or foreign session fixtures change. |
 | Shared Values gate | Exact Packages e5b7038e released export-list test correction is consumed. Owning build4/4 and prepared-hook8/8 pass, preserving hidden-authority/wire/arity controls; consuming-head CI remains separate. |
+| Shared UI gate | Packages sole common-repair owner: exact-head CI e9a46221 fails owning catalog/messages/shell/file assertions, including native file object versus old string expectation and SchemaError versus old prose. Actionable run37960370295/job113921381371 evidence is sent to coordinator; consume the exact released correction without rewriting common gates locally. |
 | Pilot browser gate | Defining pilot/app owner: CI7fe7fe35 challenge source fails expected user versus user? and impure active_member derives; patched-site assertion also drifted (30 passed/15 failed). Packages owns shared gate coordination. No language rule weakening or duplicate application repair is authorized here. |
 
 The user has authorized finishing the remaining compiler tasks. Use the [recorded work/review settings](../../docs/research/compiler-library-audit-20261006/resumption/model-allocation.md); overlapping references share work and completed receipts are reused at matching scope. Current completion joins append to the canonical coverage ledger; historical source pins remain unchanged.
