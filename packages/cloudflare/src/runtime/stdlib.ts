@@ -62,6 +62,9 @@ import type { CanonicalEffectsScope, HandlerContext } from './context.js';
 import { equalValue as equalValueProducer } from '@canlang/values';
 import { sameNativeReference } from './native-records.js';
 
+// Private generated markers resolve only framework-bound scenario lifetimes.
+export { observeScenarioReceiptDependency, selectScenarioReceiptReturn } from './scenario-receipt-frame.js';
+
 // Generated pure helpers retain their Values producer identity.
 export {
   ValueError, int64, datetime, compareInstant, addDuration, abs, all, any, at, sum, join, trim, compareScalar,
