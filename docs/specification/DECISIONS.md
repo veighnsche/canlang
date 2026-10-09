@@ -3708,3 +3708,7 @@ Compiler source e9a46221aa62c5c26d044d1c5b6c6266bab345ce passes1,291Rust tests w
 ## 2026-10-09 — consume qualified owning UI FileRef and assertion unit
 
 Consume only Packages ebd2ad084eb3b5608dbb335b125c085a58d52c47's forms source and catalog/messages/shell/t20b-generated-depth tests, qualified by its later a22ebc65 release. Preserve prior declared-delete inputs. Canonical file objects/clear/absent values, nominal SchemaError violations/cause and field context, captured message operands and exactly one trusted bootstrap are retained. Actual consuming build6/6 and126/126 cases pass with zero skips. Compiler source is unchanged, so reuse its1,291/lint/editor results. Later-head CI/Codex and defining Dev/browser/application prerequisites remain separate; no shared implementation is recreated.
+
+## 2026-10-09 — consume defining native polling fixture initialization
+
+Consume only published Dev2a5d2c72fde016f7767a5b5022f81bd73c1b1197's page-query-serving fixture unit: temporary-profile credential-store flags and one joined navigation/bootstrap wait preserve the real browser behavior assertions. The affected actual workerd/D1/Chromium polling/hidden-tab/authentication/persistence/cancellation case passes1/1 in10.8seconds. Reuse the two unchanged form/browser successes and1,291/compiler lint/editor results. Selected Images source artifact, broader pilot profiles and latest-head CI/Codex remain separate owner prerequisites.
