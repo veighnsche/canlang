@@ -1,15 +1,21 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createRequire } from 'node:module';
-import { cp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { cp, mkdir, realpath, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const installed = fileURLToPath(new URL('../../../', import.meta.url));
-const root = join(installed, 'test-results/can-dev-server/office-browser-root');
-const log = join(installed, 'test-results/can-dev-server/office-browser-journey.json');
-const manifest = join(installed, 'test-results/can-dev-server/office-browser-capture.json');
+const installed = await realpath(fileURLToPath(new URL('../../../', import.meta.url)));
+const deleteOnly = process.argv.includes('--delete-only');
+const fixtureName = deleteOnly ? 'office-browser-delete' : 'office-browser';
+const root = join(installed, `test-results/can-dev-server/${fixtureName}-root`);
+const log = join(installed, `test-results/can-dev-server/${fixtureName}-journey.json`);
+const manifest = join(installed, `test-results/can-dev-server/${fixtureName}-capture.json`);
+const runtime = join(await realpath(tmpdir()), `cv-${process.getuid()}`);
+const descriptorPath = join(runtime, createHash('sha256').update(root).digest('hex').slice(0, 24), 'descriptor.json');
 const require = createRequire(join(installed, 'package.json'));
 const { chromium } = require('@playwright/test');
 const { deriveCsrfToken } = await import(pathToFileURL(require.resolve('@canlang/identity')).href);
@@ -19,6 +25,11 @@ const exec = promisify(execFile);
 const facts = { schema: 'office-browser-journey.v1', checks: {} };
 
 async function prepareRoot() {
+  const hasDescriptor = await stat(descriptorPath).then(() => true, error => {
+    if (error.code === 'ENOENT') return false;
+    throw error;
+  });
+  assert.equal(hasDescriptor, false, 'private browser root has an existing owner descriptor; refuse replacement');
   await rm(root, { recursive: true, force: true });
   await mkdir(root, { recursive: true, mode: 0o700 });
   for (const path of ['package.json', 'compiler/Cargo.toml', 'compiler/Cargo.lock',
@@ -99,8 +110,25 @@ async function submit(page, form, operation) {
     error = metadata?.version === 1 && isBusinessErrorCode(metadata.code) &&
       typeof metadata.retryable === 'boolean'
       ? `${metadata.code}; retryable=${metadata.retryable}` : 'bounded refusal metadata unavailable';
+    const contentType = result.headers()['content-type']?.split(';', 1)[0] ?? null;
+    let jsonCode = null;
+    if (contentType === 'application/json') {
+      const bytes = await result.body();
+      if (bytes.length <= 8192) {
+        try {
+          const body = JSON.parse(bytes.toString('utf8'));
+          if (isBusinessErrorCode(body?.code)) jsonCode = body.code;
+        } catch {}
+      }
+    }
+    facts.failure_response = { operation, status,
+      content_type: contentType, json_code: jsonCode,
+      refusal_header_present: typeof raw === 'string',
+      refusal_metadata: metadata?.version === 1 && isBusinessErrorCode(metadata.code) &&
+        typeof metadata.retryable === 'boolean'
+        ? { version: 1, code: metadata.code, retryable: metadata.retryable } : null };
   }
-  assert.equal(status, 200, operation + ' status: ' + error);
+  assert.equal(status, 200, operation + ' status=' + status + ': ' + error);
 }
 async function create(page, origin, name, quantity) {
   const form = page.locator('form[action*="Supply.create"]').first();
@@ -179,6 +207,24 @@ try {
   browser = await chromium.launch({ headless: true });
   const ava = await login(browser, opened, 'Ava');
   const { page, origin } = ava;
+  if (deleteOnly) {
+    await create(page, origin, 'Delete probe', '1');
+    const form = rows(page).filter({ hasText: 'Delete probe' }).locator('form[action*="Supply.delete"]');
+    assert.equal(await form.count(), 1, 'actual generated delete form');
+    facts.delete_form = await form.evaluate(element => ({
+      path: new URL(element.action).pathname,
+      method: element.method,
+      controls: [...element.elements].map(control => ({
+        name: control.name, type: control.type,
+        ...(control.name === '_nonce' ? { version_shape: /^v[0-9]+\./.test(control.value) ? 'version-prefixed' : 'opaque' } : {}),
+      })),
+    }));
+    await submit(page, form, 'Supply.delete');
+    await reload(page, origin);
+    assert.equal(await count(page), 0, 'generated delete removes created row');
+    assert.equal(await rows(page).count(), 0);
+    facts.checks.generated_delete_no_rows = true;
+  } else {
   assert.equal(await count(page), 0);
   assert.equal(await page.locator('form[action*="Supply.create"] input[name="inputs[quantity]"]').count(), 1);
   facts.checks.source_form = true;
@@ -188,7 +234,10 @@ try {
   await create(page, origin, 'Pens', '4');
   await create(page, origin, 'Tape', '2');
   assert.equal(await count(page), 3); facts.checks.three_creates = true;
-  const ben = await login(browser, opened, 'Ben');
+  const benOpened = await control('preview.open');
+  assert.notEqual(benOpened.url, opened.url, 'second member receives a fresh one-use bootstrap');
+  assert.equal(new URL(benOpened.url).origin, origin, 'second member joins the same preview');
+  const ben = await login(browser, benOpened, 'Ben');
   assert.equal(await count(ben.page), 3);
   assert.equal(await rows(ben.page).filter({ hasText: 'Paper' }).count(), 1);
   const benPens = rows(ben.page).filter({ hasText: 'Pens' });
@@ -277,6 +326,7 @@ try {
   assert.equal(await rows(ben.page).filter({ hasText: 'Paper' }).count(), 1);
   assert.equal(await rows(ben.page).filter({ hasText: 'Blue pens' }).count(), 0);
   facts.checks.ben_shared_rows = true;
+  }
   facts.result = 'passed';
 } catch (error) {
   facts.result = 'failed'; facts.failure = {
