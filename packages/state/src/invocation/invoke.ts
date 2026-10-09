@@ -74,6 +74,7 @@ import { StateError, storageToStateError } from '../errors.js';
 import { stageEffectsStaging } from '../effects/staging.js';
 import { checkFanoutChildId } from '../fanout/cohort.js';
 import { FenceConflictError, StorageConstraintError } from '../storage/port.js';
+import { retainScenarioReceipt } from './scenario-receipt.js';
 
 /** Fenced-commit attempts per invocation, per DESIGN §7. */
 export const MAX_ADMISSION_ATTEMPTS = 3;
@@ -275,6 +276,39 @@ export type ExecuteHandler = (call: AdmittedCall) => Promise<ExecutionEffects>;
 // Only actual invoke execution opens this lifetime. Admission objects and
 // structural copies cannot activate it through an exported constructor.
 const activeAdmittedExecutions = new WeakSet<AdmittedCall>();
+const scenarioExecutions = new WeakMap<AdmittedCall, {
+  readonly store: StoragePort; readonly def: AdmittedCall['def'];
+  readonly context: AdmittedCall['context']; readonly revision: Revision;
+  readonly contextSnapshot: AdmittedCall['context']; readonly checkpointSnapshot: AdmittedCall['checkpoint'];
+}>();
+
+function sameExecutionData(value: unknown, saved: unknown): boolean {
+  if (typeof saved !== 'object' || saved === null) return Object.is(value, saved);
+  if (typeof value !== 'object' || value === null || Object.getPrototypeOf(value) !== Object.getPrototypeOf(saved)) return false;
+  const keys = Reflect.ownKeys(saved);
+  if (Reflect.ownKeys(value).length !== keys.length) return false;
+  return keys.every(key => {
+    const current = Object.getOwnPropertyDescriptor(value, key), original = Object.getOwnPropertyDescriptor(saved, key);
+    return current !== undefined && 'value' in current && original !== undefined && 'value' in original &&
+      sameExecutionData(current.value, original.value);
+  });
+}
+
+/** Actual public or trusted invoke lifetime; copies and request data cannot open it. */
+export function assertScenarioReceiptExecution(call: AdmittedCall, store: StoragePort): void {
+  const active = scenarioExecutions.get(call);
+  const member = (key: keyof AdmittedCall): unknown => {
+    const descriptor = Object.getOwnPropertyDescriptor(call, key);
+    return descriptor !== undefined && 'value' in descriptor ? descriptor.value : undefined;
+  };
+  if (!activeAdmittedExecutions.has(call) || active === undefined || active.store !== store ||
+      active.def !== member('def') || active.context !== member('context') || active.revision !== member('revision') || member('replay') !== null) {
+    throw new StateError('forbidden', 'Scenario observation requires its active admitted invocation and owning store.');
+  }
+  if (!sameExecutionData(member('context'), active.contextSnapshot) || !sameExecutionData(member('checkpoint'), active.checkpointSnapshot)) {
+    throw new StateError('forbidden', 'Scenario observation requires unchanged admitted scope and checkpoint.');
+  }
+}
 
 /** Internal receipt join assertion; checking cannot activate an execution. */
 export function assertOwnerReceiptExecution(
@@ -425,14 +459,20 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
     // ORIGINAL StateError is rethrown to THIS caller (fields/retryable
     // preserved); replays get code/message only — the receipt shape carries
     // no fields. Non-StateError bugs propagate untouched, never receipted.
-    let effects: ExecutionEffects;
+    let effects: ExecutionEffects & { scenario?: import('@canlang/contracts').ScenarioReceiptAssociation };
     try {
       let raw: ExecutionEffects;
       activeAdmittedExecutions.add(call);
+      scenarioExecutions.set(call, { store: input.store, def: call.def, context: call.context, revision: call.revision,
+        contextSnapshot: structuredClone(call.context), checkpointSnapshot: structuredClone(call.checkpoint) });
       try {
         raw = await input.execute(call);
+        if (isGeneratedOperationDef(def) && def.descriptor.result?.disclosure !== undefined) {
+          assertScenarioReceiptExecution(call, input.store);
+        }
       } finally {
         activeAdmittedExecutions.delete(call);
+        scenarioExecutions.delete(call);
       }
       // S6: validate executor-staged outbox/schedules INSIDE the try, so
       // malformed executor output becomes a fenced rejected receipt via the
@@ -442,7 +482,11 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
         { outbox: raw.outbox, schedules: raw.schedules },
         { operationId: context.operationId },
       );
-      effects = { ...raw, outbox: staged.outbox, schedules: staged.schedules };
+      // Association comes only from the active capture, never executor output.
+      if (Object.hasOwn(raw, 'scenario')) throw new StateError('validation', 'Executor cannot supply a saved scenario association.');
+      const scenario = retainScenarioReceipt(call, raw.writes, raw.result);
+      effects = { ...raw, outbox: staged.outbox, schedules: staged.schedules,
+        ...(scenario === undefined ? {} : { scenario }) };
     } catch (error) {
       if (!(error instanceof StateError)) {
         throw error;
@@ -555,6 +599,7 @@ export async function invoke(input: InvokeMutationInput): Promise<MutationResult
         result: effects.result,
         recordVersions: recordVersionsOf(effects.writes),
         ...(effects.generatedCrud === undefined ? {} : { generatedCrud: effects.generatedCrud }),
+        ...(effects.scenario === undefined ? {} : { scenario: effects.scenario }),
       },
       committedRevision: (call.revision + 1) as Revision,
       createdAt: now,

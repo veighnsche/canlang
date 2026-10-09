@@ -99,6 +99,60 @@ export interface ReceiptIdentity {
   readonly operationId: OperationId;
 }
 
+/** Checked source closure for one selected return evaluation path, not a grant.
+ * Decision-only business checks are excluded; data and return-controlling reads
+ * are required observations. Compiler owns complete branch/derive/call closure.
+ */
+export interface ScenarioReceiptSourceOrigin {
+  readonly path: string; readonly sha256: string; readonly module: string;
+}
+export interface ScenarioResultDisclosurePlan {
+  readonly version: 1;
+  readonly source: ScenarioReceiptSourceOrigin;
+  readonly returns: ReadonlyArray<{
+    readonly id: string;
+    readonly source: ScenarioReceiptSourceOrigin;
+    /** Complete return-specific closure must report these facts explicitly.
+     * The scalar/direct-field version refuses every nonempty influence list;
+     * empty observations never certify query or absent-reference facts.
+     */
+    readonly influences: ReadonlyArray<{
+      readonly id: string;
+      readonly kind: 'query-existence' | 'query-cardinality' | 'query-membership' | 'query-order' | 'absent-reference';
+    }>;
+    readonly dependencies: ReadonlyArray<{
+      readonly id: string;
+      readonly source: ScenarioReceiptSourceOrigin;
+      readonly role: 'data' | 'control';
+      readonly model: ModelName;
+      readonly field: string;
+      readonly type: CanTypeId;
+    }>;
+  }>;
+}
+
+/** Execution-owned saved values; neither this data nor a plan grants access. */
+export interface ScenarioReceiptAssociation {
+  readonly kind: 'scenario-result/v1';
+  readonly plan: ScenarioResultDisclosurePlan;
+  readonly resultType: CanTypeId;
+  readonly returnId: string;
+  readonly observations: ReadonlyArray<{
+    readonly dependencyId: string;
+    readonly model: ModelName;
+    readonly row: StoredRow;
+    readonly secretFields: ReadonlyArray<string>;
+  }>;
+  readonly changed: ReadonlyArray<{
+    readonly model: ModelName;
+    readonly row: StoredRow;
+    readonly secretFields: ReadonlyArray<string>;
+    /** Unsupported reference/lifetime/composite fields cannot be disclosed. */
+    readonly withheldFields: ReadonlyArray<string>;
+    readonly fieldTypes: Readonly<Record<string, CanTypeId | null>>;
+  }>;
+}
+
 /** Saved outcome of a committed or rejected operation, for exact replay. */
 export type ReceiptOutcome =
   | {
@@ -110,6 +164,7 @@ export type ReceiptOutcome =
         readonly id: RecordId;
         readonly version: RecordVersion;
       }>;
+      readonly scenario?: ScenarioReceiptAssociation;
     }
   | { readonly status: 'rejected'; readonly code: StateErrorCode; readonly message: string };
 
@@ -824,7 +879,7 @@ export interface CanonicalOperationDescriptor {
   readonly kind: CanonicalOperationKind;
   readonly inputs: ReadonlyArray<CanonicalInputDef>;
   /** Checked declared result; absence carries no result-type claim. */
-  readonly result?: { readonly type: CanTypeId };
+  readonly result?: { readonly type: CanTypeId; readonly disclosure?: ScenarioResultDisclosurePlan };
 }
 
 /**
