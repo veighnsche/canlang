@@ -83,12 +83,6 @@ test('page scopes route verified teams to distinct physical stores and retain ca
         return db === null ? null : { ...scope, db, initializeFresh: true };
       } }) });
     const invoker = buildInvoker(artifact, asm, fallback, { memberships: identities, now: clock.nowMs, ownerStorage: boundary });
-    for (const [index, identity] of [identityA, identityB].entries()) {
-      const created = await invoker.invokeMutation({ operation: `${MODEL}.create`, operation_id: uuidv7(FIXED_NOW, index + 1),
-        inputs: { label: index === 0 ? 'Only team A' : 'Only team B' } }, identity);
-      assert.ok('result' in created, JSON.stringify(created));
-      assert.equal(created.result.status, 'committed');
-    }
     let pageDeps: PageHttpDeps | undefined;
     const page = await assembleWorker(artifact, asm, {
       store: fallback, identityStore: identities, now: clock.nowMs, ownerStorage: boundary,
@@ -108,6 +102,27 @@ test('page scopes route verified teams to distinct physical stores and retain ca
       receipts: (await db.prepare('SELECT * FROM receipts ORDER BY rowid').all()).results,
       history: (await db.prepare('SELECT * FROM history ORDER BY rowid').all()).results,
     })));
+
+    assert.ok(pageDeps?.createReadScope);
+    const declarations = [{ field: 'label', type: 'text' }, { field: 'count', type: 'int' },
+      { field: 'owner', type: 'user' }];
+    const emptyScope = await pageDeps.createReadScope(identityA);
+    const empty = await emptyScope.query(identityA, MODEL, { includeCount: true });
+    assert.deepEqual(empty.rows, []); assert.deepEqual(empty.columns, []);
+    assert.deepEqual(empty.emptyDeclarations, declarations);
+    assert.equal(empty.totalCount, 0);
+    for (const [index, identity] of [identityA, identityB].entries()) {
+      const created = await invoker.invokeMutation({ operation: `${MODEL}.create`, operation_id: uuidv7(FIXED_NOW, index + 1),
+        inputs: { label: index === 0 ? 'Only team A' : 'Only team B' } }, identity);
+      assert.ok('result' in created, JSON.stringify(created));
+      assert.equal(created.result.status, 'committed');
+    }
+    const filteredScope = await pageDeps.createReadScope(identityA);
+    const filteredEmpty = await filteredScope.query(identityA, MODEL, { includeCount: true,
+      where: { op: 'eq', field: 'label', value: 'No matching entry' } });
+    assert.deepEqual(filteredEmpty.rows, []); assert.deepEqual(filteredEmpty.columns, []);
+    assert.deepEqual(filteredEmpty.emptyDeclarations, declarations);
+    assert.equal(filteredEmpty.totalCount, 0);
 
     // Selected pages disclose only their own store; one read scope pins one route.
     {
@@ -130,6 +145,7 @@ test('page scopes route verified teams to distinct physical stores and retain ca
       assert.deepEqual(second, first);
       assert.equal(first.totalCount, 1);
       assert.equal(first.rows[0]?.fields['label'], 'Only team A');
+      assert.equal(Object.hasOwn(first, 'emptyDeclarations'), false);
       const readRecords = scope.readRecords;
       assert.equal(typeof readRecords, 'function');
       assert.ok(readRecords);
@@ -288,6 +304,9 @@ test('page scopes route verified teams to distinct physical stores and retain ca
         where: async () => { evaluated = true; await identities.removeMembership(memberA.membership_id); return true; },
       }), (error: unknown) => typeof error === 'object' && error !== null && 'code' in error && error.code === 'forbidden');
       assert.equal(evaluated, true);
+      await assert.rejects(() => scope.query(identityA, MODEL, {
+        where: { op: 'eq', field: 'label', value: 'No matching entry' },
+      }), { code: 'validation', message: 'Query path "label" is not granted to this caller.' });
       const response = await page.fetch(requestFor(tokens[0]!));
       assert.equal(response.status, 403, await response.clone().text());
       assert.equal((await response.json() as { code: string }).code, 'forbidden');
