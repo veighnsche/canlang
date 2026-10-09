@@ -1237,6 +1237,7 @@ interface StateInvokeProducer {
   readonly readScenarioReceiptAssociation?: typeof import('@canlang/state/invocation').readScenarioReceiptAssociation;
   readonly projectScenarioReceipt?: typeof import('@canlang/state/invocation').projectScenarioReceipt;
   readonly beginScenarioReceiptMutation?: typeof import('@canlang/state/invocation').beginScenarioReceiptMutation;
+  readonly observeScenarioInputComputedDefault?: typeof import('@canlang/state/invocation').observeScenarioInputComputedDefault;
   projectGeneratedCrudReceipt?(input: {
     readonly receipt: Receipt;
     readonly registry: ReadonlyMap<string, unknown>;
@@ -1551,6 +1552,9 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
       }),
       ...(typeof scenarioMod['beginScenarioReceiptMutation'] !== 'function' ? {} : {
         beginScenarioReceiptMutation: scenarioMod['beginScenarioReceiptMutation'] as NonNullable<StateInvokeProducer['beginScenarioReceiptMutation']>,
+      }),
+      ...(typeof scenarioMod['observeScenarioInputComputedDefault'] !== 'function' ? {} : {
+        observeScenarioInputComputedDefault: scenarioMod['observeScenarioInputComputedDefault'] as NonNullable<StateInvokeProducer['observeScenarioInputComputedDefault']>,
       }),
       ...(typeof invokeMod['projectGeneratedCrudReceipt'] !== 'function' ? {} : {
         projectGeneratedCrudReceipt: invokeMod['projectGeneratedCrudReceipt'] as NonNullable<StateInvokeProducer['projectGeneratedCrudReceipt']>,
@@ -3264,7 +3268,7 @@ function encodeCanonicalWireField(StateError: StateErrorsProducer, type: CanType
 }
 
 /** Clone admitted snapshots; decode only their loader-owned type associations. */
-function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 'recordRefs'>, loaded: LoadedCanonicalDescriptors, recordView: (model: string, row: StoredRow) => Record<string, unknown>, resolvedDefaults: Record<string, unknown>): Record<string, unknown> {
+function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 'recordRefs'>, loaded: LoadedCanonicalDescriptors, recordView: (model: string, row: StoredRow) => Record<string, unknown>, resolvedDefaults?: Record<string, unknown>, receiptFrame?: ScenarioReceiptFrame): Record<string, unknown> {
   const parameters: Record<string, unknown> = Object.assign(Object.create(null), structuredClone(call.inputs));
   const def = generatedScenarioDef(call);
   for (const field of def?.descriptor.inputs ?? []) {
@@ -3273,10 +3277,10 @@ function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 're
         if (!Object.hasOwn(parameters, field.name) && field.default?.kind === "literal") {
           const value = decodeCanonicalValue(loaded.valueSchema, field.valueType, field.default.value);
           parameters[field.name] = value;
-          resolvedDefaults[field.name] = encodeValue(field.valueType, value);
+          if (resolvedDefaults !== undefined) resolvedDefaults[field.name] = encodeValue(field.valueType, value);
         } else if (!Object.hasOwn(parameters, field.name) && field.computedDefault !== true && field.valueType.endsWith("?")) {
           parameters[field.name] = null;
-          resolvedDefaults[field.name] = null;
+          if (resolvedDefaults !== undefined) resolvedDefaults[field.name] = null;
         } else if (field.kind === "enum" ? Object.hasOwn(parameters, field.name) : parameters[field.name] !== undefined) {
           parameters[field.name] = decodeCanonicalValue(loaded.valueSchema, field.valueType, parameters[field.name]);
         }
@@ -3286,7 +3290,9 @@ function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 're
     }
   }
   for (const ref of call.recordRefs ?? []) {
-    parameters[ref.param] = recordView(ref.model, ref.row);
+    const view = recordView(ref.model, ref.row);
+    receiptFrame?.bindAdmittedReference(view, ref);
+    parameters[ref.param] = view;
   }
   return parameters;
 }
@@ -3881,18 +3887,16 @@ async function runScenarioSeam(
 ): Promise<CanonicalExecutionEffects> {
   const scenarioDef = generatedScenarioDef(call);
   const receiptAware = scenarioDef?.descriptor.result?.disclosure !== undefined;
-  // The defining descriptor has no mutation/read-only flag. Preserve owning
-  // omitted-input default reports on the existing no-owner read path, and
-  // forbid effects until State can join them to its finalized owner tuple.
-  const readonlyInputDefaults = receiptAware && (scenarioDef?.descriptor.inputs ?? []).some(field =>
-    !Object.hasOwn(call.inputs, field.name) && ((field.kind !== 'delivery' && field.computedDefault === true) ||
-      field.default?.kind === 'literal' || (field.kind !== 'ref' && field.kind !== 'delivery' &&
-        field.valueType?.endsWith('?') === true)));
-  const useOwnerSession = receiptAware && !readonlyInputDefaults;
+  const useOwnerSession = receiptAware;
   const ownerControl = localOwnerPolicyControls.get(loaded);
   const beginReceiptMutation = loaded.producers.invoke.beginScenarioReceiptMutation;
+  const observeReceiptDefault = loaded.producers.invoke.observeScenarioInputComputedDefault;
   if (useOwnerSession && (receiptStore === undefined || beginReceiptMutation === undefined || due !== undefined || cohort !== undefined)) {
     throw new loaded.producers.errors('validation', 'Saved scenario mutation requires its installed State producer and actual admitted receipt execution.');
+  }
+  if (useOwnerSession && observeReceiptDefault === undefined && (scenarioDef?.descriptor.inputs ?? []).some(field =>
+      field.kind !== 'delivery' && field.computedDefault === true && !Object.hasOwn(call.inputs, field.name))) {
+    throw new loaded.producers.errors('validation', 'Saved scenario computed input defaults require their installed State contribution producer.');
   }
   if (ownerControl !== undefined && !useOwnerSession) {
     throw new loaded.producers.errors('validation', 'Native owner model rules require one scenario owner session; this producer profile supports generated CRUD only.');
@@ -4104,11 +4108,6 @@ async function runScenarioSeam(
     if ((effects.outboxAck?.length ?? 0) !== 0) {
       throw new Error('Canonical deferred effects cannot stage outbox acknowledgements.');
     }
-    if (readonlyInputDefaults && ((effects.writes?.length ?? 0) !== 0 || (effects.history?.length ?? 0) !== 0 ||
-        (effects.uniqueClaims?.length ?? 0) !== 0 || (effects.uniqueReleases?.length ?? 0) !== 0 ||
-        (effects.outbox?.length ?? 0) !== 0 || (effects.schedules?.length ?? 0) !== 0)) {
-      refuseRecordBinding('Saved scenario input-default execution must remain read-only until its defining owner-effects join.');
-    }
     if (ownerSession !== undefined && ((effects.writes?.length ?? 0) !== 0 ||
         (effects.history?.length ?? 0) !== 0 || (effects.uniqueClaims?.length ?? 0) !== 0 ||
         (effects.uniqueReleases?.length ?? 0) !== 0)) {
@@ -4257,9 +4256,6 @@ async function runScenarioSeam(
     },
     stageWrite: async (write: CanonicalStagedWrite): Promise<StoredRow | null> => {
       try {
-        if (readonlyInputDefaults) {
-          throw new StateError('validation', 'Saved scenario input-default execution must remain read-only until its defining owner-effects join.');
-        }
         if (write.op !== "create" && write.op !== "update" && write.op !== "remove") {
           throw new Error(`t17b: stageWrite needs op create/update/remove (wiring bug).`);
         }
@@ -4731,18 +4727,15 @@ async function runScenarioSeam(
     if (row === null) throw new StateError('conflict', 'Admitted scenario owner record is no longer present.');
     await ownerNavigation.prepare(ref.model, row);
   }
-  const parameters = cohort === undefined ? undefined : scenarioParameters(call, loaded, recordView, resolvedDefaults);
+  const parameters = cohort === undefined ? undefined : scenarioParameters(call, loaded, recordView, resolvedDefaults, scenarioReceiptFrame);
   const argument = cohort !== undefined
     ? { event: Object.fromEntries(cohort.eventFields.map(name => [name, parameters![name]])),
       ...(cohort.bind === null ? {} : { [cohort.bind]: parameters![cohort.refInput] }) }
     : due !== undefined
-    ? { event: scenarioParameters(call, loaded, recordView, resolvedDefaults) }
+    ? { event: scenarioParameters(call, loaded, recordView, resolvedDefaults, scenarioReceiptFrame) }
     : callable?.inputStyle === "parameters"
-    ? scenarioParameters(call, loaded, recordView, resolvedDefaults)
+    ? scenarioParameters(call, loaded, recordView, ownerSession === undefined ? resolvedDefaults : undefined, scenarioReceiptFrame)
     : { operation_id: call.context.operationId, inputs: call.inputs };
-  if (ownerSession !== undefined && Object.keys(resolvedDefaults).length !== 0) {
-    throw new StateError('validation', 'Saved scenario input-default reports require their defining finalized-effects join.');
-  }
   const observesDefaults = due === undefined && cohort === undefined && callable?.inputStyle === 'parameters';
   const defaultDef = generatedScenarioDef(call);
   const defaultInputs = defaultDef?.descriptor.inputs ?? [];
@@ -4755,9 +4748,6 @@ async function runScenarioSeam(
   const observedDefaults = new Set<string>();
   const observeDefault = (name: unknown, value: unknown): void => {
     try {
-      if (ownerSession !== undefined) {
-        throw new StateError('validation', 'Saved scenario input-default reports require their defining finalized-effects join.');
-      }
       const field = typeof name === 'string' ? computedSlots.get(name) : undefined;
       if (field === undefined || observedDefaults.has(field.name)) {
         throw new StateError('validation', 'Computed default reports require an omitted owning slot, exactly once.');
@@ -4793,7 +4783,8 @@ async function runScenarioSeam(
         if (field.valueType === undefined) throw new StateError('validation', 'Computed default lacks its owning value type.');
         wire = encodeValue(field.valueType, value as CanValue);
       }
-      resolvedDefaults[field.name] = wire;
+      if (ownerSession === undefined) resolvedDefaults[field.name] = wire;
+      else observeReceiptDefault!(call as AdmittedCall, receiptStore!, { name: field.name, wire });
       observedDefaults.add(field.name);
     } catch (error) {
       const failure = error instanceof StateError ? error : new StateError('validation', message(error));

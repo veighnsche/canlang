@@ -5,7 +5,8 @@ use std::collections::{HashMap, HashSet};
 use serde::Serialize;
 
 use crate::analysis::scenario_disclosure::{
-    DependencyRole, DisclosureChoice, DisclosureSource, ScenarioDisclosure,
+    DependencyRole, DisclosureChoice, DisclosureEffectKind, DisclosureIntrinsicKind,
+    DisclosureSource, ScenarioDisclosure,
 };
 use crate::analysis::{ResolvedType, Scalar};
 use crate::source::{Span, sha256_hex};
@@ -37,6 +38,8 @@ pub(super) struct ReceiptReturn {
     pub source: ReceiptSource,
     pub influences: Vec<ReceiptInfluence>,
     pub dependencies: Vec<ReceiptDependency>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub intrinsics: Vec<ReceiptIntrinsic>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -63,6 +66,31 @@ pub(super) struct ReceiptDependency {
     pub type_id: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub(super) struct ReceiptIntrinsic {
+    pub id: String,
+    pub source: ReceiptSource,
+    pub role: ReceiptRole,
+    #[serde(rename = "type")]
+    pub type_id: String,
+    #[serde(flatten)]
+    pub kind: NativeIntrinsicKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub(super) enum NativeIntrinsicKind {
+    OperationId,
+    AdmittedInput { parameter: String },
+    AdmittedReferenceVersion { parameter: String, model: String },
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct NativeIntrinsic {
+    pub id: String,
+    pub kind: NativeIntrinsicKind,
+}
+
 #[derive(Debug, Clone)]
 pub(super) struct NativeDependency {
     pub id: String,
@@ -72,6 +100,7 @@ pub(super) struct NativeDependency {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum NativeDecisionKind {
+    ParameterDefault,
     If,
     Match,
     And,
@@ -83,6 +112,8 @@ pub(super) enum NativeDecisionKind {
 pub(super) struct NativeSite {
     pub calls: Vec<Span>,
     pub span: Span,
+    /// Omission and the default expression's own decision may share a span.
+    pub default_selection: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -98,6 +129,7 @@ pub(super) struct NativeScenarioReceipt {
     pub plan: ReceiptDisclosurePlan,
     /// One observation site may supply both data and control identities.
     pub dependencies: HashMap<NativeSite, Vec<NativeDependency>>,
+    pub intrinsics: HashMap<NativeSite, Vec<NativeIntrinsic>>,
     pub decisions: HashMap<NativeSite, NativeDecisionKind>,
     pub decision_keys: HashMap<NativeSite, String>,
     pub calls: HashMap<NativeSite, String>,
@@ -124,6 +156,7 @@ pub(super) fn collect_native_scenario_receipt(
         by,
         guards,
         effects,
+        params,
         ..
     } = &item.kind
     else {
@@ -151,7 +184,8 @@ pub(super) fn collect_native_scenario_receipt(
         return None;
     }
     let source = transport_source(&checked.source, entry_module)?;
-    let sites = Sites::collect(ir, by, guards, effects)?;
+    let sites = Sites::collect(ir, item, params, by, guards, effects)?;
+    match_effect_proofs(ir, item, models, checked, &sites)?;
     let mut recipe = NativeScenarioReceipt {
         plan: ReceiptDisclosurePlan {
             version: 1,
@@ -159,6 +193,7 @@ pub(super) fn collect_native_scenario_receipt(
             returns: Vec::new(),
         },
         dependencies: HashMap::new(),
+        intrinsics: HashMap::new(),
         decisions: HashMap::new(),
         decision_keys: HashMap::new(),
         calls: sites.calls.clone(),
@@ -173,6 +208,8 @@ pub(super) fn collect_native_scenario_receipt(
     let mut matched_returns = HashSet::new();
     let mut dependency_ids =
         HashMap::<String, (NativeSite, String, String, String, ReceiptRole)>::new();
+    let mut intrinsic_ids =
+        HashMap::<String, (NativeSite, NativeIntrinsicKind, String, ReceiptRole)>::new();
     // State's v1 own-data parser bounds each array/global dependency inventory
     // at 200 and the closed plan traversal at 20,000 JSON nodes.
     let mut data_nodes: usize = 7;
@@ -184,10 +221,16 @@ pub(super) fn collect_native_scenario_receipt(
         {
             return None;
         }
-        if returned.dependencies.len() > 200 {
+        if returned
+            .dependencies
+            .len()
+            .checked_add(returned.intrinsics.len())?
+            > 200
+        {
             return None;
         }
-        data_nodes = data_nodes.checked_add(8 + 10 * returned.dependencies.len())?;
+        data_nodes = data_nodes
+            .checked_add(9 + 10 * returned.dependencies.len() + 16 * returned.intrinsics.len())?;
         if data_nodes > 20_000 {
             return None;
         }
@@ -219,9 +262,14 @@ pub(super) fn collect_native_scenario_receipt(
             source: transport_source(&returned.source, entry_module)?,
             influences: Vec::new(),
             dependencies: Vec::new(),
+            intrinsics: Vec::new(),
         };
         for decision in &returned.decisions {
-            let site = checked_site(decision.node, &decision.calls)?;
+            let mut site = checked_site(decision.node, &decision.calls)?;
+            site.default_selection = matches!(
+                decision.choice,
+                DisclosureChoice::DefaultEvaluated | DisclosureChoice::DefaultProvided
+            );
             let span = site.span;
             if native_return
                 .decisions
@@ -232,11 +280,12 @@ pub(super) fn collect_native_scenario_receipt(
             }
             let kind = *sites.decisions.get(&site)?;
             let expected = match kind {
-                NativeDecisionKind::If => SyntaxKind::If,
-                NativeDecisionKind::Match => SyntaxKind::Match,
-                _ => SyntaxKind::Binary,
+                NativeDecisionKind::ParameterDefault => decision.node.kind,
+                NativeDecisionKind::If => SyntaxKind::If as u8,
+                NativeDecisionKind::Match => SyntaxKind::Match as u8,
+                _ => SyntaxKind::Binary as u8,
             };
-            if decision.node.kind != expected as u8 {
+            if decision.node.kind != expected {
                 return None;
             }
             if !valid_choice(kind, &decision.choice, sites.matches.get(&site)) {
@@ -254,8 +303,10 @@ pub(super) fn collect_native_scenario_receipt(
             } else {
                 // The checked opaque return identity already incorporates exact
                 // declaring source bytes and canonical call-chain origins.
-                let mut stamp =
-                    format!("receipt-choice:{}:{}:{}", returned.id, span.start, span.end);
+                let mut stamp = format!(
+                    "receipt-choice:{}:{}:{}:{}",
+                    returned.id, span.start, span.end, site.default_selection
+                );
                 for anchor in site.calls.iter().chain(std::iter::once(&span)) {
                     let owner = owning_module(ir, *anchor)?;
                     stamp.push_str(&format!(":{}:{}:{}", owner.name, anchor.start, anchor.end));
@@ -270,6 +321,7 @@ pub(super) fn collect_native_scenario_receipt(
             let is_transition = dependency.node.kind == SyntaxKind::Transition as u8;
             if (!is_transition && dependency.node.kind != SyntaxKind::Member as u8)
                 || dependency.id.is_empty()
+                || intrinsic_ids.contains_key(&dependency.id)
                 || !source_matches(ir, &dependency.source, node_span(dependency.node))
                 || !direct_field_name(&dependency.field_name)
             {
@@ -450,7 +502,7 @@ pub(super) fn collect_native_scenario_receipt(
                 }
             } else {
                 dependency_ids.insert(dependency.id.clone(), identity);
-                if dependency_ids.len() > 200 {
+                if dependency_ids.len() + intrinsic_ids.len() > 200 {
                     return None;
                 }
             }
@@ -469,6 +521,210 @@ pub(super) fn collect_native_scenario_receipt(
                 model: dependency.model_name.clone(),
                 field: dependency.field_name.clone(),
                 type_id: transport_type,
+            });
+        }
+        for intrinsic in &returned.intrinsics {
+            if intrinsic.id.is_empty()
+                || dependency_ids.contains_key(&intrinsic.id)
+                || plan_return
+                    .intrinsics
+                    .iter()
+                    .any(|value| value.id == intrinsic.id)
+                || !source_matches(ir, &intrinsic.source, node_span(intrinsic.node))
+                || (intrinsic.calls.is_empty() && intrinsic.source != checked.source)
+            {
+                return None;
+            }
+            let source_key = (intrinsic.node.file, intrinsic.source.module.clone());
+            if let Some(previous) = source_origins.get(&source_key) {
+                if previous != &intrinsic.source {
+                    return None;
+                }
+            } else {
+                source_origins.insert(source_key, intrinsic.source.clone());
+            }
+            let site = checked_site(intrinsic.node, &intrinsic.calls)?;
+            let input = matches!(
+                intrinsic.kind,
+                DisclosureIntrinsicKind::AdmittedInput { .. }
+            );
+            if if input {
+                intrinsic.node.kind != SyntaxKind::NameRef as u8
+                    && intrinsic.node.kind != SyntaxKind::Path as u8
+                    && intrinsic.node.kind != SyntaxKind::Name as u8
+            } else {
+                intrinsic.node.kind != SyntaxKind::Member as u8
+            } {
+                return None;
+            }
+            let expressions = if input {
+                sites.names.get(&site)?
+            } else {
+                sites.members.get(&site)?
+            };
+            if expressions.len() != 1 {
+                return None;
+            }
+            let expression = expressions[0];
+            if expression.ty != intrinsic.ty {
+                return None;
+            }
+            let kind = match &intrinsic.kind {
+                DisclosureIntrinsicKind::OperationId => {
+                    let IrExpr::Member { base, field } = &expression.expr else {
+                        return None;
+                    };
+                    if field != "id"
+                        || base.ty != ResolvedType::OperationContext
+                        || !matches!(&base.expr, IrExpr::Member { base: context, field: operation }
+                            if operation == "operation" && context.ty == ResolvedType::Unknown
+                                && matches!(&context.expr, IrExpr::Name(name) if name == "c"))
+                        || intrinsic.ty != ResolvedType::Scalar(Scalar::Text)
+                        || intrinsic.type_id != "text"
+                    {
+                        return None;
+                    }
+                    NativeIntrinsicKind::OperationId
+                }
+                DisclosureIntrinsicKind::AdmittedInput {
+                    parameter,
+                    parameter_name,
+                } => {
+                    if !matches!(expression.expr, IrExpr::Name(_))
+                        || !direct_field_name(parameter_name)
+                    {
+                        return None;
+                    }
+                    let ResolvedType::Scalar(scalar) = &intrinsic.ty else {
+                        return None;
+                    };
+                    if !matches!(
+                        scalar,
+                        Scalar::Text
+                            | Scalar::Bool
+                            | Scalar::Int
+                            | Scalar::Date
+                            | Scalar::Datetime
+                            | Scalar::Decimal
+                            | Scalar::Money
+                            | Scalar::Duration
+                            | Scalar::User
+                    ) || intrinsic.type_id != scalar.as_str()
+                    {
+                        return None;
+                    }
+                    let parameter_item = ir.items.get(parameter.0 as usize)?;
+                    let IrItemKind::Param {
+                        owner: parameter_owner,
+                        index,
+                        ty: IrType::Known(parameter_ty),
+                        default,
+                        ..
+                    } = &parameter_item.kind
+                    else {
+                        return None;
+                    };
+                    if parameter_item.id != *parameter
+                        || *parameter_owner != item.id
+                        || params.get(*index) != Some(parameter)
+                        || parameter_item.name != *parameter_name
+                        || parameter_ty != &intrinsic.ty
+                        || default.is_some()
+                    {
+                        return None;
+                    }
+                    NativeIntrinsicKind::AdmittedInput {
+                        parameter: parameter_name.clone(),
+                    }
+                }
+                DisclosureIntrinsicKind::AdmittedReferenceVersion {
+                    parameter,
+                    parameter_name,
+                    model,
+                    model_name,
+                } => {
+                    let IrExpr::Member { base, field } = &expression.expr else {
+                        return None;
+                    };
+                    if field != "version"
+                        || !matches!(base.expr, IrExpr::Name(_))
+                        || base.ty
+                            != (ResolvedType::Record {
+                                symbol: *model,
+                                stored: true,
+                            })
+                        || intrinsic.ty != ResolvedType::Scalar(Scalar::Int)
+                        || intrinsic.type_id != "int"
+                        || !direct_field_name(parameter_name)
+                    {
+                        return None;
+                    }
+                    let parameter_item = ir.items.get(parameter.0 as usize)?;
+                    let IrItemKind::Param {
+                        owner: parameter_owner,
+                        index,
+                        ty: IrType::Known(parameter_ty),
+                        default,
+                        ..
+                    } = &parameter_item.kind
+                    else {
+                        return None;
+                    };
+                    if parameter_item.id != *parameter
+                        || *parameter_owner != item.id
+                        || params.get(*index) != Some(parameter)
+                        || parameter_item.name != *parameter_name
+                        || parameter_ty != &base.ty
+                        || default.is_some()
+                    {
+                        return None;
+                    }
+                    let model_item = ir.items.get(model.0 as usize)?;
+                    if model_item.id != *model
+                        || model_item.canonical != *model_name
+                        || !matches!(model_item.kind, IrItemKind::Model { .. })
+                        || models
+                            .iter()
+                            .filter(|value| value.name == *model_name)
+                            .count()
+                            != 1
+                    {
+                        return None;
+                    }
+                    NativeIntrinsicKind::AdmittedReferenceVersion {
+                        parameter: parameter_name.clone(),
+                        model: model_name.clone(),
+                    }
+                }
+            };
+            let role = match intrinsic.role {
+                DependencyRole::Data => ReceiptRole::Data,
+                DependencyRole::Control => ReceiptRole::Control,
+            };
+            let identity = (site.clone(), kind.clone(), intrinsic.type_id.clone(), role);
+            if let Some(previous) = intrinsic_ids.get(&intrinsic.id) {
+                if previous != &identity {
+                    return None;
+                }
+            } else {
+                intrinsic_ids.insert(intrinsic.id.clone(), identity);
+                if dependency_ids.len() + intrinsic_ids.len() > 200 {
+                    return None;
+                }
+            }
+            let observed = recipe.intrinsics.entry(site).or_default();
+            if !observed.iter().any(|value| value.id == intrinsic.id) {
+                observed.push(NativeIntrinsic {
+                    id: intrinsic.id.clone(),
+                    kind: kind.clone(),
+                });
+            }
+            plan_return.intrinsics.push(ReceiptIntrinsic {
+                id: intrinsic.id.clone(),
+                source: transport_source(&intrinsic.source, entry_module)?,
+                role,
+                type_id: intrinsic.type_id.clone(),
+                kind,
             });
         }
         recipe.returns.push(native_return);
@@ -592,6 +848,10 @@ fn valid_choice(
     cases: Option<&HashSet<String>>,
 ) -> bool {
     match (kind, choice) {
+        (
+            NativeDecisionKind::ParameterDefault,
+            DisclosureChoice::DefaultEvaluated | DisclosureChoice::DefaultProvided,
+        ) => true,
         (NativeDecisionKind::If, DisclosureChoice::Then | DisclosureChoice::Else) => true,
         (NativeDecisionKind::Match, DisclosureChoice::Match(case)) => {
             cases.is_some_and(|cases| cases.contains(case))
@@ -604,10 +864,171 @@ fn valid_choice(
     }
 }
 
+/// Every admitted mutation/external site needs one source-checked proof;
+/// neither an unused proof nor an unproved executable effect is harmless.
+fn match_effect_proofs(
+    ir: &IrProgram,
+    owner: &IrItem,
+    models: &[JsModel],
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    sites: &Sites<'_>,
+) -> Option<()> {
+    if checked.effects.len() > 200 || checked.effects.len() != sites.effects.len() {
+        return None;
+    }
+    let mut matched = HashSet::new();
+    for proof in &checked.effects {
+        let site = checked_site(proof.node, &[])?;
+        if !matched.insert(site.clone())
+            || proof.source != checked.source
+            || !source_matches(ir, &proof.source, site.span)
+            || owning_module(ir, site.span)?.id != owner.module
+        {
+            return None;
+        }
+        match (&proof.kind, *sites.effects.get(&site)?) {
+            (
+                DisclosureEffectKind::Set { model, fields },
+                IrStmt::Set {
+                    record,
+                    changes,
+                    when: None,
+                    ..
+                },
+            ) => {
+                if proof.node.kind != SyntaxKind::Set as u8
+                    || !matches!(record.expr, IrExpr::Name(_))
+                    || record.ty
+                        != (ResolvedType::Record {
+                            symbol: *model,
+                            stored: true,
+                        })
+                {
+                    return None;
+                }
+                let model_item = ir.items.get(model.0 as usize)?;
+                let IrItemKind::Model {
+                    fields: own_fields, ..
+                } = &model_item.kind
+                else {
+                    return None;
+                };
+                if model_item.id != *model || model_item.module != owner.module {
+                    return None;
+                }
+                let IrExpr::Object(entries) = &changes.expr else {
+                    return None;
+                };
+                if entries.len() != fields.len() || fields.is_empty() {
+                    return None;
+                }
+                let mut descriptors = models.iter().filter(|m| m.name == model_item.canonical);
+                let descriptor = descriptors.next()?;
+                if descriptors.next().is_some() {
+                    return None;
+                }
+                let mut seen_fields = HashSet::new();
+                for ((name, value), id) in entries.iter().zip(fields) {
+                    let field = ir.items.get(id.0 as usize)?;
+                    let IrItemKind::Field {
+                        owner: field_owner,
+                        ty: IrType::Known(ty),
+                        required_array,
+                        modifiers,
+                        ..
+                    } = &field.kind
+                    else {
+                        return None;
+                    };
+                    if field.id != *id
+                        || *field_owner != *model
+                        || !own_fields.contains(id)
+                        || field.name != *name
+                        || !seen_fields.insert(*id)
+                        || *required_array
+                        || modifiers.machine
+                    {
+                        return None;
+                    }
+                    let mut declared = descriptor.fields.iter().filter(|f| f.name == *name);
+                    let emitted = declared.next()?;
+                    if declared.next().is_some() || !assignment_inventory_matches(ty, emitted) {
+                        return None;
+                    }
+                    let compatible = value.ty == *ty
+                        || matches!(ty, ResolvedType::Nullable(inner) if value.ty == **inner || value.ty == ResolvedType::Null);
+                    if !compatible {
+                        return None;
+                    }
+                }
+            }
+            (
+                DisclosureEffectKind::Send {
+                    operation,
+                    deployment_binding,
+                },
+                IrStmt::Send {
+                    operation: actual,
+                    deployment_binding: binding,
+                    when: None,
+                    ..
+                },
+            ) => {
+                if proof.node.kind != SyntaxKind::Send as u8
+                    || operation != actual
+                    || deployment_binding != binding
+                    || binding.as_ref().is_none_or(|b| b.is_empty())
+                {
+                    return None;
+                }
+            }
+            _ => return None,
+        }
+    }
+    Some(())
+}
+
+fn assignment_inventory_matches(ty: &ResolvedType, field: &JsModelField) -> bool {
+    let (base, nullable) = match ty {
+        ResolvedType::Nullable(inner) => (inner.as_ref(), true),
+        ty => (ty, false),
+    };
+    if let ResolvedType::StdDelivery { capability, op } = base {
+        let Some(expected) = super::js::delivery_descriptor(capability, op) else {
+            return false;
+        };
+        return matches!(&field.field, JsModelFieldType::Delivery(delivery)
+            if delivery.capability == expected.capability
+                && delivery.operation == expected.operation
+                && delivery.version == expected.version
+                && delivery.result.to_json() == expected.result.to_json())
+            && field.nullable == nullable
+            && field.array_required.is_none()
+            && field.machine.is_none()
+            && field.value_type.is_none();
+    }
+    let (element, array) = match base {
+        ResolvedType::Array { element, .. } => (element.as_ref(), true),
+        ty => (ty, false),
+    };
+    let ResolvedType::Scalar(scalar) = element else {
+        return false;
+    };
+    let expected = format!(
+        "{}{}{}",
+        scalar.as_str(),
+        if array { "[]" } else { "" },
+        if nullable { "?" } else { "" }
+    );
+    native_result_type(ty) && inventory_type(field).as_deref() == Some(expected.as_str())
+}
+
 #[derive(Default)]
 struct Sites<'a> {
     members: HashMap<NativeSite, Vec<&'a TypedExpr>>,
+    names: HashMap<NativeSite, Vec<&'a TypedExpr>>,
     transitions: HashMap<NativeSite, Vec<&'a IrStmt>>,
+    effects: HashMap<NativeSite, &'a IrStmt>,
     decisions: HashMap<NativeSite, NativeDecisionKind>,
     matches: HashMap<NativeSite, HashSet<String>>,
     calls: HashMap<NativeSite, String>,
@@ -623,12 +1044,52 @@ enum Visit<'a> {
 impl<'a> Sites<'a> {
     fn collect(
         ir: &'a IrProgram,
+        owner: &'a IrItem,
+        params: &'a [crate::analysis::SymbolId],
         by: &'a [IrGuard],
         guards: &'a [IrStmt],
         effects: &'a [IrStmt],
     ) -> Option<Self> {
         let mut out = Self::default();
         let mut pending = Vec::new();
+        for (index, id) in params.iter().enumerate() {
+            let param = ir.items.get(id.0 as usize)?;
+            let IrItemKind::Param {
+                owner: declared_owner,
+                index: declared_index,
+                default,
+                default_node,
+                ..
+            } = &param.kind
+            else {
+                return None;
+            };
+            if param.id != *id || *declared_owner != owner.id || *declared_index != index {
+                return None;
+            }
+            if let Some(IrDefault::Literal(expr) | IrDefault::Computed { expr, .. }) = default {
+                if owning_module(ir, expr.span)?.id != owner.module {
+                    return None;
+                }
+                let node = (*default_node)?;
+                if node.file != expr.span.file
+                    || node.start > expr.span.start
+                    || node.end < expr.span.end
+                {
+                    return None;
+                }
+                let mut site = Walk::default().site(node_span(node));
+                site.default_selection = true;
+                if out
+                    .decisions
+                    .insert(site, NativeDecisionKind::ParameterDefault)
+                    .is_some()
+                {
+                    return None;
+                }
+                pending.push((Visit::Expression(expr), Walk::default()));
+            }
+        }
         pending.extend(
             by.iter()
                 .map(|guard| (Visit::Guard(guard), Walk::default())),
@@ -671,6 +1132,29 @@ impl<'a> Sites<'a> {
                     IrGuard::Not(guard) => push!(Visit::Guard(guard)),
                 },
                 Visit::Statement(statement) => match statement {
+                    IrStmt::Set {
+                        record,
+                        changes,
+                        span,
+                        ..
+                    } => {
+                        if out.effects.insert(context.site(*span), statement).is_some() {
+                            return None;
+                        }
+                        push!(Visit::Expression(record));
+                        push!(Visit::Expression(changes));
+                    }
+                    IrStmt::Send {
+                        args,
+                        when: None,
+                        span,
+                        ..
+                    } => {
+                        if out.effects.insert(context.site(*span), statement).is_some() {
+                            return None;
+                        }
+                        push!(Visit::Expression(args));
+                    }
                     IrStmt::Transition { record, span, .. } => {
                         out.transitions
                             .entry(context.site(*span))
@@ -752,11 +1236,16 @@ impl<'a> Sites<'a> {
                         push!(Visit::Expression(left));
                         push!(Visit::Expression(right));
                     }
-                    IrExpr::Array(items) => {
-                        if !native_result_type(&expression.ty) {
+                    IrExpr::Array(items) => extend!(items.iter().map(Visit::Expression)),
+                    IrExpr::Object(entries) => {
+                        let mut names = HashSet::new();
+                        if entries
+                            .iter()
+                            .any(|(name, _)| !direct_field_name(name) || !names.insert(name))
+                        {
                             return None;
                         }
-                        extend!(items.iter().map(Visit::Expression));
+                        extend!(entries.iter().map(|(_, value)| Visit::Expression(value)));
                     }
                     IrExpr::Unary { operand, .. } => push!(Visit::Expression(operand)),
                     IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {
@@ -834,8 +1323,13 @@ impl<'a> Sites<'a> {
                     | IrExpr::Money { .. }
                     | IrExpr::DurationMs(_)
                     | IrExpr::Date(_)
-                    | IrExpr::Datetime(_)
-                    | IrExpr::Name(_) => {}
+                    | IrExpr::Datetime(_) => {}
+                    IrExpr::Name(_) => {
+                        out.names
+                            .entry(context.site(expression.span))
+                            .or_default()
+                            .push(expression);
+                    }
                     IrExpr::HasRole { person, .. } => {
                         extend!(person.iter().map(|person| Visit::Expression(person)))
                     }
@@ -858,6 +1352,7 @@ impl Walk {
         NativeSite {
             calls: self.calls.clone(),
             span,
+            default_selection: false,
         }
     }
 }
@@ -871,6 +1366,7 @@ fn checked_site(
     Some(NativeSite {
         calls: calls.iter().copied().map(node_span).collect(),
         span: node_span(node),
+        default_selection: false,
     })
 }
 fn owning_module(ir: &IrProgram, span: Span) -> Option<&super::ir::IrModule> {
