@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use serde::Serialize;
 
 use crate::analysis::scenario_disclosure::{
-    DependencyRole, DisclosureChoice, DisclosureSource, ScenarioDisclosure,
+    DependencyRole, DisclosureChoice, DisclosureEffectKind, DisclosureSource, ScenarioDisclosure,
 };
 use crate::analysis::{ResolvedType, Scalar};
 use crate::source::{Span, sha256_hex};
@@ -156,6 +156,7 @@ pub(super) fn collect_native_scenario_receipt(
     }
     let source = transport_source(&checked.source, entry_module)?;
     let sites = Sites::collect(ir, item, params, by, guards, effects)?;
+    match_effect_proofs(ir, item, models, checked, &sites)?;
     let mut recipe = NativeScenarioReceipt {
         plan: ReceiptDisclosurePlan {
             version: 1,
@@ -619,10 +620,174 @@ fn valid_choice(
     }
 }
 
+/// Every admitted mutation/external site needs one source-checked proof;
+/// neither an unused proof nor an unproved executable effect is harmless.
+fn match_effect_proofs(
+    ir: &IrProgram,
+    owner: &IrItem,
+    models: &[JsModel],
+    checked: &crate::analysis::scenario_disclosure::CheckedScenarioDisclosure,
+    sites: &Sites<'_>,
+) -> Option<()> {
+    if checked.effects.len() > 200 || checked.effects.len() != sites.effects.len() {
+        return None;
+    }
+    let mut matched = HashSet::new();
+    for proof in &checked.effects {
+        let site = checked_site(proof.node, &[])?;
+        if !matched.insert(site.clone())
+            || proof.source != checked.source
+            || !source_matches(ir, &proof.source, site.span)
+            || owning_module(ir, site.span)?.id != owner.module
+        {
+            return None;
+        }
+        match (&proof.kind, *sites.effects.get(&site)?) {
+            (
+                DisclosureEffectKind::Set { model, fields },
+                IrStmt::Set {
+                    record,
+                    changes,
+                    when: None,
+                    ..
+                },
+            ) => {
+                if proof.node.kind != SyntaxKind::Set as u8
+                    || !matches!(record.expr, IrExpr::Name(_))
+                    || record.ty
+                        != (ResolvedType::Record {
+                            symbol: *model,
+                            stored: true,
+                        })
+                {
+                    return None;
+                }
+                let model_item = ir.items.get(model.0 as usize)?;
+                let IrItemKind::Model {
+                    fields: own_fields, ..
+                } = &model_item.kind
+                else {
+                    return None;
+                };
+                if model_item.id != *model || model_item.module != owner.module {
+                    return None;
+                }
+                let IrExpr::Object(entries) = &changes.expr else {
+                    return None;
+                };
+                if entries.len() != fields.len() || fields.is_empty() {
+                    return None;
+                }
+                let mut descriptors = models.iter().filter(|m| m.name == model_item.canonical);
+                let descriptor = descriptors.next()?;
+                if descriptors.next().is_some() {
+                    return None;
+                }
+                let mut seen_fields = HashSet::new();
+                for ((name, value), id) in entries.iter().zip(fields) {
+                    let field = ir.items.get(id.0 as usize)?;
+                    let IrItemKind::Field {
+                        owner: field_owner,
+                        ty: IrType::Known(ty),
+                        required_array,
+                        modifiers,
+                        ..
+                    } = &field.kind
+                    else {
+                        return None;
+                    };
+                    if field.id != *id
+                        || *field_owner != *model
+                        || !own_fields.contains(id)
+                        || field.name != *name
+                        || !seen_fields.insert(*id)
+                        || *required_array
+                        || modifiers.machine
+                    {
+                        return None;
+                    }
+                    let mut declared = descriptor.fields.iter().filter(|f| f.name == *name);
+                    let emitted = declared.next()?;
+                    if declared.next().is_some() || !assignment_inventory_matches(ty, emitted) {
+                        return None;
+                    }
+                    // Shorthand entries currently retain the checked name but
+                    // have no independently decoded RHS type in native IR.
+                    let shorthand = value.ty == ResolvedType::Unknown
+                        && matches!(&value.expr, IrExpr::Name(rhs) if rhs == name);
+                    let compatible = value.ty == *ty
+                        || matches!(ty, ResolvedType::Nullable(inner) if value.ty == **inner || value.ty == ResolvedType::Null);
+                    if !shorthand && !compatible {
+                        return None;
+                    }
+                }
+            }
+            (
+                DisclosureEffectKind::Send {
+                    operation,
+                    deployment_binding,
+                },
+                IrStmt::Send {
+                    operation: actual,
+                    deployment_binding: binding,
+                    when: None,
+                    ..
+                },
+            ) => {
+                if proof.node.kind != SyntaxKind::Send as u8
+                    || operation != actual
+                    || deployment_binding != binding
+                    || binding.as_ref().is_none_or(|b| b.is_empty())
+                {
+                    return None;
+                }
+            }
+            _ => return None,
+        }
+    }
+    Some(())
+}
+
+fn assignment_inventory_matches(ty: &ResolvedType, field: &JsModelField) -> bool {
+    let (base, nullable) = match ty {
+        ResolvedType::Nullable(inner) => (inner.as_ref(), true),
+        ty => (ty, false),
+    };
+    if let ResolvedType::StdDelivery { capability, op } = base {
+        let Some(expected) = super::js::delivery_descriptor(capability, op) else {
+            return false;
+        };
+        return matches!(&field.field, JsModelFieldType::Delivery(delivery)
+            if delivery.capability == expected.capability
+                && delivery.operation == expected.operation
+                && delivery.version == expected.version
+                && delivery.result.to_json() == expected.result.to_json())
+            && field.nullable == nullable
+            && field.array_required.is_none()
+            && field.machine.is_none()
+            && field.value_type.is_none();
+    }
+    let (element, array) = match base {
+        ResolvedType::Array { element, .. } => (element.as_ref(), true),
+        ty => (ty, false),
+    };
+    let ResolvedType::Scalar(scalar) = element else {
+        return false;
+    };
+    let expected = format!(
+        "{}{}{}",
+        scalar.as_str(),
+        if array { "[]" } else { "" },
+        if nullable { "?" } else { "" }
+    );
+    native_result_type(ty) && inventory_type(field).as_deref() == Some(expected.as_str())
+}
+
 #[derive(Default)]
 struct Sites<'a> {
     members: HashMap<NativeSite, Vec<&'a TypedExpr>>,
     transitions: HashMap<NativeSite, Vec<&'a IrStmt>>,
+    effects: HashMap<NativeSite, &'a IrStmt>,
     decisions: HashMap<NativeSite, NativeDecisionKind>,
     matches: HashMap<NativeSite, HashSet<String>>,
     calls: HashMap<NativeSite, String>,
@@ -726,6 +891,29 @@ impl<'a> Sites<'a> {
                     IrGuard::Not(guard) => push!(Visit::Guard(guard)),
                 },
                 Visit::Statement(statement) => match statement {
+                    IrStmt::Set {
+                        record,
+                        changes,
+                        span,
+                        ..
+                    } => {
+                        if out.effects.insert(context.site(*span), statement).is_some() {
+                            return None;
+                        }
+                        push!(Visit::Expression(record));
+                        push!(Visit::Expression(changes));
+                    }
+                    IrStmt::Send {
+                        args,
+                        when: None,
+                        span,
+                        ..
+                    } => {
+                        if out.effects.insert(context.site(*span), statement).is_some() {
+                            return None;
+                        }
+                        push!(Visit::Expression(args));
+                    }
                     IrStmt::Transition { record, span, .. } => {
                         out.transitions
                             .entry(context.site(*span))
@@ -807,11 +995,16 @@ impl<'a> Sites<'a> {
                         push!(Visit::Expression(left));
                         push!(Visit::Expression(right));
                     }
-                    IrExpr::Array(items) => {
-                        if !native_result_type(&expression.ty) {
+                    IrExpr::Array(items) => extend!(items.iter().map(Visit::Expression)),
+                    IrExpr::Object(entries) => {
+                        let mut names = HashSet::new();
+                        if entries
+                            .iter()
+                            .any(|(name, _)| !direct_field_name(name) || !names.insert(name))
+                        {
                             return None;
                         }
-                        extend!(items.iter().map(Visit::Expression));
+                        extend!(entries.iter().map(|(_, value)| Visit::Expression(value)));
                     }
                     IrExpr::Unary { operand, .. } => push!(Visit::Expression(operand)),
                     IrExpr::Call { target, args } | IrExpr::BoundCall { target, args, .. } => {

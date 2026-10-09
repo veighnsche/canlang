@@ -17,8 +17,10 @@ use receiptlib {Shared,caption}
 Given
  Item {value:int,enabled:bool,optional:int?,state:enum(a,b)=a,values:int[]?,required:int[]!}
  Machine {state:enum(idle,queued,ready)=idle machine}
+ WriteItem {value:int,label:text,note:text?,enabled:bool,private_choice:bool,public_choice:bool}
  contract Packet {value:int}
  policy Item read=members
+ policy WriteItem read=members fields=value,label,note,enabled,public_choice
  derive value(item:Item):int = item.value
  derive nested_value(item:Item):int = value(item)+1
  derive difference(first:int,second:int):int = first-second
@@ -28,6 +30,7 @@ Given
  derive choice(value:Item.state):Item.state = value
 When
  crud Item by=members fields=value,enabled,optional,values,required
+ crud WriteItem by=members fields=value,label,note,enabled,private_choice,public_choice
  scenario literal() -> int by=members
   do return 7
  scenario input(value:int) -> int by=members
@@ -131,6 +134,21 @@ When
   do
    set item {value=2}
    return 1
+ scenario computed(item:WriteItem) -> int by=members
+  do
+   let alias=item
+   set alias {value=item.value+1,label=item.label,note=null,enabled=item.enabled}
+   return 1
+ scenario private_write(item:WriteItem) -> int by=members
+  do
+   if item.private_choice
+    set item {value=2}
+   return 1
+ scenario public_write(item:WriteItem) -> int by=members
+  do
+   if item.public_choice
+    set item {value=2}
+   return 1
 Then
 "#;
 fn compile(scratch: &Path, native: bool) -> Value {
@@ -177,6 +195,88 @@ fn operation<'a>(artifact: &'a Value, name: &str) -> &'a Value {
         .iter()
         .find(|op| op["name"] == format!("NativeReceipts.{name}"))
         .unwrap()
+}
+#[test]
+fn original_generation_controls_publish_checked_send_set_closure_only() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let source = root.join("packages/cloudflare/test/fixtures/typed-generation-progress.can");
+    let output = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args([
+            "compile",
+            "--format=json",
+            "--native-scenario-receipts",
+            "--catalog",
+        ])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(&source)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let artifact: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let operations = artifact["operations"].as_array().unwrap();
+    for name in ["cancel", "reconcile"] {
+        let operation = operations
+            .iter()
+            .find(|op| op["name"] == format!("TypedGenerationProgress.{name}"))
+            .unwrap();
+        let plan = &operation["result"]["disclosure"];
+        assert_eq!(plan["version"], 1, "{name}");
+        assert!(
+            plan["returns"].as_array().unwrap().iter().all(|returned| {
+                let dependencies = returned["dependencies"].as_array().unwrap();
+                dependencies
+                    .iter()
+                    .any(|dep| dep["field"] == "request_source")
+                    && dependencies
+                        .iter()
+                        .any(|dep| dep["field"] == "request_revision")
+                    && dependencies
+                        .iter()
+                        .all(|dep| dep["model"] == "TypedGenerationProgress.Job")
+            }),
+            "send request addressing must retain its actual stored-field influences: {plan}"
+        );
+    }
+    for name in [
+        "generate",
+        "visible",
+        "measured",
+        "sequence",
+        "wholeSequence",
+    ] {
+        let operation = operations
+            .iter()
+            .find(|op| op["name"] == format!("TypedGenerationProgress.{name}"))
+            .unwrap();
+        assert!(
+            operation["result"].get("disclosure").is_none(),
+            "metadata and nullable delivery readers remain unqualified: {name}"
+        );
+    }
+    let js = artifact["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|module| module["js"].as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(js.matches("await send(c,").count() >= 3);
+    assert!(js.matches("await set(c,").count() >= 3);
+    assert!(js.contains("TextGenerationV1") && js.contains("deployment.llm"));
+    assert!(js.contains("binding:\"TypedGenerationProgress.LLM\""));
+    assert!(
+        artifact["sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|origin| origin["path"].as_str() == source.to_str())
+    );
 }
 #[test]
 fn opt_in_native_capture_retains_selected_paths_replays_and_current_state_projection() {
@@ -227,6 +327,10 @@ fn opt_in_native_capture_retains_selected_paths_replays_and_current_state_projec
         "derived_lazy",
         "derived_match",
         "machine",
+        "changed",
+        "computed",
+        "private_write",
+        "public_write",
     ] {
         let op = operation(&artifact, name);
         let plan = &op["result"]["disclosure"];
@@ -285,7 +389,6 @@ fn opt_in_native_capture_retains_selected_paths_replays_and_current_state_projec
         "model_array",
         "required_array",
         "model",
-        "changed",
         "machine_read",
     ] {
         assert!(
@@ -449,6 +552,48 @@ let retainedCommits=0,fileReads=0;
 const readonlyStore={...store,commit:async()=>{retainedCommits++;throw new Error('retained commit tripwire');}};
 const fileTripwire=new Proxy({},{get(){fileReads++;throw new Error('retained file metadata tripwire');}});
 const retainedInvoker=buildInvoker(artifact,asm,readonlyStore,{memberships,now:()=>FIXED_NOW+16*60000,files:fileTripwire});
+// Actual generated Set handlers save both the source closure and the final
+// issued row. Private selectors control public changed-record existence even
+// when their selected branch performs no write.
+const written=[];
+for(const [name,choice,fields] of [
+ ['changed',true,[]],['computed',true,['value','label','enabled']],
+ ['private_write',true,['private_choice']],['private_write',false,['private_choice']],
+ ['public_write',true,['public_choice']],['public_write',false,['public_choice']],
+]){
+ const model=name==='changed'?'NativeReceipts.Item':'NativeReceipts.WriteItem';
+ const born=name==='changed'?await create({value:'5',enabled:true,optional:null,values:null,required:[]}):
+  (await committed(request('WriteItem.create',{value:'5',label:'Original',note:'Clear me',enabled:true,private_choice:choice,public_choice:choice}))).records[0];
+ const original=await store.load(model,born.id);
+ const req=request(name,{item:ref(born)}),result=await committed(req),receipt=await receiptFor(req);
+ const withheld=name==='private_write';
+ assert.equal(result.result,withheld?null:'1');assert.equal(receipt.outcome.result,'1');
+ assert.equal(result.records.length,choice&&!withheld?1:0);
+ const physical=await store.load(model,born.id);
+ assert.equal(physical.version,choice?2:1);
+ assert.equal(physical.data.value,choice?(name==='computed'?'6':'2'):'5');
+ if(name==='computed'){assert.equal(physical.data.label,'Original');assert.equal(physical.data.note,null);assert.equal(physical.data.enabled,true);}
+ const association=readScenarioReceiptAssociation(receipt);assert.ok(association,'Set owns a genuine successful native association');
+ assert.deepEqual(association.plan,artifact.operations.find(op=>op.name===req.operation).result.disclosure);
+ const path=association.plan.returns.find(value=>value.id===association.returnId);assert.ok(path);
+ assert.deepEqual(path.dependencies.map(dep=>dep.field),fields);
+ assert.deepEqual(association.observations.map(value=>value.dependencyId),path.dependencies.map(value=>value.id));
+ for(const dependency of path.dependencies){assert.equal(dependency.model,model);assert.equal(dependency.role,name==='computed'?'data':'control');}
+ for(const observation of association.observations){assert.equal(observation.row.id,born.id);assert.deepEqual(observation.row,original);}
+ assert.equal(association.changed.length,choice?1:0);
+ if(choice){assert.equal(association.changed[0].model,model);assert.deepEqual(association.changed[0].row,physical);}
+ const stable=async()=>({row:await store.load(model,born.id),history:await store.historyFor(model,born.id),receipt:await receiptFor(req),
+  revision:await store.readRevision(),commits,outbox:probe.outboxAll(),schedules:await store.schedulesDue(Number.MAX_SAFE_INTEGER,100)});
+ const before=await stable();
+ for(const transport of [invoker,retainedInvoker]){
+  const replay=await transport.invokeMutation(req,identity);assert.ok('result' in replay,JSON.stringify(replay));assert.equal(replay.result.status,'replayed');
+  assert.deepEqual(replay.result.result,result.result);assert.deepEqual(replay.result.records,result.records);
+ }
+ const retained=await retainedInvoker.invokeRetainedMutation(req,identity);assert.ok('result' in retained,JSON.stringify(retained));
+ assert.equal(retained.result.status,'replayed');assert.deepEqual(retained.result.result,result.result);assert.deepEqual(retained.result.records,result.records);
+ assert.deepEqual(await stable(),before);assert.equal(retainedCommits,0);assert.equal(fileReads,0);
+ written.push({req,receipt,model,row:physical,result});
+}
 const retainedCases=[field,originalArray,originalDerived];
 const snapshot=async()=>({receipts:await Promise.all(retainedCases.map(value=>receiptFor(value.req))),
  revision:await store.readRevision(),rows:await store.query({model:'NativeReceipts.Item',authority:'owner',archived:'include'}),
@@ -496,10 +641,23 @@ for(const value of retainedCases){
  }
 }
 assert.deepEqual(await snapshot(),retainedBefore);assert.equal(retainedCommits,0);assert.equal(fileReads,0);
+// Current read authority also gates the saved Set result and changed row.
+for(const value of written){
+ await committed(request(value.model==='NativeReceipts.Item'?'Item.delete':'WriteItem.delete',{record:ref(value.row)}));
+ const before={receipt:await receiptFor(value.req),row:await store.load(value.model,value.row.id),history:await store.historyFor(value.model,value.row.id),revision:await store.readRevision(),commits};
+ for(const dedicated of [false,true]){
+  const outcome=await (dedicated?retainedInvoker.invokeRetainedMutation(value.req,identity):retainedInvoker.invokeMutation(value.req,identity));
+  assert.ok('result' in outcome,JSON.stringify(outcome));assert.equal(outcome.result.status,'replayed');
+  assert.equal(outcome.result.result,value.req.operation==='NativeReceipts.changed'?'1':null,'an independent literal remains frozen while required unreadable influences withhold');assert.deepEqual(outcome.result.records,[]);
+ }
+ assert.deepEqual(await receiptFor(value.req),before.receipt);assert.deepEqual(await store.load(value.model,value.row.id),before.row);
+ assert.deepEqual(await store.historyFor(value.model,value.row.id),before.history);assert.equal(await store.readRevision(),before.revision);assert.equal(commits,before.commits);
+}
+retainedBefore=await snapshot();
 const afterArchive={revision:await store.readRevision(),commits};
 // Revocation is checked by the released State projection over that exact native receipt.
 await memberships.removeMembership(member.membership.membership_id);
-for(const value of saved){assert.deepEqual(await projectScenarioReceipt({receipt:value.receipt,registry:loaded.registry,policy:loaded.policy,app:'NativeReceipts',identity,store,memberships}),{result:null,records:[]});}
+for(const value of [...saved,...written]){assert.deepEqual(await projectScenarioReceipt({receipt:value.receipt,registry:loaded.registry,policy:loaded.policy,app:'NativeReceipts',identity,store,memberships}),{result:null,records:[]});}
 for(const value of retainedCases){
  const denied=await retainedInvoker.invokeRetainedMutation(value.req,identity);
  assert.ok('error' in denied,JSON.stringify(denied));assert.equal(denied.error.code,'forbidden');
