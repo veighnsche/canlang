@@ -182,11 +182,8 @@ async function readOperationForm(request: Request): Promise<Record<string, strin
   return form;
 }
 
-/** Validate native control names before the UI-owned typed projection ignores extras. */
-function projectNativeForm(derived: DerivedOperationInputs | null, form: Record<string, string>): ClosedInputs {
-  if (derived === null || !['create', 'update', 'delete', 'scenario'].includes(derived.kind)) {
-    throw new IdentityError('validation', 'Native forms require a declared mutation operation.');
-  }
+/** One naming inventory serves strict admission and best-effort declared drafts. */
+function nativeFormControls(derived: DerivedOperationInputs) {
   const controls = new Map<string, string>();
   const presence = new Map<string, string | null>();
   const root = (name: string) => derived.kind === 'update' ? `inputs[changes][${name}]` : `inputs[${name}]`;
@@ -208,6 +205,39 @@ function projectNativeForm(derived: DerivedOperationInputs | null, form: Record<
     if (input.kind === 'money') controls.set(root(`${input.name}__currency`), input.name);
     if (input.kind === 'datetime') controls.set(root(`${input.name}__fold`), input.name);
   }
+  return { controls, presence };
+}
+
+/** Preserve independently valid drafts; a bad sibling never becomes mutation input. */
+function nativeFormDrafts(derived: DerivedOperationInputs | null, form: Record<string, string>): ClosedInputs {
+  const drafts = Object.create(null) as ClosedInputs;
+  if (derived === null || !['create', 'update', 'scenario'].includes(derived.kind)) return drafts;
+  const { controls, presence } = nativeFormControls(derived);
+  const submitted = new Set<string>();
+  for (const name of Object.keys(form)) {
+    const owner = controls.get(name) ?? (form[name] === 'true' ? presence.get(name) : undefined);
+    if (owner != null) submitted.add(owner);
+  }
+  for (const input of derived.inputs) {
+    if (!submitted.has(input.name)) continue;
+    const one = { ...derived, inputs: [input] };
+    try {
+      const projected = projectGeneratedInputs(one, derived.kind as 'create' | 'update' | 'scenario', form, [input.name]);
+      if (checkBoundArguments(one, projected) !== null) continue;
+      for (const [name, value] of Object.entries(projected)) {
+        Object.defineProperty(drafts, name, { value, enumerable: true, writable: true, configurable: true });
+      }
+    } catch { /* Unprojectable fields retain the existing per-field omission. */ }
+  }
+  return drafts;
+}
+
+/** Validate native control names before the UI-owned typed projection ignores extras. */
+function projectNativeForm(derived: DerivedOperationInputs | null, form: Record<string, string>): ClosedInputs {
+  if (derived === null || !['create', 'update', 'delete', 'scenario'].includes(derived.kind)) {
+    throw new IdentityError('validation', 'Native forms require a declared mutation operation.');
+  }
+  const { controls, presence } = nativeFormControls(derived);
   const transport = new Set(['operation', 'operation_id', CSRF_FIELD, SOURCE_FORM_BINDING_FIELD, 'timezone']);
   const rendered = new Set<string>();
   for (const name of Object.keys(form)) {
@@ -365,6 +395,20 @@ export async function handleOperationRequest(
     const { [CSRF_FIELD]: _csrf, ...submittedInputs } = inputs;
     void _csrf;
     if (derived === undefined) derived = deps.catalog.derivedFor?.(operation) ?? null;
+    if (nativeForm !== null) {
+      let drafts = nativeFormDrafts(derived, nativeForm);
+      if (Object.hasOwn(record, SOURCE_FORM_BINDING_FIELD) && wantsHtmlRerender(request) && formBindingFor(operation) !== undefined) {
+        const token = record[SOURCE_FORM_BINDING_FIELD];
+        const restoredDrafts = typeof token !== 'string' || derived === null || deps.formBindings === undefined ? null :
+          await deps.formBindings.restore({ appId: deps.app.appId, sessionToken, identity, derived,
+            operationId, nowMs: deps.clock.nowMs() }, token, drafts);
+        // Signed bound refs may restore the update shell for redisplay only.
+        // An unavailable proof never turns submitted refs into protected ones.
+        drafts = restoredDrafts ?? Object.fromEntries(Object.entries(drafts).filter(([name]) =>
+          derived?.inputs.find(input => input.name === name)?.kind !== 'ref'));
+      }
+      seen = { operationId, inputs: drafts };
+    }
     let businessInputs = nativeForm === null ? submittedInputs : projectNativeForm(derived, nativeForm);
     if (nativeForm !== null) seen = { operationId, inputs: businessInputs };
     if (Object.hasOwn(record, SOURCE_FORM_BINDING_FIELD)) {
