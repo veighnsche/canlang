@@ -108,6 +108,8 @@ import type { SystemCommandContext, SystemStaging } from "@canlang/state";
 import { assertReceiptJoin, createJudgmentReceiptContext } from "@canlang/state/receipt/tables";
 import { retainCommittedFiles, stageFileReferences } from './file-staging.js';
 import { bindNativeRecord, bindNativeReference, nativeRecordReference } from './native-records.js';
+import type { AdmittedCall } from '@canlang/state/invocation';
+import { openScenarioReceiptFrame, type ScenarioReceiptFrame } from './scenario-receipt-frame.js';
 import type { CanonicalFileBinding, FileAttachment } from './file-staging.js';
 import type { IdentityStore } from "@canlang/identity";
 import { sha256HexText, timingSafeEqualHex } from '@canlang/identity';
@@ -124,7 +126,7 @@ import type {
 } from "./context.js";
 import { createContext } from "./context.js";
 import type { AssembledModules } from "./modules.js";
-import { importVerifiedAssemblyModule } from './assembly-verification.js';
+import { AssemblyCorrespondenceError, importVerifiedAssemblyModule, verifyAssemblerModuleCapability } from './assembly-verification.js';
 import type { MappedPosition } from "./sourcemap.js";
 import { lookup } from "./sourcemap.js";
 import { stageAuthoredDelivery } from "./receipt-staging.js";
@@ -340,6 +342,26 @@ async function invokeWith(
   args?: unknown[],
   preserveThrown = false,
 ): Promise<InvokeResult> {
+  const checkedScenario = requiresScenarioCorrespondence(artifact);
+  if (checkedScenario) await verifyScenarioAssembly(asm, artifact, canonicalCache.get(artifact)?.scenarioAssembly);
+  try {
+    return await invokeAssembledCallable(asm, artifact, id, ctx, args, preserveThrown, checkedScenario);
+  } finally {
+    // Qualify every exit, including import/registry refusals and throwing handlers.
+    // Infrastructure drift must escape the business rejected-receipt path.
+    if (checkedScenario) await verifyScenarioAssembly(asm, artifact, canonicalCache.get(artifact)?.scenarioAssembly);
+  }
+}
+
+async function invokeAssembledCallable(
+  asm: AssembledModules,
+  artifact: CompileArtifact,
+  id: string,
+  ctx: HandlerContext,
+  args: unknown[] | undefined,
+  preserveThrown: boolean,
+  checkedScenario: boolean,
+): Promise<InvokeResult> {
   const callable = artifact.callables.find((entry) => entry.id === id);
   if (callable === undefined) {
     const available = artifact.callables.map((entry) => entry.id);
@@ -352,6 +374,7 @@ async function invokeWith(
   }
   const moduleUrl = asm.moduleUrls[callable.module];
   if (moduleUrl === undefined) {
+    if (checkedScenario) throw new AssemblyCorrespondenceError('Verified scenario callable lost its assembled module URL.');
     return {
       ok: false,
       error:
@@ -361,8 +384,11 @@ async function invokeWith(
   }
   let mod: Record<string, unknown>;
   try {
-    mod = (await import(moduleUrl)) as Record<string, unknown>;
+    mod = (checkedScenario
+      ? await importVerifiedAssemblyModule(asm, callable.module, artifact)
+      : await import(moduleUrl)) as Record<string, unknown>;
   } catch (error) {
+    if (error instanceof AssemblyCorrespondenceError) throw error;
     return {
       ok: false,
       error:
@@ -399,6 +425,7 @@ async function invokeWith(
   try {
     current = (canApp as () => unknown)();
   } catch (error) {
+    if (error instanceof AssemblyCorrespondenceError) throw error;
     return {
       ok: false,
       error:
@@ -440,11 +467,12 @@ async function invokeWith(
     current = next;
   }
   const fn = current as (ctx: HandlerContext, ...args: unknown[]) => unknown;
+  if (checkedScenario) await verifyScenarioAssembly(asm, artifact, canonicalCache.get(artifact)?.scenarioAssembly);
   try {
     const value = await fn(ctx, ...(args ?? []));
     return { ok: true, value };
   } catch (error) {
-    if (preserveThrown) throw error;
+    if (preserveThrown || error instanceof AssemblyCorrespondenceError) throw error;
     const mapped = mapThrownError(error, artifact, asm);
     return mapped === undefined
       ? { ok: false, error: message(error) }
@@ -1206,6 +1234,10 @@ interface StateInvokeProducer {
      */
     readonly conflictServerOnly?: ReadonlyMap<string, ReadonlySet<string>>;
   }): Promise<MutationResult>;
+  readonly readScenarioReceiptAssociation?: typeof import('@canlang/state/invocation').readScenarioReceiptAssociation;
+  readonly projectScenarioReceipt?: typeof import('@canlang/state/invocation').projectScenarioReceipt;
+  readonly beginScenarioReceiptMutation?: typeof import('@canlang/state/invocation').beginScenarioReceiptMutation;
+  readonly observeScenarioInputComputedDefault?: typeof import('@canlang/state/invocation').observeScenarioInputComputedDefault;
   projectGeneratedCrudReceipt?(input: {
     readonly receipt: Receipt;
     readonly registry: ReadonlyMap<string, unknown>;
@@ -1450,6 +1482,7 @@ function requireProducerFn(
 async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
   const registryMod = await loadProducerModule(STATE_REGISTRY_SPECIFIER, "state registry producer");
   const invokeMod = await loadProducerModule(STATE_INVOKE_SPECIFIER, "state invoke producer");
+  const scenarioMod = await loadProducerModule('@canlang/state/invocation', 'state scenario receipt producer');
   const crudMod = await loadProducerModule(STATE_CRUD_SPECIFIER, "state CRUD producer");
   const modelsMod = await loadProducerModule(STATE_MODELS_SPECIFIER, "state models producer");
   const errorsMod = await loadProducerModule(STATE_ERRORS_SPECIFIER, "state errors producer");
@@ -1511,6 +1544,18 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
         invokeRetainedReceiptOnly: invokeMod['invokeRetainedReceiptOnly'] as NonNullable<StateInvokeProducer['invokeRetainedReceiptOnly']>,
       }),
       invokeRead: invokeRead as StateInvokeProducer["invokeRead"],
+      ...(typeof scenarioMod['readScenarioReceiptAssociation'] !== 'function' ? {} : {
+        readScenarioReceiptAssociation: scenarioMod['readScenarioReceiptAssociation'] as NonNullable<StateInvokeProducer['readScenarioReceiptAssociation']>,
+      }),
+      ...(typeof scenarioMod['projectScenarioReceipt'] !== 'function' ? {} : {
+        projectScenarioReceipt: scenarioMod['projectScenarioReceipt'] as NonNullable<StateInvokeProducer['projectScenarioReceipt']>,
+      }),
+      ...(typeof scenarioMod['beginScenarioReceiptMutation'] !== 'function' ? {} : {
+        beginScenarioReceiptMutation: scenarioMod['beginScenarioReceiptMutation'] as NonNullable<StateInvokeProducer['beginScenarioReceiptMutation']>,
+      }),
+      ...(typeof scenarioMod['observeScenarioInputComputedDefault'] !== 'function' ? {} : {
+        observeScenarioInputComputedDefault: scenarioMod['observeScenarioInputComputedDefault'] as NonNullable<StateInvokeProducer['observeScenarioInputComputedDefault']>,
+      }),
       ...(typeof invokeMod['projectGeneratedCrudReceipt'] !== 'function' ? {} : {
         projectGeneratedCrudReceipt: invokeMod['projectGeneratedCrudReceipt'] as NonNullable<StateInvokeProducer['projectGeneratedCrudReceipt']>,
       }),
@@ -2006,7 +2051,56 @@ export interface LoadedCanonicalDescriptors {
  * Assembly preloads (failing before serving); standalone invokers
  * load lazily on first canonical call.
  */
-const canonicalCache = new WeakMap<CompileArtifact, LoadedCanonicalDescriptors>();
+const canonicalCache = new WeakMap<CompileArtifact, {
+  loaded: LoadedCanonicalDescriptors;
+  scenarioAssembly?: AssembledModules;
+}>();
+
+/** Presence gate only: State still owns descriptor/claim schema validation. */
+function claimsScenarioDisclosure(artifact: CompileArtifact): boolean {
+  const descriptor = (object: object, key: string): PropertyDescriptor | undefined => {
+    for (let current: object | null = object; current !== null; current = Object.getPrototypeOf(current) as object | null) {
+      const found = Object.getOwnPropertyDescriptor(current, key);
+      if (found !== undefined) return found;
+    }
+    return undefined;
+  };
+  const operations = descriptor(artifact, 'operations');
+  if (operations === undefined) return false;
+  if (!('value' in operations)) throw new Error('Scenario source correspondence requires data-only operation metadata.');
+  const entries: unknown = operations.value;
+  if (!Array.isArray(entries)) return false;
+  for (let index = 0; index < entries.length; index++) {
+    const entry = descriptor(entries, String(index));
+    if (entry === undefined) continue;
+    if (!('value' in entry)) throw new Error('Scenario source correspondence requires data-only operation metadata.');
+    if (!isUnknownRecord(entry.value)) continue;
+    const result = descriptor(entry.value, 'result');
+    if (result === undefined) continue;
+    if (!('value' in result)) throw new Error('Scenario source correspondence requires data-only result metadata.');
+    if (isUnknownRecord(result.value)) {
+      const disclosure = descriptor(result.value, 'disclosure');
+      if (disclosure !== undefined) {
+        if (!('value' in disclosure)) throw new Error('Scenario source correspondence requires data-only disclosure metadata.');
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function requiresScenarioCorrespondence(artifact: CompileArtifact): boolean {
+  const claimed = claimsScenarioDisclosure(artifact);
+  return claimed || canonicalCache.get(artifact)?.scenarioAssembly !== undefined;
+}
+
+async function verifyScenarioAssembly(asm: AssembledModules, artifact: CompileArtifact,
+  original?: AssembledModules): Promise<void> {
+  if (original !== undefined && asm !== original) {
+    throw new AssemblyCorrespondenceError('Scenario disclosure requires its original verified assembly.');
+  }
+  await verifyAssemblerModuleCapability(asm, artifact);
+}
 
 function assertServableModelRules(where: string, metadata: unknown, verifiedOwner = false): void {
   if (!isUnknownRecord(metadata)) return;
@@ -2502,12 +2596,17 @@ export async function loadCanonicalDescriptors(
   asm: AssembledModules,
   artifact: CompileArtifact,
 ): Promise<LoadedCanonicalDescriptors> {
+  const claimedScenario = claimsScenarioDisclosure(artifact);
   const cached = canonicalCache.get(artifact);
   if (cached !== undefined) {
-    const ownerControl = localOwnerPolicyControls.get(cached);
+    if (cached.scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact, cached.scenarioAssembly);
+    else if (claimedScenario) throw new Error('Scenario disclosure differs from its cached source plan.');
+    const ownerControl = localOwnerPolicyControls.get(cached.loaded);
     if (ownerControl !== undefined) await ownerControl.verifyAssembly(asm, artifact);
-    return cached;
+    return cached.loaded;
   }
+  const scenarioAssembly = claimedScenario ? asm : undefined;
+  if (scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact);
   if (artifact.requires.some((entry) => entry.capability === "state.machines") ||
       artifact.models?.some((model) => model.fields.some((field) => field.machine !== undefined))) {
     const catalogMod = await loadProducerModule("@canlang/state/catalog", "state capability catalog");
@@ -2644,7 +2743,8 @@ export async function loadCanonicalDescriptors(
     ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }),
   };
   if (ownerPolicyControl !== undefined) localOwnerPolicyControls.set(canonical, ownerPolicyControl);
-  canonicalCache.set(artifact, canonical);
+  if (scenarioAssembly !== undefined) await verifyScenarioAssembly(asm, artifact, scenarioAssembly);
+  canonicalCache.set(artifact, { loaded: canonical, ...(scenarioAssembly === undefined ? {} : { scenarioAssembly }) });
   return canonical;
 }
 
@@ -3168,7 +3268,7 @@ function encodeCanonicalWireField(StateError: StateErrorsProducer, type: CanType
 }
 
 /** Clone admitted snapshots; decode only their loader-owned type associations. */
-function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 'recordRefs'>, loaded: LoadedCanonicalDescriptors, recordView: (model: string, row: StoredRow) => Record<string, unknown>, resolvedDefaults: Record<string, unknown>): Record<string, unknown> {
+function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 'recordRefs'>, loaded: LoadedCanonicalDescriptors, recordView: (model: string, row: StoredRow) => Record<string, unknown>, resolvedDefaults?: Record<string, unknown>): Record<string, unknown> {
   const parameters: Record<string, unknown> = Object.assign(Object.create(null), structuredClone(call.inputs));
   const def = generatedScenarioDef(call);
   for (const field of def?.descriptor.inputs ?? []) {
@@ -3177,10 +3277,10 @@ function scenarioParameters(call: Pick<CanonicalSeamCall, 'def' | 'inputs' | 're
         if (!Object.hasOwn(parameters, field.name) && field.default?.kind === "literal") {
           const value = decodeCanonicalValue(loaded.valueSchema, field.valueType, field.default.value);
           parameters[field.name] = value;
-          resolvedDefaults[field.name] = encodeValue(field.valueType, value);
+          if (resolvedDefaults !== undefined) resolvedDefaults[field.name] = encodeValue(field.valueType, value);
         } else if (!Object.hasOwn(parameters, field.name) && field.computedDefault !== true && field.valueType.endsWith("?")) {
           parameters[field.name] = null;
-          resolvedDefaults[field.name] = null;
+          if (resolvedDefaults !== undefined) resolvedDefaults[field.name] = null;
         } else if (field.kind === "enum" ? Object.hasOwn(parameters, field.name) : parameters[field.name] !== undefined) {
           parameters[field.name] = decodeCanonicalValue(loaded.valueSchema, field.valueType, parameters[field.name]);
         }
@@ -3769,6 +3869,10 @@ function workStageContext(
   };
 }
 
+// The owning saved-disclosure producer bounds issued/changed rows at 200.
+// Work remains finite independently of authored source limits.
+const SCENARIO_RECEIPT_OWNER_BOUNDS = Object.freeze({ maxRows: 200, maxWork: 10_000 });
+
 async function runScenarioSeam(
   loaded: LoadedCanonicalDescriptors,
   opts: CanonicalMutationOpts,
@@ -3777,8 +3881,22 @@ async function runScenarioSeam(
   due?: { readonly effects: SystemStaging; readonly occurrenceId: OccurrenceId },
   cohort?: { readonly occurrenceId: OccurrenceId; readonly eventFields: ReadonlyArray<string>;
     readonly refInput: string; readonly bind: string | null },
+  receiptStore?: StoragePort,
 ): Promise<CanonicalExecutionEffects> {
-  if (localOwnerPolicyControls.has(loaded)) {
+  const scenarioDef = generatedScenarioDef(call);
+  const receiptAware = scenarioDef?.descriptor.result?.disclosure !== undefined;
+  const useOwnerSession = receiptAware;
+  const ownerControl = localOwnerPolicyControls.get(loaded);
+  const beginReceiptMutation = loaded.producers.invoke.beginScenarioReceiptMutation;
+  const observeReceiptDefault = loaded.producers.invoke.observeScenarioInputComputedDefault;
+  if (useOwnerSession && (receiptStore === undefined || beginReceiptMutation === undefined || due !== undefined || cohort !== undefined)) {
+    throw new loaded.producers.errors('validation', 'Saved scenario mutation requires its installed State producer and actual admitted receipt execution.');
+  }
+  if (useOwnerSession && observeReceiptDefault === undefined && (scenarioDef?.descriptor.inputs ?? []).some(field =>
+      field.kind !== 'delivery' && field.computedDefault === true && !Object.hasOwn(call.inputs, field.name))) {
+    throw new loaded.producers.errors('validation', 'Saved scenario computed input defaults require their installed State contribution producer.');
+  }
+  if (ownerControl !== undefined && !useOwnerSession) {
     throw new loaded.producers.errors('validation', 'Native owner model rules require one scenario owner session; this producer profile supports generated CRUD only.');
   }
   const actorUserId = call.context.actor?.userId ?? null;
@@ -3837,12 +3955,14 @@ async function runScenarioSeam(
   // code (indistinguishable from propagation — the receipt then says
   // exactly what propagation would have said).
   const engineFailures = new Map<string, Error>();
+  let receiptEngineFailure: Error | undefined;
   const recordEngineFailure = (error: unknown): void => {
     // Preserve failures from engine callbacks across the handler's string
     // seam. A plain storage exception must reach State unchanged, so it is
     // retriable rather than saved as an authored rejected receipt.
     if (error instanceof Error) {
       engineFailures.set(error.message, error);
+      if (receiptAware) receiptEngineFailure ??= error;
     }
   };
   const refuseRecordBinding = (text: string): never => {
@@ -3850,8 +3970,41 @@ async function runScenarioSeam(
     recordEngineFailure(error);
     throw error;
   };
+  // State derives context, trigger, archive gate and provenance from the exact
+  // admitted call/physical receiptStore. A host overlay never enters this API.
+  const ownerSession = useOwnerSession ? await beginReceiptMutation!(call as AdmittedCall, receiptStore!, {
+    table: loaded.table as ModelTable, bounds: SCENARIO_RECEIPT_OWNER_BOUNDS,
+    ...(ownerControl === undefined ? {} : { policies: ownerControl.policies }),
+    encodeField: (type, value) => encodeCanonicalField(StateError, type, value, loaded.valueSchema),
+  }) : undefined;
+  let ownerPolicyFrame: { close(): void } | undefined;
+  let scenarioReceiptFrame: ScenarioReceiptFrame | undefined;
+  try {
+  if (ownerSession !== undefined && ownerControl !== undefined) {
+    ownerPolicyFrame = ownerControl.createOwnerFrame({ call, session: ownerSession });
+  }
   const staged: Map<string, StoredRow | null> = new Map();
-  const overlay = withStagedOverlay(opts.store, staged);
+  const ownerRows = new Map<string, StoredRow | null>();
+  const readOwnerRow = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+    if (ownerSession === undefined) throw new StateError('validation', 'Scenario owner session is unavailable.');
+    const row = await ownerSession.read(model, id);
+    ownerRows.set(stagedKey(model, id), row);
+    return row;
+  };
+  const overlay: StoragePort = ownerSession === undefined ? withStagedOverlay(opts.store, staged) : {
+    ...opts.store,
+    load: readOwnerRow,
+    query: async spec => {
+      const limit = spec.limit ?? SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows;
+      if (!Number.isSafeInteger(limit) || limit < 0 || limit > SCENARIO_RECEIPT_OWNER_BOUNDS.maxRows) {
+        throw new StateError('validation', 'Scenario owner query exceeds its defining row bound.');
+      }
+      const rows = await ownerSession.views.final.query({ ...spec, authority: 'owner', limit });
+      for (const row of rows) ownerRows.set(stagedKey(spec.model, row.id), row);
+      return [...rows];
+    },
+    commit: async () => { throw new StateError('validation', 'Scenario owner reads cannot commit outside State invoke.'); },
+  };
   const navigationRevision = call.revision ?? seamTrigger?.revision ?? await opts.store.readRevision();
   const ownerNavigation = await createContainmentNavigation({ loaded, store: overlay,
     revision: navigationRevision, actorUserId, teamId, memberships: opts.memberships,
@@ -3874,8 +4027,14 @@ async function runScenarioSeam(
     const key = stagedKey(modelName, row.id);
     const existing = views.get(key);
     if (existing !== undefined) return existing;
-    const snapshot = freezeScenarioSnapshot(structuredClone(row)) as StoredRow;
-    const current = () => staged.has(key) ? staged.get(key) : snapshot;
+    const issued = ownerRows.get(key);
+    if (ownerSession !== undefined && (issued === undefined || issued === null)) {
+      return refuseRecordBinding('Scenario native row requires its actual current owner-session read.');
+    }
+    const snapshot = ownerSession === undefined
+      ? freezeScenarioSnapshot(structuredClone(row)) as StoredRow : issued!;
+    const current = () => ownerSession === undefined
+      ? staged.has(key) ? staged.get(key) : snapshot : ownerRows.get(key);
     const model = loaded.models.find((model) => model.name === modelName);
     const record: Record<string, unknown> = {};
     for (const field of Object.keys(model?.fields ?? snapshot.data)) Object.defineProperty(record, field, {
@@ -3887,9 +4046,11 @@ async function runScenarioSeam(
     // Ordinary references retain admitted metadata while domain reads see
     // provisional writes; reserved post-write versions belong to staged rows.
     Object.assign(record, nativeRecordMetadata(row));
-    ownerNavigation.attach(record, modelName, row, (model, parent) => recordView(model, parent as StoredRow));
+    ownerNavigation.attach(record, modelName, ownerSession === undefined ? row : snapshot,
+      (model, parent) => recordView(model, parent as StoredRow));
     bindNativeRecord(record, modelName, row.id, row.version);
     Object.freeze(record);
+    scenarioReceiptFrame?.bind(record, modelName, current);
     views.set(key, record);
     recordBindings.set(record, { model: modelName, id: row.id, version: row.version });
     return record;
@@ -3897,6 +4058,9 @@ async function runScenarioSeam(
   const projectedRecordView = (modelName: string, row: ProjectedRecord): Record<string, unknown> => {
     const record = nativeProjectedRecord(loaded, modelName, row, viewerNavigation,
       (model, parent) => projectedRecordView(model, parent as ProjectedRecord));
+    // Preserve the exact served projection; partial snapshots remain an owning
+    // State refusal rather than being expanded into unserved raw fields.
+    scenarioReceiptFrame?.bind(record, modelName, () => row);
     recordBindings.set(record, { model: modelName, id: row.id, version: row.version });
     return record;
   };
@@ -3941,6 +4105,11 @@ async function runScenarioSeam(
     // use domain writes/outbox/schedules, never a separate acknowledgement.
     if ((effects.outboxAck?.length ?? 0) !== 0) {
       throw new Error('Canonical deferred effects cannot stage outbox acknowledgements.');
+    }
+    if (ownerSession !== undefined && ((effects.writes?.length ?? 0) !== 0 ||
+        (effects.history?.length ?? 0) !== 0 || (effects.uniqueClaims?.length ?? 0) !== 0 ||
+        (effects.uniqueReleases?.length ?? 0) !== 0)) {
+      refuseRecordBinding('Saved scenario deferred domain effects require their defining owner-session join.');
     }
     for (const write of effects.writes ?? []) {
       stagedWrites.push(write);
@@ -4122,6 +4291,22 @@ async function runScenarioSeam(
             `delivery(${field.field.capability}.${field.field.operation})${field.nullable === true ? '?' : ''}`,
             data[field.name], loaded.valueSchema);
         }
+        if (ownerSession !== undefined) {
+          await ownerSession.stage({
+            op: write.op, model: write.model as ModelName, id: write.id as RecordId,
+            ...(write.parent === undefined ? {} : { parent: write.parent }),
+            ...(data === undefined ? {} : { data }),
+            ...(write.transition === undefined ? {} : { transition: write.transition }),
+          }, { cause: 'scenario' });
+          // Every stage invalidates every issued carrier, including unchanged
+          // rows. Refresh exact current reads; hooks/defaults remain State-owned.
+          const keys = new Set([...ownerRows.keys(), stagedKey(write.model, write.id)]);
+          for (const key of keys) {
+            const split = key.indexOf('\0');
+            await readOwnerRow(key.slice(0, split) as ModelName, key.slice(split + 1) as RecordId);
+          }
+          return ownerRows.get(stagedKey(write.model, write.id)) ?? null;
+        }
         const result = await loaded.producers.pipeline.runMutationWrites({
           table: loaded.table,
           writes: [
@@ -4193,6 +4378,11 @@ async function runScenarioSeam(
       try {
         if (typeof model !== "string" || model === "") {
           throw new Error(`t17b: readModel needs a non-empty string model (wiring bug).`);
+        }
+        if (ownerSession !== undefined) {
+          // Disclosure v1 has no query influence/current-authority carrier.
+          // A viewer projection must not be upgraded into a State-issued row.
+          throw new StateError('validation', 'Saved scenario query reads require their defining provenance and disclosure join.');
         }
         const native = callable?.inputStyle === 'parameters' || trustedOwnerReads;
         if (!native) assertServableReadQuery(StateError, query);
@@ -4491,22 +4681,24 @@ async function runScenarioSeam(
         const producer = await loadProducerModule('@canlang/work/kernel/dispatch-staging', 'work canonical send producer');
         const stage = requireProducerFn(producer, 'stageCanonicalSend', 'work canonical send producer') as
           typeof import('@canlang/work/kernel/dispatch-staging').stageCanonicalSend;
-        let imageCorrelation: import('@canlang/work/kernel/tables').DispatchImageCorrelation | undefined;
-        if (['std.ImagesV1.submit', 'std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(source)) {
-          const value = source === 'std.ImagesV1.submit' ? boundRequest.arguments['value'] : boundRequest.arguments;
+        let generationCorrelation: import('@canlang/work/kernel/tables').DispatchImageCorrelation | undefined;
+        if (['std.ImagesV1.submit', 'std.ImagesV1.cancel', 'std.ImagesV1.reconcile',
+            'std.TextGenerationV1.generate', 'std.TextGenerationV1.cancel', 'std.TextGenerationV1.reconcile'].includes(source)) {
+          const original = source === 'std.ImagesV1.submit' || source === 'std.TextGenerationV1.generate';
+          const value = original ? boundRequest.arguments['value'] : boundRequest.arguments;
           if (call.checkpoint === undefined || member(definition, 'id') !== call.context.app ||
               !isUnknownRecord(value) || typeof value['source'] !== 'string' ||
               typeof value['revision'] !== 'string') {
             throw new Error(`${where} lost its checked request or admitted owner checkpoint.`);
           }
-          imageCorrelation = { requestSource: value['source'], requestRevision: value['revision'],
+          generationCorrelation = { requestSource: value['source'], requestRevision: value['revision'],
             requestBinding: boundRequest.binding, requestFrom: boundRequest.from,
             requestApp: call.context.app, requestOwner: call.checkpoint.owner };
         }
         const stagedSend = await stage({
           operationId: call.context.operationId, source, occurrenceIndex: sendIndex++,
           request: boundRequest, originOccurrence: due?.occurrenceId ?? cohort?.occurrenceId ?? null,
-          ...(imageCorrelation === undefined ? {} : { correlation: imageCorrelation }),
+          ...(generationCorrelation === undefined ? {} : { correlation: generationCorrelation }),
         }, {
           actor: actorUserId ?? call.context.trustedSource ?? 'anonymous', now: admittedNow, operation: scope.operation,
           load: overlay.load.bind(overlay), query: overlay.query.bind(overlay),
@@ -4523,7 +4715,16 @@ async function runScenarioSeam(
     qualified: call.context,
     ...(opts.formatting === undefined ? {} : { formatting: opts.formatting }),
   });
-  for (const ref of call.recordRefs ?? []) await ownerNavigation.prepare(ref.model, ref.row);
+  if (receiptStore !== undefined) {
+    // This is the unchanged call pointer supplied by actual State.invoke.
+    // State verifies the lifetime and selected store before opening the frame.
+    scenarioReceiptFrame = openScenarioReceiptFrame(ctx, call as AdmittedCall, receiptStore, recordEngineFailure);
+  }
+  for (const ref of call.recordRefs ?? []) {
+    const row = ownerSession === undefined ? ref.row : await readOwnerRow(ref.model as ModelName, ref.row.id);
+    if (row === null) throw new StateError('conflict', 'Admitted scenario owner record is no longer present.');
+    await ownerNavigation.prepare(ref.model, row);
+  }
   const parameters = cohort === undefined ? undefined : scenarioParameters(call, loaded, recordView, resolvedDefaults);
   const argument = cohort !== undefined
     ? { event: Object.fromEntries(cohort.eventFields.map(name => [name, parameters![name]])),
@@ -4531,7 +4732,7 @@ async function runScenarioSeam(
     : due !== undefined
     ? { event: scenarioParameters(call, loaded, recordView, resolvedDefaults) }
     : callable?.inputStyle === "parameters"
-    ? scenarioParameters(call, loaded, recordView, resolvedDefaults)
+    ? scenarioParameters(call, loaded, recordView, ownerSession === undefined ? resolvedDefaults : undefined)
     : { operation_id: call.context.operationId, inputs: call.inputs };
   const observesDefaults = due === undefined && cohort === undefined && callable?.inputStyle === 'parameters';
   const defaultDef = generatedScenarioDef(call);
@@ -4580,7 +4781,8 @@ async function runScenarioSeam(
         if (field.valueType === undefined) throw new StateError('validation', 'Computed default lacks its owning value type.');
         wire = encodeValue(field.valueType, value as CanValue);
       }
-      resolvedDefaults[field.name] = wire;
+      if (ownerSession === undefined) resolvedDefaults[field.name] = wire;
+      else observeReceiptDefault!(call as AdmittedCall, receiptStore!, { name: field.name, wire });
       observedDefaults.add(field.name);
     } catch (error) {
       const failure = error instanceof StateError ? error : new StateError('validation', message(error));
@@ -4590,6 +4792,10 @@ async function runScenarioSeam(
   };
   const outcome = await invokeWith(opts.asm, opts.artifact, opts.operation, ctx,
     observesDefaults ? [argument, observeDefault] : [argument], due !== undefined || cohort !== undefined);
+  // A caught unsupported join or engine refusal cannot convert prior owner
+  // stages into a partial success. Preserve the first actual failure; State
+  // retains its own session poisoning and rejected-receipt semantics.
+  if (receiptEngineFailure !== undefined) throw receiptEngineFailure;
   if (!outcome.ok) {
     // Attributed engine failure first: an uncaught engine `StateError`
     // propagates verbatim, so its message matches the recorded one
@@ -4617,6 +4823,27 @@ async function runScenarioSeam(
   }
   if (observesDefaults && observedDefaults.size !== computedSlots.size) {
     throw new StateError('validation', 'Generated handler omitted a required computed-default report.');
+  }
+  scenarioReceiptFrame?.assertCompleted();
+  if (ownerSession !== undefined) {
+    const result = scenarioResult(call, loaded, outcome.value);
+    const finalized = await ownerSession.finalize();
+    const ownedScheduleKeys = new Set(finalized.schedules.map(schedule => schedule.key));
+    const extraSchedules = deferredEffects.flatMap(effects => effects.schedules ?? []);
+    if (extraSchedules.some(schedule => ownedScheduleKeys.has(schedule.key))) {
+      throw new StateError('validation', 'Saved scenario deferred schedule overrides an actual finalized owner schedule.');
+    }
+    return {
+      writes: finalized.writes, history: finalized.history,
+      uniqueClaims: finalized.uniqueClaims, uniqueReleases: finalized.uniqueReleases,
+      resolvedDefaults: finalized.resolvedDefaults,
+      schedules: [...finalized.schedules, ...extraSchedules],
+      outbox: deferredEffects.flatMap(effects => effects.outbox ?? []), result,
+      fileAssignments: [...fileAssignments.values()].filter(assignment => finalized.writes.some(write =>
+        (write.kind === 'insert' || write.kind === 'update') && write.model === assignment.model &&
+        write.row.id === assignment.recordId)),
+      guards: seamGuards, readings: servedReadings,
+    };
   }
   const uniques = netStagedUniques(stagedTouches);
   const returnedBinding = typeof outcome.value === 'object' && outcome.value !== null
@@ -4654,6 +4881,7 @@ async function runScenarioSeam(
     guards: seamGuards,
     readings: servedReadings,
   };
+  } finally { scenarioReceiptFrame?.close(); ownerPolicyFrame?.close(); }
 }
 
 export async function invokeMutationCanonical(
@@ -4681,15 +4909,28 @@ async function invokeCanonicalMutation(
   if (invoke === undefined) {
     throw new StateError('validation', 'Installed State producer lacks retained-receipt-only recovery.');
   }
+  const checkedScenario = generatedScenarioDef({ def: loaded.registry.get(opts.operation) });
+  if (checkedScenario?.descriptor.kind === 'scenario' && checkedScenario.descriptor.result?.disclosure !== undefined &&
+      (loaded.producers.invoke.readScenarioReceiptAssociation === undefined || loaded.producers.invoke.projectScenarioReceipt === undefined)) {
+    throw new StateError('validation', 'Installed State producer cannot disclose a saved scenario outcome.');
+  }
   if (receiptOnly) {
     if (!loaded.registry.has(opts.operation)) {
       throw new StateError('validation', `Unknown operation ${JSON.stringify(opts.operation)}.`);
     }
     const kind = seamDefKind(loaded.registry.get(opts.operation), opts.operation);
-    if (kind !== 'create' && kind !== 'update' && kind !== 'delete') {
-      throw new StateError('validation', 'Retained scenario disclosure requires the owning current-access projection.');
+    if (kind === 'scenario') {
+      if (checkedScenario?.descriptor.result?.disclosure === undefined) {
+        throw new StateError('validation', 'Retained scenario disclosure requires its current checked source plan.');
+      }
+      if (loaded.producers.invoke.readScenarioReceiptAssociation === undefined ||
+          loaded.producers.invoke.projectScenarioReceipt === undefined) {
+        throw new StateError('validation', 'Installed State producer cannot disclose a saved scenario outcome.');
+      }
+    } else if (kind !== 'create' && kind !== 'update' && kind !== 'delete') {
+      throw new StateError('validation', 'Retained recovery requires a checked mutation operation.');
     }
-    if (loaded.producers.invoke.projectGeneratedCrudReceipt === undefined) {
+    if (kind !== 'scenario' && loaded.producers.invoke.projectGeneratedCrudReceipt === undefined) {
       throw new StateError('validation', 'Installed State producer cannot disclose a saved CRUD outcome.');
     }
   }
@@ -4700,29 +4941,31 @@ async function invokeCanonicalMutation(
     // State invoke owns fence retries; retain the native storage exception.
     return opts.store.commit(batch);
   } });
-  const ownerControl = localOwnerPolicyControls.get(loaded);
-  const crudInput = {
-    table: loaded.table,
-    store: receiptStore,
-    secretFields: loaded.secretFields,
-    encodeField: (type: CanTypeId, value: unknown) => encodeCanonicalWireField(StateError, type, value, loaded.valueSchema),
-  };
-  let crudExecute: (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
-  if (ownerControl === undefined) {
-    crudExecute = loaded.producers.crud.generatedCrudExecute(crudInput);
-  } else {
-    const executeOwner = loaded.producers.crud.generatedCrudExecuteOwnerSession;
-    if (typeof executeOwner !== 'function') {
-      throw new StateError('validation', 'Installed State producer lacks generatedCrudExecuteOwnerSession.');
+  let crudExecute: ((call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>) | undefined;
+  if (!receiptOnly) {
+    const ownerControl = localOwnerPolicyControls.get(loaded);
+    const crudInput = {
+      table: loaded.table,
+      store: receiptStore,
+      secretFields: loaded.secretFields,
+      encodeField: (type: CanTypeId, value: unknown) => encodeCanonicalWireField(StateError, type, value, loaded.valueSchema),
+    };
+    if (ownerControl === undefined) {
+      crudExecute = loaded.producers.crud.generatedCrudExecute(crudInput);
+    } else {
+      const executeOwner = loaded.producers.crud.generatedCrudExecuteOwnerSession;
+      if (typeof executeOwner !== 'function') {
+        throw new StateError('validation', 'Installed State producer lacks generatedCrudExecuteOwnerSession.');
+      }
+      const execute = executeOwner({ ...crudInput, table: loaded.table as ModelTable,
+        secretFields: loaded.secretFields as ReadonlyMap<ModelName, readonly string[]>,
+        ownerPolicies: ownerControl.policies,
+        ownerBounds: Object.freeze({ maxRows: 1_000, maxWork: 10_000 }),
+        createOwnerFrame: async ({ call, session }) => ownerControl.createOwnerFrame({ call, session }),
+      });
+      // Canonical admission supplies the defining State call at this seam.
+      crudExecute = execute as unknown as (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
     }
-    const execute = executeOwner({ ...crudInput, table: loaded.table as ModelTable,
-      secretFields: loaded.secretFields as ReadonlyMap<ModelName, readonly string[]>,
-      ownerPolicies: ownerControl.policies,
-      ownerBounds: Object.freeze({ maxRows: 1_000, maxWork: 10_000 }),
-      createOwnerFrame: async ({ call, session }) => ownerControl.createOwnerFrame({ call, session }),
-    });
-    // Canonical admission supplies the defining State call at this seam.
-    crudExecute = execute as unknown as (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
   }
   // One opaque ID per actual schedule ordinal, retained across State retries.
   const occurrenceIds: string[] = [];
@@ -4758,6 +5001,7 @@ async function invokeCanonicalMutation(
         if (loaded.unsupportedHookOperations.has(opts.operation)) {
           throw new StateError('validation', `Operation ${JSON.stringify(opts.operation)} requires unsupported canonical hooks.`);
         }
+        if (crudExecute === undefined) throw new Error('Canonical CRUD execution factory was not initialized.');
         effects = await crudExecute(call);
         if (kind !== 'delete') {
           const operation = opts.artifact.operations?.find(entry => entry.name === opts.operation);
@@ -4774,7 +5018,7 @@ async function invokeCanonicalMutation(
           effects = { ...effects, fileAssignments: assignments };
         }
       } else if (kind === "scenario") {
-        effects = await runScenarioSeam(loaded, opts, call, occurrenceIds);
+        effects = await runScenarioSeam(loaded, opts, call, occurrenceIds, undefined, undefined, receiptStore);
       } else {
         throw new StateError("validation", `Operation ${JSON.stringify(opts.operation)} cannot execute here.`);
       }
@@ -4787,19 +5031,38 @@ async function invokeCanonicalMutation(
       return { ...effects, guards: [...effects.guards ?? [], ...stagedFiles.guards] };
     },
   });
-  if (!receiptOnly && opts.files !== undefined) {
-    // File metadata and State are separate durable stores in this native host.
-    // A lost attachment response is repaired on the same State-receipted retry;
-    // it never repeats the domain mutation or pretends to be one SQL transaction.
+  const kind = seamDefKind(loaded.registry.get(opts.operation), opts.operation);
+  const claimsScenario = committedReceipt !== undefined && Object.hasOwn(committedReceipt.outcome, 'scenario');
+  let scenarioProjection: { readonly result: unknown; readonly records: readonly ProjectedRecord[] } | undefined;
+  if (claimsScenario || checkedScenario?.descriptor.result?.disclosure !== undefined ||
+      kind === 'scenario' && (receiptOnly || result.status === 'replayed')) {
+    const producer = loaded.producers.invoke;
+    if (committedReceipt === undefined || producer.readScenarioReceiptAssociation === undefined ||
+        producer.projectScenarioReceipt === undefined) {
+      throw new StateError('validation', 'Installed State producer cannot disclose a saved scenario outcome.');
+    }
+    // Recognized malformed metadata throws in State; legacy saved values are
+    // never disclosed raw or upgraded with an association inferred here.
+    if (producer.readScenarioReceiptAssociation(committedReceipt) === null) {
+      throw new StateError('validation', 'Saved scenario has no supported execution association.');
+    }
+    scenarioProjection = await producer.projectScenarioReceipt({ receipt: committedReceipt,
+      registry: loaded.registry as Parameters<NonNullable<StateInvokeProducer['projectScenarioReceipt']>>[0]['registry'],
+      policy: loaded.policy as Parameters<NonNullable<StateInvokeProducer['projectScenarioReceipt']>>[0]['policy'],
+      app: opts.app, identity: opts.identity, store: opts.store, memberships: opts.memberships,
+    });
+  }
+  if (!receiptOnly && opts.files !== undefined && !(kind === 'scenario' && result.status === 'replayed')) {
+    // Ordinary fresh operations retain the existing attachment repair behavior.
+    // Scenario recovery/projected replay performs no file metadata access.
     await retainCommittedFiles({
       artifact: opts.artifact, operation: opts.operation, inputs: opts.inputs,
       result: result.result, attachments, store: opts.store, files: opts.files,
       identity: opts.identity, app: opts.app,
     });
   }
-  // The public generated-CRUD contract maps saved content. Scenario
-  // disclosure remains a separate join; raw retention above stays internal.
-  const kind = seamDefKind(loaded.registry.get(opts.operation), opts.operation);
+  if (scenarioProjection !== undefined) return { ...result, ...scenarioProjection };
+  // Generated CRUD keeps its defining saved-outcome projection.
   if (kind === 'create' || kind === 'update' || kind === 'delete' ||
       (committedReceipt !== undefined && Object.hasOwn(committedReceipt.outcome, 'generatedCrud'))) {
     if (committedReceipt === undefined || loaded.producers.invoke.projectGeneratedCrudReceipt === undefined) {

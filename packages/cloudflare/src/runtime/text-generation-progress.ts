@@ -9,6 +9,7 @@ import {
   readTextRunResult, isImageRunReceiptContext, isImageRunReceiptPayload, readImageRunResult,
 } from '@canlang/state/receipt/tables';
 import { applyRelatedProgress, applyRetainedRelatedProgress } from '@canlang/work/observation/association';
+import { dispatchGenerationTargetProfile } from '@canlang/work/kernel/tables';
 import { decodeValue, encodeValue, isDeliveryRef } from '@canlang/values';
 import type { TextRunWire } from './bound-text-generation.js';
 import type { ImageRunWire } from './bound-images.js';
@@ -56,6 +57,11 @@ function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function generationTarget(source: string, profile: GenerationProfile): string | null {
+  const target = dispatchGenerationTargetProfile(source);
+  return target?.family === (profile === 'image' ? 'images' : 'text') ? source : null;
+}
+
 /** Returns conditional writes for the caller's existing owner fence; never commits. */
 async function stageGenerationProgress(input: TextGenerationProgressInput | ImageGenerationProgressInput,
   ctx: SystemCommandContext, profile: GenerationProfile): Promise<TextGenerationProgressStaging> {
@@ -66,9 +72,8 @@ async function stageGenerationProgress(input: TextGenerationProgressInput | Imag
     return { ...staged, writes: [...staged.writes ?? [], ...events.writes ?? []],
       schedules: [...staged.schedules ?? [], ...events.schedules ?? []] };
   };
-  const target = profile === 'image' && ['std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(intent.target)
-    ? intent.target : PROFILES[profile].target;
-  if (intent.target !== target || intent.intentId === '' || context.source !== target ||
+  const target = generationTarget(intent.target, profile);
+  if (target === null || intent.target !== target || intent.intentId === '' || context.source !== target ||
       !PROFILES[profile].context(context) || context.request === undefined ||
       !Number.isSafeInteger(revision) || revision < 0) refuse(profile);
   const carrier = intent.arguments;
@@ -137,9 +142,8 @@ async function readRetainedGenerationReceipt(
   ctx: SystemCommandContext, profile: GenerationProfile,
 ): Promise<AssociatedReceipt | null> {
   const { intent, context } = input;
-  const target = profile === 'image' && ['std.ImagesV1.cancel', 'std.ImagesV1.reconcile'].includes(intent.target)
-    ? intent.target : PROFILES[profile].target;
-  if (intent.target !== target || intent.intentId === '' || context.source !== target ||
+  const target = generationTarget(intent.target, profile);
+  if (target === null || intent.target !== target || intent.intentId === '' || context.source !== target ||
       !PROFILES[profile].context(context) || context.request === undefined) refuse(profile);
   const carrier = intent.arguments;
   if (!record(carrier) || Object.keys(carrier).length !== 3 || typeof carrier.binding !== 'string' ||

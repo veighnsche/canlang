@@ -17,11 +17,13 @@ const root = resolve(import.meta.dirname, "../../..");
 const hash = (value: string): string => createHash("sha256").update(value).digest("hex");
 
 async function inputs(): Promise<ConstructHelpInputs> {
-  const [markdown, grammar, values, ui] = await Promise.all([
+  const [markdown, grammar, values, ui, profileGuard, previewGuard] = await Promise.all([
     readFile(resolve(root, "docs/specification/CONSTRUCT-HELP.md"), "utf8"),
     readFile(resolve(root, "docs/specification/GRAMMAR.md"), "utf8"),
     readFile(resolve(root, "packages/values/src/catalog.ts"), "utf8"),
     readFile(resolve(root, "packages/ui/src/catalog.ts"), "utf8"),
+    readFile(resolve(root, "packages/cloudflare/src/dev/compiler-check.ts"), "utf8"),
+    readFile(resolve(root, "packages/cloudflare/src/dev/preview-builder.ts"), "utf8"),
   ]);
   return {
     markdown,
@@ -30,6 +32,7 @@ async function inputs(): Promise<ConstructHelpInputs> {
     grammar: { sha256: hash(grammar) },
     values: { sha256: hash(values), entries: CATALOG.entries },
     ui: { sha256: hash(ui), entries: UI_CATALOG.entries },
+    profilePolicy: { sha256: hash(`${profileGuard}\0${previewGuard}`) },
   };
 }
 
@@ -102,6 +105,36 @@ describe("captured construct help", () => {
     expect(index.candidates({ ...inventory, complete: false }, proofs).candidateCoverage).toBe("unknown");
     expect(index.candidates({ ...inventory, ids: ["can.v1.context.queue"] }, [proof("can.v1.context.queue", index.revision, index.compilerSha256)])
       .candidateCoverage).toBe("unknown");
+  });
+
+  it("separates exact grammar coverage, explicit profile boundaries and working qualification", async () => {
+    const source=await inputs(), index=createConstructHelpIndex(source);
+    const ids=["can.v1.policy","can.v1.invariant","can.v1.import","can.v1.context.queue"];
+    const inventory={slot:"given.rule",profile:"office-supplies-local-v1",compilerSha256:index.compilerSha256,
+      indexRevision:index.revision,ids,complete:true};
+    const selected=index.candidates(inventory,[proof(ids[0]!,index.revision,index.compilerSha256),
+      proof(ids[2]!,index.revision,index.compilerSha256)]);
+    expect(selected.grammarCoverage).toBe("complete"); expect(selected.candidateCoverage).toBe("unknown");
+    expect(selected.cards.map(card=>card.id)).toEqual(ids);
+    expect(selected.classification).toEqual([
+      {id:ids[0],profile:"included",working:"qualified"},
+      {id:ids[1],profile:"included",working:"unqualified"},
+      {id:ids[2],profile:"outside",working:"unqualified"},
+      {id:ids[3],profile:"unknown",working:"unqualified"},
+    ]);
+    expect(Object.isFrozen(selected.classification)).toBe(true);
+    const outside=joinCompilerConstructCandidates(index,{version:1,disposition:"exact",slot:"given.rule",ids:[ids[2]],complete:true},inventory.profile);
+    expect(outside).toMatchObject({disposition:"exact",grammarCoverage:"complete",candidateCoverage:"unknown",
+      classification:[{profile:"outside",working:"unqualified"}]});
+    const {profilePolicy:_guard,...unbound}=source, withoutPolicy=createConstructHelpIndex(unbound);
+    expect(withoutPolicy.revision).not.toBe(index.revision);
+    expect(withoutPolicy.candidates({...inventory,indexRevision:withoutPolicy.revision}).classification[2]?.profile).toBe("unknown");
+    const next=createConstructHelpIndex({...source,profilePolicy:{sha256:hash("changed installed guards")}});
+    expect(next.candidates(inventory).grammarCoverage).toBe("unknown");
+    expect(index.candidates({...inventory,complete:false}).grammarCoverage).toBe("unknown");
+    expect(index.candidates({...inventory,ids:[...ids,"can.v1.fake"]}).grammarCoverage).toBe("unknown");
+    expect(joinCompilerConstructCandidates(index,{version:1,disposition:"structural",ids:[],complete:false},inventory.profile))
+      .toMatchObject({grammarCoverage:"unknown",classification:[],cards:[]});
   });
 
   it("only offers a deterministic type card for exact case spelling in a known type slot", async () => {

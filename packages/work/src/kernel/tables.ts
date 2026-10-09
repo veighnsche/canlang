@@ -72,7 +72,34 @@ export const WORK_SCHEDULE_MODEL = 'work.schedule' as ModelName;
 export const WORK_EVERY_SLOT_MODEL = 'work.every_slot' as ModelName;
 export const WORK_SUPERSESSION_MODEL = 'work.supersession' as ModelName;
 
-/** Checked business identity of an original Images submit; all fields are flat and immutable. */
+/** Closed generation targets sharing the existing dispatch lifecycle. */
+export interface DispatchGenerationTargetProfile {
+  readonly family: 'images' | 'text';
+  readonly role: 'original' | 'control';
+  readonly originalSource: 'std.ImagesV1.submit' | 'std.TextGenerationV1.generate';
+  readonly resultName: 'ImageRun' | 'TextRun';
+}
+const IMAGE_ORIGINAL_PROFILE: DispatchGenerationTargetProfile = Object.freeze({
+  family: 'images', role: 'original', originalSource: 'std.ImagesV1.submit', resultName: 'ImageRun',
+});
+const IMAGE_CONTROL_PROFILE: DispatchGenerationTargetProfile = Object.freeze({ ...IMAGE_ORIGINAL_PROFILE, role: 'control' });
+const TEXT_ORIGINAL_PROFILE: DispatchGenerationTargetProfile = Object.freeze({
+  family: 'text', role: 'original', originalSource: 'std.TextGenerationV1.generate', resultName: 'TextRun',
+});
+const TEXT_CONTROL_PROFILE: DispatchGenerationTargetProfile = Object.freeze({ ...TEXT_ORIGINAL_PROFILE, role: 'control' });
+
+/** Exact membership only; neighboring or future capabilities require their defining join. */
+export function dispatchGenerationTargetProfile(source: string): DispatchGenerationTargetProfile | null {
+  switch (source) {
+    case 'std.ImagesV1.submit': return IMAGE_ORIGINAL_PROFILE;
+    case 'std.ImagesV1.cancel': case 'std.ImagesV1.reconcile': return IMAGE_CONTROL_PROFILE;
+    case 'std.TextGenerationV1.generate': return TEXT_ORIGINAL_PROFILE;
+    case 'std.TextGenerationV1.cancel': case 'std.TextGenerationV1.reconcile': return TEXT_CONTROL_PROFILE;
+    default: return null;
+  }
+}
+
+/** Checked generation business identity; Images names remain compatible exports. All fields are flat and immutable. */
 export interface DispatchImageCorrelation {
   readonly requestSource: string;
   readonly requestRevision: string;
@@ -94,18 +121,18 @@ export function readDispatchImageCorrelation(value: object): DispatchImageCorrel
     const descriptor = Object.getOwnPropertyDescriptor(data, field);
     return descriptor === undefined || !('value' in descriptor) || typeof descriptor.value !== 'string' || descriptor.value === '';
   })) {
-    throw new KernelTableError('Incomplete or invalid original Images correlation.');
+    throw new KernelTableError('Incomplete or invalid original generation correlation.');
   }
   try {
     const revision = decodeValue('int', data.requestRevision);
     if (typeof revision !== 'bigint' || revision < 0n || encodeValue('int', revision) !== data.requestRevision) {
       throw new Error('Noncanonical revision.');
     }
-  } catch { throw new KernelTableError('Original Images correlation requires a canonical nonnegative revision.'); }
+  } catch { throw new KernelTableError('Original generation correlation requires a canonical nonnegative revision.'); }
   return Object.freeze(Object.fromEntries(DISPATCH_IMAGE_CORRELATION_FIELDS.map(field => [field, data[field]]))) as unknown as DispatchImageCorrelation;
 }
 
-/** Immutable original submit and independent observation window for one Images control. */
+/** Immutable original generation and independent observation window for one control. */
 export interface DispatchImageControlPin {
   readonly originalIntentId: string;
   readonly observationStartedAtMs: number;
@@ -121,13 +148,13 @@ export function readDispatchImageControlPin(value: object): DispatchImageControl
   if (present.length !== IMAGE_CONTROL_PIN_FIELDS.length || present.some(field => {
     const descriptor = Object.getOwnPropertyDescriptor(data, field);
     return descriptor === undefined || !('value' in descriptor);
-  })) throw new KernelTableError('Incomplete original Images control pin.');
+  })) throw new KernelTableError('Incomplete original generation control pin.');
   const originalIntentId = data['originalIntentId'], startedAt = data['observationStartedAtMs'], deadline = data['observationDeadlineMs'];
   if (typeof originalIntentId !== 'string' || originalIntentId === '' ||
       typeof startedAt !== 'number' || !Number.isSafeInteger(startedAt) || startedAt < 0 ||
       typeof deadline !== 'number' || !Number.isSafeInteger(deadline) || deadline <= startedAt ||
       deadline - startedAt > 2_147_483_647) {
-    throw new KernelTableError('Original Images control pin requires an exact identity and finite supported window.');
+    throw new KernelTableError('Original generation control pin requires an exact identity and finite supported window.');
   }
   return Object.freeze({ originalIntentId, observationStartedAtMs: startedAt, observationDeadlineMs: deadline });
 }
@@ -354,9 +381,9 @@ export function readDispatchRow(row: StoredRow): DispatchRowData {
   const correlation = readDispatchImageCorrelation(data);
   const controlPin = readDispatchImageControlPin(data);
   if (controlPin !== null && (correlation === null ||
-      (data['source'] !== 'std.ImagesV1.cancel' && data['source'] !== 'std.ImagesV1.reconcile') ||
+      (typeof data['source'] !== 'string' || dispatchGenerationTargetProfile(data['source'])?.role !== 'control') ||
       controlPin.originalIntentId === row.id || controlPin.observationStartedAtMs !== row.created)) {
-    throw new KernelTableError('Original Images control pin disagrees with its retained control row.');
+    throw new KernelTableError('Original generation control pin disagrees with its retained control row.');
   }
   return {
     ...(correlation ?? {}),

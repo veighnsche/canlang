@@ -34,6 +34,13 @@ const FIRST_PROFILE_IDS = new Set([
   "can.v1.ui.list", "can.v1.ui.table", "can.v1.ui.stat", "can.v1.builtin.count",
 ]);
 
+// Explicit exclusions enforced by admitSingleAppProfile and preview admission.
+// The complement of the included surface is never an exclusion verdict.
+const FIRST_PROFILE_OUTSIDE_IDS = new Set([
+  'can.v1.app.composed', 'can.v1.package', 'can.v1.import',
+  'can.v1.import.alias', 'can.v1.import.bound', 'can.v1.when.scenario.periodic',
+]);
+
 export function firstProfileConstructIds(): readonly string[] {
   return Object.freeze([...FIRST_PROFILE_IDS].sort());
 }
@@ -59,6 +66,8 @@ export interface ConstructHelpInputs {
   readonly grammar: SourceFact;
   readonly values: SourceFact;
   readonly ui: SourceFact;
+  /** Exact captured installed profile guards; absent guards leave exclusions unknown. */
+  readonly profilePolicy?: SourceFact;
 }
 
 export type HelpAvailability = "working" | "unavailable" | "planned";
@@ -102,9 +111,20 @@ export interface CandidateInventory {
 }
 
 export interface QualifiedCandidateSet {
+  /** Complete exact grammar inventory is independent of runtime qualification. */
+  readonly grammarCoverage: "complete" | "unknown";
   readonly candidateCoverage: "complete" | "unknown";
   readonly reason?: string;
   readonly cards: readonly ConstructHelpCard[];
+  readonly classification: readonly {
+    readonly id: string;
+    readonly profile: "included" | "outside" | "unknown";
+    readonly working: "qualified" | "unqualified";
+  }[];
+}
+
+function unknownCandidates(reason: string): QualifiedCandidateSet {
+  return { grammarCoverage: "unknown", candidateCoverage: "unknown", reason, cards: [], classification: [] };
 }
 
 /** Source attestations for optional ranking, not profile qualification or provider advice. */
@@ -200,12 +220,11 @@ export function joinCompilerConstructCandidates(
 ): RoutedConstructHelp {
   const routing = parseCompilerConstructCandidates(value);
   if (routing.disposition === "none" && routing.complete) {
-    return { disposition: "none", slot: routing.slot, candidateCoverage: "complete", cards: [] };
+    return { disposition: "none", slot: routing.slot, grammarCoverage: "complete", candidateCoverage: "complete", cards: [], classification: [] };
   }
   if (routing.disposition !== "exact") {
-    return { disposition: routing.disposition, slot: routing.slot, candidateCoverage: "unknown",
-      reason: routing.disposition === "structural" ? "structural recovery needs a source edit" : "compiler candidate routing is incomplete",
-      cards: [] };
+    return { disposition: routing.disposition, slot: routing.slot, ...unknownCandidates(
+      routing.disposition === "structural" ? "structural recovery needs a source edit" : "compiler candidate routing is incomplete") };
   }
   const selected = index.candidates({ slot: routing.slot!, profile,
     compilerSha256: index.compilerSha256, indexRevision: index.revision,
@@ -418,6 +437,9 @@ export function createConstructHelpIndex(input: ConstructHelpInputs): ConstructH
   })) {
     if (!SHA256.test(fact.sha256)) throw new Error(`missing captured ${name} source hash`);
   }
+  if (input.profilePolicy !== undefined && !SHA256.test(input.profilePolicy.sha256)) {
+    throw new Error('missing captured profile-policy source hash');
+  }
   if (input.languageVersion !== "1.0") throw new Error(`unsupported help language version: ${input.languageVersion}`);
   const authoredCards = parseCards(input.markdown);
   validateCatalogFacts(authoredCards, input);
@@ -426,10 +448,15 @@ export function createConstructHelpIndex(input: ConstructHelpInputs): ConstructH
   for (const id of FIRST_PROFILE_IDS) {
     if (!byId.has(id)) throw new Error(`first-profile construct is absent from help: ${id}`);
   }
+  for (const id of FIRST_PROFILE_OUTSIDE_IDS) {
+    if (!byId.has(id)) throw new Error(`outside-profile construct is absent from help: ${id}`);
+  }
   const documentSha256 = sha256(input.markdown);
   const revision = digest([
     "can.dev.construct-help.v1", input.languageVersion, documentSha256,
     input.compiler.sha256, input.grammar.sha256, input.values.sha256, input.ui.sha256,
+    FIRST_PROFILE, JSON.stringify([...FIRST_PROFILE_IDS].sort()),
+    JSON.stringify([...FIRST_PROFILE_OUTSIDE_IDS].sort()), input.profilePolicy?.sha256 ?? "profile-policy-unavailable",
   ]);
   return Object.freeze({
     revision,
@@ -441,23 +468,30 @@ export function createConstructHelpIndex(input: ConstructHelpInputs): ConstructH
     candidates(inventory: CandidateInventory | null, proofs: readonly QualifiedConstructProof[] = []): QualifiedCandidateSet {
       if (!inventory || !inventory.slot || !inventory.complete || inventory.indexRevision !== revision ||
           inventory.compilerSha256 !== input.compiler.sha256 || !inventory.profile) {
-        return { candidateCoverage: "unknown", reason: "compiler slot inventory is incomplete or from another revision", cards: [] };
+        return unknownCandidates("compiler slot inventory is incomplete or from another revision");
       }
       if (inventory.ids.length > 8 || new Set(inventory.ids).size !== inventory.ids.length) {
-        return { candidateCoverage: "unknown", reason: "candidate inventory is broad or duplicated", cards: [] };
+        return unknownCandidates("candidate inventory is broad or duplicated");
       }
       const proofById = new Map(proofs.map(proof => [proof.id, proof]));
       const selected: ConstructHelpCard[] = [];
       for (const id of inventory.ids) {
         const card = byId.get(id);
-        if (!card) return { candidateCoverage: "unknown", reason: `unknown construct ID: ${id}`, cards: [] };
+        if (!card) return unknownCandidates(`unknown construct ID: ${id}`);
         selected.push(qualified(card, proofById.get(id), revision, inventory.profile, input.compiler.sha256)
           ? Object.freeze({ ...card, status: "working" as const }) : card);
       }
+      const classification = Object.freeze(selected.map(card => Object.freeze({ id: card.id,
+        profile: inventory.profile === FIRST_PROFILE && FIRST_PROFILE_IDS.has(card.id) ? "included" as const
+          : inventory.profile === FIRST_PROFILE && input.profilePolicy !== undefined && FIRST_PROFILE_OUTSIDE_IDS.has(card.id)
+            ? "outside" as const : "unknown" as const,
+        working: card.status === "working" ? "qualified" as const : "unqualified" as const,
+      })));
       if (selected.some(card => card.status !== "working")) {
-        return { candidateCoverage: "unknown", reason: "one or more candidates lack exact profile qualification", cards: selected };
+        return { grammarCoverage: "complete", candidateCoverage: "unknown", reason: "one or more candidates lack exact profile qualification",
+          cards: selected, classification };
       }
-      return { candidateCoverage: "complete", cards: selected };
+      return { grammarCoverage: "complete", candidateCoverage: "complete", cards: selected, classification };
     },
     exactType(word: string, profile: string, proof?: QualifiedConstructProof): ConstructHelpCard | undefined {
       if (!/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(word)) return undefined;

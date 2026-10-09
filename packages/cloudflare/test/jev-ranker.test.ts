@@ -63,6 +63,10 @@ describe("bounded construct ranking", () => {
       allowExternal: () => true, isCurrent: () => true,
     });
     expect(await ranker.rank({ ...occurrence, cards: [cards[0]!] })).toMatchObject({ state: "deterministic", card: cards[0] });
+    expect(await ranker.rank({ ...occurrence, cards: [cards[0]!], evidenceSufficient: false }))
+      .toMatchObject({ state: "deterministic", card: cards[0] });
+    expect(await ranker.rank({ ...occurrence, cards: [cards[0]!], evidenceSufficient: false, materialIntentChoice: true }))
+      .toMatchObject({ state: "intent_required" });
     expect(await ranker.rank({ ...occurrence, structuralRecovery: true })).toMatchObject({ state: "structural" });
     expect(await ranker.rank({ ...occurrence, materialIntentChoice: true })).toMatchObject({ state: "intent_required" });
     expect(await ranker.rank({ ...occurrence, evidenceSufficient: false })).toMatchObject({ state: "intent_unclear" });

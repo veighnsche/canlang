@@ -6,6 +6,8 @@ import type { InstalledTextGeneration, ResolveInstalledTextGeneration, ModelRunH
 import { encodeValue, normalizeSchema, validateOperationInput } from '@canlang/values';
 import type { SchemaDescriptor } from '@canlang/values';
 import type { DispatchProviderOutcome, DispatchReconcileEvidence } from './invoke.js';
+import type { DispatchImageCorrelation } from '@canlang/work/kernel/tables';
+import { isTextRunReceiptPayload } from '@canlang/state/receipt/tables';
 
 const CAPABILITY = 'std.TextGenerationV1';
 const TARGET = `${CAPABILITY}.generate`;
@@ -28,6 +30,15 @@ export interface BoundTextGenerationCallOptions {
   /** Required to start transport: the host queue observation must commit first. */
   readonly onProgress?: (progress: TextRunWire) => Promise<void>;
 }
+export interface BoundTextGenerationControlCallOptions {
+  /** Actual host clock; the persisted window never starts again on recovery. */
+  readonly nowMs: () => number;
+  readonly observation: { readonly startedAtMs: number; readonly deadlineMs: number };
+  readonly originalScope: { readonly app: string; readonly owner: string; readonly principal: string };
+  readonly retainedProgress: TextRunWire | null;
+  readonly recovering?: boolean;
+  readonly onProgress: (progress: TextRunWire) => Promise<void>;
+}
 export interface BoundTextGenerationAdapter {
   available(intent: OutboxIntent): boolean;
   resultContext(intent: OutboxIntent): ReceiptResultContext | null;
@@ -38,6 +49,11 @@ export interface BoundTextGenerationAdapter {
   /** Only the retained real live handle can request cancellation. */
   cancel(intent: OutboxIntent): Promise<DispatchProviderOutcome | null>;
   reconcile(intent: OutboxIntent): Promise<DispatchReconcileEvidence | null>;
+  /** Positive entries are required before the dispatcher may claim a source control. */
+  controlCorrelation?(control: OutboxIntent, owner: string): DispatchImageCorrelation | null;
+  controlObservation?(control: OutboxIntent, startedAtMs: number): BoundTextGenerationControlCallOptions['observation'] | null;
+  observeControl?(control: OutboxIntent, original: OutboxIntent,
+    options: BoundTextGenerationControlCallOptions): Promise<DispatchProviderOutcome>;
 }
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -60,6 +76,7 @@ interface Resolved {
   readonly context: ReceiptResultContext;
 }
 interface LiveRun {
+  readonly identity: string;
   handle: ModelRunHandle | null;
   readonly result: Promise<DispatchProviderOutcome>;
   settled: boolean;
@@ -69,6 +86,53 @@ interface LiveRun {
 export function createBoundTextGenerationAdapter(options: BoundTextGenerationOptions): BoundTextGenerationAdapter {
   const expected = Object.freeze({ ...options.binding });
   const runs = new Map<string, LiveRun>();
+  const resolveControl = (intent: OutboxIntent) => {
+    try {
+      if (![`${CAPABILITY}.cancel`, `${CAPABILITY}.reconcile`].includes(intent.target) || intent.intentId === '' ||
+          !closed(intent.arguments, ['binding', 'from', 'arguments'])) return null;
+      const carrier = intent.arguments;
+      if (typeof carrier['binding'] !== 'string' || carrier['from'] !== expected.deployment ||
+          !closed(carrier['arguments'], ['source', 'revision'])) return null;
+      const app = member(options.appDefinition, 'id');
+      const binding = member(member(options.appDefinition, 'bindings'), carrier['binding']);
+      const capability = member(member(options.appDefinition, 'capabilities'), CAPABILITY);
+      const version = member(capability, 'version');
+      const operation = member(member(capability, 'operations'), intent.target.slice(`${CAPABILITY}.`.length));
+      const inputs = member(operation, 'inputs');
+      const contracts = member(options.appDefinition, 'contracts');
+      const enums = member(options.appDefinition, 'enums') ?? {};
+      const leaves = deliveryResultLeaves('TextRun');
+      const fields = member(member(contracts, 'TextRun'), 'fields');
+      if (typeof app !== 'string' || app === '' ||
+          member(member(options.appDefinition, 'operations'), intent.operation) === undefined ||
+          member(binding, 'capability') !== CAPABILITY || member(binding, 'from') !== carrier['from'] ||
+          expected.capability !== CAPABILITY || expected.capabilityVersion !== STD_TEXT_GENERATION_V1_VERSION ||
+          expected.account === '' || expected.deployment === '' ||
+          (version !== STD_TEXT_GENERATION_V1_VERSION && version !== BigInt(STD_TEXT_GENERATION_V1_VERSION)) ||
+          member(member(operation, 'result'), 'type') !== 'TextRun' || !record(inputs) ||
+          Object.keys(inputs).length !== 2 || member(member(inputs, 'source'), 'type') !== 'text' ||
+          member(member(inputs, 'revision'), 'type') !== 'int' || !record(contracts) || !record(enums) ||
+          leaves === null || !record(fields) || Object.keys(fields).length !== leaves.length ||
+          !leaves.every(leaf => member(member(fields, leaf.name), 'type') === leaf.type)) return null;
+      const schema = normalizeSchema({ contracts, enums, operations: { [intent.target]: { inputs } } } as SchemaDescriptor);
+      const checked = validateOperationInput(schema, intent.target, carrier['arguments']);
+      if (typeof checked['source'] !== 'string' || checked['source'] === '') return null;
+      const revision = encodeValue('int', BigInt(safeInt(checked['revision'], 0))) as string;
+      const installed = options.resolveInstalledTextGeneration(expected.deployment);
+      if (installed === null || installed.binding.deployment !== expected.deployment || installed.binding.account !== expected.account ||
+          installed.binding.capability !== CAPABILITY || installed.binding.capabilityVersion !== expected.capabilityVersion) return null;
+      const profile = installed.profile;
+      if ([profile.name, profile.policyRevision, profile.provider, profile.model].some(value => typeof value !== 'string' || value === '') ||
+          profile.inputTokenization !== 'deployment' || profile.attachments !== 'unsupported' ||
+          !Number.isSafeInteger(profile.maxInputTokens) || profile.maxInputTokens <= 0 ||
+          !Number.isSafeInteger(profile.maxOutputTokens) || profile.maxOutputTokens <= 0 ||
+          !Number.isSafeInteger(profile.maxDurationMs) || profile.maxDurationMs <= 0 ||
+          typeof installed.text.generateStream !== 'function' || typeof installed.text.reconcile !== 'function') return null;
+      return { app, binding: carrier['binding'], from: carrier['from'], installed,
+        context: Object.freeze({ source: intent.target, declaredResult: Object.freeze({ name: 'TextRun', fields: leaves }),
+          request: Object.freeze({ source: checked['source'], revision }) }) satisfies ReceiptResultContext };
+    } catch { return null; }
+  };
   const resolve = (intent: OutboxIntent): Resolved | null => {
     try {
       if (intent.target !== TARGET || intent.intentId === '' || !closed(intent.arguments, ['binding', 'from', 'arguments'])) return null;
@@ -126,9 +190,126 @@ export function createBoundTextGenerationAdapter(options: BoundTextGenerationOpt
       return { installed, input, context };
     } catch { return null; }
   };
+  const identity = (intent: OutboxIntent, resolved: Resolved): string => JSON.stringify({
+    intentId: intent.intentId, operationId: intent.operationId, operation: intent.operation,
+    occurrenceIndex: intent.occurrenceIndex, dispatchGuard: intent.dispatchGuard ?? null,
+    binding: intent.arguments['binding'], from: intent.arguments['from'],
+    input: { ...resolved.input, max_duration: String(resolved.input.max_duration) },
+    profile: { name: resolved.installed.profile.name, policyRevision: resolved.installed.profile.policyRevision,
+      provider: resolved.installed.profile.provider, model: resolved.installed.profile.model,
+      maxInputTokens: resolved.installed.profile.maxInputTokens, maxOutputTokens: resolved.installed.profile.maxOutputTokens,
+      maxDurationMs: resolved.installed.profile.maxDurationMs },
+  });
   return {
-    available: intent => resolve(intent) !== null,
-    resultContext: intent => resolve(intent)?.context ?? null,
+    available: intent => resolve(intent) !== null || resolveControl(intent) !== null,
+    resultContext: intent => resolve(intent)?.context ?? resolveControl(intent)?.context ?? null,
+    controlCorrelation(control, owner) {
+      const resolved = resolveControl(control);
+      if (resolved === null || typeof owner !== 'string' || owner === '') return null;
+      return Object.freeze({ requestSource: resolved.context.request!.source, requestRevision: resolved.context.request!.revision,
+        requestBinding: resolved.binding, requestFrom: resolved.from, requestApp: resolved.app, requestOwner: owner });
+    },
+    controlObservation(control, startedAtMs) {
+      const resolved = resolveControl(control);
+      if (resolved === null) return null;
+      const deadlineMs = startedAtMs + resolved.installed.profile.maxDurationMs;
+      return Number.isSafeInteger(startedAtMs) && startedAtMs >= 0 && Number.isSafeInteger(deadlineMs)
+        ? Object.freeze({ startedAtMs, deadlineMs }) : null;
+    },
+    async observeControl(control, original, call) {
+      if (!record(call) || !closed(call.observation, ['startedAtMs', 'deadlineMs']) ||
+          !closed(call.originalScope, ['app', 'owner', 'principal']) ||
+          (call.retainedProgress !== null && !record(call.retainedProgress))) return { kind: 'uncertain' };
+      const invocation = resolveControl(control), resolved = resolve(original);
+      if (invocation === null || resolved === null || control.intentId === original.intentId ||
+          call.originalScope.app !== invocation.app || typeof call.originalScope.owner !== 'string' || call.originalScope.owner === '' ||
+          typeof call.originalScope.principal !== 'string' || call.originalScope.principal === '' ||
+          member(member(options.appDefinition, 'operations'), original.operation) === undefined ||
+          invocation.context.request!.source !== resolved.context.request!.source ||
+          invocation.context.request!.revision !== resolved.context.request!.revision ||
+          control.arguments['binding'] !== original.arguments['binding'] || control.arguments['from'] !== original.arguments['from'] ||
+          typeof call.nowMs !== 'function' || typeof call.onProgress !== 'function') return { kind: 'uncertain' };
+      const { startedAtMs, deadlineMs } = call.observation;
+      const span = deadlineMs - startedAtMs;
+      let now: number;
+      try { now = call.nowMs(); } catch { return { kind: 'uncertain' }; }
+      if (!Number.isSafeInteger(startedAtMs) || startedAtMs < 0 || !Number.isSafeInteger(deadlineMs) ||
+          !Number.isSafeInteger(span) || span <= 0 || span > invocation.installed.profile.maxDurationMs ||
+          !Number.isSafeInteger(now) || now < startedAtMs || now >= deadlineMs) return { kind: 'uncertain' };
+      const retained = call.retainedProgress;
+      if (retained !== null && !isTextRunReceiptPayload(retained.state === 'queued' || retained.state === 'running' ? 'pending'
+        : retained.state === 'unknown' ? 'unknown' : 'succeeded', retained, null, resolved.context)) return { kind: 'uncertain' };
+      const run = runs.get(original.intentId);
+      if (run !== undefined && run.identity !== identity(original, resolved)) return { kind: 'uncertain' };
+      // This fixed remaining budget includes cancel, the original run's durable
+      // progress, and the control callback. Timing out never aborts that run.
+      return new Promise<DispatchProviderOutcome>(finish => {
+        let expired = false, settled = false;
+        let remainingBudget = 0, monotonicStart = 0;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const done = (outcome: DispatchProviderOutcome) => {
+          if (settled) return;
+          settled = true;
+          if (timer !== undefined) clearTimeout(timer);
+          finish(outcome);
+        };
+        const remaining = (): number => {
+          const elapsed = performance.now() - monotonicStart;
+          return Number.isFinite(elapsed) && elapsed >= 0 ? remainingBudget - elapsed : 0;
+        };
+        const arm = () => {
+          const left = remaining();
+          if (left <= 0) { expired = true; done({ kind: 'uncertain' }); return; }
+          const delay = Math.max(1, Math.min(left, 2_147_483_647));
+          timer = setTimeout(() => {
+            // Recompute actual elapsed time, including event-loop delay;
+            // neither chunking nor a fixed host epoch clock renews the budget.
+            arm();
+          }, delay);
+        };
+        const current = (): boolean => {
+          try { const time = call.nowMs(); return !expired && remaining() > 0 &&
+            Number.isSafeInteger(time) && time >= startedAtMs && time < deadlineMs; }
+          catch { return false; }
+        };
+        let timerNow: number;
+        try { timerNow = call.nowMs(); } catch { done({ kind: 'uncertain' }); return; }
+        if (!Number.isSafeInteger(timerNow) || timerNow < startedAtMs || timerNow >= deadlineMs) {
+          done({ kind: 'uncertain' }); return;
+        }
+        remainingBudget = Math.min(deadlineMs - now, deadlineMs - timerNow);
+        monotonicStart = performance.now();
+        arm();
+        const observe = async (): Promise<DispatchProviderOutcome> => {
+          if (!current()) return { kind: 'uncertain' };
+          if (retained !== null && ['succeeded', 'failed', 'cancelled'].includes(retained.state)) {
+            return { kind: 'delivered', result: retained };
+          }
+          const handle = run?.handle;
+          if (handle !== undefined && handle !== null && run !== undefined) {
+            if (handle.deliveryId !== original.intentId) return { kind: 'uncertain' };
+            if (control.target === `${CAPABILITY}.cancel` && call.recovering !== true && !run.settled && !handle.cancelRequested) {
+              await handle.cancel();
+              if (!current()) return { kind: 'uncertain' };
+            }
+            const outcome = await run.result;
+            if (!current()) return { kind: 'uncertain' };
+            if (outcome.kind === 'delivered') {
+              await call.onProgress(outcome.result as TextRunWire);
+              if (!current()) return { kind: 'uncertain' };
+            }
+            return outcome;
+          }
+          const completion = await resolved.installed.text.reconcile(original.intentId);
+          if (!current() || completion.delivery_id !== original.intentId || completion.status !== 'unknown' ||
+              completion.result !== null || completion.error?.code !== 'no_run_resume') return { kind: 'uncertain' };
+          // No-resume is an absence of evidence, not an ordered progress
+          // observation. Preserve the original retained content and usage.
+          return { kind: 'uncertain' };
+        };
+        void observe().then(outcome => done(current() ? outcome : { kind: 'uncertain' }), () => done({ kind: 'uncertain' }));
+      });
+    },
     async callProvider(intent, callOptions = {}) {
       const retained = runs.get(intent.intentId);
       if (retained !== undefined) return retained.result;
@@ -231,7 +412,7 @@ export function createBoundTextGenerationAdapter(options: BoundTextGenerationOpt
           return { kind: 'uncertain' };
         }
       })();
-      const run: LiveRun = { get handle() { return handle; }, result, settled: false, acknowledged: false };
+      const run: LiveRun = { identity: identity(intent, resolved), get handle() { return handle; }, result, settled: false, acknowledged: false };
       runs.set(intent.intentId, run);
       // Both outcomes finish the live run, including a rejected durable callback.
       // Uncertain results remain cached until definitive Work acknowledgement.

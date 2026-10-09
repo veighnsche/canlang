@@ -44,6 +44,22 @@ async function waitForFile(path: string): Promise<void> {
 }
 
 describe("captured compiler against the Office Supplies evaluator source", () => {
+  it("selects the owning native receipt CLI contract for the captured State host", async () => {
+    const { root, app, request } = await tempWitness();
+    try {
+      writeFileSync(app, 'app CallerReceipts\nGiven\nWhen\n scenario saved() -> int by=members\n  do return 7\nThen\n');
+      const capture = await captureSingleFileSource(request);
+      const result = await compileCapturedSingleFile(capture, new AbortController().signal);
+      if (result.kind !== 'artifact') throw new Error(`native captured receipt compile refused: ${result.kind}`);
+      expect(result.artifact.sources).toEqual([{ path: capture.compilerOperand, sha256: capture.sourceSha256 }]);
+      const operation = result.artifact.operations?.find(entry => entry.name === 'CallerReceipts.saved');
+      expect(operation?.result?.disclosure?.version).toBe(1);
+      expect(operation?.result?.disclosure?.source).toMatchObject({ path: capture.compilerOperand, sha256: capture.sourceSha256 });
+      expect(operation?.result?.disclosure?.returns).toHaveLength(1);
+      expect(result.artifact.modules.some(module => module.js.includes('selectScenarioReceiptReturn'))).toBe(true);
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  }, 30000);
+
   it("returns only current, exact-source diagnostics or an artifact", async () => {
     const { root, request } = await tempWitness();
     try {

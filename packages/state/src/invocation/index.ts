@@ -21,6 +21,11 @@ export {
 } from './admission.js';
 export { stableStringify, hashInputs } from './replay.js';
 export {
+  observeScenarioReceiptDependency, selectScenarioReceiptReturn,
+  beginScenarioReceiptMutation, observeScenarioInputComputedDefault, type ScenarioReceiptMutationInput,
+  readScenarioReceiptAssociation, projectScenarioReceipt, type ProjectScenarioReceiptInput,
+} from './scenario-receipt.js';
+export {
   MAX_ADMISSION_ATTEMPTS,
   invoke,
   invokeRetainedReceiptOnly,

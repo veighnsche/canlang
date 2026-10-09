@@ -512,11 +512,11 @@ describe('t24a planRecoveryScan: resuming interrupted claims', () => {
 });
 
 describe('t24a work.dispatch.stage command', () => {
-  it('stages checked Images correlation with its original carrier, refuses replay drift and preserves it through claims', async () => {
+  for (const originalSource of ['std.ImagesV1.submit', 'std.TextGenerationV1.generate']) it(`stages checked ${originalSource} correlation, refuses replay drift and preserves it through claims`, async () => {
     const stored = seed([]); const ctx = { ...fakeCtx(stored), operation: 'Acme.generate' };
     const correlation = { requestSource: 'business-source-is-not-operation', requestRevision: '3',
       requestBinding: 'Acme.Images', requestFrom: 'deployment.images', requestApp: 'Acme', requestOwner: 'team-1' };
-    const input: CanonicalSendInput = { operationId: 'origin-operation', source: 'std.ImagesV1.submit', occurrenceIndex: 1,
+    const input: CanonicalSendInput = { operationId: 'origin-operation', source: originalSource, occurrenceIndex: 1,
       originOccurrence: null, request: { binding: correlation.requestBinding, from: correlation.requestFrom,
         arguments: { value: { source: correlation.requestSource, revision: correlation.requestRevision } } }, correlation };
     const { effects, delivery } = await stageCanonicalSend(input, ctx);
@@ -536,10 +536,10 @@ describe('t24a work.dispatch.stage command', () => {
     assert.equal(claimed.row.createdBy, ACTOR); assert.equal(claimed.row.created, NOW);
   });
 
-  it('checks primitive Images cancel/reconcile correlation against the original carrier', async () => {
+  it('checks both families primitive cancel/reconcile correlation against the original carrier', async () => {
     const correlation = { requestSource: 'business-source', requestRevision: '3', requestBinding: 'Acme.Images',
       requestFrom: 'deployment.images', requestApp: 'Acme', requestOwner: 'team-1' };
-    for (const source of ['std.ImagesV1.cancel', 'std.ImagesV1.reconcile']) {
+    for (const source of ['std.ImagesV1.cancel', 'std.ImagesV1.reconcile', 'std.TextGenerationV1.cancel', 'std.TextGenerationV1.reconcile']) {
       const request: BoundCapabilityRequest = { binding: correlation.requestBinding, from: correlation.requestFrom,
         arguments: { source: correlation.requestSource, revision: correlation.requestRevision } };
       const input: CanonicalSendInput = { operationId: 'control-operation', source, occurrenceIndex: 0, originOccurrence: null,
@@ -554,6 +554,11 @@ describe('t24a work.dispatch.stage command', () => {
         { value: { source: correlation.requestSource, revision: '3' } }]) {
         await assert.rejects(stageCanonicalSend({ ...input, request: { ...request, arguments: arguments_ } }, ctx), /disagrees/);
       }
+    }
+    for (const source of ['std.ImagesV1.generate', 'std.TextGenerationV1.submit', 'std.TextGenerationV2.cancel']) {
+      await assert.rejects(stageCanonicalSend({ operationId: 'unsupported-control', source, occurrenceIndex: 0,
+        originOccurrence: null, correlation, request: { binding: correlation.requestBinding, from: correlation.requestFrom,
+          arguments: { source: correlation.requestSource, revision: correlation.requestRevision } } }, fakeCtx(seed([]))), /disagrees/);
     }
   });
 
@@ -923,23 +928,25 @@ describe('t24a registry join on the memory store (MEMORY-ONLY)', () => {
     };
   }
 
-  it('fences an original pending stop against queued progress and retains a fixed control pin across claims (MEMORY-ONLY)', async () => {
+  for (const family of [{ original: 'std.ImagesV1.submit', cancel: 'std.ImagesV1.cancel', result: 'ImageRun',
+    queued: { outputs: [], charged_jobs: null } }, { original: 'std.TextGenerationV1.generate', cancel: 'std.TextGenerationV1.cancel',
+    result: 'TextRun', queued: { content: '', used_tokens: null } }] as const) it(`fences ${family.original} pending stop against queued progress and retains a fixed control pin across claims (MEMORY-ONLY)`, async () => {
     const correlation = { requestSource: 'Acme.Draft.poster', requestRevision: '3', requestBinding: 'Acme.Images',
       requestFrom: 'deployment.images', requestApp: 'Acme', requestOwner: 'team-1' };
-    const resultContext = { source: 'std.ImagesV1.submit', declaredResult: { name: 'ImageRun', fields: DELIVERY_RESULT_LEAVES['ImageRun']! },
+    const resultContext = { source: family.original, declaredResult: { name: family.result, fields: DELIVERY_RESULT_LEAVES[family.result]! },
       request: { source: correlation.requestSource, revision: correlation.requestRevision } };
     const queued = { source: correlation.requestSource, revision: '3', state: 'queued',
-      outputs: [], detail: null, sequence: '0', charged_jobs: null };
+      ...family.queued, detail: null, sequence: '0' };
     for (const stopWins of [true, false]) {
       const { store } = createTestMemoryStorage(); const registry = composedRegistry();
       const originalIntentId = 'original-image', controlIntentId = 'control-image';
       const base = { originOperationId: 'trigger-op', occurrenceIndex: 0, originOccurrence: null,
         guard: null, guardVerdict: null, correlation };
       const stage = await workDispatchStageCommand.stage({ operationId: 'initial-images', intents: [
-        { ...base, intentId: originalIntentId, operation: 'Acme.generate', source: 'std.ImagesV1.submit',
+        { ...base, intentId: originalIntentId, operation: 'Acme.generate', source: family.original,
           request: { binding: correlation.requestBinding, from: correlation.requestFrom,
             arguments: { value: { source: correlation.requestSource, revision: '3' } } } },
-        { ...base, intentId: controlIntentId, operation: 'Acme.stop', source: 'std.ImagesV1.cancel',
+        { ...base, intentId: controlIntentId, operation: 'Acme.stop', source: family.cancel,
           request: { binding: correlation.requestBinding, from: correlation.requestFrom,
             arguments: { source: correlation.requestSource, revision: '3' } } },
       ] }, { ...fakeCtx(seed([])), operation: 'initial-images' });

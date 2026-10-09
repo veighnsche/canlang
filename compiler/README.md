@@ -89,6 +89,11 @@ Implemented modules:
   of being dropped. This bounded surface does not qualify whole-app generation,
   every backend/browser workflow, protected forms or BDD3 returned/live
   payloads.
+- `can compile --native-scenario-receipts` publishes complete supported scalar
+  saved-result plans and evaluated read/return capture for the native State host.
+  Assemble with `@canlang/cloudflare/runtime/stdlib`. Generic compilation keeps
+  its existing callable ABI. Query/absence, authority-dependent output,
+  mutation/composite and uninstrumentable derive closures remain unclaimed.
 - Checked sends retain the exact selected deployment binding alongside their
   canonical operation. Capability input/result metadata derives from owning
   declarations and the standard catalog, with named standard types retained as

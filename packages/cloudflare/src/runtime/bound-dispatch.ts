@@ -5,7 +5,8 @@ import { decodeValue, equalValue, isDeliveryRef } from '@canlang/values';
 import type { SystemCommandContext, SystemStaging } from '@canlang/state';
 import type { SystemCommandDef } from '@canlang/state/ports/system';
 import { dispatchByStateQuery, WORK_DISPATCH_MODEL, readDispatchRow, readDispatchImageCorrelation,
-  DISPATCH_IMAGE_CORRELATION_FIELDS, readDispatchImageControlPin, type DispatchImageCorrelation, type DispatchRowData } from '@canlang/work/kernel/tables';
+  DISPATCH_IMAGE_CORRELATION_FIELDS, readDispatchImageControlPin, dispatchGenerationTargetProfile,
+  type DispatchImageCorrelation, type DispatchRowData } from '@canlang/work/kernel/tables';
 import { deriveOutboxId } from '@canlang/work/intent';
 import { assembleDispatchCommands } from '../worker/assembly.js';
 import type { BoundMailAdapter } from './bound-mail.js';
@@ -46,9 +47,10 @@ export type RetainedImagesDispatchLookup =
  * This read grants no authority: the control consumer must still qualify the
  * current association, principal/cleanup authority and its own owner fence.
  */
-export async function lookupRetainedImagesDispatch(input: {
+async function lookupRetainedGenerationDispatch(input: {
   readonly store: StoragePort;
   readonly correlation: DispatchImageCorrelation;
+  readonly originalSource: 'std.ImagesV1.submit' | 'std.TextGenerationV1.generate';
   /** Once pinned, read only this exact original; ambiguity must never remint it. */
   readonly originalIntentId?: string;
 }): Promise<RetainedImagesDispatchLookup> {
@@ -57,7 +59,7 @@ export async function lookupRetainedImagesDispatch(input: {
   const pinnedRow = input.originalIntentId === undefined ? null : await input.store.load(WORK_DISPATCH_MODEL, input.originalIntentId as RecordId);
   const rows = input.originalIntentId === undefined ? await input.store.query({ model: WORK_DISPATCH_MODEL, authority: 'owner',
     where: { op: 'and', args: [
-      { op: 'eq', field: 'source', value: 'std.ImagesV1.submit' },
+      { op: 'eq', field: 'source', value: input.originalSource },
       ...DISPATCH_IMAGE_CORRELATION_FIELDS.map(field => ({ op: 'eq' as const, field, value: requested[field] })),
     ] }, order: [{ field: 'id', direction: 'asc' }], limit: 2 }) : pinnedRow === null ? [] : [pinnedRow];
   if (rows.length === 0) return { status: 'absent' };
@@ -65,7 +67,7 @@ export async function lookupRetainedImagesDispatch(input: {
   const row = rows[0]!;
   try {
     const dispatch = readDispatchRow(row);
-    if ((input.originalIntentId !== undefined && row.id !== input.originalIntentId) || row.id !== dispatch.intentId || dispatch.source !== 'std.ImagesV1.submit' ||
+    if ((input.originalIntentId !== undefined && row.id !== input.originalIntentId) || row.id !== dispatch.intentId || dispatch.source !== input.originalSource ||
         DISPATCH_IMAGE_CORRELATION_FIELDS.some(field => dispatch[field] !== requested[field]) ||
         row.archivedAt !== null || typeof row.createdBy !== 'string' || row.createdBy === '' ||
         !Number.isSafeInteger(row.created) || row.created < 0) return { status: 'invalid' };
@@ -86,6 +88,23 @@ export async function lookupRetainedImagesDispatch(input: {
         (value as Record<string, unknown>)['revision'] !== requested.requestRevision) return { status: 'invalid' };
     return { status: 'resolved', row, dispatch, retained, principal: row.createdBy };
   } catch { return { status: 'invalid' }; }
+}
+
+/** Compatible Images entry point over the same closed generation lookup. */
+export function lookupRetainedImagesDispatch(input: {
+  readonly store: StoragePort;
+  readonly correlation: DispatchImageCorrelation;
+  readonly originalIntentId?: string;
+}): Promise<RetainedImagesDispatchLookup> {
+  return lookupRetainedGenerationDispatch({ ...input, originalSource: 'std.ImagesV1.submit' });
+}
+
+export function lookupRetainedTextGenerationDispatch(input: {
+  readonly store: StoragePort;
+  readonly correlation: DispatchImageCorrelation;
+  readonly originalIntentId?: string;
+}): Promise<RetainedImagesDispatchLookup> {
+  return lookupRetainedGenerationDispatch({ ...input, originalSource: 'std.TextGenerationV1.generate' });
 }
 
 export interface BoundMailDispatcherOptions {
@@ -114,7 +133,7 @@ export type BoundMailDriveOutcome = DriveDispatchOutcome
 
 export type BoundMailRecoveryOptions = Omit<RecoverySweepOpts,
   'registry' | 'store' | 'joinPort' | 'readEvidence' | 'revalidateReconciledReceipt'> & {
-  /** Images observation and acknowledgement use the actual current host fence. */
+  /** Generation controls and Images observation/acknowledgement use the actual current host fence. */
   readonly admission?: Pick<BoundMailDriveOptions, 'fence' | 'evaluateGuard' | 'readStateSnapshot'>;
 };
 
@@ -143,6 +162,12 @@ type InstalledDispatcherOptions =
   | (BoundImagesDispatcherOptions & { readonly profile: 'images' })
   | (BoundJudgmentDispatcherOptions & { readonly profile: 'judgment' });
 type RichRunWire = TextRunWire | ImageRunWire;
+type TextControlAdapter = BoundTextGenerationAdapter & Required<Pick<BoundTextGenerationAdapter,
+  'controlCorrelation' | 'controlObservation' | 'observeControl'>>;
+function hasTextControlEntries(adapter: BoundTextGenerationAdapter): adapter is TextControlAdapter {
+  return typeof adapter.controlCorrelation === 'function' && typeof adapter.controlObservation === 'function' &&
+    typeof adapter.observeControl === 'function';
+}
 
 /** All installations use the same defining claim, record, recovery and fence. */
 export function createBoundTextGenerationDispatcher(options: BoundTextGenerationDispatcherOptions): Promise<BoundMailDispatcher> {
@@ -182,38 +207,39 @@ function sameRetainedEvidence(expected: DispatchReconcileEvidence,
       });
 }
 
-type ResolvedImagesOriginal = Extract<RetainedImagesDispatchLookup, { status: 'resolved' }>;
-type ImagesControlAdmission = Pick<BoundMailDriveOptions, 'fence' | 'evaluateGuard' | 'readStateSnapshot'>;
-interface ImagesControlObservation {
-  readonly original: ResolvedImagesOriginal;
+type ResolvedGenerationOriginal = Extract<RetainedImagesDispatchLookup, { status: 'resolved' }>;
+type GenerationControlAdmission = Pick<BoundMailDriveOptions, 'fence' | 'evaluateGuard' | 'readStateSnapshot'>;
+interface GenerationControlObservation {
+  readonly original: ResolvedGenerationOriginal;
   readonly correlation: DispatchImageCorrelation;
   readonly receipt: AssociatedReceipt;
-  readonly admission: ImagesControlAdmission;
-  readonly progress?: ImageRunWire;
+  readonly originalContext: ReceiptResultContext;
+  readonly admission: GenerationControlAdmission;
+  readonly progress?: RichRunWire;
   readonly failure?: { readonly code: string; readonly message: string };
   readonly stopPending?: boolean;
 }
-function isImagesControl(intent: OutboxIntent): boolean {
-  return intent.target === 'std.ImagesV1.cancel' || intent.target === 'std.ImagesV1.reconcile';
+function isGenerationControl(intent: OutboxIntent): boolean {
+  return dispatchGenerationTargetProfile(intent.target)?.role === 'control';
 }
 
 /** A control needs a live authoritative locator, not merely an old retained receipt. */
-async function readCurrentImagesAssociation(original: ResolvedImagesOriginal, receipt: AssociatedReceipt,
+async function readCurrentGenerationAssociation(original: ResolvedGenerationOriginal, receipt: AssociatedReceipt,
   ctx: SystemCommandContext): Promise<StoredRow> {
   const rows = await ctx.query({ model: RECEIPT_ASSOCIATION_MODEL as ModelName, authority: 'owner',
     where: { op: 'eq', field: 'deliveryId', value: original.retained.intent.intentId },
     order: [{ field: 'id', direction: 'asc' }], limit: 2 });
-  if (rows.length !== 1) throw new Error('Images control needs one current original association.');
+  if (rows.length !== 1) throw new Error('Generation control needs one current original association.');
   const row = rows[0]!;
   const association = readAssociationRow(row);
   if (row.archivedAt !== null || association.source !== original.retained.intent.target ||
       association.deliveryId !== receipt.deliveryId || association.revision !== receipt.revision ||
-      typeof row.data['recordModel'] !== 'string') throw new Error('Images original association is stale or malformed.');
+      typeof row.data['recordModel'] !== 'string') throw new Error('Generation original association is stale or malformed.');
   const owner = await ctx.load(row.data['recordModel'] as ModelName, association.locator.recordId as RecordId);
-  if (owner === null || owner.archivedAt !== null) throw new Error('Images original association owner is absent.');
+  if (owner === null || owner.archivedAt !== null) throw new Error('Generation original association owner is absent.');
   const value = decodeValue(`delivery(${association.source})`, owner.data[association.locator.field]);
   if (!isDeliveryRef(value) || value.id !== receipt.deliveryId || value.operation !== association.source) {
-    throw new Error('Images original association no longer names this attempt.');
+    throw new Error('Generation original association no longer names this attempt.');
   }
   return row;
 }
@@ -222,6 +248,8 @@ async function createInstalledDispatcher(
   options: InstalledDispatcherOptions,
 ): Promise<BoundMailDispatcher> {
   const rich = options.profile === 'text' || options.profile === 'images';
+  const textControls = options.profile === 'text' && hasTextControlEntries(options.adapter) ? options.adapter : null;
+  const controlAdapter = options.profile === 'images' ? options.adapter : textControls;
   const typed = options.profile !== 'mail';
   const progressed = options.profile === 'text' || options.profile === 'images' ? options.progressed : undefined;
   const readRetainedReceipt = options.profile === 'images'
@@ -240,9 +268,25 @@ async function createInstalledDispatcher(
   const producers = await loadDispatchSystemProducers();
   const pending = new Map<string, OutboxIntent>();
   const resultContexts = new Map<string, ReceiptResultContext>();
+  const controlContextUses = new Map<string, number>();
+  const retainControlContext = (observed: GenerationControlObservation): string => {
+    const id = observed.original.retained.intent.intentId;
+    resultContexts.set(id, observed.originalContext);
+    controlContextUses.set(id, (controlContextUses.get(id) ?? 0) + 1);
+    return id;
+  };
+  const releaseControlContext = (id: string): void => {
+    const uses = controlContextUses.get(id) ?? 0;
+    if (uses > 1) controlContextUses.set(id, uses - 1);
+    else {
+      controlContextUses.delete(id);
+      if (!pending.has(id)) resultContexts.delete(id);
+    }
+  };
   const claim = options.createClaimCommand((id, target) => {
     const intent = pending.get(id);
-    return intent !== undefined && intent.target === target && options.adapter.available(intent);
+    return intent !== undefined && intent.target === target && options.adapter.available(intent) &&
+      (!isGenerationControl(intent) || controlAdapter !== null);
   });
   if (claim.name !== 'work.dispatch.claim' ||
       options.workCommands.filter(command => command.name === claim.name).length !== 1) {
@@ -257,7 +301,7 @@ async function createInstalledDispatcher(
   // lifecycle admission; this wrapper adds only the receipt writes after it.
   const completions = new Map<string, { intent: OutboxIntent; outcome: DispatchProviderOutcome;
     owner: string;
-    progressCommitted?: boolean; retainedEvidence?: DispatchReconcileEvidence; control?: ImagesControlObservation }>();
+    progressCommitted?: boolean; retainedEvidence?: DispatchReconcileEvidence; control?: GenerationControlObservation }>();
   const record: SystemCommandDef = {
     name: originalRecord.name,
     async stage(args, ctx) {
@@ -266,7 +310,7 @@ async function createInstalledDispatcher(
       const outcome = args['outcome'];
       if (completion === undefined || typeof outcome !== 'object' || outcome === null) return staged;
       if (completion.control !== undefined) {
-        const extra = await stageImagesControl(completion.intent, completion.control, ctx, (await options.store.readRevision()) + 1);
+        const extra = await stageGenerationControl(completion.intent, completion.control, ctx, (await options.store.readRevision()) + 1);
         return mergeStaging(staged, extra);
       }
       if (!staged.outboxAck?.includes(completion.intent.intentId)) return staged;
@@ -324,23 +368,23 @@ async function createInstalledDispatcher(
     },
   };
   const progressOwners = new Map<string, string>();
-  const pinAdmissions = new Map<string, { intent: OutboxIntent; admission: ImagesControlAdmission }>();
+  const pinAdmissions = new Map<string, { intent: OutboxIntent; admission: GenerationControlAdmission }>();
   const pinOriginal = options.workCommands.find(command => command.name === 'work.dispatch.pin-image-control') as SystemCommandDef | undefined;
   const stopOriginal = options.workCommands.find(command => command.name === 'work.dispatch.stop-pending') as SystemCommandDef | undefined;
-  if (options.profile === 'images' && (typeof pinOriginal?.stage !== 'function' || typeof stopOriginal?.stage !== 'function')) {
-    throw new Error('Images controls need the defining Work pin and pending-stop stages.');
+  if (controlAdapter !== null && (typeof pinOriginal?.stage !== 'function' || typeof stopOriginal?.stage !== 'function')) {
+    throw new Error('Generation controls need the defining Work pin and pending-stop stages.');
   }
   const pinCommand: SystemCommandDef = { name: 'work.dispatch.pin-image-control', async stage(args, ctx) {
     const admitted = pinAdmissions.get(`${String(args['intentId'])}\0${String(args['claimId'])}`);
-    if (admitted === undefined) throw new Error('Images control pin lost its current cleanup admission.');
-    await qualifyImagesControl(admitted.intent, admitted.admission, ctx, String(args['originalIntentId']));
+    if (admitted === undefined) throw new Error('Generation control pin lost its current cleanup admission.');
+    await qualifyGenerationControl(admitted.intent, admitted.admission, ctx, String(args['originalIntentId']));
     return pinOriginal!.stage(args, ctx);
   } };
   const registry = producers.createSystemRegistry(assembleDispatchCommands({
     l3Commands: producers.l3Commands,
     workCommands: [...options.workCommands.map(command => command.name === claim.name ? claim
       : command.name === record.name ? record
-      : options.profile === 'images' && command.name === pinCommand.name ? pinCommand : command), ...(!rich ? [] : [progressCommand])],
+      : controlAdapter !== null && command.name === pinCommand.name ? pinCommand : command), ...(!rich ? [] : [progressCommand])],
     stageCommands: options.stageCommands,
   }));
   const receiptStore = withDispatchJoinPort(options.store, createReceiptJoinPort({ store: options.store,
@@ -360,27 +404,28 @@ async function createInstalledDispatcher(
       if (!pending.has(intent.intentId) && options.profile === 'text') options.adapter.releaseAcknowledged(intent);
     }
     for (const id of resultContexts.keys()) {
-      if (!pending.has(id)) resultContexts.delete(id);
+      if (!pending.has(id) && !controlContextUses.has(id)) resultContexts.delete(id);
     }
   };
   const mergeStaging = (before: SystemStaging, after: SystemStaging): SystemStaging => ({ ...before,
     writes: [...before.writes ?? [], ...after.writes ?? []],
     schedules: [...before.schedules ?? [], ...after.schedules ?? []],
     outboxAck: [...new Set([...before.outboxAck ?? [], ...after.outboxAck ?? []])] });
-  const qualifyImagesControl = async (control: OutboxIntent, admission: ImagesControlAdmission,
-    ctx: SystemCommandContext, pinnedOriginal?: string): Promise<ImagesControlObservation> => {
-    if (options.profile !== 'images' || !isImagesControl(control) || admission.fence.owner === '') {
-      throw new Error('Images control needs its actual cleanup owner fence.');
+  const qualifyGenerationControl = async (control: OutboxIntent, admission: GenerationControlAdmission,
+    ctx: SystemCommandContext, pinnedOriginal?: string): Promise<GenerationControlObservation> => {
+    const profile = dispatchGenerationTargetProfile(control.target);
+    if (controlAdapter === null || profile?.role !== 'control' || profile.family !== options.profile || admission.fence.owner === '') {
+      throw new Error('Generation control needs its actual cleanup owner fence.');
     }
     const revision = await store.readRevision();
     const guard = control.dispatchGuard ?? null;
     if (guard !== null && admission.evaluateGuard(guard, control.arguments,
-        await admission.readStateSnapshot(control)) !== true) throw new Error('Images cleanup guard no longer holds.');
-    if (await admission.fence.revalidateAuthority() !== true) throw new Error('Images cleanup authority was revoked.');
-    const correlation = options.adapter.controlCorrelation(control, admission.fence.owner);
+        await admission.readStateSnapshot(control)) !== true) throw new Error('Generation cleanup guard no longer holds.');
+    if (await admission.fence.revalidateAuthority() !== true) throw new Error('Generation cleanup authority was revoked.');
+    const correlation = controlAdapter.controlCorrelation(control, admission.fence.owner);
     const controlRow = await ctx.load(WORK_DISPATCH_MODEL, control.intentId as RecordId);
     if (correlation === null || controlRow === null || controlRow.archivedAt !== null) {
-      throw new Error('Images control lost its checked durable correlation.');
+      throw new Error('Generation control lost its checked durable correlation.');
     }
     const controlData = readDispatchRow(controlRow);
     if (controlData.intentId !== control.intentId || controlData.source !== control.target ||
@@ -389,53 +434,59 @@ async function createInstalledDispatcher(
         typeof controlRow.createdBy !== 'string' || controlRow.createdBy === '' ||
         !Number.isSafeInteger(controlRow.created) || controlRow.created < 0 ||
         DISPATCH_IMAGE_CORRELATION_FIELDS.some(field => controlData[field] !== correlation[field])) {
-      throw new Error('Images control durable correlation disagrees with its admitted request.');
+      throw new Error('Generation control durable correlation disagrees with its admitted request.');
     }
     const pin = readDispatchImageControlPin(controlData);
-    if (pin !== null && pin.observationStartedAtMs !== controlRow.created) throw new Error('Images control pin lost its original creation time.');
+    if (pin !== null && pin.observationStartedAtMs !== controlRow.created) throw new Error('Generation control pin lost its original creation time.');
     if (pinnedOriginal !== undefined && pin !== null && pin.originalIntentId !== pinnedOriginal) {
-      throw new Error('Images control original pin changed.');
+      throw new Error('Generation control original pin changed.');
     }
-    const original = await lookupRetainedImagesDispatch({ store, correlation,
+    const original = await lookupRetainedGenerationDispatch({ store, correlation, originalSource: profile.originalSource,
       ...(pin === null ? {} : { originalIntentId: pin.originalIntentId }) });
-    if (original.status !== 'resolved' || !options.adapter.available(original.retained.intent)) {
-      throw new Error(`Images control original is ${original.status}.`);
+    if (original.status !== 'resolved' || !controlAdapter.available(original.retained.intent)) {
+      throw new Error(`Generation control original is ${original.status}.`);
     }
     if (pinnedOriginal !== undefined && original.retained.intent.intentId !== pinnedOriginal) {
-      throw new Error('Images control selected original changed before pinning.');
+      throw new Error('Generation control selected original changed before pinning.');
     }
-    const context = options.adapter.resultContext(original.retained.intent);
-    if (context === null) throw new Error('Images control lost the original request declaration.');
+    const context = controlAdapter.resultContext(original.retained.intent);
+    if (context === null) throw new Error('Generation control lost the original request declaration.');
     resultContexts.set(original.retained.intent.intentId, context);
-    const receipt = await readRetainedImageGenerationReceipt({ intent: original.retained.intent, context }, ctx);
-    if (receipt === null) throw new Error('Images control original receipt is absent.');
-    await readCurrentImagesAssociation(original, receipt, ctx);
-    if (await admission.fence.revalidateAuthority() !== true) throw new Error('Images cleanup authority was revoked.');
-    if (await store.readRevision() !== revision) throw new Error('Images cleanup admission changed.');
-    return { original, correlation, receipt, admission };
+    const receipt = await readRetainedReceipt({ intent: original.retained.intent, context }, ctx);
+    if (receipt === null) throw new Error('Generation control original receipt is absent.');
+    await readCurrentGenerationAssociation(original, receipt, ctx);
+    if (await admission.fence.revalidateAuthority() !== true) throw new Error('Generation cleanup authority was revoked.');
+    if (await store.readRevision() !== revision) throw new Error('Generation cleanup admission changed.');
+    return { original, correlation, receipt, admission, originalContext: context };
   };
-  const sameImageReceipt = (before: AssociatedReceipt, after: AssociatedReceipt, context: ReceiptResultContext) =>
+  const sameGenerationReceipt = (before: AssociatedReceipt, after: AssociatedReceipt, context: ReceiptResultContext) =>
     before.revision === after.revision && before.status === after.status &&
     before.error?.code === after.error?.code && before.error?.message === after.error?.message &&
     (before.result === null ? after.result === null : after.result !== null &&
-      sameRetainedEvidence({ kind: 'delivered', result: before.result }, { kind: 'delivered', result: after.result }, context, 'images'));
-  const stageImagesControl = async (control: OutboxIntent, observed: ImagesControlObservation,
+      sameRetainedEvidence({ kind: 'delivered', result: before.result }, { kind: 'delivered', result: after.result }, context,
+        options.profile === 'images' ? 'images' : 'text'));
+  const stoppedProgress = (correlation: DispatchImageCorrelation): RichRunWire => ({
+    source: correlation.requestSource, revision: correlation.requestRevision,
+    sequence: '0', state: 'cancelled', detail: 'Stopped before provider transport.',
+    ...(options.profile === 'images' ? { outputs: [], charged_jobs: null } : { content: '', used_tokens: null }),
+  } as RichRunWire);
+  const stageGenerationControl = async (control: OutboxIntent, observed: GenerationControlObservation,
     ctx: SystemCommandContext, revision: number): Promise<SystemStaging> => {
-    const current = await qualifyImagesControl(control, observed.admission, ctx, observed.original.retained.intent.intentId);
+    const current = await qualifyGenerationControl(control, observed.admission, ctx, observed.original.retained.intent.intentId);
     const original = current.original.retained.intent;
-    const originalContext = requireResultContext(original.intentId);
-    if (!sameImageReceipt(observed.receipt, current.receipt, originalContext)) {
-      throw new Error('Original Images receipt changed before the control join.');
+    const originalContext = current.originalContext;
+    if (!sameGenerationReceipt(observed.receipt, current.receipt, originalContext)) {
+      throw new Error('Original generation receipt changed before the control join.');
     }
     let staged: SystemStaging = {};
     let progress = observed.progress;
     if (observed.stopPending === true) {
       const stopped = await stopOriginal!.stage({ intentId: original.intentId, correlation: observed.correlation, revision }, ctx);
       const answer = stopped.result as { stopped?: boolean; reason?: string };
-      if (answer.stopped !== true && answer.reason !== 'already-stopped') throw new Error('Original Images attempt crossed the pending-stop boundary.');
+      if (answer.stopped !== true && answer.reason !== 'already-stopped') throw new Error('Original generation attempt crossed the pending-stop boundary.');
       staged = stopped;
       if (answer.stopped === true) {
-        const row = await readCurrentImagesAssociation(current.original, current.receipt, ctx);
+        const row = await readCurrentGenerationAssociation(current.original, current.receipt, ctx);
         const association = readAssociationRow(row);
         staged = mergeStaging(staged, { writes: [{ kind: 'update', model: RECEIPT_ASSOCIATION_MODEL as ModelName,
           id: row.id, expectedVersion: row.version, row: withAssociationRowData(row, {
@@ -445,42 +496,64 @@ async function createInstalledDispatcher(
         if (progressed !== undefined) staged = mergeStaging(staged,
           await stageCheckedDeliveryProgress(progressed, original, observed.admission.fence.owner, ctx));
       }
-      progress = { source: observed.correlation.requestSource, revision: observed.correlation.requestRevision,
-        sequence: '0', state: 'cancelled', outputs: [], charged_jobs: null, detail: 'Stopped before provider transport.' };
-    } else if (progress !== undefined && !['succeeded', 'failed', 'skipped'].includes(current.receipt.status)) {
-      staged = mergeStaging(staged, await stageImageGenerationProgress({ intent: original, context: originalContext,
+      progress = stoppedProgress(observed.correlation);
+    } else if (progress !== undefined && !['succeeded', 'failed', 'skipped'].includes(current.receipt.status) &&
+        (current.receipt.result === null || !sameRetainedEvidence({ kind: 'delivered', result: current.receipt.result },
+          { kind: 'delivered', result: progress }, originalContext, options.profile === 'images' ? 'images' : 'text'))) {
+      staged = mergeStaging(staged, await stageRichProgress({ intent: original, context: originalContext,
         revision, progress, ...(progressed === undefined ? {} : { progressed: { producer: progressed, owner: observed.admission.fence.owner } }) }, ctx));
     }
-    if (progress !== undefined) staged = mergeStaging(staged, await stageImageGenerationProgress({ intent: control,
+    if (progress !== undefined) staged = mergeStaging(staged, await stageRichProgress({ intent: control,
       context: requireResultContext(control.intentId), revision, progress }, ctx));
-    else if (observed.failure !== undefined) staged = mergeStaging(staged, await stageImageGenerationProgress({ intent: control,
+    else if (observed.failure !== undefined) staged = mergeStaging(staged, await stageRichProgress({ intent: control,
       context: requireResultContext(control.intentId), revision, outcome: { kind: 'failed', error: observed.failure } }, ctx));
     return staged;
   };
-  const observeImagesControl = async (control: OutboxIntent, admission: ImagesControlAdmission,
-    ctx: SystemCommandContext, recovering: boolean): Promise<{ observation: ImagesControlObservation; answer: DispatchProviderOutcome }> => {
-    const observed = await qualifyImagesControl(control, admission, ctx);
+  const observeGenerationControl = async (control: OutboxIntent, admission: GenerationControlAdmission,
+    ctx: SystemCommandContext, recovering: boolean, nowMs: () => number): Promise<{ observation: GenerationControlObservation; answer: DispatchProviderOutcome }> => {
+    const observed = await qualifyGenerationControl(control, admission, ctx);
     const original = observed.original.retained.intent;
-    const definitive = await readRetainedImageGenerationEvidence({ intent: original, context: requireResultContext(original.intentId) }, ctx);
-    if (definitive?.kind === 'delivered') return { observation: { ...observed, progress: definitive.result as ImageRunWire }, answer: definitive };
+    const definitive = await readRetainedEvidence({ intent: original, context: observed.originalContext }, ctx);
+    if (definitive?.kind === 'delivered') return { observation: { ...observed, progress: definitive.result as RichRunWire }, answer: definitive };
     if (definitive?.kind === 'failed') return { observation: { ...observed, failure: { code: definitive.code, message: definitive.message } },
       answer: { kind: 'failed', cause: { kind: 'permanent', code: definitive.code, message: definitive.message } } };
     if (observed.receipt.status === 'skipped' && observed.receipt.result === null ||
-        control.target === 'std.ImagesV1.cancel' && observed.receipt.status === 'pending' && observed.receipt.result === null) {
-      const progress: ImageRunWire = { source: observed.correlation.requestSource, revision: observed.correlation.requestRevision,
-        sequence: '0', state: 'cancelled', outputs: [], charged_jobs: null, detail: 'Stopped before provider transport.' };
+        control.target.endsWith('.cancel') && observed.receipt.status === 'pending' && observed.receipt.result === null) {
+      const progress = stoppedProgress(observed.correlation);
       return { observation: { ...observed, stopPending: true, progress }, answer: { kind: 'delivered', result: progress } };
     }
     const row = await ctx.load(WORK_DISPATCH_MODEL, control.intentId as RecordId);
-    if (row === null) throw new Error('Images control lost its retained observation pin.');
+    if (row === null) throw new Error('Generation control lost its retained observation pin.');
     const pin = readDispatchImageControlPin(readDispatchRow(row));
-    if (pin === null || pin.originalIntentId !== original.intentId) throw new Error('Images control observation needs its immutable original pin.');
-    let progress: ImageRunWire | undefined;
-    const answer = await (options as BoundImagesDispatcherOptions).adapter.observeControl(control, original, {
-      stagedAtMs: observed.original.row.created,
-      observation: { startedAtMs: pin.observationStartedAtMs, deadlineMs: pin.observationDeadlineMs }, recovering,
+    if (pin === null || pin.originalIntentId !== original.intentId) throw new Error('Generation control observation needs its immutable original pin.');
+    let progress: RichRunWire | undefined;
+    const common = { observation: { startedAtMs: pin.observationStartedAtMs, deadlineMs: pin.observationDeadlineMs }, recovering,
       originalScope: { app: observed.correlation.requestApp, owner: observed.correlation.requestOwner,
-        principal: observed.original.principal },
+        principal: observed.original.principal } };
+    if (options.profile === 'text') {
+      if (textControls === null) throw new Error('Text controls need their positively installed adapter entries.');
+      const answer = await textControls.observeControl(control, original, { ...common,
+        nowMs,
+        retainedProgress: observed.receipt.result as unknown as TextRunWire | null,
+        onProgress: async (value: TextRunWire) => { progress = value; } });
+      // The live Text adapter resolves only after its original progress commits.
+      // Requalify that current association and preserve its actual terminal
+      // evidence instead of writing the same sequence a second time.
+      const current = await qualifyGenerationControl(control, admission, ctx, original.intentId);
+      const terminal = await readRetainedEvidence({ intent: original, context: current.originalContext }, ctx);
+      if (terminal?.kind === 'delivered') return {
+        observation: { ...current, progress: terminal.result as unknown as TextRunWire }, answer: terminal };
+      if (terminal?.kind === 'failed') return {
+        observation: { ...current, failure: { code: terminal.code, message: terminal.message } },
+        answer: { kind: 'failed', cause: { kind: 'permanent', code: terminal.code, message: terminal.message } } };
+      if (!sameGenerationReceipt(observed.receipt, current.receipt, current.originalContext)) {
+        return { observation: current, answer: { kind: 'uncertain' } };
+      }
+      return { observation: { ...current, ...(progress === undefined ? {} : { progress }) }, answer };
+    }
+    const answer = await (options as BoundImagesDispatcherOptions).adapter.observeControl(control, original, {
+      ...common,
+      stagedAtMs: observed.original.row.created,
       ...(observed.receipt.result === null ? {} : { sequence: (observed.receipt.result as unknown as ImageRunWire).sequence }),
       onQueued: async () => { throw new Error('Images control cannot submit a replacement.'); },
       onProgress: async value => { progress = value; },
@@ -507,6 +580,7 @@ async function createInstalledDispatcher(
         }
       }
       const heldKeys: string[] = [];
+      const originalContexts: string[] = [];
       try {
         const outcome = await driveDispatchIntent({ ...input, registry, store, intent,
           callProvider: async (selected, held) => {
@@ -520,20 +594,22 @@ async function createInstalledDispatcher(
             const context = !rich ? null : requireResultContext(selected.intentId);
             const scope = { actor: input.actor, now: input.nowMs(), operation: input.operation,
               load: store.load.bind(store), query: store.query.bind(store) };
-            if (options.profile === 'images' && isImagesControl(selected)) {
+            if (controlAdapter !== null && isGenerationControl(selected)) {
               const admission = { fence: input.fence, evaluateGuard: input.evaluateGuard, readStateSnapshot: input.readStateSnapshot };
-              const original = await qualifyImagesControl(selected, admission, scope);
+              const original = await qualifyGenerationControl(selected, admission, scope);
+              originalContexts.push(retainControlContext(original));
               const row = await store.load(WORK_DISPATCH_MODEL, selected.intentId as RecordId);
-              if (row === null) throw new Error('Images control lost its held dispatch.');
+              if (row === null) throw new Error('Generation control lost its held dispatch.');
               const saved = readDispatchImageControlPin(readDispatchRow(row));
-              const observation = saved === null ? options.adapter.controlObservation(selected, row.created)
+              const observation = saved === null ? controlAdapter.controlObservation(selected, row.created)
                 : { startedAtMs: saved.observationStartedAtMs, deadlineMs: saved.observationDeadlineMs };
-              if (observation === null || observation === undefined) throw new Error('Images control observation policy is unavailable.');
+              if (observation === null || observation === undefined) throw new Error('Generation control observation policy is unavailable.');
               pinAdmissions.set(heldKey, { intent: selected, admission });
               await registry.run(pinCommand.name, { intentId: selected.intentId, claimId: held.claimId,
                 originalIntentId: original.original.retained.intent.intentId, correlation: original.correlation, observation },
-                { actor: input.actor, now: input.nowMs(), operation: input.operation, operationId: `${held.claimId}:image-control-pin` }, { store });
-              const controlled = await observeImagesControl(selected, admission, scope, saved !== null);
+                { actor: input.actor, now: input.nowMs(), operation: input.operation,
+                  operationId: `${held.claimId}:${options.profile === 'images' ? 'image' : 'text'}-control-pin` }, { store });
+              const controlled = await observeGenerationControl(selected, admission, scope, saved !== null, () => input.nowMs());
               completions.set(heldKey, { intent: selected, outcome: controlled.answer, owner: input.fence.owner, control: controlled.observation });
               return controlled.answer;
             }
@@ -586,37 +662,38 @@ async function createInstalledDispatcher(
           : outcome;
       } finally {
         for (const key of heldKeys) { completions.delete(key); progressOwners.delete(key); pinAdmissions.delete(key); }
+        for (const id of originalContexts) releaseControlContext(id);
       }
     },
     async recover(input) {
       if (!Number.isInteger(input.limit) || input.limit < 1) {
         throw new Error('Installed mail recovery needs a positive integer scan limit.');
       }
-      const admitImagesRecovery = async (intent: OutboxIntent, expectedRevision?: number) => {
+      const admitGenerationRecovery = async (intent: OutboxIntent, expectedRevision?: number) => {
         const admitted = input.admission;
         if (admitted === undefined || admitted.fence.owner === '' ||
             typeof admitted.fence.revalidateAuthority !== 'function' ||
             typeof admitted.evaluateGuard !== 'function' || typeof admitted.readStateSnapshot !== 'function') {
-          throw new Error('Images recovery requires its actual current host owner admission.');
+          throw new Error('Generation recovery requires its actual current host owner admission.');
         }
         const producer = await loadFenceAdmissionProducer();
         const checkpoint = (await producer.openTransitiveScope(store, admitted.fence.owner)).snapshot();
         const trigger = admitted.fence.triggerRevision;
         if (trigger !== undefined && (!Number.isSafeInteger(trigger.revision) || trigger.revision < 0 ||
             checkpoint.revision === trigger.revision)) {
-          throw new Error('Images recovery cannot inherit its triggering checkpoint.');
+          throw new Error('Generation recovery cannot inherit its triggering checkpoint.');
         }
         const guard = intent.dispatchGuard ?? null;
         const snapshot = guard === null ? null : await admitted.readStateSnapshot(intent);
         if (guard !== null && admitted.evaluateGuard(guard, intent.arguments, snapshot) !== true) {
-          throw new Error('Images recovery original dispatch guard no longer holds.');
+          throw new Error('Generation recovery dispatch guard no longer holds.');
         }
         if (await admitted.fence.revalidateAuthority() !== true) {
-          throw new Error('Images recovery current authority was revoked.');
+          throw new Error('Generation recovery current authority was revoked.');
         }
         if (await store.readRevision() !== checkpoint.revision ||
             (expectedRevision !== undefined && checkpoint.revision !== expectedRevision)) {
-          throw new Error('Images recovery admission revision changed.');
+          throw new Error('Generation recovery admission revision changed.');
         }
         return checkpoint;
       };
@@ -626,152 +703,177 @@ async function createInstalledDispatcher(
       const evidence = new Map<string, DispatchReconcileEvidence>();
       const retainedEvidence = new Set<string>();
       const imageObservations = new Map<string, { receipt: AssociatedReceipt; progress: ImageRunWire }>();
-      const controlObservations = new Map<string, ImagesControlObservation>();
+      const controlObservations = new Map<string, GenerationControlObservation>();
+      const observedControlOriginals = new Set<string>();
       const retainedContext = { actor: input.actor, now: input.nowMs(), operation: input.operation,
         load: store.load.bind(store), query: store.query.bind(store) };
-      // The existing recovery planner selects its bounded page by intent ID.
-      // Fetch that same page, rather than D1's default creation-time order.
-      const rows = await store.query({ ...dispatchByStateQuery('uncertain'),
-        order: [{ field: 'id', direction: 'asc' }], limit: input.limit });
-      // One bounded page must not observe and then overwrite the same original
-      // twice. Its pinned cleanup delivery owns this sweep's observation join.
-      const controlledOriginals = new Set(rows.flatMap(row => {
-        const data = readDispatchRow(row);
-        const intent = pending.get(data.intentId);
-        const pin = intent !== undefined && isImagesControl(intent) ? readDispatchImageControlPin(data) : null;
-        return pin === null ? [] : [pin.originalIntentId];
-      }));
-      for (const row of rows) {
-        const dispatch = readDispatchExecutionRow(row);
-        if (dispatch.state !== 'uncertain') continue;
-        const intent = pending.get(dispatch.intentId);
-        if (intent === undefined || !options.adapter.available(intent)) continue;
-        if (options.profile === 'images' && controlledOriginals.has(intent.intentId)) continue;
-        if (options.profile === 'images') await admitImagesRecovery(intent);
-        if (options.profile === 'images' && isImagesControl(intent)) {
-          const admission = input.admission!;
-          const checked = await qualifyImagesControl(intent, admission, retainedContext);
-          const pin = readDispatchImageControlPin(readDispatchRow(row));
-          if (pin === null || pin.originalIntentId !== checked.original.retained.intent.intentId) continue;
-          const definitive = await readRetainedImageGenerationEvidence({ intent, context: requireResultContext(intent.intentId) }, retainedContext);
-          if (definitive !== null) {
-            retainedEvidence.add(intent.intentId); evidence.set(intent.intentId, definitive);
-          } else {
-            const controlled = await observeImagesControl(intent, admission, retainedContext, true);
-            if (controlled.answer.kind === 'delivered') {
-              controlObservations.set(intent.intentId, controlled.observation);
-              evidence.set(intent.intentId, { kind: 'delivered', result: controlled.answer.result });
-            } else if (controlled.observation.failure !== undefined) {
-              controlObservations.set(intent.intentId, controlled.observation);
-              evidence.set(intent.intentId, { kind: 'failed', ...controlled.observation.failure });
-            }
-          }
-          continue;
-        }
-        const retained = !rich ? null
-          : await readRetainedEvidence({ intent,
-            context: requireResultContext(intent.intentId) }, retainedContext);
-        let answer = retained;
-        if (answer === null) {
-          if (options.profile !== 'images') answer = await options.adapter.reconcile(intent);
-          else {
-            const receipt = await readRetainedReceipt({ intent,
-              context: requireResultContext(intent.intentId) }, retainedContext);
-            if (receipt === null) throw new Error('Images recovery lost its original durable receipt.');
-            const sequence = receipt.result === null ? undefined
-              : (receipt.result as unknown as ImageRunWire).sequence;
-            let observed: ImageRunWire | undefined;
-            answer = await options.adapter.reconcile(intent, {
-              stagedAtMs: row.created, ...(sequence === undefined ? {} : { sequence }),
-              onQueued: async () => { throw new Error('Images recovery cannot submit a new job.'); },
-              // Reconciliation only observes the original installed job. Its
-              // confirmed terminal evidence is staged in the existing recovery
-              // batch below; nonterminal observations never authorize ack.
-              onProgress: async progress => { observed = progress; },
-            });
-            if (answer?.kind === 'delivered') {
-              const checkedContext = requireResultContext(intent.intentId);
-              if (observed === undefined || !['succeeded', 'failed', 'cancelled'].includes(observed.state) ||
-                  !sameRetainedEvidence(answer, { kind: 'delivered', result: observed }, checkedContext, 'images')) {
-                throw new Error('Images recovery needs its actual confirmed terminal observation.');
+      const originalContexts: string[] = [];
+      try {
+        // The existing recovery planner selects its bounded page by intent ID.
+        // Fetch that same page, rather than D1's default creation-time order.
+        const rows = await store.query({ ...dispatchByStateQuery('uncertain'),
+          order: [{ field: 'id', direction: 'asc' }], limit: input.limit });
+        // One bounded page must not observe and then overwrite the same original
+        // twice. Its pinned cleanup delivery owns this sweep's observation join.
+        const controlledOriginals = new Set(rows.flatMap(row => {
+          const data = readDispatchRow(row);
+          const intent = pending.get(data.intentId);
+          const profile = intent === undefined ? null : dispatchGenerationTargetProfile(intent.target);
+          const pin = intent !== undefined && profile?.role === 'control' && profile.family === options.profile &&
+          controlAdapter !== null && options.adapter.available(intent) ? readDispatchImageControlPin(data) : null;
+          return pin === null ? [] : [pin.originalIntentId];
+        }));
+        for (const row of rows) {
+          const dispatch = readDispatchExecutionRow(row);
+          if (dispatch.state !== 'uncertain') continue;
+          const intent = pending.get(dispatch.intentId);
+          if (intent === undefined || !options.adapter.available(intent)) continue;
+          if (isGenerationControl(intent) && controlAdapter === null) continue;
+          if (rich && controlledOriginals.has(intent.intentId) &&
+              await readRetainedEvidence({ intent, context: requireResultContext(intent.intentId) }, retainedContext) === null) continue;
+          if (options.profile === 'images' || rich && isGenerationControl(intent)) await admitGenerationRecovery(intent);
+          if (controlAdapter !== null && isGenerationControl(intent)) {
+            const admission = input.admission!;
+            const checked = await qualifyGenerationControl(intent, admission, retainedContext);
+            originalContexts.push(retainControlContext(checked));
+            const pin = readDispatchImageControlPin(readDispatchRow(row));
+            if (pin === null || pin.originalIntentId !== checked.original.retained.intent.intentId) continue;
+            const definitive = await readRetainedEvidence({ intent, context: requireResultContext(intent.intentId) }, retainedContext);
+            if (definitive !== null) {
+              retainedEvidence.add(intent.intentId); evidence.set(intent.intentId, definitive);
+            } else {
+              const originalId = checked.original.retained.intent.intentId;
+              const originalDefinitive = await readRetainedEvidence({ intent: checked.original.retained.intent,
+                context: checked.originalContext }, retainedContext);
+              const retainedStop = checked.receipt.status === 'skipped' && checked.receipt.result === null;
+              // Recovery observes its page before committing each outcome. Two
+              // fresh observations of one original would share an old receipt
+              // checkpoint; the first join would invalidate the second. Retained
+              // terminal/stop evidence needs no new original write or transport.
+              if (originalDefinitive === null && !retainedStop) {
+                if (observedControlOriginals.has(originalId)) continue;
+                observedControlOriginals.add(originalId);
               }
-              imageObservations.set(intent.intentId, { receipt, progress: observed });
+              const controlled = await observeGenerationControl(intent, admission, retainedContext, true, () => input.nowMs());
+              if (controlled.answer.kind === 'delivered') {
+                controlObservations.set(intent.intentId, controlled.observation);
+                evidence.set(intent.intentId, { kind: 'delivered', result: controlled.answer.result });
+              } else if (controlled.observation.failure !== undefined) {
+                controlObservations.set(intent.intentId, controlled.observation);
+                evidence.set(intent.intentId, { kind: 'failed', ...controlled.observation.failure });
+              }
+            }
+            continue;
+          }
+          const retained = !rich ? null
+            : await readRetainedEvidence({ intent,
+              context: requireResultContext(intent.intentId) }, retainedContext);
+          let answer = retained;
+          if (answer === null) {
+            if (options.profile !== 'images') answer = await options.adapter.reconcile(intent);
+            else {
+              const receipt = await readRetainedReceipt({ intent,
+                context: requireResultContext(intent.intentId) }, retainedContext);
+              if (receipt === null) throw new Error('Images recovery lost its original durable receipt.');
+              const sequence = receipt.result === null ? undefined
+                : (receipt.result as unknown as ImageRunWire).sequence;
+              let observed: ImageRunWire | undefined;
+              answer = await options.adapter.reconcile(intent, {
+                stagedAtMs: row.created, ...(sequence === undefined ? {} : { sequence }),
+                onQueued: async () => { throw new Error('Images recovery cannot submit a new job.'); },
+                // Reconciliation only observes the original installed job. Its
+                // confirmed terminal evidence is staged in the existing recovery
+                // batch below; nonterminal observations never authorize ack.
+                onProgress: async progress => { observed = progress; },
+              });
+              if (answer?.kind === 'delivered') {
+                const checkedContext = requireResultContext(intent.intentId);
+                if (observed === undefined || !['succeeded', 'failed', 'cancelled'].includes(observed.state) ||
+                    !sameRetainedEvidence(answer, { kind: 'delivered', result: observed }, checkedContext, 'images')) {
+                  throw new Error('Images recovery needs its actual confirmed terminal observation.');
+                }
+                imageObservations.set(intent.intentId, { receipt, progress: observed });
+              }
             }
           }
+          if (retained !== null) retainedEvidence.add(intent.intentId);
+          if (answer !== null) evidence.set(intent.intentId, answer);
         }
-        if (retained !== null) retainedEvidence.add(intent.intentId);
-        if (answer !== null) evidence.set(intent.intentId, answer);
+        const outcome = await runRecoverySweep({ ...input, registry, store, joinPort,
+          readEvidence: id => evidence.get(id) ?? null,
+          ...(!rich ? {} : { revalidateReconciledReceipt: async (
+            { intentId, revision }: { readonly intentId: string; readonly revision: number },
+          ) => {
+            const intent = pending.get(intentId);
+            if (options.profile === 'text' && intent !== undefined && !isGenerationControl(intent)) return;
+            if (intent === undefined || !options.adapter.available(intent)) {
+              throw new Error('Generation recovery acknowledgement lost its original pending intent.');
+            }
+            await admitGenerationRecovery(intent, revision);
+            if (isGenerationControl(intent)) {
+              await qualifyGenerationControl(intent, input.admission!, retainedContext);
+            }
+          } }),
+          stageReconciledReceipt: async ({ intentId, evidence: answer, revision, context }) => {
+            const intent = pending.get(intentId);
+            if (intent === undefined || !options.adapter.available(intent)) {
+              throw new Error('Reconciled mail lost its installed original intent.');
+            }
+            const admitted = options.profile === 'images' || rich && isGenerationControl(intent)
+              ? await admitGenerationRecovery(intent, revision - 1) : undefined;
+            const control = controlObservations.get(intentId);
+            if (control !== undefined) return stageGenerationControl(intent, control, context, revision);
+            if (rich && isGenerationControl(intent)) {
+              await qualifyGenerationControl(intent, input.admission!, context);
+            }
+            if (retainedEvidence.has(intentId)) {
+              // Re-read the original terminal receipt in the recovery batch's
+              // scope. Its progress was already committed: only acknowledge the
+              // intent, without giving that same sequence a new checkpoint.
+              const checkedContext = requireResultContext(intentId);
+              const retained = await readRetainedEvidence({ intent, context: checkedContext }, context);
+              if (!sameRetainedEvidence(answer, retained, checkedContext, options.profile === 'images' ? 'images' : 'text')) {
+                throw new Error('Retained generation outcome changed before acknowledgement.');
+              }
+              return [];
+            }
+            const observation = imageObservations.get(intentId);
+            if (observation !== undefined) {
+              const checkedContext = requireResultContext(intentId);
+              const current = await readRetainedReceipt({ intent, context: checkedContext }, context);
+              const previous = observation.receipt;
+              // The actual provider observation was based on this original
+              // sequence. A concurrent receipt change must not be overwritten or
+              // silently acknowledged by the terminal-only recovery batch.
+              if (current === null || current.status !== previous.status ||
+                  current.error?.code !== previous.error?.code || current.error?.message !== previous.error?.message ||
+                  (current.result === null ? previous.result !== null : previous.result === null ||
+                    !sameRetainedEvidence({ kind: 'delivered', result: previous.result },
+                      { kind: 'delivered', result: current.result }, checkedContext, 'images')) ||
+                  !sameRetainedEvidence(answer, { kind: 'delivered', result: observation.progress }, checkedContext, 'images')) {
+                throw new Error('Images receipt changed before recovery acknowledgement.');
+              }
+            }
+            const outcome = answer.kind === 'delivered'
+              ? { kind: 'delivered' as const, result: answer.result }
+              : { kind: 'failed' as const, error: { code: answer.code, message: answer.message } };
+            if (progressed !== undefined && admitted === undefined) {
+              throw new Error('New recovered progress needs the original admitted owner fence before occurrence staging.');
+            }
+            return (!rich
+              ? await stageReceiptProgress({ intent, outcome, revision,
+                ...(options.profile === 'judgment' ? { context: requireResultContext(intent.intentId) } : {}) }, context)
+              : await stageRichProgress({ intent, context: requireResultContext(intent.intentId), revision,
+                ...(progressed === undefined || admitted === undefined ? {} : {
+                  progressed: { producer: progressed, owner: admitted.owner },
+                }),
+                ...(outcome.kind === 'delivered' ? { progress: outcome.result as RichRunWire } : { outcome }) }, context));
+          } });
+        await refreshPending();
+        return outcome;
+      } finally {
+        for (const id of originalContexts) releaseControlContext(id);
       }
-      const outcome = await runRecoverySweep({ ...input, registry, store, joinPort,
-        readEvidence: id => evidence.get(id) ?? null,
-        ...(options.profile !== 'images' ? {} : { revalidateReconciledReceipt: async (
-          { intentId, revision }: { readonly intentId: string; readonly revision: number },
-        ) => {
-          const intent = pending.get(intentId);
-          if (intent === undefined || !options.adapter.available(intent)) {
-            throw new Error('Images recovery acknowledgement lost its original pending intent.');
-          }
-          await admitImagesRecovery(intent, revision);
-          if (isImagesControl(intent)) {
-            await qualifyImagesControl(intent, input.admission!, retainedContext);
-          }
-        } }),
-        stageReconciledReceipt: async ({ intentId, evidence: answer, revision, context }) => {
-          const intent = pending.get(intentId);
-          if (intent === undefined || !options.adapter.available(intent)) {
-            throw new Error('Reconciled mail lost its installed original intent.');
-          }
-          const admitted = options.profile === 'images' ? await admitImagesRecovery(intent, revision - 1) : undefined;
-          const control = controlObservations.get(intentId);
-          if (control !== undefined) return stageImagesControl(intent, control, context, revision);
-          if (options.profile === 'images' && isImagesControl(intent)) {
-            await qualifyImagesControl(intent, input.admission!, context);
-          }
-          if (retainedEvidence.has(intentId)) {
-            // Re-read the original terminal receipt in the recovery batch's
-            // scope. Its progress was already committed: only acknowledge the
-            // intent, without giving that same sequence a new checkpoint.
-            const checkedContext = requireResultContext(intentId);
-            const retained = await readRetainedEvidence({ intent, context: checkedContext }, context);
-            if (!sameRetainedEvidence(answer, retained, checkedContext, options.profile === 'images' ? 'images' : 'text')) {
-              throw new Error('Retained generation outcome changed before acknowledgement.');
-            }
-            return [];
-          }
-          const observation = imageObservations.get(intentId);
-          if (observation !== undefined) {
-            const checkedContext = requireResultContext(intentId);
-            const current = await readRetainedReceipt({ intent, context: checkedContext }, context);
-            const previous = observation.receipt;
-            // The actual provider observation was based on this original
-            // sequence. A concurrent receipt change must not be overwritten or
-            // silently acknowledged by the terminal-only recovery batch.
-            if (current === null || current.status !== previous.status ||
-                current.error?.code !== previous.error?.code || current.error?.message !== previous.error?.message ||
-                (current.result === null ? previous.result !== null : previous.result === null ||
-                  !sameRetainedEvidence({ kind: 'delivered', result: previous.result },
-                    { kind: 'delivered', result: current.result }, checkedContext, 'images')) ||
-                !sameRetainedEvidence(answer, { kind: 'delivered', result: observation.progress }, checkedContext, 'images')) {
-              throw new Error('Images receipt changed before recovery acknowledgement.');
-            }
-          }
-          const outcome = answer.kind === 'delivered'
-            ? { kind: 'delivered' as const, result: answer.result }
-            : { kind: 'failed' as const, error: { code: answer.code, message: answer.message } };
-          if (progressed !== undefined && admitted === undefined) {
-            throw new Error('New recovered progress needs the original admitted owner fence before occurrence staging.');
-          }
-          return (!rich
-            ? await stageReceiptProgress({ intent, outcome, revision,
-              ...(options.profile === 'judgment' ? { context: requireResultContext(intent.intentId) } : {}) }, context)
-            : await stageRichProgress({ intent, context: requireResultContext(intent.intentId), revision,
-              ...(progressed === undefined || admitted === undefined ? {} : {
-                progressed: { producer: progressed, owner: admitted.owner },
-              }),
-              ...(outcome.kind === 'delivered' ? { progress: outcome.result as RichRunWire } : { outcome }) }, context));
-        } });
-      await refreshPending();
-      return outcome;
     },
   };
 }

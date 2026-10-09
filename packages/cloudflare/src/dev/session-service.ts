@@ -11,7 +11,7 @@ import { compileCapturedSingleFile } from "./compiler-check.js";
 import { FIRST_PROFILE, joinCompilerConstructCandidates, loadConstructHelpIndex, parseCompilerConstructCandidates,
   type CatalogFact, type CompilerConstructCandidates, type ConstructHelpIndex, type QualifiedConstructProof } from "./construct-help.js";
 import { loadInstalledExampleTestkit, runCompiledExamples, type CompiledExampleInput } from "./example-runner.js";
-import { ExampleRerunCoordinator, type ExampleRerunResult } from "./example-rerun.js";
+import { ExampleRerunCoordinator, type ExampleRerunResult, type CompletedExampleRerunAttempt } from "./example-rerun.js";
 import { projectBusinessRefusal, projectCompilerFailure, projectExampleFailure, type FailureProjection } from "./failure-occurrence.js";
 import { ConstructRanker, type ConstructRankerOptions, type JevChoiceTransport, type RankResult } from "./jev-ranker.js";
 import { installedLocalPreviewInputInventory } from "./preview-inputs.js";
@@ -322,10 +322,17 @@ async function capturedHelpIndex(capture: SingleFileCapture): Promise<ConstructH
     capturedCatalog(capture, "packages/ui/dist/src/catalog.js", "UI_CATALOG",
       /^package:@canlang\/ui@[^/]+\/dist\/src\/catalog\.js$/),
   ]);
+  const profileGuards = ['compiler-check','preview-builder'].map(name => capture.inputs.filter(input =>
+    new RegExp(`^package:@canlang/cloudflare@[^/]+/dist/dev/${name}\\.js$`).test(input.name) &&
+    input.state === 'present' && typeof input.sha256 === 'string'));
+  const profilePolicy = profileGuards.every(inputs => inputs.length === 1)
+    ? { sha256: createHash('sha256').update(JSON.stringify(profileGuards.map(inputs => inputs[0]!.sha256))).digest('hex') }
+    : undefined;
   return loadConstructHelpIndex(capture.root, {
     languageVersion: "1.0", compiler: { sha256: compiler.sha256 }, grammar: { sha256: grammar.sha256 },
     values: { sha256: values.sha256, entries: valuesEntries },
     ui: { sha256: ui.sha256, entries: uiEntries },
+    ...(profilePolicy === undefined ? {} : { profilePolicy }),
   }, help.sha256);
 }
 
@@ -493,7 +500,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       }
       return { sourceRevision: captured.sourceRevision, inputDigest: captured.epochMaterial };
     },
-    async check(inputs) {
+    async check(inputs, signal) {
       const captured = captures.get(inputs.inputDigest);
       const helpIndexRevision = helpByDigest.get(inputs.inputDigest)?.revision ?? null;
       if (captured === undefined) {
@@ -505,7 +512,8 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         return { complete: false, passed: false, detail: failureDetail(captured, "profile_unsupported", "selected app does not match source app declaration", helpIndexRevision) };
       }
       try {
-        const result = await compileCapturedSingleFile(captured);
+        const result = await compileCapturedSingleFile(captured, signal);
+        signal.throwIfAborted();
         if (result.kind === "artifact") {
           artifacts.set(inputs.inputDigest, { artifact: result.artifact, bytes: result.artifactBytes });
           return {
@@ -541,6 +549,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
           },
         };
       } catch (error) {
+        if (signal.aborted && error === signal.reason) throw error;
         return { complete: false, passed: false, detail: failureDetail(captured, "tool_failure", error instanceof Error ? error.message : String(error), helpIndexRevision) };
       }
     },
@@ -820,8 +829,9 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
           diagnostic: diagnostics[payload.index],
           construct_help: checkedHelp.has(revision)
             ? joinCompilerConstructCandidates(checkedHelp.get(revision)!,
-              diagnostics[payload.index]!.construct_candidates, options.capture.profile)
-            : { disposition: "unknown", slot: null, candidateCoverage: "unknown", cards: [],
+              diagnostics[payload.index]!.construct_candidates, FIRST_PROFILE,
+              checkedCaptures.has(revision) ? qualification(checkedCaptures.get(revision)!, checkedHelp.get(revision)!)?.proofs ?? [] : [])
+            : { disposition: "unknown", slot: null, grammarCoverage: "unknown", candidateCoverage: "unknown", cards: [], classification: [],
               reason: "captured help index is unavailable" },
           evidence: { source_excerpt: "unavailable", trace: "unavailable" },
         };
@@ -960,9 +970,36 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
           if (failure?.rerunRef === undefined) {
             throw new SessionSocketError("RERUN_UNAVAILABLE", "retained failure has no supported example row");
           }
-          const result = await reruns.rerun(failure.rerunRef, signal);
+          let completed: CompletedExampleRerunAttempt | undefined;
+          const result = await reruns.rerun(failure.rerunRef, signal, attempt => { completed = attempt; });
           requireActive();
-          return safeRerunResult(result);
+          let focus: FailureProjection["occurrence"] | undefined;
+          if (result.ok && completed !== undefined) {
+            const captured = exampleCaptures.get(completed.fixtureRecipeId);
+            if (captured === undefined || captured.sourceRevision !== completed.artifact.sourceRevision ||
+                completed.artifact.revision !== failure.projection.occurrence.revision) {
+              throw new SessionSocketError("CAPTURE_CHANGED", "validated rerun source capture is unavailable");
+            }
+            // Coordinator validated exactly one table/row and the actual source,
+            // artifact and runtime recipe. Never reconstruct a report from the
+            // shortened public result or release its private actor/mismatch data.
+            const row = completed.result.report.cases[0];
+            if (row?.kind === "table" && (row.rows[0]?.outcome === "failed" || row.rows[0]?.outcome === "setup-failed")) {
+              const projection = projectExampleFailure({ context: {
+                session: socket!.identity.sessionId, revision: completed.artifact.revision,
+                sourceRevision: captured.sourceRevision, sourcePaths: [captured.compilerOperand],
+                servingBuild: failure.projection.occurrence.serving_build!,
+              }, report: completed.result.report, artifactSourceRevision: captured.sourceRevision,
+                runId: completed.runId, caseIndex: 0, entryIndex: 0 });
+              const rerunRef = reruns.recordFailure({ artifactRef: completed.artifact.artifactRef,
+                selector: completed.selector, runId: completed.runId, result: completed.result }).failureRef;
+              requireActive();
+              exampleFailures.set(projection.occurrence.ref, { projection, cursor: failureCursor++, rerunRef });
+              while (exampleFailures.size > 64) exampleFailures.delete(exampleFailures.keys().next().value!);
+              focus = projection.occurrence;
+            }
+          }
+          return { ...safeRerunResult(result), ...(focus === undefined ? {} : { focus }) };
         }
         const expectedRevision = payload?.expectedRevision;
         if (typeof expectedRevision !== "string" || !/^r[1-9][0-9]*$/.test(expectedRevision)) {
