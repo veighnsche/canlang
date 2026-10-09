@@ -1581,6 +1581,12 @@
         "change": "Initial plan-only donor refresh followed by four source-current donor hash replacements after upstream sync; full29-donor inventory and93strings/23callers/semantic oracle content unchanged.",
         "validation": "Fresh source oracle observations equal unchanged corpus; source2/2 and private current-emitted2/2 pass after main; original negative controls reused at unchanged source-check scope.",
         "limits": "No production reduction, native/backend/default or whole Values acceptance."
+      },
+      "values_public_export_inventory": {
+        "state": "implemented, tested, root-reviewed finite CI assertion repair",
+        "file": "packages/values/test/prepared-hook.test.ts",
+        "behavior": "Explicit exact public schema inventory includes intentionally released ValueTypesError and normalizeValueTypes; all internal-authority exclusions and semantic assertions unchanged.",
+        "validation": "Current private Values compilation and owning emitted prepared-hook test8/8 pass, no skips; full907-test CI result not rerun or claimed."
       }
     },
     "TECH-V02-violations": {
@@ -1800,7 +1806,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-09T11:58:50.498792+00:00",
+  "updated_utc": "2026-10-09T11:59:28.459553+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -3450,8 +3456,7 @@
     }
   },
   "live_finite_packets": [
-    "VERIFY-TV01 Values exact public export inventory",
-    "DEL-D03/VERIFY-TV01 optional testkit clean-build consumer"
+    "DEL-D03 optional installed-testkit clean-build consumer"
   ],
   "foreign_runtime_pure_integration_commit": "b5f3f61c5a7aa942cc9e535312bc848fe21cf497",
   "owner_build_test_acceptance": {
@@ -4250,10 +4255,6 @@
       {
         "prerequisite": "Clean Cloudflare build cannot resolve its optional @canlang/testkit dynamic import before testkit (which depends on Cloudflare) emits. Finite producer/consumer repair under analysis.",
         "owner": "Packages Cloudflare/testkit delivery owner"
-      },
-      {
-        "prerequisite": "Values exact public export test omits intentionally released ValueTypesError/normalizeValueTypes. Finite assertion repair ready.",
-        "owner": "Packages Values owning test worker"
       },
       {
         "prerequisite": "Publish/provide tracked draft submodule5a12eb9ebb136ffa4e5ce352663f92affba25bc2; tools checkout refuses missing remote ref.",
