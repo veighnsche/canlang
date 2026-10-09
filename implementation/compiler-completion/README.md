@@ -112,6 +112,13 @@ call refusals and forms/policy omission. The two source structural join cases
 pass **2/2** with exact remaining refusals and positive preference/order/slot
 metadata, without application completion credit.
 
+The standard nominal fixture failure exposed a real scalar join: published
+`CanDuration` now maps to checked `duration`, retaining other opaque leaves.
+Complete TextRequest construction/fixtures and wrong-kind/duration/member
+controls qualify the existing **282** semantic cases (281 reused plus the
+corrected fixture **1/1**); the actual native nominal consumer passes **1/1**.
+Independent review accepts this exact mapping without weakening compatibility.
+
 Current remaining prerequisites are recorded here without reopening accepted
 compiler leaves:
 
