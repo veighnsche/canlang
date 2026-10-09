@@ -4008,6 +4008,11 @@ async function runScenarioSeam(
     },
     commit: async () => { throw new StateError('validation', 'Scenario owner reads cannot commit outside State invoke.'); },
   };
+  // Work and receipt-association producers read their own framework tables,
+  // which are outside the declared domain model session. This private port
+  // retains the actual physical store and provisional framework writes; it
+  // never enters handler storage, native record bindings or domain navigation.
+  const frameworkOverlay = ownerSession === undefined ? overlay : withStagedOverlay(opts.store, staged);
   const navigationRevision = call.revision ?? seamTrigger?.revision ?? await opts.store.readRevision();
   const ownerNavigation = await createContainmentNavigation({ loaded, store: overlay,
     revision: navigationRevision, actorUserId, teamId, memberships: opts.memberships,
@@ -4141,7 +4146,7 @@ async function runScenarioSeam(
         }, {
           actor: actorUserId ?? call.context.trustedSource ?? "anonymous",
           now: call.context.now, operation: call.context.operation,
-          load: overlay.load.bind(overlay), query: overlay.query.bind(overlay),
+          load: frameworkOverlay.load.bind(frameworkOverlay), query: frameworkOverlay.query.bind(frameworkOverlay),
         }));
       }
     } catch (error) {
@@ -4554,7 +4559,7 @@ async function runScenarioSeam(
     return {
       definition, member,
       scope: { app: call.context.app, owner: call.checkpoint.owner, ownerPackage },
-      context: workStageContext(overlay, {
+      context: workStageContext(frameworkOverlay, {
         actor: actorUserId ?? call.context.trustedSource ?? 'anonymous', now: admittedNow,
         operation: call.context.operation,
       }),
@@ -4704,7 +4709,7 @@ async function runScenarioSeam(
           ...(generationCorrelation === undefined ? {} : { correlation: generationCorrelation }),
         }, {
           actor: actorUserId ?? call.context.trustedSource ?? 'anonymous', now: admittedNow, operation: scope.operation,
-          load: overlay.load.bind(overlay), query: overlay.query.bind(overlay),
+          load: frameworkOverlay.load.bind(frameworkOverlay), query: frameworkOverlay.query.bind(frameworkOverlay),
         });
         for (const intent of stagedSend.effects.outbox ?? []) queuedDeliveries.set(intent.intentId, intent);
         appendDeferredEffects(stagedSend.effects);
