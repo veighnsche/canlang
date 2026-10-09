@@ -43,6 +43,7 @@ fn declared_progress_alias_observes_the_existing_result_once() {
     .unwrap();
     std::fs::write(stdlib.join("index.mjs"), r#"
 import assert from 'node:assert/strict';
+export {ValueError} from __VALUE_ERROR_MODULE__;
 export function hasRole(context,role){return context.memberships.includes(role);}
 export function require(condition){if(!condition)throw Error('require');}
 export function equalValue(...args){return globalThis.probe.equalValue(...args);}
@@ -57,7 +58,7 @@ export async function send(){throw Error('unused send');}
 export async function set(){throw Error('unused set');}
 export async function create(){throw Error('unused create');}
 export async function deleteRecord(){throw Error('unused delete');}
-"#).unwrap();
+"#.replace("__VALUE_ERROR_MODULE__", &serde_json::to_string(&root.join("packages/stdlib/dist/src/index.js").display().to_string()).unwrap())).unwrap();
     std::os::unix::fs::symlink(
         root.join("node_modules/@canlang/ui"),
         scratch.path().join("node_modules/@canlang/ui"),
