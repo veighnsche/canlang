@@ -143,6 +143,42 @@ describe('execution-associated saved scenario disclosure', () => {
     assert.deepEqual(await projectScenarioReceipt({ ...w, receipt }), { result: null, records: [] });
   });
 
+  it('withholds saved values when live membership is revoked during the second projection load without a State revision change', async () => {
+    const w = await world(); const receipt = await save(w);
+    // Built-in members grants use the sampled caller membership, so both
+    // projections remain equal when Identity changes during the second pass.
+    const policy = buildPolicyTable([{ model: MODEL, secretFields: [],
+      grants: [{ by: 'members', fields: ['visible', 'private', 'token'] }] }]);
+    const authorized = await projectScenarioReceipt({ ...w, policy, receipt });
+    assert.equal(authorized.result, 'original visible');
+    assert.equal(authorized.records[0]!.data['visible'], 'committed visible');
+    const revision = await w.store.readRevision();
+    const row = await w.store.load(MODEL, w.row.id);
+    const sampledStatuses: (string | null)[] = [];
+    const memberships = { ...w.memberships, findMembership: async (team: string, user: string) => {
+      const member = await w.memberships.findMembership(team, user);
+      sampledStatuses.push(member?.status ?? null);
+      return member;
+    } };
+    let loads = 0;
+    const store: StoragePort = { ...w.store, load: async (model, id) => {
+      const current = await w.store.load(model, id);
+      // Each pass loads the original dependency and committed changed row.
+      if (++loads === 3) {
+        assert.deepEqual(sampledStatuses, ['active', 'active']);
+        await w.memberships.removeMembership(w.member.membership.membership_id);
+      }
+      return current;
+    } };
+    assert.deepEqual(await projectScenarioReceipt({ ...w, policy, store, memberships, receipt }),
+      { result: null, records: [] });
+    assert.equal(loads, 4);
+    assert.deepEqual(sampledStatuses, ['active', 'active', 'removed']);
+    assert.equal(await w.store.readRevision(), revision);
+    assert.deepEqual(await w.store.load(MODEL, w.row.id), row);
+    assert.deepEqual(await w.store.readReceipt(receipt.identity), receipt);
+  });
+
   it('accepts final provisional own-row reads and refuses intermediate or uncaptured reads before domain commit', async () => {
     for (const mode of ['final', 'intermediate', 'missing'] as const) {
       const w = await world();
@@ -277,6 +313,29 @@ describe('execution-associated saved scenario disclosure', () => {
     const malformed = structuredClone(receipt);
     Object.defineProperty(malformed.outcome, 'scenario', { enumerable: true, get: () => { getterCalls += 1; return {}; } });
     await assert.rejects(projectScenarioReceipt({ ...w, receipt: malformed }), validation);
+    assert.equal(getterCalls, 0);
+  });
+
+  it('refuses inherited disclosure claims in both loaders without evaluating prototype accessors and preserves unclaimed legacy results', () => {
+    const legacy = artifact();
+    legacy.operations![0]!.result = { type: 'text' as CanTypeId };
+    const loaded = loadArtifactDescriptors(legacy, { by: 'members' });
+    const def = [...loaded.registry.values()][0]!;
+    assert.ok('descriptor' in def);
+    assert.deepEqual(def.descriptor.result, { type: 'text' });
+    assert.doesNotThrow(() => loadExecutionDescriptorSet({ contractVersion: 1, models: loaded.models,
+      operations: [def.descriptor] }, { by: 'members' }));
+    let getterCalls = 0;
+    const getterPrototype = Object.defineProperty({}, 'disclosure', {
+      get: () => { getterCalls++; throw new Error('Inherited disclosure getter must not execute'); },
+    });
+    for (const prototype of [{ disclosure: plan() }, getterPrototype]) {
+      const result = Object.assign(Object.create(prototype) as { type: CanTypeId }, { type: 'text' as CanTypeId });
+      const slice = artifact(); slice.operations![0]!.result = result;
+      assert.throws(() => loadArtifactDescriptors(slice, { by: 'members' }), /disclosure requires own data/);
+      assert.throws(() => loadExecutionDescriptorSet({ contractVersion: 1, models: loaded.models,
+        operations: [{ ...def.descriptor, result }] }, { by: 'members' }), /disclosure requires own data/);
+    }
     assert.equal(getterCalls, 0);
   });
 
