@@ -45,6 +45,7 @@ pub mod ir;
 pub mod js;
 pub mod model_policies;
 pub mod model_policy_profile;
+mod scenario_receipts;
 pub mod sourcemap;
 
 use crate::analysis::CheckedProgram;
@@ -64,6 +65,9 @@ pub struct EmitOptions {
     /// never gate production compilation, and artifacts produced under
     /// it make no runtime-success claims. It never bypasses input-owner checks.
     pub allow_incomplete_test_only: bool,
+    /// Emit the private retained-result markers for a native State host.
+    /// Generic callable/UI hosts keep their existing unclaimed ABI.
+    pub native_scenario_receipts: bool,
 }
 
 impl EmitOptions {
@@ -71,6 +75,7 @@ impl EmitOptions {
     pub fn new() -> Self {
         Self {
             allow_incomplete_test_only: false,
+            native_scenario_receipts: false,
         }
     }
 
@@ -79,6 +84,7 @@ impl EmitOptions {
     pub fn test_only() -> Self {
         Self {
             allow_incomplete_test_only: true,
+            native_scenario_receipts: false,
         }
     }
 }
@@ -142,7 +148,8 @@ pub fn emit(
         return (empty_artifact(sources.db), vec![diagnostic]);
     }
     let (ir, mut diags) = ir::build(program, sources.db, sources.catalog);
-    let js_out = js::emit_program(&ir);
+    let js_out =
+        js::emit_program_with_native_receipts(&ir, sources.options.native_scenario_receipts);
     diags.extend(js_out.diagnostics.iter().cloned());
     if diags.iter().any(|diagnostic| diagnostic.code == "E6012") {
         diags.sort_by(Diagnostic::canonical_cmp);
