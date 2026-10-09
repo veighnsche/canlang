@@ -18,6 +18,7 @@ import {
   writeDeployBundle,
 } from "../src/deploy/bundle.js";
 import { startLocalDev } from "../src/dev/local-run.js";
+import { scanModuleImports } from "../src/deploy/module-imports.js";
 // Cross-package journey import: interfaces DIST (never src), per the
 // mcp-route.test.ts precedent. Proves bake parity with the real rule.
 import { catalogFromArtifactOperations } from "@canlang/interfaces/http/operations";
@@ -598,11 +599,15 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
     const envAssembly = bundle.modules["runtime/env-assembly.js"] ?? "";
     expect(envAssembly).toContain("../vendor/state/storage/d1.js");
     expect(envAssembly).toContain("../vendor/identity/index.js");
-    expect(envAssembly).not.toContain("@canlang/identity");
     expect(envAssembly).not.toContain("../../../state/dist");
     const grantRoute = bundle.modules["runtime/grant-route.js"] ?? "";
     expect(grantRoute).toContain("../vendor/identity/index.js");
-    expect(grantRoute).not.toContain("@canlang/identity");
+    for (const [path, js] of [["runtime/env-assembly.js", envAssembly], ["runtime/grant-route.js", grantRoute]]) {
+      const specifiers = scanModuleImports(js!, path!).map(record => record.specifier);
+      expect(specifiers.filter(specifier => specifier === "@canlang/identity" || specifier?.startsWith("@canlang/identity/"))).toEqual([]);
+      // Computed imports consume this binding; diagnostic prose is not an edge.
+      expect(js).toMatch(/const IDENTITY_SPECIFIER = ["']\.\.\/vendor\/identity\/index\.js["'];/);
+    }
     expect(bundle.modules["vendor/values/index.js"]).toContain("VALUES_CONTRACT_VERSION");
     const stdlib = bundle.modules["vendor/stdlib/index.js"] ?? "";
     expect(stdlib).toContain("../values/index.js");
