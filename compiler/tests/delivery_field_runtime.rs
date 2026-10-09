@@ -36,6 +36,11 @@ function check(value){globalThis.probe.trace.push(['check',value]);if(!value)thr
 export {check as require};
 export async function send(context,operation,request,options){assert.equal(context,globalThis.probe.context);assert.equal(operation,'std.EmailV1.send');assert.deepEqual(request,{to:'a@b.test',subject:'Actual notification',body:'Associated delivery'});assert.deepEqual(options,{binding:'TypedDeliveryObserver.Mail'});globalThis.probe.trace.push(['send']);return globalThis.probe.attempt;}
 export async function set(context,record,changes){assert.equal(context,globalThis.probe.context);assert.equal(record,globalThis.probe.record);assert.equal(changes.notification,globalThis.probe.attempt);globalThis.probe.trace.push(['set']);}
+export function delivery(){throw Error('unexpected observation');}
+export function count(){throw Error('unexpected count');}
+export function records(){throw Error('unexpected records');}
+export function same(){throw Error('unexpected comparison');}
+export function equalValue(){throw Error('unexpected comparison');}
 export async function create(){throw Error('unexpected create');}
 export async function deleteRecord(){throw Error('unexpected delete');}
 "#).unwrap();
