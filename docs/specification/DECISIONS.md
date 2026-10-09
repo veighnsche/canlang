@@ -3695,3 +3695,7 @@ Consume the published Compiler test hunks through `0f17f6f8` with three-way join
 ## 2026-10-09 — Consume reviewed TeamTasks source and runtime correspondence
 
 Apply Packages’ `67aef2a8` witness correspondence and `b11cc7c8` public Identity/UI bundle closure together. The retained handbuilt witness keeps its explicit fixture limits and unchanged preferences moved from Given to Then; it remains distinct from compiled app qualification. Real public producer bundling resolves installed dependencies without handwritten substitutes. All 14 affected Chromium cases pass (TeamTasks 8, MCP 4, compiled journey 2), with e2e noEmit; full CRUD/replay/receipt/history assertions remain intact. The separate genuine/patched pilot failures remain open in their owning Packages work.
+
+## 2026-10-09 — Consume the released audited Zsh completion bootstrap
+
+Apply Compiler `c4376ab8`’s exact real-engine fixture correction. Audit fpath and remove insecure paths before ordinary compinit, retaining the audit and all emitted completion output assertions without interactive prompts. The unchanged prior full native suite passed locally; the two affected required-engine cases pass for this joined fixture. Hosted Linux compiler/editor qualification remains scoped to its actual head.
