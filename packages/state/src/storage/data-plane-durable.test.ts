@@ -24,6 +24,7 @@ import type {
   ArtifactModel,
   ArtifactOperation,
   ArtifactOperationInput,
+  CanonicalOwnerModelPolicies,
 } from '@canlang/contracts';
 import type {
   ModelName,
@@ -39,6 +40,10 @@ import {
 } from '../invocation/registry.js';
 import { buildModelTableFromCanonical, type ModelTable } from '../mutation/models.js';
 import { generatedCrudExecute } from '../mutation/crud.js';
+import { beginOwnerMutation, type OwnerMutationSession } from '../mutation/pipeline.js';
+import { bindOwnerModelPolicies } from '../mutation/model-policies.js';
+import type { ExecuteHandler } from '../invocation/invoke.js';
+import { pipelineContext } from '../../test/mutation/fixtures.js';
 import { createD1Storage, ensureSchema } from './d1.js';
 import { FenceConflictError, StorageConstraintError } from './port.js';
 import { StateError } from '../errors.js';
@@ -54,6 +59,9 @@ import {
   createMemoryIdentityStore,
   makeEnvelope,
   makeIdentity,
+  makeBatch,
+  makeReceipt,
+  seedRow,
   seedMember,
   uuidv7,
   type SeededMember,
@@ -62,6 +70,7 @@ import {
 
 const APP = 'acme-app';
 const GADGET = 'Shop.Gadget';
+const LINK = asModel('Shop.Link');
 
 /* -- Compact Gadget slice (CRUD + no-input read, unique code, archive). -- */
 
@@ -337,11 +346,165 @@ async function setupDurablePlane(
   };
 }
 
+/** Native owner-policy seam over the same real adapters and canonical invoker. */
+async function setupOwnerSessionPlane(store: StoragePort, secondHandle: () => StoragePort) {
+  const plane = await setupDurablePlane(store, secondHandle);
+  const slice = durableSlice();
+  assert.ok(slice.models);
+  const loaded = loadArtifactDescriptors({ ...slice,
+    operations: [{ name: 'Shop.change', kind: 'scenario', description: '', inputs: { fields: [] } }],
+    models: [...slice.models.map(model => ({ ...model, deleteMode: 'remove' as const })),
+      { name: LINK, fields: [{ name: 'target', field: { kind: 'ref' as const, model: GADGET },
+        required: true, serverOnly: false }], deleteMode: 'remove' as const }],
+  }, { by: 'members' });
+  const table = buildModelTableFromCanonical(loaded.models, { refs: loaded.refs });
+  const invoker = createInvoker({ registry: loaded.registry, store, memberships: plane.memberships,
+    clock: { nowMs: () => FIXED_NOW } });
+  const identity = makeIdentity({ membership: plane.alice.membership, email: plane.alice.user.email });
+  const descriptor: CanonicalOwnerModelPolicies = { abi: 'state.owner-model-policies@1',
+    model: asModel(GADGET), module: 'owner.mjs', ownerPackage: 'Shop', hooks: [],
+    rules: [{ kind: 'invariant', id: 'balanced', dependencies: [{ id: 'link-owners', model: LINK, maxTargets: 2 }] }] };
+  const bindingIdentity = { model: asModel(GADGET), module: descriptor.module, ownerPackage: descriptor.ownerPackage };
+  let overflow = false;
+  const dependencies: Array<readonly [unknown, unknown]> = [];
+  const evaluated: string[] = [];
+  const policies = bindOwnerModelPolicies({ table, descriptors: [descriptor], bindings: [
+    { ...bindingIdentity, kind: 'invariant', id: 'balanced', evaluate: async ({ read }, row) => {
+      evaluated.push(row.id);
+      const links = await read.query({ model: LINK, authority: 'owner', limit: 2,
+        where: { op: 'eq', field: 'target.id', value: row.id } });
+      return row.data.title === row.data.code && Number(row.data.stock) === links.length;
+    } },
+    { ...bindingIdentity, kind: 'dependency', id: 'link-owners', select: (_views, change) => {
+      const before = (change.before?.data.target as { id: string } | undefined)?.id ?? null;
+      const after = (change.after?.data.target as { id: string } | undefined)?.id ?? null;
+      dependencies.push([before, after]);
+      return (overflow ? ['gadget', 'extra', 'overflow'] : [...new Set([before, after])].filter(id => id !== null))
+        .map(id => ({ model: asModel(GADGET), id: asId(id!) }));
+    } },
+  ] });
+  const receiptIdentity = (operationId: string) => ({ app: APP, owner: plane.alice.team.team_id,
+    principal: plane.alice.user.user_id, operation: asOperation('Shop.change'), operationId: asOperationId(operationId) });
+  return { table, policies, dependencies, evaluated, receiptIdentity,
+    overflow: () => { overflow = true; },
+    run: (operationId: string, execute: ExecuteHandler) => invoker({ app: APP, source: 'test', identity,
+      envelope: makeEnvelope('Shop.change', operationId, {}), execute }),
+  };
+}
+
 function durableSuite(
   name: string,
   handles: () => Promise<{ store: StoragePort; secondHandle: () => StoragePort; reset: () => Promise<void> }>,
 ): void {
   describe(`T17a durable data plane (${name})`, () => {
+    it('owner session commits final net effects and reference co-removal with checked reverse dependencies', async () => {
+      const { store, secondHandle, reset } = await handles();
+      await reset();
+      const plane = await setupOwnerSessionPlane(store, secondHandle);
+      const model = asModel(GADGET), id = asId('gadget');
+      await seedRow(store, model, { id, data: { title: 'entry', code: 'entry', stock: '0' } });
+      await store.commit(makeBatch(await store.readRevision(), {
+        uniqueClaims: [{ model, recordId: id, keyName: 'code', keyValue: 'entry' }],
+      }));
+      const entry = await store.load(model, id);
+      assert.ok(entry);
+      const operationId = uuidv7(FIXED_NOW, 9501);
+      const committed = await plane.run(operationId, async call => {
+        const session = await beginOwnerMutation({ table: plane.table, store, context: call.context,
+          policies: plane.policies, bounds: { maxRows: 4, maxWork: 300 } });
+        await session.stage({ op: 'update', model, id, data: { title: 'final' } }, { cause: 'scenario' });
+        assert.deepEqual(await session.views.entry.get(model, id), entry);
+        assert.equal((await session.read(model, id))?.version, 2);
+        assert.deepEqual((await session.views.entry.query({ model, authority: 'owner', limit: 4,
+          where: { op: 'eq', field: 'title', value: 'entry' } })).map(row => row.id), [id]);
+        assert.deepEqual((await session.views.final.query({ model, authority: 'owner', limit: 4,
+          where: { op: 'eq', field: 'title', value: 'final' } })).map(row => row.id), [id]);
+        assert.deepEqual(plane.evaluated, []);
+        await session.stage({ op: 'create', model: LINK, id: asId('link'), data: { target: { id } } }, { cause: 'scenario' });
+        await session.stage({ op: 'update', model, id, data: { code: 'final', stock: '1' } }, { cause: 'scenario' });
+        const result = await session.read(model, id);
+        const effects = await session.finalize();
+        assert.equal(effects.writes.length, 2);
+        assert.equal(effects.history.filter(row => row.model === model).length, 1);
+        assert.equal(effects.history.find(row => row.model === model)?.version, 2);
+        assert.deepEqual(effects.uniqueReleases, [{ model, keyName: 'code', keyValue: 'entry' }]);
+        assert.deepEqual(effects.uniqueClaims, [{ model, recordId: id, keyName: 'code', keyValue: 'final' }]);
+        assert.deepEqual(await store.load(model, id), entry);
+        return { ...effects, outbox: [], result };
+      });
+      assert.equal(committed.status, 'committed');
+      assert.deepEqual(plane.evaluated, [id]);
+      assert.deepEqual(plane.dependencies, [[null, id]]);
+      const other = secondHandle();
+      assert.deepEqual((await other.load(model, id))?.data, { title: 'final', code: 'final', stock: '1' });
+      assert.equal((await other.load(model, id))?.version, 2);
+      const history = await other.historyFor(model, id);
+      assert.equal(history.length, 1);
+      assert.deepEqual(history[0]?.before, entry.data);
+      assert.equal(history[0]?.operationId, operationId);
+      assert.equal((await other.readReceipt(plane.receiptIdentity(operationId)))?.outcome.status, 'committed');
+      const removedId = uuidv7(FIXED_NOW, 9502);
+      await plane.run(removedId, async call => {
+        const session = await beginOwnerMutation({ table: plane.table, store, context: call.context,
+          policies: plane.policies, bounds: { maxRows: 4, maxWork: 300 } });
+        // Target-first staging is temporarily invalid; final co-removal disposes it.
+        await session.stage({ op: 'remove', model, id }, { cause: 'scenario' });
+        await session.stage({ op: 'remove', model: LINK, id: asId('link') }, { cause: 'scenario' });
+        assert.equal(await session.views.final.get(model, id), null);
+        assert.equal((await session.views.entry.get(model, id))?.version, 2);
+        return { ...await session.finalize(), outbox: [], result: null };
+      });
+      assert.deepEqual(plane.dependencies, [[null, id], [id, null]]);
+      assert.equal(await other.load(model, id), null);
+      assert.equal(await other.load(LINK, asId('link')), null);
+      assert.deepEqual((await other.historyFor(model, id)).map(row => [row.change, row.version]), [['update', 2], ['remove', 3]]);
+      assert.equal((await other.readReceipt(plane.receiptIdentity(removedId)))?.outcome.status, 'committed');
+    });
+
+    it('owner session bounded dependency refusals and stale fence commits preserve durable domain and history', async () => {
+      const { store, secondHandle, reset } = await handles();
+      await reset();
+      const plane = await setupOwnerSessionPlane(store, secondHandle);
+      const model = asModel(GADGET), id = asId('gadget');
+      await seedRow(store, model, { id, data: { title: 'entry', code: 'entry', stock: '0' } });
+      const entry = await store.load(model, id);
+      assert.ok(entry);
+      for (const [sequence, budget] of [[9601, 1], [9602, 300]] as const) {
+        if (budget > 1) plane.overflow();
+        const operationId = uuidv7(FIXED_NOW, sequence);
+        let session: OwnerMutationSession | undefined;
+        const error = await captureStateError(plane.run(operationId, async call => {
+          session = await beginOwnerMutation({ table: plane.table, store, context: call.context,
+            policies: plane.policies, bounds: { maxRows: 4, maxWork: budget } });
+          await session.stage({ op: 'create', model: LINK, id: asId('refused'), data: { target: { id } } }, { cause: 'scenario' });
+          return { ...await session.finalize(), outbox: [], result: null };
+        }));
+        assert.equal(error.code, 'validation');
+        assert.match(error.message, budget === 1 ? /work budget/ : /dependency work.*bound/);
+        await assert.rejects(session!.read(model, id), /poisoned/);
+        assert.equal((await store.readReceipt(plane.receiptIdentity(operationId)))?.outcome.status, 'rejected');
+        assert.deepEqual(await secondHandle().load(model, id), entry);
+        assert.equal(await store.load(LINK, asId('refused')), null);
+        assert.deepEqual(await store.historyFor(model, id), []);
+        assert.deepEqual(await store.historyFor(LINK, asId('refused')), []);
+      }
+      const expectedRevision = await store.readRevision();
+      const staleId = uuidv7(FIXED_NOW, 9603);
+      const session = await beginOwnerMutation({ table: plane.table, store,
+        context: pipelineContext({ operation: 'Shop.change', operationId: staleId }),
+        policies: plane.policies, bounds: { maxRows: 4, maxWork: 300 } });
+      await session.stage({ op: 'update', model, id, data: { title: 'stale', code: 'stale' } }, { cause: 'scenario' });
+      const effects = await session.finalize();
+      // A genuine second adapter moves the owning fence after finalization.
+      await secondHandle().commit(makeBatch(expectedRevision));
+      const receipt = makeReceipt({ ...plane.receiptIdentity(staleId), committedRevision: expectedRevision + 1 });
+      await assert.rejects(store.commit(makeBatch(expectedRevision, { ...effects, receipt })), FenceConflictError);
+      assert.deepEqual(await store.load(model, id), entry);
+      assert.deepEqual(await store.historyFor(model, id), []);
+      assert.equal(await store.readReceipt(plane.receiptIdentity(staleId)), null);
+      assert.equal(await store.readRevision(), expectedRevision + 1);
+    });
+
     it('retained-receipt-only recovers exact retained outcomes and refuses unseen, conflicting or revoked calls', async () => {
       const { store, secondHandle, reset } = await handles();
       await reset();
