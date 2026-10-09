@@ -1626,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-09T01:40:34.093592+00:00",
+  "updated_utc": "2026-10-09T01:41:12.082607+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -3262,6 +3262,12 @@
       "validation": "Private strict TypeScript compile0;7 targeted owning checks including real full/partial FS write interruption/reopen and retry, existing finalization, normal resume and oversize. Unchanged accepted suites reused.",
       "contract": "Actual staging size must equal persisted receivedBytes before another append; mismatch rejects/removes staging/clears progress via existing closed outcome. Existing foreign/expiry/closed/oversize ordering retained; no healing or API change.",
       "limits": "No chunk identity/expected offset: reply loss after metadata persisted remains indistinguishable from intended repeated bytes. Concurrent append fencing/full durable recovery remain open; TECH-F01 partial."
+    },
+    "ui_body_lifecycle_remaining": {
+      "status": "Root direct source review accepted finite supported cancellation and cleanup correction",
+      "validation": "Private strict compile0,three targeted owning checks passed: changed async adapter cleanup, first-error cleanup matrix, native initializer pending-body stop/hidden/logout/context/detach/supersession. Accepted unchanged visibility cases reused.",
+      "scope": "Controller retained through body settlement; existing optional signal forwarded; abort listener released once on abort/settlement; original rejection preserved over cleanup throw.",
+      "limits": "Context/logout/detach detected on supported next tick; ignored transport work may continue but stale body cannot paint. Physical remote cancellation/full installed/browser parent gates open."
     }
   },
   "live_finite_packets": [
