@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import ts from 'typescript';
 import { test } from 'node:test';
-import { checkPackageBoundaries } from './check-package-boundaries.mjs';
+import { checkoutInputs, checkPackageBoundaries } from './check-package-boundaries.mjs';
 
-function fixture(t, { source = '', declared = true, rootSource, paths, bDependencies, version = 'workspace:*' } = {}) {
+function fixture(t, { source = '', declared = true, rootSource, paths, bDependencies, version = 'workspace:*', aExports, cloudflareConsumers } = {}) {
   const root = mkdtempSync(path.join(tmpdir(), 'can-package-boundaries-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const write = (file, content) => { const full = path.join(root, file); mkdirSync(path.dirname(full), { recursive: true }); writeFileSync(full, typeof content === 'string' ? content : `${JSON.stringify(content)}\n`); };
@@ -13,7 +14,7 @@ function fixture(t, { source = '', declared = true, rootSource, paths, bDependen
   for (const name of ['a', 'b']) {
     write(`packages/${name}/package.json`, {
       name: `@canlang/${name}`, type: 'module',
-      exports: { '.': { types: './dist/index.d.ts', default: './dist/index.js' }, './asset.txt': './asset.txt' },
+      exports: name === 'a' && aExports ? { ...aExports, './asset.txt': './asset.txt' } : { '.': { types: './dist/index.d.ts', default: './dist/index.js' }, './asset.txt': './asset.txt' },
       ...(name === 'a' && declared ? { dependencies: { '@canlang/b': version } } : {}),
       ...(name === 'b' && bDependencies ? { devDependencies: bDependencies } : {}),
     });
@@ -25,6 +26,11 @@ function fixture(t, { source = '', declared = true, rootSource, paths, bDependen
     const scope = path.join(root, 'node_modules/@canlang');
     mkdirSync(scope, { recursive: true });
     symlinkSync(path.join(root, 'packages', name), path.join(scope, name), 'junction');
+  }
+  if (cloudflareConsumers) {
+    write('packages/cloudflare/package.json', { name: '@canlang/cloudflare', type: 'module' });
+    write('packages/cloudflare/tsconfig.json', { compilerOptions: { module: 'NodeNext', moduleResolution: 'NodeNext', rootDir: 'src', outDir: 'dist' }, include: ['src'] });
+    for (const [file, content] of Object.entries(cloudflareConsumers)) write(`packages/cloudflare/${file}`, content);
   }
   if (rootSource) write('tools/probe.mjs', rootSource);
   return { root, write, check: () => checkPackageBoundaries(root) };
@@ -42,6 +48,21 @@ test('allows declared exported edges in imports, reexports, type queries, consta
   ` });
   f.write('packages/a/src/local.ts', 'export {};\n');
   assert.deepEqual(f.check().errors, []);
+});
+
+test('allows exported owning-package self-reference reverse-mapped from outDir to rootDir', t => {
+  const f = fixture(t, { aExports: { '.': './dist/index.js' }, source: "import { token } from '@canlang/a';\nvoid token;\n" });
+  const configPath = path.join(f.root, 'packages/a/tsconfig.json');
+  const raw = ts.readConfigFile(configPath, ts.sys.readFile).config;
+  const config = ts.parseJsonConfigFileContent(raw, ts.sys, path.dirname(configPath));
+  const source = path.join(f.root, 'packages/a/src/index.ts');
+  assert.equal(ts.resolveModuleName('@canlang/a', source, config.options, ts.sys).resolvedModule?.resolvedFileName, source);
+  assert.deepEqual(f.check().errors, []);
+});
+
+test('rejects a self-reference path alias that bypasses exported build targets', t => {
+  const f = fixture(t, { paths: { '@canlang/a': ['./src/index.ts'] }, source: "import '@canlang/a';\n" });
+  assert.equal(f.check().errors.filter(error => error.code === 'source-resolution').length, 1);
 });
 
 test('rejects undeclared local edges regardless of type-only or dynamic syntax', t => {
@@ -73,6 +94,49 @@ test('rejects sibling source/output shortcuts and root-tool shortcuts', t => {
     rootSource: "import '../packages/b/src/index.ts';\n",
   }).check();
   assert.equal(result.errors.filter(error => error.code === 'cross-package-import').length, 3);
+});
+
+test('allows only the registered Office Supplies reads from actual Cloudflare consumers', t => {
+  const consumers = {
+    'src/dev/session-service.test.ts': `
+      import { readFileSync } from 'node:fs';
+      import { join } from 'node:path';
+      import { fileURLToPath } from 'node:url';
+      const project = fileURLToPath(new URL('../../../../', import.meta.url));
+      readFileSync(join(project, 'tests/integration/can-dev-server/OfficeSupplies.can'));
+    `,
+    'test/compiler-check.integration.test.ts': `
+      import { readFileSync } from 'node:fs';
+      import { join, resolve } from 'node:path';
+      import { fileURLToPath } from 'node:url';
+      const repo = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
+      readFileSync(join(repo, 'tests/integration/can-dev-server/OfficeSupplies.can'));
+    `,
+  };
+  const f = fixture(t, { cloudflareConsumers: consumers });
+  const result = f.check();
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.registered.map(entry => entry.consumer).sort(), [
+    'packages/cloudflare/src/dev/session-service.test.ts',
+    'packages/cloudflare/test/compiler-check.integration.test.ts',
+  ]);
+});
+
+test('rejects other fixture reads and cross-package source imports from Cloudflare consumers', t => {
+  const f = fixture(t, { cloudflareConsumers: {
+    'test/compiler-check.integration.test.ts': `
+      import { readFileSync } from 'node:fs';
+      import { join, resolve } from 'node:path';
+      import { fileURLToPath } from 'node:url';
+      import '../../a/src/index.js';
+      const repo = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
+      readFileSync(join(repo, 'tests/integration/can-dev-server/Another.can'));
+    `,
+  } });
+  const result = f.check();
+  assert.ok(result.errors.some(error => error.code === 'cross-package-path'));
+  assert.ok(result.errors.some(error => error.code === 'cross-package-import'));
+  assert.deepEqual(result.registered, []);
 });
 
 test('rejects literal module paths escaping the entire checkout', t => {
