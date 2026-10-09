@@ -994,7 +994,8 @@ export function assertLinksResolve(
   }
 }
 
-function bundleSha256(mainModule: string, modules: Record<string, string>): string {
+/** @internal Exact text snapshot digest for owning writer fixtures; not an app API. */
+export function bundleSha256(mainModule: string, modules: Record<string, string>): string {
   const sorted: Record<string, string> = {};
   for (const key of Object.keys(modules).sort()) {
     sorted[key] = modules[key] as string;
