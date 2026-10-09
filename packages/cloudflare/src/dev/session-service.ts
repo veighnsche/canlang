@@ -767,13 +767,20 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
           throw new SessionSocketError("EXAMPLES_UNAVAILABLE", "example recipe differs from the admitted source");
         }
         const input = { ...recipe, testkit: await loadInstalledExampleTestkit() };
-        const artifact = reruns.retainArtifact({ revision: expectedRevision, fixtureRecipeId: captured.epochMaterial,
-          runtimeProfileId: options.capture.profile, input });
-        exampleCaptures.set(captured.epochMaterial, captured);
-        while (exampleCaptures.size > 8) exampleCaptures.delete(exampleCaptures.keys().next().value!);
+        const artifactDigest = createHash("sha256").update(input.artifactBytes).digest("hex");
         const runId = randomUUID();
         const result = await runCompiledExamples({ ...input, runId,
           ...(typeof operation === "string" ? { selectedRow: { operation, rowIndex: rowIndex as number } } : {}) });
+        // Passing and unsupported runs have no row to rerun. They must not
+        // consume the bounded artifacts backing earlier failure references.
+        const rerunnable = result.report.cases.some(example => example.kind === "table" &&
+          example.rows.some(row => row.outcome === "failed" || row.outcome === "setup-failed"));
+        const artifact = rerunnable ? reruns.retainArtifact({ revision: expectedRevision,
+          fixtureRecipeId: captured.epochMaterial, runtimeProfileId: options.capture.profile, input }) : null;
+        if (artifact !== null) {
+          exampleCaptures.set(captured.epochMaterial, captured);
+          while (exampleCaptures.size > 8) exampleCaptures.delete(exampleCaptures.keys().next().value!);
+        }
         const failures: FailureProjection["occurrence"][] = [];
         for (const [caseIndex, example] of result.report.cases.entries()) {
           const entries = example.kind === "table" ? example.rows : example.steps;
@@ -784,7 +791,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
               sourcePaths: [captured.compilerOperand], servingBuild: state.servingBuild!,
             }, report: result.report, artifactSourceRevision: captured.sourceRevision, runId, caseIndex, entryIndex });
             let rerunRef: string | undefined;
-            if (example.kind === "table" && entry.outcome !== "unsupported") {
+            if (example.kind === "table" && artifact !== null && entry.outcome !== "unsupported") {
               rerunRef = reruns.recordFailure({ artifactRef: artifact.artifactRef, runId, result,
                 selector: { operation: example.operation, rowIndex: example.rows[entryIndex]!.rowIndex } }).failureRef;
             }
@@ -796,7 +803,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         }
         await core.refresh().catch(() => undefined);
         return { schema: "can.dev.example-run.v1", session: socket!.identity.sessionId, revision: expectedRevision,
-          source_revision: captured.sourceRevision, serving_build: state.servingBuild, artifact_digest: artifact.artifactDigest,
+          source_revision: captured.sourceRevision, serving_build: state.servingBuild, artifact_digest: artifactDigest,
           run_id: runId, current: core.status().revision === expectedRevision && !core.status().dirty,
           ok: result.ok, executed: result.executed, summary: result.report.summary,
           focus: failures[Math.max(0, failures.length - 64)] ?? null,

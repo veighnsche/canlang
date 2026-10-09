@@ -144,7 +144,7 @@ describe("protected local preview", () => {
       expect(events[0]).toMatchObject({ status: 401, error: { code: "forbidden" } });
       expect((events[0] as { requestId: string }).requestId).toMatch(/^[0-9a-f-]{36}$/);
       expect(JSON.stringify(events)).not.toContain(secret);
-      expect(Object.keys((events[0] as { error: object }).error)).toEqual(["code", "message"]);
+      expect(Object.keys((events[0] as { error: object }).error)).toEqual(["code", "message", "retryable"]);
       const large = await fetch(`${preview.url}/big`, { headers: { cookie } });
       expect((await large.text()).length).toBeGreaterThan(8 * 1024);
       expect(events).toHaveLength(1);
@@ -152,6 +152,48 @@ describe("protected local preview", () => {
       await fetch(`${preview.url}/mcp`, { headers: { cookie } });
       expect(events).toHaveLength(1);
     } finally {
+      await preview.close();
+    }
+  });
+
+  it("keeps the Worker's retryable fact in a safe observation without changing HTTP bytes", async () => {
+    const secret = "secret-worker-message-and-field";
+    const bodies = {
+      busy: JSON.stringify({ error: { code: "busy", message: secret, retryable: true,
+        operation_id: "private.operation", fields: [{ path: "/secret", message: secret }] } }),
+      override: JSON.stringify({ error: { code: "busy", message: secret, retryable: false } }),
+      default: JSON.stringify({ error: { code: "delivery_unknown", message: secret } }),
+    };
+    const dev: Pick<LocalDev, "dispatchUrl"> = {
+      dispatchUrl: async url => new Response(
+        url.endsWith("/override") ? bodies.override : url.endsWith("/default") ? bodies.default : bodies.busy,
+        { status: 503, headers: { "content-type": "application/json", "x-worker-secret": secret } },
+      ) as Awaited<ReturnType<LocalDev["dispatchUrl"]>>,
+    };
+    const preview = await startProtectedPreview(dev);
+    const events: Array<{ error: { code: string; message: string; retryable?: boolean } }> = [];
+    const unsubscribe = preview.observeRefusals(event => events.push(event));
+    try {
+      const bootstrap = await fetch(preview.issueOpenUrl(), { redirect: "manual" });
+      const cookie = cookieOf(bootstrap);
+      for (const [path, expectedBody, retryable] of [
+        ["busy", bodies.busy, true], ["override", bodies.override, false], ["default", bodies.default, true],
+      ] as const) {
+        const response = await fetch(`${preview.url}/${path}`, { headers: { cookie } });
+        expect(response.status).toBe(503);
+        expect(await response.text()).toBe(expectedBody);
+        expect(response.headers.get("x-worker-secret")).toBe(secret);
+        expect(events.at(-1)?.error).toMatchObject({ retryable });
+      }
+      expect(events).toHaveLength(3);
+      expect(JSON.stringify(events)).not.toContain(secret);
+      expect(JSON.stringify(events)).not.toContain("private.operation");
+      expect(JSON.stringify(events)).not.toContain("/secret");
+      expect(events.map(event => Object.keys(event.error))).toEqual([
+        ["code", "message", "retryable"], ["code", "message", "retryable"], ["code", "message", "retryable"],
+      ]);
+    } finally {
+      unsubscribe();
       await preview.close();
     }
   });

@@ -8,7 +8,7 @@ import type { CompiledExampleInput } from "../src/dev/example-runner.js";
 import { attachDevSessionService, startDevSessionService } from "../src/dev/session-service.js";
 import { runDevControlArgv } from "../src/dev/control-client.js";
 
-const producer = vi.hoisted(() => ({ calls: [] as unknown[], routing: undefined as unknown }));
+const producer = vi.hoisted(() => ({ calls: [] as unknown[], routing: undefined as unknown, passed: false }));
 vi.mock("../src/dev/compiler-check.js", () => ({
   compileCapturedSingleFile: async (capture: { compilerOperand: string; sourceSha256: string }) => producer.routing !== undefined ? {
     kind: "diagnostics", envelope: { tool: "can", tool_version: "test-compiler", language_version: "1.0", schema_version: 1,
@@ -30,7 +30,7 @@ vi.mock("../src/dev/example-runner.js", () => ({
     const row: TableRowResult = {
       rowIndex: input.selectedRow?.rowIndex ?? 0,
       caller: { account: "PRIVATE_CALLER", team: "current", roles: ["PRIVATE_ROLE"], authenticated: true },
-      outcome: "failed", detail: "PRIVATE_RUNTIME_MESSAGE",
+      outcome: producer.passed ? "passed" : "failed", detail: "PRIVATE_RUNTIME_MESSAGE",
       mismatches: [{ expected: "PRIVATE_EXPECTED", actual: "PRIVATE_ACTUAL" }] as TableRowResult["mismatches"],
     };
     const report: ExampleReport = {
@@ -39,9 +39,9 @@ vi.mock("../src/dev/example-runner.js", () => ({
         sourceRevision: input.sourceRevision },
       startedAt: "2026-10-09T10:00:00.000Z", finishedAt: "2026-10-09T10:00:01.000Z",
       cases: [{ kind: "table", operation: input.selectedRow?.operation ?? "Office.use", rows: [row] }],
-      summary: { total: 1, passed: 0, failed: 1, setupFailed: 0, unsupported: 0 },
+      summary: { total: 1, passed: producer.passed ? 1 : 0, failed: producer.passed ? 0 : 1, setupFailed: 0, unsupported: 0 },
     };
-    return { ok: false, executed: 1, report };
+    return { ok: producer.passed, executed: 1, report };
   },
 }));
 
@@ -49,6 +49,7 @@ const scratch: string[] = [];
 afterEach(() => {
   producer.calls.length = 0;
   producer.routing = undefined;
+  producer.passed = false;
   for (const path of scratch.splice(0)) rmSync(path, { recursive: true, force: true });
 });
 
@@ -173,6 +174,22 @@ it("runs through the private owner, retains safe failure lookup, and reruns copi
   } finally {
     await fixture.owner.stop();
   }
+});
+
+it("keeps a failed row's artifact when subsequent runs pass", async () => {
+  const fixture = await ownerFixture();
+  try {
+    const { revision } = await fixture.client.request({ command: "check" }) as { revision: string };
+    const run = () => fixture.client.request({ command: "example.run", payload: { expectedRevision: revision } });
+    const failed = await run() as { focus: { ref: string }; artifact_digest: string; run_id: string };
+    producer.passed = true;
+    for (let index = 0; index < 9; index++) {
+      expect(await run()).toMatchObject({ ok: true, focus: null, artifact_digest: failed.artifact_digest });
+    }
+    expect(await fixture.client.request({ command: "example.rerun", payload: { ref: failed.focus.ref } }))
+      .toMatchObject({ ok: true, artifact: { artifactDigest: failed.artifact_digest },
+        original: { run_id: failed.run_id, outcome: "failed" }, rerun: { outcome: "passed" } });
+  } finally { await fixture.owner.stop(); }
 });
 
 it("projects observed business refusals through the owner and releases the observer on disposal", async () => {
