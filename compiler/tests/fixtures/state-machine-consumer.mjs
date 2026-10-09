@@ -35,9 +35,19 @@ const invoker = buildInvoker(artifact, asm, store, {memberships,now:()=>now});
 // Canonical UUIDv7 at this test's frozen time.
 const operationId = () => { const t=now.toString(16).padStart(12,'0'), r=randomUUID().replaceAll('-','');return `${t.slice(0,8)}-${t.slice(8)}-7${r.slice(0,3)}-8${r.slice(4,7)}-${r.slice(8,20)}`; };
 async function invoke(operation,inputs,id=operationId()) { return invoker.invokeMutation({operation,operation_id:id,inputs},identity); }
+function createdRecord(outcome) {
+ assert.ok('result' in outcome,JSON.stringify(outcome));
+ assert.equal(outcome.result.status,'committed');
+ assert.equal(outcome.result.result,null);
+ assert.equal(outcome.result.records.length,1);
+ const row=outcome.result.records[0];
+ assert.deepEqual(Object.keys(row).sort(),['archivedAt','created','createdBy','data','id','parent','updated','updatedBy','version']);
+ assert.equal(typeof row.id,'string');assert.ok(row.id.length>0);
+ assert.equal(row.version,1);
+ return row;
+}
 const created = await invoke('Images.Job.create',{});
-assert.ok('result' in created,JSON.stringify(created));
-const row = created.result.result;
+const row = createdRecord(created);
 assert.equal(row.data.status,'idle');
 const envelopeId=operationId();
 const input={job:{id:row.id,version:String(row.version)}};
@@ -51,10 +61,10 @@ assert.equal(replay.result.status,'replayed');
 assert.equal(await store.readRevision(),revision);
 const stale = await invoke('Images.finish',input);
 assert.equal(stale.error.code,'conflict');
-const second = await invoke('Images.Job.create',{});
-const rollback = await invoke('Images.rollback',{job:{id:second.result.result.id,version:'1'}});
+const second = createdRecord(await invoke('Images.Job.create',{}));
+const rollback = await invoke('Images.rollback',{job:{id:second.id,version:'1'}});
 assert.equal(rollback.error.code,'rule_failed');
-assert.equal((await store.load('Images.Job',second.result.result.id)).data.status,'idle');
+assert.equal((await store.load('Images.Job',second.id)).data.status,'idle');
 const pageRef=artifact.pages[0];
 const entry=await import(asm.moduleUrls[pageRef.module]);
 const descriptor=entry[pageRef.export];
