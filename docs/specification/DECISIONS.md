@@ -4884,3 +4884,13 @@ nullable/public defaults, explicit overrides, physical default values and aged
 recovery/conflicts. Source checks8/8, lint/format pass; whole qualification is
 pending for this changed source. Broader mutations/sends and held profiles remain
 unimplemented rather than silently acquiring coverage.
+
+
+## 2026-10-10 — preserve parameter default anchors through grouping
+
+Parameter IR retains its exact checked default source node alongside the lowered
+expression. Native omission choices use this anchor so ordinary parentheses do
+not drop the execution association when expression lowering removes Group. Inner
+field and coalesce decisions keep their actual expression sites. The original
+consumer passes4/4 with nested grouping, with source8/8 and strict lint/format;
+final whole qualification remains pending.
