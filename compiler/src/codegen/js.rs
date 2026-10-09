@@ -2447,6 +2447,14 @@ impl<'a> Emitter<'a> {
                 self.unsupported("type", "object values have no §13 type id", span);
                 self.throw_expr("object type id")
             }
+            ResolvedType::InlineMessage => {
+                self.unsupported(
+                    "type",
+                    "anonymous descriptors have no business type id",
+                    span,
+                );
+                self.throw_expr("anonymous descriptor type id")
+            }
             ResolvedType::Opaque(_) => {
                 self.unsupported("type", "opaque deferred type has no §13 type id", span);
                 self.throw_expr("opaque type id")
@@ -4822,17 +4830,24 @@ impl<'a> Emitter<'a> {
                     matches!(value.expr, IrExpr::Bool(true))
                 }
                 "open" => matches!(value.ty, ResolvedType::Scalar(Scalar::Bool)),
-                "caption" | "title" | "text" | "label" | "regionId" | "target" | "opens" => {
+                "caption" | "title" | "text" | "label" => matches!(
+                    value.ty,
+                    ResolvedType::Scalar(Scalar::Text)
+                        | ResolvedType::InlineMessage
+                        | ResolvedType::Message(_)
+                ),
+                "regionId" | "target" | "opens" => {
                     matches!(value.ty, ResolvedType::Scalar(Scalar::Text))
-                        || matches!(value.expr, IrExpr::Message(_))
                 }
                 "submit" if node.factory == "button" => {
                     matches!(value.expr, IrExpr::Bool(true))
                 }
-                "submit" => {
-                    matches!(value.ty, ResolvedType::Scalar(Scalar::Text))
-                        || matches!(value.expr, IrExpr::Message(_))
-                }
+                "submit" => matches!(
+                    value.ty,
+                    ResolvedType::Scalar(Scalar::Text)
+                        | ResolvedType::InlineMessage
+                        | ResolvedType::Message(_)
+                ),
                 _ => true,
             };
             if !typed {
@@ -8271,6 +8286,11 @@ impl<'a> Emitter<'a> {
             },
             ResolvedType::Error => JsModelFieldType::Other {
                 type_id: "error".to_string(),
+            },
+            ResolvedType::InlineMessage => JsModelFieldType::Other {
+                // Diagnostic-only: this inferred local type cannot be
+                // declared as a model field or published value schema.
+                type_id: "anonymous message descriptor".to_string(),
             },
             ResolvedType::Unknown | ResolvedType::Null => JsModelFieldType::Other {
                 type_id: "unknown".to_string(),

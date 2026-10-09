@@ -1402,7 +1402,7 @@
       "acceptance_scope": "Roadmap documentation and evidence were committed as 4475990f; no product integration or living-plan checkpoint advance is claimed.",
       "worker_update": {
         "state": "integrated_tested_components_current_PR_review_required",
-        "scope": "Focused released producer/runtime/browser/MCP components tested; Codex code/security review completed with no new findings for pushed6e8692fe. Later consumer corrections need their own pushed-head review; no merge or whole-plan acceptance."
+        "scope": "Focused released producer/runtime/browser/MCP components tested. Codex code/security completed for03d9eaf7; caption finding resolved against accepted same-name rule. Later coherent corrections require their own pushed-head review; no merge or whole-plan acceptance."
       }
     },
     {
@@ -1559,8 +1559,8 @@
     "review_status": {
       "pr": "https://github.com/veighnsche/canlang/pull/134",
       "revision": "03d9eaf7f7df6e8c1341660dc3aae6f3b2b81991",
-      "state": "Codex_code_security_completed_caption_producer_reconciliation_pending",
-      "action": "Local DESIGN.md1018 assessment preserves same-name main-caption inheritance, independently of enum-value captions. Coordinator verified owning fixture explicitly omits renamed main legend; Compiler owns reconciliation of the Codex claim. This dependency confines edits to that function/fixture only; other ready work continues. No review acceptance or merge inferred."
+      "state": "Codex_code_security_completed_caption_finding_resolved_against_accepted_design",
+      "action": "Coordinator verified DESIGN.md1018: main field caption inherits only under same receiving/source field name; enum/value captions inherit independently. Existing function and owning fixture match the accepted rule. Reservation released; no caption rewrite required for that finding alone. Later pushed corrections still require their own current-head review."
     },
     "ci_status": {
       "revision": "6e8692fe6a314cdd7027bbd5998902a30a9c102a",
@@ -1576,7 +1576,8 @@
         ],
         "scope": "Exact source review confirms only two verbatim preference Given-to-Then relocations; preserve explicit handbuilt limits and unchanged runtime/schema/workflows. Real public Identity/testing and UI dependency closures bundled for workerd using existing MCP bundler; one Identity instance and first-error cleanup retained.",
         "validation": "Existing native Worker/Chromium scaffold/TeamTasks/MCP cases15/15 pass; direct owning E2E TypeScript passes. This is handbuilt consumer qualification, not full compiled original application emission."
-      }
+      },
+      "compiler_gate_correction": "Published0f17f6f8 owning producer/consumer intake passes all10 affected native targets529/529, including draft_outcome_table, explain entries, format corpus and CanInbox parameter/header parity; formatting and strict all-target Clippy pass. No whole-plan or hosted-current-head pass inferred."
     },
     "compiler_consumer_integration": {
       "producer_pr": "https://github.com/veighnsche/canlang/pull/133",
@@ -1607,10 +1608,10 @@
         "f617d3f7"
       ],
       "native_consumer_intake": {
-        "state": "implemented_tested_native_consumer_intake_current_corpus_mirrors_open",
-        "producer_head": "e461c1e22d547cdb17ca9f8aa2ed8869ce1ea365",
-        "scope": "Released native consumer intake105passed/2failed followed by corrected owning input_choices1/1 pass; unchanged105 results reused, leaving the pre-existing format corpus mirror. Actual installed any/set and typed references preserve final nonnull query/read/short-circuit order, null/omitted annotation nonexecution, missing-parent sentinel and actual reviewer_choices predicates. Cargo formatting and strict all-target Clippy pass after the changed consumers.",
-        "remaining": "Compiler owns format corpus mirror, analysis draft-outcome pins, current CanInbox/authoring mirrors. Exact available3e5d2cd E2019 explain exclusion remains a focused ready intake; no stale draft-outcome values will be imported."
+        "state": "released_producer_and_consumer_corrections_implemented_tested",
+        "producer_head": "0f17f6f806babaf8a36c9cfeaa40357e5437aae7",
+        "scope": "Consume coherent c3c12531 anonymous descriptor/effect/linkage producers and3082eae1 bound-caption producers with owning controls, plus current0f17f6f8 analysis/authoring/format/b4_examples consumers. Real1d6495d1 corpus,2ba8b526 claim controls andb1209ff6 parameter-domain/CanInbox parity underpin expectations; no count-only substitute. Ten affected source-current native targets pass529/529; cargo fmt --check and warnings-denied all-target Clippy pass. Existing105 native consumer results remain reusable where unchanged.",
+        "remaining": "Original application conditional-grant/model-rule/current-context and provider qualification remain defining-owner prerequisites; current corpus mirrors and CanInbox header parity affected checks now pass. Same-name preference caption behavior retained per accepted DESIGN.md1018."
       }
     }
   },

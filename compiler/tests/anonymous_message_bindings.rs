@@ -131,6 +131,325 @@ fn anonymous_local_aliases_preserve_exact_descriptor_provenance() {
 
 #[cfg(unix)]
 #[test]
+fn anonymous_descriptors_cannot_escape_into_plain_text_business_values() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let header = "app Escapes\nGiven\n Item {value:text}\n policy Item read=members\n derive accept(value:text):text=value\nWhen\n scenario run(row:Item) -> text by=members\n  do\n";
+    for (shape, bindings, value) in [
+        ("direct", "", "\"Hi\"@{}"),
+        ("grouped", "", "((\"Hi\"@{}))"),
+        ("bound", "", "\"Hi {name}\"@{}(name=\"Ada\")"),
+        (
+            "chained",
+            "   let first=\"Hi {name}\"@{}(name=\"Ada\")\n   let alias=((first))\n   let final=alias\n",
+            "((final))",
+        ),
+    ] {
+        for (sink, statement) in [
+            ("return", format!("return {value}")),
+            (
+                "create",
+                format!("create Item {{value={value}}} as created"),
+            ),
+            ("set", format!("set row {{value={value}}}")),
+            ("parameter", format!("let result=accept({value})")),
+            (
+                "nested",
+                format!("let result=accept(({{value={value}}}).value)"),
+            ),
+        ] {
+            let source = format!("{header}{bindings}   {statement}\n   return \"done\"\nThen\n");
+            let path = scratch.path().join(format!("{shape}-{sink}.can"));
+            std::fs::write(&path, source).unwrap();
+            let compiled = std::process::Command::new(env!("CARGO_BIN_EXE_can"))
+                .args(["compile", "--format=json", "--catalog"])
+                .arg(root.join("packages/values/dist/catalog.json"))
+                .arg(path)
+                .env_remove("CAN_CATALOG")
+                .output()
+                .unwrap();
+            let response: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
+            assert_eq!(
+                compiled.status.code(),
+                Some(10),
+                "{shape}/{sink}: {response}"
+            );
+            assert!(
+                response["diagnostics"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|diagnostic| diagnostic["code"] == "E3001"),
+                "{shape}/{sink}: {response}"
+            );
+            assert!(
+                response.get("modules").is_none(),
+                "{shape}/{sink}: {response}"
+            );
+        }
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn parameterized_message_value_producers_require_ordinary_calls() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    for (binding, declarations) in [
+        (
+            "local",
+            "app ProducerBindings\nGiven\n message heading(name:text)=\"Hello {name}\"@{}\n",
+        ),
+        (
+            "defaulted",
+            "app ProducerBindings\nGiven\n message heading(name:text=\"Ada\")=\"Hello {name}\"@{}\n",
+        ),
+        (
+            "imported",
+            "app ProducerBindings uses=[Consumer]\npackage Labels source=\"fr\"\n Given\n  export message greeting(name:text)=\"Hello {name}\"@{}\n When\n Then\npackage Consumer\n use Labels {greeting as heading}\n Given\n",
+        ),
+    ] {
+        let indent = if binding == "imported" { " " } else { "" };
+        for (shape, leaf) in [
+            ("direct-return", "derive unbound():heading=heading\n"),
+            ("grouped-return", "derive unbound():heading=((heading))\n"),
+            (
+                "qualified",
+                "derive unbound():Labels.greeting=Labels.greeting\n",
+            ),
+            (
+                "forwarded",
+                "derive forward(value:heading):heading=value\n derive unbound():heading=forward(((heading)))\n",
+            ),
+            ("shorthand", "derive unbound():int=count([{heading}])\n"),
+            (
+                "chained",
+                "derive forward(value:heading):heading=value\nWhen\n scenario unbound() -> int by=members\n  do\n   let descriptor=heading\n   let alias=((descriptor))\n   let final=alias\n   let forwarded=forward(final)\n   return count([forwarded])\n",
+            ),
+        ] {
+            if shape == "qualified" && binding != "imported" {
+                continue;
+            }
+            let leaf = format!(" {leaf}")
+                .lines()
+                .map(|line| format!("{indent}{line}\n"))
+                .collect::<String>();
+            let when = if shape == "chained" {
+                ""
+            } else if binding == "imported" {
+                " When\n"
+            } else {
+                "When\n"
+            };
+            let then = if binding == "imported" {
+                " Then\n"
+            } else {
+                "Then\n"
+            };
+            let source = format!("{declarations}{leaf}{when}{then}");
+            let path = scratch.path().join("producer.can");
+            std::fs::write(&path, source).unwrap();
+            let compiled = std::process::Command::new(env!("CARGO_BIN_EXE_can"))
+                .args(["compile", "--format=json", "--catalog"])
+                .arg(root.join("packages/values/dist/catalog.json"))
+                .arg(path)
+                .env_remove("CAN_CATALOG")
+                .output()
+                .unwrap();
+            let response: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
+            assert_eq!(
+                compiled.status.code(),
+                Some(10),
+                "{binding}/{shape}: {response}"
+            );
+            let diagnostics = response["diagnostics"].as_array().unwrap();
+            if shape == "qualified" {
+                // Qualified type annotations are legal; package-member values
+                // retain their existing unsupported expression profile.
+                assert!(
+                    diagnostics
+                        .iter()
+                        .any(|diagnostic| diagnostic["code"] == "E3001"
+                            && diagnostic["message"] == "package 'Labels' is not a value"),
+                    "{binding}/{shape}: {response}"
+                );
+            } else {
+                assert!(
+                    diagnostics
+                        .iter()
+                        .any(|diagnostic| diagnostic["code"] == "E3005"
+                            && diagnostic["message"]
+                                .as_str()
+                                .unwrap()
+                                .contains("ordinary call")),
+                    "{binding}/{shape}: {response}"
+                );
+            }
+            assert!(
+                diagnostics
+                    .iter()
+                    .all(|diagnostic| !diagnostic["code"].as_str().unwrap().starts_with("E1")),
+                "producer refusal must parse: {binding}/{shape}: {response}"
+            );
+            assert!(
+                response.get("modules").is_none(),
+                "{binding}/{shape}: {response}"
+            );
+        }
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn message_object_constructors_cannot_publish_descriptor_producers() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    for (schema, declaration) in [
+        (
+            "required",
+            "message heading(name:text,tail:text)=\"Hello {name}{tail}\"@{}",
+        ),
+        (
+            "defaulted",
+            "message heading(name:text=\"Ada\",tail:text=name)=\"Hello {name}{tail}\"@{}",
+        ),
+        ("static", "message heading=\"Hello\"@{}"),
+    ] {
+        for object in ["{}", "{name=\"Ada\"}", "{name=\"Ada\",tail=\"!\"}"] {
+            for (producer, body) in [
+                (
+                    "direct",
+                    format!(
+                        " derive unbound():heading=heading {object}\nWhen\nThen\n page / title=\"Home\"\n  card unbound()\n   text \"Body\"\n"
+                    ),
+                ),
+                (
+                    "forwarded",
+                    format!(
+                        " derive forward(value:heading):heading=value\n derive unbound():heading=forward(((heading {object})))\nWhen\nThen\n page / title=\"Home\"\n  card unbound()\n   text \"Body\"\n"
+                    ),
+                ),
+                (
+                    "chained",
+                    format!(
+                        "When\n scenario unbound() -> int by=members\n  do\n   let descriptor=heading {object}\n   let alias=((descriptor))\n   let final=alias\n   return count([final])\nThen\n"
+                    ),
+                ),
+            ] {
+                let source = format!("app ConstructorBindings\nGiven\n {declaration}\n{body}");
+                let path = scratch.path().join("constructor.can");
+                std::fs::write(&path, source).unwrap();
+                let compiled = std::process::Command::new(env!("CARGO_BIN_EXE_can"))
+                    .args(["compile", "--format=json", "--catalog"])
+                    .arg(root.join("packages/values/dist/catalog.json"))
+                    .arg(path)
+                    .env_remove("CAN_CATALOG")
+                    .output()
+                    .unwrap();
+                let response: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
+                assert_eq!(
+                    compiled.status.code(),
+                    Some(10),
+                    "{schema}/{object}/{producer}: {response}"
+                );
+                let diagnostics = response["diagnostics"].as_array().unwrap();
+                let guidance = if schema == "static" {
+                    "directly"
+                } else {
+                    "ordinary call"
+                };
+                assert!(
+                    diagnostics
+                        .iter()
+                        .any(|diagnostic| diagnostic["code"] == "E3008"
+                            && diagnostic["message"].as_str().unwrap().contains(guidance)),
+                    "{schema}/{object}/{producer}: {response}"
+                );
+                assert!(
+                    diagnostics
+                        .iter()
+                        .all(|diagnostic| !diagnostic["code"].as_str().unwrap().starts_with("E1")),
+                    "constructor refusal must parse: {schema}/{object}/{producer}: {response}"
+                );
+                assert!(
+                    response.get("modules").is_none(),
+                    "{schema}/{object}/{producer}: {response}"
+                );
+            }
+        }
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn parameterized_message_captions_require_binding_before_publication() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    for message in ["heading", "defaulted"] {
+        for caption in [message.to_string(), format!("(({message}))")] {
+            for (component, body) in [
+                ("card", format!("  card {caption}\n   text \"Body\"\n")),
+                (
+                    "details",
+                    format!("  details {caption}\n   text \"Body\"\n"),
+                ),
+                ("divider", format!("  divider {caption}\n")),
+                (
+                    "fieldset",
+                    format!("  fieldset {caption}\n   text \"Body\"\n"),
+                ),
+                (
+                    "tab",
+                    format!("  tabs\n   tab {caption}\n    text \"Body\"\n"),
+                ),
+            ] {
+                let source = format!(
+                    "app CaptionBindings\nGiven\n message heading(name:text)=\"Hello {{name}}\"@{{}}\n message defaulted(name:text=\"Ada\")=\"Hello {{name}}\"@{{}}\nWhen\nThen\n page / title=\"Captions\"\n{body}"
+                );
+                let path = scratch.path().join("caption.can");
+                std::fs::write(&path, source).unwrap();
+                let compiled = std::process::Command::new(env!("CARGO_BIN_EXE_can"))
+                    .args(["compile", "--format=json", "--catalog"])
+                    .arg(root.join("packages/values/dist/catalog.json"))
+                    .arg(path)
+                    .env_remove("CAN_CATALOG")
+                    .output()
+                    .unwrap();
+                let response: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
+                assert_eq!(
+                    compiled.status.code(),
+                    Some(10),
+                    "{component}/{caption}: {response}"
+                );
+                let diagnostics = response["diagnostics"].as_array().unwrap();
+                assert!(
+                    diagnostics
+                        .iter()
+                        .any(|diagnostic| diagnostic["code"] == "E6008"
+                            || (diagnostic["code"] == "E3005"
+                                && diagnostic["message"]
+                                    .as_str()
+                                    .unwrap()
+                                    .contains("ordinary call"))),
+                    "{component}/{caption}: {response}"
+                );
+                assert!(
+                    diagnostics
+                        .iter()
+                        .all(|diagnostic| !diagnostic["code"].as_str().unwrap().starts_with("E1")),
+                    "caption refusal must parse: {component}/{caption}: {response}"
+                );
+                assert!(
+                    response.get("modules").is_none(),
+                    "{component}/{caption}: {response}"
+                );
+            }
+        }
+    }
+}
+
+#[cfg(unix)]
+#[test]
 fn anonymous_messages_compile_and_execute_native_date_time_and_plural_bindings() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let scratch = tempfile::tempdir().unwrap();

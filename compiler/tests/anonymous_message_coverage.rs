@@ -30,9 +30,9 @@ fn anonymous_localized_format_uses_its_checked_empty_parameter_schema() {
         assert!(result.status.success(), "{expression}: {output:?}");
         assert!(!output.get("modules").unwrap().as_arr().unwrap().is_empty());
     }
-    // An unrelated raw descriptor remains structurally checked. Its existing
-    // emission refusal is separate from selected format parameter coverage.
-    let (_, result, output) = run("check", "derive shown():text = \"{d,time}\"@{}");
+    // An unrelated raw descriptor remains structurally checked without being
+    // misdeclared as a text result or selected as an empty-schema format.
+    let (_, result, output) = run("check", "derive shown():int = count([\"{d,time}\"@{}])");
     assert!(result.status.success(), "{output:?}");
     assert!(
         output
