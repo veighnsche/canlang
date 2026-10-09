@@ -1773,3 +1773,15 @@ compiler source unchanged. All incoming paths are registered in the existing
 file-tree ledger; its complete checkpoint remains unadvanced. Ready compiler
 derive/default/array/public recovery units are implemented and qualified at
 their stated scope; original owner dependencies and human holds remain.
+
+**Released portable local-derive consumer, 2026-10-09.** Fast-forward exact
+reviewed **cd8da1ad/Dev 55a0f916**, preserving the current whole-result records.
+Compiler and production package source are unchanged; the owner's genuine
+public/workerd/Identity/two-owner D1 journey **1/1** (37.72s) is reused at its
+exact **19 scalar/array/local-derive results** scope. Nested/repeated/named-slot/
+default/override/lazy chronology, physical receipts/rows, ordinary and aged
+no-write/no-file recovery, archive/revocation and source controls pass. Imported
+composition remains outside the single-file caller. The incoming existing
+file-tree reconciliation retains the complete checkpoint unadvanced. The sole
+compiler suite failure still requires actual State/Dev mutation-session and
+changed-record dependency projection; no duplicate fixture or unchanged rerun.
