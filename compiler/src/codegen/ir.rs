@@ -9777,7 +9777,6 @@ impl<'a> Cx<'a> {
             "action".to_string(),
             text(format!("/api/operations/{canonical}")),
         ));
-        props.push(("operationId".to_string(), text(canonical.clone())));
         let label_key = self
             .program
             .effects
