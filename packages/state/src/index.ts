@@ -101,6 +101,9 @@ export {
   type CrudDefsOptions,
   type CrudExecuteInput,
   type CrudOperationDef,
+  type GeneratedCrudExecuteInput,
+  type GeneratedCrudOwnerFrame,
+  type GeneratedCrudOwnerFrameFactory,
 } from './mutation/index.js';
 export { checkJsonSafe, jsonClone } from './internal/json.js';
 export {
