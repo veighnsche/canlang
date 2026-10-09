@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-09T21:46:44Z",
+  "updated_utc": "2026-10-09T22:34:24.208834+00:00",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -103,9 +103,9 @@
   },
   "latest_component": {
     "base_commit": "2e4d647116fc39fdb4499f3e684c1fedaa2cdee2",
-    "state": "send_set_affected_qualified_whole_pending",
-    "outcome": "Source8/8, originalnative4/4 Node24.19 including literal defaults, nested private-field defaults and grouped public coalesce, supplied override skip, physical defaults/raw conflicts/private withholding/aged recovery, lint/fmt0. T04 actualcompilerhalf6/6 for41cards qualified; actualbuild26/26 currentcatalog59/15. Historical83whole1325 retained at exactscope.",
-    "remaining": "State intrinsic and required primitive-input contracts are released at local main078cac74; complete Compiler generate/source-native attribution and genuine Dev adapter/whole original workflow remain pending, along with final changed-source compiler qualification. Held/broad refs and T04 runtime/example/provider scopes remain."
+    "state": "intrinsic_affected_qualified_whole_pending",
+    "outcome": "Current intrinsic source23/23 and facts15/15 reused; guard correction six-path source1/1 and actual CLIguard1/1, lint/fmt0. Exact12a3209b current native target3/3: two actual CLI output cases plus one real Memory/native workflow, Node24.19 zero skips. Producer graph26/26 zero cached, actual bin/catalog59/15 refreshed. Whole changed-source run in progress.",
+    "remaining": "Dev original complete Text workflow qualification; current changed-source full compiler run has started but has no final result. Broader nine refs and precise holds unchanged."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -317,7 +317,7 @@
     "consumer": "compiler/tests/fixtures/localized-format-consumer.mjs --label-parameter",
     "first_failure": "Same affected case0/1 (0.58s): two E3016 diagnostics anchored at text types of valid label parameters.",
     "repair": "resolve_param_defaults recognizes label metadata only when followed by =, preserving earlier seed default binding. check_param_defaults uses the existing field_parts.label owner; no parser or formatter facade change.",
-    "verified": "Same affected case1/1 (0.68s), production CLI/installed catalog \u2192 actual loadArtifactFile/assembleModules \u2192 unchanged generated derives/installed formatter. Explicit expression context formatting.appDefault=en, team=null. Dependent default yields {text:Ready|Ready|T,locale:en}; explicit binding yields {text:S|Bound|T,locale:en}.",
+    "verified": "Same affected case1/1 (0.68s), production CLI/installed catalog → actual loadArtifactFile/assembleModules → unchanged generated derives/installed formatter. Explicit expression context formatting.appDefault=en, team=null. Dependent default yields {text:Ready|Ready|T,locale:en}; explicit binding yields {text:S|Bound|T,locale:en}.",
     "refusal": "Same source retains actual tail label=caption metadata. Replacing its static caption message with a parameterized message preserves exact E3016: label cannot reference 'caption'; parameterized messages need call syntax, with no modules.",
     "reused": "Existing selected-call/localized-format/branch matrices and outcomes reused unchanged. Earlier branch source still uses word; its prior contextual-name issue is qualified here.",
     "qualification": "No task-count/full S9-Q01, carrier/public human sink, State/native authority, parser or facade claim.",
@@ -330,7 +330,7 @@
     "direct_case": "compiler/tests/query_order.rs::production_model_query_order_preserves_direct_alias_fields_and_refuses_expressions",
     "prepatch": "Actual genuine fixture compilation produced two E6008 expression-query-order diagnostics and no modules for entry.count and -entry.count.",
     "repair": "Minimal ir.rs decoder admits only the checked current model alias/direct stored field satisfying the existing Cloudflare native scalar-order contract, optionally unary descending. Existing IrOrder and native selector string emission reused; this case qualifies int ordering.",
-    "verified": "Same production CLI/installed Values catalog case1/1 (0.40s). Actual ascending/descending authored callables emit count/-count exactly. Same-source arithmetic entry.count+1 and correctly typed foreign root entryRecord:Entry order=entryRecord.count each refuse exact E6008 cannot lower expression query order: no \u00a713 lowering exists, with no modules.",
+    "verified": "Same production CLI/installed Values catalog case1/1 (0.40s). Actual ascending/descending authored callables emit count/-count exactly. Same-source arithmetic entry.count+1 and correctly typed foreign root entryRecord:Entry order=entryRecord.count each refuse exact E6008 cannot lower expression query order: no §13 lowering exists, with no modules.",
     "reused": "Original matched/all-false, revoke, provisional-read and rollback outcomes reused at recorded scope; no broad or unchanged matrix repeated.",
     "qualification": "Finite direct int-field source/artifact/authorized D1 order slice only. Full S9-Q02/Q08 and metadata/computed ordering remain open. Counters58/67 with9open unchanged.",
     "ownership": "Compiler ir.rs/query_order.rs/own notes frozen for capture; Work owns Cloudflare invoke.ts and genuine fixture/native consumer capture; coordinator owns DECISIONS/coverage/index.",
@@ -484,6 +484,19 @@
     "strict_clippy_exit": 0,
     "format_exit": 0,
     "scope": "Actual ownscalar/nullable-null/computed/conditional private-public Set, complete checked boundSend/TextRequest/TextMessage/deliverycarrier source proofs; exactactualIRbijection; write/no-write controls and replay/currentgrant/archive invariance. Original cancel/reconcile compile plans/bindings qualify.",
-    "remaining": "State intrinsic and required primitive-input contracts are released at local main078cac74; complete Compiler generate/source-native attribution and genuine Dev adapter/whole original workflow remain pending, along with final changed-source compiler qualification. Held/broad refs and T04 runtime/example/provider scopes remain."
+    "remaining": "Compiler original generate producer is implemented with released intrinsic/input contracts; exact reviewed Dev3f0077 native observer is consumed in this merge. Actual original Text workflow and final changed-source compiler qualification remain due. Native Send execution and broad refs/holds remain unqualified."
+  },
+  "scenario_intrinsics": {
+    "state": "affected_native_qualified_original_workflow_and_whole_pending",
+    "reviewed_state_intake": "078cac74fc4dd7859e55933f2ffeb2b10f57e1ef",
+    "source_checks": "23/23",
+    "facts_target": "15/15",
+    "actual_cli_output": "2/2 individually selected current-source cases, native execution not included",
+    "strict_clippy_exit": 0,
+    "format_exit": 0,
+    "scope": "Exact operation-id/original required reference version/required builtin input identities; actual once-only markers; original generate four facts; checked scalar shorthand lexical type/key anchors; native-only exact primitive valueType.",
+    "remaining": "Dev original complete Text workflow qualification; current changed-source full compiler run has started but has no final result. Broader nine refs and precise holds unchanged.",
+    "guard_correction": "All three intrinsic kinds control successful effects before/after Require. Focused six-path source1/1, actual CLIguard1/1, lint/fmt0; exact reviewed Dev3f0077 observer consumed at12a3209b.",
+    "native_target": "3/3 at12a3209b/ec3c2f50 Node24.19 zero skips: two compile-output checks and SAME real Memory/native receipt workflow. Genuine operation-id/input/original reference-version capture, post-Set original metadata after later value/version changes, ordinary/dedicated16minute no-effect recovery, archive/currentgrant controls."
   }
 }
