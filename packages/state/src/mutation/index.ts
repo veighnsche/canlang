@@ -38,10 +38,15 @@ export {
   CRUD_MAX_ID_LENGTH,
   crudDefs,
   crudExecute,
+  generatedCrudExecuteOwnerSession,
   type CrudDefs,
   type CrudDefsOptions,
   type CrudExecuteInput,
   type CrudOperationDef,
+  type GeneratedCrudExecuteInput,
+  type GeneratedCrudExecuteOwnerSessionInput,
+  type GeneratedCrudOwnerFrame,
+  type GeneratedCrudOwnerFrameFactory,
 } from './crud.js';
 export {
   bindOwnerModelPolicies,
