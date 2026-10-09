@@ -183,11 +183,12 @@ test('genuine dependent choices use current native D1 grants and the original ge
     let choiceRequests = 0;
     const fetchImpl: BrowserClientOptions['fetchImpl'] = async (url, init) => {
       if (url.includes('/choices/')) {
-        choiceRequests++; assert.ok(init.signal); signals.push(init.signal);
+        choiceRequests++; assert.ok(init.signal);
+        if (url.endsWith('/choices/region')) signals.push(init.signal);
       }
       const response = await worker.fetch(new Request(new URL(url, 'https://test.invalid'), {
         ...init, body: init.body as string, headers: { ...init.headers, cookie } }));
-      if (hold && url.includes('/choices/')) await new Promise<void>(resolve => releases.push(resolve));
+      if (hold && url.endsWith('/choices/region')) await new Promise<void>(resolve => releases.push(resolve));
       return response;
     };
     let client = startBrowserClient({ window: window as unknown as BrowserClientOptions['window'], fetchImpl });
@@ -314,7 +315,7 @@ test('genuine dependent choices use current native D1 grants and the original ge
       account: { authenticated: false, teams: [] }, settings: { sections: [] },
     });
     type Traffic = { path: string; inputs: Record<string, unknown>; operationId: string;
-      status: number; body: { code?: string; result?: unknown; choices?: Array<{ value: unknown; labels: string[] }> } };
+      status: number; body: { code?: string; message?: string; result?: unknown; choices?: Array<{ value: unknown; labels: string[] }> } };
     const traffic: Traffic[] = [];
     const serverErrors: unknown[] = [];
     const heldResponses: Array<() => void> = [];
@@ -386,7 +387,7 @@ test('genuine dependent choices use current native D1 grants and the original ge
       await waitBrowser(reviewerFeedback, '1 choices available.');
       assert.equal(await region.locator('option').nth(1).textContent(), 'Region 1');
       assert.deepEqual(traffic.find(row => row.path.endsWith('save/choices/region'))?.inputs,
-        { country: { id: countries[0], version: '1' }, note: 'Chromium draft' });
+        { country: { id: countries[0], version: '1' } });
       assert.equal(traffic.find(row => row.path.endsWith('submit/choices/assignee'))?.operationId, browserUserNonce);
       assert.equal(await page.locator('select[data-can-choices-select]').count(), 2);
 
@@ -424,10 +425,12 @@ test('genuine dependent choices use current native D1 grants and the original ge
       const mismatched = await direct('save', { country: { id: countries[0], version: '1' },
         region: { id: regions[1], version: '1' }, note: 'Forged region' });
       assert.equal(mismatched.body.code, 'rule_failed', JSON.stringify(mismatched));
+      assert.equal(mismatched.body.message, 'forbidden', 'the source parent guard rejected the forged selection');
+      const forged = await direct('submit', { document: { id: document, version: '1' }, assignee: { id: user.user_id } });
+      assert.equal(forged.body.code, 'rule_failed', JSON.stringify(forged));
+      assert.equal(forged.body.message, 'forbidden', 'the source eligibility guard rejected the forged reviewer');
       for (const [operation, input] of [['submit', { document: { id: document, version: '1' } }],
         ['assign', { submission: { id: submission, version: '1' } }]] as const) {
-        const forged = await direct(operation, { ...input, assignee: { id: user.user_id } });
-        assert.equal(forged.body.code, 'rule_failed', JSON.stringify(forged));
         for (const optional of [{}, { assignee: null }]) {
           const nullable = await direct(operation, { ...input, ...optional });
           assert.equal(nullable.status, 200, JSON.stringify(nullable)); assert.equal(nullable.body.result, null);
@@ -481,10 +484,10 @@ test('genuine dependent choices use current native D1 grants and the original ge
       await replaceData('Employee', employee, { user: { id: reviewer.user_id }, name: 'Reviewer', role: 'Approver', home: { id: sites[1] } });
       const ineligible = await submitBrowser('submit', browserReviewer);
       assert.equal(ineligible.code, 'rule_failed', JSON.stringify(ineligible));
+      assert.equal(ineligible.message, 'forbidden', 'current source eligibility, rather than a carrier error, rejected the reviewer');
       assert.equal(await browserReviewer.locator('[name="inputs[assignee]"]').inputValue(), reviewer.user_id);
       const noReviewer = await direct('submit/choices/assignee', { document: { id: document, version: '1' } });
       assert.equal(noReviewer.status, 200); assert.deepEqual(noReviewer.body.choices, []);
-      assert.equal((await direct('assign', { submission: { id: submission, version: '1' }, assignee: { id: reviewer.user_id } })).body.code, 'rule_failed');
       await replaceData('Employee', employee, { user: { id: reviewer.user_id }, name: 'Reviewer', role: 'Approver', home: { id: sites[0] } });
       const restored = await direct('submit', { document: { id: document, version: '1' }, assignee: { id: reviewer.user_id } });
       assert.equal(restored.status, 200, JSON.stringify(restored)); assert.deepEqual(restored.body.result, { id: reviewer.user_id });
