@@ -3679,3 +3679,7 @@ Consume exact owning Compiler57573511self-unification source/test prerequisite t
 ## 2026-10-09 — consume immediate reused-field preference captions
 
 Consume exact owning Compilerf1c84d32Types/IR and matching adapter/generated preference lifecycle controls. Checked immediate reuse identity composes captions through the nearest declaration and receiving override while retaining receiving default/save/version identity and refusals. Owning Rust1.99locked/offline adapter8/8and actual generated HTTP/UI nominal preference1/1pass. This closes the reported chained-caption prerequisite at its finite source/consumer scope; full-plan and current-head review remain separate.
+
+## 2026-10-09 — retain bounded alias provenance during State constraint intake
+
+Accepted finite checked-field correction: reuse the State constraint factory with the owning normalized Values schema at both registry entry points and model-table intake. Copy only the exact checked alias declaration into the fresh bounds-validation descriptor, then retain original aliases for value traversal. Declared alias bounds/NAME format and receiving bounds remain enforced; unowned aliases and unsupported trim claims still refuse. State emit and4targeted artifact/direct-loader/mutation/ownership cases pass without skips. Unchanged native/archive results are reused; full nominal/CSV/host and original queue acceptance remain separate.
