@@ -102,6 +102,33 @@ async function saveIntrinsics(w: Awaited<ReturnType<typeof world>>, version = tr
   assert.ok(receipt); return receipt;
 }
 
+function inputIntrinsicArtifact(type = 'text'): ArtifactDescriptorSlice {
+  const slice = intrinsicArtifact(false, type);
+  slice.operations![0]!.inputs.fields.push(
+    { name: 'prompt', field: { kind: 'string' }, valueType: 'text' as CanTypeId, required: true },
+    { name: 'accept', field: { kind: 'boolean' }, valueType: 'bool' as CanTypeId, required: true });
+  const returned = slice.operations![0]!.result!.disclosure!.returns[0]!;
+  (returned.intrinsics as unknown[]).push(
+    { id: 'prompt-input', source: origin(), role: 'data', kind: 'admitted-input', parameter: 'prompt', type: 'text' },
+    { id: 'accept-input', source: origin(), role: 'control', kind: 'admitted-input', parameter: 'accept', type: 'bool' });
+  return slice;
+}
+async function inputIntrinsicWorld(prompt = 'submitted prompt', accept = true, type = 'text') {
+  const w = await world(inputIntrinsicArtifact(type));
+  return { ...w, envelope: { ...w.envelope, inputs: { ...w.envelope.inputs, prompt, accept } } };
+}
+async function saveInputIntrinsics(w: Awaited<ReturnType<typeof inputIntrinsicWorld>>): Promise<Receipt> {
+  let receipt: Receipt | undefined;
+  await invoke({ ...w, execute: async call => {
+    await observeScenarioReceiptIntrinsic(call, w.store, { dependencyId: 'invocation', kind: 'operation-id', wire: call.context.operationId });
+    await observeScenarioReceiptIntrinsic(call, w.store, { dependencyId: 'prompt-input', kind: 'admitted-input', wire: call.inputs['prompt'] });
+    await observeScenarioReceiptIntrinsic(call, w.store, { dependencyId: 'accept-input', kind: 'admitted-input', wire: call.inputs['accept'] });
+    selectScenarioReceiptReturn(call, w.store, 'intrinsic-result');
+    return emptyEffects(JSON.stringify([call.inputs['prompt'], call.inputs['accept']]));
+  }, observeCommittedReceipt: value => { receipt = value; } });
+  assert.ok(receipt); return receipt;
+}
+
 async function assertIntrinsicRejection(w: Awaited<ReturnType<typeof world>>, revision: number, code: string): Promise<void> {
   // Business rejection deliberately commits one receipt/fence revision.
   assert.equal(await w.store.readRevision(), revision + 1);
@@ -117,6 +144,115 @@ async function assertIntrinsicRejection(w: Awaited<ReturnType<typeof world>>, re
 }
 
 describe('execution-associated saved scenario disclosure', () => {
+  it('retains own required input wires including empty text and false through exact expired replay', async () => {
+    for (const [prompt, accept] of [['submitted prompt', true], ['', false]] as const) {
+      const w = await inputIntrinsicWorld(prompt, accept); const receipt = await saveInputIntrinsics(w);
+      const association = readScenarioReceiptAssociation(receipt)!;
+      assert.deepEqual(association.intrinsics!.slice(1), [
+        { dependencyId: 'prompt-input', kind: 'admitted-input', wire: prompt },
+        { dependencyId: 'accept-input', kind: 'admitted-input', wire: accept }]);
+      const noRows = buildPolicyTable([{ model: MODEL, secretFields: [], grants: [] }]);
+      assert.deepEqual(await projectScenarioReceipt({ ...w, policy: noRows, receipt }), {
+        result: JSON.stringify([prompt, accept]), records: [] });
+      const revision = await w.store.readRevision(); let executes = 0;
+      assert.equal((await invokeRetainedReceiptOnly({ ...w, clock: { nowMs: () => FIXED_NOW + 16 * 60_000 },
+        execute: async () => { executes++; throw new Error('must not execute'); } })).status, 'replayed');
+      for (const changed of [{ prompt: `${prompt}changed` }, { accept: !accept }]) {
+        await assert.rejects(invokeRetainedReceiptOnly({ ...w,
+          envelope: { ...w.envelope, inputs: { ...w.envelope.inputs, ...changed } },
+          execute: async () => { executes++; throw new Error('must not execute'); } }),
+        error => error instanceof StateError && error.code === 'conflict');
+      }
+      assert.equal(executes, 0); assert.equal(await w.store.readRevision(), revision);
+      assert.deepEqual(await w.store.readReceipt(receipt.identity), receipt);
+      const drift = inputIntrinsicArtifact(); drift.operations![0]!.inputs.fields.find(f => f.name === 'prompt')!.valueType = 'date' as CanTypeId;
+      const dependencies = drift.operations![0]!.result!.disclosure!.returns[0]!.intrinsics! as unknown as Array<Record<string, unknown>>;
+      dependencies.find(dep => dep['id'] === 'prompt-input')!['type'] = 'date';
+      const registry = loadArtifactDescriptors(drift, { by: 'members' }).registry;
+      assert.deepEqual(await projectScenarioReceipt({ ...w, registry, receipt }), { result: null, records: [] });
+    }
+  });
+
+  it('rejects missing input captures and unsupported admitted-input declaration and source profiles', async () => {
+    const w = await inputIntrinsicWorld('', false, 'void'); const revision = await w.store.readRevision();
+    await assert.rejects(invoke({ ...w, execute: async () => emptyEffects(null) }), validation);
+    await assertIntrinsicRejection(w, revision, 'validation');
+    for (const profile of ['parameter', 'type', 'default', 'nullable', 'legacy', 'legacy-nullable', 'array', 'optional', 'nominal', 'enum', 'file', 'source', 'computed'] as const) {
+      const slice = inputIntrinsicArtifact(); const input = slice.operations![0]!.inputs.fields.find(f => f.name === 'prompt')!;
+      const dependency = slice.operations![0]!.result!.disclosure!.returns[0]!.intrinsics![1]! as unknown as Record<string, unknown>;
+      if (profile === 'parameter') dependency['parameter'] = 'missing';
+      if (profile === 'type') dependency['type'] = 'bool';
+      if (profile === 'default') input.default = { kind: 'literal', value: '' };
+      if (profile === 'nullable') { input.nullable = true; input.valueType = 'text?' as CanTypeId; }
+      if (profile === 'legacy' || profile === 'legacy-nullable') delete input.valueType;
+      if (profile === 'legacy-nullable') input.nullable = true;
+      if (profile === 'array') { input.array = { required: false }; input.valueType = 'text[]' as CanTypeId; }
+      if (profile === 'optional') input.required = false;
+      if (profile === 'nominal') {
+        slice.valueTypes = { contracts: [], aliases: [{ name: 'Shop.Choice', type: 'text', min: 1, max: 80, format: 'name' }] };
+        input.field = { kind: 'nominal', name: 'Shop.Choice' }; input.valueType = 'Shop.Choice' as CanTypeId;
+      }
+      if (profile === 'enum') { input.field = { kind: 'enum', values: ['yes', 'no'] }; input.valueType = 'enum(yes,no)' as CanTypeId; }
+      if (profile === 'file') { input.field = { kind: 'file' }; delete input.valueType; }
+      if (profile === 'source') dependency['source'] = { ...origin(), sha256: 'b'.repeat(64) };
+      if (profile === 'computed') (input as unknown as Record<string, unknown>)['computedDefault'] = true;
+      assert.throws(() => loadArtifactDescriptors(slice, { by: 'members' }), IncompatibleArtifactError, profile);
+    }
+  });
+
+  it('refuses malformed actual supplied text and boolean wires even when the host echoes them', async () => {
+    for (const invalid of [{ prompt: 7 }, { accept: 'false' }]) {
+      const original = await inputIntrinsicWorld();
+      const w = { ...original, envelope: { ...original.envelope, inputs: { ...original.envelope.inputs, ...invalid } } };
+      const revision = await w.store.readRevision();
+      await assert.rejects(invoke({ ...w, execute: async call => {
+        const parameter = Object.hasOwn(invalid, 'prompt') ? 'prompt' : 'accept';
+        await observeScenarioReceiptIntrinsic(call, w.store, { dependencyId: `${parameter}-input`, kind: 'admitted-input',
+          wire: call.inputs[parameter] });
+        return emptyEffects('invalid actual input');
+      } }), validation);
+      await assertIntrinsicRejection(w, revision, 'validation');
+    }
+  });
+
+  it('refuses copied calls and spoofed input wires and keeps caught input failures poisoned', async () => {
+    for (const invalid of ['wire', 'parameter', 'copied-call', 'missing-slot'] as const) {
+      const w = await inputIntrinsicWorld(); const revision = await w.store.readRevision();
+      await assert.rejects(invoke({ ...w, execute: async call => {
+        await observeScenarioReceiptIntrinsic(call, w.store, { dependencyId: 'invocation', kind: 'operation-id', wire: call.context.operationId });
+        const prompt = call.inputs['prompt'];
+        if (invalid === 'missing-slot') delete (call.inputs as Record<string, unknown>)['prompt'];
+        await assert.rejects(observeScenarioReceiptIntrinsic(invalid === 'copied-call' ? { ...call } : call, w.store, {
+          dependencyId: invalid === 'parameter' ? 'accept-input' : 'prompt-input', kind: 'admitted-input',
+          wire: invalid === 'wire' ? 'different prompt' : prompt }), invalid === 'copied-call' || invalid === 'missing-slot' ? forbidden : validation);
+        if (invalid === 'copied-call') throw new StateError('forbidden', 'copied call');
+        if (invalid === 'missing-slot') (call.inputs as Record<string, unknown>)['prompt'] = prompt;
+        assert.throws(() => selectScenarioReceiptReturn(call, w.store, 'intrinsic-result'), validation);
+        return emptyEffects('caught failure');
+      } }), invalid === 'copied-call' ? forbidden : validation);
+      await assertIntrinsicRejection(w, revision, invalid === 'copied-call' ? 'forbidden' : 'validation');
+    }
+  });
+
+  it('poisons input capture when an admitted input changes during its awaited revision check', async () => {
+    const w = await inputIntrinsicWorld(); const revision = await w.store.readRevision();
+    let active: Parameters<typeof observeScenarioReceiptIntrinsic>[0] | undefined;
+    const store: StoragePort = { ...w.store, readRevision: async () => {
+      const value = await w.store.readRevision();
+      if (active) (active.inputs as Record<string, unknown>)['prompt'] = 'tampered while pending';
+      return value;
+    } };
+    await assert.rejects(invoke({ ...w, store, execute: async call => {
+      active = call; const prompt = call.inputs['prompt'];
+      await assert.rejects(observeScenarioReceiptIntrinsic(call, store, {
+        dependencyId: 'prompt-input', kind: 'admitted-input', wire: prompt }), forbidden);
+      active = undefined; (call.inputs as Record<string, unknown>)['prompt'] = prompt;
+      assert.throws(() => selectScenarioReceiptReturn(call, store, 'intrinsic-result'), validation);
+      return emptyEffects('caught tamper');
+    } }), validation);
+    await assertIntrinsicRejection(w, revision, 'validation');
+  });
+
   it('retains exact invocation identity and original admitted version through writes and receipt-only recovery', async () => {
     const w = await world(intrinsicArtifact()); const receipt = await saveIntrinsics(w);
     const association = readScenarioReceiptAssociation(receipt); assert.ok(association?.intrinsics);

@@ -187,6 +187,9 @@ for (const substrate of ['d1', 'do'] as const) {
       const member = await seedMember(memberships, { isOwner: false, roles: ['Shop.reader'] });
       const identity = makeIdentity({ userId: member.user.user_id, team: member.team, membership: member.membership });
       const slice = artifact();
+      slice.operations![0]!.inputs.fields.push(
+        { name: 'prompt', field: { kind: 'string' }, valueType: 'text' as CanTypeId, required: true },
+        { name: 'accept', field: { kind: 'boolean' }, valueType: 'bool' as CanTypeId, required: true });
       slice.operations![0]!.result = { type: 'void' as CanTypeId, disclosure: { version: 1, source: origin(), returns: [
         { id: 'queued-control', source: origin(), influences: [], dependencies: [
           { id: 'queued', source: origin(), role: 'control', model: MODEL, field: 'visible', type: 'text' as CanTypeId },
@@ -194,6 +197,8 @@ for (const substrate of ['d1', 'do'] as const) {
           { id: 'operation', source: origin(), role: 'data', kind: 'operation-id', type: 'text' as CanTypeId },
           { id: 'original-version', source: origin(), role: 'data', kind: 'admitted-reference-version',
             parameter: 'record', model: MODEL, type: 'int' as CanTypeId },
+          { id: 'prompt', source: origin(), role: 'data', kind: 'admitted-input', parameter: 'prompt', type: 'text' as CanTypeId },
+          { id: 'accept', source: origin(), role: 'control', kind: 'admitted-input', parameter: 'accept', type: 'bool' as CanTypeId },
         ] },
       ] } };
       const loaded = loadArtifactDescriptors(slice, { by: 'members' });
@@ -203,7 +208,8 @@ for (const substrate of ['d1', 'do'] as const) {
       } });
       const original = await store.load(MODEL, 'owner-session-row' as import('@canlang/contracts').RecordId); assert.ok(original);
       const input = { registry: loaded.registry, app: APP, identity, memberships, source: 'test',
-        envelope: makeEnvelope(OP, uuidv7(FIXED_NOW, 9711), { record: { id: original.id, version: String(original.version) } }),
+        envelope: makeEnvelope(OP, uuidv7(FIXED_NOW, 9711), { record: { id: original.id, version: String(original.version) },
+          prompt: '  original prompt\n', accept: false }),
         clock: { nowMs: () => FIXED_NOW } };
       let receipt: Receipt | undefined;
       await invoke({ ...input, store, execute: async call => {
@@ -216,6 +222,8 @@ for (const substrate of ['d1', 'do'] as const) {
           wire: call.context.operationId });
         await observeScenarioReceiptIntrinsic(call, store, { dependencyId: 'original-version', kind: 'admitted-reference-version',
           reference: call.recordRefs[0]!, wire: String(call.recordRefs[0]!.row.version) });
+        await observeScenarioReceiptIntrinsic(call, store, { dependencyId: 'prompt', kind: 'admitted-input', wire: call.inputs['prompt'] });
+        await observeScenarioReceiptIntrinsic(call, store, { dependencyId: 'accept', kind: 'admitted-input', wire: call.inputs['accept'] });
         await observeScenarioReceiptDependency(call, store, { dependencyId: 'queued', model: MODEL, row: queued, field: 'visible' });
         selectScenarioReceiptReturn(call, store, 'queued-control');
         await session.stage({ op: 'update', model: MODEL, id: original.id, data: { visible: 'generating' } }, { cause: 'scenario' });
@@ -233,6 +241,8 @@ for (const substrate of ['d1', 'do'] as const) {
         { dependencyId: 'operation', kind: 'operation-id', wire: input.envelope.operation_id },
         { dependencyId: 'original-version', kind: 'admitted-reference-version', wire: String(original.version),
           model: MODEL, row: original, secretFields: ['token'] },
+        { dependencyId: 'prompt', kind: 'admitted-input', wire: input.envelope.inputs['prompt'] },
+        { dependencyId: 'accept', kind: 'admitted-input', wire: false },
       ]);
       assert.equal(association.observations[0]!.row.data.visible, 'queued');
       assert.equal(association.changed[0]!.row.data.visible, 'generating');
