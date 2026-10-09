@@ -57,6 +57,10 @@ and anonymous/revoked-member refusals all qualify. The new receiving-identity
 controls and unchanged inline Tabs case pass **1/1** each. Independent review
 accepts the source and lifecycle scope after strengthening the checked-status
 assertion. Identity and Interfaces owning builds both pass.
+Codex review of **1ee1239d** completed and identified grouped-target identity
+loss. Unwrapping syntax groups only for the checked field lookup fixes direct,
+single and nested inline/borrowed targets; the actual grouped HTTP/UI case and
+business-field refusal controls pass. Independent review accepts this correction.
 
 Both affected structural goldens now pass **1/1** each, with positive inline and
 borrowed Tabs payload/save metadata in place of retired refusals. ExpenseFlow's
