@@ -3640,3 +3640,8 @@ Include `MessageValue` in IR expression-child recognition so arrays accepted by 
 ## 2026-10-09 — close checked UI descriptor admission locally
 
 Retain the saved sink-specific ownerless-enum refusal while admitting supported descriptor profiles to real UI factories. Stat description expressions now resolve/typecheck with purity and reuse bound caption admission, including bare-parameterized refusal; retain button as an explicit unsupported source-profile control. Native supported captions and descriptions pass; affected bindings eight cases plus the corrected option-refusal case1/1, codegen117/117, slots6/6, selected calls7/7 and adapter7/7 pass. The first option-control run expected E3010 where operation expression calls already refuse E3005; only that diagnostic expectation changed. Values formatting remains supported, and canonical enum UI recognition remains its owning prerequisite. No whole-source or full-reference acceptance follows.
+
+
+## 2026-10-09 — admit sequence replay identities through the owning runner
+
+Treat top-level example request.operation_id as text, matching the actual examples runner. Admit malformed/stale text so error(validation) nonce cases reach the canonical invoker; reject nontext literals, unknown keys and nested identity overrides. Dynamic unanchored sequence expressions retain existing runner typing. The five affected sequence checks pass and independent finite review accepts this boundary; UUIDv7/freshness and execution remain runtime-owned.
