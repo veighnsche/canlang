@@ -29,6 +29,7 @@ it("retains released native originating context and keeps unqualified ranking lo
   };
   const valuesVersion = await version("values");
   const uiVersion = await version("ui");
+  const cloudflareVersion = await version("cloudflare");
   let providerCalls = 0;
   const owner = await startDevSessionService({
     selectedApp: "T", runtimeDir,
@@ -40,6 +41,8 @@ it("retains released native originating context and keeps unqualified ranking lo
       packageInputPaths: [
         { name: `@canlang/values@${valuesVersion}/dist/src/catalog.js`, path: join(project, "packages/values/dist/src/catalog.js") },
         { name: `@canlang/ui@${uiVersion}/dist/src/catalog.js`, path: join(project, "packages/ui/dist/src/catalog.js") },
+        { name: `@canlang/cloudflare@${cloudflareVersion}/dist/dev/compiler-check.js`, path: join(project, "packages/cloudflare/dist/dev/compiler-check.js") },
+        { name: `@canlang/cloudflare@${cloudflareVersion}/dist/dev/preview-builder.js`, path: join(project, "packages/cloudflare/dist/dev/preview-builder.js") },
       ],
       extraInputPaths: [
         { name: "grammar", path: "docs/specification/GRAMMAR.md" },
@@ -62,7 +65,8 @@ it("retains released native originating context and keeps unqualified ranking lo
     const diagnostic = await client.request({ command: "diagnostic.detail", payload: { revision: checked.revision, index: 0 } }) as {
       current: boolean; source: { sha256: string };
       diagnostic: { code: string; primary: { start: number; end: number }; construct_candidates: CompilerConstructCandidates };
-      construct_help: { candidateCoverage: string; cards: { id: string; status: string }[] };
+      construct_help: { grammarCoverage: string; candidateCoverage: string; cards: { id: string; status: string }[];
+        classification: {id:string;profile:string;working:string}[] };
     };
     expect(diagnostic.current).toBe(true);
     expect(diagnostic.source.sha256).toBe(createHash("sha256").update(source).digest("hex"));
@@ -79,8 +83,12 @@ it("retains released native originating context and keeps unqualified ranking lo
     const span = diagnostic.diagnostic.primary;
     expect(Buffer.from(source).subarray(span.start, span.end).toString("utf8")).toBe("scenairo");
     expect(diagnostic.construct_help.candidateCoverage).toBe("unknown");
+    expect(diagnostic.construct_help.grammarCoverage).toBe("complete");
     expect(diagnostic.construct_help.cards.map(card => card.id).sort()).toEqual([...routing.ids].sort());
     expect(diagnostic.construct_help.cards.every(card => card.status !== "working")).toBe(true);
+    expect(diagnostic.construct_help.classification).toContainEqual({id:"can.v1.when.scenario.periodic",profile:"outside",working:"unqualified"});
+    expect(diagnostic.construct_help.classification).toContainEqual({id:"can.v1.when.scenario.user",profile:"included",working:"unqualified"});
+    expect(diagnostic.construct_help.classification).toContainEqual({id:"can.v1.when.scenario.cohort",profile:"unknown",working:"unqualified"});
     const ranked = await client.request({ command: "construct.rank", payload: { revision: checked.revision, index: 0 } });
     expect(ranked).toMatchObject({ schema: "can.dev.construct-rank.v1", revision: checked.revision,
       result: { state: "candidate_coverage_unknown", reason: "host profile or diagnostic branch qualification is unavailable" } });

@@ -118,9 +118,6 @@ function eligible(occurrence: RankOccurrence): RankResult | null {
   if (occurrence.materialIntentChoice) {
     return { state: "intent_required", reason: "author must choose the permission, identity or effect contract" };
   }
-  if (!occurrence.evidenceSufficient) {
-    return { state: "intent_unclear", reason: "bounded source evidence cannot distinguish the candidates" };
-  }
   if (occurrence.candidateCoverage !== "complete" || occurrence.cards.some(card => card.availability !== "working")) {
     return { state: "candidate_coverage_unknown", reason: "working construct candidates are not fully qualified" };
   }
@@ -139,6 +136,9 @@ function eligible(occurrence: RankOccurrence): RankResult | null {
   }
   if (occurrence.cards.length < MIN_CARDS || !validWord(occurrence.guess)) {
     return { state: "intent_unclear", reason: "safe offending keyword is unavailable" };
+  }
+  if (!occurrence.evidenceSufficient) {
+    return { state: "intent_unclear", reason: "bounded source evidence cannot distinguish the candidates" };
   }
   if (!/^E\d{4}$/.test(occurrence.diagnosticCode) || !occurrence.messageKind || !occurrence.ref) {
     return { state: "ineligible", reason: "source diagnostic identity is missing" };
