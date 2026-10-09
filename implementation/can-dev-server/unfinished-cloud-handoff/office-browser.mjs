@@ -13,6 +13,7 @@ const manifest = join(installed, 'test-results/can-dev-server/office-browser-cap
 const require = createRequire(join(installed, 'package.json'));
 const { chromium } = require('@playwright/test');
 const { deriveCsrfToken } = await import(pathToFileURL(require.resolve('@canlang/identity')).href);
+const { FORM_REFUSAL_HEADER, isBusinessErrorCode } = await import(pathToFileURL(require.resolve('@canlang/interfaces')).href);
 const { prepareLocalPreviewCapture } = await import(pathToFileURL(join(installed, 'packages/cloudflare/dist/dev/preview-inputs.js')).href);
 const exec = promisify(execFile);
 const facts = { schema: 'office-browser-journey.v1', checks: {} };
@@ -86,7 +87,19 @@ async function submit(page, form, operation) {
   await form.locator('button[type="submit"]').first().click();
   const result = await response;
   const status = result.status();
-  const error = status === 200 ? '' : (await result.text()).slice(0, 240);
+  let error = '';
+  if (status !== 200) {
+    // A failed HTML form can contain private draft and credential controls.
+    // Report only the owning closed metadata, never a response-body excerpt.
+    const raw = result.headers()[FORM_REFUSAL_HEADER];
+    let metadata;
+    if (typeof raw === 'string' && Buffer.byteLength(raw) <= 256) {
+      try { metadata = JSON.parse(raw); } catch {}
+    }
+    error = metadata?.version === 1 && isBusinessErrorCode(metadata.code) &&
+      typeof metadata.retryable === 'boolean'
+      ? `${metadata.code}; retryable=${metadata.retryable}` : 'bounded refusal metadata unavailable';
+  }
   assert.equal(status, 200, operation + ' status: ' + error);
 }
 async function create(page, origin, name, quantity) {
@@ -126,7 +139,15 @@ async function edit(page, origin, oldName, name, quantity, available) {
   await reload(page, origin);
   const updated = rows(page).filter({ hasText: name });
   assert.equal(await updated.count(), 1, name + ' persisted');
+  assert.equal(await updated.locator('form[action*="Supply.update"] input[name="inputs[changes][name]"]').inputValue(), name);
+  assert.equal(await updated.locator('form[action*="Supply.update"] input[name="inputs[changes][quantity]"]').inputValue(), quantity);
   assert.equal(await updated.locator('form[action*="Supply.update"] input[name="inputs[changes][available]"]').isChecked(), available);
+}
+async function searchFor(page, query) {
+  const form = page.locator('form[role="search"]');
+  await form.locator('input[name="q"]').fill(query);
+  await form.locator('button[type="submit"]').click();
+  await page.waitForLoadState('networkidle');
 }
 async function tab(page, value) {
   const form = page.locator('form:has(input[type="radio"][name="view"])');
@@ -167,8 +188,25 @@ try {
   await create(page, origin, 'Pens', '4');
   await create(page, origin, 'Tape', '2');
   assert.equal(await count(page), 3); facts.checks.three_creates = true;
-  await edit(page, origin, 'Pens', 'Blue pens', '8', false);
+  const ben = await login(browser, opened, 'Ben');
+  assert.equal(await count(ben.page), 3);
+  assert.equal(await rows(ben.page).filter({ hasText: 'Paper' }).count(), 1);
+  const benPens = rows(ben.page).filter({ hasText: 'Pens' });
+  assert.equal(await benPens.count(), 1);
+  assert.equal(await benPens.locator('form[action*="Supply.update"] input[name="inputs[changes][quantity]"]').inputValue(), '4');
+  facts.checks.ben_reads_ava_rows = true;
+  await edit(ben.page, ben.origin, 'Pens', 'Blue pens', '8', false);
   facts.checks.edit_unavailable_persisted = true;
+  await tab(ben.page, 'restock');
+  assert.equal(await count(ben.page), 1);
+  assert.equal(await rows(ben.page).filter({ hasText: 'Blue pens' }).count(), 1);
+  await tab(ben.page, 'all');
+  await reload(page, origin);
+  const avaBlue = rows(page).filter({ hasText: 'Blue pens' });
+  assert.equal(await avaBlue.count(), 1);
+  assert.equal(await avaBlue.locator('form[action*="Supply.update"] input[name="inputs[changes][quantity]"]').inputValue(), '8');
+  assert.equal(await avaBlue.locator('form[action*="Supply.update"] input[name="inputs[changes][available]"]').isChecked(), false);
+  facts.checks.ava_observes_ben_edit = true;
   await tab(page, 'available');
   assert.equal(await count(page), 2);
   assert.equal(await rows(page).filter({ hasText: 'Blue pens' }).count(), 0);
@@ -178,33 +216,66 @@ try {
   assert.equal(await rows(page).filter({ hasText: 'Blue pens' }).count(), 1);
   facts.checks.restock_tab = true;
   await tab(page, 'all');
-  const search = page.locator('form[role="search"]');
-  await search.locator('input[name="q"]').fill('Blue');
-  await search.locator('button[type="submit"]').click();
-  await page.waitForLoadState('networkidle');
+  await searchFor(page, 'pa');
   assert.equal(await count(page), 1);
-  await search.locator('input[name="q"]').fill('No such supply');
-  await search.locator('button[type="submit"]').click();
-  await page.waitForLoadState('networkidle');
+  assert.equal(await rows(page).count(), 1);
+  assert.equal(await rows(page).filter({ hasText: 'Paper' }).count(), 1);
+  await tab(page, 'available');
+  await searchFor(page, 'ens');
+  assert.equal(await count(page), 0);
+  assert.equal(await rows(page).count(), 0);
+  assert.match(await page.locator('body').innerText(), /No supplies match this view/);
+  await tab(page, 'restock');
+  await searchFor(page, 'ens');
+  assert.equal(await count(page), 1);
+  assert.equal(await rows(page).count(), 1);
+  assert.equal(await rows(page).filter({ hasText: 'Blue pens' }).count(), 1);
+  facts.checks.frozen_search_tab_combinations = true;
+  await tab(page, 'all');
+  await searchFor(page, 'Blue');
+  assert.equal(await count(page), 1);
+  await searchFor(page, 'No such supply');
   assert.equal(await count(page), 0);
   assert.match(await page.locator('body').innerText(), /No supplies match this view/);
   facts.checks.search_count_empty = true;
   await reload(page, origin);
-  await edit(page, origin, 'Blue pens', 'Blue pens', '8', true);
+  assert.equal(await count(page), 3, 'cleared search restores all rows');
+  await edit(ben.page, ben.origin, 'Blue pens', 'Blue pens', '8', true);
+  await tab(ben.page, 'restock');
+  assert.equal(await count(ben.page), 0); facts.checks.available_restored = true;
+  await tab(ben.page, 'all');
+  await reload(page, origin);
+  assert.equal(await rows(page).filter({ hasText: 'Blue pens' }).count(), 1);
+  assert.equal(await rows(page).filter({ hasText: 'Blue pens' }).locator('form[action*="Supply.update"] input[name="inputs[changes][available]"]').isChecked(), true);
+  facts.checks.ava_observes_ben_restoration = true;
   await tab(page, 'restock');
-  assert.equal(await count(page), 0); facts.checks.available_restored = true;
+  assert.equal(await count(page), 0);
   await tab(page, 'all');
+  const blue = rows(page).filter({ hasText: 'Blue pens' });
+  assert.equal(await blue.count(), 1);
+  await submit(page, blue.locator('form[action*="Supply.delete"]'), 'Supply.delete');
+  await reload(page, origin);
+  assert.equal(await count(page), 2);
+  assert.equal(await rows(page).filter({ hasText: 'Blue pens' }).count(), 0);
+  await tab(page, 'available');
+  assert.equal(await count(page), 2);
+  assert.equal(await rows(page).filter({ hasText: 'Blue pens' }).count(), 0);
+  await tab(page, 'restock');
+  assert.equal(await count(page), 0);
+  assert.equal(await rows(page).filter({ hasText: 'Blue pens' }).count(), 0);
+  await tab(page, 'all');
+  facts.checks.ava_removes_shared_edited_row = true;
   const tape = rows(page).filter({ hasText: 'Tape' });
   assert.equal(await tape.count(), 1);
   await submit(page, tape.locator('form[action*="Supply.delete"]'), 'Supply.delete');
   await reload(page, origin);
-  assert.equal(await count(page), 2);
+  assert.equal(await count(page), 1);
   assert.equal(await rows(page).filter({ hasText: 'Tape' }).count(), 0);
   facts.checks.archive_count = true;
-  const ben = await login(browser, opened, 'Ben');
-  assert.equal(await count(ben.page), 2);
+  await reload(ben.page, ben.origin);
+  assert.equal(await count(ben.page), 1);
   assert.equal(await rows(ben.page).filter({ hasText: 'Paper' }).count(), 1);
-  assert.equal(await rows(ben.page).filter({ hasText: 'Blue pens' }).count(), 1);
+  assert.equal(await rows(ben.page).filter({ hasText: 'Blue pens' }).count(), 0);
   facts.checks.ben_shared_rows = true;
   facts.result = 'passed';
 } catch (error) {
