@@ -38,6 +38,7 @@ import {
   WORK_DISPATCH_MODEL,
   newDispatchRow,
   readDispatchRow,
+  readDispatchImageCorrelation,
 } from '../src/kernel/tables.js';
 import { KernelTableError } from '../src/kernel/tables.js';
 import {
@@ -47,7 +48,7 @@ import {
   workDispatchRecoverCommand,
   workDispatchStageCommand,
 } from '../src/kernel/commands.js';
-import { stageCanonicalSend } from '../src/kernel/dispatch-staging.js';
+import { stageCanonicalSend, type CanonicalSendInput } from '../src/kernel/dispatch-staging.js';
 import {
   lifecycleOf,
   isTerminalLifecycle,
@@ -507,6 +508,30 @@ describe('t24a planRecoveryScan: resuming interrupted claims', () => {
 });
 
 describe('t24a work.dispatch.stage command', () => {
+  it('stages checked Images correlation with its original carrier, refuses replay drift and preserves it through claims', async () => {
+    const stored = seed([]); const ctx = { ...fakeCtx(stored), operation: 'Acme.generate' };
+    const correlation = { requestSource: 'business-source-is-not-operation', requestRevision: '3',
+      requestBinding: 'Acme.Images', requestFrom: 'deployment.images', requestApp: 'Acme', requestOwner: 'team-1' };
+    const input: CanonicalSendInput = { operationId: 'origin-operation', source: 'std.ImagesV1.submit', occurrenceIndex: 1,
+      originOccurrence: null, request: { binding: correlation.requestBinding, from: correlation.requestFrom,
+        arguments: { value: { source: correlation.requestSource, revision: correlation.requestRevision } } }, correlation };
+    const { effects, delivery } = await stageCanonicalSend(input, ctx);
+    const write = effects.writes?.[0]; assert.ok(write?.kind === 'insert');
+    assert.deepEqual(readDispatchImageCorrelation(readDispatchRow(write.row)), correlation);
+    assert.notEqual(readDispatchRow(write.row).operationId, correlation.requestSource);
+    assert.deepEqual(effects.outbox?.[0]?.arguments, input.request);
+    assert.deepEqual(Object.keys(effects.outbox![0]!.arguments).sort(), ['arguments', 'binding', 'from']);
+    stored.set(`${WORK_DISPATCH_MODEL}\0${write.row.id}`, write.row);
+    const replay = await stageCanonicalSend(input, ctx); assert.deepEqual(replay.effects.writes, []);
+    await assert.rejects(stageCanonicalSend({ ...input, correlation: { ...correlation, requestOwner: 'foreign-owner' } }, ctx), /different origin or verdict/);
+    await assert.rejects(stageCanonicalSend({ ...input, correlation: { ...correlation, requestRevision: '4' } }, fakeCtx(seed([]))), /disagrees with its retained carrier/);
+    await assert.rejects(stageCanonicalSend({ ...input, correlation: { ...correlation, requestRevision: '03' } }, fakeCtx(seed([]))), /canonical/);
+    const claim = await workDispatchClaimCommand.stage({ intentId: delivery.id, claimId: 'image-claim', claimedAtMs: NOW, maxClaimAgeMs: MAX_AGE }, ctx);
+    const claimed = claim.writes?.[0]; assert.ok(claimed?.kind === 'update');
+    assert.deepEqual(readDispatchImageCorrelation(readDispatchRow(claimed.row)), correlation);
+    assert.equal(claimed.row.createdBy, ACTOR); assert.equal(claimed.row.created, NOW);
+  });
+
   it('joins a canonical checked send without committing and returns its native delivery identity', async () => {
     const stored = seed([]);
     const ctx = { ...fakeCtx(stored), operation: 'Acme.notify' };

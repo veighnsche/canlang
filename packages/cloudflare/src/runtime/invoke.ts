@@ -4132,9 +4132,22 @@ async function runScenarioSeam(
         const producer = await loadProducerModule('@canlang/work/kernel/dispatch-staging', 'work canonical send producer');
         const stage = requireProducerFn(producer, 'stageCanonicalSend', 'work canonical send producer') as
           typeof import('@canlang/work/kernel/dispatch-staging').stageCanonicalSend;
+        let imageCorrelation: import('@canlang/work/kernel/tables').DispatchImageCorrelation | undefined;
+        if (source === 'std.ImagesV1.submit') {
+          const value = boundRequest.arguments['value'];
+          if (call.checkpoint === undefined || member(definition, 'id') !== call.context.app ||
+              !isUnknownRecord(value) || typeof value['source'] !== 'string' ||
+              typeof value['revision'] !== 'string') {
+            throw new Error(`${where} lost its checked request or admitted owner checkpoint.`);
+          }
+          imageCorrelation = { requestSource: value['source'], requestRevision: value['revision'],
+            requestBinding: boundRequest.binding, requestFrom: boundRequest.from,
+            requestApp: call.context.app, requestOwner: call.checkpoint.owner };
+        }
         const stagedSend = await stage({
           operationId: call.context.operationId, source, occurrenceIndex: sendIndex++,
           request: boundRequest, originOccurrence: due?.occurrenceId ?? cohort?.occurrenceId ?? null,
+          ...(imageCorrelation === undefined ? {} : { correlation: imageCorrelation }),
         }, {
           actor: actorUserId ?? call.context.trustedSource ?? 'anonymous', now: admittedNow, operation: scope.operation,
           load: overlay.load.bind(overlay), query: overlay.query.bind(overlay),
@@ -7830,7 +7843,12 @@ async function commitReconcile(input: {
   if (row === null) {
     return { reconciled: false, reason: "row-missing" };
   }
-  const data = readDispatchExecutionRow(row);
+  // Recovery writes must retain the complete defining Work row. The local
+  // planner projection omits optional original-request correlation metadata.
+  const tables = await loadProducerModule('@canlang/work/kernel/tables', 'dispatch reconciliation row');
+  const readRow = requireProducerFn(tables, 'readDispatchRow', 'dispatch reconciliation row') as
+    typeof import('@canlang/work/kernel/tables').readDispatchRow;
+  const data = readRow(row);
   if (data.state !== "uncertain") {
     return { reconciled: false, reason: "state-changed" };
   }

@@ -17,7 +17,8 @@ import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { asId, asModel, asOperationId, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
 import { readReceiptRow, RECEIPT_MODEL } from '@canlang/state/receipt/tables';
 import { WORK_SYSTEM_COMMANDS, WORK_DISPATCH_STAGE_COMMANDS, createWorkDispatchClaimCommand } from '@canlang/work/kernel/commands';
-import { WORK_DISPATCH_MODEL, WORK_SCHEDULE_MODEL, readScheduleRow, readDispatchRow } from '@canlang/work/kernel/tables';
+import { WORK_DISPATCH_MODEL, WORK_SCHEDULE_MODEL, readScheduleRow, readDispatchRow,
+  readDispatchImageCorrelation } from '@canlang/work/kernel/tables';
 import { attemptDispatch } from '@canlang/work/dispatch';
 import { classifyFailure } from '@canlang/work/receipt';
 import { planRecoveryScan } from '@canlang/work/recovery';
@@ -27,7 +28,7 @@ import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { buildInvoker, type MutationOutcome } from '@canlang/cloudflare/worker/assembly';
 import { createCanonicalFileBinding } from './bound-files.js';
 import { createBoundImagesAdapter } from './bound-images.js';
-import { createBoundImagesDispatcher } from './bound-dispatch.js';
+import { createBoundImagesDispatcher, lookupRetainedImagesDispatch } from './bound-dispatch.js';
 import { createCheckedDeliveryProgressProducer, invokeDueScheduleCanonical, type FenceAttemptDispatchFn } from './invoke.js';
 
 const APP = 'TypedImagesProgress';
@@ -152,9 +153,9 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
     const created = committed(await invoker.invokeMutation(envelope('Job.create', {}), identity)).records![0] as { id: string };
     let jobVersion = 1;
     const requests: MutationEnvelope[] = [];
-    const enqueue = async () => {
+    const enqueue = async (revision = jobVersion) => {
       const request = envelope('generate', { job: { id: created.id, version: String(jobVersion) }, graph: { id: graphRef },
-        validation: digestGraph(GRAPH), prompt: 'A native image', accept: true });
+        validation: digestGraph(GRAPH), prompt: 'A native image', revision: String(revision), accept: true });
       committed(await invoker.invokeMutation(request, identity)); jobVersion++; requests.push(request);
       const intents = await store.outboxPending();
       const intent = intents.find(value => value.operationId === request.operation_id); assert.ok(intent); currentIntent = intent;
@@ -237,6 +238,17 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
           revalidateAuthority: async () => (await identities.findMembership(team.team_id, user.user_id))?.status === 'active' } });
     };
     const first = await enqueue();
+    const firstDispatch = await store.load(WORK_DISPATCH_MODEL, asId(first.intentId)); assert.ok(firstDispatch);
+    const originalCorrelation = readDispatchImageCorrelation(firstDispatch.data); assert.ok(originalCorrelation);
+    assert.deepEqual(originalCorrelation, { requestSource: created.id, requestRevision: '1',
+      requestBinding: `${APP}.Images`, requestFrom: binding.deployment, requestApp: APP, requestOwner: team.team_id });
+    assert.notEqual(originalCorrelation.requestSource, first.operationId);
+    const lookup = await lookupRetainedImagesDispatch({ store, correlation: originalCorrelation });
+    assert.equal(lookup.status, 'resolved'); assert.ok(lookup.status === 'resolved');
+    assert.deepEqual(lookup.retained.intent, first); assert.equal(lookup.retained.status, 'pending');
+    assert.equal(lookup.principal, user.user_id); assert.deepEqual(lookup.row, firstDispatch);
+    assert.deepEqual(await lookupRetainedImagesDispatch({ store,
+      correlation: { ...originalCorrelation, requestSource: first.operationId } }), { status: 'absent' });
     assert.equal(first.dispatchGuard ?? null, null);
     assert.equal(adapter.available(first), true);
     terminalFaultIntent = first;
@@ -249,6 +261,8 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
     const retainedHistory = await store.historyFor(MODEL, asId(created.id));
     await reopen();
     assert.deepEqual((await recover()).reconciled, [{ intentId: first.intentId, state: 'delivered' }]);
+    const firstRecoveredDispatch = await store.load(WORK_DISPATCH_MODEL, asId(first.intentId)); assert.ok(firstRecoveredDispatch);
+    assert.deepEqual(readDispatchImageCorrelation(firstRecoveredDispatch.data), originalCorrelation);
     assert.equal(prompts.length, 1);
     assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(first.intentId)), retainedTerminal);
     assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), retainedSchedules);
@@ -259,7 +273,7 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
     const receipt = readReceiptRow(receiptRow, currentContext).receipt;
     assert.equal(receipt.status, 'succeeded');
     const run = receipt.result as { source: string; revision: string; state: string; outputs: Array<{ image: { id: string } }> };
-    assert.equal(run.source, requests[0]!.operation_id); assert.equal(run.revision, '1'); assert.equal(run.state, 'succeeded');
+    assert.equal(run.source, created.id); assert.equal(run.revision, '1'); assert.equal(run.state, 'succeeded');
     const image = run.outputs[0]!.image.id;
     assert.deepEqual(bindings.readBytes(image, receiver), PNG);
     assert.deepEqual(bindings.readProvenance(image, receiver)?.provenance, { kind: 'request', ...receiver,
@@ -287,6 +301,10 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
     assert.equal(await store.readRevision(), revision);
     await reopen();
     assert.equal((await drive(first)).status, 'not-pending'); assert.equal(prompts.length, 1);
+    const acknowledged = await lookupRetainedImagesDispatch({ store, correlation: originalCorrelation });
+    assert.equal(acknowledged.status, 'resolved'); assert.ok(acknowledged.status === 'resolved');
+    assert.deepEqual(acknowledged.retained.intent, first); assert.equal(acknowledged.retained.status, 'dispatched');
+    assert.equal(acknowledged.row.created, firstDispatch.created); assert.equal(acknowledged.principal, user.user_id);
     assert.deepEqual(bindings.readBytes(image, receiver), PNG);
     assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(first.intentId)), receiptRow);
 
@@ -338,6 +356,10 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
     assert.equal(prompts.length, submittedPending); assert.equal(files!.files.listAll().length, pendingFiles + 1);
     assert.equal((await store.outboxPending()).length, 0);
     assert.equal((await store.load(WORK_DISPATCH_MODEL, asId(pending.intentId)))?.data['state'], 'delivered');
+    const pendingRecoveredDispatch = await store.load(WORK_DISPATCH_MODEL, asId(pending.intentId)); assert.ok(pendingRecoveredDispatch);
+    assert.deepEqual(readDispatchImageCorrelation(pendingRecoveredDispatch.data), {
+      ...originalCorrelation, requestSource: unknownRun.source, requestRevision: unknownRun.revision,
+    });
     const recoveredRow = await store.load(asModel(RECEIPT_MODEL), asId(pending.intentId)); assert.ok(recoveredRow);
     const recovered = readReceiptRow(recoveredRow, pendingContext).receipt;
     assert.equal(recovered.status, 'succeeded');
@@ -381,6 +403,16 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
     assert.deepEqual(await store.query({ model: asModel(`${APP}.ProgressNotice`), authority: 'owner' }), terminalNotices);
     assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), originalHistory);
     assert.deepEqual(bindings.readBytes(recoveredImage, receiver), PNG);
+
+    // Two genuine generated submits may share a business key. Resolving the
+    // first row would guess an attempt; the finite lookup must refuse both.
+    const duplicateA = await enqueue(99); const duplicateB = await enqueue(99);
+    assert.notEqual(duplicateA.intentId, duplicateB.intentId);
+    const duplicateRow = await store.load(WORK_DISPATCH_MODEL, asId(duplicateA.intentId)); assert.ok(duplicateRow);
+    const duplicateCorrelation = readDispatchImageCorrelation(duplicateRow.data); assert.ok(duplicateCorrelation);
+    assert.deepEqual(await lookupRetainedImagesDispatch({ store, correlation: duplicateCorrelation }), { status: 'ambiguous' });
+    assert.deepEqual(await lookupRetainedImagesDispatch({ store,
+      correlation: { ...duplicateCorrelation, requestOwner: 'another-owner' } }), { status: 'absent' });
 
     mode = 'invalid'; const invalid = await enqueue(); const beforeInvalid = files!.files.listAll().length;
     await drive(invalid); assert.equal(files!.files.listAll().length, beforeInvalid);
