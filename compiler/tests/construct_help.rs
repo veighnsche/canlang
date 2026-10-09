@@ -166,3 +166,405 @@ fn cli_check_and_compile_refusals_keep_routing_without_modules() {
         assert_eq!(candidates[0]["context"]["guess"], "scenairo");
     }
 }
+
+// Each compiler proof names this test and its exact owning fixture construct.
+// Runtime/page/example execution is intentionally absent from this compiler half.
+const FIRST_PROFILE_SOURCE: &str = include_str!("fixtures/construct-help-first-profile.can");
+const FIRST_PROFILE_LOCATIONS: &[(&str, &str, syntax::SyntaxKind)] = &[
+    (
+        "can.v1.app.implicit",
+        "app HelpOffice",
+        syntax::SyntaxKind::App,
+    ),
+    ("can.v1.section.given", "Given", syntax::SyntaxKind::Section),
+    ("can.v1.section.when", "When", syntax::SyntaxKind::Section),
+    ("can.v1.section.then", "Then", syntax::SyntaxKind::Section),
+    ("can.v1.model", "Supply {", syntax::SyntaxKind::Model),
+    (
+        "can.v1.schema",
+        "Supply {name:text",
+        syntax::SyntaxKind::Model,
+    ),
+    ("can.v1.field", "name:text trim", syntax::SyntaxKind::Field),
+    (
+        "can.v1.field.default",
+        "available:bool=true",
+        syntax::SyntaxKind::Field,
+    ),
+    (
+        "can.v1.field.trim",
+        "name:text trim",
+        syntax::SyntaxKind::Field,
+    ),
+    ("can.v1.field.min", "min=1", syntax::SyntaxKind::Field),
+    ("can.v1.field.max", "max=160", syntax::SyntaxKind::Field),
+    (
+        "can.v1.type.nullable",
+        "int?",
+        syntax::SyntaxKind::NullableType,
+    ),
+    (
+        "can.v1.type.enum",
+        "enum(all,available)",
+        syntax::SyntaxKind::EnumType,
+    ),
+    (
+        "can.v1.type.builtin.text",
+        "name:text trim",
+        syntax::SyntaxKind::Field,
+    ),
+    (
+        "can.v1.type.builtin.int",
+        "stock:int=0",
+        syntax::SyntaxKind::Field,
+    ),
+    (
+        "can.v1.type.builtin.bool",
+        "available:bool=true",
+        syntax::SyntaxKind::Field,
+    ),
+    (
+        "can.v1.policy",
+        "policy Supply read=members",
+        syntax::SyntaxKind::Policy,
+    ),
+    (
+        "can.v1.invariant",
+        "invariant Supply: row.stock>=0",
+        syntax::SyntaxKind::Invariant,
+    ),
+    (
+        "can.v1.lock",
+        "lock Supply fields=name when=row.locked",
+        syntax::SyntaxKind::Lock,
+    ),
+    (
+        "can.v1.derive.function",
+        "derive heading():text",
+        syntax::SyntaxKind::Derive,
+    ),
+    (
+        "can.v1.fixture.model",
+        "fixture editable=Supply",
+        syntax::SyntaxKind::Fixture,
+    ),
+    (
+        "can.v1.fixture.user",
+        "fixture person=user",
+        syntax::SyntaxKind::Fixture,
+    ),
+    (
+        "can.v1.when.crud",
+        "crud Supply by=members",
+        syntax::SyntaxKind::Crud,
+    ),
+    (
+        "can.v1.when.scenario.user",
+        "scenario rename(",
+        syntax::SyntaxKind::Scenario,
+    ),
+    (
+        "can.v1.when.scenario.read",
+        "scenario total() read=true",
+        syntax::SyntaxKind::Scenario,
+    ),
+    (
+        "can.v1.examples.table.crud",
+        "examples update record=editable",
+        syntax::SyntaxKind::Examples,
+    ),
+    (
+        "can.v1.examples.table.scenario",
+        "examples seed=[editable] supply=editable",
+        syntax::SyntaxKind::Examples,
+    ),
+    (
+        "can.v1.examples.table.error",
+        "outsider,\"Private change\",9 -> error(forbidden)",
+        syntax::SyntaxKind::ExampleRow,
+    ),
+    (
+        "can.v1.then.preferences-schema",
+        "preferences {view:",
+        syntax::SyntaxKind::Preferences,
+    ),
+    (
+        "can.v1.then.page",
+        "page / title=\"Office supplies\"",
+        syntax::SyntaxKind::Page,
+    ),
+    (
+        "can.v1.then.form",
+        "form Supply.create",
+        syntax::SyntaxKind::Form,
+    ),
+    (
+        "can.v1.then.edit",
+        "edit fields=name,quantity,available",
+        syntax::SyntaxKind::Edit,
+    ),
+    ("can.v1.then.delete", "delete\n", syntax::SyntaxKind::UiLeaf),
+    (
+        "can.v1.then.text",
+        "text row.name,row.quantity,row.available",
+        syntax::SyntaxKind::UiLeaf,
+    ),
+    (
+        "can.v1.ui.card",
+        "card \"Add a supply\"",
+        syntax::SyntaxKind::Card,
+    ),
+    (
+        "can.v1.ui.input",
+        "input name",
+        syntax::SyntaxKind::CatalogItem,
+    ),
+    (
+        "can.v1.ui.tabs-selector",
+        "tabs preferences.view",
+        syntax::SyntaxKind::Tabs,
+    ),
+    (
+        "can.v1.ui.list",
+        "list Supply as supply",
+        syntax::SyntaxKind::Collection,
+    ),
+    (
+        "can.v1.ui.table",
+        "table Supply columns=",
+        syntax::SyntaxKind::Collection,
+    ),
+    (
+        "can.v1.ui.stat",
+        "stat count(Supply)",
+        syntax::SyntaxKind::CatalogItem,
+    ),
+    (
+        "can.v1.builtin.count",
+        "count(Supply)",
+        syntax::SyntaxKind::Call,
+    ),
+];
+
+fn profile_cli(command: &str, source: &str) -> (std::process::Output, Value) {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let input = scratch.path().join("first-profile.can");
+    std::fs::write(&input, source).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args([command, "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(input)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    let value = serde_json::from_slice(&output.stdout).expect("CLI JSON output");
+    (output, value)
+}
+
+#[test]
+fn first_profile_compiler_cards_have_checked_source_and_emitted_owners() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let consumer =
+        std::fs::read_to_string(root.join("packages/cloudflare/src/dev/construct-help.ts"))
+            .unwrap();
+    let inventory = consumer
+        .split("const FIRST_PROFILE_IDS = new Set([")
+        .nth(1)
+        .unwrap()
+        .split("]);\n")
+        .next()
+        .unwrap();
+    let ids: BTreeSet<_> = inventory
+        .split('"')
+        .filter(|part| part.starts_with("can.v1."))
+        .collect();
+    assert_eq!(
+        ids,
+        FIRST_PROFILE_LOCATIONS
+            .iter()
+            .map(|(id, _, _)| *id)
+            .collect()
+    );
+    let (tree, diagnostics) = syntax::parse_source(SourceId(0), FIRST_PROFILE_SOURCE);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let mut nodes = Vec::new();
+    let mut pending = vec![&tree];
+    while let Some(node) = pending.pop() {
+        nodes.push(node);
+        pending.extend(node.children.iter());
+    }
+    for (id, anchor, kind) in FIRST_PROFILE_LOCATIONS {
+        let start = FIRST_PROFILE_SOURCE
+            .find(anchor)
+            .unwrap_or_else(|| panic!("missing card construct {id}"));
+        assert!(
+            nodes.iter().any(|node| node.kind == *kind
+                && node.span.start as usize <= start
+                && start + anchor.trim_end().len() <= node.span.end as usize),
+            "compiler/tests/construct_help.rs::first_profile_compiler_cards_have_checked_source_and_emitted_owners[{id}] has no owning {kind:?} at {start}"
+        );
+    }
+    let (checked, check) = profile_cli("check", FIRST_PROFILE_SOURCE);
+    assert!(
+        checked.status.success(),
+        "{check}\n{}",
+        String::from_utf8_lossy(&checked.stderr)
+    );
+    assert!(routing(&check).is_empty());
+    let (compiled, artifact) = profile_cli("compile", FIRST_PROFILE_SOURCE);
+    assert!(
+        compiled.status.success(),
+        "{artifact}\n{}",
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    assert_eq!(artifact["pages"].as_array().unwrap().len(), 1);
+    assert_eq!(artifact["pages"][0]["owner"], "HelpOffice");
+    assert_eq!(artifact["pages"][0]["path"], "/");
+    let model = artifact["models"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|model| model["name"] == "HelpOffice.Supply")
+        .unwrap();
+    let fields = model["fields"].as_array().unwrap();
+    assert_eq!(fields.len(), 5);
+    let name = fields.iter().find(|field| field["name"] == "name").unwrap();
+    assert_eq!(name["field"]["kind"], "string");
+    assert_eq!(name["trim"], true);
+    let available = fields
+        .iter()
+        .find(|field| field["name"] == "available")
+        .unwrap();
+    assert_eq!(available["field"]["kind"], "boolean");
+    assert_eq!(available["default"], json!({"kind":"literal","value":true}));
+    assert_eq!(
+        fields
+            .iter()
+            .find(|field| field["name"] == "quantity")
+            .unwrap()["nullable"],
+        true
+    );
+    let operations = artifact["operations"].as_array().unwrap();
+    for operation in [
+        "HelpOffice.Supply.create",
+        "HelpOffice.Supply.update",
+        "HelpOffice.Supply.delete",
+        "HelpOffice.rename",
+        "HelpOffice.total",
+    ] {
+        assert!(
+            operations.iter().any(|entry| entry["name"] == operation),
+            "{operation}"
+        );
+    }
+    assert_eq!(
+        operations
+            .iter()
+            .find(|entry| entry["name"] == "HelpOffice.total")
+            .unwrap()["result"]["type"],
+        "int"
+    );
+    let js = artifact["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|module| module["js"].as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join("\n");
+    for retained in [
+        "trim:true",
+        "min:1n",
+        "max:160n",
+        "require.1",
+        "lock.1",
+        "preferences",
+        "columns:[\"name\",\"stock\",\"available\"]",
+    ] {
+        assert!(
+            js.contains(retained),
+            "actual emitted metadata missing {retained}"
+        );
+    }
+    for factory in ["form", "input", "tabs", "list", "table", "stat", "card"] {
+        let marker = format!("{factory} as ");
+        let alias = js
+            .split(&marker)
+            .nth(1)
+            .unwrap_or_else(|| panic!("missing owning UI import {factory}"))
+            .split(|ch: char| ch == ',' || ch == '}' || ch.is_whitespace())
+            .next()
+            .unwrap();
+        assert!(
+            js.contains(&format!("{alias}(")),
+            "imported factory {factory} must actually be called by emitted page"
+        );
+    }
+    let tests = artifact["tests"].as_array().unwrap();
+    assert!(!tests.is_empty());
+    let examples = tests
+        .iter()
+        .map(|test| test["module"]["js"].as_str().unwrap())
+        .collect::<Vec<_>>()
+        .join("\n");
+    for retained in [
+        "exampleFixtures",
+        "error:\"forbidden\"",
+        "expected:async",
+        "observations:[",
+        "roles:",
+    ] {
+        assert!(
+            examples.contains(retained),
+            "actual emitted examples missing {retained}"
+        );
+    }
+    for fixture in ["HelpOffice.editable", "HelpOffice.person"] {
+        assert!(
+            tests
+                .iter()
+                .flat_map(|test| test["fixtures"].as_array().unwrap())
+                .any(|emitted| emitted == fixture),
+            "missing emitted fixture recipe {fixture}"
+        );
+    }
+    assert!(
+        !js.contains("exampleFixtures"),
+        "test-only fixtures stay outside production modules"
+    );
+}
+
+#[test]
+fn first_profile_compiler_half_refuses_invalid_types_fields_and_ui_options() {
+    for source in [
+        FIRST_PROFILE_SOURCE.replace("row.stock>=0", "row.stock>=\"zero\""),
+        FIRST_PROFILE_SOURCE.replace(
+            "set supply {name=accepted}",
+            "set supply {missing=accepted}",
+        ),
+        FIRST_PROFILE_SOURCE.replace("stat count(Supply)", "stat count(Supply) unexplained=true"),
+        FIRST_PROFILE_SOURCE.replace(
+            "empty=\"No stock\"",
+            "empty=\"No stock\"\n    text row.name",
+        ),
+    ] {
+        let (compiled, output) = profile_cli("compile", &source);
+        assert!(
+            !compiled.status.success(),
+            "invalid source must refuse: {source}\n{output}"
+        );
+        assert!(output.get("modules").is_none(), "{output}");
+        assert!(
+            output["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|diagnostic| diagnostic["severity"] == "error"),
+            "{output}"
+        );
+    }
+}

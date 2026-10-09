@@ -4846,3 +4846,14 @@ A complete current source/profile-qualified single construct card is determinist
 Add independent grammarCoverage and per-card included/outside/unknown plus qualified/unqualified classifications, retaining every exact grammar card and the conservative existing candidateCoverage contract. The included first authoring set declares intent only; absence from it cannot mean outside or unsupported. Explicit composition/package/import and periodic exclusions come from real existing single-app/preview guards, require captured installed guard identities and enter the help revision. Missing guards or proofs stay unknown/unqualified; stale classification cannot supply completeness. Diagnostic help joins the authoring profile and exact trusted proof bundle, never the resource-profile name. Preserve exact/structural/none dispositions and every false source/ranking attestation.
 
 Help10/10 and ranker9/9 pass, including mixed qualified/unqualified/outside/unknown inventory, captured/missing/stale policy, fake IDs and structural refusal. The existing genuine captured native diagnostic→private local session1/1 passes with all five grammar cards retained, included user/unqualified, explicit periodic outside, cohort unknown, false distinguishing evidence, zero provider calls and unavailable preview. CF emit/root noEmit/boundaries890files/1191expressions/zero violations pass. No production per-card qualification source is invented: Compiler still owes its current real first-profile fixture half; Dev then joins genuine current runtime/examples and installed producer identities through SessionConstructQualification. Live ambiguous ranking/external trials, Task44 native send/write capture and Office/G2–G3 remain unfinished. Reuse unchanged scope results, preserve exact holds and local-only integration.
+
+## 2026-10-09 — T04 first-profile compiler evidence
+
+The finite `office-supplies-local-v1` compiler half uses one complete checked
+Office source and exact mappings to the existing 41 card IDs. Checked CST
+ownership plus emitted model, policy, operation, UI and example artifacts
+establish compiler support; they do not establish runtime/example execution or
+author-intent evidence. The selected table uses canonical columns; authored
+row children without an owning render profile explicitly refuse. The existing
+construct-help target passes6/6. Dev owns exact-current qualification/provider
+and runtime/example joins; broader T04 acceptance remains unfinished.

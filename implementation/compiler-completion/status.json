@@ -454,5 +454,15 @@
     },
     "subsequent_owner_intake": "Exact reviewed d87213ae Dev captured compiler cancellation/control usage correction; owning real captured5/5 and compiler build/Cloudflare emit reused at unchanged caller scope. Compiler source remains d9c50fe1; no mutation/transition activation or full-reference acceptance. Exact reviewed cd8da1ad/Dev55a0f916 portable local-derive fixture: production sources unchanged, actual public/workerd/Identity+two-ownerD1 journey1/1 in37.72s across19results reused; imports/composition outside single-file caller.",
     "current_head_is_qualified": false
+  },
+  "construct_help_first_profile": {
+    "state": "compiler_half_qualified_runtime_and_provider_owner_dependency",
+    "profile": "office-supplies-local-v1",
+    "cards": 41,
+    "target": "compiler/tests/construct_help.rs",
+    "passed": 6,
+    "failed": 0,
+    "proof_identity": "compiler/tests/construct_help.rs::first_profile_compiler_cards_have_checked_source_and_emitted_owners[card-id]",
+    "remaining": "Dev owns runtime/example execution and exact-current trusted provider; grammar inventories/evidenceSufficient unchanged; no broader reference credit."
   }
 }
