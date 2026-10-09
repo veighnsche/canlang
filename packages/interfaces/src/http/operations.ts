@@ -541,7 +541,8 @@ function toDerivedInput(field: CheckedArtifactInput): DerivedWritableInput {
     case 'enum':
       return { ...common, kind: 'enum', enumValues: [...tag.values] };
     case 'string':
-      return { ...common, kind: 'string' };
+      return { ...common, kind: 'string',
+        ...(field.valueType === undefined ? {} : { valueType: field.valueType }) };
     case 'integer':
       return { ...common, kind: 'integer' };
     case 'decimal':

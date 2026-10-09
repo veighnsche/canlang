@@ -1,21 +1,21 @@
 {
   "date": "2026-10-09",
-  "integrated_source_pin": "2640a9f9a085ba653a61d0f007339314e5fe2fe9",
-  "base": "7132e2430c040d8c15ab0b462ecedf8c296bd0fb",
+  "integrated_source_pin": "6d1cfb8894d78ff9b50f616a11e0cd1d7b1e802a",
+  "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 1340,
-    "net_path_deltas": 10747,
-    "history_touched_paths": 11290,
-    "history_only_paths": 512,
+    "commit_count_since_checkpoint": 1388,
+    "net_path_deltas": 10758,
+    "history_touched_paths": 11302,
+    "history_only_paths": 513,
     "released_feature_paths": 78,
     "new_target_leaves": 30,
-    "inherited_paths_without_prior_target_allocation": 9245,
-    "scope": "Capability worker branch intake of reviewed LOCAL baseline 2640a9f9a085ba653a61d0f007339314e5fe2fe9 onto 7132e2430c040d8c15ab0b462ecedf8c296bd0fb; accumulated staged merge tree since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Preserve all prior owner/target allocations and scoped accepted evidence; the three new saved-scenario State API/test paths are registered under State with exact target allocation pending. Contracts/State scalar receipt association and projection qualify only their recorded47Memory/preservation+2native API controls; Compiler complete return closure and Dev genuine capture/public transport remain unfinished. Existing native adapter activation, broader hooks/context/query/retention/provider and whole application gates stay open. Human remote publication/review and recipient-specific holds remain; coordinator alone integrates LOCAL main. Complete checkpoint is unadvanced."
+    "inherited_paths_without_prior_target_allocation": 9256,
+    "scope": "Capability worker intake of coordinator-released LOCAL main 6d1cfb8894d78ff9b50f616a11e0cd1d7b1e802a onto committed unfinished source bd182142f2a6605deb4fa9f0c447b561a36bdce6; accumulated staged-tree and both-parent history registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Preserve prior allocations, source owners, scoped evidence and precise holds; complete semantic/target closure remains open. Text controls await the defining Packages policy release; current native policy and scalar receipt facade inputs do not establish full original workflows. Complete checkpoint is unadvanced."
   },
   "methods": [
-    "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z checkpoint (actual staged worker branch merge tree; incoming integrated_source_pin onto base)",
+    "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z checkpoint (actual staged worker merge tree; coordinator-released integrated_source_pin onto base)",
     "git log --full-history -m --format= --name-only --no-renames integrated_source_pin base ^checkpoint",
     "Prior input/target/retirement/task ledgers retained; new feature ownership and target leaves joined without accepting inherited incomplete source review. Similarity rename detection is bookkeeping evidence, not semantic successor authority."
   ],
@@ -777,6 +777,12 @@
     [
       "A",
       "compiler/tests/delivery_progress_runtime.rs",
+      "compiler",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "compiler/tests/direct_choice_alias_identity.rs",
       "compiler",
       "inherited-unallocated"
     ],
@@ -22717,6 +22723,42 @@
     [
       "A",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/datetime-compile.json",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/capability-roadmap-20261008/scenario-authority-request-1.json",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/capability-roadmap-20261008/scenario-authority-request-2.json",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/capability-roadmap-20261008/scenario-authority-request-3.json",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/capability-roadmap-20261008/scenario-authority-response-1.json",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/capability-roadmap-20261008/scenario-authority-response-2.json",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/capability-roadmap-20261008/scenario-authority-response-3.json",
       "implementation",
       "inherited-unallocated"
     ],
@@ -59024,6 +59066,12 @@
     ],
     [
       "A",
+      "packages/cloudflare/src/runtime/assembly-verification.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "packages/cloudflare/src/runtime/auth-join.test.ts",
       "packages/cloudflare",
       "inherited-unallocated"
@@ -59210,6 +59258,18 @@
     ],
     [
       "A",
+      "packages/cloudflare/src/runtime/native-local-rules-d1.integration.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "packages/cloudflare/src/runtime/native-local-rules.integration.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "packages/cloudflare/src/runtime/native-records.ts",
       "packages/cloudflare",
       "inherited-unallocated"
@@ -59247,6 +59307,18 @@
     [
       "A",
       "packages/cloudflare/src/runtime/reviewed-csv.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "packages/cloudflare/src/runtime/scenario-receipt-frame.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "packages/cloudflare/src/runtime/scenario-receipt-frame.ts",
       "packages/cloudflare",
       "inherited-unallocated"
     ],
@@ -60051,12 +60123,6 @@
     [
       "A",
       "packages/cloudflare/test/multi-owner-env.test.ts",
-      "packages/cloudflare",
-      "inherited-unallocated"
-    ],
-    [
-      "A",
-      "packages/cloudflare/test/native-local-rules.integration.test.ts",
       "packages/cloudflare",
       "inherited-unallocated"
     ],
@@ -61521,13 +61587,13 @@
     [
       "A",
       "packages/state/src/invocation/scenario-receipt.test.ts",
-      "state",
+      "packages/state",
       "inherited-unallocated"
     ],
     [
       "A",
       "packages/state/src/invocation/scenario-receipt.ts",
-      "state",
+      "packages/state",
       "inherited-unallocated"
     ],
     [
@@ -61935,7 +62001,7 @@
     [
       "A",
       "packages/state/test/invocation/scenario-receipt-durable.test.ts",
-      "state",
+      "packages/state",
       "inherited-unallocated"
     ],
     [
@@ -64552,3080 +64618,2573 @@
   ],
   "history_only": [
     [
-      "history-only",
       ".github/workflows/b2-join.yml",
       "build",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "design/language-proposals-20261007/decision-append.json",
-      "Design and preserved historical advice",
+      "design",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "design/language-proposals-20261007/model-allocation-decision-append.json",
-      "Design and preserved historical advice",
+      "design",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "design/language-proposals-20261007/model-allocation-review.json",
-      "Design and preserved historical advice",
+      "design",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "design/language-proposals-20261007/model-allocation-verification.json",
-      "Design and preserved historical advice",
+      "design",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "design/language-proposals-20261007/orchestration-decision-append.json",
-      "Design and preserved historical advice",
+      "design",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "design/language-proposals-20261007/orchestration-review.md",
-      "Design and preserved historical advice",
+      "design",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "design/language-proposals-20261007/orchestration-verification.json",
-      "Design and preserved historical advice",
+      "design",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "design/language-proposals-20261007/review-source-excerpts.md",
-      "Design and preserved historical advice",
+      "design",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "design/language-proposals-20261007/review-source-hashes.json",
-      "Design and preserved historical advice",
+      "design",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "design/language-proposals-20261007/review.md",
-      "Design and preserved historical advice",
+      "design",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "design/language-proposals-20261007/task-sequence-review.md",
-      "Design and preserved historical advice",
+      "design",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "design/language-proposals-20261007/task-sequence-verification.json",
-      "Design and preserved historical advice",
+      "design",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "design/language-proposals-20261007/verification.json",
-      "Design and preserved historical advice",
+      "design",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/app-outcomes-review.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/app-outcomes-review.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/app-outcomes/artifact-structure-check.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/contract-inventory-review.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/enum-comparison/correction-before-hashes.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/enum-comparison/correction-receipt.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/enum-comparison/packet-source-hashes.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/enum-comparison/source-manifest.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/enum-review.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/enum-review.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation-review.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation-review.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/checks-before-read-strengthening.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/cloudflare-nullable-before-failure/cloudflare-runtime.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/cloudflare-nullable-before-failure/cloudflare-runtime.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/cloudflare-tsconfig.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/complete-v2-before-type-inspection/qualification-checks.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/complete-v2-before-type-inspection/runtime-results.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/complete-v3-before-update-qualification/qualification-checks.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/complete-v3-before-update-qualification/runtime-results.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/cloudflare-bounded-build.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/cloudflare-bounded-build.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/cloudflare-build.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/cloudflare-build.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/cloudflare-complete.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/cloudflare-complete.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/cloudflare-final.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/cloudflare-final.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/cloudflare-runtime.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/cloudflare-runtime.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/cloudflare-selected-build.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/cloudflare-selected-build.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/cloudflare-type-qualified.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/cloudflare-type-qualified.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/identity-build.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/identity-build.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/managed-bypass-current-path.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/member-control-cli-misuse.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/member-control-compile.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/member-control-valid-compile.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/numeric-control-compile.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/numeric-control-runtime.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/numeric-control-runtime.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/read-control.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/read-control.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/runtime-sandbox-listen-refusal.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/runtime-sandbox-listen-refusal.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/runtime.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/runtime.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/stdlib-build.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/stdlib-build.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/ui-build.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/logs/ui-build.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/pin-evidence.py",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/public-facade-before-failure/runtime.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/public-facade-before-failure/runtime.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/qualification-checks.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/run-before-read-strengthening.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/source-facts.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-invocation/verify-pins.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/CanApprove-check.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/CanApprove-compile.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/CanChat-check.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/CanChat-compile.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/CanCreative-check.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/CanCreative-compile.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/bounded-check.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/bounded-compile.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/catalog-build.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/catalog-build.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/compiler-build.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/compiler-build.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/contracts-build.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/contracts-build.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/duration-members-compile.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/int-control-compile.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/int-members-compile.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/loader.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/loader.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/shared-check.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/shared-compile.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/state-build.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/state-build.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/unsupported-compile.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/unsupported-loader.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/unsupported-loader.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/values-build.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/logs/values-build.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/producer-handoff.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-metadata/producer-handoff.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/f1-snapshot.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-contract-review.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-contract-review.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair-plan.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair-plan.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair-review.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair-review.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/candidate.diff",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/d1-runtime-final.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/d1-runtime-initial.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/focused-tests-initial.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/frozen-before-pin-verification.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/frozen-before-void-receipt-excerpt.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/initial-runtime-preserved/d1-runtime-initial.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/initial-runtime-preserved/qualification-checks.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/initial-runtime-preserved/run.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/initial-runtime-preserved/runtime-results.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/owning-regressions-final.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/owning-regressions.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/pin-verification.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/qualification-checks.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/source-after-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/state-build-final.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/state-build-test-correction.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/state-build.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/verification.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-repair/verify-pins.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/nullable-ref-write-lease.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers-contract-review.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers-integration-note.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers-integration-request.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers-preparation/PLAN.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers-preparation/packet.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers-preparation/pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers-preparation/proposed-source.txt",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers-preparation/proposed-test.txt",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers-review-receipts/baseline-comparison.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers-review-receipts/correction-validation.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers-review-receipts/pin-and-receipt-check.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers-review-receipts/preload-control.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers-review-receipts/preload-control.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers-review-receipts/review-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers-review.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers-review.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/baseline-command.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/baseline-tests.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/baseline-tests.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/before-source.ts.txt",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/build-final.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/build-final.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/build.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/build.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/candidate-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/candidate.diff",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/cloudflare-tsconfig.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/compiler-commands.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/datetime-check.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/datetime-check.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/datetime-compile.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/final-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/freeze.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/initial-run.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/initial-runtime-listener.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/initial-runtime-listener.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/initial-runtime-results.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/private-links.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/review-corrections/before-REPORT.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/review-corrections/before-freeze.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/review-corrections/receipt.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/run.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/runtime-final.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/runtime-final.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/runtime-listener.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/runtime-listener.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/runtime-results.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/runtime.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/runtime.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/tests.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/tests.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/typecheck.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/typecheck.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-pure-helpers/verification.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/runtime-support-asset-handoff.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-contract-review/review.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-contract-review/source-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/after-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/assembled/$can$m$5665726966696564436f6e74657874.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/assembled/$can$m$5665726966696564436f6e74657874.mjs.map",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/commands.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/compile-output-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/execution-tool.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/final-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/generated/$can$m$5665726966696564436f6e74657874.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/helper-review-verification.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/initial-harness-attempt/commands.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/initial-harness-attempt/compile-output-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/initial-harness-attempt/execution-tool.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/initial-harness-attempt/fatal.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/initial-harness-attempt/logs-run.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/initial-harness-attempt/logs-run.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/initial-harness-attempt/producer-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/initial-harness-attempt/run.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/logs-run.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/logs-run.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/logs/compiler-version.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/logs/compiler-version.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/logs/current-head.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/logs/current-head.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/logs/current-target-status.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/logs/current-target-status.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/logs/raw-check.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/logs/raw-check.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/logs/raw-compile.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/logs/raw-compile.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/producer-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/qualification-checks.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-execution-before/run.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-integration-note.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-integration-request.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair-review-receipts/audit.py",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair-review-receipts/constructor-tests.tap",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair-review-receipts/control.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair-review-receipts/control.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair-review-receipts/final-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair-review-receipts/independent-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair-review-receipts/raw-audit.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair-review-receipts/runtime-results.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair-review.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair-review.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/assembled/$can$m$5665726966696564436f6e74657874.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/assembled/$can$m$5665726966696564436f6e74657874.mjs.map",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/build-commands.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/candidate-source-output-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/candidate.diff",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/cloudflare-tsconfig.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/final-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/initial-after-harness/logs-after.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/initial-after-harness/logs-after.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/initial-after-harness/qualification-checks.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/initial-after-harness/retry-control.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/initial-after-harness/run-after.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/initial-after-harness/runtime-results.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/logs-after.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/logs-after.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/logs-prepare.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/logs-prepare.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/logs/constructor-tests.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/logs/constructor-tests.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/logs/selected-build.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/logs/selected-build.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/logs/selected-typecheck.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/logs/selected-typecheck.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/prepare.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/private-snapshot.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-repair/qualification-checks.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-test-path-amendment.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/capability-roadmap-20261008/verified-context-write-lease.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/integration-after-bindings/after-action-invocation/native-run/profile-accounting/independent-verification.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/integration-after-bindings/after-action-invocation/native-run/profile-accounting/independent-verification.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/integration-after-bindings/after-decimal-materialization/profile-accounting/independent-verification.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/integration-after-bindings/after-decimal-materialization/profile-accounting/independent-verification.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/invocation-join/independent-review/after-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/invocation-join/independent-review/head.txt",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/invocation-join/independent-review/pin-verification.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/invocation-join/independent-review/source-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/invocation-join/independent-review/source-snapshot/compiler/src/codegen/ir.rs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/invocation-join/independent-review/source-snapshot/compiler/src/codegen/js.rs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/invocation-join/independent-review/source-snapshot/compiler/tests/fixtures/invocation-references/execute.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/invocation-join/independent-review/source-snapshot/compiler/tests/fixtures/invocation-references/source.can",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/invocation-join/independent-review/source-snapshot/compiler/tests/invocation_references.rs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/invocation-join/independent-review/source-snapshot/packages/stdlib/src/index.ts",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/invocation-join/independent-review/source-snapshot/packages/stdlib/test/assembly.test.ts",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/invocation-join/independent-review/source-snapshot/packages/values/src/internal/schema-core.ts",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/invocation-join/independent-review/source-snapshot/packages/values/src/internal/wire-core.ts",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/invocation-join/independent-review/source-snapshot/packages/values/src/kinds.ts",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/invocation-join/independent-review/source-snapshot/packages/values/src/stdlib-pure.ts",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/invocation-join/independent-review/source-snapshot/packages/values/src/types.ts",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/invocation-join/independent-review/source.diff",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/json-frame-oracles/independent-review/README.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/json-frame-oracles/independent-review/receipt.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/json-frame-oracles/verification.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/json-frame-oracles/verify.py",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/lsp-support/independent-review/review.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/lsp-support/independent-review/verification.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/lsp-support/independent-review/verify.py",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/policy-layout-support/independent-review/review-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/policy-layout-support/independent-review/review.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/policy-layout-support/independent-review/verification.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/renderer-failure-qualification/independent-review/review-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/renderer-failure-qualification/independent-review/review.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/renderer-failure-qualification/independent-review/verification.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/retained-support-review/controls.rs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/retained-support-review/controls.run.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/retained-support-review/controls.run.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/retained-support-review/controls.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/retained-support-review/controls.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/retained-support-review/get_mappings.rs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/retained-support-review/get_mappings.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/retained-support-review/get_mappings.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/retained-support-review/private_encoder.rs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/retained-support-review/private_encoder.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/retained-support-review/private_encoder.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/retained-support-review/serialize_trait.rs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/retained-support-review/serialize_trait.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/retained-support-review/serialize_trait.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/retained-support-review/verification.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/retained-support-review/verify.py",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/guard-policy/assessment-before-route-clarification.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/guard-policy/jev-1.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/guard-policy/jev-1.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/guard-policy/jev-2.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/guard-policy/jev-2.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/guard-policy/jev-3.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/guard-policy/jev-3.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/$can$m$4775617264.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/build-final.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/build-retry.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/build.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/canonical-consumer.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/canonical-final.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/canonical-modules/$can$m$4775617264.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/canonical-modules/$can$m$4775617264.mjs.map",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/canonical-mutation-retry.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/canonical-mutation.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/canonical-receipts.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/canonical-regressions.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/canonical.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/changes.patch",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/cloudflare-typecheck.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/compatibility.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/compiler-producer-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/consume.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/consumer-final.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/consumer-receipts.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/consumer.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/guard.can",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/guard.check.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/guard.compile.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/leaf-tests.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/leaf-typecheck.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/mutation-canonical-modules/$can$m$4775617264.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/mutation-canonical-modules/$can$m$4775617264.mjs.map",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/mutation-guard.can",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/mutation-guard.check.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/mutation-guard.compile.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/producer-request.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/type-contract.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/implementation/type-contract.ts",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/independent-review/assessment.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/independent-review/control.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/independent-review/control.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/independent-review/control.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/independent-review/focused-tests.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/independent-review/focused-tests.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/independent-review/initial-control.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/independent-review/initial-reactivation-expectation.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/independent-review/initial-typescript-control.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/independent-review/modules/$can$m$4775617264.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/independent-review/modules/$can$m$4775617264.mjs.map",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/independent-review/receipt.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/independent-review/review-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/independent-review/static-checks.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/precision-correction.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/research/closure.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/research/probe.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/research/receipts.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/correction.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/result.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/alias.can",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/alias.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/alias.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/alias/$can$m$436f6e73756d6572.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/alias/$can$m$50726f7669646572.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/await-purity.can",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/await-purity.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/await-purity.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/await-scenario.can",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/await-scenario.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/await-scenario.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/await-scenario/$can$m$54.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/builtin-exact-arity.can",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/builtin-exact-arity.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/builtin-exact-arity.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/localized-named.can",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/localized-named.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/localized-named.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/localized.can",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/localized.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/localized.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/localized/$can$m$54.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/malformed.can",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/malformed.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/malformed.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/missing-named.can",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/missing-named.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/missing-named.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/missing-reversed.can",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/missing-reversed.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/missing-reversed.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/observations.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/same-arity.can",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/same-arity.catalog.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/same-arity.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/same-arity.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/same-arity/$can$m$54.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/selected.can",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/selected.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/selected.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/selected/$can$m$54.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/unbound-source.can",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/unbound-source.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/unbound-source.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/user-required-slot.can",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/user-required-slot.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/user-required-slot.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/user-unknown-slot.can",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/user-unknown-slot.stderr",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/runtime-export-join/selected-call-recheck/runtime/user-unknown-slot.stdout",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/compiler-completion/session-history/native-mode-qualification/independent-verification.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author-release.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/final-freeze-verification.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/finite-tests.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/finite-tests.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/handoff-verification.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/maintenance-cost.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/observed-build.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/private-marker-type-emission-comparison.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/selected-node-preload-failure/selected-consumer.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/selected-producer-refusals.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/selected-workerd-control.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/cloudflare-owner/work-owner-current/observed-build.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/interfaces-owner/consumer-node24.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/interfaces-owner/consumer-node26.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/interfaces-owner/observed-build.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/interfaces-owner/public-surface-and-matcher.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/ui-owner/observed-build.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/author/ui-owner/review.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/independent/page-probe-failure-command.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/independent/page-probe-failure.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/independent/probe-command.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/independent/probe-results.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/independent/probe.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/independent/report.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/independent/review.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/mapping/finite-tests.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/mapping/finite-tests.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/mapping/observed-build.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/mapping/observed-build.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/mapping/result-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/mapping/result.md",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/mapping/selected-static-consumer.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/asset-mount-proof/mapping/selected-workerd-consumer.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/baseline-maintained.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/baseline-pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/candidate-maintained.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/candidate.diff",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/compile-receipt.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/findings.txt",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/initial-invalid-leg-witness.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/initial-invalid-leg-witness.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/maintained-runs.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/result.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/source-equality-release.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/author/tool-identities.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/independent/baseline.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/independent/baseline/result.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/independent/candidate.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/independent/candidate/check.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/independent/candidate/result.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/independent/inputs.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/do-reset-proof/independent/runs.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/h1-placement-advice/handle-1.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/h1-placement-advice/handle-2.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/h1-placement-advice/handle-3.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/h1-placement-advice/manifest.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/accepted-closure-comparison.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/commands.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/compiled-test-node26.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/consumer-node24.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/consumer-node24.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/consumer-node26.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/consumer-node26.log",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/dependency-original-comparison.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/findings.txt",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/outside-consumer/consumer.mjs",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/pins.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/review.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/runtime-identities.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/source-equality-after.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/source-equality-before.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "implementation/package-maintenance-repair/runs/codex-go-20261007/interfaces-owner-build-proof/verification.json",
-      "Implementation/evidence owning subject",
+      "implementation",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "packages/cloudflare/src/worker/owner-page-routing.test.ts",
-      "cloudflare",
+      "packages/cloudflare",
       "inherited-unallocated"
     ],
     [
-      "history-only",
+      "packages/cloudflare/test/native-local-rules.integration.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
       "packages/contracts/test/t26-progress-relations.test.ts",
-      "contracts",
+      "packages/contracts",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "packages/state/src/fanout/t34-f5-child-join.test.ts",
-      "state",
+      "packages/state",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "packages/state/src/fanout/t34-f5-durable.test.ts",
-      "state",
+      "packages/state",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "packages/state/src/fanout/t34-f5-lifecycle.test.ts",
-      "state",
+      "packages/state",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "packages/state/src/fanout/t34-f5-membership.test.ts",
-      "state",
+      "packages/state",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "packages/state/src/fanout/t34-f5-progress.test.ts",
-      "state",
+      "packages/state",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "packages/state/src/fanout/test-driver.ts",
-      "state",
+      "packages/state",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "packages/state/src/fanout/work-loader.ts",
-      "state",
+      "packages/state",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "packages/state/src/receipt/t25-receipt-durable.test.ts",
-      "state",
+      "packages/state",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "packages/state/src/receipt/t25-receipt-join.test.ts",
-      "state",
+      "packages/state",
       "inherited-unallocated"
     ],
     [
-      "history-only",
       "packages/state/src/receipt/work-loader.ts",
-      "state",
+      "packages/state",
       "inherited-unallocated"
     ]
   ],
   "pending_target_allocation": {
-    "count": 9245,
+    "count": 9256,
     "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
   },
   "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -67639,5 +67198,5 @@
   "lanes": "Existing four local worktrees continue their assigned plans; only committed snapshots are integrated here. Open edits and recipient-specific holds are preserved. Coordinator alone serializes local main merges/manual review; no remote publication or PR review gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Capability worker branch intake of reviewed LOCAL baseline 2640a9f9a085ba653a61d0f007339314e5fe2fe9 onto 7132e2430c040d8c15ab0b462ecedf8c296bd0fb; accumulated staged merge tree since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Preserve all prior owner/target allocations and scoped accepted evidence; the three new saved-scenario State API/test paths are registered under State with exact target allocation pending. Contracts/State scalar receipt association and projection qualify only their recorded47Memory/preservation+2native API controls; Compiler complete return closure and Dev genuine capture/public transport remain unfinished. Existing native adapter activation, broader hooks/context/query/retention/provider and whole application gates stay open. Human remote publication/review and recipient-specific holds remain; coordinator alone integrates LOCAL main. Complete checkpoint is unadvanced."
+  "current_maintenance_summary": "Capability worker intake of coordinator-released LOCAL main 6d1cfb8894d78ff9b50f616a11e0cd1d7b1e802a onto committed unfinished source bd182142f2a6605deb4fa9f0c447b561a36bdce6; accumulated staged-tree and both-parent history registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Preserve prior allocations, source owners, scoped evidence and precise holds; complete semantic/target closure remains open. Text controls await the defining Packages policy release; current native policy and scalar receipt facade inputs do not establish full original workflows. Complete checkpoint is unadvanced."
 }

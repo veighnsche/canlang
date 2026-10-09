@@ -25,6 +25,8 @@ import { resolveProducerFile } from "../deploy/producer-files.js";
 import type { CompileArtifact, SourceMap } from "@canlang/contracts";
 import { rewriteModuleImports, validateArtifactModuleImports } from "../deploy/module-imports.js";
 import { composeModuleMap } from "../deploy/module-maps.js";
+import { registerAssemblerModuleCapability } from "./assembly-verification.js";
+export { importVerifiedAssemblyModule } from "./assembly-verification.js";
 
 /**
  * Structural mirror of the sibling packet's `LoadedArtifact`
@@ -71,8 +73,6 @@ interface AssemblySnapshot {
   maps: StagedModule[];
   directories: string[];
 }
-
-const verifiedAssemblies = new WeakMap<AssembledModules, AssemblySnapshot>();
 
 async function privateStagedPath(path: string, directory: boolean): Promise<void> {
   const info = await lstat(path);
@@ -129,23 +129,6 @@ async function verifyAssembly(asm: AssembledModules, snapshot: AssemblySnapshot,
     if (!(await readFile(module.file)).equals(module.bytes)) {
       throw new Error("importVerifiedAssemblyModule: staged module bytes changed");
     }
-  }
-}
-
-/** Import only an assembler-owned, unchanged staged module and its checked closure. */
-export async function importVerifiedAssemblyModule(
-  asm: AssembledModules, path: string, expectedArtifact?: CompileArtifact,
-): Promise<unknown> {
-  const snapshot = verifiedAssemblies.get(asm);
-  if (snapshot === undefined) throw new Error("importVerifiedAssemblyModule: assembly is not assembler-owned");
-  const module = snapshot.modules.find(module => module.path === path);
-  if (module === undefined) throw new Error("importVerifiedAssemblyModule: unknown artifact module path");
-  await verifyAssembly(asm, snapshot, expectedArtifact);
-  try {
-    const imported: unknown = await import(module.url);
-    return imported;
-  } finally {
-    await verifyAssembly(asm, snapshot, expectedArtifact);
   }
 }
 
@@ -264,7 +247,7 @@ export async function assembleModules(
   const asm = { dir, entryUrl, moduleUrls, mapUrls, sourceMaps };
   const snapshot = { artifactJson, dir, entryUrl, moduleUrls, mapUrls, modules: snapshots, maps, directories: [...directories] };
   await verifyAssembly(asm, snapshot, loaded.artifact);
-  verifiedAssemblies.set(asm, snapshot);
+  registerAssemblerModuleCapability(asm, artifactJson, snapshots, () => verifyAssembly(asm, snapshot));
   return asm;
 }
 

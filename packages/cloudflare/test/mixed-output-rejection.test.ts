@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -6,6 +6,7 @@ import type { DeployBundle, MixedDeployBundle } from "../src/deploy/bundle.js";
 import {
   attachBinaries,
   bundleMixedSha256,
+  bundleSha256,
   inventorizeAssets,
   writeDeployBundleMixed,
 } from "../src/deploy/bundle.js";
@@ -16,9 +17,7 @@ function textBundle(): DeployBundle {
     mainModule: "worker/main.js",
     modules,
     moduleCount: 1,
-    // Fixture aggregate: the mixed writer passes v1 fields through untouched;
-    // correctness of the v1 digest itself is covered by deploy-bundle.test.ts.
-    sha256: "v1-fixture-sha256",
+    sha256: bundleSha256("worker/main.js", modules),
     mcpBundleBytes: 0,
     httpOperationsBytes: 0,
   };
@@ -76,7 +75,7 @@ describe("mixed output rejection (corrective negatives)", () => {
   });
 
   it("N4c: caller mutating attach inputs after attach cannot change the bundle", () => {
-    const outDir = mkdtempSync(join(tmpdir(), "can-mixed-reject-"));
+    const outDir = realpathSync(mkdtempSync(join(tmpdir(), "can-mixed-reject-")));
     const binaries: Record<string, Uint8Array> = { "kernel.wasm": new Uint8Array([0, 1, 2, 3]) };
     const mixed = attachBinaries(textBundle(), binaries);
     (binaries["kernel.wasm"] as Uint8Array)[0] = 99;
@@ -130,7 +129,7 @@ describe("mixed output rejection (corrective negatives)", () => {
   });
 
   it("C4: inherited-name keys (toString/constructor) attach and write as ordinary entries", () => {
-    const outDir = mkdtempSync(join(tmpdir(), "can-mixed-reject-"));
+    const outDir = realpathSync(mkdtempSync(join(tmpdir(), "can-mixed-reject-")));
     const mixed = attachBinaries(textBundle(), {
       toString: new Uint8Array([1]),
       constructor: new Uint8Array([2]),

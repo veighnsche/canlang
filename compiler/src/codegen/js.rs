@@ -7703,6 +7703,27 @@ impl<'a> Emitter<'a> {
                             mappable = false;
                             break;
                         };
+                        let alias = self
+                            .ir
+                            .value_constraints
+                            .get(param_id)
+                            .and_then(|constraints| constraints.alias);
+                        let alias_name = alias.and_then(|alias| {
+                            self.ir
+                                .items
+                                .get(alias.0 as usize)
+                                .filter(|item| {
+                                    item.id == alias
+                                        && self.ir.value_constraints.get(&alias).is_some_and(
+                                            |constraints| constraints.alias == Some(alias),
+                                        )
+                                })
+                                .map(|item| item.canonical.clone())
+                        });
+                        if alias.is_some() && alias_name.is_none() {
+                            mappable = false;
+                            break;
+                        }
                         let nullable = matches!(ty, IrType::Known(ResolvedType::Nullable(_)));
                         match self.mcp_field_for_type(ty, !*read) {
                             // Parameters never carry the field-only `!`
@@ -7711,8 +7732,14 @@ impl<'a> Emitter<'a> {
                             // the marker renders `required: false`.
                             Some((field, is_array)) => inputs.push(JsOperationField {
                                 name: param.name.clone(),
-                                field,
-                                value_type: self.operation_input_value_type(ty),
+                                field: alias_name
+                                    .map_or(field, |name| JsMcpField::Nominal { name }),
+                                value_type: match ty {
+                                    IrType::Known(resolved) if alias.is_some() => Some(
+                                        self.symbol_value_type_id(*param_id, resolved, param.span),
+                                    ),
+                                    _ => self.operation_input_value_type(ty),
+                                },
                                 required: default.is_none() && !nullable && !is_array,
                                 nullable,
                                 array_required: is_array.then_some(false),
