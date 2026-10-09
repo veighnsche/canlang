@@ -3712,3 +3712,7 @@ Consume only Packages ebd2ad084eb3b5608dbb335b125c085a58d52c47's forms source an
 ## 2026-10-09 — consume defining native polling fixture initialization
 
 Consume only published Dev2a5d2c72fde016f7767a5b5022f81bd73c1b1197's page-query-serving fixture unit: temporary-profile credential-store flags and one joined navigation/bootstrap wait preserve the real browser behavior assertions. The affected actual workerd/D1/Chromium polling/hidden-tab/authentication/persistence/cancellation case passes1/1 in10.8seconds. Reuse the two unchanged form/browser successes and1,291/compiler lint/editor results. Selected Images source artifact, broader pilot profiles and latest-head CI/Codex remain separate owner prerequisites.
+
+## 2026-10-09 — consume released native runtime fixture provenance unit
+
+Consume only published Dev57b1eb575a7682ef725ab91bbdaa655d2d4c4248's six Cloudflare runtime test files, preserving current compiler controls and foreign records. Actual fixture module digests/entry URLs, owning read/field declarations, native user carriers, explicitly submitted empty-array disclosure and delivery viewer-read binding refusal now match the released consumers. Owning build22/22 and71/71 affected cases pass with zero skips, including real workerd/D1. Hand-built fixtures remain labelled and supply no new emitted-source proof; unchanged1,291/compiler lint/editor results are reused. Whole application/current-head CI/Codex and the now-published defining rule/hook ABI's compiler/native linkage remain separate.

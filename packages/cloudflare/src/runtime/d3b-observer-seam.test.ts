@@ -22,7 +22,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type {
   CompileArtifact,
   ModelName,
@@ -64,15 +64,23 @@ function tempDir(): string {
   return dir;
 }
 
-const OPS_MODULE = `export function canApp() {
-  return {
-    policy: {
-      operations: {},
-      models: {
-        "acme.Item": { read: ["Item.read.1"], public: ["Item.read.1"] },
-      },
+/** Owning hand-built module bytes; declarations and public read selectors agree. */
+const OPS_MODULE = `const modelPolicy = {
+  "acme.Item": { read: ["Item.read.1"], public: ["Item.read.1"] },
+};
+export const appDefinition = {
+  id: "ReceiptUnit",
+  models: {
+    "acme.Item": {
+      readGrants: [{ rule: "Item.read.1", by: ["public"] }],
+      fields: { title: { type: "text" }, notification: { type: "delivery", operation: "std.EmailV1.send", nullable: true } },
     },
-  };
+  },
+  policy: { operations: {}, models: modelPolicy },
+};
+const readRules = { "Item.read.1": () => true };
+export function canApp() {
+  return { policy: appDefinition.policy, read: readRules };
 }
 `;
 
@@ -91,7 +99,7 @@ function receiptArtifact(): CompileArtifact {
     artifact_version: 1,
     language_version: "d3b-seam-fixture/0 (hand-written T15a shape; NOT compiler output)",
     tool_version: "d3b-seam-fixture/0",
-    sources: [{ path: "examples/TeamTasks.can", sha256: "fixture-not-a-digest" }],
+    sources: [{ path: "ops.mjs", sha256: createHash("sha256").update(OPS_MODULE, "utf8").digest("hex") }],
     modules: [],
     callables: [],
     pages: [],
@@ -177,7 +185,7 @@ async function seamSetup(): Promise<SeamSetup> {
   writeFileSync(opsPath, OPS_MODULE);
   const asm: AssembledModules = {
     dir,
-    entryUrl: "fixture-entry",
+    entryUrl: pathToFileURL(opsPath).href,
     moduleUrls: { "ops.mjs": pathToFileURL(opsPath).href },
   };
   const { store } = createTestMemoryStorage();
@@ -201,7 +209,7 @@ async function seedWorld(store: StoragePort, now: number): Promise<void> {
           updatedBy: "member@d3b.test",
           archivedAt: null,
           parent: null,
-          data: { title: "item-1", notification: "decoy-id" },
+          data: { title: "item-1", notification: null },
         } as StoredRow,
       },
     ],
@@ -212,10 +220,15 @@ async function seedWorld(store: StoragePort, now: number): Promise<void> {
     uniqueClaims: [],
     uniqueReleases: [],
   });
+  const owner = await store.load("acme.Item" as ModelName, "item-1" as RecordId);
+  assert.ok(owner);
   const meta = { nowMs: now, actor: "member@d3b.test" };
   await store.commit({
     expectedRevision: await store.readRevision(),
     writes: [
+      { kind: "update", model: "acme.Item" as ModelName, id: owner.id, expectedVersion: owner.version,
+        row: { ...owner, version: (owner.version + 1) as RecordVersion, updated: now,
+          data: { ...owner.data, notification: { id: "del_1", operation: "std.EmailV1.send" } } } },
       {
         kind: "insert",
         model: RECEIPT_ASSOCIATION_MODEL as ModelName,
@@ -225,7 +238,7 @@ async function seedWorld(store: StoragePort, now: number): Promise<void> {
             recordId: "item-1",
             field: "notification",
             deliveryId: "del_1",
-            source: "mailroom.Mail.send",
+            source: "std.EmailV1.send",
             revision: 3,
           },
           meta,
@@ -239,7 +252,7 @@ async function seedWorld(store: StoragePort, now: number): Promise<void> {
             deliveryId: "del_1",
             revision: 3,
             status: "succeeded",
-            result: { ok: 1 },
+            result: { reference: "accepted-1" },
             error: null,
             contentRef: null,
             resultExpiresAtMs: null,
@@ -293,7 +306,7 @@ describe("Q2 observer seam (injected production leg + work-loader fallback)", ()
     });
     assert.equal(served.outcome, "observed");
     if (served.outcome !== "observed") throw new Error("unreachable");
-    assert.deepEqual(served.projection, { status: "succeeded", result: { ok: 1 } });
+    assert.deepEqual(served.projection, { status: "succeeded", result: { reference: "accepted-1" } });
     assert.ok(calls.length >= 1, "injected observer must be called through");
     const first = calls[0] as Record<string, unknown>;
     assert.deepEqual(first["selected"], ["status", "result"]);
@@ -372,7 +385,7 @@ describe("Q2 observer seam (injected production leg + work-loader fallback)", ()
     assert.equal((served as { outcome: string }).outcome, "observed");
     assert.deepEqual((served as { projection: unknown }).projection, {
       status: "succeeded",
-      result: { ok: 1 },
+      result: { reference: "accepted-1" },
     });
     assert.ok(calls.length >= 1, "canonical path must reach the injected observer");
   });
