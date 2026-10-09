@@ -26,6 +26,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { createHash } from "node:crypto";
 import {
   ARTIFACT_VERSION,
   type ArtifactOperation,
@@ -137,15 +138,23 @@ function writeModule(dir: string, name: string, source: string): string {
 /* Fixtures below mirror d3b-selected-receipt.test.ts (same T15b
  * delivery tags, same owner/association/receipt seeds); the serving
  * file stays untouched. */
-const OPS_MODULE = `export function canApp() {
-  return {
-    policy: {
-      operations: {},
-      models: {
-        "acme.Item": { read: ["Item.read.1"], public: ["Item.read.1"] },
-      },
+/** Owning hand-built module bytes; declarations and public read selectors agree. */
+const OPS_MODULE = `const modelPolicy = {
+  "acme.Item": { read: ["Item.read.1"], public: ["Item.read.1"] },
+};
+export const appDefinition = {
+  id: "ReceiptUnit",
+  models: {
+    "acme.Item": {
+      readGrants: [{ rule: "Item.read.1", by: ["public"] }],
+      fields: { title: { type: "text" }, notification: { type: "delivery", operation: "std.EmailV1.send", nullable: true } },
     },
-  };
+  },
+  policy: { operations: {}, models: modelPolicy },
+};
+const readRules = { "Item.read.1": () => true };
+export function canApp() {
+  return { policy: appDefinition.policy, read: readRules };
 }
 `;
 
@@ -201,7 +210,7 @@ function receiptArtifact(models: unknown[]): CompileArtifact {
     artifact_version: 1,
     language_version: "d3b-fixture/0 (hand-written T15a shape; NOT compiler output)",
     tool_version: "d3b-fixture/0",
-    sources: [{ path: "examples/TeamTasks.can", sha256: "fixture-not-a-digest" }],
+    sources: [{ path: "ops.mjs", sha256: createHash("sha256").update(OPS_MODULE, "utf8").digest("hex") }],
     modules: [],
     callables: [],
     pages: [],
@@ -222,7 +231,7 @@ function ownerRow(id: string, now: number): StoredRow {
     updatedBy: "member@d3b.test",
     archivedAt: null,
     parent: null,
-    data: { title: id, notification: "decoy-id" },
+    data: { title: id, notification: null },
   } as StoredRow;
 }
 
@@ -244,6 +253,8 @@ async function seedAssociationAndReceipt(
   input: { model: string; recordId: string; field: string },
   now: number,
 ): Promise<void> {
+  const owner = await store.load(input.model as ModelName, input.recordId as RecordId);
+  assert.ok(owner);
   const meta = { nowMs: now, actor: "member@d3b.test" };
   const association = newAssociationRow(
     {
@@ -251,7 +262,7 @@ async function seedAssociationAndReceipt(
       recordId: input.recordId,
       field: input.field,
       deliveryId: "del_1",
-      source: "mailroom.Mail.send",
+      source: "std.EmailV1.send",
       revision: 3,
     },
     meta,
@@ -261,7 +272,7 @@ async function seedAssociationAndReceipt(
       deliveryId: "del_1",
       revision: 3,
       status: "succeeded",
-      result: { ok: 1 },
+      result: { reference: "accepted-1" },
       error: null,
       contentRef: null,
       resultExpiresAtMs: null,
@@ -271,6 +282,9 @@ async function seedAssociationAndReceipt(
   await store.commit({
     expectedRevision: await store.readRevision(),
     writes: [
+      { kind: "update", model: input.model as ModelName, id: owner.id, expectedVersion: owner.version,
+        row: { ...owner, version: (owner.version + 1) as RecordVersion, updated: now,
+          data: { ...owner.data, [input.field]: { id: "del_1", operation: "std.EmailV1.send" } } } },
       { kind: "insert", model: RECEIPT_ASSOCIATION_MODEL as ModelName, row: association },
       { kind: "insert", model: RECEIPT_MODEL as ModelName, row: receipt },
     ],
@@ -307,7 +321,7 @@ async function assemblySetup(
 ): Promise<Assembly> {
   const dir = tempDir();
   const url = writeModule(dir, "ops.mjs", OPS_MODULE);
-  const asm = { dir, entryUrl: "fixture-entry", moduleUrls: { "ops.mjs": url } };
+  const asm = { dir, entryUrl: url, moduleUrls: { "ops.mjs": url } };
   const artifact = receiptArtifact(models);
   const { store } = createTestMemoryStorage();
   const dispatched = { count: 0 };
@@ -404,7 +418,7 @@ describe("D3b join assembly (E wire + real C serving)", () => {
   it("a stale fence conflicts through the wire before any row is consulted", async () => {
     const dir = tempDir();
     const url = writeModule(dir, "ops.mjs", OPS_MODULE);
-    const asm = { dir, entryUrl: "fixture-entry", moduleUrls: { "ops.mjs": url } };
+    const asm = { dir, entryUrl: url, moduleUrls: { "ops.mjs": url } };
     const artifact = receiptArtifact([itemModel()]);
     const { store } = createTestMemoryStorage();
     const now = Date.now();
@@ -514,7 +528,7 @@ describe("D3b join assembly (E wire + real C serving)", () => {
 
     const dir = tempDir();
     const url = writeModule(dir, "ops.mjs", OPS_MODULE);
-    const asm = { dir, entryUrl: "fixture-entry", moduleUrls: { "ops.mjs": url } };
+    const asm = { dir, entryUrl: url, moduleUrls: { "ops.mjs": url } };
     const artifact = receiptArtifact([itemModel()]);
     const { store } = createTestMemoryStorage();
     const dispatched = { count: 0 };
