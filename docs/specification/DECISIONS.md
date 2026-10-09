@@ -3558,3 +3558,8 @@ Codex code/security reviews completed for PR134 revision697022af with no new fin
 ## 2026-10-09: Compare original assignment through authenticated MCP
 
 Use the same generated artifact registry and canonical source handler through the worker's actual /mcp transport, production member permissions and a grant issued after real native-D1 session resolution. Preserve typed parent/assignee bindings and current identity instead of treating a browser session token as an MCP grant. Owning Cloudflare emission passes and the expanded existing native-D1/happyDOM/Chromium case1/1 (47.89s) passes: exact original assignment/replay, wrong model/site/parent, stale references, changed parent, omitted/null missing-parent short-circuit, revocation during guarded read, foreign-team/session-audience/revoked-grant refusals. Existing browser/HTTP behavior and durable reopen remain in the same case. This qualifies the finite actor-role/direct-parent transport comparison; original conditional row grants, subject roles, model rules and full two-witness application acceptance remain open.
+
+
+## 2026-10-09: Reconcile accumulated Capability integration paths
+
+Refresh the existing living registry against all changes since checkpoint82493427 at committed source66065e8a8ed8582185539afd818862c3204cafa0. Preserve every prior owner/target/review/retirement gate and register newly encountered compiler consumer fixtures without declaring semantic or target-allocation acceptance. The registry now names a commit for both diff and history traversal; its earlier merge-candidate tree could not identify commit history. Complete source review and the checkpoint remain unchanged. This maintenance does not recursively register itself or authorize additional implementation.
