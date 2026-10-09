@@ -72,6 +72,7 @@ pub(super) struct NativeDependency {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum NativeDecisionKind {
+    ParameterDefault,
     If,
     Match,
     And,
@@ -83,6 +84,8 @@ pub(super) enum NativeDecisionKind {
 pub(super) struct NativeSite {
     pub calls: Vec<Span>,
     pub span: Span,
+    /// Omission and the default expression's own decision may share a span.
+    pub default_selection: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -124,6 +127,7 @@ pub(super) fn collect_native_scenario_receipt(
         by,
         guards,
         effects,
+        params,
         ..
     } = &item.kind
     else {
@@ -151,7 +155,7 @@ pub(super) fn collect_native_scenario_receipt(
         return None;
     }
     let source = transport_source(&checked.source, entry_module)?;
-    let sites = Sites::collect(ir, by, guards, effects)?;
+    let sites = Sites::collect(ir, item, params, by, guards, effects)?;
     let mut recipe = NativeScenarioReceipt {
         plan: ReceiptDisclosurePlan {
             version: 1,
@@ -221,7 +225,11 @@ pub(super) fn collect_native_scenario_receipt(
             dependencies: Vec::new(),
         };
         for decision in &returned.decisions {
-            let site = checked_site(decision.node, &decision.calls)?;
+            let mut site = checked_site(decision.node, &decision.calls)?;
+            site.default_selection = matches!(
+                decision.choice,
+                DisclosureChoice::DefaultEvaluated | DisclosureChoice::DefaultProvided
+            );
             let span = site.span;
             if native_return
                 .decisions
@@ -232,11 +240,12 @@ pub(super) fn collect_native_scenario_receipt(
             }
             let kind = *sites.decisions.get(&site)?;
             let expected = match kind {
-                NativeDecisionKind::If => SyntaxKind::If,
-                NativeDecisionKind::Match => SyntaxKind::Match,
-                _ => SyntaxKind::Binary,
+                NativeDecisionKind::ParameterDefault => decision.node.kind,
+                NativeDecisionKind::If => SyntaxKind::If as u8,
+                NativeDecisionKind::Match => SyntaxKind::Match as u8,
+                _ => SyntaxKind::Binary as u8,
             };
-            if decision.node.kind != expected as u8 {
+            if decision.node.kind != expected {
                 return None;
             }
             if !valid_choice(kind, &decision.choice, sites.matches.get(&site)) {
@@ -254,8 +263,10 @@ pub(super) fn collect_native_scenario_receipt(
             } else {
                 // The checked opaque return identity already incorporates exact
                 // declaring source bytes and canonical call-chain origins.
-                let mut stamp =
-                    format!("receipt-choice:{}:{}:{}", returned.id, span.start, span.end);
+                let mut stamp = format!(
+                    "receipt-choice:{}:{}:{}:{}",
+                    returned.id, span.start, span.end, site.default_selection
+                );
                 for anchor in site.calls.iter().chain(std::iter::once(&span)) {
                     let owner = owning_module(ir, *anchor)?;
                     stamp.push_str(&format!(":{}:{}:{}", owner.name, anchor.start, anchor.end));
@@ -592,6 +603,10 @@ fn valid_choice(
     cases: Option<&HashSet<String>>,
 ) -> bool {
     match (kind, choice) {
+        (
+            NativeDecisionKind::ParameterDefault,
+            DisclosureChoice::DefaultEvaluated | DisclosureChoice::DefaultProvided,
+        ) => true,
         (NativeDecisionKind::If, DisclosureChoice::Then | DisclosureChoice::Else) => true,
         (NativeDecisionKind::Match, DisclosureChoice::Match(case)) => {
             cases.is_some_and(|cases| cases.contains(case))
@@ -623,12 +638,44 @@ enum Visit<'a> {
 impl<'a> Sites<'a> {
     fn collect(
         ir: &'a IrProgram,
+        owner: &'a IrItem,
+        params: &'a [crate::analysis::SymbolId],
         by: &'a [IrGuard],
         guards: &'a [IrStmt],
         effects: &'a [IrStmt],
     ) -> Option<Self> {
         let mut out = Self::default();
         let mut pending = Vec::new();
+        for (index, id) in params.iter().enumerate() {
+            let param = ir.items.get(id.0 as usize)?;
+            let IrItemKind::Param {
+                owner: declared_owner,
+                index: declared_index,
+                default,
+                ..
+            } = &param.kind
+            else {
+                return None;
+            };
+            if param.id != *id || *declared_owner != owner.id || *declared_index != index {
+                return None;
+            }
+            if let Some(IrDefault::Literal(expr) | IrDefault::Computed { expr, .. }) = default {
+                if owning_module(ir, expr.span)?.id != owner.module {
+                    return None;
+                }
+                let mut site = Walk::default().site(expr.span);
+                site.default_selection = true;
+                if out
+                    .decisions
+                    .insert(site, NativeDecisionKind::ParameterDefault)
+                    .is_some()
+                {
+                    return None;
+                }
+                pending.push((Visit::Expression(expr), Walk::default()));
+            }
+        }
         pending.extend(
             by.iter()
                 .map(|guard| (Visit::Guard(guard), Walk::default())),
@@ -858,6 +905,7 @@ impl Walk {
         NativeSite {
             calls: self.calls.clone(),
             span,
+            default_selection: false,
         }
     }
 }
@@ -871,6 +919,7 @@ fn checked_site(
     Some(NativeSite {
         calls: calls.iter().copied().map(node_span).collect(),
         span: node_span(node),
+        default_selection: false,
     })
 }
 fn owning_module(ir: &IrProgram, span: Span) -> Option<&super::ir::IrModule> {

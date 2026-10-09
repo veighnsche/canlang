@@ -114,10 +114,10 @@ fn compiled_lifecycle_runs_through_canonical_runtime_and_state_driven_ui() {
         &source,
         r#"app Images
 Given
- Job { title:text="test", status:enum(idle,queued,generating,ready,failed)=idle machine, private_choice:bool=false }
- policy Job read=public fields=title,status
+ Job { title:text="test", status:enum(idle,queued,generating,ready,failed)=idle machine, private_choice:bool=false, public_choice:bool? }
+ policy Job read=public fields=title,status,public_choice
 When
- crud Job by=public fields=title,private_choice
+ crud Job by=public fields=title,private_choice,public_choice
  scenario advance(job:Job) by=public
   do
    let alias=job
@@ -141,6 +141,16 @@ When
   do
    if selected
     transition job.status idle -> ready
+ scenario private_defaults(job:Job,selected:bool=job.private_choice) -> int by=public
+  do
+   if selected
+    transition job.status idle -> ready
+   return 7
+ scenario public_defaults(job:Job,selected:bool=job.public_choice ?? false) -> int by=public
+  do
+   if selected
+    transition job.status idle -> ready
+   return 7
  scenario optional(job:Job) by=public
   do
    if job.private_choice

@@ -2844,6 +2844,7 @@ impl<'a> Emitter<'a> {
         super::scenario_receipts::NativeSite {
             calls: self.receipt_calls.clone(),
             span,
+            default_selection: false,
         }
     }
 
@@ -2854,13 +2855,25 @@ impl<'a> Emitter<'a> {
     }
 
     fn receipt_choice(&self, span: Span, choice: &str) -> String {
-        if !self.receipt_decision(span) {
+        self.receipt_choice_at(self.receipt_site(span), choice)
+    }
+
+    fn receipt_choice_at(
+        &self,
+        site: super::scenario_receipts::NativeSite,
+        choice: &str,
+    ) -> String {
+        if !self
+            .receipt_capture
+            .as_ref()
+            .is_some_and(|recipe| recipe.decisions.contains_key(&site))
+        {
             return String::new();
         }
         let Some(key) = self
             .receipt_capture
             .as_ref()
-            .and_then(|recipe| recipe.decision_keys.get(&self.receipt_site(span)))
+            .and_then(|recipe| recipe.decision_keys.get(&site))
         else {
             return String::new();
         };
@@ -2911,6 +2924,8 @@ impl<'a> Emitter<'a> {
                         DisclosureChoice::Else => "else",
                         DisclosureChoice::RhsEvaluated => "rhs-evaluated",
                         DisclosureChoice::RhsSkipped => "rhs-skipped",
+                        DisclosureChoice::DefaultEvaluated => "default-evaluated",
+                        DisclosureChoice::DefaultProvided => "default-provided",
                         DisclosureChoice::Match(case) => case,
                     };
                     format!(
@@ -9335,13 +9350,22 @@ impl<'a> Emitter<'a> {
                             } = &param.kind
                             {
                                 let name = self.reference(&param.name);
-                                let value = match default {
-                                    IrDefault::Literal(expr) | IrDefault::Computed { expr, .. } => {
-                                        self.lower_business_expr(
-                                            expr,
-                                            "formatted scenario parameter default",
-                                        )
-                                    }
+                                let (IrDefault::Literal(expr) | IrDefault::Computed { expr, .. }) =
+                                    default;
+                                let value = self.lower_business_expr(
+                                    expr,
+                                    "formatted scenario parameter default",
+                                );
+                                let mut default_site = self.receipt_site(expr.span);
+                                default_site.default_selection = true;
+                                let evaluated = self
+                                    .receipt_choice_at(default_site.clone(), "default-evaluated");
+                                let provided =
+                                    self.receipt_choice_at(default_site, "default-provided");
+                                let supplied_branch = if provided.is_empty() {
+                                    String::new()
+                                } else {
+                                    format!("else{{{provided}}}")
                                 };
                                 let report = match (&default_observer, default) {
                                     (Some(observer), IrDefault::Computed { .. })
@@ -9358,7 +9382,7 @@ impl<'a> Emitter<'a> {
                                 out.push(
                                     param.span,
                                     Some(item.canonical.clone()),
-                                    &format!("if({name}===undefined){{{name}={value};{report}}}"),
+                                    &format!("if({name}===undefined){{{evaluated}{name}={value};{report}}}{supplied_branch}"),
                                 );
                             }
                         }
