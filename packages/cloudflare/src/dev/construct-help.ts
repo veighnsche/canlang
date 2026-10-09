@@ -107,6 +107,66 @@ export interface QualifiedCandidateSet {
   readonly cards: readonly ConstructHelpCard[];
 }
 
+/** The compiler's optional diagnostic routing extension, normalized at the JSON boundary. */
+export interface CompilerConstructCandidates {
+  readonly version: 1;
+  readonly disposition: "exact" | "structural" | "none" | "unknown";
+  readonly slot: string | null;
+  readonly ids: readonly string[];
+  readonly complete: boolean;
+}
+
+export interface RoutedConstructHelp extends QualifiedCandidateSet {
+  readonly disposition: CompilerConstructCandidates["disposition"];
+  readonly slot: string | null;
+}
+
+const UNKNOWN_ROUTING: CompilerConstructCandidates = Object.freeze({
+  version: 1, disposition: "unknown", slot: null, ids: Object.freeze([]), complete: false,
+});
+
+/** Reject malformed or overbroad routing as unknown; never recover IDs from prose. */
+export function parseCompilerConstructCandidates(value: unknown): CompilerConstructCandidates {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return UNKNOWN_ROUTING;
+  const entry = value as Record<string, unknown>;
+  if (entry["version"] !== 1 || typeof entry["disposition"] !== "string" ||
+      !["exact", "structural", "none", "unknown"].includes(entry["disposition"]) ||
+      typeof entry["complete"] !== "boolean" || !Array.isArray(entry["ids"])) return UNKNOWN_ROUTING;
+  const disposition = entry["disposition"] as CompilerConstructCandidates["disposition"];
+  const slot = entry["slot"] === undefined ? null : entry["slot"];
+  if (slot !== null && (typeof slot !== "string" || !/^[a-z][a-z0-9_.-]{0,95}$/.test(slot))) return UNKNOWN_ROUTING;
+  const ids = entry["ids"] as unknown[];
+  if (ids.length > 8 || ids.some(id => typeof id !== "string" || id.length > 96 || !CARD_ID.test(id)) ||
+      new Set(ids).size !== ids.length) return UNKNOWN_ROUTING;
+  if (disposition === "exact" && (slot === null || ids.length === 0)) return UNKNOWN_ROUTING;
+  if (disposition !== "exact" && ids.length !== 0) return UNKNOWN_ROUTING;
+  if ((disposition === "structural" || disposition === "unknown") && entry["complete"] !== false) return UNKNOWN_ROUTING;
+  return Object.freeze({ version: 1, disposition, slot: slot as string | null,
+    ids: Object.freeze(ids as string[]), complete: entry["complete"] as boolean });
+}
+
+/** Join exact compiler IDs to captured cards; only source-current proofs may qualify them. */
+export function joinCompilerConstructCandidates(
+  index: ConstructHelpIndex,
+  value: unknown,
+  profile: string,
+  proofs: readonly QualifiedConstructProof[] = [],
+): RoutedConstructHelp {
+  const routing = parseCompilerConstructCandidates(value);
+  if (routing.disposition === "none" && routing.complete) {
+    return { disposition: "none", slot: routing.slot, candidateCoverage: "complete", cards: [] };
+  }
+  if (routing.disposition !== "exact") {
+    return { disposition: routing.disposition, slot: routing.slot, candidateCoverage: "unknown",
+      reason: routing.disposition === "structural" ? "structural recovery needs a source edit" : "compiler candidate routing is incomplete",
+      cards: [] };
+  }
+  const selected = index.candidates({ slot: routing.slot!, profile,
+    compilerSha256: index.compilerSha256, indexRevision: index.revision,
+    ids: routing.ids, complete: routing.complete }, proofs);
+  return { disposition: "exact", slot: routing.slot, ...selected };
+}
+
 export interface ConstructHelpIndex {
   readonly revision: string;
   readonly languageVersion: string;
