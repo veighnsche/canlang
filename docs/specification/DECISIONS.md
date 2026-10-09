@@ -3743,3 +3743,11 @@ Accepted finite UI correction: deleteRecord sends the checked record plus operat
 ## 2026-10-09 — expose bounded structured facts on HTML form refusals
 
 Accepted finite Interfaces contract: FORM_REFUSAL_HEADER exports can-form-refusal on full-page and fragment business-error responses, carrying JSON{version:1,code:BusinessErrorCode,retryable:boolean}. The producer admits only the closed code vocabulary and strict boolean; it never includes prose, draft values, fields or identifiers. Existing HTML rendering/status and JSON error transport remain intact. Interfaces emit and22HTTP operation cases pass, covering nonretryable/retryable facts, preserved drafts, absence from ordinary JSON, auth/CSRF and body/refusal behavior. Dev consumes this owning header and independently qualifies its bridge/MCP behavior.
+
+### Implementation: safe HTML refusal observation in local preview
+
+Consume the released Interfaces FORM_REFUSAL_HEADER only on unsuccessful HTML POST responses from canonical operation paths. Independently require the exact version/code/retryable key set, closed business code and boolean within256UTF-8bytes. Never extract draft values, credential controls or prose from HTML; relay its original bytes and metadata. Bridge8/8 checks pass, including a large private HTML body and malformed/out-of-scope metadata refusals. The real compiled Office consumer remains due; no whole-app qualification follows.
+
+### Blocked prerequisite: receipt-only local forwarding
+
+Consume Capability's forthcoming State/Contracts SEQ005/009/014 receipt-only contract for trusted Cloudflare assembly/invoker forwarding. Packages owns the expired signed-form restoration consumer. Keep this internal path separate from untrusted operation inputs and normal invocation; absent receipts must not fall back to mutation. Required semantics retain receipt identity/input hash and current-authority projection without executing, committing, creating receipts or effects. The API is not yet released, so forwarding implementation is blocked rather than duplicated.

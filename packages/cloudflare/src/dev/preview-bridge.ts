@@ -6,7 +6,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { BusinessError } from "@canlang/contracts";
-import { buildBusinessError, isBusinessErrorCode } from "@canlang/interfaces";
+import { buildBusinessError, FORM_REFUSAL_HEADER, isBusinessErrorCode } from "@canlang/interfaces";
 import type { LocalDev } from "./local-run.js";
 
 const BOOTSTRAP_PATH = "/_can_dev/preview/bootstrap";
@@ -53,8 +53,23 @@ export interface ProtectedPreview {
 function observedError(response: Response, body: Buffer, request: {
   method: string; pathname: string; body: Buffer;
 }): { error: BusinessError; transport?: "mcp" } | null {
+  const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
+  if (response.status >= 400 && request.method === "POST" &&
+      request.pathname.startsWith("/api/operations/") && contentType.startsWith("text/html")) {
+    // HTML may contain the user's draft and credential-bearing controls. Only
+    // the owning handler's bounded metadata is eligible for observation.
+    const raw = response.headers.get(FORM_REFUSAL_HEADER);
+    if (raw === null || Buffer.byteLength(raw, "utf8") > 256) return null;
+    let metadata: unknown;
+    try { metadata = JSON.parse(raw); } catch { return null; }
+    if (metadata === null || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+    const fields = metadata as Record<string, unknown>;
+    if (Object.keys(fields).sort().join(",") !== "code,retryable,version" || fields.version !== 1 ||
+        !isBusinessErrorCode(fields.code) || typeof fields.retryable !== "boolean") return null;
+    return { error: buildBusinessError(fields.code, undefined, { retryable: fields.retryable }) };
+  }
   if (body.length === 0 || body.length > MAX_OBSERVED_ERROR_BYTES ||
-      !(response.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return null;
+      !contentType.startsWith("application/json")) return null;
   let parsed: unknown;
   try { parsed = JSON.parse(body.toString("utf8")); } catch { return null; }
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
