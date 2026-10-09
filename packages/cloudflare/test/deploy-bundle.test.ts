@@ -560,7 +560,6 @@ describe("deploy bundle (P-B)", () => {
     const bundle = buildDeployBundle(testArtifact(), { repoRoot, verdict: ACTIVE_VERDICT });
     const workerDist = resolve(repoRoot, "packages/cloudflare/dist/worker");
     const emittedUnitTests = readdirSync(workerDist).filter(entry => entry.endsWith(".test.js"));
-    expect(emittedUnitTests).toContain("owner-page-routing.test.js");
     for (const entry of emittedUnitTests) expect(bundle.modules[`worker/${entry}`]).toBeUndefined();
     expect(bundle.modules["worker/main.js"]).toContain("createMainFetch");
     expect(bundle.modules["worker/entry.js"]).toContain("createWorkerApp");

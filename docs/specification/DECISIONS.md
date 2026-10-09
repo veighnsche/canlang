@@ -3643,3 +3643,7 @@ The stored-field producer checkpoint now passes its actual text/decimal metadata
 ## 2026-10-09 — Reconcile affected Values CI producer fixtures
 
 Keep the closed public schema export assertion and include the actual released `ValueTypesError`/`normalizeValueTypes` exports. Regenerate the string-escape fixture through its owning oracle for current Values sources after the distribution locator and schema joins. All strings, 23 caller observations, route summaries, controls and oracle/frozen-source hashes remain unchanged; donor hashes and the actual Linux engine context reflect the current inputs. Both affected tests pass 10/10. This correspondence check does not qualify Office or replace hosted CI.
+
+## 2026-10-09 — Keep Worker boundaries aligned with real portable producers
+
+Move the physical-owner component test out of production src/worker ownership. Preserve its four ordered real D1/admission/revocation scenarios using the native installed portable assembly export; no accessor-metadata guard is bypassed. Keep strict Worker no-Node/type-only checks. Pin the two existing worker-safe D1 leaves in the env join and only the example runner’s three declared portable assembly bindings at the Node boundary; serving entry/main remain forbidden. Boundary 3/3, physical consumer 1/1 and owning/root noEmit pass; the obsolete dist test-presence assertion is removed while bundle test exclusion remains checked.
