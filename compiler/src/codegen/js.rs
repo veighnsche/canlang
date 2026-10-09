@@ -1216,25 +1216,35 @@ impl JsWriter {
         Self::default()
     }
 
-    /// Push one line attributed to `span` (and optionally `name`).
+    /// Push text attributed to `span` (and optionally `name`), followed by
+    /// a newline. Each physical output line receives the owning attribution.
     /// An unrepresentable 1-based u32 line number latches `E6012` before
     /// changing output. Subsequent writes are ignored; check [`Self::try_finish`].
     pub fn push(&mut self, span: Span, name: Option<String>, text: &str) {
         if self.capacity_error.is_some() {
             return;
         }
-        let Some(line) = self
-            .lines
-            .len()
+        let Some(last_line) = text
+            .bytes()
+            .filter(|byte| *byte == b'\n')
+            .count()
             .checked_add(1)
+            .and_then(|count| self.lines.len().checked_add(count))
             .and_then(|line| u32::try_from(line).ok())
         else {
             self.capacity_error = Some(Self::line_capacity_error(span));
             return;
         };
+        let first_line = self.lines.len() + 1;
         self.buf.push_str(text);
         self.buf.push('\n');
-        self.lines.push(JsLine { line, span, name });
+        for line in first_line..=last_line as usize {
+            self.lines.push(JsLine {
+                line: line as u32,
+                span,
+                name: name.clone(),
+            });
+        }
     }
 
     /// Append another writer's lines, renumbering them.
@@ -1469,11 +1479,19 @@ fn ui_prop_is_admitted(factory: &str, key: &str) -> bool {
         "content" => key == "value",
         "list" => matches!(
             key,
-            "model" | "parent" | "where" | "limit" | "cursor" | "empty" | "display"
+            "model" | "parent" | "where" | "limit" | "cursor" | "empty" | "display" | "page"
         ),
         "table" => matches!(
             key,
-            "model" | "parent" | "where" | "limit" | "cursor" | "empty" | "columns" | "display"
+            "model"
+                | "parent"
+                | "where"
+                | "limit"
+                | "cursor"
+                | "empty"
+                | "columns"
+                | "display"
+                | "page"
         ),
         "form" => matches!(
             key,
@@ -4762,6 +4780,9 @@ impl<'a> Emitter<'a> {
                 return self.throw_expr("unsupported UI option");
             }
             let typed = match key.as_str() {
+                "page" if matches!(node.factory.as_str(), "list" | "table") => {
+                    matches!(value.expr, IrExpr::Bool(true))
+                }
                 "open" => matches!(value.ty, ResolvedType::Scalar(Scalar::Bool)),
                 "caption" | "title" | "text" | "label" | "regionId" | "target" | "opens" => {
                     matches!(value.ty, ResolvedType::Scalar(Scalar::Text))
@@ -4919,7 +4940,11 @@ impl<'a> Emitter<'a> {
             && node.children.iter().all(|child| child.factory == "tabItem");
         let mut props = vec![format!("context:{ctx}")];
         if matches!(node.factory.as_str(), "list" | "table")
-            && form_prop_text(node, "display").as_deref() == Some("split")
+            && (form_prop_text(node, "display").as_deref() == Some("split")
+                || node
+                    .props
+                    .iter()
+                    .any(|(key, value)| key == "page" && matches!(value.expr, IrExpr::Bool(true))))
         {
             // A URL locator names this source collection occurrence. The
             // owning factory selects only from its fresh authorized result.

@@ -472,12 +472,35 @@ fn golden_teamtasks_structure() {
         !entry.contains("selector:\"TeamTasks.view\""),
         "refused tabs selector is absent"
     );
+    let form_occurrence = entry
+        .split_once("c.prepareForm({operation:\"TeamTasks.Todo.create\",fields:[\"title\",\"assignee\"],display:\"inline\",occurrence:")
+        .expect("protected create form preparation")
+        .1.split_once(",labels:").unwrap().0;
+    let form_start: usize = form_occurrence
+        .strip_prefix("\"can-form-f0-s")
+        .unwrap()
+        .split_once("-\"")
+        .unwrap()
+        .0
+        .parse()
+        .unwrap();
     assert!(
-        entry.contains("c.prepareForm({operation:\"TeamTasks.Todo.create\",fields:[\"title\",\"assignee\"],display:\"inline\",labels:{title:$can$h$636865636b65645f6d657373616765(\"Title\",{nl:\"Titel\"},undefined,\"en\"),assignee:$can$h$636865636b65645f6d657373616765(\"Assignee\",{nl:\"Toegewezen aan\"},undefined,\"en\")},authoredFields:[\"title\"]})"),
+        db.get(id).unwrap().text[form_start..]
+            .trim_start()
+            .starts_with("form Todo.create")
+    );
+    assert_eq!(
+        form_occurrence,
+        format!(
+            "\"can-form-f0-s{form_start}-\"+encodeURIComponent(JSON.stringify([c.path,\"TeamTasks.Todo.create\",]))"
+        )
+    );
+    assert!(
+        entry.contains(&"c.prepareForm({operation:\"TeamTasks.Todo.create\",fields:[\"title\",\"assignee\"],display:\"inline\",labels:{title:$can$h$636865636b65645f6d657373616765(\"Title\",{nl:\"Titel\"},undefined,\"en\"),assignee:$can$h$636865636b65645f6d657373616765(\"Assignee\",{nl:\"Toegewezen aan\"},undefined,\"en\")},authoredFields:[\"title\"]})".replace(",labels:", &format!(",occurrence:{form_occurrence},labels:"))),
         "form operation"
     );
-    // Field controls consume prepared props. Breadcrumbs and pagination
-    // lack owning source carriers. No-recurse rule: children of an
+    // Field controls consume prepared props. Breadcrumbs lack owning
+    // source carriers. No-recurse rule: children of an
     // *unlowered* factory are swallowed by its placeholder (one E6008
     // for the factory, none for the absorbed children).
     assert!(
@@ -497,10 +520,13 @@ fn golden_teamtasks_structure() {
         "textarea child"
     );
     assert!(
-        diags.iter().any(|d| d.code == "E6008"
-            && d.message
-                .contains("cannot lower pagination: cursor and label carriers")),
-        "pagination carrier profile is refused"
+        entry.matches("page:true").count() == 2,
+        "both bare collection markers request pages"
+    );
+    assert_eq!(
+        entry.matches("display:\"split\"").count(),
+        1,
+        "owning list split display is consumed"
     );
     assert!(
         entry.contains("where:($can$l$303a7461736b)=>(preferences.view === \"all\")"),
@@ -530,8 +556,8 @@ fn golden_teamtasks_structure() {
     );
     assert!(
         !entry.contains("$can$u$65646974({")
-            && diags.iter().any(|d| d.code == "E6008" && d.message.contains("cannot lower edit: the bound edit profile has no complete owning form props")),
-        "edit operation has no owning factory profile"
+            && diags.iter().any(|d| d.code == "E6008" && d.message == "cannot lower edit: only bound row edits with fields and no header or body are supported"),
+        "bare edit without fields retains its owning refusal"
     );
     // G12: state-read builtins await; the bare model domain lowers
     // through the shared query contract.
@@ -736,7 +762,7 @@ fn golden_teamtasks_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        15,
+        12,
         "unsupported count: {diags:?}"
     );
     for (word, n) in [("tooltip", 1), ("collapse", 1)] {
@@ -751,11 +777,11 @@ fn golden_teamtasks_structure() {
     }
     for (profile, count) in [
         ("cannot lower breadcrumbs:", 2),
-        ("cannot lower pagination:", 2),
+        ("cannot lower pagination:", 0),
         ("cannot lower edit:", 2),
         ("cannot lower list: option search", 2),
         ("cannot lower list: option filter", 1),
-        ("cannot lower list: option display", 1),
+        ("cannot lower list: option display", 0),
     ] {
         assert_eq!(
             diags
@@ -1127,8 +1153,31 @@ fn golden_expenseflow_structure() {
         entry.contains("$can$u$6a6f696e({context:$can$l$313a726f7756696577,children:[$can$u$627574746f6e({context:$can$l$313a726f7756696577,opens:\"approve_expense\"}),$can$u$627574746f6e({context:$can$l$313a726f7756696577,opens:\"reject_expense\"})]})"),
         "join with opener buttons"
     );
+    let approve_occurrence = entry
+        .split_once("$can$l$313a726f7756696577.prepareForm({operation:\"expenses.approve\",arguments:{expense:$can$l$303a726f77},display:\"inline\",fields:[\"expense\",\"note\"],occurrence:")
+        .expect("protected row-bound approve preparation")
+        .1.split_once(",labels:").unwrap().0;
+    let approve_start: usize = approve_occurrence
+        .strip_prefix("\"can-form-f0-s")
+        .unwrap()
+        .split_once("-\"")
+        .unwrap()
+        .0
+        .parse()
+        .unwrap();
     assert!(
-        entry.contains("$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$h$636865636b65645f6d657373616765(\"Approve expense\",{nl:\"Onkost goedkeuren\"},undefined,\"en\"),id:\"approve_expense\",content:[(($can$f$666f726d)=>{if($can$f$666f726d.status!==\"ready\")return $can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$f$666f726d.message]});return $can$u$666f726d({...$can$f$666f726d.props,children:()=>[$can$u$7465787461726561({...$can$f$666f726d.field(\"note\")})]});})(await $can$l$313a726f7756696577.prepareForm({operation:\"expenses.approve\",arguments:{expense:$can$l$303a726f77},display:\"inline\",fields:[\"expense\",\"note\"],labels:{note:$can$h$636865636b65645f6d657373616765(\"Decision note\",{nl:\"Toelichting op het besluit\"},undefined,\"en\")},authoredFields:[\"note\"]}))]})"),
+        db.get(id).unwrap().text[approve_start..]
+            .trim_start()
+            .starts_with("form approve")
+    );
+    assert_eq!(
+        approve_occurrence,
+        format!(
+            "\"can-form-f0-s{approve_start}-\"+encodeURIComponent(JSON.stringify([$can$l$313a726f7756696577.path,\"expenses.approve\",$can$l$303a726f77.id]))"
+        )
+    );
+    assert!(
+        entry.contains(&"$can$u$6d6f64616c({context:$can$l$313a726f7756696577,caption:$can$h$636865636b65645f6d657373616765(\"Approve expense\",{nl:\"Onkost goedkeuren\"},undefined,\"en\"),id:\"approve_expense\",content:[(($can$f$666f726d)=>{if($can$f$666f726d.status!==\"ready\")return $can$u$74657874({context:$can$l$313a726f7756696577,values:[$can$f$666f726d.message]});return $can$u$666f726d({...$can$f$666f726d.props,children:()=>[$can$u$7465787461726561({...$can$f$666f726d.field(\"note\")})]});})(await $can$l$313a726f7756696577.prepareForm({operation:\"expenses.approve\",arguments:{expense:$can$l$303a726f77},display:\"inline\",fields:[\"expense\",\"note\"],labels:{note:$can$h$636865636b65645f6d657373616765(\"Decision note\",{nl:\"Toelichting op het besluit\"},undefined,\"en\")},authoredFields:[\"note\"]}))]})".replace(",labels:", &format!(",occurrence:{approve_occurrence},labels:"))),
         "approve modal with content slot"
     );
     assert!(
@@ -1136,10 +1185,13 @@ fn golden_expenseflow_structure() {
         "reject modal"
     );
     assert!(
-        diags.iter().any(|d| d.code == "E6008"
-            && d.message
-                .contains("cannot lower pagination: cursor and label carriers")),
-        "pagination carrier profile is refused"
+        entry.matches("page:true").count() == 1,
+        "bare collection marker requests a page"
+    );
+    assert_eq!(
+        entry.matches("display:\"split\"").count(),
+        1,
+        "owning list split display is consumed"
     );
     assert!(
         diags.iter().any(|d| d.code == "E6008"
@@ -1353,19 +1405,19 @@ fn golden_expenseflow_structure() {
     );
     assert_eq!(
         diags.iter().filter(|d| d.code == "E6008").count(),
-        12,
+        10,
         "owning UI profile refusals: {diags:?}"
     );
     for (profile, count) in [
         ("cannot lower breadcrumbs:", 2),
-        ("cannot lower pagination:", 1),
+        ("cannot lower pagination:", 0),
         ("cannot lower edit:", 1),
         ("cannot lower action:", 1),
         ("cannot lower history:", 1),
         ("cannot lower stat:", 1),
         ("cannot lower list: option filter", 1),
         ("cannot lower list: option defaults", 1),
-        ("cannot lower list: option display", 1),
+        ("cannot lower list: option display", 0),
     ] {
         assert_eq!(
             diags
@@ -3522,7 +3574,7 @@ fn catalog_profile_violations_stay_loud() {
     let messages: Vec<&str> = diags.iter().map(|d| d.message.as_str()).collect();
     for marker in [
         "cannot lower breadcrumbs: ancestry and label carriers are not implemented",
-        "cannot lower pagination: cursor and label carriers are not implemented",
+        "cannot lower pagination: the bare marker must belong directly to a list or table",
         "cannot lower pagination: pagination is valid only inside a collection",
         "cannot lower button: bound controls need one binding",
         "cannot lower modal: activated panels need a content slot",
