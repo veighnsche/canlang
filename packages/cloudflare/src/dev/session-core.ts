@@ -1,4 +1,5 @@
 import { watch, type FSWatcher } from "node:fs";
+import { stat } from "node:fs/promises";
 
 /** Immutable identities for one check. The producer hashes the actual inputs. */
 export interface DevInputs {
@@ -81,21 +82,28 @@ export class DevSessionCore<T, P extends DevPreview> {
   private serving: { revision: string; preview: P } | null = null;
   private lastPreviewReset = false;
   private readonly history = new Map<string, CapturedCheck<T>>();
-  private readonly watchers: FSWatcher[] = [];
+  private readonly watchers = new Map<string, { watcher: FSWatcher | null; identity: string | null }>();
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private polling = false;
+  private readonly reconcileMs: number;
   private captureQueue: Promise<unknown> = Promise.resolve();
   private checkQueue: Promise<unknown> = Promise.resolve();
   private stopped = false;
 
-  constructor(hooks: DevSessionHooks<T, P>, options: { historyLimit?: number; debounceMs?: number } = {}) {
+  constructor(hooks: DevSessionHooks<T, P>, options: { historyLimit?: number; debounceMs?: number; reconcileMs?: number } = {}) {
     this.hooks = hooks;
     this.historyLimit = options.historyLimit ?? 32;
     this.debounceMs = options.debounceMs ?? 75;
+    this.reconcileMs = options.reconcileMs ?? 2_000;
     if (!Number.isInteger(this.historyLimit) || this.historyLimit < 1) {
       throw new Error("historyLimit must be a positive integer");
     }
     if (!Number.isInteger(this.debounceMs) || this.debounceMs < 0) {
       throw new Error("debounceMs must be a nonnegative integer");
+    }
+    if (!Number.isInteger(this.reconcileMs) || this.reconcileMs < 1) {
+      throw new Error("reconcileMs must be a positive integer");
     }
   }
 
@@ -130,9 +138,61 @@ export class DevSessionCore<T, P extends DevPreview> {
   watchDirectories(directories: readonly string[]): void {
     if (this.stopped) throw new Error("session stopped");
     for (const directory of new Set(directories)) {
+      if (this.watchers.has(directory)) continue;
+      this.watchers.set(directory, { watcher: null, identity: null });
+      this.attachWatcher(directory);
+    }
+    if (this.pollTimer === null) {
+      this.pollTimer = setInterval(() => { void this.reconcileWatchers(); }, this.reconcileMs);
+      this.pollTimer.unref();
+    }
+  }
+
+  private attachWatcher(directory: string): void {
+    const entry = this.watchers.get(directory);
+    if (entry === undefined || entry.watcher !== null || this.stopped) return;
+    try {
       const watcher = watch(directory, () => this.markDirty());
-      watcher.on("error", () => this.markDirty());
-      this.watchers.push(watcher);
+      entry.watcher = watcher;
+      watcher.on("error", () => {
+        if (entry.watcher !== watcher) return;
+        watcher.close();
+        entry.watcher = null;
+        entry.identity = null;
+        this.markDirty();
+      });
+    } catch {
+      // The directory may have vanished between inventory and watch setup.
+      // Polling recaptures inputs and attaches when it returns.
+    }
+  }
+
+  private async reconcileWatchers(): Promise<void> {
+    if (this.polling || this.stopped) return;
+    this.polling = true;
+    try {
+      for (const [directory, entry] of this.watchers) {
+        let identity: string | null = null;
+        try {
+          const info = await stat(directory);
+          if (info.isDirectory()) identity = `${info.dev}:${info.ino}`;
+        } catch { /* A vanished directory is reconciled by capture below. */ }
+        if (this.stopped) return;
+        if (entry.watcher !== null && (identity === null ||
+            (entry.identity !== null && identity !== entry.identity))) {
+          entry.watcher?.close();
+          entry.watcher = null;
+          this.markDirty();
+        }
+        entry.identity = identity;
+        if (identity !== null && entry.watcher === null) {
+          this.attachWatcher(directory);
+          this.markDirty();
+        }
+      }
+      await this.refresh().catch(() => undefined);
+    } finally {
+      this.polling = false;
     }
   }
 
@@ -270,9 +330,11 @@ export class DevSessionCore<T, P extends DevPreview> {
     this.stopped = true;
     this.changeSerial += 1;
     if (this.timer !== null) clearTimeout(this.timer);
-    for (const watcher of this.watchers) watcher.close();
-    this.watchers.length = 0;
+    if (this.pollTimer !== null) clearInterval(this.pollTimer);
+    for (const entry of this.watchers.values()) entry.watcher?.close();
+    this.watchers.clear();
     await this.checkQueue;
+    await this.captureQueue;
     if (this.serving !== null) {
       const serving = this.serving;
       this.serving = null;
