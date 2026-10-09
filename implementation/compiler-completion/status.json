@@ -1,6 +1,6 @@
 {
   "date": "2026-10-08",
-  "updated_utc": "2026-10-09T17:03:12Z",
+  "updated_utc": "2026-10-09T17:07:30Z",
   "total": 67,
   "finished_at_recorded_scope": 58,
   "remaining_including_partial": 9,
@@ -98,7 +98,7 @@
       "mode_4750_body_skipped": false,
       "source_commit": "e9a46221aa62c5c26d044d1c5b6c6266bab345ce"
     },
-    "subsequent_owner_intake": "Exact Packages ebd2ad08 UI forms/four-test unit: owning build6/6 and126/126 cases pass, zero skips; compiler source unchanged,1291/lint/editor results reused. Prior Values prepared-hook8/8 remains unchanged. Exact Dev2a5d2c72 native polling fixture passes affected1/1 in10.8seconds; two unchanged form/browser successes reused. Exact Dev57b1eb57 six-file runtime fixture unit passes owning build22/22 and71/71 affected cases with zero skips, including actual workerd/D1; hand-built fixtures remain labelled and unchanged compiler results reused."
+    "subsequent_owner_intake": "Exact Packages ebd2ad08 UI forms/four-test unit: owning build6/6 and126/126 cases pass, zero skips; compiler source unchanged,1291/lint/editor results reused. Prior Values prepared-hook8/8 remains unchanged. Exact Dev2a5d2c72 native polling fixture passes affected1/1 in10.8seconds; two unchanged form/browser successes reused. Exact Dev57b1eb57 six-file runtime fixture unit passes owning build22/22 and71/71 affected cases with zero skips, including actual workerd/D1; hand-built fixtures remain labelled and unchanged compiler results reused. Exact Capability62a0a87e dependency-complete owner lifecycle build6/6 and affected mutation156/156 zero skips; installed runtime changed, consuming compiler/native qualification remains due."
   },
   "latest_component": {
     "commit": "e9a46221aa62c5c26d044d1c5b6c6266bab345ce",
@@ -159,7 +159,7 @@
     "../../compiler/tests/read_enum_default_runtime.rs",
     "../../compiler/tests/enum_result_runtime.rs"
   ],
-  "current_source_work": "Authorized local compiler fixes implemented and tested; no unfinished compiler edits. Scope remains58/67 with nine owner-dependent references; latest PR heads still need Codex/CI review. Do not resume cloud execution or redefine foreign consumer contracts.",
+  "current_source_work": "Unfinished rule/hook join: exact published Capability62a0a87e State/Contracts owner lifecycle and prerequisite field-constraint hunks consumed; build6/6 and mutation156/156 zero skips including nativeD1/DO. Checked compiler origins/producer, pinned artifact/native binding transport and genuine native adaptation remain underway. Canonical unsupported activation retained. Original58/67 with nine broader references and existing recipient holds unchanged; no cloud work.",
   "unimplemented_workflows_after_explicit_refusal": [
     "Corpuscheckedattributes/derivedinterfaces/runtimeworkflow",
     "Judgmentderivedinterface/runtimeworkflow"
