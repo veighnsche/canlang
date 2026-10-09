@@ -64,12 +64,13 @@ import { buildPresentationContext } from './presentation.js';
 import { handleInputChoiceRequest } from './input-choices.js';
 
 /**
- * Operation-name shape: 2-3 dot-separated segments (e.g. `shop.Order.create`,
- * `shop.checkout`, `system.team.invite`). Anything else is `not_found` — the
+ * Operation-name shape: 2-3 source identifier segments (e.g. `shop.Order.create`,
+ * `shop.release_skipped`, `system.team.invite`). Preserve the compiler's
+ * underscore vocabulary in every segment. Anything else is `not_found` — the
  * name never reaches the catalog, so malformed names cannot probe it.
  */
 export const OPERATION_NAME_PATTERN =
-  /^[A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z][A-Za-z0-9]*){1,2}$/;
+  /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*){1,2}$/;
 
 const JSON_CONTENT_TYPE = 'application/json';
 const FORM_CONTENT_TYPE = 'application/x-www-form-urlencoded';
