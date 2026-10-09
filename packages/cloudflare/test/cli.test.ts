@@ -1,8 +1,8 @@
 import { execFile } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const CLI = new URL("../dist/cli/platform.js", import.meta.url);
 
@@ -162,4 +162,146 @@ describe("can-platform CLI (L1 IR-03 delegation target)", () => {
       expect(typeof body["detail"]).toBe("string");
     },
   );
+});
+
+// Exercise the actual CLI dispatch without starting workerd. Acquisitions and
+// failures are controlled at their owning boundaries; scratch is real on disk.
+const cleanup = vi.hoisted(() => ({
+  directories: [] as string[],
+  events: [] as string[],
+  failures: new Map<string, unknown>(),
+  emitted: undefined as ((value: unknown) => void) | undefined,
+}));
+vi.mock("node:fs/promises", async (original) => {
+  const fs = await original<typeof import("node:fs/promises")>();
+  return {
+    ...fs,
+    access: async () => {},
+    mkdtemp: async (prefix: string) => {
+      cleanup.events.push("acquire");
+      if (cleanup.failures.has("acquire")) throw cleanup.failures.get("acquire");
+      const directory = await fs.mkdtemp(prefix);
+      cleanup.directories.push(directory);
+      return directory;
+    },
+    rm: async (directory: string, options: { recursive: boolean; force: boolean }) => {
+      cleanup.events.push("remove");
+      expect(options).toEqual({ recursive: true, force: true });
+      if (cleanup.failures.has("remove")) throw cleanup.failures.get("remove");
+      await fs.rm(directory, options);
+    },
+  };
+});
+vi.mock("node:fs", async (original) => {
+  const fs = await original<typeof import("node:fs")>();
+  return {
+    ...fs,
+    readFileSync: (file: Parameters<typeof fs.readFileSync>[0], options: unknown) => {
+      if (file instanceof URL && file.pathname.includes("can-platform-test-")) {
+        cleanup.events.push("read");
+        if (cleanup.failures.has("read")) throw cleanup.failures.get("read");
+      }
+      return fs.readFileSync(file, options as "utf8");
+    },
+  };
+});
+vi.mock("../src/runtime/artifact.js", () => ({
+  loadArtifactFile: () => ({ artifact: { modules: [{ path: "worker.mjs" }], tests: [] } }),
+}));
+vi.mock("../src/dev/zero-config.js", () => ({
+  resolveLocalDefaults: () => ({ workerName: "cleanup-worker", compatibilityDate: "2026-10-09" }),
+  assertDistReady: async () => {},
+}));
+vi.mock("../src/runtime/modules.js", () => ({
+  assembleModules: async (_loaded: unknown, options: { workDir: string }) => {
+    cleanup.events.push("assemble");
+    writeFileSync(join(options.workDir, "worker.mjs"), "export default {};\n");
+    if (cleanup.failures.has("assemble")) throw cleanup.failures.get("assemble");
+    return { moduleUrls: { "worker.mjs": new URL(`file://${join(options.workDir, "worker.mjs")}`).href } };
+  },
+}));
+vi.mock("../src/dev/row-scope.js", () => ({
+  createLocalRowScope: async () => {
+    cleanup.events.push("create");
+    if (cleanup.failures.has("create")) throw cleanup.failures.get("create");
+    return {
+      snapshot: async () => {
+        cleanup.events.push("snapshot");
+        if (cleanup.failures.has("snapshot")) throw cleanup.failures.get("snapshot");
+      },
+      dispose: async () => {
+        cleanup.events.push("dispose");
+        if (cleanup.failures.has("dispose")) throw cleanup.failures.get("dispose");
+      },
+    };
+  },
+}));
+vi.mock("../src/preparation/host.js", async (original) => ({
+  ...await original<typeof import("../src/preparation/host.js")>(),
+  emit: (value: unknown) => cleanup.emitted?.(value),
+}));
+
+describe("test CLI owned scratch lifecycle", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    for (const directory of cleanup.directories) rmSync(directory, { recursive: true, force: true });
+    cleanup.directories = [];
+    cleanup.events = [];
+    cleanup.failures.clear();
+    cleanup.emitted = undefined;
+  });
+
+  async function invokeTest(): Promise<Record<string, unknown>> {
+    vi.resetModules();
+    vi.spyOn(process, "argv", "get").mockReturnValue([process.execPath, "platform", "test", "--artifact", "/artifact.json"]);
+    vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+    const result = new Promise<Record<string, unknown>>((resolve) => {
+      cleanup.emitted = (value) => resolve(value as Record<string, unknown>);
+    });
+    await import("../src/cli/platform.js");
+    return result;
+  }
+
+  it("reports success only after disposing the scope and removing scratch", async () => {
+    expect(await invokeTest()).toMatchObject({ ok: true, command: "test", executed: 0 });
+    expect(cleanup.events).toEqual(["acquire", "assemble", "read", "create", "snapshot", "dispose", "remove"]);
+    expect(cleanup.directories).toHaveLength(1);
+    expect(existsSync(cleanup.directories[0]!)).toBe(false);
+  });
+
+  it.each(["acquire", "assemble", "read", "create", "snapshot", "dispose", "remove"])(
+    "preserves the %s failure and cleans every acquired resource", async (stage) => {
+      cleanup.failures.set(stage, new Error(`${stage} sentinel`));
+      expect(await invokeTest()).toEqual({ ok: false, command: null, code: "internal", detail: `${stage} sentinel` });
+      const all = ["acquire", "assemble", "read", "create", "snapshot", "dispose", "remove"];
+      const expected = all.slice(0, all.indexOf(stage) + 1);
+      if (stage !== "acquire" && stage !== "remove") {
+        if (stage === "snapshot") expected.push("dispose");
+        expected.push("remove");
+      }
+      expect(cleanup.events).toEqual(expected);
+      expect(cleanup.directories).toHaveLength(stage === "acquire" ? 0 : 1);
+      for (const directory of cleanup.directories) expect(existsSync(directory)).toBe(stage === "remove");
+    },
+  );
+
+  it.each([new Error("operation sentinel"), "scalar sentinel", undefined, null])(
+    "retains operative failure %s when both cleanup steps also fail", async (failure) => {
+      cleanup.failures.set("snapshot", failure);
+      cleanup.failures.set("dispose", new Error("dispose sentinel"));
+      cleanup.failures.set("remove", new Error("remove sentinel"));
+      expect(await invokeTest()).toEqual({
+        ok: false, command: null, code: "internal", detail: failure instanceof Error ? failure.message : String(failure),
+      });
+      expect(cleanup.events).toEqual(["acquire", "assemble", "read", "create", "snapshot", "dispose", "remove"]);
+    },
+  );
+
+  it("retains disposal failure if removal also fails", async () => {
+    cleanup.failures.set("dispose", new Error("dispose sentinel"));
+    cleanup.failures.set("remove", new Error("remove sentinel"));
+    expect(await invokeTest()).toMatchObject({ ok: false, detail: "dispose sentinel" });
+    expect(cleanup.events).toEqual(["acquire", "assemble", "read", "create", "snapshot", "dispose", "remove"]);
+  });
 });
