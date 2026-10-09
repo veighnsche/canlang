@@ -105,7 +105,7 @@
     "commit": "95d5b3d68fb6943759ed68863d25871e84179ddc",
     "state": "native_default_replay_qualified_whole_transition_portable_join_unfinished",
     "outcome": "Full1319/1319 zero failed/ignored/skips, required real completion/Node24/exactdraft, existing strict all-target Clippy/format. Genuine CLI/native/State Memory1/1 covers21invocations+replay and direct released State projection; private frame3/3, source facts9/9+4 units. Exact integrated00a intake preserves newer owner sources; changed alias/CSV2/2 result reused; current installed build26/26 zero cached. Changed primitive-array source/IR11/11 and native1/1 cover31successpaths+replay; exact published-result codec gate preserves inline case publication; final strict all-target Clippy and formatting pass. Actual generated public dedicated recovery/currentaccess1/1 passes with31baseline paths, commit/file tripwires, archive withholding/revocation/no metadata. Changed-fixture strictClippy/format pass; source0b79 unchanged. Joined a291 full run stopped at generic actor replay; five corrected actual native default/replay targets5/5 and checked closure12/12 pass, strict all-targetClippy/fmt pass. Public current-membership withholding preserves exact physical defaults/results and no handler trace.",
-    "remaining": "Changed-source whole run required after the a291 actor replay failure. Transition writes require complete influencing-read/control provenance; no empty proof from void result. Dev exact portable da7f5b14 fixture/result awaits reviewed coordinator release. Derived read callchain lowering and State unsupported profiles remain, original58/67 and precise holds unchanged."
+    "remaining": "State-machine replay genuine intermediate/write-provenance prerequisite is blocked and preserved. Exact reviewed portable ec4f79ba/Devda7f5b14 ready for intake. Independent compiler derive call-chain capture in implementation. Changed-source whole qualification remains required; original58/67 and human holds unchanged."
   },
   "latest_accepted_outcomes": [
     "localized-format/outcome.md",
@@ -435,5 +435,22 @@
     "related_controls": "Existing std_nominal_construct1/1(0.53s) reused. Focused builds0(6.74s), test-only rebuild0(2.06s); focused lib/bin Clippy0(3.79s); source formatting passes.",
     "limitation": "Fresh check of the same 12 source files, including CanBook, exits10 with no modules; repaired status and case-label errors are gone, broader source/runtime/BDD duties remain open. The cohort is not the full provider graph. No task-count credit; original completion58/67 unchanged.",
     "completion_header": "types.rs reuses the exact checked handler completion envelope for example event literals; enum claim machinery accepts succeeded with declared Outcome.state=unavailable. Nullable generic Object field expectation reuses imported std OperationOutcome schema. b4_check::completion_example_headers_claim_status_and_declared_result_enum_cases final1/1(0.06s), with actual installed schema and CLI positive local/std fixtures, anchored foreign HEADER status/state E2001, null/omission and equal/ancestor input replacement preserving Error/unclaimed. General foreign ROW remains diagnostic-free/unclaimed; no refusal claim. t10_examples_event_claims_nested_cases1/1(0.00s) reused. Earlier0/1(0.42s) was false row-diagnostic expectation; same case passed after correction. Later0/1(0.01s) added inadmissible trusted-handler sequence E1210; removed to restore original DoBlock scope/no sequence policy change. Final focused build0(7.04s); focused lib/bin Clippy0(3.33s) preceded temporary control; scoped formatting passes. Coordinator's single Roadmap CanBook check reports complete=true, omitted0, exit10 overall: CanBook0 diagnostics, 437 transitive files present, no E2005. No BDD3 carrier/runtime/disclosure, guard/send invalidation/full-task credit; count58/67 unchanged."
+  },
+  "current_whole_qualification": {
+    "source_commit": "66b83546",
+    "passed": 1320,
+    "failed": 2,
+    "ignored": 0,
+    "targets": 129,
+    "optional_body_skips": 0,
+    "node": "24.19.0",
+    "completion_require_engines": true,
+    "delivery_progress_correction": "Existing real public int64 export forwarded in isolated compiler test stdlib; actual same target1/1 passes.",
+    "remaining_failure": {
+      "target": "state_machines::compiled_lifecycle_runs_through_canonical_runtime_and_state_driven_ui",
+      "prerequisite": "Complete influencing-read/write lineage or defining owner-session intermediate observation: queued observation is neither original stored row nor generating final net write. General changed public fields also need influencing reads/control; void result is insufficient.",
+      "owner": "Compiler checked lineage; State defining observation/projection ABI; coordinator has exact evidence.",
+      "state": "blocked; real replay assertion preserved"
+    }
   }
 }
