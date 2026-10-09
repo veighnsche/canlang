@@ -79,7 +79,14 @@ function committed(outcome){assert.ok('result' in outcome,JSON.stringify(outcome
 function rejected(outcome,code){assert.ok('error' in outcome,JSON.stringify(outcome));assert.equal(outcome.error.code,code);}
 const ids=[];
 async function create(){
- const row=committed(await invoke(`${model}.create`,{}));
+ const outcome=await invoke(`${model}.create`,{});
+ assert.ok('result' in outcome,JSON.stringify(outcome));assert.equal(outcome.result.status,'committed');
+ assert.equal(outcome.result.result,null,'generated CRUD has no business result');
+ assert.equal(outcome.result.records.length,1,'exact disclosed created record');
+ const row=outcome.result.records[0];
+ assert.deepEqual(Object.keys(row).sort(),['archivedAt','created','createdBy','data','id','parent','updated','updatedBy','version']);
+ assert.equal(typeof row.id,'string');assert.ok(row.id.length>0);
+ assert.ok(Number.isSafeInteger(row.version)&&row.version>0);
  assert.equal(row.data.count,'0');assert.equal(row.version,1);ids.push(row.id);
 }
 // Read-only storage inspection includes wire rows, versions, per-row history

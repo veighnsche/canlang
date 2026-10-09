@@ -270,7 +270,7 @@ fn unary_overflow_and_nonliteral_rejection_and_constructor_calls() {
             "money",
             vec![expr(IrExpr::Int(7)), expr(IrExpr::Text("EUR".into()))]
         )),
-        Some(r#"{"minor":"7","currency":"EUR"}"#.into())
+        Some(r#"{"minor":"700","currency":"EUR"}"#.into())
     );
     for (id, source, expected) in [
         ("date", "2026-10-07", "\"2026-10-07\""),

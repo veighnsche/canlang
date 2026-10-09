@@ -220,9 +220,9 @@ console.log('native scenario scalar, nullable and array defaults: real State omi
             "type permits one array suffix followed by one nullable suffix",
         ),
         (
-            "ref",
+            "nullableRef",
             "Given\n Entry {title:text}\n policy Entry read=public\n",
-            "seed:Entry,copied:Entry=seed",
+            "seed:Entry?,copied:Entry?=seed",
             "E6008",
             "cannot lower parameter default: computed parameter defaults have no §13 lowering",
         ),
