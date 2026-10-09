@@ -300,17 +300,9 @@ async function handleTeams(deps: AuthHttpDeps, request: Request): Promise<Respon
     throw new IdentityError('validation', 'Invalid team cursor.');
   }
   const after = cursors[0] ?? null;
-  const memberships = await deps.identity.store.listUserMemberships(identity.actor.user_id);
-  const teams: Array<{ team_id: string; timezone: string }> = [];
-  let truncated = false;
-  for (const membership of [...memberships].sort((a, b) =>
-    a.team_id < b.team_id ? -1 : a.team_id > b.team_id ? 1 : 0)) {
-    if (membership.status !== 'active' || (after !== null && membership.team_id <= after)) continue;
-    const team = await deps.identity.store.findTeamById(membership.team_id);
-    if (team === null) continue;
-    if (teams.length === MAX_LISTED_TEAMS) { truncated = true; break; }
-    teams.push({ team_id: team.team_id, timezone: team.timezone });
-  }
+  const page = await deps.identity.store.listActiveUserTeamsPage(identity.actor.user_id, after);
+  const teams = page.slice(0, MAX_LISTED_TEAMS);
+  const truncated = page.length > MAX_LISTED_TEAMS;
   return jsonOk({ teams, truncated, next_after: truncated ? teams.at(-1)!.team_id : null }, { 'cache-control': 'no-store' });
 }
 
