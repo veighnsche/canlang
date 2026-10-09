@@ -757,3 +757,77 @@ Then
     assert!(!diagnostics.is_empty());
     assert!(program.scenario_disclosures().is_empty());
 }
+
+#[test]
+fn optional_transitions_keep_write_existence_controls_on_no_write_paths() {
+    let source = r#"app OptionalWrites
+Given
+ Job {state:enum(idle,ready)=idle machine,private_choice:bool,choice:enum(write,skip)=skip}
+ policy Job read=members fields=state
+When
+ scenario finish(job:Job) by=members
+  do
+   if job.private_choice
+    transition job.state idle -> ready
+ scenario scalar(job:Job) -> int by=members
+  do
+   if job.private_choice
+    transition job.state idle -> ready
+   return 7
+ scenario explicit_else(job:Job) by=members
+  do
+   if job.private_choice
+    transition job.state idle -> ready
+   else
+    require true
+ scenario matched(job:Job) by=members
+  do
+   match job.choice
+    case write
+     transition job.state idle -> ready
+    case skip
+     require true
+ scenario readonly(job:Job) -> int by=members
+  do
+   if job.private_choice
+    require true
+   else
+    require true
+   return 7
+Then
+"#;
+    let (db, program) = checked(&[("optional-writes.can", source)]);
+    for (name, selector) in [
+        ("finish", "private_choice"),
+        ("scalar", "private_choice"),
+        ("explicit_else", "private_choice"),
+        ("matched", "choice"),
+    ] {
+        let value = complete(&program, &format!("OptionalWrites.{name}"));
+        origins(&db, value);
+        assert_eq!(value.returns.len(), 2);
+        for path in &value.returns {
+            assert_eq!(path.decisions.len(), 1);
+            assert!(path.dependencies.iter().any(|read| read.field_name == selector && read.role == DependencyRole::Control));
+            let writes = path
+                .dependencies
+                .iter()
+                .filter(|read| {
+                    read.node.kind == canlang_compiler::syntax::SyntaxKind::Transition as u8
+                })
+                .count();
+            let selected = matches!(path.decisions[0].choice, DisclosureChoice::Then)
+                || matches!(&path.decisions[0].choice, DisclosureChoice::Match(case) if case == "write");
+            assert_eq!(writes, usize::from(selected));
+            assert_eq!(path.dependencies.len(), if selected { 2 } else { 1 });
+        }
+    }
+    let readonly = complete(&program, "OptionalWrites.readonly");
+    assert_eq!(readonly.returns.len(), 2);
+    assert!(
+        readonly
+            .returns
+            .iter()
+            .all(|path| path.dependencies.is_empty())
+    );
+}

@@ -1481,12 +1481,28 @@ impl Closure<'_> {
                                     return Err(self.fail(effect.node, "branch path bound"));
                                 }
                             }
+                            // A branch can select whether a changed record
+                            // exists, even on its no-transition outcome. Keep
+                            // that selector for every continuing outcome when
+                            // any sibling accumulated new write dependencies.
+                            let selects_writes = continuing.iter().any(|path| {
+                                path.writes.reads.iter().any(|read| {
+                                    !flow.writes.reads.iter().any(|prior| prior.id == read.id)
+                                })
+                            });
                             for mut path in continuing {
-                                // Branch-local immutable declarations cannot
-                                // escape. At a common postdominator the branch
-                                // no longer chooses a return, so remove its reads.
+                                // Only an entirely read-only branch loses its
+                                // local controls at the common postdominator.
                                 path.env = flow.env.clone();
-                                if all_continue {
+                                if selects_writes {
+                                    path.writes.join(&path.controls);
+                                    if path.writes.reads.len() > 200 {
+                                        return Err(self.fail(
+                                            effect.node,
+                                            "transition write dependency bound",
+                                        ));
+                                    }
+                                } else if all_continue {
                                     path.controls = flow.controls.clone();
                                 }
                                 next.push(path);
