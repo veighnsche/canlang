@@ -26,8 +26,8 @@ function observed(deps: UploadDeps) {
   return { events, deps: {
     ...deps,
     blobs: {
-      append: deps.blobs.append.bind(deps.blobs),
-      sizeOf: deps.blobs.sizeOf.bind(deps.blobs),
+      append(key: string, chunk: Uint8Array) { events.push('append'); deps.blobs.append(key, chunk); },
+      sizeOf(key: string) { events.push('size'); return deps.blobs.sizeOf(key); },
       write: deps.blobs.write.bind(deps.blobs),
       read(key: string) { events.push('read'); return deps.blobs.read(key); },
       remove(key: string) { events.push('remove'); deps.blobs.remove(key); },
@@ -155,33 +155,38 @@ function persistedIntents(path: string): IntentStorePort {
   };
 }
 
-test('FS append crash, reopen and retry refuses completion before digest publication', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'can-completion-size-'));
-  try {
-    const h = makeHarness({ blobs: createFsBlobStore(join(dir, 'blobs')) });
-    const intentsPath = join(dir, 'intents.fixture');
-    const upload = { ...h.upload, intents: persistedIntents(intentsPath) };
-    const created = handleCreateIntent(h.bridge, upload, {}, uploadRequest({ name: 'a.txt', type: 'text/plain', size: '1' }), BINDING);
-    assert.equal(created.status, 'granted');
-    if (created.status !== 'granted') throw new Error('fixture grant failed');
-    const bytes = new TextEncoder().encode('A');
-    const crash = new Error('after append before counted metadata');
-    const broken = { ...upload, blobs: { ...upload.blobs, append(key: string, chunk: Uint8Array) { upload.blobs.append(key, chunk); throw crash; } } };
-    assert.throws(() => appendUploadContent(broken, created.intentId, RECEIVER, bytes), error => error === crash);
-    assert.equal(upload.intents.get(created.intentId)?.receivedBytes, 0);
-    const reopened = { ...upload, blobs: createFsBlobStore(join(dir, 'blobs')), intents: persistedIntents(intentsPath) };
-    assert.equal(appendUploadContent(reopened, created.intentId, RECEIVER, bytes).status, 'appended');
-    const o = observed(reopened);
-    assert.deepEqual(completeUploadContent(o.deps, created.intentId, RECEIVER), { status: 'failed', reason: 'oversized' });
-    assert.deepEqual(o.events, ['read', 'remove', 'put']);
-    const record = reopened.intents.get(created.intentId)!;
-    assert.equal(record.state, 'rejected');
-    assert.equal(record.receivedBytes, 0);
-    assert.equal(record.bytesDigest, null);
-    assert.equal(record.detectedType, null);
-    assert.deepEqual(readdirSync(join(dir, 'blobs')), []);
-    assert.equal(h.files.listAll().length, 0);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
+for (const transfer of ['A', 'AB']) {
+  test(`FS ${transfer.length === 1 ? 'full' : 'partial'} append crash, reopen and retry closes before another append`, () => {
+    const dir = mkdtempSync(join(tmpdir(), 'can-completion-size-'));
+    try {
+      const h = makeHarness({ blobs: createFsBlobStore(join(dir, 'blobs')) });
+      const intentsPath = join(dir, 'intents.fixture');
+      const upload = { ...h.upload, intents: persistedIntents(intentsPath) };
+      const created = handleCreateIntent(h.bridge, upload, {}, uploadRequest({ name: 'a.txt', type: 'text/plain', size: String(transfer.length) }), BINDING);
+      assert.equal(created.status, 'granted');
+      if (created.status !== 'granted') throw new Error('fixture grant failed');
+      const bytes = new TextEncoder().encode(transfer);
+      const crash = new Error('after append before counted metadata');
+      const broken = observed(upload).deps;
+      broken.blobs.append = (key: string, chunk: Uint8Array) => { upload.blobs.append(key, chunk.slice(0, 1)); throw crash; };
+      assert.throws(() => appendUploadContent(broken, created.intentId, RECEIVER, bytes), error => error === crash);
+      assert.equal(upload.intents.get(created.intentId)?.receivedBytes, 0);
+      const reopened = { ...upload, blobs: createFsBlobStore(join(dir, 'blobs')), intents: persistedIntents(intentsPath) };
+      assert.deepEqual(reopened.blobs.read(stagingKeyForIntent(created.intentId)), new TextEncoder().encode('A'));
+      const o = observed(reopened);
+      assert.deepEqual(appendUploadContent(o.deps, created.intentId, RECEIVER, bytes), { status: 'failed', reason: 'closed' });
+      assert.deepEqual(o.events, ['size', 'remove', 'put']);
+      assert.deepEqual(completeUploadContent(o.deps, created.intentId, RECEIVER), { status: 'failed', reason: 'closed' });
+      assert.deepEqual(o.events, ['size', 'remove', 'put']);
+      const record = reopened.intents.get(created.intentId)!;
+      assert.equal(record.state, 'rejected');
+      assert.equal(record.receivedBytes, 0);
+      assert.equal(record.bytesDigest, null);
+      assert.equal(record.detectedType, null);
+      assert.deepEqual(readdirSync(join(dir, 'blobs')), []);
+      assert.equal(h.files.listAll().length, 0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}
