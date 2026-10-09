@@ -43,7 +43,7 @@ fn declared_progress_alias_observes_the_existing_result_once() {
     .unwrap();
     std::fs::write(stdlib.join("index.mjs"), r#"
 import assert from 'node:assert/strict';
-export {ValueError} from __VALUE_ERROR_MODULE__;
+export {ValueError,int64} from __VALUE_ERROR_MODULE__;
 export function hasRole(context,role){return context.memberships.includes(role);}
 export function require(condition){if(!condition)throw Error('require');}
 export function equalValue(...args){return globalThis.probe.equalValue(...args);}

@@ -1,0 +1,43 @@
+## Finite native scalar, primitive-array and local-derive receipt capture and current-authority recovery witness.
+app NativeSavedScenario
+Given
+ Item {quantity:int,label:text,available:bool=true,optional:int?,values:int[]?,flags:bool[],names:text[]}
+ policy Item read=members
+ derive read_quantity(item:Item):int = item.quantity
+ derive nested_quantity(item:Item):int = read_quantity(item)+1
+ derive difference(first:int,second:int):int = first-second
+ derive default_quantity(item:Item,total:int=item.quantity):int = total
+ derive fallback_quantity(item:Item):int = item.optional ?? read_quantity(item)
+ derive enabled(item:Item):bool = item.available
+When
+ crud Item by=members fields=quantity,label,available,optional,values,flags,names
+ scenario quantity(item:Item) -> int by=members
+  do return item.quantity
+ scenario availability(item:Item) -> bool by=members
+  do return item.available
+ scenario values(item:Item) -> int[]? by=members
+  do return item.values
+ scenario flags(item:Item) -> bool[] by=members
+  do return item.flags
+ scenario names(item:Item) -> text[] by=members
+  do return item.names
+ scenario array_input(values:int[]?) -> int[]? by=members
+  do return values
+ scenario nested(item:Item) -> int by=members
+  do return nested_quantity(item)
+ scenario repeated(item:Item) -> int by=members
+  do return read_quantity(item)+read_quantity(item)
+ scenario reordered(item:Item) -> int by=members
+  do return difference(second=read_quantity(item),first=fallback_quantity(item))
+ scenario derived_default(item:Item) -> int by=members
+  do return default_quantity(item)
+ scenario derived_override(item:Item) -> int by=members
+  do return default_quantity(item,total=42)
+ scenario derived_lazy(item:Item) -> int by=members
+  do
+   let selected=fallback_quantity(item)
+   if enabled(item)
+    return selected
+   else
+    return selected
+Then
