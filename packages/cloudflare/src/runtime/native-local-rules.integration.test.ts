@@ -6,20 +6,21 @@ import { randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { beforeAll, afterAll, it } from 'vitest';
+import { before, after, it } from 'node:test';
 import type { CommitBatch, CompileArtifact, ModelName, MutationResult, OperationId, OperationName, RecordId, StoragePort } from '@canlang/contracts';
 import { resolveIdentity, sha256HexText } from '@canlang/identity';
 import { createFrozenClock, createMemoryIdentityStore } from '@canlang/identity/testing';
 import { hashInputs } from '@canlang/state/invocation/replay';
 import { createTestMemoryStorage } from '@canlang/state/storage/memory';
 import { distribution } from '@canlang/values/distribution';
-import { prepareLocalPreviewCapture } from '../src/dev/preview-inputs.js';
-import { captureIsCurrent, captureSingleFileSource } from '../src/dev/source-capture.js';
-import { compileCapturedSingleFile } from '../src/dev/compiler-check.js';
-import { assembleModules, type AssembledModules } from '../src/runtime/modules.js';
-import { buildInvoker } from '../src/worker/assembly.js';
+import { prepareLocalPreviewCapture } from '../dev/preview-inputs.js';
+import { captureIsCurrent, captureSingleFileSource } from '../dev/source-capture.js';
+import { compileCapturedSingleFile } from '../dev/compiler-check.js';
+import { assembleModules, type AssembledModules } from './modules.js';
+import { buildInvoker } from '../worker/assembly.js';
+import { loadCanonicalDescriptors } from './invoke.js';
 
-const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)));
+const root = resolve(fileURLToPath(new URL('../../../../', import.meta.url)));
 const require = createRequire(join(root, 'package.json'));
 const source = 'tests/integration/can-dev-server/NativeLocalRules.can';
 const model = 'NativeLocalRules.Item' as ModelName;
@@ -29,7 +30,7 @@ function operationId(at: number): OperationId {
   const time = at.toString(16).padStart(12, '0'), random = randomBytes(10).toString('hex');
   return `${time.slice(0,8)}-${time.slice(8)}-7${random.slice(0,3)}-8${random.slice(4,7)}-${random.slice(7,19)}` as OperationId;
 }
-beforeAll(async () => {
+before(async () => {
   capture = await captureSingleFileSource(prepareLocalPreviewCapture({ checkoutRoot: root,
     appPath: join(root, source), compilerPath: join(root, 'compiler/target/debug/can'),
     catalogPath: fileURLToPath(distribution.catalog), helpIndexPath: join(root, 'docs/specification/CONSTRUCT-HELP.md') }));
@@ -52,9 +53,9 @@ beforeAll(async () => {
   assert.deepEqual(policies.hooks, []);
   staging = await mkdtemp(join(tmpdir(), 'can-native-local-rules-'));
   asm = await assembleModules({ artifact, sourcePath: source }, { workDir: staging,
-    stdlibUrl: pathToFileURL(require.resolve('@canlang/stdlib')).href });
-}, 120000);
-afterAll(async () => {
+    stdlibUrl: pathToFileURL(require.resolve('@canlang/cloudflare/runtime/stdlib')).href });
+}, { timeout: 120000 });
+after(async () => {
   try { if (capture) assert.equal(await captureIsCurrent(capture), true, 'consumer must finish source-current'); }
   finally { if (staging) await rm(staging, { recursive: true, force: true }); }
 });
@@ -170,4 +171,22 @@ it('enforces entry locks while allowing unrelated and same-value writes, then un
   row = await f.record(id);
   await f.commit('delete', { record: { id, version: String(row.version) } });
   assert.equal(await f.store.load(model, id as unknown as RecordId), null, 'unlocked hard removal deletes the actual stored row');
+});
+
+
+it('refuses loss of the dedicated installed owner-session producer without legacy execution or receipt writes', async () => {
+  const f = await fixture();
+  const loaded = await loadCanonicalDescriptors(asm, artifact);
+  const original = loaded.producers.crud.generatedCrudExecuteOwnerSession;
+  assert.equal(typeof original, 'function', 'actual positive installed producer');
+  const producer = loaded.producers.crud as { generatedCrudExecuteOwnerSession?: typeof original };
+  delete producer.generatedCrudExecuteOwnerSession;
+  try {
+    const result = await f.invoke('create', { quantity: '1', label: 'must refuse' });
+    assert.ok('error' in result, JSON.stringify(result));
+    assert.equal(result.error.code, 'validation');
+    assert.equal(f.batches.length, 0, 'no legacy executor or canonical rejection batch is selected');
+    assert.equal(await f.store.readRevision(), 0);
+    assert.deepEqual(await f.store.query({ model, authority: 'owner', archived: 'include' }), []);
+  } finally { if (original !== undefined) producer.generatedCrudExecuteOwnerSession = original; }
 });

@@ -1229,6 +1229,7 @@ interface StateInvokeProducer {
 
 /** Structural view of the state CRUD executor module (T16a adapter). */
 interface StateCrudProducer {
+  readonly generatedCrudExecuteOwnerSession?: typeof import('@canlang/state/mutation/crud').generatedCrudExecuteOwnerSession;
   generatedCrudExecute(input: {
     readonly table: unknown;
     readonly store: StoragePort;
@@ -1510,7 +1511,12 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
         projectGeneratedCrudReceipt: invokeMod['projectGeneratedCrudReceipt'] as NonNullable<StateInvokeProducer['projectGeneratedCrudReceipt']>,
       }),
     },
-    crud: { generatedCrudExecute: generatedCrudExecute as StateCrudProducer["generatedCrudExecute"] },
+    crud: {
+      generatedCrudExecute: generatedCrudExecute as StateCrudProducer["generatedCrudExecute"],
+      ...(typeof crudMod['generatedCrudExecuteOwnerSession'] !== 'function' ? {} : {
+        generatedCrudExecuteOwnerSession: crudMod['generatedCrudExecuteOwnerSession'] as NonNullable<StateCrudProducer['generatedCrudExecuteOwnerSession']>,
+      }),
+    },
     models: { buildModelTableFromCanonical: buildModelTableFromCanonical as StateModelsProducer["buildModelTableFromCanonical"] },
     errors: StateError as unknown as StateErrorsProducer,
     transact: {
@@ -1997,11 +2003,11 @@ export interface LoadedCanonicalDescriptors {
  */
 const canonicalCache = new WeakMap<CompileArtifact, LoadedCanonicalDescriptors>();
 
-function assertServableModelRules(where: string, metadata: unknown): void {
+function assertServableModelRules(where: string, metadata: unknown, verifiedOwner = false): void {
   if (!isUnknownRecord(metadata)) return;
   for (const kind of ["invariants", "locks"] as const) {
     const rules = readMetadataMember(metadata, kind, where)?.value;
-    if (readMetadataStrings(rules ?? [], where, kind).length > 0) {
+    if (readMetadataStrings(rules ?? [], where, kind).length > 0 && !verifiedOwner) {
       throw new Error(`${where} cannot activate: canonical model ${kind} execution is not supported yet.`);
     }
   }
@@ -2021,6 +2027,7 @@ function assertServableModelRules(where: string, metadata: unknown): void {
 async function collectModelPolicyManifests(
   asm: AssembledModules,
   modelFields: ReadonlyMap<string, ReadonlyArray<string>>,
+  verifiedOwnerModels: ReadonlySet<string>,
 ): Promise<Map<string, { policy: ReadPolicyFacts; selectors: ReadSelectorFacts | undefined; fieldTypes: ReadonlyMap<string, string> }>> {
   const merged = new Map<string, { policy: ReadPolicyFacts; selectors: ReadSelectorFacts | undefined; fieldTypes: ReadonlyMap<string, string> }>();
   for (const module of Object.keys(asm.moduleUrls)) {
@@ -2056,7 +2063,7 @@ async function collectModelPolicyManifests(
     if (isUnknownRecord(declaredModels)) {
       for (const model of modelFields.keys()) {
         const declaration = readMetadataMember(declaredModels, model, moduleWhere)?.value;
-        assertServableModelRules(`t17b: model ${JSON.stringify(model)}`, declaration);
+        assertServableModelRules(`t17b: model ${JSON.stringify(model)}`, declaration, verifiedOwnerModels.has(model));
       }
     }
     const policy = readMetadataMember(registry, "policy", moduleWhere)?.value;
@@ -2080,7 +2087,7 @@ async function collectModelPolicyManifests(
       const declaration = isUnknownRecord(declaredModels) ? readMetadataMember(declaredModels, model, where)?.value : undefined;
       // Policy and owning declarations both retain their constraints even
       // if the other representation is omitted.
-      assertServableModelRules(where, facts);
+      assertServableModelRules(where, facts, verifiedOwnerModels.has(model));
       const readRules = readMetadataMember(registry, "read", where)?.value;
       if ((facts.public?.length ?? 0) > 0) {
         const definitionPolicy = isUnknownRecord(definition) ? readMetadataMember(definition, "policy", where)?.value : undefined;
@@ -2566,14 +2573,18 @@ export async function loadCanonicalDescriptors(
     const name = canonicalModelName(model, index);
     return [name, canonicalModelFields(model, `loaded model ${JSON.stringify(name)}`)] as const;
   }));
-  // Bind the checked local carrier before legacy activation refusal. This
-  // control is private and cannot install policies in the old CRUD executor.
+  // Source policies require the dedicated installed producer. An older
+  // generatedCrudExecute can silently ignore additive owner-session options.
+  if (loaded.modelPolicies !== undefined && typeof producers.crud.generatedCrudExecuteOwnerSession !== 'function') {
+    throw new Error('Installed State producer lacks generatedCrudExecuteOwnerSession; refusing native owner model rules.');
+  }
   const ownerPolicyControl = loaded.modelPolicies === undefined ? undefined : await loadLocalOwnerPolicyControl({
     asm, artifact, loaded, table: table as ModelTable,
     native: { models: loaded.models, refs: loaded.refs, containment: loaded.containment,
       producers, ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }) },
   });
-  const manifests = await collectModelPolicyManifests(asm, modelFields);
+  const manifests = await collectModelPolicyManifests(asm, modelFields,
+    new Set(ownerPolicyControl === undefined ? [] : loaded.modelPolicies!.map(policy => policy.model)));
   const policyInputs: CanonicalModelPolicyInput[] = [];
   const ruledModels = new Set<string>();
   for (const [index, model] of loaded.models.entries()) {
@@ -3529,6 +3540,9 @@ async function runScenarioSeam(
   cohort?: { readonly occurrenceId: OccurrenceId; readonly eventFields: ReadonlyArray<string>;
     readonly refInput: string; readonly bind: string | null },
 ): Promise<CanonicalExecutionEffects> {
+  if (localOwnerPolicyControls.has(loaded)) {
+    throw new loaded.producers.errors('validation', 'Native owner model rules require one scenario owner session; this producer profile supports generated CRUD only.');
+  }
   const actorUserId = call.context.actor?.userId ?? null;
   const teamId = call.context.team?.teamId ?? null;
   let grants: string[] = [];
@@ -4310,12 +4324,30 @@ async function invokeCanonicalMutation(
     // State invoke owns fence retries; retain the native storage exception.
     return opts.store.commit(batch);
   } });
-  const crudExecute = loaded.producers.crud.generatedCrudExecute({
+  const ownerControl = localOwnerPolicyControls.get(loaded);
+  const crudInput = {
     table: loaded.table,
     store: receiptStore,
     secretFields: loaded.secretFields,
-    encodeField: (type, value) => encodeCanonicalWireField(StateError, type, value, loaded.valueSchema),
-  });
+    encodeField: (type: CanTypeId, value: unknown) => encodeCanonicalWireField(StateError, type, value, loaded.valueSchema),
+  };
+  let crudExecute: (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
+  if (ownerControl === undefined) {
+    crudExecute = loaded.producers.crud.generatedCrudExecute(crudInput);
+  } else {
+    const executeOwner = loaded.producers.crud.generatedCrudExecuteOwnerSession;
+    if (typeof executeOwner !== 'function') {
+      throw new StateError('validation', 'Installed State producer lacks generatedCrudExecuteOwnerSession.');
+    }
+    const execute = executeOwner({ ...crudInput, table: loaded.table as ModelTable,
+      secretFields: loaded.secretFields as ReadonlyMap<ModelName, readonly string[]>,
+      ownerPolicies: ownerControl.policies,
+      ownerBounds: Object.freeze({ maxRows: 1_000, maxWork: 10_000 }),
+      createOwnerFrame: async ({ call, session }) => ownerControl.createOwnerFrame({ call, session }),
+    });
+    // Canonical admission supplies the defining State call at this seam.
+    crudExecute = execute as unknown as (call: CanonicalSeamCall) => Promise<CanonicalExecutionEffects>;
+  }
   // One opaque ID per actual schedule ordinal, retained across State retries.
   const occurrenceIds: string[] = [];
   let attachments: FileAttachment[] = [];
