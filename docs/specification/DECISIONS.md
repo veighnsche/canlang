@@ -3553,3 +3553,7 @@ Use a private D1 provisioning handoff for real Identity, then distinct Cedar/Oak
 ### 2026-10-09 — Distinguish retained runtime inputs from analysis inputs
 
 A copied artifact/Worker rerun requires its installed execution producers, not a later compiler, catalog, help index or grammar. Rederive runtime package/source membership independently while retaining full analysis checks for current capture publication. Both paths keep exact bytes, canonical paths and symlink identity.
+
+### 2026-10-09 — Cancel example lifetimes before releasing their queue
+
+Pass socket and daemon-stop cancellation to the real row adapter, which aborts phases and awaits active row disposal before rejecting. Queued work checks cancellation before admission; no late result enters retention. Rerun request signals stay outside recipes, and the coordinator awaits the cancellation-aware selected producer rather than racing its cleanup. Verify runtime availability again after a rerun; analysis changes alone do not invalidate its copied recipe.

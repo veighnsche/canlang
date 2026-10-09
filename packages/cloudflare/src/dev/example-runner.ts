@@ -132,6 +132,8 @@ export interface CompiledExampleInput {
   readonly selectedRow?: { readonly operation: string; readonly rowIndex: number };
   /** Correlates a fresh row scope with its attempt; never reused as D1 state. */
   readonly runId?: string;
+  /** Request/daemon lifetime; never retained in a rerun recipe. */
+  readonly signal?: AbortSignal;
 }
 
 export interface CompiledExampleResult {
@@ -232,6 +234,35 @@ function checkedFixtureValues(value: unknown, scope: string): ReadonlyMap<string
     throw new Error(`example runner: ${scope} has no provisioned fixture values`);
   }
   return value;
+}
+
+function cancellationError(): Error {
+  return new DOMException("example runner: cancelled", "AbortError");
+}
+
+/** Await a row phase without waiting for an unresponsive producer after shutdown. */
+function withCancellation<T>(signal: AbortSignal | undefined, run: () => Promise<T>,
+  cleanup?: () => Promise<void>): Promise<T> {
+  if (signal === undefined) return run();
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const finish = (action: () => void): void => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener("abort", abort);
+      action();
+    };
+    const abort = (): void => finish(() => {
+      const disposal = cleanup === undefined ? Promise.resolve() : Promise.resolve().then(cleanup);
+      void disposal.catch(() => undefined).then(() => reject(cancellationError()));
+    });
+    signal.addEventListener("abort", abort, { once: true });
+    if (signal.aborted) { abort(); return; }
+    void Promise.resolve().then(run).then(
+      value => finish(() => resolve(value)),
+      error => finish(() => reject(error)),
+    );
+  });
 }
 
 interface ExampleOwnerProfile {
@@ -657,6 +688,7 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules)
  * setup/invocation/assertion failures remain in the owning testkit report.
  */
 export async function runCompiledExamples(input: CompiledExampleInput): Promise<CompiledExampleResult> {
+  if (input.signal?.aborted) throw cancellationError();
   nonempty(input.artifactLabel, "artifactLabel");
   nonempty(input.sourceRevision, "sourceRevision");
   nonempty(input.workerName, "workerName");
@@ -729,14 +761,45 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
     let expectedRows = 0;
     const bindings = input.bindings ?? { self: "self", other: "other", imported: {} };
     for (const [moduleIndex, test] of artifact.tests.entries()) {
+      if (input.signal?.aborted) throw cancellationError();
       if (input.selectedRow !== undefined && test.scope !== input.selectedRow.operation) continue;
       const url = asm.moduleUrls[test.module.path];
       if (url === undefined) throw new Error(`example runner: test module ${test.module.path} was not staged`);
       const rowCallers = new WeakMap<object, ResolvedCaller>();
+      const activeScopes = new Set<ExampleRowScope>();
+      const disposals = new WeakMap<ExampleRowScope, Promise<void>>();
+      const ownedScopes = new WeakMap<ExampleRowScope, ExampleRowScope>();
+      const disposeScope = (scope: ExampleRowScope): Promise<void> => {
+        const prior = disposals.get(scope);
+        if (prior !== undefined) return prior;
+        const owned = ownedScopes.get(scope);
+        if (owned === undefined) throw new Error("example runner: owned row scope is missing");
+        const disposal = owned.dispose();
+        disposals.set(scope, disposal);
+        void disposal.then(() => activeScopes.delete(scope), () => activeScopes.delete(scope));
+        return disposal;
+      };
+      const disposeActive = async (): Promise<void> => {
+        await Promise.allSettled([...activeScopes].map(disposeScope));
+      };
+      const createScope = async (rowIndex: number): Promise<ExampleRowScope> => {
+        if (input.signal?.aborted) throw cancellationError();
+        const owned = await createRowScope(input, moduleIndex, rowIndex, ownerProfile);
+        if (input.signal?.aborted) {
+          try { await owned.dispose(); } catch { /* Preserve cancellation. */ }
+          throw cancellationError();
+        }
+        const scoped = Object.create(owned) as ExampleRowScope;
+        Object.defineProperty(scoped, "dispose", { value: () => disposeScope(scoped) });
+        ownedScopes.set(scoped, owned);
+        activeScopes.add(scoped);
+        return scoped;
+      };
       const hooks: RunnerHooks = {
         prepareFixtures: async (scope, fixtures, required) => {
           const nonUser = required.filter(recipe => recipe.kind !== "user");
-          const result = await runtimeHooks.materializeFixtures({ scope, fixtures, required: nonUser });
+          const result = await withCancellation(input.signal, () =>
+            runtimeHooks.materializeFixtures({ scope, fixtures, required: nonUser }));
           if (!isRecord(result) || !Array.isArray(result["materialized"]) || !(result["values"] instanceof Map)) {
             throw new Error(`example runner: ${test.scope} fixture materializer returned no stored values receipt`);
           }
@@ -745,23 +808,24 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
           if (missing !== undefined) throw new Error(`example runner: fixture ${missing.name} was not materialized`);
           return result.values;
         },
-        ...(runtimeHooks.prepareRowCells === undefined ? {} : { prepareRowCells: runtimeHooks.prepareRowCells }),
+        ...(runtimeHooks.prepareRowCells === undefined ? {} : { prepareRowCells: (args) =>
+          withCancellation(input.signal, () => runtimeHooks.prepareRowCells!(args)) }),
         invokeCall: async call => {
+          if (input.signal?.aborted) throw cancellationError();
           const caller = rowCallers.get(call.scope);
           if (caller === undefined) return { ok: false, unsupported: true, detail: "row caller was not resolved" };
           if (call.by === null || call.by === undefined) {
             return { ok: false, unsupported: true, detail: "call has no selected actor" };
           }
           const fixtures = checkedFixtureValues(fixtureValuesOf(call.scope), test.scope);
-          const identity = await call.scope.identityFor(call.by, caller, fixtures);
-          return runtimeHooks.invoke({ call, identity, rowCaller: caller });
+          const identity = await withCancellation(input.signal, () => call.scope.identityFor(call.by, caller, fixtures));
+          return withCancellation(input.signal, () => runtimeHooks.invoke({ call, identity, rowCaller: caller }));
         },
-        observeScope: async (scope, stashed) => runtimeHooks.observeLive({
-          scope,
-          fixtures: stashed.fixtures,
-        }),
+        observeScope: async (scope, stashed) => withCancellation(input.signal, () => runtimeHooks.observeLive({
+          scope, fixtures: stashed.fixtures,
+        })),
       };
-      const suite = asLoadedSuite(await loadSuite(url, bindings, hooks), test.scope);
+      const suite = asLoadedSuite(await withCancellation(input.signal, () => loadSuite(url, bindings, hooks)), test.scope);
       if (suite.rows.length === 0) {
         // Compiler fixture declarations can have their own test-only
         // module. They do not count as a passing example; a module for an
@@ -786,25 +850,32 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
         // placeholder copied by the spread above.
         get expected() { return row.expected; },
         setup: async (scope: ExampleRowScope, accounts: RowAccounts): Promise<void> => {
-          await scope.provisionActors(accounts, row.caller, suite.userFixtures);
-          await row.setup(scope, accounts);
+          await withCancellation(input.signal, () => scope.provisionActors(accounts, row.caller, suite.userFixtures));
+          await withCancellation(input.signal, () => row.setup(scope, accounts));
         },
         invoke: async (scope: ExampleRowScope, caller: ResolvedCaller): Promise<ExampleCallOutcome> => {
           rowCallers.set(scope, caller);
-          return row.invoke(scope, caller);
+          return withCancellation(input.signal, () => row.invoke(scope, caller));
         },
+        observe: async (scope: ExampleRowScope): Promise<ReportValue[]> =>
+          withCancellation(input.signal, () => row.observe(scope)),
       }));
-      const result = await runTable({
-        operation: test.scope,
-        userFixtures: suite.userFixtures,
-        rows,
-        createScope: (rowIndex: number) => createRowScope(input, moduleIndex, rowIndex, ownerProfile),
-      });
+      let result: TableCaseResult;
+      try {
+        result = await withCancellation(input.signal, () => runTable({
+          operation: test.scope, userFixtures: suite.userFixtures, rows, createScope,
+        }), disposeActive);
+      } catch (error) {
+        await disposeActive();
+        throw error;
+      }
+      if (input.signal?.aborted) throw cancellationError();
       if (result.kind !== "table" || result.rows.length !== selectedRows.length) {
         throw new Error(`example runner: testkit returned incomplete rows for ${test.scope}`);
       }
       reportBuilder.addCase(result);
     }
+    if (input.signal?.aborted) throw cancellationError();
     const report = reportBuilder.build();
     if (input.selectedRow !== undefined && expectedRows !== 1) {
       throw new Error(`example runner: selected row ${input.selectedRow.operation}#${input.selectedRow.rowIndex} is unavailable`);

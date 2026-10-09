@@ -7,7 +7,7 @@ import { attachDevSessionService, startDevSessionService } from "../src/dev/sess
 
 const race = vi.hoisted(() => ({
   onLoad: undefined as undefined | (() => Promise<void>),
-  onRun: undefined as undefined | (() => Promise<void>),
+  onRun: undefined as undefined | ((signal?: AbortSignal) => Promise<void>),
   runs: 0,
 }));
 
@@ -22,9 +22,9 @@ vi.mock("../src/dev/example-runner.js", () => ({
     await race.onLoad?.();
     return { loadExampleSuite() {}, runTable() {}, createReport() {}, fixtureValuesOf() {} };
   },
-  runCompiledExamples: async () => {
+  runCompiledExamples: async (input: { signal?: AbortSignal }) => {
     race.runs += 1;
-    await race.onRun?.();
+    await race.onRun?.(input.signal);
     return {
       ok: false, executed: 1,
       report: {
@@ -106,6 +106,38 @@ it("discards a completed failed row when producer bytes change during execution"
     expect(failures.total_retained).toBe(0);
   } finally {
     release();
+    await fixture.owner.stop();
+    await rm(fixture.scratch, { recursive: true, force: true });
+  }
+});
+
+it("stop cancels an active example and queued requests without retaining late results", async () => {
+  const fixture = await ownerFixture();
+  const retained = vi.spyOn(ExampleRerunCoordinator.prototype, "retainArtifact");
+  let entered!: () => void;
+  const started = new Promise<void>(resolve => { entered = resolve; });
+  let disposed = false;
+  race.onRun = async signal => {
+    expect(signal).toBeDefined();
+    entered();
+    await new Promise<void>((_resolve, reject) => signal!.addEventListener("abort", () => {
+      disposed = true;
+      reject(new DOMException("cancelled", "AbortError"));
+    }, { once: true }));
+  };
+  try {
+    const active = fixture.client.request({ command: "example.run", payload: { expectedRevision: fixture.revision } });
+    const activeOutcome = active.then(() => "completed", () => "cancelled");
+    await started;
+    const queued = fixture.client.request({ command: "example.run", payload: { expectedRevision: fixture.revision } });
+    const queuedOutcome = queued.then(() => "completed", () => "cancelled");
+    await fixture.owner.stop();
+    expect(await activeOutcome).toBe("cancelled");
+    expect(await queuedOutcome).toBe("cancelled");
+    expect(disposed).toBe(true);
+    expect(race.runs).toBe(1);
+    expect(retained).not.toHaveBeenCalled();
+  } finally {
     await fixture.owner.stop();
     await rm(fixture.scratch, { recursive: true, force: true });
   }
