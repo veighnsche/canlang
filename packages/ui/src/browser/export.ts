@@ -20,9 +20,10 @@
  * download URLs, because the large-output service behind them is
  * D-domain follow-up — polling it would invent its behavior.
  *
- * Cancellation is host-driven: an `ExportController` fails fast before
- * fetch and converts late responses to `{code:'cancelled'}` (stale
- * responses never render). Errors digest to code/message/fields (never
+ * Cancellation is host-driven: an `ExportController` or aborted host
+ * signal fails fast before fetch and converts late responses to
+ * `{code:'cancelled'}` (stale responses never render). A signal also asks
+ * cooperating transports to abort. Errors digest to code/message/fields (never
  * raw bodies); transport throws and unparseable bodies map to
  * `{code:'transport'}`; parsed-but-malformed success bodies throw
  * (contract violation, host-fatal — the F `csv/*` precedent).
@@ -235,6 +236,8 @@ export interface SubmitExportInput {
   readonly parent?: { readonly id: string };
   readonly filters?: Record<string, unknown>;
   readonly controller?: ExportController;
+  /** Host cancellation; forwarded to transports that support abort. */
+  readonly signal?: AbortSignal;
 }
 
 export type SubmitExportResult =
@@ -251,10 +254,11 @@ function cancelledError(): ExportBusinessError {
 
 /**
  * POST one export request as JSON with the CSRF header. Server error
- * bodies digest; transport throws and unparseable bodies map to
+ * bodies digest; transport throws (including body reads) and unparseable bodies map to
  * `{code:'transport'}`; parsed-but-malformed success bodies throw
  * (contract violation — host-fatal). A cancelled controller fails fast
- * and converts late responses to `{code:'cancelled'}`.
+ * and converts late responses to `{code:'cancelled'}`. An aborted host
+ * signal follows the same result contract and requests transport abort.
  */
 export async function submitExportRequest(input: SubmitExportInput): Promise<SubmitExportResult> {
   if (typeof input.action !== "string" || input.action === "") {
@@ -266,7 +270,7 @@ export async function submitExportRequest(input: SubmitExportInput): Promise<Sub
   if (typeof input.operation !== "string" || input.operation === "") {
     throw new Error("submitExportRequest needs the operation");
   }
-  if (input.controller?.cancelled) {
+  if (input.controller?.cancelled || input.signal?.aborted) {
     return { ok: false, error: cancelledError() };
   }
   let response: SubmitFetchResponse;
@@ -274,6 +278,7 @@ export async function submitExportRequest(input: SubmitExportInput): Promise<Sub
     response = await input.fetchImpl(input.action, {
       method: "POST",
       headers: { "content-type": "application/json", [EXPORT_CSRF_HEADER]: input.csrf },
+      ...(input.signal === undefined ? {} : { signal: input.signal }),
       body: JSON.stringify({
         operation: input.operation,
         ...(input.columns === undefined ? {} : { columns: [...input.columns] }),
@@ -283,23 +288,25 @@ export async function submitExportRequest(input: SubmitExportInput): Promise<Sub
         ...(input.filters === undefined ? {} : { filters: input.filters }),
       }),
     });
-  } catch (error) {
-    if (input.controller?.cancelled) {
+  } catch {
+    if (input.controller?.cancelled || input.signal?.aborted) {
       return { ok: false, error: cancelledError() };
     }
-    const messageText = error instanceof Error ? error.message : String(error);
-    return { ok: false, error: transportError(`Export request failed: ${messageText}`) };
+    return { ok: false, error: transportError("Export request failed.") };
   }
-  if (input.controller?.cancelled) {
+  if (input.controller?.cancelled || input.signal?.aborted) {
     return { ok: false, error: cancelledError() };
   }
   let parsed: unknown;
   try {
     parsed = JSON.parse(await response.text());
   } catch {
+    if (input.controller?.cancelled || input.signal?.aborted) {
+      return { ok: false, error: cancelledError() };
+    }
     return { ok: false, error: transportError(`Export request failed (status ${String(response.status)}).`) };
   }
-  if (input.controller?.cancelled) {
+  if (input.controller?.cancelled || input.signal?.aborted) {
     return { ok: false, error: cancelledError() };
   }
   if (response.status < 200 || response.status >= 300) {
