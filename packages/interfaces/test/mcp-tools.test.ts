@@ -131,7 +131,12 @@ test('scenario tool: money/datetime/decimal/file/enum/ref rendering', () => {
   });
   assert.deepEqual(props['rate'], { type: 'string' });
   assert.deepEqual(props['at'], { type: 'string', format: 'date-time' });
-  assert.deepEqual(props['receipt'], { type: 'string', format: 'can-file' });
+  assert.deepEqual(props['receipt'], {
+    type: 'object',
+    properties: { id: { type: 'string', minLength: 1 } },
+    required: ['id'],
+    additionalProperties: false,
+  });
   assert.deepEqual(props['mode'], { type: 'string', enum: ['fast', 'slow'] });
   assert.deepEqual(props['record'], {
     type: 'object',

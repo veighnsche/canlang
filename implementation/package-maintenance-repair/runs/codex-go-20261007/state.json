@@ -539,8 +539,8 @@
       "commit_pending": false,
       "commit": "89d885a9",
       "remaining_prerequisite": {
-        "prerequisite": "First/replay public result projection, trusted producing-origin provenance and current authority on retained outcomes.",
-        "owner": "State/Cloudflare/Interfaces security contract owners"
+        "prerequisite": "Checked CRUD first/replay provenance and current disclosure have landed and HTTP/CSV consumer is complete. Remaining legitimate scenario producing-origin/dependency provenance and current first/replay disclosure, logical lifetime/physical owner correspondence and remaining supported consumers.",
+        "owner": "State/Cloudflare/Interfaces security owners; exact scenario producer"
       }
     },
     "TECH-S03": {
@@ -814,8 +814,8 @@
       },
       "commit": "d450130f",
       "remaining_prerequisite": {
-        "prerequisite": "Real atomic/recoverable durable append/count/blob, retry identity and finalization recovery; mounted durable/provider consumer.",
-        "owner": "Files/Interfaces durable upload owners"
+        "prerequisite": "Append staging/count drift now refuses before another write; retry identity and durable atomic/recoverable append/count/blob and separate finalization publication phases still need owning contracts/producer plus mounted/provider qualification.",
+        "owner": "Files durable storage/finalization owner; Interfaces upload consumer"
       }
     },
     "TECH-F02": {
@@ -833,8 +833,8 @@
         "packages/interfaces/src/ingress/mapping.ts"
       ],
       "remaining_prerequisite": {
-        "prerequisite": "Released descriptor availability and attachment/download lifetime, retention continuation and authenticated provider/source occurrence correlation.",
-        "owner": "Files/Interfaces/Cloudflare plus actual descriptor/provider producer owners"
+        "prerequisite": "Persisted terminal tombstone retry cleanup has landed. Remaining descriptor availability, attachment/download lifetime, resumable retention beyond full listAll and authenticated provider/source occurrence/age/replay/effect association.",
+        "owner": "Files/Interfaces/Cloudflare; actual descriptor/provider/source producers"
       }
     },
     "TECH-SV01": {
@@ -1102,8 +1102,8 @@
       ],
       "residual_evidence": "Finite own-data correction passes changed-cell consent refusal; broader consent authority and replay remain open",
       "remaining_prerequisite": {
-        "prerequisite": "Frozen app/user/team/session/expiry review binding, private/signed integrity and exact per-row current-authority contract.",
-        "owner": "Interfaces/UI/Identity/State review contract owners"
+        "prerequisite": "Checked CRUD aged replay has landed. Remaining frozen app/user/team/session/time/expiry review binding, selected private/signed integrity, per-row review authority and scenario disclosure before scenario age delegation.",
+        "owner": "Interfaces/UI/Identity/State review owners; scenario disclosure producer"
       }
     },
     "DEL-C02-order": {
@@ -1442,7 +1442,8 @@
       "remaining_prerequisite": {
         "prerequisite": "Selected entry source/lock/tool/emit/pack/actual supported-host consumer correspondence; native inventory remains held.",
         "owner": "Each owning package and delivery/release integrator"
-      }
+      },
+      "current_validation_gap": "Workspace boundary gate fails102existing violations; current changed reviewed-csv sites are unchanged imports. Actual supported source/installed correspondence remains required, not credited from helper consolidation."
     },
     "DEL-E02": {
       "planning_status": "blocked",
@@ -1776,7 +1777,13 @@
       "review": "canonical-json-independent-review.json",
       "readable_reduction": 7,
       "full_closure_reduction": 6,
-      "commit": "b055ca6"
+      "commit": "b055ca6",
+      "mcp_file_schema_test": {
+        "state": "implemented, tested, root-reviewed finite owning CI assertion correction",
+        "file": "packages/interfaces/test/mcp-tools.test.ts",
+        "behavior": "Exact advertised File shape now matches accepted WireFile closed object requiring nonempty id. Preserve adjacent money/enum/ref/datetime/required and all semantic/security assertions; no source/oracle change.",
+        "validation": "Fresh Interfaces emit and owning existing MCP tools8/8 pass, no skips; actual bound File codec/workflow evidence unchanged and reused."
+      }
     },
     "FINAL-R03": {
       "planning_status": "blocked",
@@ -1819,7 +1826,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-09T12:05:29.052380+00:00",
+  "updated_utc": "2026-10-09T12:13:46.016295+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -3468,7 +3475,9 @@
       "limits": "Stock original order restored under authority design, its source design issue remains; nested UI propagation and public identities held with owners. Full task counts unchanged."
     }
   },
-  "live_finite_packets": [],
+  "live_finite_packets": [
+    "Cloudflare5test-owner current type alignment"
+  ],
   "foreign_runtime_pure_integration_commit": "b5f3f61c5a7aa942cc9e535312bc848fe21cf497",
   "owner_build_test_acceptance": {
     "root_record": "interfaces-owner-build-root-review.json",
@@ -4257,9 +4266,9 @@
     "authorization": "Vince current Packages starting prompt; worker-specific instructions remain confined to Packages.",
     "coordination": "Coordinator verified as local chat 01a11e6b-f4e1-7603-b47d-9d3210c9c6de; no callable send-message-to-thread capability. Dependencies recorded in packet_state.",
     "examined_queue": "All48 original packet labels examined against existing progress; canonical identities and original acceptance unchanged.",
-    "delivery": "PR135 is ready for review at current pushede5b7038e; human coordinator explicitly authorized supported ready-for-review control to enable review. Own branch updates only; unfinished scope/external prerequisites explicit, no merge/main push/deployment.",
+    "delivery": "PR135 ready; latest source unit080efa8e committed and pushed to own branch, confirmed GitHub head. Unfinished scope/external prerequisites explicit; no merge/main push/deployment.",
     "last_upstream_sync": "Merged origin/main9ecb2759 at5910445b; current main/branch draft gitlink5a12eb9e is also unavailable to CI checkout. Earlier recursive fetch additionally refused06b23b5d.",
-    "review_process": "CodeRabbit draft skip resolved by marking PR135 ready. At pushede5b7038e botcomment6080274256 reports free review quota exhausted, next included review58minutes; reviews/inline findings empty. This is an external review-capacity prerequisite, no current revision approval. Continue ready work; no blocking wait/repeated polling/duplicate scheduler.",
+    "review_process": "Latest explicit human correction: only actual Codex reviews satisfy required automation; ignore all CodeRabbit comments/checks/capacity and do not change draft status for it. At080efa8e Codex summary6080449425 reports code review complete without posted findings, security review running. Completion of code review alone is not full plan/security acceptance; assess current revision findings at useful task boundaries while implementing ready work.",
     "filetree_reconciliation": "Existing registry reconciled complete structural ancestry through merged5910445b; prior allocations/semantic limits retained; complete82493427checkpoint not advanced.",
     "pull_request": "https://github.com/veighnsche/canlang/pull/135",
     "ci_prerequisites": [
@@ -4270,11 +4279,19 @@
       {
         "prerequisite": "compiler/src/analysis/mod.rs declares absent construct_candidates module; b1-gate cannot compile.",
         "owner": "Compiler implementation owner"
+      },
+      {
+        "prerequisite": "B2 exposes18 inherited Cloudflare test type diagnostics across5exact owners; finite test harness/current type alignment in progress.",
+        "owner": "Packages Cloudflare owning test worker"
+      },
+      {
+        "prerequisite": "Workspace package-boundary gate reports102 existing violations (93source-resolution/5cross-package-import/4cross-package-path); changed reviewed-csv file sites are unchanged imports. Requires source-resolution interpretation and offending owning test input/API releases; no new admission helper/manifest violation identified.",
+        "owner": "Workspace boundary checker owner and original offending consumer owners"
       }
     ],
     "review_prerequisite": {
-      "prerequisite": "CodeRabbit included review capacity must reset before actual automated review of latest pushed revision; ready control enabled. Read findings at useful subsequent boundary and validate/push necessary corrections.",
-      "owner": "CodeRabbit service capacity/PR reviewer; Packages consumes relevant revision findings"
+      "prerequisite": "Codex security review is running for080efa8e; code review completed with no posted findings. Pending/absent/older revision is not current review completion.",
+      "owner": "Codex automated reviewer; Packages consumes relevant revision findings"
     }
   }
 }
