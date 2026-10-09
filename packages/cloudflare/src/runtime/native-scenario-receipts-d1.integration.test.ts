@@ -28,7 +28,7 @@ function operationId(): string {
   const time = Date.now().toString(16).padStart(12, '0'), random = randomBytes(10).toString('hex');
   return `${time.slice(0,8)}-${time.slice(8)}-7${random.slice(0,3)}-8${random.slice(4,7)}-${random.slice(7,19)}`;
 }
-interface ItemData { quantity: string; label: string; available: boolean; values: string[] | null; flags: boolean[]; names: string[] }
+interface ItemData { quantity: string; label: string; available: boolean; optional: string | null; values: string[] | null; flags: boolean[]; names: string[] }
 interface Projection { id: string; data: ItemData }
 interface MutationWire { status?: string; code?: string; result?: unknown; records?: Projection[] }
 interface McpWire { error?: { code: number | string }; result?: { isError?: boolean; structuredContent?: { records?: Projection[] } } }
@@ -54,7 +54,7 @@ function projection(value: unknown): Projection {
   const flags = (data.flags as unknown[]).map(value => { assert.equal(typeof value, 'boolean'); return value as boolean; });
   const names = (data.names as unknown[]).map(word);
   return { id: word(row.id), data: { quantity: word(data.quantity), label: word(data.label),
-    available: data.available as boolean, values, flags, names } };
+    available: data.available as boolean, optional: data.optional === null ? null : word(data.optional), values, flags, names } };
 }
 function mutationWire(value: unknown): MutationWire {
   const body = object(value);
@@ -78,7 +78,7 @@ function mcpWire(value: unknown): McpWire {
 }
 type Actor = { cookie: string; csrf: string; owner: string | null; principal: string; grant?: string };
 
-it('consumes captured native saved scalar and primitive-array scenarios through real portable owner D1, auth and MCP', { timeout: 180000 }, async () => {
+it('consumes captured native saved scalar, primitive-array and local-derive scenarios through real portable owner D1, auth and MCP', { timeout: 180000 }, async () => {
   let worker: LocalDev | undefined, bridge: ProtectedPreview | undefined, provisioning: LocalDev | undefined;
   let persistence: string | undefined;
   let capture: Awaited<ReturnType<typeof captureSingleFileSource>> | undefined;
@@ -103,14 +103,17 @@ it('consumes captured native saved scalar and primitive-array scenarios through 
     }
     const descriptorFields = ['quantity', 'available', 'values', 'flags', 'names'];
     const descriptorTypes = ['int', 'bool', 'int[]?', 'bool[]', 'text[]'];
-    const descriptors = ['quantity', 'availability', 'values', 'flags', 'names'].map((name, index) => {
+    const descriptors = ['quantity', 'availability', 'values', 'flags', 'names',
+      'nested', 'repeated', 'reordered', 'derived_default', 'derived_override', 'derived_lazy'].map((name, index) => {
       const op = artifact.operations?.find(item => item.name === `NativeSavedScenario.${name}`); assert.ok(op);
       const plan = op.result?.disclosure;
-      assert.ok(plan, 'requires actual native primitive-array compiler in owning capture adapter');
-      assert.equal(op.result?.type, descriptorTypes[index]);
+      assert.ok(plan, 'requires actual native local-derive compiler in owning capture adapter');
+      assert.equal(op.result?.type, index < 5 ? descriptorTypes[index] : 'int');
       for (const returned of plan.returns) for (const dependency of returned.dependencies) {
-        assert.equal(dependency.model, model); assert.equal(dependency.field, descriptorFields[index]);
-        assert.equal(dependency.type, descriptorTypes[index]);
+        assert.equal(dependency.model, model);
+        if (index < 5) { assert.equal(dependency.field, descriptorFields[index]); assert.equal(dependency.type, descriptorTypes[index]); }
+        else { assert.ok(['quantity','optional','available'].includes(dependency.field));
+          assert.equal(dependency.type, dependency.field === 'available' ? 'bool' : dependency.field === 'optional' ? 'int?' : 'int'); }
       }
       assert.equal(plan.version, 1);
       const callable = artifact.callables.find(item => item.id === op.name); assert.ok(callable);
@@ -123,8 +126,9 @@ it('consumes captured native saved scalar and primitive-array scenarios through 
       assert.ok(module.js.includes('observeScenarioReceiptDependency') && module.js.includes('selectScenarioReceiptReturn'),
         'actual emitted framework marker imports');
       assert.match(module.js, /await[^;]*observeScenarioReceiptDependency/, 'actual awaited field marker');
-      assert.deepEqual([...new Set(plan.returns.flatMap(returned => returned.dependencies.map(dep => dep.field)))],
+      if (index < 5) assert.deepEqual([...new Set(plan.returns.flatMap(returned => returned.dependencies.map(dep => dep.field)))],
         [descriptorFields[index]]);
+      if (name === 'derived_override') assert.ok(plan.returns.every(returned => returned.dependencies.length === 0));
       return op;
     });
     const preflight = await preflightLocalPreviewActivation(artifact, capture);
@@ -299,7 +303,7 @@ it('consumes captured native saved scalar and primitive-array scenarios through 
       assert.equal(stored.app,'NativeSavedScenario'); assert.equal(stored.owner,ava.owner); assert.equal(stored.principal,ava.principal);
       return stored;
     }
-    const id=operationId(); await commit(ava,`${model}.create`,{quantity:'17',label:'saved values',values:null,flags:[],names:[]},id);
+    const id=operationId(); await commit(ava,`${model}.create`,{quantity:'17',label:'saved values',optional:null,values:null,flags:[],names:[]},id);
     const initial=await row(id); assert.ok(initial);
     // Provision a genuine grant before purity snapshots; reads then own no writes.
     assert.equal((await read(ben))[0]?.data.quantity,'17'); assert.deepEqual(await read(cal),[]);
@@ -317,9 +321,9 @@ it('consumes captured native saved scalar and primitive-array scenarios through 
     }
     const saved=[];
     for (const [shapeIndex, shape] of [
-      { values: null, flags: [], names: [] },
-      { values: [], flags: [], names: [] },
-      { values: ['9223372036854775807','-2'], flags: [true,false], names: ['saved','original'] },
+      { values: null, flags: [], names: [], optional: null, available: true },
+      { values: [], flags: [], names: [], optional: '9', available: false },
+      { values: ['9223372036854775807','-2'], flags: [true,false], names: ['saved','original'], optional: '9', available: true },
     ].entries()) {
       let captured = await row(id); assert.ok(captured);
       if (shapeIndex > 0) {
@@ -327,7 +331,7 @@ it('consumes captured native saved scalar and primitive-array scenarios through 
         captured = await row(id); assert.ok(captured);
       }
       assert.deepEqual((await read(ben))[0]?.data, captured.data);
-      const cases: Array<readonly [number, ClosedInputs, unknown]> = [];
+      const cases: Array<readonly [index: number, inputs: ClosedInputs, expected: unknown, expectedFields?: readonly string[]]> = [];
       if (shapeIndex === 0) cases.push([0,{item:{id,version:String(captured.version)}},'17'],
         [1,{item:{id,version:String(captured.version)}},true]);
       cases.push(
@@ -335,7 +339,17 @@ it('consumes captured native saved scalar and primitive-array scenarios through 
         [3,{item:{id,version:String(captured.version)}},shape.flags],
         [4,{item:{id,version:String(captured.version)}},shape.names],
       );
-      for(const [index, inputs, expected] of cases) {
+      const ref = { item: { id, version: String(captured.version) } };
+      if (shapeIndex === 0) cases.push(
+        [5,ref,'18',['quantity']], [6,ref,'34',['quantity','quantity']],
+        [7,ref,'0',['quantity','optional','optional','quantity']],
+        [8,ref,'17',['quantity']], [9,ref,'42',[]],
+        [10,ref,'17',['optional','optional','quantity','available']],
+      );
+      if (shapeIndex === 1) cases.push(
+        [7,ref,'-8',['quantity','optional','optional']], [10,ref,'9',['optional','optional','available']],
+      );
+      for(const [index, inputs, expected, expectedFields] of cases) {
         const descriptor=descriptors[index]!, operation_id=operationId();
         const envelope={operation:descriptor.name,operation_id,inputs};
         const fresh=await commit(ava,envelope.operation,inputs,operation_id);
@@ -345,10 +359,21 @@ it('consumes captured native saved scalar and primitive-array scenarios through 
         const outcome=object(JSON.parse(physical.outcome)), association=object(outcome.scenario);
         assert.deepEqual(outcome.result,expected); assert.equal(association.kind,'scenario-result/v1'); assert.equal(association.resultType,descriptor.result!.type);
         assert.deepEqual(association.plan,descriptor.result!.disclosure);
-        assert.ok(Array.isArray(association.observations)); assert.equal(association.observations.length,1);
-        const observation=object(association.observations[0]); assert.equal(observation.model,model);
-        const capturedRow=object(observation.row); assert.equal(capturedRow.id,id); assert.equal(capturedRow.version,captured.version);
-        assert.deepEqual(capturedRow.data,captured.data); assert.deepEqual(association.changed,[]);
+        assert.ok(Array.isArray(association.observations));
+        const selected = descriptor.result!.disclosure!.returns.find(returned => returned.id === association.returnId); assert.ok(selected);
+        const observations = association.observations.map(object);
+        assert.deepEqual(observations.map(observation => observation.dependencyId), selected.dependencies.map(dependency => dependency.id),
+          'actual awaited marker order agrees with selected source-carried path');
+        assert.deepEqual(selected.dependencies.map(dependency => dependency.field), expectedFields ?? [descriptorFields[index]]);
+        if (index === 6) { assert.equal(selected.dependencies.length,2);
+          assert.notEqual(selected.dependencies[0]!.id,selected.dependencies[1]!.id,'repeated derive callsites have distinct defining IDs'); }
+        if (index === 9) assert.deepEqual(observations,[],'explicit override never evaluates the read default');
+        for (const observation of observations) {
+          assert.equal(observation.model,model);
+          const capturedRow=object(observation.row); assert.equal(capturedRow.id,id); assert.equal(capturedRow.version,captured.version);
+          assert.deepEqual(capturedRow.data,captured.data);
+        }
+        assert.deepEqual(association.changed,[]);
         const before=await resources();
         const ordinary=await mutation(ava,envelope.operation,inputs,operation_id);
         assert.equal(ordinary.body.status,'replayed'); assert.deepEqual(ordinary.body.result,expected); assert.deepEqual(ordinary.body.records,[]);
@@ -356,11 +381,13 @@ it('consumes captured native saved scalar and primitive-array scenarios through 
         assert.equal(replay.status,'replayed'); assert.deepEqual(replay.result,expected); assert.deepEqual(replay.records,[]);
         assert.deepEqual(await resources(),before); assert.deepEqual(await receipt(operation_id),physical);
         assert.equal(JSON.stringify({ordinary:ordinary.body,retained}).includes('scenario-result/v1'),false);
-        saved.push({envelope,physical,expected});
+        saved.push({envelope,physical,expected,rowDependent:selected.dependencies.length > 0});
       }
     }
-    for(const actor of [cal,dee,null]) {
-      const before=await resources(), denied=await recovery(actor,saved[0]!.envelope);
+    const derivedWitness = saved.find(value => value.envelope.operation === 'NativeSavedScenario.nested'); assert.ok(derivedWitness);
+    const authorityWitnesses = [saved[0]!,derivedWitness];
+    for(const witness of authorityWitnesses) for(const actor of [cal,dee,null]) {
+      const before=await resources(), denied=await recovery(actor,witness.envelope);
       assert.ok(denied.error,'foreign owner/nonmember/public retained authority refused');
       assert.deepEqual(await resources(),before);
     }
@@ -373,7 +400,7 @@ it('consumes captured native saved scalar and primitive-array scenarios through 
       assert.deepEqual(await resources(),before);
     }
     const current=await row(id); assert.ok(current);
-    await commit(ben,`${model}.update`,{record:{id,version:String(current.version)},quantity:'99',available:false,values:['11'],flags:[false],names:['changed']});
+    await commit(ben,`${model}.update`,{record:{id,version:String(current.version)},quantity:'99',available:false,optional:'2',values:['11'],flags:[false],names:['changed']});
     const updated = (await read(ben))[0]; assert.ok(updated);
     assert.equal(updated.data.quantity,'99'); assert.deepEqual(updated.data.values,['11']);
     assert.deepEqual(updated.data.flags,[false]); assert.deepEqual(updated.data.names,['changed']);
@@ -387,14 +414,14 @@ it('consumes captured native saved scalar and primitive-array scenarios through 
       // Exact original wire values and full stores prove no fresh execution or commit.
     }
     assert.deepEqual(await resources(),beforeReplay);
-    for(const value of saved) for(const control of ['issuer-copy','source-change','js-change','map-change']) {
+    for(const value of authorityWitnesses) for(const control of ['issuer-copy','source-change','js-change','map-change']) {
       const before=await resources(), refused=await recovery(ava,value.envelope,control);
       assert.ok(refused.error,'current source/issuer correspondence must refuse');
       assert.deepEqual(await resources(),before);
     }
-    for(const actor of [cal,dee,null]) {
+    for(const witness of authorityWitnesses) for(const actor of [cal,dee,null]) {
       const before=await resources();
-      const refused=await mutation(actor,saved[0]!.envelope.operation,saved[0]!.envelope.inputs);
+      const refused=await mutation(actor,witness.envelope.operation,witness.envelope.inputs);
       assert.ok(refused.response.status>=400); assert.deepEqual(await resources(),before);
     }
     const live=await row(id); assert.ok(live);
@@ -403,8 +430,8 @@ it('consumes captured native saved scalar and primitive-array scenarios through 
     const beforeWithheld=await resources();
     for(const value of saved) {
       const ordinary=await mutation(ava,value.envelope.operation,value.envelope.inputs,value.envelope.operation_id);
-      assert.equal(ordinary.body.status,'replayed'); assert.equal(ordinary.body.result,null); assert.deepEqual(ordinary.body.records,[]);
-      const retained=await recovery(ava,value.envelope); assert.equal(object(retained.result).result,null);
+      assert.equal(ordinary.body.status,'replayed'); assert.deepEqual(ordinary.body.result,value.rowDependent ? null : value.expected); assert.deepEqual(ordinary.body.records,[]);
+      const retained=await recovery(ava,value.envelope); assert.deepEqual(object(retained.result).result,value.rowDependent ? null : value.expected);
       assert.deepEqual(await receipt(value.envelope.operation_id),value.physical);
     }
     assert.deepEqual(await resources(),beforeWithheld);
@@ -412,7 +439,10 @@ it('consumes captured native saved scalar and primitive-array scenarios through 
     const membership=await identityStore.findMembership(ava.owner,ava.principal); assert.ok(membership);
     await identityStore.removeMembership(membership.membership_id);
     const beforeRevoked=await resources();
-    const revoked=await recovery(ava,saved[0]!.envelope); assert.equal(object(revoked.error).code,'forbidden');
+    const pureOverride = saved.find(value => value.envelope.operation === 'NativeSavedScenario.derived_override'); assert.ok(pureOverride);
+    for (const witness of [...authorityWitnesses, pureOverride]) {
+      const revoked=await recovery(ava,witness.envelope); assert.equal(object(revoked.error).code,'forbidden');
+    }
     assert.deepEqual(await resources(),beforeRevoked);
     assert.equal(await captureIsCurrent(capture), true);
   } finally {
