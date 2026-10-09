@@ -3639,3 +3639,7 @@ Checkpoint the T02 native artifact join for authored stored-field trim and liter
 ## 2026-10-09 — Validate the native modifier and released compiler consumer join
 
 The stored-field producer checkpoint now passes its actual text/decimal metadata and unsupported-bound cases. Consume the published codegen test corrections from `2db9200b` as a three-way hunk join, retaining the new modifier tests and exact descriptor closure/refusals. All 126 joined native checks pass (119 codegen, 2 strict real-catalog B1, 3 message aliases, and the actual delete/preference consumers). Formatting is applied to the owning changed files; the remaining compiler-wide formatter prerequisite and actual Office consumer are separate. This does not close G2 or qualify help cards.
+
+## 2026-10-09 — Reconcile affected Values CI producer fixtures
+
+Keep the closed public schema export assertion and include the actual released `ValueTypesError`/`normalizeValueTypes` exports. Regenerate the string-escape fixture through its owning oracle for current Values sources after the distribution locator and schema joins. All strings, 23 caller observations, route summaries, controls and oracle/frozen-source hashes remain unchanged; donor hashes and the actual Linux engine context reflect the current inputs. Both affected tests pass 10/10. This correspondence check does not qualify Office or replace hosted CI.
