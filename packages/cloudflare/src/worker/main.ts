@@ -63,6 +63,7 @@
 import type { ActivationVerdict, CompileArtifact, PageDescriptor, StoragePort, WorkScope } from "@canlang/contracts";
 import type { IdentityStore } from '@canlang/identity';
 import type { StateTeamBinding } from '../runtime/env-assembly.js';
+import type { PagePreferenceStore } from '@canlang/interfaces';
 import type { createD1OwnerRouter } from '@canlang/state/storage/owner-router';
 import type { AssembledModules } from "../runtime/modules.js";
 import type { BakedDerivedInputs } from "../runtime/mcp-registry.js";
@@ -139,6 +140,7 @@ export interface ProductionDeps {
   readonly auth?: HttpAuthConfiguration;
   readonly store: StoragePort;
   readonly identityStore: unknown;
+  readonly preferences?: PagePreferenceStore;
   readonly stateTeam?: StateTeamBinding;
 }
 
@@ -753,6 +755,7 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
         : {
             http: {
               ...(deps.auth === undefined ? {} : { auth: deps.auth }),
+              ...(deps.preferences === undefined ? {} : { preferences: deps.preferences }),
               ...(authJoin === undefined ? {} : { authHandler: authJoin }),
               ...(formBindings === undefined ? {} : { formBindings }),
               ...(httpFactory === undefined ? {} : { createOperationHandler: httpFactory }),

@@ -54,6 +54,11 @@ async function snapshotD1(dev: LocalDev, binding: string): Promise<ReportValue> 
     .all<{ name: string }>();
   const snapshot: Record<string, ReportValue> = {};
   for (const table of tables.results) {
+    // D1's _cf_ metadata is protected from SQL reads. A canonical denial
+    // may advance the engine fence and write a rejection receipt; those
+    // are admission evidence, not an authored domain write or effect intent.
+    if (table.name.startsWith("_cf_") || table.name === "fence" ||
+        table.name === "fence_log" || table.name === "receipts") continue;
     const quoted = `"${table.name.replace(/"/g, '""')}"`;
     // WITHOUT ROWID tables fail ORDER BY rowid loudly; no silent fallback.
     const rows = await db.prepare(`SELECT * FROM ${quoted} ORDER BY rowid`).all();
@@ -64,8 +69,10 @@ async function snapshotD1(dev: LocalDev, binding: string): Promise<ReportValue> 
 
 /**
  * Default row scope: one fresh local workerd instance (own D1 namespace via
- * `d1Id`) per row. Snapshots dump every D1 table's full contents ordered by
- * `rowid`, so any leaked D1-table write fails an expected rejection. Other
+ * `d1Id`) per row. Snapshots dump every effect-capable D1 table's full
+ * contents ordered by `rowid`, so any leaked domain/effect write fails an
+ * expected rejection. Cloudflare metadata and engine fence/receipt rows
+ * remain in D1 and are excluded from the effect comparison. Other
  * bindings (R2/queues/DO) are isolated by the fresh instance but not
  * snapshotted; leak detection for those joins with their fixtures.
  */

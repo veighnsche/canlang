@@ -1,9 +1,24 @@
+import { randomBytes } from "node:crypto";
 import { Miniflare, type DispatchFetch } from "miniflare";
 import type { D1Database } from "@cloudflare/workers-types";
 import { COMPILED_WASM_MODULE_TYPE } from "@canlang/contracts";
 
 type DispatchInit = Parameters<DispatchFetch>[1];
 type DispatchResult = ReturnType<DispatchFetch>;
+
+const DISPATCH_HEADER = "x-can-local-dispatch";
+const GATEWAY_SOURCE = `
+export default {
+  fetch(request, env) {
+    if (request.headers.get("x-can-local-dispatch") !== env.CAN_LOCAL_SECRET) {
+      return new Response(null, { status: 403 });
+    }
+    const headers = new Headers(request.headers);
+    headers.delete("x-can-local-dispatch");
+    return env.CAN_LOCAL_APP.fetch(new Request(request, { headers }));
+  },
+};
+`;
 
 export interface LocalD1 {
   binding: string;
@@ -49,6 +64,8 @@ function inlineMapComment(map: unknown): string {
 
 export interface LocalDev {
   dispatch: (path: string, init?: DispatchInit) => DispatchResult;
+  /** Preserve the browser origin for auth redirects, cookies and Origin checks. */
+  dispatchUrl: (url: string, init?: DispatchInit) => DispatchResult;
   getD1Database: (binding: string) => Promise<D1Database>;
   dispose: () => Promise<void>;
 }
@@ -56,8 +73,8 @@ export interface LocalDev {
 /**
  * Starts one local workerd instance for development and tests. Each call is
  * an independent instance; callers needing strict storage isolation (BDD
- * rows) use one instance per scope. No network listeners are opened;
- * requests go through `dispatch`.
+ * rows) use one instance per scope. Miniflare opens a loopback HTTP listener;
+ * a private gateway refuses direct requests before they reach the app Worker.
  *
  * Pinned to the miniflare v4 stable line (same pin as lane 03) with its
  * flat options API. A joint v5 migration happens only when v5 stabilizes.
@@ -94,17 +111,39 @@ export async function startLocalDev(options: LocalDevOptions): Promise<LocalDev>
     d1Databases[database.binding] = database.id;
   }
 
+  const secret = randomBytes(32).toString("base64url");
   const miniflare = new Miniflare({
-    name: options.workerName,
-    compatibilityDate: options.compatibilityDate,
-    modules,
-    bindings: { ...(options.vars ?? {}) },
-    d1Databases,
+    host: "127.0.0.1",
+    port: 0,
+    workers: [
+      {
+        name: `can-local-gateway-${randomBytes(8).toString("hex")}`,
+        compatibilityDate: options.compatibilityDate,
+        modules: true,
+        script: GATEWAY_SOURCE,
+        bindings: { CAN_LOCAL_SECRET: secret },
+        serviceBindings: { CAN_LOCAL_APP: options.workerName },
+      },
+      {
+        name: options.workerName,
+        compatibilityDate: options.compatibilityDate,
+        modules,
+        bindings: { ...(options.vars ?? {}) },
+        d1Databases,
+      },
+    ],
   });
 
+  const dispatchUrl = (url: string, init?: DispatchInit): DispatchResult => {
+    const headers = new Headers(init?.headers);
+    headers.set(DISPATCH_HEADER, secret);
+    return miniflare.dispatchFetch(url, { ...init, headers: [...headers] });
+  };
+
   return {
-    dispatch: (path, init) => miniflare.dispatchFetch(`http://localhost${path}`, init),
-    getD1Database: (binding) => miniflare.getD1Database(binding),
+    dispatch: (path, init) => dispatchUrl(`http://localhost${path}`, init),
+    dispatchUrl,
+    getD1Database: (binding) => miniflare.getD1Database(binding, options.workerName),
     dispose: () => miniflare.dispose(),
   };
 }
