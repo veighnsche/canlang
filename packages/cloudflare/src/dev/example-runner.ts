@@ -19,6 +19,7 @@ import { decodeValue, encodeValue } from "@canlang/values";
 import { createLocalRowScope, type LocalRowScope } from "./row-scope.js";
 import { parseArtifactText } from "../runtime/artifact.js";
 import { assembleModules, type AssembledModules } from "../runtime/modules.js";
+import { loadCanonicalDescriptors } from "../runtime/invoke.js";
 import { buildInvoker, createTeamOwnerStorageBoundary, type TeamOwnerStorageBoundary } from "../worker/assembly.js";
 
 /** Structural port to the real @canlang/testkit exports; no runtime edge. */
@@ -651,6 +652,9 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules)
     async invoke({ call, identity }) {
       const operation = operations.find(candidate => candidate.name === call.operation);
       if (operation === undefined) throw new Error(`example runner: unknown operation ${call.operation}`);
+      // Loader/source failures are infrastructure failures, rather than an
+      // authored business rejection that could satisfy an expected error row.
+      await loadCanonicalDescriptors(asm, artifact);
       const encoded = wireInputs(call.inputs, references.get(call.scope) ?? new Map());
       if (!isRecord(encoded)) throw new Error("example runner: operation inputs are not an object");
       const request = applyRequestOverrides(closedOperationInputs(operation.kind, encoded),
