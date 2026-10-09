@@ -1,0 +1,90 @@
+{
+  "stage": "PROPOSED semantic sketch only; no grammar, parser, API, capability version or acceptance selected",
+  "authority": "Existing canonical read entry with current caller/team/field grants; no new route, privileged query mode, JavaScript expression or invocation backend. Final operation unchanged.",
+  "schema": "Input types/constraints/defaults derive exclusively from owning canonical operation descriptors. This sketch references names/typed paths; it defines no second input schema.",
+  "lifecycle": "lifecycle-requirements.json",
+  "result_rules": {
+    "only_read_operations": true,
+    "requires_checked_compatible_bounded_result": true,
+    "value_projection": "Existing typed readable result leaf only; no arbitrary expression; complete result and permissions checked before projected choices",
+    "labels": "Fixed readable work/display fields with opaque reference fallback; no private field projection"
+  },
+  "compatibility_gate": "Unsupported binding metadata/capability version rejects explicitly; no silent ignored dependency or broad candidate fallback.",
+  "bindings": [
+    {
+      "id": "AP-SUBMIT",
+      "form": "/documents own Document row -> existing submit",
+      "target": "approve.submit",
+      "child_input": "assignee",
+      "read_operation": "approve.reviewer_choices",
+      "parameter_map": {
+        "document": {
+          "source": "bound canonical argument",
+          "path": "document"
+        }
+      },
+      "dependency_kind": "persisted bound Document; not partial sibling input",
+      "candidate_result": "employee.Employee[]",
+      "value_leaf": "user",
+      "readable_label_fields": [
+        "name",
+        "user",
+        "role",
+        "home"
+      ],
+      "absent_parent": "No lookup/candidates until current readable Document binding is resolved",
+      "result_bound_status": "Original return Employee[] is subject to shared work/query limits; custom read bounded-result handoff is not qualified. No invented limit or new authority added.",
+      "assistance_mode": "Optional candidate assistance; original opaque canonical user input path remains available.",
+      "candidate_membership_not_new_final_guard": true,
+      "selection_rule": "Only picker-supplied selected candidates must match refreshed permitted choices. Empty viewer result does not invalidate a separately entered canonical user value accepted by original operator-wide role-only guards."
+    },
+    {
+      "id": "AP-ASSIGN",
+      "form": "/documents/review existing assignment modal -> bound Submission",
+      "target": "approve.assign",
+      "child_input": "assignee",
+      "read_operation": "approve.reviewer_choices",
+      "parameter_map": {
+        "document": {
+          "source": "bound canonical argument typed parent reference",
+          "path": "submission.parent"
+        }
+      },
+      "dependency_kind": "persisted bound Submission/Document; not partial sibling input",
+      "candidate_result": "employee.Employee[]",
+      "value_leaf": "user",
+      "readable_label_fields": [
+        "name",
+        "user",
+        "role",
+        "home"
+      ],
+      "absent_parent": "No lookup/candidates until readable current Submission.parent exists",
+      "result_bound_status": "Same existing authorized read and unqualified bounded-result handoff as AP-SUBMIT.",
+      "assistance_mode": "Optional candidate assistance; original opaque canonical user input path remains available.",
+      "candidate_membership_not_new_final_guard": true,
+      "selection_rule": "Only picker-supplied selected candidates must match refreshed permitted choices. Empty viewer result does not invalidate a separately entered canonical user value accepted by original operator-wide role-only guards."
+    },
+    {
+      "id": "CR-REGION",
+      "form": "supplementary /address single existing save form",
+      "target": "geography.save",
+      "child_input": "region",
+      "read_operation": "geography.save",
+      "parameter_map": {
+        "country": {
+          "source": "typed potentially absent canonical draft input",
+          "path": "country"
+        }
+      },
+      "dependency_kind": "actual partial sibling parent input",
+      "candidate_result": "geography.Region[]",
+      "value_leaf": "record reference",
+      "readable_label_fields": [
+        "name"
+      ],
+      "absent_parent": "No invocation and child unavailable until typed readable Country is present; an absent partial draft is not an invalid final submission",
+      "result_bound_status": "Supplementary read source requires <=100 authorized candidate rows or fails; no truncation/binding-owned cap; no current runtime proof."
+    }
+  ]
+}

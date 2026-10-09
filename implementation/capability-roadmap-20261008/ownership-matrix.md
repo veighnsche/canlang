@@ -1,15 +1,20 @@
-# Ownership and handoff matrix (SEQ-002)
+# Ownership and handoffs (SEQ-002)
 
-This is a dated handoff map, not an ownership transfer or acceptance decision. Package ownership reflects the coordinator's 2026-10-08 report; compiler rows follow the compiler owner's newer report where older lease notes conflict.
+The ownership setup is complete. The human appointed a separate coordinator and requires permissive coordination: these domains are advisory, not permission gates. Distinct files and agreed non-overlapping edits proceed without grants. Coordinate only actual concurrent same-file, index or shared-output collisions, with the smallest brief hold. Missing release messages do not establish occupancy.
 
-| Owner/source group | Paths | Current state and boundary |
-|---|---|---|
-| Package coordinator | Git, `docs/specification/DECISIONS.md`, `docs/ideal-filetree-plan.md` | Retained ownership. |
-| Package coordinator / UI implementer | `packages/ui/src/browser/bootstrap.ts`, `polling.ts`, lifecycle-cleanup test | Active lease; retain with current owner until release. Static compiler UI acceptance does not cover this work. |
-| Package coordinator / files | `packages/files/src/upload/index.ts`, `finalize/index.ts`, `test/finalize-byte-count.test.ts` | Writers/readers released; commit in progress. The accepted byte-count scope covers localFS/persisted copies only. |
-| Compiler completion owner | `compiler/src/analysis/types.rs`, `resolve.rs`, `tests/bdd_checked_facts.rs`, one `tests/codegen.rs` function | Handoff pending; BDD facts remain unaccepted pending independent review. |
-| Compiler UI adapter | `compiler/src/codegen/ir.rs`, `js.rs`, `tests/ui_adapter.rs` | Static Card title and unbound Tabs accepted at bounded scope. Queries, bound/ordered tabs, profiles, and broader ownership remain open. |
-| State/Cloudflare/stdlib guards | Guard source, runtime/stdlib export route, stdlib root and assembly test | Scoped synchronous guard exports and bounded revocation controls released; broader invocation ownership remains unresolved. Canonical reads, subject scope, durable/deployed routing, and broader roles remain open. |
-| Package repair work | Identity, Cloudflare, values, files, services, state | Several narrow repairs have bounded accepted outcomes: fanout retry freshness, checkpoint outcomes, file finalization size, owned JSON, secrecy/read selectors, OAuth code consumption and S256 issuance, and selected provider byte cap/cancel identity. These do not qualify whole canonical, durable, provider, or app workflows. |
+| Owner | Source domain | Current boundary |
+| --- | --- | --- |
+| Compiler implementer | Compiler analysis, checked types, IR, JS and producer tests | Date/Duration checked identity, metadata/results and literal Date defaults are active. Computed Money-default refusal is committed e33dbe00; native Values folding remains open. |
+| Roadmap implementer | State registry/admission, canonical runtime consumer, Cloudflare stdlib and actual roadmap fixtures | Date/Duration consumer and disjoint source/memory fixture are active; consume the precise producer shape when available. Existing Values codecs own conversion. |
+| Package implementer | Package repair domains, UI/browser lifecycle, files, services, identity, public interfaces | Select exact files locally when a roadmap/compiler slice crosses a package domain. No current blanket package or UI lease. |
+| Package implementer | Shared Git, DECISIONS, living file-tree plan and lockfile | Serialize only actual short index/history mutations. Scoped compiler commits are allowed; editing and checks continue. Merge handler reconciles the living plan and decisions. |
+| Coordinator | Cross-chat allocation, current resource decisions, roadmap status records and coordination note | Monitor full lists, resolve actual collisions, and resume idle ready work. No code review, routine reports, goals or worker timers. |
 
-The coordinator retains Git, DECISIONS, and file-tree ownership; UI bootstrap/polling remains actively leased; files follow-on paths were released while commit is in progress. Root owns reconciling compiler handoff. No contested ownership is decided here.
+Current narrow handoffs:
+
+- Compiler owns Date/Duration mirrors in contracts artifact.ts/wire.ts and interfaces ports.ts/mcp/schemas.ts/http/operations.ts, alongside compiler producer files. Roadmap owns State changes and its separate consumer fixture/test. Coordinate a same-file hunk only if an actual writer appears.
+- Decimal/Money memory consumer is integrated at 9e8d4ddd. Its previous index/source handoff is over; constructor defaults and broader consumers remain open.
+- Package text/bool persistence consumer is integrated at 2b0c85cd. That test/index handoff is over; deployed/installed/native/hooks and broader packet duties remain open.
+- Keep explicit human holds and pending external-payload approvals. No resource is reserved for work that is not ready.
+
+This setup closes SEQ-002 only. It accepts no product workflow and does not remove any unfinished implementation criterion.

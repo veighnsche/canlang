@@ -1,0 +1,36 @@
+{
+  "task": "SEQ-007",
+  "stage": "comparison preparation only; grammar/value/acceptance undecided",
+  "approval": {
+    "current_nested": "Complete original uses two persisted-Document reviewer_choices forms, projected Employee work list and candidate.user-bound submit/assign. Canonical opaque forms remain available. All original authority/history/timer/notice operations retained.",
+    "current_if_composition": "Guarding nested form output with ordinary existing require/if business checks can condition complete authorized read results; it cannot observe missing partial sibling draft input or own response-sequence/cancellation lifecycle. No grammar fragment or arbitrary expression added.",
+    "current_custom": "Same canonical operations can be composed by a controller after custom read serving handoff; it must satisfy the same lifecycle requirements and final opaque input path. Controller code/maintenance cost not implemented or measured.",
+    "proposed_minimal": "Owning submit/assign form enhances existing generated assignee input through checked reviewer_choices projection of Employee.user and readable labels. Input schema and current mutation authority remain canonical. Original opaque path retained, so empty work viewer list is not a new final candidate-membership rule.",
+    "identifiable_authoring_difference": "Two duplicate candidate-bound forms/lists can be replaced by two owning-form binding references while keeping the original primary forms. This is persisted-parent presentation reuse, not a new partial-sibling interaction.",
+    "nonbenefit": "No new parent draft field or dynamic dependency is present in original CanApprove. It already has candidate selection and final role/site/distinct reviewer checks. No adoption/keyboard/request-count advantage observed."
+  },
+  "country_region": {
+    "role": "Clearly supplementary complete app with own Geography policy/admin CRUD, country/region canonical read scenarios, immutable own Address mutation, inline guards and both destinations; not an original production app.",
+    "current_nested": "Address page contains explicit country_choices -> list Country -> region_choices(bound Country) -> list Region -> save(bound Country+Region), then own saved addresses. Typed canonical final inputs/guards already prevent cross-parent writes.",
+    "current_if_composition": "Read guards can prevent invalid complete parent calls; persisted nested selection can be gated but no automatic partial-country-input listener or stale-response fence is supplied by adding if alone.",
+    "current_custom": "Single existing save form plus custom lifecycle/controller requirements can reuse same reads. It has same intended interaction as proposed binding; custom read runtime is still gated, controller cost unknown.",
+    "proposed_minimal": "Single save form with canonical country/region reference inputs. Proposed region binding maps only typed possibly absent input.country to existing region_choices. No copied types/constraints or arbitrary query expression.",
+    "identifiable_interaction_difference": "Address page source has three nested operation form nodes versus one owning save form shell, enabling an explicit partial-country draft prerequisite and one stable form for street/notes while country changes. Automatic clearing/cancellation/context fencing and draft retention are requirements, not observed behavior.",
+    "nonbenefit": "Current nested form already checks final Country/Region relation and current allowed/member grants. Proposed binding does not add server authority; raw shell-byte reduction ignores sketch/controller/runtime work."
+  },
+  "rent": "rent-advisory-comparison.json preserves real available->hold scalar-result applicability boundary; no new advisory binding selected.",
+  "equal_outcomes": [
+    "Only current granted typed candidates/labels; no authority-mode directory or copied user schema.",
+    "Same current membership/parent/reference/version/grant/final canonical mutation guards and saved-operation replay.",
+    "Explicit absent/changed parent, clearing/retained eligible selection, cancel/out-of-order/context/errors/empty/simultaneous-form/focus/localization behavior.",
+    "No hidden second invocation backend or source grammar/API selection."
+  ],
+  "value_gate": {
+    "real_source_difference_identified": true,
+    "real_runtime_or_adoption_benefit_verified": false,
+    "actual_tokens_measured": false,
+    "independent_expected_case_review": "Required before value decision; comparison author cannot self-accept vectors.",
+    "current_custom_read_serving": "open exact-scope gate",
+    "next_contract_scope": "SEQ-033 may choose closed typed metadata only after comparison independent cases/value gate; SEQ-034+ own implementation."
+  }
+}

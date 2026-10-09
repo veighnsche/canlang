@@ -1,0 +1,9 @@
+# Additional proposed contract vectors
+
+Separate supplement for ERG-01/02. The previously reviewed packet, inventories and hashes are untouched. All six source files are complete bounded app inputs with Given/When/Then, read operations and presentation. They are uncompiled; current grammar supports no match. The non-enum union probe may additionally fail background union typing, so no isolated first-error attribution is claimed.
+
+`expected-outcomes.json` records typed owner intent, current member/readable-reference setup, desired outcomes and uncertainty. Both Probe.state and Other.state declare the serialized value `a`. The control selects the subject-owned value. The foreign-intent vector retains existing proposed `case a` spelling and makes `a` a parameter typed `Other.state`; it never invents owner-qualified arm syntax. Whether the future case resolver interprets that token as a lexical parameter or the subject's own constant remains open. A subject-only interpretation cannot be reported as a tested foreign-owner rejection; the supplied parameter's explicit owner intent must remain visible during review.
+
+OR-case, guarded-arm, destructuring and tagged-union files deliberately attempt unsupported surfaces under the same `match`/`case` skeleton. Their extra tokens are intentionally invalid rejection inputs, not proposed syntax expansion or accepted diagnostics. Only single exact enum cases remain within the existing candidate's intended scope. No wildcard/OR/pattern/guard/union semantics are designed here.
+
+`manifest.json` inventories SHA-256 and bytes for every supplementary source and expectation file. No build, runtime, tokenizer, JEV, remote call or product edit was performed. These vectors close raw-input inventory gaps only; they establish no current compiler behavior, contract adoption or runtime qualification.

@@ -9,7 +9,8 @@
     "added_scenario_declarations": 1,
     "added_models_contracts_policies_roles": 0,
     "model_token_count": "not measured",
-    "compiler_token_count": "not measured"
+    "compiler_token_count": 330,
+    "handler_compiler_token_count": 89
   },
   {
     "handler": "generation",
@@ -21,7 +22,8 @@
     "added_scenario_declarations": 1,
     "added_models_contracts_policies_roles": 0,
     "model_token_count": "not measured",
-    "compiler_token_count": "not measured"
+    "compiler_token_count": 330,
+    "handler_compiler_token_count": 89
   },
   {
     "handler": "generation",
@@ -33,79 +35,86 @@
     "added_scenario_declarations": 1,
     "added_models_contracts_policies_roles": 0,
     "model_token_count": "not measured",
-    "compiler_token_count": "not measured"
+    "compiler_token_count": 322,
+    "handler_compiler_token_count": 81
   },
   {
     "handler": "approval",
     "variant": "current-if",
-    "full_source_bytes": 33456,
-    "full_source_whitespace_units": 1862,
-    "handler_bytes": 954,
-    "handler_whitespace_units": 71,
+    "full_source_bytes": 34373,
+    "full_source_whitespace_units": 1941,
+    "handler_bytes": 1871,
+    "handler_whitespace_units": 150,
     "added_scenario_declarations": 1,
     "added_models_contracts_policies_roles": 0,
     "model_token_count": "not measured",
-    "compiler_token_count": "not measured"
+    "compiler_token_count": 6471,
+    "handler_compiler_token_count": 325
   },
   {
     "handler": "approval",
     "variant": "improved-if-analysis",
-    "full_source_bytes": 33456,
-    "full_source_whitespace_units": 1862,
-    "handler_bytes": 954,
-    "handler_whitespace_units": 71,
+    "full_source_bytes": 34373,
+    "full_source_whitespace_units": 1941,
+    "handler_bytes": 1871,
+    "handler_whitespace_units": 150,
     "added_scenario_declarations": 1,
     "added_models_contracts_policies_roles": 0,
     "model_token_count": "not measured",
-    "compiler_token_count": "not measured"
+    "compiler_token_count": 6471,
+    "handler_compiler_token_count": 325
   },
   {
     "handler": "approval",
     "variant": "proposed-match",
-    "full_source_bytes": 33462,
-    "full_source_whitespace_units": 1865,
-    "handler_bytes": 960,
-    "handler_whitespace_units": 74,
+    "full_source_bytes": 34379,
+    "full_source_whitespace_units": 1944,
+    "handler_bytes": 1877,
+    "handler_whitespace_units": 153,
     "added_scenario_declarations": 1,
     "added_models_contracts_policies_roles": 0,
     "model_token_count": "not measured",
-    "compiler_token_count": "not measured"
+    "compiler_token_count": 6466,
+    "handler_compiler_token_count": 320
   },
   {
     "handler": "ordinary",
     "variant": "current-if",
-    "full_source_bytes": 35603,
-    "full_source_whitespace_units": 2367,
-    "handler_bytes": 857,
-    "handler_whitespace_units": 71,
+    "full_source_bytes": 35824,
+    "full_source_whitespace_units": 2389,
+    "handler_bytes": 1078,
+    "handler_whitespace_units": 93,
     "added_scenario_declarations": 1,
     "added_models_contracts_policies_roles": 0,
     "model_token_count": "not measured",
-    "compiler_token_count": "not measured"
+    "compiler_token_count": 6079,
+    "handler_compiler_token_count": 166
   },
   {
     "handler": "ordinary",
     "variant": "improved-if-analysis",
-    "full_source_bytes": 35603,
-    "full_source_whitespace_units": 2367,
-    "handler_bytes": 857,
-    "handler_whitespace_units": 71,
+    "full_source_bytes": 35824,
+    "full_source_whitespace_units": 2389,
+    "handler_bytes": 1078,
+    "handler_whitespace_units": 93,
     "added_scenario_declarations": 1,
     "added_models_contracts_policies_roles": 0,
     "model_token_count": "not measured",
-    "compiler_token_count": "not measured"
+    "compiler_token_count": 6079,
+    "handler_compiler_token_count": 166
   },
   {
     "handler": "ordinary",
     "variant": "proposed-match",
-    "full_source_bytes": 35562,
-    "full_source_whitespace_units": 2368,
-    "handler_bytes": 816,
-    "handler_whitespace_units": 72,
+    "full_source_bytes": 35783,
+    "full_source_whitespace_units": 2390,
+    "handler_bytes": 1037,
+    "handler_whitespace_units": 94,
     "added_scenario_declarations": 1,
     "added_models_contracts_policies_roles": 0,
     "model_token_count": "not measured",
-    "compiler_token_count": "not measured"
+    "compiler_token_count": 6068,
+    "handler_compiler_token_count": 155
   },
   {
     "handler": "generation-effects",
@@ -117,7 +126,8 @@
     "added_scenario_declarations": 0,
     "added_models_contracts_policies_roles": 0,
     "model_token_count": "not measured",
-    "compiler_token_count": "not measured"
+    "compiler_token_count": 4624,
+    "handler_compiler_token_count": 698
   },
   {
     "handler": "generation-effects",
@@ -129,7 +139,8 @@
     "added_scenario_declarations": 0,
     "added_models_contracts_policies_roles": 0,
     "model_token_count": "not measured",
-    "compiler_token_count": "not measured"
+    "compiler_token_count": 4624,
+    "handler_compiler_token_count": 698
   },
   {
     "handler": "generation-effects",
@@ -141,6 +152,7 @@
     "added_scenario_declarations": 0,
     "added_models_contracts_policies_roles": 0,
     "model_token_count": "not measured",
-    "compiler_token_count": "not measured"
+    "compiler_token_count": 4687,
+    "handler_compiler_token_count": 761
   }
 ]

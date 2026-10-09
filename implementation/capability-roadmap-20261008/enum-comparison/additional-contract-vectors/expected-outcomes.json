@@ -1,0 +1,99 @@
+{
+  "status": "supplementary raw vectors only",
+  "cases": [
+    {
+      "id": "same-spelling-owner-control",
+      "source": "same-spelling-owner-control.can",
+      "typed_intent": {
+        "subject": "Probe.state",
+        "unrelated_owner": "Other.state",
+        "shared_serialized_case": "a"
+      },
+      "setup": {
+        "caller": "active same-team member",
+        "reference": "readable probe fixture, Probe.state=a",
+        "other": "readable other fixture, Other.state=a"
+      },
+      "expected_proposed_outcome": "If bounded match is later adopted, subject-owned bare case a handles Probe.state=a; existence of Other.state=a must not cause ambiguity or switch owner. No current acceptance claimed.",
+      "status": "concrete proposed source/outcome vector, uncompiled and independently unaccepted",
+      "writes_sends": [],
+      "route": "proposed bounded read scenario; actual released facade not qualified"
+    },
+    {
+      "id": "same-spelling-different-owner",
+      "source": "same-spelling-different-owner.can",
+      "typed_intent": {
+        "subject": "Probe.state",
+        "arm_reference": "scenario parameter a:Other.state",
+        "shared_serialized_case": "a",
+        "intended_wrong_owner": "Other.state"
+      },
+      "setup": {
+        "caller": "active same-team member",
+        "reference": "readable probe fixture, Probe.state=a",
+        "supplied_parameter": "a=other.state from readable Other fixture, Other.state=a"
+      },
+      "expected_proposed_outcome": "A typed arm value resolved to parameter a:Other.state cannot prove an arm of Probe.state solely because both serialize as a. Require owner identity, not string equality. The proposed case-position resolver remains unsettled: if case a is defined to always name the subject-owned constant and ignore lexical bindings, it denotes Probe.state.a and does not express the intended foreign arm; record that limitation rather than calling it a rejected foreign-owner test. No diagnostic or lexical precedence change is adopted.",
+      "status": "concrete proposed source/outcome vector, uncompiled and independently unaccepted",
+      "writes_sends": [],
+      "route": "proposed bounded read scenario; actual released facade not qualified"
+    },
+    {
+      "id": "unsupported-or-case",
+      "source": "unsupported-or-case.can",
+      "typed_intent": {
+        "subject": "Probe.state",
+        "attempted_arm": "case a or b"
+      },
+      "expected_proposed_outcome": "Reject attempted OR-case form in enum-only candidate. Do not broaden the single exact-case arm syntax; no current or numbered diagnostic asserted.",
+      "status": "concrete proposed source/outcome vector, uncompiled and independently unaccepted",
+      "writes_sends": [],
+      "route": "proposed bounded read scenario; actual released facade not qualified"
+    },
+    {
+      "id": "unsupported-guarded-arm",
+      "source": "unsupported-guarded-arm.can",
+      "typed_intent": {
+        "subject": "Probe.state",
+        "attempted_arm": "case a when=state==a"
+      },
+      "expected_proposed_outcome": "Reject attempted guarded-arm surface; authored require/if remains inside an ordinary arm body. This intentionally invalid marker is not a proposed grammar extension.",
+      "status": "concrete proposed source/outcome vector, uncompiled and independently unaccepted",
+      "writes_sends": [],
+      "route": "proposed bounded read scenario; actual released facade not qualified"
+    },
+    {
+      "id": "unsupported-destructuring",
+      "source": "unsupported-destructuring.can",
+      "typed_intent": {
+        "subject": "Probe.state",
+        "attempted_arm": "case {state=a}"
+      },
+      "expected_proposed_outcome": "Reject attempted destructuring surface; no object-pattern or binding semantics are specified.",
+      "status": "concrete proposed source/outcome vector, uncompiled and independently unaccepted",
+      "writes_sends": [],
+      "route": "proposed bounded read scenario; actual released facade not qualified"
+    },
+    {
+      "id": "unsupported-tagged-union",
+      "source": "unsupported-tagged-union.can",
+      "typed_intent": {
+        "subject": "Approved|Rejected, explicitly non-enum named structural values",
+        "attempted_arms": [
+          "case Approved {reason=note}",
+          "case Rejected {reason=note}"
+        ]
+      },
+      "expected_proposed_outcome": "Reject non-enum subject and attempted type/destructuring arms under bounded enum-only candidate. Named contract union admissibility/tagging is independently unverified; earlier union typing rejection is not evidence of match pattern rejection. Do not invent discriminator, new union contract or arm-binding semantics.",
+      "status": "concrete proposed source/outcome vector, uncompiled and independently unaccepted",
+      "writes_sends": [],
+      "route": "proposed bounded read scenario; actual released facade not qualified"
+    }
+  ],
+  "remaining_gaps": [
+    "case-position lexical vs enum-constant identity policy",
+    "actual compiler diagnostics and admission route",
+    "union background admissibility/tagging",
+    "ERG-03 runtime/token/rollback gates unchanged"
+  ]
+}

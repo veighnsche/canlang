@@ -1,0 +1,79 @@
+{
+  "task": "SEQ-007",
+  "stage": "unexecuted proposed-contract mutation vectors",
+  "vectors": [
+    {
+      "id": "M-01",
+      "input": "mutation-vectors/M-01.proposed.json",
+      "mutation": "mutation read target",
+      "expected_future_checker_behavior": "Reject mutation operation as choice source.",
+      "observed_diagnostic": null,
+      "status": "raw proposed-contract vector; not compiler support"
+    },
+    {
+      "id": "M-02",
+      "input": "mutation-vectors/M-02.proposed.json",
+      "mutation": "wrong typed parent map",
+      "expected_future_checker_behavior": "Reject text->Country mismatch using canonical source-derived types.",
+      "observed_diagnostic": null,
+      "status": "raw proposed-contract vector; not compiler support"
+    },
+    {
+      "id": "M-03",
+      "input": "mutation-vectors/M-03.proposed.json",
+      "mutation": "unknown canonical input map",
+      "expected_future_checker_behavior": "Reject unknown draft input; no ambient capture.",
+      "observed_diagnostic": null,
+      "status": "raw proposed-contract vector; not compiler support"
+    },
+    {
+      "id": "M-04",
+      "input": "mutation-vectors/M-04.proposed.json",
+      "mutation": "self dependency",
+      "expected_future_checker_behavior": "Reject incompatible type/self-dependent child prerequisite graph.",
+      "observed_diagnostic": null,
+      "status": "raw proposed-contract vector; not compiler support"
+    },
+    {
+      "id": "M-05",
+      "input": "mutation-vectors/M-05.proposed.json",
+      "mutation": "private projected label",
+      "expected_future_checker_behavior": "Reject an unproved unconditional private projection or withhold private_notes for this caller at authorized read/result serving. Original work query grants no HR; a genuinely authorized HR caller is a different case, not blanket denial.",
+      "observed_diagnostic": null,
+      "status": "raw proposed-contract vector; not compiler support",
+      "caller_case": "Ordinary member with Employee work grants; no HR role or own-row grant for another candidate."
+    },
+    {
+      "id": "M-06",
+      "input": "mutation-vectors/M-06.proposed.json",
+      "mutation": "scalar advisory result as region candidates",
+      "expected_future_checker_behavior": "Reject parameter/result incompatibility; do not invent scalar->choices adaptation.",
+      "observed_diagnostic": null,
+      "status": "raw proposed-contract vector; not compiler support"
+    },
+    {
+      "id": "M-07",
+      "input": "mutation-vectors/M-07.proposed.json",
+      "mutation": "copied child constraint schema",
+      "expected_future_checker_behavior": "Reject/avoid duplicate input-schema authority; derive canonical save region instead.",
+      "observed_diagnostic": null,
+      "status": "raw proposed-contract vector; not compiler support"
+    },
+    {
+      "id": "M-08",
+      "input": "mutation-vectors/M-08.proposed.json",
+      "mutation": "unbounded compatible-result assertion",
+      "expected_future_checker_behavior": "Reject lack of proven bound rather than silently cap candidates.",
+      "observed_diagnostic": null,
+      "status": "raw proposed-contract vector; not compiler support"
+    },
+    {
+      "id": "M-09",
+      "input": "mutation-vectors/M-09-missing-final-relation-full.can",
+      "mutation": "Remove final canonical region.parent==country guard, otherwise preserve complete supplementary app.",
+      "expected_future_behavior": "Cross-parent direct canonical save would violate D-09/D-10. Source comparison must retain the original guard. Ordinary compiler need not diagnose missing app business logic; dependent picker filtering cannot repair final server authority.",
+      "observed_diagnostic": null,
+      "status": "raw app-guard mutation, not executed"
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "status": "factual preparation only; no actor-carrier/authority semantics accepted",
+  "scope": "IF internal c.actor were an ordinary enumerable recognized UserRef with email facts; genericUserRef remains id-only",
+  "sources": "Current committed public producers at b5f3f61c versus immutable db57 source hashes in pins.json. State pipeline has changed since frozen; its traced paths here explicitly describe frozen source, not requalification of current pipeline. Active live runtime/context writer avoided.",
+  "known_facts": [
+    {
+      "boundary": "Authenticated caller authority",
+      "facts": "DESIGN297 permits readonly actor.email/email_verified only for current authenticated caller;464 explicitly excludes other.email, named-user email/directory queries and request fabrication. Generic UserRef contract remains {kind:user,id}. Principal has userId with optional email/emailVerified; buildContext copies verified resolved identity email/email_verified into those fields and trusted kind forces actor=null.",
+      "source": [
+        "docs/specification/DESIGN.md:297,464",
+        "packages/contracts/src/values.ts:57",
+        "packages/contracts/src/state.ts:50",
+        "packages/state/src/invocation/context.ts:109-120"
+      ],
+      "evidence": "Source/accepted definition only; controls do not instantiate canonical authenticated actor.",
+      "uncertainty": "How runtime exposes source-only email facts while preserving id-only generic user behavior requires owner choice; no extended/accessor/getter design selected."
+    },
+    {
+      "boundary": "Generic user construction and recognition",
+      "facts": "Public makeUserRef(id) returns frozen {kind:user,id}; public isUserRef checks kind and nonempty id without rejecting enumerable extras or issuing provenance.",
+      "source": [
+        "packages/values/src/kinds.ts:152-160",
+        "packages/values/src/index.ts:16"
+      ],
+      "evidence": "Frozen public control factoryKeys=[kind,id]; hypothetical object spread with email/email_verified still recognized.",
+      "uncertainty": "Shape recognition is not branding or authenticated ownership; added facts on a recognized object are not verified just because isUserRef returns true."
+    },
+    {
+      "boundary": "Reference equality / aliasing",
+      "facts": "same compares recognized users by id only; equalValue reference types delegate to same. Assigning/aliasing an ordinary JS object does not remove extras; member factory validates user then freezeCopy spreads enumerable own properties one level deep.",
+      "source": [
+        "packages/values/src/equality.ts:127-139,286",
+        "packages/values/src/kinds.ts:38-41,171-178"
+      ],
+      "evidence": "Public same(base,extended)=true; makeMemberRef copies all four user keys including email facts. Raw member JSON contains nested facts.",
+      "uncertainty": "This hypothetical plain-object control does not settle language user alias erasure or actor privilege confinement. No novel getter/descriptor behavior tested or adopted."
+    },
+    {
+      "boundary": "Typed public user/member wire encode",
+      "facts": "encodeValue public facade delegates to wire core. encode user validates isUserRef then creates {id}; member creates {id,user:{id},team}. Extra facts do not escape these typed encoders.",
+      "source": [
+        "packages/values/src/wire.ts:14",
+        "packages/values/src/internal/wire-core.ts:1237-1250,1678"
+      ],
+      "evidence": "Public encodeValue(user,extended) yields id only; encodeValue(member,member) drops nested facts.",
+      "uncertainty": "Must prove every actual field/result/export path calls typed encoder with trusted type ownership; raw JSON paths do not acquire this behavior automatically."
+    },
+    {
+      "boundary": "Typed decode / field validation",
+      "facts": "decodeUser requires wire object exactly id, then calls makeUserRef. Schema leaf validation calls decodeValue; user fields fall through that typed leaf path. Extra email facts in wire user refuse rather than granting actor facts.",
+      "source": [
+        "packages/values/src/internal/wire-core.ts:538-546",
+        "packages/values/src/internal/schema-core.ts:514-520,850-874"
+      ],
+      "evidence": "Public decodeValue(user,{id}) succeeds id-only; {id,email,email_verified} raises SchemaError with two violations.",
+      "uncertainty": "Typed wire-validation behavior does not prove generated internal State writes pass Values schema validation; producer handoff already records missing production owner/revision plan association."
+    },
+    {
+      "boundary": "Generic field write into State / cloning",
+      "facts": "Frozen pipeline accepts known non-server-only field names and jsonClone(value) at intake; jsonClone uses structuredClone. Post-hook JSON-safety checks JSON.stringify candidate. JSON-compatible enumerable extra facts survive those general JS operations; neither helper is a user-schema redactor.",
+      "source": [
+        "packages/state/src/internal/json.ts:16-34",
+        "packages/state/src/mutation/pipeline.ts:352-378,402-417"
+      ],
+      "evidence": "Standard JS control structuredClone and JSON.stringify on hypothetical enumerable extended user retains facts. Source trace only for State; no mutation executed.",
+      "uncertainty": "Conditional risk IF such an actor object reaches a generic field whose other checks permit it. Exact complete generated write scalar validation/user normalization is not established by this bounded trace; no assertion of successful end-to-end actor-email persistence."
+    },
+    {
+      "boundary": "Store/history/replay serialization",
+      "facts": "Memory clone uses JSON.parse(JSON.stringify(value)); D1 writes row.data/history/receipt.outcome with raw JSON.stringify; sqlite codecs parse them back as data/outcomes. These general boundaries preserve enumerable JSON data, not typed user erasure.",
+      "source": [
+        "packages/state/src/storage/memory.ts:51",
+        "packages/state/src/storage/d1.ts:288,311,368-390",
+        "packages/state/src/storage/sqlite-codecs.ts:60,234-235,318-319"
+      ],
+      "evidence": "Source-only storage path trace; no State/store control performed.",
+      "uncertainty": "Storage behavior cannot establish authorization or safe public projection. If upstream data/result contains extras, typed user codec is not demonstrably called at these serializers."
+    },
+    {
+      "boundary": "return actor / result disclosure",
+      "facts": "Frozen scenario seam returns outcome.value as effects.result; State committed receipt and result carry effects.result; replay returns saved outcome result. HTTP operation success JSON.stringify(outcome.result); MCP success JSON.stringify(result) and may include raw structuredContent object.",
+      "source": [
+        "packages/cloudflare/src/runtime/invoke.ts frozen runScenarioSeam result outcome.value",
+        "packages/state/src/invocation/invoke.ts:205,330-358",
+        "packages/interfaces/src/http/operations.ts:299",
+        "packages/interfaces/src/mcp/server.ts:168-173"
+      ],
+      "evidence": "Immutable source trace and existing F1 review only; no live active runtime read and no return-actor invocation.",
+      "uncertainty": "A hypothetical enumerable enriched actor returned here could carry email facts through raw serialization, unless a separately qualified normalization/projection boundary intervenes. Current active context author changes are excluded. Direct caller fact directory restriction remains required; no blanket result null/projection strategy adopted."
+    }
+  ],
+  "controls": "Public frozen Values output only, no sourcehelper shim, type policy, runtime mutation or broad build/tests. Standard JS clone/JSON observations separately labelled.",
+  "not_established": [
+    "Current c.actor carrier implementation or actor property exposure",
+    "Every generated field write normalizes generic user to id",
+    "Every returned/replayed result uses type-directed wire encoding",
+    "Email facts erased by aliases/member wrappers/general JSON",
+    "Safe accessor/non-enumerable/branding design or authority semantics"
+  ],
+  "needed_owner_action": "Compiler/runtime/Values/State owners use these explicit boundaries for bounded authenticated-actor carrier decision and independent review, preserving DESIGN caller-only facts and generic id-only user wire. JEV/implementation remain outside this collection."
+}
