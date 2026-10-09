@@ -881,6 +881,8 @@ export class OllamaChatAdapter implements ModelChatPort {
         model,
         maxInputTokens,
         maxOutputTokens: this.maxOutputTokens,
+        // One immutable installed ceiling; consumer observation windows never
+        // replace the generation deadline independently captured by prepare.
         maxDurationMs: this.http.timeoutMs,
         inputTokenization: countInputTokens === undefined ? 'unsupported' : 'deployment',
         attachments: 'unsupported',
