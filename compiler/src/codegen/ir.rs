@@ -2640,6 +2640,59 @@ impl<'a> Cx<'a> {
         self.decode_field_label_parts(symbol.module, &key)
     }
 
+    /// Reused fields inherit the immediately referenced declaration first.
+    /// Case overrides compose through the checked chain; text captions only
+    /// cross a reuse edge when both fields keep the same name.
+    fn decode_reused_field_label_parts(
+        &mut self,
+        symbol: &crate::analysis::resolve::Symbol,
+    ) -> Option<DecodedFieldLabel> {
+        let mut chain = Vec::new();
+        let mut current = symbol.clone();
+        let mut seen = HashSet::new();
+        while seen.insert(current.id) {
+            let SymbolKind::Field { owner, .. } = &current.kind else {
+                break;
+            };
+            chain.push((
+                current.name.clone(),
+                self.decode_declared_field_label_parts(&current, *owner),
+            ));
+            let next = self
+                .program
+                .types
+                .field_reuse_sources
+                .get(&current.id)
+                .copied();
+            let Some(next) = next
+                .and_then(|id| self.program.symbols.get(id.0 as usize))
+                .cloned()
+            else {
+                break;
+            };
+            current = next;
+        }
+        let mut inherited: Option<(String, DecodedFieldLabel)> = None;
+        for (name, declared) in chain.into_iter().rev() {
+            let mut label = declared.unwrap_or(DecodedFieldLabel {
+                text: None,
+                values: Vec::new(),
+            });
+            if let Some((source_name, source)) = inherited {
+                if label.text.is_none() && name == source_name {
+                    label.text = source.text;
+                }
+                for (case, caption) in source.values {
+                    if !label.values.iter().any(|(declared, _)| declared == &case) {
+                        label.values.push((case, caption));
+                    }
+                }
+            }
+            inherited = Some((name, label));
+        }
+        inherited.map(|(_, label)| label)
+    }
+
     /// Decode one `case=caption` label case.
     fn decode_label_case(
         &mut self,
@@ -7229,11 +7282,11 @@ impl<'a> Cx<'a> {
         target: &SyntaxNode,
     ) -> Option<(TypedExpr, Option<TypedExpr>)> {
         let current = self.decode_expr(scope, target);
-        let (cases, enum_owner) = match &current.ty {
+        let cases = match &current.ty {
             ResolvedType::Enum {
                 cases,
-                owner: Some(enum_owner),
-            } => (cases.clone(), *enum_owner),
+                owner: Some(_),
+            } => cases.clone(),
             _ => {
                 self.diags.push(Diagnostic::error(
                     "E6008",
@@ -7317,22 +7370,7 @@ impl<'a> Cx<'a> {
             return None;
         }
         let (_, default, _, _, _, _) = self.decode_field(&symbol, *owner);
-        let label = self.decode_declared_field_label_parts(&symbol, *owner);
-        let inherited_label = if enum_owner != field_id {
-            self.program
-                .symbols
-                .get(enum_owner.0 as usize)
-                .cloned()
-                .and_then(|enum_field| {
-                    let SymbolKind::Field { owner, .. } = enum_field.kind else {
-                        return None;
-                    };
-                    let label = self.decode_declared_field_label_parts(&enum_field, owner);
-                    label.map(|label| (enum_field.name, label))
-                })
-        } else {
-            None
-        };
+        let label = self.decode_reused_field_label_parts(&symbol);
         let Some(IrDefault::Literal(default)) = default else {
             self.diags.push(Diagnostic::error(
                 "E6008",
@@ -7381,11 +7419,6 @@ impl<'a> Cx<'a> {
                 let caption = label
                     .as_ref()
                     .and_then(|label| label.values.iter().find(|(value, _)| value == &case))
-                    .or_else(|| {
-                        inherited_label.as_ref().and_then(|(_, label)| {
-                            label.values.iter().find(|(value, _)| value == &case)
-                        })
-                    })
                     .map(|(_, caption)| {
                         TypedExpr::new(
                             IrExpr::Message(caption.clone()),
@@ -7456,11 +7489,7 @@ impl<'a> Cx<'a> {
             ResolvedType::Unknown,
             target.span,
         );
-        let caption = label.and_then(|label| label.text).or_else(|| {
-            inherited_label
-                .filter(|(name, _)| name == &symbol.name)
-                .and_then(|(_, label)| label.text)
-        });
+        let caption = label.and_then(|label| label.text);
         let caption = caption.map(|caption| {
             TypedExpr::new(
                 IrExpr::Message(caption),
