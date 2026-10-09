@@ -152,12 +152,6 @@ pub(super) fn collect_native_scenario_receipt(
     }
     let source = transport_source(&checked.source, entry_module)?;
     let sites = Sites::collect(ir, by, guards, effects)?;
-    // Transition activation requires the released Dev issued-session adapter
-    // to attest each genuine current-row read, including intermediate own writes.
-    // Collector preparation must not activate those observations through v1.
-    if !sites.transitions.is_empty() {
-        return None;
-    }
     let mut recipe = NativeScenarioReceipt {
         plan: ReceiptDisclosurePlan {
             version: 1,
@@ -390,8 +384,7 @@ pub(super) fn collect_native_scenario_receipt(
             } = ty
             {
                 // This inventory adaptation belongs only to a real transition
-                // recipe, which remains gated above. Do not broaden standalone
-                // machine-field reads while preparing the mutation consumer.
+                // recipe. Standalone machine-field reads retain their refusal.
                 if sites.transitions.is_empty()
                     || *enum_owner != stored.id
                     || dependency.type_id != stored.canonical
