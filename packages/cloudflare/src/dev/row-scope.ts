@@ -55,14 +55,41 @@ async function snapshotD1(dev: LocalDev, binding: string): Promise<ReportValue> 
   const snapshot: Record<string, ReportValue> = {};
   for (const table of tables.results) {
     // D1's _cf_ metadata is protected from SQL reads. A canonical denial
-    // may advance the engine fence and write a rejection receipt; those
-    // are admission evidence, not an authored domain write or effect intent.
+    // may advance the engine fence; that is admission bookkeeping.
     if (table.name.startsWith("_cf_") || table.name === "fence" ||
-        table.name === "fence_log" || table.name === "receipts") continue;
+        table.name === "fence_log") continue;
     const quoted = `"${table.name.replace(/"/g, '""')}"`;
     // WITHOUT ROWID tables fail ORDER BY rowid loudly; no silent fallback.
     const rows = await db.prepare(`SELECT * FROM ${quoted} ORDER BY rowid`).all();
-    snapshot[table.name] = toReportValue(rows.results);
+    if (table.name === "receipts") {
+      // Only a canonical rejection receipt is bookkeeping. A committed
+      // receipt is durable evidence of business work and must fail the
+      // no-effects comparison even if no model row happened to change.
+      snapshot[table.name] = toReportValue(rows.results.filter((row) => {
+        const outcome = (row as Record<string, unknown>)["outcome"];
+        if (typeof outcome !== "string") throw new Error("snapshot: receipt outcome is unavailable");
+        let parsed: unknown;
+        try { parsed = JSON.parse(outcome); }
+        catch { throw new Error("snapshot: receipt outcome is invalid JSON"); }
+        if (typeof parsed !== "object" || parsed === null ||
+            !Object.hasOwn(parsed, "status") ||
+            ((parsed as { status: unknown }).status !== "committed" &&
+             (parsed as { status: unknown }).status !== "rejected")) {
+          throw new Error("snapshot: receipt outcome has an unknown status");
+        }
+        if ((parsed as { status: string }).status === "rejected") {
+          const rejection = parsed as Record<string, unknown>;
+          if (typeof rejection["code"] !== "string" || typeof rejection["message"] !== "string" ||
+              Object.hasOwn(rejection, "result") || Object.hasOwn(rejection, "recordVersions")) {
+            throw new Error("snapshot: rejection receipt is not canonical");
+          }
+          return false;
+        }
+        return true;
+      }));
+    } else {
+      snapshot[table.name] = toReportValue(rows.results);
+    }
   }
   return snapshot;
 }
@@ -71,10 +98,10 @@ async function snapshotD1(dev: LocalDev, binding: string): Promise<ReportValue> 
  * Default row scope: one fresh local workerd instance (own D1 namespace via
  * `d1Id`) per row. Snapshots dump every effect-capable D1 table's full
  * contents ordered by `rowid`, so any leaked domain/effect write fails an
- * expected rejection. Cloudflare metadata and engine fence/receipt rows
- * remain in D1 and are excluded from the effect comparison. Other
- * bindings (R2/queues/DO) are isolated by the fresh instance but not
- * snapshotted; leak detection for those joins with their fixtures.
+ * expected rejection. Cloudflare metadata, engine fence rows, and canonical
+ * rejected receipts remain in D1 but do not count as business effects.
+ * This first profile admits only the local D1 binding; a resource requiring
+ * R2, queues, or Durable Objects must be refused before using this scope.
  */
 export async function createLocalRowScope(
   d1Id: string,

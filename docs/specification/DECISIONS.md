@@ -3493,3 +3493,7 @@ The existing installed preview producer now rederives its package outputs, ownin
 ### Accepted implementation: reconcile missed development watcher events
 
 The existing session core reconciles captured input identities every two seconds and reattaches watchers after directory replacement. Notifications still only mark dirty; capture and revision checks control publication. Shutdown closes watchers and the reconciliation timer and drains owned capture work. Focused lifecycle checks pass 6/6 and Cloudflare source typecheck passes; full-app membership and build-reset qualification remain with their owning capture/runtime joins.
+
+### Accepted implementation: classify example rejection receipts narrowly
+
+The local row snapshot excludes canonical rejected receipts and engine fence bookkeeping while retaining committed receipts as evidence of business work. Malformed rejection outcomes refuse the comparison instead of hiding them. The first profile admits only local D1 effects; other resources need their own snapshot admission. Real D1 coverage passes 1/1. Testkit is loaded through its runtime-resolved file URL because its existing Cloudflare dependency prevents a static reverse edge; the source-current workspace build passes 26/26 tasks, with authored app execution still gated by the Compiler artifact prerequisite.

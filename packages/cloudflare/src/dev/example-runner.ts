@@ -10,6 +10,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import type { ArtifactModelField, ClosedInputs, CompileArtifact, ExampleCaseResult, ExampleReport, FqOperationName, ModelName, OperationId, RecordId, RecordVersion, ReportValue, ResolvedCaller, ResolvedIdentity, StoragePort, StoredRow, TableCaseResult } from "@canlang/contracts";
 import { createD1IdentityStore, ensureIdentitySchema, resolveIdentity, sha256HexText, toInstant, type IdentityStore } from "@canlang/identity";
 import { createD1Storage, ensureSchema } from "@canlang/state/storage/d1";
@@ -36,12 +37,15 @@ export class MissingExampleTestkitError extends Error {
 
 /** Late-bind the optional test producer without a Cloudflare package cycle. */
 export async function loadInstalledExampleTestkit(): Promise<ExampleTestkitPort> {
+  let resolved: string;
   try {
-    createRequire(import.meta.url).resolve("@canlang/testkit");
+    resolved = createRequire(import.meta.url).resolve("@canlang/testkit");
   } catch {
     throw new MissingExampleTestkitError();
   }
-  const kit = await import("@canlang/testkit");
+  // Keep this late-bound: testkit depends on Cloudflare and is deliberately
+  // absent from this package's static dependency graph.
+  const kit = await import(pathToFileURL(resolved).href);
   requirement(kit.loadExampleSuite, "testkit loader");
   requirement(kit.runTable, "testkit table runner");
   requirement(kit.createReport, "testkit report builder");
