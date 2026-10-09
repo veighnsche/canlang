@@ -1,0 +1,851 @@
+# Help workspace employees claim approved travel between locations, emergency supplies, and other out-of-pocket operating expenses. @{nl="Help werkplekmedewerkers goedgekeurde reizen tussen locaties, noodbenodigdheden en andere voorgeschoten bedrijfskosten declareren."}
+app CanExpenseReview uses=[expense]
+
+# Keep private employee claims, review revisions and reimbursement evidence separate. @{nl="Houd privédeclaraties, beoordelingsrevisies en vergoedingsbewijs gescheiden."}
+package expense label="Expenses"@{nl="Onkosten"}
+ use rent_catalog {Location,test_site}
+ use employee {Employee,can_work,test_worker,hr,deactivate}
+ Given
+  role reviewer label=label_reviewer
+  role finance label="Finance"@{nl="Financiën"}
+  export Expense in Employee { location:Location, corrects:Expense? label="Corrected claim"@{nl="Gecorrigeerde declaratie"}, authorization:text? label="Job or purchase authorization reference"@{nl="Werk- of inkoopautorisatiereferentie"}, purpose:text trim min=1 label="Purpose"@{nl="Doel"}, category:text label="Category"@{nl="Categorie"}, amount:money, business_date:date label="Business date"@{nl="Kostendatum"}, receipt:file label=label_Expense_receipt, reviewer:user label=label_reviewer, status:enum(draft,submitted,approved,rejected,withdrawn,reimbursed)=draft label={text="Status"@{nl="Status"},values={draft="Draft"@{nl="Concept"},submitted="Submitted"@{nl="Ingediend"},approved=label_Expense_status_approved,rejected="Rejected"@{nl="Afgewezen"},withdrawn="Withdrawn"@{nl="Ingetrokken"},reimbursed="Reimbursed"@{nl="Vergoed"}}}, submission:int=0 label=label_Expense_submission, withdrawal:text? label="Withdrawal reason"@{nl="Reden voor intrekking"}, decision:text? label="Decision"@{nl="Besluit"}, decided_by:user? label="Decision maker"@{nl="Beslist door"}, decided_at:datetime? label=label_Expense_decided_at } label="Expense claim"@{nl="Onkostendeclaratie"}
+  Decision in Expense { submission:int label=label_Expense_submission, amount:money, receipt:file label=label_Expense_receipt, reviewer:user label=label_reviewer, approved:bool label=label_Expense_status_approved, reason:text, decided_at:datetime label=label_Expense_decided_at, review:ExpenseReviewRequest, subject_version:int min=1 } label="Expense decision"@{nl="Onkostenbesluit"}
+  Reimbursement in Expense { amount:money, reference:text trim min=1, paid:date label=label_Reimbursement_paid, reason:text, recorded_by:user server=actor label="Recorded by"@{nl="Vastgelegd door"} } label=evidenced_reimbursement_caption
+  export ReceiptExtract in Expense { source:text unique label="Extraction source"@{nl="Extractiebron"}, amount:money, spent_on:date label="Receipt date"@{nl="Bondatum"}, merchant:text label="Merchant"@{nl="Verkoper"} } label="Receipt transcription"@{nl="Bontranscriptie"}
+  ## Proposed named-roster review lives with the claim; exported names add no read grant.
+  export ExpenseReviewRequest in Expense { round:int min=1, subject_version:int min=1, submission:Expense.submission, requester:user, primary:user, secondary:user, location:Location, authorization:Expense.authorization, purpose:Expense.purpose, category:Expense.category, amount:Expense.amount, business_date:Expense.business_date, receipt:Expense.receipt, transcription:ReceiptExtract, expires:datetime, state:enum(open,approved,rejected,expired,escalated,superseded)=open, reason:text? }
+  export ExpenseReviewVote in ExpenseReviewRequest { voter:user server=actor, approved:bool, reason:text, voted_at:datetime server=now }
+  unique ExpenseReviewRequest fields=round
+  unique ExpenseReviewVote fields=voter
+  lock ExpenseReviewRequest fields=round,subject_version,submission,requester,primary,secondary,location,authorization,purpose,category,amount,business_date,receipt,transcription,expires
+  lock ExpenseReviewVote fields=voter,approved,reason,voted_at
+  policy ExpenseReviewRequest read=members where=row.requester==actor
+  policy ExpenseReviewRequest read=reviewer where=(row.primary==actor or row.secondary==actor) and can_work(actor,row.location)
+  policy ExpenseReviewRequest read=finance where=can_work(actor,row.location)
+  policy ExpenseReviewVote read=members where=row.parent.requester==actor
+  policy ExpenseReviewVote read=reviewer where=(row.parent.primary==actor or row.parent.secondary==actor) and can_work(actor,row.parent.location)
+  policy ExpenseReviewVote read=finance where=can_work(actor,row.parent.location)
+  derive exact_review(review:ExpenseReviewRequest):bool = review.requester==review.parent.parent.user and review.primary==review.parent.reviewer and review.submission==review.parent.submission and review.location==review.parent.location and review.authorization==review.parent.authorization and review.purpose==review.parent.purpose and review.category==review.parent.category and review.amount==review.parent.amount and review.business_date==review.parent.business_date and review.receipt==review.parent.receipt and review.transcription.parent==review.parent and review.transcription.amount==review.amount and review.transcription.spent_on==review.business_date
+  derive current_review(review:ExpenseReviewRequest):bool = first(review.parent.ExpenseReviewRequest as candidate order=-candidate.round)==review
+  derive roster_live(review:ExpenseReviewRequest):bool = review.primary!=review.secondary and review.primary!=review.requester and review.secondary!=review.requester and reviewer(review.primary) and reviewer(review.secondary) and can_work(review.primary,review.location) and can_work(review.secondary,review.location)
+  derive approved_review(review:ExpenseReviewRequest):bool = current_review(review) and exact_review(review) and review.state==approved and now<review.expires and roster_live(review) and count(review.ExpenseReviewVote)==2 and any(review.ExpenseReviewVote as vote,vote.voter==review.primary and vote.approved) and any(review.ExpenseReviewVote as vote,vote.voter==review.secondary and vote.approved)
+  invariant ExpenseReviewRequest: row.round>=1 and row.subject_version>=1 and row.primary!=row.secondary and row.primary!=row.requester and row.secondary!=row.requester and row.transcription.parent==row.parent
+  ## Membership revocation is checked at each operation, never a historical Vote invariant.
+  invariant ExpenseReviewVote: row.voter!=row.parent.requester and (row.voter==row.parent.primary or row.voter==row.parent.secondary)
+  invariant Decision: row.review.parent==row.parent and row.review.submission==row.submission and row.review.amount==row.amount and row.review.receipt==row.receipt and row.review.primary==row.reviewer and row.review.subject_version==row.subject_version
+  contract LegacyClaim { actor:text?, reviewer:text?, decision_time_original:text?, decided_at:datetime?, paid:date?, status:text?, purpose:text?, amount:money?, receipt:file?, receipt_issue:text? }
+  ## Imported source claims are immutable evidence, not live approvals or payments.
+  LegacyExpense { source:text trim min=1, external_id:text min=1, location:Location, claim:LegacyClaim, source_evidence:file, attestation:text trim min=1, claimant:user?, access_reason:text?, imported_by:user server=actor, imported_at:datetime server=now }
+  unique LegacyExpense fields=source,external_id
+  lock LegacyExpense fields=source,external_id,location,claim,source_evidence,attestation,imported_by,imported_at
+  policy LegacyExpense read=finance and can_work(actor,row.location)
+  policy LegacyExpense read=authenticated where=row.claimant==actor fields=source,external_id,location,claim
+  invariant LegacyExpense: (row.claim.receipt!=null and row.claim.receipt_issue==null) or (row.claim.receipt==null and trim(row.claim.receipt_issue??"")!="")
+  policy Expense read=authenticated where=row.parent.user==actor
+  policy Expense read=reviewer where=row.reviewer==actor and can_work(actor,row.location) and row.status!=draft
+  policy Expense read=finance and can_work(actor,row.location)
+  policy Decision read=authenticated where=row.parent.parent.user==actor or (reviewer and row.parent.reviewer==actor and can_work(actor,row.parent.location)) or (finance and can_work(actor,row.parent.location))
+  policy Reimbursement read=authenticated where=row.parent.parent.user==actor or (finance and can_work(actor,row.parent.location))
+  policy ReceiptExtract read=authenticated where=row.parent.parent.user==actor
+  policy ReceiptExtract read=reviewer where=row.parent.reviewer==actor and can_work(actor,row.parent.location) and row.parent.status!=draft
+  policy ReceiptExtract read=finance and can_work(actor,row.parent.location)
+  invariant Expense: row.amount.minor>0 and row.amount.currency==row.location.currency
+  invariant Expense: row.corrects==null or (row.corrects.parent==row.parent and row.corrects.status in [rejected,withdrawn])
+  invariant ReceiptExtract: row.amount.minor>0 and row.amount.currency==row.parent.location.currency and trim(row.merchant)!=""
+  lock Expense fields=location,authorization,purpose,category,amount,business_date,receipt,reviewer when=row.status!=draft
+  lock Expense fields=corrects
+  lock Decision fields=submission,amount,receipt,reviewer,approved,reason,decided_at,review,subject_version
+  lock Reimbursement fields=amount,reference,paid,reason,recorded_by
+  lock ReceiptExtract fields=source,amount,spent_on,merchant
+  ## Table rows invoke one operation; connected sequences below use real calls and commits under the proposed example contract.
+  fixture receipt=file {}
+  fixture corrected_receipt=file {}
+  fixture hr_user=user {roles=[hr]}
+  fixture replacement_user=user {roles=[reviewer]}
+  fixture replacement_worker=Employee {user=replacement_user,name="Alex",home=test_site,locations=[test_site],start=date("2026-10-01"),role="Replacement reviewer"}
+  fixture reviewer_user=user {roles=[reviewer]}
+  fixture finance_user=user {roles=[finance]}
+  fixture ordinary_user=user {}
+  fixture reviewer_worker=Employee {user=reviewer_user,name="Alex",home=test_site,locations=[test_site],start=date("2026-10-01"),role="Reviewer",private_notes="Confidential HR review"}
+  fixture finance_worker=Employee {user=finance_user,home=test_site,locations=[test_site],start=date("2026-10-01"),role="Finance"}
+  fixture ordinary_worker=Employee {user=ordinary_user,name="Alex",home=test_site,locations=[test_site],start=date("2026-10-01"),role="Operator"}
+  fixture other_site=Location {name="Elsewhere",address="2 Example Road",timezone="Europe/Brussels",currency="EUR",hours="09:00–18:00",arrival="Report to reception"}
+  fixture claim=Expense {parent=test_worker,location=test_site,purpose="Travel between sites",category="Travel",amount=money(25,"EUR"),business_date=date("2026-10-01"),receipt=receipt,reviewer=reviewer_user}
+  ## Previously reimbursed fixtures are reference-uniqueness evidence, never permission for new payment.
+  fixture previous_claim=Expense {parent=test_worker,location=test_site,purpose="Earlier supplies",category="Supplies",amount=money(25,"EUR"),business_date=date("2026-10-01"),receipt=receipt,reviewer=reviewer_user,status=reimbursed}
+  fixture previous_payment=Reimbursement {parent=previous_claim,amount=money(25,"EUR"),reference="bank-previous",paid=date("2026-10-01"),reason="Statement evidence"}
+  fixture receipt_extract=ReceiptExtract {parent=claim,source="extract-1",amount=money(25,"EUR"),spent_on=date("2026-10-01"),merchant="Station kiosk"}
+  fixture secondary_user=user {roles=[reviewer]}
+  fixture secondary_worker=Employee {user=secondary_user,name="Independent reviewer",home=test_site,locations=[test_site],start=date("2026-10-01"),role="Reviewer",private_notes="Not disclosed by review"}
+  fixture ready_review=ExpenseReviewRequest {parent=claim,round=1,subject_version=1,submission=1,requester=self,primary=reviewer_user,secondary=secondary_user,location=test_site,authorization=null,purpose="Travel between sites",category="Travel",amount=money(25,"EUR"),business_date=date("2026-10-01"),receipt,transcription=receipt_extract,expires=now+1d,state=approved}
+  fixture primary_vote=ExpenseReviewVote {parent=ready_review,voter=reviewer_user,approved=true,reason="Receipt checked",voted_at=now}
+  fixture secondary_vote=ExpenseReviewVote {parent=ready_review,voter=secondary_user,approved=true,reason="Independent review",voted_at=now}
+  fixture rejected_review=ExpenseReviewRequest {parent=claim,round=1,subject_version=1,submission=1,requester=self,primary=reviewer_user,secondary=secondary_user,location=test_site,authorization=null,purpose="Travel between sites",category="Travel",amount=money(25,"EUR"),business_date=date("2026-10-01"),receipt,transcription=receipt_extract,expires=now+1d,state=rejected,reason="Clarify the journey"}
+  fixture rejecting_vote=ExpenseReviewVote {parent=rejected_review,voter=secondary_user,approved=false,reason="Clarify the journey",voted_at=now}
+  fixture existing_payment=Reimbursement {parent=claim,amount=money(25,"EUR"),reference="already-paid-claim",paid=date("2026-10-01"),reason="Retained payment evidence"}
+  fixture finalized_decision=Decision {parent=claim,submission=1,amount=money(25,"EUR"),receipt,reviewer=reviewer_user,approved=true,reason="Checked",decided_at=now,review=ready_review,subject_version=1}
+  fixture rejected_decision=Decision {parent=claim,submission=1,amount=money(25,"EUR"),receipt=receipt,reviewer=reviewer_user,approved=false,reason="Clarify the journey",decided_at=datetime("2026-10-02T09:00:00Z"),review=rejected_review,subject_version=1}
+  fixture legacy_source=file {}
+  fixture legacy_receipt_upload=file {owner=finance_user}
+  fixture legacy_source_upload=file {owner=finance_user}
+  fixture legacy_entry=LegacyExpense {source="vendor-a",external_id="old-17",location=test_site,claim={actor="Former employee 41",reviewer="Reviewer 8",decision_time_original="2021-05-12T09:00:00Z",decided_at=datetime("2021-05-12T09:00:00Z"),paid=date("2021-05-20"),status="Paid",purpose="Travel",amount=money(25,"EUR"),receipt=receipt,receipt_issue=null},source_evidence=legacy_source,attestation="Source fields transcribed; no live approval inferred"}
+  message evidenced_reimbursement_caption = "Evidenced reimbursement"@{nl="Onderbouwde vergoeding"}
+  message label_reviewer = "Reviewer"@{nl="Beoordelaar"}
+  message label_Expense_receipt = "Receipt"@{nl="Bon"}
+  message label_Expense_status_approved = "Approved"@{nl="Goedgekeurd"}
+  message label_Expense_submission = "Submission revision"@{nl="Ingediende revisie"}
+  message label_Expense_decided_at = "Decision time"@{nl="Beslist op"}
+  message label_Reimbursement_paid = "Payment date"@{nl="Betaaldatum"}
+ When
+  # Freeze this submitted claim and nominate an independent second reviewer.
+  export scenario request_review(expense:Expense,secondary:user,expires:datetime) by=members -> ExpenseReviewRequest
+   require expense.parent.user==actor and expense.parent.active and can_work(actor,expense.location) and expense.status==submitted
+   require expense.reviewer!=actor and secondary!=actor and secondary!=expense.reviewer and reviewer(expense.reviewer) and reviewer(secondary) and can_work(expense.reviewer,expense.location) and can_work(secondary,expense.location) and expires>now
+   require count(expense.ExpenseReviewRequest)==0
+   do
+    let transcription=first(expense.ReceiptExtract as extract where extract.amount==expense.amount and extract.spent_on==expense.business_date order=extract.id)
+    require transcription!=null
+    create ExpenseReviewRequest {parent=expense,round=1,subject_version=expense.version,submission=expense.submission,requester=actor,primary=expense.reviewer,secondary,location=expense.location,authorization=expense.authorization,purpose=expense.purpose,category=expense.category,amount=expense.amount,business_date=expense.business_date,receipt=expense.receipt,transcription,expires} as review
+    return review
+   examples seed=[claim,receipt_extract,reviewer_worker,secondary_worker] expense=claim secondary=secondary_user expires=now+1d
+    as,expense.status,expense.submission,secondary,expires -> count(expense.ExpenseReviewRequest),count(result.ExpenseReviewVote),result.primary,result.secondary
+    self,submitted,1,secondary_user,now+1d -> 1,0,reviewer_user,secondary_user
+    self,submitted,1,self,now+1d -> error(rule_failed)
+    self,submitted,1,reviewer_user,now+1d -> error(rule_failed)
+    self,submitted,1,ordinary_user,now+1d -> error(rule_failed)
+    self,draft,0,secondary_user,now+1d -> error(rule_failed)
+    self,submitted,1,secondary_user,now -> error(rule_failed)
+    secondary_user,submitted,1,secondary_user,now+1d -> error(rule_failed)
+   ## Complete request, serialized concurrence, exact-request replay and terminal accounting.
+   examples seed=[claim,receipt_extract,reviewer_worker,secondary_worker,finance_worker]
+    do
+     call submit {expense=claim} by=self
+     let submitted_claim=first(Expense as row where row.id==claim.id order=row.id)
+     submitted_claim!=null -> true
+     let deadline=now+1d
+     call request_review {expense=submitted_claim,secondary=secondary_user,expires=deadline} by=self request={operation_id="019a0000-0000-7000-8000-000000000001"} as review
+     call request_review {expense=submitted_claim,secondary=secondary_user,expires=deadline} by=self request={operation_id="019a0000-0000-7000-8000-000000000001"} as request_replay
+     request_replay.id==review.id,count(submitted_claim.ExpenseReviewRequest),count(review.ExpenseReviewVote) -> true,1,0
+     let first_review_version=review.version
+     call approve_review {review,reason="Primary checked exact receipt"} by=reviewer_user request={operation_id="019a0000-0000-7000-8000-000000000002",review={version=first_review_version}}
+     call approve_review {review,reason="Primary checked exact receipt"} by=reviewer_user request={operation_id="019a0000-0000-7000-8000-000000000002",review={version=first_review_version}}
+     count(review.ExpenseReviewVote),count(submitted_claim.Decision),count(submitted_claim.Reimbursement) -> 1,0,0
+     call approve_review {review,reason="Independent concurrence"} by=secondary_user request={review={version=first_review_version}} -> error(conflict)
+     let one_vote=first(submitted_claim.ExpenseReviewRequest as row order=-row.round)
+     one_vote!=null -> true
+     call approve_review {review=one_vote,reason="Second vote from same actor"} by=reviewer_user -> error(rule_failed)
+     call decide {expense=submitted_claim,approve=true,reason="Too early"} by=reviewer_user -> error(rule_failed)
+     call approve_review {review=one_vote,reason="Independent concurrence"} by=secondary_user
+     let quorum=first(submitted_claim.ExpenseReviewRequest as row order=-row.round)
+     quorum!=null -> true
+     quorum.state,count(quorum.ExpenseReviewVote),count(submitted_claim.Decision),submitted_claim.status -> approved,2,0,submitted
+     let decision_version=submitted_claim.version
+     call decide {expense=submitted_claim,approve=true,reason="Two independent reviews"} by=reviewer_user request={operation_id="019a0000-0000-7000-8000-000000000003",expense={version=decision_version}}
+     call decide {expense=submitted_claim,approve=true,reason="Two independent reviews"} by=reviewer_user request={operation_id="019a0000-0000-7000-8000-000000000003",expense={version=decision_version}}
+     let approved_claim=first(Expense as row where row.id==claim.id order=row.id)
+     approved_claim!=null -> true
+     approved_claim.status,count(approved_claim.Decision),count(approved_claim.Reimbursement) -> approved,1,0
+     let payment_version=approved_claim.version
+     let paid=local_date(now,test_site.timezone)
+     call reimburse {expense=approved_claim,amount=money(25,"EUR"),reference="two-review-bank",paid,reason="Statement"} by=finance_user request={operation_id="019a0000-0000-7000-8000-000000000004",expense={version=payment_version}}
+     call reimburse {expense=approved_claim,amount=money(25,"EUR"),reference="two-review-bank",paid,reason="Statement"} by=finance_user request={operation_id="019a0000-0000-7000-8000-000000000004",expense={version=payment_version}}
+     let reimbursed_claim=first(Expense as row where row.id==claim.id order=row.id)
+     reimbursed_claim!=null -> true
+     reimbursed_claim.status,count(reimbursed_claim.Decision),count(reimbursed_claim.Reimbursement),count(quorum.ExpenseReviewVote) -> reimbursed,1,1,2
+     call invalidate_unpaid {expense=reimbursed_claim,reason="Cannot undo paid evidence"} by=finance_user -> error(rule_failed)
+   ## Veto remains immutable; the assigned primary alone records rejection and claimant corrects.
+   examples seed=[claim,receipt_extract,reviewer_worker,secondary_worker]
+    do
+     call submit {expense=claim} by=self
+     let submitted_claim=first(Expense as row where row.id==claim.id order=row.id)
+     submitted_claim!=null -> true
+     call request_review {expense=submitted_claim,secondary=secondary_user,expires=now+1d} by=self as review
+     call approve_review {review,reason="Owner cannot review own claim"} by=self -> error(forbidden)
+     call reject_review {review,reason="Receipt needs explanation"} by=secondary_user
+     let veto=first(submitted_claim.ExpenseReviewRequest as row order=-row.round)
+     veto!=null -> true
+     call approve_review {review=veto,reason="Cannot override rejection"} by=reviewer_user -> error(rule_failed)
+     call decide {expense=submitted_claim,approve=true,reason="Cannot override veto"} by=reviewer_user -> error(rule_failed)
+     call decide {expense=submitted_claim,approve=false,reason="Receipt needs explanation"} by=secondary_user -> error(rule_failed)
+     call decide {expense=submitted_claim,approve=false,reason="Receipt needs explanation"} by=reviewer_user
+     let rejected_claim=first(Expense as row where row.id==claim.id order=row.id)
+     rejected_claim!=null -> true
+     call correct {expense=rejected_claim} by=self
+     let correction=first(Expense as row where row.corrects==rejected_claim order=row.id)
+     correction!=null -> true
+     rejected_claim.status,count(rejected_claim.Decision),count(veto.ExpenseReviewVote),correction.status,count(correction.ExpenseReviewRequest) -> rejected,1,1,draft,0
+   ## Escalation is explicit, preserves the old vote and resets BOTH nominations' votes.
+   examples seed=[claim,receipt_extract,reviewer_worker,secondary_worker,replacement_worker]
+    do
+     call submit {expense=claim} by=self
+     let submitted_claim=first(Expense as row where row.id==claim.id order=row.id)
+     submitted_claim!=null -> true
+     call request_review {expense=submitted_claim,secondary=secondary_user,expires=now+1d} by=self as review
+     call approve_review {review,reason="First-round primary vote"} by=reviewer_user
+     let first_round=first(submitted_claim.ExpenseReviewRequest as row order=-row.round)
+     first_round!=null -> true
+     call escalate_review {review=first_round,reason="Request a fresh independent review"} by=self
+     let escalated=first(submitted_claim.ExpenseReviewRequest as row order=-row.round)
+     escalated!=null -> true
+     call supersede_review {review=escalated,secondary=replacement_user,expires=now+2d,reason="Explicit new roster"} by=self as replacement
+     replacement.round,replacement.state,count(replacement.ExpenseReviewVote),count(first_round.ExpenseReviewVote),count(submitted_claim.ExpenseReviewRequest),count(submitted_claim.Decision) -> 2,open,0,1,2,0
+     call approve_review {review=escalated,reason="Old round cannot contribute"} by=secondary_user -> error(conflict)
+     call approve_review {review=replacement,reason="Primary must vote again"} by=reviewer_user
+     let fresh_round=first(submitted_claim.ExpenseReviewRequest as row order=-row.round)
+     fresh_round!=null -> true
+     call approve_review {review=fresh_round,reason="New secondary concurrence"} by=replacement_user
+     call decide {expense=submitted_claim,approve=true,reason="New round alone reached quorum"} by=reviewer_user
+     count(submitted_claim.Decision),count(replacement.ExpenseReviewVote),count(first_round.ExpenseReviewVote) -> 1,2,1
+   ## Actual work-authority revocation after Decision: payment fails; finance invalidates unpaid only.
+   examples seed=[claim,receipt_extract,reviewer_worker,secondary_worker,finance_worker,hr_user,replacement_worker]
+    do
+     call submit {expense=claim} by=self
+     let submitted_claim=first(Expense as row where row.id==claim.id order=row.id)
+     submitted_claim!=null -> true
+     call request_review {expense=submitted_claim,secondary=secondary_user,expires=now+1d} by=self as review
+     call approve_review {review,reason="Primary review"} by=reviewer_user
+     let first_round=first(submitted_claim.ExpenseReviewRequest as row order=-row.round)
+     first_round!=null -> true
+     call approve_review {review=first_round,reason="Independent review"} by=secondary_user
+     call decide {expense=submitted_claim,approve=true,reason="Exact reviewed claim"} by=reviewer_user
+     call deactivate {employee=secondary_worker,ended=date("2026-10-02")} by=hr_user
+     let unpaid=first(Expense as row where row.id==claim.id order=row.id)
+     unpaid!=null -> true
+     call reimburse {expense=unpaid,amount=money(25,"EUR"),reference="revoked-review",paid=local_date(now,test_site.timezone),reason="Must refuse"} by=finance_user -> error(rule_failed)
+     call invalidate_unpaid {expense=unpaid,reason="Secondary workplace authority revoked before payment"} by=finance_user
+     let invalidated=first(Expense as row where row.id==claim.id order=row.id)
+     invalidated!=null -> true
+     invalidated.status,count(invalidated.Decision),count(review.ExpenseReviewVote),count(invalidated.Reimbursement) -> withdrawn,1,2,0
+     call correct {expense=invalidated} by=self
+     let correction=first(Expense as row where row.corrects==invalidated order=row.id)
+     correction!=null -> true
+     call Expense.update {record=correction,changes={reviewer=replacement_user}} by=self
+     let corrected=first(Expense as row where row.id==correction.id order=row.id)
+     corrected!=null -> true
+     corrected.status,corrected.reviewer,count(corrected.ExpenseReviewRequest),count(corrected.Decision),count(corrected.Reimbursement) -> draft,replacement_user,0,0,0
+     call transcribe_receipt {expense=corrected,source="new-review-after-invalidation",amount=money(25,"EUR"),spent_on=date("2026-10-01"),merchant="Station kiosk"} by=self
+     call submit {expense=corrected} by=self
+     let resubmitted=first(Expense as row where row.id==correction.id order=row.id)
+     resubmitted!=null -> true
+     call request_review {expense=resubmitted,secondary=reviewer_user,expires=now+1d} by=self as new_review
+     call approve_review {review=new_review,reason="Replacement primary checks anew"} by=replacement_user
+     let fresh_review=first(resubmitted.ExpenseReviewRequest as row order=-row.round)
+     fresh_review!=null -> true
+     call approve_review {review=fresh_review,reason="Independent new review, no reused votes"} by=reviewer_user
+     call decide {expense=resubmitted,approve=true,reason="Correction reviewed independently"} by=replacement_user
+     let corrected_approval=first(Expense as row where row.id==correction.id order=row.id)
+     corrected_approval!=null -> true
+     call reimburse {expense=corrected_approval,amount=money(25,"EUR"),reference="corrected-review-bank",paid=local_date(now,test_site.timezone),reason="New approved claim only"} by=finance_user
+     let paid_correction=first(Expense as row where row.id==correction.id order=row.id)
+     paid_correction!=null -> true
+     paid_correction.status,count(paid_correction.Decision),count(paid_correction.Reimbursement),count(new_review.ExpenseReviewVote),invalidated.status,count(invalidated.Decision),count(invalidated.Reimbursement),count(review.ExpenseReviewVote) -> reimbursed,1,1,2,withdrawn,1,0,2
+  # A choice list is advisory; both current reviewers and exact evidence are checked again.
+  export scenario approve_review(review:ExpenseReviewRequest,reason:text) by=reviewer -> ExpenseReviewRequest
+   require actor==review.primary or actor==review.secondary
+   require review.parent.status==submitted and current_review(review) and exact_review(review) and review.subject_version==review.parent.version and review.state==open and now<review.expires and roster_live(review)
+   require not any(review.ExpenseReviewVote as vote,vote.voter==actor)
+   do
+    create ExpenseReviewVote {parent=review,approved=true,reason} as vote
+    if count(review.ExpenseReviewVote)==2
+     set review {state=approved}
+    else
+     set review {state=open}
+    return review
+  # One eligible named rejection vetoes this request; only the primary records the business Decision.
+  export scenario reject_review(review:ExpenseReviewRequest,reason:text) by=reviewer
+   require actor==review.primary or actor==review.secondary
+   require actor!=review.requester and can_work(actor,review.location)
+   require review.parent.status==submitted and current_review(review) and exact_review(review) and review.subject_version==review.parent.version and review.state==open and now<review.expires and trim(reason)!=""
+   require not any(review.ExpenseReviewVote as vote,vote.voter==actor)
+   do
+    create ExpenseReviewVote {parent=review,approved=false,reason=trim(reason)} as vote
+    set review {state=rejected,reason=trim(reason)}
+  export scenario review_requests(expense:Expense) read=true -> ExpenseReviewRequest[] by=members
+   do return expense.ExpenseReviewRequest as candidate order=-candidate.round
+  # Closing an expired review cannot decide, pay, replace reviewers or erase evidence.
+  export scenario expire_review(review:ExpenseReviewRequest) by=members
+   require actor==review.requester or ((reviewer and (actor==review.primary or actor==review.secondary)) or finance) and can_work(actor,review.location)
+   require current_review(review) and exact_review(review) and review.state in [open,approved] and now>=review.expires
+   do set review {state=expired,reason="Review deadline elapsed"}
+   examples seed=[claim,receipt_extract,reviewer_worker,secondary_worker,ready_review,primary_vote,secondary_vote] review=ready_review
+    as,claim.status,claim.submission,ready_review.expires -> review.state,count(review.ExpenseReviewVote),claim.status,count(claim.Decision),count(claim.Reimbursement)
+    self,submitted,1,now -> expired,2,submitted,0,0
+    reviewer_user,submitted,1,now -> expired,2,submitted,0,0
+    self,submitted,1,now+1d -> error(rule_failed)
+    ordinary_user,submitted,1,now -> error(rule_failed)
+  # Explicit requester escalation closes an unresolved round; it never transfers the assigned primary.
+  export scenario escalate_review(review:ExpenseReviewRequest,reason:text) by=members
+   require actor==review.requester and review.parent.parent.active and can_work(actor,review.location)
+   require review.parent.status==submitted and current_review(review) and exact_review(review) and review.subject_version==review.parent.version and trim(reason)!=""
+   require review.state==open or (review.state==approved and (now>=review.expires or not reviewer(review.secondary) or not can_work(review.secondary,review.location)))
+   require reviewer(review.primary) and can_work(review.primary,review.location)
+   do set review {state=escalated,reason=trim(reason)}
+  # A superseding round freezes the same subject and resets every vote, including the primary's.
+  export scenario supersede_review(review:ExpenseReviewRequest,secondary:user,expires:datetime,reason:text) by=members -> ExpenseReviewRequest
+   require actor==review.requester and review.parent.parent.active and can_work(actor,review.location)
+   require review.parent.status==submitted and current_review(review) and exact_review(review) and review.subject_version==review.parent.version and trim(reason)!="" and expires>now
+   require review.state in [expired,escalated] or (review.state in [open,approved] and (now>=review.expires or not reviewer(review.secondary) or not can_work(review.secondary,review.location)))
+   require review.primary!=actor and secondary!=actor and secondary!=review.primary and reviewer(review.primary) and reviewer(secondary) and can_work(review.primary,review.location) and can_work(secondary,review.location)
+   do
+    set review {state=superseded,reason=trim(reason)}
+    create ExpenseReviewRequest {parent=review.parent,round=review.round+1,subject_version=review.subject_version,submission=review.submission,requester=review.requester,primary=review.primary,secondary,location=review.location,authorization=review.authorization,purpose=review.purpose,category=review.category,amount=review.amount,business_date=review.business_date,receipt=review.receipt,transcription=review.transcription,expires} as replacement
+    return replacement
+   examples seed=[claim,receipt_extract,reviewer_worker,secondary_worker,replacement_worker,ready_review,primary_vote,secondary_vote] review=ready_review secondary=replacement_user expires=now+2d reason="Explicit replacement round"
+    as,claim.status,claim.submission,ready_review.state,ready_review.expires,secondary_worker.active,reviewer_worker.active -> result.round,count(result.ExpenseReviewVote),count(ready_review.ExpenseReviewVote),ready_review.state,result.primary,result.secondary
+    self,submitted,1,expired,now,true,true -> 2,0,2,superseded,reviewer_user,replacement_user
+    self,submitted,1,approved,now+1d,false,true -> 2,0,2,superseded,reviewer_user,replacement_user
+    self,submitted,1,approved,now+1d,true,true -> error(rule_failed)
+    self,submitted,1,expired,now,true,false -> error(rule_failed)
+    secondary_user,submitted,1,expired,now,true,true -> error(rule_failed)
+  ## PROPOSED domain recovery: no unpaid approval remains silently spendable after loss/expiry.
+  export scenario invalidate_unpaid(expense:Expense,reason:text) by=finance
+   require can_work(actor,expense.location) and expense.status==approved and count(expense.Reimbursement)==0 and trim(reason)!=""
+   do
+    let review=first(expense.ExpenseReviewRequest as candidate order=-candidate.round)
+    require review!=null and exact_review(review)
+    require any(expense.Decision as decision,decision.review==review and decision.subject_version==review.subject_version and decision.submission==expense.submission and decision.approved and decision.amount==expense.amount and decision.receipt==expense.receipt and decision.reviewer==expense.reviewer)
+    require now>=review.expires or not roster_live(review)
+    set expense {status=withdrawn,withdrawal=trim(reason)}
+   examples seed=[claim,reviewer_worker,secondary_worker,finance_worker,ready_review,primary_vote,secondary_vote,finalized_decision] expense=claim reason="Unpaid review authority lost"
+    as,expense.status,expense.submission,secondary_worker.active,ready_review.expires -> expense.status,expense.withdrawal,count(expense.Decision),count(ready_review.ExpenseReviewVote),count(expense.Reimbursement)
+    finance_user,approved,1,false,now+1d -> withdrawn,"Unpaid review authority lost",1,2,0
+    finance_user,approved,1,true,now -> withdrawn,"Unpaid review authority lost",1,2,0
+    finance_user,approved,1,true,now+1d -> error(rule_failed)
+    finance_user,submitted,1,false,now+1d -> error(rule_failed)
+    finance_user,reimbursed,1,false,now+1d -> error(rule_failed)
+    reviewer_user,approved,1,false,now+1d -> error(forbidden)
+    self,approved,1,false,now+1d -> error(forbidden)
+   examples seed=[claim,reviewer_worker,secondary_worker,finance_worker,ready_review,primary_vote,secondary_vote,finalized_decision,existing_payment] expense=claim reason="Cannot invalidate any paid claim"
+    as,expense.status,expense.submission,secondary_worker.active -> expense.status,count(expense.Reimbursement)
+    finance_user,approved,1,false -> error(rule_failed)
+  crud Expense by=members fields=location,authorization,purpose,category,amount,business_date,receipt,reviewer when=row.parent.user==actor and row.parent.active and row.status==draft and can_work(actor,row.location) delete=none
+  # Find readable current reviewer work identities for this location. @{nl="Vind leesbare huidige werkidentiteiten van beoordelaars voor deze locatie."}
+  scenario reviewer_choices(location:Location) read=true -> Employee[] by=members label="Choose reviewer"@{nl="Beoordelaar kiezen"}
+   require can_work(actor,location)
+   do return Employee as candidate where candidate.user!=actor and reviewer(candidate.user) and can_work(candidate.user,location)
+   examples seed=[test_worker,reviewer_worker,replacement_worker,ordinary_worker] location=test_site
+    as,reviewer_worker.active,reviewer_worker.name,test_worker.active,location -> count(result),count(result as candidate where candidate.name=="Alex")
+    self,true,"Alex",true,test_site -> 2,2
+    reviewer,true,"Alex",true,test_site -> 2,2
+    self,false,"Alex",true,test_site -> 1,1
+    self,true,null,true,test_site -> 2,1
+    self,true,"Alex",false,test_site -> error(rule_failed)
+    self,true,"Alex",true,other_site -> error(rule_failed)
+    outsider,true,"Alex",true,test_site -> error(forbidden)
+    public,true,"Alex",true,test_site -> error(forbidden)
+   examples seed=[test_worker,reviewer_worker,hr_user]
+    do
+     call reviewer_choices {location=test_site} by=self as before
+     count(before),any(before as candidate,candidate.user==reviewer_user) -> 1,true
+     call deactivate {employee=reviewer_worker,ended=date("2026-10-02")} by=hr_user
+     call reviewer_choices {location=test_site} by=self as after
+     count(after),reviewer(reviewer_user),reviewer_worker.active -> 0,true,false
+  # Submit your draft after checking the active, distinct reviewer and an exact receipt transcription. @{nl="Dien je concept in na controle van een actieve, andere beoordelaar en een exacte bontranscriptie."}
+  scenario submit(expense:Expense) by=members
+   require expense.parent.user==actor and expense.parent.active and expense.status==draft and can_work(actor,expense.location) and expense.reviewer!=actor and reviewer(expense.reviewer) and can_work(expense.reviewer,expense.location) and any(expense.ReceiptExtract as extract,extract.amount==expense.amount and extract.spent_on==expense.business_date)
+   do set expense {status=submitted,submission=expense.submission+1}
+   examples seed=[reviewer_worker,ordinary_worker,receipt_extract] expense=claim
+    as,expense.reviewer,reviewer_worker.active,test_worker.active,request.expense.version -> expense.status,expense.submission,expense.receipt,expense.reviewer
+    self,reviewer_user,true,true,1 -> submitted,1,receipt,reviewer_user
+    self,ordinary_user,true,true,1 -> error(rule_failed)
+    self,self,true,true,1 -> error(rule_failed)
+    self,reviewer_user,false,true,1 -> error(rule_failed)
+    self,reviewer_user,true,false,1 -> error(rule_failed)
+    ordinary_user,reviewer_user,true,true,1 -> error(rule_failed)
+    self,reviewer_user,true,true,2 -> error(conflict)
+   examples seed=[reviewer_worker,receipt_extract] expense=claim
+    expense.location -> expense.status
+    other_site -> error(rule_failed)
+   examples seed=[reviewer_worker,ordinary_worker] expense=claim
+    as,expense.reviewer,reviewer_worker.active,test_worker.active,request.expense.version -> expense.status
+    self,reviewer_user,true,true,1 -> error(rule_failed)
+   examples seed=[reviewer_worker,ordinary_worker,receipt_extract] expense=claim
+    as,expense.reviewer,receipt_extract.amount -> expense.status
+    self,reviewer_user,money(30,"EUR") -> error(rule_failed)
+   ## Preserve the original shared-state journey; canonical execution qualification remains separate.
+   ## User role recipes stay fixed. employee.deactivate demonstrates an actual workplace eligibility transition.
+   examples seed=[claim,reviewer_worker,finance_worker,ordinary_user,secondary_worker]
+    do
+     call transcribe_receipt {expense=claim,source="extract-1",amount=money(25,"EUR"),spent_on=date("2026-10-01"),merchant="Station kiosk"} by=self
+     call submit {expense=claim} by=self
+     let review_subject_6=first(Expense as row where row.id==claim.id order=row.id)
+     review_subject_6!=null -> true
+     call request_review {expense=review_subject_6,secondary=secondary_user,expires=now+1d} by=self as review_round_6
+     call approve_review {review=review_round_6,reason="Primary review"} by=reviewer_user
+     let concurrence_6=first(review_subject_6.ExpenseReviewRequest as candidate order=-candidate.round)
+     concurrence_6!=null -> true
+     call approve_review {review=concurrence_6,reason="Independent concurrence"} by=secondary_user
+     claim.status,claim.submission,claim.receipt -> submitted,1,receipt
+     call decide {expense=claim,approve=true,reason="Checked the journey"} by=ordinary_user -> error(forbidden)
+     claim.status,count(claim.Decision) -> submitted,0
+     call decide {expense=claim,approve=true,reason="Checked the journey"} by=reviewer_user
+     claim.status,claim.decided_by,count(claim.Decision) -> approved,reviewer_user,1
+     call reimburse {expense=claim,amount=money(25,"EUR"),reference="bank-journey",paid=local_date(now,test_site.timezone),reason="Bank statement"} by=reviewer_user -> error(forbidden)
+     call reimburse {expense=claim,amount=money(25,"EUR"),reference="bank-journey",paid=local_date(now,test_site.timezone),reason="Bank statement"} by=finance_user
+     claim.status,count(claim.Reimbursement),any(claim.Reimbursement as payment,payment.recorded_by==finance_user and payment.amount==money(25,"EUR")) -> reimbursed,1,true
+     call reimburse {expense=claim,amount=money(25,"EUR"),reference="bank-repeat",paid=local_date(now,test_site.timezone),reason="Bank statement"} by=finance_user -> error(rule_failed)
+   examples seed=[claim,reviewer_worker,finance_worker,corrected_receipt,secondary_worker]
+    do
+     call transcribe_receipt {expense=claim,source="extract-1",amount=money(25,"EUR"),spent_on=date("2026-10-01"),merchant="Station kiosk"} by=self
+     call submit {expense=claim} by=self
+     let review_subject_5=first(Expense as row where row.id==claim.id order=row.id)
+     review_subject_5!=null -> true
+     call request_review {expense=review_subject_5,secondary=secondary_user,expires=now+1d} by=self as review_round_5
+     call reject_review {review=review_round_5,reason="Independent reviewer requires clarification"} by=secondary_user
+     call decide {expense=claim,approve=false,reason="Clarify the journey"} by=reviewer_user
+     claim.status,claim.receipt,count(claim.Decision) -> rejected,receipt,1
+     call Expense.update {record=claim,changes={receipt=corrected_receipt}} by=self -> error(rule_failed)
+     call correct {expense=claim} by=self
+     let replacement=first(claim.parent.Expense as row where row.corrects==claim order=row.id)
+     replacement!=null -> true
+     call Expense.update {record=replacement,changes={purpose="Journey evidence corrected",receipt=corrected_receipt,reviewer=reviewer_user}} by=self
+     let ready=first(claim.parent.Expense as row where row.corrects==claim order=row.id)
+     ready!=null -> true
+     call transcribe_receipt {expense=ready,source="extract-11",amount=money(25,"EUR"),spent_on=date("2026-10-01"),merchant="Station kiosk"} by=self
+     call submit {expense=ready} by=self
+     let review_subject_4=first(Expense as row where row.id==ready.id order=row.id)
+     review_subject_4!=null -> true
+     call request_review {expense=review_subject_4,secondary=secondary_user,expires=now+1d} by=self as review_round_4
+     call approve_review {review=review_round_4,reason="Primary review"} by=reviewer_user
+     let concurrence_4=first(review_subject_4.ExpenseReviewRequest as candidate order=-candidate.round)
+     concurrence_4!=null -> true
+     call approve_review {review=concurrence_4,reason="Independent concurrence"} by=secondary_user
+     let submitted_replacement=first(claim.parent.Expense as row where row.corrects==claim order=row.id)
+     submitted_replacement!=null -> true
+     call decide {expense=submitted_replacement,approve=true,reason="Corrected receipt checked"} by=reviewer_user
+     let approved_replacement=first(claim.parent.Expense as row where row.corrects==claim order=row.id)
+     approved_replacement!=null -> true
+     call reimburse {expense=approved_replacement,amount=money(25,"EUR"),reference="bank-correction",paid=local_date(now,test_site.timezone),reason="Bank statement"} by=finance_user
+     let paid_replacement=first(claim.parent.Expense as row where row.corrects==claim order=row.id)
+     paid_replacement!=null -> true
+     claim.status,claim.receipt,claim.decision,paid_replacement.status,paid_replacement.submission,paid_replacement.receipt,any(claim.Decision as decision,not decision.approved and decision.receipt==receipt and decision.reason=="Clarify the journey"),any(paid_replacement.Decision as decision,decision.approved and decision.submission==2 and decision.receipt==corrected_receipt),count(paid_replacement.Reimbursement) -> rejected,receipt,"Clarify the journey",reimbursed,2,corrected_receipt,true,true,1
+   examples seed=[claim,reviewer_worker,replacement_worker,finance_worker,hr_user,corrected_receipt,secondary_worker]
+    do
+     call transcribe_receipt {expense=claim,source="extract-1",amount=money(25,"EUR"),spent_on=date("2026-10-01"),merchant="Station kiosk"} by=self
+     call submit {expense=claim} by=self
+     let review_subject_3=first(Expense as row where row.id==claim.id order=row.id)
+     review_subject_3!=null -> true
+     call request_review {expense=review_subject_3,secondary=secondary_user,expires=now+1d} by=self as review_round_3
+     call approve_review {review=review_round_3,reason="Primary review"} by=reviewer_user
+     let concurrence_3=first(review_subject_3.ExpenseReviewRequest as candidate order=-candidate.round)
+     concurrence_3!=null -> true
+     call approve_review {review=concurrence_3,reason="Independent concurrence"} by=secondary_user
+     let submitted_version=claim.version
+     call deactivate {employee=reviewer_worker,ended=date("2026-10-02")} by=hr_user
+     reviewer_worker.active,reviewer(reviewer_user),can_work(reviewer_user,test_site),claim.status -> false,true,false,submitted
+     call decide {expense=claim,approve=true,reason="Checked"} by=reviewer_user -> error(rule_failed)
+     claim.status,count(claim.Decision) -> submitted,0
+     call withdraw {expense=claim,reason=" Reviewer unavailable "} by=self
+     call withdraw {expense=claim,reason="Repeated recovery"} by=self request={expense={version=submitted_version}} -> error(conflict)
+     call withdraw {expense=claim,reason="Repeated recovery"} by=self -> error(rule_failed)
+     claim.status,claim.withdrawal,claim.reviewer,claim.receipt,claim.amount,count(claim.Decision) -> withdrawn,"Reviewer unavailable",reviewer_user,receipt,money(25,"EUR"),0
+     call correct {expense=claim} by=self
+     call correct {expense=claim} by=self -> error(rule_failed)
+     let recovery_draft=first(claim.parent.Expense as row where row.corrects==claim order=row.id)
+     recovery_draft!=null -> true
+     call Expense.update {record=recovery_draft,changes={receipt=corrected_receipt,reviewer=replacement_user}} by=self
+     let recovery_ready=first(claim.parent.Expense as row where row.corrects==claim order=row.id)
+     recovery_ready!=null -> true
+     call transcribe_receipt {expense=recovery_ready,source="extract-12",amount=money(25,"EUR"),spent_on=date("2026-10-01"),merchant="Station kiosk"} by=self
+     call submit {expense=recovery_ready} by=self
+     let review_subject_2=first(Expense as row where row.id==recovery_ready.id order=row.id)
+     review_subject_2!=null -> true
+     call request_review {expense=review_subject_2,secondary=secondary_user,expires=now+1d} by=self as review_round_2
+     call approve_review {review=review_round_2,reason="Primary review"} by=replacement_user
+     let concurrence_2=first(review_subject_2.ExpenseReviewRequest as candidate order=-candidate.round)
+     concurrence_2!=null -> true
+     call approve_review {review=concurrence_2,reason="Independent concurrence"} by=secondary_user
+     let recovery_submitted=first(claim.parent.Expense as row where row.corrects==claim order=row.id)
+     recovery_submitted!=null -> true
+     call decide {expense=recovery_submitted,approve=true,reason="Replacement review checked"} by=replacement_user
+     let recovery_approved=first(claim.parent.Expense as row where row.corrects==claim order=row.id)
+     recovery_approved!=null -> true
+     call reimburse {expense=recovery_approved,amount=money(25,"EUR"),reference="bank-recovery",paid=local_date(now,test_site.timezone),reason="Bank statement"} by=finance_user
+     let recovery_paid=first(claim.parent.Expense as row where row.corrects==claim order=row.id)
+     recovery_paid!=null -> true
+     claim.status,claim.reviewer,claim.receipt,count(claim.Decision),recovery_paid.status,recovery_paid.reviewer,recovery_paid.receipt,recovery_paid.submission,count(recovery_paid.Decision),count(recovery_paid.Reimbursement) -> withdrawn,reviewer_user,receipt,0,reimbursed,replacement_user,corrected_receipt,2,1,1
+  # Transcribe the claimed totals from the frozen receipt while the claim is a draft. @{nl="Neem de geclaimde totalen over van de vastgelegde bon terwijl de declaratie een concept is."}
+  scenario transcribe_receipt(expense:Expense,source:text,amount:money,spent_on:date,merchant:text) -> ReceiptExtract by=members label="Transcribe receipt claims"@{nl="Bonclaims overnemen"}
+   require expense.parent.user==actor and expense.parent.active and can_work(actor,expense.location) and expense.status==draft and trim(source)!="" and trim(merchant)!="" and amount.currency==expense.location.currency and amount.minor>0
+   do
+    require not any(ReceiptExtract as extract,extract.source==trim(source))
+    create ReceiptExtract {parent=expense,source=trim(source),amount,spent_on,merchant=trim(merchant)} as extract
+    return extract
+   examples seed=[test_worker] expense=claim source="extract-2" spent_on=date("2026-10-01") merchant="Station kiosk"
+    as,expense.status,amount -> count(ReceiptExtract),result.source,result.amount
+    self,draft,money(25,"EUR") -> 1,"extract-2",money(25,"EUR")
+    self,draft,money(25,"USD") -> error(rule_failed)
+    self,submitted,money(25,"EUR") -> error(rule_failed)
+    ordinary_user,draft,money(25,"EUR") -> error(rule_failed)
+   examples seed=[test_worker,receipt_extract] expense=claim source="extract-1" amount=money(25,"EUR") spent_on=date("2026-10-01") merchant="Station kiosk"
+    as -> count(ReceiptExtract)
+    self -> error(rule_failed)
+   examples seed=[claim,reviewer_worker,secondary_worker]
+    do
+     call transcribe_receipt {expense=claim,source="extract-9",amount=money(30,"EUR"),spent_on=date("2026-10-01"),merchant="Station kiosk"} by=self
+     claim.status,count(claim.ReceiptExtract) -> draft,1
+     call submit {expense=claim} by=self -> error(rule_failed)
+     claim.status,count(claim.Decision) -> draft,0
+     call transcribe_receipt {expense=claim,source="extract-10",amount=money(25,"EUR"),spent_on=date("2026-10-01"),merchant="Station kiosk"} by=self
+     call submit {expense=claim} by=self
+     let review_subject_1=first(Expense as row where row.id==claim.id order=row.id)
+     review_subject_1!=null -> true
+     call request_review {expense=review_subject_1,secondary=secondary_user,expires=now+1d} by=self as review_round_1
+     call approve_review {review=review_round_1,reason="Primary review"} by=reviewer_user
+     let concurrence_1=first(review_subject_1.ExpenseReviewRequest as candidate order=-candidate.round)
+     concurrence_1!=null -> true
+     call approve_review {review=concurrence_1,reason="Independent concurrence"} by=secondary_user
+     claim.status,claim.submission,count(claim.ReceiptExtract) -> submitted,1,2
+     call decide {expense=claim,approve=true,reason="Receipt and transcription checked"} by=reviewer_user
+     claim.status,count(claim.Decision) -> approved,1
+  # Decide exactly the submitted amount and receipt; rejection needs a reason. @{nl="Beslis over precies het ingediende bedrag en de bon; afwijzing vereist een reden."}
+  scenario decide(expense:Expense,approve:bool label=label_Expense_status_approved,reason:text) by=reviewer label="Record decision"@{nl="Besluit vastleggen"}
+   require expense.status==submitted and expense.reviewer==actor and expense.parent.user!=actor and can_work(actor,expense.location) and (approve or trim(reason)!="")
+   do
+    let review=first(expense.ExpenseReviewRequest as candidate order=-candidate.round)
+    require review!=null and current_review(review) and exact_review(review) and review.subject_version==expense.version
+    require (approve and approved_review(review)) or (not approve and review.state==rejected and any(review.ExpenseReviewVote as vote,not vote.approved))
+    create Decision {parent=expense,submission=expense.submission,amount=expense.amount,receipt=expense.receipt,reviewer=actor,approved=approve,reason,decided_at=now,review,subject_version=expense.version} as decision
+    if approve
+     set expense {status=approved,decision=reason,decided_by=actor,decided_at=now}
+    else
+     set expense {status=rejected,decision=reason,decided_by=actor,decided_at=now}
+   examples seed=[reviewer_worker,secondary_worker,receipt_extract,ready_review,primary_vote,secondary_vote] expense=claim
+    as,expense.status,expense.reviewer,expense.submission,reviewer_worker.active,approve,reason,request.expense.version,ready_review.state,secondary_vote.approved -> expense.status,expense.receipt,expense.decided_by,count(expense.Decision),any(expense.Decision as decision,decision.submission==1 and decision.amount==money(25,"EUR") and decision.receipt==receipt and decision.reviewer==expense.reviewer and decision.approved==approve and decision.reason==reason)
+    reviewer_user,submitted,reviewer_user,1,true,true,"Checked the journey",1,approved,true -> approved,receipt,reviewer_user,1,true
+    reviewer_user,submitted,reviewer_user,1,true,false,"Clarify the journey",1,rejected,false -> rejected,receipt,reviewer_user,1,true
+    reviewer_user,submitted,reviewer_user,1,true,false,"",1,rejected,false -> error(rule_failed)
+    reviewer,submitted,self,1,true,true,"Checked the journey",1,approved,true -> error(rule_failed)
+    ordinary_user,submitted,reviewer_user,1,true,true,"Checked the journey",1,approved,true -> error(forbidden)
+    finance_user,submitted,reviewer_user,1,true,true,"Checked the journey",1,approved,true -> error(forbidden)
+    reviewer_user,submitted,finance_user,1,true,true,"Checked the journey",1,approved,true -> error(rule_failed)
+    reviewer_user,approved,reviewer_user,1,true,true,"Checked the journey",1,approved,true -> error(rule_failed)
+    reviewer_user,submitted,reviewer_user,1,false,true,"Checked the journey",1,approved,true -> error(rule_failed)
+    reviewer_user,submitted,reviewer_user,1,true,true,"Checked the journey",2,approved,true -> error(conflict)
+   examples seed=[claim,reviewer_worker,secondary_worker,receipt_extract,ready_review,primary_vote] expense=claim approve=true reason="Two approvals required"
+    as,claim.status,claim.submission -> claim.status,count(claim.Decision)
+    reviewer_user,submitted,1 -> error(rule_failed)
+   examples seed=[claim,reviewer_worker,secondary_worker,receipt_extract,ready_review,primary_vote,secondary_vote] expense=claim approve=true reason="Current exact evidence required"
+    as,claim.status,claim.submission,ready_review.expires,ready_review.subject_version,ready_review.amount,secondary_worker.active -> claim.status,count(claim.Decision)
+    reviewer_user,submitted,1,now,1,money(25,"EUR"),true -> error(rule_failed)
+    reviewer_user,submitted,1,now+1d,2,money(25,"EUR"),true -> error(rule_failed)
+    reviewer_user,submitted,1,now+1d,1,money(30,"EUR"),true -> error(rule_failed)
+    reviewer_user,submitted,1,now+1d,1,money(25,"EUR"),false -> error(rule_failed)
+  # Withdraw an unavailable review without changing its frozen evidence or recording a reviewer decision. @{nl="Trek een onbeschikbare beoordeling in zonder vastgelegd bewijs te wijzigen of een beoordelaarsbesluit te registreren."}
+  scenario withdraw(expense:Expense,reason:text) by=members label="Withdraw unavailable review"@{nl="Onbeschikbare beoordeling intrekken"}
+   require expense.parent.user==actor and expense.parent.active and can_work(actor,expense.location) and expense.status==submitted and trim(reason)!="" and (not reviewer(expense.reviewer) or not can_work(expense.reviewer,expense.location))
+   do set expense {status=withdrawn,withdrawal=trim(reason)}
+   examples seed=[reviewer_worker,ordinary_worker] expense=claim
+    as,expense.reviewer,expense.status,expense.submission,reviewer_worker.active,test_worker.active,reason,request.expense.version -> expense.status,expense.withdrawal,expense.receipt,expense.amount,expense.reviewer,count(expense.Decision),expense.submission
+    self,ordinary_user,submitted,1,true,true," Review unavailable ",1 -> withdrawn,"Review unavailable",receipt,money(25,"EUR"),ordinary_user,0,1
+    self,reviewer_user,submitted,1,false,true,"Review unavailable",1 -> withdrawn,"Review unavailable",receipt,money(25,"EUR"),reviewer_user,0,1
+    self,reviewer_user,submitted,1,true,true,"Review unavailable",1 -> error(rule_failed)
+    self,ordinary_user,submitted,1,true,true," ",1 -> error(rule_failed)
+    self,ordinary_user,approved,1,true,true,"Review unavailable",1 -> error(rule_failed)
+    self,ordinary_user,reimbursed,1,true,true,"Review unavailable",1 -> error(rule_failed)
+    self,ordinary_user,withdrawn,1,true,true,"Review unavailable",1 -> error(rule_failed)
+    self,ordinary_user,submitted,1,true,false,"Review unavailable",1 -> error(rule_failed)
+    ordinary_user,ordinary_user,submitted,1,true,true,"Review unavailable",1 -> error(rule_failed)
+    self,ordinary_user,submitted,1,true,true,"Review unavailable",2 -> error(conflict)
+   examples seed=[reviewer_worker] expense=claim
+    expense.location,expense.status,reason -> expense.status
+    other_site,submitted,"Review unavailable" -> error(rule_failed)
+  # Create one corrected draft while preserving the rejected or withdrawn claim and its evidence. @{nl="Maak één gecorrigeerd concept met behoud van de afgewezen of ingetrokken declaratie en het bewijs."}
+  scenario correct(expense:Expense) by=members label="Create correction draft"@{nl="Correctieconcept maken"}
+   require expense.parent.user==actor and expense.status in [rejected,withdrawn] and expense.parent.active and can_work(actor,expense.location) and not any(Expense as replacement,replacement.corrects==expense)
+   do create Expense {parent=expense.parent,corrects=expense,authorization=expense.authorization,location=expense.location,purpose=expense.purpose,category=expense.category,amount=expense.amount,business_date=expense.business_date,receipt=expense.receipt,reviewer=expense.reviewer,submission=expense.submission} as replacement
+   examples seed=[rejected_decision,rejected_review,rejecting_vote,reviewer_worker,secondary_worker] expense=claim
+    expense.status,expense.submission,expense.decision,expense.decided_by,expense.decided_at,request.expense.version -> expense.status,expense.receipt,expense.decision,expense.decided_by,expense.decided_at,count(expense.Decision),rejected_decision.receipt,rejected_decision.reason,count(expense.parent.Expense),any(expense.parent.Expense as replacement,replacement.corrects==expense and replacement.status==draft and replacement.receipt==receipt and replacement.amount==money(25,"EUR") and replacement.submission==1 and replacement.reviewer==expense.reviewer)
+    rejected,1,"Clarify the journey",reviewer_user,datetime("2026-10-02T09:00:00Z"),1 -> rejected,receipt,"Clarify the journey",reviewer_user,datetime("2026-10-02T09:00:00Z"),1,receipt,"Clarify the journey",2,true
+    submitted,1,null,null,null,1 -> error(rule_failed)
+    approved,1,null,null,null,1 -> error(rule_failed)
+    rejected,1,"Clarify the journey",reviewer_user,datetime("2026-10-02T09:00:00Z"),2 -> error(conflict)
+   examples seed=[reviewer_worker] expense=claim
+    expense.status,expense.submission,expense.withdrawal,test_worker.active -> expense.status,expense.withdrawal,expense.receipt,count(expense.Decision),count(expense.parent.Expense),any(expense.parent.Expense as replacement,replacement.corrects==expense and replacement.status==draft and replacement.receipt==receipt and replacement.amount==money(25,"EUR") and replacement.submission==1 and replacement.reviewer==expense.reviewer)
+    withdrawn,1,"Review unavailable",true -> withdrawn,"Review unavailable",receipt,0,2,true
+    withdrawn,1,"Review unavailable",false -> error(rule_failed)
+   examples seed=[] expense=claim
+    expense.location,expense.status -> expense.status
+    other_site,withdrawn -> error(rule_failed)
+  # Record one full same-currency reimbursement with external payment evidence. @{nl="Leg één volledige vergoeding in dezelfde valuta vast met extern betalingsbewijs."}
+  scenario reimburse(expense:Expense,amount:money,reference:text,paid:date label=label_Reimbursement_paid,reason:text) by=finance label="Record reimbursement"@{nl="Vergoeding vastleggen"}
+   require can_work(actor,expense.location) and expense.status==approved and amount==expense.amount and trim(reference)!="" and trim(reason)!="" and paid<=local_date(now,expense.location.timezone) and count(expense.Reimbursement)==0 and not any(Reimbursement as payment,payment.reference==trim(reference))
+   do
+    let review=first(expense.ExpenseReviewRequest as candidate order=-candidate.round)
+    require review!=null and approved_review(review)
+    require any(expense.Decision as decision,decision.review==review and decision.subject_version==review.subject_version and decision.submission==expense.submission and decision.approved and decision.amount==expense.amount and decision.receipt==expense.receipt and decision.reviewer==expense.reviewer)
+    create Reimbursement {parent=expense,amount,reference=trim(reference),paid,reason} as payment
+    set expense {status=reimbursed}
+   examples seed=[previous_payment,finance_worker,reviewer_worker,secondary_worker,receipt_extract,ready_review,primary_vote,secondary_vote,finalized_decision] expense=claim
+    as,expense.status,finance_worker.active,amount,reference,paid,reason,request.expense.version,expense.submission -> expense.status,count(expense.Reimbursement),any(expense.Reimbursement as payment,payment.reference=="bank-new" and payment.amount==money(25,"EUR") and payment.recorded_by==finance_user)
+    finance_user,approved,true,money(25,"EUR")," bank-new ",local_date(now,test_site.timezone),"Bank statement",1,1 -> reimbursed,1,true
+    finance_user,approved,true,money(25,"EUR"),"bank-previous",local_date(now,test_site.timezone),"Bank statement",1,1 -> error(rule_failed)
+    finance_user,approved,true,money(20,"EUR"),"bank-new",local_date(now,test_site.timezone),"Bank statement",1,1 -> error(rule_failed)
+    finance_user,approved,true,money(25,"USD"),"bank-new",local_date(now,test_site.timezone),"Bank statement",1,1 -> error(rule_failed)
+    finance_user,approved,true,money(25,"EUR"),"bank-new",add_days(local_date(now,test_site.timezone),1),"Bank statement",1,1 -> error(rule_failed)
+    finance_user,submitted,true,money(25,"EUR"),"bank-new",local_date(now,test_site.timezone),"Bank statement",1,1 -> error(rule_failed)
+    finance_user,reimbursed,true,money(25,"EUR"),"bank-new",local_date(now,test_site.timezone),"Bank statement",1,1 -> error(rule_failed)
+    ordinary_user,approved,true,money(25,"EUR"),"bank-new",local_date(now,test_site.timezone),"Bank statement",1,1 -> error(forbidden)
+    reviewer_user,approved,true,money(25,"EUR"),"bank-new",local_date(now,test_site.timezone),"Bank statement",1,1 -> error(forbidden)
+    finance_user,approved,false,money(25,"EUR"),"bank-new",local_date(now,test_site.timezone),"Bank statement",1,1 -> error(rule_failed)
+    finance_user,approved,true,money(25,"EUR"),"bank-new",local_date(now,test_site.timezone),"Bank statement",2,1 -> error(conflict)
+    finance_user,approved,true,money(25,"EUR")," ",local_date(now,test_site.timezone),"Bank statement",1,1 -> error(rule_failed)
+    finance_user,approved,true,money(25,"EUR"),"bank-new",local_date(now,test_site.timezone)," ",1,1 -> error(rule_failed)
+  # Retain source evidence under current finance authority without recreating a past approval or payment.
+  scenario retain_legacy(source:text,external_id:text,location:Location,claim:LegacyClaim,source_evidence:file,attestation:text) by=finance -> LegacyExpense label="Retain historical evidence"@{nl="Historisch bewijs bewaren"}
+   require can_work(actor,location) and trim(source)!="" and trim(external_id)!="" and trim(attestation)!=""
+   require not any(LegacyExpense archived=include as entry,entry.source==trim(source) and entry.external_id==external_id)
+   do
+    create LegacyExpense {source=trim(source),external_id,location,claim,source_evidence,attestation=trim(attestation)} as entry
+    return entry
+   examples seed=[test_worker,legacy_entry] source="vendor-a" external_id="old-18" location=test_site source_evidence=legacy_source attestation="Transcribed from retained export" claim={actor="Former employee 41",reviewer=null,decision_time_original=null,decided_at=null,paid=null,status="Unknown",purpose="Travel",amount=money(25,"EUR"),receipt=receipt,receipt_issue=null}
+    as,external_id,claim.receipt,claim.receipt_issue -> result.external_id,result.claim.actor,result.claim.status,result.claimant,result.imported_by
+    finance,"old-18",receipt,null -> "old-18","Former employee 41","Unknown",null,self
+    finance,"old-18",null,"Original receipt missing from export" -> "old-18","Former employee 41","Unknown",null,self
+    finance,"old-17",receipt,null -> error(rule_failed)
+    finance,"old-18",null,null -> error(rule_failed)
+    members,"old-18",receipt,null -> error(forbidden)
+   ## Actual calls change current access; viewer-read result counts, not inspection, establish visibility. Role fixtures remain fixed.
+   examples seed=[test_worker,finance_worker,ordinary_worker,hr_user,legacy_receipt_upload,legacy_source_upload]
+    do
+     let historical_claim=LegacyClaim {actor="Former employee 41",reviewer="Original reviewer",decision_time_original="2021-05-12T09:00:00Z",decided_at=datetime("2021-05-12T09:00:00Z"),paid=date("2021-05-20"),status="Paid",purpose="Historical travel",amount=money(25,"EUR"),receipt=legacy_receipt_upload,receipt_issue=null}
+     call retain_legacy {source="vendor-a",external_id="journey-1",location=test_site,claim=historical_claim,source_evidence=legacy_source_upload,attestation="Source export checked; no present-day approval inferred"} by=finance_user as retained
+     count(LegacyExpense),count(Expense),count(Decision),count(Reimbursement) -> 1,0,0,0
+     call legacy_matches {source="vendor-a",external_id="journey-1",location=test_site} by=self as before_access
+     count(before_access) -> 0
+     call link_legacy {entry=retained,claimant=self,reason="Verified source personnel key"} by=finance_user
+     call legacy_matches {source="vendor-a",external_id="journey-1",location=test_site} by=self as readable
+     count(readable) -> 1
+     let own_record=first(readable)
+     own_record!=null -> true
+     own_record.claim.actor,own_record.claim.status,own_record.claim.receipt -> "Former employee 41","Paid",legacy_receipt_upload
+     call link_legacy {entry=retained,claimant=null,reason="Stale mapping revision"} by=finance_user -> error(conflict)
+     let mapped=first(LegacyExpense as entry where entry.id==retained.id)
+     mapped!=null -> true
+     call link_legacy {entry=mapped,claimant=null,reason="Revoke mistaken account match"} by=finance_user
+     call legacy_matches {source="vendor-a",external_id="journey-1",location=test_site} by=self as revoked
+     count(revoked) -> 0
+     let unlinked=first(LegacyExpense as entry where entry.id==retained.id)
+     unlinked!=null -> true
+     call link_legacy {entry=unlinked,claimant=ordinary_user,reason="Verified corrected account match"} by=finance_user
+     call legacy_matches {source="vendor-a",external_id="journey-1",location=test_site} by=ordinary_user as corrected_access
+     count(corrected_access) -> 1
+     call retain_legacy {source="vendor-a",external_id="journey-1",location=test_site,claim=historical_claim,source_evidence=legacy_source_upload,attestation="Source export checked; no present-day approval inferred"} by=finance_user -> error(rule_failed)
+     call deactivate {employee=finance_worker,ended=date("2026-10-02")} by=hr_user
+     let current=first(LegacyExpense as entry where entry.id==retained.id)
+     current!=null -> true
+     call link_legacy {entry=current,claimant=null,reason="No current workplace eligibility"} by=finance_user -> error(rule_failed)
+     call link_legacy {entry=current,claimant=null,reason="No finance role"} by=ordinary_user -> error(forbidden)
+     call legacy_matches {source="vendor-a",external_id="journey-1",location=test_site} by=finance_user as former_steward
+     count(former_steward),current.claim.actor,current.claim.status,current.claim.decided_at,current.claim.paid,current.imported_by,count(Expense),count(Decision),count(Reimbursement) -> 0,"Former employee 41","Paid",datetime("2021-05-12T09:00:00Z"),date("2021-05-20"),finance_user,0,0,0
+  # Find readable historical source identities for intake review and private evidence lookup. @{nl="Vind leesbare historische bronidentiteiten voor invoercontrole en privé-inzage in bewijs."}
+  scenario legacy_matches(source:text,external_id:text,location:Location) read=true -> LegacyExpense[] by=authenticated label="Find historical evidence"@{nl="Historisch bewijs zoeken"}
+   do return LegacyExpense as entry where entry.source==trim(source) and entry.external_id==external_id and entry.location==location
+   examples seed=[test_worker,legacy_entry] source="vendor-a" external_id="old-17" location=test_site
+    as -> count(result)
+    finance -> 1
+    members -> 0
+    public -> error(forbidden)
+  # Grant or revoke current claimant access after an evidenced account match; historical actor text remains immutable.
+  scenario link_legacy(entry:LegacyExpense,claimant:user?,reason:text) by=finance label="Change historical access"@{nl="Historische toegang wijzigen"}
+   require can_work(actor,entry.location) and trim(reason)!=""
+   require claimant==null or any(Employee archived=include as worker,worker.user==claimant and (worker.home==entry.location or entry.location in worker.locations))
+   do set entry {claimant,access_reason=trim(reason)}
+   examples seed=[test_worker] entry=legacy_entry claimant=self reason="Verified original personnel key against current account"
+    as,entry.claimant,claimant,reason,request.entry.version -> entry.claimant,entry.claim.actor,entry.claim.decided_at,entry.access_reason
+    finance,null,self,"Verified match",1 -> self,"Former employee 41",datetime("2021-05-12T09:00:00Z"),"Verified match"
+    finance,self,null,"Revoke mistaken access mapping",1 -> null,"Former employee 41",datetime("2021-05-12T09:00:00Z"),"Revoke mistaken access mapping"
+    finance,null,other,"No matching roster identity",1 -> error(rule_failed)
+    finance,null,self," ",1 -> error(rule_failed)
+    finance,null,self,"Verified match",2 -> error(conflict)
+    members,null,self,"Verified match",1 -> error(forbidden)
+ Then
+  preferences { status:Expense.status? }
+  # Submit your receipts and see their private decision history. @{nl="Dien je bonnen in en bekijk hun privébesluithistorie."}
+  page /expenses/mine title="My expenses"@{nl="Mijn onkosten"}
+   breadcrumbs
+   require members
+   card "Claim intake"@{nl="Declaratie aanmaken"}
+    list Employee as claimant where claimant.user==actor and claimant.active
+     pagination
+     list Location as site where actor!=null and can_work(actor,site)
+      pagination
+      form reviewer_choices arguments={location=site}
+       list result as candidate columns=name,user,role,home
+        pagination
+        form Expense.create arguments={parent=claimant,location=site,reviewer=candidate.user} display=inline
+         fieldset "Claim details"@{nl="Declaratiegegevens"}
+          input category
+          textarea purpose
+          input authorization
+          calendar business_date
+          file_input receipt
+   ## In-context saved default for the own-claims status filter below; the toolbar keeps current-view control.
+   filter preferences.status
+   list Expense as expense where expense.parent.user==actor order=-expense.business_date filter=status,location,category,business_date defaults={status=preferences.status} display=split empty="No claims yet."@{nl="Nog geen declaraties."}
+    pagination
+    card "Own claim and receipt"@{nl="Eigen declaratie en bon"}
+     badge row.status
+     text row.purpose,row.authorization,row.corrects,row.business_date,row.amount,row.receipt,row.submission,row.decision,row.withdrawal
+     link target=row.receipt caption="Download receipt"@{nl="Bon downloaden"}
+     edit
+      file_input receipt
+     divider "Actions"@{nl="Acties"}
+     action submit
+     button opens=withdraw_claim
+     modal "Withdraw unavailable review"@{nl="Onbeschikbare beoordeling intrekken"} id=withdraw_claim
+      slot content
+       form withdraw arguments={expense=row} display=inline
+        textarea reason
+     tooltip "Create one correction draft from this claim"@{nl="Maak één correctieconcept van deze declaratie"}
+      action correct
+     ## Receipt transcription stays on the claim (amount keeps its generated money control).
+     form transcribe_receipt
+      input source
+      calendar spent_on
+      input merchant
+     list row.ReceiptExtract
+      pagination
+      text row.source,row.merchant,row.amount,row.spent_on
+    card "Correction comparison"@{nl="Vergelijking correctie"}
+     require row.corrects!=null
+     diff
+      slot before
+       text row.corrects.purpose,row.corrects.amount,row.corrects.receipt
+      slot after
+       text row.purpose,row.amount,row.receipt
+    accordion
+     collapse "Recorded decisions"@{nl="Vastgelegde besluiten"}
+      timeline row.Decision
+       slot item
+        pagination
+        text row.submission,row.amount,row.receipt,row.approved,row.reason,row.decided_at
+     collapse evidenced_reimbursement_caption
+      timeline row.Reimbursement
+       slot item
+        pagination
+        text row.reference,row.amount,row.paid,row.reason
+        copy row.reference
+    history
+  # Review assigned claims and record evidenced reimbursement under finance grants. @{nl="Beoordeel toegewezen declaraties en leg onderbouwde vergoeding vast binnen financiële bevoegdheden."}
+  page /expenses/review title="Expense review"@{nl="Onkostenbeoordeling"}
+   breadcrumbs
+   require reviewer or finance
+   ## In-context saved default for the review-queue status filter below.
+   filter preferences.status
+   board Expense by=status columns=parent,location,purpose,business_date,amount,receipt order=business_date search=purpose filter=status,location,category,business_date defaults={status=preferences.status} empty="No assigned submissions."@{nl="Geen toegewezen declaraties."}
+    pagination
+    card "Frozen claim review"@{nl="Vastgelegde declaratie beoordelen"}
+     badge row.status
+     text row.authorization,row.corrects,row.submission,row.reviewer,row.decision,row.decided_by,row.decided_at
+     button opens=decide_claim
+     modal "Record decision"@{nl="Besluit vastleggen"} id=decide_claim
+      slot content
+       form decide arguments={expense=row} display=inline
+        fieldset "Decision"@{nl="Besluit"}
+         checkbox approve
+         textarea reason
+        validator approve
+     button opens=reimburse_claim
+     modal "Record reimbursement"@{nl="Vergoeding vastleggen"} id=reimburse_claim
+      slot content
+       form reimburse arguments={expense=row} display=inline
+        fieldset "Payment evidence"@{nl="Betalingsbewijs"}
+         input reference
+         calendar paid
+         textarea reason
+        validator reference
+     list row.ReceiptExtract
+      pagination
+      text row.source,row.merchant,row.amount,row.spent_on
+    tabs
+     tab "Recorded decisions"@{nl="Vastgelegde besluiten"}
+      list row.Decision
+       pagination
+       text row.submission,row.amount,row.receipt,row.reviewer,row.approved,row.reason,row.decided_at
+     tab evidenced_reimbursement_caption
+      list row.Reimbursement
+       pagination
+       text row.reference,row.amount,row.paid,row.reason,row.recorded_by
+   card "Awaiting reimbursement"@{nl="Wacht op vergoeding"}
+    table Expense as expense where expense.status==approved columns=parent,location,purpose,amount,receipt,status filter=parent,location,category,business_date display=split empty="No pending reimbursements."@{nl="Geen openstaande vergoedingen."}
+     pagination
+     button opens=reimburse_queue
+     modal "Record reimbursement"@{nl="Vergoeding vastleggen"} id=reimburse_queue
+      slot content
+       form reimburse arguments={expense=row} display=inline
+        fieldset "Payment evidence"@{nl="Betalingsbewijs"}
+         input reference
+         calendar paid
+         textarea reason
+        validator reference
+   card "Accounting evidence"@{nl="Boekhoudbewijs"}
+    table Reimbursement columns=parent,reference,amount,paid,reason,recorded_by order=-paid filter=paid empty="No accounting entries."@{nl="Geen boekhoudregels."}
+     pagination
+  # Retain historical evidence separately from current approvals and payment actions. @{nl="Bewaar historisch bewijs afzonderlijk van huidige goedkeuringen en betalingsacties."}
+  page /expenses/history title="Historical expense evidence"@{nl="Historisch onkostenbewijs"}
+   breadcrumbs
+   require authenticated
+   card "Retain source records"@{nl="Bronrecords bewaren"}
+    require finance
+    form retain_legacy import=csv review=legacy_matches
+   card "Find a source record"@{nl="Een bronrecord zoeken"}
+    form legacy_matches
+     list result columns=source,external_id,location empty="No source matches."@{nl="Geen bronovereenkomsten."}
+      pagination
+      text row.claim.actor,row.claim.status,row.claim.receipt
+   table LegacyExpense as entry columns=source,external_id,location display=split empty="No historical records."@{nl="Geen historische records."}
+    pagination
+    text entry.claim.actor,entry.claim.reviewer,entry.claim.decision_time_original,entry.claim.decided_at,entry.claim.paid,entry.claim.status,entry.claim.purpose,entry.claim.amount,entry.claim.receipt,entry.claim.receipt_issue
+    card "Current access mapping"@{nl="Huidige toegangstoewijzing"}
+     require finance
+     button opens=map_access
+     modal "Change historical access"@{nl="Historische toegang wijzigen"} id=map_access
+      slot content
+       form link_legacy arguments={entry=entry} display=inline
+        textarea reason
+     link target=entry.source_evidence caption="Download source export"@{nl="Bronexport downloaden"}
+     text entry.access_reason,entry.attestation,entry.imported_by,entry.imported_at,entry.source_evidence
+     history
+  ## New protected review surfaces expose only State-admitted frozen evidence, never HR private fields.
+  page /expenses/concurrence title="Independent expense review"
+   require members
+   breadcrumbs
+   list Expense as expense where expense.parent.user==actor and expense.status==submitted
+    pagination
+    text row.purpose,row.amount,row.receipt,row.reviewer,row.submission
+    form request_review arguments={expense=row}
+     ## A user reference retains its generated entry; there is no invented directory picker.
+     input secondary
+     input expires
+   list ExpenseReviewRequest as review order=-created empty="No readable review requests"
+    pagination
+    text row.round,row.state,row.requester,row.primary,row.secondary,row.expires,row.submission,row.subject_version,row.location,row.authorization,row.purpose,row.category,row.amount,row.business_date,row.receipt,row.reason
+    form approve_review arguments={review=row}
+     textarea reason
+    form reject_review arguments={review=row}
+     textarea reason
+    action expire_review
+    form escalate_review arguments={review=row}
+     textarea reason
+    form supersede_review arguments={review=row}
+     input secondary
+     input expires
+     textarea reason
+    list row.ExpenseReviewVote order=voted_at
+     pagination
+     text row.voter,row.approved,row.reason,row.voted_at
+  page /expenses/unpaid-review-recovery title="Unpaid review recovery"
+   require finance
+   breadcrumbs
+   list Expense as expense where expense.status==approved
+    pagination
+    text row.purpose,row.amount,row.receipt,row.status,row.decision
+    form invalidate_unpaid arguments={expense=row}
+     textarea reason
+    list row.Decision
+     pagination
+     text row.review,row.subject_version,row.reviewer,row.approved,row.reason
+    list row.Reimbursement
+     pagination
+     text row.amount,row.reference,row.paid

@@ -13,6 +13,8 @@ import type {
   RecordVersion,
   StoredRow,
 } from '@canlang/contracts';
+import { DELIVERY_RESULT_LEAVES } from '@canlang/contracts';
+import { RECEIPT_MODEL, newReceiptRow, readReceiptRow } from '@canlang/state/receipt/tables';
 import type {
   SystemCommandContext,
   SystemCommandDef,
@@ -30,6 +32,7 @@ import {
   newScheduleRow,
   newSupersessionRow,
   readDispatchRow,
+  readDispatchImageControlPin,
 } from '../src/kernel/tables.js';
 import { KernelTableError } from '../src/kernel/tables.js';
 import {
@@ -37,6 +40,8 @@ import {
   createWorkDispatchClaimCommand,
   WORK_SYSTEM_COMMANDS,
   workDispatchClaimCommand,
+  workDispatchStopPendingCommand,
+  workDispatchPinImageControlCommand,
   workDispatchRecordAttemptCommand,
   workDispatchRequeueCommand,
   workDispatchReleaseCommand,
@@ -115,14 +120,14 @@ function dispatchRow(
 }
 
 describe('kernel commands: registry shape', () => {
-  it('exports 9 uniquely named dot-namespaced commands', () => {
-    assert.equal(WORK_SYSTEM_COMMANDS.length, 9);
+  it('exports 11 uniquely named dot-namespaced commands', () => {
+    assert.equal(WORK_SYSTEM_COMMANDS.length, 11);
     assert.equal(portableSchedulePutCommand, workSchedulePutCommand);
     assert.equal(portableScheduleCancelCommand, workScheduleCancelCommand);
     assert.ok(WORK_SYSTEM_COMMANDS.includes(portableSchedulePutCommand));
     assert.ok(WORK_SYSTEM_COMMANDS.includes(portableScheduleCancelCommand));
     const names = WORK_SYSTEM_COMMANDS.map((command) => command.name);
-    assert.equal(new Set(names).size, 9);
+    assert.equal(new Set(names).size, 11);
     for (const name of names) {
       assert.match(name, /^work\.[a-z-]+\.[a-z-]+$/);
     }
@@ -130,14 +135,154 @@ describe('kernel commands: registry shape', () => {
     // alongside (`[...l3Commands, ...WORK_SYSTEM_COMMANDS,
     // ...WORK_DISPATCH_STAGE_COMMANDS]` — the composition helper lives
     // worker-side in `assembly.ts`), so the composed work-side shape is
-    // 11 uniquely named commands. `WORK_SYSTEM_COMMANDS` itself stays 9.
+    // 13 uniquely named commands including Images pending stop/control pin.
     const composed = [...WORK_SYSTEM_COMMANDS, ...WORK_DISPATCH_STAGE_COMMANDS];
-    assert.equal(composed.length, 11);
+    assert.equal(composed.length, 13);
     const composedNames = composed.map((command) => command.name);
-    assert.equal(new Set(composedNames).size, 11);
+    assert.equal(new Set(composedNames).size, 13);
     for (const name of composedNames) {
       assert.match(name, /^work\.[a-z-]+\.[a-z-]+$/);
     }
+  });
+});
+
+describe('kernel commands: dispatch.pin-image-control', () => {
+  const correlation = { requestSource: 'Acme.Draft.poster', requestRevision: '3',
+    requestBinding: 'Acme.Images', requestFrom: 'deployment.images', requestApp: 'Acme', requestOwner: 'team-1' };
+  const originalIntentId = 'original-image';
+  const original = dispatchRow(originalIntentId, { source: 'std.ImagesV1.submit', ...correlation });
+  const control = (over: Record<string, unknown> = {}) => dispatchRow('control-image', {
+    source: 'std.ImagesV1.cancel', state: 'claimed', claimId: 'control-claim', claimedAtMs: NOW,
+    ...correlation, ...over,
+  });
+  const args = { intentId: 'control-image', claimId: 'control-claim', originalIntentId, correlation,
+    observation: { startedAtMs: NOW, deadlineMs: NOW + 1000 } };
+  const ctx = (row = control(), submit = original) => fakeCtx(seed([
+    { model: WORK_DISPATCH_MODEL, row }, { model: WORK_DISPATCH_MODEL, row: submit },
+  ]));
+
+  it('pins the exact original and fixed window under either real control claim, then preserves expired replay', async () => {
+    for (const source of ['std.ImagesV1.cancel', 'std.ImagesV1.reconcile']) {
+      const row = control({ source });
+      const staged = await runStage(workDispatchPinImageControlCommand.stage, args, ctx(row));
+      assert.equal(staged.writes?.length, 1);
+      const write = staged.writes![0]!; assert.equal(write.kind, 'update');
+      if (write.kind !== 'update') return;
+      assert.equal(write.expectedVersion, row.version);
+      const pin = { originalIntentId, observationStartedAtMs: NOW, observationDeadlineMs: NOW + 1000 };
+      assert.deepEqual(readDispatchImageControlPin(readDispatchRow(write.row)), pin);
+      assert.deepEqual(readDispatchRow(write.row), { ...readDispatchRow(row), ...pin });
+      assert.equal(staged.outboxAck, undefined);
+      const replay = await runStage(workDispatchPinImageControlCommand.stage, args, { ...ctx(write.row), now: NOW + 2000 });
+      assert.equal(replay.writes, undefined);
+      assert.deepEqual(replay.result, { pinned: true, existing: true, intentId: row.id, ...pin });
+      await assert.rejects(runStage(workDispatchPinImageControlCommand.stage, {
+        ...args, observation: { startedAtMs: NOW, deadlineMs: NOW + 2000 },
+      }, ctx(write.row)), /cannot be renewed/);
+    }
+  });
+
+  it('refuses foreign correlation, identity, claim, malformed/future/expired or over-cap windows without writes', async () => {
+    for (const over of [{ claimId: 'lost' }, { state: 'pending' }, { source: 'std.ImagesV1.submit' },
+      { intentId: 'foreign' }, { claimedAtMs: null }, { requestOwner: 'foreign' }]) {
+      await assert.rejects(runStage(workDispatchPinImageControlCommand.stage, args, ctx(control(over))));
+    }
+    await assert.rejects(runStage(workDispatchPinImageControlCommand.stage, args,
+      ctx(control(), dispatchRow(originalIntentId, { ...correlation, source: 'std.ImagesV1.reconcile' }))));
+    for (const observation of [{ startedAtMs: NOW + 1, deadlineMs: NOW + 1000 },
+      { startedAtMs: NOW, deadlineMs: NOW }, { startedAtMs: NOW, deadlineMs: Infinity },
+      { startedAtMs: NOW, deadlineMs: NOW + 2_147_483_648 },
+      { startedAtMs: NOW, deadlineMs: NOW + 1000, extra: true },
+      Object.defineProperty({ deadlineMs: NOW + 1000 }, 'startedAtMs', { get: () => { throw new Error('getter must not run'); } })]) {
+      await assert.rejects(runStage(workDispatchPinImageControlCommand.stage, { ...args, observation }, ctx()), KernelTableError);
+    }
+    await assert.rejects(runStage(workDispatchPinImageControlCommand.stage, {
+      ...args, originalIntentId: 'missing-original',
+    }, ctx()));
+    assert.throws(() => readDispatchRow(control({ originalIntentId })), /Incomplete/);
+  });
+});
+
+describe('kernel commands: dispatch.stop-pending', () => {
+  const intentId = 'op_images#0';
+  const correlation = { requestSource: 'Acme.Draft.poster', requestRevision: '3',
+    requestBinding: 'Acme.Images', requestFrom: 'deployment.images', requestApp: 'Acme', requestOwner: 'team-1' };
+  const context = { source: 'std.ImagesV1.submit',
+    declaredResult: { name: 'ImageRun', fields: DELIVERY_RESULT_LEAVES['ImageRun']! },
+    request: { source: correlation.requestSource, revision: correlation.requestRevision } };
+  const args = { intentId, correlation, revision: 10 };
+  const original = (over: Record<string, unknown> = {}) => dispatchRow(intentId, {
+    source: context.source, ...correlation, ...over,
+  });
+  const receipt = (over: Record<string, unknown> = {}) => {
+    const row = newReceiptRow({ deliveryId: intentId, revision: 4, status: 'pending',
+      result: null, error: null, contentRef: null, resultExpiresAtMs: null }, { nowMs: NOW, actor: ACTOR });
+    return { ...row, data: { ...row.data, ...over } };
+  };
+  const ctx = (row: StoredRow, retained = receipt()) => fakeCtx(seed([
+    { model: WORK_DISPATCH_MODEL, row }, { model: RECEIPT_MODEL as ModelName, row: retained },
+  ]));
+
+  it('stages pending and currently claimed original skips with exact versions and preserved origin/correlation', async () => {
+    for (const state of ['pending', 'claimed']) {
+      const row = original({ state, ...(state === 'claimed' ? { claimId: 'provider-claim', claimedAtMs: NOW } : {}) });
+      const retained = receipt();
+      const staged = await runStage(workDispatchStopPendingCommand.stage, args, ctx(row, retained));
+      assert.deepEqual(staged.result, { stopped: true, intentId, receiptRevision: 10 });
+      assert.deepEqual(staged.outboxAck, [intentId]);
+      assert.equal(staged.writes?.length, 2);
+      const dispatch = staged.writes![0]!; const skipped = staged.writes![1]!;
+      assert.equal(dispatch.kind, 'update'); assert.equal(skipped.kind, 'update');
+      if (dispatch.kind !== 'update' || skipped.kind !== 'update') return;
+      assert.equal(dispatch.expectedVersion, row.version);
+      assert.equal(skipped.expectedVersion, retained.version);
+      assert.deepEqual(readDispatchRow(dispatch.row), { ...readDispatchRow(row),
+        state: 'pending', guardVerdict: false, claimId: null, claimedAtMs: null });
+      assert.deepEqual(readReceiptRow(skipped.row, context).receipt, {
+        deliveryId: intentId, revision: 10, status: 'skipped', result: null, error: null,
+      });
+      const replay = await runStage(workDispatchStopPendingCommand.stage, args, ctx(dispatch.row, skipped.row));
+      assert.equal((replay.result as { reason: string }).reason, 'already-stopped');
+      assert.equal(replay.writes, undefined); assert.equal(replay.outboxAck, undefined);
+      await assert.rejects(runStage(workDispatchRecordAttemptCommand.stage, {
+        intentId, claimId: 'provider-claim', outcome: { state: 'delivered' }, ack: true,
+      }, ctx(dispatch.row, skipped.row)), /does not hold/);
+    }
+  });
+
+  it('never skips actual queued progress, terminal receipts, settled dispatches or an earlier attempt', async () => {
+    const queued = { source: correlation.requestSource, revision: '3',
+      state: 'queued', outputs: [], detail: null, sequence: '0', charged_jobs: null };
+    for (const [row, retained, reason] of [
+      [original({ state: 'claimed', claimId: 'provider-claim', claimedAtMs: NOW }), receipt({ result: queued }), 'receipt-started'],
+      [original(), receipt({ status: 'succeeded' }), 'receipt-settled'],
+      [original({ state: 'delivered' }), receipt(), 'settled'],
+      [original({ attempts: 1, firstAttemptAtMs: NOW }), receipt(), 'attempted'],
+    ] as const) {
+      const staged = await runStage(workDispatchStopPendingCommand.stage, args, ctx(row, retained));
+      assert.equal((staged.result as { stopped: boolean; reason: string }).stopped, false);
+      assert.equal((staged.result as { reason: string }).reason, reason);
+      assert.equal(staged.writes, undefined); assert.equal(staged.outboxAck, undefined);
+    }
+  });
+
+  it('refuses malformed original identity, correlation, receipt and checkpoints without stages', async () => {
+    for (const over of [{ source: 'std.ImagesV1.cancel' }, { requestOwner: 'foreign' },
+      { requestRevision: '03' }, { intentId: 'different' }, { state: 'claimed' }]) {
+      await assert.rejects(runStage(workDispatchStopPendingCommand.stage, args, ctx(original(over))));
+    }
+    for (const over of [{ deliveryId: 'different' }, { error: { code: 'failed', message: 'failed' } },
+      { result: { state: 'queued' } }, { result: undefined }, { contentRef: 'content' }]) {
+      await assert.rejects(runStage(workDispatchStopPendingCommand.stage, args, ctx(original(), receipt(over))));
+    }
+    for (const over of [{ revision: 4 }, { revision: Infinity }, { revision: 1.5 },
+      { correlation: { ...correlation, extra: 'unexpected' } }, { correlation: { ...correlation, requestApp: 'foreign' } },
+      { extra: true }]) {
+      await assert.rejects(runStage(workDispatchStopPendingCommand.stage, { ...args, ...over }, ctx(original())));
+    }
+    await assert.rejects(runStage(workDispatchStopPendingCommand.stage, args, fakeCtx(seed([]))));
+    await assert.rejects(runStage(workDispatchStopPendingCommand.stage, args,
+      fakeCtx(seed([{ model: WORK_DISPATCH_MODEL, row: original() }]))));
   });
 });
 

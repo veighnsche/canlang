@@ -3,23 +3,34 @@ import { test } from 'node:test';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { createServer } from 'node:http';
+import { chromium } from '@playwright/test';
 import type { D1Database } from '@cloudflare/workers-types';
 import { Miniflare } from 'miniflare';
 import type { CompileArtifact, DerivedOperationInputs, PresentationContext, StoragePort } from '@canlang/contracts';
 import { CSRF_FIELD } from '@canlang/contracts';
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
-import { FIXED_NOW, asModel, asId, makeRow, makeBatch, asOperation, asOperationId, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
-import { buildSessionCookie, createD1IdentityStore, deriveCsrfToken, ensureIdentitySchema, sha256HexText } from '@canlang/identity';
+import { FIXED_NOW, asModel, asId, asVersion, makeRow, makeBatch, asOperation, asOperationId, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
+import { buildSessionCookie, createD1IdentityStore, deriveCsrfToken, ensureIdentitySchema, issueMcpGrant, sha256HexText } from '@canlang/identity';
 import { catalogFromArtifactOperations, handleOperationRequest, INPUT_CHOICES_VERSION } from '@canlang/interfaces/http/operations';
-import type { HttpDeps } from '@canlang/interfaces';
-import { generatedForm } from '@canlang/ui';
+import { createAssetTable, handleAssetsRequest } from '@canlang/interfaces/http/assets';
+import { createMcpHandler } from '@canlang/interfaces/mcp/server';
+import type { HttpDeps, McpDeps } from '@canlang/interfaces';
+import { resolveRequestIdentity } from '@canlang/interfaces';
+import { generatedForm, message, renderPage } from '@canlang/ui';
 import type { SubmitFetch, SubmitFetchInit } from '@canlang/ui';
 import { startBrowserClient, type BrowserClientOptions } from '@canlang/ui/browser/bootstrap';
 import { Window, type HTMLInputElement, type HTMLSelectElement } from 'happy-dom';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
-import { assembleWorker } from '@canlang/cloudflare/worker/assembly';
+import { assembleWorker, buildInvoker } from '@canlang/cloudflare/worker/assembly';
+import { gatherBrowserAssets } from '@canlang/cloudflare/deploy/package-assets';
+import { createMemberMcpPermissions } from './mcp-permissions.js';
 
 const fixturePath = resolve('packages/cloudflare/test/fixtures/input-choices.json');
+
+// Browser-evaluated callbacks use the native document; this Node test has no DOM lib.
+type ChromiumGlobals = { document: { activeElement: unknown;
+  querySelector(selector: string): { textContent: string | null; getAttribute(name: string): string | null } | null } };
 
 test('genuine dependent choices use current native D1 grants and the original generated form controls', async () => {
   const artifact = JSON.parse(await readFile(fixturePath, 'utf8')) as CompileArtifact;
@@ -44,6 +55,10 @@ test('genuine dependent choices use current native D1 grants and the original ge
     const asm = await assembleModules({ artifact, sourcePath: fixturePath }, {
       workDir: join(dir, 'modules'), stdlibUrl: import.meta.resolve('@canlang/cloudflare/runtime/stdlib'),
       uiUrl: import.meta.resolve('@canlang/ui') });
+    const resources = gatherBrowserAssets().resources;
+    const assetTable = createAssetTable(Object.entries(resources).map(([key, resource]) => ({
+      key, bytes: resource.bytes, mime: resource.contentType, cache: { maxAgeSeconds: 0, immutable: false },
+    })));
     const catalog = catalogFromArtifactOperations(artifact);
     const derivedInputs: Record<string, DerivedOperationInputs> = {};
     for (const operation of artifact.operations ?? []) {
@@ -64,6 +79,11 @@ test('genuine dependent choices use current native D1 grants and the original ge
     const countries = [id(), id(), id()]; const regions = [id(), id()];
     const sites = [id(), id()]; const document = id(); const submission = id();
     const employee = id(); const otherEmployee = id();
+    const copyTarget = id(); const copySource = id();
+    const navigationDocument = id(); const navigationSubmission = id();
+    const missingParent = id(); const missingParentSubmission = id();
+    const projectedParents = [id(), id()]; const projectedChildren = [id(), id(), id()];
+    const privateParent = id(); const privateChildren = [id(), id()];
     const rows = [
       { model: 'Country', id: countries[0]!, data: { name: 'First', active: true } },
       { model: 'Country', id: countries[1]!, data: { name: 'Second', active: true } },
@@ -72,10 +92,24 @@ test('genuine dependent choices use current native D1 grants and the original ge
         parent: { model: asModel('InputChoices.Country'), id: asId(countries[index]!) } })),
       ...sites.map((record, index) => ({ model: 'Site', id: record, data: { name: `Site ${index + 1}` } })),
       { model: 'Document', id: document, data: { site: { id: sites[0] } } },
+      { model: 'Document', id: copyTarget, data: { site: { id: sites[0] } } },
+      { model: 'Document', id: copySource, data: { site: { id: sites[1] } } },
+      { model: 'Document', id: navigationDocument, data: { site: { id: sites[0] } } },
       { model: 'Submission', id: submission, data: { note: 'Submitted' },
         parent: { model: asModel('InputChoices.Document'), id: asId(document) } },
+      { model: 'Submission', id: navigationSubmission, data: { note: 'Navigation draft' },
+        parent: { model: asModel('InputChoices.Document'), id: asId(navigationDocument) } },
+      { model: 'Submission', id: missingParentSubmission, data: { note: 'Missing parent draft' },
+        parent: { model: asModel('InputChoices.Document'), id: asId(missingParent) } },
       { model: 'Employee', id: employee, data: { user: { id: reviewer.user_id }, name: 'Reviewer', role: 'Approver', home: { id: sites[0] } } },
       { model: 'Employee', id: otherEmployee, data: { user: { id: user.user_id }, name: 'Elsewhere', role: 'Approver', home: { id: sites[1] } } },
+      ...projectedParents.map((record, index) => ({ model: 'Parent', id: record,
+        data: { site: { id: sites[index] }, label: `Projected parent ${index + 1}`, kind: index === 0 ? 'business' : 'other business' } })),
+      ...projectedChildren.map((record, index) => ({ model: 'Child', id: record, data: { label: `Child ${index + 1}` },
+        parent: { model: asModel('InputChoices.Parent'), id: asId(projectedParents[index < 2 ? 0 : 1]!) } })),
+      { model: 'PrivateParent', id: privateParent, data: { site: { id: sites[0] }, label: 'Owner-only parent' } },
+      ...privateChildren.map((record, index) => ({ model: 'PrivateChild', id: record, data: { label: `Private child ${index + 1}` },
+        parent: { model: asModel('InputChoices.PrivateParent'), id: asId(privateParent) } })),
     ];
     await storage.state.commit(makeBatch(await storage.state.readRevision(), { writes: rows.map(record => ({
       kind: 'insert', model: asModel(`InputChoices.${record.model}`), row: {
@@ -95,9 +129,14 @@ test('genuine dependent choices use current native D1 grants and the original ge
       return result;
     } });
     const assemble = () => assembleWorker(artifact, asm, { store: countedStore(), identityStore: storage.identity,
-      now: () => FIXED_NOW, http: { derivedInputs, createOperationHandler: Object.assign(
+      now: () => FIXED_NOW, http: { derivedInputs,
+        loadBrowserAssets: async () => ({ paths: Object.keys(resources).map(key => `/assets/${key}`),
+          fetch: request => handleAssetsRequest(assetTable, request) }),
+        createOperationHandler: Object.assign(
         (deps: unknown) => (request: Request, operation: string) => handleOperationRequest(deps as HttpDeps, request, operation),
-        { inputChoicesVersion: INPUT_CHOICES_VERSION }) } }, { active: true });
+        { inputChoicesVersion: INPUT_CHOICES_VERSION }) },
+      mcp: { derivedInputs, permissions: createMemberMcpPermissions(artifact),
+        createHandler: deps => createMcpHandler(deps as unknown as McpDeps) } }, { active: true });
     let worker = await assemble();
     const post = (operation: string, inputs: Record<string, unknown>, options: { auth?: boolean; csrf?: boolean; operationId?: string } = {}) =>
       worker.fetch(new Request(`https://test.invalid/api/operations/InputChoices.${operation}`, {
@@ -169,10 +208,11 @@ test('genuine dependent choices use current native D1 grants and the original ge
     let choiceRequests = 0;
     const fetchImpl: SubmitFetch = async (url, init) => {
       if (url.includes('/choices/')) {
-        choiceRequests++; assert.ok(init.signal); signals.push(init.signal);
+        choiceRequests++; assert.ok(init.signal);
+        if (url.endsWith('/choices/region')) signals.push(init.signal);
       }
       // Bind the hold to this request's phase before the real worker yields.
-      const held = hold && url.includes('/choices/')
+      const held = hold && url.endsWith('/choices/region')
         ? new Promise<void>(resolve => releases.push(resolve)) : undefined;
       const transport = (async () => {
         const response = await worker.fetch(new Request(new URL(url, 'https://test.invalid'), {
@@ -305,6 +345,524 @@ test('genuine dependent choices use current native D1 grants and the original ge
       await cleanup(() => window.happyDOM.close());
     }
     if (failure !== undefined) throw failure.value;
+
+    // This separate client uses Chromium's native fetch/FormData and the
+    // installed, served bootstrap. Only the transport response is delayed;
+    // every candidate and final request executes the original assembled Worker.
+    const browserSaveNonce = id(); let browserUserNonce = id();
+    const renderBrowserPage = async () => renderPage(context, {
+      owner: 'InputChoices', path: '/form', title: message('Dependent choices'),
+      admit: async () => ({}), render: async () => '',
+    }, [await render(save, browserSaveNonce, 'browser-save', {
+      country: countries[0], country__version: '1', note: 'Chromium draft',
+    }), await render(submit, browserUserNonce, 'browser-reviewer', { document, document__version: '1' })], {
+      brand: message('InputChoices'), navigation: { groups: [], incomplete: false },
+      routes: { signIn: '/auth/sign-in', signOut: '/auth/sign-out', switchTeam: '/auth/switch-team' },
+      account: { authenticated: false, teams: [] }, settings: { sections: [] },
+    });
+    let html = await renderBrowserPage();
+    type Traffic = { path: string; inputs: Record<string, unknown>; operationId: string;
+      status: number; body: { code?: string; message?: string; result?: unknown; choices?: Array<{ value: unknown; labels: string[] }> } };
+    const traffic: Traffic[] = [];
+    const serverErrors: unknown[] = [];
+    const heldResponses: Array<() => void> = [];
+    const closedHeldResponses: boolean[] = [];
+    let heldCountry: string | undefined;
+    const server = createServer(async (incoming, outgoing) => {
+      try {
+        const address = server.address(); assert.ok(address && typeof address !== 'string');
+        const url = new URL(incoming.url ?? '/', `http://127.0.0.1:${address.port}`);
+        if (incoming.method === 'GET' && url.pathname === '/form') {
+          outgoing.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); outgoing.end(html); return;
+        }
+        const chunks: Buffer[] = [];
+        for await (const chunk of incoming) chunks.push(Buffer.from(chunk));
+        const body = Buffer.concat(chunks).toString('utf8');
+        const headers = new Headers();
+        for (const [name, value] of Object.entries(incoming.headers)) {
+          if (value !== undefined) headers.set(name, Array.isArray(value) ? value.join(', ') : value);
+        }
+        const response = await worker.fetch(new Request(url, { method: incoming.method ?? 'GET', headers,
+          ...(body === '' ? {} : { body }) }));
+        const bytes = Buffer.from(await response.arrayBuffer());
+        if (body !== '') {
+          const requestBody = JSON.parse(body) as { operation_id: string; inputs: Record<string, unknown> };
+          traffic.push({ path: url.pathname, inputs: requestBody.inputs, operationId: requestBody.operation_id,
+            status: response.status, body: JSON.parse(bytes.toString('utf8')) as Traffic['body'] });
+          const country = requestBody.inputs['country'] as { id?: string } | undefined;
+          if (url.pathname.endsWith('/choices/region') && country?.id === heldCountry) {
+            const index = heldResponses.length; closedHeldResponses[index] = false;
+            outgoing.once('close', () => { closedHeldResponses[index] = true; });
+            await new Promise<void>(release => heldResponses.push(release));
+          }
+        }
+        outgoing.writeHead(response.status, Object.fromEntries(response.headers)); outgoing.end(bytes);
+      } catch (error) {
+        serverErrors.push(error); outgoing.writeHead(500); outgoing.end('HTTP bridge failed');
+      }
+    });
+    let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.once('error', reject); server.listen(0, '127.0.0.1', () => { server.off('error', reject); resolve(); });
+      });
+      const address = server.address(); assert.ok(address && typeof address !== 'string');
+      const origin = `http://127.0.0.1:${address.port}`;
+      const chromeExecutable = process.env['CANLANG_CHROME_EXECUTABLE'];
+      browser = await chromium.launch({ headless: true,
+        ...(chromeExecutable ? { executablePath: chromeExecutable } : {}) });
+      const browserContext = await browser.newContext();
+      const cookieEquals = cookie.indexOf('=');
+      await browserContext.addCookies([{ name: cookie.slice(0, cookieEquals), value: cookie.slice(cookieEquals + 1), url: origin }]);
+      const page = await browserContext.newPage();
+      const pageErrors: string[] = [];
+      page.on('pageerror', error => pageErrors.push(error.message));
+      const bootstrapResponse = page.waitForResponse(response => response.url() === `${origin}/assets/browser/bootstrap.js`);
+      await page.goto(`${origin}/form`);
+      const bootstrap = await bootstrapResponse;
+      assert.equal(bootstrap.status(), 200);
+      assert.deepEqual(await bootstrap.body(), Buffer.from(resources['browser/bootstrap.js']!.bytes));
+      const browserSave = page.locator('form[action="/api/operations/InputChoices.save"]');
+      const browserReviewer = page.locator('form[action="/api/operations/InputChoices.submit"]');
+      const field = (name: string) => browserSave.locator(`[name="inputs[${name}]"]`);
+      const region = browserSave.locator('select[data-can-choices-select]');
+      const assignee = browserReviewer.locator('select[data-can-choices-select]');
+      const status = browserSave.locator('[data-can-choices-feedback]');
+      const waitBrowser = async (selector: string, expected: string) => page.waitForFunction(({ selector, expected }) =>
+        (globalThis as unknown as ChromiumGlobals).document.querySelector(selector)?.textContent === expected, { selector, expected });
+      const saveFeedback = 'form[action="/api/operations/InputChoices.save"] [data-can-choices-feedback]';
+      const reviewerFeedback = 'form[action="/api/operations/InputChoices.submit"] [data-can-choices-feedback]';
+      await waitBrowser(saveFeedback, '1 choices available.');
+      await waitBrowser(reviewerFeedback, '1 choices available.');
+      assert.equal(await region.locator('option').nth(1).textContent(), 'Region 1');
+      assert.deepEqual(traffic.find(row => row.path.endsWith('save/choices/region'))?.inputs,
+        { country: { id: countries[0], version: '1' } });
+      assert.equal(traffic.find(row => row.path.endsWith('submit/choices/assignee'))?.operationId, browserUserNonce);
+      assert.equal(await page.locator('select[data-can-choices-select]').count(), 2);
+
+      // A parent edit aborts a genuine outstanding request. Its completed
+      // canonical response is released after the current response arrives.
+      await field('note').fill('Retained Chromium draft');
+      await region.selectOption('0');
+      await assignee.selectOption('0');
+      heldCountry = countries[1]!;
+      await field('country').fill(countries[1]!);
+      assert.equal(await field('region').inputValue(), '');
+      assert.equal(await field('region__version').inputValue(), '');
+      await wait(() => heldResponses.length === 1);
+      assert.equal(await status.textContent(), 'Loading choices…');
+      assert.equal(await region.getAttribute('aria-busy'), 'true');
+      assert.equal(await field('country').evaluate(element => element === (globalThis as unknown as ChromiumGlobals).document.activeElement), true);
+      await field('country').fill(countries[0]!);
+      await waitBrowser(saveFeedback, '1 choices available.');
+      await wait(() => closedHeldResponses[0] === true);
+      heldCountry = undefined; heldResponses[0]!();
+      assert.deepEqual(traffic.find(row => row.path.endsWith('save/choices/region') &&
+        (row.inputs['country'] as { id: string }).id === countries[1])?.body.choices,
+        [{ value: { id: regions[1], version: '1' }, labels: ['Region 2'] }]);
+      assert.equal(await region.locator('option').nth(1).textContent(), 'Region 1');
+      assert.equal(await field('note').inputValue(), 'Retained Chromium draft');
+      assert.equal(await browserReviewer.locator('[name="inputs[assignee]"]').inputValue(), reviewer.user_id);
+
+      // Direct submissions cannot turn assistance into authority.
+      const direct = async (operation: string, inputs: Record<string, unknown>) => {
+        const response = await browserContext.request.post(`${origin}/api/operations/InputChoices.${operation}`, {
+          headers: { 'x-csrf-token': csrf }, data: { operation_id: id(), inputs },
+        });
+        return { status: response.status(), body: await response.json() as Traffic['body'] };
+      };
+      const mismatched = await direct('save', { country: { id: countries[0], version: '1' },
+        region: { id: regions[1], version: '1' }, note: 'Forged region' });
+      assert.equal(mismatched.body.code, 'rule_failed', JSON.stringify(mismatched));
+      assert.equal(mismatched.body.message, 'forbidden', 'the source parent guard rejected the forged selection');
+      const forged = await direct('submit', { document: { id: document, version: '1' }, assignee: { id: user.user_id } });
+      assert.equal(forged.body.code, 'rule_failed', JSON.stringify(forged));
+      assert.equal(forged.body.message, 'forbidden', 'the source eligibility guard rejected the forged reviewer');
+      for (const [operation, input] of [['submit', { document: { id: document, version: '1' } }],
+        ['assign', { submission: { id: submission, version: '1' } }]] as const) {
+        for (const optional of [{}, { assignee: null }]) {
+          const nullable = await direct(operation, { ...input, ...optional });
+          assert.equal(nullable.status, 200, JSON.stringify(nullable)); assert.equal(nullable.body.result, null);
+        }
+      }
+
+      const replaceData = async (model: string, recordId: string, data: Record<string, unknown>) => {
+        const current = await storage.state.load(asModel(`InputChoices.${model}`), asId(recordId)); assert.ok(current);
+        await storage.state.commit(makeBatch(await storage.state.readRevision(), { writes: [{ kind: 'update',
+          model: asModel(`InputChoices.${model}`), id: current.id, expectedVersion: current.version,
+          row: { ...current, version: asVersion(Number(current.version) + 1), data },
+        }] }));
+      };
+      const submitBrowser = async (operation: string, form: typeof browserSave) => {
+        const response = page.waitForResponse(response => response.url() === `${origin}/api/operations/InputChoices.${operation}`);
+        await form.locator('button[type="submit"]').click();
+        return (await response).json() as Promise<Traffic['body']>;
+      };
+      await region.selectOption('0');
+      await replaceData('Region', regions[0]!, { name: 'Region 1 current' });
+      const stale = await submitBrowser('save', browserSave);
+      assert.equal(stale.code, 'conflict', JSON.stringify(stale));
+      await page.waitForFunction(() => (globalThis as unknown as ChromiumGlobals).document.querySelector('form[action="/api/operations/InputChoices.save"]')?.getAttribute('data-can-submit-state') === 'denied');
+      assert.equal(await field('region').inputValue(), regions[0]);
+      assert.equal(await field('region__version').inputValue(), '1');
+      assert.equal(await field('note').inputValue(), 'Retained Chromium draft');
+      assert.equal(await field('country').inputValue(), countries[0]);
+      const staleRequest = traffic.find(row => row.path.endsWith('InputChoices.save') && row.operationId === browserSaveNonce)!;
+      assert.deepEqual(staleRequest.inputs, { country: { id: countries[0], version: '1' },
+        region: { id: regions[0], version: '1' }, note: 'Retained Chromium draft' });
+      assert.equal(await storage.state.readReceipt({ app: 'InputChoices', owner: team.team_id, principal: user.user_id,
+        operation: asOperation(save.operation), operationId: asOperationId(browserSaveNonce) }), null);
+
+      // Correct the stale candidate using the existing parent and selection
+      // controls, preserving the form's original idempotency key and siblings.
+      await field('country').fill(countries[2]!); await waitBrowser(saveFeedback, 'No choices available.');
+      await field('country').fill(countries[0]!); await waitBrowser(saveFeedback, '1 choices available.');
+      assert.equal(await region.locator('option').nth(1).textContent(), 'Region 1 current');
+      await region.selectOption('0');
+      assert.equal(await field('region__version').inputValue(), '2');
+      const corrected = await submitBrowser('save', browserSave);
+      assert.deepEqual(corrected.result, { id: regions[0], version: '2' });
+      await page.waitForFunction(() => (globalThis as unknown as ChromiumGlobals).document.querySelector('form[action="/api/operations/InputChoices.save"]')?.getAttribute('data-can-submit-state') === 'committed');
+      assert.equal(await field('note').inputValue(), 'Retained Chromium draft');
+      assert.deepEqual(traffic.filter(row => row.path.endsWith('InputChoices.save') && row.operationId === browserSaveNonce).at(-1)?.inputs,
+        { country: { id: countries[0], version: '1' }, region: { id: regions[0], version: '2' }, note: 'Retained Chromium draft' });
+
+      const selectedReviewer = await submitBrowser('submit', browserReviewer);
+      assert.deepEqual(selectedReviewer.result, { id: reviewer.user_id });
+      assert.deepEqual(traffic.find(row => row.path.endsWith('InputChoices.submit') && row.operationId === browserUserNonce)?.inputs,
+        { document: { id: document, version: '1' }, assignee: { id: reviewer.user_id } });
+      const reviewerReceipt = await storage.state.readReceipt({ app: 'InputChoices', owner: team.team_id, principal: user.user_id,
+        operation: asOperation(submit.operation), operationId: asOperationId(browserUserNonce) });
+      assert.equal(reviewerReceipt?.outcome.status, 'committed');
+
+      // A fresh rendered form has its own server-issued operation identity;
+      // rejection checks must not replay the committed reviewer submission.
+      browserUserNonce = id(); html = await renderBrowserPage();
+      await page.reload(); await waitBrowser(reviewerFeedback, '1 choices available.');
+      await assignee.selectOption('0');
+
+      // Eligibility can disappear without changing the bound document version.
+      // The already selected user is refused by the source predicate, and a
+      // fresh candidate lookup reflects the current Employee/site relationship.
+      await replaceData('Employee', employee, { user: { id: reviewer.user_id }, name: 'Reviewer', role: 'Approver', home: { id: sites[1] } });
+      const ineligible = await submitBrowser('submit', browserReviewer);
+      assert.equal(ineligible.code, 'rule_failed', JSON.stringify(ineligible));
+      assert.equal(ineligible.message, 'forbidden', 'current source eligibility, rather than a carrier error, rejected the reviewer');
+      assert.equal(await browserReviewer.locator('[name="inputs[assignee]"]').inputValue(), reviewer.user_id);
+      const noReviewer = await direct('submit/choices/assignee', { document: { id: document, version: '1' } });
+      assert.equal(noReviewer.status, 200); assert.deepEqual(noReviewer.body.choices, []);
+      await replaceData('Employee', employee, { user: { id: reviewer.user_id }, name: 'Reviewer', role: 'Approver', home: { id: sites[0] } });
+      const restored = await direct('submit', { document: { id: document, version: '1' }, assignee: { id: reviewer.user_id } });
+      assert.equal(restored.status, 200, JSON.stringify(restored)); assert.deepEqual(restored.body.result, { id: reviewer.user_id });
+
+      // Revoking the native D1 membership refuses both HTTP lookup and a final
+      // mutation from the same authenticated Chromium cookie jar.
+      await storage.identity.removeMembership(membership.membership_id);
+      const revisionBeforeDenied = await storage.state.readRevision();
+      const deniedLookup = await direct('submit/choices/assignee', { document: { id: document, version: '1' } });
+      assert.equal(deniedLookup.status, 404); assert.equal(deniedLookup.body.code, 'not_found');
+      assert.equal(deniedLookup.body.choices, undefined);
+      const deniedMutation = await direct('save', { country: { id: countries[0], version: '1' }, region: { id: regions[0], version: '2' } });
+      assert.equal(deniedMutation.status, 403); assert.equal(deniedMutation.body.code, 'forbidden');
+      assert.equal(await storage.state.readRevision(), revisionBeforeDenied);
+      await storage.identity.reactivateMembership(membership.membership_id, { is_owner: false, roles: [] });
+      assert.deepEqual(pageErrors, []); assert.deepEqual(serverErrors, []);
+    } catch (error) {
+      failure ??= { value: error };
+    } finally {
+      for (const release of heldResponses) await cleanup(release);
+      await cleanup(() => browser?.close());
+      await cleanup(() => server.closeAllConnections());
+      await cleanup(async () => {
+        if (server.listening) await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+      });
+    }
+    if (failure !== undefined) throw failure.value;
+
+    // A visible child carries its declared parent identity independently of
+    // field disclosure. The genuine Parent grant exposes label, never site.
+    // Authored read scenarios use the assembled canonical query port; the
+    // existing HTTP operation POST remains the mutation submission path.
+    const readonlyIdentity = (await resolveRequestIdentity(storage.identity,
+      new Request('https://test.invalid/form', { headers: { cookie } }), { clock })).identity;
+    assert.equal(readonlyIdentity.actor?.user_id, user.user_id);
+    assert.equal(readonlyIdentity.team?.team_id, team.team_id);
+    assert.equal(readonlyIdentity.membership?.status, 'active');
+    assert.ok(readonlyIdentity.actor); assert.ok(readonlyIdentity.team);
+    const mcpGrant = await issueMcpGrant(storage.identity, { user_id: readonlyIdentity.actor.user_id,
+      team_id: readonlyIdentity.team.team_id, client_id: 'input-choices' }, { clock });
+    const mcp = async (operation: string, inputs: Record<string, unknown>,
+      options: { bearer?: string; operationId?: string } = {}) => {
+      const response = await worker.fetch(new Request('https://test.invalid/mcp', {
+        method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream',
+          authorization: `Bearer ${options.bearer ?? mcpGrant.token}` },
+        body: JSON.stringify({ jsonrpc: '2.0', id: ++sequence, method: 'tools/call',
+          params: { name: `InputChoices.${operation}`, arguments: { operation_id: options.operationId ?? id(), ...inputs } } }),
+      }));
+      const rpc = await response.json() as { error?: { code: string | number; message: string };
+        result?: { content: Array<{ text: string }>; structuredContent?: Record<string, unknown>; isError?: boolean } };
+      const body: Record<string, unknown> = rpc.result === undefined ? rpc : rpc.result.structuredContent ??
+        JSON.parse(rpc.result.content[0]!.text) as Record<string, unknown>;
+      return { status: response.status, isError: rpc.result?.isError, body };
+    };
+    const mcpCommitted = (response: Awaited<ReturnType<typeof mcp>>, result: unknown) => {
+      assert.equal(response.status, 200, JSON.stringify(response)); assert.equal(response.isError, undefined);
+      assert.equal(response.body['status'], 'committed', JSON.stringify(response));
+      assert.deepEqual(response.body['result'], result);
+    };
+    const mcpRefused = (response: Awaited<ReturnType<typeof mcp>>, code: string, expectedMessage?: string) => {
+      assert.equal(response.status, 200, JSON.stringify(response)); assert.equal(response.isError, true);
+      assert.equal(response.body['code'], code, JSON.stringify(response));
+      if (expectedMessage !== undefined) assert.equal(response.body['message'], expectedMessage);
+      assert.equal('result' in response.body, false);
+    };
+    const readonlyInvoker = buildInvoker(artifact, asm, countedStore(), { memberships: storage.identity, now: () => FIXED_NOW });
+    const sourceRead = (operation: string, inputs: Record<string, unknown>) =>
+      readonlyInvoker.invokeRead({ operation: `InputChoices.${operation}`, inputs }, readonlyIdentity);
+    const readonlyRevision = await storage.state.readRevision();
+    const comparedParents = (second: string) => sourceRead('compareParents', {
+      first: { id: projectedChildren[0], version: '1' }, second: { id: second, version: '1' },
+    });
+    const sameProjectedParent = await comparedParents(projectedChildren[1]!);
+    assert.deepEqual(sameProjectedParent, { result: { result: true, revision: readonlyRevision } });
+    const differentProjectedParent = await comparedParents(projectedChildren[2]!);
+    assert.deepEqual(differentProjectedParent, { result: { result: false, revision: readonlyRevision } });
+    const labelResult = await sourceRead('parentLabel', { child: { id: projectedChildren[0], version: '1' } });
+    assert.deepEqual(labelResult, { result: { result: 'Projected parent 1', revision: readonlyRevision } });
+    const kindResult = await sourceRead('parentKind', { child: { id: projectedChildren[0], version: '1' } });
+    assert.deepEqual(kindResult, { result: { result: 'business', revision: readonlyRevision } });
+    const hiddenSiteResult = await sourceRead('parentSite', { child: { id: projectedChildren[0], version: '1' } });
+    assert.ok('error' in hiddenSiteResult, JSON.stringify(hiddenSiteResult));
+    assert.equal(hiddenSiteResult.error.code, 'forbidden'); assert.equal(hiddenSiteResult.error.message, 'Record field is not readable.');
+    assert.equal('result' in hiddenSiteResult, false);
+    const privateIdentityResult = await sourceRead('comparePrivateParents', { first: { id: privateChildren[0], version: '1' },
+      second: { id: privateChildren[1], version: '1' } });
+    assert.deepEqual(privateIdentityResult, { result: { result: true, revision: readonlyRevision } });
+    const privateSiteResult = await sourceRead('privateParentSite', { child: { id: privateChildren[0], version: '1' } });
+    assert.ok('error' in privateSiteResult, JSON.stringify(privateSiteResult));
+    assert.equal(privateSiteResult.error.code, 'not_found'); assert.equal(privateSiteResult.error.message, 'Parent record not found.');
+    assert.equal('result' in privateSiteResult, false);
+    assert.equal(await storage.state.readRevision(), readonlyRevision);
+
+    // The original non-null assign workflow traverses the current parent;
+    // its lookup and final guard share the authored document/site predicate.
+    const assigned = async (assigneeId: string, version = '1') => {
+      const response = await post('assign', { submission: { id: navigationSubmission, version }, assignee: { id: assigneeId } });
+      return { status: response.status, body: await response.json() as { code?: string; message?: string; result?: unknown } };
+    };
+    const navigationInput = { submission: { id: navigationSubmission, version: '1' } };
+    assert.deepEqual((await choices('assign/choices/assignee', navigationInput)).body.choices,
+      [{ value: { id: reviewer.user_id }, labels: ['Reviewer', 'Approver', sites[0]] }]);
+    const eligibleAssignment = await assigned(reviewer.user_id);
+    assert.equal(eligibleAssignment.status, 200, JSON.stringify(eligibleAssignment));
+    assert.deepEqual(eligibleAssignment.body.result, { id: reviewer.user_id });
+    const wrongSiteAssignment = await assigned(user.user_id);
+    assert.equal(wrongSiteAssignment.body.code, 'rule_failed', JSON.stringify(wrongSiteAssignment));
+    assert.equal(wrongSiteAssignment.body.message, 'forbidden');
+    // Real grant-authenticated MCP calls use the same compiled handler,
+    // typed binding and source guard as the original HTTP assignment.
+    const mcpAssignmentNonce = id();
+    const mcpAssignmentInputs = { ...navigationInput, assignee: { id: reviewer.user_id } };
+    mcpCommitted(await mcp('assign', mcpAssignmentInputs, { operationId: mcpAssignmentNonce }), { id: reviewer.user_id });
+    const mcpAssignmentRevision = await storage.state.readRevision();
+    const mcpAssignmentReplay = await mcp('assign', mcpAssignmentInputs, { operationId: mcpAssignmentNonce });
+    assert.equal(mcpAssignmentReplay.isError, undefined); assert.equal(mcpAssignmentReplay.body['status'], 'replayed');
+    assert.deepEqual(mcpAssignmentReplay.body['result'], { id: reviewer.user_id });
+    assert.equal(await storage.state.readRevision(), mcpAssignmentRevision);
+    mcpRefused(await mcp('assign', { ...navigationInput, assignee: { id: user.user_id } }), 'rule_failed', 'forbidden');
+    mcpRefused(await mcp('assign', { submission: { id: document, version: '1' }, assignee: { id: reviewer.user_id } }), 'not_found');
+    for (const optional of [{}, { assignee: null }]) {
+      const response = await post('assign', { submission: { id: missingParentSubmission, version: '1' }, ...optional });
+      const nullable = await response.json() as { result?: unknown };
+      assert.equal(response.status, 200, JSON.stringify(nullable)); assert.equal(nullable.result, null);
+      mcpCommitted(await mcp('assign', { submission: { id: missingParentSubmission, version: '1' }, ...optional }), null);
+    }
+    const missingParentLookup = await choices('assign/choices/assignee', { submission: { id: missingParentSubmission, version: '1' } });
+    assert.equal(missingParentLookup.status, 404); assert.equal(missingParentLookup.body.code, 'not_found');
+    assert.equal(missingParentLookup.body.choices, undefined);
+    const missingParentAssignment = await post('assign', { submission: { id: missingParentSubmission, version: '1' },
+      assignee: { id: reviewer.user_id } });
+    const missingParentResult = await missingParentAssignment.json() as { code?: string; message?: string };
+    assert.equal(missingParentAssignment.status, 404); assert.equal(missingParentResult.code, 'not_found');
+    assert.equal(missingParentResult.message, 'Parent record not found.');
+    mcpRefused(await mcp('assign', { submission: { id: missingParentSubmission, version: '1' },
+      assignee: { id: reviewer.user_id } }), 'not_found', 'Parent record not found.');
+
+    const moveParentSite = await post('bindSite', { target: { id: navigationDocument, version: '1' },
+      site: { id: sites[1], version: '1' } });
+    const movedParent = await moveParentSite.json(); assert.equal(moveParentSite.status, 200, JSON.stringify(movedParent));
+    assert.deepEqual((await choices('assign/choices/assignee', navigationInput)).body.choices,
+      [{ value: { id: user.user_id }, labels: ['Elsewhere', 'Approver', sites[1]] }]);
+    const lostSiteAssignment = await assigned(reviewer.user_id);
+    assert.equal(lostSiteAssignment.body.code, 'rule_failed', JSON.stringify(lostSiteAssignment));
+    assert.equal(lostSiteAssignment.body.message, 'forbidden');
+    const currentSiteAssignment = await assigned(user.user_id);
+    assert.equal(currentSiteAssignment.status, 200, JSON.stringify(currentSiteAssignment));
+    assert.deepEqual(currentSiteAssignment.body.result, { id: user.user_id });
+    mcpRefused(await mcp('assign', mcpAssignmentInputs), 'rule_failed', 'forbidden');
+    mcpCommitted(await mcp('assign', { ...navigationInput, assignee: { id: user.user_id } }), { id: user.user_id });
+
+    // This separate source control stages a change on the exactly bound
+    // admitted parent before evaluating the original assignment predicate.
+    const navigationModel = asModel('InputChoices.Document');
+    const parentBeforeMismatch = await storage.state.load(navigationModel, asId(navigationDocument)); assert.ok(parentBeforeMismatch);
+    const mismatch = await post('assignWithSite', { ...navigationInput, document: { id: document, version: '1' },
+      site: { id: sites[0], version: '1' }, assignee: { id: reviewer.user_id } });
+    const mismatchedParent = await mismatch.json() as { code?: string; message?: string };
+    assert.equal(mismatchedParent.code, 'rule_failed', JSON.stringify(mismatchedParent)); assert.equal(mismatchedParent.message, 'forbidden');
+    mcpRefused(await mcp('assignWithSite', { ...navigationInput, document: { id: document, version: '1' },
+      site: { id: sites[0], version: '1' }, assignee: { id: reviewer.user_id } }), 'rule_failed', 'forbidden');
+    assert.deepEqual(await storage.state.load(navigationModel, asId(navigationDocument)), parentBeforeMismatch);
+    assert.equal((await storage.state.load(navigationModel, asId(document)))?.version, 1);
+    const stagedAssignmentInputs = { ...navigationInput, document: { id: navigationDocument, version: '2' },
+      site: { id: sites[0], version: '1' }, assignee: { id: reviewer.user_id } };
+    const stagedAssignmentNonce = id();
+    const stagedAssignment = await post('assignWithSite', stagedAssignmentInputs, { operationId: stagedAssignmentNonce });
+    const assignedStaged = await stagedAssignment.json() as { status?: string; code?: string; result?: unknown };
+    assert.equal(stagedAssignment.status, 200, JSON.stringify(assignedStaged));
+    assert.deepEqual(assignedStaged.result, { id: reviewer.user_id });
+    const stagedParentRow = await storage.state.load(navigationModel, asId(navigationDocument)); assert.ok(stagedParentRow);
+    assert.deepEqual(stagedParentRow.data, { site: { id: sites[0] } }); assert.equal(stagedParentRow.version, 3);
+    const stagedParentHistory = await storage.state.historyFor(navigationModel, asId(navigationDocument));
+    assert.equal(stagedParentHistory.length, 2);
+    const revisionAfterStaged = await storage.state.readRevision();
+    const stagedReplay = await post('assignWithSite', stagedAssignmentInputs, { operationId: stagedAssignmentNonce });
+    const replayedStaged = await stagedReplay.json() as { status?: string };
+    assert.equal(stagedReplay.status, 200, JSON.stringify(replayedStaged)); assert.equal(replayedStaged.status, 'replayed');
+    assert.equal(await storage.state.readRevision(), revisionAfterStaged);
+    assert.deepEqual(await storage.state.load(navigationModel, asId(navigationDocument)), stagedParentRow);
+    assert.deepEqual(await storage.state.historyFor(navigationModel, asId(navigationDocument)), stagedParentHistory);
+    const stagedRollback = await post('assignWithSite', { ...navigationInput, document: { id: navigationDocument, version: '3' },
+      site: { id: sites[1], version: '1' }, assignee: { id: user.user_id }, accept: false });
+    const rejectedStaged = await stagedRollback.json() as { code?: string; message?: string };
+    assert.equal(rejectedStaged.code, 'rule_failed', JSON.stringify(rejectedStaged)); assert.equal(rejectedStaged.message, 'forbidden');
+    assert.deepEqual(await storage.state.load(navigationModel, asId(navigationDocument)), stagedParentRow);
+    assert.deepEqual(await storage.state.historyFor(navigationModel, asId(navigationDocument)), stagedParentHistory);
+
+    const revise = await post('reviseSubmission', { ...navigationInput, note: 'Current navigation draft' });
+    const revised = await revise.json(); assert.equal(revise.status, 200, JSON.stringify(revised));
+    const staleAssignmentChoices = await choices('assign/choices/assignee', navigationInput);
+    assert.equal(staleAssignmentChoices.body.code, 'conflict', JSON.stringify(staleAssignmentChoices));
+    const staleAssignment = await assigned(reviewer.user_id);
+    assert.equal(staleAssignment.body.code, 'conflict', JSON.stringify(staleAssignment));
+    mcpRefused(await mcp('assign', mcpAssignmentInputs), 'conflict');
+    assert.deepEqual((await choices('assign/choices/assignee', { submission: { id: navigationSubmission, version: '2' } })).body.choices,
+      [{ value: { id: reviewer.user_id }, labels: ['Reviewer', 'Approver', sites[0]] }]);
+    const currentAssignment = await assigned(reviewer.user_id, '2');
+    assert.equal(currentAssignment.status, 200, JSON.stringify(currentAssignment)); assert.deepEqual(currentAssignment.body.result, { id: reviewer.user_id });
+    mcpCommitted(await mcp('assign', { submission: { id: navigationSubmission, version: '2' },
+      assignee: { id: reviewer.user_id } }), { id: reviewer.user_id });
+    assert.deepEqual((await storage.state.load(asModel('InputChoices.Submission'), asId(navigationSubmission)))?.data,
+      { note: 'Current navigation draft' });
+
+    const revisionBeforeAssignmentRace = await storage.state.readRevision();
+    revokeOnEmployeeRead = true;
+    const assignmentRevokedDuringRead = await assigned(reviewer.user_id, '2');
+    assert.equal(assignmentRevokedDuringRead.status, 403, JSON.stringify(assignmentRevokedDuringRead));
+    assert.equal(assignmentRevokedDuringRead.body.code, 'forbidden');
+    assert.equal(await storage.state.readRevision(), revisionBeforeAssignmentRace);
+    await storage.identity.reactivateMembership(membership.membership_id, { is_owner: false, roles: [] });
+    revokeOnEmployeeRead = true;
+    mcpRefused(await mcp('assign', { submission: { id: navigationSubmission, version: '2' },
+      assignee: { id: reviewer.user_id } }), 'forbidden');
+    assert.equal(await storage.state.readRevision(), revisionBeforeAssignmentRace);
+    await storage.identity.reactivateMembership(membership.membership_id, { is_owner: false, roles: [] });
+
+    await storage.identity.removeMembership(membership.membership_id);
+    const revisionBeforeAssignmentRevocation = await storage.state.readRevision();
+    const revokedAssignmentLookup = await choices('assign/choices/assignee', { submission: { id: navigationSubmission, version: '2' } });
+    assert.equal(revokedAssignmentLookup.status, 404); assert.equal(revokedAssignmentLookup.body.code, 'not_found');
+    assert.equal(revokedAssignmentLookup.body.choices, undefined);
+    const revokedAssignment = await assigned(reviewer.user_id, '2');
+    assert.equal(revokedAssignment.status, 403); assert.equal(revokedAssignment.body.code, 'forbidden');
+    const revokedMcpAssignment = await mcp('assign', { submission: { id: navigationSubmission, version: '2' },
+      assignee: { id: reviewer.user_id } });
+    assert.equal(revokedMcpAssignment.status, 401, JSON.stringify(revokedMcpAssignment));
+    assert.equal((revokedMcpAssignment.body['error'] as { code?: string }).code, 'forbidden');
+    assert.equal(await storage.state.readRevision(), revisionBeforeAssignmentRevocation);
+    await storage.identity.reactivateMembership(membership.membership_id, { is_owner: false, roles: [] });
+
+    // The grant retains its consented team and credential audience. A
+    // session token cannot substitute for it, and revoked grants stay inert.
+    const currentMcpInputs = { submission: { id: navigationSubmission, version: '2' }, assignee: { id: reviewer.user_id } };
+    const mcpCredentialRevision = await storage.state.readRevision();
+    const sessionAsGrant = await mcp('assign', currentMcpInputs, { bearer: token });
+    assert.equal(sessionAsGrant.status, 401); assert.equal((sessionAsGrant.body['error'] as { code?: string }).code, 'forbidden');
+    const foreignTeam = await storage.identity.createTeam({ timezone: 'UTC' });
+    const foreignGrant = await issueMcpGrant(storage.identity, { user_id: user.user_id,
+      team_id: foreignTeam.team_id, client_id: 'input-choices-foreign' }, { clock });
+    const foreignMcp = await mcp('assign', currentMcpInputs, { bearer: foreignGrant.token });
+    assert.equal(foreignMcp.status, 401); assert.equal((foreignMcp.body['error'] as { code?: string }).code, 'forbidden');
+    await storage.identity.revokeMcpGrant(mcpGrant.grant.grant_id);
+    const revokedGrantAssignment = await mcp('assign', currentMcpInputs);
+    assert.equal(revokedGrantAssignment.status, 401); assert.equal((revokedGrantAssignment.body['error'] as { code?: string }).code, 'forbidden');
+    assert.equal(await storage.state.readRevision(), mcpCredentialRevision);
+
+    // A hydrated singular reference remains a declared Site value when a
+    // generated handler copies it through normal set into another Document.
+    const documentModel = asModel('InputChoices.Document');
+    const copiedInputs = { target: { id: copyTarget, version: '1' }, source: { id: copySource, version: '1' } };
+    const copyNonce = id();
+    const copy = await post('copy_site', copiedInputs, { operationId: copyNonce });
+    const copied = await copy.json() as { status?: string; code?: string; message?: string };
+    assert.equal(copy.status, 200, JSON.stringify(copied)); assert.equal(copied.status, 'committed');
+    const copiedRow = await storage.state.load(documentModel, asId(copyTarget)); assert.ok(copiedRow);
+    assert.deepEqual(copiedRow.data, { site: { id: sites[1] } }, 'the admitted typed Site is stored in its original wire shape');
+    assert.equal(copiedRow.version, 2, 'normal set reserves exactly the next Document version');
+    const copiedHistory = await storage.state.historyFor(documentModel, asId(copyTarget));
+    assert.equal(copiedHistory.length, 1);
+    const revisionAfterCopy = await storage.state.readRevision();
+    const copyReplay = await post('copy_site', copiedInputs, { operationId: copyNonce });
+    const replayedCopy = await copyReplay.json() as { status?: string };
+    assert.equal(copyReplay.status, 200, JSON.stringify(replayedCopy)); assert.equal(replayedCopy.status, 'replayed');
+    assert.equal(await storage.state.readRevision(), revisionAfterCopy);
+    assert.deepEqual(await storage.state.load(documentModel, asId(copyTarget)), copiedRow);
+    assert.deepEqual(await storage.state.historyFor(documentModel, asId(copyTarget)), copiedHistory);
+
+    // The later source guard rejects after set has staged the reverse copy;
+    // its receipt cannot publish that provisional field, version or history.
+    const rollbackNonce = id();
+    const rollback = await post('copy_site', { target: { id: copyTarget, version: '2' },
+      source: { id: document, version: '1' }, accept: false }, { operationId: rollbackNonce });
+    const rolledBack = await rollback.json() as { code?: string; message?: string };
+    assert.equal(rolledBack.code, 'rule_failed', JSON.stringify(rolledBack)); assert.equal(rolledBack.message, 'forbidden');
+    assert.deepEqual(await storage.state.load(documentModel, asId(copyTarget)), copiedRow);
+    assert.deepEqual(await storage.state.historyFor(documentModel, asId(copyTarget)), copiedHistory);
+    assert.deepEqual((await storage.state.load(documentModel, asId(copySource)))?.data, { site: { id: sites[1] } });
+    assert.equal((await storage.state.load(documentModel, asId(copySource)))?.version, 1);
+    const rollbackReceipt = await storage.state.readReceipt({ app: 'InputChoices', owner: team.team_id, principal: user.user_id,
+      operation: asOperation('InputChoices.copy_site'), operationId: asOperationId(rollbackNonce) });
+    assert.equal(rollbackReceipt?.outcome.status, 'rejected');
+
+    // Assign the admitted model alias itself as well as the decoded field
+    // above. Both source forms must use the same declared Site wire boundary.
+    const boundInputs = { target: { id: copyTarget, version: '2' }, site: { id: sites[0], version: '1' } };
+    const bindNonce = id();
+    const bind = await post('bindSite', boundInputs, { operationId: bindNonce });
+    const bound = await bind.json() as { status?: string; code?: string; message?: string };
+    assert.equal(bind.status, 200, JSON.stringify(bound)); assert.equal(bound.status, 'committed');
+    const boundRow = await storage.state.load(documentModel, asId(copyTarget)); assert.ok(boundRow);
+    assert.deepEqual(boundRow.data, { site: { id: sites[0] } });
+    assert.equal(boundRow.version, 3, 'assigning a model alias reserves one next version');
+    const boundHistory = await storage.state.historyFor(documentModel, asId(copyTarget));
+    assert.equal(boundHistory.length, copiedHistory.length + 1);
+    const revisionAfterBind = await storage.state.readRevision();
+    const bindReplay = await post('bindSite', boundInputs, { operationId: bindNonce });
+    const replayedBind = await bindReplay.json() as { status?: string };
+    assert.equal(bindReplay.status, 200, JSON.stringify(replayedBind)); assert.equal(replayedBind.status, 'replayed');
+    assert.equal(await storage.state.readRevision(), revisionAfterBind);
+    assert.deepEqual(await storage.state.load(documentModel, asId(copyTarget)), boundRow);
+    assert.deepEqual(await storage.state.historyFor(documentModel, asId(copyTarget)), boundHistory);
+    const bindRollbackNonce = id();
+    const bindRollback = await post('bindSite', { target: { id: copyTarget, version: '3' },
+      site: { id: sites[1], version: '1' }, accept: false }, { operationId: bindRollbackNonce });
+    const rolledBackBind = await bindRollback.json() as { code?: string; message?: string };
+    assert.equal(rolledBackBind.code, 'rule_failed', JSON.stringify(rolledBackBind)); assert.equal(rolledBackBind.message, 'forbidden');
+    assert.deepEqual(await storage.state.load(documentModel, asId(copyTarget)), boundRow);
+    assert.deepEqual(await storage.state.historyFor(documentModel, asId(copyTarget)), boundHistory);
+    const bindRollbackReceipt = await storage.state.readReceipt({ app: 'InputChoices', owner: team.team_id, principal: user.user_id,
+      operation: asOperation('InputChoices.bindSite'), operationId: asOperationId(bindRollbackNonce) });
+    assert.equal(bindRollbackReceipt?.outcome.status, 'rejected');
     const beforeReopen = await storage.state.readRevision();
     await miniflare!.dispose(); miniflare = undefined; storage = await open(); worker = await assemble();
     const reopened = await choices('assign/choices/assignee', { submission: { id: submission, version: '1' } });

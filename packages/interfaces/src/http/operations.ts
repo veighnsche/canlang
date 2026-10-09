@@ -15,10 +15,11 @@
  * grants instead. Public (no-cookie) POSTs are rejected `forbidden`
  * 'Authentication required.'.
  *
- * Form transport convention (lane-06 authored): form values are strings, so
- * each value is JSON-parsed with fallback to the raw string — scalars travel
- * raw (`operation_id=<uuid>`), structured members travel as JSON text
- * (`inputs={"qty":2}`). The `_csrf` field is transport-level: it is consumed
+ * Form transport: legacy structured members travel as JSON text
+ * (`inputs={"qty":2}`). Native bracket controls are projected using the
+ * owning operation declarations, preserving exact ref and scalar strings;
+ * duplicate, mixed or undeclared controls refuse before invocation.
+ * The `_csrf` field is transport-level: it is consumed
  * for the CSRF check and stripped before the closed-inputs check and
  * invocation, never a business input. The field is read from `inputs` first
  * (the canonical location, e.g. JSON bodies) with fallback to the top-level
@@ -37,6 +38,7 @@ import type {
 } from '@canlang/contracts';
 import { IdentityError, assertCredentialLive, deriveCsrfToken, sha256HexText } from '@canlang/identity';
 import { SOURCE_FORM_BINDING_FIELD } from '@canlang/contracts';
+import { NATIVE_BOOLEAN_PRESENCE_PREFIX, projectGeneratedInputs } from '@canlang/ui';
 export { createSourceFormBindings } from './form-binding.js';
 import type { HttpDeps, OperationInputShape, SchemaCatalog } from '../ports.js';
 import { checkArtifactOperation, checkArtifactOperations, checkBoundArguments, isDeliveryField } from '../mcp/schemas.js';
@@ -48,7 +50,8 @@ import type {
 } from '../mcp/schemas.js';
 import { buildBusinessError, fromUnknown, toHttpResponse } from '../errors/envelope.js';
 import { logBusinessError, logInternalError } from '../errors/logging.js';
-import { checkClosedInputs, validateOperationId } from '../envelope/validate.js';
+import { isBusinessErrorCode } from '../errors/safe.js';
+import { checkClosedInputs, validateOperationId, validateOperationIdShape } from '../envelope/validate.js';
 import {
   CSRF_FIELD,
   CSRF_HEADER,
@@ -59,22 +62,27 @@ import {
 } from './context.js';
 import { formBindingFor, renderFormError, wantsHtmlRerender } from './formErrors.js';
 import { isPartialRequest } from './fragments.js';
-import { parseFormBody, parseJsonBody } from './limits.js';
+import { FORM_BODY_MAX_BYTES, parseJsonBody, readCappedBody } from './limits.js';
 import { buildPresentationContext } from './presentation.js';
 import { handleInputChoiceRequest } from './input-choices.js';
 
 /**
- * Operation-name shape: 2-3 dot-separated segments (e.g. `shop.Order.create`,
- * `shop.checkout`, `system.team.invite`). Anything else is `not_found` — the
+ * Operation-name shape: 2-3 source identifier segments (e.g. `shop.Order.create`,
+ * `shop.release_skipped`, `system.team.invite`). Preserve the compiler's
+ * underscore vocabulary in every segment. Anything else is `not_found` — the
  * name never reaches the catalog, so malformed names cannot probe it.
  */
 export const OPERATION_NAME_PATTERN =
-  /^[A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z][A-Za-z0-9]*){1,2}$/;
+  /^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*){1,2}$/;
 
 const JSON_CONTENT_TYPE = 'application/json';
 const FORM_CONTENT_TYPE = 'application/x-www-form-urlencoded';
 /** Installed consumer version for the checked route and generated control contract. */
 export const INPUT_CHOICES_VERSION = 1;
+/** HTML refusal metadata: JSON {version:1, code:BusinessErrorCode, retryable:boolean}.
+ * Contains no message, draft, field detail, operation identity or private value.
+ */
+export const FORM_REFUSAL_HEADER = 'can-form-refusal';
 
 function deny(deps: HttpDeps, error: BusinessError, operation: string): Response {
   logBusinessError(deps.logger, error, { route: 'operation', operation });
@@ -134,6 +142,9 @@ async function denyOrRerender(
       headers: {
         'content-type': 'text/html; charset=utf-8',
         vary: 'Accept, HX-Request',
+        [FORM_REFUSAL_HEADER]: JSON.stringify({ version: 1,
+          code: isBusinessErrorCode(error.code) ? error.code : 'rule_failed',
+          retryable: error.retryable === true }),
       },
     });
   } catch (err) {
@@ -159,6 +170,97 @@ function coerceFormBody(form: Record<string, string>): Record<string, unknown> {
     Object.defineProperty(out, key, { value: coerced, enumerable: true, writable: true, configurable: true });
   }
   return out;
+}
+
+/** Operation forms cannot silently overwrite a protected or editable control. */
+async function readOperationForm(request: Request): Promise<Record<string, string>> {
+  const params = new URLSearchParams(new TextDecoder().decode(await readCappedBody(request, FORM_BODY_MAX_BYTES)));
+  const form = Object.create(null) as Record<string, string>;
+  for (const [name, value] of params) {
+    if (Object.hasOwn(form, name)) throw new IdentityError('validation', 'Duplicate form field.');
+    form[name] = value;
+  }
+  return form;
+}
+
+/** One naming inventory serves strict admission and best-effort declared drafts. */
+function nativeFormControls(derived: DerivedOperationInputs) {
+  const controls = new Map<string, string>();
+  const presence = new Map<string, string | null>();
+  const root = (name: string) => derived.kind === 'update' ? `inputs[changes][${name}]` : `inputs[${name}]`;
+  for (const input of derived.inputs) {
+    if (input.kind === 'delivery') continue;
+    if ((derived.kind === 'update' || derived.kind === 'delete') && input.name === 'record' && input.kind === 'ref') {
+      controls.set('inputs[record][id]', input.name);
+      if (input.versioned === true) controls.set('inputs[record][version]', input.name);
+      continue;
+    }
+    controls.set(root(input.name), input.name);
+    if (input.nullable === true) {
+      controls.set(root(`${input.name}__null`), input.name);
+      presence.set(NATIVE_BOOLEAN_PRESENCE_PREFIX + root(`${input.name}__null`), null);
+    }
+    if (input.kind === 'boolean') presence.set(NATIVE_BOOLEAN_PRESENCE_PREFIX + root(input.name), input.name);
+    if (input.array !== undefined) continue;
+    if (input.kind === 'ref' && input.versioned === true) controls.set(root(`${input.name}__version`), input.name);
+    if (input.kind === 'money') controls.set(root(`${input.name}__currency`), input.name);
+    if (input.kind === 'datetime') controls.set(root(`${input.name}__fold`), input.name);
+  }
+  return { controls, presence };
+}
+
+/** Preserve independently valid drafts; a bad sibling never becomes mutation input. */
+function nativeFormDrafts(derived: DerivedOperationInputs | null, form: Record<string, string>): ClosedInputs {
+  const drafts = Object.create(null) as ClosedInputs;
+  if (derived === null || !['create', 'update', 'scenario'].includes(derived.kind)) return drafts;
+  const { controls, presence } = nativeFormControls(derived);
+  const submitted = new Set<string>();
+  for (const name of Object.keys(form)) {
+    const owner = controls.get(name) ?? (form[name] === 'true' ? presence.get(name) : undefined);
+    if (owner != null) submitted.add(owner);
+  }
+  for (const input of derived.inputs) {
+    if (!submitted.has(input.name)) continue;
+    const one = { ...derived, inputs: [input] };
+    try {
+      const projected = projectGeneratedInputs(one, derived.kind as 'create' | 'update' | 'scenario', form, [input.name]);
+      if (checkBoundArguments(one, projected) !== null) continue;
+      for (const [name, value] of Object.entries(projected)) {
+        Object.defineProperty(drafts, name, { value, enumerable: true, writable: true, configurable: true });
+      }
+    } catch { /* Unprojectable fields retain the existing per-field omission. */ }
+  }
+  return drafts;
+}
+
+/** Validate native control names before the UI-owned typed projection ignores extras. */
+function projectNativeForm(derived: DerivedOperationInputs | null, form: Record<string, string>): ClosedInputs {
+  if (derived === null || !['create', 'update', 'delete', 'scenario'].includes(derived.kind)) {
+    throw new IdentityError('validation', 'Native forms require a declared mutation operation.');
+  }
+  const { controls, presence } = nativeFormControls(derived);
+  const transport = new Set(['operation', 'operation_id', CSRF_FIELD, SOURCE_FORM_BINDING_FIELD, 'timezone']);
+  const rendered = new Set<string>();
+  for (const name of Object.keys(form)) {
+    const boolean = presence.get(name);
+    if (boolean !== undefined) {
+      if (form[name] !== 'true') throw new IdentityError('validation', 'Invalid boolean presence marker.');
+      if (boolean !== null) rendered.add(boolean);
+      continue;
+    }
+    const owner = controls.get(name);
+    if (owner !== undefined) rendered.add(owner);
+    else if (!transport.has(name)) throw new IdentityError('validation', 'Unknown native form field.');
+  }
+  if (derived.kind === 'delete') {
+    return Object.hasOwn(form, 'inputs[record][id]') || Object.hasOwn(form, 'inputs[record][version]')
+      ? { record: {
+        ...(Object.hasOwn(form, 'inputs[record][id]') ? { id: form['inputs[record][id]'] } : {}),
+        ...(Object.hasOwn(form, 'inputs[record][version]') ? { version: form['inputs[record][version]'] } : {}),
+      } } : {};
+  }
+  try { return projectGeneratedInputs(derived, derived.kind as 'create' | 'update' | 'scenario', form, [...rendered]); }
+  catch { throw new IdentityError('validation', 'Invalid native form inputs.'); }
 }
 
 /**
@@ -202,10 +304,20 @@ export async function handleOperationRequest(
 
     const mediaType = (request.headers.get('content-type') ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
     let body: unknown;
+    let nativeForm: Record<string, string> | null = null;
     if (mediaType === JSON_CONTENT_TYPE) {
       body = await parseJsonBody(request);
     } else if (mediaType === FORM_CONTENT_TYPE) {
-      body = coerceFormBody(await parseFormBody(request));
+      const form = await readOperationForm(request);
+      if (Object.hasOwn(form, 'inputs')) {
+        if (Object.keys(form).some(name => name.startsWith('inputs[') || name.startsWith(NATIVE_BOOLEAN_PRESENCE_PREFIX))) {
+          throw new IdentityError('validation', 'Mixed form input encodings.');
+        }
+        body = coerceFormBody(form);
+      } else {
+        nativeForm = form;
+        body = { ...coerceFormBody(form), inputs: {} };
+      }
     } else {
       return deny(deps, buildBusinessError('validation', 'Unsupported content type.'), operation);
     }
@@ -265,8 +377,17 @@ export async function handleOperationRequest(
     });
 
     const idError = validateOperationId(operationId, deps.clock);
+    let derived: DerivedOperationInputs | null | undefined;
     if (idError !== null) {
-      return denyOrRerender(deps, request, operation, idError, seen, authed);
+      // Only checked CRUD has the current-authority saved-outcome join.
+      // Preserve ordinary fresh and malformed-ID demand order; consult the
+      // catalog here only when the original age gate would refuse.
+      if (validateOperationIdShape(operationId) === null) {
+        derived = deps.catalog.derivedFor?.(operation) ?? null;
+      }
+      if (derived?.kind !== 'create' && derived?.kind !== 'update' && derived?.kind !== 'delete') {
+        return denyOrRerender(deps, request, operation, idError, seen, authed);
+      }
     }
     const shape = deps.catalog.shapeFor(operation);
     if (shape === null) {
@@ -274,13 +395,36 @@ export async function handleOperationRequest(
     }
     const { [CSRF_FIELD]: _csrf, ...submittedInputs } = inputs;
     void _csrf;
-    const derived = deps.catalog.derivedFor?.(operation) ?? null;
-    let businessInputs = submittedInputs;
+    if (derived === undefined) derived = deps.catalog.derivedFor?.(operation) ?? null;
+    if (nativeForm !== null) {
+      let drafts = nativeFormDrafts(derived, nativeForm);
+      if (Object.hasOwn(record, SOURCE_FORM_BINDING_FIELD) && wantsHtmlRerender(request) && formBindingFor(operation) !== undefined) {
+        const token = record[SOURCE_FORM_BINDING_FIELD];
+        const restoredDrafts = typeof token !== 'string' || derived === null || deps.formBindings === undefined ? null :
+          await deps.formBindings.restore({ appId: deps.app.appId, sessionToken, identity, derived,
+            operationId, nowMs: deps.clock.nowMs() }, token, drafts);
+        // Signed bound refs may restore the update shell for redisplay only.
+        // An unavailable proof never turns submitted refs into protected ones.
+        drafts = restoredDrafts ?? Object.fromEntries(Object.entries(drafts).filter(([name]) =>
+          derived?.inputs.find(input => input.name === name)?.kind !== 'ref'));
+      }
+      seen = { operationId, inputs: drafts };
+    }
+    let retainedBinding = false;
+    let businessInputs = nativeForm === null ? submittedInputs : projectNativeForm(derived, nativeForm);
+    if (nativeForm !== null) seen = { operationId, inputs: businessInputs };
     if (Object.hasOwn(record, SOURCE_FORM_BINDING_FIELD)) {
       const token = record[SOURCE_FORM_BINDING_FIELD];
-      const restored = typeof token !== 'string' || derived === null || deps.formBindings === undefined ? null :
+      let restored = typeof token !== 'string' || derived === null || deps.formBindings === undefined ? null :
         await deps.formBindings.restore({ appId: deps.app.appId, sessionToken, identity, derived,
-          operationId, nowMs: deps.clock.nowMs() }, token, submittedInputs);
+          operationId, nowMs: deps.clock.nowMs() }, token, businessInputs);
+      if (restored === null && typeof token === 'string' && derived !== null &&
+          ['create', 'update', 'delete'].includes(derived.kind) &&
+          typeof deps.formBindings?.restoreRetained === 'function' && typeof deps.invoker.invokeRetainedMutation === 'function') {
+        restored = await deps.formBindings.restoreRetained({ appId: deps.app.appId, sessionToken, identity, derived,
+          operationId, nowMs: deps.clock.nowMs() }, token, businessInputs);
+        retainedBinding = restored !== null;
+      }
       if (restored === null) {
         return denyOrRerender(deps, request, operation,
           buildBusinessError('forbidden', 'This form binding is no longer available. Reload the page.'), seen, authed);
@@ -313,7 +457,9 @@ export async function handleOperationRequest(
       now: new Date(deps.clock.nowMs()).toISOString(),
     });
     const envelope: MutationEnvelope = { operation, operation_id: operationId, inputs: businessInputs };
-    const outcome = await deps.invoker.invokeMutation(envelope, identity);
+    const outcome = retainedBinding
+      ? await deps.invoker.invokeRetainedMutation!(envelope, identity)
+      : await deps.invoker.invokeMutation(envelope, identity);
     if ('error' in outcome) {
       return denyOrRerender(deps, request, operation, outcome.error, seen, authed);
     }

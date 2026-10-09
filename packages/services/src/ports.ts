@@ -36,6 +36,7 @@ import { randomUUID } from 'node:crypto';
 import http from 'node:http';
 import { readTextBody, sendBody } from './internal/controlled-http.js';
 import type { Socket } from 'node:net';
+import type { MailScript } from './internal/scenario-admission.js';
 import type { FrozenJudgmentSource } from './judgments/specification.js';
 
 export type MailAttachmentRef = EmailSendInput['attachments'][number];
@@ -247,9 +248,21 @@ export interface InstalledImageOptions {
   readonly jobId: string;
   /** Original finite Unix millisecond deadline; callers must never renew it. */
   readonly deadlineMs: number;
+  /**
+   * Independent retained control budget, used only by cancel/reconcile.
+   * Persist this original window; a retry must not renew either deadline.
+   */
+  readonly observation?: {
+    readonly startedAtMs: number;
+    readonly deadlineMs: number;
+  };
 }
 
-/** Full std request survives every lifecycle call, including source/revision correlation. */
+/**
+ * Full std request survives every lifecycle call, including source/revision
+ * correlation. Submit uses only the original generation deadline. An expired
+ * generation can be observed or cancelled only with a retained control window.
+ */
 export interface ImagesPort {
   submit(input: ImageRequest, options: InstalledImageOptions): Promise<CapabilityCompletion<ImageAccepted>>;
   reconcile(input: ImageRequest, options: InstalledImageOptions): Promise<CapabilityCompletion<ImageRun>>;
@@ -271,6 +284,7 @@ export interface InstalledImages {
     readonly seed: { readonly kind: 'fixed'; readonly value: number };
     readonly maxOutputs: number;
     readonly maxDurationMs: number;
+    readonly maxObservationDurationMs: number;
     readonly maxOutputBytes: number;
   };
   readonly images: ImagesPort;
@@ -330,21 +344,7 @@ export function fixedAttachmentSizes(
  * - `drip`: 200 headers immediately on POST /send, body delayed by
  *   `delayMs` (covers header-then-drip timeouts).
  */
-export type ControlledScenario =
-  | { readonly kind: 'accept' }
-  | { readonly kind: 'reject'; readonly status: number; readonly body: unknown }
-  | { readonly kind: 'flaky-then-accept'; readonly failures: number }
-  | { readonly kind: 'invalid-schema'; readonly body: unknown }
-  | {
-      readonly kind: 'hang';
-      readonly reconcile: 'accepted' | 'rejected' | 'pending';
-    }
-  | {
-      readonly kind: 'redirect';
-      readonly status: number;
-      readonly location: string;
-    }
-  | { readonly kind: 'drip'; readonly delayMs: number };
+export type ControlledScenario = MailScript;
 
 export interface ControlledRequestLog {
   readonly method: string;
@@ -375,6 +375,7 @@ export function startControlledMailServer(
     let counter = 0;
     let sendAttempts = 0;
     const sockets = new Set<Socket>();
+    const dripTimers = new Set<ReturnType<typeof setTimeout>>();
 
     const acceptSend = (
       res: http.ServerResponse,
@@ -462,7 +463,13 @@ export function startControlledMailServer(
               'content-type': 'application/json',
               'content-length': Buffer.byteLength(text),
             });
-            setTimeout(() => {
+            const releaseTimer = (): void => {
+              clearTimeout(timer);
+              dripTimers.delete(timer);
+              res.off('close', releaseTimer);
+            };
+            const timer = setTimeout(() => {
+              releaseTimer();
               try {
                 if (!res.destroyed) {
                   res.end(text);
@@ -471,6 +478,8 @@ export function startControlledMailServer(
                 // Client already gone (e.g. timed out).
               }
             }, scenario.delayMs);
+            dripTimers.add(timer);
+            res.once('close', releaseTimer);
             return;
           }
         }
@@ -540,6 +549,8 @@ export function startControlledMailServer(
       }
       const close = (): Promise<void> =>
         new Promise((resolveClose) => {
+          for (const timer of dripTimers) clearTimeout(timer);
+          dripTimers.clear();
           for (const socket of sockets) {
             socket.destroy();
           }

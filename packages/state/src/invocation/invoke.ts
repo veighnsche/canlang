@@ -18,6 +18,7 @@ import type {
   HistoryEntry,
   ModelName,
   Membership,
+  MutationAdmissionMode,
   OperationName,
   OutboxIntent,
   ProjectedRecord,
@@ -49,6 +50,7 @@ import { evaluateBy } from '../policy/roles.js';
 import type { PolicyTable } from '../policy/grants.js';
 import {
   admit,
+  assertOwnerReceiptAdmission,
   receiptIdentityFor,
   revalidateCommitForFence,
   validateCallInputs,
@@ -57,6 +59,7 @@ import {
   type AdmittedCall,
   type ConflictServerOnly,
   type GuardRevalidation,
+  type FenceScope,
 } from './admission.js';
 import { queryRecords, type ViewerRecordsInput } from '../query/index.js';
 import {
@@ -269,6 +272,20 @@ export interface ExecutionEffects {
 /** S3 execution seam: interim handlers implement business evaluation. */
 export type ExecuteHandler = (call: AdmittedCall) => Promise<ExecutionEffects>;
 
+// Only actual invoke execution opens this lifetime. Admission objects and
+// structural copies cannot activate it through an exported constructor.
+const activeAdmittedExecutions = new WeakSet<AdmittedCall>();
+
+/** Internal receipt join assertion; checking cannot activate an execution. */
+export function assertOwnerReceiptExecution(
+  call: AdmittedCall, store: StoragePort, fence: FenceScope,
+): void {
+  if (!activeAdmittedExecutions.has(call)) {
+    throw new StateError('forbidden', 'Owner receipt observation requires the active trusted owner execution.');
+  }
+  assertOwnerReceiptAdmission(call, store, fence);
+}
+
 // `remove` writes are excluded: there is no resulting version to record,
 // and the audit trail for removals lives in the committed history entries.
 function recordVersionsOf(writes: ReadonlyArray<DomainWrite>): Array<{
@@ -316,7 +333,7 @@ function fenceRevalidationIdentity(
  * envelope keeps rejecting reads (T16b pins the query-port pointer; T17b
  * routes assembly reads to `invokeRead`).
  */
-export async function invoke(input: {
+export interface InvokeMutationInput {
   registry: OperationRegistry;
   envelope: MutationEnvelope;
   identity: ResolvedIdentity;
@@ -329,6 +346,8 @@ export async function invoke(input: {
   kind?: AdmissionKind;
   trustedSource?: string;
   execute: ExecuteHandler;
+  /** Host-only admission selection; omitted keeps ordinary mutation admission. */
+  admissionMode?: MutationAdmissionMode;
   /** Synchronous observation after durability; failures never retry execution. */
   observeCommittedReceipt?: (receipt: Receipt & { readonly outcome: CommittedReceiptOutcome }) => void;
   /**
@@ -338,7 +357,22 @@ export async function invoke(input: {
    * stale-ref denials carry metadata-only currents.
    */
   conflictServerOnly?: ConflictServerOnly;
-}): Promise<MutationResult> {
+}
+
+/**
+ * Positive installed-support boundary for recovery. Hosts must require this
+ * export before restoring a retained call; older invokers may ignore an
+ * optional mode. This entry always selects receipt-only admission, including
+ * when an untyped caller supplies a conflicting mode. Disclosure still uses
+ * the owning current-access projection after this internal invocation.
+ */
+export function invokeRetainedReceiptOnly(
+  input: Omit<InvokeMutationInput, 'admissionMode'>,
+): Promise<MutationResult> {
+  return invoke({ ...input, admissionMode: 'retained-receipt-only' });
+}
+
+export async function invoke(input: InvokeMutationInput): Promise<MutationResult> {
   const def = input.registry.get(input.envelope.operation);
   if (def === undefined) {
     throw new StateError('validation', `Unknown operation "${input.envelope.operation}".`);
@@ -369,6 +403,7 @@ export async function invoke(input: {
       context,
       store: input.store,
       memberships: input.memberships,
+      ...(input.admissionMode === undefined ? {} : { admissionMode: input.admissionMode }),
       ...(input.conflictServerOnly !== undefined
         ? { conflictServerOnly: input.conflictServerOnly }
         : {}),
@@ -392,7 +427,13 @@ export async function invoke(input: {
     // no fields. Non-StateError bugs propagate untouched, never receipted.
     let effects: ExecutionEffects;
     try {
-      const raw = await input.execute(call);
+      let raw: ExecutionEffects;
+      activeAdmittedExecutions.add(call);
+      try {
+        raw = await input.execute(call);
+      } finally {
+        activeAdmittedExecutions.delete(call);
+      }
       // S6: validate executor-staged outbox/schedules INSIDE the try, so
       // malformed executor output becomes a fenced rejected receipt via the
       // path below — never a crash. crudExecute's empty arrays pass

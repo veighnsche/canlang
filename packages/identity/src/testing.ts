@@ -145,6 +145,15 @@ export function createMemoryIdentityStore(opts?: {
     async listUserMemberships(user_id) {
       return [...memberships.values()].filter((row) => row.user_id === user_id);
     },
+    async listActiveUserTeamsPage(user_id, after) {
+      return [...memberships.values()]
+        .filter(row => row.user_id === user_id && row.status === 'active' &&
+          (after === null || row.team_id > after) && teams.has(row.team_id))
+        .sort((a, b) => a.team_id < b.team_id ? -1 : a.team_id > b.team_id ? 1 : 0)
+        .slice(0, 101)
+        .map(row => { const team = teams.get(row.team_id)!;
+          return { team_id: team.team_id, timezone: team.timezone }; });
+    },
     async listActiveOwners(team_id) {
       return [...memberships.values()].filter(
         (row) => row.team_id === team_id && row.status === 'active' && row.is_owner,

@@ -15,6 +15,7 @@ import type {
   CommitBatch,
   CommitResult,
   DomainWrite,
+  MutationAdmissionMode,
   OutboxIntent,
   Revision,
   StoragePort,
@@ -87,6 +88,7 @@ export interface InvokeArgs {
   readonly kind?: AdmissionKind;
   readonly trustedSource?: string;
   readonly execute: ExecuteHandler;
+  readonly admissionMode?: MutationAdmissionMode;
 }
 
 /** Bound mutation port: the canonical engine with dependencies fixed. */
@@ -107,6 +109,7 @@ export function createInvoker(input: InvokerInput): BoundInvoker {
       ...(args.kind !== undefined ? { kind: args.kind } : {}),
       ...(args.trustedSource !== undefined ? { trustedSource: args.trustedSource } : {}),
       execute: args.execute,
+      ...(args.admissionMode === undefined ? {} : { admissionMode: args.admissionMode }),
     });
 }
 
