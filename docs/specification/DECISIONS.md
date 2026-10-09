@@ -4595,3 +4595,17 @@ old generic fixture, so historical95d whole qualification does not qualify this
 changed source. Transition write provenance and the exact Dev portable release
 remain separate prerequisites; no empty mutation proof or original-reference
 acceptance follows.
+
+## 2026-10-09 — retain transition provenance refusal during whole qualification
+
+The source66b whole run completes129targets with1320passed/2failed/0ignored and
+no body skip. Forward the existing real public `int64` export in the isolated
+delivery-progress compiler fixture; its actual owning case1/1 then passes.
+Preserve the state-machine replay assertion and record its exact prerequisite:
+State scenario-receipt273-275 cannot retain an intermediate queued observation
+against a generating final net write; Cloudflare's genuine native view reads
+the staged overlay. Complete compiler literal/write lineage or defining State
+owner-session intermediate observation is required. General changed public
+fields also need their full influencing-read/control closure, since changed
+rows are projected separately from typed results. No empty void association,
+snapshot substitution, raw replay bypass or gate weakening is authorized.
