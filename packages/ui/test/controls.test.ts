@@ -8,6 +8,7 @@ import type {
 } from "@canlang/contracts";
 import { loadHtml } from "./harness.js";
 import { message } from "../src/messages.js";
+import { NATIVE_BOOLEAN_PRESENCE_PREFIX } from "../src/forms.js";
 import {
   calendar,
   checkbox,
@@ -200,6 +201,10 @@ describe("checkbox and toggle", () => {
       mode: "create",
     });
     assert.ok(!off.includes(" checked"), "unchecked when absent");
+    assert.ok(off.includes(`name="${NATIVE_BOOLEAN_PRESENCE_PREFIX}inputs[flag]" value="true"`));
+    assert.equal((off.match(/name="inputs\[flag\]"/g) ?? []).length, 1);
+    const editableToggle = await toggle({ context: makeContext(), field: field('flag', { type: 'bool', value: false }), idPrefix: 'u1', mode: 'update' });
+    assert.ok(editableToggle.includes(`name="${NATIVE_BOOLEAN_PRESENCE_PREFIX}inputs[changes][flag]" value="true"`));
     await assert.rejects(
       checkbox({ context: makeContext(), field: field("t", { value: "x" }), idPrefix: "f", mode: "create" }),
       /field "t"/,
@@ -216,6 +221,7 @@ describe("checkbox and toggle", () => {
     assert.ok(html.includes(`class="toggle"`), "toggle base class");
     assert.ok(html.includes(" checked"), "checked when true");
     assert.ok(html.includes(" disabled"), "readonly disabled");
+    assert.ok(!html.includes(NATIVE_BOOLEAN_PRESENCE_PREFIX));
     assert.ok(
       html.includes(`<input type="hidden" name="inputs[changes][flag]" value="true">`),
       "hidden duplicate carries bool submit value",
