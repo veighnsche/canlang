@@ -232,44 +232,84 @@ fn rewrite_fixture_names(expr: &mut TypedExpr, aliases: &HashMap<String, String>
         IrExpr::Name(name) if aliases.contains_key(name) => {
             let fixture = aliases.get(name).expect("checked alias").clone();
             expr.expr = IrExpr::Member {
-                base: Box::new(TypedExpr::new(IrExpr::Name("s".to_string()), ResolvedType::Unknown, expr.span)),
+                base: Box::new(TypedExpr::new(
+                    IrExpr::Name("s".to_string()),
+                    ResolvedType::Unknown,
+                    expr.span,
+                )),
                 field: fixture,
             };
         }
-        IrExpr::Member { base, .. } | IrExpr::Unary { operand: base, .. }
+        IrExpr::Member { base, .. }
+        | IrExpr::Unary { operand: base, .. }
         | IrExpr::DeliveryRead { record: base, .. } => rewrite_fixture_names(base, aliases),
-        IrExpr::Call { args, .. } | IrExpr::BoundCall { args, .. }
-        | IrExpr::Array(args) | IrExpr::Format { args, .. } => {
-            for arg in args { rewrite_fixture_names(arg, aliases); }
+        IrExpr::Call { args, .. }
+        | IrExpr::BoundCall { args, .. }
+        | IrExpr::Array(args)
+        | IrExpr::Format { args, .. } => {
+            for arg in args {
+                rewrite_fixture_names(arg, aliases);
+            }
         }
         IrExpr::Binary { left, right, .. } => {
             rewrite_fixture_names(left, aliases);
             rewrite_fixture_names(right, aliases);
         }
         IrExpr::Object(entries) => {
-            for (_, value) in entries { rewrite_fixture_names(value, aliases); }
+            for (_, value) in entries {
+                rewrite_fixture_names(value, aliases);
+            }
         }
         IrExpr::Query(query) => {
-            if let IrQueryDomain::Value { base, .. } = &mut query.domain { rewrite_fixture_names(base, aliases); }
-            for value in [&mut query.parent, &mut query.where_pred, &mut query.limit, &mut query.archived, &mut query.select] {
-                if let Some(value) = value { rewrite_fixture_names(value, aliases); }
+            if let IrQueryDomain::Value { base, .. } = &mut query.domain {
+                rewrite_fixture_names(base, aliases);
+            }
+            for value in [
+                &mut query.parent,
+                &mut query.where_pred,
+                &mut query.limit,
+                &mut query.archived,
+                &mut query.select,
+            ]
+            .into_iter()
+            .flatten()
+            {
+                rewrite_fixture_names(value, aliases);
             }
         }
         IrExpr::Message(message) => {
-            for param in &mut message.params { rewrite_fixture_names(&mut param.value, aliases); }
-        }
-        IrExpr::MessageCall { descriptor, args, params } => {
-            for param in &mut descriptor.params { rewrite_fixture_names(&mut param.value, aliases); }
-            for arg in args { rewrite_fixture_names(arg, aliases); }
-            for param in params {
-                if let Some(default) = &mut param.default { rewrite_fixture_names(default, aliases); }
+            for param in &mut message.params {
+                rewrite_fixture_names(&mut param.value, aliases);
             }
         }
-        IrExpr::JudgmentSpecification { options, .. } => {
-            if let Some(options) = options { rewrite_fixture_names(options, aliases); }
+        IrExpr::MessageCall {
+            descriptor,
+            args,
+            params,
+        } => {
+            for param in &mut descriptor.params {
+                rewrite_fixture_names(&mut param.value, aliases);
+            }
+            for arg in args {
+                rewrite_fixture_names(arg, aliases);
+            }
+            for param in params {
+                if let Some(default) = &mut param.default {
+                    rewrite_fixture_names(default, aliases);
+                }
+            }
         }
-        IrExpr::HasRole { person, .. } => {
-            if let Some(person) = person { rewrite_fixture_names(person, aliases); }
+        IrExpr::JudgmentSpecification {
+            options: Some(options),
+            ..
+        } => {
+            rewrite_fixture_names(options, aliases);
+        }
+        IrExpr::HasRole {
+            person: Some(person),
+            ..
+        } => {
+            rewrite_fixture_names(person, aliases);
         }
         IrExpr::Lambda { param, body } => {
             let mut visible = aliases.clone();

@@ -1836,10 +1836,11 @@ pub fn run_thin_entry(
     child_args.extend(args.iter().cloned());
     let mut command = std::process::Command::new(&bin);
     command.args(&child_args);
-    if subcommand == "test" && std::env::var_os("CAN_COMPILER_BIN").is_none() {
-        if let Ok(executable) = std::env::current_exe() {
-            command.env("CAN_COMPILER_BIN", executable);
-        }
+    if subcommand == "test"
+        && std::env::var_os("CAN_COMPILER_BIN").is_none()
+        && let Ok(executable) = std::env::current_exe()
+    {
+        command.env("CAN_COMPILER_BIN", executable);
     }
     match command.status() {
         Ok(status) => DispatchResult {
