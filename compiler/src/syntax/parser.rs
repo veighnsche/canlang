@@ -331,6 +331,7 @@ fn is_compound_head(text: &str, piece: &[Token]) -> bool {
             | "capability"
             | "judgment"
             | "page"
+            | "view"
             | "examples"
             | "backfill"
             | "tab"
@@ -352,7 +353,11 @@ fn check_semi_heads(text: &str, pieces: &[&[Token]]) -> Result<(), Fail> {
             if is_compound_head(text, piece) {
                 let head = &piece[0];
                 return Err(Fail::new(
-                    "E1205",
+                    if head.is_name(text, "view") {
+                        "E1200"
+                    } else {
+                        "E1205"
+                    },
                     format!(
                         "compound `{}` cannot form a semicolon sequence; give it its own logical line",
                         head.text(text)
@@ -3404,19 +3409,28 @@ impl<'a> Parser<'a> {
                 continue;
             }
             match section {
-                "Given" => self.parse_given_line(out, child, preferences_seen),
+                "Given" => self.parse_declaration_line(out, child, preferences_seen, false),
                 "When" => self.parse_when_line(out, child),
-                _ => self.parse_ui_line(out, child, true),
+                _ => {
+                    if self.suite_depth >= MAX_SUITE_DEPTH {
+                        self.cap_suite(out, std::slice::from_ref(child), "UI", "E1200");
+                        continue;
+                    }
+                    self.suite_depth += 1;
+                    self.parse_declaration_line(out, child, preferences_seen, true);
+                    self.suite_depth -= 1;
+                }
             }
         }
     }
 
-    /// Parse one Given item line (semicolon leaves allowed).
-    fn parse_given_line(
+    /// Parse a Given declaration or a top-level Then presentation item.
+    fn parse_declaration_line(
         &mut self,
         out: &mut Vec<SyntaxNode>,
         line: &'a LogicalLine,
         preferences_seen: &mut bool,
+        presentation: bool,
     ) {
         let (pieces, seps) = match split_pieces(&line.tokens, self.file) {
             Ok(split) => split,
@@ -3456,7 +3470,7 @@ impl<'a> Parser<'a> {
                     &[][..]
                 };
                 let outcome = self.attempt(out, |parser, scratch| {
-                    parser.parse_given_piece(&mut cursor, scratch, children)
+                    parser.parse_declaration_piece(&mut cursor, scratch, children, presentation)
                 });
                 match outcome {
                     Ok(is_preferences) => {
@@ -3498,12 +3512,14 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Parse one Given piece; returns `Some(empty)` for preferences.
-    fn parse_given_piece(
+    /// Preferences schema and its validation belong to Then; facts to Given.
+    /// Returns `Some(empty)` for the owning preferences schema.
+    fn parse_declaration_piece(
         &mut self,
         cursor: &mut Cursor<'a>,
         kids: &mut Vec<SyntaxNode>,
         children: &'a [LogicalLine],
+        presentation: bool,
     ) -> Result<Option<bool>, Fail> {
         let mut prelude = Vec::new();
         let exported = cursor.at_name("export");
@@ -3527,10 +3543,13 @@ impl<'a> Parser<'a> {
             && (peek2_is(cursor, Punct::LBrace)
                 || peek2_word == Some("in")
                 || (peek2_word == Some("at") && peek3_is_eq));
-        // `preferences {...}` is checked before the model production.
+        // Only the schema shape reserves this contextual model name.
         if head_word.as_deref() == Some("preferences")
             && cursor.peek2().is_some_and(|t| t.is_punct(Punct::LBrace))
         {
+            if !presentation {
+                return cursor.err("E1200", "preferences schemas belong in Then, not Given");
+            }
             if exported {
                 return Err(Fail::new(
                     "E1212",
@@ -3539,6 +3558,30 @@ impl<'a> Parser<'a> {
                 ));
             }
             return self.parse_preferences(cursor, kids, children);
+        }
+        let preference_invariant = head_word.as_deref() == Some("invariant")
+            && cursor
+                .peek2()
+                .is_some_and(|t| t.is_name(cursor.text, "preferences"))
+            && cursor.peek3().is_some_and(|t| t.is_punct(Punct::Colon));
+        if preference_invariant && presentation {
+            self.parse_invariant(cursor, kids, children, prelude)?;
+            return Ok(None);
+        }
+        if presentation {
+            if let Some(export) = prelude.first() {
+                return Err(Fail::new(
+                    if head_word.as_deref() == Some("view") {
+                        "E1200"
+                    } else {
+                        "E1212"
+                    },
+                    "presentation items cannot be exported".to_string(),
+                    export.span,
+                ));
+            }
+            self.parse_ui_piece(cursor, kids, children, true, false)?;
+            return Ok(None);
         }
         if !model_shaped {
             match head_word.as_deref() {
@@ -5942,17 +5985,17 @@ impl<'a> Parser<'a> {
     ) -> Result<(), Fail> {
         let head = cursor.expect_name()?;
         let word = head.text(cursor.text).to_string();
-        if top && word != "page" {
+        if top && word != "page" && word != "view" {
             return Err(Fail::new(
                 "E1200",
-                "Then accepts pages; navigation derives from them".to_string(),
+                "Then accepts preferences schemas, preference invariants, views and pages".to_string(),
                 head.span,
             ));
         }
-        if !top && word == "page" {
+        if !top && matches!(word.as_str(), "page" | "view") {
             return Err(Fail::new(
                 "E1200",
-                "page declarations belong directly in Then".to_string(),
+                format!("{word} declarations belong directly in Then"),
                 head.span,
             ));
         }
@@ -5971,6 +6014,78 @@ impl<'a> Parser<'a> {
             ));
         }
         match word.as_str() {
+            "view" => {
+                let mut inner = Vec::new();
+                self.builder.leaf(&mut inner, &head);
+                let name = cursor.expect_name()?;
+                self.builder.leaf(&mut inner, &name);
+                let open = cursor.expect_p(Punct::LParen)?;
+                self.builder.leaf(&mut inner, &open);
+                // The pilot signature keeps the ordinary Parameter/NamedType
+                // tree while admitting only one explicit required row host.
+                let mut parameter = Vec::new();
+                let row = cursor.expect_name_is("row")?;
+                self.builder.leaf(&mut parameter, &row);
+                let colon = cursor.expect_p(Punct::Colon)?;
+                self.builder.leaf(&mut parameter, &colon);
+                let row_type = self.parse_type(cursor)?;
+                if Self::named_type_parts(&row_type) != Some(1) {
+                    return Err(Fail::new(
+                        "E1200",
+                        "view requires one nonnullable local model parameter `row`".to_string(),
+                        row_type.span,
+                    ));
+                }
+                self.builder.push_inner(&mut parameter, row_type);
+                let parameter = SyntaxNode::enclosing(SyntaxKind::Parameter, parameter);
+                self.builder.push_inner(&mut inner, parameter);
+                let close = cursor.expect_p(Punct::RParen)?;
+                self.builder.leaf(&mut inner, &close);
+                cursor.end()?;
+                if children.is_empty() {
+                    return Err(Fail::new(
+                        "E1200",
+                        "view requires presentation children".to_string(),
+                        head.span,
+                    ));
+                }
+                for child in children {
+                    self.parse_ui_child(&mut inner, child);
+                }
+                if let Some(slot) = inner
+                    .iter()
+                    .flat_map(SyntaxNode::descendants)
+                    .find(|node| node.kind == SyntaxKind::Slot)
+                {
+                    return Err(Fail::new(
+                        "E1200",
+                        "view does not accept slots".to_string(),
+                        slot.span,
+                    ));
+                }
+                let node = SyntaxNode::enclosing(SyntaxKind::View, inner);
+                self.builder.push_inner(kids, node);
+                Ok(())
+            }
+            "show" => {
+                if !children.is_empty() {
+                    return Err(Fail::new(
+                        "E1200",
+                        "show does not accept a child suite".to_string(),
+                        head.span,
+                    ));
+                }
+                let mut inner = Vec::new();
+                self.builder.leaf(&mut inner, &head);
+                let name = cursor.expect_name()?;
+                self.builder.leaf(&mut inner, &name);
+                let arguments = self.parse_object(cursor)?;
+                self.builder.push_inner(&mut inner, arguments);
+                cursor.end()?;
+                let node = SyntaxNode::enclosing(SyntaxKind::Show, inner);
+                self.builder.push_inner(kids, node);
+                Ok(())
+            }
             "page" => {
                 let mut inner = Vec::new();
                 self.builder.leaf(&mut inner, &head);

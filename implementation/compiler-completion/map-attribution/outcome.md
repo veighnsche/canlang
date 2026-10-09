@@ -11,3 +11,46 @@ One bounded build was run: `cargo test --manifest-path compiler/Cargo.toml --loc
 The original [DEP-02 row](../../../docs/research/compiler-library-audit-20261006/resumption/audit-costs-and-oracles.md) asks for repeated source identity, an independent decoder, actual attributed failures, and a supported public API before extraction replacement, with **retain/defer** selected. Joined with the accepted repeated-path/current map controls and [supported extraction/public decoder retention decision](../map-support/decision.md), this witness supplies its missing current emitted-failure consumer outcome. **The original finite DEP-02 retain/defer duty is complete at this bounded scope.** Extraction remains retained with zero deletion credit; no upgrade or replacement is selected.
 
 Browser navigation, installed/deployed original applications, canonical operation invocation, universal host attribution, huge resource profiles and GUI workflows are not qualified. The original audit assigns those broader actual-application profiles separately to OR-06; they are not an extra DEP-02 completion condition. A future dependency upgrade/extraction replacement must requalify its own supported API and compatibility outcomes.
+
+## S9-Q08 public callable mapper
+
+The same consumer's `--registry-mapped-outcome` mode and
+`production_failure_reaches_native_registry_mapped_outcome` pass **1/1**
+(0.22s). The unchanged genuine source is compiled and assembled normally;
+installed `@canlang/cloudflare/runtime/invoke` invokes its emitted registry
+callable once. With Node source-map support disabled, the current runtime
+mapper returns the exact error `Division by zero` and original absolute
+`failure.can` identity at **4:8**, including `Attribution.remainder` as the
+mapped name. The first result (0/1, 0.55s) exposed an omitted expected name;
+the existing public `MappedPosition.name` contract determined that observer
+correction. Only this affected new case repeated, using the same executable.
+The accepted DEP-02 Node/decoder outcomes remain reused.
+
+At the time of the callable-registry result above, canonical
+`runScenarioSeam` converted `InvokeResult.error` to a State error and discarded
+`mapped`; the read path preserved the throw before State conversion. The
+following bounded consumer qualifies the later internal-details hop. It does
+not qualify a mapped-location public wire carrier, broader disclosure policy,
+original error-object guarantee, deployment or full S9-Q08.
+
+## Canonical State internal attribution hop
+
+`compiler/tests/map_attribution.rs::production_failure_retains_internal_attribution_through_canonical_state`
+now passes **1/1 (0.21s)** through the actual production CLI, installed
+catalog, refreshed Cloudflare invoke/stdlib assembly and real State Memory.
+`invoke.ts` places the existing `outcome.mapped` value into the existing
+`StateError.details` for fresh canonical `rule_failed` errors; existing
+`engineFailures` are retained. Public code, message, operation ID and
+`retryable:false` stay unchanged. A real `Attempt.create` rolls back; its
+receipt has no mapped field. Same-ID rejected replay exposes no attribution.
+A fresh artifact with raw maps removed, `sourceMaps`/`mapUrls` empty, returns
+`details:null`.
+
+The original 0/1 (0.36s) fixture had a missing required `as` binding; the next
+0/1 (0.52s) exposed test source-loader setup for a TypeScript parameter
+property. Only the fixture was corrected before the installed compiled
+consumer. Focused TypeScript no-emit and Rust build results passed and are
+reused; no tests/builds are repeated here. This completes only the finite
+internal wrapping hop. Held BDD3 returned/as/live/context disclosure and full
+replay/public source policy remain separate; no full S9-Q08/OUT-R05 credit is
+claimed.

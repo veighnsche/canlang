@@ -1,0 +1,55 @@
+{
+  "request": {
+    "state": "A coding agent may write approximate Can after seeing only a tiny Given/When/Then primer. The planned dev server should return one compact canonical help card when justified and abstain where intent is unclear. Today diagnostics carry stable code, source byte span/hash and completeness; current completion is positional but is not a reliable expected-token oracle on recovered or unknown syntax. An observed six-draft corpus shows structural failures, case-shaped type guesses, `rule` meaning policy/invariant/lock/derive, and `atomic` with no safe one-word replacement. The catalog supplies versioned candidate IDs and fixed signatures/meanings; Jev Choice only selects among criteria and returns probabilities/confidence. Consider useful completion, semantic misguidance, API calls, response time and limited external source sharing.",
+    "questions": {
+      "ranking_trigger": {
+        "type": "choice",
+        "instructions": "Choose a default Jev invocation policy for construct suggestions in a check response.",
+        "criteria": {
+          "request_only": "Show deterministic grammar and catalog guidance by default, with a separate explicit Jev request for ambiguous diagnostics. Strong cost and privacy control, but one extra tool round trip for the common ambiguous case.",
+          "all_eligible_errors": "Call Jev for each diagnostic that has a plausible supported construct card. Maximizes automatic coverage, while duplicating exact parser guidance and increasing time/cost when recovery context is unreliable.",
+          "ambiguous_after_deterministic": "Call Jev for a bounded set of multiple viable cards only after exact grammar, signature and contextual matches have been used; require reliable source location and preserve none/unclear. Saves routine calls but depends on careful candidate filtering."
+        }
+      },
+      "ranking_context": {
+        "type": "choice",
+        "instructions": "Choose the normal Jev payload for intent ranking among supplied Can cards.",
+        "criteria": {
+          "bounded_context": "Include code/span/section and candidate summaries with a short redacted local source excerpt, relevant typed declarations and optional agent-stated task intent; do not send whole files or private runtime data. Balances disambiguation and exposure.",
+          "full_context": "Include complete file, declaration graph and user task with the candidates. Can aid broad interpretation but sends more project data and costs more tokens and latency.",
+          "structured_only": "Include only diagnostic metadata, grammar position and parallel candidate summaries. Minimal provider data, but weak clues for invented vocabulary and intended operation."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "ranking_trigger": {
+        "type": "choice",
+        "choice": "ambiguous_after_deterministic",
+        "confidence": 0.37,
+        "probabilities": {
+          "request_only": 0.41,
+          "all_eligible_errors": 0.01,
+          "ambiguous_after_deterministic": 0.58
+        }
+      },
+      "ranking_context": {
+        "type": "choice",
+        "choice": "bounded_context",
+        "confidence": 0.91,
+        "probabilities": {
+          "bounded_context": 0.94,
+          "full_context": 0.0,
+          "structured_only": 0.06
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 787,
+      "output_tokens": 98
+    }
+  }
+}

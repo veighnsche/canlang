@@ -30,6 +30,8 @@ test('source binding survives transport and reconstruction with the same configu
   const renderer = await createSourceFormBindings(hostKey, revision);
   const dispatcher = await createSourceFormBindings(bytesToBase64Url(hostKey), revision);
   const proof = await renderer.seal(context, bound, ['title']);
+  assert.equal(proof.identity, 'e1d8e432fc743de97601b1c52e592e6429f14bf6024a8a9d8587409917b0b214', 'omitting occurrence preserves the original comparison hash');
+  assert.equal(proof.draftIdentity, '6afbb53c3f723e4da5c6fcd29a212853ae1e3de682d7db62e055b3416e20c612');
   const token = proof.token;
   const transported = JSON.parse(JSON.stringify({ token, inputs: { title: 'Edited draft' } })) as { token: string; inputs: ClosedInputs };
   const restored = await dispatcher.restore({ ...context, nowMs: context.nowMs + 1_000 }, transported.token, transported.inputs);
@@ -54,6 +56,24 @@ test('source binding survives transport and reconstruction with the same configu
   ] } }, bound, ['title']);
   assert.notEqual(changedSchema.draftIdentity, proof.draftIdentity);
   assert.equal(new TextDecoder().decode(base64UrlToBytes(token.split('.')[0]!)!).includes(revision), false, 'host revision details are not disclosed');
+  const occurrenceContext = { ...context, occurrence: 'page:/entries/form:1/row:entry-1' };
+  const scoped = await renderer.seal(occurrenceContext, bound, ['title']);
+  const sibling = await renderer.seal({ ...occurrenceContext, occurrence: 'page:/entries/form:2/row:entry-1' }, bound, ['title']);
+  assert.notEqual(scoped.identity, proof.identity);
+  assert.notEqual(scoped.draftIdentity, proof.draftIdentity);
+  assert.notEqual(sibling.identity, scoped.identity, 'same operation, refs and editable selection have distinct presentation occurrences');
+  assert.notEqual(sibling.draftIdentity, scoped.draftIdentity);
+  assert.equal(scoped.token, proof.token, 'occurrence never enters the signed payload');
+  assert.equal(sibling.token, proof.token);
+  const refreshed = await renderer.seal({ ...occurrenceContext, operationId: 'fresh-occurrence-nonce', nowMs: context.nowMs + 1_000 }, bound, ['title']);
+  assert.equal(refreshed.identity, scoped.identity);
+  assert.equal(refreshed.draftIdentity, scoped.draftIdentity);
+  const newer = await renderer.seal(occurrenceContext, { record: { id: 'entry-1', version: '8' } }, ['title']);
+  assert.notEqual(newer.identity, scoped.identity);
+  assert.equal(newer.draftIdentity, scoped.draftIdentity);
+  assert.deepEqual(await dispatcher.restore(context, scoped.token, transported.inputs), restored);
+  assert.deepEqual(await dispatcher.restore({ ...context, occurrence: 'different-presentation' }, scoped.token, transported.inputs), restored,
+    'restoration checks submission authority independently of occurrence');
 });
 
 test('source binding rejects altered proofs, bound overrides and edits outside the signed selection', async () => {
@@ -103,6 +123,9 @@ test('source binding fences current app, session, actor, team, operation, schema
 
 test('source binding admits only normalized singular versioned refs and preserves own prototype-named inputs', async () => {
   const service = await createSourceFormBindings(hostKey, revision);
+  for (const occurrence of ['', undefined, null, 1, '\uD800', '\uDC00']) {
+    await assert.rejects(service.seal({ ...context, occurrence } as SourceFormBindingContext, bound, ['title']), TypeError);
+  }
   await assert.rejects(service.seal(context, { title: 'Immutable scalar' }, []), TypeError);
   await assert.rejects(service.seal(context, { record: { id: 'entry-1', version: '07' } }, ['title']), TypeError);
   await assert.rejects(service.seal(context, { record: { id: 'entry-1', version: '7', privateField: 'not allowed' } }, ['title']), TypeError);

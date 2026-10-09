@@ -166,7 +166,7 @@
   },
   "numeric_acceptance_limit": "Existing numeric source/native actual-caller scope only; unchanged original Wasm/installed/durable/backend/T08/T26 and held preparation gates remain.",
   "next_active_packets": [
-    "TECH-S02/REPLAY-IP07 finite CRUD public result contract (specific JEV approval pending)",
+    "TECH-S02/REPLAY-IP07 finite CRUD public result contract (JEV advice complete; defining implementation contract pending)",
     "H3 compiler consumer of released trusted formatting scope",
     "H1 full scalar/array/default/hook/native consumer residuals",
     "TECH-V05 exact external timezone payload approval pending"
@@ -541,7 +541,7 @@
     },
     "TECH-W02": {
       "planning_status": "ready",
-      "state": "Partial: retained membership resume, ordinary compiled-child bridge and genuine declared-event private cohort component accepted; default installed Worker, mixed-handler and broader durable/installed/T26 gates open.",
+      "state": "Partial: retained membership, mixed matching handlers and the default installed team-cohort Worker consumer are accepted at their actual source/host scope; broader resource, owner enumeration and original T26 lifecycle joins remain open.",
       "files": [
         "packages/cloudflare/src/runtime/invoke.ts",
         "packages/state/src/fanout/lifecycle.ts",
@@ -591,7 +591,7 @@
         "packages/cloudflare/test/fanout-fresh-facts.test.ts": "0ad244593fcc37ffe08a43676f89c67fdc35a77d29cb9fc9bffe93748272ae1a"
       },
       "commit_pending": false,
-      "parent_limit": "Original compiled/mounted/durable/startup/installed/T26 qualification remains open; structural view is not admission authority",
+      "parent_limit": "The actual installed fetch/scheduled waitUntil path passed on local workerd/native D1 with concrete team/model roots, replay and restart. General app/mixed roots, owner enumeration, full-cohort O(N) decoding/freeze resource qualification and original T26 authority/receipt/notification joins remain open.",
       "commit": "c7c98b71",
       "private_cohort_component": {
         "state": "Root reviewed finite component committed fe35fc99; source lease cleared to Coordinator/Roadmap, broader parent remains partial",
@@ -606,6 +606,12 @@
         "owner_contract": "Existing Work stageDueSchedule and occurrence receipt stage produce effects without commit; one revision-fenced owner batch admits every matching pure-cohort handler and its occurrence-wide source receipt",
         "limits": "Internal constructor only; default installed Worker fulfillment, mixed ordinary/cohort events and broader lifecycle/security/resource/installed parent gates remain open; no replacement reduction or root48 count credit",
         "commit": "fe35fc990822234822b3cdb2f489b72347313610"
+      },
+      "installed_worker_component": {
+        "commit": "662d59755ecdcf6eb70a34870d7d01f61c3cc2d7",
+        "state": "Accepted actual default Worker consumer, 1/1 owning case on real workerd/native D1",
+        "scope": "Concrete team/all-team model roots; immutable module map fetch/scheduled, both handler kinds, waitUntil, replay, zero-member exhaustion and fresh-isolate persisted D1 restart",
+        "limits": "No remote deployment; broader resource/owner/app-root and parent T26 outcomes remain separate"
       }
     },
     "TECH-W03": {
@@ -1620,7 +1626,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-08T19:12:25.804970+00:00",
+  "updated_utc": "2026-10-09T01:41:16.956660+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -2677,21 +2683,596 @@
       "actual_check": "Compiler owning enum_result_runtime 1/1, 6.49s, after corrected Cloudflare read coherence publication; initial full-artifact read preload failed then repaired. State/CF source checks and defining output publication succeeded.",
       "root_review": "Direct review of reused compiler case/type derivation, State canonical result gate, Cloudflare public/declared cases and wrapper coherence, unchanged encodeValue codec and genuine consumer; no extra reviewer or rerun.",
       "limits": "Memory Node generated consumer only; wider installed/native/host, remaining validation/capability tasks stay open.",
-      "counts_unchanged": true
+      "counts_unchanged": true,
+      "commit": "1527a249c915076c3e87daa5e8a488ac3c5a0e85"
     },
     "installed_cohort_tick_join_20261008": {
-      "state": "actual consumer failure addressed; same case pending after fixture output-root correction",
-      "source_scope": [
-        "packages/cloudflare/src/runtime/cohort-tick.ts",
-        "packages/cloudflare/src/runtime/invoke.ts::maintainFanoutNavigationCanonical",
-        "packages/cloudflare/src/deploy/bundle.ts existing staging closure"
-      ],
-      "accepted_prerequisites": "Physical owner router and normal/trusted bridge accepted at earlier narrow scopes; outputs reused.",
-      "corrections": "Current bounded child query before null wrap, skip already-null scan write; stage cohort runtime plus existing Work kernel closure and reuse worker producer rewriting.",
-      "last_failure": "Normal bundle link check passed after bare Work import repair; writeDeployBundle correctly refused symlinked /var/folders output ancestor. Actual fixture needs realpath temporary parent, production refusal retained.",
-      "scope_limit": "Actual generated bundle/default HTTP and scheduled handlers on Node with real Miniflare D1; no remote/workerd app execution or full task acceptance yet.",
-      "owner": "Roadmap same actual consumer/outputs; Package bundle/helper frozen and capture after result",
+      "state": "accepted focused installed team-cohort component; coherent capture",
+      "actual_check": "SAME owning typed-private-cohort case1/1,22.293s on real local workerd/Miniflare and native D1, after actual source/host corrections. Source check0 and selective actual outputs0. Existing accepted prerequisites reused.",
+      "actual_consumer": "Immutable real buildDeployBundle module map/default main; actual activate four gates; authenticated HTTP create/replay isolatedB; native scheduled and waitUntil; ordinary+cohort eachonce; anchored zero-member navigation; exhausted owner scan; persistent D1/fresh isolate restart and finite later turns preserve business/history/source/receipts/pin.",
+      "root_review": "Direct source review of host-selected State boundary, v1 capability/fetch/scheduled join, current bounded navigation and revision fence, defining Work/State producers, normal vendor closure and same actual consumer. Native comparison and symlink refusal retained; temporary Node host bridge removed.",
+      "limits": "Selected concrete TEAM and all-team model roots on local workerd; remote deployment, app/mixed roots, general pages/owner enumeration open. Initial frozen member decode remains O(N); no constant CPU/byte or full resource-profile claim.",
+      "maintenance_budget": "Added required capability/correctness scope; no replacement-only production-reduction claim.",
       "counts_unchanged": true
+    },
+    "enum_result_publication_20261008": {
+      "state": "source capture published to origin",
+      "commit": "1527a249c915076c3e87daa5e8a488ac3c5a0e85",
+      "push": "normal fast-forward7dc9ee16..1527a249 exit0; origin/main verified equal",
+      "limits": "Released narrow Memory consumer acceptance; broader tasks unchanged. Compiler own scope notes captured separately, foreign DESIGN section11 preserved."
+    },
+    "static_judgment_shared_join": {
+      "state": "Accepted shared source/provider prerequisite; actual outputs published; genuine compiler/runtime consumer remains with root and Roadmap",
+      "scope": "Full static shared JudgmentSpec and exact canonical authored result; one source-owned descriptor, immutable specification and original question order; installed SystemOne binding/model/tokenizer and request/result join",
+      "model_allocation": "Sol medium canonical Contracts correction; root source/ports assembly and direct review; Sol high exact numeric/provider compatibility implementation. One direct test layer, no premium or nested reviews.",
+      "checks": "Private owning TypeScript0; canonical real local HTTP2/2 and affected legacy12/12. Relevant final frozen deliveryId/source snapshot edit canonical2/2; unchanged legacy reused. Actual Contracts/Services fresh build-package emit0/0; offline script-free lock join0.",
+      "verified": "Exact18-digit decimals, exponent score, beyond-Number int64 usage, source question/option/level order, true/false NOUL criteria, exact source descriptions/maximal choice/distributions, invalid usage/output/spec/order/model, before-transport token/byte/state bounds, own __proto__, safe provider status/redaction and unknown reconcile.",
+      "owner_release": "Source/commands released; root pure helper/context and Roadmap bound delivery/receipt join continue over same genuine Compiler fixture. No shared CF/State/native emit by root.",
+      "limits": "Controlled local provider and configured tokenizer callback; actual remote inference/model context measurements, Worker numeric-source feature, genuine compiled invocation/retained receipt, runtime options, historic placeholder migrations and wider Task46 are not accepted. Native JSON.parse source required; no duplicate raw JSON-key scanner.",
+      "maintenance_budget": "Required added capability; no replacement-only production-reduction claim; no new schema, decimal engine, transport framework or generated app contract copy.",
+      "counts_unchanged": true
+    },
+    "static_judgment_type_boundary": {
+      "state": "Defining source prerequisite accepted; actual generated Cloudflare/D1 consumer currently qualifying under owning Roadmap",
+      "scope": "One CanonicalValueTypes inventory; Values-owned normalization reused by State intake, nominal model tables, receipt gates and Interfaces. Standard numeric delivery versions preserved; source Judgment exact int64 versions remain JSON decimal strings. Current/retained supplied context validates immutable specification, result schema and source; selected reads preserve authorization order.",
+      "validation": "Root Contracts and Values owning TypeScript emits0; intake owner source-current compile and directly affected4tests pass; receipt owner source-current compile, association15/15, changed4/4 and final cancellation1/1 pass; unchanged checks reused. Root scoped diffcheck0 and direct source review.",
+      "model": "Sol6.1 high for cross-file nominal intake and receipt/provenance boundaries; root owns shared Values normalizer and Git; no premium or additional independent proof packet",
+      "limits": "No new invented State feature gate; existing state@1 applies and older loaders refuse explicit new claims. Actual same compiled handler/D1 consumer, runtime choices and full Task46 acceptance separate. Retained original carrier after ACK remains held; no latest-source substitution. Repair totals and complete filetree checkpoint unchanged.",
+      "writers_released": true,
+      "outputs": "Root Contracts/Values/Services outputs current; State/Cloudflare output ownership remains Roadmap",
+      "commit": "ac5d0e86d5a525098f1116c017924900489955ad"
+    },
+    "static_judgment_compiler": {
+      "state": "Released static declaration and exact checked inventory producer accepted at its installed module scope",
+      "source": "compiler/tests/fixtures/static_judgment.can",
+      "case": "compiler/tests/static_judgment_runtime.rs",
+      "scope": "Compiler derives declaration, exact int64 version, sourceLanguage, ordered questions, evaluate binding and generated nominal/enum inventory once from owning checked IR; required-array presence retained. Ordinary send/assessment creation/request association authored source retained.",
+      "validation": "Owner production CLI and installed catalog source controls pass; actual static installed module case1/1(.18s) after defining output release. Actual version=-1 source refuses E3001 without modules through existing Literal-only attribute rule. Root scoped source review/diffcheck0; no unchanged check replay.",
+      "limits": "Static source/module only; actual native D1 delivery/retained receipt workflow is Roadmap-owned and currently qualifying. Runtime choices refuse E6006; no full46/root48 acceptance, source growth is required added capability rather than replacement-only saving. Compiler wider completed count58/67 remains its own ledger.",
+      "source_writers_released": true,
+      "commit": "3789b154ee149145a0191fb90470bc7952ee5e5f"
+    },
+    "static_judgment_runtime": {
+      "state": "Root-reviewed selected static compiler/Node-handler/native D1/local HTTP path accepted; full Task46 remains open",
+      "source": "compiler/tests/fixtures/static_judgment.can",
+      "case": "packages/cloudflare/src/runtime/bound-judgment-durable.test.ts",
+      "scope": "Same compiled source creates Assessment, freezes exact source specification in queued Work carrier, stages association and protected receipt atomically, dispatches installed selected System One adapter through existing Work engine, and reads typed results under current grants/context.",
+      "validation": "Owning actual one native D1+localhost provider case1/1(2.499s): rollback no business/outbox; same-key replay no effect; exact NOUL/choice/score; claim/ack; actual Receipt.read and nominal snapshot/enum result; persistent D1 reopen;503 unknown/reconcile without resend. Two original envelope assertions corrected to actual read/business-error shapes before relevant case passed. State0/16 and CF0/36 owner compilation reused; changed owning case0/4 reemit. Root direct source review/diffcheck0.",
+      "limits": "Node handler and native local D1 with controlled HTTP provider, not remote service/tokenizer or deployed Worker/default adoption. Runtime choices, acknowledged original carrier lookup for clear/replacement, full46 and original repair/port/application gates remain open. Interfaces nominal metadata/output follow-up separately finishing; repair totals/complete checkpoint unchanged.",
+      "source_writers_released": true,
+      "commit": "af345b5d0d909d156822a1c6e1f8653351ba8814"
+    },
+    "static_judgment_interfaces": {
+      "state": "Released actual public MCP/HTTP nominal catalog and frame consumer accepted at the static compiled source scope",
+      "scope": "Use defining Values normalizer and exact compiler inventory; render only transitively reached public contracts/enums with resolving root definitions; retain locale stringlike, []! and exact Judgment string versions. Generic provider deliveries remain unsuppliable.",
+      "validation": "Owning Interfaces full emit0; actual SAME frozen compiler artifact catalog/frame accepts exact spec/result/Queue wires and rejects malformed enum/extra fields. Root refs resolve and unrelated private definitions remain absent. Finite []! retention/marker agreement correction checked. No D1/Compiler rerun or new fixture/proof suite.",
+      "coordination_limit": "Parent model-capacity failure did not stop its nested Interfaces writer. Root takeover produced unnecessary narrow output/check overlap; both writers released, one qualification credit retained and no further check. Future takeover must reconcile nested ownership first.",
+      "model": "Sol6.1 medium finite existing renderer/metadata/codec join; root Git",
+      "limits": "No generic form/opaque JSON engine, broader provider/installed/default/Task46 or root48 completion. Canonical inventory remains defining, no app-local schema copy or second parser.",
+      "source_output_handles_released": true,
+      "commit": "1fc756ea4e8f09a4df929ced8fd5610411c4de54"
+    },
+    "compiler_bounded_query_and_notes": {
+      "state": "Released finite bounded query qualification and source-current compiler own notes captured; full S9-Q02 remains open",
+      "source": "compiler/tests/fixtures/bounded_query_rollback.can",
+      "case": "compiler/tests/bounded_query_rollback_runtime.rs",
+      "validation": "Owner SAME genuine CLI/installed canonical CF+State Memory case1/1(.70s): CRUD rows, one awaited domain fetch, pre-write bound, ordered sequential awaited native updates, authored guard rollback and accepted commit, overflow pre-write refusal. Original rejected receipt/global fence policy and limit diagnostic retained. Two wrong new oracle expectations corrected from existing contracts; only affected case repeated, no production change or accepted matrix rerun.",
+      "limits": "Memory native invocation only; async predicates/hooks/outbound/D1 and full S9-Q02 remain open. Compiler original finite tab/order duty S9-Q03 accepted from existing released factory/refusal results and records58/67, not root48 credit. Static installed module note updated; actual separate D1 release preserved in root record. Root captures only Compiler static DESIGN hunk, preserving developer-server proposal.",
+      "source_output_handles_released": true,
+      "checkpoint": "Accumulated complete filetree review remains open/unadvanced"
+    },
+    "runtime_judgment_value_constraints": {
+      "state": "Defining source prerequisite accepted; source compiler and actual joined native consumer remain active owning gates",
+      "scope": "One CanonicalValueTypes inventory with bounded NAME text aliases and array count/distinct/excluded-ID constraints; receiving fields retain/intersect bounds; existing Values validator owns semantics. Scalar ID domain is enforced only by its explicit alias, not duplicated in generic keyed-array distinctness. Primitive codecs unchanged.",
+      "validation": "Contracts/Values owning emits0; seven changed Values cases7/7; one actual raw native profile registration refusal case1/1. Unsupported prepared/native profiles refuse before plan publication and retain first plan identity. Only changed semantic checks repeated after root removed implicit generic-ID cap.",
+      "model": "Sol6.1 high for uncertain shared schema implementation; root sole Git/emitter; no premium review or duplicate corpus",
+      "writers_released": true,
+      "limits": "Added capability budget; no full port/Task46 closure, native adoption, held preparation or complete checkpoint advance. Runtime arrays and results need actual compiler/consumer source release.",
+      "commit": "59210830b2e63e46237fb30ae983e999ddb379a9"
+    },
+    "read_predicate_defining_disposition": {
+      "state": "Bounded owner contract selected; implementation/actual source qualification remains owning Roadmap",
+      "hold": "Original retained OUTBOX lookup Task22 remains held and is independent of State viewer records.",
+      "contract": "Capture all projected observations before source predicate including false/nested/empty dependencies; revalidate current domain/grants/projections/fence without replaying source. Existing runtime wrapper already receives State authorized projection, so prefer that seam over a new State callback API; preserve native parent selectors and separate prepredicate domain from matched output bounds. Mutation filter admission remains refused.",
+      "advice": "Three facts-only JEV consultations favor dependency capture: probabilities .96/.73/.98; confidence .94/.59/.97, no rationale. Investigated actual projected predicate wrapper as a smaller mechanism; advice is not acceptance evidence.",
+      "evidence": "/private/tmp/canlang-read-predicate-disposition/request-{1,2,3}.json and response-{1,2,3}.json",
+      "limits": "No original S9-Q02 acceptance, held-outbox egress retry or alternate query engine."
+    },
+    "runtime_judgment_frozen_union": {
+      "state": "Defining source/provider and supplied-context receipt joins accepted; same genuine compiled native consumer is still an active owning gate",
+      "scope": "Four-argument freezeJudgmentSource borrows artifact inventory. Shared validation constructs authored-first complete union and unchanged JudgmentSpec/order/revision format; static source revision remains byte-identical. Runtime receipts use one exact bounded source alias and original candidate membership/complete source-order distributions, exact scalar wire and original revision.",
+      "validation": "Services owning emit0, one actual controlled HTTP runtime union/winner-refusal case1/1; Work owning emit0, one changed State/Work original-union association case1/1. State own emit0 is reused from owning Roadmap. Original static matrix reused; one changed revision-domain failure corrected by preserving the existing content revision format, then only the changed case rerun.",
+      "model": "Root Services; existing Sol6.1 high finite receipt agent; no premium review, copied provider transport or second schema",
+      "writers_released": true,
+      "limits": "Only supplied original contexts; post-ACK retained lookup remains held22. Compiler frontend/runtime source producer and SAME native consumer continue independently. Full Task46, parent repairs, installed/deployed/adoption and complete filetree checkpoint remain open."
+    },
+    "runtime_choice_consumer": {
+      "status": "Released actual native consumer reviewed and captured; full Task46 remains partial",
+      "sources": [
+        "packages/cloudflare/src/runtime/context.ts",
+        "packages/cloudflare/src/runtime/stdlib.ts",
+        "packages/cloudflare/src/runtime/invoke.ts",
+        "packages/cloudflare/src/runtime/bound-judgment.ts",
+        "packages/cloudflare/src/runtime/mcp-registry.ts",
+        "packages/cloudflare/src/runtime/bound-judgment-durable.test.ts",
+        "packages/interfaces/src/mcp/schemas.ts",
+        "packages/state/src/invocation/registry.ts"
+      ],
+      "verification": "Owning CF emit0/24 outputs, State/Interfaces emits0; same native source-backed durable case1/1 in3.136s. Root reviews exact released diff and reuses unchanged defining Services/Values/Work checks.",
+      "contract": "One checked inventory drives MCP constraints, runtime specification, retained candidate/options order and actual HTTP/Work dispatch. Original typed receipt union, late guard rollback, replay and unknown no-resubmit preserved.",
+      "limits": "Acknowledged dynamic Receipt.read fails closed without original retained context; held Task22 remains. Canonical hook target writes explicitly refuse until actual hook attachment/finalization, not hook execution acceptance. No installed all-host or full parent credit.",
+      "sources_outputs_handles_released": true,
+      "counts_unchanged": true,
+      "commit": "9e4b6f9acad53f267bf53ef2f9716a55fbf805b4"
+    },
+    "runtime_choice_compiler_and_read_capture": {
+      "status": "Released defining producer and exact read consumer captured; broad parent counts unchanged",
+      "verification": "Owner same runtime choice case1/1 .75s, unchanged byte ABI1/1; existing localized branch case1/1 .65s; unsupported hook refusal1/1 .51s; supported async read case1/1 .75s and owning CF emit0/4. Root changed Services omitted-exclusions case1/1, owning emit0. Exact released diff reviewed; unchanged checks reused.",
+      "contracts": "Runtime marker must be options=runtime; omitted authored map omits options property, explicit empty authored map refuses. Shared bounded aliases/candidate arrays retain receiving intersections. Fresh read authority validates all projected predicate dependencies without source replay, including false candidates and nested empty domains.",
+      "limits": "No full Task46/S9, positive canonical hooks, structured-order/mutation-filter/D1 read qualification or held original outbox Task22 completion. No broader installed/backend adoption/retirement.",
+      "source_outputs_handles_released": true,
+      "counts_unchanged": true,
+      "commit": "6589c41e6512766cb9a0e44c36aee759dda17048"
+    },
+    "trusted_schedule_send_attribution": {
+      "status": "Released focused trusted-source attribution fix captured",
+      "contract": "Deferred sends retain actorUserId or original admitted trustedSource, matching adjacent effect attribution; anonymous remains last fallback.",
+      "verification": "Owner actual CLI0, CF selective emit0/8 outputs and one changed native due-handler case1/1 in4.343s. Root exact4-file review reuses results.",
+      "limits": "Queued dispatch attribution/operation/team/occurrence, rollback, response-loss/reopen only; no provider delivery/full10/hook/held scope acceptance.",
+      "counts_unchanged": true,
+      "commit": "99d306ac3e205f9674c59d04fddd3137bd310846"
+    },
+    "native_registry_failure_attribution": {
+      "status": "Released qualification-only consumer captured",
+      "verification": "Same actual CLI/installed callable registry case1/1 .22s with Node source maps disabled; original .can source4:8/name and Division by zero preserved. Root direct released test/consumer review; unchanged DEP-02 results reused.",
+      "limits": "No production/API replacement or reduction, full canonical State error conversion mapping, disclosure/installed-application or whole S9-Q08 acceptance.",
+      "counts_unchanged": true,
+      "commit": "eb1608becc7dbe2cfa394496d9ffd3d294963614"
+    },
+    "replay_entry_source_current_blocker": {
+      "status": "Current defining security prerequisite confirmed; no transport age lift performed",
+      "model": "gpt-6.1-sol medium: finite known gate correction and actual consumer-source check",
+      "evidence": "State invoke.ts202\u2013212 returns saved outcome.result before current read authorization; CF invokeMutationCanonical/assembly unchanged; HTTP operations serializes and CSV embeds saved result. Existing revoked CSV removes membership at identity admission, not surviving membership with revoked read grants or saved secret projection.",
+      "required_next": "Defining TECH-S02 current-access projection/withholding release and actual consumer negative control, then original shape-only Interfaces age-gate fix.",
+      "writes_checks": "None; no new proof file/review layer or fixture. Existing SEC-06 security-joins source finding remains actual.",
+      "owner_handoff": "Concrete exact prerequisite handed to same Coordinator/Roadmap; source/test/output leases returned clear.",
+      "counts_unchanged": true
+    },
+    "accounting_owner_selection_design": {
+      "status": "Roadmap released original SEQ041 design captured; design acceptance belongs owning Coordinator",
+      "scope": "Chat token allowance and Knowledge two unfinished questions per account within actual selected app/team State owner; separate unit/release/late-usage/debt/provider limits retained.",
+      "advice": "One consolidated JEV record, three equivalent independently worded choices same_owner .99/1/1 probability and .98/1/1 confidence. Advice only; no new tests or audit layer.",
+      "limits": "No source implementation/runtime acceptance/global pool/provider money cap, positive hooks, held11/22 or native release; tasks42\u201343 remain open.",
+      "counts_unchanged": true,
+      "commit": "4139a89866d3504d9ab9ce9bf5deccea0bb2a6e3"
+    },
+    "choose_public_facade": {
+      "status": "Existing Values choose directly reexported; facade source/output released to Compiler consumer",
+      "verification": "Normal owning Stdlib TypeScript emission exit0; no duplicate algorithm/wrapper/source-contract change. Compiler same selected_calls actual emitted import case pending.",
+      "counts_unchanged": true,
+      "commit": "8b932718096eae96c962220fd20feb555b21f1ae"
+    },
+    "replay_result_contract_dependency": {
+      "status": "Existing prepared CRUD/replay contract consultation requires specific human approval; no retransmission attempted",
+      "requests": "/private/tmp/canlang-repair-go-20261007/crud-public-contract/request-{1,2,3}.json",
+      "scope": "~20.8KB factual architecture/security alternatives; new result provenance, old/missing carrier posture and current disclosure authorization. Prior metadata choice does not authorize guessed object projection or blanket null.",
+      "source_check": "Existing durable receipt recordVersions contains only insert/update writes, not result dependency provenance; singular scenario model results retain real admitted view binding only before receipt. No supported current-source release resolves the legacy origin policy.",
+      "permission_question": "Re-presented existing pending specific-payload approval asynchronously; unrelated work continues.",
+      "counts_unchanged": true
+    },
+    "choose_selected_overload_consumer": {
+      "status": "Released actual facade consumer and finite overload trial leak correction captured",
+      "verification": "Owner same selected_calls case1/1 .10s after actual emitted installed choose returns both USD results. Generic winner retains Bool/Text/Text facts/IR; winning currency arm retains Bool/Currency/Currency. Root exact released source/test review reuses result.",
+      "contract": "Trial-local literal retypes flush only for selected overload, alongside existing enum claims; no scoring/ties/slots/evaluation/API change.",
+      "limits": "Finite chosen/accepted actual consumer, not all SEM-R08/original13 or root48 credit.",
+      "counts_unchanged": true
+    },
+    "crud_public_advice": {
+      "status": "Three human-approved consultations completed once; unanimous directions, varying confidence; implementation and consumer gates remain open",
+      "evidence": "/private/tmp/canlang-repair-go-20261007/crud-public-contract",
+      "limits": "No blanket scenario return refusal or public deployment accepted"
+    },
+    "projected_mutation_filters": {
+      "status": "Released owner change directly reviewed and captured; no State API changes",
+      "validation": "Owner actual CLI compile0, selective emit0 diagnostics/8 outputs; same existing compiled D1 native case1/1 total3678.62ms, reused without rerun",
+      "limits": "Viewer query semantics only; Compiler source ordering E6008, private owner queries, TECH-S02 replay disclosure and full42/S9 remain open"
+    },
+    "mutation_numeric_ordering": {
+      "status": "Released two-line existing model-metadata join directly reviewed and captured",
+      "validation": "Owner actual CLI compile0; selective emit0; same native D1 case1/1 4213.82ms, total4396.74ms, reused",
+      "scope": "Ascending/descending actual int ordering, unreadable-path validation, existing filter/staged/rollback/revocation coverage",
+      "limits": "No State API/comparator changes; private decision authority/full42 remain open; Compiler producer capture separately owned"
+    },
+    "compiler_order_label_capture": {
+      "status": "Explicitly released Compiler source and owning notes directly reviewed and captured",
+      "validation": "Owning production order case1/1 .40s and installed localized-label case1/1 .68s; CF D1 consumer1/1 4.214s already captured. Reused unchanged outcomes, no rerun",
+      "limits": "Direct checked int field order and contextual label/default/caption only; full S9 and task counts remain unchanged"
+    },
+    "crud_receipt_producer": {
+      "status": "Released defining State prerequisite directly reviewed and captured",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "medium",
+      "validation": "Affected generated CRUD9/9 in private emit; root State noEmit typecheck0 after narrowing existing enum fixture, no shared dist writes",
+      "scope": "New actual CRUD origin in existing JSON; exact committed/replayed receipt observation outside retry catch, raw/public MutationResult unchanged",
+      "limits": "Memory/JSON only; native D1, original secret metadata host forwarding, current access mapper and scenario disclosure remain open. TECH-S02/REPLAY-IP07 not closed"
+    },
+    "presentation_source_display_contract": {
+      "status": "Accepted finite additive shared transient types, consumer writes handed off after defining release",
+      "validation": "Contracts noEmit0 and owning emit0",
+      "advice": "Three facts-only JEV responses prefer descriptor field, existing explicit pair and one constructor postcondition; third choice lower confidence .70-.74; advice not acceptance",
+      "evidence": "/private/tmp/can-presentation-carrier-20261009/consultations.json",
+      "scope": "Optional sourceLocale on message descriptor/factory fourth argument; TextValue admits existing final ResolvedMessage pair, never ICU/re-resolution",
+      "limits": "UI/source-language/skew/escaped-bidi/Compiler sink consumers remain pending; Values formatter unchanged, no stored migrations/full S9-Q01 credit"
+    },
+    "crud_saved_row_projection": {
+      "status": "Released State-only finite projector directly reviewed and captured",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "reason": "Current authority versus saved bytes is an actual security-sensitive semantic join",
+      "validation": "Owner State typecheck/private emit0; existing focused invoke-read22/22; no unchanged matrix rerun",
+      "scope": "Current by/read masks over original saved row; shared existing grants matcher/projectRow; no raw receipt mutation/reexecution; absent original metadata explicitly refuses",
+      "limits": "CF D1/HTTP/CSV actual consumer pending; logical lifetime/global physical owner/scalar scenario disclosure remain open; TECH-S02/REPLAY-IP07 not complete"
+    },
+    "crud_host_consumer": {
+      "status": "Root implemented and reviewed canonical public CRUD join; actual D1 HTTP/CSV accepted at finite scope",
+      "validation": "Actual fixture production CLI0, State owning emit0, CF noEmit0/emit0. Existing sole reviewed CSV native case1/1 case3426.361ms total3723.031ms, require_escalated established Node24.21/workerd sockets",
+      "failures_preserved": [
+        "Sandboxed Node InternalCallbackScope abort before assertions (555ms), not product failure/acceptance",
+        "First native case0/1 (1904ms) exposed old raw-result assertion; intentionally migrated to result:null and authorized saved records, then same case passed"
+      ],
+      "scope": "Real private source-declared model by=members/read=auditor, saved vs changed-live data, surviving-member role loss through HTTP+CSV, no duplicate defaults/effects/receipt/history/revision. Existing Entry/source workflows retained. Raw file retention stays before public mapper; actual scenario results unchanged",
+      "migration": "Read-only finite inventory of former raw CRUD test callers in progress; production grep found only correctly retained internal file-staging raw consumer",
+      "limits": "No scalar scenario current-read dependency provenance, logical lifetime/global owner-store or backend/default/deploy qualification. Interfaces age gates deliberately untouched; TECH-S02/REPLAY-IP07 remain open"
+    },
+    "localized_text_presentation_capture": {
+      "state": "released finite source captured",
+      "verified": "owning installed consumer1/1 6.81s; affected compile-only0 reused",
+      "limits": "wider hosts/business/outbound/timezone and full parent remain open"
+    },
+    "judgment_model_mismatch_capture": {
+      "state": "released exact source captured",
+      "verified": "same installed D1/localhost consumer1/1 case3909.972708ms total4315.032333ms; owning emit0 reused",
+      "failed_attempt": "first preassertion missing ValueError export fixed by existing re-export",
+      "limits": "full original46 and held22 open"
+    },
+    "crud_six_consumer_migration": {
+      "state": "six exact caller migrations captured; validation partial",
+      "model": "gpt-6-luna medium, mechanical fixed contract migration",
+      "verified": "private TypeScript emit0; six suites11 subtests9pass2fail",
+      "failures": [
+        "typed-scenario-values required computed-default report at source194",
+        "typed-temporal-arrays namedDefault valueType disagrees with array marker before migrated CRUD assertions"
+      ],
+      "harness_attempts": [
+        "first preassertion miniflare module resolution failure",
+        "second preassertion self @canlang/cloudflare module resolution failure",
+        "private dependency union resolved dependencies; actual assertions reached"
+      ],
+      "limits": "scenario returns/direct State behavior preserved; failed consumers remain open; no whole parent count credit"
+    },
+    "judgment_usage_overflow_capture": {
+      "state": "released exact consumer captured",
+      "verified": "first same actual native case1/1 case4795.874042ms total5245.664709ms; selected emission0/4 outputs",
+      "limits": "no production repair; full46 and held22 open"
+    },
+    "crud_two_failed_consumer_repair": {
+      "state": "both previously failing cases now pass",
+      "verified": "owning State emission0; temporal arrays + scenario values same native cases4/4",
+      "scope": "null-prototype metadata map and Compiler regenerated modules-only fixture; no source/grant/policy change",
+      "limits": "other fourteen-caller failures remain open"
+    },
+    "crud_fourteen_consumer_migration": {
+      "state": "caller-only source migrated; consumer qualification partial/blocked",
+      "verified": "native11 files79/108 pass29fail31.94s; MCP4/23 pass19fail6.17s; page0/3 failed before browser on missing staged bound-judgment module",
+      "typecheck": "exit2 unchanged Request/Response textStream source lines; emitted runtime output separately, not passing typecheck",
+      "failure_groups": [
+        "26 canonical historical initial schema-admission failures",
+        "scenario creator reference object/string disagreement",
+        "generation provider requests0vs1",
+        "cohort native alias",
+        "MCP selected app/pages, module accessor and deployment metadata",
+        "missing staged bound-judgment.js"
+      ],
+      "logs": "/private/tmp/canlang-crud-public-migration/",
+      "limits": "no fixture/policy/grant change, scenario/internal outputs retained; no parent credit"
+    },
+    "preferences_then_priority": {
+      "state": "released coherent compiler/normative/draft source captured",
+      "verified": "native1/1 .10s, draft45+7 owner/identity unchanged;52-source CLI zero syntax/preferences diagnostics",
+      "draft_commit": "77c9424",
+      "limits": "CLI exit10 unrelated semantics; no lifecycle/full-workflow/count credit"
+    },
+    "crud_caller_residuals": {
+      "state": "canonical admission and creator reference corrected; private typing resolved",
+      "verified": "canonical26/26; creator-reference1/1 duration144.433208ms; exact selected private typecheck0",
+      "limits": "no policy/fixture changes; mixed Node-version upgrade risk; provider/cohort/staging remain open"
+    },
+    "portable_judgment_source": {
+      "state": "defining producer captured; deployment consumer pending",
+      "verified": "owning Services/CF emission0, independent Node SHA256 protocol1/1",
+      "dependency": "@noble/hashes2.4.0 sha2.js/utils.js pinned, MIT; upstream github.com/paulmillr/noble-hashes",
+      "limits": "installed closure/page and full Judgment/held22 remain open"
+    },
+    "judgment_installed_dependency_closure": {
+      "state": "exact closure and affected page consumers accepted",
+      "verified": "closure1/1 817ms; page3/3 24.072s; current CF emission0",
+      "failed_attempt": "stale Work expected10 vs actual11 handler-occurrence corrected",
+      "limits": "no provider tree/generic walk/policy/asset expansion; full parent and held22 open"
+    },
+    "guard_export_evidence_cleanup": {
+      "state": "historical redundant scaffolding removed",
+      "removed_files": 112,
+      "retained_files": 8,
+      "verification": "reference/pointer scan; no production/test behavior changed or rerun",
+      "limits": "advice uncertainty retained; no source acceptance/count/checkpoint advance"
+    },
+    "generation_consumer_identity": {
+      "state": "same CF graph consumer passes",
+      "verified": "clean native1/1 case28144.749292ms total28480.057ms; selectedtypecheck/emit0",
+      "diagnosis": "private and installed CF module singleton identities mixed; foreign progress producer correctly refused",
+      "failed_attempts": [
+        "recorded original preHTTP uncertain",
+        "diagnostic samegraph1/1",
+        "unsupported unexported text-generation-progress subpath attempted then reverted; no production export added"
+      ],
+      "limits": "consumer-only imports; authority unchanged; MCP/cohort/full parent separate"
+    },
+    "cohort_consumer_identity": {
+      "state": "released one-hunk consumer accepted",
+      "verified": "same native1/1 23.760s total24.118s; privateemit0",
+      "limits": "no production/ref/authority change; full parent separate"
+    },
+    "released_compiler_consumer_capture": {
+      "state": "released focused consumer source/notes captured",
+      "verified": "read-default currenthost1/1 .51s; scalaralias overlaps1/1 .54s; prior presentation/cohort reused",
+      "limits": "no production/API/full-parent/count credit"
+    },
+    "typed_row_reuse_design_pilot": {
+      "state": "Released selected design advice captured; Compiler producer and actual two-use consumer remain pending",
+      "source": "design/language-proposals-20261007/jev/assessment.json",
+      "selection": "conditional_app_local_row_view",
+      "checks": "JSON parse and exact existing-record preservation;3 actual replies, no consultations repeated or runtime checks",
+      "limits": "No draft migration, runtime acceptance, count credit or complete checkpoint advance"
+    },
+    "canonical_internal_mapped_attribution": {
+      "state": "Released narrow internal attribution repair captured",
+      "verification": "Owning installed canonical State Memory selected1/1(.21s), noEmit0 and root requested normalCFemit0 reused; no repeat checks",
+      "limits": "Live details only; public error/receipt/replay omit mapped location, rollback preserved, absent genuine maps yields null; no fullS9/OUT-R05/count/checkpoint acceptance"
+    },
+    "app_local_view_producer": {
+      "state": "Finite released producer captured; genuine CanBook profile remains pending",
+      "verification": "Owning selected1/1(.59s) actualCLI/installedUI; initial contained-model failure0/1(.61s) retained, no repeat",
+      "limits": "Local exact stored-model row/pure closed args/private once-bound expansion; no publicUIAPI, full52/held11 or complete checkpoint advance"
+    },
+    "collection_empty_defaults": {
+      "state": "Released shared default/optional type join accepted at affected consumer scope",
+      "verification": "Owning selected Contracts/UI collections emits0; installed public list/table21queries within one affected case passed across locale/fallback/controlled/authoredblank/no-match behavior; no repeated check",
+      "limits": "No splitselection/formidentity/full52/count or complete checkpoint advance"
+    },
+    "bdd_imported_helper_link": {
+      "state": "Released checked production helper linkage captured",
+      "verification": "Owning actualCLI/testkit selected1/1(.90s), focused no-run0 reused; no repeat",
+      "limits": "Checked canonical registry helpers only; no cloned bodies/new API, BDD3/fullS9/count/checkpoint remain open"
+    },
+    "mcp_enum_descriptor_join": {
+      "state": "Released owning descriptor/nullable enum repair captured; genuine MCP finalconsumer pending",
+      "verification": "Private Interfaces typecheck/emit0; exact3 descriptor controls3/3; normalInterfacesemit0handle9902",
+      "limits": "Exact ordered enum metadata agreement, existing markers/refusals preserved; no actual MCP/fullparent/count/checkpoint acceptance yet"
+    },
+    "stable_form_occurrence_consumer": {
+      "state": "Released optional presentation occurrence consumer captured; Compiler producer and genuine CanBook still pending",
+      "verification": "Owning Interfaces privateemit0, direct bindings5/5 and affected sourceprep/protectedHTTP2/2; no duplicate checks",
+      "limits": "Signed claims/restore unchanged, legacy absent hashes/IDs unchanged; no new mutation authority or full52/count/checkpoint acceptance"
+    },
+    "mcp_genuine_producer_fixtures": {
+      "state": "Genuine producer migration captured with explicit red canonical enum refusal regression",
+      "verification": "Six affectedcases passed: route3/nativeMCPD3; seventh joinedrefusal/highaccepted pass but unjoinedurgent durablecommit violates enum; exact witness retained in private vitest-mcp-enum-durable-witness.log",
+      "limits": "No fabricated selector/provenance or generated output mutation; expected refusal remains red, owning validation repair pending; no fullparent/count/checkpoint credit"
+    },
+    "split_selection_contract": {
+      "state": "Three verified JEV consultations complete once, current-query URL carrier selected for defining implementation",
+      "verification": "Exact prepared architecturefacts-only requests/replies recorded in existing advice file; unanimous direction1/.94/1 confidence,no rationale; no runtime claim",
+      "limits": "Locator must match fresh authorized projected row under exact query/occurrence; parent/cursor/pagination-independent read and full52 remain open"
+    },
+    "canonical_enum_model_admission": {
+      "state": "Released canonical owning-model enum association repair captured; same MCP host qualifier running",
+      "verification": "State privatetypecheck/emit0, owningtwofiles31/31, normalStateemit0handle3401 reused",
+      "limits": "Ordered owning enum/null/array flags checked through existing Values mechanism; no transport reliance, globalengine/parent/count/checkpoint claim"
+    },
+    "mcp_canonical_enum_qualification": {
+      "state": "Same genuine MCP enum host consumer accepted after canonical admission repair",
+      "verification": "Samecase1/1(316ms,total1.03s),15oldcases skipped; correct businesserror envelope/rejectedreceipt/no row/outbox/schedule; high/null positive retained",
+      "review_correction": "Removed ineffective historyFor(operationId cast RecordId) assertion/import after rootreview; no checkrepeat, owningState31 historyrollback controls reused",
+      "limits": "No globalbackend/fullparent/count/checkpoint credit; prior genuine enum commit witness preserved"
+    },
+    "split_locator_carrier": {
+      "state": "Defining existing collection/context locator carrier captured and output released to UI",
+      "verification": "Owning Contracts/Interfaces privateemit0,presentation12/12; normalInterfacesemit0handle71796",
+      "limits": "Decoded locator map only, no read/authority; actual UI projectedmatch/drawer/controls pending,parent/cursor/outsidepage/full52 remain open"
+    },
+    "protected_view_actions_producer": {
+      "state": "Released protected action/status/default producer and genuine draft source migration captured; split actualconsumer pending",
+      "verification": "Final same actualinstalledpreparer/seal/UIcase1/1(.69s),focusedClippy0(2.93s),rustfmt0; previouschangedstatus/default1/1(4.75s) reused",
+      "draft": "Localdraftf48de2b,CanBook498\u2192488lines/513bytes exactbody/table/workflow preserved",
+      "limits": "No fullCanBook/52/by-foravailability/held11 or completecheckpoint acceptance"
+    },
+    "split_current_query_ui": {
+      "state": "Released current-query split renderer captured; actualCompiler/CanBook/browser qualification still pending",
+      "verification": "Owning UI selectiveemit0; installed Interfacescontext\u2192publiclist/table14renders passed; upstream12context/Compileractioncase reused",
+      "limits": "One projectedselectedbody/no rawlookup/firstrow; mobile sharedDOM only, viewport/keyboardspace/focuscontainment unqualified; parent/cursor/full52/held11 open"
+    },
+    "compiled_current_query_split": {
+      "state": "Released compiled split producer/nativeconsumer captured at exact scoped admission",
+      "verification": "ActualCLI/artifact\u2192installedInterfacesparser\u2192releasedUI1/1(.38s),focusedClippy0(3.22s),fmt0; UI14/Interfaces12 reused",
+      "limits": "Selectedfreshrows only/absentunknowncurrentabsent no detailforms; NodeMemory not browser/StateD1/fullCanBook/count/checkpoint credit"
+    },
+    "viewer_pagination_direction": {
+      "state": "VerifiedJEV3 selected boundedrescan; exact definingcontract preparation next",
+      "verification": "Three facts-only consultations completeonce,1/.98/1 confidence,no rationale; no runtimechecks/claim",
+      "limits": "Candidatebudget separate from rendered500; key/querydefinition/authorityrecheck/parent gates open"
+    },
+    "split_native_dialog_focus": {
+      "status": "Source reviewed and owning native-browser release accepted; scoped local commit",
+      "files": [
+        "packages/ui/src/collections.ts",
+        "packages/ui/src/browser/bootstrap.ts"
+      ],
+      "validation": "Selective emission0/browser asset build0; same Chrome desktop/mobile/Space/focus/Escape/close/hidden-control/desktop-release/two-occurrence/removal checks pass. Query and identity evidence reused.",
+      "limits": "Native modal exclusion accepted; no strict custom Tab-wrap guarantee, pagination or whole-app acceptance."
+    },
+    "page_cursor_integrity_primitive": {
+      "status": "Released codec source directly reviewed; scoped local commit",
+      "validation": "Private narrow TypeScript emission0,3/3 adversarial direct cases pass; canonical payload/signature/time/input bounds inspected.",
+      "limits": "Factory only. No host key wiring, physical-owner routing, page query authority or installed paging acceptance."
+    },
+    "canbook_nullable_revision_corrections": {
+      "status": "Released source directly reviewed and committed in draft9f5b171; parent pointer captured",
+      "validation": "Affected genuine24-source semantic recheck after released Compiler nullable Object/header repair: complete=true, omitted0, exit10; CanBook0 diagnostics,437 transitive-provider diagnostics, no E2005. Prior source fixes and native-dialog outputs unchanged/reused.",
+      "limits": "CanBook source errors cleared only. Overall source closure still fails; codegen, paging/parent/order/filter/defaults, held11/BDD/runtime and full52/root48 acceptance remain separate."
+    },
+    "bounded_viewer_page_state_producer": {
+      "status": "Released six-file State source reviewed and locally committed; downstream emitted outputs ready",
+      "validation": "Private emission/typecheck0; exact scope/read-selection suites30/30; normal State emission0. Includes nested parent/current grants, post-transform revocation, revision conflicts and ordinary overflow controls.",
+      "limits": "Memory owning gates. No bounded internal scan/sort, row-byte/global budget, CF digest, installed D1 or deployed physical-owner acceptance."
+    },
+    "explicit_collection_page_carrier": {
+      "status": "Shared owner ACK, released source reviewed and locally committed",
+      "validation": "Private Contracts/UI emission0 and3/3 existing selective forwarding cases; normal Contracts emission0.",
+      "limits": "Carrier only, no implicit paging from occurrence, runtime admission or navigation/deployment acceptance."
+    },
+    "explicit_hosted_page_consumer": {
+      "status": "Released CF source reviewed and locally committed",
+      "validation": "Private owning CF emission/typecheck0; genuine compiled-host integration1/1 in53.237ms, prior codec3/3 reused. State and carrier outputs current.",
+      "limits": "Explicit trusted memory host only. No main key injection, deployed physical-owner routing, installed D1, collection-isolated navigation or full-app acceptance."
+    },
+    "canrent_nullable_receipt_source": {
+      "status": "Two released source lines directly reviewed and locally committed; parent pointer captured",
+      "validation": "Same24-source check complete=true,omitted0; CanRent142\u2192141,total437\u2192436,E3008six\u2192five,CanBook0. No upstream recheck.",
+      "limits": "One source refusal removed only. No full52/roadmap/root48 completion credit."
+    },
+    "nominal_field_and_completion_header_typing": {
+      "status": "Frozen Compiler source reviewed and locally captured excluding active IR/JS",
+      "validation": "Nominal-field installed consumer1/1(.22s); existing constructor1/1(.53s); final header1/1(.06s); focused Clippy0(3.33s),format0. Roadmap24-source outcome reused.",
+      "limits": "No full compiler task credit, foreign row refusal, BDD runtime/guard/send policy, committed-change admission or whole-app acceptance."
+    },
+    "canrent_builtin_source_batch": {
+      "status": "Released ten-line source batch reviewed and locally committed",
+      "validation": "One affected source check repeated only after two delimiter fixes; final complete/omitted0,Rent101,total396,Book0,other providers unchanged.",
+      "limits": "Source authoring only; nullable max inference/public operation migration/runtime/full52 acceptance remain open."
+    },
+    "canrent_private_interval_source": {
+      "status": "Released source reviewed, exported scenarios unchanged, locally committed",
+      "validation": "Affected check complete=true/omitted0/no parseerrors,Rent50,total345,Book0,other providers unchanged. Diff verifies guards/captures before effects and unchanged public scenario headers.",
+      "limits": "No runtime/workflow/full52 acceptance. Public no_show and remaining enum/optional compiler errors stay open."
+    },
+    "canrent_guarded_value_source": {
+      "status": "Released exact source reviewed and locally committed; scenario identities unchanged",
+      "validation": "One affected source check complete/omitted0,Rent26,total321,Book0,other providers unchanged;24 targeted nullable/filter diagnostics removed,none added.",
+      "limits": "Remaining26 explicitly open; no runtime/full52/root48 credit."
+    },
+    "durable_auth_rate_limiter": {
+      "status": "Sol6.1medium finite adapter implemented/released, direct source reviewed and locally committed",
+      "model_reason": "Known bounded persistence adapter and exact owning checks; economical medium sufficient, no broader security redesign.",
+      "validation": "Private selectedTypeScript0; actual localworkerd/D1 tests2/2 after loopback permission, concurrent20 across2instances exactly10allowed plus5hour/expiry/retry/isolation/cleanup/failure controls.",
+      "limits": "Documented fixedwindow selected; memory rollinghelper mismatch explicit. No defaultproduction hostconfiguration or provider-mail acceptance."
+    },
+    "defining_auth_hosted_join": {
+      "status": "Sol6.1high finite cross-package session join released, root reviewed and locally committed",
+      "model_reason": "Cross-package session/security/installedhost boundary warrants high; reuse existing algorithms and consumer, no broadreview.",
+      "validation": "PrivateInterfaces/CFemit0; existingauth18/18; actualportableworkerd/localD1consumer1/1 in1958ms,handle20365 completed, using actualD1limiter.",
+      "limits": "Explicit trustedhost configonly. Defaultenvauth provision/mail delivery/fullOfficeSupplies remainopen; no Nodebrowserbundle qualification."
+    },
+    "caninvoice_checked_source_batch": {
+      "status": "Released eight-line source reviewed and locally committed; all scenario headers unchanged",
+      "validation": "One affected check complete/omitted0,Invoice64,total313,Rent26,Book0,other providers unchanged; no newdiagnostics.",
+      "limits": "Source admission only; no runtime/whole52/root48 credit, public IDs preserved."
+    },
+    "normal_auth_host_configuration": {
+      "status": "Released normal-host source reviewed and locally committed",
+      "validation": "Actual defaultmain/defaultproductiondeps portableworkerd/D1 consumer1/1 in2486ms, no configurationwrapper; fullprivateCFemit0 handle50416complete.",
+      "limits": "Explicitcanonicalorigin required for auth. Maildependent flows unavailable; previewowner qualification and fullOfficeSupplies remain separate."
+    },
+    "retained_occurrence_strip_compatibility": {
+      "status": "Mechanical strip-compatible Error source committed25d102cd; actualaffectedconsumer now passes",
+      "validation": "Compilerlocalizedcanonicalformatter1/1(.59s) after sourcefix; fullprivateCFemit0 reused.",
+      "limits": "Same error/outcome behavior; no shim/source-map acceptance inferred from constructor alone."
+    },
+    "invoice_rent_alias_guard_source": {
+      "status": "Released alphaalias/actor/body/baseline source reviewed and locally captured; scenarioIDs unchanged",
+      "validation": "Sole changed24-source check complete/omitted0,Invoice53,Rent18,total280,Book0. ConcurrentCompiler admissions also reduced Shift/Propose/optional outcomes/ICU; whole33drop is not attributed to this sourcebatch.",
+      "changes": "Six privatependingquery aliases+boundrefs,URLbodyplainformat,independentactor guard preservingauthpage/policy,Rentmaxconcat fallbackcurrent explicitlyapprovedowningCompiler.",
+      "limits": "Public/useroperation enumcollisions and remainingprovider/runtimefullapp gatesopen; no whole52/root48credit."
+    },
+    "compiler_checked_message_page_join": {
+      "status": "Frozen actual producer source reviewed and locally committed",
+      "validation": "Optionalobject3/3; anonymousnative1/1(.48s),semantic1/1(.02s); page/sealededitnative1/1(.80s); affectedgoldens1/1; localizedformatter1/1(.59s) afterstripfix; rawanonymous1/1,namedslots6/6 reused;Clippy0(4.56s)/fmt/diff0.",
+      "limits": "No aliaspropagation/ownerlessenum/fullD1paging/fullOfficeSupplies/count credit. Heldruntime/BDD/sourcecontract gaps remain separate."
+    },
+    "original52_event_and_mail_source_batch": {
+      "status": "narrow source repair captured; full programme remains open",
+      "draft_commit": "82a0605",
+      "files": [
+        "CanEvent.can",
+        "CanShift.can",
+        "CanContract.can",
+        "CanMaintain.can",
+        "CanSuccess.can"
+      ],
+      "validation": "Owning changed 24-source check complete=true, omitted=0; total 280\u2192239 after Event, then 239\u2192235 after four receipt fixes. Event 46\u21925; four E3008 receipt errors removed. Unchanged results reused.",
+      "limits": "No full workflow/runtime acceptance or task-count advancement; callable/enum identity collisions remain. Living filetree complete checkpoint unchanged."
+    },
+    "original52_member_guarded_capture": {
+      "draft_commit": "06b23b5d1c21b9902bde6ebc5ad7c9903955811a",
+      "validation": "One owning changed 24-source check complete, omitted=0; Member25\u219216, graph235\u2192226. No broad acceptance.",
+      "limits": "Concurrent compiler changes affect other providers; Event5\u219212 is open regression risk, next changed check collects exact diagnostics. Public operation IDs preserved; full counts unchanged."
+    },
+    "original52_member_checked_inputs": {
+      "draft_commit": "83f6e7811e3637f0d58cf3eaf6a07abbcaa8d85a",
+      "validation": "Owning one changed-source closure complete=true omitted=0; Member16\u21923 graph226\u2192218 Book0.",
+      "limits": "Three public revoke enum collisions remain; Event seven nullable destination enum-superset errors routed compiler. Concurrent provider diagnostic increases retained, no full acceptance or count advance."
+    },
+    "original52_delivery_read_consumer": {
+      "validation": "CF full private typecheck/emission0; SAME native CLI/loader/installed CF-StateMemory delivery case1/1(.45s),12 generated reads including failed/unknown-null/pending/skipped/absent, exact error leaf authority, denied result/error.message and anonymous refusal, nullable clear.",
+      "scope": "Read scenario current-bound view provenance, canonical selected receipts and current grants, owner revision/version fence, final selected leaf re-admission. All effects/directstore refused; loader matches scenario/read parameter capability gate.",
+      "limits": "Memory consumer only; completion private producer and broader programme acceptance remain open."
+    },
+    "original52_customer_actor_guard": {
+      "draft_commit": "fb7decbb6b18c54aa81b5095fb12503ccf05cf16",
+      "validation": "One changed24-sourcecheck complete=true omitted=0 Customer10\u21929,total218\u2192217.",
+      "limits": "Nine opaque change-event revision producer gaps remain. No whole workflow/count advancement."
+    },
+    "original52_report_stock_source": {
+      "draft_commit": "f2bb0395c8da13faceb14587dd5f3090b119c6b7",
+      "validation": "One changed-source check complete omitted=0; Report15\u21920 graph217\u2192202 Book0.",
+      "limits": "Stock still4; dotted location.name treated literal field E2013 by compiler; required scalar sorting intent retained, no acceptance claim. Full programme counts unchanged."
+    },
+    "original52_five_provider_guards": {
+      "draft_commit": "530b69291028c5121d9d248f907bcd7a4c6a21cd",
+      "validation": "One changed-source check complete=true omitted=0 graph202\u2192190 Refer11\u21925 Affiliate5\u21924 CRM3\u21922 Desk7\u21926 Stock4\u21921.",
+      "limits": "Stock dotted-order compiler gap remains; no full task/count acceptance."
+    },
+    "parallel_package_residual_dispatch": {
+      "ui": "/root/ui_lifecycle_remaining: polling.ts supported abort ownership through response body, existing lifecycle test; accepted visibility/synchronous cases not replayed",
+      "files": "/root/files_retry_remaining: upload/index.ts + fs-blob-store.ts real append/retry recovery, existing owning tests; accepted bytecount not replayed",
+      "model": "gpt-6.1-sol high for asynchronous lifecycle/storage correctness; finite scopes private outputs root Git",
+      "status": "Both dispatched; UI has identified actual current source gap and begun correction; Files inspection/implementation underway. Not completion credit."
+    },
+    "files_append_retry_remaining": {
+      "status": "Root direct source review accepted finite pre-append mismatch refusal; local capture",
+      "validation": "Private strict TypeScript compile0;7 targeted owning checks including real full/partial FS write interruption/reopen and retry, existing finalization, normal resume and oversize. Unchanged accepted suites reused.",
+      "contract": "Actual staging size must equal persisted receivedBytes before another append; mismatch rejects/removes staging/clears progress via existing closed outcome. Existing foreign/expiry/closed/oversize ordering retained; no healing or API change.",
+      "limits": "No chunk identity/expected offset: reply loss after metadata persisted remains indistinguishable from intended repeated bytes. Concurrent append fencing/full durable recovery remain open; TECH-F01 partial."
+    },
+    "ui_body_lifecycle_remaining": {
+      "status": "Root direct source review accepted finite supported cancellation and cleanup correction",
+      "validation": "Private strict compile0,three targeted owning checks passed: changed async adapter cleanup, first-error cleanup matrix, native initializer pending-body stop/hidden/logout/context/detach/supersession. Accepted unchanged visibility cases reused.",
+      "scope": "Controller retained through body settlement; existing optional signal forwarded; abort listener released once on abort/settlement; original rejection preserved over cleanup throw.",
+      "limits": "Context/logout/detach detected on supported next tick; ignored transport work may continue but stale body cannot paint. Physical remote cancellation/full installed/browser parent gates open."
+    },
+    "original52_safe_six_provider_batch": {
+      "draft_commit": "c5f48ba5d473e2973ee517a51d47bd62cfee3b3d",
+      "validation": "One changed-source complete=true omitted=0 graph190\u2192182 Contract3\u21920 Success3\u21921 Expense5\u21924 Purchase8\u21927 Field14\u219213.",
+      "limits": "Stock original order restored under authority design, its source design issue remains; nested UI propagation and public identities held with owners. Full task counts unchanged."
     }
   },
   "live_finite_packets": [
@@ -2912,12 +3493,103 @@
     "limits": "Refusal correction only, no rule callback/expression activation, State API, native hook or whole-rule qualification."
   },
   "crud_public_contract": {
-    "status": "Source-current finite investigation complete; exact new3JEV requests prepared, first outbound rejected by automatic approval review before execution; explicit human approval pending",
+    "status": "Explicit human approval received; three prepared JEV consultations completed once each; advice recorded, concrete source contract and consumer qualification pending",
     "requests": "/private/tmp/canlang-repair-go-20261007/crud-public-contract/request-{1,2,3}.json",
     "bytes": 20847,
     "scope": "Architecture/security-contract facts only, no source excerpts/secrets. New finite CRUD result/legacy producing-origin/live replay-authority questions, not repetition of prior metadata/H1 questions.",
     "alternatives": "CRUD null-business-result plus authorized records versus complete saved row only when fully disclosable; new explicit result provenance/legacy refusal versus trusted historical association; current mutation-by+read versus current read only.",
-    "source_limits": "Current wire forbids partial result. Existing raw receipts lack producing-kind/artifact evidence; current descriptor/row shape cannot authenticate old outcome. No guessed mapper, replay reexecution, blanket unrelated null or first-call delivery claimed."
+    "source_limits": "Current wire forbids partial result. Existing raw receipts lack producing-kind/artifact evidence; current descriptor/row shape cannot authenticate old outcome. No guessed mapper, replay reexecution, blanket unrelated null or first-call delivery claimed.",
+    "responses": "/private/tmp/canlang-repair-go-20261007/crud-public-contract/response-{1,2,3}.json",
+    "advice": [
+      {
+        "crud_result": {
+          "type": "choice",
+          "choice": "default_envelope",
+          "confidence": 0.72,
+          "probabilities": {
+            "default_envelope": 0.86,
+            "complete_when_authorized": 0.14
+          }
+        },
+        "receipt_origin": {
+          "type": "choice",
+          "choice": "new_attested_legacy_refusal",
+          "confidence": 0.85,
+          "probabilities": {
+            "new_attested_legacy_refusal": 0.93,
+            "verified_historical_activation": 0.07
+          }
+        },
+        "replay_authority": {
+          "type": "choice",
+          "choice": "current_by_and_read",
+          "confidence": 0.67,
+          "probabilities": {
+            "current_by_and_read": 0.83,
+            "current_read_only": 0.17
+          }
+        }
+      },
+      {
+        "crud_result": {
+          "type": "choice",
+          "choice": "default_envelope",
+          "confidence": 0.62,
+          "probabilities": {
+            "default_envelope": 0.81,
+            "complete_when_authorized": 0.19
+          }
+        },
+        "receipt_origin": {
+          "type": "choice",
+          "choice": "new_attested_legacy_refusal",
+          "confidence": 0.9,
+          "probabilities": {
+            "new_attested_legacy_refusal": 0.95,
+            "verified_historical_activation": 0.05
+          }
+        },
+        "replay_authority": {
+          "type": "choice",
+          "choice": "current_by_and_read",
+          "confidence": 0.82,
+          "probabilities": {
+            "current_by_and_read": 0.91,
+            "current_read_only": 0.09
+          }
+        }
+      },
+      {
+        "crud_result": {
+          "type": "choice",
+          "choice": "default_envelope",
+          "confidence": 0.65,
+          "probabilities": {
+            "default_envelope": 0.83,
+            "complete_when_authorized": 0.17
+          }
+        },
+        "receipt_origin": {
+          "type": "choice",
+          "choice": "new_attested_legacy_refusal",
+          "confidence": 0.72,
+          "probabilities": {
+            "new_attested_legacy_refusal": 0.86,
+            "verified_historical_activation": 0.14
+          }
+        },
+        "replay_authority": {
+          "type": "choice",
+          "choice": "current_by_and_read",
+          "confidence": 0.93,
+          "probabilities": {
+            "current_by_and_read": 0.96,
+            "current_read_only": 0.04
+          }
+        }
+      }
+    ],
+    "acceptance": "Advice only. Generated CRUD default envelope/current operation and read authority/new provenance favored unanimously. No blanket nonnull scenario refusal accepted; legitimate returns and unknown legacy outcomes need an explicit supported contract. TECH-S02 and REPLAY-IP07 remain open."
   },
   "foreign_typed_array_integration": {
     "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",

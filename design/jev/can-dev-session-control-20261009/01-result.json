@@ -1,0 +1,55 @@
+{
+  "request": {
+    "state": "A local development service for a small compiled domain language is being designed for AI coding agents. Existing commands already return bounded JSON results with source hashes; the local worker dispatches in process and a test bridge can serve it on loopback. There is no persistent development session or development MCP endpoint. Source examples emit separate test modules, but the current CLI runs zero rows. A special pilot can rerun selected fixtures, yet it does not retain a complete actor, clock, provider and data-state capsule. The app's authenticated business MCP endpoint is separate from development control. The first control surface must attach to one checkout-scoped session, return revision-bound diagnostics/help/preview/example results, isolate worktrees and data, minimize agent setup and tokens, and preserve clear permission boundaries. Exact replay must not be claimed from an ordinary retry or business idempotency receipt. Evaluate each option against those same needs and implementation burden; no option is implemented yet.",
+    "questions": {
+      "first_transport": {
+        "type": "choice",
+        "instructions": "Which agent-facing control transport should be built first for this local development session?",
+        "criteria": {
+          "json_cli": "Start with a JSON command interface that attaches explicitly to an owner-only local session service; keep browser HTTP separate. Existing command conventions and general shell support help adoption, but tool discovery is less native and each command has process overhead.",
+          "dev_mcp": "Start with a separate local development MCP server with typed tools over the same session. Agent discovery and persistent calls are strong, but host registration, session targeting, access control and protocol maintenance arrive before missing runtime joins are resolved.",
+          "both_initially": "Ship JSON CLI and development MCP together over one core. Agents can choose either, but two public adapters, authentication paths and conformance surfaces must be built and maintained from the first slice."
+        }
+      },
+      "replay_boundary": {
+        "type": "choice",
+        "instructions": "What replay claim should the first development slice make while full input capture and restore are absent?",
+        "criteria": {
+          "exact_replay_first": "Delay release until a captured capsule restores source, artifact, fixtures, actor, clock, data and provider responses, then offer exact replay only when every dependency is pinned. Strongest claim, largest prerequisite and implementation cost.",
+          "isolated_rerun": "Offer revision-pinned example reruns in fresh isolated scopes and label them reruns; report exact replay unavailable unless all actor, clock, data and provider inputs can be restored. Useful early feedback without claiming the same outcome.",
+          "no_rerun_first": "Offer neither replay nor rerun until complete deterministic capture exists. Avoids ambiguity and implementation work, but gives agents no repeatable example action after a failure."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "first_transport": {
+        "type": "choice",
+        "choice": "json_cli",
+        "confidence": 0.73,
+        "probabilities": {
+          "json_cli": 0.8200000000000001,
+          "dev_mcp": 0.18,
+          "both_initially": 0.0
+        }
+      },
+      "replay_boundary": {
+        "type": "choice",
+        "choice": "isolated_rerun",
+        "confidence": 1.0,
+        "probabilities": {
+          "exact_replay_first": 0.0,
+          "isolated_rerun": 1.0,
+          "no_rerun_first": 0.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 848,
+      "output_tokens": 98
+    }
+  }
+}

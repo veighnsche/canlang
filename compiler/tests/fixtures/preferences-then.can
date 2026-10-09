@@ -1,0 +1,10 @@
+app Settings
+Given
+ Config {selected:enum(all,today)=all}
+ policy Config read=members
+When
+Then
+ preferences {view:Config.selected=all,limit:int=3}
+ invariant preferences: row.limit>0
+ page /settings title="Settings"
+  text preferences.view

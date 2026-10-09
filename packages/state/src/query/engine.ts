@@ -21,6 +21,8 @@ import type {
   QueryPredicate,
   QuerySpec,
   ReadAuthority,
+  RecordId,
+  RecordParent,
   Revision,
   StoredRow,
 } from '@canlang/contracts';
@@ -89,6 +91,116 @@ export interface ViewerRecordsInput extends BaseQueryInput {
    * rechecks belong to the owning caller; this hook grants no capability.
    */
   readonly predicate?: (record: Readonly<ProjectedRecord>) => boolean | Promise<boolean>;
+}
+
+/** Finite viewer collection mode; the host admits a supplied parent first. */
+export interface ViewerPageSelection {
+  readonly where?: QueryPredicate;
+  readonly order?: ReadonlyArray<OrderTerm>;
+  /** Source-declared fields, request-local text; evaluated after grant projection. */
+  readonly search?: { readonly fields: readonly string[]; readonly query: string };
+  readonly includeCount?: true;
+  readonly limit?: number;
+  readonly parent?: RecordParent;
+  readonly continuation?: ViewerPagePosition;
+}
+
+export interface ViewerPagePosition {
+  readonly revision: Revision;
+  /** Last returned visible row, never a raw offset or hidden sort value. */
+  readonly after: RecordId;
+}
+
+export interface ViewerPageRecordsResult {
+  readonly records: ProjectedRecord[];
+  readonly revision: Revision;
+  readonly continuation: ViewerPagePosition | null;
+  /** Matched authorized rows before page slicing, only when requested. */
+  readonly totalCount?: number;
+}
+
+export interface ViewerPageQueryInput extends Omit<ViewerRecordsInput, 'predicate' | 'limit' | 'where' | 'order' | 'archived'> {
+  readonly selection?: ViewerPageSelection;
+  /** Trusted generated-source closure; never admitted from a request body. */
+  readonly generatedPredicate?: (record: Readonly<ProjectedRecord>) => boolean | Promise<boolean>;
+}
+
+/** Materialized candidate cap only; adapters can still scan/sort more rows. */
+export const VIEWER_PAGE_MAX_CANDIDATES = 1000;
+export const VIEWER_PAGE_DEFAULT_LIMIT = 25;
+export const VIEWER_PAGE_MAX_LIMIT = 100;
+
+/** Data-only canonical identity vocabulary; State constructs every tuple. */
+export type ViewerPageTuple = readonly (string | number | boolean | null | ViewerPageTuple)[];
+
+/** Validate the source-owned search fields before using them in query identity or execution. */
+export function viewerPageSearchTuple(
+  search: ViewerPageSelection['search'],
+  modelDescriptor: CanonicalModelDescriptor | undefined,
+): ViewerPageTuple | null {
+  if (search === undefined) return null;
+  if (typeof search !== 'object' || search === null || Array.isArray(search) ||
+      Object.keys(search).length !== 2 || !Object.hasOwn(search, 'fields') || !Object.hasOwn(search, 'query') ||
+      !Array.isArray(search.fields) || search.fields.length === 0 || search.fields.length > 8 ||
+      Object.keys(search.fields).length !== search.fields.length ||
+      typeof search.query !== 'string' || search.query.length > 200 || /[\u0000-\u001f\u007f]/u.test(search.query) ||
+      new Set(search.fields).size !== search.fields.length ||
+      search.fields.some(field => typeof field !== 'string' || field === '' || field.includes('.') ||
+        !modelDescriptor?.fields[field] ||
+        !['text', 'email', 'url', 'locale', 'timezone', 'currency'].includes(modelDescriptor.fields[field]?.valueType ?? ''))) {
+    throw new StateError('validation', 'Invalid page search fields or query.');
+  }
+  return ['search', [...search.fields], search.query];
+}
+
+/** Validate with the existing AST evaluator, then copy only its closed leaves. */
+export function viewerPagePredicateTuple(predicate: QueryPredicate): ViewerPageTuple {
+  if (typeof predicate !== 'object' || predicate === null || Array.isArray(predicate)) {
+    throw new StateError('validation', 'Page predicates require the supported data-only AST.');
+  }
+  const fields = predicate.op === 'and' || predicate.op === 'or' ? ['op', 'args'] :
+    predicate.op === 'not' ? ['op', 'arg'] : predicate.op === 'between' ? ['op', 'field', 'lo', 'hi'] :
+    predicate.op === 'is_null' || predicate.op === 'not_null' ? ['op', 'field'] : ['op', 'field', 'value'];
+  if (Object.keys(predicate).length !== fields.length || fields.some(field => !Object.hasOwn(predicate, field))) {
+    throw new StateError('validation', 'Invalid page predicate shape.');
+  }
+  if ((predicate.op === 'and' || predicate.op === 'or') && !Array.isArray(predicate.args)) {
+    throw new StateError('validation', 'Page predicate combinators require AST arrays.');
+  }
+  const scalar = (value: unknown): string | number | boolean => {
+    if (typeof value === 'string' || typeof value === 'boolean' ||
+        (typeof value === 'number' && Number.isFinite(value))) return value;
+    throw new StateError('validation', 'Page predicates require finite scalar operands.');
+  };
+  switch (predicate.op) {
+    case 'and': case 'or': {
+      const args: ViewerPageTuple[] = [];
+      for (const arg of predicate.args) args.push(viewerPagePredicateTuple(arg));
+      return [predicate.op, args];
+    }
+    case 'not': return [predicate.op, viewerPagePredicateTuple(predicate.arg)];
+    case 'is_null': case 'not_null':
+      validatePredicateShape(predicate); return [predicate.op, predicate.field];
+    case 'between':
+      validatePredicateShape(predicate); return [predicate.op, predicate.field, scalar(predicate.lo), scalar(predicate.hi)];
+    default:
+      validatePredicateShape(predicate); return [predicate.op, predicate.field, scalar(predicate.value)];
+  }
+}
+
+export function viewerPageOrder(order?: ReadonlyArray<OrderTerm>): ReadonlyArray<OrderTerm> {
+  const effective = order ?? DEFAULT_ORDER;
+  if (!Array.isArray(effective)) throw new StateError('validation', 'Page order requires an array of terms.');
+  const copied: OrderTerm[] = [];
+  for (const term of effective) {
+    if (typeof term !== 'object' || term === null || Array.isArray(term) || Object.keys(term).length !== 2 ||
+        typeof term.field !== 'string' || term.field === '' ||
+        (term.direction !== 'asc' && term.direction !== 'desc')) {
+      throw new StateError('validation', 'Invalid page order term.');
+    }
+    copied.push({ field: term.field, direction: term.direction });
+  }
+  return copied;
 }
 
 /** Owner query input: full stored rows, no projection. */
@@ -345,6 +457,35 @@ function projectRow(
     parent: row.parent ?? null,
     data,
   };
+}
+
+/** Shared actor and row matching for viewer queries and saved-row disclosure. */
+async function viewerGrantAuthority(policy: InterimModelPolicy, context: ByContext): Promise<boolean[]> {
+  const allowed: boolean[] = [];
+  for (const grant of policy.grants) allowed.push(await evaluateBy(grant.by, context));
+  return allowed;
+}
+
+function matchingViewerGrants(
+  grants: ReadonlyArray<InterimGrant>, allowed: ReadonlyArray<boolean>, row: StoredRow,
+): InterimGrant[] {
+  return grants.filter((grant, index) => allowed[index] === true &&
+    (grant.when === undefined || evalPredicateForRow(grant.when, row)));
+}
+
+/** Authorize against the live row; copy only the original saved row's values. */
+export async function projectSavedRecordForViewer(input: {
+  readonly policy: InterimModelPolicy | undefined;
+  readonly context: ByContext;
+  readonly current: StoredRow;
+  readonly saved: StoredRow;
+  readonly originalSecretFields: ReadonlyArray<string>;
+}): Promise<ProjectedRecord | null> {
+  if (input.policy === undefined) return null;
+  const allowed = await viewerGrantAuthority(input.policy, input.context);
+  const grants = matchingViewerGrants(input.policy.grants, allowed, input.current);
+  return grants.length === 0 ? null : projectRow(input.saved, grants,
+    [...input.originalSecretFields, ...input.policy.secretFields]);
 }
 
 type NumericOrderType = 'int' | 'decimal' | 'money';
@@ -687,6 +828,11 @@ function minMaxValues(op: 'min' | 'max', field: string, values: ReadonlyArray<un
 interface AuthorizedSet {
   readonly revision: Revision;
   readonly rows: StoredRow[];
+  readonly pageAuthority?: {
+    readonly policy: InterimModelPolicy | null;
+    readonly byContext: ByContext;
+    readonly allowed: ReadonlyArray<boolean>;
+  };
 }
 
 /** Reinterpret a projected-shaped row as its viewer record. */
@@ -736,6 +882,7 @@ async function runAuthorizedQuery(
   // is what authorization boundaries refuse.
   eventual = false,
   predicate?: ViewerRecordsInput['predicate'],
+  page?: { readonly parent?: RecordParent; readonly revision?: Revision },
 ): Promise<AuthorizedSet> {
   if (input.limit !== undefined && (!Number.isInteger(input.limit) || input.limit < 0)) {
     throw new StateError('validation', `Invalid query limit: ${JSON.stringify(input.limit)}.`);
@@ -768,6 +915,9 @@ async function runAuthorizedQuery(
 
   // Fence revision FIRST: every row below is read at or after this checkpoint.
   const revision = await input.store.readRevision();
+  if (page?.revision !== undefined && page.revision !== revision) {
+    throw new StateError('conflict', 'Collection changed; restart pagination.');
+  }
 
   // T32b: join the operation's owner checkpoint. A read whose checkpoint
   // already moved cannot enroll — it conflicts rather than silently
@@ -790,6 +940,7 @@ async function runAuthorizedQuery(
   let secrets: ReadonlyArray<string> = [];
   let grantByOk: ReadonlyArray<boolean> = [];
   let grantedFields: string[] = [];
+  let pageAuthority: AuthorizedSet['pageAuthority'];
   if (input.authority === 'viewer') {
     const membership =
       input.context.actorUserId !== null && input.context.teamId !== null
@@ -817,18 +968,15 @@ async function runAuthorizedQuery(
     if (found !== undefined) {
       policy = found;
       secrets = found.secretFields;
-      const byOk: boolean[] = [];
+      const byOk = await viewerGrantAuthority(found, byCtx);
       const covered: string[] = [];
-      for (const grant of found.grants) {
-        const ok = await evaluateBy(grant.by, byCtx);
-        byOk.push(ok);
-        if (ok) {
-          covered.push(...grant.fields);
-        }
+      for (const [index, grant] of found.grants.entries()) {
+        if (byOk[index]) covered.push(...grant.fields);
       }
       grantByOk = byOk;
       grantedFields = covered;
     }
+    if (page !== undefined) pageAuthority = { policy, byContext: byCtx, allowed: grantByOk };
     if (input.where !== undefined) {
       for (const path of collectPredicateFields(input.where)) {
         checkViewerPath(path, grantedFields, secrets);
@@ -856,8 +1004,15 @@ async function runAuthorizedQuery(
     authority: input.authority,
     order: toStorageOrder(order),
     ...(input.archived !== undefined ? { archived: input.archived } : {}),
+    ...(page === undefined ? {} : {
+      limit: VIEWER_PAGE_MAX_CANDIDATES + 1,
+      ...(page.parent === undefined ? {} : { parent: page.parent }),
+    }),
   };
   const scanned = await input.store.query(spec);
+  if (page !== undefined && scanned.length > VIEWER_PAGE_MAX_CANDIDATES) {
+    throw new StateError('limit', 'Collection exceeds the page candidate budget; narrow the collection scope.');
+  }
 
   // Visibility (viewer: >=1 matching grant) then `where`, both in memory.
   // Viewers project BEFORE where: a row visible via grant B evaluates
@@ -874,18 +1029,7 @@ async function runAuthorizedQuery(
   } else {
     const grants: ReadonlyArray<InterimGrant> = policy === null ? [] : policy.grants;
     for (const row of scanned) {
-      const matching: InterimGrant[] = [];
-      for (let index = 0; index < grants.length; index += 1) {
-        const grant = grants[index];
-        const byOk = grantByOk[index];
-        if (grant === undefined || byOk === undefined || !byOk) {
-          continue;
-        }
-        if (grant.when !== undefined && !evalPredicateForRow(grant.when, row)) {
-          continue;
-        }
-        matching.push(grant);
-      }
+      const matching = matchingViewerGrants(grants, grantByOk, row);
       if (matching.length === 0) {
         continue;
       }
@@ -923,7 +1067,113 @@ async function runAuthorizedQuery(
     );
   }
 
-  return { revision, rows };
+  return { revision, rows, ...(pageAuthority === undefined ? {} : { pageAuthority }) };
+}
+
+/** Current-row projection for admitted parent loads, using the same grants. */
+export async function projectCurrentRecordForViewer(input: {
+  readonly policy: InterimModelPolicy | undefined;
+  readonly context: ByContext;
+  readonly row: StoredRow;
+}): Promise<{ readonly record: ProjectedRecord | null; readonly allowed: ReadonlyArray<boolean> }> {
+  if (input.policy === undefined) return { record: null, allowed: [] };
+  const allowed = await viewerGrantAuthority(input.policy, input.context);
+  const matching = matchingViewerGrants(input.policy.grants, allowed, input.row);
+  return { record: matching.length === 0 ? null : projectRow(input.row, matching, input.policy.secretFields), allowed };
+}
+
+/** The transform finishes before current grant and revision checks. */
+export function queryRecordsPage(input: ViewerPageQueryInput): Promise<ViewerPageRecordsResult>;
+export function queryRecordsPage<Result>(input: ViewerPageQueryInput,
+  transform: (page: Readonly<ViewerPageRecordsResult>, grantDecisions: ReadonlyArray<boolean>) => Result | Promise<Result>): Promise<Result>;
+export async function queryRecordsPage(input: ViewerPageQueryInput,
+  transform?: (page: Readonly<ViewerPageRecordsResult>, grantDecisions: ReadonlyArray<boolean>) => unknown | Promise<unknown>): Promise<unknown> {
+  if (input.authority !== 'viewer' || 'predicate' in input || 'archived' in input ||
+      (input.generatedPredicate !== undefined && typeof input.generatedPredicate !== 'function')) {
+    throw new StateError('validation', 'Pages require current viewer authority without caller predicates or archive overrides.');
+  }
+  let selection: ViewerPageSelection;
+  try { selection = structuredClone(input.selection === undefined ? {} : input.selection); }
+  catch { throw new StateError('validation', 'Page selection must be a data-only AST.'); }
+  if (typeof selection !== 'object' || selection === null || Array.isArray(selection)) {
+    throw new StateError('validation', 'Invalid page selection.');
+  }
+  if (Object.keys(selection).some(key => !['where', 'order', 'search', 'includeCount', 'limit', 'parent', 'continuation'].includes(key))) {
+    throw new StateError('validation', 'Unknown page selection field.');
+  }
+  if (selection.includeCount !== undefined && selection.includeCount !== true) {
+    throw new StateError('validation', 'Invalid page count request.');
+  }
+  const search = selection.search;
+  viewerPageSearchTuple(search, input.modelDescriptor);
+  const limit = selection.limit ?? VIEWER_PAGE_DEFAULT_LIMIT;
+  if (!Number.isInteger(limit) || limit < 1 || limit > VIEWER_PAGE_MAX_LIMIT) {
+    throw new StateError('validation', 'Page limit must be between 1 and 100.');
+  }
+  if (selection.where !== undefined) viewerPagePredicateTuple(selection.where);
+  const order = viewerPageOrder(selection.order);
+  const requestedSearch = search?.query.toLowerCase() ?? '';
+  const predicate = search === undefined && input.generatedPredicate === undefined ? undefined :
+    async (record: Readonly<ProjectedRecord>): Promise<boolean> => {
+      if (search !== undefined && requestedSearch !== '' &&
+          !search.fields.some(field => {
+            const value = record.data[field];
+            return typeof value === 'string' && value.toLowerCase().includes(requestedSearch);
+          })) return false;
+      return input.generatedPredicate === undefined ? true : input.generatedPredicate(record);
+    };
+  const position = selection.continuation;
+  if (position !== undefined && (typeof position !== 'object' || position === null || Array.isArray(position) ||
+      !Number.isSafeInteger(position.revision) || position.revision < 0 ||
+      typeof position.after !== 'string' || position.after === '' ||
+      Object.keys(position).some(key => key !== 'revision' && key !== 'after'))) {
+    throw new StateError('validation', 'Invalid page continuation position.');
+  }
+  if (selection.parent !== undefined && (typeof selection.parent !== 'object' || selection.parent === null || Array.isArray(selection.parent) ||
+      typeof selection.parent.model !== 'string' || selection.parent.model === '' ||
+      typeof selection.parent.id !== 'string' || selection.parent.id === '' || Object.keys(selection.parent).length !== 2 ||
+      !Object.hasOwn(selection.parent, 'model') || !Object.hasOwn(selection.parent, 'id'))) {
+    throw new StateError('validation', 'Invalid admitted page parent.');
+  }
+  const set = await runAuthorizedQuery({
+    ...input, order, archived: 'exclude',
+    ...(selection.where === undefined ? {} : { where: selection.where }),
+  }, search?.fields, false, predicate, {
+    ...(selection.parent === undefined ? {} : { parent: selection.parent }),
+    ...(position === undefined ? {} : { revision: position.revision }),
+  });
+  if (position !== undefined && position.revision !== set.revision) {
+    throw new StateError('conflict', 'Collection changed; restart pagination.');
+  }
+  const previous = position === undefined ? -1 : set.rows.findIndex(row => row.id === position.after);
+  if (position !== undefined && previous === -1) {
+    throw new StateError('conflict', 'Page position is no longer visible; restart pagination.');
+  }
+  const records = set.rows.slice(previous + 1, previous + 1 + limit).map(toProjectedRecord);
+  const last = records.at(-1);
+  const page: ViewerPageRecordsResult = {
+    records, revision: set.revision,
+    continuation: previous + 1 + records.length < set.rows.length && last !== undefined
+      ? { revision: set.revision, after: last.id } : null,
+    ...(selection.includeCount === true ? { totalCount: set.rows.length } : {}),
+  };
+  const captured = set.pageAuthority!;
+  const result = transform === undefined ? page : await transform(structuredClone(page), [...captured.allowed]);
+  if (await input.store.readRevision() !== set.revision) {
+    throw new StateError('conflict', 'Collection changed during the page read; restart pagination.');
+  }
+  const membership = input.context.actorUserId !== null && input.context.teamId !== null
+    ? await input.memberships.findMembership(input.context.teamId, input.context.actorUserId) : null;
+  const live = captured.policy === null ? [] : await viewerGrantAuthority(captured.policy, {
+    ...captured.byContext, membership,
+  });
+  if (JSON.stringify(live) !== JSON.stringify(captured.allowed)) {
+    throw new StateError('forbidden', 'Collection read authority changed during the page read.');
+  }
+  if (await input.store.readRevision() !== set.revision) {
+    throw new StateError('conflict', 'Collection changed during the page read; restart pagination.');
+  }
+  return result;
 }
 
 /**

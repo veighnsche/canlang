@@ -165,6 +165,39 @@ async function captureArtifactError(run: () => unknown): Promise<IncompatibleArt
 }
 
 describe('T16a loader: artifact slice to intake', () => {
+  it('retains owning enum model tags through canonical intake and mutation tables', async () => {
+    const field = (): ArtifactModelField => ({ name: 'priority',
+      field: { kind: 'enum', values: ['low', 'high'] }, required: false, serverOnly: false });
+    for (const array of [false, true]) for (const nullable of [false, true]) {
+      for (const requiredArray of array ? [false, true] : [false]) {
+        const slice = fullSlice();
+        const enumeration = field();
+        Object.assign(enumeration, { nullable, ...(array ? { array: { required: requiredArray } } : {}) });
+        slice.models![0]!.fields.push(enumeration);
+        const type = `enum(low,high)${array ? '[]' : ''}${nullable ? '?' : ''}`;
+        const converted = artifactToDescriptorSet(slice);
+        const loaded = loadExecutionDescriptorSet(converted.set, { by: 'members' });
+        const canonical = loaded.models[0]!.fields['priority']!;
+        assert.equal(canonical.valueType, type);
+        assert.equal(canonical.nullable, nullable);
+        const table = buildModelTableFromCanonical(loaded.models, { nullableFields: converted.nullableFields });
+        assert.equal(table.get(asModel(GADGET))!.fields['priority']!.valueType, type);
+        assert.deepEqual(canonical.array, array ? { required: requiredArray } : undefined);
+      }
+    }
+    for (const patch of [
+      { valueType: 'text' }, { valueType: 'enum(high,low)' }, { valueType: 'enum(low)' },
+      { valueType: 'enum(low,high)?' }, { valueType: 'enum(low,high)[]' },
+      { field: { kind: 'enum', values: [] } }, { field: { kind: 'enum', values: ['low', 'low'] } },
+      { field: { kind: 'enum', values: ['low', 1] } }, { nullable: 'yes' }, { array: { required: 'yes' } },
+    ]) {
+      const slice = fullSlice();
+      slice.models![0]!.fields.push(Object.assign(field(), patch));
+      const error = await captureArtifactError(() => loadArtifactDescriptors(slice, { by: 'members' }));
+      assert.equal(error.reason, 'malformed_descriptor');
+    }
+  });
+
   it('loads a T15a-shaped slice: registry ops, folded models, derived refs', () => {
     const slice = fullSlice();
     const converted = artifactToDescriptorSet(slice);

@@ -684,10 +684,9 @@ fn file_structure() {
 #[test]
 fn given_declarations() {
     let tree = assert_clean(
-        "app T\nGiven\n preferences { view:enum(all,finished)=all label=\"View\" }\n Todo { title:text trim max=200 label=\"Title\", done:bool=false } label=\"Task\"\n contract Origin { resolution:text } label=\"Origin\"\n event changed { value:int }\n role admin label=\"Admin\"\n derive Todo.slug:text = \"s\"\n derive total(x:int):int = x\n policy Todo read=members where=true\n invariant Todo: row.title != \"\"\n unique Todo fields=title\n lock Todo fields=title when=true\n retain Todo until=now+90d\n fixture task=Todo {title=\"Ship\"}\n export capability Mail version=1\n  send(to:text) -> bool\n message done = \"Done\"@{}\n message count(n:int) = \"{n} tasks\"@{}\nWhen\nThen\n",
+        "app T\nGiven\n Todo { title:text trim max=200 label=\"Title\", done:bool=false } label=\"Task\"\n contract Origin { resolution:text } label=\"Origin\"\n event changed { value:int }\n role admin label=\"Admin\"\n derive Todo.slug:text = \"s\"\n derive total(x:int):int = x\n policy Todo read=members where=true\n invariant Todo: row.title != \"\"\n unique Todo fields=title\n lock Todo fields=title when=true\n retain Todo until=now+90d\n fixture task=Todo {title=\"Ship\"}\n export capability Mail version=1\n  send(to:text) -> bool\n message done = \"Done\"@{}\n message count(n:int) = \"{n} tasks\"@{}\nWhen\nThen\n",
     );
     for kind in [
-        SyntaxKind::Preferences,
         SyntaxKind::Model,
         SyntaxKind::Contract,
         SyntaxKind::Event,
@@ -706,6 +705,55 @@ fn given_declarations() {
         SyntaxKind::Parameter,
     ] {
         assert!(has_kind(&tree, kind), "missing {kind:?}");
+    }
+}
+
+#[test]
+fn preferences_schema_and_validation_belong_to_then() {
+    let tree = assert_clean(
+        "app T\nGiven\n Todo {title:text}\n invariant Todo: row.title!=\"\"\nWhen\nThen\n preferences {view:enum(all,finished)=all label=\"View\"}\n invariant preferences: preferences.view==all\n page / title=\"Settings\"\n  preferences\n   input view\n",
+    );
+    for kind in [
+        SyntaxKind::Preferences,
+        SyntaxKind::Invariant,
+        SyntaxKind::PreferencePanel,
+    ] {
+        assert!(has_kind(&tree, kind), "missing {kind:?}");
+    }
+    assert_clean(
+        "app T\nGiven\n preferences in app {value:int}\n invariant preferences: true\nWhen\nThen\n",
+    );
+    for (source, code, message) in [
+        (
+            "app T\nGiven\n preferences {value:int}\nWhen\nThen\n",
+            "E1200",
+            "preferences schemas belong in Then, not Given",
+        ),
+        (
+            "app T\nGiven\nWhen\nThen\n preferences {}\n",
+            "E1200",
+            "omit an empty preferences schema",
+        ),
+        (
+            "app T\nGiven\nWhen\nThen\n preferences {value:int}\n preferences {other:int}\n",
+            "E1200",
+            "each owner may declare only one preferences schema",
+        ),
+        (
+            "app T\nGiven\nWhen\nThen\n export preferences {value:int}\n",
+            "E1212",
+            "preferences cannot be exported",
+        ),
+        (
+            "app T\nGiven\nWhen\nThen\n export invariant preferences: true\n",
+            "E1212",
+            "invariants cannot be exported",
+        ),
+    ] {
+        let (tree, diagnostics) = parse_text(source);
+        assert_eq!(codes(&diagnostics), [code], "{diagnostics:?}");
+        assert_eq!(diagnostics[0].message, message);
+        assert!(tree.verify_coverage(source.len() as u32).is_ok());
     }
 }
 

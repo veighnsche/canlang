@@ -52,6 +52,54 @@ import {
 const MORE_ROWS = message("More rows available.", {
   nl: "Meer rijen beschikbaar.",
 });
+const EMPTY_COLLECTION = message("No records.", { nl: "Geen gegevens." }, undefined, "en");
+const DETAILS = message("Details", { nl: "Details" }, undefined, "en");
+const OPEN_DETAILS = message("Open details", { nl: "Details openen" }, undefined, "en");
+const CLOSE_DETAILS = message("Close details", { nl: "Details sluiten" }, undefined, "en");
+
+function splitOccurrence(props: Pick<ListProps, "display" | "occurrence">): string | undefined {
+  if (props.display === undefined) return undefined;
+  if (props.display !== "split" || typeof props.occurrence !== "string" || props.occurrence.trim() === "") {
+    throw new TypeError("Split collections require a nonempty source occurrence.");
+  }
+  return props.occurrence;
+}
+
+function selectionHref(context: PresentationContext, occurrence: string, id: string): string {
+  const current = context.pollUrl ?? context.path;
+  if (!current.startsWith("/") || current.startsWith("//") || /[\\\s\u0000-\u001f\u007f#]/.test(current)) {
+    throw new TypeError("Collection selection requires a same-app relative URL.");
+  }
+  const url = new URL(current, "https://can.invalid");
+  if (url.origin !== "https://can.invalid") throw new TypeError("Invalid collection selection URL.");
+  url.searchParams.set(`can-row:${occurrence}`, id);
+  return `${url.pathname}${url.search}`;
+}
+
+/** One selected authorized body, shared by desktop pane and mobile drawer. */
+async function splitBody(props: Pick<ListProps, "context" | "model" | "parent">,
+  occurrence: string, summaries: string, rows: readonly RowView[],
+  renderRow: ListProps["renderRow"] | undefined): Promise<string> {
+  const locator = props.context.collectionSelections?.get(occurrence);
+  const selected = rows.find(row => row.id === locator);
+  const body = selected === undefined || renderRow === undefined ? ""
+    : await resolveChildren(await renderRow(selected, props.context));
+  const scope = JSON.stringify([props.context.path, props.model, props.parent?.id ?? null, occurrence]);
+  const id = `can-split-${Array.from({ length: scope.length }, (_, index) =>
+    scope.charCodeAt(index).toString(16).padStart(4, "0")).join("")}`;
+  const toggle = `${id}-toggle`, panel = `${id}-panel`, title = `${id}-title`;
+  const caption = escapeHtml(resolveCaption(DETAILS, props.context));
+  const open = escapeHtml(resolveCaption(OPEN_DETAILS, props.context));
+  const close = escapeHtml(resolveCaption(CLOSE_DETAILS, props.context));
+  return `<div class="drawer drawer-end lg:drawer-open" data-can-split>` +
+    `<input id="${toggle}" type="checkbox" class="drawer-toggle" aria-label="${caption}" aria-controls="${panel}"${selected === undefined ? "" : " checked"}>` +
+    `<div class="drawer-content">${summaries}` +
+    `<label for="${toggle}" class="btn drawer-button lg:hidden" aria-controls="${panel}">${open}</label></div>` +
+    `<div class="drawer-side"><label for="${toggle}" class="drawer-overlay" aria-label="${close}"></label>` +
+    `<dialog open data-can-split-panel id="${panel}" aria-labelledby="${title}" class="bg-base-100 min-h-full w-80 p-4" style="max-width:90vw;margin:0;position:relative">` +
+    `<div class="flex gap-2"><h2 id="${title}">${caption}</h2>` +
+    `<button type="button" class="btn lg:hidden" data-can-split-close aria-controls="${panel}">${close}</button></div>${body}</dialog></div></div>`;
+}
 
 /** Scalar cell types rendered through formatScalar; see renderCell. */
 const SCALAR_CELL_TYPES = new Set([
@@ -73,7 +121,7 @@ const MAX_LIMIT = 100;
 
 /** Pass S3 query args through, including only defined optionals. */
 function queryArgs(
-  props: Pick<ListProps, "parent" | "where" | "limit" | "cursor">,
+  props: Pick<ListProps, "context" | "parent" | "where" | "order" | "search" | "count" | "limit" | "cursor" | "page" | "occurrence">,
   factory: string,
 ): ListQueryArgs {
   if (
@@ -85,9 +133,38 @@ function queryArgs(
   return {
     ...(props.parent === undefined ? {} : { parent: props.parent }),
     ...(props.where === undefined ? {} : { where: props.where }),
+    ...(props.order === undefined ? {} : { order: props.order }),
+    ...(props.search === undefined ? {} : {
+      search: { fields: props.search, query: props.context.searchQuery ?? "" },
+    }),
+    ...(props.count === undefined ? {} : { includeCount: true as const }),
     ...(props.limit === undefined ? {} : { limit: props.limit }),
     ...(props.cursor === undefined ? {} : { cursor: props.cursor }),
+    ...(props.page === undefined ? {} : { page: props.page }),
+    ...(props.occurrence === undefined ? {} : { occurrence: props.occurrence }),
   };
+}
+
+/** Ordinary GET fallback for a source-declared collection search. */
+function sourceSearchForm(context: PresentationContext): string {
+  const label = escapeHtml(resolveCaption(SEARCH_LABEL, context));
+  const selectedTeam = context.pollUrl === undefined ? null :
+    new URL(context.pollUrl, "https://can.invalid").searchParams.get("team");
+  const team = selectedTeam === null ? "" :
+    `<input type="hidden" name="team" value="${escapeAttr(selectedTeam)}">`;
+  return `<form method="get" action="${escapeAttr(context.path)}" role="search">` +
+    `<label>${label}<input type="search" name="q" value="${escapeAttr(context.searchQuery ?? "")}"></label>` +
+    `${team}<button type="submit">${label}</button></form>`;
+}
+
+/** Refuse a silently truncated/missing summary from the query owner. */
+function sourceCount(props: ListProps, totalCount: number | undefined): string {
+  if (props.count === undefined) return "";
+  if (totalCount === undefined || !Number.isSafeInteger(totalCount) || totalCount < 0) {
+    throw new Error("list: authorized pre-pagination count is unavailable");
+  }
+  const label = escapeHtml(resolveCaption(props.count.label, props.context));
+  return `<p role="status" data-can-list-count>${label}: ${String(totalCount)}</p>`;
 }
 
 /** Resolve page children (array or thunk of string/promise parts) to HTML. */
@@ -120,6 +197,7 @@ function moreNote(context: PresentationContext, nextCursor: string | undefined):
  * parent-chain scopes are a later extension.
  */
 export async function list(props: ListProps): Promise<string> {
+  const occurrence = splitOccurrence(props);
   if (props.controls !== undefined) {
     assertControls(props.controls, "list");
     assertConsistentContext(props.context, props.controls.context, "list");
@@ -129,26 +207,33 @@ export async function list(props: ListProps): Promise<string> {
     props.model,
     queryArgs(props, "list"),
   );
+  const heading = `${props.search === undefined ? "" : sourceSearchForm(props.context)}` +
+    sourceCount(props, result.totalCount);
   if (result.rows.length === 0) {
     if (props.controls === undefined) {
-      return renderState({ context: props.context, kind: "empty", message: props.empty });
+      return heading + await renderState({ context: props.context, kind: "empty", message: props.empty ?? EMPTY_COLLECTION });
     }
-    return wrapWithControls(props.controls, await emptyBody(props.controls, props), props);
+    return wrapWithControls(props.controls, heading + await emptyBody(props.controls, props), props);
   }
   const items: string[] = [];
   for (const row of result.rows) {
-    const body = await resolveChildren(await props.renderRow(row, props.context));
+    const body = occurrence === undefined
+      ? await resolveChildren(await props.renderRow(row, props.context))
+      : `<a href="${escapeAttr(selectionHref(props.context, occurrence, row.id))}"${props.context.collectionSelections?.get(occurrence) === row.id ? ' aria-current="true"' : ""}>${isolate(rowHeading(row, props.model, props.context))}</a>`;
     items.push(`<li class="list-row">${body}</li>`);
   }
-  const rowsHtml = `<ul class="list">${items.join("")}</ul>`;
+  const summaries = `<ul class="list">${items.join("")}</ul>`;
+  const rowsHtml = occurrence === undefined ? summaries
+    : await splitBody(props, occurrence, summaries, result.rows, props.renderRow);
   if (props.controls === undefined) {
-    return `${rowsHtml}${moreNote(props.context, result.nextCursor)}`;
+    return `${heading}${rowsHtml}${moreNote(props.context, result.nextCursor)}`;
   }
-  return wrapWithControls(props.controls, rowsHtml, props);
+  return wrapWithControls(props.controls, heading + rowsHtml, props);
 }
 
 /** Render one model table over the requested column subset. */
 export async function table(props: TableProps): Promise<string> {
+  const occurrence = splitOccurrence(props);
   if (props.controls !== undefined) {
     assertControls(props.controls, "table");
     assertConsistentContext(props.context, props.controls.context, "table");
@@ -168,7 +253,7 @@ export async function table(props: TableProps): Promise<string> {
   }
   if (result.rows.length === 0) {
     if (props.controls === undefined) {
-      return renderState({ context: props.context, kind: "empty", message: props.empty });
+      return renderState({ context: props.context, kind: "empty", message: props.empty ?? EMPTY_COLLECTION });
     }
     return wrapWithControls(props.controls, await emptyBody(props.controls, props), props);
   }
@@ -183,17 +268,25 @@ export async function table(props: TableProps): Promise<string> {
   }
   const head = metas
     .map((meta) => `<th scope="col">${escapeHtml(resolveCaption(meta.label, props.context))}</th>`)
-    .join("");
+    .join("") + (occurrence === undefined ? "" : `<th scope="col">${escapeHtml(resolveCaption(DETAILS, props.context))}</th>`);
   const body: string[] = [];
   for (const row of result.rows) {
     const cells = metas
       .map((meta) => `<td>${renderCell(meta, row.fields[meta.field], props.context)}</td>`)
       .join("");
-    body.push(`<tr>${cells}</tr>`);
+    const selection = occurrence === undefined ? ""
+      : `<td><a href="${escapeAttr(selectionHref(props.context, occurrence, row.id))}"${props.context.collectionSelections?.get(occurrence) === row.id ? ' aria-current="true"' : ""}>${escapeHtml(resolveCaption(OPEN_DETAILS, props.context))}</a></td>`;
+    body.push(`<tr>${cells}${selection}</tr>`);
+    if (occurrence === undefined && props.renderRow !== undefined) {
+      const detail = await resolveChildren(await props.renderRow(row, props.context));
+      body.push(`<tr><td colspan="${Math.max(1, metas.length)}">${detail}</td></tr>`);
+    }
   }
-  const rowsHtml =
+  const summaries =
     `<table class="table"><thead><tr>${head}</tr></thead>` +
     `<tbody>${body.join("")}</tbody></table>`;
+  const rowsHtml = occurrence === undefined ? summaries
+    : await splitBody(props, occurrence, summaries, result.rows, props.renderRow);
   if (props.controls === undefined) {
     return `${rowsHtml}${moreNote(props.context, result.nextCursor)}`;
   }
@@ -752,7 +845,7 @@ async function emptyBody(
   if (hasActiveQuery(controls)) {
     return noMatchBlock(controls);
   }
-  return renderState({ context: props.context, kind: "empty", message: props.empty });
+  return renderState({ context: props.context, kind: "empty", message: props.empty ?? EMPTY_COLLECTION });
 }
 
 /**

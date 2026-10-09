@@ -1,122 +1,122 @@
 {
-  "scope": "all authored .can files, including repeated full apps and mutation/probe source; bytes/whitespace proxies only",
+  "scope": "All authored .can files retain byte/whitespace measures; actual compiler lexer tokens populate measured principal full/handler comparisons. Unmeasured mutation/probe counts remain explicit. No model-token or overall authoring saving claim.",
   "rows": [
     {
       "path": "approval/current-if-add-case-full.can",
-      "utf8_bytes": 33465,
-      "whitespace_units": 1862,
+      "utf8_bytes": 34382,
+      "whitespace_units": 1941,
       "category": "mutation_source",
       "model_token_count": "not measured",
       "compiler_token_count": "not measured"
     },
     {
       "path": "approval/current-if-full.can",
-      "utf8_bytes": 33456,
-      "whitespace_units": 1862,
+      "utf8_bytes": 34373,
+      "whitespace_units": 1941,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 6471
     },
     {
       "path": "approval/current-if-handler.can",
-      "utf8_bytes": 954,
-      "whitespace_units": 71,
+      "utf8_bytes": 1871,
+      "whitespace_units": 150,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 325
     },
     {
       "path": "approval/current-if-omit-case-full.can",
-      "utf8_bytes": 33394,
-      "whitespace_units": 1857,
+      "utf8_bytes": 34311,
+      "whitespace_units": 1936,
       "category": "mutation_source",
       "model_token_count": "not measured",
       "compiler_token_count": "not measured"
     },
     {
       "path": "approval/current-if-remove-owner-case-full.can",
-      "utf8_bytes": 33410,
-      "whitespace_units": 1862,
+      "utf8_bytes": 34327,
+      "whitespace_units": 1941,
       "category": "mutation_source",
       "model_token_count": "not measured",
       "compiler_token_count": "not measured"
     },
     {
       "path": "approval/improved-if-analysis-add-case-full.can",
-      "utf8_bytes": 33465,
-      "whitespace_units": 1862,
+      "utf8_bytes": 34382,
+      "whitespace_units": 1941,
       "category": "mutation_source",
       "model_token_count": "not measured",
       "compiler_token_count": "not measured"
     },
     {
       "path": "approval/improved-if-analysis-full.can",
-      "utf8_bytes": 33456,
-      "whitespace_units": 1862,
+      "utf8_bytes": 34373,
+      "whitespace_units": 1941,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 6471
     },
     {
       "path": "approval/improved-if-analysis-handler.can",
-      "utf8_bytes": 954,
-      "whitespace_units": 71,
+      "utf8_bytes": 1871,
+      "whitespace_units": 150,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 325
     },
     {
       "path": "approval/improved-if-analysis-omit-case-full.can",
-      "utf8_bytes": 33394,
-      "whitespace_units": 1857,
+      "utf8_bytes": 34311,
+      "whitespace_units": 1936,
       "category": "mutation_source",
       "model_token_count": "not measured",
       "compiler_token_count": "not measured"
     },
     {
       "path": "approval/improved-if-analysis-remove-owner-case-full.can",
-      "utf8_bytes": 33410,
-      "whitespace_units": 1862,
+      "utf8_bytes": 34327,
+      "whitespace_units": 1941,
       "category": "mutation_source",
       "model_token_count": "not measured",
       "compiler_token_count": "not measured"
     },
     {
       "path": "approval/proposed-match-add-case-full.can",
-      "utf8_bytes": 33471,
-      "whitespace_units": 1865,
+      "utf8_bytes": 34388,
+      "whitespace_units": 1944,
       "category": "mutation_source",
       "model_token_count": "not measured",
       "compiler_token_count": "not measured"
     },
     {
       "path": "approval/proposed-match-full.can",
-      "utf8_bytes": 33462,
-      "whitespace_units": 1865,
+      "utf8_bytes": 34379,
+      "whitespace_units": 1944,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 6466
     },
     {
       "path": "approval/proposed-match-handler.can",
-      "utf8_bytes": 960,
-      "whitespace_units": 74,
+      "utf8_bytes": 1877,
+      "whitespace_units": 153,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 320
     },
     {
       "path": "approval/proposed-match-omit-case-full.can",
-      "utf8_bytes": 33419,
-      "whitespace_units": 1861,
+      "utf8_bytes": 34336,
+      "whitespace_units": 1940,
       "category": "mutation_source",
       "model_token_count": "not measured",
       "compiler_token_count": "not measured"
     },
     {
       "path": "approval/proposed-match-remove-owner-case-full.can",
-      "utf8_bytes": 33416,
-      "whitespace_units": 1865,
+      "utf8_bytes": 34333,
+      "whitespace_units": 1944,
       "category": "mutation_source",
       "model_token_count": "not measured",
       "compiler_token_count": "not measured"
@@ -135,7 +135,7 @@
       "whitespace_units": 225,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 330
     },
     {
       "path": "generation/current-if-handler.can",
@@ -143,7 +143,7 @@
       "whitespace_units": 72,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 89
     },
     {
       "path": "generation/current-if-omit-case-full.can",
@@ -175,7 +175,7 @@
       "whitespace_units": 225,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 330
     },
     {
       "path": "generation/improved-if-analysis-handler.can",
@@ -183,7 +183,7 @@
       "whitespace_units": 72,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 89
     },
     {
       "path": "generation/improved-if-analysis-omit-case-full.can",
@@ -215,7 +215,7 @@
       "whitespace_units": 227,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 322
     },
     {
       "path": "generation/proposed-match-handler.can",
@@ -223,7 +223,7 @@
       "whitespace_units": 74,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 81
     },
     {
       "path": "generation/proposed-match-omit-case-full.can",
@@ -247,7 +247,7 @@
       "whitespace_units": 1474,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 4624
     },
     {
       "path": "generation-effects/current-if-handler.can",
@@ -255,7 +255,7 @@
       "whitespace_units": 113,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 698
     },
     {
       "path": "generation-effects/improved-if-analysis-full.can",
@@ -263,7 +263,7 @@
       "whitespace_units": 1474,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 4624
     },
     {
       "path": "generation-effects/improved-if-analysis-handler.can",
@@ -271,7 +271,7 @@
       "whitespace_units": 113,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 698
     },
     {
       "path": "generation-effects/proposed-match-full.can",
@@ -279,7 +279,7 @@
       "whitespace_units": 1515,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 4687
     },
     {
       "path": "generation-effects/proposed-match-handler.can",
@@ -287,124 +287,124 @@
       "whitespace_units": 154,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 761
     },
     {
       "path": "ordinary/current-if-add-case-full.can",
-      "utf8_bytes": 35613,
-      "whitespace_units": 2367,
+      "utf8_bytes": 35834,
+      "whitespace_units": 2389,
       "category": "mutation_source",
       "model_token_count": "not measured",
       "compiler_token_count": "not measured"
     },
     {
       "path": "ordinary/current-if-full.can",
-      "utf8_bytes": 35603,
-      "whitespace_units": 2367,
+      "utf8_bytes": 35824,
+      "whitespace_units": 2389,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 6079
     },
     {
       "path": "ordinary/current-if-handler.can",
-      "utf8_bytes": 857,
-      "whitespace_units": 71,
+      "utf8_bytes": 1078,
+      "whitespace_units": 93,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 166
     },
     {
       "path": "ordinary/current-if-omit-case-full.can",
-      "utf8_bytes": 35541,
-      "whitespace_units": 2362,
+      "utf8_bytes": 35762,
+      "whitespace_units": 2384,
       "category": "mutation_source",
       "model_token_count": "not measured",
       "compiler_token_count": "not measured"
     },
     {
       "path": "ordinary/current-if-remove-owner-case-full.can",
-      "utf8_bytes": 35569,
-      "whitespace_units": 2367,
+      "utf8_bytes": 35790,
+      "whitespace_units": 2389,
       "category": "mutation_source",
       "model_token_count": "not measured",
       "compiler_token_count": "not measured"
     },
     {
       "path": "ordinary/improved-if-analysis-add-case-full.can",
-      "utf8_bytes": 35613,
-      "whitespace_units": 2367,
+      "utf8_bytes": 35834,
+      "whitespace_units": 2389,
       "category": "mutation_source",
       "model_token_count": "not measured",
       "compiler_token_count": "not measured"
     },
     {
       "path": "ordinary/improved-if-analysis-full.can",
-      "utf8_bytes": 35603,
-      "whitespace_units": 2367,
+      "utf8_bytes": 35824,
+      "whitespace_units": 2389,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 6079
     },
     {
       "path": "ordinary/improved-if-analysis-handler.can",
-      "utf8_bytes": 857,
-      "whitespace_units": 71,
+      "utf8_bytes": 1078,
+      "whitespace_units": 93,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 166
     },
     {
       "path": "ordinary/improved-if-analysis-omit-case-full.can",
-      "utf8_bytes": 35541,
-      "whitespace_units": 2362,
+      "utf8_bytes": 35762,
+      "whitespace_units": 2384,
       "category": "mutation_source",
       "model_token_count": "not measured",
       "compiler_token_count": "not measured"
     },
     {
       "path": "ordinary/improved-if-analysis-remove-owner-case-full.can",
-      "utf8_bytes": 35569,
-      "whitespace_units": 2367,
+      "utf8_bytes": 35790,
+      "whitespace_units": 2389,
       "category": "mutation_source",
       "model_token_count": "not measured",
       "compiler_token_count": "not measured"
     },
     {
       "path": "ordinary/proposed-match-add-case-full.can",
-      "utf8_bytes": 35572,
-      "whitespace_units": 2368,
+      "utf8_bytes": 35793,
+      "whitespace_units": 2390,
       "category": "mutation_source",
       "model_token_count": "not measured",
       "compiler_token_count": "not measured"
     },
     {
       "path": "ordinary/proposed-match-full.can",
-      "utf8_bytes": 35562,
-      "whitespace_units": 2368,
+      "utf8_bytes": 35783,
+      "whitespace_units": 2390,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 6068
     },
     {
       "path": "ordinary/proposed-match-handler.can",
-      "utf8_bytes": 816,
-      "whitespace_units": 72,
+      "utf8_bytes": 1037,
+      "whitespace_units": 94,
       "category": "principal_comparison",
       "model_token_count": "not measured",
-      "compiler_token_count": "not measured"
+      "compiler_token_count": 155
     },
     {
       "path": "ordinary/proposed-match-omit-case-full.can",
-      "utf8_bytes": 35525,
-      "whitespace_units": 2364,
+      "utf8_bytes": 35746,
+      "whitespace_units": 2386,
       "category": "mutation_source",
       "model_token_count": "not measured",
       "compiler_token_count": "not measured"
     },
     {
       "path": "ordinary/proposed-match-remove-owner-case-full.can",
-      "utf8_bytes": 35528,
-      "whitespace_units": 2368,
+      "utf8_bytes": 35749,
+      "whitespace_units": 2390,
       "category": "mutation_source",
       "model_token_count": "not measured",
       "compiler_token_count": "not measured"
@@ -515,5 +515,7 @@
     }
   ],
   "token_value_gate": "unclosed; no tokenizer/config selected or run; no strictness opt-in source invented",
-  "runtime_tooling_cost": "not measured; implementation absent"
+  "runtime_tooling_cost": "not measured; original enum implementation/tooling and bounded three-handler execution qualified; no cost-saving claim",
+  "compiler_token_measurement_method": "sum of tokens from actual compiler lexer physical lines; whitespace omitted, comments/descriptions included; not model BPE tokens",
+  "compiler_source_commit": "36d2ef8b1c4d634c242db9fe0da9de3ace60b232"
 }

@@ -1,0 +1,15 @@
+{
+  "state": "The author of a Can application is an AI coding agent that should need very few memorized language rules. It can initially write approximate Given/When/Then source; the desired development tool responds with concrete valid Can suggestions and checks them. Existing analysis has stable codes and spans, parser recovery, and stale-edit guards but ships zero syntax repairs. Unknown constructs remain errors until valid source is chosen, particularly for roles, writes, guard/effect order and independently authored examples. Jev is a fast probabilistic evaluator of predeclared choices rather than a string/code generator. Assess an initial solution for learning speed, semantic fidelity, token economy and implementation burden.",
+  "questions": {
+    "starting_design": {
+      "type": "choice",
+      "instructions": "Which starting mechanism is most suitable for turning an agent's invalid Can attempt into a checked, reviewable correction without silently selecting business intent?",
+      "criteria": {
+        "deterministic_candidates": "A bounded compiler-owned candidate set from expected productions and resolved names/types is rechecked and Jev ranks its legal patches; this gives exact feedback for covered patterns but not every invented form.",
+        "layered_candidates": "Compiler suggestions are supplemented by a generative patch source for unmatched forms, with deterministic checking and Jev ranking of valid results; this reaches more forms with additional model cost and moving parts.",
+        "agent_repair": "The original agent receives precise errors plus minimal canonical examples and edits itself, while Jev can indicate a likely issue class; this reuses the agent but may spend more turns.",
+        "implicit_normalization": "The compiler accepts a best-match rewrite as the program and displays the rewrite to the agent; it reduces friction but a best match can embed a wrong policy or effect."
+      }
+    }
+  }
+}

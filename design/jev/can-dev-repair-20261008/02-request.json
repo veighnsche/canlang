@@ -1,0 +1,15 @@
+{
+  "state": "An AI author new to Can should be able to start from minimal section rules, write an imperfect .can draft, and learn the exact accepted form from diagnostic feedback. Can currently rejects unrecognized syntax, has versioned error spans and hash-guarded edit machinery, yet offers no diagnostic syntax fixes. The compiled program must still preserve explicit permissions, business effects, statement ordering and authored test expectations. Jev can judge a finite list, returning probabilities; it cannot emit arbitrary corrected text. The initial design should balance successful agent convergence, faithful intent, response brevity and delivery effort.",
+  "questions": {
+    "repair_entry": {
+      "type": "choice",
+      "instructions": "What should the first Can authoring-repair loop use to return useful valid-source corrections for an agent with little prior syntax knowledge?",
+      "criteria": {
+        "deterministic_candidates": "Enumerate small patches from grammar expectations, symbols and types, validate each through the compiler, then use Jev to order the viable patches; efficient and auditable, with finite coverage.",
+        "layered_candidates": "Try grammar-derived patches, then seek extra patches from a text-generating model when needed; validate every patch and use Jev to prefer among survivors; broad input coverage costs more orchestration.",
+        "agent_repair": "Send a focused failure explanation and a relevant legal snippet to the coding agent for self-correction, with Jev restricted to hypothesis guidance; less server machinery may require more agent context and retries.",
+        "implicit_normalization": "Interpret malformed source as the nearest legal Can during compilation and reveal the normalization afterward; fastest apparent repair, with potential uncertainty about intended authority or behavior."
+      }
+    }
+  }
+}

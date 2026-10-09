@@ -1,7 +1,6 @@
 # Manage team tasks, assign active teammates, and track completion. @{nl="Beheer teamtaken, wijs actieve teamleden toe en volg de voortgang."}
 app TeamTasks
 Given
- preferences { view:enum(all,unfinished,finished)=all label={text="Task view"@{nl="Taakweergave"},values={all="All tasks"@{nl="Alle taken"},unfinished="Unfinished tasks"@{nl="Open taken"},finished="Finished tasks"@{nl="Afgeronde taken"}}} }
  Todo { title:text trim max=200 label=field_title, done:bool=false label={text=done,values={true=done,false="Open"@{nl="Open"}}}, assignee:member? label="Assignee"@{nl="Toegewezen aan"} } label="Task"@{nl="Taak"}
  policy Todo read=members
  fixture task=Todo {title="Ship prototype"}
@@ -17,6 +16,7 @@ When
    members,true,0 -> error(conflict)
    public,true,1 -> error(forbidden)
 Then
+ preferences { view:enum(all,unfinished,finished)=all label={text="Task view"@{nl="Taakweergave"},values={all="All tasks"@{nl="Alle taken"},unfinished="Unfinished tasks"@{nl="Open taken"},finished="Finished tasks"@{nl="Afgeronde taken"}}} }
  # Add work, assign teammates, and track what is finished. @{nl="Voeg werk toe, wijs teamleden toe en volg wat klaar is."}
  page / title="Team tasks"@{nl="Teamtaken"}
   breadcrumbs
@@ -37,12 +37,12 @@ Then
 app TeamNotes
 use TeamTasks {add,field_title}
 Given
- preferences { show_content:bool=true label="Expand note content"@{nl="Notitie-inhoud uitklappen"} }
  Note { title:text trim max=200 label=field_title, content:text? label="Content"@{nl="Inhoud"} } label="Note"@{nl="Notitie"}
  policy Note read=members
 When
  crud Note by=members fields=title,content label={create=add}
 Then
+ preferences { show_content:bool=true label="Expand note content"@{nl="Notitie-inhoud uitklappen"} }
  # Write and browse the team's notes. @{nl="Schrijf en bekijk de notities van het team."}
  page /notes title="Team notes"@{nl="Teamnotities"}
   breadcrumbs

@@ -1,0 +1,126 @@
+{
+  "task": "SEQ-007",
+  "method": "UTF-8 bytes, line counts and Python str.split whitespace-segment counts. Whole-line #/## comments excluded for separately named noncomment proxies. Whitespace segments are not tokenizer tokens; no actual model tokenizer measured. No framework/runtime/controller code cost or adoption/runtime performance measured.",
+  "whole_source": [
+    {
+      "path": "originals/CanApprove.can",
+      "sha256": "515648eb449308363023ed6fe7cc986c0eceba58ba5fa5f88a6c30cf7a0fc981",
+      "utf8_bytes": 32502,
+      "lines": 340,
+      "whitespace_separated_proxy": 1791,
+      "noncomment_utf8_bytes": 29771,
+      "noncomment_whitespace_proxy": 1439
+    },
+    {
+      "path": "approval/proposed-binding-shell-full.can",
+      "sha256": "8caa787c97cc566449aea0912b6e21f3aaa290eb002bbdd0e3192ed1150b170d",
+      "utf8_bytes": 32305,
+      "lines": 334,
+      "whitespace_separated_proxy": 1794,
+      "noncomment_utf8_bytes": 29373,
+      "noncomment_whitespace_proxy": 1415
+    },
+    {
+      "path": "supplementary/CountryRegion-current-nested-full.can",
+      "sha256": "a8370f1c8b2579515d4bf35d51773fbe746df2a4352dee95179cee164feafbd2",
+      "utf8_bytes": 3781,
+      "lines": 81,
+      "whitespace_separated_proxy": 324,
+      "noncomment_utf8_bytes": 3485,
+      "noncomment_whitespace_proxy": 286
+    },
+    {
+      "path": "supplementary/CountryRegion-custom-composition-shell-full.can",
+      "sha256": "ac985851ab89662e2775fbf78e510c8826f28102469a27eb26d1e5eb7cd1eaf1",
+      "utf8_bytes": 3652,
+      "lines": 77,
+      "whitespace_separated_proxy": 324,
+      "noncomment_utf8_bytes": 3160,
+      "noncomment_whitespace_proxy": 260
+    },
+    {
+      "path": "supplementary/CountryRegion-proposed-binding-shell-full.can",
+      "sha256": "38627aecfc199ab5b5fcc47821896b96bcea473e6c04fd3d29b91cca550966ee",
+      "utf8_bytes": 3651,
+      "lines": 77,
+      "whitespace_separated_proxy": 323,
+      "noncomment_utf8_bytes": 3160,
+      "noncomment_whitespace_proxy": 260
+    },
+    {
+      "path": "originals/CanRent.can",
+      "sha256": "38122784280f5bc9e32cd4b62e7b236eb3bf3f51121a75751cfb087b25960654",
+      "utf8_bytes": 197946,
+      "lines": 1905,
+      "whitespace_separated_proxy": 10597,
+      "noncomment_utf8_bytes": 187985,
+      "noncomment_whitespace_proxy": 9327
+    },
+    {
+      "path": "originals/shared/Employees.can",
+      "sha256": "64b941f4e3db0afe499903642585e362482d6aa39f679b3b1e688dc912d3b7f4",
+      "utf8_bytes": 3145,
+      "lines": 26,
+      "whitespace_separated_proxy": 220,
+      "noncomment_utf8_bytes": 2737,
+      "noncomment_whitespace_proxy": 174
+    },
+    {
+      "path": "originals/shared/Locations.can",
+      "sha256": "6cafeb02349c80c8ff19a278bc9072258fe8b8f402409629fed534854e106c7a",
+      "utf8_bytes": 11063,
+      "lines": 65,
+      "whitespace_separated_proxy": 515,
+      "noncomment_utf8_bytes": 10900,
+      "noncomment_whitespace_proxy": 498
+    }
+  ],
+  "proposed_semantic_sketch_cost": {
+    "whole_file": {
+      "path": "proposed-binding-sketch.json",
+      "sha256": "d9b2ed41f24e5efd856ed0c2bb6628aa8c3a350510c12c5150eb631ec88972f0",
+      "utf8_bytes": 4677,
+      "lines": 90,
+      "whitespace_separated_proxy": 443,
+      "noncomment_utf8_bytes": 4676,
+      "noncomment_whitespace_proxy": 443
+    },
+    "shared_sketch_bytes": 1084,
+    "shared_whitespace_proxy": 115,
+    "per_binding": [
+      {
+        "id": "AP-SUBMIT",
+        "sketch_bytes": 1228,
+        "whitespace_separated_proxy": 125
+      },
+      {
+        "id": "AP-ASSIGN",
+        "sketch_bytes": 1205,
+        "whitespace_separated_proxy": 113
+      },
+      {
+        "id": "CR-REGION",
+        "sketch_bytes": 837,
+        "whitespace_separated_proxy": 87
+      }
+    ],
+    "allocation": "Both approval bindings required together for its two original pages. Shared proposed semantic rules counted separately once per app, not treated as zero-cost implemented syntax. Lifecycle specification describes equal expected outcomes, not generated runtime bytes."
+  },
+  "custom_requirement_cost": {
+    "path": "current-custom-composition-requirements.json",
+    "sha256": "b79d931be1ec346a89ecf46ba8d898bb1f1984f0a055d9348b25883f6db6706d",
+    "utf8_bytes": 1643,
+    "lines": 20,
+    "whitespace_separated_proxy": 179,
+    "noncomment_utf8_bytes": 1642,
+    "noncomment_whitespace_proxy": 179
+  },
+  "preservation": {
+    "approval_given_when_and_all_inline_examples_byte_identical": true,
+    "approval_prefix_sha256": "9495d20da280f0c62f096c6049a73db5f46dbf2fa6be5531ae82d5e1a4e695c6",
+    "country_all_three_business_and_inline_example_prefixes_byte_identical": true,
+    "country_prefix_sha256": "112729eadd8fbeeafc2a994f12a5c90111225042b63b9c211f697188bf91f308",
+    "shared_originals_unmodified": true
+  },
+  "measurement_scope": "Source shells alone implement no proposed/custom behavior; numeric shell reduction cannot claim runtime, adoption or total token win."
+}

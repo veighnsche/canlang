@@ -97,8 +97,13 @@ test('compiled owner admission, managed defaults and positive/negative receipts 
     // The carried owner snapshot says false; current membership is authoritative.
     const create = envelope('Entry.create', { label: 'durable' });
     const born = committed(await invoker.invokeMutation(create, staleOwnerSnapshot));
-    const row = born.result as { id: string; version: number; created: number; updated: number;
-      createdBy: string; updatedBy: string; archivedAt: number | null; data: Record<string, unknown> };
+    assert.equal(born.result, null);
+    const publicRow = born.records![0] as { id: string; version: number; data: Record<string, unknown> };
+    const row = await d1.store.load(MODEL, asId(create.operation_id));
+    assert.ok(row);
+    assert.equal(publicRow.id, row.id);
+    assert.equal(publicRow.version, row.version);
+    assert.deepEqual(publicRow.data, row.data);
     assert.equal(row.id, create.operation_id);
     assert.equal(row.version, 1);
     assert.equal(row.created, FIXED_NOW);
@@ -160,7 +165,9 @@ test('compiled owner admission, managed defaults and positive/negative receipts 
     assert.deepEqual(await d1.store.historyFor(MODEL, asId(row.id)), history);
     assert.equal(await d1.store.readRevision(), revision);
     assert.deepEqual(await Promise.all([create, change, rollback].map((request) => d1!.store.readReceipt(receiptIdentity(request)))), receipts);
-    assert.deepEqual(committed(await reopened.invokeMutation(create, identity), 'replayed').result, born.result);
+    const replayedCreate = committed(await reopened.invokeMutation(create, identity), 'replayed');
+    assert.equal(replayedCreate.result, null);
+    assert.deepEqual(replayedCreate.records, born.records);
     assert.equal(committed(await reopened.invokeMutation(change, identity), 'replayed').result, '3');
     const replayedFailure = rejected(await reopened.invokeMutation(rollback, identity), 'rule_failed');
     assert.equal(replayedFailure.message, failed.message);
@@ -218,7 +225,7 @@ test('compiled bound send joins D1 mutation rollback and replays one durable req
     const invoker = buildInvoker(artifact, asm, d1.store, { memberships, now: () => FIXED_NOW });
     const create = request('Entry.create', {});
     const born = committed(await invoker.invokeMutation(create, identity));
-    const row = born.result as { id: string; version: number; data: Record<string, unknown> };
+    const row = born.records![0] as { id: string; version: number; data: Record<string, unknown> };
     assert.deepEqual(row.data, { count: '0' });
     const inputs = { entry: { id: row.id, version: '1' }, to: 'recipient@example.com' };
     const rollback = request('deliver', { ...inputs, accept: false });
@@ -308,7 +315,7 @@ test('compiled record-key schedules replace and cancel atomically and survive D1
     d1 = await openD1(join(dir, 'd1'));
     const invoker = buildInvoker(artifact, asm, d1.store, { memberships, now: () => FIXED_NOW });
     const born = committed(await invoker.invokeMutation(request('Entry.create', { label: 'timer' }), identity));
-    const row = born.result as { id: string; version: number; data: Record<string, unknown> };
+    const row = born.records![0] as { id: string; version: number; data: Record<string, unknown> };
     const ref = (version: number) => ({ id: row.id, version: String(version) });
     const firstAt = FIXED_NOW + 60_000;
     const secondAt = firstAt + 60_000;
@@ -410,7 +417,7 @@ test('compiled private due handlers use current refs and atomically consume term
   const artifact = JSON.parse(await readFile(path, 'utf8')) as CompileArtifact;
   assert.equal(artifact.operations!.some((entry) => entry.name === `${app}.fire`), false);
   const { invokeDueScheduleCanonical } = await import('@canlang/cloudflare/runtime/invoke');
-  const { WORK_SCHEDULE_MODEL, WORK_OCCURRENCE_MODEL, scheduleByKeyQuery } = await import('@canlang/work/kernel/tables');
+  const { WORK_SCHEDULE_MODEL, WORK_OCCURRENCE_MODEL, WORK_DISPATCH_MODEL, scheduleByKeyQuery } = await import('@canlang/work/kernel/tables');
   const { createMemoryIdentityStore: createFullIdentityStore } = await import('@canlang/identity/testing');
   const identities = createFullIdentityStore({ clock: { nowMs: () => FIXED_NOW } });
   const user = await identities.createUser({ email: 'due-owner@example.test', email_verified: true, password_hash: 'unused' });
@@ -436,7 +443,7 @@ test('compiled private due handlers use current refs and atomically consume term
     const invoker = buildInvoker(artifact, asm, d1.store, { memberships: identities, now: () => FIXED_NOW });
     const ref = (id: string, version: number) => ({ id, version: String(version) });
     const create = async (label: string) => committed(await invoker.invokeMutation(request('Entry.create', { label }), identity))
-      .result as { id: string; version: number };
+      .records![0] as { id: string; version: number };
     const arm = async (id: string, version: number) => {
       committed(await invoker.invokeMutation(request('arm', { entry: ref(id, version), at: new Date(at).toISOString(), accept: true }), identity));
       const rows = await d1!.store.query(scheduleByKeyQuery(scope, id));
@@ -465,6 +472,24 @@ test('compiled private due handlers use current refs and atomically consume term
     assert.equal(fired.operation, `${app}.fire`);
     assert.equal(fired.actor, `schedule:${app}.Due`);
     assert.equal(fired.at, at);
+    assert.ok(fired.operationId);
+    const pendingSend = await d1.store.outboxPending();
+    assert.equal(pendingSend.length, 1);
+    const sent = pendingSend[0]!;
+    assert.equal(sent.operationId, fired.operationId);
+    assert.deepEqual(sent.arguments, { binding: `${app}.Mail`, from: 'deployment.mail', arguments: {
+      to: 'schedule@example.test', subject: fired.operationId, body: team.team_id, attachments: [],
+    } });
+    const dispatch = await d1.store.load(WORK_DISPATCH_MODEL, asId(sent.intentId));
+    assert.ok(dispatch);
+    assert.equal(dispatch.createdBy, `schedule:${app}.Due`);
+    assert.equal(dispatch.updatedBy, dispatch.createdBy);
+    assert.equal(dispatch.created, at);
+    assert.equal(dispatch.data['originOccurrence'], successfulDue.occurrenceId);
+    const handlerReceiptIdentity = { app, owner: team.team_id, principal: `schedule:${app}.Due`,
+      operation: asOperation(`${app}.fire`), operationId: fired.operationId };
+    const handlerReceipt = await d1.store.readReceipt(handlerReceiptIdentity);
+    assert.equal(handlerReceipt?.outcome.status, 'committed');
     assert.equal((await d1.store.load(WORK_SCHEDULE_MODEL, asId(successfulDue.occurrenceId)))?.data['state'], 'admitted');
     assert.equal((await d1.store.load(WORK_OCCURRENCE_MODEL, asId(successfulDue.occurrenceId)))?.data['status'], 'completed');
 
@@ -480,6 +505,8 @@ test('compiled private due handlers use current refs and atomically consume term
     assert.equal(failedReceipt?.data['status'], 'failed');
     assert.equal(failedReceipt?.data['code'], 'require-false');
     assert.equal((await d1.store.load(WORK_SCHEDULE_MODEL, asId(failedDue.occurrenceId)))?.data['state'], 'admitted');
+    assert.deepEqual(await d1.store.outboxPending(), pendingSend);
+    assert.deepEqual(await d1.store.query({ model: WORK_DISPATCH_MODEL, authority: 'owner' }), [dispatch]);
 
     // A real D1 read boundary fails after State ref admission. Its plain Error
     // deliberately shares the guard's message, proving classification is typed.
@@ -540,8 +567,8 @@ test('compiled private due handlers use current refs and atomically consume term
     assert.equal((await nativeStore.historyFor(model, asId(retried.id))).length, 2);
     assert.equal((await nativeStore.query(scheduleByKeyQuery(scope, retried.id))).length, 1);
 
-    // The handler has no provider effect. Lose the response only after its
-    // real owner fence commits, then recover from the retained occurrence.
+    // Lose the response after the row and queued send share the owner fence,
+    // then recover without creating another dispatch or contacting a provider.
     const interrupted = await create('post-fence response loss');
     const interruptedDue = await arm(interrupted.id, 1);
     const responseLost = new Error('due response lost after committed owner fence');
@@ -573,6 +600,10 @@ test('compiled private due handlers use current refs and atomically consume term
     const finalHistory = await d1.store.historyFor(model, asId(success.id));
     const receipts = await Promise.all([successfulDue, failedDue, transientDue, interruptedDue]
       .map((input) => d1!.store.load(WORK_OCCURRENCE_MODEL, asId(input.occurrenceId))));
+    const finalOutbox = await d1.store.outboxPending();
+    const finalDispatches = await d1.store.query({ model: WORK_DISPATCH_MODEL, authority: 'owner' });
+    assert.equal(finalOutbox.length, 3);
+    assert.equal(finalDispatches.length, 3);
     await d1.worker.dispose();
     d1 = undefined;
     d1 = await openD1(join(dir, 'd1'));
@@ -593,6 +624,9 @@ test('compiled private due handlers use current refs and atomically consume term
     assert.deepEqual(await Promise.all([successfulDue, failedDue, transientDue, interruptedDue]
       .map((input) => d1!.store.load(WORK_OCCURRENCE_MODEL, asId(input.occurrenceId)))), receipts);
     assert.deepEqual(await d1.store.schedulesDue(at, 10), []);
+    assert.deepEqual(await d1.store.outboxPending(), finalOutbox);
+    assert.deepEqual(await d1.store.query({ model: WORK_DISPATCH_MODEL, authority: 'owner' }), finalDispatches);
+    assert.deepEqual(await d1.store.readReceipt(handlerReceiptIdentity), handlerReceipt);
     assert.equal(await d1.store.readRevision(), finalRevision);
   } finally {
     await d1?.worker.dispose();

@@ -398,6 +398,9 @@ export function createUploadIntent(
  * byte count, so over-declared sends can never complete and fail fast
  * here instead of stalling as partial). Unknown intents and foreign
  * callers share the `foreign` outcome (no existence oracle).
+ * Staging must agree with the persisted count before another append:
+ * interrupted writes cannot be retried as fresh chunks. A mismatch
+ * rejects the intent rather than guessing which bytes were committed.
  */
 export function appendUploadContent(
   deps: UploadDeps,
@@ -430,8 +433,18 @@ export function appendUploadContent(
     deps.intents.put(record);
     return { status: 'failed', reason: 'oversized' };
   }
+  const stagingKey = stagingKeyForIntent(record.intentId);
+  if ((deps.blobs.sizeOf(stagingKey) ?? 0) !== record.receivedBytes) {
+    record.state = 'rejected';
+    record.receivedBytes = 0;
+    record.bytesDigest = null;
+    record.detectedType = null;
+    deps.blobs.remove(stagingKey);
+    deps.intents.put(record);
+    return { status: 'failed', reason: 'closed' };
+  }
   if (chunk.length > 0) {
-    deps.blobs.append(stagingKeyForIntent(record.intentId), chunk);
+    deps.blobs.append(stagingKey, chunk);
     record.receivedBytes += chunk.length;
     deps.intents.put(record);
   }

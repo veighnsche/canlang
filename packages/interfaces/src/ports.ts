@@ -87,6 +87,8 @@ export interface SourceFormBindingContext {
   readonly derived: DerivedOperationInputs;
   readonly operationId: string;
   readonly nowMs: number;
+  /** Presentation comparison only; excluded from sealed submission authority. */
+  readonly occurrence?: string;
 }
 
 /** Protects source bindings; canonical admission still decides permission. */
@@ -183,6 +185,33 @@ export interface PageHttpDeps {
   readonly catalog?: SchemaCatalog;
   /** Explicit stable host-private protection; absent leaves bound forms unavailable. */
   readonly formBindings?: SourceFormBindings;
+  /** Durable actor/team scoped enum preference store; required by bound page selectors. */
+  readonly preferences?: PagePreferenceStore;
+}
+
+export interface PagePreferenceKey {
+  readonly appId: string;
+  readonly actorUserId: string;
+  readonly teamId: string;
+  readonly owner: string;
+  readonly field: string;
+}
+
+export interface PagePreferenceRecord {
+  readonly value: string;
+  /** Decimal nonnegative revision, `0` before the first save. */
+  readonly version: string;
+}
+
+export interface PagePreferenceStore {
+  read(key: PagePreferenceKey): Promise<PagePreferenceRecord | null>;
+  /** Atomic compare-and-set; returns false when the observed version changed. */
+  save(key: PagePreferenceKey & { readonly value: string; readonly expectedVersion: string }): Promise<boolean>;
+}
+
+/** Defining auth dependencies; absent mail refuses mail-producing flows before effects. */
+export interface AuthHttpDeps extends Pick<HttpDeps, 'clock' | 'logger' | 'limiter' | 'secureCookies'> {
+  readonly identity: Omit<IdentityDeps, 'mail'> & { readonly mail?: MailPort };
 }
 
 export interface HttpDeps extends PageHttpDeps {
@@ -220,6 +249,7 @@ export interface HttpDeps extends PageHttpDeps {
 
 /** Typed input field for generated MCP tool schemas (closed objects). */
 export type McpSchemaField =
+  | { readonly kind: 'nominal'; readonly name: string; readonly valueTypes: import('@canlang/contracts').CanonicalValueTypes }
   | { readonly kind: 'ref'; readonly model: string; readonly requireVersion: boolean }
   | { readonly kind: 'string' }
   | { readonly kind: 'integer' }
