@@ -563,6 +563,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     target: Record<string, unknown>,
     data: Record<string, unknown>,
     def: InterimModelDef,
+    appliedFields?: Set<string>,
   ): void => {
     for (const [field, value] of Object.entries(data)) {
       consumeWork();
@@ -588,6 +589,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         );
       }
       safeSet(target, field, jsonClone(value, `Field ${JSON.stringify(field)}`));
+      appliedFields?.add(field);
     }
   };
 
@@ -1481,7 +1483,8 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
           safeSet(candidate, field, structuredClone(value));
         }
         // Updates apply NO defaults: only the patch lands on before.data.
-        applyCallerData(candidate, asDataObject(write.data, 'Update patch'), def);
+        const changedFields = new Set<string>();
+        applyCallerData(candidate, asDataObject(write.data, 'Update patch'), def, changedFields);
         if (write.transition !== undefined) {
           const edge = write.transition;
           if (typeof edge !== 'object' || edge === null || Array.isArray(edge) ||
@@ -1505,7 +1508,6 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
           safeSet(candidate, edge.field, edge.to);
         }
         checkRequired(candidate, def);
-        const changedFields = new Set(Object.keys(write.data ?? {}));
         normalizeConstraints(candidate, def, changedFields);
         const beforeHook = jsonClone(candidate, 'Update before hooks');
         // T31 (Rule A): staged writes skip hooks (flat, no cascade); every
