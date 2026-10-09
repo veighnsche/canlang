@@ -4782,3 +4782,18 @@ At joined local merge `3a848ddd`, Node24.14.0 installed Cloudflare producer buil
 Choose the existing InstalledTextGeneration.profile.maxDurationMs as the upper bound for one distinct persisted control-observation window, anchored once at control creation. Work/Cloudflare owns its original deadline, retry nonrenewal and complete await including durable progress; the Services generation deadline/model/transcript/token accounting stays unchanged. Add no observation ABI or separately configured value when no defining requirement needs one. Expired observation means uncertainty, never provider cessation or a rewritten saved success; restart reconciliation remains unknown/no_run_resume.
 
 After the human explicitly approved the exact payload/destination, three equivalent JEV choices advise this boundary with probabilities .97/.99/.97 and confidence .94/.98/.94. Requests, exact responses and prior automatic-review rejection are saved once in the existing TECH-SV02 record; no rationale was returned and advice is not consumer acceptance. Services emit and3changed existing actual localhost controls pass on Node24: immutable installed identity/finite ceiling, original short final/stream deadlines, honest reconstructed reconciliation with no extra POST, and unchanged settled success after late cancellation. Reuse unchanged checks. This releases the finite Services producer verdict for coordinator review; actual compiled Work/Cloudflare lifecycle qualification and all precise holds remain with their existing owners.
+
+## 2026-10-09 — activate exact native machine receipts on the released session
+
+Consume reviewed8b6e8d40 genuine Dev session and State empty-carrier sources/
+scoped qualifications. Activate only checked literal transitions through exact
+own field/enum/edge inventory, retaining original canonical private identities
+and genuine old-state markers before each stage. Original compiled lifecycle
+and replay1/1 now pass with preserved rollback/UI and extended ordinary/aged
+read-only recovery plus private-selector write/no-write withholding. Explicit
+slots work; omitted-default mutations remain refused pending the defining State
+contribution contract. Standalone machine reads and unsupported mutations do
+not widen. Reuse unchanged source15/15 and distinct owner results; strict lint/
+format and finite review pass. Current whole and distinct portable mutation
+qualification remain due. Existing incoming living registry/checkpoint coverage
+is retained; no checkpoint advancement or broader reference acceptance.

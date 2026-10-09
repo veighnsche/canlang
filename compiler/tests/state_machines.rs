@@ -114,10 +114,10 @@ fn compiled_lifecycle_runs_through_canonical_runtime_and_state_driven_ui() {
         &source,
         r#"app Images
 Given
- Job { title:text="test", status:enum(idle,queued,generating,ready,failed)=idle machine }
- policy Job read=public
+ Job { title:text="test", status:enum(idle,queued,generating,ready,failed)=idle machine, private_choice:bool=false }
+ policy Job read=public fields=title,status
 When
- crud Job by=public fields=title
+ crud Job by=public fields=title,private_choice
  scenario advance(job:Job) by=public
   do
    let alias=job
@@ -137,6 +137,19 @@ When
     transition job.status generating -> ready
    else
     transition job.status generating -> failed
+ scenario defaults(job:Job,selected:bool=true) by=public
+  do
+   if selected
+    transition job.status idle -> ready
+ scenario optional(job:Job) by=public
+  do
+   if job.private_choice
+    transition job.status idle -> ready
+ scenario optional_scalar(job:Job) -> int by=public
+  do
+   if job.private_choice
+    transition job.status idle -> ready
+   return 7
 Then
  page / title="Images" poll=2s
   list Job empty="No jobs yet"
@@ -150,7 +163,12 @@ Then
     )
     .unwrap();
     let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
-        .args(["compile", "--format=json", "--catalog"])
+        .args([
+            "compile",
+            "--format=json",
+            "--native-scenario-receipts",
+            "--catalog",
+        ])
         .arg(root.join("packages/values/dist/catalog.json"))
         .arg(&source)
         .current_dir(&root)
