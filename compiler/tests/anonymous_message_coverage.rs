@@ -161,8 +161,11 @@ fn anonymous_descriptor_arrays_check_compile_and_count_captured_values() {
     let source = r#"app DescriptorArrays source="fr"
 Given
  contract Inputs {n:int,label:text}
+ export derive businessLabels():text[]=["Open task","Review invoice"]
+ export derive businessLabelCount():int=count(businessLabels())
  export derive rawSame():int=count(["Hi"@{},"Hi"@{}])
  export derive rawDifferent():int=count(["Hi"@{},"Bye"@{nl="Dag"}])
+ export derive rawGrouped():int=count([(("Hi"@{})),("Bye"@{nl="Dag"})])
  export derive boundSame(value:Inputs):int=count(["{n}"@{}(n=value.n),"{n}"@{}(n=value.n)])
  export derive boundDifferent(value:Inputs):int=count(["{n}"@{}(n=value.n),"{label}"@{}(label=value.label)])
  export derive rawAndBound(value:Inputs):int=count(["Hi"@{},"{n}"@{}(n=value.n)])
@@ -215,7 +218,9 @@ const assembled=await assembleModules({artifact:JSON.parse(readFileSync(artifact
 });
 const registry=(await import(assembled.entryUrl)).canApp();
 const context={memberships:['members']};
-for(const name of ['rawSame','rawDifferent']) assert.equal(await registry['DescriptorArrays.'+name](context),2n);
+assert.deepEqual(await registry['DescriptorArrays.businessLabels'](context),['Open task','Review invoice']);
+assert.equal(await registry['DescriptorArrays.businessLabelCount'](context),2n);
+for(const name of ['rawSame','rawDifferent','rawGrouped']) assert.equal(await registry['DescriptorArrays.'+name](context),2n);
 const trace=[];
 const value={get n(){trace.push('n');return 1n},get label(){trace.push('label');return 'task'}};
 assert.equal(await registry['DescriptorArrays.boundSame'](context,value),2n);
