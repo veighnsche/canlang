@@ -259,6 +259,13 @@ history journey pass **2/2**; the owning E2E typecheck passes. This supplies the
 released consumer expectation, without handbuilt substitution or application
 completion credit. The separate **b11cc7c8** handbuilt dependency closure does
 not alter compiled assembly or repair stale CanDo pilot source.
+The reviewed handbuilt **67aef2a8 / b11cc7c8** pair is now consumed separately:
+retain the explicit correspondence limits and bundle actual public Identity/UI
+dependency closures, sharing the Identity instance. Its existing Chromium
+scaffold/TeamTasks/MCP cases pass **15/15** after downloading the real browser;
+the owning E2E typecheck also passes.
+the initial attempt passed **6/15**, with nine missing-engine failures retained
+in the environment log. This does not qualify the full source-generated app.
 
 Released Dev boundary inputs **992b3d0a / 2421f900** now supply the exact public
 UI bootstrap export, Values catalog locator, Cloudflare Happy DOM dependency
