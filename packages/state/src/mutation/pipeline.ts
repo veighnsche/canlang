@@ -12,7 +12,7 @@
  */
 
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
-import { encodeValue, validateValue } from '@canlang/values';
+import { encodeValue, trim, validateValue } from '@canlang/values';
 import type {
   CanTypeId,
   CanonicalFieldDef,
@@ -299,6 +299,24 @@ function refValuesEqual(oldValue: unknown, newValue: unknown): boolean {
   return typeof oldId === 'string' && oldId !== '' && oldId === newId;
 }
 
+/** Cloned hook inputs do not make an unchanged stored field a new write. */
+function fieldDataEqual(left: unknown, right: unknown, seen = new WeakMap<object, object>()): boolean {
+  if (Object.is(left, right)) return true;
+  if (typeof left !== 'object' || left === null || typeof right !== 'object' || right === null ||
+      Array.isArray(left) !== Array.isArray(right)) return false;
+  if (Array.isArray(left) && left.length !== (right as unknown[]).length) return false;
+  if (!Array.isArray(left) && (Object.getPrototypeOf(left) !== Object.prototype ||
+      Object.getPrototypeOf(right) !== Object.prototype)) return false;
+  const previous = seen.get(left);
+  if (previous !== undefined) return previous === right;
+  seen.set(left, right);
+  const keys = Object.keys(left);
+  if (keys.length !== Object.keys(right).length) return false;
+  return keys.every(key => Object.hasOwn(right, key) && fieldDataEqual(
+    (left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key], seen,
+  ));
+}
+
 /**
  * Evaluate an ordered batch of mutation writes. Per-write order: resolve the
  * model def, load `before` (provisional-aware), build the candidate, run
@@ -563,8 +581,8 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     target: Record<string, unknown>,
     data: Record<string, unknown>,
     def: InterimModelDef,
-    appliedFields?: Set<string>,
-  ): void => {
+  ): Set<string> => {
+    const applied = new Set<string>();
     for (const [field, value] of Object.entries(data)) {
       consumeWork();
       const fieldDef = def.fields[field];
@@ -589,8 +607,9 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         );
       }
       safeSet(target, field, jsonClone(value, `Field ${JSON.stringify(field)}`));
-      appliedFields?.add(field);
+      applied.add(field);
     }
+    return applied;
   };
 
   /**
@@ -625,6 +644,8 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
     constrainedFields?: ReadonlySet<string>,
     encodedFields?: ReadonlySet<string>,
   ): void => {
+    // This post-hook pass validates the row only. Recorded defaults were
+    // normalized before hooks and must retain that original resolution.
     normalizeConstraints(candidate, def, constrainedFields ?? new Set(Object.keys(candidate)));
     if (input.encodeField !== undefined) {
       for (const [field, value] of Object.entries(candidate)) {
@@ -675,17 +696,19 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
       const value = candidate[field];
       if (value === undefined || value === null) continue;
       try {
-        const wire = input.encodeField?.(fieldDef.valueType, value) ?? value;
+        // Receiving normalization precedes an installed source alias codec:
+        // that codec must validate the normalized value, while alias and
+        // receiving bounds still run in the Values schema below.
+        const receiving = fieldDef.trim === true && typeof value === 'string' ? trim(value) : value;
+        const wire = input.encodeField?.(fieldDef.valueType, receiving) ?? receiving;
         const normalized = validateValue(constraint.schema, constraint.type, { value: wire }, 'create') as Readonly<Record<string, unknown>>;
-        // Bounds validate through Values' wire view without replacing native
-        // hook inputs. Only trim changes the value here; encoding still belongs
-        // to the existing post-hook checkpoint (including resolved defaults).
-        const constrained = fieldDef.trim === true
+        // Validate bounds through the wire view while retaining native hook inputs.
+        const stored = fieldDef.trim === true
           ? encodeValue(fieldDef.valueType, normalized['value'] as Parameters<typeof encodeValue>[1])
           : value;
-        safeSet(candidate, field, jsonClone(constrained, `Field ${JSON.stringify(field)}`));
+        safeSet(candidate, field, jsonClone(stored, `Field ${JSON.stringify(field)}`));
         if (defaultWriter !== undefined && defaultWriters.get(defaultKey(field, defaultWriter)) === defaultWriter) {
-          safeSet(resolvedDefaults, defaultKey(field, defaultWriter), jsonClone(constrained, `Resolved default ${JSON.stringify(field)}`));
+          safeSet(resolvedDefaults, defaultKey(field, defaultWriter), jsonClone(stored, `Resolved default ${JSON.stringify(field)}`));
         }
       } catch (error) {
         throw new StateError('validation', `Invalid field ${JSON.stringify(field)} on model ${JSON.stringify(def.model as string)}: ${String(error)}`);
@@ -1483,8 +1506,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
           safeSet(candidate, field, structuredClone(value));
         }
         // Updates apply NO defaults: only the patch lands on before.data.
-        const changedFields = new Set<string>();
-        applyCallerData(candidate, asDataObject(write.data, 'Update patch'), def, changedFields);
+        const changedFields = applyCallerData(candidate, asDataObject(write.data, 'Update patch'), def);
         if (write.transition !== undefined) {
           const edge = write.transition;
           if (typeof edge !== 'object' || edge === null || Array.isArray(edge) ||
@@ -1506,6 +1528,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
             throw new StateError('rule_failed', 'Transition source state does not match.');
           }
           safeSet(candidate, edge.field, edge.to);
+          changedFields.add(edge.field);
         }
         checkRequired(candidate, def);
         normalizeConstraints(candidate, def, changedFields);
@@ -1519,14 +1542,7 @@ function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owne
         checkKnownFields(hooked, def);
         checkRequired(hooked, def);
         for (const [field, value] of Object.entries(hooked)) {
-          if (value === beforeHook[field]) continue;
-        // Hook inputs/results are clones: unchanged arrays and objects keep
-        // their wire contents, even though their identities differ.
-        try {
-          if (JSON.stringify(value) !== JSON.stringify(beforeHook[field])) changedFields.add(field);
-        } catch {
-          changedFields.add(field);
-        }
+          if (!fieldDataEqual(value, beforeHook[field])) changedFields.add(field);
         }
         checkJsonSafe(hooked, def, undefined, changedFields);
         checkWhen(write.when, {

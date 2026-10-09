@@ -48,7 +48,7 @@ function changedRow(result: MutationResult): ReadRow {
     throw new Error(`compiled journey: bad changed record ${JSON.stringify(row)}`);
   }
   const record = row as { id: unknown; version: unknown; data: unknown };
-  if (typeof record.id !== "string" || typeof record.version !== "number" ||
+  if (typeof record.id !== "string" || record.id === "" || typeof record.version !== "number" ||
       !Number.isSafeInteger(record.version) || record.version < 1) {
     throw new Error(`compiled journey: bad changed identity ${JSON.stringify(row)}`);
   }

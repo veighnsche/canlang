@@ -68,6 +68,9 @@ export interface StateTeamBinding {
   readonly initializeFresh?: true;
 }
 
+/** Host-owned routes to distinct D1 databases; request data never provisions them. */
+export type StateTeamBindings = readonly StateTeamBinding[];
+
 function unavailableGlobalStore(): StoragePort {
   const refuse = async (): Promise<never> => {
     throw new Error('owner-storage: selected team State requires its owner boundary; global storage is unavailable');
@@ -274,6 +277,50 @@ function isD1Binding(value: unknown): value is D1Binding {
   );
 }
 
+function exactKeys(value: Record<string, unknown>, required: readonly string[], optional: readonly string[] = []): boolean {
+  const keys = Object.keys(value);
+  return required.every(key => Object.hasOwn(value, key)) &&
+    keys.every(key => required.includes(key) || optional.includes(key));
+}
+
+function trustedStateOwners(env: Record<string, unknown>, db: D1Binding): StateTeamBindings | undefined {
+  const raw = env['CAN_STATE_OWNERS'];
+  if (raw === undefined) return undefined;
+  if (env['CAN_STATE_OWNER'] !== undefined || env['STATE_DB'] !== undefined ||
+      env['CAN_STATE_INITIALIZE_FRESH'] !== undefined) {
+    throw new Error('owner-storage: CAN_STATE_OWNERS is mutually exclusive with legacy selected-owner bindings');
+  }
+  if (!isRecord(raw) || !exactKeys(raw, ['version', 'owners']) || raw['version'] !== 1 ||
+      !Array.isArray(raw['owners']) || raw['owners'].length < 1 || raw['owners'].length > 16) {
+    throw new Error('owner-storage: CAN_STATE_OWNERS requires version 1 and one to sixteen exact owner routes');
+  }
+  const owners = new Set<string>();
+  const bindings = new Set<string>();
+  const databases = new Set<unknown>([db]);
+  const routes: StateTeamBinding[] = [];
+  for (const entry of raw['owners']) {
+    if (!isRecord(entry) || !exactKeys(entry, ['owner', 'binding'], ['initializeFresh']) ||
+        typeof entry['owner'] !== 'string' || entry['owner'] === '' || entry['owner'] === 'app' ||
+        typeof entry['binding'] !== 'string' || !/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(entry['binding']) ||
+        entry['binding'] === 'DB' || (Object.hasOwn(entry, 'initializeFresh') && entry['initializeFresh'] !== true)) {
+      throw new Error('owner-storage: CAN_STATE_OWNERS contains an invalid exact owner route');
+    }
+    const owner = entry['owner'];
+    const binding = entry['binding'];
+    const selected = env[binding];
+    if (owners.has(owner) || bindings.has(binding) || !Object.hasOwn(env, binding) ||
+        !isD1Binding(selected) || databases.has(selected)) {
+      throw new Error('owner-storage: CAN_STATE_OWNERS requires distinct owners, bindings and actual D1 databases');
+    }
+    owners.add(owner);
+    bindings.add(binding);
+    databases.add(selected);
+    routes.push(Object.freeze({ owner, db: selected as D1Database,
+      ...(entry['initializeFresh'] === true ? { initializeFresh: true as const } : {}) }));
+  }
+  return Object.freeze(routes);
+}
+
 async function loadStateD1(): Promise<StateD1Producer> {
   let mod: unknown;
   try {
@@ -343,7 +390,7 @@ async function loadIdentityD1(): Promise<IdentityD1Producer> {
  */
 export async function buildProductionDeps(
   env: Record<string, unknown>,
-): Promise<{ store: StoragePort; identityStore: IdentityStore; preferences: PagePreferenceStore; stateTeam?: StateTeamBinding; auth?: HttpAuthConfiguration }> {
+): Promise<{ store: StoragePort; identityStore: IdentityStore; preferences: PagePreferenceStore; stateTeam?: StateTeamBinding; stateTeams?: StateTeamBindings; auth?: HttpAuthConfiguration }> {
   const db: unknown = env["DB"];
   if (!isD1Binding(db)) {
     // Self-identifying (module + function): P-A's worker main surfaces
@@ -354,6 +401,8 @@ export async function buildProductionDeps(
         "(a D1 database binding with prepare/exec/batch); bind a D1 database as DB or the worker cannot serve",
     );
   }
+  // Validate every host route before any schema or auth limiter writes to DB.
+  const stateTeams = trustedStateOwners(env, db);
   // Optional for non-auth consumers; auth serving requires explicit trusted host configuration.
   let origin: URL | undefined;
   if (Object.hasOwn(env, 'CAN_AUTH_ORIGIN')) {
@@ -367,8 +416,19 @@ export async function buildProductionDeps(
     }
   }
   const selectedOwner = env['CAN_STATE_OWNER'];
-  if (selectedOwner === undefined && (env['STATE_DB'] !== undefined || env['CAN_STATE_INITIALIZE_FRESH'] !== undefined)) {
+  if (selectedOwner === undefined && stateTeams === undefined &&
+      (env['STATE_DB'] !== undefined || env['CAN_STATE_INITIALIZE_FRESH'] !== undefined)) {
     throw new Error('owner-storage: STATE_DB/fresh assignment requires explicit CAN_STATE_OWNER');
+  }
+  if (stateTeams !== undefined) {
+    const identity = await loadIdentityD1();
+    await identity.ensureIdentitySchema(db);
+    await ensurePagePreferencesSchema(db as D1Database);
+    const auth = origin === undefined ? undefined : { origin: origin.origin, secureCookies: origin.protocol === 'https:',
+      limiter: await createD1AuthRateLimiter(db as unknown as D1Database, { scope: origin.origin, clock: { nowMs: Date.now } }) };
+    return { ...(auth === undefined ? {} : { auth }), store: unavailableGlobalStore(),
+      identityStore: identity.createD1IdentityStore(db), preferences: createD1PagePreferenceStore(db as D1Database),
+      stateTeams };
   }
   if (selectedOwner !== undefined) {
     if (typeof selectedOwner !== 'string' || selectedOwner === '' || selectedOwner === 'app') {

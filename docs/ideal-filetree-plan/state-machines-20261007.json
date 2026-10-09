@@ -1,18 +1,18 @@
 {
   "date": "2026-10-09",
-  "integrated_source_pin": "edc0ae992d5ad22295182a660b1993e931b516ad",
+  "integrated_source_pin": "ee52c8c01e28aeb1124256aa80355b2e74d151d7",
   "base": "1644cd4a2e3f63c06615869d784830560a2f8bb8",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 1220,
-    "net_path_deltas": 10718,
-    "history_touched_paths": 11260,
-    "history_only_paths": 511,
+    "commit_count_since_checkpoint": 1308,
+    "net_path_deltas": 10741,
+    "history_touched_paths": 11284,
+    "history_only_paths": 512,
     "released_feature_paths": 78,
     "new_target_leaves": 30,
-    "inherited_paths_without_prior_target_allocation": 9216,
-    "scope": "Local main integration of committed source edc0ae992d5ad22295182a660b1993e931b516ad onto c42422404c1c26630a0f02e24be7472def687e38; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, unchecked-form draft correction, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced."
+    "inherited_paths_without_prior_target_allocation": 9239,
+    "scope": "Local main integration of committed source ee52c8c01e28aeb1124256aa80355b2e74d151d7 onto 8da775a26b6d02900427e1b6e74f58b2f39268ee; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, unchecked-form draft correction, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced."
   },
   "methods": [
     "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z checkpoint (actual staged local merge tree; incoming integrated_source_pin onto current main parent)",
@@ -21318,6 +21318,84 @@
     [
       "A",
       "implementation/can-dev-server/PLAN.md",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/can-dev-server/unfinished-cloud-handoff/dev-server-failures/probe.mjs",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/can-dev-server/unfinished-cloud-handoff/dev-server-lifecycle/compare-inputs.mjs",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/can-dev-server/unfinished-cloud-handoff/dev-server-lifecycle/crash-owner-a.mjs",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/can-dev-server/unfinished-cloud-handoff/dev-server-lifecycle/probe-auth.mjs",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/can-dev-server/unfinished-cloud-handoff/dev-server-lifecycle/probe-service.mjs",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/can-dev-server/unfinished-cloud-handoff/dev-server-lifecycle/recover-owner-a.mjs",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/can-dev-server/unfinished-cloud-handoff/dev-server-lifecycle/write-manifests.mjs",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/can-dev-server/unfinished-cloud-handoff/generation-consumer/preview-mcp-create-fresh.mjs",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/can-dev-server/unfinished-cloud-handoff/generation-consumer/preview-owner.mjs",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/can-dev-server/unfinished-cloud-handoff/office-browser-interrupted-result.json",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/can-dev-server/unfinished-cloud-handoff/office-browser.mjs",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/can-dev-server/unfinished-cloud-handoff/office-business/probe.mjs",
+      "implementation",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "implementation/can-dev-server/unfinished-cloud-handoff/t04-structural.patch",
       "implementation",
       "inherited-unallocated"
     ],
@@ -58771,6 +58849,12 @@
       "inherited-unallocated"
     ],
     [
+      "A",
+      "packages/cloudflare/src/dev/local-persistence.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
       "M",
       "packages/cloudflare/src/dev/local-run.ts",
       "packages/cloudflare",
@@ -59378,6 +59462,12 @@
     ],
     [
       "A",
+      "packages/cloudflare/test/app-owned-preview.integration.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "packages/cloudflare/test/artifact-field-descriptions.test.ts",
       "packages/cloudflare",
       "inherited"
@@ -59433,6 +59523,12 @@
     [
       "A",
       "packages/cloudflare/test/construct-help.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "packages/cloudflare/test/construct-ranking.integration.test.ts",
       "packages/cloudflare",
       "inherited-unallocated"
     ],
@@ -59930,6 +60026,12 @@
     ],
     [
       "A",
+      "packages/cloudflare/test/model-free-preview.integration.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "packages/cloudflare/test/module-imports-contract.test.ts",
       "packages/cloudflare",
       "inherited-unallocated"
@@ -59939,6 +60041,18 @@
       "packages/cloudflare/test/modules.test.ts",
       "packages/cloudflare",
       "inherited"
+    ],
+    [
+      "A",
+      "packages/cloudflare/test/multi-owner-env.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "packages/cloudflare/test/owner-page-routing.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
     ],
     [
       "A",
@@ -59979,6 +60093,18 @@
     [
       "A",
       "packages/cloudflare/test/preview-bridge.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "packages/cloudflare/test/preview-builder.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "packages/cloudflare/test/preview-inputs.test.ts",
       "packages/cloudflare",
       "inherited-unallocated"
     ],
@@ -64341,6 +64467,18 @@
     ],
     [
       "A",
+      "tests/integration/can-dev-server/AppOwnedPreview.can",
+      "build",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "tests/integration/can-dev-server/ModelFreePreview.can",
+      "build",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
       "tests/integration/can-dev-server/OfficeSupplies.can",
       "build",
       "inherited-unallocated"
@@ -66878,6 +67016,11 @@
       "inherited-unallocated"
     ],
     [
+      "packages/cloudflare/src/worker/owner-page-routing.test.ts",
+      "packages/cloudflare",
+      "inherited-unallocated"
+    ],
+    [
       "packages/contracts/test/t26-progress-relations.test.ts",
       "packages/contracts",
       "inherited-unallocated"
@@ -66934,7 +67077,7 @@
     ]
   ],
   "pending_target_allocation": {
-    "count": 9216,
+    "count": 9239,
     "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
   },
   "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -66948,5 +67091,5 @@
   "lanes": "Existing four local worktrees continue their assigned plans; only committed snapshots are integrated here. Open edits and recipient-specific holds are preserved. Coordinator alone serializes local main merges/manual review; no remote publication or PR review gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Local main integration of committed source edc0ae992d5ad22295182a660b1993e931b516ad onto c42422404c1c26630a0f02e24be7472def687e38; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, unchecked-form draft correction, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced."
+  "current_maintenance_summary": "Local main integration of committed source ee52c8c01e28aeb1124256aa80355b2e74d151d7 onto 8da775a26b6d02900427e1b6e74f58b2f39268ee; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, unchecked-form draft correction, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced."
 }

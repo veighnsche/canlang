@@ -1050,6 +1050,7 @@ describe('media: installed std Images full requests', () => {
       assert.ok(address && typeof address !== 'string');
       const installed = makeAdapter(`http://127.0.0.1:${address.port}`).installImages(installationFor());
 
+
       for (const observing of [false, true]) {
         paths.length = 0;
         const original = observing ? observationOptions(260) : originalOptions(260);

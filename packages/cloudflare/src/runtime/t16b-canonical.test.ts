@@ -27,7 +27,7 @@
  */
 import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
@@ -1360,6 +1360,118 @@ describe("T16b assembly gates (pins + requires + preload)", () => {
   });
 });
 
+/** Dedicated recovery fixtures retain actual defining bytes without changing legacy fixtures. */
+async function retainedCrudFixture() {
+  const dir = tempDir();
+  const module = "retained-ops.mjs";
+  const url = writeModule(dir, module, OPS_MODULE);
+  const js = readFileSync(join(dir, module), "utf8");
+  const artifact = generatedArtifact(module, {
+    sources: [{ path: module, sha256: createHash("sha256").update(js).digest("hex") }],
+    modules: [{ path: module, js, map: { version: 3, file: module, sources: [module],
+      sourcesContent: [js], names: [], mappings: "" } }],
+  });
+  const asm: AssembledModules = { dir, entryUrl: url, moduleUrls: { [module]: url } };
+  const { store, probe } = createTestMemoryStorage();
+  const seed = await seedIdentity();
+  const identity = await identityFor(seed, seed.memberToken);
+  const invoker = buildInvoker(artifact, asm, store, { memberships: seed.store, now: () => seed.now });
+  const envelope = mutationEnvelope("acme.Todo.create", freshOperationId(seed.now), { title: "retained" });
+  const first = await invoker.invokeMutation(envelope, identity);
+  assert.ok("result" in first, JSON.stringify(first));
+  assert.equal(first.result.status, "committed");
+  const loaded = await loadCanonicalDescriptors(asm, artifact);
+  const receiptIdentity = { app: "TeamTasks", owner: seed.teamId, principal: seed.memberId,
+    operation: envelope.operation as OperationName, operationId: envelope.operation_id as OperationId };
+  const snapshot = async () => ({ revision: await store.readRevision(), rows: await todoRows(store),
+    history: probe.historyFor("acme.Todo" as ModelName, envelope.operation_id as unknown as RecordId),
+    outbox: probe.outboxAll(), receipt: await store.readReceipt(receiptIdentity) });
+  return { artifact, asm, store, probe, seed, identity, invoker, envelope, first, loaded, snapshot };
+}
 
+describe("dedicated retained mutation recovery", () => {
+  it("replays saved CRUD projection without execution, commits, file metadata, or refusal writes", async () => {
+    const f = await retainedCrudFixture();
+    const before = await f.snapshot();
+    let commits = 0, executions = 0, fileReads = 0;
+    const store: StoragePort = { ...f.store, commit: async () => {
+      commits++; throw new Error("recovery commit tripwire");
+    } };
+    const files = new Proxy({ validate: async () => true, retain: async () => undefined }, {
+      get() { fileReads++; throw new Error("recovery file metadata tripwire"); },
+    });
+    const original = f.loaded.producers.crud.generatedCrudExecute;
+    f.loaded.producers.crud.generatedCrudExecute = () => async () => {
+      executions++; throw new Error("recovery execution tripwire");
+    };
+    try {
+      const invoker = buildInvoker(f.artifact, f.asm, store,
+        { memberships: f.seed.store, now: () => f.seed.now, files });
+      const replay = await invoker.invokeRetainedMutation(f.envelope, f.identity);
+      assert.ok("result" in replay, JSON.stringify(replay));
+      assert.equal(replay.result.status, "replayed");
+      assert.equal(replay.result.operation_id, f.envelope.operation_id);
+      assert.deepEqual(replay.result.records, f.first.result.records);
+      assert.deepEqual(replay.result.result, f.first.result.result);
+      assert.deepEqual(await f.snapshot(), before);
+      for (const [envelope, code] of [
+        [mutationEnvelope(f.envelope.operation, freshOperationId(f.seed.now), { title: "unseen" }), "not_found"],
+        [{ ...f.envelope, inputs: { title: "mismatched" } }, "conflict"],
+      ] as const) {
+        const denied = await invoker.invokeRetainedMutation(envelope, f.identity);
+        assert.ok("error" in denied, JSON.stringify(denied));
+        assert.equal(denied.error.code, code);
+        assert.deepEqual(await f.snapshot(), before);
+      }
+      await f.seed.store.removeMembership(f.seed.memberMembershipId);
+      const revoked = await invoker.invokeRetainedMutation(f.envelope, f.identity);
+      assert.ok("error" in revoked, JSON.stringify(revoked));
+      assert.equal(revoked.error.code, "forbidden");
+      assert.deepEqual(await f.snapshot(), before);
+      assert.equal(commits, 0);
+      assert.equal(executions, 0);
+      assert.equal(fileReads, 0);
+    } finally { f.loaded.producers.crud.generatedCrudExecute = original; }
+  });
 
+  it("keeps caller modes ordinary and refuses scenario recovery before handler execution", async () => {
+    const f = await retainedCrudFixture();
+    const mod = await import(f.asm.entryUrl);
+    const calls = mod.canApp().calls as unknown[];
+    const before = await f.snapshot();
+    const scenario = await f.invoker.invokeRetainedMutation(
+      mutationEnvelope("acme.Shop.restock", freshOperationId(f.seed.now), { sku: "private" }), f.identity);
+    assert.ok("error" in scenario, JSON.stringify(scenario));
+    assert.equal(scenario.error.code, "validation");
+    assert.equal(calls.length, 0);
+    assert.deepEqual(await f.snapshot(), before);
+    const invalid = await f.invoker.invokeMutation(mutationEnvelope(f.envelope.operation,
+      freshOperationId(f.seed.now), { title: "closed", admissionMode: "retained-receipt-only" }), f.identity);
+    assert.ok("error" in invalid, JSON.stringify(invalid));
+    assert.equal(invalid.error.code, "validation");
+    assert.deepEqual(await f.snapshot(), before);
+    const ordinary = await f.invoker.invokeMutation({ ...mutationEnvelope(f.envelope.operation,
+      freshOperationId(f.seed.now), { title: "ordinary" }), admissionMode: "retained-receipt-only" } as MutationEnvelope, f.identity);
+    assert.ok("result" in ordinary, JSON.stringify(ordinary));
+    assert.equal(ordinary.result.status, "committed", "envelope additions cannot select recovery");
+    assert.equal(await f.store.readRevision(), before.revision + 1);
+    assert.equal((await todoRows(f.store)).length, before.rows.length + 1);
+  });
 
+  it("requires the positive installed recovery export instead of falling back to ordinary invoke", async () => {
+    const f = await retainedCrudFixture();
+    const before = await f.snapshot();
+    const producer = f.loaded.producers.invoke;
+    const original = producer.invokeRetainedReceiptOnly;
+    assert.ok(typeof original === "function", "current installed State must provide recovery");
+    const isolated = producer as { invokeRetainedReceiptOnly?: typeof original };
+    delete isolated.invokeRetainedReceiptOnly;
+    try {
+      const denied = await f.invoker.invokeRetainedMutation(f.envelope, f.identity);
+      assert.ok("error" in denied, JSON.stringify(denied));
+      assert.equal(denied.error.code, "validation");
+      assert.match(denied.error.message, /lacks retained-receipt-only recovery/);
+      assert.deepEqual(await f.snapshot(), before);
+    } finally { isolated.invokeRetainedReceiptOnly = original; }
+  });
+});

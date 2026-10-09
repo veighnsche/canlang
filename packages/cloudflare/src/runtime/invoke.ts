@@ -1196,6 +1196,8 @@ export interface CanonicalReadServed {
 
 /** Structural view of the canonical state invoke module. */
 interface StateInvokeProducer {
+  /** Positive installed-support boundary; normal invoke is never a substitute. */
+  readonly invokeRetainedReceiptOnly?: StateInvokeProducer['invoke'];
   invoke(input: {
     readonly registry: ReadonlyMap<string, unknown>;
     readonly envelope: {
@@ -1521,6 +1523,9 @@ async function loadCanonicalStateProducers(): Promise<CanonicalStateProducers> {
     },
     invoke: {
       invoke: invoke as StateInvokeProducer["invoke"],
+      ...(typeof invokeMod['invokeRetainedReceiptOnly'] !== 'function' ? {} : {
+        invokeRetainedReceiptOnly: invokeMod['invokeRetainedReceiptOnly'] as NonNullable<StateInvokeProducer['invokeRetainedReceiptOnly']>,
+      }),
       invokeRead: invokeRead as StateInvokeProducer["invokeRead"],
       ...(typeof invokeMod['projectGeneratedCrudReceipt'] !== 'function' ? {} : {
         projectGeneratedCrudReceipt: invokeMod['projectGeneratedCrudReceipt'] as NonNullable<StateInvokeProducer['projectGeneratedCrudReceipt']>,
@@ -4294,10 +4299,40 @@ async function runScenarioSeam(
 export async function invokeMutationCanonical(
   opts: CanonicalMutationOpts,
 ): Promise<MutationResult> {
+  return invokeCanonicalMutation(opts, false);
+}
+
+/** Trusted host recovery entry; no operation envelope can select this path. */
+export async function invokeRetainedMutationCanonical(
+  opts: CanonicalMutationOpts,
+): Promise<MutationResult> {
+  return invokeCanonicalMutation(opts, true);
+}
+
+async function invokeCanonicalMutation(
+  opts: CanonicalMutationOpts,
+  receiptOnly: boolean,
+): Promise<MutationResult> {
   assertCanonicalStore(opts.store, opts.operation);
   assertCanonicalMemberships(opts.memberships, opts.operation);
   const loaded = await loadCanonicalDescriptors(opts.asm, opts.artifact);
   const StateError = loaded.producers.errors;
+  const invoke = receiptOnly ? loaded.producers.invoke.invokeRetainedReceiptOnly : loaded.producers.invoke.invoke;
+  if (invoke === undefined) {
+    throw new StateError('validation', 'Installed State producer lacks retained-receipt-only recovery.');
+  }
+  if (receiptOnly) {
+    if (!loaded.registry.has(opts.operation)) {
+      throw new StateError('validation', `Unknown operation ${JSON.stringify(opts.operation)}.`);
+    }
+    const kind = seamDefKind(loaded.registry.get(opts.operation), opts.operation);
+    if (kind !== 'create' && kind !== 'update' && kind !== 'delete') {
+      throw new StateError('validation', 'Retained scenario disclosure requires the owning current-access projection.');
+    }
+    if (loaded.producers.invoke.projectGeneratedCrudReceipt === undefined) {
+      throw new StateError('validation', 'Installed State producer cannot disclose a saved CRUD outcome.');
+    }
+  }
   // Validate protected association/receipt pairs on the original final
   // canonical commit, after scenario writes have been coalesced.
   const receiptStore = withDispatchJoinPort(opts.store, { commitJoin: batch => {
@@ -4315,7 +4350,7 @@ export async function invokeMutationCanonical(
   const occurrenceIds: string[] = [];
   let attachments: FileAttachment[] = [];
   let committedReceipt: Receipt | undefined;
-  const result = await loaded.producers.invoke.invoke({
+  const result = await invoke({
     registry: loaded.registry,
     observeCommittedReceipt: receipt => { committedReceipt = receipt; },
     envelope: {
@@ -4333,6 +4368,7 @@ export async function invokeMutationCanonical(
     // full currents (minus serverOnly) instead of metadata-only.
     conflictServerOnly: loaded.conflictServerOnly,
     execute: async (call: CanonicalSeamCall): Promise<CanonicalExecutionEffects> => {
+      if (receiptOnly) throw new Error('Retained-receipt-only State admission reached execution.');
       // T32b: BOTH paths inherit both-site commit revalidation through
       // state invoke: the runtime `call` is the full admitted call
       // (checkpoint included) and the returned effects carry the
@@ -4359,7 +4395,7 @@ export async function invokeMutationCanonical(
       return { ...effects, guards: [...effects.guards ?? [], ...stagedFiles.guards] };
     },
   });
-  if (opts.files !== undefined) {
+  if (!receiptOnly && opts.files !== undefined) {
     // File metadata and State are separate durable stores in this native host.
     // A lost attachment response is repaired on the same State-receipted retry;
     // it never repeats the domain mutation or pretends to be one SQL transaction.
