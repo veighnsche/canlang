@@ -4991,3 +4991,20 @@ Owning Interfaces graph10/10 and final emission pass; existing page/presentation
 Implement the agreed generated observer facade over the exact State invoke/store frame. Values encodes the actual once-evaluated native expression; original reference-version observations additionally recover the exact original admitted slot by checked parameter and genuine native view. Keep these slots separate from staged row resolvers, including two parameter names sharing the same cached view. State validates owning plan, type, parameter, original inputs/context/reference/hash, revision and retention; Compiler must emit complete source-bound closure rather than synthesize model fields. Any caught or pending/closed observation failure remains terminal and discards earlier owner stages.
 
 Declaration-labelled installed canonical/frame consumers pass24/24 with exact original identity, seven intrinsic sites, required text/false values, two shared-view references before/after real stages, finalized net write/history, ordinary/aged recovery after later physical updates and exact rejected bookkeeping on caught altered input. CF emission/root noEmit and sequential complete-output boundaries pass. Native public D1 regression is pending at this checkpoint; compiled Task44 awaits owning Compiler closure and broader effects are unqualified. The transient boundary failure while emission removed dist is an execution-order issue; no shared gate repair is made.
+
+
+## 2026-10-10 — qualify the joined compiler source and native intrinsic consumer
+
+Exact12a3209b/ec3c2f50 passes the required whole129targets1349/0/0/0 with
+Node24.19, exactdraft5a12eb9e, real completion engines and actual native packages.
+Rebuilt graph26/26 zero cached and current bin/catalog59/15 establish its runtime
+inputs; strict all-target lint/format pass. Uncaptured owning permission1/1 proves
+mode4750 actually executes. Reviewed d392 integration changes records only.
+Current native3/3, stored-default machine4/4 and compiler help6/6 are included.
+Reuse unchanged editor/client/LSP protocol and owner-portable scopes.
+
+These results qualify the implemented compiler/default/Send/Set/intrinsic units
+at their actual tested scope. Dev still owns original Text Send and full T04
+runtime/example/provider outcomes; broad58/67 owner refs and precise human holds
+remain. No source-only, checkpoint or handbuilt producer proof substitutes for
+those original workflow results. All updates stay local for coordinator review.
