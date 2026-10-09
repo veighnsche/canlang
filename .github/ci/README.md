@@ -1,5 +1,7 @@
 # Remote TypeScript gates
 
+Automatic PR and main validation runs in [ci.yml](../workflows/ci.yml): workspace/package and installed-artifact checks, compiler/editor checks with the real catalog and pinned draft source, browser/security journeys, and draft-independent language tools. The root test graph includes the former package-lane and B2 suites; compiler tests retain the actual B1 artifact/refusal assertions. Obsolete fixed-count shell wrappers, old lane branch triggers, empty-suite success and the known-drifting informational prototype corpus are removed. Release packaging remains tag/manual in release.yml; the exact-source service below remains manual in ts-gates.yml.
+
 Run required package gates on independent standard GitHub-hosted Ubuntu runners. Public CanLang runner minutes are free; each job has private checkout/build outputs. Remote jobs do not consume the local coordinator TS-command slot. Readiness and exact-file ownership still apply.
 
 ## Request a gate
