@@ -16,7 +16,28 @@ const output = join(installed, 'test-results/can-dev-server/lifecycle-auth-resul
 const source = join(roots.a, 'tests/integration/can-dev-server/OfficeSupplies.can');
 const original = await readFile(source, 'utf8');
 const sessions = new Map();
-const facts = { schema: 'can-dev-lifecycle-local.v1', outcome: 'incomplete' };
+const facts = { schema: 'can-dev-lifecycle-local.v1', outcome: 'incomplete', checks: [] };
+let stage = 'initialization';
+function failure(error) {
+  const primitive = value => value === null || typeof value === 'boolean' || typeof value === 'number'
+    || (typeof value === 'string' && /^[A-Za-z0-9_.:/ -]{0,160}$/.test(value)) ? value : undefined;
+  return { stage, name: error.name, code: error.code, operator: error.operator,
+    actual: primitive(error.actual), expected: primitive(error.expected),
+    assertionLine: error.stack?.split('\n').find(line => line.includes('probe-auth.mjs:'))?.trim(),
+    message: String(error.message).split('\n', 1)[0].slice(0, 160) };
+}
+async function settledCheck(which, label) {
+  stage = `${which}.${label}`;
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    const result = await control(which, 'check');
+    facts.checks.push({ stage, attempt, state: result.state, current: result.current,
+      preview: result.preview, revision: result.revision });
+    if (result.state !== 'superseded' || attempt === 4) return result;
+    // Only a producer-reported supersession warrants another exact check.
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+}
+
 
 async function envelope(which, command, flags = [], selected = sessions.get(which)) {
   const args = ['dev', command, ...(command === 'start' ? ['--capture', manifests[which]] : ['--root', roots[which]]),
@@ -26,7 +47,11 @@ async function envelope(which, command, flags = [], selected = sessions.get(whic
     cwd: roots[which], env: { ...process.env, CAN_DEV_BIN: cli }, timeout: 110_000, maxBuffer: 1024 * 1024 })); }
   catch (error) { if (!error.stdout?.trim()) throw error; stdout = error.stdout; }
   assert.equal(stdout.trimEnd().split('\n').length, 1, 'single JSON control envelope');
-  return JSON.parse(stdout);
+  const response = JSON.parse(stdout);
+  if (response.ok === false) {
+    (facts.controlFailures ??= []).push({ stage, which, command, code: response.code });
+  }
+  return response;
 }
 async function control(which, command, flags = []) {
   const response = await envelope(which, command, flags);
@@ -128,8 +153,11 @@ async function inspect(selected, marker) {
     readCode: read.body.error?.code ?? null, count: records.length };
 }
 async function stop(which) {
+  stage = `${which}.stop`;
   await owner(which);
-  assert.equal((await control(which, 'stop')).stopped, true);
+  const startedAt = Date.now();
+  try { assert.equal((await control(which, 'stop')).stopped, true, `${which}: stopped`); }
+  finally { (facts.stopDeadlines ??= []).push({ which, elapsedMs: Date.now() - startedAt, defaultDeadlineMs: 5000 }); }
   const removed = await stat(descriptors[which]).then(() => false, error => {
     if (error.code === 'ENOENT') return true;
     throw error;
@@ -141,46 +169,67 @@ async function stop(which) {
 
 try {
   for (const which of ['a', 'b']) {
+    stage = `${which}.start`;
     const started = await envelope(which, 'start', [], null);
     assert.equal(started.ok, true, `${which} start: ${started.code ?? 'failed'}`);
     assert.equal(started.result.attached, false);
     sessions.set(which, started.session);
     assert.equal(started.result.root, roots[which]);
+    stage = `${which}.owner`;
     await owner(which);
-    assert.equal((await control(which, 'discover')).root, roots[which]);
-    const checked = await control(which, 'check');
-    assert.equal(checked.state, 'valid'); assert.equal(checked.preview, 'ready'); assert.equal(checked.current, true);
+    stage = `${which}.discover`;
+    assert.equal((await control(which, 'discover')).root, roots[which], `${which}: discover root`);
+    const checked = await settledCheck(which, 'initial-check');
+    assert.equal(checked.state, 'valid', `${which}: initial state`);
+    assert.equal(checked.preview, 'ready', `${which}: initial preview`);
+    assert.equal(checked.current, true, `${which}: initial current`);
   }
   assert.notEqual(sessions.get('a'), sessions.get('b'));
+  stage = 'a.duplicate-start';
   const duplicate = await envelope('a', 'start', [], null);
-  assert.equal(duplicate.ok, true); assert.equal(duplicate.result.attached, true);
-  assert.equal(duplicate.session, sessions.get('a'));
+  assert.equal(duplicate.ok, false, 'a: duplicate owner refused');
+  assert.equal(duplicate.code, 'SESSION_EXISTS', 'a: duplicate owner refusal code');
+  stage = 'a.explicit-attach';
+  const attached = await envelope('a', 'discover');
+  assert.equal(attached.ok, true, `a discover: ${attached.code ?? 'failed'}`);
+  assert.equal(attached.session, sessions.get('a'), 'a: attach original session');
+  assert.equal(attached.result.root, roots.a, 'a: attach original root');
+  await owner('a');
+  assert.equal((await control('a', 'status')).session, sessions.get('a'), 'a: attached status session');
+  stage = 'b.foreign-session';
   const foreign = await envelope('b', 'status', [], sessions.get('a'));
   assert.equal(foreign.ok, false); assert.equal(foreign.code, 'SESSION_MISMATCH');
-  facts.owners = { distinctSessions: true, duplicateAttachesOwnSession: true, crossRootRefused: true };
-  const a = await openAndLogin('a'); const b = await openAndLogin('b');
+  facts.owners = { distinctSessions: true, duplicateOwnerRefused: true, explicitAttachSameOwner: true, crossRootRefused: true };
+  stage = 'a.login';
+  const a = await openAndLogin('a'); stage = 'b.login'; const b = await openAndLogin('b');
   assert.notEqual(a.origin, b.origin); assert.notEqual(a.servingBuild, b.servingBuild);
   facts.distinctOrigins = true; facts.distinctServingBuilds = true;
   const marker = 'Cross-worktree probe';
   assert.equal(a.page.includes(marker), false); assert.equal(b.page.includes(marker), false);
+  stage = 'a.create-and-isolation';
   const created = await create(a, marker);
   assert.equal((await page(a)).includes(marker), true); assert.equal((await page(b)).includes(marker), false);
   facts.a = { pageStatus: a.pageStatus, teamsCount: a.teamsCount, initialHasMarker: false, ...created,
     finalPageStatus: 200, finalHasMarker: true, pageError: null };
   facts.b = { pageStatus: b.pageStatus, teamsCount: b.teamsCount, initialHasMarker: false, finalPageStatus: 200, finalHasMarker: false };
+  stage = 'mcp.isolation';
   facts.mcp = { a: await inspect(a, marker), b: await inspect(b, marker) };
   assert.equal(facts.mcp.a.readHasMarker, true); assert.equal(facts.mcp.b.readHasMarker, false);
+  stage = 'b.create';
   const bMarker = 'Independent B item'; await create(b, bMarker);
   const beforeA = await control('a', 'status'); const beforeB = await control('b', 'status');
   facts.revisions = { a: beforeA.revision, b: beforeB.revision,
     aSource: beforeA.source_revision, bSource: beforeB.source_revision };
+  stage = 'a.invalid-edit';
   assert.equal(original.split('\nWhen\n').length, 2);
   await writeFile(source, original.replace('\nWhen\n', '\nWhen\n unknown_operation\n'));
-  const invalid = await control('a', 'check');
+  const invalid = await settledCheck('a', 'invalid-check');
   assert.equal(invalid.state, 'errors'); assert.equal(invalid.current, true); assert.ok(invalid.focus);
+  stage = 'a.stale-preview';
   const stale = await control('a', 'status');
   assert.equal(stale.stale, true); assert.equal(stale.serving_revision, beforeA.serving_revision);
   assert.equal(stale.serving_build, beforeA.serving_build); assert.equal((await page(a)).includes(marker), true);
+  stage = 'a.retained-diagnostic';
   const diagnostic = await control('a', 'diagnostic.detail', ['--revision', invalid.revision, '--index', '0']);
   assert.equal(diagnostic.revision, invalid.revision); assert.equal(diagnostic.ref, invalid.focus.ref);
   assert.equal((await control('a', 'failure.lookup', ['--ref', invalid.focus.ref])).ref, invalid.focus.ref);
@@ -188,39 +237,43 @@ try {
   assert.equal((await page(b)).includes(bMarker), true);
   facts.invalidEdit = { state: invalid.state, stale: true, oldServingBuildRetained: true,
     diagnosticCode: diagnostic.diagnostic.code, retainedFailure: true, bUnaffected: true };
+  stage = 'a.repair-edit';
   await writeFile(source, original + '\n## Lifecycle repair forces a fresh build.\n');
-  const repaired = await control('a', 'check');
-  assert.equal(repaired.state, 'valid'); assert.equal(repaired.preview, 'ready');
+  const repaired = await settledCheck('a', 'repair-check');
+  assert.equal(repaired.state, 'valid', 'a: repaired state'); assert.equal(repaired.preview, 'ready', 'a: repaired preview'); assert.equal(repaired.current, true, 'a: repaired current');
+  stage = 'a.reset';
   const reset = await control('a', 'status');
   assert.equal(reset.stale, false); assert.equal(reset.preview_reset, true);
   assert.notEqual(reset.serving_build, beforeA.serving_build);
   const retained = await control('a', 'diagnostic.detail', ['--revision', invalid.revision, '--index', '0']);
   assert.equal(retained.current, false); assert.deepEqual(retained.diagnostic, diagnostic.diagnostic);
+  stage = 'a.reset-login-and-data';
   const freshA = await openAndLogin('a');
   assert.equal((await page(freshA)).includes(marker), false); assert.equal((await inspect(freshA, marker)).count, 0);
   assert.equal((await inspect(b, bMarker)).readHasMarker, true);
   facts.repair = { valid: true, rebuilt: true, resetData: true, retainedDiagnostic: true, bDataRetained: true };
   facts.stopB = await stop('b');
+  stage = 'a.functional-after-b-stop';
   const afterStopMarker = 'A remains functional'; await create(freshA, afterStopMarker);
   assert.equal((await page(freshA)).includes(afterStopMarker), true);
   assert.equal((await inspect(freshA, afterStopMarker)).readHasMarker, true);
   facts.aFunctionalAfterStopB = true; facts.stopA = await stop('a'); facts.outcome = 'passed';
 } catch (error) {
   facts.outcome = 'failed'; process.exitCode = 1;
-  facts.failure = { name: error.name, message: String(error.message).split('\n', 1)[0].slice(0, 300) };
+  facts.failure = failure(error);
 } finally {
   try {
     await writeFile(source, original); facts.sourceRestored = (await readFile(source, 'utf8')) === original;
     assert.equal(facts.sourceRestored, true);
   } catch (error) {
     facts.outcome = 'failed'; process.exitCode = 1;
-    facts.sourceRestoreError = String(error.message).split('\n', 1)[0].slice(0, 200);
+    facts.sourceRestoreError = failure(error);
   }
   for (const which of ['b', 'a']) {
     if (!sessions.has(which)) continue;
     try { facts[`cleanup${which.toUpperCase()}`] = await stop(which); }
     catch (error) { facts.outcome = 'failed'; process.exitCode = 1;
-      facts[`cleanup${which.toUpperCase()}`] = { error: String(error.message).split('\n', 1)[0].slice(0, 200) }; }
+      facts[`cleanup${which.toUpperCase()}`] = { failure: failure(error) }; }
   }
   await writeFile(output, JSON.stringify(facts, null, 2) + '\n', { mode: 0o600 });
   console.log(JSON.stringify(facts, null, 2));

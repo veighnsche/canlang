@@ -3819,3 +3819,7 @@ Join only the released cf4be765/bf112697/198c3813 Contracts/State source/tests. 
 ### Validation: require installed protected-open test producer
 
 Fix the two branch-owned native integration checks' optional-method type errors with explicit installed protected-open availability guards. Root noEmit passes; prior actual behavior checks retain their source scope. Shared genuine/patched CanDo pilot failures stay with Packages, preserving meaningful CI and its four-job consolidation.
+
+### Validation: full local two-owner lifecycle
+
+Use explicit discover/status to attach the verified original owner; duplicate native start correctly refuses SESSION_EXISTS rather than silently attaching. The actual two-root journey passes ordinary auth/CSRF, distinct sessions/origins/builds, HTTP/MCP data isolation, invalid-source stale serving, repair/reset, retained diagnostics and surviving-owner operation. Both owned stops remove descriptors in under2seconds and edited source is restored. Retry only a producer-reported superseded check; all four checks settle first attempt. Office36 observations/two fresh2/2 example runs and Generation host/3/3 examples also pass after the State join with serving isolation retained. These bounded results leave Office browser and G2/G3 unfinished. The human now requires local commits and coordinator integration, with no further remote publication or review waits.
