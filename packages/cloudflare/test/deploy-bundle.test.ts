@@ -18,6 +18,7 @@ import {
   writeDeployBundle,
 } from "../src/deploy/bundle.js";
 import { startLocalDev } from "../src/dev/local-run.js";
+import { scanModuleImports } from "../src/deploy/module-imports.js";
 // Cross-package journey import: interfaces DIST (never src), per the
 // mcp-route.test.ts precedent. Proves bake parity with the real rule.
 import { catalogFromArtifactOperations } from "@canlang/interfaces/http/operations";
@@ -130,6 +131,10 @@ describe("deploy bundle (P-B)", () => {
     expect(bundle.modules["runtime/sourcemap.js"]).toContain(`"../${key}"`);
     expect(bundle.modules[key]).toContain("export {");
     expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/values/index.js");
+    expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/state/mutation/index.js");
+    expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/state/mutation/crud.js");
+    expect(bundle.modules["runtime/invoke.js"]).not.toContain("mutation/index.js/crud");
+    expect(bundle.modules["vendor/state/mutation/crud.js"]).toContain("generatedCrudExecuteOwnerSession");
     expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/work/kernel/dispatch-staging.js");
     expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/work/kernel/schedule-staging.js");
     expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/work/kernel/occurrence-staging.js");
@@ -241,6 +246,7 @@ describe("deploy bundle (P-B)", () => {
     expect(bundle.modules[ARTIFACT_MODULE]).toBeDefined();
     for (const name of [
       "runtime/context.js",
+      "runtime/stdlib.js",
       "runtime/invoke.js",
       "runtime/sourcemap.js",
       "runtime/mcp-registry.js",
@@ -250,7 +256,7 @@ describe("deploy bundle (P-B)", () => {
       expect(bundle.modules[name], `pinned ${name} must be staged`).toBeDefined();
     }
     // The node:ful runtime files MUST NOT ship.
-    for (const name of ["runtime/modules.js", "runtime/stdlib.js", "runtime/executors.js"]) {
+    for (const name of ["runtime/modules.js", "runtime/executors.js"]) {
       expect(bundle.modules[name], `${name} must stay out`).toBeUndefined();
     }
     expect(bundle.modules["app/main.js"]).toBeDefined();
@@ -287,7 +293,7 @@ describe("deploy bundle (P-B)", () => {
     expect(bundle.modules[MCP_HANDLER_MODULE]).toContain("file://");
   });
 
-  it("rewrites producer imports to module-relative vendor specifiers", () => {
+  it("rewrites generated imports to their defining runtime and vendor specifiers", () => {
     const bundle = buildDeployBundle(testArtifact(), {
       repoRoot,
       workerDistDir: fakeWorkerDist(),
@@ -295,7 +301,7 @@ describe("deploy bundle (P-B)", () => {
     });
     const main = bundle.modules["app/main.js"] as string;
     expect(main).toContain(`from "../vendor/ui/index.js"`);
-    expect(main).toContain(`from "../vendor/stdlib/index.js"`);
+    expect(main).toContain(`from "../runtime/stdlib.js"`);
     expect(main).toContain(`from "./util.js"`);
     expect(main).not.toContain("@canlang/ui");
     expect(main).not.toContain("@canlang/stdlib");
@@ -593,11 +599,15 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
     const envAssembly = bundle.modules["runtime/env-assembly.js"] ?? "";
     expect(envAssembly).toContain("../vendor/state/storage/d1.js");
     expect(envAssembly).toContain("../vendor/identity/index.js");
-    expect(envAssembly).not.toContain("@canlang/identity");
     expect(envAssembly).not.toContain("../../../state/dist");
     const grantRoute = bundle.modules["runtime/grant-route.js"] ?? "";
     expect(grantRoute).toContain("../vendor/identity/index.js");
-    expect(grantRoute).not.toContain("@canlang/identity");
+    for (const [path, js] of [["runtime/env-assembly.js", envAssembly], ["runtime/grant-route.js", grantRoute]]) {
+      const specifiers = scanModuleImports(js!, path!).map(record => record.specifier);
+      expect(specifiers.filter(specifier => specifier === "@canlang/identity" || specifier?.startsWith("@canlang/identity/"))).toEqual([]);
+      // Computed imports consume this binding; diagnostic prose is not an edge.
+      expect(js).toMatch(/const IDENTITY_SPECIFIER = ["']\.\.\/vendor\/identity\/index\.js["'];/);
+    }
     expect(bundle.modules["vendor/values/index.js"]).toContain("VALUES_CONTRACT_VERSION");
     const stdlib = bundle.modules["vendor/stdlib/index.js"] ?? "";
     expect(stdlib).toContain("../values/index.js");
@@ -647,16 +657,17 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
   it("boots the bundle with a DB: active verdict serves /mcp auth seam (401), inactive refuses honestly", async () => {
     // testArtifact's descriptor ({renderPage, ok, util}) is enough for
     // staging assertions but not full assembly, which requires
-    // owner+path on every page descriptor — extend it here.
+    // owner+path on every page descriptor and a defining app identity.
     const artifact = testArtifact();
     const main = artifact.modules[0];
     if (main !== undefined) {
-      // Real vendor exports only (`ok` is NOT a stdlib export): this
-      // module is actually imported in workerd, so every import resolves.
+      // Actual runtime exports and defining app identity: this module is
+      // imported in workerd, so every import and assembly claim resolves.
       main.js = [
         `import { renderPage } from "@canlang/ui";`,
         `import { abs } from "@canlang/stdlib";`,
         `import { util } from "./util.js";`,
+        `export const appDefinition = { id: "test" };`,
         `export const descriptor = { owner: "test", path: "/main", admit: async () => ({ ok: true }), render: async () => ({ status: 200 }), renderPage, abs, util };`,
         "",
       ].join("\n");
@@ -679,8 +690,10 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
     const active = await boot(ACTIVE_VERDICT);
     try {
       // Route live, real handler + real D1 deps, no grant: safe 401.
-      expect((await active.dispatch("/mcp", post("/mcp"))).status).toBe(401);
-      expect((await active.dispatch("/mcp/grants", post("/mcp/grants"))).status).toBe(401);
+      const mcp = await active.dispatch("/mcp", post("/mcp"));
+      expect(mcp.status, await mcp.text()).toBe(401);
+      const grants = await active.dispatch("/mcp/grants", post("/mcp/grants"));
+      expect(grants.status, await grants.text()).toBe(401);
     } finally {
       await active.dispose();
     }
@@ -708,12 +721,13 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
     const artifact = testArtifact();
     const bootMain = artifact.modules[0];
     if (bootMain !== undefined) {
-      // Same assemblable module as the boot test above: real vendor
-      // exports + owner/path/admit/render (actually imported in workerd).
+      // Same assemblable module as the boot test above: real runtime
+      // exports + app identity/owner/path/admit/render in workerd.
       bootMain.js = [
         `import { renderPage } from "@canlang/ui";`,
         `import { abs } from "@canlang/stdlib";`,
         `import { util } from "./util.js";`,
+        `export const appDefinition = { id: "test" };`,
         `export const descriptor = { owner: "test", path: "/main", admit: async () => ({ ok: true }), render: async () => ({ status: 200 }), renderPage, abs, util };`,
         "",
       ].join("\n");
@@ -744,7 +758,7 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
       });
-      expect(unauth.status).toBe(401);
+      expect(unauth.status, await unauth.text()).toBe(401);
       // Seed identity + mint a grant against the SAME D1.
       const { createD1IdentityStore } = await import("@canlang/identity");
       const { issueMcpGrant } = await import("@canlang/identity");
@@ -807,9 +821,11 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
     expect(invoke).toContain("../vendor/state/receipt/index.js");
     expect(invoke).not.toContain("../../../state/dist/state/src/receipt/join.js");
     expect(invoke).not.toContain("../../../state/dist/state/src/receipt/observer.js");
-    // The work-loader leg is untouched: still the loud checkout/dev path,
-    // never rewritten to a vendor key.
-    expect(invoke).toContain("@canlang/work/receipt");
+    // The owning Work receipt producer is portable; Node-only test
+    // work-loader bridges remain excluded below.
+    expect(invoke).toContain("../vendor/work/receipt/index.js");
+    expect(invoke).not.toContain("@canlang/work/receipt");
+    expect(bundle.modules["vendor/work/receipt/index.js"]).toBeDefined();
     // Vendor map: join vendored IN (real, from state dist); both
     // work-loader bridges pinned OUT. The observer vendor key lands with
     // B's module — its rewrite-target spelling is proved resolvable below.

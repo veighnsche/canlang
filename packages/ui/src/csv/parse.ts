@@ -140,8 +140,8 @@ export function checkCsvHeader(
  * Shared finite cell mapping for advisory and server use after header admission.
  * Mapped nullable blanks are null; required singular wire strings retain empty
  * text. Other nonnullable blanks omit, and unmapped defaults stay absent.
- * This wire-string profile makes no source type/constraint claims. Compound
- * cells remain raw strings for the existing owning binding check to refuse.
+ * Checked nominal text aliases retain empty text for their owning constraints.
+ * Compound cells remain raw strings for the owning binding check to refuse.
  */
 export function mapCsvCells(
   header: readonly string[],
@@ -160,7 +160,9 @@ export function mapCsvCells(
     let value: string | boolean | null = cell;
     if (cell === "") {
       if (declared.nullable === true) value = null;
-      else if (!(declared.kind === "string" && declared.required && declared.array === undefined)) continue;
+      else if (!(declared.required && declared.array === undefined &&
+          (declared.kind === "string" || declared.kind === "nominal" &&
+            declared.valueTypes?.aliases?.some(alias => alias.name === declared.valueType && alias.type === "text")))) continue;
     } else if (declared.kind === "boolean") {
       if (cell === "true") value = true;
       else if (cell === "false") value = false;

@@ -10,6 +10,7 @@ import {
   type SourceMap,
 } from "@canlang/contracts";
 import { assembleModules, importVerifiedAssemblyModule } from "../src/runtime/modules.js";
+import { importVerifiedAssemblyModule as importPortableAssemblyModule } from "../src/runtime/assembly-verification.js";
 
 const EMPTY_MAP: SourceMap = {
   version: 3,
@@ -151,6 +152,9 @@ describe("assembleModules", () => {
     const asm = await assembleModules({ artifact: artifact([module("main.js", "export const value=7;")]), sourcePath: "owned" },
       { stdlibUrl, uiUrl, workDir: mkdtempSync(join(tmpdir(), "b1-owned-")) });
     await expect(importVerifiedAssemblyModule(asm, "main.js")).resolves.toMatchObject({ value: 7 });
+    await expect(importPortableAssemblyModule(asm, "main.js")).resolves.toMatchObject({ value: 7 });
+    await expect(importPortableAssemblyModule({ dir: asm.dir, entryUrl: asm.entryUrl,
+      moduleUrls: { ...asm.moduleUrls } }, "main.js")).rejects.toThrow(/not assembler-owned/);
     await expect(importVerifiedAssemblyModule({ ...asm }, "main.js")).rejects.toThrow(/not assembler-owned/);
     await expect(importVerifiedAssemblyModule(asm, "other.js")).rejects.toThrow(/unknown artifact module/);
     const urls = asm.moduleUrls;
