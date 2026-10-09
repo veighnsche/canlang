@@ -620,6 +620,50 @@ fn sequence_callers_arguments_and_envelopes() {
 }
 
 #[test]
+fn sequence_request_operation_identity_preserves_runtime_validation() {
+    let one = " scenario approve(expense:Expense) by=members\n  do\n   let x = 1\n";
+    // The same authored UUIDv7 is reused to exercise receipt replay.
+    let src = sequence_source(
+        one,
+        "    let nonce=\"0194124e-a000-7000-8000-000000000001\"\n    call approve {expense=pending} by=self request={operation_id=nonce}\n    call approve {expense=pending} by=self request={operation_id=((nonce)),expense={version=1}}\n    1 -> 1\n",
+    );
+    assert_e5_clean(&src);
+    // Invalid, empty, and stale identities must reach runtime validation.
+    for identity in [
+        "\"not-a-uuid\"",
+        "\"\"",
+        "\"00000000-0000-7000-8000-000000000001\"",
+    ] {
+        let src = sequence_source(
+            one,
+            &format!(
+                "    call approve {{expense=pending}} by=self request={{operation_id={identity}}} -> error(validation)\n    1 -> 1\n"
+            ),
+        );
+        assert_e5_clean(&src);
+    }
+    for identity in ["42", "true", "null", "[]", "{version=1}", "((42))"] {
+        let src = sequence_source(
+            one,
+            &format!(
+                "    call approve {{expense=pending}} by=self request={{operation_id={identity}}}\n    1 -> 1\n"
+            ),
+        );
+        assert_e5(&src, &[("E5006", identity, 1)]);
+    }
+    let src = sequence_source(
+        one,
+        "    call approve {expense=pending} by=self request={operation_id=\"0194124e-a000-7000-8000-000000000001\",unknown=1}\n    1 -> 1\n",
+    );
+    assert_e5(&src, &[("E5006", "unknown", 1)]);
+    let src = sequence_source(
+        one,
+        "    call approve {expense=pending} by=self request={expense={operation_id=\"0194124e-a000-7000-8000-000000000001\"}}\n    1 -> 1\n",
+    );
+    assert_e5(&src, &[("E5006", "operation_id", 1)]);
+}
+
+#[test]
 fn sequence_bindings_and_results() {
     let one = " scenario approve(expense:Expense) by=members\n  do\n   let x = 1\n";
     // Duplicate `let` bindings.

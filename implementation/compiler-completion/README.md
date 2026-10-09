@@ -3,6 +3,15 @@
 Current completion is **58 of 67 references**, with **9 remaining including partial work**. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
 
+
+**Local prerequisite — example replay identity, 2026-10-09.** Sequence
+`request.operation_id` now admits top-level text, including malformed/stale text
+for runtime validation examples, while nontext literals, unknown keys and nested
+identity overrides refuse E5006. Reused/grouped sequence nonce bindings keep the
+existing runner-owned dynamic typing. The five affected sequence checks pass;
+independent finite review accepts that scope. UUIDv7/freshness, replay execution
+and unknown dynamic values remain with the actual canonical runner/invoker.
+
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed
