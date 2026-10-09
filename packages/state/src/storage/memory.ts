@@ -32,6 +32,7 @@ import type {
   QuerySpec,
   Receipt,
   ReceiptIdentity,
+  RetainedOutboxIntent,
   RecordId,
   RecordMigrationFailure,
   Revision,
@@ -70,7 +71,7 @@ function claimKey(model: string, keyName: string, keyValue: string): string {
  * S6: dispatch status of a staged outbox intent. S7 adds `skipped` for
  * migration-invalidated intents; `outboxPending` still reads pending only.
  */
-type OutboxStatus = 'pending' | 'dispatched' | 'skipped';
+type OutboxStatus = RetainedOutboxIntent['status'];
 
 /** Stored record: S5 rows persist `parent` inline (round-tripped as-is). */
 interface MemoryRecord {
@@ -716,6 +717,13 @@ function buildMemoryStorage(state: MemoryState): StoragePort {
               : 0),
       );
       return pending.map((row) => jsonCopy(row.intent));
+    },
+
+    async outboxGet(intentId: string): Promise<RetainedOutboxIntent | null> {
+      const found = state.outbox.get(intentId);
+      return found === undefined
+        ? null
+        : { intent: jsonCopy(found.intent as OutboxIntent), status: found.status };
     },
 
     async scheduleGet(key: string): Promise<ScheduleEntry | null> {

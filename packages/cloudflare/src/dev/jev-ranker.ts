@@ -62,7 +62,7 @@ export type RankResult =
   | { readonly state: "none"; readonly probabilities?: Readonly<Record<string, number>> }
   | { readonly state: "intent_unclear"; readonly reason: string; readonly alternatives?: readonly { id: string; probability: number }[] }
   | { readonly state: "candidate_coverage_unknown" | "structural" | "ineligible" | "intent_required" | "ranking_disallowed" | "stale"; readonly reason: string }
-  | { readonly state: "ranking_unavailable"; readonly reason: "timeout" | "transport_error" | "provider_rejected" | "invalid_response" }
+  | { readonly state: "ranking_unavailable"; readonly reason: "timeout" | "transport_error" | "provider_rejected" | "invalid_response" | "no_provider" | "cancelled" }
   | { readonly state: "pending"; readonly ref: string };
 
 export interface ConstructRankerOptions {
@@ -79,6 +79,7 @@ interface CachedRank {
   readonly helpRevision: string;
   result: RankResult | null;
   promise: Promise<RankResult>;
+  readonly controller: AbortController;
 }
 
 function finiteUnit(value: unknown): value is number {
@@ -111,7 +112,7 @@ function eligible(occurrence: RankOccurrence): RankResult | null {
   }
   if (occurrence.structuralRecovery || occurrence.section === null || occurrence.slot === null ||
       !/^[A-Za-z][A-Za-z0-9_ /.-]{0,39}$/.test(occurrence.section) ||
-      !/^[a-z][a-z0-9_]{0,63}$/.test(occurrence.slot)) {
+      !/^[a-z][a-z0-9_.-]{0,95}$/.test(occurrence.slot)) {
     return { state: "structural", reason: "authoring slot is not reliable" };
   }
   if (occurrence.materialIntentChoice) {
@@ -188,7 +189,7 @@ function validateResponse(raw: unknown, request: JevChoiceRequest): {
   const usage = record(response?.usage);
   const expectedKeys = Object.keys(request.questions[QUESTION].criteria).sort();
   const probabilities = record(answer?.probabilities);
-  if (!response || typeof response.model !== "string" || !/^jev-[A-Za-z0-9.-]+$/.test(response.model) ||
+  if (!response || typeof response.model !== "string" || response.model.length > 64 || !/^jev-[A-Za-z0-9.-]+$/.test(response.model) ||
       !answers || Object.keys(answers).length !== 1 || !answer || answer.type !== "choice" ||
       typeof answer.choice !== "string" || !expectedKeys.includes(answer.choice) ||
       !probabilities || Object.keys(probabilities).sort().join("\0") !== expectedKeys.join("\0") ||
@@ -244,8 +245,9 @@ export class ConstructRanker {
   private readonly inlineBudgetMs: number;
   private readonly providerDeadlineMs: number;
   private readonly maxCache: number;
+  private closed = false;
 
-  constructor(private readonly transport: JevChoiceTransport, private readonly options: ConstructRankerOptions) {
+  constructor(private readonly transport: JevChoiceTransport | undefined, private readonly options: ConstructRankerOptions) {
     this.model = options.model ?? "jev-latest";
     this.inlineBudgetMs = options.inlineBudgetMs ?? 1000;
     this.providerDeadlineMs = options.providerDeadlineMs ?? 5000;
@@ -277,41 +279,61 @@ export class ConstructRanker {
   }
 
   async rank(occurrence: RankOccurrence): Promise<RankResult> {
+    if (this.closed) return { state: "ranking_unavailable", reason: "cancelled" };
     if (!this.options.isCurrent(occurrence.revision, occurrence.helpRevision)) {
       return { state: "stale", reason: "source or help revision changed" };
     }
     const local = eligible(occurrence);
     if (local !== null) return local;
     if (!this.options.allowExternal()) return { state: "ranking_disallowed", reason: "external decision support is disabled" };
+    if (this.transport === undefined) return { state: "ranking_unavailable", reason: "no_provider" };
     const request = packet(occurrence, this.model);
     const key = createHash("sha256").update(JSON.stringify(request)).digest("hex");
     let cached = this.cache.get(key);
     if (cached === undefined) {
+      const controller = new AbortController();
       const next: CachedRank = {
+        controller,
         revision: occurrence.revision,
         helpRevision: occurrence.helpRevision,
         result: null,
-        promise: this.call(request, occurrence),
+        promise: this.call(request, occurrence, controller),
       };
       this.cache.set(key, next);
       next.promise.then(result => { next.result = result; });
-      while (this.cache.size > this.maxCache) this.cache.delete(this.cache.keys().next().value as string);
+      while (this.cache.size > this.maxCache) {
+        const oldest = this.cache.keys().next().value as string;
+        this.cache.get(oldest)?.controller.abort();
+        this.cache.delete(oldest);
+      }
       cached = next;
     }
     if (cached.result !== null) return this.currentResult(cached);
-    return Promise.race([
-      cached.promise.then(() => this.currentResult(cached as CachedRank)),
-      new Promise<RankResult>(resolve => setTimeout(() => resolve({ state: "pending", ref: key }), this.inlineBudgetMs)),
-    ]);
+    let inlineTimer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        cached.promise.then(() => this.currentResult(cached as CachedRank)),
+        new Promise<RankResult>(resolve => { inlineTimer = setTimeout(() => resolve(this.currentResult(cached as CachedRank)), this.inlineBudgetMs); }),
+      ]);
+    } finally { clearTimeout(inlineTimer); }
+  }
+
+  /** Abort owned calls without waiting for an uncooperative transport. */
+  close(): void {
+    this.closed = true;
+    for (const entry of this.cache.values()) entry.controller.abort();
+    this.cache.clear();
   }
 
   lookup(ref: string): RankResult {
+    if (this.closed) return { state: "ranking_unavailable", reason: "cancelled" };
     const cached = this.cache.get(ref);
     if (cached === undefined) return { state: "ranking_unavailable", reason: "invalid_response" };
     return this.currentResult(cached);
   }
 
   private currentResult(cached: CachedRank): RankResult {
+    if (this.closed) return { state: "ranking_unavailable", reason: "cancelled" };
     if (!this.options.isCurrent(cached.revision, cached.helpRevision)) {
       return { state: "stale", reason: "source or help revision changed" };
     }
@@ -321,17 +343,16 @@ export class ConstructRanker {
     return cached.result ?? { state: "pending", ref: [...this.cache].find(([, entry]) => entry === cached)?.[0] ?? "" };
   }
 
-  private async call(request: JevChoiceRequest, occurrence: RankOccurrence): Promise<RankResult> {
-    const controller = new AbortController();
+  private async call(request: JevChoiceRequest, occurrence: RankOccurrence, controller: AbortController): Promise<RankResult> {
     const timeout = setTimeout(() => controller.abort(), this.providerDeadlineMs);
     try {
       const raw = await Promise.race([
-        this.transport.choose(request, controller.signal),
+        this.transport!.choose(request, controller.signal),
         new Promise<never>((_, reject) => controller.signal.addEventListener("abort", () => reject(
           new Error("Jev deadline exceeded"),
         ), { once: true })),
       ]);
-      if (controller.signal.aborted) return { state: "ranking_unavailable", reason: "timeout" };
+      if (controller.signal.aborted) return { state: "ranking_unavailable", reason: this.closed ? "cancelled" : "timeout" };
       if (!this.options.isCurrent(occurrence.revision, occurrence.helpRevision)) {
         return { state: "stale", reason: "source or help revision changed" };
       }
@@ -340,7 +361,7 @@ export class ConstructRanker {
         ? { state: "ranking_unavailable", reason: "invalid_response" }
         : interpret(validated, occurrence);
     } catch (error) {
-      if (controller.signal.aborted) return { state: "ranking_unavailable", reason: "timeout" };
+      if (controller.signal.aborted) return { state: "ranking_unavailable", reason: this.closed ? "cancelled" : "timeout" };
       return { state: "ranking_unavailable", reason: record(error)?.code === "PROVIDER_REJECTED" ? "provider_rejected" : "transport_error" };
     } finally {
       clearTimeout(timeout);

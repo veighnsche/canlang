@@ -23,6 +23,26 @@ function readSource(relativePath: string): string {
   return readFileSync(new URL(relativePath, packageRoot), "utf8");
 }
 
+const JOIN_RUNTIME_IMPORTS: Readonly<Record<string, readonly string[]>> = {
+  // Both leaves are explicitly pinned by deploy/bundle.ts and accept only
+  // injected D1/clock ports. Their own source remains checked below.
+  "src/runtime/env-assembly.ts": ["./auth-rate-limiter.js", "./page-preferences.js"],
+};
+
+function importSpecifier(line: string): string | undefined {
+  return /\bfrom\s+["']([^"']+)["'];?$/u.exec(line)?.[1];
+}
+
+function isPortableAssemblyImport(file: string, line: string): boolean {
+  if (file !== "src/dev/example-runner.ts" || importSpecifier(line) !== "../worker/assembly.js") return false;
+  const bindings = /^import\s+\{([^}]+)\}\s+from\s/u.exec(line)?.[1];
+  if (bindings === undefined) return false;
+  // Published portable invocation/storage constructors; the serving worker
+  // entry and main, wildcard imports and other assembly exports stay barred.
+  const allowed = new Set(["buildInvoker", "createTeamOwnerStorageBoundary", "type TeamOwnerStorageBoundary"]);
+  return bindings.split(",").every(binding => allowed.has(binding.trim().split(/\s+as\s+/u)[0]!));
+}
+
 describe("worker bundle boundary", () => {
   it("allows no runtime imports in src/worker (type-only imports only)", () => {
     const workerFiles = listSourceFiles("src/worker");
@@ -46,16 +66,19 @@ describe("worker bundle boundary", () => {
     }
   });
 
-  it("keeps the staged join modules type-only (dynamic imports only)", () => {
+  it("keeps staged producer joins dynamic and their exact local D1 leaves worker-safe", () => {
     // env-assembly, grant-route, and mcp-permissions load producers via
     // dynamic import() so the P-B bundler can stage/rewrite them; a static
-    // runtime import here would bypass the vendor seam. (The rest of
-    // src/runtime legitimately uses static relative imports and is covered
-    // by assertLinksResolve instead.)
+    // external runtime import here would bypass the vendor seam. Only the
+    // two explicitly pinned local D1 leaves are admitted statically; all
+    // their imports remain type-only. The final installed graph is checked
+    // by assertLinksResolve and assertWorkerdLoadable at bundle construction.
     const joinFiles = [
       "src/runtime/env-assembly.ts",
       "src/runtime/grant-route.ts",
       "src/runtime/mcp-permissions.ts",
+      "src/runtime/auth-rate-limiter.ts",
+      "src/runtime/page-preferences.ts",
     ];
     for (const file of joinFiles) {
       const lines = readSource(file).split("\n");
@@ -66,21 +89,28 @@ describe("worker bundle boundary", () => {
         // Doc comments document the no-builtins rule; not code.
         if (trimmed.startsWith("*") || trimmed.startsWith("//")) continue;
         if (trimmed.startsWith("import ")) seen = true;
-        expect(
-          trimmed.startsWith("import ") && !trimmed.startsWith("import type "),
-          `${location} must use 'import type' (join modules load producers dynamically): ${trimmed}`,
-        ).toBe(false);
+        if (trimmed.startsWith("import ") && !trimmed.startsWith("import type ")) {
+          expect(
+            (JOIN_RUNTIME_IMPORTS[file] ?? []).includes(importSpecifier(trimmed) ?? ""),
+            `${location} must use 'import type' or an exact pinned D1 leaf (producers load dynamically): ${trimmed}`,
+          ).toBe(true);
+        }
         expect(
           trimmed.startsWith("export ") && trimmed.includes(" from "),
           `${location} must not re-export from another module: ${trimmed}`,
         ).toBe(false);
+        expect(trimmed.includes("require("), `${location} must not use require()`).toBe(false);
         expect(trimmed.includes("node:"), `${location} must not touch node: builtins`).toBe(false);
       }
       expect(seen, `${file} is missing from the tree (silent skip)`).toBe(true);
     }
   });
 
-  it("keeps the Node entry free of worker imports", () => {
+  it("keeps Node hosts out of Worker serving entries while retaining the portable assembly contract", () => {
+    const manifest = JSON.parse(readSource("package.json")) as {
+      exports: Record<string, { default?: string }>;
+    };
+    expect(manifest.exports["./worker/assembly"]?.default).toBe("./dist/worker/assembly.js");
     const nodeFiles = [
       "src/index.ts",
       ...listSourceFiles("src/deploy"),
@@ -96,8 +126,8 @@ describe("worker bundle boundary", () => {
         const location = `${file}:${index + 1}`;
         if (trimmed.startsWith("import ") || trimmed.includes(" from ")) {
           expect(
-            trimmed.includes("./worker/") || trimmed.includes("../worker/"),
-            `${location} must not import worker sources: ${trimmed}`,
+            (trimmed.includes("./worker/") || trimmed.includes("../worker/")) && !isPortableAssemblyImport(file, trimmed),
+            `${location} must not import Worker serving sources (only published portable constructors are shared): ${trimmed}`,
           ).toBe(false);
           expect(
             trimmed.includes("@canlang/cloudflare/worker"),

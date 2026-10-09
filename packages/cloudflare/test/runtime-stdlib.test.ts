@@ -24,6 +24,7 @@ import { datetime } from "@canlang/values";
 import { resolveIdentity, sha256HexText } from "@canlang/identity";
 import { createFrozenClock, createMemoryIdentityStore } from "@canlang/identity/testing";
 import { createTestMemoryStorage } from "@canlang/state/storage/memory";
+import { makeDatetime } from "@canlang/values";
 import { createContext, type HandlerContext } from "../src/runtime/context.js";
 import {
   cancel,
@@ -90,6 +91,7 @@ function fakeStore(seed: StoredRow[] = []): Fake {
     },
     readReceipt: unused,
     outboxPending: unused,
+    outboxGet: unused,
     scheduleGet: unused,
     schedulesDue: unused,
     historyFor: unused,
@@ -619,6 +621,21 @@ describe("effect refusals without canonical scope", () => {
       }
     });
   }
+  const asyncCases: Array<[string, (ctx: HandlerContext) => Promise<unknown>]> = [
+    ["send", (ctx) => send(ctx, "Example.send", {}, { binding: "Example.capability" })],
+    ["schedule", (ctx) => schedule(ctx, "example-key", makeDatetime(0n), "Example.event", {}, { ownerPackage: "Example" })],
+    ["cancel", (ctx) => cancel(ctx, "example-key", { ownerPackage: "Example" })],
+  ];
+  for (const [name, call] of asyncCases) {
+    it(`${name} rejects without canonical execution`, async () => {
+      await expect(call(c)).rejects.toThrow(new RegExp(`unsupported\\(${name}\\)`));
+    });
+  }
+  it("delivery rejects without canonical receipt observation", async () => {
+    await expect(delivery(c, { record: { id: "r1" }, field: "receipt" }, ["status"])).rejects.toThrow(
+      "delivery requires canonical receipt observation scope.",
+    );
+  });
 });
 
 describe("guards", () => {

@@ -113,6 +113,7 @@ function doProxy(): StoragePort {
     commit: (batch) => call('commit', batch),
     readReceipt: (identity) => call('readReceipt', identity),
     outboxPending: () => call('outboxPending'),
+    outboxGet: (intentId) => call('outboxGet', intentId),
     scheduleGet: (key) => call('scheduleGet', key),
     schedulesDue: (now, limit) => call('schedulesDue', now, limit),
     historyFor: (model, recordId) => call('historyFor', model, recordId),
@@ -210,7 +211,13 @@ after(async () => {
 });
 
 async function doSetup(): Promise<ConformanceSetup> {
-  return { store: doProxy(), reset: resetDO, probe: doProbe() };
+  return { store: doProxy(), reset: resetDO, probe: doProbe(),
+    reopen: async () => {
+      const data = await post('/reopen', {});
+      if (data['ok'] !== true) throw rehydrate(data['error'] as unknown as WorkerErrorJson);
+      return doProxy();
+    },
+  };
 }
 
 storageConformance('do', doSetup);
