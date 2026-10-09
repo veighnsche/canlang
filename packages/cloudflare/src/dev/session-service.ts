@@ -865,6 +865,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       app: options.selectedApp,
       profile: options.capture.profile,
       ...(options.runtimeDir === undefined ? {} : { runtimeDir: options.runtimeDir }),
+      requestTimeoutMs: 60_000,
       handle,
     });
   } catch (error) {

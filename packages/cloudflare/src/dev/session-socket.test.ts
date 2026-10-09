@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { chmod, lstat, mkdir, mkdtemp, readFile, realpath, rm, symlink, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -111,6 +112,58 @@ test("a dead owner's descriptor is reclaimed without accepting its old session",
       await owner.stop();
     }
   } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+});
+
+test("a crashed Linux owner left as a zombie does not block exclusive recovery", { skip: process.platform !== "linux" }, async () => {
+  const { scratch, root, runtimeDir } = await fixture();
+  const first = await startSessionSocket({
+    checkoutRoot: root, app: "OfficeSupplies", profile: "local-d1-identity", runtimeDir,
+    handle: () => null,
+  });
+  const sessionDir = dirname(first.descriptorPath);
+  const claim = JSON.parse(await readFile(join(sessionDir, "claim.json"), "utf8")) as Record<string, unknown>;
+  const descriptor = await readFile(first.descriptorPath, "utf8");
+  await first.stop();
+  const releasePath = join(scratch, "release-zombie-parent");
+  const childCode = `const {spawn}=require("node:child_process"); const {existsSync}=require("node:fs");
+    const child=spawn(process.execPath,["-e","process.exit(0)"],{stdio:"ignore"});
+    child.once("exit",()=>process.exit(0)); process.stdout.write(String(child.pid)+"\\n");
+    const wait=new Int32Array(new SharedArrayBuffer(4)); const end=Date.now()+10000;
+    while(!existsSync(process.argv[1]) && Date.now()<end) Atomics.wait(wait,0,0,20);`;
+  const parent = spawn(process.execPath, ["-e", childCode, releasePath], { stdio: ["ignore", "pipe", "pipe"] });
+  try {
+    const [chunk] = await once(parent.stdout!, "data");
+    const zombiePid = Number(String(chunk).trim());
+    assert.ok(Number.isSafeInteger(zombiePid) && zombiePid > 0);
+    let entry = "";
+    for (let attempt = 0; attempt < 100; attempt++) {
+      entry = await readFile(`/proc/${zombiePid}/stat`, "utf8");
+      if (entry.slice(entry.lastIndexOf(")") + 1).trimStart().startsWith("Z ")) break;
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    const fields = entry.slice(entry.lastIndexOf(")") + 1).trim().split(/\s+/);
+    assert.equal(fields[0], "Z");
+    const bootId = (await readFile("/proc/sys/kernel/random/boot_id", "utf8")).trim();
+    await mkdir(sessionDir, { mode: 0o700 });
+    await writeFile(join(sessionDir, "claim.json"), JSON.stringify({ ...claim, pid: zombiePid,
+      processBirth: `proc:${bootId}:${fields[19]}` }), { mode: 0o600 });
+    await writeFile(first.descriptorPath, descriptor, { mode: 0o600 });
+    const recovered = await startSessionSocket({
+      checkoutRoot: root, app: "OfficeSupplies", profile: "local-d1-identity", runtimeDir,
+      handle: () => "recovered",
+    });
+    try {
+      assert.notEqual(recovered.identity.sessionId, first.identity.sessionId);
+      assert.equal(await (await discoverSessionSocket({ checkoutRoot: root, runtimeDir }))
+        .request({ command: "status" }), "recovered");
+    } finally {
+      await recovered.stop();
+    }
+  } finally {
+    await writeFile(releasePath, "done");
+    if (parent.exitCode === null) await once(parent, "exit").catch(() => undefined);
     await rm(scratch, { recursive: true, force: true });
   }
 });

@@ -3533,3 +3533,7 @@ Use eight concurrent readers for the full declared input hash and membership sca
 ### 2026-10-09 — Preserve the published application producer join
 
 Consume Packages source hunks 080efa8e and 1dfa261f: resolve optional Testkit from the invoking app and retain original failures during cleanup. Capture and preview evidence use the same app-resolved producer; help data resolves captured installed package paths across worktrees. Keep the setup-owned expectation getter. Because Node caches the service/Testkit transitive graph, changed package bytes require a session restart before admission; no new revision may claim old executable imports. Retention refreshes reused captures, failure listings require retained revisions, and only exact closed-code rejection receipts are bookkeeping.
+
+### 2026-10-09 — Recover dead Linux owners and bound cold preview checks
+
+Treat a parsed Linux zombie/dead process as unable to own a live control socket, preserving unknown-state refusal, process-birth checks and exclusive reclaim. Use the existing 60-second socket maximum for compiler/preview cold work; an earlier timeout cannot establish readiness or acceptance. Real worktree isolation and invalid/repaired lifecycle checks passed, while installed crash recovery and the new deadline remain affected checks after rebuild.
