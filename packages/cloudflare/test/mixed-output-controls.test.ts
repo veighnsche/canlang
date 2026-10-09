@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -8,6 +8,7 @@ import type { DeployBundle } from "../src/deploy/bundle.js";
 import {
   attachBinaries,
   bundleMixedSha256,
+  bundleSha256,
   inventorizeAssets,
   writeDeployBundle,
   writeDeployBundleMixed,
@@ -19,9 +20,7 @@ function textBundle(): DeployBundle {
     mainModule: "worker/main.js",
     modules,
     moduleCount: 1,
-    // Fixture aggregate: the mixed writer passes v1 fields through untouched;
-    // correctness of the v1 digest itself is covered by deploy-bundle.test.ts.
-    sha256: "v1-fixture-sha256",
+    sha256: bundleSha256("worker/main.js", modules),
     mcpBundleBytes: 0,
     httpOperationsBytes: 0,
   };
@@ -31,7 +30,7 @@ const WASM = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0]);
 
 describe("mixed output controls (corrective positives)", () => {
   it("P1: valid mixed bytes/digests round-trip exactly with a versioned manifest", () => {
-    const outDir = mkdtempSync(join(tmpdir(), "can-mixed-controls-"));
+    const outDir = realpathSync(mkdtempSync(join(tmpdir(), "can-mixed-controls-")));
     const mixed = attachBinaries(textBundle(), { "kernel.wasm": WASM });
     const written = writeDeployBundleMixed(mixed, outDir);
     expect(Buffer.from(readFileSync(join(outDir, "kernel.wasm"))).equals(Buffer.from(WASM))).toBe(true);
@@ -59,8 +58,8 @@ describe("mixed output controls (corrective positives)", () => {
   });
 
   it("P3: empty binaries keep v1 text-only parity byte-identically", () => {
-    const v1Dir = mkdtempSync(join(tmpdir(), "can-mixed-controls-v1-"));
-    const mixedDir = mkdtempSync(join(tmpdir(), "can-mixed-controls-mixed-"));
+    const v1Dir = realpathSync(mkdtempSync(join(tmpdir(), "can-mixed-controls-v1-")));
+    const mixedDir = realpathSync(mkdtempSync(join(tmpdir(), "can-mixed-controls-mixed-")));
     const bundle = textBundle();
     const v1 = writeDeployBundle(bundle, v1Dir);
     const mixed = writeDeployBundleMixed(attachBinaries(textBundle(), {}), mixedDir);

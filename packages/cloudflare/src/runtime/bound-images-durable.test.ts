@@ -15,7 +15,7 @@ import { createSqliteFileStore, createSqliteFileBindings } from '@canlang/files/
 import { sha256Hex } from '@canlang/files/upload';
 import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { asId, asModel, asOperationId, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
-import { readReceiptRow, RECEIPT_MODEL } from '@canlang/state/receipt/tables';
+import { associationRowId, readAssociationRow, readReceiptRow, RECEIPT_ASSOCIATION_MODEL, RECEIPT_MODEL } from '@canlang/state/receipt/tables';
 import { WORK_SYSTEM_COMMANDS, WORK_DISPATCH_STAGE_COMMANDS, createWorkDispatchClaimCommand } from '@canlang/work/kernel/commands';
 import { WORK_DISPATCH_MODEL, WORK_SCHEDULE_MODEL, readScheduleRow, readDispatchRow,
   readDispatchImageCorrelation, readDispatchImageControlPin } from '@canlang/work/kernel/tables';
@@ -27,7 +27,7 @@ import { digestGraph } from '@canlang/services/media/mapping';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { buildInvoker, type MutationOutcome } from '@canlang/cloudflare/worker/assembly';
 import { createCanonicalFileBinding } from './bound-files.js';
-import { createBoundImagesAdapter } from './bound-images.js';
+import { createBoundImagesAdapter, type ImageRunWire } from './bound-images.js';
 import { createBoundImagesDispatcher, lookupRetainedImagesDispatch } from './bound-dispatch.js';
 import { createCheckedDeliveryProgressProducer, invokeDueScheduleCanonical, type FenceAttemptDispatchFn } from './invoke.js';
 
@@ -512,6 +512,99 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
     assert.deepEqual((await checkedReceipt(terminalReconcile)).result, observedOriginal.result);
     assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), afterControlSchedules);
     assert.equal(files!.files.listAll().length, acceptedFiles + 1);
+
+    // Two independently admitted controls retain the same nonterminal original.
+    // A recovery page observes it once; the deferred control uses that committed
+    // evidence on the next sweep, including after both physical stores reopen.
+    now = Date.now(); mode = 'unknown';
+    const sharedOriginal = await enqueue(); await drive(sharedOriginal);
+    const sharedStop = await enqueueControl('stop'); await drive(sharedStop);
+    const sharedReconcile = await enqueueControl('reconcile'); await drive(sharedReconcile);
+    const sharedControls = [sharedStop, sharedReconcile];
+    assert.notEqual(sharedStop.intentId, sharedReconcile.intentId);
+    assert.deepEqual(sharedStop.arguments, sharedReconcile.arguments);
+    const sharedDispatch = await store.load(WORK_DISPATCH_MODEL, asId(sharedOriginal.intentId)); assert.ok(sharedDispatch);
+    const sharedCorrelation = readDispatchImageCorrelation(sharedDispatch.data); assert.ok(sharedCorrelation);
+    const sharedPins = await Promise.all(sharedControls.map(async control => {
+      const row = await store.load(WORK_DISPATCH_MODEL, asId(control.intentId)); assert.ok(row);
+      assert.equal(readDispatchRow(row).state, 'uncertain'); assert.equal(row.createdBy, user.user_id);
+      assert.deepEqual(readDispatchImageCorrelation(row.data), sharedCorrelation);
+      const pin = readDispatchImageControlPin(row.data); assert.ok(pin);
+      assert.equal(pin.originalIntentId, sharedOriginal.intentId);
+      assert.equal(pin.observationStartedAtMs, row.created);
+      assert.equal(pin.observationDeadlineMs - pin.observationStartedAtMs, maxObservationDurationMs);
+      assert.equal((await checkedReceipt(control)).status, 'unknown');
+      return pin;
+    }));
+    const sharedBefore = await checkedReceipt(sharedOriginal);
+    assert.equal(sharedBefore.status, 'unknown');
+    const sharedJob = await store.load(MODEL, asId(created.id)); assert.ok(sharedJob);
+    assert.deepEqual(sharedJob.data['request'], { id: sharedOriginal.intentId, operation: sharedOriginal.target });
+    const sharedHistory = await store.historyFor(MODEL, asId(created.id));
+    const sharedSchedules = await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' });
+    const sharedTransport = [prompts.length, cancellations.length, observations];
+    const sharedFileCount = files!.files.listAll().length;
+    mode = 'success';
+    const sharedFirstSweep = await recover();
+    const sharedSettled = sharedFirstSweep.reconciled.filter(item => sharedControls.some(control => control.intentId === item.intentId));
+    assert.equal(sharedSettled.length, 1); assert.equal(sharedSettled[0]!.state, 'delivered');
+    const sharedDeferred = sharedControls.find(control => control.intentId !== sharedSettled[0]!.intentId)!;
+    assert.ok(sharedFirstSweep.awaiting.includes(sharedDeferred.intentId));
+    assert.deepEqual([prompts.length, cancellations.length, observations],
+      [sharedTransport[0], sharedTransport[1], sharedTransport[2]! + 1]);
+    const sharedTerminalRow = await store.load(asModel(RECEIPT_MODEL), asId(sharedOriginal.intentId)); assert.ok(sharedTerminalRow);
+    const sharedTerminal = await checkedReceipt(sharedOriginal);
+    assert.equal(sharedTerminal.status, 'succeeded');
+    const sharedRun = sharedTerminal.result as unknown as ImageRunWire;
+    assert.equal(sharedRun.sequence, String(BigInt((sharedBefore.result as unknown as ImageRunWire).sequence) + 1n));
+    assert.equal(sharedRun.source, sharedCorrelation.requestSource); assert.equal(sharedRun.revision, sharedCorrelation.requestRevision);
+    assert.equal(sharedRun.state, 'succeeded'); assert.equal(sharedRun.charged_jobs, null);
+    assert.equal((await checkedReceipt(sharedDeferred)).status, 'unknown');
+    assert.equal(files!.files.listAll().length, sharedFileCount + 1);
+    assert.deepEqual(bindings.readBytes(sharedRun.outputs[0]!.image.id, receiver), PNG);
+    assert.deepEqual(bindings.readProvenance(sharedRun.outputs[0]!.image.id, receiver)?.provenance,
+      { kind: 'request', ...receiver, adapter: binding.deployment, deliveryId: sharedOriginal.intentId, resultPath: 'outputs/9/0' });
+    const sharedAssociationId = asId(associationRowId(MODEL, created.id, 'request'));
+    const sharedAssociation = await store.load(asModel(RECEIPT_ASSOCIATION_MODEL), sharedAssociationId); assert.ok(sharedAssociation);
+    const sharedLocator = readAssociationRow(sharedAssociation);
+    assert.equal(sharedLocator.deliveryId, sharedOriginal.intentId); assert.equal(sharedLocator.source, sharedOriginal.target);
+    assert.equal(sharedLocator.revision, sharedTerminal.revision);
+    assert.deepEqual(sharedLocator.locator, { recordId: created.id, field: 'request' });
+    const sharedAfterSchedules = await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' });
+    const sharedAddedSchedules = sharedAfterSchedules.filter(row => !sharedSchedules.some(before => before.id === row.id));
+    assert.equal(sharedAddedSchedules.length, 1);
+    const sharedOccurrence = readScheduleRow(sharedAddedSchedules[0]!);
+    assert.equal(sharedOccurrence.payload['delivery_id'], sharedOriginal.intentId);
+    assert.equal(sharedOccurrence.scopeApp, APP); assert.equal(sharedOccurrence.scopeOwner, team.team_id);
+    assert.deepEqual(await store.load(MODEL, asId(created.id)), sharedJob);
+    assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), sharedHistory);
+    const sharedObservationBudget = maxObservationDurationMs;
+    maxObservationDurationMs += 1_000; await reopen();
+    const sharedSecondTransport = [prompts.length, cancellations.length, observations];
+    const sharedSecondSweep = await recover();
+    assert.ok(sharedSecondSweep.reconciled.some(item => item.intentId === sharedDeferred.intentId && item.state === 'delivered'));
+    assert.ok(sharedSecondSweep.reconciled.some(item => item.intentId === sharedOriginal.intentId && item.state === 'delivered'));
+    assert.deepEqual([prompts.length, cancellations.length, observations], sharedSecondTransport);
+    assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(sharedOriginal.intentId)), sharedTerminalRow);
+    assert.deepEqual(await store.load(asModel(RECEIPT_ASSOCIATION_MODEL), sharedAssociationId), sharedAssociation);
+    assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), sharedAfterSchedules);
+    assert.deepEqual(await store.load(MODEL, asId(created.id)), sharedJob);
+    assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), sharedHistory);
+    for (const [index, control] of sharedControls.entries()) {
+      const row = await store.load(WORK_DISPATCH_MODEL, asId(control.intentId)); assert.ok(row);
+      assert.equal(readDispatchRow(row).state, 'delivered'); assert.equal(row.createdBy, user.user_id);
+      assert.deepEqual(readDispatchImageCorrelation(row.data), sharedCorrelation);
+      assert.deepEqual(readDispatchImageControlPin(row.data), sharedPins[index]);
+      assert.deepEqual((await checkedReceipt(control)).result, sharedTerminal.result);
+      assert.equal((await store.outboxGet(control.intentId))?.status, 'dispatched');
+    }
+    const sharedRetained = await store.outboxGet(sharedOriginal.intentId); assert.ok(sharedRetained);
+    assert.equal(sharedRetained.status, 'dispatched'); assert.deepEqual(sharedRetained.intent, sharedOriginal);
+    const sharedFinalDispatch = await store.load(WORK_DISPATCH_MODEL, asId(sharedOriginal.intentId)); assert.ok(sharedFinalDispatch);
+    assert.equal(sharedFinalDispatch.created, sharedDispatch.created);
+    assert.deepEqual(readDispatchImageCorrelation(sharedFinalDispatch.data), sharedCorrelation);
+    assert.equal(files!.files.listAll().length, sharedFileCount + 1);
+    maxObservationDurationMs = sharedObservationBudget; adapter = adapterFor(); dispatcher = await dispatcherFor();
 
     // The original can cross its queued admission boundary after the control
     // pin commits. A fresh checked read selects targeted observation instead
