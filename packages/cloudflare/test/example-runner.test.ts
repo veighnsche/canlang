@@ -12,8 +12,8 @@ describe("compiled example row expectations", () => {
     const artifact = {
       artifact_version: 1, language_version: "1.0", tool_version: "0.1.0",
       sources: [{ path: "Office.can", sha256: "a".repeat(64) }],
-      modules: [{ path: "app.mjs", js: "export {};", map: map("app.mjs") }],
-      callables: [], pages: [], requires: [],
+      modules: [{ path: "app.mjs", js: "export const appDefinition = {id:'Office',packages:{Office:{}}};", map: map("app.mjs") }],
+      callables: [], pages: [], requires: [], models: [{ name: "Office.Supply", fields: [], deleteMode: "archive" }],
       tests: [{ scope: "Office.Supply.update", fixtures: [], module: {
         path: "tests/row.mjs", map: map("tests/row.mjs"),
         js: `export function exampleFixtures({other}) {
@@ -34,12 +34,35 @@ describe("compiled example row expectations", () => {
       compatibilityDate: "2026-07-15", d1Binding: "DB",
       testkit: { loadExampleSuite, runTable, createReport, fixtureValuesOf },
       hooks: {
-        materializeFixtures: async ({ fixtures }) => ({ materialized: [], values: new Map(fixtures) }),
-        invoke: async ({ call }) => call.by === "outsider" ? { ok: false, error: "forbidden" } : { ok: true },
+        materializeFixtures: async ({ scope, fixtures }) => {
+          const owner = scope.currentTeamId;
+          expect(owner).not.toBeNull();
+          expect(scope.ownerStorage?.app).toBe("Office");
+          const currentDb = await scope.dev.getD1Database("CAN_EXAMPLE_STATE_CURRENT");
+          expect(await currentDb.prepare("SELECT app, owner FROM state_owner_pin").first())
+            .toMatchObject({ app: "Office", owner });
+          const identityDb = await scope.dev.getD1Database("DB");
+          expect(await identityDb.prepare("SELECT name FROM sqlite_master WHERE name = 'records'").first()).toBeNull();
+          const otherDb = await scope.dev.getD1Database("CAN_EXAMPLE_STATE_OTHER");
+          expect(await otherDb.prepare("SELECT name FROM sqlite_master WHERE name = 'state_owner_pin'").first()).toBeNull();
+          return { materialized: [], values: new Map(fixtures) };
+        },
+        invoke: async ({ call, identity }) => {
+          if (call.by === "outsider") {
+            expect(identity.team?.team_id).toBe(call.scope.currentTeamId);
+            expect(identity.membership).toBeNull();
+            expect(await call.scope.ownerStorage!.forIdentity(identity)).toBeDefined();
+            const otherDb = await call.scope.dev.getD1Database("CAN_EXAMPLE_STATE_OTHER");
+            expect(await otherDb.prepare("SELECT name FROM sqlite_master WHERE name = 'state_owner_pin'").first()).toBeNull();
+            return { ok: false, error: "forbidden" };
+          }
+          expect(await call.scope.ownerStorage!.forIdentity(identity)).toBeDefined();
+          return { ok: true };
+        },
         observeLive: async () => new Map(),
       },
     });
-    expect(result.ok).toBe(true);
+    expect(result.ok, JSON.stringify(result.report)).toBe(true);
     expect(result.executed).toBe(2);
     expect(result.report.cases[0]).toMatchObject({ kind: "table", rows: [
       { rowIndex: 0, outcome: "passed", caller: { account: "row-0-other" } },

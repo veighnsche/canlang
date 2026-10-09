@@ -13,6 +13,8 @@ export interface LocalRowScopeOptions {
   binaryModules?: Readonly<Record<string, Uint8Array>>;
   /** D1 binding the snapshotter reads. */
   d1Binding: string;
+  /** Additional physical stores for profiles with more than one owner. */
+  additionalD1Databases?: readonly { readonly binding: string; readonly id: string }[];
 }
 
 export interface LocalRowScope {
@@ -111,17 +113,28 @@ export async function createLocalRowScope(
   d1Id: string,
   options: LocalRowScopeOptions,
 ): Promise<LocalRowScope> {
+  const databases = [{ binding: options.d1Binding, id: d1Id }, ...(options.additionalD1Databases ?? [])];
+  if (databases.some(database => database.binding.length === 0 || database.id.length === 0) ||
+      new Set(databases.map(database => database.binding)).size !== databases.length ||
+      new Set(databases.map(database => database.id)).size !== databases.length) {
+    throw new Error("row scope: D1 bindings and physical IDs must be distinct and nonempty");
+  }
   const dev = await startLocalDev({
     workerName: options.workerName,
     compatibilityDate: options.compatibilityDate,
     mainModule: options.mainModule,
     modules: options.modules,
     ...(options.binaryModules !== undefined ? { binaryModules: options.binaryModules } : {}),
-    d1Databases: [{ binding: options.d1Binding, id: d1Id }],
+    d1Databases: databases,
   });
   return {
     dev,
-    snapshot: () => snapshotD1(dev, options.d1Binding),
+    snapshot: async () => {
+      if (databases.length === 1) return snapshotD1(dev, options.d1Binding);
+      const snapshots: Record<string, ReportValue> = {};
+      for (const database of databases) snapshots[database.binding] = await snapshotD1(dev, database.binding);
+      return snapshots;
+    },
     dispose: () => dev.dispose(),
   };
 }
