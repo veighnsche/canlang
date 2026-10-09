@@ -239,7 +239,7 @@ genuine live hook views and explicit reverse plans remain prerequisites;
 current compiler whole qualification is running. No remote publication or
 broader reference credit follows.
 
-**Current local compiler qualification, 2026-10-09.** Combined source and
+**Previous local compiler qualification, 2026-10-09.** Combined source and
 installed inputs at **279f6dad** pass **1,301 Rust tests, 0 failed, 0 ignored**,
 with Node **24.19.0**, exact draft **5a12eb9e**, actual catalog and required
 real completion engines. The sandbox's mode-4750 body skip is separately
@@ -251,18 +251,20 @@ actual LSP round-trip results are reused. Complete affected State unit
 inputs; canonical native rule activation/hooks and full applications remain
 unfinished. Original completion stays **58/67**, with **9 open** references.
 
-**Open saved-result disclosure prerequisite, 2026-10-09.** Capability's new
-notice requires a checked source dependency plan and complete nominal/model
-container inventory before saved scenario results can be disclosed safely.
-Direct-secret E4011 and current result type metadata do not prove data/control,
-derive or local-call provenance. State/Contracts owns the defining plan ABI,
-disclosure decisions and inventory completeness semantics; no exact release
-has reached this compiler worker. Compiler integration belongs at checked
-Effects/TypeTable anchors before IR loses Return identity, then at shared
-result/inventory publication. Dev owns evaluated row/field/reference capture
-and changed snapshots. This owner prerequisite does not release the separate
-BDD3 returned/as/live/context/disclosure/input policy hold. No speculative
-result API or broader completion is claimed.
+**Unfinished saved-result disclosure join, 2026-10-09.** Exact Capability
+**7132e243** State/Contracts source and permanent Memory/durable tests are
+consumed without foreign records. Version1 binds operation, return and read
+source paths/digests/modules; actual selected paths and awaited observations
+belong to State's branded admitted call and registered store. Nonempty query/
+absence influences and incomplete nominal/model/container lifetimes refuse.
+Owning build **6/6** and consuming ordinary-contract native **2/2** pass; the
+owner's unchanged **47 Memory/preservation + 2 D1/SQLite-DO reopen** results are
+reused at their exact release scope. The one intake import conflict retains
+only the new receipt imports, preserving this branch's field constraints.
+Compiler complete return-closure/path analysis and artifact/native markers are
+being implemented. Dev owns the genuine native context/row/registered-store
+bridge and lifetime. No source/native workflow, broader reference or separate
+BDD3 returned/as/live/context/disclosure/input policy release follows.
 
 **Unfinished native activation — generated CRUD owner entry, 2026-10-09.**
 Exact local Capability **7df9683e** source/test unit is consumed. Generated CRUD
@@ -306,6 +308,63 @@ Owning build **6/6** and generated CRUD **17/17** pass with zero skips. This
 completes the defining entry prerequisite; native adaptation and hook/live-view
 production remain with their recorded owners. Final compiler qualification
 uses these current installed inputs.
+
+**Related ordinary contract consumer — private event ABI, 2026-10-09.**
+The next whole run exposed the schedule fixture's old unsupported assumption
+for a closed ordinary Packet contract. Its private invocation now asserts the
+exact owning nominal descriptor and validates the actual emitted event/contract
+schema through Values before invoking the generated handler. Missing, extra and
+malformed nested fields refuse; a model-containing contract retains whole
+private-descriptor omission. Owning schedule target **2/2** passes. Original
+package identity, once/order, schedule/cancel and later-failure controls remain.
+This is callable ABI qualification using declared host doubles, not persistence
+or fabricated canonical admission. Final combined qualification follows the
+coordinator's released local integration baseline.
+
+**Current combined compiler qualification and unfinished native consumer, 2026-10-09.**
+Shared baseline **2640a9f9** is consumed at **cd4d42bb**. The actual full compiler
+suite passes **1,303/1,303**, zero failed/ignored, with Node **24.19.0**, required
+real completion engines and unchanged exact draft **5a12eb9e**. Current strict
+all-target Clippy and formatting pass. The unchanged exact mode-4750 outside-
+sandbox case and editor/client/LSP results are reused at their recorded scope.
+Required post-merge file-tree registration is reconciled without advancing the
+complete checkpoint. Existing Decimal literal lowering and static date/time
+partition already satisfy their compiler leaves; timezone release qualification
+remains Values/runtime-owned, with no repeated checks or new reference credit.
+
+The native policy fixture now selects the defining Cloudflare runtime stdlib,
+which supplies genuine context-bound CRUD helpers. Actual Values WASM, package
+and Testkit builds followed by catalog generation refresh stale installed inputs
+without a tracked generated-output change. Actual source compilation/assembly
+then reaches all three native cases, but all **3 fail before policy execution**:
+Vitest rewrites the generated `canApp` namespace export as accessor metadata,
+which the strict runtime correctly refuses. This fixture failure does not qualify
+production policy behavior. Dev reports a real Node replacement and native
+activation unit; exact reviewed source intake and its affected Node cases remain
+due. No passing rule activation, rejection receipt or fence change is claimed. Original
+**58/67**, nine open references, BDD3 and outbox holds remain unchanged.
+
+**Reviewed native activation intake, 2026-10-09.** Coordinator-released
+local main **fdd03cb7** supplies the actual owner-session producer, real Node
+fixture, complete portable State subpath mapping and cache/whole JS-map closure
+revalidation. It replaces the Vitest fixture without relaxing accessor refusal.
+Owning dependency/Cloudflare/Testkit build **24/24** and the actual Node
+native target **6/6**, zero skips, pass on this compiler branch. The release's
+**6/6** covers original behavior plus copied/swapped/changed-assembly zero-commit
+refusals. Preserve the separate saved-result ABI intake and unfinished private
+marker bridge, hook carriers, BDD3 and outbox holds. No unchanged Rust rerun or
+broader reference credit follows this exact source intake.
+
+**Direct bounded-alias input correction, 2026-10-09.** Scenario input
+publication now consumes the existing checked alias identity instead of widening
+it to text. The descriptor's nominal field and wrapped `valueType` refer to the
+same owning inventory; required, nullable, defaulted and array input behavior
+is preserved. Missing/dangling alias identity omits the whole operation.
+Actual checked/IR and CLI→installed State/Interfaces intake plus bounded Values
+codec **2/2** pass, including empty/bad-name/81-character refusals. Owning codegen
+**121/121**, current strict all-target Clippy and formatting pass. Packages owns
+the complete CSV consumer workflow; no fabricated consumer descriptor or new
+alias identity map is introduced. Original reference counts remain unchanged.
 
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
