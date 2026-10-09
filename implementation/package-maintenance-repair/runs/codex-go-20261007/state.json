@@ -4305,8 +4305,8 @@
         "owner": "Packages consumes coordinator CI handoff; Dev owns six Cloudflare consumer bypasses"
       },
       {
-        "prerequisite": "After catalog setup, original e2e retained pilots still need published draft 5a12eb9e plus owning workflow initialization; patched pilot has unresolved active_member/datetime/preferences and Given/Then profile mismatch. Handbuilt TeamTasks guard refuses current source 004a2b8e5c78 vs witness 78020054ba06: owning actual source/fixture correspondence required, no hash-only bypass.",
-        "owner": "Draft publisher/coordinator and exact retained e2e pilot/handbuilt producer owners"
+        "prerequisite": "Retained compiled pilots require tracked draft5a12eb9e publication and owning source profiles (active_member/datetime/preferences/Given-Then). TeamTasks fixture correspondence reviewed; actual loader now needs public Identity transitive dependency closure (@scure/base), repair in progress.",
+        "owner": "Draft publisher/coordinator and exact retained pilot producer owners; Packages fixture loader consumer"
       }
     ],
     "review_prerequisite": {
@@ -4333,6 +4333,11 @@
       "status": "implemented and affected validation passed",
       "input": "State test owns byte-exact NumericControl source/artifact fixture copies; validates retained producer source hash before all unchanged typed metadata assertions. Original compiler provenance remains unchanged.",
       "validation": "Owning State TypeScript build passes; released NumericControl artifact retains integer metadata and unknown legacy result passes1/1. Full guard assessed after exact coordinator release."
+    },
+    "teamtasks_fixture_gate": {
+      "status": "unfinished checkpoint; source correspondence reviewed, consumer validation fails",
+      "input": "Compared prior a4b52d51 source against current004a2b8e: only verbatim TeamTasks.view and TeamNotes.show_content declarations relocate Given to Then; all fixture-covered records/policies/CRUD/pages unchanged. Honest source witness/comment updated; no preference/Notes/Office completeness claim.",
+      "validation": "Existing15 scaffold/TeamTasks/MCP cases reach real Worker startup:6setup failures/9not-run from missing vendor/identity/sessions/@scure/base imported by actual Identity tokens. Owning fixture-loader dependency closure repair in progress; no passed app claim."
     }
   }
 }
