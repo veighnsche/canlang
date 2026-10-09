@@ -1,0 +1,55 @@
+{
+  "request": {
+    "state": "We need the defining correlation and timing contracts for the existing single-attempt Images stop/reconcile workflow, preserving all original outcomes. Source facts: frozen CanCreative submits a full ImageRequest keyed by its own business source and integer revision, and later commits separate cancel/reconcile requests with that pair; it does not expose an intent/job ID. Owning runtime already admits the declared capability route and exact wire inputs via Values. Work stores original typed request/outbox and dispatch metadata in one receipt fence, including original actor attribution/timestamp/operation ID/capability target/ordinal, but there is no checked index from business source+revision+binding to that dispatch. Existing receipt checkpoint numbers cannot supply request revisions. New exact retained outbox reads preserve acknowledged/skipped entries; backend owner queries can filter flat existing dispatch JSON and limit results, while nested carrier scans lack support. The installed actual Comfy graph adapter reproduces the original UUID job from its exact retained intent, never submits a replacement during observation, and currently uses one original created-time generation deadline for submit and for both cleanup methods. Late GPU success is possible beyond it. Cancellation knowledge and cost remain uncertain unless observed; output provenance stays attached to original principal/attempt; live cleanup authority/fences must be rechecked. Missing/ambiguous/foreign/stale/replaced correlations fail closed. Complete protocol still owes before-dispatch skip, after-acceptance targeted cancel, repeated/refused stop, late result, immutable receipts, restart and no premature refund. No option can use a guessed operation ID, a test locator callback or an expired execution timer to fake observation. Compare implementation and maintenance costs at identical full workflow requirements; consultations supply advice, not acceptance.",
+    "questions": {
+      "correlation": {
+        "type": "choice",
+        "instructions": "Choose the least costly complete original-attempt correlation design, with precise refusal and producer duties.",
+        "criteria": {
+          "retained_dispatch_fields": "Persist immutable Values-checked business source/canonical request revision/exact binding/from/app/owner on the existing original Work dispatch row during true submit staging. Resolve flat bounded exact lookup (zero or multiple refuses), then verify original retained carrier/deterministic identity/principal/current authority. No separate table, but all row lifecycle writers/readers and old-row refusal must preserve new facts.",
+          "dedicated_correlation_row": "Persist a separate Work correlation row keyed by canonical scope+binding+source+revision and pointing to exact original dispatch. Atomic producer/unique/migration/retention and every consumer must maintain both records; bounded lookup is simple but adds durable state and conflict lifecycle.",
+          "checked_source_locator": "Extend Compiler/native context with a checked hidden original delivery locator bound to the actual owning business record/field, retaining source+revision+binding/owner checks. Avoid request-key index but demands source proof for primitive control signatures and original field replacement, plus complete compiler/context/consumer work; nearest-record or fixture inference is forbidden."
+        }
+      },
+      "observation_budget": {
+        "type": "choice",
+        "instructions": "Choose timing semantics that permit truthful late cleanup while retaining original execution and bounded total work.",
+        "criteria": {
+          "per_control_retained_budget": "Keep original generation deadline immutable. Each admitted control or recovery observation has its own fixed persisted start+installation-capped finite observation deadline, shared across all HTTP/download steps and retries. Observation after generation expiry is permitted only on the retained original job; no submit/renewal/refund. Requires control-time binding and policy contract.",
+          "original_fixed_grace": "Keep generation deadline and add a fixed installation-defined grace horizon from original deadline for observation/cancel. Time beyond grace refuses as unknown; all within-horizon requests share remaining finite budget. Simple original timestamp bookkeeping but may prevent very late successful recovery.",
+          "bounded_rpc_until_retention": "Keep generation deadline for execution and independently cap each cleanup RPC/transport under existing retry/receipt-retention limits, allowing renewed observation budgets on retries until retention ends. Offers prolonged recovery but requires explicit complete retry/horizon accounting and permits more cumulative work than one fixed logical observation."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "correlation": {
+        "type": "choice",
+        "choice": "retained_dispatch_fields",
+        "confidence": 0.98,
+        "probabilities": {
+          "retained_dispatch_fields": 0.99,
+          "dedicated_correlation_row": 0.01,
+          "checked_source_locator": 0.0
+        }
+      },
+      "observation_budget": {
+        "type": "choice",
+        "choice": "per_control_retained_budget",
+        "confidence": 0.94,
+        "probabilities": {
+          "per_control_retained_budget": 0.96,
+          "original_fixed_grace": 0.02,
+          "bounded_rpc_until_retention": 0.02
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 1162,
+      "output_tokens": 107
+    }
+  }
+}

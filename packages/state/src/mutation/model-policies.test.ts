@@ -1,13 +1,15 @@
 /** Native policy ABI and real owner-session controls; no compiler/source acceptance claim. */
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { OWNER_MODEL_POLICY_BINDINGS_MEMBER } from '@canlang/contracts';
+import { loadArtifactDescriptors, type ArtifactDescriptorSlice } from '../invocation/registry.js';
 import type { CanonicalOwnerModelPolicies, DeleteMode, StoragePort } from '@canlang/contracts';
 import { StateError } from '../errors.js';
 import { createTestMemoryStorage } from '../storage/memory.js';
 import { asId, asModel, asOperation, makeBatch, seedRow } from '../../test/invocation/fixtures.js';
 import { field, modelDef, pipelineContext } from '../../test/mutation/fixtures.js';
 import { buildModelTable } from './models.js';
-import { bindOwnerModelPolicies, type OwnerModelPolicyBinding } from './model-policies.js';
+import { bindArtifactOwnerModelPolicies, bindOwnerModelPolicies, type OwnerModelPolicyBinding } from './model-policies.js';
 import { beginOwnerMutation, type MutationWritesResult } from './pipeline.js';
 
 const ITEM = asModel('Policies.Item'), LIMIT = asModel('Policies.Limit'), CHILD = asModel('Policies.Child');
@@ -305,5 +307,86 @@ describe('native rules through the actual owner mutation session', () => {
     await session.stage({ op: 'update', model: LIMIT, id: asId('cap'), data: { cap: 2 } }, { cause: 'scenario' });
     await assert.rejects(session.finalize(), isStateError('validation', /accessor/));
     assert.equal(reads, 0); assert.equal(evaluated, 0);
+  });
+});
+
+
+function transportedPolicyArtifact(): ArtifactDescriptorSlice {
+  return { artifact_version: 1,
+    models: [{ name: ITEM, deleteMode: 'remove', fields: [{ name: 'amount', field: { kind: 'integer' }, required: false, serverOnly: false }] }],
+    operations: [], modules: [{ path: identity.module, js: '/* Metadata test inventory: this loader does not evaluate module bytes. */',
+      map: { version: 3, file: identity.module, sources: ['Policies.can'], sourcesContent: [''], names: [], mappings: '' } }],
+    modelPolicies: [descriptor([{ kind: 'invariant', id: 'nonnegative', dependencies: [] }])] };
+}
+function transportedPolicyInput() {
+  return { artifact: loadArtifactDescriptors(transportedPolicyArtifact(), { by: 'public' }), table: tableFor(),
+    modules: [{ path: identity.module, registry: { [OWNER_MODEL_POLICY_BINDINGS_MEMBER]: [
+      predicate('nonnegative', 'invariant', (_context, row) => typeof row.data.amount === 'number' && row.data.amount >= 0),
+    ] } }] };
+}
+
+describe('source-verified module policy transport', () => {
+  it('binds loaded claims through the private checked path and enforces the actual owner transaction', async () => {
+    const input = transportedPolicyInput();
+    input.modules.push({ path: 'unrelated.mjs', registry: { [OWNER_MODEL_POLICY_BINDINGS_MEMBER]: [] } });
+    const policies = bindArtifactOwnerModelPolicies(input);
+    assert.ok(policies);
+    const { store } = createTestMemoryStorage();
+    const begin = () => beginOwnerMutation({ table: input.table, store, context: context(), bounds: { maxWork: 100, maxRows: 10 }, policies });
+    const rejected = await begin();
+    await rejected.stage({ op: 'create', model: ITEM, id: asId('negative'), data: { amount: -1 } }, { cause: 'scenario' });
+    await assert.rejects(rejected.finalize(), isStateError('rule_failed'));
+    assert.equal(await store.load(ITEM, asId('negative')), null);
+    const accepted = await begin();
+    await accepted.stage({ op: 'create', model: ITEM, id: asId('positive'), data: { amount: 2 } }, { cause: 'scenario' });
+    await commit(store, await accepted.finalize());
+    assert.equal((await store.load(ITEM, asId('positive')))!.data.amount, 2);
+  });
+
+  it('preserves absent legacy metadata but refuses unclaimed native bindings', () => {
+    const input = transportedPolicyInput();
+    const legacy = transportedPolicyArtifact(); delete legacy.modelPolicies;
+    input.artifact = loadArtifactDescriptors(legacy, { by: 'public' });
+    assert.throws(() => bindArtifactOwnerModelPolicies(input), isStateError('validation', /Unclaimed/));
+    input.modules[0]!.registry.modelPolicyBindings = [];
+    assert.equal(bindArtifactOwnerModelPolicies(input), undefined);
+  });
+
+  it('refuses missing, duplicated, unlinked, foreign and malformed native transport identities', () => {
+    const mutations: Array<(input: any) => void> = [
+      x => { x.modules = []; }, x => { x.modules.push(x.modules[0]); },
+      x => { x.modules[0].path = 'Policies'; },
+      x => { x.modules[0].registry.modelPolicyBindings = []; },
+      x => { x.modules[0].registry.modelPolicyBindings = null; },
+      x => { x.modules[0].registry.modelPolicyBindings = undefined; },
+      x => { const b = x.modules[0].registry.modelPolicyBindings; b.push(b[0]); },
+      x => { x.modules[0].registry.modelPolicyBindings[0].id = 'unlinked'; },
+      x => { x.modules[0].registry.modelPolicyBindings[0].ownerPackage = 'Foreign'; },
+      x => { x.modules[0].registry.modelPolicyBindings[0].model = LIMIT; },
+      x => { x.modules[0].registry.modelPolicyBindings[0].kind = 'lock'; },
+      x => { x.modules[0].registry.modelPolicyBindings[0].evaluate = false; },
+      x => { x.modules[0].registry = Object.create(x.modules[0].registry); },
+      x => { x.artifact = Object.assign(Object.create({ modelPolicies: x.artifact.modelPolicies }), { registry: x.artifact.registry }); },
+    ];
+    for (const mutate of mutations) {
+      const input = transportedPolicyInput(); mutate(input);
+      assert.throws(() => bindArtifactOwnerModelPolicies(input), isStateError('validation'));
+    }
+  });
+
+  it('never evaluates transport, array or callback getters during binding', () => {
+    const paths: Array<Array<string | number>> = [
+      ['artifact', 'modelPolicies'], ['modules', 0], ['modules', 0, 'registry'],
+      ['modules', 0, 'registry', OWNER_MODEL_POLICY_BINDINGS_MEMBER],
+      ['modules', 0, 'registry', OWNER_MODEL_POLICY_BINDINGS_MEMBER, 0, 'evaluate'],
+    ];
+    let reads = 0;
+    for (const path of paths) {
+      const input = transportedPolicyInput(); let target: any = input;
+      for (const key of path.slice(0, -1)) target = target[key];
+      Object.defineProperty(target, path.at(-1)!, { enumerable: true, get() { reads++; throw new Error('getter executed'); } });
+      assert.throws(() => bindArtifactOwnerModelPolicies(input), isStateError('validation'));
+    }
+    assert.equal(reads, 0);
   });
 });

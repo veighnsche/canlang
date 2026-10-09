@@ -2,6 +2,8 @@
 import type {
   CanonicalOwnerModelPolicies, InvocationContext, ModelName, QuerySpec, RecordId, StoredRow,
 } from '@canlang/contracts';
+import { OWNER_MODEL_POLICY_BINDINGS_MEMBER } from '@canlang/contracts';
+import type { LoadedArtifactDescriptors } from '../invocation/registry.js';
 import { StateError } from '../errors.js';
 import { deepFreeze, getDataPath } from '../internal/own-data.js';
 import type { InterimHook, InterimHookContext, ModelTable } from './models.js';
@@ -66,7 +68,7 @@ function text(value: unknown, what: string): string {
   return typeof value === 'string' && value !== '' ? value : fail(`Invalid ${what}.`);
 }
 function list(value: unknown, what: string): readonly unknown[] {
-  if (!Array.isArray(value)) return fail(`Invalid ${what}.`);
+  if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) return fail(`Invalid ${what}.`);
   for (let i = 0; i < value.length; i++) {
     const descriptor = Object.getOwnPropertyDescriptor(value, String(i));
     if (descriptor === undefined || !('value' in descriptor)) return fail(`Invalid ${what} element.`);
@@ -83,6 +85,120 @@ function equal(a: unknown, b: unknown): boolean {
 }
 function frozen<T>(value: T): T { return deepFreeze(structuredClone(value)); }
 
+/** Metadata-only validation shared by artifact loading and native binding.
+ * No callback executes and no missing dependency plan is inferred. */
+export function checkOwnerModelPolicyDescriptors(input: {
+  readonly descriptors: unknown;
+  readonly models: ReadonlyMap<ModelName, { readonly fields: Readonly<Record<string, unknown>> }>;
+  /** Exact emitted production module inventory, required by an artifact claim. */
+  readonly modules?: readonly string[];
+}): readonly CanonicalOwnerModelPolicies[] {
+  const modulePaths = input.modules === undefined ? undefined : new Set<string>();
+  if (modulePaths !== undefined) for (const path of list(input.modules, 'policy module inventory')) {
+    const name = text(path, 'policy module path');
+    if (modulePaths.has(name)) return fail('Duplicate policy module path.');
+    modulePaths.add(name);
+  }
+  const models = new Set<string>(), links = new Set<string>();
+  const link = (value: unknown, what: string): string => {
+    const id = text(value, what);
+    if (links.has(id)) return fail('Duplicate model-policy link.');
+    links.add(id); return id;
+  };
+  const descriptors = list(input.descriptors, 'model policies').map(raw => {
+    const d = object(raw, ['abi', 'model', 'ownerPackage', 'module', 'rules', 'hooks'], 'model policy');
+    if (d.abi !== 'state.owner-model-policies@1') return fail('Unsupported model-policy ABI.');
+    const model = text(d.model, 'policy model') as ModelName;
+    const def = input.models.get(model);
+    if (def === undefined || models.has(model)) return fail('Unknown or duplicate policy model.');
+    models.add(model);
+    const module = text(d.module, 'policy module'), ownerPackage = text(d.ownerPackage, 'policy package');
+    if (model.slice(0, model.lastIndexOf('.')) !== ownerPackage) return fail('Policy package disagrees with its canonical owning model.');
+    if (modulePaths !== undefined && !modulePaths.has(module)) return fail('Policy module is not an emitted production module.');
+    const rules: CanonicalOwnerModelPolicies['rules'][number][] = list(d.rules, 'policy rules').map(rawRule => {
+      const r = object(rawRule, ['kind', 'id', 'fields', 'dependencies'], 'policy rule');
+      const id = link(r.id, 'policy rule id');
+      if (r.kind === 'lock') {
+        if (Object.hasOwn(r, 'dependencies')) return fail('Lock carries invariant dependencies.');
+        const fields = list(r.fields, 'locked fields').map(field => text(field, 'locked field'));
+        if (fields.length === 0 || new Set(fields).size !== fields.length || fields.some(field => !Object.hasOwn(def.fields, field))) return fail('Unknown or duplicate locked field.');
+        return { kind: 'lock', id, fields };
+      }
+      if (r.kind !== 'invariant') return fail('Unknown model-policy rule.');
+      if (Object.hasOwn(r, 'fields')) return fail('Invariant carries locked fields.');
+      const dependencies = list(r.dependencies, 'rule dependencies').map(rawDependency => {
+        const dep = object(rawDependency, ['id', 'model', 'maxTargets'], 'rule dependency');
+        const dependencyModel = text(dep.model, 'dependency model') as ModelName;
+        if (!input.models.has(dependencyModel)) return fail('Unknown dependency model.');
+        if (!Number.isSafeInteger(dep.maxTargets) || (dep.maxTargets as number) < 1) return fail('Invalid dependency work bound.');
+        return { id: link(dep.id, 'dependency selector id'), model: dependencyModel, maxTargets: dep.maxTargets as number };
+      });
+      return { kind: 'invariant', id, dependencies };
+    });
+    const hooks: CanonicalOwnerModelPolicies['hooks'][number][] = list(d.hooks, 'model hooks').map(rawHook => {
+      const h = object(rawHook, ['id', 'op', 'operation'], 'model hook');
+      const id = link(h.id, 'hook id');
+      if (h.op !== 'create' && h.op !== 'update' && h.op !== 'remove') return fail('Unknown CRUD hook trigger.');
+      const operation = text(h.operation, 'CRUD hook operation');
+      if (operation !== `${model}.${h.op === 'remove' ? 'delete' : h.op}`) return fail('Hook disagrees with its canonical CRUD trigger.');
+      return { id, op: h.op, operation: operation as CanonicalOwnerModelPolicies['hooks'][number]['operation'] };
+    });
+    return { abi: 'state.owner-model-policies@1' as const, model, ownerPackage, module, rules, hooks };
+  });
+  return frozen(descriptors);
+}
+
+/** Dev's existing loader verifies source and module-byte correspondence before
+ * supplying a canApp() registry, including its existing native adaptation of
+ * verified invocation context and hydrated rows. OwnerRuleContext/StoredRow are
+ * not generated Can(c,row) arguments. State checks this transport, not loaded bytes;
+ * lookup grants neither callback nor row authority. Unrelated modules are allowed. */
+export interface SourceVerifiedOwnerModelPolicyModule {
+  readonly path: string;
+  readonly registry: unknown;
+}
+
+/** Join loaded immutable JSON claims to their exact module-local native ABI. */
+export function bindArtifactOwnerModelPolicies(input: {
+  readonly artifact: LoadedArtifactDescriptors;
+  readonly table: ModelTable;
+  readonly modules: readonly SourceVerifiedOwnerModelPolicyModule[];
+}): CheckedOwnerModelPolicies | undefined {
+  object(input, ['artifact', 'table', 'modules'], 'model-policy transport');
+  if (typeof input.artifact !== 'object' || input.artifact === null || Array.isArray(input.artifact)) return fail('Invalid loaded model-policy artifact.');
+  const claim = Object.getOwnPropertyDescriptor(input.artifact, 'modelPolicies');
+  if (claim === undefined && 'modelPolicies' in input.artifact) return fail('Inherited model-policy claim.');
+  if (claim !== undefined && !('value' in claim)) return fail('Invalid model-policy claim accessor.');
+  const descriptors = claim === undefined ? undefined : checkOwnerModelPolicyDescriptors({ descriptors: claim.value, models: input.table });
+  const paths = new Set<string>(), bindings: OwnerModelPolicyBinding[] = [];
+  for (const raw of list(input.modules, 'source-verified policy modules')) {
+    const module = object(raw, ['path', 'registry'], 'source-verified policy module');
+    const path = text(module.path, 'source-verified module path');
+    if (paths.has(path)) return fail('Duplicate source-verified module path.');
+    paths.add(path);
+    const registry = module.registry;
+    if (typeof registry !== 'object' || registry === null || Array.isArray(registry)
+      || (Object.getPrototypeOf(registry) !== Object.prototype && Object.getPrototypeOf(registry) !== null)) return fail('Invalid source-verified canApp registry.');
+    const carrier = Object.getOwnPropertyDescriptor(registry, OWNER_MODEL_POLICY_BINDINGS_MEMBER);
+    if (carrier === undefined) {
+      if (OWNER_MODEL_POLICY_BINDINGS_MEMBER in registry) return fail('Inherited native model-policy bindings.');
+      continue;
+    }
+    if (!('value' in carrier)) return fail('Invalid native model-policy bindings accessor.');
+    for (const rawBinding of list(carrier.value, 'native model-policy bindings')) {
+      const binding = object(rawBinding, ['id', 'module', 'ownerPackage', 'model', 'kind', 'evaluate', 'select', 'run'], 'native binding');
+      if (binding.module !== path) return fail('Native binding disagrees with its emitted module path.');
+      bindings.push(binding as unknown as OwnerModelPolicyBinding);
+    }
+  }
+  if (descriptors === undefined) {
+    if (bindings.length !== 0) return fail('Unclaimed native model-policy binding.');
+    return undefined;
+  }
+  checkOwnerModelPolicyDescriptors({ descriptors, models: input.table, modules: [...paths] });
+  return bindOwnerModelPolicies({ table: input.table, descriptors, bindings });
+}
+
 /**
  * Loader boundary: metadata and owning callbacks must correspond exactly.
  * The host binds only compiler-checked pure exports; this loader neither
@@ -93,6 +209,7 @@ export function bindOwnerModelPolicies(input: {
   readonly descriptors: readonly CanonicalOwnerModelPolicies[];
   readonly bindings: readonly OwnerModelPolicyBinding[];
 }): CheckedOwnerModelPolicies {
+  object(input, ['table', 'descriptors', 'bindings'], 'model-policy binding input');
   const bindingMap = new Map<string, OwnerModelPolicyBinding>();
   for (const raw of list(input.bindings, 'native bindings')) {
     const b = object(raw, ['id', 'module', 'ownerPackage', 'model', 'kind', 'evaluate', 'select', 'run'], 'native binding');
@@ -103,68 +220,28 @@ export function bindOwnerModelPolicies(input: {
     if (typeof b[member] !== 'function' || ['evaluate', 'select', 'run'].some(key => key !== member && Object.hasOwn(b, key))) return fail('Invalid native binding function.');
     bindingMap.set(id, Object.freeze({ ...b }) as unknown as OwnerModelPolicyBinding);
   }
-  const used = new Set<string>(), models = new Set<string>();
-  const descriptors: CanonicalOwnerModelPolicies[] = [];
+  const descriptors = checkOwnerModelPolicyDescriptors({ descriptors: input.descriptors, models: input.table });
+  const used = new Set<string>();
   const hooks = new Map<ModelName, readonly InterimHook[]>();
   const link = (id: string, kind: OwnerModelPolicyBinding['kind'], descriptor: CanonicalOwnerModelPolicies): OwnerModelPolicyBinding => {
-    if (used.has(id)) return fail('Duplicate model-policy link.');
     const binding = bindingMap.get(id);
     if (binding === undefined || binding.kind !== kind || binding.module !== descriptor.module || binding.ownerPackage !== descriptor.ownerPackage || binding.model !== descriptor.model) return fail('Model-policy link disagrees with its owning native binding.');
     used.add(id); return binding;
   };
-  for (const raw of list(input.descriptors, 'model policies')) {
-    const d = object(raw, ['abi', 'model', 'ownerPackage', 'module', 'rules', 'hooks'], 'model policy');
-    if (d.abi !== 'state.owner-model-policies@1') return fail('Unsupported model-policy ABI.');
-    const model = text(d.model, 'policy model') as ModelName;
-    const def = input.table.get(model);
-    if (def === undefined || models.has(model)) return fail('Unknown or duplicate policy model.');
-    models.add(model);
-    text(d.module, 'policy module'); text(d.ownerPackage, 'policy package');
-    // Validate data before copying it, so accessors never execute at load.
-    const descriptor = { abi: d.abi, model, ownerPackage: d.ownerPackage, module: d.module, rules: [], hooks: [] } as unknown as CanonicalOwnerModelPolicies;
-    const rules: CanonicalOwnerModelPolicies['rules'][number][] = [];
-    for (const rawRule of list(d.rules, 'policy rules')) {
-      const r = object(rawRule, ['kind', 'id', 'fields', 'dependencies'], 'policy rule');
-      const id = text(r.id, 'policy rule id');
-      if (r.kind === 'lock') {
-        if (Object.hasOwn(r, 'dependencies')) return fail('Lock carries invariant dependencies.');
-        const fields = list(r.fields, 'locked fields').map(field => text(field, 'locked field'));
-        if (fields.length === 0 || new Set(fields).size !== fields.length || fields.some(field => !Object.hasOwn(def.fields, field))) return fail('Unknown or duplicate locked field.');
-        link(id, 'lock', descriptor); rules.push({ kind: 'lock', id, fields });
-      } else if (r.kind === 'invariant') {
-        if (Object.hasOwn(r, 'fields')) return fail('Invariant carries locked fields.');
-        link(id, 'invariant', descriptor);
-        const dependencies = list(r.dependencies, 'rule dependencies').map(rawDependency => {
-          const dep = object(rawDependency, ['id', 'model', 'maxTargets'], 'rule dependency');
-          const dependencyModel = text(dep.model, 'dependency model') as ModelName;
-          if (!input.table.has(dependencyModel)) return fail('Unknown dependency model.');
-          if (!Number.isSafeInteger(dep.maxTargets) || (dep.maxTargets as number) < 1) return fail('Invalid dependency work bound.');
-          const dependencyId = text(dep.id, 'dependency selector id');
-          link(dependencyId, 'dependency', descriptor);
-          return { id: dependencyId, model: dependencyModel, maxTargets: dep.maxTargets as number };
-        });
-        rules.push({ kind: 'invariant', id, dependencies });
-      } else return fail('Unknown model-policy rule.');
+  for (const descriptor of descriptors) {
+    for (const rule of descriptor.rules) {
+      link(rule.id, rule.kind, descriptor);
+      if (rule.kind === 'invariant') for (const dependency of rule.dependencies) link(dependency.id, 'dependency', descriptor);
     }
-    const modelHooks: InterimHook[] = [];
-    const hookDescriptors: CanonicalOwnerModelPolicies['hooks'][number][] = [];
-    for (const rawHook of list(d.hooks, 'model hooks')) {
-      const h = object(rawHook, ['id', 'op', 'operation'], 'model hook');
-      const id = text(h.id, 'hook id');
-      if (h.op !== 'create' && h.op !== 'update' && h.op !== 'remove') return fail('Unknown CRUD hook trigger.');
-      const operation = text(h.operation, 'CRUD hook operation');
-      const expected = `${model}.${h.op === 'remove' ? 'delete' : h.op}`;
-      if (operation !== expected) return fail('Hook disagrees with its canonical CRUD trigger.');
-      const binding = link(id, 'hook', descriptor);
+    const modelHooks = descriptor.hooks.map(hook => {
+      const binding = link(hook.id, 'hook', descriptor);
       if (binding.kind !== 'hook') return fail('Invalid CRUD hook binding.');
-      modelHooks.push(Object.freeze({ name: id, ops: Object.freeze([h.op] as const), run: (candidate: Record<string, unknown>, context: InterimHookContext) => {
+      return Object.freeze({ name: hook.id, ops: Object.freeze([hook.op]), run: (candidate: Record<string, unknown>, context: InterimHookContext) => {
         assertOwnerMutationHookContext(context);
         return binding.run(candidate, context);
-      } }));
-      hookDescriptors.push({ id, op: h.op, operation: operation as CanonicalOwnerModelPolicies['hooks'][number]['operation'] });
-    }
-    descriptors.push(frozen({ ...descriptor, rules, hooks: hookDescriptors }));
-    hooks.set(model, Object.freeze(modelHooks));
+      } });
+    });
+    hooks.set(descriptor.model, Object.freeze(modelHooks));
   }
   if (used.size !== bindingMap.size) return fail('Unlinked native model-policy binding.');
   const predicate = async (id: string, row: StoredRow, views: OwnerModelPolicyViews, mode: 'entry' | 'final'): Promise<boolean> => {

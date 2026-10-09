@@ -130,7 +130,9 @@ after(async () => {
 });
 
 async function d1Setup(): Promise<ConformanceSetup> {
-  return { store: createD1Storage(db), reset: resetD1, probe: d1Probe() };
+  return { store: createD1Storage(db), reset: resetD1, probe: d1Probe(),
+    reopen: async () => { await ensureSchema(db); return createD1Storage(db); },
+  };
 }
 
 storageConformance('d1', d1Setup);

@@ -13,6 +13,12 @@ import {
   maintainFanoutNavigationCanonical, runRetainedFanoutSchedulerTurn, T34F7_FANOUT_CHECKPOINT_MODEL,
 } from './invoke.js';
 
+// The retained driver reads one release page and one navigation page. Frozen
+// source bounds may be larger than this installation's per-turn budget; cap
+// transport and admission slices without changing membership or its cutoff.
+const RETAINED_CHILD_QUERY_BUDGET = 200;
+const INSTALLED_SLICE_LIMIT = RETAINED_CHILD_QUERY_BUDGET / 2;
+
 /** One selected team, one bounded slice; no owner discovery or global store. */
 export async function createBoundCohortTick(input: {
   readonly artifact: CompileArtifact;
@@ -57,7 +63,8 @@ export async function createBoundCohortTick(input: {
       if (handler === undefined) throw new Error('Cohort tick due event has no declared handler.');
       outputs.push(await invokeDueSourceRoutingCanonical({ artifact, asm, app: scope.app, handler,
         due: { key: source.key, at: source.at, event: source.event, occurrenceId: source.occurrenceId, scope },
-        store, identities, now: () => now, cohortBounds: { pageLimit: 100, chunkSize: 100 } }));
+        store, identities, now: () => now,
+        cohortBounds: { pageLimit: INSTALLED_SLICE_LIMIT, chunkSize: INSTALLED_SLICE_LIMIT } }));
     }
     const routes = await store.query(handlerOccurrencePendingQuery(scope, { cursor: null, limit: 1 }));
     for (const row of routes) {
@@ -91,13 +98,14 @@ export async function createBoundCohortTick(input: {
       return store.commit(batch);
     } };
     const admission = await admitRetainedFanoutChunk({ store: admissionStore, intentRow, checkpointRow: checkpoint,
-      chunkSize: body.bounds.chunkSize, expectedRevision: await store.readRevision(),
+      chunkSize: Math.min(body.bounds.chunkSize, INSTALLED_SLICE_LIMIT), expectedRevision: await store.readRevision(),
       meta: { actor: body.trustedSource, nowMs: now } });
     if (!admission.ok) return [...outputs, admission];
     outputs.push(await runRetainedFanoutSchedulerTurn({ store, owner: scope.owner, retainedIntent: intentRow,
       sourceOwner: { boundary: ownerStorage, scope },
       fanoutId: body.fanoutId, advanceOwnerScan: true,
-      bounds: { pageLimit: body.bounds.pageLimit, maxDrives: 1 }, policy: { maxAttempts: 3, horizonMs: 60_000 },
+      bounds: { pageLimit: Math.min(body.bounds.pageLimit, INSTALLED_SLICE_LIMIT), maxDrives: 1 },
+      policy: { maxAttempts: 3, horizonMs: 60_000 },
       meta: { actor: body.trustedSource, nowMs: now }, maxClaimAgeMs: 60_000,
       cohort: { model: body.cohort.model, ...(body.cohort.kind === 'anchored-collection' ? { anchor: body.cohort.parent } : {}) },
       guard: { predicate: null, frozenInputs: null }, evaluateGuard: () => true,

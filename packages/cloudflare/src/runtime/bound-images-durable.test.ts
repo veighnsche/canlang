@@ -17,16 +17,18 @@ import { createD1Storage, ensureSchema } from '@canlang/state/storage/d1';
 import { asId, asModel, asOperationId, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
 import { readReceiptRow, RECEIPT_MODEL } from '@canlang/state/receipt/tables';
 import { WORK_SYSTEM_COMMANDS, WORK_DISPATCH_STAGE_COMMANDS, createWorkDispatchClaimCommand } from '@canlang/work/kernel/commands';
-import { WORK_DISPATCH_MODEL, WORK_SCHEDULE_MODEL, readScheduleRow, readDispatchRow } from '@canlang/work/kernel/tables';
+import { WORK_DISPATCH_MODEL, WORK_SCHEDULE_MODEL, readScheduleRow, readDispatchRow,
+  readDispatchImageCorrelation } from '@canlang/work/kernel/tables';
 import { attemptDispatch } from '@canlang/work/dispatch';
 import { classifyFailure } from '@canlang/work/receipt';
+import { planRecoveryScan } from '@canlang/work/recovery';
 import { ComfyUINativeAdapter } from '@canlang/services/media/comfyui';
 import { digestGraph } from '@canlang/services/media/mapping';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { buildInvoker, type MutationOutcome } from '@canlang/cloudflare/worker/assembly';
 import { createCanonicalFileBinding } from './bound-files.js';
 import { createBoundImagesAdapter } from './bound-images.js';
-import { createBoundImagesDispatcher } from './bound-dispatch.js';
+import { createBoundImagesDispatcher, lookupRetainedImagesDispatch } from './bound-dispatch.js';
 import { createCheckedDeliveryProgressProducer, invokeDueScheduleCanonical, type FenceAttemptDispatchFn } from './invoke.js';
 
 const APP = 'TypedImagesProgress';
@@ -78,8 +80,9 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
   let currentIntent: OutboxIntent | undefined;
   let currentContext: ReturnType<ReturnType<typeof createBoundImagesAdapter>['resultContext']> = null;
   let store: Awaited<ReturnType<typeof open>>;
-  let mode: 'success' | 'invalid' | 'aggregate' = 'success';
+  let mode: 'success' | 'unknown' | 'running' | 'invalid' | 'aggregate' = 'success';
   const prompts: string[] = [];
+  let observations = 0;
   let queuedBeforeSubmit = 0;
   const provider = createServer(async (request, response) => {
     try {
@@ -101,6 +104,9 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
       if (request.method === 'GET' && url.pathname.startsWith('/history/')) {
         const job = decodeURIComponent(url.pathname.slice('/history/'.length));
         assert.equal(job, prompts[prompts.length - 1]);
+        observations++;
+        if (mode === 'unknown') return json({});
+        if (mode === 'running') return json({ [job]: { status: { status_str: 'executing', completed: false }, outputs: {} } });
         const images = [{ filename: 'image.png', subfolder: '', type: 'output' },
           ...(mode === 'aggregate' ? [{ filename: 'second.png', subfolder: '', type: 'output' }] : [])];
         return json({ [job]: { status: { status_str: 'success', completed: true }, outputs: { '9': { images } } } });
@@ -147,9 +153,9 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
     const created = committed(await invoker.invokeMutation(envelope('Job.create', {}), identity)).records![0] as { id: string };
     let jobVersion = 1;
     const requests: MutationEnvelope[] = [];
-    const enqueue = async () => {
+    const enqueue = async (revision = jobVersion) => {
       const request = envelope('generate', { job: { id: created.id, version: String(jobVersion) }, graph: { id: graphRef },
-        validation: digestGraph(GRAPH), prompt: 'A native image', accept: true });
+        validation: digestGraph(GRAPH), prompt: 'A native image', revision: String(revision), accept: true });
       committed(await invoker.invokeMutation(request, identity)); jobVersion++; requests.push(request);
       const intents = await store.outboxPending();
       const intent = intents.find(value => value.operationId === request.operation_id); assert.ok(intent); currentIntent = intent;
@@ -160,6 +166,7 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
       inputs: { prompt: { node: '6', key: 'text' }, negative: { node: '7', key: 'text' }, width: { node: '5', key: 'width' },
         height: { node: '5', key: 'height' }, seed: { node: '3', key: 'seed' } }, outputs: ['9'] };
     let maxBytes = 128;
+    let revokeAfterFinalize: string | null = null;
     const adapterFor = () => {
       const { prompt, negative, width, height } = mapping.inputs;
       assert.ok(prompt && negative && width && height);
@@ -174,14 +181,54 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
           const current = await resolveIdentity(identities, { session_token: token, team_id: team.team_id }, { clock });
           assert.deepEqual(receiverFromIdentity(APP, current), receiver);
           assert.equal((await identities.findMembership(team.team_id, user.user_id))?.status, 'active');
-          return bindings.finalizeProviderOutput({ receiver, binding: { adapter: binding.deployment, deliveryId: intent.intentId, resultPath },
+          const finalizedOutput = bindings.finalizeProviderOutput({ receiver, binding: { adapter: binding.deployment, deliveryId: intent.intentId, resultPath },
             operation: intent.target, field: `/${resultPath}`, args: {}, name: `image-${output.position}.png`, claimedType: output.contentType, bytes: output.bytes });
+          if (revokeAfterFinalize === intent.intentId) {
+            revokeAfterFinalize = null;
+            await identities.removeMembership(member.membership_id);
+          }
+          return finalizedOutput;
         } });
     };
     let adapter = adapterFor();
-    const dispatcherFor = () => createBoundImagesDispatcher({ store, adapter, progressed,
+    let terminalFaultIntent: OutboxIntent | null = null;
+    let terminalResponseLost = false;
+    const dispatcherFor = () => createBoundImagesDispatcher({ store: { ...store,
+      async commit(batch) {
+        const result = await store.commit(batch);
+        if (terminalFaultIntent !== null && batch.writes.some(write => write.model === RECEIPT_MODEL &&
+            (write.kind === 'insert' ? write.row.id : write.id) === terminalFaultIntent!.intentId)) {
+          const row = await store.load(asModel(RECEIPT_MODEL), asId(terminalFaultIntent.intentId)); assert.ok(row);
+          const context = adapter.resultContext(terminalFaultIntent); assert.ok(context);
+          if (readReceiptRow(row, context).receipt.status === 'succeeded') {
+            terminalFaultIntent = null; terminalResponseLost = true;
+            throw new Error('Native Images terminal progress commit response lost.');
+          }
+        }
+        return result;
+      },
+    }, adapter, progressed,
       workCommands: WORK_SYSTEM_COMMANDS, stageCommands: WORK_DISPATCH_STAGE_COMMANDS, createClaimCommand: createWorkDispatchClaimCommand });
     let dispatcher = await dispatcherFor();
+    const admission = () => ({ evaluateGuard: () => true, readStateSnapshot: () => null,
+      fence: { owner: team.team_id, attemptDispatch: attemptDispatch as FenceAttemptDispatchFn,
+        revalidateAuthority: async () => {
+          const current = await resolveIdentity(identities, { session_token: token, team_id: team.team_id }, { clock });
+          return current.actor?.user_id === user.user_id && current.team?.team_id === team.team_id &&
+            (await identities.findMembership(team.team_id, user.user_id))?.status === 'active';
+        } } });
+    const recoveryOptions = () => ({ actor: user.user_id, operation: 'test.images.recover', nowMs: () => now,
+      maxClaimAgeMs: 60_000, policy: { maxAttempts: 3, horizonMs: 3_600_000 }, limit: 10,
+      operationIdForStep: () => nextId(), planRecoveryScan });
+    const recover = () => dispatcher.recover({ ...recoveryOptions(), admission: admission() });
+    const reopen = async () => {
+      await miniflare!.dispose(); miniflare = undefined; files!.close(); files = undefined;
+      store = await open(); bindings = createSqliteFileBindings(files!, { clock, intentTtlMs: 60_000, urlBase: 'https://test.invalid' });
+      identity = await resolveIdentity(identities, { session_token: token, team_id: team.team_id }, { clock });
+      assert.deepEqual(receiverFromIdentity(APP, identity), receiver);
+      assert.equal((await identities.findMembership(team.team_id, user.user_id))?.status, 'active');
+      invoker = invokerFor(); adapter = adapterFor(); dispatcher = await dispatcherFor();
+    };
     const drive = (intent: OutboxIntent) => {
       currentIntent = intent; currentContext = adapter.resultContext(intent); assert.ok(currentContext);
       return dispatcher.drive({ intentId: intent.intentId, actor: user.user_id, operation: 'test.images.drive', nowMs: () => now,
@@ -191,13 +238,42 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
           revalidateAuthority: async () => (await identities.findMembership(team.team_id, user.user_id))?.status === 'active' } });
     };
     const first = await enqueue();
+    const firstDispatch = await store.load(WORK_DISPATCH_MODEL, asId(first.intentId)); assert.ok(firstDispatch);
+    const originalCorrelation = readDispatchImageCorrelation(firstDispatch.data); assert.ok(originalCorrelation);
+    assert.deepEqual(originalCorrelation, { requestSource: created.id, requestRevision: '1',
+      requestBinding: `${APP}.Images`, requestFrom: binding.deployment, requestApp: APP, requestOwner: team.team_id });
+    assert.notEqual(originalCorrelation.requestSource, first.operationId);
+    const lookup = await lookupRetainedImagesDispatch({ store, correlation: originalCorrelation });
+    assert.equal(lookup.status, 'resolved'); assert.ok(lookup.status === 'resolved');
+    assert.deepEqual(lookup.retained.intent, first); assert.equal(lookup.retained.status, 'pending');
+    assert.equal(lookup.principal, user.user_id); assert.deepEqual(lookup.row, firstDispatch);
+    assert.deepEqual(await lookupRetainedImagesDispatch({ store,
+      correlation: { ...originalCorrelation, requestSource: first.operationId } }), { status: 'absent' });
+    assert.equal(first.dispatchGuard ?? null, null);
     assert.equal(adapter.available(first), true);
-    assert.equal((await drive(first)).status, 'recorded'); assert.equal(prompts.length, 1); assert.equal(queuedBeforeSubmit, 1);
+    terminalFaultIntent = first;
+    const lostDrive = await drive(first);
+    assert.equal(lostDrive.status, 'recorded'); assert.ok('state' in lostDrive);
+    assert.equal(lostDrive.state, 'uncertain'); assert.equal(terminalResponseLost, true);
+    assert.equal(prompts.length, 1); assert.equal(queuedBeforeSubmit, 1);
+    const retainedTerminal = await store.load(asModel(RECEIPT_MODEL), asId(first.intentId)); assert.ok(retainedTerminal);
+    const retainedSchedules = await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' });
+    const retainedHistory = await store.historyFor(MODEL, asId(created.id));
+    await reopen();
+    assert.deepEqual((await recover()).reconciled, [{ intentId: first.intentId, state: 'delivered' }]);
+    const firstRecoveredDispatch = await store.load(WORK_DISPATCH_MODEL, asId(first.intentId)); assert.ok(firstRecoveredDispatch);
+    assert.deepEqual(readDispatchImageCorrelation(firstRecoveredDispatch.data), originalCorrelation);
+    assert.equal(prompts.length, 1);
+    assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(first.intentId)), retainedTerminal);
+    assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), retainedSchedules);
+    assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), retainedHistory);
+    assert.equal((await store.outboxPending()).length, 0);
+    currentContext = adapter.resultContext(first);
     const receiptRow = await store.load(asModel(RECEIPT_MODEL), asId(first.intentId)); assert.ok(receiptRow && currentContext);
     const receipt = readReceiptRow(receiptRow, currentContext).receipt;
     assert.equal(receipt.status, 'succeeded');
     const run = receipt.result as { source: string; revision: string; state: string; outputs: Array<{ image: { id: string } }> };
-    assert.equal(run.source, requests[0]!.operation_id); assert.equal(run.revision, '1'); assert.equal(run.state, 'succeeded');
+    assert.equal(run.source, created.id); assert.equal(run.revision, '1'); assert.equal(run.state, 'succeeded');
     const image = run.outputs[0]!.image.id;
     assert.deepEqual(bindings.readBytes(image, receiver), PNG);
     assert.deepEqual(bindings.readProvenance(image, receiver)?.provenance, { kind: 'request', ...receiver,
@@ -223,15 +299,120 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
     const revision = await store.readRevision();
     assert.equal((await drive(first)).status, 'not-pending'); assert.equal(prompts.length, 1);
     assert.equal(await store.readRevision(), revision);
-    await miniflare!.dispose(); miniflare = undefined; files!.close(); files = undefined;
-    store = await open(); bindings = createSqliteFileBindings(files!, { clock, intentTtlMs: 60_000, urlBase: 'https://test.invalid' });
-    identity = await resolveIdentity(identities, { session_token: token, team_id: team.team_id }, { clock });
-    assert.deepEqual(receiverFromIdentity(APP, identity), receiver);
-    assert.equal((await identities.findMembership(team.team_id, user.user_id))?.status, 'active');
-    invoker = invokerFor(); adapter = adapterFor(); dispatcher = await dispatcherFor();
+    await reopen();
     assert.equal((await drive(first)).status, 'not-pending'); assert.equal(prompts.length, 1);
+    const acknowledged = await lookupRetainedImagesDispatch({ store, correlation: originalCorrelation });
+    assert.equal(acknowledged.status, 'resolved'); assert.ok(acknowledged.status === 'resolved');
+    assert.deepEqual(acknowledged.retained.intent, first); assert.equal(acknowledged.retained.status, 'dispatched');
+    assert.equal(acknowledged.row.created, firstDispatch.created); assert.equal(acknowledged.principal, user.user_id);
     assert.deepEqual(bindings.readBytes(image, receiver), PNG);
     assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(first.intentId)), receiptRow);
+
+    // The same authored request survives an honest unknown provider outcome.
+    // Recovery observes its original job, then atomically joins new progress,
+    // the checked occurrence and schedule, Work's outcome, and acknowledgement.
+    mode = 'unknown'; const pending = await enqueue();
+    const pendingDrive = await drive(pending);
+    assert.equal(pendingDrive.status, 'recorded'); assert.ok('state' in pendingDrive);
+    assert.equal(pendingDrive.state, 'uncertain');
+    const pendingContext = adapter.resultContext(pending); assert.ok(pendingContext);
+    const unknownRow = await store.load(asModel(RECEIPT_MODEL), asId(pending.intentId)); assert.ok(unknownRow);
+    const unknown = readReceiptRow(unknownRow, pendingContext).receipt;
+    assert.equal(unknown.status, 'unknown');
+    const unknownRun = unknown.result as { source: string; revision: string; sequence: string; state: string };
+    assert.equal(unknownRun.state, 'unknown');
+    const originalJob = await store.load(MODEL, asId(created.id));
+    const originalHistory = await store.historyFor(MODEL, asId(created.id));
+    const originalOccurrences = await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' });
+    const submittedPending = prompts.length; const pendingFiles = files!.files.listAll().length;
+    await reopen();
+    const beforeRefusal = await store.readRevision(); const beforeObservation = observations;
+    await assert.rejects(dispatcher.recover(recoveryOptions()), /actual current host owner admission/);
+    await assert.rejects(dispatcher.recover({ ...recoveryOptions(), admission: {
+      ...admission(), fence: { ...admission().fence, triggerRevision: { revision: beforeRefusal } },
+    } }), /triggering checkpoint/);
+    await identities.removeMembership(member.membership_id);
+    await assert.rejects(recover());
+    assert.equal(observations, beforeObservation); assert.equal(await store.readRevision(), beforeRefusal);
+    assert.equal(files!.files.listAll().length, pendingFiles);
+    assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(pending.intentId)), unknownRow);
+    assert.deepEqual((await store.outboxPending()).find(intent => intent.intentId === pending.intentId), pending);
+    await identities.reactivateMembership(member.membership_id, { is_owner: false, roles: [] });
+    mode = 'running'; assert.equal((await recover()).reconciled.length, 0);
+    assert.equal(prompts.length, submittedPending); assert.equal(files!.files.listAll().length, pendingFiles);
+    assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(pending.intentId)), unknownRow);
+    assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), originalOccurrences);
+    mode = 'success';
+    revokeAfterFinalize = pending.intentId;
+    await assert.rejects(recover());
+    assert.equal(revokeAfterFinalize, null);
+    assert.equal(prompts.length, submittedPending); assert.equal(files!.files.listAll().length, pendingFiles + 1);
+    assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(pending.intentId)), unknownRow);
+    assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), originalOccurrences);
+    assert.deepEqual((await store.outboxPending()).find(intent => intent.intentId === pending.intentId), pending);
+    assert.equal((await store.load(WORK_DISPATCH_MODEL, asId(pending.intentId)))?.data['state'], 'uncertain');
+    await identities.reactivateMembership(member.membership_id, { is_owner: false, roles: [] });
+    assert.deepEqual((await recover()).reconciled, [{ intentId: pending.intentId, state: 'delivered' }]);
+    assert.equal(prompts.length, submittedPending); assert.equal(files!.files.listAll().length, pendingFiles + 1);
+    assert.equal((await store.outboxPending()).length, 0);
+    assert.equal((await store.load(WORK_DISPATCH_MODEL, asId(pending.intentId)))?.data['state'], 'delivered');
+    const pendingRecoveredDispatch = await store.load(WORK_DISPATCH_MODEL, asId(pending.intentId)); assert.ok(pendingRecoveredDispatch);
+    assert.deepEqual(readDispatchImageCorrelation(pendingRecoveredDispatch.data), {
+      ...originalCorrelation, requestSource: unknownRun.source, requestRevision: unknownRun.revision,
+    });
+    const recoveredRow = await store.load(asModel(RECEIPT_MODEL), asId(pending.intentId)); assert.ok(recoveredRow);
+    const recovered = readReceiptRow(recoveredRow, pendingContext).receipt;
+    assert.equal(recovered.status, 'succeeded');
+    const recoveredRun = recovered.result as typeof unknownRun & { outputs: Array<{ image: { id: string } }> };
+    assert.equal(recoveredRun.source, unknownRun.source); assert.equal(recoveredRun.revision, unknownRun.revision);
+    assert.equal(recoveredRun.sequence, String(BigInt(unknownRun.sequence) + 1n)); assert.equal(recoveredRun.state, 'succeeded');
+    const recoveredImage = recoveredRun.outputs[0]!.image.id;
+    assert.deepEqual(bindings.readBytes(recoveredImage, receiver), PNG);
+    assert.deepEqual(bindings.readProvenance(recoveredImage, receiver)?.provenance, { kind: 'request', ...receiver,
+      adapter: binding.deployment, deliveryId: pending.intentId, resultPath: 'outputs/9/0' });
+    assert.deepEqual(await store.load(MODEL, asId(created.id)), originalJob);
+    assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), originalHistory);
+    const recoveredOccurrences = await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' });
+    const added = recoveredOccurrences.filter(row => !originalOccurrences.some(original => original.id === row.id));
+    assert.equal(added.length, 1);
+    const terminalOccurrence = readScheduleRow(added[0]!);
+    assert.ok((await store.schedulesDue(now, 100)).some(entry => entry.key.endsWith(`/${terminalOccurrence.key}`)));
+    const invokeTerminal = async () => {
+      const answer = await invokeDueScheduleCanonical({ asm, artifact, app: APP,
+        handler: `${APP}.progressed`, store, identities, now: () => now,
+        due: { key: terminalOccurrence.key, scope: { app: APP, owner: team.team_id, ownerPackage: APP },
+          occurrenceId: terminalOccurrence.occurrenceId, event: terminalOccurrence.event, at: terminalOccurrence.at } });
+      assert.ok(typeof answer === 'object' && answer !== null && 'status' in answer);
+      return answer;
+    };
+    assert.equal((await invokeTerminal()).status, 'completed');
+    const terminalNotices = await store.query({ model: asModel(`${APP}.ProgressNotice`), authority: 'owner' });
+    assert.equal(terminalNotices.filter(row => row.data['delivery'] === pending.intentId).length, 1);
+    const completedRevision = await store.readRevision();
+    assert.equal((await invokeTerminal()).status, 'replayed');
+    assert.equal(await store.readRevision(), completedRevision);
+    const completedDispatch = await store.load(WORK_DISPATCH_MODEL, asId(pending.intentId));
+    const completedOccurrences = await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' });
+    await reopen();
+    assert.equal((await recover()).reconciled.length, 0);
+    assert.equal((await drive(pending)).status, 'not-pending');
+    assert.equal(prompts.length, submittedPending); assert.equal(files!.files.listAll().length, pendingFiles + 1);
+    assert.deepEqual(await store.load(WORK_DISPATCH_MODEL, asId(pending.intentId)), completedDispatch);
+    assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), completedOccurrences);
+    assert.deepEqual(await store.load(asModel(RECEIPT_MODEL), asId(pending.intentId)), recoveredRow);
+    assert.deepEqual(await store.query({ model: asModel(`${APP}.ProgressNotice`), authority: 'owner' }), terminalNotices);
+    assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), originalHistory);
+    assert.deepEqual(bindings.readBytes(recoveredImage, receiver), PNG);
+
+    // Two genuine generated submits may share a business key. Resolving the
+    // first row would guess an attempt; the finite lookup must refuse both.
+    const duplicateA = await enqueue(99); const duplicateB = await enqueue(99);
+    assert.notEqual(duplicateA.intentId, duplicateB.intentId);
+    const duplicateRow = await store.load(WORK_DISPATCH_MODEL, asId(duplicateA.intentId)); assert.ok(duplicateRow);
+    const duplicateCorrelation = readDispatchImageCorrelation(duplicateRow.data); assert.ok(duplicateCorrelation);
+    assert.deepEqual(await lookupRetainedImagesDispatch({ store, correlation: duplicateCorrelation }), { status: 'ambiguous' });
+    assert.deepEqual(await lookupRetainedImagesDispatch({ store,
+      correlation: { ...duplicateCorrelation, requestOwner: 'another-owner' } }), { status: 'absent' });
 
     mode = 'invalid'; const invalid = await enqueue(); const beforeInvalid = files!.files.listAll().length;
     await drive(invalid); assert.equal(files!.files.listAll().length, beforeInvalid);
