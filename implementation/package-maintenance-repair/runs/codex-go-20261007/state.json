@@ -4450,6 +4450,12 @@
       "correction": "Update constraint validation compares hook results by wire content, retaining explicit patch keys. Unchanged cloned legacy arrays/objects do not acquire new constraints; actual hook mutations still validate. Full create/update codec traversal remains.",
       "validation": "State owning emit and20existing nullable-ref/typed-staging cases pass onNode24, zero skips. No-hook/no-op/cloned-hook unrelated updates retain arrays/objects and all3codec visits; explicit patches and actual in-place hook changes refuse with complete batch/revision/history rollback.",
       "limit": "Current-head Codex and actual host qualification remain required; no original parent closure."
+    },
+    "delete_nonce_release": {
+      "source": "Consume exact published Compiler229037712960a7b7fc0bf891607a2a87a235a7d5 nonce IR/JS and controls plus7fe7fe35cddcf1f3d2ffd43a7395129097514652 corrected canonical UI consumer. No unrelated Compiler plan or source.",
+      "behavior": "Generated delete mints UUIDv7 once per visible rendered control, keeps the same hidden identity for submit/replay, and mints none inside an omitted gate. Canonical business fields remain record-only; undeclared mode still refuses.",
+      "validation": "Rust1.99 locked/offline focused codegen1/1 and actual generated delete_control_runtime1/1pass. Source native version arithmetic/precision, exact UI wire identity, archive/replay/stale and revoked grant controls execute. Initial shared filter selected no runtime case; corrected unfiltered owning target executes1/1.",
+      "limit": "Complete Office browser/durable workflow remains Dev-owned; current-head/full-plan review is separate."
     }
   }
 }
