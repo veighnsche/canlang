@@ -15,6 +15,8 @@ import { buildDeployBundleWithAssets, writeDeployBundleWithAssets, DEPLOY_MAIN_M
 
 // The released authored producer is supplied by the focused integration run.
 // A handwritten page cannot stand in for the compiler/production join.
+// Shared fetch profile used by both Node and workerd in these callers.
+type TestFetchInit = { method?: string; headers?: Record<string, string>; body?: string };
 const producer = process.env["CANLANG_PAGE_ARTIFACT"];
 const workers: Miniflare[] = [];
 const dirs: string[] = [];
@@ -34,7 +36,7 @@ describe("authored operation forms through defining default Worker", () => {
         type: "ESModule" as const, path: `/${path}`, contents: bundle.modules[path]!,
       })), d1Databases: { DB: "actual-operation-forms" } }); workers.push(worker);
     const DB = await worker.getD1Database("DB");
-    const fetch = (path: string, init?: RequestInit) =>
+    const fetch = (path: string, init?: TestFetchInit) =>
       worker.dispatchFetch(new URL(path, "https://example.test").href, init);
     const { buildProductionDeps } = await loadStagedModule(pathToFileURL(join(dir, "runtime/env-assembly.js")).href);
     const deps = await buildProductionDeps({ DB });
@@ -214,7 +216,8 @@ describe("authored operation forms through defining default Worker", () => {
           headers: { cookie, "content-type": "application/json", "x-csrf-token": csrf },
           body: JSON.stringify({ operation: operation.name, operation_id: nextId, inputs: { label: "Poll created entry" } }) });
         expect(externalCreate.status).toBe(200);
-        expect((await externalCreate.json()).status).toBe("committed");
+        const externalResult: unknown = await externalCreate.json();
+        expect(externalResult).toHaveProperty("status", "committed");
         await refreshed;
         await browserExpect(browserPage.locator("#can-main")).toContainText("Poll created entry");
         await browserExpect(browserForms).toHaveCount(2);
@@ -287,7 +290,8 @@ describe("authored operation forms through defining default Worker", () => {
         expect(await deps.store.historyFor(model, browserRow.id)).toEqual(browserHistory);
 
         await browserForm.locator(`input[name="${CSRF_FIELD}"]`).evaluate((input, value) => {
-          (input as HTMLInputElement).value = value;
+          if (!("value" in input)) throw new Error("CSRF control must expose its input value");
+          input.value = value;
         }, "wrong");
         const browserDenial = browserPage.waitForResponse(isCreatePost);
         await button.click();
@@ -346,8 +350,8 @@ describe.skipIf(producer === undefined)("authored Images page through defining d
     const DB = await worker.getD1Database("DB");
     const nodeWorker = (await loadStagedModule(pathToFileURL(join(dir, DEPLOY_MAIN_MODULE)).href)).default;
     const callers = [
-      (path: string, init?: RequestInit) => worker.dispatchFetch(`https://example.test${path}`, init),
-      (path: string, init?: RequestInit) => nodeWorker.fetch(new Request(`https://example.test${path}`, init), { DB }, { waitUntil() {} }),
+      (path: string, init?: TestFetchInit) => worker.dispatchFetch(`https://example.test${path}`, init),
+      (path: string, init?: TestFetchInit) => nodeWorker.fetch(new Request(`https://example.test${path}`, init), { DB }, { waitUntil() {} }),
     ];
     // First request creates real schemas through the actual production owner.
     const initial = await callers[0]!("/");
@@ -497,9 +501,9 @@ describe("authored readonly state page through native Worker polling", () => {
         const siblingTab = await context.newPage();
         await siblingTab.goto("about:blank");
         await page.bringToFront();
-        await browserExpect.poll(() => page.evaluate(() => document.visibilityState)).toBe("visible");
+        await browserExpect.poll(() => page.evaluate(() => (globalThis as typeof globalThis & { document: { visibilityState: string } }).document.visibilityState)).toBe("visible");
         await siblingTab.bringToFront();
-        await browserExpect.poll(() => page.evaluate(() => document.visibilityState)).toBe("hidden");
+        await browserExpect.poll(() => page.evaluate(() => (globalThis as typeof globalThis & { document: { visibilityState: string } }).document.visibilityState)).toBe("hidden");
         // Let any request already started before the native transition settle,
         // then observe longer than the actual source's two-second poll cadence.
         await page.waitForTimeout(300);
@@ -513,10 +517,10 @@ describe("authored readonly state page through native Worker polling", () => {
         const finished = await post("Images.finish", { job: { id: job.id, version: "2" } });
         expect(finished.response.status, JSON.stringify(finished.body)).toBe(200);
         expect(finished.body.status).toBe("committed");
-        expect(await page.evaluate(() => document.visibilityState)).toBe("hidden");
+        expect(await page.evaluate(() => (globalThis as typeof globalThis & { document: { visibilityState: string } }).document.visibilityState)).toBe("hidden");
         expect(pollRequests).toBe(hiddenRequests);
         await page.bringToFront();
-        await browserExpect.poll(() => page.evaluate(() => document.visibilityState)).toBe("visible");
+        await browserExpect.poll(() => page.evaluate(() => (globalThis as typeof globalThis & { document: { visibilityState: string } }).document.visibilityState)).toBe("visible");
         await readyPoll;
         expect(pollRequests).toBeGreaterThan(hiddenRequests);
         await siblingTab.close();

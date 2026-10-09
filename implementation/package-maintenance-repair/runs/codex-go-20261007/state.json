@@ -1507,6 +1507,24 @@
       "remaining_prerequisite": {
         "prerequisite": "Each conditional EC cleanup requires its exact retained oracle/loader/type/installed negative gate; native TV04/05 remains held.",
         "owner": "Testkit/Cloudflare/Values plus State DO fixture owners"
+      },
+      "released_example_expected_getter": {
+        "prerequisite": "Dev server PR132 headf81fdd8a provides the live expected getter so fixture setup survives row mapping; coordinator assigned narrow combined loader/caller/getter integration to Dev server worker. Preserve Packages application-root resolution and cleanup; no duplicate patch here.",
+        "owner": "Dev server T07 worker via coordinator01a11e6b-f4e1-7603-b47d-9d3210c9c6de",
+        "scope": "packages/cloudflare/src/dev/example-runner.ts and its exact caller integration; no package-wide lock or parent acceptance."
+      },
+      "cloudflare_current_test_alignment": {
+        "state": "implemented, tested and root-reviewed finite owning type/fixture repair",
+        "files": [
+          "packages/cloudflare/test/mcp-route.test.ts",
+          "packages/cloudflare/test/module-imports-contract.test.ts",
+          "packages/cloudflare/test/page-query-serving.test.ts",
+          "packages/cloudflare/test/preview-bridge.test.ts",
+          "packages/cloudflare/test/runtime-stdlib.test.ts"
+        ],
+        "behavior": "Align actual Node/workerd request adapters, JSON import attributes, browser callback types, deliberate hung-body fault injection and immutable context construction. Await current async scope refusals. Canonical fixture publishes its actual entry/source digest and unchanged policy/read grants; native emitted assembly namespace preserves defining accessor refusal.",
+        "validation": "Final root TypeScript tsconfig.check passes. Final complete runtime-stdlib20/20 passes; unchanged import-policy/preview115 passing checks reused after their type corrections. All18 observed B2 type diagnostics resolved; no production guard, semantic assertion, expected result or oracle weakened.",
+        "limits": "Memory canonical fixture is explicitly handwritten, not compiler output. Native MCP and browser/page legs not executed on this host because Bun/owning browser-artifact inputs are unavailable; full installed/durable/source/native and original cleanup gates remain open. Native Node VM loader exercised onNode24.19; no production default/retirement claim."
       }
     },
     "REPLAY-IP07": {
@@ -1826,7 +1844,7 @@
     "objective": "Finish every currently authorized queue task, resolve actual prerequisites, independently review, commit early/often and clean released resources economically; preserve native HOLD and exact original residual gates.",
     "scope_owner": "Cross-chat coordinator tracks all48; current human instruction stops maintaining separate worker goals, without completing or pausing unfinished tasks."
   },
-  "updated_utc": "2026-10-09T12:13:46.016295+00:00",
+  "updated_utc": "2026-10-09T12:26:24.404936+00:00",
   "critical_security_review": {
     "state": "frozen review and actual source joins received; contracts/repairs/host acceptance remain open",
     "agent": "/root/critical_package_security",
@@ -3475,9 +3493,7 @@
       "limits": "Stock original order restored under authority design, its source design issue remains; nested UI propagation and public identities held with owners. Full task counts unchanged."
     }
   },
-  "live_finite_packets": [
-    "Cloudflare5test-owner current type alignment"
-  ],
+  "live_finite_packets": [],
   "foreign_runtime_pure_integration_commit": "b5f3f61c5a7aa942cc9e535312bc848fe21cf497",
   "owner_build_test_acceptance": {
     "root_record": "interfaces-owner-build-root-review.json",
@@ -4268,7 +4284,7 @@
     "examined_queue": "All48 original packet labels examined against existing progress; canonical identities and original acceptance unchanged.",
     "delivery": "PR135 ready; latest source unit080efa8e committed and pushed to own branch, confirmed GitHub head. Unfinished scope/external prerequisites explicit; no merge/main push/deployment.",
     "last_upstream_sync": "Merged origin/main9ecb2759 at5910445b; current main/branch draft gitlink5a12eb9e is also unavailable to CI checkout. Earlier recursive fetch additionally refused06b23b5d.",
-    "review_process": "Latest explicit human correction: only actual Codex reviews satisfy required automation; ignore all CodeRabbit comments/checks/capacity and do not change draft status for it. At080efa8e Codex summary6080449425 reports code review complete without posted findings, security review running. Completion of code review alone is not full plan/security acceptance; assess current revision findings at useful task boundaries while implementing ready work.",
+    "review_process": "Only actual Codex reviews satisfy automation; ignore CodeRabbit entirely. At sourcehead080efa8e Codex summary6080449425 and empty findings/review records confirm code and security reviews completed with no posted findings. Subsequent coherent test/record updates require their own relevant revision review; no whole plan/security acceptance from this review.",
     "filetree_reconciliation": "Existing registry reconciled complete structural ancestry through merged5910445b; prior allocations/semantic limits retained; complete82493427checkpoint not advanced.",
     "pull_request": "https://github.com/veighnsche/canlang/pull/135",
     "ci_prerequisites": [
@@ -4281,16 +4297,12 @@
         "owner": "Compiler implementation owner"
       },
       {
-        "prerequisite": "B2 exposes18 inherited Cloudflare test type diagnostics across5exact owners; finite test harness/current type alignment in progress.",
-        "owner": "Packages Cloudflare owning test worker"
-      },
-      {
         "prerequisite": "Workspace package-boundary gate reports102 existing violations (93source-resolution/5cross-package-import/4cross-package-path); changed reviewed-csv file sites are unchanged imports. Requires source-resolution interpretation and offending owning test input/API releases; no new admission helper/manifest violation identified.",
         "owner": "Workspace boundary checker owner and original offending consumer owners"
       }
     ],
     "review_prerequisite": {
-      "prerequisite": "Codex security review is running for080efa8e; code review completed with no posted findings. Pending/absent/older revision is not current review completion.",
+      "prerequisite": "Check Codex code/security reviews for the next pushed test/record revision at a useful boundary; completed080efa8e review is not approval of newer revisions.",
       "owner": "Codex automated reviewer; Packages consumes relevant revision findings"
     }
   }
