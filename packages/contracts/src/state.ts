@@ -1,4 +1,4 @@
-import type { CanTypeId } from './values.js';
+import type { CanTypeId, WireValue } from './values.js';
 
 /**
  * Lane 03 producer contract: authoritative state boundary (types only).
@@ -832,6 +832,10 @@ export interface FieldMachine {
 export interface CanonicalFieldDef {
   /** Checked int/datetime/text/bool/decimal/money/date/duration/user association, with optional array and nullable container suffixes. */
   readonly valueType?: CanTypeId;
+  /** Checked field normalization and inclusive wire-form bounds. */
+  readonly trim?: boolean;
+  readonly min?: WireValue;
+  readonly max?: WireValue;
   /** Type-association metadata; engine-local nullableFields still owns omission fills. */
   readonly nullable?: boolean;
   readonly machine?: FieldMachine;
@@ -854,6 +858,34 @@ export interface CanonicalModelDescriptor {
   readonly deleteMode: DeleteMode;
   readonly uniqueKeys?: ReadonlyArray<string>;
 }
+
+/** Exact, source-ordered owning native policy ABI; missing plans never imply a scan. */
+export interface CanonicalOwnerModelPolicies {
+  readonly abi: 'state.owner-model-policies@1';
+  readonly model: ModelName;
+  readonly ownerPackage: string;
+  readonly module: string;
+  readonly rules: ReadonlyArray<
+    | {
+        readonly kind: 'invariant';
+        readonly id: string;
+        /** Every non-row dependency needs a checked reverse affected-row selector. */
+        readonly dependencies: ReadonlyArray<{
+          readonly id: string;
+          readonly model: ModelName;
+          readonly maxTargets: number;
+        }>;
+      }
+    | { readonly kind: 'lock'; readonly id: string; readonly fields: ReadonlyArray<string> }
+  >;
+  readonly hooks: ReadonlyArray<{
+    readonly id: string;
+    readonly op: 'create' | 'update' | 'remove';
+    /** Exact checked triggering CRUD identity, not an arbitrary scenario name. */
+    readonly operation: OperationName;
+  }>;
+}
+
 
 /**
  * T04a descriptor set: the versioned unit L1 emits (via artifact structures)
