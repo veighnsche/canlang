@@ -169,7 +169,8 @@ export function parseCsvText(text: string): { header: string[]; rows: CsvDataRow
  * Only this duplicate key normalizes integers/durations; row inputs, consent
  * candidates and invoked wire envelopes retain their mapped spelling. Decimal
  * coefficient AND authored scale remain identity (encoding would erase scale).
- * Enum/file and compound domains remain with their existing binding contracts.
+ * Checked string specializations use their declared codec (date); no new
+ * normalization is applied. Enum/file and compound domains retain their bindings.
  */
 function duplicateKey(
   inputs: ClosedInputs,
@@ -179,7 +180,7 @@ function duplicateKey(
   for (const input of derived.inputs) {
     if (!Object.hasOwn(inputs, input.name) || inputs[input.name] === null || input.array !== undefined) continue;
     const type = input.kind === 'integer' ? 'int'
-      : input.kind === 'string' ? 'text'
+      : input.kind === 'string' ? input.valueType ?? 'text'
       : input.kind === 'boolean' ? 'bool'
       : input.kind === 'decimal' || input.kind === 'duration' || input.kind === 'datetime' ? input.kind
       : null;

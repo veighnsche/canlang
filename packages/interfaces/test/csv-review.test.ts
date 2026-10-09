@@ -29,6 +29,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deriveCsrfToken, revokeSessionByToken } from '@canlang/identity';
 import { ARTIFACT_VERSION } from '@canlang/contracts';
+import { mapCsvCells } from '@canlang/ui';
+import { parseCsvGrammar } from '@canlang/ui/csv/grammar';
 import type { ArtifactOperation } from '@canlang/contracts';
 import { catalogFromArtifactOperations } from '../src/http/operations.js';
 import { mintOperationId } from '../src/http/context.js';
@@ -375,4 +377,64 @@ test('FP.CSV: an invalid partial input cannot suppress a later valid candidate',
   assert.deepEqual(committed.rows.map(row=>row.status),['committed','duplicate']);
   assert.equal(t.invoker.mutations.length,1);
   assert.deepEqual(t.invoker.mutations[0]?.envelope.inputs,{customer:'c-1'});
+});
+
+test('FP.CSV: checked date profiles refuse invalid cells while preserving raw consent and calls', async () => {
+  const operation = 'Billing.Calendar.create';
+  const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: [{
+    name: operation, kind: 'create', description: '', inputs: { fields: [
+      { name: 'day', field: { kind: 'string' }, valueType: 'date', required: true },
+      { name: 'nullable', field: { kind: 'string' }, valueType: 'date?', required: false, nullable: true },
+      { name: 'mapped_default', field: { kind: 'string' }, valueType: 'date', required: false,
+        default: { kind: 'literal', value: '2000-01-01' } },
+      { name: 'unmapped_default', field: { kind: 'string' }, valueType: 'date', required: false,
+        default: { kind: 'literal', value: '2000-01-01' } },
+    ] },
+  }] });
+  const derived = catalog.derivedFor(operation)!;
+  assert.equal(derived.inputs[0]!.valueType, 'date');
+  assert.equal(derived.inputs[1]!.valueType, 'date?');
+  const t = await createTestDeps({ mutations: { [operation]: (envelope) => ({
+    result: { status: 'committed', operation_id: envelope.operation_id },
+  }) } });
+  const csrf = await deriveCsrfToken(t.identity.sessionToken);
+  const deps = { ...t.deps, catalog };
+  const post = (path: string, body: unknown) => handleCsvRequest(deps,
+    postCsv(path, t.identity.cookie, csrf, body));
+  const csv = [
+    'day,nullable,mapped_default',
+    '2024-02-29,,',
+    '2024-02-30,,',
+    'not-a-date,,',
+    ',,',
+    '2024-02-29,,',
+  ].join('\n');
+  const response = await post('/api/csv/review', { operation, csv });
+  assert.equal(response.status, 200);
+  const reviewed = await response.json() as CsvReview;
+  assert.deepEqual(reviewed.rows.map(row => row.status), ['valid', 'invalid', 'invalid', 'invalid', 'duplicate']);
+  assert.equal(reviewed.rows[4]!.duplicate_of, 0);
+  const raw = { day: '2024-02-29', nullable: null };
+  assert.deepEqual(reviewed.rows[0]!.inputs, raw);
+  assert.equal(reviewed.rows[3]!.inputs['day'], '');
+  for (const row of reviewed.rows.slice(1, 4)) {
+    assert.equal(row.error!.fields![0]!.path, '/day');
+    assert.equal(row.error!.fields![0]!.code, 'binding_mismatch');
+  }
+  const parsed = parseCsvGrammar(csv);
+  parsed.rows.forEach((row, index) => {
+    assert.deepEqual(mapCsvCells(parsed.header, row.cells, derived).inputs, reviewed.rows[index]!.inputs);
+  });
+  const { createHash } = await import('node:crypto');
+  const expected = createHash('sha256').update(JSON.stringify({ candidates: [raw], operation })).digest('hex');
+  assert.equal(reviewed.consent.candidates_digest, expected);
+  assert.equal(reviewed.consent.candidate_count, 1);
+  assert.equal(t.invoker.mutations.length, 0);
+  const committed = await post('/api/csv/commit', { operation, csv, consent: reviewed.consent,
+    rows: [4, 3, 2, 1, 0].map(index => ({ index, operation_id: mintOperationId() })) });
+  assert.equal(committed.status, 200);
+  const outcome = await committed.json() as CsvCommitOutcome;
+  assert.deepEqual(outcome.rows.map(row => row.status), ['committed', 'invalid', 'invalid', 'invalid', 'duplicate']);
+  assert.equal(t.invoker.mutations.length, 1);
+  assert.deepEqual(t.invoker.mutations[0]!.envelope.inputs, raw);
 });

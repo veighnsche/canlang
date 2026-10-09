@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  attachBinaries, sha256Bytes,
+  attachBinaries, bundleSha256, sha256Bytes,
   writeDeployBundleMixed, writeDeployBundleWithAssets,
 } from "../src/deploy/bundle.js";
 import type { DeployBundle, MixedDeployBundle } from "../src/deploy/bundle.js";
@@ -14,9 +14,10 @@ import { createHash } from "node:crypto";
 
 const bytes = new Uint8Array([0, 255, 128, 1]);
 function text(): DeployBundle {
+  const modules = { "a.js": "EARLY", "worker/main.js": "export default {};" };
   return {
-    mainModule: "worker/main.js", modules: { "a.js": "EARLY", "worker/main.js": "export default {};" },
-    moduleCount: 2, sha256: "text-fixture", mcpBundleBytes: 0, httpOperationsBytes: 0,
+    mainModule: "worker/main.js", modules,
+    moduleCount: 2, sha256: bundleSha256("worker/main.js", modules), mcpBundleBytes: 0, httpOperationsBytes: 0,
   };
 }
 function mixed(): MixedDeployBundle { return attachBinaries(text(), { "binary/kernel.wasm": bytes }); }
