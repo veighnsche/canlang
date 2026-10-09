@@ -3573,3 +3573,7 @@ Accepted narrow Packages gate integration: consume Compiler1ee1239d/dac8596f asf
 ## 2026-10-09 — own the State NumericControl producer test input
 
 Accepted finite package-boundary correction: retain byte-exact released NumericControl source and artifact as State-owned test fixtures, preserving the artifact's original compiler provenance and every typed metadata assertion. Verify the fixture source SHA against its retained artifact stamp before consuming it; no foreign implementation path or boundary exception is needed. The owning State TypeScript build and existing affected metadata case pass. This does not qualify a newly compiled artifact or the remaining workspace consumers.
+
+## 2026-10-09 — unfinished TeamTasks fixture correspondence checkpoint
+
+Reviewed the current TeamTasks source against the prior a4b52d51 witness: the only changes move two unchanged preference declarations from Given to Then. Retain the fixture's explicit limits, its runtime schema and all covered workflows, and update its witnessed correspondence with that concrete review. Existing consumer validation now reaches Worker startup and fails because actual Identity tokens import an unstaged @scure/base dependency (six setup failures, nine cases not run). The owning loader closure repair remains unfinished; this checkpoint establishes neither runtime qualification nor app acceptance.
