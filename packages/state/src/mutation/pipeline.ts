@@ -418,10 +418,12 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     def: InterimModelDef,
     defaultWriter?: string,
     constrainedFields?: ReadonlySet<string>,
+    encodedFields?: ReadonlySet<string>,
   ): void => {
     normalizeConstraints(candidate, def, constrainedFields ?? new Set(Object.keys(candidate)));
     if (input.encodeField !== undefined) {
       for (const [field, value] of Object.entries(candidate)) {
+        if (encodedFields !== undefined && !encodedFields.has(field)) continue;
         const type = def.fields[field]?.valueType;
         if (type !== undefined && value !== undefined) {
           safeSet(candidate, field, jsonClone(input.encodeField(type, value), `Field ${JSON.stringify(field)}`));
@@ -468,10 +470,15 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
       try {
         const wire = input.encodeField?.(fieldDef.valueType, value) ?? value;
         const normalized = validateValue(constraint.schema, constraint.type, { value: wire }, 'create') as Readonly<Record<string, unknown>>;
-        const stored = encodeValue(fieldDef.valueType, normalized['value'] as Parameters<typeof encodeValue>[1]);
-        safeSet(candidate, field, jsonClone(stored, `Field ${JSON.stringify(field)}`));
+        // Bounds validate through Values' wire view without replacing native
+        // hook inputs. Only trim changes the value here; encoding still belongs
+        // to the existing post-hook checkpoint (including resolved defaults).
+        const constrained = fieldDef.trim === true
+          ? encodeValue(fieldDef.valueType, normalized['value'] as Parameters<typeof encodeValue>[1])
+          : value;
+        safeSet(candidate, field, jsonClone(constrained, `Field ${JSON.stringify(field)}`));
         if (defaultWriter !== undefined && defaultWriters.get(field) === defaultWriter) {
-          safeSet(resolvedDefaults, field, jsonClone(stored, `Resolved default ${JSON.stringify(field)}`));
+          safeSet(resolvedDefaults, field, jsonClone(constrained, `Resolved default ${JSON.stringify(field)}`));
         }
       } catch (error) {
         throw new StateError('validation', `Invalid field ${JSON.stringify(field)} on model ${JSON.stringify(def.model as string)}: ${String(error)}`);
@@ -1354,7 +1361,14 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     if (mode === 'archive') {
       checkKnownFields(hooked, def);
       checkRequired(hooked, def);
-      checkJsonSafe(hooked, def);
+      // Archiving keeps unchanged legacy data intact. Hook candidates are
+      // cloned, so compare their wire contents rather than object identity;
+      // newly native or non-JSON values must still pass the changed-field gate.
+      const changedFields = new Set(Object.keys(hooked).filter(field => {
+        try { return JSON.stringify(hooked[field]) !== JSON.stringify(before.data[field]); }
+        catch { return true; }
+      }));
+      checkJsonSafe(hooked, def, undefined, changedFields, changedFields);
       checkWhen(write.when, {
         id,
         version: (before.version + 1) as RecordVersion,
