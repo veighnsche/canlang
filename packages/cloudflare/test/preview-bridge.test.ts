@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { LocalDev } from "../src/dev/local-run.js";
 import { startProtectedPreview } from "../src/dev/preview-bridge.js";
-import { toMcpError } from "@canlang/interfaces";
+import { FORM_REFUSAL_HEADER, toMcpError } from "@canlang/interfaces";
 
 function cookieOf(response: Response): string {
   const raw = response.headers.get("set-cookie");
@@ -197,6 +197,42 @@ describe("protected local preview", () => {
       unsubscribe();
       await preview.close();
     }
+  });
+
+  it("observes owning HTML form metadata without reading draft values or changing response bytes", async () => {
+    const secret = "PRIVATE_DRAFT_AND_CSRF";
+    const body = `<form><input name="_csrf" value="${secret}"></form>${" ".repeat(9 * 1024)}`;
+    let metadata = JSON.stringify({ version: 1, code: "limit", retryable: true });
+    let status = 429;
+    const dev: Pick<LocalDev, "dispatchUrl"> = { dispatchUrl: async () => new Response(body, {
+      status, headers: { "content-type": "text/html; charset=utf-8", [FORM_REFUSAL_HEADER]: metadata },
+    }) as Awaited<ReturnType<LocalDev["dispatchUrl"]>> };
+    const preview = await startProtectedPreview(dev);
+    const events: unknown[] = [];
+    preview.observeRefusals(event => events.push(event));
+    try {
+      const cookie = cookieOf(await fetch(preview.issueOpenUrl(), { redirect: "manual" }));
+      const submit = async (path = "/api/operations/Office.Supply.create") => fetch(preview.url + path, {
+        method: "POST", headers: { cookie, origin: preview.url }, body: secret,
+      });
+      const response = await submit();
+      expect(response.status).toBe(429);
+      expect(await response.text()).toBe(body);
+      expect(response.headers.get(FORM_REFUSAL_HEADER)).toBe(metadata);
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({ status: 429, error: { code: "limit", retryable: true } });
+      expect(JSON.stringify(events)).not.toContain(secret);
+      for (metadata of ["invalid", JSON.stringify({ version: 2, code: "limit", retryable: true }),
+        JSON.stringify({ version: 1, code: "unknown", retryable: true }),
+        JSON.stringify({ version: 1, code: "limit", retryable: "true" }),
+        JSON.stringify({ version: 1, code: "limit", retryable: true, message: secret }),
+        " ".repeat(257)]) await submit();
+      metadata = JSON.stringify({ version: 1, code: "limit", retryable: true });
+      await submit("/page");
+      status = 200;
+      await submit();
+      expect(events).toHaveLength(1);
+    } finally { await preview.close(); }
   });
 
   it("observes only matched MCP tool business errors while relaying the real HTTP 200 response", async () => {
