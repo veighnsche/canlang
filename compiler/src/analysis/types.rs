@@ -656,6 +656,13 @@ fn std_nominal_object(schema: &StdNominal) -> ResolvedType {
     )
 }
 
+fn delivery_status_type() -> ResolvedType {
+    nominal_schema("DeliveryResult")
+        .and_then(|schema| schema.fields.iter().find(|(name, _)| *name == "status"))
+        .map(|(_, kind)| std_nominal_leaf_type(kind))
+        .unwrap_or(ResolvedType::Opaque("delivery status"))
+}
+
 /// Map one T13c nominal leaf kind to its checkable type (T14d).
 /// Scalar/enum/array spellings reuse [`std_schema_type`]
 /// (transcribed refinements such as `amount: money` arrive
@@ -3597,6 +3604,10 @@ impl<'a> Typer<'a> {
         // `event` carries the event's record instead of `{opaque}`.
         let on_event = attribute_value(node, "on", text)
             .and_then(|on| self.on_event_payload(module, text, on));
+        let mut example_event = on_event.map(|event| ResolvedType::Record {
+            symbol: event,
+            stored: false,
+        });
         if let Some(event) = on_event {
             env.insert(
                 NarrowKey {
@@ -3616,6 +3627,7 @@ impl<'a> Typer<'a> {
         if let Some(on) = attribute_value(node, "on", text)
             && let Some(envelope) = self.on_completion_payload(module, text, on)
         {
+            example_event = Some(envelope.clone());
             env.insert(
                 NarrowKey {
                     decl: DeclKey::CtxEvent,
@@ -3715,7 +3727,7 @@ impl<'a> Typer<'a> {
         self.current_read = prev_read;
         for child in kids(node) {
             if child.kind == SyntaxKind::Examples && !has_error(child) {
-                self.check_example_headers(file, text, module, child, on_event);
+                self.check_example_headers(file, text, module, child, example_event.as_ref());
             }
         }
     }
@@ -4778,8 +4790,8 @@ impl<'a> Typer<'a> {
 
     /// Check `examples` header bindings lightly: names resolve and enum
     /// cases claim, but only position-independent facts (`E6001`) apply.
-    /// `on_event` carries the handler's validated event payload (T10 C2):
-    /// an `event={...}` literal checks against the event record so nested
+    /// `event_type` carries the handler's validated event payload (T10 C2):
+    /// an `event={...}` literal checks against its record or completion envelope so nested
     /// bare cases claim their enum types; still diagnostic-free here.
     fn check_example_headers(
         &mut self,
@@ -4787,9 +4799,18 @@ impl<'a> Typer<'a> {
         text: &str,
         module: ModuleId,
         node: &SyntaxNode,
-        on_event: Option<SymbolId>,
+        event_type: Option<&ResolvedType>,
     ) {
-        let narrow = NarrowEnv::default();
+        let mut narrow = NarrowEnv::default();
+        if let Some(event_type) = event_type {
+            narrow.insert(
+                NarrowKey {
+                    decl: DeclKey::CtxEvent,
+                    path: Vec::new(),
+                },
+                event_type.clone(),
+            );
+        }
         let cx = Ctx {
             module,
             file,
@@ -4798,18 +4819,28 @@ impl<'a> Typer<'a> {
             strict: false,
             server_default: false,
         };
+        let mut header_facts = NarrowEnv::default();
         for child in kids(node) {
             if child.kind == SyntaxKind::Attribute
                 && let Some((key, value)) = attribute_parts(child)
             {
-                let expect = match on_event {
-                    Some(event) if is_name(key, text, "event") => Some(ResolvedType::Record {
-                        symbol: event,
-                        stored: false,
-                    }),
-                    _ => None,
+                let expect = if is_name(key, text, "event") {
+                    event_type.cloned()
+                } else {
+                    None
                 };
                 self.expr(&cx, value, expect);
+                if is_name(key, text, "event")
+                    && let Some(event_type) = event_type
+                {
+                    self.example_object_nonnull_facts(
+                        text,
+                        value,
+                        event_type,
+                        &mut Vec::new(),
+                        &mut header_facts,
+                    );
+                }
             }
         }
         // Headers retain their type-owned unresolved diagnostics; general
@@ -4819,6 +4850,31 @@ impl<'a> Typer<'a> {
             .into_iter()
             .filter(|n| n.kind == SyntaxKind::ExampleRow)
             .collect();
+        // An input column can replace its header value. Descendant inputs
+        // keep a parent's nonnull proof; equal/ancestor inputs cannot.
+        if let Some(heading) = rows.first() {
+            for part in kids(heading) {
+                if is_punct(part, text, "->") {
+                    break;
+                }
+                if is_expression(part.kind)
+                    && let Some(target) = self.narrow_key_for(&cx, part)
+                {
+                    header_facts.retain(|key, _| {
+                        key.decl != target.decl || !key.path.starts_with(&target.path)
+                    });
+                }
+            }
+        }
+        narrow.extend(header_facts);
+        let cx = Ctx {
+            module,
+            file,
+            text,
+            narrow: &narrow,
+            strict: false,
+            server_default: false,
+        };
         let mut observation_types = Vec::new();
         let mut input_types = Vec::new();
         for (index, row) in rows.iter().enumerate() {
@@ -4908,6 +4964,68 @@ impl<'a> Typer<'a> {
             }
         }
         self.types.unresolved_names.truncate(unresolved_before);
+    }
+
+    /// Only explicit, checked fixture values establish member nonnull facts.
+    /// The proof retains the declared type, never the literal's inferred shape.
+    fn example_object_nonnull_facts(
+        &mut self,
+        text: &str,
+        value: &SyntaxNode,
+        expected: &ResolvedType,
+        path: &mut Vec<String>,
+        facts: &mut NarrowEnv,
+    ) {
+        let value = unwrap_groups(value);
+        if value.kind != SyntaxKind::Object || has_error(value) {
+            return;
+        }
+        let (expected, _) = strip_nullable(expected);
+        for (name, _, supplied) in object_entries(value, text) {
+            let Some(supplied) = supplied else {
+                continue;
+            };
+            let declared = match &expected {
+                ResolvedType::Object(fields) => fields
+                    .iter()
+                    .find(|(field, _)| field == name)
+                    .map(|(_, ty)| ty.clone()),
+                ResolvedType::Record { symbol, .. } => {
+                    let field = self.tables.symbols[symbol.0 as usize]
+                        .fields_of()
+                        .iter()
+                        .find(|field| self.tables.symbols[field.0 as usize].name == name)
+                        .copied();
+                    field.map(|field| self.decl_type(field))
+                }
+                _ => None,
+            };
+            let Some(declared) = declared else {
+                continue;
+            };
+            let Some(actual) = self.types.node_types.get(&NodeKey::of(supplied)) else {
+                continue;
+            };
+            let concrete_object = unwrap_groups(supplied).kind == SyntaxKind::Object;
+            let (actual_inner, _) = strip_nullable(actual);
+            let nonnull =
+                actual.is_proven_nonnull() || (concrete_object && actual_inner.is_proven_nonnull());
+            if !nonnull || !self.types_compatible(&actual_inner, &declared) {
+                continue;
+            }
+            path.push(name.to_string());
+            if let ResolvedType::Nullable(inner) = &declared {
+                facts.insert(
+                    NarrowKey {
+                        decl: DeclKey::CtxEvent,
+                        path: path.clone(),
+                    },
+                    inner.as_ref().clone(),
+                );
+            }
+            self.example_object_nonnull_facts(text, supplied, &declared, path, facts);
+            path.pop();
+        }
     }
 
     // --- Phase 2: labels, messages and captions -------------------------
@@ -10298,7 +10416,44 @@ impl<'a> Typer<'a> {
                     _ => ResolvedType::Opaque("unknown scalar"),
                 },
             },
-            TypeRef::External => ResolvedType::Opaque("external type"),
+            TypeRef::External => {
+                let segments = path_segments(path, text);
+                let schema = segments
+                    .first()
+                    .and_then(|name| self.tables.module_scopes[module.0 as usize].prod.get(*name))
+                    .and_then(|binding| match binding {
+                        ScopedName::External { provider, name } if provider == "std" => {
+                            nominal_schema(name)
+                        }
+                        _ => None,
+                    });
+                let Some(schema) = schema else {
+                    return ResolvedType::Opaque("external type");
+                };
+                let mut current = std_nominal_object(schema);
+                for (i, name) in segments.iter().enumerate().skip(1) {
+                    match &current {
+                        ResolvedType::Object(fields) => {
+                            if let Some((_, ty)) = fields.iter().find(|(field, _)| field == *name) {
+                                current = ty.clone();
+                                continue;
+                            }
+                        }
+                        ResolvedType::Opaque(_) | ResolvedType::Unknown | ResolvedType::Error => {
+                            return current;
+                        }
+                        _ => {}
+                    }
+                    self.member_fail(
+                        path,
+                        segment_span(path, i),
+                        self.show(module, &current),
+                        (*name).to_string(),
+                    );
+                    return ResolvedType::Error;
+                }
+                current
+            }
             TypeRef::Symbol(id) => {
                 self.inherit_value_constraints(owner, id);
                 self.symbol_type(file, text, module, id, path.span)
@@ -11786,7 +11941,7 @@ impl<'a> Typer<'a> {
                 let op = *op;
                 match name {
                     "id" => Some(ResolvedType::Scalar(Scalar::Text)),
-                    "status" => Some(ResolvedType::Opaque("delivery status")),
+                    "status" => Some(delivery_status_type()),
                     "error" => Some(ResolvedType::Opaque("delivery error")),
                     "result" => Some(match self.results.get(&op).cloned() {
                         Some(Some(ty)) => ResolvedType::Nullable(Box::new(ty)),
@@ -11808,7 +11963,7 @@ impl<'a> Typer<'a> {
                 let (capability, op) = (*capability, *op);
                 match name {
                     "id" => Some(ResolvedType::Scalar(Scalar::Text)),
-                    "status" => Some(ResolvedType::Opaque("delivery status")),
+                    "status" => Some(delivery_status_type()),
                     "error" => Some(ResolvedType::Opaque("delivery error")),
                     // T14d: `attempt.result` types against the
                     // consumed owner result shape (DESIGN §8.1:
@@ -13868,7 +14023,7 @@ impl<'a> Typer<'a> {
                 continue;
             };
             let value_node = entry_parts.iter().find(|n| is_expression(n.kind)).copied();
-            let entry_expect = match expect {
+            let entry_expect = match expect.map(|ty| ty.nullable_inner().unwrap_or(ty)) {
                 Some(ResolvedType::Object(exp)) => {
                     exp.iter().find(|(k, _)| k == key).map(|(_, t)| t.clone())
                 }
