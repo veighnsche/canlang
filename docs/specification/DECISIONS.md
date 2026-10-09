@@ -4625,3 +4625,31 @@ snapshot substitution, raw replay bypass or gate weakening is authorized.
 ## 2026-10-09 — preserve control usage exit semantics for help and rank lookup
 
 Treat the actual control-client missing construct ID and rank ref codes as usage errors at the installed JSON CLI boundary. Return exit2 for both, keeping help exit0 and unavailable control exit1; no socket, compiler help availability or ranking permission changes. Source-current CF emit and the directly affected installed-entry case1/1 pass with one stdout envelope and no stderr. Consume reviewed coordinator b9ecfd06 via safe fast-forward and rebuild its owning native compiler, retaining unchanged portable-array qualification and all precise holds. Reconcile accumulated file-tree coverage with checkpoint unadvanced. T04/T11 and G2–G3 remain open.
+
+## 2026-10-09 — consume released genuine portable scalar fixture
+
+Merge exact reviewed ec4f79ba/Devda7f5b14 onto65cb8dc7, preserving compiler defaults, array/public recovery and current whole-run failure records. Reuse the genuine portable D1 int/bool1/1 owner result without another fixture. Reconcile all incoming six paths against the existing accumulated registry and retain the complete checkpoint unadvanced. Later portable-array release remains exact intake, not inferred scalar coverage.
+
+The final full portable journey passes1/1 in53.18s; owning CF emit, root noEmit and zero-violation boundaries pass. The first draft wrongly expected the Compiler Node/Memory bad-element rejection receipt through public HTTP. Actual HTTP validates shape and elements before State: require exact zero-write resources and no receipt for both malformed inputs, then rerun the full affected journey. A test-only inferred field type caused an owning emit failure; use the actual exported ArtifactModelField type and emitted integer/nullable/array descriptor, without guessing int array valueType. Reuse unchanged producer closure/catalog and earlier Office/browser checks only at their recorded scopes. Reconcile cumulative path coverage with checkpoint unadvanced. Required/nested/model/nominal arrays and wider source/owner/hook/query/help/G2–G3 joins remain unqualified.
+
+## 2026-10-09 — consume released portable primitive-array receipt journey
+
+Merge exact reviewed b9ecfd06/Devd8bc2a5a onto the portable scalar intake, retaining compiler66b defaults and65cb actual whole-run failures/correction. Reuse the genuine public canonical/portable D1 scalar and nullable/empty/populated primitive-array journey1/1 in53.18s at the owner’s declared source; changed derive profiles still require their own qualification. Existing accumulated paths and both decision histories are retained, complete semantic/target checkpoint unadvanced. No competing harness or broader reference/held-policy acceptance follows.
+
+## 2026-10-09 — capture checked derives at their native invocation sites
+
+Join complete checked derive call chains to actual IR bodies/defaults and exact
+emitted field inventories. Specialize only opted-in native handler calls into
+private async closures with fresh parameter scopes, preserving global derives,
+exports and ordinary UI/generic output. Render authored arguments in the caller
+before entering the callee chain; preserve slot mapping, declaration-ordered
+defaults, explicit override skipping and original lazy operators. Private
+choice keys derive from checked source identities/canonical authored anchors;
+wire dependency origins retain imported path/digest and actual entry transport.
+Bound recursion/depth/sites and omit the whole plan when matching fails.
+Actual CLI/native/public Memory1/1 covers43successpaths+replay, including separate
+import files, repeated/nested/defaulted/lazy reads and saved derived recovery
+under current access; source closure12/12, strict all-targetClippy/fmt and finite
+independent review pass. This uses released State/Dev markers without widening
+mutation/query/composite or held profiles. Changed-source whole qualification
+and transition write provenance remain required; no original-reference credit.
