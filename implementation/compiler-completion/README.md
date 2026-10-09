@@ -260,6 +260,17 @@ released consumer expectation, without handbuilt substitution or application
 completion credit. The separate **b11cc7c8** handbuilt dependency closure does
 not alter compiled assembly or repair stale CanDo pilot source.
 
+Released Dev boundary inputs **992b3d0a / 2421f900** now supply the exact public
+UI bootstrap export, Values catalog locator, Cloudflare Happy DOM dependency
+and three owning consumers. Consume only these boundary hunks; the separate
+State constraint and row-owner implementation chains retain their owners.
+Frozen installation and owning Values/UI/Cloudflare builds pass; the actual
+branch guard now reports **zero violations**. Captured Office Supplies compiler
+and construct-help checks pass **8/8**. The affected native dependent-choice
+case reaches its unchanged replacement-cancellation assertion and fails because
+the held request's signal remains live. That UI/Dev lifecycle prerequisite is
+recorded without weakening the assertion or claiming the workflow passes.
+
 Current remaining prerequisites are recorded here without reopening accepted
 compiler leaves:
 
