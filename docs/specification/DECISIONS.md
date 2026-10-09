@@ -3585,3 +3585,7 @@ Derive constrained update fields from values actually applied, evaluating caller
 ### 2026-10-09 — Join declared test producers and anonymous row storage context
 
 Expose the existing UI browser bootstrap through its own package export and the generated Values catalog through its distribution locator. Cloudflare declares its Happy DOM test dependency, and checks resolve optional Testkit through the same application-owned loader as production, avoiding a reverse package cycle. Public rows select their isolated current team only for storage, retaining null actor/membership and canonical permission gates. Model-free canonical examples use the existing row-local store; model-backed rows still require the owner boundary. The owning build22/22, real Node/input-choice3/3 and captured compiler/expectation5/5 checks pass. These release producer/consumer prerequisites, not Office whole-app qualification.
+
+### 2026-10-09 — Provision protected source forms in each local preview
+
+Generate a host-private 32-byte canonical base64url signing key through the existing per-build Worker-variable callback. Its lifetime matches the fresh preview, so old protected forms do not survive resource reset; the existing selected auth origin is retained. The key stays out of actor metadata, capture, JSON control and preview.open. Real Chrome exposed the missing resource after creating three supplies; source typecheck passes, with the affected edit journey due after the installed rebuild.
