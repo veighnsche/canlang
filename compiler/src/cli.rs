@@ -386,7 +386,8 @@ pub fn dispatch_with(argv: &[String], analyzer: &dyn Analyzer) -> DispatchResult
             if parsed.format_set || parsed.catalog_set {
                 return DispatchResult::tool_error(
                     "E7001",
-                    "can dev takes no can-side flags; arguments pass through to can-dev".to_string(),
+                    "can dev takes no can-side flags; arguments pass through to can-dev"
+                        .to_string(),
                 );
             }
             run_dev_entry(&parsed.operands, std::env::var("CAN_DEV_BIN").ok())
@@ -424,7 +425,10 @@ fn is_known_command(cmd: &str) -> bool {
 /// Thin lane-7 entries: flag parsing stops at these; everything after is
 /// child args passed verbatim to `can-platform`.
 fn is_thin_entry(cmd: &str) -> bool {
-    matches!(cmd, "run" | "test" | "build" | "deploy" | "activate" | "dev")
+    matches!(
+        cmd,
+        "run" | "test" | "build" | "deploy" | "activate" | "dev"
+    )
 }
 
 struct ParsedArgs {
@@ -1874,7 +1878,9 @@ pub fn run_dev_entry(args: &[String], dev_bin: Option<String>) -> DispatchResult
     if !Path::new(&bin).is_file() {
         return DispatchResult::tool_error(
             "E7004",
-            format!("development control '{bin}' is not a file; install it or fix CAN_DEV_BIN (see can explain E7004)"),
+            format!(
+                "development control '{bin}' is not a file; install it or fix CAN_DEV_BIN (see can explain E7004)"
+            ),
         );
     }
     match std::process::Command::new(&bin).args(args).status() {
