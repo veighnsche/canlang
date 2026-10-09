@@ -20,7 +20,8 @@ import {
   type LoadDescriptorSetOptions,
 } from '../invocation/registry.js';
 import { buildModelTable, buildModelTableFromCanonical, type ModelTable } from './models.js';
-import { generatedCrudExecute, type GeneratedCrudOwnerFrameFactory } from './crud.js';
+import { generatedCrudExecute, generatedCrudExecuteOwnerSession,
+  type GeneratedCrudOwnerFrame, type GeneratedCrudOwnerFrameFactory } from './crud.js';
 import { bindOwnerModelPolicies } from './model-policies.js';
 import { invoke, readGeneratedCrudAssociation } from '../invocation/invoke.js';
 import type { CommittedReceiptOutcome } from '../invocation/invoke.js';
@@ -767,7 +768,7 @@ describe('generated CRUD: checked owner policies and actual session frames', () 
         return typeof row.data.stock === 'string' && /^\d+$/.test(row.data.stock);
       } },
     ] });
-    const execute = generatedCrudExecute({ table: setup.table, store: setup.store,
+    const execute = generatedCrudExecuteOwnerSession({ table: setup.table, store: setup.store,
       ownerPolicies: policies, ownerBounds: bounds,
       createOwnerFrame: async ({ call, session, context }) => {
         assert.equal(context, session.views.context);
@@ -920,5 +921,70 @@ describe('generated CRUD: checked owner policies and actual session frames', () 
       execute: async call => execute({ ...call, context: { ...call.context, operation: asOperation(`${GADGET}.create`) } }),
     }), /operation identities disagree/);
     assert.equal(opened, 2);
+  });
+
+  it('invokes the captured cleanup function with its original verified frame receiver on success and failure', async () => {
+    for (const reject of [false, true]) {
+      const setup = await setupCrud();
+      const loaded = loadArtifactDescriptors(crudSlice(), { by: 'members' });
+      let frame: GeneratedCrudOwnerFrame | undefined, closed = 0;
+      const policies = bindOwnerModelPolicies({ table: setup.table, descriptors: [{
+        abi: 'state.owner-model-policies@1', ...identity,
+        rules: [{ kind: 'invariant', id: 'receiver-check', dependencies: [] }], hooks: [],
+      }], bindings: [{ ...identity, id: 'receiver-check', kind: 'invariant', evaluate: () => {
+        assert.ok(frame !== undefined);
+        Object.defineProperty(frame, 'close', { value: () => { throw new Error('replacement cleanup must not run'); } });
+        return !reject;
+      } }] });
+      const execute = generatedCrudExecuteOwnerSession({ table: setup.table, store: setup.store,
+        ownerBounds: bounds, ownerPolicies: policies,
+        createOwnerFrame: async () => {
+          frame = { close(this: GeneratedCrudOwnerFrame) { assert.equal(this, frame); closed += 1; } };
+          return frame;
+        } });
+      const invoking = invoke({ ...callArgs(setup, execute), registry: loaded.registry,
+        envelope: makeEnvelope(`${GADGET}.create`, uuidv7(FIXED_NOW, ++crudSeq), baseGadgetInputs('RECEIVER')) });
+      if (reject) await assert.rejects(invoking, error => error instanceof StateError && error.code === 'rule_failed');
+      else assert.equal((await invoking).status, 'committed');
+      assert.equal(closed, 1);
+      assert.equal((await snapshotRows(setup.store, GADGET)).length, reject ? 0 : 1);
+    }
+  });
+
+  it('dedicated owner support refuses missing or invalid session inputs before any domain mutation', async () => {
+    const setup = await setupCrud();
+    const base = { table: setup.table, store: setup.store };
+    const createOwnerFrame: GeneratedCrudOwnerFrameFactory = async () => ({ close: () => {} });
+    for (const options of [
+      {}, { ownerBounds: bounds }, { createOwnerFrame },
+      { ownerBounds: undefined, createOwnerFrame }, { ownerBounds: null, createOwnerFrame },
+      { ownerBounds: bounds, createOwnerFrame: undefined }, { ownerBounds: bounds, createOwnerFrame: null },
+      { ownerBounds: bounds, createOwnerFrame: false }, { ownerBounds: { maxRows: 1 }, createOwnerFrame },
+      { ownerBounds: Object.create(bounds), createOwnerFrame },
+      { ownerBounds: bounds, createOwnerFrame, ownerPolicies: undefined },
+      { ownerBounds: bounds, createOwnerFrame, ownerPolicies: { beforeStage: async () => {}, finalize: async () => {}, hooks: new Map() } },
+    ]) {
+      assert.throws(() => generatedCrudExecuteOwnerSession({ ...base, ...options } as never),
+        error => error instanceof StateError && error.code === 'validation');
+    }
+    let getterReads = 0;
+    const getterInputs = { ...base, ownerBounds: bounds, createOwnerFrame };
+    Object.defineProperty(getterInputs, 'createOwnerFrame', { get: () => { getterReads += 1; return createOwnerFrame; } });
+    assert.throws(() => generatedCrudExecuteOwnerSession(getterInputs), /own explicit/);
+    const getterBounds = { ...bounds };
+    Object.defineProperty(getterBounds, 'maxWork', { get: () => { getterReads += 1; return 1000; } });
+    assert.throws(() => generatedCrudExecuteOwnerSession({ ...base, ownerBounds: getterBounds, createOwnerFrame }), /own numeric/);
+    assert.equal(getterReads, 0);
+    const loaded = loadArtifactDescriptors(crudSlice(), { by: 'members' });
+    let frames = 0;
+    for (const invalidBounds of [{ maxRows: 0, maxWork: 100 }, { maxRows: 1, maxWork: Number.NaN }]) {
+      const execute = generatedCrudExecuteOwnerSession({ ...base, ownerBounds: invalidBounds,
+        createOwnerFrame: async () => { frames += 1; return { close: () => {} }; } });
+      const failure = await captureStateError(invoke({ ...callArgs(setup, execute), registry: loaded.registry,
+        envelope: makeEnvelope(`${GADGET}.create`, uuidv7(FIXED_NOW, ++crudSeq), baseGadgetInputs('BAD-BOUNDS')) }));
+      assert.equal(failure.code, 'validation');
+    }
+    assert.equal(frames, 0);
+    assert.deepEqual(await snapshotRows(setup.store, GADGET), []);
   });
 });

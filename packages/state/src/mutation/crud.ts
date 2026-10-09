@@ -27,7 +27,7 @@ import { validatePredicateShape } from '../policy/grants.js';
 import { StateError } from '../errors.js';
 import { beginOwnerMutation, runMutationWrites, type MutationWrite, type MutationWritesInput,
   type OwnerMutationInput, type OwnerMutationSession } from './pipeline.js';
-import type { CheckedOwnerModelPolicies } from './model-policies.js';
+import { assertCheckedOwnerModelPolicies, type CheckedOwnerModelPolicies } from './model-policies.js';
 import type { ModelTable } from './models.js';
 
 /** INTERIM CRUD def: an operation def with an optional candidate `when`. */
@@ -335,6 +335,12 @@ export interface GeneratedCrudOwnerFrame {
   readonly close: () => void | Promise<void>;
 }
 
+/** Positive installed owner-session support; a native frame and bounds are explicit. */
+export interface GeneratedCrudExecuteOwnerSessionInput extends GeneratedCrudExecuteInput {
+  readonly ownerBounds: OwnerMutationInput['bounds'];
+  readonly createOwnerFrame: GeneratedCrudOwnerFrameFactory;
+}
+
 /** Source/byte verification and actual Can context/hydration remain the host's job. */
 export type GeneratedCrudOwnerFrameFactory = (input: {
   readonly call: AdmittedCall;
@@ -430,8 +436,50 @@ function generatedRecordInput(def: GeneratedOperationDef): Extract<
 export function generatedCrudExecute(
   input: GeneratedCrudExecuteInput,
 ): (call: AdmittedCall) => Promise<ExecutionEffects> {
+  return buildGeneratedCrudExecutor(input, false);
+}
+
+/**
+ * Hosts require this export before selecting source owner execution. Older
+ * generatedCrudExecute producers can ignore optional inputs; this entry cannot
+ * fall back to legacy writes, even when called through an untyped boundary.
+ */
+export function generatedCrudExecuteOwnerSession(
+  input: GeneratedCrudExecuteOwnerSessionInput,
+): (call: AdmittedCall) => Promise<ExecutionEffects> {
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+    throw new StateError('validation', 'Generated owner CRUD requires explicit session inputs.');
+  }
+  const bounds = Object.getOwnPropertyDescriptor(input, 'ownerBounds');
+  const frame = Object.getOwnPropertyDescriptor(input, 'createOwnerFrame');
+  if (bounds === undefined || !('value' in bounds) || typeof bounds.value !== 'object' ||
+      bounds.value === null || Array.isArray(bounds.value) ||
+      frame === undefined || !('value' in frame) || typeof frame.value !== 'function') {
+    throw new StateError('validation', 'Generated owner CRUD requires own explicit mutation bounds and a native frame factory.');
+  }
+  const boundValues = bounds.value as object;
+  if ((Object.getPrototypeOf(boundValues) !== Object.prototype && Object.getPrototypeOf(boundValues) !== null) ||
+      Reflect.ownKeys(boundValues).length !== 2 || !['maxRows', 'maxWork'].every(key => {
+        const member = Object.getOwnPropertyDescriptor(boundValues, key);
+        return member !== undefined && 'value' in member && typeof member.value === 'number';
+      })) {
+    throw new StateError('validation', 'Generated owner CRUD bounds must be own numeric maxRows and maxWork data.');
+  }
+  if ('ownerPolicies' in input) {
+    const policies = Object.getOwnPropertyDescriptor(input, 'ownerPolicies');
+    if (policies === undefined || !('value' in policies)) {
+      throw new StateError('validation', 'Generated owner CRUD policy bindings must be own data.');
+    }
+    assertCheckedOwnerModelPolicies(policies.value);
+  }
+  return buildGeneratedCrudExecutor(input, true);
+}
+
+function buildGeneratedCrudExecutor(
+  input: GeneratedCrudExecuteInput, forceOwnerSession: boolean,
+): (call: AdmittedCall) => Promise<ExecutionEffects> {
   const { table, store, encodeField, secretFields, ownerPolicies, ownerBounds, createOwnerFrame } = input;
-  const ownerExecution = ownerPolicies !== undefined || ownerBounds !== undefined || createOwnerFrame !== undefined;
+  const ownerExecution = forceOwnerSession || ownerPolicies !== undefined || ownerBounds !== undefined || createOwnerFrame !== undefined;
   if (ownerExecution && ownerBounds === undefined) {
     throw new StateError('validation', 'Generated owner CRUD requires explicit mutation bounds.');
   }
@@ -446,6 +494,7 @@ export function generatedCrudExecute(
       const session = await beginOwnerMutation({ ...common, bounds: ownerBounds!,
         ...(ownerPolicies !== undefined ? { policies: ownerPolicies } : {}) });
       let close: GeneratedCrudOwnerFrame['close'] | undefined;
+      let closeReceiver: GeneratedCrudOwnerFrame | undefined;
       try {
         if (createOwnerFrame !== undefined) {
           const frame = await createOwnerFrame(Object.freeze({ call, session, context: session.views.context }));
@@ -453,6 +502,7 @@ export function generatedCrudExecute(
             ? Object.getOwnPropertyDescriptor(frame, 'close') : undefined;
           if (member !== undefined && 'value' in member && typeof member.value === 'function') {
             close = member.value as GeneratedCrudOwnerFrame['close'];
+            closeReceiver = frame;
           }
           if (typeof frame !== 'object' || frame === null ||
               (Object.getPrototypeOf(frame) !== Object.prototype && Object.getPrototypeOf(frame) !== null) ||
@@ -466,7 +516,7 @@ export function generatedCrudExecute(
         await session.stage(write, { cause: 'crud', input: call.inputs });
         return await session.finalize();
       } finally {
-        await close?.();
+        if (close !== undefined) await close.call(closeReceiver);
       }
     })();
     // Owner finalization coalesces hook/secondary writes and reserves one final
