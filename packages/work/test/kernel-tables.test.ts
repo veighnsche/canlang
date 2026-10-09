@@ -22,6 +22,7 @@ import {
   newScheduleRow,
   newSupersessionRow,
   readDispatchRow,
+  readDispatchImageCorrelation,
   readEverySlotRow,
   readOccurrenceRow,
   readScheduleRow,
@@ -48,6 +49,28 @@ function rowWithData(data: unknown): StoredRow {
 }
 
 describe('kernel tables: dispatch rows', () => {
+  it('retains complete original Images correlation and rejects partial or noncanonical revisions', () => {
+    const correlation = { requestSource: 'arbitrary-business-source', requestRevision: '7',
+      requestBinding: 'Acme.Images', requestFrom: 'deployment.images', requestApp: 'Acme', requestOwner: 'team-1' };
+    const row = newDispatchRow({ intentId: 'original', operationId: 'different-operation',
+      source: 'std.ImagesV1.submit', occurrenceIndex: 0, originOccurrence: null, ...correlation }, META);
+    assert.deepEqual(readDispatchImageCorrelation(readDispatchRow(row)), correlation);
+    assert.deepEqual(readDispatchImageCorrelation(readDispatchRow(withRowData(row,
+      { ...readDispatchRow(row), state: 'uncertain', attempts: 1 }, META, 'work.dispatch'))), correlation);
+    for (const revision of ['07', '-1', '1.0', '', 7, null]) {
+      assert.throws(() => readDispatchRow({ ...row, data: { ...row.data, requestRevision: revision } }), KernelTableError);
+    }
+    for (const missing of Object.keys(correlation)) {
+      const data = { ...row.data }; delete data[missing];
+      assert.throws(() => readDispatchRow({ ...row, data }), KernelTableError);
+    }
+    let getters = 0;
+    const accessor = { ...correlation };
+    Object.defineProperty(accessor, 'requestSource', { get: () => { getters++; return 'bad'; } });
+    assert.throws(() => readDispatchImageCorrelation(accessor), KernelTableError);
+    assert.equal(getters, 0);
+  });
+
   it('builds pending producer rows that read back exactly', () => {
     const row = newDispatchRow(
       {

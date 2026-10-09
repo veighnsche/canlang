@@ -247,9 +247,21 @@ export interface InstalledImageOptions {
   readonly jobId: string;
   /** Original finite Unix millisecond deadline; callers must never renew it. */
   readonly deadlineMs: number;
+  /**
+   * Independent retained control budget, used only by cancel/reconcile.
+   * Persist this original window; a retry must not renew either deadline.
+   */
+  readonly observation?: {
+    readonly startedAtMs: number;
+    readonly deadlineMs: number;
+  };
 }
 
-/** Full std request survives every lifecycle call, including source/revision correlation. */
+/**
+ * Full std request survives every lifecycle call, including source/revision
+ * correlation. Submit uses only the original generation deadline. An expired
+ * generation can be observed or cancelled only with a retained control window.
+ */
 export interface ImagesPort {
   submit(input: ImageRequest, options: InstalledImageOptions): Promise<CapabilityCompletion<ImageAccepted>>;
   reconcile(input: ImageRequest, options: InstalledImageOptions): Promise<CapabilityCompletion<ImageRun>>;
@@ -271,6 +283,7 @@ export interface InstalledImages {
     readonly seed: { readonly kind: 'fixed'; readonly value: number };
     readonly maxOutputs: number;
     readonly maxDurationMs: number;
+    readonly maxObservationDurationMs: number;
     readonly maxOutputBytes: number;
   };
   readonly images: ImagesPort;
