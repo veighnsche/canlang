@@ -149,8 +149,20 @@ The integrated **bbd541af** run reports **1,263 passed, 8 failed**, with no
 reported skips. Three additional setup fixtures now consume exact disclosed
 CRUD records and pass **3/3**, retaining their genuine scenario/default/rollback
 results and controls. The five corpus failures keep the same draft prerequisite.
-Codex review of this revision identified ordinary-text descriptor escapes;
-that actionable type-boundary correction is still in progress.
+Codex's **7db23906** review identified ordinary-text descriptor escapes;
+its later **bbd541af** code/security reviews completed without additional findings.
+The correction now gives anonymous descriptors a distinct inferred
+`ResolvedType::InlineMessage`: ordinary text returns, create/set fields,
+parameters and nested members refuse through normal compatibility checking.
+Twenty real CLI refusals publish no artifacts. Existing checked provenance,
+formatter defaults/source locale and once/order/first-failure controls remain;
+the native alias case and actual generated Card/Details/Divider/Fieldset/Tab
+captions pass. UI adapter **7/7** and strict all-target Clippy pass, and
+independent HIGH source review accepts the corrected sinks. Human captions
+admit checked named/anonymous descriptors; machine IDs remain scalar text.
+This introduces a public Rust enum variant, without a public anonymous business
+schema or canonical ownerless-enum UI admission. A fresh integrated run and
+Codex review of the correction's published revision remain due.
 
 Current remaining prerequisites are recorded here without reopening accepted
 compiler leaves:
