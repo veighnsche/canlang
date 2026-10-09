@@ -265,8 +265,16 @@ it("projects observed business refusals through the owner and releases the obser
     expect(JSON.stringify(mcpDetail)).not.toContain(secret);
 
     writeFileSync(fixture.app, "app Office\nGiven\nWhen\nThen\n## next revision\n");
-    const second = await fixture.client.request({ command: "check" }) as { revision: string };
-    expect(second.revision).not.toBe(first.revision);
+    // The native write hint may supersede a captured check. A different
+    // revision alone does not publish a replacement preview or dispose its
+    // predecessor; retry only that explicit currency refusal, without delays.
+    let second: { revision: string; state: string; current: boolean; preview: string } | undefined;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      second = await fixture.client.request({ command: "check" }) as typeof second;
+      if (second?.state !== "superseded") break;
+    }
+    expect(second).toMatchObject({ state: "valid", current: true, preview: "ready" });
+    expect(second!.revision).not.toBe(first.revision);
     expect(await control(["failure.lookup", "--ref", ref]))
       .toMatchObject({ ok: true, result: { ref, revision: first.revision } });
     expect(fixture.unobserves()).toBeGreaterThanOrEqual(1);

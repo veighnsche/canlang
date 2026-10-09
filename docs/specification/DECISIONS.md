@@ -3836,3 +3836,8 @@ Dev must require the actual `generatedCrudExecuteOwnerSession` export before sel
 ## 2026-10-09: consume the exact finite Compiler owner-policy producer
 
 Consume released Compiler41ef5992 IR rule origins and7152dabb local policy metadata/native callback source with their exact owning tests, excluding foreign status/README records. Canonical owner/model/module/global source order remains checked; conditional uniques are not invariants. The actual evaluate(c,row) native callbacks require Dev's genuine context/hydration adapter before State raw-row execution. Unsupported context/query/derive/reference/metadata/hook declarations and unsupported lock targets decline whole-unit coverage instead of acquiring empty dependencies. Source-current Compiler build and10focused origin/classifier/actualCLI/native callback controls pass. Unchanged owning codegen/artifact results are reused; broader original applications and native source activation remain required.
+
+
+## 2026-10-09: consume current-preview observer cleanup qualification
+
+Consume the exact owning Devbb504f54 control: a source write may supersede a captured check, so a different revision alone cannot establish replacement preview publication or predecessor disposal. Retry only explicit superseded results and require valid/current/ready before the unchanged retained-failure and observer cleanup assertions. The previously failed case passes1/1 in its focused run with11unselected cases; unchanged prior local results and the owner's full12case report remain distinguished. No production cleanup, permission or currency guard is weakened.

@@ -1506,7 +1506,7 @@
       "status": "active_bounded_snapshot_probe"
     }
   ],
-  "updated_utc": "2026-10-09T18:03:42.574526Z",
+  "updated_utc": "2026-10-09T18:04:15.421872Z",
   "progress_reporting": {
     "user_requested": true,
     "format": "done / 63 after every finished roadmap task; report partial slices separately without incrementing full-task count",
@@ -1712,11 +1712,11 @@
       }
     },
     "dev_example_control_intake": {
-      "state": "source_intake_compiled_owning_native_controls_tested_observer_disposal_owner_prerequisite",
+      "state": "source_intake_compiled_owning_native_and_observer_controls_tested",
       "released_revision": "53597b39df18da57d0e39d1f0180caee29e8ab7a",
       "scope": "Coordinator-authorized10Cloudflare src/dev files plus9owning tests, preserving default-off external decisions and existing browser executable overrides. No session-socket/foreign records/Values binary intake. Existing createTeamOwnerStorageBoundary present.",
-      "remaining": "Serialized joined CF emission and owning example/control/source capture checks after concurrent feature sources stable; exact missing host/State/Testkit producer evidence if any goes to Dev/Packages/Compiler owners. No whole original example/application acceptance.",
-      "validation": "CF owning emit passes; exact six runtime fixture intakes pass71/71 including actualD1/DO. Native actual Dev example-runner2/2 passes after building its required local Testkit package. Control intake has40initial passing controls plus17controls in failed-file rerun under actual owner-private short Darwin temp paths; one genuine observer-disposal assertion at session-example-control.test.ts272 remains and is sent to Dev. No failed permission/source-currency assertion is weakened."
+      "remaining": "No current observer-disposal implementation blocker remains: exact Devbb504f54 requires a current valid ready replacement before disposal assertions, preserving every cleanup check. Broader original application/help/source qualification remains separately owned; no general scenario restoration disclosure acceptance.",
+      "validation": "CF owning emit passes; exact six runtime fixture intakes pass71/71 including actualD1/DO. Native actual Dev example-runner2/2 passes after building its required local Testkit package. Control intake has40initial passing controls plus17controls in failed-file rerun under actual owner-private short Darwin temp paths; one genuine observer-disposal assertion at session-example-control.test.ts272 remains and is sent to Dev. No failed permission/source-currency assertion is weakened. Exact owning Devbb504f547db691bb3b8a2a2489cc0dbc78cc53b9 test correction consumed. The previously failed observer-disposal case now passes1/1 in a focused source-current run (11unselected tests), using actual private short Darwin paths/native sockets. Unchanged40initial+17failed-file controls reused; owner full12reported passes not represented as a new local full-suite run."
     }
   },
   "live_handoffs": {
