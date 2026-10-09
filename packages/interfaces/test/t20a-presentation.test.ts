@@ -456,6 +456,17 @@ test('protected source update submits only editable values and restores its exac
   assert.deepEqual(JSON.parse(JSON.stringify(calls[0]!.inputs)), { title: 'Edited', record: { id: 'g1', version: '7' } });
   assert.equal((await submit(envelope)).status, 200);
   assert.deepEqual(calls[1]!.inputs, calls[0]!.inputs, 'retry retains exact canonical inputs');
+  const native = new URLSearchParams([...html.matchAll(/<input\b[^>]*name="([^"]*)"[^>]*value="([^"]*)"[^>]*>/g)]
+    .map(match => [match[1]!, match[2]!]));
+  native.set('inputs[changes][title]', 'Native edit');
+  const nativeSubmit = (fields: URLSearchParams) => handleOperationRequest(protectedDeps,
+    testRequest('/forms', { method: 'POST', cookie: identity.cookie,
+      headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: fields.toString() }), STORE_UPDATE_OP.name);
+  assert.equal((await nativeSubmit(native)).status, 200);
+  assert.deepEqual(JSON.parse(JSON.stringify(calls[2]!.inputs)), { title: 'Native edit', record: { id: 'g1', version: '7' } });
+  const override = new URLSearchParams(native); override.set('inputs[record][id]', 'other');
+  assert.equal((await nativeSubmit(override)).status, 403);
+  assert.equal(calls.length, 3, 'native source bindings retain protected-ref refusal');
 });
 
 test('bindingFromDerived pins the operation and checks mode agreement', () => {
@@ -1032,14 +1043,12 @@ test('framing and business denials re-render with safe messages via dispatch', a
   assert.equal(store.rows.size, 0, 'no denied submit changed state');
 });
 
-test('bracket field names are never expanded: the projection is the form step', async () => {
+test('native bracket fields project through the owning catalog and refuse extras', async () => {
   const store = createPilotStore();
   const t = await createTestDeps({ mutations: store.handlers });
   const catalog = catalogFromArtifactOperations({ artifact_version: ARTIFACT_VERSION, operations: PILOT_OPS });
   const deps = { ...t.deps, catalog };
   const csrf = await deriveCsrfToken(t.identity.sessionToken);
-  // A literal urlencoded dump of rendered bracket names carries no
-  // `inputs` member, so framing rejects it — clients project first.
   const soup = new URLSearchParams({
     operation_id: mintOperationId(),
     'inputs[title]': 'wrench',
@@ -1050,9 +1059,14 @@ test('bracket field names are never expanded: the projection is the form step', 
     opRequest({ cookie: t.identity.cookie, contentType: 'application/x-www-form-urlencoded', body: soup.toString() }),
     'Store.Gadget.create',
   );
-  assert.equal(res.status, 400);
-  assert.equal((await res.json() as { message: string }).message, 'Invalid inputs.');
-  assert.equal(t.invoker.mutations.length, 0);
+  assert.equal(res.status, 200);
+  assert.deepEqual(t.invoker.mutations[0]!.envelope.inputs, { title: 'wrench' });
+  soup.set('inputs[undeclared]', 'extra');
+  const refused = await handleOperationRequest(deps,
+    opRequest({ cookie: t.identity.cookie, contentType: 'application/x-www-form-urlencoded', body: soup.toString() }),
+    'Store.Gadget.create');
+  assert.equal(refused.status, 400);
+  assert.equal(t.invoker.mutations.length, 1);
 });
 
 test('scenario submits dispatch with projected arrays and defaults omitted', async () => {
