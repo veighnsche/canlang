@@ -1,5 +1,7 @@
 # Active compiler completion
 
+Authorized local continuation uses `/Users/vince/Projects/canlang/.worktrees/compiler`; prior shutdown locations and results below are historical.
+
 Current completion is **58 of 67 references**, with **9 remaining including partial work**. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
 **Unfinished shutdown checkpoint, 2026-10-09.** The human stopped cloud work;
@@ -86,10 +88,28 @@ native delete consumer **1/1** and owning codegen case **1/1** pass: hidden nonc
 is submitted unchanged, replay returns the saved outcome, rerender gets a fresh
 nonce, stale version/current membership still refuse and gated controls mint
 nothing. The same fixture explicitly witnesses the separate raw-mode blocker:
-UI emits `inputs[mode]=archive`, while canonical delete accepts record only and
-refuses record+mode with validation. Full posted-form mode projection belongs
-to UI/Interfaces/Dev and is routed to the coordinator; no full Office workflow
-acceptance is claimed by this compiler identity correction.
+UI originally emitted `inputs[mode]=archive`, while canonical delete accepts
+record only. The exact Packages **1704023b** UI correction is now consumed as
+**b176de24**. After the owning UI build, this actual native case passes **1/1**
+with every emitted business field and nonce submitted unchanged; deliberately
+added undeclared mode still refuses. Full HTTP/D1/browser Office qualification
+remains Dev-owned.
+
+
+**Local current-source qualification, 2026-10-09.** Compiler source at
+**22903771** passes **1,281 Rust tests, 0 failed, 0 ignored**, using bundled
+Node **24.19.0**, the actual built package/catalog inputs, exact draft **5a12eb9e**
+and `CAN_COMPLETION_REQUIRE_ENGINES=1`. Corpus and all real completion engines
+execute. The sandboxed run reports one mode-4750 body skip; its exact existing
+permission test separately passes outside the sandbox with no skip. Compiler
+formatting, strict all-target Clippy, editor manifests/client typecheck and real
+LSP round-trip pass. Subsequent UI1704023b intake changes only its owning form
+projection and passes the affected actual generated native case **1/1**; unchanged
+compiler results are reused. Finite independent reviews accept the array,
+UI-admission, example identity, chained-caption and delete identity boundaries.
+Codex review of **22903771** adds the shared portable-browser consumer blocker
+above; later published heads still require their own Codex review/CI. Original
+completion remains **58/67**, with **9 open** owner-dependent references.
 
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
@@ -402,9 +422,10 @@ compiler leaves:
 | S9-Q02 | Additional default/result intake and observation contracts, private/CRUD/D1 transaction profiles: Contracts, State and Cloudflare owners. Unsupported nested/nonempty/element-nullable enum profiles remain explicit. |
 | S9-Q07 | Specific BDD consumer-policy consultation remains held; human/policy owner must resolve it. Actual result/current-input/live-read and localized observation transport, including trusted selected-app formatting/team timezone context, belong to Testkit/canonical invocation owners. Imported helpers and localized selected-call production are already linked. |
 | S9-Q08, OR-06, OUT-R05 | Page admission/current-row disclosure/browser serving, migrations/durable ingestion, installed applications and real GUI/map navigation: Cloudflare, Interfaces, UI, State migration/deployment, application/release and editor/GUI owners. Native map production is already supplied. |
-| Office delete workflow | UI/Interfaces/Dev: reconcile the existing `inputs[mode]=archive` form directive with canonical record-only delete intake. Compiler now supplies the exact rendered UUIDv7 nonce; raw record+mode refusal is a permanent native witness. |
+| Office delete workflow | Compiler nonce and Packages1704023b declared-input projection are released and pass the actual native join. Dev owns full HTTP/D1/browser Office qualification. Deliberately added raw mode remains refused. |
 | Rule/hook producer join | Capability SEQ-011 defines State/Contracts finalization, dependency/lock selectors and native context carriers; compiler consumes the concrete defining release. Current design notes are a prerequisite, not a human hold. |
 | Dev T04/T11 | Dev owns the finite qualified candidate/card/profile contract; compiler supplies checked diagnostic facts after that release. The optional carrier alone does not establish a producer or profile admission. |
+| Workspace browser gate | Packages/Cloudflare test owner: current page-query-serving consumer still selects branded Chrome and a hardcoded macOS executable despite shared CI provisioning Chromium. Codex22903771 finding4232159871 is verified against exact current source; consume its defining repair without changing workflows locally. |
 
 The user has authorized finishing the remaining compiler tasks. Use the [recorded work/review settings](../../docs/research/compiler-library-audit-20261006/resumption/model-allocation.md); overlapping references share work and completed receipts are reused at matching scope. Current completion joins append to the canonical coverage ledger; historical source pins remain unchanged.
 

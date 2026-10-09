@@ -55,7 +55,7 @@ const first=controls[0];
 assert.equal(first.operation,operation);
 assert.equal(first.action,'/api/operations/'+operation);
 assert.equal(first.mode,'archive');
-assert.equal(hidden(html,'inputs[mode]'),'archive');
+assert.ok(!html.includes('name="inputs[mode]"'),'mode selects presentation without inventing a business input');
 assert.match(first.operationId,/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
 assert.equal(first.operationId.slice(0,8)+first.operationId.slice(9,13),FIXED_NOW.toString(16).padStart(12,'0'));
 assert.equal(hidden(html,'operation_id'),first.operationId);
@@ -66,13 +66,13 @@ assert.notEqual(hidden(repeated,'operation_id'),first.operationId,'fresh nonce p
 assert.deepEqual(textValues.at(-1),[BigInt(born.version)+1n],'source version arithmetic remains native');
 const wire={id:hidden(html,'inputs[record][id]'),version:hidden(html,'inputs[record][version]')};
 assert.deepEqual(wire,{id:born.id,version:String(born.version)});
-// Witness the separate, existing raw-mode admission gap without replacing IDs.
-const rawMode=await invoker.invokeMutation({operation,operation_id:hidden(repeated,'operation_id'),inputs:{record:wire,mode:hidden(repeated,'inputs[mode]')}},identity);
+// Retain refusal of an undeclared mode added to otherwise valid form inputs.
+const rawMode=await invoker.invokeMutation({operation,operation_id:hidden(repeated,'operation_id'),inputs:{record:wire,mode:first.mode}},identity);
 assert.ok('error' in rawMode);
-assert.equal(rawMode.error.code,'validation','raw form mode is outside canonical CRUD inputs');
-// Submit the rendered nonce and protected record through canonical admission.
-// The existing UI mode hidden field is verified above; canonical CRUD takes
-// only record. Full browser mode projection remains an Interfaces/UI concern.
+assert.equal(rawMode.error.code,'validation','extra mode stays outside canonical CRUD inputs');
+// Submit every emitted business input and the rendered nonce unchanged.
+const businessFields=[...html.matchAll(/name="(inputs\[[^"]+)" value="([^"]*)"/g)].map(match=>[match[1],match[2]]);
+assert.deepEqual(businessFields,[['inputs[record][id]',wire.id],['inputs[record][version]',wire.version]],'only the declared protected record is posted');
 const envelope={operation,operation_id:hidden(html,'operation_id'),inputs:{record:wire}};
 const deleted=await invoker.invokeMutation(envelope,identity);committed(deleted);
 const replayed=await invoker.invokeMutation(envelope,identity);
