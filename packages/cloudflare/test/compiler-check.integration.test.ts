@@ -49,7 +49,7 @@ describe("captured compiler against the Office Supplies evaluator source", () =>
     try {
       writeFileSync(app, 'app CallerReceipts\nGiven\nWhen\n scenario saved() -> int by=members\n  do return 7\nThen\n');
       const capture = await captureSingleFileSource(request);
-      const result = await compileCapturedSingleFile(capture);
+      const result = await compileCapturedSingleFile(capture, new AbortController().signal);
       if (result.kind !== 'artifact') throw new Error(`native captured receipt compile refused: ${result.kind}`);
       expect(result.artifact.sources).toEqual([{ path: capture.compilerOperand, sha256: capture.sourceSha256 }]);
       const operation = result.artifact.operations?.find(entry => entry.name === 'CallerReceipts.saved');
