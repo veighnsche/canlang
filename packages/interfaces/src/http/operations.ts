@@ -409,13 +409,21 @@ export async function handleOperationRequest(
       }
       seen = { operationId, inputs: drafts };
     }
+    let retainedBinding = false;
     let businessInputs = nativeForm === null ? submittedInputs : projectNativeForm(derived, nativeForm);
     if (nativeForm !== null) seen = { operationId, inputs: businessInputs };
     if (Object.hasOwn(record, SOURCE_FORM_BINDING_FIELD)) {
       const token = record[SOURCE_FORM_BINDING_FIELD];
-      const restored = typeof token !== 'string' || derived === null || deps.formBindings === undefined ? null :
+      let restored = typeof token !== 'string' || derived === null || deps.formBindings === undefined ? null :
         await deps.formBindings.restore({ appId: deps.app.appId, sessionToken, identity, derived,
           operationId, nowMs: deps.clock.nowMs() }, token, businessInputs);
+      if (restored === null && typeof token === 'string' && derived !== null &&
+          ['create', 'update', 'delete'].includes(derived.kind) &&
+          typeof deps.formBindings?.restoreRetained === 'function' && typeof deps.invoker.invokeRetainedMutation === 'function') {
+        restored = await deps.formBindings.restoreRetained({ appId: deps.app.appId, sessionToken, identity, derived,
+          operationId, nowMs: deps.clock.nowMs() }, token, businessInputs);
+        retainedBinding = restored !== null;
+      }
       if (restored === null) {
         return denyOrRerender(deps, request, operation,
           buildBusinessError('forbidden', 'This form binding is no longer available. Reload the page.'), seen, authed);
@@ -448,7 +456,9 @@ export async function handleOperationRequest(
       now: new Date(deps.clock.nowMs()).toISOString(),
     });
     const envelope: MutationEnvelope = { operation, operation_id: operationId, inputs: businessInputs };
-    const outcome = await deps.invoker.invokeMutation(envelope, identity);
+    const outcome = retainedBinding
+      ? await deps.invoker.invokeRetainedMutation!(envelope, identity)
+      : await deps.invoker.invokeMutation(envelope, identity);
     if ('error' in outcome) {
       return denyOrRerender(deps, request, operation, outcome.error, seen, authed);
     }
