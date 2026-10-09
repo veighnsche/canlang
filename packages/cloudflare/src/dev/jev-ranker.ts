@@ -111,7 +111,7 @@ function eligible(occurrence: RankOccurrence): RankResult | null {
   }
   if (occurrence.structuralRecovery || occurrence.section === null || occurrence.slot === null ||
       !/^[A-Za-z][A-Za-z0-9_ /.-]{0,39}$/.test(occurrence.section) ||
-      !/^[a-z][a-z0-9_]{0,63}$/.test(occurrence.slot)) {
+      !/^[a-z][a-z0-9_.-]{0,95}$/.test(occurrence.slot)) {
     return { state: "structural", reason: "authoring slot is not reliable" };
   }
   if (occurrence.materialIntentChoice) {
