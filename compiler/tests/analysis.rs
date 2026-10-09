@@ -593,7 +593,9 @@ fn explain_round_trip_source_codes() {
     let entries: Vec<_> = explain::all()
         .iter()
         .filter(|info| {
-            info.code.starts_with("E2")
+            // Intrinsic ID exhaustion is qualified by resolver allocation
+            // controls; its descriptive example is not executable Can source.
+            (info.code.starts_with("E2") && info.code != "E2019")
                 || info.code.starts_with("E3")
                 || info.code.starts_with("E4")
                 || info.code.starts_with("E5")

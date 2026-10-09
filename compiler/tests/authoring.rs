@@ -593,7 +593,10 @@ fn cli_dev_delegates_verbatim_to_the_json_session_client() {
     );
     let help = dispatch(&argv(&["dev", "--help"]));
     assert_eq!(help.code, 0);
-    assert_eq!(std::fs::read_to_string(&capture.path).unwrap().trim_end(), "--help");
+    assert_eq!(
+        std::fs::read_to_string(&capture.path).unwrap().trim_end(),
+        "--help"
+    );
 
     env.set_one("CAN_DEV_EXIT_CODE", "1");
     assert_eq!(dispatch(&argv(&["dev", "status"])).code, 1);
