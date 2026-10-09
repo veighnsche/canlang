@@ -15,6 +15,14 @@ affected targets pass codegen **117/117**, slots **6/6**, selected calls **7/7**
 and UI adapter **7/7**. Independent review was interrupted; no final acceptance,
 new strict lint result or passing current-head suite is claimed. The shutdown
 checkpoint and push preserve work only; no further cloud execution is authorized.
+The separate Codex4231479656 inline-descriptor array correction preserves the
+`loose_equal(InlineMessage, InlineMessage)` arm and existing coverage extension.
+Its last affected target is **2/3**: actual raw-descriptor array count is **0n**
+instead of **2n**, because IR's expression-child predicate omits `MessageValue`
+and silently drops those elements. That producer gap remains uncorrected.
+Mixed text/named-schema and business text-array refusal controls pass; the
+check/compile artifact-shape fixture correction is retained. No completed array
+workflow or current-revision Codex review follows from this unfinished checkpoint.
 
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
