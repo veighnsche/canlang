@@ -72,6 +72,8 @@ import type {
   AssemblyDeps,
   BrowserAssetsHandler,
   HttpOperationHandlerFactory,
+  HttpAuthConfiguration,
+  HttpAuthJoin,
   HttpPageHandlerFactory,
   McpHandlerFactory,
   McpPermissions,
@@ -133,6 +135,8 @@ interface BrowserAssetsManifest {
 
 /** P-C `buildProductionDeps(env)` result: `{ store, identityStore }`. */
 export interface ProductionDeps {
+  /** Explicit trusted host configuration; no production default limiter or mail binding. */
+  readonly auth?: HttpAuthConfiguration;
   readonly store: StoragePort;
   readonly identityStore: unknown;
   readonly stateTeam?: StateTeamBinding;
@@ -209,6 +213,7 @@ export interface MainLoaders {
   readonly loadDerivedInputs?: () => Promise<BakedDerivedInputs | undefined>;
   /** Resolves `undefined` when `./http-operations.js` is absent (-> assembly 501 on the op route). */
   readonly loadHttpOperationsFactory?: () => Promise<HttpOperationHandlerFactory | undefined>;
+  readonly loadHttpAuthJoin?: () => Promise<HttpAuthJoin | undefined>;
   readonly loadHttpPageFactory?: () => Promise<HttpPageHandlerFactory | undefined>;
   readonly loadCohortTickFactory?: () => Promise<CreateCohortTickFn>;
   readonly loadOwnerRouterFactory?: () => Promise<CreateOwnerRouterFn>;
@@ -490,6 +495,18 @@ function sourceFormRevision(artifact: CompileArtifact): string {
   });
 }
 
+async function defaultLoadHttpAuthJoin(): Promise<HttpAuthJoin | undefined> {
+  let mod: unknown;
+  try { mod = await import(HTTP_OPERATIONS_SPECIFIER); }
+  catch { return undefined; }
+  if (!isRecord(mod) || typeof mod['handleAuthRequest'] !== 'function' ||
+      typeof mod['SESSION_EXPIRES_MS'] !== 'number') {
+    throw new Error('deploy main: worker sibling ./http-operations.js lacks owning auth handler/session lifetime');
+  }
+  const handle = mod['handleAuthRequest'] as (deps: unknown, request: Request) => Promise<Response>;
+  return { createHandler: deps => request => handle(deps, request), sessionExpiresMs: mod['SESSION_EXPIRES_MS'] };
+}
+
 async function defaultLoadHttpPageFactory(): Promise<HttpPageHandlerFactory | undefined> {
   let mod: unknown;
   try { mod = await import(HTTP_OPERATIONS_SPECIFIER); }
@@ -629,6 +646,7 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
   const loadPerms = loaders.loadMcpPermissions ?? defaultLoadMcpPermissions;
   const loadDerived = loaders.loadDerivedInputs ?? defaultLoadDerivedInputs;
   const loadHttpOps = loaders.loadHttpOperationsFactory ?? defaultLoadHttpOperationsFactory;
+  const loadHttpAuth = loaders.loadHttpAuthJoin ?? defaultLoadHttpAuthJoin;
   const loadHttpPages = loaders.loadHttpPageFactory ?? defaultLoadHttpPageFactory;
   const loadFormBindings = loaders.loadSourceFormBindingsFactory ?? defaultLoadSourceFormBindingsFactory;
 
@@ -645,6 +663,7 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
   const getPermsFactory = memoize(() => loadPerms());
   const getDerivedInputs = memoize(() => loadDerived());
   const getHttpOpsFactory = memoize(() => loadHttpOps());
+  const getHttpAuthJoin = memoize(() => loadHttpAuth());
   const getHttpPageFactory = memoize(() => loadHttpPages());
   const getFormBindingsFactory = memoize(() => loadFormBindings());
   const getAssemble = memoize(() => loadAssemble());
@@ -675,6 +694,7 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
     const factory = await getMcpFactory();
     const httpFactory = await getHttpOpsFactory();
     const pageFactory = await getHttpPageFactory();
+    const authJoin = await getHttpAuthJoin();
     const permFactory = factory === undefined ? undefined : await getPermsFactory();
     const derivedInputs =
       factory === undefined && httpFactory === undefined && pageFactory === undefined ? undefined : await getDerivedInputs();
@@ -728,10 +748,12 @@ export function createMainHandlers(loaders: MainLoaders = {}): MainHandlers {
               ...(derivedInputs === undefined ? null : { derivedInputs }),
             },
           }),
-      ...(httpFactory === undefined && pageFactory === undefined && browserAssets === undefined
+      ...(httpFactory === undefined && pageFactory === undefined && authJoin === undefined && browserAssets === undefined
         ? null
         : {
             http: {
+              ...(deps.auth === undefined ? {} : { auth: deps.auth }),
+              ...(authJoin === undefined ? {} : { authHandler: authJoin }),
               ...(formBindings === undefined ? {} : { formBindings }),
               ...(httpFactory === undefined ? {} : { createOperationHandler: httpFactory }),
               ...(pageFactory === undefined ? {} : { createPageHandler: pageFactory }),

@@ -187,6 +187,11 @@ export interface PageHttpDeps {
   readonly formBindings?: SourceFormBindings;
 }
 
+/** Defining auth dependencies; absent mail refuses mail-producing flows before effects. */
+export interface AuthHttpDeps extends Pick<HttpDeps, 'clock' | 'logger' | 'limiter' | 'secureCookies'> {
+  readonly identity: Omit<IdentityDeps, 'mail'> & { readonly mail?: MailPort };
+}
+
 export interface HttpDeps extends PageHttpDeps {
   readonly invoker: OperationInvoker;
   readonly inputChoices?: InputChoiceLookup;
