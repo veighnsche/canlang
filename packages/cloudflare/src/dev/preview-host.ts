@@ -58,8 +58,12 @@ function activationInput(artifact: CompileArtifact, capture: SingleFileCapture, 
 
 /** Check the actual D1 store with all four installed activation gates. */
 export async function localPreviewActivationVerdict(
-  artifact: CompileArtifact, capture: SingleFileCapture, db: D1Database, databaseId: string, owner?: string,
+  artifact: CompileArtifact, capture: SingleFileCapture, db: D1Database, databaseId: string, owner?: string, identityDb?: D1Database,
 ): Promise<ActivationVerdict> {
+  if (owner !== undefined && (identityDb === undefined || identityDb === db ||
+      await createD1IdentityStore(identityDb).findTeamById(owner) === null)) {
+    throw new PreviewAdmissionError("IDENTITY_UNAVAILABLE", "serving owner must exist in its separate real Identity database");
+  }
   const { descriptor, environment } = activationInput(artifact, capture, databaseId);
   await ensureSchema(db);
   const row = await db.prepare("SELECT COUNT(*) AS count FROM outbox").first<{ count: number }>();

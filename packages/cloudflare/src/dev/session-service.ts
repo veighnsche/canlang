@@ -396,6 +396,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
   let failureCursor = 0;
   const exampleCaptures = new Map<string, SingleFileCapture>();
   let exampleQueue: Promise<unknown> = Promise.resolve();
+  const stopExamples = new AbortController();
   const reruns = new ExampleRerunCoordinator({
     resourcesReady: async ({ fixtureRecipeId }) => {
       const captured = exampleCaptures.get(fixtureRecipeId);
@@ -568,6 +569,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
 
   const stop = (): Promise<void> => {
     if (stopping !== null) return stopping;
+    stopExamples.abort();
     stopping = (async () => {
       let stopError: unknown;
       try { await core.stop(); } catch (error) { stopError = error; }
@@ -622,7 +624,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
     });
   };
 
-  const handle = async (command: SessionSocketCommand): Promise<unknown> => {
+  const handle = async (command: SessionSocketCommand, requestSignal: AbortSignal): Promise<unknown> => {
     const payload = record(command.payload);
     if (command.command === "help") {
       return {
@@ -747,7 +749,13 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         next_after: available.length > page.length ? page.at(-1)!.cursor : null };
     }
     if (command.command === "example.run" || command.command === "example.rerun") {
+      const signal = AbortSignal.any([requestSignal, stopExamples.signal]);
+      const requireActive = (): void => {
+        if (signal.aborted) throw new SessionSocketError(stopExamples.signal.aborted ? "SESSION_STOPPED" : "REQUEST_CANCELLED",
+          stopExamples.signal.aborted ? "session is stopping" : "example request was cancelled");
+      };
       const work = exampleQueue.then(async () => {
+        requireActive();
         if (stopping !== null) throw new SessionSocketError("SESSION_STOPPED", "session is stopping");
         if (command.command === "example.rerun") {
           const ref = payload?.ref;
@@ -758,7 +766,9 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
           if (failure?.rerunRef === undefined) {
             throw new SessionSocketError("RERUN_UNAVAILABLE", "retained failure has no supported example row");
           }
-          return safeRerunResult(await reruns.rerun(failure.rerunRef));
+          const result = await reruns.rerun(failure.rerunRef, signal);
+          requireActive();
+          return safeRerunResult(result);
         }
         const expectedRevision = payload?.expectedRevision;
         if (typeof expectedRevision !== "string" || !/^r[1-9][0-9]*$/.test(expectedRevision)) {
@@ -785,17 +795,20 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
           throw new SessionSocketError("EXAMPLES_UNAVAILABLE", "example recipe differs from the admitted source");
         }
         const requireCapturedRuntime = async (): Promise<void> => {
+          requireActive();
           if (!(await capturedRuntimeInputsAreCurrent(captured))) {
             throw new SessionSocketError("CAPTURE_CHANGED", "captured example runtime inputs changed; stop and restart this session");
           }
+          requireActive();
         };
         await requireCapturedRuntime();
         const input = { ...recipe, testkit: await loadInstalledExampleTestkit(captured.root) };
         await requireCapturedRuntime();
         const artifactDigest = createHash("sha256").update(input.artifactBytes).digest("hex");
         const runId = randomUUID();
-        const result = await runCompiledExamples({ ...input, runId,
+        const result = await runCompiledExamples({ ...input, runId, signal,
           ...(typeof operation === "string" ? { selectedRow: { operation, rowIndex: rowIndex as number } } : {}) });
+        await core.refresh().catch(() => undefined);
         // Do not retain evidence from a row that ran against changed producer
         // bytes, even when the selected source itself still has the same hash.
         await requireCapturedRuntime();
@@ -830,7 +843,6 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
             while (exampleFailures.size > 64) exampleFailures.delete(exampleFailures.keys().next().value!);
           }
         }
-        await core.refresh().catch(() => undefined);
         return { schema: "can.dev.example-run.v1", session: socket!.identity.sessionId, revision: expectedRevision,
           source_revision: captured.sourceRevision, serving_build: state.servingBuild, artifact_digest: artifactDigest,
           run_id: runId, current: core.status().revision === expectedRevision && !core.status().dirty,
@@ -838,7 +850,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
           focus: failures[Math.max(0, failures.length - 64)] ?? null,
           failures_retained: Math.min(failures.length, 64), failures_omitted: Math.max(0, failures.length - 64),
           replay: { available: false, reason: "no_restore_capsule" } };
-      });
+      }).catch(error => { requireActive(); throw error; });
       exampleQueue = work.then(() => undefined, () => undefined);
       return work;
     }

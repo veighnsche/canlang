@@ -79,7 +79,7 @@ export interface LocalPreviewBuilderOptions {
   /** Trusted T06 producer runs the actual activation gates for this local build. */
   readonly activationVerdict?: (artifact: CompileArtifact, capture: SingleFileCapture) => Promise<ActivationVerdict>;
   /** Recheck the same gates on the serving Worker's actual DB before exposure. */
-  readonly confirmRunningActivation?: (artifact: CompileArtifact, capture: SingleFileCapture, db: D1Database, databaseId: string, owner: string) => Promise<ActivationVerdict>;
+  readonly confirmRunningActivation?: (artifact: CompileArtifact, capture: SingleFileCapture, db: D1Database, databaseId: string, owner: string, identities: D1Database) => Promise<ActivationVerdict>;
   /** Trusted installed-package producer. No provider means no ready preview. */
   readonly produceBundle?: (request: LocalPreviewBundleRequest) => Promise<PortableBundleEvidence>;
   /** T06 host configuration, called only after the protected loopback origin exists. */
@@ -436,7 +436,7 @@ export function createLocalPreviewBuilder(options: LocalPreviewBuilderOptions):
       }
       for (const owner of ownerDatabases) {
         const runningVerdict = await options.confirmRunningActivation(artifact, capture,
-          await worker.getD1Database(owner.binding), owner.id, owner.owner);
+          await worker.getD1Database(owner.binding), owner.id, owner.owner, await worker.getD1Database("DB"));
         if (runningVerdict.active !== true) {
           fail("ACTIVATION_REFUSED", "serving owner D1 activation gates refused this preview build");
         }
