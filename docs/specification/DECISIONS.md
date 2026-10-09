@@ -3711,3 +3711,7 @@ The human resumed PR 132 locally in the existing assigned worktree and branch; c
 ### Implementation: bound idle dev-session audits
 
 Keep directory identity polling at two seconds, while fallback full producer-byte audits and failed watcher retries default to thirty seconds. Watcher events and explicit checks still recapture exact inputs; missed events remain covered by the bounded fallback. This removes repeated full-closure reads from an idle session without treating watcher identity as proof of bytes. Focused lifecycle checks pass 7/7, including missed-event stale serving, replacement and owned-stop cleanup. Native successful watcher reattachment remains unverified in the sandbox that reports EMFILE; the fallback cases pass.
+
+### Implementation: model-free local preview resource admission
+
+Model-free artifacts now use the global serving D1 binding and must pass its actual activation verdict; model-backed artifacts retain distinct owner bindings and both owner activation gates. Missing optional Testkit no longer blocks preview capture. Only the exact absent-package resolution is admitted; broken exports/entries still refuse, and a later install changes the captured closure. Focused orchestration/inventory checks pass 8/8 and Cloudflare source typecheck passes. Worker startup is mocked in these checks; live local D1/browser qualification remains due.
