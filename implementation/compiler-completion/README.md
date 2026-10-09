@@ -190,8 +190,11 @@ native D1/DO, pass with zero skips. Compiler source remains unchanged, but
 these changed installed runtime producers require their consuming native
 qualification. Artifact `modelPolicies`/registry `modelPolicyBindings` and
 exact emitted-module identity are pinned by the coordinator; their defining
-transport is not yet published. Checked compiler origins, native hydration,
-fixed hook carriers, dependency plans and real source/native activation remain
+transport is not yet published. Checked compiler origins now retain exact owning model/declaring module,
+Effects ordinal/source anchor and explicit rule kind through IR. The direct
+multi-module/interleaved-rule case passes **1/1**, including conditional unique
+exclusion and lock selectors. Artifact/native emission, native hydration, fixed
+hook carriers, dependency plans and real source/native activation remain
 unfinished; existing canonical unsupported activation remains in force.
 
 The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
