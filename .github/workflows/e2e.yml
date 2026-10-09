@@ -65,6 +65,8 @@ jobs:
         run: bunx playwright install --with-deps chromium
       - name: Build lane-07 dists
         run: bun run build
+      - name: Emit Values catalog for compiled fixtures
+        run: bun run catalog
       - name: Build compiler for compiled fixtures
         run: bun run build:compiler
       - name: Typecheck e2e harness

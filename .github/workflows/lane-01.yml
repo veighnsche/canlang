@@ -58,7 +58,7 @@ jobs:
       - name: Typecheck owned contract boundaries
         # packages/contracts assembly (package.json/index) is lane 7 owned;
         # lane 1 verifies its two files standalone until the join lands.
-        run: bunx -p typescript@5.9.3 tsc --noEmit --strict --skipLibCheck packages/contracts/src/artifact.ts packages/contracts/src/diagnostic.ts
+        run: bunx -p typescript@5.9.3 tsc --noEmit --strict --lib ES2023 --skipLibCheck packages/contracts/src/artifact.ts packages/contracts/src/diagnostic.ts
 
   editor:
     runs-on: ubuntu-latest
