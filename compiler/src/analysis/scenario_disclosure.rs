@@ -315,6 +315,24 @@ impl Closure<'_> {
         if !result_type(ty) {
             return Err(self.fail(key, "unsupported stored field type"));
         }
+        let owner = match self.resolve.symbols.get(field.0 as usize).map(|s| &s.kind) {
+            Some(SymbolKind::Field { owner, .. }) => *owner,
+            _ => return Err(self.fail(key, "missing stored field owner")),
+        };
+        let declaration = self
+            .effects
+            .models
+            .get(&owner)
+            .and_then(|model| {
+                model
+                    .fields
+                    .iter()
+                    .find(|candidate| candidate.field == field)
+            })
+            .ok_or_else(|| self.fail(key, "missing checked stored field declaration"))?;
+        if declaration.required_array {
+            return Err(self.fail(key, "required stored array is outside disclosure profile"));
+        }
         let Some(alias) = self
             .types
             .value_constraints
@@ -612,6 +630,29 @@ impl Closure<'_> {
                     return Err(self.fail(key, "invalid unary/group shape"));
                 }
                 self.expr(NodeKey::of(children[0]), module, env, calls)
+            }
+            SyntaxKind::Array => {
+                let base = match ty {
+                    ResolvedType::Nullable(inner) => inner.as_ref(),
+                    ty => ty,
+                };
+                if !matches!(base, ResolvedType::Array { element, .. } if primitive_type(element)) {
+                    return Err(self.fail(key, "unsupported array expression type"));
+                }
+                let mut paths = vec![ValuePath::default()];
+                for child in children {
+                    let element_ty = self
+                        .types
+                        .node_types
+                        .get(&NodeKey::of(child))
+                        .ok_or_else(|| self.fail(key, "missing checked array element type"))?;
+                    if !primitive_type(element_ty) {
+                        return Err(self.fail(key, "unsupported array element type"));
+                    }
+                    let element = self.expr(NodeKey::of(child), module, env, calls)?;
+                    paths = self.product(key, &paths, &element)?;
+                }
+                Ok(paths)
             }
             SyntaxKind::Binary => {
                 if children.len() != 2 {
@@ -1265,30 +1306,31 @@ fn compatible(left: &[DisclosureDecision], right: &[DisclosureDecision]) -> bool
     })
 }
 
-fn result_type(ty: &ResolvedType) -> bool {
-    let mut ty = ty;
-    for _ in 0..64 {
-        if let ResolvedType::Nullable(inner) = ty {
-            ty = inner;
-        } else {
-            break;
-        }
-    }
-    match ty {
+fn primitive_type(ty: &ResolvedType) -> bool {
+    matches!(
+        ty,
         ResolvedType::Scalar(
             Scalar::Int
-            | Scalar::Text
-            | Scalar::Bool
-            | Scalar::Decimal
-            | Scalar::Money
-            | Scalar::Date
-            | Scalar::Datetime
-            | Scalar::Duration
-            | Scalar::User,
-        ) => true,
-        ResolvedType::Enum { cases, .. } => !cases.is_empty(),
-        _ => false,
-    }
+                | Scalar::Text
+                | Scalar::Bool
+                | Scalar::Decimal
+                | Scalar::Money
+                | Scalar::Date
+                | Scalar::Datetime
+                | Scalar::Duration
+                | Scalar::User
+        )
+    )
+}
+
+fn result_type(ty: &ResolvedType) -> bool {
+    let base = match ty {
+        ResolvedType::Nullable(inner) => inner.as_ref(),
+        ty => ty,
+    };
+    primitive_type(base)
+        || matches!(base, ResolvedType::Enum { cases, .. } if !cases.is_empty())
+        || matches!(base, ResolvedType::Array { element, .. } if primitive_type(element))
 }
 
 fn exact_type_id(ty: &ResolvedType, resolve: &ResolveTables) -> Option<String> {
@@ -1304,6 +1346,10 @@ fn exact_type_id(ty: &ResolvedType, resolve: &ResolveTables) -> Option<String> {
         } else {
             break;
         }
+    }
+    if let ResolvedType::Array { element, .. } = ty {
+        ty = element;
+        suffix.insert_str(0, "[]");
     }
     let base = match ty {
         ResolvedType::Scalar(scalar) => Some(scalar.as_str().to_string()),
