@@ -1673,3 +1673,40 @@ goldens pass (**1/1** each, 0.16s/0.21s). They exposed a real multiline writer
 mapping gap, now fixed by attributing every physical emitted line without
 changing JavaScript bytes or source-disclosure policy. Final focused lib/bin
 Clippy passes (4.56s), and scoped formatting passes. Counters remain **58/67**.
+
+**Corrected public runtime intake (unfinished wider join), 2026-10-09.**
+Reviewed integrated local **1d0b350d**, including exact Dev **0a3fdb1e**, is
+merged onto committed primitive-array **0b79ebc1**, preserving both histories.
+Source correspondence now escapes business-error conversion and runs on
+throwing exits; the owner's **10/10** association/correspondence controls are
+reused. Actual changed installed dependency/Cloudflare/Testkit outputs rebuild
+**26/26**, zero cached. The same genuine generated-source native fixture passes
+**1/1**, with all **31 success invocations plus ordinary replay** now traversing
+the released public scenario projector. Dedicated recovery/current-access and
+portable scenario witnesses remain distinct next checks, not owner handbuilt
+proof substitutions. Original **58/67**, exact holds and broader source joins
+remain open.
+
+**Actual captured caller intake, 2026-10-09.** Reviewed local main **4c063189**
+releases Dev's real `--native-scenario-receipts` compiler argument and genuine
+regression. Exact owning captured **5/5** results are reused; current installed
+dependency/Cloudflare/Testkit outputs rebuild **26/26**, zero cached. The native
+Memory/public fixture owns dedicated recovery and current-access checks. Dev
+owns its already in-progress `native-scenario-receipts-d1.integration.test.ts`
+and `NativeSavedScenario.can` portable witness; no competing harness is created.
+
+**Generated public retained recovery/current access, 2026-10-09.** The existing
+actual CLI/native target passes **1/1** after its public recovery extension,
+preserving all **31 success invocations plus ordinary replay**. Dedicated
+`invokeRetainedMutation` at age16minutes recovers the exact original scalar/
+array after current updates using a commit-tripwire store and file-property
+tripwire; neither fires. Receipt bytes, revision, rows, history, outbox and
+schedules remain unchanged. Real generated CRUD archive makes both ordinary
+and dedicated replay withhold each saved value; revocation returns public
+`forbidden`, distinct from State's internal empty projection. Public output
+contains no private association metadata. The first attempt was source-refused
+E3009 because the fixture repeated default `delete=archive`; omitting that
+attribute restores the authored default and the complete case passes. Changed
+fixture strict Clippy and formatting pass; producer source is unchanged from
+**0b79ebc1**. Dev's in-progress portable D1 witness remains its exact prerequisite;
+no competing fixture, wider reference or held-policy acceptance follows.
