@@ -340,6 +340,7 @@ export function startControlledMailServer(
     let counter = 0;
     let sendAttempts = 0;
     const sockets = new Set<Socket>();
+    const dripTimers = new Set<ReturnType<typeof setTimeout>>();
 
     const acceptSend = (
       res: http.ServerResponse,
@@ -427,7 +428,13 @@ export function startControlledMailServer(
               'content-type': 'application/json',
               'content-length': Buffer.byteLength(text),
             });
-            setTimeout(() => {
+            const releaseTimer = (): void => {
+              clearTimeout(timer);
+              dripTimers.delete(timer);
+              res.off('close', releaseTimer);
+            };
+            const timer = setTimeout(() => {
+              releaseTimer();
               try {
                 if (!res.destroyed) {
                   res.end(text);
@@ -436,6 +443,8 @@ export function startControlledMailServer(
                 // Client already gone (e.g. timed out).
               }
             }, scenario.delayMs);
+            dripTimers.add(timer);
+            res.once('close', releaseTimer);
             return;
           }
         }
@@ -505,6 +514,8 @@ export function startControlledMailServer(
       }
       const close = (): Promise<void> =>
         new Promise((resolveClose) => {
+          for (const timer of dripTimers) clearTimeout(timer);
+          dripTimers.clear();
           for (const socket of sockets) {
             socket.destroy();
           }
