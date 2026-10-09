@@ -468,6 +468,11 @@
         "reuse": "Prior controlled provider bytes/source version/sequence/late usage/duplicates/private due/replacement/cancel/response loss/reopen/unknown/current disclosure/revocation outcomes reused; no separate rerun. Existing matching released Generation/progress runtime output; unready48 assembly/cohort-tick wiring not included in claim or capture.",
         "limits": "One changed owning case; controlled tokenized provider profile, production tokenizer/provider/account/routing and full original21 remain open. No new proof packet or helper.",
         "direct_outcome": "Changed existing typed-generation-progress.test.ts actual native D1 case1/1(27.63s), no failure/repeat, only34 direct boundary assertion lines added. Running-row exact replay no writes; conflicting same-revision, older receipt, stale sequence at newer receipt and wrong original source/request revision refuse. Terminal equal-checkpoint changed payload returns saved replay; newer content/verified-usage rewrite refuses. Receipt/current revision/progress occurrence rows remain unchanged by refusals. Existing controlled provider/tokenization/reopen/authority/recovery matrix passed in same case, no separate reruns. Test frozen for focused Package capture; no source/full21 credit."
+      },
+      "worker_update": {
+        "state": "controlled_native_component_tested_real_profile_blocked",
+        "prerequisite": "Actual production provider/model/account/tokenizer profile and current original application source5a12eb9e, retaining complete original lifecycle/current policy and usage units. Existing controlled native-D1 progress/sequence/replacement/cancel/recovery evidence remains reusable; no stale missing-implementation claim.",
+        "owner": "Services/provider/profile and draft publisher owners; this worker retains original application consumer qualification."
       }
     },
     {
@@ -566,6 +571,11 @@
         "owner_thread": "01a117b5-8358-7e31-9de3-03d0302cdd3c",
         "scope": "Genuine Can page/request-scoped authorized receipt observer.",
         "status": "Genuine page artifact through matching CLI compile0; Contracts/Interfaces/CF emits0 reused; affected existing native Generation case1/1 in23.18s. Package owns scoped9-path commit. Original full lifecycle/profile gates retained; no full task credit."
+      },
+      "worker_update": {
+        "state": "existing_native_page_component_whole_original_journey_blocked",
+        "prerequisite": "Current original CanCreative/CanChat source5a12eb9e and checked task11/conditional-read policy producers, followed by complete original action/gallery/obsolete-attempt browser journey with actual provider profile. Existing generated native page/receipt and typed lifecycle components are reused without duplicate implementation.",
+        "owner": "Draft publisher, Compiler/Contracts/State defining policy owners and provider profile owner; full original UI/application consumer remains this worker."
       }
     },
     {
@@ -987,7 +997,12 @@
         "SEQ-019",
         "SEQ-022"
       ],
-      "conditional_gates": []
+      "conditional_gates": [],
+      "worker_update": {
+        "state": "blocked_targeted_recovery_dependency",
+        "prerequisite": "Released Task22 exact-ID retained outbox carrier and original stop/reconcile join before validating second-consumer reuse with existing keyed schedules.",
+        "owner": "State/Contracts retained outbox producer, then this worker\u2019s Cloudflare/application consumers."
+      }
     },
     {
       "id": "SEQ-045",
@@ -1538,9 +1553,10 @@
       "action": "Actual Codex summary records both completed reviews for697022af; no new findings. Subsequent pushed integration still requires its own Codex review; no whole-plan acceptance inferred."
     },
     "ci_status": {
-      "revision": "697022afc62d06a4ec3d909eb78bacdf44ab0ff9",
-      "implemented_tested_corrections": "Optional late-bound Testkit/Contracts ES2022 fixes now pass their CI boundaries. Consume released Compiler048a7383/1ee1239d/dac8596f and matching exact codegen5bb5a5f5/B1 file1a6c7633: current native semantic/runtime/UI checks11/11, codegen117/117 and strict B1 joins2/2 pass. Original input_choices artifact is byte-identical after current-CLI regeneration.",
-      "remaining": "Rust/Tools checkout: unpublished draft5a12eb9e, draft publisher/coordinator. Workspace106 package-boundary violations, Package/Work owners (including unchanged Work kernel source-route test). B2 root test types/config, Package build/Interfaces owners. E2E original TeamTasks source/artifact mismatch requires genuine fixture regeneration, source/fixture owner (no pin-only substitution). Conformance scenario File argument expectation disagrees with closed id carrier, Interfaces/Contracts owner. Subsequent head CI not yet run; Codex no-findings review does not establish CI or whole-plan completion."
+      "revision": "8f6ef97a51aeb6ba32399b897765b195de1fd45d",
+      "implemented_tested_corrections": "Optional late-bound Testkit/Contracts ES2022 fixes now pass their CI boundaries. Consume released Compiler048a7383/1ee1239d/dac8596f and matching exact codegen5bb5a5f5/B1 file1a6c7633: current native semantic/runtime/UI checks11/11, codegen117/117 and strict B1 joins2/2 pass. Original input_choices artifact is byte-identical after current-CLI regeneration. B1 strict joins now pass hosted; its remaining stale workflow pin is consumed from Compiler2db9200b and the exact actual CLI/catalog gate passes. Compiler diagnostic/lint repair37695f6d and released effects test intake3e5d2cd0 consumed; compiler-wide formatting, all-target warnings-denied Clippy, native foundation/LSP/BDD22/22 and effects48/48 pass.",
+      "remaining": "Rust/Tools checkout: unpublished draft5a12eb9e, draft publisher/coordinator. Workspace106 package-boundary violations, Package/Work owners (including unchanged Work kernel source-route test). B2 root test types/config, Package build/Interfaces owners. E2E original TeamTasks source/artifact mismatch requires genuine fixture regeneration, source/fixture owner (no pin-only substitution). Conformance scenario File argument expectation disagrees with closed id carrier, Interfaces/Contracts owner. Subsequent head CI not yet run; Codex no-findings review does not establish CI or whole-plan completion.",
+      "boundary_dependency": "Coordinator owns a finite boundary-resolver exported-self-reference correction and will release validated input; this worker awaits that exact producer, without widespread import rewrites."
     },
     "compiler_consumer_integration": {
       "producer_pr": "https://github.com/veighnsche/canlang/pull/133",
@@ -1555,7 +1571,16 @@
         "c3362272"
       ],
       "test_files": "Exact released codegen.rs at5bb5a5f51230bc9d7873b97f105881bce34d9686 and b1_join.rs at1a6c76337b419e6f0524dfc37141242dfda6f7f9; no unrelated compiler branch changes consumed.",
-      "validation": "Direct source-current Cargo checks pass: anonymous message semantic/native3/3, UI adapter7/7, generated nominal preference public HTTP/Identity/UI1/1, codegen117/117, B1 artifact joins2/2. Initial structural golden failure revealed omitted producer test dependency; exact released file consumed and affected suite passes. Conditional model-rule/read-grant/full application acceptance remains open."
+      "validation": "Direct source-current Cargo checks pass: anonymous message semantic/native3/3, UI adapter7/7, generated nominal preference public HTTP/Identity/UI1/1, codegen117/117, B1 artifact joins2/2. Initial structural golden failure revealed omitted producer test dependency; exact released file consumed and affected suite passes. Conditional model-rule/read-grant/full application acceptance remains open.",
+      "additional_gate_producers": [
+        "37695f6d7c7e7ca95abd0bae169a3768e1fae37c",
+        "2db9200b3fa93d1fc90b2c9d18182568e1fb485e",
+        "compiler/tests/effects.rs at3e5d2cd034f89eebfee57d1e97cd38ecc6736b2b"
+      ],
+      "additional_consumed_commits": [
+        "8f83740f",
+        "f617d3f7"
+      ]
     }
   },
   "live_handoffs": {
