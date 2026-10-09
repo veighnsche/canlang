@@ -3,7 +3,6 @@ import { test } from 'node:test';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { createRequire } from 'node:module';
 import type { D1Database } from '@cloudflare/workers-types';
 import { Miniflare } from 'miniflare';
 import type { CompileArtifact, DerivedOperationInputs, PresentationContext, StoragePort } from '@canlang/contracts';
@@ -15,8 +14,8 @@ import { catalogFromArtifactOperations, handleOperationRequest, INPUT_CHOICES_VE
 import type { HttpDeps } from '@canlang/interfaces';
 import { generatedForm } from '@canlang/ui';
 import type { SubmitFetch, SubmitFetchInit } from '@canlang/ui';
-import type { BrowserClientOptions } from '../../../ui/dist/src/browser/bootstrap.js';
-import type { HTMLInputElement, HTMLSelectElement } from '../../../ui/node_modules/happy-dom/lib/index.js';
+import { startBrowserClient, type BrowserClientOptions } from '@canlang/ui/browser/bootstrap';
+import { Window, type HTMLInputElement, type HTMLSelectElement } from 'happy-dom';
 import { assembleModules } from '@canlang/cloudflare/runtime/modules';
 import { assembleWorker } from '@canlang/cloudflare/worker/assembly';
 
@@ -146,8 +145,6 @@ test('genuine dependent choices use current native D1 grants and the original ge
       corrupt(field); assert.throws(() => catalogFromArtifactOperations(malformed));
     }
 
-    const { Window } = createRequire(import.meta.resolve('@canlang/ui'))('happy-dom') as typeof import('../../../ui/node_modules/happy-dom/lib/index.js');
-    const { startBrowserClient } = await import('../../../ui/dist/src/browser/bootstrap.js');
     const window = new Window({ url: 'https://test.invalid/form' });
     const context: PresentationContext = { preferredLocales: [], appDefaultLocale: 'en',
       theme: { mode: 'light', accent: 'blue', density: 'comfortable' }, path: '/form', pollContext: 'choices/member/team',
