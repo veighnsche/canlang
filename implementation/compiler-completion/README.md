@@ -984,4 +984,3 @@ compiler leaves:
 | S9-Q02 | Additional default/result intake and observation contracts, private/CRUD/D1 transaction profiles: Contracts, State and Cloudflare owners. Unsupported nested/nonempty/element-nullable enum profiles remain explicit. |
 | S9-Q07 | Specific BDD consumer-policy consultation remains held; human/policy owner must resolve it. Actual result/current-input/live-read transport belongs to Testkit/canonical invocation owners. Imported helpers are already linked. |
 | S9-Q08, OR-06, OUT-R05 | Page admission/current-row disclosure/browser serving, migrations/durable ingestion, installed applications and real GUI/map navigation: Cloudflare, Interfaces, UI, State migration/deployment, application/release and editor/GUI owners. Native map production is already supplied. |
-
