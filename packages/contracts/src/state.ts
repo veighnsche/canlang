@@ -1,4 +1,4 @@
-import type { CanTypeId } from './values.js';
+import type { CanTypeId, WireValue } from './values.js';
 
 /**
  * Lane 03 producer contract: authoritative state boundary (types only).
@@ -832,6 +832,10 @@ export interface FieldMachine {
 export interface CanonicalFieldDef {
   /** Checked int/datetime/text/bool/decimal/money/date/duration/user association, with optional array and nullable container suffixes. */
   readonly valueType?: CanTypeId;
+  /** Checked field normalization and inclusive wire-form bounds. */
+  readonly trim?: boolean;
+  readonly min?: WireValue;
+  readonly max?: WireValue;
   /** Type-association metadata; engine-local nullableFields still owns omission fills. */
   readonly nullable?: boolean;
   readonly machine?: FieldMachine;

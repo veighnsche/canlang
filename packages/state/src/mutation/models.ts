@@ -8,7 +8,7 @@
  * caller input raises `StateError` validation at write time instead.
  */
 
-import { parseTypeId, printTypeId, validateValue, type NormalizedSchema } from '@canlang/values';
+import { normalizeSchema, parseTypeId, printTypeId, validateValue, type NormalizedSchema } from '@canlang/values';
 import { deepFreeze } from '../internal/own-data.js';
 import type {
   CanTypeId,
@@ -22,6 +22,7 @@ import type {
   RecordParent,
   Revision,
   StoredRow,
+  WireValue,
 } from '@canlang/contracts';
 import type { FenceScope } from '../invocation/admission.js';
 import { checkFieldMachine } from '../internal/machine.js';
@@ -94,6 +95,9 @@ export type InterimServerInit = 'actor' | 'now' | 'random_secret';
 export interface InterimFieldDef {
   /** Checked association for the pipeline's optional runtime conversion checkpoint. */
   readonly valueType?: CanTypeId;
+  readonly trim?: boolean;
+  readonly min?: WireValue;
+  readonly max?: WireValue;
   readonly machine?: FieldMachine;
   readonly required: boolean;
   readonly serverOnly: boolean;
@@ -300,6 +304,12 @@ export interface InterimModelDef {
 /** Validated, frozen model table keyed by model. */
 export type ModelTable = ReadonlyMap<ModelName, InterimModelDef>;
 
+const fieldConstraintSchemas = new WeakMap<InterimFieldDef, { readonly schema: NormalizedSchema; readonly type: string }>();
+
+export function getModelFieldConstraint(field: InterimFieldDef): { readonly schema: NormalizedSchema; readonly type: string } | undefined {
+  return fieldConstraintSchemas.get(field);
+}
+
 /** Build-time dot-path check: non-empty with no empty segments. */
 function checkDotPath(path: string, what: string): void {
   if (path === '' || path.split('.').some((segment) => segment === '')) {
@@ -329,6 +339,42 @@ function checkModelValueType(field: InterimFieldDef, name: string, model: string
     } catch { /* The single descriptive error below owns malformed claims. */ }
   }
   if (!valid) throw new Error(`Invalid valueType for field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: checked scalar/nominal/enum profile must agree with array/nullable markers.`);
+}
+
+/** Reuse Values' checked field descriptor for both load-time claims and write-time values. */
+export function modelFieldConstraintSchema(field: InterimFieldDef, schema?: NormalizedSchema): {
+  readonly schema: NormalizedSchema; readonly type: string;
+} | undefined {
+  if (!Object.hasOwn(field, 'trim') && !Object.hasOwn(field, 'min') && !Object.hasOwn(field, 'max')) return undefined;
+  if (field.valueType === undefined) throw new Error('Constrained model field needs a checked valueType.');
+  for (const key of ['trim', 'min', 'max'] as const) {
+    if (Object.hasOwn(field, key) && (field[key] === undefined || field[key] === null)) {
+      throw new Error(`${key} cannot be absent or null when claimed.`);
+    }
+  }
+  const parsed = parseTypeId(field.valueType);
+  // Values owns length-bound shape and compatibility. For nominal arrays the
+  // temporary text[] declaration checks the bound; the original checked
+  // nominal type is restored for actual value traversal below.
+  const descriptorType = parsed.array && parsed.base.kind === 'nominal' ? 'text[]' : field.valueType;
+  const name = '_CanModelConstraint';
+  const checked = normalizeSchema({ contracts: { [name]: { fields: { value: {
+    type: descriptorType,
+    ...(Object.hasOwn(field, 'trim') ? { trim: field.trim } : {}),
+    ...(Object.hasOwn(field, 'min') ? { min: field.min } : {}),
+    ...(Object.hasOwn(field, 'max') ? { max: field.max } : {}),
+  } } } } });
+  const normalized = checked.contracts[name]!.fields['value']!;
+  const contractName = schema !== undefined && Object.hasOwn(schema.contracts, name) ? `${name}_` : name;
+  const actual = parsed.base.kind === 'nominal' ? {
+    ...normalized, type: parsed, typeId: field.valueType,
+  } : normalized;
+  return { type: contractName, schema: {
+    kind: 'normalized-schema',
+    contracts: { ...(schema?.contracts ?? {}), [contractName]: { fields: { value: actual } } },
+    enums: schema?.enums ?? {}, operations: schema?.operations ?? {},
+    ...(schema?.aliases === undefined ? {} : { aliases: schema.aliases }),
+  } };
 }
 
 /**
@@ -381,6 +427,8 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: Mo
         );
       }
       checkModelValueType(field, name, model, opts.valueSchema);
+      try { modelFieldConstraintSchema(field, opts.valueSchema); }
+      catch (error) { throw new Error(`Invalid constraints for field ${JSON.stringify(name)} on model ${JSON.stringify(model)}: ${String(error)}`); }
       if (field.array !== undefined) {
         const marker = field.array;
         if (
@@ -625,6 +673,10 @@ export function buildModelTable(models: ReadonlyArray<InterimModelDef>, opts: Mo
         `Invalid model ${JSON.stringify(model)}: descriptors must be serializable data.`,
       );
     }
+    for (const field of Object.values(fields)) {
+      const constraint = modelFieldConstraintSchema(field, opts.valueSchema);
+      if (constraint !== undefined) fieldConstraintSchemas.set(field, constraint);
+    }
     const frozenLocks: InterimLock[] = [];
     for (let index = 0; index < def.locks.length; index += 1) {
       const lock = def.locks[index];
@@ -792,6 +844,9 @@ export function buildModelTableFromCanonical(
       const knownNullable = opts.nullableFields?.get(model.name)?.has(name) === true;
       fields[name] = {
         ...(Object.hasOwn(field, 'valueType') ? { valueType: field.valueType! } : {}),
+        ...(Object.hasOwn(field, 'trim') ? { trim: field.trim } : {}),
+        ...(Object.hasOwn(field, 'min') ? { min: field.min } : {}),
+        ...(Object.hasOwn(field, 'max') ? { max: field.max } : {}),
         required: field.required,
         serverOnly: field.serverOnly,
         ...(hasFallback ? { default: fallback } : {}),
