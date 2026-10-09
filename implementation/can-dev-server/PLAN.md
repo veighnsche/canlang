@@ -6,6 +6,8 @@ This plan does not replace the [seven-lane platform plan](../PLAN.md). Its paths
 
 ## Current checkpoint
 
+Joined native rebuild passes and the actual generated delete/replay/security consumer passes1/1. The released compiler context now also passes one actual captured native-to-private-session/socket check: exact exported-When IDs/span/hash/context are retained, unqualified help remains unknown and default construct.rank stays local with zero provider calls. Runtime-evidence flags remain false; working profile qualification and eligible live ambiguity are still Compiler/host prerequisites, not supplied by this check.
+
 Preview ownership now follows validated model containment roots: app-only and model-free artifacts use existing global D1; team-only artifacts retain separate owner stores. Duplicate/missing/cyclic/contradictory roots refuse before activation/allocation. Focused orchestration18/18 passes; actual app-only consumption remains due. **Blocked mixed-owner profile:** the Cloudflare invocation/page boundary currently selects one team store without model/operation context. A released context-aware storage-selection API and cross-owner semantics are required before mixed app/team serving; no team/global fallback or duplicate router is introduced.
 
 The local captured producer correctly refused the older Values binding. Its exact locked owning wasm32/wasm-bindgen0.2.129 build now succeeds; generated WASM/BUILD metadata is retained, with no Rust semantics or gate repair. Values owning emit and59-entry/15-feature catalog emission pass; the actual generated binding/bootstrap checks pass25/25. Integrated native consumers remain due and no frozen external oracle is replaced.
