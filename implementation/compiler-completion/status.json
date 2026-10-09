@@ -446,7 +446,7 @@
     "optional_body_skips": 0,
     "node": "24.19.0",
     "completion_require_engines": true,
-    "current_head_is_qualified": true,
+    "current_head_is_qualified": false,
     "strict_clippy_exit": 0,
     "format_exit": 0,
     "original_machine_replay": "Preserved original source/native transition and replay assertions now pass in whole; exact old idle/queued observations, final generating/version2, private-selector true/false void/scalar withholding, explicit-input default success/omitted mutation refusal, rollback/conflict/UI and ordinary/aged physical invariance. Related consumer-only1/1 adds later-row/archive recovery, production source unchanged.",
@@ -462,5 +462,16 @@
     "failed": 0,
     "proof_identity": "compiler/tests/construct_help.rs::first_profile_compiler_cards_have_checked_source_and_emitted_owners[card-id]",
     "remaining": "Dev owns runtime/example execution and exact-current trusted provider; grammar inventories/evidenceSufficient unchanged; no broader reference credit."
+  },
+  "scenario_parameter_defaults": {
+    "state": "affected_qualified_whole_pending",
+    "reviewed_intake": "2e4d647116fc39fdb4499f3e684c1fedaa2cdee2",
+    "source_checks": "8/8",
+    "original_native_target": "4/4 Node24.19, zero skips",
+    "build": "26/26 zero cache; catalog59/15",
+    "strict_clippy_exit": 0,
+    "format_exit": 0,
+    "behavior": "Declaration-order actual omitted stored-field/default decisions and reads; explicit overrides skip; same-span nullable coalesce identity; genuine State input+model defaults, private withholding, original machine controls, raw omission/supply conflicts, ordinary/dedicated16min replay physical invariance.",
+    "remaining": "Changed-source whole qualification pending. Original Task44 sends/Set/composite compiler closure next; Packages owns frozen operation/ref metadata dependency contract. No broader task-count credit."
   }
 }
