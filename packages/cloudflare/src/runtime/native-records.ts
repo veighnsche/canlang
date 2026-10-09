@@ -9,6 +9,11 @@ export function bindNativeRecord(view: object, model: string, id: string, versio
   identities.set(view, makeRecordRef(model, id, BigInt(version)));
 }
 
+/** Navigation preserves a genuine link's identity without inventing a version. */
+export function bindNativeReference(view: object, reference: RecordRef): void {
+  identities.set(view, reference);
+}
+
 /** Recover only identities installed by the owning runtime; copied views do not bind. */
 export function nativeRecordReference(value: unknown): RecordRef | undefined {
   return typeof value === 'object' && value !== null ? identities.get(value) : undefined;
