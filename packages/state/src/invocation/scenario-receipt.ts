@@ -386,6 +386,10 @@ export async function projectScenarioReceipt(input: ProjectScenarioReceiptInput)
     return { result: readable && receipt.outcome.status === 'committed' ? dataCopy(receipt.outcome.result) : null, records };
   };
   const first = await project(live);
+  // Individual Identity reads cannot certify a jointly authorized point for
+  // different subjects, even when repeated snapshots compare equal (ABA).
+  // Keep that profile unavailable until its owning coherent snapshot join.
+  if (authorityFacts.size > 1) return withheld;
   if (await input.store.readRevision() !== revision) return withheld;
   const secondMembership = await membership();
   if (stableStringify(dataCopy(secondMembership)) !== membershipSnapshot ||
