@@ -162,6 +162,8 @@ interface CallerSelection {
 interface RowSpec {
   readonly rowIndex: number;
   readonly caller: CallerSelection;
+  /** Testkit replaces this after evaluating authored expectations in setup. */
+  readonly expected: unknown;
   setup(scope: ExampleRowScope, accounts: RowAccounts): Promise<void>;
   invoke(scope: ExampleRowScope, caller: ResolvedCaller): Promise<ExampleCallOutcome>;
   observe(scope: ExampleRowScope): Promise<ReportValue[]>;
@@ -718,6 +720,10 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
       expectedRows += selectedRows.length;
       const rows = selectedRows.map(row => ({
         ...row,
+        // Testkit resolves authored values/errors during row.setup. The
+        // wrapper must read that live expectation, not the initial empty
+        // placeholder copied by the spread above.
+        get expected() { return row.expected; },
         setup: async (scope: ExampleRowScope, accounts: RowAccounts): Promise<void> => {
           await scope.provisionActors(accounts, row.caller, suite.userFixtures);
           await row.setup(scope, accounts);
