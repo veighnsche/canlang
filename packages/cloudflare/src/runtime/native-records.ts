@@ -43,10 +43,12 @@ export function bindNativeScenarioReceiptRow(view: object, owner: object, model:
   scenarioRows.set(view, { owner, model, id: identity.id, current });
 }
 
-/** Copy finite own JSON wire data without evaluating any accessor. The State
- * producer owns row/field/plan semantics; this only preserves transport data.
+/** Validate finite own JSON wire data without evaluating any accessor. Keep
+ * an already immutable protected row's exact identity: State alone checks its
+ * issuing session and stage. Mutable legacy transport still gets a snapshot.
  */
 function wireSnapshot(row: StoredRow): StoredRow {
+  let immutable = true;
   let nodes = 0;
   const seen = new Set<object>();
   const copy = (value: unknown, depth: number): unknown => {
@@ -57,6 +59,7 @@ function wireSnapshot(row: StoredRow): StoredRow {
         (!Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) {
       throw new StateError('validation', 'Scenario wire snapshot requires own JSON data.');
     }
+    immutable &&= Object.isFrozen(value);
     seen.add(value);
     const result: unknown[] | Record<string, unknown> = Array.isArray(value) ? [] : {};
     for (const key of Reflect.ownKeys(value)) {
@@ -74,7 +77,8 @@ function wireSnapshot(row: StoredRow): StoredRow {
     seen.delete(value);
     return Object.freeze(result);
   };
-  return copy(row, 0) as StoredRow;
+  const snapshot = copy(row, 0) as StoredRow;
+  return immutable ? row : snapshot;
 }
 
 export function captureNativeScenarioReceiptRow(view: unknown, owner: object, model: string): StoredRow {
