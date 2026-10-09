@@ -3277,6 +3277,7 @@ async function createContainmentNavigation(input: {
   type Entry = { readonly model: string; readonly row?: StoredRow | ProjectedRecord;
     readonly error?: unknown; view?: Record<string, unknown>; reference?: Record<string, unknown> };
   const prepared = new WeakMap<object, Entry>();
+  const references = new WeakMap<object, Entry>();
   const projectionSources = new WeakMap<object, StoredRow>();
   const used = new Set<Entry>();
   let reads = 0;
@@ -3391,6 +3392,7 @@ async function createContainmentNavigation(input: {
           },
         });
         bindNativeReference(reference, identity);
+        references.set(reference, entry);
         return entry.reference = reference;
       } catch (error) { input.failure?.(error); throw error; }
     } });
@@ -3435,7 +3437,17 @@ async function createContainmentNavigation(input: {
     used.add({ model: reference.model, row });
     return makeRecordRef(reference.model, row.id, BigInt(row.version));
   };
-  return { prepare, attach, revalidate, reject, isWithheld, authorizeReference };
+  const resolveRecord = (reference: object) => {
+    const entry = references.get(reference);
+    if (entry === undefined) return undefined;
+    try {
+      if (entry.error !== undefined) throw entry.error;
+      if (entry.row === undefined) throw new StateError('not_found', 'Parent record not found.');
+      used.add(entry);
+      return { model: entry.model, id: entry.row.id, version: entry.row.version };
+    } catch (error) { return reject(error); }
+  };
+  return { prepare, attach, revalidate, reject, isWithheld, authorizeReference, resolveRecord };
 }
 
 function nativeRecordMetadata(row: StoredRow | ProjectedRecord): Record<string, unknown> {
@@ -3722,7 +3734,8 @@ async function runScenarioSeam(
         if (!isUnknownRecord(locator.record)) {
           throw new StateError('validation', 'Delivery observation needs a bound record.');
         }
-        const binding = recordBindings.get(locator.record);
+        const binding = recordBindings.get(locator.record) ??
+          ownerNavigation.resolveRecord(locator.record) ?? viewerNavigation.resolveRecord(locator.record);
         if (binding === undefined) throw new StateError('validation', 'Delivery observation needs a bound record.');
         const observed = await invokeSelectedReceiptRead({
           asm: opts.asm, artifact: opts.artifact, operation: RECEIPT_READ_OPERATION,
@@ -5905,18 +5918,23 @@ async function runReadScenarioSeam(
     operation: opts.operation, builtinRoles: Object.freeze(builtinRoles),
     stageWrite: refuse, createRecord: refuse, setRecord: refuse, deleteRecord: refuse,
     observeDelivery: async (locator, selected) => {
-      const binding = isUnknownRecord(locator.record) ? views.get(locator.record) : undefined;
-      if (binding === undefined) {
-        throw new StateError('validation', 'Delivery observation needs a record bound in this read scenario.');
+      try {
+        const binding = isUnknownRecord(locator.record)
+          ? views.get(locator.record) ?? navigation.resolveRecord(locator.record) : undefined;
+        if (binding === undefined) {
+          throw new StateError('validation', 'Delivery observation needs a record bound in this read scenario.');
+        }
+        const properties = [...selected];
+        const observed = await observeReceipt(binding, locator.field, properties);
+        receiptReads.push({ binding, field: locator.field, selected: properties, observation: JSON.stringify(observed) });
+        if (observed.outcome !== 'observed') return null;
+        const declaration = opts.artifact.models?.find(model => model.name === binding.model)?.fields
+          .find(field => field.name === locator.field)?.field;
+        return sourceReceiptProjection(observed.projection, properties,
+          declaration?.kind === 'delivery' ? declaration.result : undefined);
+      } catch (error) {
+        return navigation.reject(error);
       }
-      const properties = [...selected];
-      const observed = await observeReceipt(binding, locator.field, properties);
-      receiptReads.push({ binding, field: locator.field, selected: properties, observation: JSON.stringify(observed) });
-      if (observed.outcome !== 'observed') return null;
-      const declaration = opts.artifact.models?.find(model => model.name === binding.model)?.fields
-        .find(field => field.name === locator.field)?.field;
-      return sourceReceiptProjection(observed.projection, properties,
-        declaration?.kind === 'delivery' ? declaration.result : undefined);
     },
     readModel: async (model, query) => {
       // Snapshot the same selector State actually serves; no caller getter is
