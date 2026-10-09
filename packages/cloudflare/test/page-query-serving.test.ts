@@ -436,9 +436,12 @@ describe("authored readonly state page through native Worker polling", () => {
     // Attach without Playwright's main-session focus/active emulation. The
     // public noDefaults option applies only to this real default Chromium context.
     const profile = join(dir, "chrome-profile");
+    // This anonymous temporary profile uses the same credential-store flags as
+    // Playwright launches; native macOS keychain initialization can stall HTTP.
     const chrome = spawn(chromium.executablePath(), [
       `--user-data-dir=${profile}`, "--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1",
-      "--headless=new", "--no-sandbox", "--no-first-run", "--no-default-browser-check", "about:blank",
+      "--headless=new", "--no-sandbox", "--no-first-run", "--no-default-browser-check",
+      "--password-store=basic", "--use-mock-keychain", "about:blank",
     ], { stdio: "ignore" });
     let launchError: Error | undefined;
     const chromeStopped = new Promise<void>(resolve => {
@@ -460,8 +463,11 @@ describe("authored readonly state page through native Worker polling", () => {
       try {
         const page = await context.newPage();
         const bootstrap = page.waitForResponse(response => new URL(response.url()).pathname === "/assets/browser/bootstrap.js");
-        expect((await page.goto(`${origin}/`))?.status()).toBe(200);
-        expect((await bootstrap).status()).toBe(200);
+        // Consume both operations together so a navigation failure cannot leave
+        // the independently subscribed bootstrap wait as an unhandled rejection.
+        const [navigation, loadedBootstrap] = await Promise.all([page.goto(`${origin}/`), bootstrap]);
+        expect(navigation?.status()).toBe(200);
+        expect(loadedBootstrap.status()).toBe(200);
         await browserExpect(page.getByText("No images", { exact: true })).toBeVisible();
         const created = await post("Images.Job.create", {});
         expect(created.response.status, JSON.stringify(created.body)).toBe(200);
