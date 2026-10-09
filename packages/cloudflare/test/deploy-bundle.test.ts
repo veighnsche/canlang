@@ -130,6 +130,10 @@ describe("deploy bundle (P-B)", () => {
     expect(bundle.modules["runtime/sourcemap.js"]).toContain(`"../${key}"`);
     expect(bundle.modules[key]).toContain("export {");
     expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/values/index.js");
+    expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/state/mutation/index.js");
+    expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/state/mutation/crud.js");
+    expect(bundle.modules["runtime/invoke.js"]).not.toContain("mutation/index.js/crud");
+    expect(bundle.modules["vendor/state/mutation/crud.js"]).toContain("generatedCrudExecuteOwnerSession");
     expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/work/kernel/dispatch-staging.js");
     expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/work/kernel/schedule-staging.js");
     expect(bundle.modules["runtime/invoke.js"]).toContain("../vendor/work/kernel/occurrence-staging.js");
