@@ -2216,7 +2216,7 @@ impl<'a> Closure<'a> {
                         let alternatives =
                             self.authorization_expr(cond, module, &flow.env, calls)?;
                         // Preserve independent-return authorization pruning. Required
-                        // primitive guard values control successful effects,
+                        // supported intrinsic guard values control successful effects,
                         // while stored guard reads retain their existing policy.
                         for value in alternatives {
                             if !compatible(&flow.evaluated, &value.decisions) {
@@ -2224,17 +2224,7 @@ impl<'a> Closure<'a> {
                             }
                             let mut path = flow.clone();
                             let admitted_guard = self.control(ValuePath {
-                                intrinsics: value
-                                    .intrinsics
-                                    .iter()
-                                    .filter(|intrinsic| {
-                                        matches!(
-                                            intrinsic.kind,
-                                            DisclosureIntrinsicKind::AdmittedInput { .. }
-                                        )
-                                    })
-                                    .cloned()
-                                    .collect(),
+                                intrinsics: value.intrinsics.clone(),
                                 ..ValuePath::default()
                             })?;
                             path.effect_guards.join(&admitted_guard);
@@ -2733,6 +2723,44 @@ mod tests {
             panic!("independent guard policy")
         };
         assert!(plan.returns[0].intrinsics.is_empty());
+    }
+
+    #[test]
+    fn operation_and_original_version_require_controls_survive_before_and_after_effects() {
+        let base = "app Bounds\nGiven\n Item {value:int}\n policy Item read=members\nWhen\n scenario probe(item:Item) -> int by=members\n  do\n";
+        for (guard, operation) in [("operation.id!=\"\"", true), ("item.version>1", false)] {
+            for body in [
+                format!("   require {guard}\n   set item {{value=1}}\n   return 9\n"),
+                format!("   set item {{value=1}}\n   require {guard}\n   return 9\n"),
+            ] {
+                let ScenarioDisclosure::Complete(plan) = checked(&format!("{base}{body}Then\n"))
+                else {
+                    panic!("supported intrinsic effect guard: {guard}")
+                };
+                let path = &plan.returns[0];
+                assert!(path.dependencies.is_empty());
+                assert_eq!(path.intrinsics.len(), 1, "guard: {guard}, body: {body}");
+                assert_eq!(path.intrinsics[0].role, DependencyRole::Control);
+                if operation {
+                    assert!(matches!(
+                        path.intrinsics[0].kind,
+                        DisclosureIntrinsicKind::OperationId
+                    ));
+                } else {
+                    assert!(
+                        matches!(&path.intrinsics[0].kind,DisclosureIntrinsicKind::AdmittedReferenceVersion {parameter_name,model_name,..}
+                        if parameter_name=="item" && model_name=="Bounds.Item")
+                    );
+                }
+            }
+            let ScenarioDisclosure::Complete(plan) =
+                checked(&format!("{base}   require {guard}\n   return 9\nThen\n"))
+            else {
+                panic!("independent return intrinsic guard: {guard}")
+            };
+            assert!(plan.returns[0].dependencies.is_empty());
+            assert!(plan.returns[0].intrinsics.is_empty());
+        }
     }
 
     #[test]
