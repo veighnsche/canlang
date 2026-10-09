@@ -1088,8 +1088,8 @@
         }
       },
       "remaining_prerequisite": {
-        "prerequisite": "Actual source constraint/specialization producer propagation, complete normalization authority and separately selected SR02 resource profile.",
-        "owner": "Values/compiler descriptor producer plus Interfaces/UI resource contract owners"
+        "prerequisite": "Finite checked literal text/int/decimal/array constraints now reach actual artifact/State/Memory and native hooks. Complete nominal text-alias/specialization/CSV normalization authority, source consumers and separately selectedSR02resource/installed/durable joins remain open.",
+        "owner": "Values/Compiler defining descriptors plus Interfaces/UI resource/current-context contract owners; retain original packet acceptance"
       },
       "stored_field_constraint_slice": {
         "state": "implemented by owning Compiler release, consumed and affected producer/consumer checks passed; Codex4232157221",
@@ -1563,7 +1563,7 @@
       }
     },
     "REPLAY-IP07": {
-      "planning_status": "ready",
+      "planning_status": "blocked",
       "state": "Checked CRUD HTTP/CSV implemented, tested and root-reviewed; full packet partial pending scenario authority/result provenance",
       "files": [
         "packages/interfaces/src/http/operations.ts",
@@ -1573,8 +1573,8 @@
       "blocker": "Remaining scenario retained replay lacks current authority/result provenance; its existing Interfaces age gate cannot safely be lifted.",
       "evidence": "security-joins.json",
       "remaining_prerequisite": {
-        "prerequisite": "Scenario execution-owned result provenance and current-authority projection before lifting its retained-replay transport age gate; checked CRUD consumer is complete.",
-        "owner": "State/Cloudflare scenario security contract owner, then Interfaces consumer"
+        "prerequisite": "Checked CRUD projection/HTTP/CSV slice qualified at its recorded scope. Remaining scenario execution-owned provenance/current-authority projection and expired signed source-form receipt-only lease join must land before transport age/lease gates can safely lift.",
+        "owner": "Capability State/Contracts API; Dev trusted Cloudflare canonical/assembly forwarding; Packages subsequent Interfaces consumer"
       },
       "checked_crud_consumer": {
         "state": "implemented, tested, root-reviewed finite current producer/consumer join",
@@ -4329,11 +4329,11 @@
     "source_base": "1527a249c915076c3e87daa5e8a488ac3c5a0e85",
     "authorization": "Human local continuation from ebd2ad08; sole shared CI/common gate owner; existing48packet scope and native preparation HOLD preserved.",
     "coordination": "Human-appointed coordinator01a11e6b-f4e1-7603-b47d-9d3210c9c6de; actionable exact prerequisite and shared repair handoffs through existing local chat.",
-    "examined_queue": "All48existing packet identities/progress preserved. Ready owning package gate fixes and published Compiler producer/corpus dependencies implemented and qualified at stated scope. Finite read-only selection after Work registered93 identifies no further released implementation contract; next unlocking TECH-S02 scenario provenance/disclosure and REPLAY-IP07 remain with defining policy/producer owners. Existing native preparation HOLD and original333duties/acceptance retained.",
-    "delivery": "ExistingPR135 coherent sharedCIeac25 and consolidation1644published; exacthashes reported here, no confirmed coordinator receipt. Related sourceState2742/TeamTasksclosureb11/releasedCompiler6f807+146aca coherent andvalidated at their stated scope. Full48queue original obligations/333identities preserved; external/held remainder explicit; ownbranchonly no merge/mainpush/deploy.",
-    "last_upstream_sync": "Main9ecb2759 integrated at5910445b; e000 source boundary explicit fetch/merge already up to date. Compiler0f17 and Dev1cf28 tracking refs explicitly refreshed; pinned draft5a fetched/restored with priora55preserved and no pointer/source change.",
-    "review_process": "ebd2ad08 Codex reviewed. Chromium setup finding repaired in shared CI. Existing zsh finding superseded by consumed4a0d59bd and successful current CI compiler/editor job. Foreign InlineMessage/chained-label findings remain with Compiler; no earlier review qualifies a later head.",
-    "filetree_reconciliation": "Actual Codex4231103231 stale endpoint corrected through coherent source6f46d009c836c9cf6667b60d98c767efb6eff91f:1060commits/10675net deltas/11217historical paths/511history-only. Work/Dev/choice/Values and released Compiler source closure included;2new delete-control paths assigned existing Compiler/inherited-unallocated. Structural JSON/history/net/count/ancestry/preserved allocations pass. Both1644/591ancestors retained, parallel-history premise disproved. Complete82493427semantic checkpoint unadvanced; no recursive bookkeeping.",
+    "examined_queue": "All48existing one-per-packet dispositions examined; historical20finished/15partial/12open-or-blocked/1human-held accounting preserved. Ready shared gates and exact released State/UI/Interfaces/Compiler/Identity joins implemented and checked at their recorded scopes. Remaining28parent identities retain defining producer/contract/host prerequisites or the preparation HOLD; no original333duty closure claim.",
+    "delivery": "Local coherent source units through b3d06edf published via existingPR135 branch; exact shared/package/foreign intakes and affected outcomes recorded here and released to appointed local coordinator. Remaining parent dependencies and current-head review/CI stay open; no merge/main push/deployment/cloud continuation.",
+    "last_upstream_sync": "ExistingPR upstream repeatedly inspected and pulled ff-only/no-recurse-submodules with no divergence; exact Compiler/Dev published prerequisites fetched/verified before finite intake. Primary checkout and other worktrees untouched.",
+    "review_process": "Actual Codex bf6517e1review5472554211: native update clone4232157232fixedad3856a9; missing Compiler modifier4232157221fixed owning8f4release consumedb3d06edf. Actual01a6review5472670410: ignored undefined patch4232259618fixed8521ccfa. Earlier alias/chained caption/InlineMessage/Chromium/zsh findings corrected at recorded scopes. Pending/older reviews never qualify the current head; CodeRabbit/CodeRebits ignored.",
+    "filetree_reconciliation": "Accumulated structural correspondence through exactsourceb3d06edf273439bf846bdb5721c4efa48ed9ef91:1079commits/10677net rows/11219historical paths/511history-only. Prior allocations retained;2new existing-package test rows remain inherited-unallocated, pending9175. Exact diff/history/counts and retained6f46/591ancestry pass. Complete82493427semantic checkpoint remains unadvanced; no recursive bookkeeping or product acceptance.",
     "pull_request": "https://github.com/veighnsche/canlang/pull/135",
     "ci_prerequisites": [
       {
@@ -4350,10 +4350,10 @@
       }
     ],
     "review_prerequisite": {
-      "prerequisite": "Exact InlineMessage575/076/e40 and chained-captionf1c84d32 source/tests now consumed and qualified at their finite scopes. Expiredsourceform retainedCRUD replay still needs canonical retained-only admission underREPLAY-IP07. Current-head Codex/CI and final source structural registration remain due.",
-      "owner": "Compiler preference declaration/IR owner, then Packages consumes; Codex current-revision review"
+      "prerequisite": "Current-head Codex/CI; exact Capability retained-receipt-only State/Contracts API then Dev trusted forwarding before Packages expired signed-claim restoration. Foreign CF32runtime and Draft/Compiler15pilot fixtures retain real producer/consumer obligations.",
+      "owner": "Assigned Capability/Dev/Compiler/Draft defining producers; Packages consumes coherent exact releases and owns Interfaces restoration"
     },
-    "ci_observed_revision": "Actual newCI6f46 run37946181674: Tools pass; zero boundary and build/typecheck prerequisites pass. Workspace State B3 malformed-version diagnostic mismatch now corrected and local5cases pass. Compiler current corpus/early joins pass and reaches actual zsh completion; compinit rejects insecure runner directories (owning fixture/environment prerequisite). Browser30pass/15fail at retained CanDo/Employees and patched-source provenance profiles. Current revision Codex summary running; no green whole-workspace/app acceptance.",
+    "ci_observed_revision": "Latest useful source1bfef3bf CI37958921035: compiler/editor and language tools pass; browser/security fails; workspace still running at boundary. Prior actualbf6517e1CI37956535058workspace fails only CF runtime32cases across6real fixture/assembly profiles, now routed to Dev; Chromium setup and Stdlib inventory failures resolved. No whole-workspace/browser/current-head acceptance.",
     "released_compiler_dependency": {
       "release": "Compiler PR1334cb5c55d04afe0c8d4641e9fe9501465baec8f96 cherry-picked with provenance asd2788779cee855bc940cf212208e0c049d9abd99; source delta exactly absent module declaration/two calls. Conflicting documentation retained at its owning historical scope.",
       "validation": "Rust1.99 locked offline B1 actual-catalog joins2/2, zeroSKIP; actual nominal generated/public Interfaces/UI/Identity Memory preference consumer1/1. Fresh locked compiler build passes and exact released workflow block provesTeamTasks exit10, seven precise errorE6008 profiles, complete diagnostic JSON/omitted0/no artifact fields. Unsupported source profiles remain refused; no whole-app/help/corpus acceptance.",
@@ -4397,27 +4397,27 @@
     },
     "values_gate_qualification": "Owning source and emitted string/prepared contracts each10/10 pass on genuine Bun1.4.2/Node24 after current TypeScript. Keep frozen corpus/oracle and semantic corruption controls; explicit reviewed distribution.ts catalog locator donor successor only. Public ValueTypesError inventory already complete. Dev consolidatedCI Values findings resolved at Packages owning source; no whole Values/native acceptance.",
     "shutdown": "Human emergency stops all cloud implementation/checks/reviews. Preserve open source in unfinished related commits on existing codex/packages-repair-20261009/PR135, push only that branch, then stop. Human local continuation: /Users/vince/.codex/worktrees/cloud-packages/canlang; no replacement task launched. Nested draft is clean at tracked5a, priora55 already on remote branches; parent gitlink unchanged. Non-cache ignored/untracked task source absent.",
-    "installed_closure_checkpoint": "Qualified locally after current26/26build: full boundary0violations; isolated installed declarations170typed exports/13owners pass with797third-party diagnostics retained; isolated installed Worker passes real abs, installed-only resolution/no checkout reads,207modules, actual auth refusal, real workerd/Wasm ABI/add-int and missing/corrupt browser/Wasm negatives. Existing scratch evidence retained; no release/default/native preparation activation.",
+    "installed_closure_checkpoint": "Existing gates qualify source1bfef3bf public-port/package closure onNode24 after40/40workspace typecheck and26/26build. Isolated declarations170exports/13owners pass with797third-party diagnostics retained (scratchpxGAdy). Isolated Worker passes installed-only/no checkout reads,207modules,authrefusal,real workerd/Wasm ABI/add-int,missing/corrupt asset negatives (scratchKt7M3R). Later State undefined patch and Compiler modifier delta separately have owning controls/direct join; unchanged installed consumer results reused at this scope, no full feature/host release acceptance.",
     "ui_gate_checkpoint": "Qualified locally after clean current producer build26/26: affected catalog/messages/shell/t20b existing126/126 pass with zero skips on Node24.19/Bun1.4.2. Frozen wrappers/native identity, exact trusted bootstrap/hostile probes and canonical File/ordered violations/original cause all exercised. Full UI/security acceptance remains separate.",
     "local_continuation": {
       "checkpoint": "ebd2ad084eb3b5608dbb335b125c085a58d52c47",
       "branch": "codex/local-packages",
       "upstream": "origin/codex/packages-repair-20261009",
-      "sync": "Clean/no divergence; ff-only no-recurse-submodules pull reports already up to date.",
+      "sync": "Repeated ff-only/no-recurse-submodules own-upstream pulls; no divergent history/reset or foreign branch import. Coherent units committed before switching; existingPR branch only.",
       "held": "Native preparation/release activation and all other recipient-specific human holds preserved; local execution only."
     },
     "shared_gate_repairs": {
-      "workspace_chromium": "c9915950 published; all3workflow actionlint passes; Linux run due",
+      "workspace_chromium": "c9915950 published; all3workflow actionlint passes; actual Linux workspace tests run browser consumers without the former missing-Chromium error. Foreign runtime source/fixture failures remain visible.",
       "manual_receipts": "Plan2 builds Values catalog before its real tests, and catalog/compiler/Chromium before Cloudflare/workspace consumers. Existing32receipt/runner cases pass with full omission/reorder/failed prerequisite refusals. Direct3profile ordering assertions pass. Native preparation debug prerequisite remains private; activation held.",
       "completion_engines": "CAN_COMPLETION_REQUIRE_ENGINES explicitly passes strict Turbo environment to existing native compiler test entry; automatic CI direct Cargo already retained it.",
-      "remaining": "Current-head Linux/Codex review and foreign producer fixes remain required."
+      "remaining": "Current-head Linux/manual receipt qualification and foreign released source/fixture joins remain required."
     },
     "stdlib_gate": "CurrentCI ebd2ad08 failed explicit141export surface because existing owning choose was omitted from140inventory. Add only choose; preserve exact equality and producer binding identity. Owning emit/assembly4/4 pass; existing Values choose behavior controls reused.",
     "canonical_delete_form": {
       "state": "implemented and affected checks passed",
       "source": "Existing compiler Delete descriptor accepts record only; archive/remove behavior belongs to declared operation.",
       "correction": "DeleteProps.mode remains presentation caption/tone; hidden fields are exactly operation, unchanged caller operation_id, CSRF, timezone and record{id,version}. Remove undeclared inputs[mode].",
-      "validation": "UI TypeScript emit and94existing forms cases pass onNode24/Bun1.4.2, no skips; parsed exact payload assertions and escaping preserved. Dev owns generated requestUUIDv7 producer/e2e qualification."
+      "validation": "UI emit and94existing cases pass. Exact Compiler nonce229+7fe consumed27f520af and actual generated canonical form/archive/replay/current-grant consumer1/1passes; full Office/D1/browser qualification remains Dev-owned."
     },
     "state_modifier_release": {
       "prerequisite": "Consumed exact published792d8161b525a4ae2574f846b81e5938876b7ed9 six source/test files: Contracts artifact/state and State registry/models/pipeline/nullable-ref. No Dev plan or historical acceptance imported.",
@@ -4473,12 +4473,6 @@
       "validation": "State owning emit and12existing nullable-ref cases pass onNode24, zero skips. Omitted/known undefined preserve legacy array/object/text and full codec traversal; explicit null stays null; explicit invalid, unknown undefined, machine and server-only refusal precedence remain. Initial new machine fixture omitted its required default, corrected before final pass.",
       "limit": "Current-head review and original complete parent qualification remain required."
     },
-    "stored_field_modifier_release": {
-      "state": "implemented by owning Compiler release, consumed and affected producer/consumer checks passed; Codex4232157221",
-      "source": "Exact published8f4cd883e47e63718993d5e37798538d1898d3e1 JS model field/builder/serializer and codegen/typed artifact/typed descriptor tests consumed; no unrelated Compiler source or plan.",
-      "behavior": "Stored fields emit checked trim and exact literal min/max. Safe text/array lengths are numbers; large integer/decimal bounds preserve wire spelling. Unsafe length/nonliteral bounds refuseE6008 instead of disappearing.",
-      "validation": "Rust1.99locked/offline19codegen+2typedArtifact+6typedDescriptors pass; changed-source format passes. Direct genuine currentCLI/catalog artifact\u2192State loader/canonical model table\u2192emitted increment hook\u2192Mutation/Memory passes trim/native2n\u2192stored3, decimal1.20/5.00 and array1/2bounds. Nine invalid blank/upper/lower/array/hook-overflow cases refuse with atomic revision/row/history rollback; inclusive endpoints pass. Initial probe overasserted optional enum valueType, corrected before successful real run.",
-      "limit": "Bounded nominal text-alias source profile, complete specialization/CSV/resource/installed/durable joins and original parent obligations remain separate; existing finite alias loader controls retained."
-    }
+    "stored_field_modifier_release": "See authoritative packet_state.DEL-C01.stored_field_constraint_slice; exact8f4producer consumedb3d06edf,27Rust controls plus real emitted-artifact/State join qualified at its finite scope."
   }
 }
