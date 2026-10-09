@@ -35,6 +35,11 @@ package Wording source="fr"
   export derive plural(value:Counts):text = format("{n,plural,one {un {word}} other {plusieurs {word}}}"@{nl="{n,plural,one {een {word}} other {meerdere {word}}}; {extra}"}(extra=value.extra,word=value.word,n=value.n),locale=null)
   message enumBody(mode:OperationOutcome.state)="{mode,select,pending {Waiting} other {{mode}}}"@{nl="{mode,select,pending {Wachten} other {{mode}}}"}
   message capture(seed:text,word:text=seed)="{seed}|{word}"@{nl="{word}:{seed}"}
+  message staticCaption="Légende statique"@{nl="Statisch bijschrift"}
+  derive boundCaption(seed:text):capture=capture(seed=seed)
+  message defaultCaption(seed:text="Défaut",word:text=seed)="{seed}|{word}"@{nl="{word}:{seed}"}
+  derive defaultProducer():defaultCaption=defaultCaption()
+  derive staticProducer():staticCaption=staticCaption
   export derive enumNamed(value:OperationOutcome):text=format(enumBody(value.state),locale=null)
   export derive enumNamedDescriptor(value:OperationOutcome):enumBody=enumBody(value.state)
   export derive enumAnonymous(value:OperationOutcome):text=format("{mode,select,pending {Waiting} other {{mode}}}"@{nl="{mode,select,pending {Wachten} other {{mode}}}"}(mode=value.state),locale=null)
@@ -68,11 +73,27 @@ package Wording source="fr"
    divider (("{n} dividers"@{nl="{n} scheidingen"}(n=3)))
    card capture(seed="Page")
     text "Named body"
+   card boundCaption(seed="Producer")
+    text "Producer body"
+   card defaultProducer()
+    text "Default producer body"
+   card staticProducer()
+    text "Static producer body"
    fieldset (("{n} groups"@{nl="{n} groepen"}(n=4)))
     text "Fieldset body"
    tabs
     tab "{n} tabs"@{nl="{n} tabbladen"}(n=5)
      text "Tab body"
+   card staticCaption
+    text "Static card body"
+   details ((staticCaption))
+    text "Static details body"
+   divider staticCaption
+   fieldset ((staticCaption))
+    text "Static fieldset body"
+   tabs
+    tab ((staticCaption))
+     text "Static tab body"
 `;
 const file = resolve(scratch, 'AnonymousMessages.can');
 writeFileSync(file, source);
@@ -102,9 +123,11 @@ const captionContext=buildPresentationContext({request:new Request('https://exam
   query:async()=>assert.fail('static captions do not query'),
 });
 const captionHtml=await captionPage.render(captionContext,await captionPage.admit(captionContext));
-for(const caption of ['1 kaarten','2 details nl','3 scheidingen','Page:Page','4 groepen','5 tabbladen','Anonymous body','Details body','Named body','Fieldset body','Tab body']) {
+for(const caption of ['1 kaarten','2 details nl','3 scheidingen','Page:Page','Producer:Producer','Défaut:Défaut','4 groepen','5 tabbladen','Anonymous body','Details body','Named body','Producer body','Default producer body','Static producer body','Fieldset body','Tab body']) {
   assert.ok(captionHtml.includes(caption),`actual UI renders bound caption ${caption}`);
 }
+assert.equal(captionHtml.match(/Statisch bijschrift/g)?.length,6,'zero-parameter bare/grouped captions render through all five actual UI factories and a valid producer');
+for(const body of ['Static card body','Static details body','Static fieldset body','Static tab body']) assert.ok(captionHtml.includes(body),body);
 const memberContext={memberships:['members']};
 const values = {
   location:'Brussels', resource:'Meeting room',
