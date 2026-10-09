@@ -141,6 +141,7 @@ const PINNED_RUNTIME_FILES: readonly string[] = [
   "sourcemap.js",
   "mcp-registry.js",
   "env-assembly.js",
+  "page-preferences.js",
   "auth-rate-limiter.js",
   "cohort-tick.js",
   "grant-route.js",
