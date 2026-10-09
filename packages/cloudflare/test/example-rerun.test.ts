@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ExampleReport, TableRowResult } from "@canlang/contracts";
-import type { CompiledExampleInput } from "../src/dev/example-runner.js";
+import { existsSync, rmSync } from "node:fs";
+import { runCompiledExamples, type CompiledExampleInput } from "../src/dev/example-runner.js";
 import { ExampleRerunCoordinator, ExampleRerunError, type ExampleAttemptResult } from "../src/dev/example-rerun.js";
 
 const caller = { account: "u-1", team: "current" as const, roles: ["members"], authenticated: true };
@@ -120,4 +121,129 @@ describe("revision-pinned isolated example rerun", () => {
       runId: "original", result: failure })).toThrowError(ExampleRerunError);
     coordinator.close();
   });
+});
+
+const scratch = vi.hoisted(() => ({
+  directories: [] as string[], events: [] as string[], failures: new Map<string, unknown>(), createScope: false,
+}));
+vi.mock("node:fs/promises", async (original) => {
+  const fs = await original<typeof import("node:fs/promises")>();
+  return {
+    ...fs,
+    mkdtemp: async (prefix: string) => {
+      scratch.events.push("acquire");
+      if (scratch.failures.has("acquire")) throw scratch.failures.get("acquire");
+      const directory = await fs.mkdtemp(prefix); scratch.directories.push(directory); return directory;
+    },
+    rm: async (directory: string, options: { force: boolean; recursive: boolean }) => {
+      scratch.events.push("remove");
+      if (scratch.failures.has("remove")) throw scratch.failures.get("remove");
+      await fs.rm(directory, options);
+    },
+  };
+});
+vi.mock("../src/runtime/artifact.js", async (original) => ({
+  ...await original<typeof import("../src/runtime/artifact.js")>(),
+  parseArtifactText: () => ({ artifact: { modules: [{ path: "worker.js" }], tests: [{ scope: "Office.supplies", fixtures: [], module: { path: "examples.js" } }] } }),
+}));
+vi.mock("../src/runtime/modules.js", async (original) => ({
+  ...await original<typeof import("../src/runtime/modules.js")>(),
+  assembleModules: async () => {
+    scratch.events.push("assemble");
+    if (scratch.failures.has("assemble")) throw scratch.failures.get("assemble");
+    return { moduleUrls: { "examples.js": "file:///examples.js" } };
+  },
+}));
+
+vi.mock("../src/dev/row-scope.js", () => ({
+  createLocalRowScope: async () => {
+    scratch.events.push("scope");
+    if (scratch.failures.has("scope")) throw scratch.failures.get("scope");
+    return {
+      dev: { getD1Database: async () => {
+        scratch.events.push("database");
+        throw scratch.failures.get("database");
+      } },
+      dispose: async () => {
+        scratch.events.push("dispose");
+        if (scratch.failures.has("dispose")) throw scratch.failures.get("dispose");
+      },
+    };
+  },
+}));
+
+describe("compiled example producer scratch lifetime", () => {
+  afterEach(() => {
+    for (const directory of scratch.directories) rmSync(directory, { recursive: true, force: true });
+    scratch.directories = []; scratch.events = []; scratch.failures.clear(); scratch.createScope = false;
+  });
+  function run(): ReturnType<typeof runCompiledExamples> {
+    const received = input(new Uint8Array([1, 2, 3]));
+    const stage = (name: string) => {
+      scratch.events.push(name);
+      if (scratch.failures.has(name)) throw scratch.failures.get(name);
+    };
+    return runCompiledExamples({ ...received, testkit: {
+      loadExampleSuite: async () => { stage("suite"); return {
+        rows: [{ rowIndex: 1, caller: { kind: "public" }, seed: [], setup() {}, invoke() {}, observe() {} }], userFixtures: [],
+      }; },
+      runTable: async (spec: { createScope(row: number): Promise<unknown> }) => {
+        stage("table");
+        if (scratch.createScope) await spec.createScope(1);
+        return { kind: "table", rows: [{}] };
+      },
+      createReport: () => ({ addCase() {}, build: () => {
+        stage("report"); return { summary: { total: 1, failed: 0, setupFailed: 0, unsupported: 0 } };
+      } }),
+      fixtureValuesOf() {},
+    } });
+  }
+  it("returns the actual counted result only after removing acquired scratch", async () => {
+    expect(await run()).toMatchObject({ ok: true, executed: 1 });
+    expect(scratch.events).toEqual(["acquire", "assemble", "suite", "table", "report", "remove"]);
+    expect(existsSync(scratch.directories[0]!)).toBe(false);
+  });
+  it.each(["acquire", "assemble", "suite", "table", "report", "remove"])("preserves %s failure and attempts owned cleanup", async stage => {
+    const failure = new Error(`${stage} sentinel`); scratch.failures.set(stage, failure);
+    await expect(run()).rejects.toBe(failure);
+    const phases = ["acquire", "assemble", "suite", "table", "report", "remove"];
+    const expected = phases.slice(0, phases.indexOf(stage) + 1);
+    if (stage !== "acquire" && stage !== "remove") expected.push("remove");
+    expect(scratch.events).toEqual(expected);
+    for (const directory of scratch.directories) expect(existsSync(directory)).toBe(stage === "remove");
+  });
+  it.each([new Error("operation sentinel"), "scalar sentinel", undefined, null])("retains body failure %s when removal also fails", async failure => {
+    scratch.failures.set("suite", failure); scratch.failures.set("remove", new Error("cleanup sentinel"));
+    let caught = false;
+    try { await run(); } catch (error) { caught = true; expect(error).toBe(failure); }
+    expect(caught).toBe(true);
+    expect(scratch.events).toEqual(["acquire", "assemble", "suite", "remove"]);
+  });
+  it("does not dispose an unacquired row scope, but removes runner scratch", async () => {
+    scratch.createScope = true;
+    const failure = new Error("scope sentinel"); scratch.failures.set("scope", failure);
+    await expect(run()).rejects.toBe(failure);
+    expect(scratch.events).toEqual(["acquire", "assemble", "suite", "table", "scope", "remove"]);
+    expect(existsSync(scratch.directories[0]!)).toBe(false);
+  });
+  it("disposes an acquired row scope after database provisioning failure and removes scratch", async () => {
+    scratch.createScope = true;
+    const failure = new Error("database sentinel"); scratch.failures.set("database", failure);
+    await expect(run()).rejects.toBe(failure);
+    expect(scratch.events).toEqual(["acquire", "assemble", "suite", "table", "scope", "database", "dispose", "remove"]);
+    expect(existsSync(scratch.directories[0]!)).toBe(false);
+  });
+  it.each([new Error("database sentinel"), "database scalar", undefined, null])(
+    "retains provisioning failure %s while attempting scope disposal and scratch removal", async failure => {
+      scratch.createScope = true;
+      scratch.failures.set("database", failure);
+      scratch.failures.set("dispose", new Error("dispose sentinel"));
+      scratch.failures.set("remove", new Error("remove sentinel"));
+      let caught = false;
+      try { await run(); } catch (error) { caught = true; expect(error).toBe(failure); }
+      expect(caught).toBe(true);
+      expect(scratch.events).toEqual(["acquire", "assemble", "suite", "table", "scope", "database", "dispose", "remove"]);
+    },
+  );
+
 });
