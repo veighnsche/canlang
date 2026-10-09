@@ -266,10 +266,27 @@ and three owning consumers. Consume only these boundary hunks; the separate
 State constraint and row-owner implementation chains retain their owners.
 Frozen installation and owning Values/UI/Cloudflare builds pass; the actual
 branch guard now reports **zero violations**. Captured Office Supplies compiler
-and construct-help checks pass **8/8**. The affected native dependent-choice
-case reaches its unchanged replacement-cancellation assertion and fails because
-the held request's signal remains live. That UI/Dev lifecycle prerequisite is
-recorded without weakening the assertion or claiming the workflow passes.
+and construct-help checks pass **8/8**. Published Packages **51697025** corrects
+the dependent-choice harness race by binding each hold before the real worker
+yields and draining transports before closing ports. The actual native D1 and
+generated-form case now passes **1/1**, retaining cancellation, late-response,
+current-grant and durable-reopen assertions and first-failure cleanup.
+Published **e00098bc** plus its exact **5910445b** fixture prerequisite qualify
+the Values catalog source successor. Its two string contract cases pass **2/2**;
+frozen observations and corruption controls remain unchanged. The first intake
+run failed **1/2** on four already released core/prepared donor hashes; consuming
+the published fixture supplies those exact hashes without broad normalization.
+
+Consolidated CI at **8aa7eaee / 37946299707** passes Compiler/editor and Language
+tools, including the real completion and LSP checks. Workspace boundaries pass;
+workspace typechecking fails in Cloudflare test Headers/JSON import/DOM/request
+and current runtime-signature inputs. The local root check confirms **39/40**
+tasks pass. Cloudflare's package/test owner must release those exact consumer
+corrections; browser pilot/handbuilt source inputs retain their application
+owners. Codex's completed **8aa7eaee** review identifies an actionable compiler
+UI admission gap for ownerless-enum descriptor parameters, whose UI consumer
+remains unsupported. Its owning caption correction is in progress; no passing
+whole CI or broader-reference acceptance follows.
 
 Current remaining prerequisites are recorded here without reopening accepted
 compiler leaves:
