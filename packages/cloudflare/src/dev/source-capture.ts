@@ -299,22 +299,39 @@ export function verifyCompilerSources(capture: SingleFileCapture, report: Compil
 /** Recheck source, symlink targets and all declared inputs before publication. */
 export async function captureIsCurrent(capture: SingleFileCapture): Promise<boolean> {
   try {
-    if (!(await inventoryMatches(capture.inputInventory, capture.root,
-      capture.inputs.map(input => ({ name: input.name, path: input.requestedPath })),
-      capture.inputs.find(input => input.name === "compiler")?.requestedPath ?? ""))) return false;
-    if ((await realpath(capture.requestedRoot)) !== capture.root) return false;
+    if (!(await capturedRuntimeInputsAreCurrent(capture))) return false;
     const { canonicalPath, bytes } = await readStableFile(capture.requestedAppPath);
     if (canonicalPath !== capture.appPath || bytes.length !== capture.sourceBytes) return false;
     if (createHash("sha256").update(bytes).digest("hex") !== capture.sourceSha256) return false;
-    for (const input of capture.inputs) {
-      if (input.state === "missing") continue;
-      if (input.requestedPath === null) return false;
-      const current = await readStableFile(input.requestedPath);
-      if (current.canonicalPath !== input.canonicalPath || current.bytes.length !== input.bytes) return false;
-      if (createHash("sha256").update(current.bytes).digest("hex") !== input.sha256) return false;
-    }
     return true;
   } catch {
     return false;
   }
+}
+
+/** An old artifact may rerun after a source edit, but never through changed producers. */
+export async function capturedRuntimeInputsAreCurrent(capture: SingleFileCapture): Promise<boolean> {
+  try {
+    if ((await realpath(capture.requestedRoot)) !== capture.root ||
+        !(await inventoryMatches(capture.inputInventory, capture.root,
+          capture.inputs.map(input => ({ name: input.name, path: input.requestedPath })),
+          capture.inputs.find(input => input.name === "compiler")?.requestedPath ?? ""))) return false;
+    for (const input of capture.inputs) {
+      if (input.requestedPath === null) {
+        if (input.state !== "missing") return false;
+        continue;
+      }
+      if (input.state === "missing") {
+        try { await stat(input.requestedPath); return false; }
+        catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") return false;
+          continue;
+        }
+      }
+      const current = await readStableFile(input.requestedPath);
+      if (current.canonicalPath !== input.canonicalPath || current.bytes.length !== input.bytes ||
+          createHash("sha256").update(current.bytes).digest("hex") !== input.sha256) return false;
+    }
+    return true;
+  } catch { return false; }
 }
