@@ -571,3 +571,60 @@ it("keeps serving preview and captured diagnostics when provider work times out 
     } finally { await fixture.owner.stop(); }
   }
 });
+
+it("retains each failed rerun under its own safe ref and original revision, with bounded eviction", async () => {
+  const fixture = await ownerFixture();
+  try {
+    const checked = await fixture.client.request({ command: "check" }) as { revision: string };
+    const original = await fixture.client.request({ command: "example.run", payload: { expectedRevision: checked.revision } }) as {
+      run_id: string; focus: { ref: string; source_revision: string; serving_build: string }; artifact_digest: string;
+    };
+    const firstPage = await fixture.client.request({ command: "failures", payload: { revision: checked.revision, limit: 1 } }) as {
+      next_after: number | null;
+    };
+    // A source edit cannot replace the retained recipe or relabel its occurrence.
+    writeFileSync(fixture.app, "app Office\nGiven\nWhen\nThen\n## rerun after edit\n");
+    const newer = await fixture.client.request({ command: "check" }) as { revision: string };
+    expect(newer.revision).not.toBe(checked.revision);
+    const rerun = await fixture.client.request({ command: "example.rerun", payload: { ref: original.focus.ref } }) as {
+      ok: boolean; original: { run_id: string }; rerun: { run_id: string };
+      focus: { ref: string; revision: string; source_revision: string; serving_build: string; owner_ref: { run_id: string } };
+    };
+    expect(rerun.ok).toBe(true);
+    expect(rerun.original.run_id).toBe(original.run_id);
+    expect(rerun.focus.ref).not.toBe(original.focus.ref);
+    expect(rerun.focus).toMatchObject({ revision: checked.revision, source_revision: original.focus.source_revision,
+      serving_build: original.focus.serving_build, owner_ref: { run_id: rerun.rerun.run_id } });
+    expect(rerun.rerun.run_id).not.toBe(original.run_id);
+    const originalLookup = await fixture.client.request({ command: "failure.lookup", payload: { ref: original.focus.ref } });
+    expect(originalLookup).toMatchObject({ revision: checked.revision, owner_ref: { run_id: original.run_id } });
+    const detail = await fixture.client.request({ command: "failure.detail", payload: { ref: rerun.focus.ref } });
+    expect(detail).toMatchObject({ revision: checked.revision, source_revision: original.focus.source_revision,
+      detail: { outcome: "failed", artifact_digest: original.artifact_digest, mismatch_count: 1 } });
+    expect(JSON.stringify({ rerun, detail, originalLookup })).not.toMatch(/PRIVATE_(?:CALLER|ROLE|RUNTIME_MESSAGE|EXPECTED|ACTUAL)/);
+    const page = await fixture.client.request({ command: "failures", payload: { revision: checked.revision, limit: 25 } }) as {
+      failures: { ref: string }[];
+    };
+    expect(page.failures.map(item => item.ref)).toEqual([original.focus.ref, rerun.focus.ref]);
+    // Passed attempts add neither a failure nor a disclosure-bearing report.
+    producer.passed = true;
+    const passed = await fixture.client.request({ command: "example.rerun", payload: { ref: rerun.focus.ref } });
+    expect(passed).not.toHaveProperty("focus");
+    expect((await fixture.client.request({ command: "failures", payload: { revision: checked.revision } }) as {
+      total_retained: number;
+    }).total_retained).toBe(2);
+    // Exercise the existing shared 64-entry store using real session callbacks.
+    // These new-build HTTP records evict old refs without resetting cursor IDs.
+    for (let index = 0; index < 64; index++) fixture.emitRefusal({ requestId: `rerun-evict-${index}`, status: 403,
+      error: { code: "forbidden", message: "denied" } });
+    await expect(fixture.client.request({ command: "failure.lookup", payload: { ref: original.focus.ref } }))
+      .rejects.toMatchObject({ code: "FAILURE_UNAVAILABLE" });
+    await expect(fixture.client.request({ command: "failure.detail", payload: { ref: rerun.focus.ref } }))
+      .rejects.toMatchObject({ code: "FAILURE_UNAVAILABLE" });
+    await expect(fixture.client.request({ command: "example.rerun", payload: { ref: rerun.focus.ref } }))
+      .rejects.toMatchObject({ code: "RERUN_UNAVAILABLE" });
+    const evicted = await fixture.client.request({ command: "failures", payload: { revision: checked.revision,
+      ...(firstPage.next_after === null ? {} : { after: firstPage.next_after }) } }) as { total_retained: number };
+    expect(evicted.total_retained).toBe(0);
+  } finally { await fixture.owner.stop(); }
+});
