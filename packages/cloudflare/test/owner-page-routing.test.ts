@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { test } from 'vitest';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { compileFunction, constants as vmConstants } from 'node:vm';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
 import type { CompileArtifact } from '@canlang/contracts';
@@ -13,14 +15,20 @@ import type { PageHttpDeps } from '@canlang/interfaces';
 import { createD1Storage } from '@canlang/state/storage/d1';
 import { createD1OwnerRouter } from '@canlang/state/storage/owner-router';
 import { FIXED_NOW, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
-import { assembleModules } from '../runtime/modules.js';
-import { assembleWorker, buildInvoker, createTeamOwnerStorageBoundary } from './assembly.js';
+import { assembleModules } from '../src/runtime/modules.js';
+import { resolveProducerFile } from '../src/deploy/producer-files.js';
 
 const APP = 'TypedOperationForms';
 const MODEL = `${APP}.Entry`;
 const fixturePath = resolve('packages/cloudflare/test/fixtures/typed-operation-forms.json');
 
-test('page scopes route verified teams to distinct physical stores and retain canonical read admission', async t => {
+test('page scopes route verified teams to distinct physical stores and retain canonical read admission', async () => {
+  // Use the installed portable producer's native ESM loader, as the example
+  // host does. Vitest's accessor wrappers are not canonical artifact metadata.
+  const { assembleWorker, buildInvoker, createTeamOwnerStorageBoundary } = await compileFunction(
+    'return import(url)', ['url'], { importModuleDynamically: vmConstants.USE_MAIN_CONTEXT_DEFAULT_LOADER },
+  )(pathToFileURL(resolveProducerFile('@canlang/cloudflare/worker/assembly',
+    'bun run --filter @canlang/cloudflare build')).href) as typeof import('../src/worker/assembly.js');
   // Existing compiled fixture; this checks the consumer, not Office acceptance.
   const artifact = JSON.parse(await readFile(fixturePath, 'utf8')) as CompileArtifact;
   const dir = await mkdtemp(join(tmpdir(), 'can-owner-pages-'));
@@ -57,8 +65,9 @@ test('page scopes route verified teams to distinct physical stores and retain ca
     const identityA = await identityFor(tokens[0]!);
     const identityB = await identityFor(tokens[1]!);
     const asm = await assembleModules({ artifact, sourcePath: fixturePath }, {
-      workDir: join(dir, 'modules'), stdlibUrl: new URL('../runtime/stdlib.js', import.meta.url).href,
-      uiUrl: import.meta.resolve('@canlang/ui'),
+      workDir: join(dir, 'modules'),
+      stdlibUrl: pathToFileURL(resolveProducerFile('@canlang/cloudflare/runtime/stdlib',
+        'bun run --filter @canlang/cloudflare build')).href,
     });
     let routeCalls = 0;
     let fallbackCalls = 0;
@@ -100,7 +109,8 @@ test('page scopes route verified teams to distinct physical stores and retain ca
       history: (await db.prepare('SELECT * FROM history ORDER BY rowid').all()).results,
     })));
 
-    await t.test('selected pages disclose only their own store; one read scope pins one route', async () => {
+    // Selected pages disclose only their own store; one read scope pins one route.
+    {
       for (const [token, own, foreign] of [[tokens[0]!, 'Only team A', 'Only team B'],
         [tokens[1]!, 'Only team B', 'Only team A']]) {
         const before = routeCalls;
@@ -128,9 +138,10 @@ test('page scopes route verified teams to distinct physical stores and retain ca
       assert.equal(fallbackCalls, 0);
       assert.deepEqual(await dbA.prepare('SELECT app, owner FROM state_owner_pin').first(), { app: APP, owner: teamA.team_id });
       assert.deepEqual(await dbB.prepare('SELECT app, owner FROM state_owner_pin').first(), { app: APP, owner: teamB.team_id });
-    });
+    }
 
-    await t.test('no selected team, expired credential and absent trusted route refuse without State writes', async () => {
+    // No selected team, expired credential and absent trusted route refuse without State writes.
+    {
       const beforeState = await stateSnapshot();
       for (const token of [undefined, tokens[2]!, expired, tokens[3]!]) {
         const response = await page.fetch(requestFor(token));
@@ -155,9 +166,10 @@ test('page scopes route verified teams to distinct physical stores and retain ca
       const publicIdentity = await resolveIdentity(identities, { team_id: teamB.team_id }, { clock });
       // The route itself adds no member gate to declared public operations.
       assert.equal(await (await boundary.forIdentity(publicIdentity)).readRevision(), await trusted.store.readRevision());
-    });
+    }
 
-    await t.test('a checked host page binding cannot silently switch to another owner', async () => {
+    // A checked host page binding cannot silently switch to another owner.
+    {
       const beforeState = await stateSnapshot();
       const checkedPage = await assembleWorker(artifact, asm, {
         store: fallback, identityStore: identities, now: clock.nowMs, ownerStorage: boundary,
@@ -170,9 +182,10 @@ test('page scopes route verified teams to distinct physical stores and retain ca
       assert.equal((await response.json() as { code: string }).code, 'forbidden');
       assert.deepEqual(await stateSnapshot(), beforeState);
       assert.equal(fallbackCalls, 0);
-    });
+    }
 
-    await t.test('membership removal during a real row predicate prevents disclosure and later page admission', async () => {
+    // Membership removal during a real row predicate prevents disclosure and later page admission.
+    {
       assert.ok(pageDeps?.createReadScope);
       const beforeState = await stateSnapshot();
       const scope = await pageDeps.createReadScope(identityA);
@@ -192,9 +205,9 @@ test('page scopes route verified teams to distinct physical stores and retain ca
       assert.deepEqual(read.result.records, []);
       assert.deepEqual(await stateSnapshot(), beforeState);
       assert.equal(fallbackCalls, 0);
-    });
+    }
   } finally {
     await worker.dispose();
     await rm(dir, { recursive: true, force: true });
   }
-});
+}, 120_000);
