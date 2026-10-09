@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import type { CanonicalModelDescriptor, ExecutionDescriptorSet, ModelName, OperationName } from '@canlang/contracts';
@@ -295,8 +296,10 @@ test('model table retains the checked association and the existing wire default'
 
 test('released NumericControl artifact retains integer metadata and unknown legacy result', () => {
   const raw = JSON.parse(readFileSync(new URL(
-    '../../../../implementation/compiler-completion/numeric-control-producer/artifact.json', import.meta.url,
+    '../../test/fixtures/numeric-control/artifact.json', import.meta.url,
   ), 'utf8')) as ArtifactDescriptorSlice;
+  const source = readFileSync(new URL('../../test/fixtures/numeric-control/source.can', import.meta.url));
+  assert.equal(createHash('sha256').update(source).digest('hex'), raw.sources![0]!.sha256);
   const loaded = loadArtifactDescriptors(raw, opts);
   const numericModel = 'NumericControl.Job' as ModelName;
   const count = loaded.models.find((entry) => entry.name === numericModel)!.fields.count!;
