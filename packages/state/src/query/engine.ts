@@ -97,6 +97,9 @@ export interface ViewerRecordsInput extends BaseQueryInput {
 export interface ViewerPageSelection {
   readonly where?: QueryPredicate;
   readonly order?: ReadonlyArray<OrderTerm>;
+  /** Source-declared fields, request-local text; evaluated after grant projection. */
+  readonly search?: { readonly fields: readonly string[]; readonly query: string };
+  readonly includeCount?: true;
   readonly limit?: number;
   readonly parent?: RecordParent;
   readonly continuation?: ViewerPagePosition;
@@ -112,10 +115,14 @@ export interface ViewerPageRecordsResult {
   readonly records: ProjectedRecord[];
   readonly revision: Revision;
   readonly continuation: ViewerPagePosition | null;
+  /** Matched authorized rows before page slicing, only when requested. */
+  readonly totalCount?: number;
 }
 
 export interface ViewerPageQueryInput extends Omit<ViewerRecordsInput, 'predicate' | 'limit' | 'where' | 'order' | 'archived'> {
   readonly selection?: ViewerPageSelection;
+  /** Trusted generated-source closure; never admitted from a request body. */
+  readonly generatedPredicate?: (record: Readonly<ProjectedRecord>) => boolean | Promise<boolean>;
 }
 
 /** Materialized candidate cap only; adapters can still scan/sort more rows. */
@@ -125,6 +132,26 @@ export const VIEWER_PAGE_MAX_LIMIT = 100;
 
 /** Data-only canonical identity vocabulary; State constructs every tuple. */
 export type ViewerPageTuple = readonly (string | number | boolean | null | ViewerPageTuple)[];
+
+/** Validate the source-owned search fields before using them in query identity or execution. */
+export function viewerPageSearchTuple(
+  search: ViewerPageSelection['search'],
+  modelDescriptor: CanonicalModelDescriptor | undefined,
+): ViewerPageTuple | null {
+  if (search === undefined) return null;
+  if (typeof search !== 'object' || search === null || Array.isArray(search) ||
+      Object.keys(search).length !== 2 || !Object.hasOwn(search, 'fields') || !Object.hasOwn(search, 'query') ||
+      !Array.isArray(search.fields) || search.fields.length === 0 || search.fields.length > 8 ||
+      Object.keys(search.fields).length !== search.fields.length ||
+      typeof search.query !== 'string' || search.query.length > 200 || /[\u0000-\u001f\u007f]/u.test(search.query) ||
+      new Set(search.fields).size !== search.fields.length ||
+      search.fields.some(field => typeof field !== 'string' || field === '' || field.includes('.') ||
+        !modelDescriptor?.fields[field] ||
+        !['text', 'email', 'url', 'locale', 'timezone', 'currency'].includes(modelDescriptor.fields[field]?.valueType ?? ''))) {
+    throw new StateError('validation', 'Invalid page search fields or query.');
+  }
+  return ['search', [...search.fields], search.query];
+}
 
 /** Validate with the existing AST evaluator, then copy only its closed leaves. */
 export function viewerPagePredicateTuple(predicate: QueryPredicate): ViewerPageTuple {
@@ -1061,8 +1088,9 @@ export function queryRecordsPage<Result>(input: ViewerPageQueryInput,
   transform: (page: Readonly<ViewerPageRecordsResult>, grantDecisions: ReadonlyArray<boolean>) => Result | Promise<Result>): Promise<Result>;
 export async function queryRecordsPage(input: ViewerPageQueryInput,
   transform?: (page: Readonly<ViewerPageRecordsResult>, grantDecisions: ReadonlyArray<boolean>) => unknown | Promise<unknown>): Promise<unknown> {
-  if (input.authority !== 'viewer' || 'predicate' in input || 'archived' in input) {
-    throw new StateError('validation', 'Pages require current viewer authority without source predicates or archive overrides.');
+  if (input.authority !== 'viewer' || 'predicate' in input || 'archived' in input ||
+      (input.generatedPredicate !== undefined && typeof input.generatedPredicate !== 'function')) {
+    throw new StateError('validation', 'Pages require current viewer authority without caller predicates or archive overrides.');
   }
   let selection: ViewerPageSelection;
   try { selection = structuredClone(input.selection === undefined ? {} : input.selection); }
@@ -1070,15 +1098,30 @@ export async function queryRecordsPage(input: ViewerPageQueryInput,
   if (typeof selection !== 'object' || selection === null || Array.isArray(selection)) {
     throw new StateError('validation', 'Invalid page selection.');
   }
-  if (Object.keys(selection).some(key => !['where', 'order', 'limit', 'parent', 'continuation'].includes(key))) {
+  if (Object.keys(selection).some(key => !['where', 'order', 'search', 'includeCount', 'limit', 'parent', 'continuation'].includes(key))) {
     throw new StateError('validation', 'Unknown page selection field.');
   }
+  if (selection.includeCount !== undefined && selection.includeCount !== true) {
+    throw new StateError('validation', 'Invalid page count request.');
+  }
+  const search = selection.search;
+  viewerPageSearchTuple(search, input.modelDescriptor);
   const limit = selection.limit ?? VIEWER_PAGE_DEFAULT_LIMIT;
   if (!Number.isInteger(limit) || limit < 1 || limit > VIEWER_PAGE_MAX_LIMIT) {
     throw new StateError('validation', 'Page limit must be between 1 and 100.');
   }
   if (selection.where !== undefined) viewerPagePredicateTuple(selection.where);
   const order = viewerPageOrder(selection.order);
+  const requestedSearch = search?.query.toLowerCase() ?? '';
+  const predicate = search === undefined && input.generatedPredicate === undefined ? undefined :
+    async (record: Readonly<ProjectedRecord>): Promise<boolean> => {
+      if (search !== undefined && requestedSearch !== '' &&
+          !search.fields.some(field => {
+            const value = record.data[field];
+            return typeof value === 'string' && value.toLowerCase().includes(requestedSearch);
+          })) return false;
+      return input.generatedPredicate === undefined ? true : input.generatedPredicate(record);
+    };
   const position = selection.continuation;
   if (position !== undefined && (typeof position !== 'object' || position === null || Array.isArray(position) ||
       !Number.isSafeInteger(position.revision) || position.revision < 0 ||
@@ -1095,7 +1138,7 @@ export async function queryRecordsPage(input: ViewerPageQueryInput,
   const set = await runAuthorizedQuery({
     ...input, order, archived: 'exclude',
     ...(selection.where === undefined ? {} : { where: selection.where }),
-  }, undefined, false, undefined, {
+  }, search?.fields, false, predicate, {
     ...(selection.parent === undefined ? {} : { parent: selection.parent }),
     ...(position === undefined ? {} : { revision: position.revision }),
   });
@@ -1112,6 +1155,7 @@ export async function queryRecordsPage(input: ViewerPageQueryInput,
     records, revision: set.revision,
     continuation: previous + 1 + records.length < set.rows.length && last !== undefined
       ? { revision: set.revision, after: last.id } : null,
+    ...(selection.includeCount === true ? { totalCount: set.rows.length } : {}),
   };
   const captured = set.pageAuthority!;
   const result = transform === undefined ? page : await transform(structuredClone(page), [...captured.allowed]);
