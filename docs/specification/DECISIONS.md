@@ -3509,3 +3509,7 @@ Accepted finite VERIFY-TV01 support: update only the prepared plan donor hash af
 ## 2026-10-09 — integrate current upstream Packages prerequisites
 
 Integrate main9ecb2759 into the isolated Packages branch, preserving upstream actual compiled-example execution, public CRUD provenance/projection, new judgment exports and both branches’ decisions/progress. CLI-local test scratch no longer exists; cleanup belongs to its actual example producer. Refresh only the four changed string donor hashes after exact unchanged semantic observations; current source and private emitted checks pass2/2 each. The draft submodule remote does not supply its referenced06b23b5d commit, so its source/consumer qualification remains an external prerequisite. Complete filetree checkpoint remains retained pending accumulated semantic review; reconciliation follows this source merge.
+
+## 2026-10-09 — preserve actual compiled-example cleanup ownership
+
+Accepted bounded DEL-D03 integration: keep current upstream capture, activation and compiled-example execution/reporting, and preserve its original execution/provisioning failure while attempting defining scratch removal or scope disposal. CLI29/29 and runner/rerun20/20 pass; stale shared dependency declarations are rebuilt separately before claiming the full current Cloudflare check. Reconcile the existing filetree registry through merged5910445b across all retained-checkpoint ancestry, preserving allocations and unfinished semantic/target review. The complete82493427checkpoint remains unchanged.
