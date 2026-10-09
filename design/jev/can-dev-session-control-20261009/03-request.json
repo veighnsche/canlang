@@ -1,0 +1,23 @@
+{
+  "state": "An AI-oriented compiler workflow needs to inspect one checkout's current source, receive small revision-tagged failures and construct help, open a compiled local preview and request inline example execution. Its existing command path emits machine JSON, and the worker runs in process; only a test bridge currently gives it loopback HTTP. There is no live session registry or development MCP implementation. The generated app's business MCP has its own authentication and must remain separate. Inline example modules exist, but the command runner still reports no executed cases; the available narrow test adapter cannot save all caller, clock, provider and database conditions. The first control choice must cover explicit attachment, cross-worktree isolation, agent usability, bounded results and safe local access. Repeating an example with new state is weaker than reproducing its earlier execution. Weigh the same capability and cost criteria for every option, distinguishing proposals from current code.",
+  "questions": {
+    "first_transport": {
+      "type": "choice",
+      "instructions": "For the first supported agent control channel, which transport best fits this evidence?",
+      "criteria": {
+        "json_cli": "Implement revisioned JSON commands that talk to a private session process through local IPC, with a separate loopback browser URL. This reuses a familiar command pattern and reaches shell-capable agents, at the cost of polling and less native discovery.",
+        "dev_mcp": "Implement a local development MCP tool server first, independent of app business MCP. Typed discovery and persistent connection suit agents, but configuration, authorization and session routing add initial work before runtime feasibility is complete.",
+        "both_initially": "Expose CLI and MCP together from the first release using the same session engine. Broad client support comes with two outward protocols and more access, versioning and test obligations immediately."
+      }
+    },
+    "replay_boundary": {
+      "type": "choice",
+      "instructions": "What should an early agent be told it can do with a failed example?",
+      "criteria": {
+        "exact_replay_first": "Provide repetition only after a complete source/fixture/actor/clock/storage/provider snapshot can be restored, then label it exact replay when verified. Precision is high but dependencies are substantial.",
+        "isolated_rerun": "Permit a fresh execution of the selected example against the same source and artifact in a separate data scope, clearly named rerun; exact replay remains unavailable for any unpinned identity, time, state or provider input.",
+        "no_rerun_first": "Wait to provide any repeat action until exact replay machinery exists. This avoids a partial feature while withholding a simple diagnostic iteration path."
+      }
+    }
+  }
+}

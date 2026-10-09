@@ -1,0 +1,91 @@
+Given TeamMember:
+  name text
+  active boolean
+  role one of "member", "scheduler"
+  team_id text
+
+Given Shift:
+  team_id text
+  title text
+  day date
+  status one of "open", "filled" = "open"
+  assignee TeamMember? = none
+
+  rule assignee is none when status is "open"
+  rule assignee is present and active and in the same team when status is "filled"
+
+When a team member posts a shift:
+  require member is active
+  create Shift(
+    team_id: member.team_id,
+    title: title,
+    day: day,
+    status: "open",
+    assignee: none
+  )
+
+When a team member edits an open shift:
+  require member is active and in the same team as shift
+  require shift.status is "open"
+  update shift title and day
+
+When a team member removes an open shift:
+  require member is active and in the same team as shift
+  require shift.status is "open"
+  remove shift
+
+When a scheduler assigns an active teammate and fills an open shift:
+  require member is active and in the same team as shift
+  require member.role is "scheduler"
+  require shift.status is "open"
+  require teammate is active and in the same team as shift
+  set shift.assignee to teammate
+  set shift.status to "filled"
+
+When a scheduler reopens a filled shift:
+  require member is active and in the same team as shift
+  require member.role is "scheduler"
+  require shift.status is "filled"
+  set shift.status to "open"
+  set shift.assignee to none
+
+Then team members can browse shifts:
+  require member is active
+  show shifts where shift.team_id is member.team_id
+  order by day ascending
+
+  search shifts by title
+  switch between views "open" and "filled"
+  show only shifts whose status matches the selected view
+
+## Behavior examples
+
+## Valid fill: a scheduler assigns an active teammate to an open shift
+do:
+  scheduler.role = "scheduler"
+  scheduler.active = true
+  teammate.active = true
+  open_shift.status = "open"
+  fill(open_shift, teammate)
+expect:
+  open_shift.status = "filled"
+  open_shift.assignee = teammate
+
+## Denial: a regular member cannot fill a shift
+do:
+  member.role = "member"
+  member.active = true
+  open_shift.status = "open"
+  fill(open_shift, teammate)
+expect:
+  denied because member.role is not "scheduler"
+  open_shift.status = "open"
+  open_shift.assignee = none
+
+## Forbidden edit: a filled shift cannot have its title or day edited
+do:
+  open_shift.status = "filled"
+  edit(open_shift, title: "New title", day: tomorrow)
+expect:
+  denied because open_shift.status is not "open"
+  open_shift.title and open_shift.day remain unchanged

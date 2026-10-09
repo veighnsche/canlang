@@ -1,0 +1,104 @@
+## One team's expense reimbursement workflow.
+Given
+  Expense
+    member: Member
+    purpose: Text
+    amount: Money
+    status: Status = Draft
+    submittedAt: DateTime?
+    decision: Decision?
+    decisionBy: Member?
+    decisionAt: DateTime?
+    rejectionExplanation: Text?
+
+  Status = Draft | Submitted | Approved | Rejected
+  Decision = Approved | Rejected
+
+  positiveAmount(expense: Expense) = expense.amount > 0
+  nonblank(text: Text) = trim(text) != ""
+
+  mayReview(reviewer: Member, expense: Expense) =
+    reviewer.isReviewer
+    and reviewer != expense.member
+    and expense.status == Submitted
+
+When
+  createExpense(member, purpose, amount)
+    requires positiveAmount(amount)
+    creates Expense(member, purpose, amount, status: Draft)
+
+  editDraft(member, expense, purpose, amount)
+    requires expense.member == member
+    requires expense.status == Draft
+    requires positiveAmount(amount)
+    updates expense.purpose and expense.amount
+
+  submit(member, expense)
+    requires expense.member == member
+    requires expense.status == Draft
+    freezes expense.purpose and expense.amount
+    sets expense.status = Submitted
+    sets expense.submittedAt = now()
+
+  approve(reviewer, expense)
+    requires mayReview(reviewer, expense)
+    sets expense.status = Approved
+    sets expense.decision = Approved
+    sets expense.decisionBy = reviewer
+    sets expense.decisionAt = now()
+
+  reject(reviewer, expense, explanation)
+    requires mayReview(reviewer, expense)
+    requires nonblank(explanation)
+    sets expense.status = Rejected
+    sets expense.decision = Rejected
+    sets expense.decisionBy = reviewer
+    sets expense.decisionAt = now()
+    sets expense.rejectionExplanation = trim(explanation)
+
+Then
+  Expense page
+    draft form for purpose and positive amount
+    create expense
+    edit own draft
+    submit own draft
+    show own expenses when member.isReviewer == false
+    show all team expenses when member.isReviewer == true
+    show status, purpose, amount, submitter, submission time, decision, decision maker, decision time, and rejection explanation
+    review actions on submitted expenses from other members:
+      approve
+      reject with required explanation
+
+    filters
+      status: Status?
+      currency: Currency?
+
+    visibleExpenses =
+      expenses.visibleTo(member)
+        .where(status == filters.status if filters.status != null)
+        .where(amount.currency == filters.currency if filters.currency != null)
+
+    visibleExpenseCount = count(visibleExpenses)
+    visibleExpenseTotal = sum(visibleExpenses.amount)
+
+## Behavior examples
+do
+  member creates expense(purpose: "Team lunch", amount: EUR(42))
+  member submits expense
+  expect expense.status == Submitted
+  expect expense.purpose == "Team lunch"
+  expect expense.amount == EUR(42)
+
+  reviewer approves expense
+  expect expense.status == Approved
+  expect expense.decisionBy == reviewer
+  expect expense.decisionAt != null
+
+  submitter attempts approve own submitted expense
+  expect unauthorized
+
+  member attempts create expense(amount: EUR(0))
+  expect invalid amount
+
+  reviewer attempts reject approved expense(explanation: "Duplicate")
+  expect invalid repeat decision

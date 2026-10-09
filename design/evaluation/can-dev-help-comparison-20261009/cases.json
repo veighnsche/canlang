@@ -1,0 +1,101 @@
+{
+  "status": "offline_extracted_probes_not_product_eligible_diagnostics",
+  "source": "design/evaluation/can-dev-novice-20261009/raw",
+  "cases": [
+    {
+      "id": "supplies_helper",
+      "task": "office_supplies",
+      "draft": "supplies-sol.can",
+      "line": 14,
+      "section": "Given",
+      "guess": "rule team_member(team)",
+      "excerpt": "rule team_member(team) / current_user in team.members; later used for page visibility and operation admission",
+      "task_intent": "Only team members may read or change their supplies.",
+      "candidates": ["can.v1.derive.function", "can.v1.policy", "can.v1.when.scenario.user"],
+      "gold": "unclear",
+      "gold_reason": "The named helper is reused for record read access and operation admission; one construct does not replace both."
+    },
+    {
+      "id": "supplies_search",
+      "task": "office_supplies",
+      "draft": "supplies-sol.can",
+      "line": 76,
+      "section": "Then",
+      "guess": "search_input search",
+      "excerpt": "page Supplies(team); state search: Text = \"\"; search_input search; list visible_supplies",
+      "task_intent": "Give team members a supply list searchable by name within the current view.",
+      "candidates": ["can.v1.ui.list", "can.v1.ui.table", "can.v1.then.preferences-schema"],
+      "gold": "can.v1.ui.list",
+      "gold_reason": "The requested list has a documented search selector; this does not validate the surrounding page or query."
+    },
+    {
+      "id": "shifts_read_rule",
+      "task": "staff_shifts",
+      "draft": "shifts-sol.can",
+      "line": 28,
+      "section": "Given",
+      "guess": "rule Shift may be read only when currentMember exists",
+      "excerpt": "Shift {team: Team, title: Text, status: Open | Filled}; rule Shift may be read only when currentMember exists",
+      "task_intent": "Team members may browse shifts; outsiders cannot read them.",
+      "candidates": ["can.v1.policy", "can.v1.invariant", "can.v1.lock", "can.v1.derive.function"],
+      "gold": "can.v1.policy",
+      "gold_reason": "This is a stored-record read grant, which policy owns."
+    },
+    {
+      "id": "shifts_state_rule",
+      "task": "staff_shifts",
+      "draft": "shifts-sol.can",
+      "line": 21,
+      "section": "Given",
+      "guess": "rule status == Open implies assignee == none",
+      "excerpt": "Shift {status: Open | Filled = Open, assignee: Teammate?}; rule status == Open implies assignee == none",
+      "task_intent": "Open shifts have no assignee; filling assigns an active teammate.",
+      "candidates": ["can.v1.invariant", "can.v1.lock", "can.v1.policy", "can.v1.derive.function"],
+      "gold": "can.v1.invariant",
+      "gold_reason": "It states a predicate that must hold for every accepted stored row state."
+    },
+    {
+      "id": "expenses_freeze_rule",
+      "task": "expense_review",
+      "draft": "expenses-sol.can",
+      "line": 22,
+      "section": "Given",
+      "guess": "rule purpose and amount may change only while status is Draft",
+      "excerpt": "Expense {purpose: Text, amount: Money, status: Draft | Submitted | Approved | Rejected}; rule purpose and amount may change only while status is Draft",
+      "task_intent": "Submitting freezes purpose and amount through every mutation path.",
+      "candidates": ["can.v1.lock", "can.v1.invariant", "can.v1.policy", "can.v1.derive.function"],
+      "gold": "can.v1.lock",
+      "gold_reason": "It protects selected fields from writes once the row leaves Draft."
+    },
+    {
+      "id": "expenses_visible",
+      "task": "expense_review",
+      "draft": "expenses-sol.can",
+      "line": 28,
+      "section": "Given",
+      "guess": "Given visibleExpenses",
+      "excerpt": "Given visibleExpenses / Expense where team is current team and (submitter is viewer or viewer is reviewer)",
+      "task_intent": "Submitters see their own expenses and reviewers see all team expenses.",
+      "candidates": ["can.v1.derive.function", "can.v1.when.scenario.read", "can.v1.policy", "can.v1.then.page"],
+      "gold": "unclear",
+      "gold_reason": "The source does not establish whether this is a reusable pure computation, a read operation, a record policy or page-local data."
+    }
+  ],
+  "routing_controls": [
+    {
+      "id": "root_layout",
+      "observed": "All six raw drafts first fail top-level structure or indentation.",
+      "expected": "deterministic structural help; no Jev request"
+    },
+    {
+      "id": "exact_type_case",
+      "observed": "Text in a type slot",
+      "expected": "deterministic text type card; no Jev request"
+    },
+    {
+      "id": "unsupported_atomic",
+      "observed": "atomic inside a do body",
+      "expected": "no replacement keyword; explain supported transaction/effect contract; no Jev request"
+    }
+  ]
+}

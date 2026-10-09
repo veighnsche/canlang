@@ -1,0 +1,38 @@
+{
+  "request": {
+    "state": "The planned can dev is an agent-facing localhost workflow, with Jev available as an adviser on ambiguous failures. Current compiler output already identifies its source bytes, diagnostic code, positions and whether analysis completed. The explain lookup is an established generic code reference. Production artifacts contain source maps, while local execution and public safe business-error envelopes do not yet form one source-anchored, revision-aware incident explanation. The design needs an economical first step that helps agents locate actual causes, keeps observed facts separate from model judgments, and derives policy from the owning Can declarations.",
+    "questions": {
+      "priority": {
+        "type": "choice",
+        "instructions": "Which starting approach most effectively improves failure diagnosis for coding agents given accuracy, source traceability, delivery complexity and response size?",
+        "criteria": {
+          "catalog": "Expand deterministic per-code documentation and suggested correction patterns; implementation stays local to the catalog, though it lacks individual incident facts.",
+          "context": "Produce one deterministic incident view by combining a current diagnostic, relevant checked declarations and mapped execution evidence; the integration is broader but describes the specific failure.",
+          "jev": "Let Jev select plausible causes from a small candidate set built from the failure; this offers rapid uncertain triage and adds a network-dependent judgment.",
+          "session": "Make existing compiler explanations and runtime messages available from a persistent dev process first; this is lightweight but leaves the agent to assemble the cause."
+        }
+      }
+    },
+    "model": "jev-latest"
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "priority": {
+        "type": "choice",
+        "choice": "context",
+        "confidence": 0.63,
+        "probabilities": {
+          "catalog": 0.03,
+          "context": 0.72,
+          "jev": 0.0,
+          "session": 0.25
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 567,
+      "output_tokens": 45
+    }
+  }
+}

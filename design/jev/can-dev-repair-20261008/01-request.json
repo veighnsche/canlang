@@ -1,0 +1,15 @@
+{
+  "state": "Can is a closed Given/When/Then language intended for AI coding agents that may know only a tiny bootstrap description. The user wants an agent's plausible but invalid Can guess to receive a likely valid correction in the error. Current compiler has stable revision-pinned diagnostics and a code-action edit transport, but no syntax repair suggestions. Unknown syntax cannot execute as if valid; authority, effects, evaluation order and independent example expectations must remain explicit. TypeSafe Jev returns typed choices/probabilities over supplied alternatives and does not generate source strings. Compare a first authoring repair workflow by novice completion, intended-meaning preservation, token cost and engineering scope.",
+  "questions": {
+    "first_repair_route": {
+      "type": "choice",
+      "instructions": "Which first repair design best helps an unfamiliar coding agent turn invalid approximate Can into verified canonical Can while keeping ambiguity visible?",
+      "criteria": {
+        "deterministic_candidates": "Use parser/checker and current declaration facts to generate bounded exact-edit candidates, reject invalid candidates, ask Jev to rank valid ones, and return an explicit patch; common local errors are covered but broad paraphrases may lack a candidate.",
+        "layered_candidates": "Generate compiler-derived candidates first and, when none fit, ask a generative code model for additional candidates; compile-check all and let Jev rank surviving edits; wider coverage brings another model and greater cost/complexity.",
+        "agent_repair": "Give the agent a compact contextual error, canonical syntax example and current declarations; the agent writes its own patch, with Jev ranking only likely causes; implementation is smaller but correction may take more turns.",
+        "implicit_normalization": "Have the compiler select and run the closest valid interpretation automatically, reporting its canonical form; iteration is short but an ambiguous guess may change business meaning before review."
+      }
+    }
+  }
+}

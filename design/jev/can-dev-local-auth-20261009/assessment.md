@@ -1,0 +1,5 @@
+# Local identity bootstrap advice
+
+Three independently worded choice requests used the verified local facts: fresh real D1 has no accounts, registration lacks a mail sender, the preview requires real app login and policy, and the owner has a private control socket. Jev chose **private_seed** in all three responses (reported choice probabilities 0.96, 0.95, 0.90). The alternatives were local mail registration, explicit configured credentials, and using preview access as an app-auth shortcut. Requests and full responses are retained beside this assessment.
+
+Implementation choice: seed actual Identity users and memberships on each fresh local preview with random per-build passwords; disclose credentials only through the owner-only control response, never a URL or status. The browser and business endpoints still authenticate normally. This choice covers the selected app's authorization journey with a small setup surface. It does not test registration; a later registration profile may need a local mail sink. Jev's advice does not establish that the implementation or browser journey passes; those require direct checks.
