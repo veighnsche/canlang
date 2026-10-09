@@ -246,7 +246,7 @@ When
   do return count(Item)
  scenario absent(item:Item?) -> text? by=members
   do return item?.title
- scenario composite(value:text[]) -> text[] by=members
+ scenario composite(value:bytes[]) -> bytes[] by=members
   do return value
  scenario model(item:Item) -> Item by=members
   do return item
@@ -498,4 +498,73 @@ Then
         };
         assert_eq!(value.reason, "unsupported stored field type");
     }
+}
+
+#[test]
+fn primitive_arrays_preserve_ordered_element_closure_and_nullable_inventory() {
+    let source = r#"app Arrays
+Given
+ Item {values:int[],optional_values:text[]?,first:int,optional:int?,fallback:int,required:int[]!}
+ policy Item read=members
+When
+ scenario input(values:int[]) -> int[] by=members
+  do return values
+ scenario nullable(values:text[]?) -> text[]? by=members
+  do return values
+ scenario stored(item:Item) -> int[] by=members
+  do return item.values
+ scenario optional_stored(item:Item) -> text[]? by=members
+  do return item.optional_values
+ scenario literal() -> int[] by=members
+  do return [1,2]
+ scenario elements(item:Item) -> int[] by=members
+  do return [item.first,item.optional ?? item.fallback]
+ scenario required(item:Item) -> int[] by=members
+  do return item.required
+Then
+"#;
+    let (db, program) = checked(&[("arrays.can", source)]);
+    for name in ["input", "nullable", "literal"] {
+        let value = complete(&program, &format!("Arrays.{name}"));
+        origins(&db, value);
+        assert_eq!(value.returns.len(), 1);
+        assert!(value.returns[0].dependencies.is_empty());
+    }
+    for (name, ty) in [("stored", "int[]"), ("optional_stored", "text[]?")] {
+        let value = complete(&program, &format!("Arrays.{name}"));
+        assert_eq!(value.returns[0].dependencies.len(), 1);
+        assert_eq!(value.returns[0].dependencies[0].type_id, ty);
+    }
+    let paths = &complete(&program, "Arrays.elements").returns;
+    assert_eq!(paths.len(), 2);
+    for path in paths {
+        assert_eq!(path.dependencies[0].field_name, "first");
+        assert_eq!(path.dependencies[0].role, DependencyRole::Data);
+        assert_eq!(path.decisions.len(), 1);
+        assert_eq!(
+            path.dependencies
+                .iter()
+                .any(|dep| dep.field_name == "fallback"),
+            path.decisions[0].choice == DisclosureChoice::RhsEvaluated
+        );
+    }
+    assert!(matches!(
+        fact(&program, "Arrays.required"),
+        ScenarioDisclosure::Declined(_)
+    ));
+}
+
+#[test]
+fn array_paths_retain_the_existing_finite_cartesian_bound() {
+    let elements = std::iter::repeat_n("item.optional ?? 0", 11)
+        .collect::<Vec<_>>()
+        .join(",");
+    let source = format!(
+        "app ArrayBound\nGiven\n Item {{optional:int?}}\n policy Item read=members\nWhen\n scenario many(item:Item) -> int[] by=members\n  do return [{elements}]\nThen\n"
+    );
+    let (_, program) = checked(&[("array-bound.can", &source)]);
+    let ScenarioDisclosure::Declined(value) = fact(&program, "ArrayBound.many") else {
+        panic!("array element choices must not expand beyond the finite path limit");
+    };
+    assert!(value.reason.contains("path bound"));
 }
