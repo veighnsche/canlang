@@ -1865,3 +1865,16 @@ is inferred. T04's compiler half is the next ready finite unit; Dev owns exact
 profile classification, trusted live qualification and distinguishing ranking
 evidence. Full grammar inventories and parser evidence=false remain intact.
 Original **58/67**, owner dependencies and precise human holds remain.
+
+
+**Local T04 compiler half — first authoring profile, 2026-10-09.** The existing
+construct-help target passes **6/6**. One complete Office source checks and
+compiles all **41** declared first-profile cards, with exact CST card anchors,
+actual model/rule/operation/page/fixture/example output and called UI factories.
+Four controls refuse invalid invariant types, unknown assigned fields, unknown
+stat options and unsupported authored table children; the positive table uses
+its canonical columns path. Proof identities are
+`compiler/tests/construct_help.rs::first_profile_compiler_cards_have_checked_source_and_emitted_owners[card-id]`.
+Runtime/example execution and the production trusted current-proof provider
+remain Dev-owned. Grammar inventories and ambiguous-intent evidence flags remain
+unchanged; this compiler half grants no working-card or ranking acceptance.
