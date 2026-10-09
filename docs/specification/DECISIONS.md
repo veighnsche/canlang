@@ -3565,3 +3565,7 @@ Use owning UI/Values root exports for public client types and catalogs. Keep the
 ### 2026-10-09 — Keep Worker unit tests outside portable staging
 
 Apply the existing vendor test exclusion to flat Worker dist siblings as well. Unit tests are package checks, not production Worker modules; stage all real main/entry/assembly and lazy runtime dependencies and keep link/load validation. The actual installed test module exposed the gap before any app row or business call ran.
+
+### 2026-10-09 — Render authored nullable inputs without requiring an extra clear control
+
+Interfaces form preparation permits the generated optional explicit-null companion to be omitted from authored controls. A blank optional scalar still projects omission; canonical create resolves its null default. Required version, currency and datetime-fold companions retain their existing refusal, as do unknown/duplicate/non-writable authored controls. Office's two source-owned create controls remain the complete intended authoring surface; focused presentation checks pass 18/18, with the installed browser workflow still due.
