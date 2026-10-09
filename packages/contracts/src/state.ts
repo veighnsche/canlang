@@ -48,6 +48,13 @@ export type ModelName = string & { readonly __brand: 'ModelName' };
 /** How the invocation was admitted. `test` is isolated fixture authority only. */
 export type AdmissionKind = 'user' | 'trusted' | 'system' | 'test';
 
+/**
+ * Host-selected mutation admission; retained recovery never executes an unseen
+ * identity and rechecks current operation authority. Result disclosure still
+ * belongs to the host's current grant/secret-aware projection.
+ */
+export type MutationAdmissionMode = 'execute-or-replay' | 'retained-receipt-only';
+
 /** Authenticated account; stable id only, no directory fields. */
 export interface Principal {
   readonly userId: string;
@@ -857,6 +864,33 @@ export interface CanonicalModelDescriptor {
   readonly fields: Readonly<Record<string, CanonicalFieldDef>>;
   readonly deleteMode: DeleteMode;
   readonly uniqueKeys?: ReadonlyArray<string>;
+}
+
+/** Exact, source-ordered owning native policy ABI; missing plans never imply a scan. */
+export interface CanonicalOwnerModelPolicies {
+  readonly abi: 'state.owner-model-policies@1';
+  readonly model: ModelName;
+  readonly ownerPackage: string;
+  readonly module: string;
+  readonly rules: ReadonlyArray<
+    | {
+        readonly kind: 'invariant';
+        readonly id: string;
+        /** Every non-row dependency needs a checked reverse affected-row selector. */
+        readonly dependencies: ReadonlyArray<{
+          readonly id: string;
+          readonly model: ModelName;
+          readonly maxTargets: number;
+        }>;
+      }
+    | { readonly kind: 'lock'; readonly id: string; readonly fields: ReadonlyArray<string> }
+  >;
+  readonly hooks: ReadonlyArray<{
+    readonly id: string;
+    readonly op: 'create' | 'update' | 'remove';
+    /** Exact checked triggering CRUD identity, not an arbitrary scenario name. */
+    readonly operation: OperationName;
+  }>;
 }
 
 /**
