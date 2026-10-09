@@ -3771,3 +3771,7 @@ Adapt the preserved Office browser/business, failure/rerun and two-owner lifecyc
 ### Implementation: truthful runtime fixture producer joins
 
 Join the bounded Cloudflare fixtures to actual owning module hashes, declaration/read-selector provenance and canonical delivery/user values. Receipt association and owner locator agree; selected receipt observation remains a viewer read with its exact unbound-locator refusal, while effect bypasses still refuse. Stale update coverage explicitly submits both expected current fields. D3 receipt6/observer5/durable4 pass across affected runs, typed checks pass, T32 memory checks pass with only two final corrections rerun2/2, and real D1/DO6/6 pass. Preserve commit/revocation/retry/replay/history/cancellation assertions; label handbuilt artifacts honestly without compiled-app or whole-plan acceptance.
+
+### Implementation: native browser temporary-profile startup
+
+Use the installed Playwright macOS credential-store flags for the raw anonymous Chrome profile. The actual initial document stalled before receiving a response or requesting bootstrap; the same live Worker served HTTP200 to curl. Consume navigation/bootstrap waits together to avoid an unhandled rejection. The affected native readonly polling check passes1/1 in10 seconds with hidden-tab, authorization, persistence and navigation-cancellation assertions intact; unchanged native form results are reused. No production polling fix or whole-app acceptance is claimed.
