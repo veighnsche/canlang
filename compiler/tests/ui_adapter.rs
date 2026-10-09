@@ -113,6 +113,7 @@ fn nominal_preference_tabs_keep_the_receiving_field_and_refuse_foreign_bindings(
         " preferences { selection:Expense.status? }\n page / title=\"Page\"\n  tabs preferences.selection\n",
         " preferences { selection:Expense.status=foreign }\n page / title=\"Page\"\n  tabs preferences.selection\n",
         " page / title=\"Page\"\n  list Expense empty=\"Empty\"\n   tabs row.status\n",
+        " page / title=\"Page\"\n  list Expense empty=\"Empty\"\n   tabs ((row.status))\n",
     ] {
         let (output, artifact) = run(body);
         assert!(
@@ -130,6 +131,45 @@ fn nominal_preference_tabs_keep_the_receiving_field_and_refuse_foreign_bindings(
                     .is_some_and(|code| code.starts_with('E'))),
             "{artifact}"
         );
+    }
+}
+
+#[test]
+fn grouped_preference_tabs_keep_inline_and_borrowed_checked_identities() {
+    use std::{path::PathBuf, process::Command};
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let scratch = tempfile::tempdir().unwrap();
+    for annotation in ["enum(draft,submitted)", "Expense.status"] {
+        for target in [
+            "preferences.view",
+            "(preferences.view)",
+            "((preferences.view))",
+        ] {
+            let source = format!(
+                "app GroupedTabs\nGiven\n Expense {{status:enum(draft,submitted)=draft}}\n policy Expense read=public\nWhen\nThen\n preferences {{view:{annotation}=submitted}}\n page / title=\"Page\"\n  tabs {target}\n"
+            );
+            let path = scratch.path().join("grouped.can");
+            std::fs::write(&path, source).unwrap();
+            let output = Command::new(env!("CARGO_BIN_EXE_can"))
+                .args(["compile", "--format=json", "--catalog"])
+                .arg(root.join("packages/values/dist/catalog.json"))
+                .arg(path)
+                .env_remove("CAN_CATALOG")
+                .output()
+                .unwrap();
+            let artifact: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+            assert!(
+                output.status.success(),
+                "{annotation}: {target}: {artifact}"
+            );
+            let js = artifact["modules"][0]["js"].as_str().unwrap();
+            assert!(js.contains("preferenceFields:[{name:\"view\",options:[\"draft\",\"submitted\"],defaultValue:\"submitted\"}]"), "{js}");
+            assert!(js.contains("current:preferences.view"), "{js}");
+            assert!(
+                js.contains("version:c.preferenceVersions.GroupedTabs.view"),
+                "{js}"
+            );
+        }
     }
 }
 
