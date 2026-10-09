@@ -841,6 +841,11 @@ pub struct JsModelField {
     pub required: bool,
     /// Whether the field accepts explicit null.
     pub nullable: bool,
+    /// Checked normalization claim from the authored stored field.
+    pub trim: Option<bool>,
+    /// Checked inclusive field bounds, in the artifact wire representation.
+    pub min: Option<serde_json::Value>,
+    pub max: Option<serde_json::Value>,
     /// Whether caller-supplied values are rejected.
     pub server_only: bool,
     /// T09 array marker for array fields (`!` spelling); `None` singular.
@@ -1113,6 +1118,9 @@ impl Serialize for JsModelField {
         let mut state = serializer.serialize_struct(
             "ModelField",
             4 + usize::from(self.nullable)
+                + usize::from(self.trim.is_some())
+                + usize::from(self.min.is_some())
+                + usize::from(self.max.is_some())
                 + usize::from(self.value_type.is_some())
                 + usize::from(self.array_required.is_some())
                 + usize::from(self.default.is_some())
@@ -1131,6 +1139,15 @@ impl Serialize for JsModelField {
         }
         if self.nullable {
             state.serialize_field("nullable", &true)?;
+        }
+        if let Some(trim) = self.trim {
+            state.serialize_field("trim", &trim)?;
+        }
+        if let Some(min) = &self.min {
+            state.serialize_field("min", min)?;
+        }
+        if let Some(max) = &self.max {
+            state.serialize_field("max", max)?;
         }
         if let Some(required) = self.array_required {
             state.serialize_field("array", &ArrayMarker { required })?;
@@ -1319,6 +1336,7 @@ impl JsWriter {
 /// Lowering diagnostics and the link metadata the artifact assembly needs.
 pub fn emit_program(ir: &IrProgram) -> JsOutput {
     let mut emitter = Emitter::new(ir);
+    emitter.validate_model_field_bounds();
     let entry_id = pick_entrypoint(ir);
     let entry_name = entry_id
         .map(|id| ir.module(id).name.clone())
@@ -2230,6 +2248,62 @@ impl<'a> Emitter<'a> {
             format!("cannot lower {what}: {why}"),
             span,
         ));
+    }
+
+    /// Model descriptors are static artifact claims. Keep their bounds
+    /// source-exact when possible and make an unrepresentable checked
+    /// expression a lowering diagnostic instead of silently omitting it.
+    fn validate_model_field_bounds(&mut self) {
+        let model_fields: Vec<_> = self
+            .ir
+            .items
+            .iter()
+            .filter_map(|item| match &item.kind {
+                IrItemKind::Model { fields, .. } => Some(fields.clone()),
+                _ => None,
+            })
+            .flatten()
+            .collect();
+        let mut unsupported_spans = Vec::new();
+        for id in model_fields {
+            let Some(item) = self.ir.items.get(id.0 as usize) else {
+                continue;
+            };
+            let IrItemKind::Field { ty, modifiers, .. } = &item.kind else {
+                continue;
+            };
+            let length_bound = match ty {
+                IrType::Known(ty) => {
+                    let mut base = ty;
+                    while let ResolvedType::Nullable(inner) = base {
+                        base = inner;
+                    }
+                    matches!(base, ResolvedType::Array { .. })
+                        || matches!(base, ResolvedType::Scalar(s) if s.is_string_like())
+                }
+                IrType::Unknown => false,
+            };
+            unsupported_spans.extend(
+                [&modifiers.min, &modifiers.max]
+                    .into_iter()
+                    .flatten()
+                    .filter(|bound| {
+                        if length_bound {
+                            !matches!(&bound.expr, IrExpr::Int(value) if (0..=9_007_199_254_740_991).contains(value))
+                        } else {
+                            literal_json(bound).is_none()
+                        }
+                    })
+                    .map(|bound| bound.span),
+            );
+        }
+        for span in unsupported_spans {
+            self.unsupported(
+                "model field bound",
+                "expression has no exact artifact wire representation",
+                span,
+            );
+        }
     }
 
     /// Throwing expression placeholder: keeps the module parseable while
@@ -7987,6 +8061,9 @@ impl<'a> Emitter<'a> {
                 value_type: self.model_value_type(ty),
                 required: false,
                 nullable,
+                trim: None,
+                min: None,
+                max: None,
                 server_only: true,
                 array_required: is_array.then_some(false),
                 default: Some(JsFieldDefault::Derived),
@@ -7994,15 +8071,16 @@ impl<'a> Emitter<'a> {
                 description: None,
             };
         }
-        let (ty, required_array, default, server, description) = match &field_item.kind {
+        let (ty, required_array, default, server, description, modifiers) = match &field_item.kind {
             IrItemKind::Field {
                 ty,
                 required_array,
                 default,
                 server,
                 description,
+                modifiers,
                 ..
-            } => (ty, *required_array, default, server, description),
+            } => (ty, *required_array, default, server, description, modifiers),
             _ => {
                 return JsModelField {
                     name: field_item.name.clone(),
@@ -8012,6 +8090,9 @@ impl<'a> Emitter<'a> {
                     },
                     required: false,
                     nullable: false,
+                    trim: None,
+                    min: None,
+                    max: None,
                     server_only: false,
                     array_required: None,
                     default: None,
@@ -8032,12 +8113,41 @@ impl<'a> Emitter<'a> {
             && default.is_none()
             && (!is_array || required_array)
             && !matches!(ty, IrType::Unknown);
+        let length_bound = match ty {
+            IrType::Known(ty) => {
+                let mut base = ty;
+                while let ResolvedType::Nullable(inner) = base {
+                    base = inner;
+                }
+                matches!(base, ResolvedType::Array { .. })
+                    || matches!(base, ResolvedType::Scalar(s) if s.is_string_like())
+            }
+            IrType::Unknown => false,
+        };
+        let bound = |value: &Option<TypedExpr>| {
+            value.as_ref().and_then(|expr| {
+                if length_bound {
+                    let IrExpr::Int(value) = &expr.expr else {
+                        return None;
+                    };
+                    if !(0..=9_007_199_254_740_991).contains(value) {
+                        return None;
+                    }
+                    Some(serde_json::Value::from(u64::try_from(*value).ok()?))
+                } else {
+                    serde_json::from_str(&literal_json(expr)?).ok()
+                }
+            })
+        };
         JsModelField {
             name: field_item.name.clone(),
             field,
             value_type: self.model_value_type(ty),
             required,
             nullable,
+            trim: modifiers.trim.then_some(true),
+            min: bound(&modifiers.min),
+            max: bound(&modifiers.max),
             server_only: server.is_some(),
             array_required: is_array.then_some(required_array),
             default: js_field_default(default.as_ref(), server.as_ref()),
