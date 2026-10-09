@@ -111,7 +111,8 @@ import { bindNativeRecord } from './native-records.js';
 import type { CanonicalFileBinding, FileAttachment } from './file-staging.js';
 import type { IdentityStore } from "@canlang/identity";
 import { sha256HexText, timingSafeEqualHex } from '@canlang/identity';
-import type { GeneratedOperationDef } from "@canlang/state/invocation/registry";
+import type { GeneratedOperationDef, LoadedArtifactDescriptors } from "@canlang/state/invocation/registry";
+import type { CheckedOwnerModelPolicies, OwnerModelPolicyBinding, OwnerRuleContext, OwnerMutationSession, ModelTable } from '@canlang/state/mutation';
 import type { AdmittedReadScenarioCall, ReadScenarioResult } from "@canlang/state/invocation/invoke";
 import type { BoundReadPageInvoker } from '@canlang/state/ports/transact';
 import type {
@@ -123,6 +124,7 @@ import type {
 } from "./context.js";
 import { createContext } from "./context.js";
 import type { AssembledModules } from "./modules.js";
+import { importVerifiedAssemblyModule } from './modules.js';
 import type { MappedPosition } from "./sourcemap.js";
 import { lookup } from "./sourcemap.js";
 import { stageAuthoredDelivery } from "./receipt-staging.js";
@@ -1058,28 +1060,7 @@ interface StateRegistryProducer {
     opts: {
       readonly by: (op: { readonly name: string; readonly kind: string }) => CanonicalByPredicate;
     },
-  ): {
-    readonly registry: ReadonlyMap<string, unknown>;
-    readonly models: ReadonlyArray<CanonicalModelDescriptor>;
-    readonly refs: ReadonlyMap<string, ReadonlyArray<{ readonly field: string; readonly model: string }>>;
-    /**
-     * C2 production joins (B1/B2/B5): engine-local channels the frozen
-     * intake cannot hold, passed through to the table builder beside
-     * `refs` (never inspected here). T18 `serverInits` (model, then
-     * field, then init kind), T18 `nullableFields` (model, then
-     * known-nullable field names), B5 `containment` (model, then the
-     * declared-ownership member). B3 `deliveryFields` (model, then
-     * delivery-tagged field names) rides alongside for the T25
-     * receipt join (consumed downstream, never by the table builder).
-     */
-    readonly serverInits: ReadonlyMap<string, ReadonlyMap<string, unknown>>;
-    readonly nullableFields: ReadonlyMap<string, ReadonlySet<string>>;
-    readonly secretFields: ReadonlyMap<string, ReadonlySet<string>>;
-    readonly containment: ReadonlyMap<string, unknown>;
-    readonly deliveryFields: ReadonlyMap<string, ReadonlySet<string>>;
-    readonly valueSchema?: NormalizedSchema;
-    readonly valueTypes?: CanonicalValueTypes;
-  };
+  ): LoadedArtifactDescriptors;
   /**
    * R01: the loader's own whole-set rejection class, for the
    * pre-retry dropped-entry validation (the retry must throw
@@ -2148,13 +2129,13 @@ function canonicalModelFields(model: unknown, where: string): ReadonlyArray<stri
 }
 
 /** T17b: canonical model name off one loaded canonical model (validated shape, loud on skew). */
-function canonicalModelName(model: unknown, index: number): string {
+function canonicalModelName(model: unknown, index: number): ModelName {
   if (!isUnknownRecord(model) || typeof model["name"] !== "string" || model["name"] === "") {
     throw new Error(
       `t17b: loaded model #${index} carries no non-empty name (loader/artifact skew?)`,
     );
   }
-  return model["name"] as string;
+  return model["name"] as ModelName;
 }
 
 /**
@@ -2585,6 +2566,13 @@ export async function loadCanonicalDescriptors(
     const name = canonicalModelName(model, index);
     return [name, canonicalModelFields(model, `loaded model ${JSON.stringify(name)}`)] as const;
   }));
+  // Bind the checked local carrier before legacy activation refusal. This
+  // control is private and cannot install policies in the old CRUD executor.
+  const ownerPolicyControl = loaded.modelPolicies === undefined ? undefined : await loadLocalOwnerPolicyControl({
+    asm, artifact, loaded, table: table as ModelTable,
+    native: { models: loaded.models, refs: loaded.refs, containment: loaded.containment,
+      producers, ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }) },
+  });
   const manifests = await collectModelPolicyManifests(asm, modelFields);
   const policyInputs: CanonicalModelPolicyInput[] = [];
   const ruledModels = new Set<string>();
@@ -2635,6 +2623,7 @@ export async function loadCanonicalDescriptors(
     ...(loaded.valueSchema === undefined ? {} : { valueSchema: loaded.valueSchema }),
     ...(loaded.valueTypes === undefined ? {} : { valueTypes: loaded.valueTypes }),
   };
+  if (ownerPolicyControl !== undefined) localOwnerPolicyControls.set(canonical, ownerPolicyControl);
   canonicalCache.set(artifact, canonical);
   return canonical;
 }
@@ -3264,7 +3253,9 @@ function nativeRecordMetadata(row: StoredRow | ProjectedRecord): Record<string, 
 }
 
 /** Only actual projected fields enter a native read view. */
-function nativeProjectedRecord(loaded: LoadedCanonicalDescriptors, modelName: string, row: StoredRow | ProjectedRecord): Record<string, unknown> {
+type NativeRecordScope = Pick<LoadedCanonicalDescriptors, 'models' | 'refs' | 'containment' | 'producers' | 'valueSchema'>;
+
+function nativeProjectedRecord(loaded: NativeRecordScope, modelName: string, row: StoredRow | ProjectedRecord): Record<string, unknown> {
   const model = loaded.models.find(candidate => candidate.name === modelName);
   const record: Record<string, unknown> = Object.create(null);
   for (const [field, wire] of Object.entries(row.data)) {
@@ -3283,6 +3274,228 @@ function nativeProjectedRecord(loaded: LoadedCanonicalDescriptors, modelName: st
   }
   bindNativeRecord(record, modelName, row.id, row.version);
   return freezeScenarioSnapshot(record) as Record<string, unknown>;
+}
+
+/** This private control is not an executor option or a public context factory. */
+interface LocalOwnerPolicyControl {
+  readonly policies: CheckedOwnerModelPolicies;
+  createOwnerFrame(input: { readonly call: CanonicalSeamCall; readonly session: OwnerMutationSession }): { close(): void };
+}
+const localOwnerPolicyControls = new WeakMap<LoadedCanonicalDescriptors, LocalOwnerPolicyControl>();
+
+function localPolicyObject(value: unknown, keys?: readonly string[]): Record<string, unknown> {
+  if (!isUnknownRecord(value) || (Object.getPrototypeOf(value) !== null && Object.getPrototypeOf(value) !== Object.prototype)) {
+    throw new Error('Local owner policy requires plain owning metadata.');
+  }
+  for (const key of Reflect.ownKeys(value)) {
+    if (typeof key !== 'string' || (keys !== undefined && !keys.includes(key)) ||
+        !Object.hasOwn(Object.getOwnPropertyDescriptor(value, key)!, 'value')) {
+      throw new Error('Local owner policy contains non-data or unknown metadata.');
+    }
+  }
+  return value;
+}
+function localPolicyMember(value: object, key: string): unknown {
+  const descriptor = Object.getOwnPropertyDescriptor(value, key);
+  if (descriptor === undefined) {
+    if (key in value) throw new Error('Local owner policy contains inherited metadata.');
+    return undefined;
+  }
+  if (!Object.hasOwn(descriptor, 'value')) throw new Error('Local owner policy contains accessor metadata.');
+  return descriptor.value as unknown;
+}
+function localPolicyArray(value: unknown): unknown[] {
+  if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) {
+    throw new Error('Local owner policy requires a plain dense array.');
+  }
+  const result = readMetadataArray(value, 'Local owner policy', 'carrier');
+  if (Reflect.ownKeys(value).length !== result.length + 1) throw new Error('Local owner policy array contains extra metadata.');
+  return result;
+}
+function localPolicyStrings(value: unknown): string[] {
+  const strings = localPolicyArray(value);
+  if (strings.some(item => typeof item !== 'string' || item === '') || new Set(strings).size !== strings.length) {
+    throw new Error('Local owner policy requires unique nonempty identities.');
+  }
+  return strings as string[];
+}
+function sameLocalPolicyStrings(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+/** Compare the admitted facts to State's immutable session copy, never reuse a copied frame key. */
+function localPolicyContextFacts(context: InvocationContext): string {
+  const facts = localPolicyObject(context, ['kind', 'app', 'actor', 'team', 'operation', 'operationId', 'source', 'now', 'trustedSource']);
+  const snapshot: Record<string, unknown> = Object.create(null);
+  for (const key of ['kind', 'app', 'operation', 'operationId', 'source', 'now', 'trustedSource']) {
+    const value = localPolicyMember(facts, key);
+    if (value !== undefined && typeof value !== 'string' && typeof value !== 'number') throw new Error('Invalid owner invocation fact.');
+    if (value !== undefined) snapshot[key] = value;
+  }
+  for (const [key, members] of [['actor', ['userId', 'email', 'emailVerified']], ['team', ['teamId', 'timezone']]] as const) {
+    const value = localPolicyMember(facts, key);
+    if (value === null) { snapshot[key] = null; continue; }
+    const object = localPolicyObject(value, members);
+    const nested: Record<string, unknown> = Object.create(null);
+    for (const member of members) {
+      const scalar = localPolicyMember(object, member);
+      if (scalar !== undefined && typeof scalar !== 'string' && typeof scalar !== 'boolean') throw new Error('Invalid owner principal fact.');
+      if (scalar !== undefined) nested[member] = scalar;
+    }
+    snapshot[key] = nested;
+  }
+  return JSON.stringify(snapshot);
+}
+
+async function loadLocalOwnerPolicyControl(input: {
+  readonly asm: AssembledModules;
+  readonly artifact: CompileArtifact;
+  readonly loaded: LoadedArtifactDescriptors;
+  readonly table: ModelTable;
+  readonly native: NativeRecordScope;
+}): Promise<LocalOwnerPolicyControl> {
+  const descriptors = input.loaded.modelPolicies;
+  if (descriptors === undefined || descriptors.length === 0 || !Object.isFrozen(descriptors)) throw new Error('Local owner policies require immutable nonempty loaded claims.');
+  for (const descriptor of descriptors) {
+    if (descriptor.rules.length === 0 || descriptor.hooks.length !== 0 || descriptor.rules.some(rule => rule.kind === 'invariant' && rule.dependencies.length !== 0)) {
+      throw new Error('Local owner policy dependencies and hooks are unsupported.');
+    }
+  }
+  const activeFrames = new WeakMap<InvocationContext, { active: boolean }>();
+  const modules: { path: string; registry: unknown }[] = [];
+  for (const emitted of input.artifact.modules) {
+    const imported: unknown = await importVerifiedAssemblyModule(input.asm, emitted.path, input.artifact);
+    if (!isUnknownRecord(imported)) throw new Error('Invalid verified owner module namespace.');
+    const factory = localPolicyMember(imported, 'canApp');
+    const owning = descriptors.filter(descriptor => descriptor.module === emitted.path);
+    if (factory === undefined && owning.length === 0) { modules.push({ path: emitted.path, registry: Object.freeze({}) }); continue; }
+    if (typeof factory !== 'function') throw new Error('Owner model policy module lacks its own canApp factory.');
+    const registry = localPolicyObject((factory as () => unknown)());
+    const carrier = localPolicyMember(registry, 'modelPolicyBindings');
+    const bindings = carrier === undefined ? [] : localPolicyArray(carrier);
+    const adapted: OwnerModelPolicyBinding[] = [];
+    for (const raw of bindings) {
+      const binding = localPolicyObject(raw, ['id', 'module', 'ownerPackage', 'model', 'kind', 'evaluate']);
+      const id = localPolicyMember(binding, 'id'), model = localPolicyMember(binding, 'model');
+      const kind = localPolicyMember(binding, 'kind'), evaluate = localPolicyMember(binding, 'evaluate');
+      const descriptor = owning.find(candidate => candidate.model === model);
+      const rule = descriptor?.rules.find(candidate => candidate.id === id && candidate.kind === kind);
+      if (descriptor === undefined || rule === undefined || localPolicyMember(binding, 'module') !== emitted.path ||
+          localPolicyMember(binding, 'ownerPackage') !== descriptor.ownerPackage || typeof evaluate !== 'function') {
+        throw new Error('Local owner native binding disagrees with its exact loaded claim.');
+      }
+      adapted.push(Object.freeze({ id: rule.id, model: descriptor.model, kind: rule.kind,
+        module: descriptor.module, ownerPackage: descriptor.ownerPackage,
+        evaluate: async (owner: OwnerRuleContext, row: StoredRow): Promise<boolean> => {
+          const frame = activeFrames.get(owner.context);
+          if (frame?.active !== true) throw new input.native.producers.errors('validation', 'Owner model rule has no live private frame.');
+          let active = true;
+          const assertLive = (): void => {
+            if (!active || !frame.active) throw new input.native.producers.errors('validation', 'Owner model rule frame is closed.');
+          };
+          const refuse = (): never => { assertLive(); throw new input.native.producers.errors('validation', 'Local owner model rules cannot access storage.'); };
+          const store: StoragePort = Object.freeze({ readRevision: refuse, load: refuse, query: refuse, commit: refuse,
+            readReceipt: refuse, outboxPending: refuse, scheduleGet: refuse, schedulesDue: refuse, historyFor: refuse,
+            readInstalledSnapshot: refuse, readMigrationProgress: refuse, readStagedRows: refuse, stageMigrationRows: refuse,
+            publishMigrationChunk: refuse, flipInstalledSnapshot: refuse, readMigrationOutcomes: refuse,
+            recordMigrationFailure: refuse, discardStagedRows: refuse, readMigrationFailure: refuse });
+          try {
+            const modelDefinition = input.native.models.find(candidate => candidate.name === descriptor.model);
+            if (modelDefinition === undefined) throw new Error('Owner native row names no loaded model.');
+            const data = localPolicyObject(row.data);
+            for (const field of Object.keys(data)) {
+              const declared = localPolicyMember(modelDefinition.fields, field);
+              const target = input.native.refs.get(descriptor.model)?.find(reference => reference.field === field)?.model;
+              if (!isUnknownRecord(declared) || (localPolicyMember(declared, 'valueType') === undefined && target === undefined)) {
+                throw new Error('Owner native row field lacks a checked type association.');
+              }
+            }
+            const nativeRow = nativeProjectedRecord(input.native, descriptor.model, row);
+            const c = createContext({
+              caller: Object.freeze({ userId: owner.context.actor?.userId ?? 'anonymous', roles: Object.freeze([]) as unknown as string[] }),
+              store, clock: () => { assertLive(); return owner.context.now; },
+              memberships: Object.freeze([]) as unknown as string[], preferences: Object.freeze(Object.create(null)) as Record<string, Record<string, unknown>>,
+              qualified: owner.context,
+            });
+            freezeScenarioSnapshot(c);
+            const answer: unknown = await (evaluate as (c: HandlerContext, row: Record<string, unknown>) => unknown)(c, nativeRow);
+            assertLive();
+            if (typeof answer !== 'boolean') throw new input.native.producers.errors('validation', 'Native owner model predicate did not return bool.');
+            return answer;
+          } finally { active = false; }
+        },
+      }));
+    }
+    if (owning.length > 0) {
+      const definition = localPolicyObject(localPolicyMember(imported, 'appDefinition'));
+      const declarations = localPolicyObject(localPolicyMember(definition, 'models'));
+      const policy = localPolicyObject(localPolicyMember(registry, 'policy'));
+      const policyModels = localPolicyObject(localPolicyMember(policy, 'models'));
+      const definitionPolicy = localPolicyObject(localPolicyMember(definition, 'policy'));
+      const definitionPolicyModels = localPolicyObject(localPolicyMember(definitionPolicy, 'models'));
+      for (const map of [declarations, policyModels, definitionPolicyModels]) {
+        for (const model of Object.keys(map)) {
+          const metadata = localPolicyObject(localPolicyMember(map, model));
+          const hasRules = ['invariants', 'locks'].some(member => {
+            const ids = localPolicyMember(metadata, member);
+            return ids !== undefined && localPolicyStrings(ids).length > 0;
+          });
+          if (hasRules && !owning.some(descriptor => descriptor.model === model)) {
+            throw new Error('Local owner policy omits an owning model declaration.');
+          }
+        }
+      }
+      for (const descriptor of owning) {
+        const declaration = localPolicyObject(localPolicyMember(declarations, descriptor.model));
+        const policyModel = localPolicyObject(localPolicyMember(policyModels, descriptor.model));
+        const definitionPolicyModel = localPolicyObject(localPolicyMember(definitionPolicyModels, descriptor.model));
+        for (const [member, kind] of [['invariants', 'invariant'], ['locks', 'lock']] as const) {
+          const rules = descriptor.rules.filter(rule => rule.kind === kind);
+          const prefix = `${descriptor.ownerPackage}.`;
+          if (rules.some(rule => !rule.id.startsWith(prefix))) throw new Error('Owner rule identity lacks its canonical package prefix.');
+          const ids = rules.map(rule => rule.id.slice(prefix.length));
+          const localModel = descriptor.model.slice(prefix.length);
+          if (ids.some((id, index) => id !== `${localModel}.${kind === 'invariant' ? 'require' : 'lock'}.${index + 1}`)) {
+            throw new Error('Owner rule identity disagrees with the Compiler local registry convention.');
+          }
+          for (const metadata of [declaration, policyModel, definitionPolicyModel]) {
+            const legacy = localPolicyMember(metadata, member);
+            if (!sameLocalPolicyStrings(ids, legacy === undefined ? [] : localPolicyStrings(legacy))) {
+              throw new Error('Owner rule coverage disagrees with its owning legacy declaration.');
+            }
+          }
+          if (ids.length === 0) continue;
+          const legacyRegistry = localPolicyObject(localPolicyMember(registry, member));
+          for (const rule of rules) {
+            const legacy = localPolicyMember(legacyRegistry, rule.id.slice(prefix.length));
+            if (rule.kind === 'invariant') {
+              if (typeof legacy !== 'function') throw new Error('Owner invariant lacks its legacy predicate.');
+            } else {
+              const lock = localPolicyObject(legacy, ['fields', 'when']);
+              if (!sameLocalPolicyStrings(rule.fields, localPolicyStrings(localPolicyMember(lock, 'fields')))) throw new Error('Owner lock fields disagree.');
+              const when = localPolicyMember(lock, 'when');
+              if (Object.hasOwn(lock, 'when') && typeof when !== 'function') throw new Error('Owner lock has a malformed legacy predicate.');
+            }
+          }
+        }
+      }
+    }
+    modules.push({ path: emitted.path, registry: Object.freeze({ modelPolicyBindings: Object.freeze(adapted) }) });
+  }
+  const producer = await loadProducerModule('@canlang/state/mutation', 'owner model-policy binding producer');
+  const bind = requireProducerFn(producer, 'bindArtifactOwnerModelPolicies', 'owner model-policy binding producer') as
+    typeof import('@canlang/state/mutation').bindArtifactOwnerModelPolicies;
+  const policies = bind({ artifact: input.loaded, table: input.table, modules });
+  if (policies === undefined) throw new Error('Claimed local owner policies failed to bind.');
+  return Object.freeze({ policies, createOwnerFrame({ call, session }: { call: CanonicalSeamCall; session: OwnerMutationSession }) {
+    const context = session.views.context;
+    if (!Object.isFrozen(context) || localPolicyContextFacts(context) !== localPolicyContextFacts(call.context) || activeFrames.has(context)) {
+      throw new input.native.producers.errors('validation', 'Owner model frame requires the exact fresh admitted session context.');
+    }
+    const frame = { active: true };
+    activeFrames.set(context, frame);
+    return Object.freeze({ close() { frame.active = false; } });
+  } });
 }
 
 /** Work stages read the merged overlay through the defining State matcher. */
