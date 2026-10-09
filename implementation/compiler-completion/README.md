@@ -251,18 +251,20 @@ actual LSP round-trip results are reused. Complete affected State unit
 inputs; canonical native rule activation/hooks and full applications remain
 unfinished. Original completion stays **58/67**, with **9 open** references.
 
-**Open saved-result disclosure prerequisite, 2026-10-09.** Capability's new
-notice requires a checked source dependency plan and complete nominal/model
-container inventory before saved scenario results can be disclosed safely.
-Direct-secret E4011 and current result type metadata do not prove data/control,
-derive or local-call provenance. State/Contracts owns the defining plan ABI,
-disclosure decisions and inventory completeness semantics; no exact release
-has reached this compiler worker. Compiler integration belongs at checked
-Effects/TypeTable anchors before IR loses Return identity, then at shared
-result/inventory publication. Dev owns evaluated row/field/reference capture
-and changed snapshots. This owner prerequisite does not release the separate
-BDD3 returned/as/live/context/disclosure/input policy hold. No speculative
-result API or broader completion is claimed.
+**Unfinished saved-result disclosure join, 2026-10-09.** Exact Capability
+**7132e243** State/Contracts source and permanent Memory/durable tests are
+consumed without foreign records. Version1 binds operation, return and read
+source paths/digests/modules; actual selected paths and awaited observations
+belong to State's branded admitted call and registered store. Nonempty query/
+absence influences and incomplete nominal/model/container lifetimes refuse.
+Owning build **6/6** and consuming ordinary-contract native **2/2** pass; the
+owner's unchanged **47 Memory/preservation + 2 D1/SQLite-DO reopen** results are
+reused at their exact release scope. The one intake import conflict retains
+only the new receipt imports, preserving this branch's field constraints.
+Compiler complete return-closure/path analysis and artifact/native markers are
+being implemented. Dev owns the genuine native context/row/registered-store
+bridge and lifetime. No source/native workflow, broader reference or separate
+BDD3 returned/as/live/context/disclosure/input policy release follows.
 
 **Unfinished native activation — generated CRUD owner entry, 2026-10-09.**
 Exact local Capability **7df9683e** source/test unit is consumed. Generated CRUD
