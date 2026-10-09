@@ -16,6 +16,7 @@ import {
 const MAX_STDOUT_BYTES = 16 * 1024 * 1024;
 const MAX_STDERR_BYTES = 8192;
 const COMPILER_TIMEOUT_MS = 30_000;
+const COMPILER_TERMINATION_GRACE_MS = 250;
 
 export type CapturedCompileResult =
   | { readonly kind: "artifact"; readonly artifact: CompileArtifact; readonly artifactBytes: Uint8Array; readonly capture: SingleFileCapture }
@@ -65,7 +66,9 @@ async function verifiedBytes(entry: CapturedFileIdentity): Promise<Buffer> {
   return bytes;
 }
 
-function runStagedCompiler(executable: string, catalog: string, capture: SingleFileCapture): Promise<{ code: number | null; stdout: string; stdoutBytes: Uint8Array; stderr: string }> {
+function runStagedCompiler(executable: string, catalog: string, capture: SingleFileCapture,
+  signal?: AbortSignal): Promise<{ code: number | null; stdout: string; stdoutBytes: Uint8Array; stderr: string }> {
+  signal?.throwIfAborted();
   return new Promise((resolve, reject) => {
     const child = spawn(executable, [
       "compile", "--format=json", "--native-scenario-receipts", `--catalog=${catalog}`, capture.compilerOperand,
@@ -79,32 +82,48 @@ function runStagedCompiler(executable: string, catalog: string, capture: SingleF
     const err: Buffer[] = [];
     let outBytes = 0;
     let errBytes = 0;
-    let failed: Error | null = null;
-    const timer = setTimeout(() => {
-      failed = new Error("compiler timed out");
-      child.kill();
-    }, COMPILER_TIMEOUT_MS);
+    let failed = false;
+    let failure: unknown;
+    let terminating = false;
+    let forceKill: ReturnType<typeof setTimeout> | undefined;
+    const terminate = (error: unknown): void => {
+      if (!failed) { failed = true; failure = error; }
+      if (terminating || child.exitCode !== null || child.signalCode !== null) return;
+      terminating = true;
+      // Only this captured spawn is owned. Wait for its actual close before
+      // removing staging; never detach a live compiler or target another PID.
+      forceKill = setTimeout(() => {
+        if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+      }, COMPILER_TERMINATION_GRACE_MS);
+      forceKill.unref();
+      child.kill("SIGTERM");
+    };
+    const onAbort = (): void => terminate(signal!.reason);
+    const timer = setTimeout(() => terminate(new Error("compiler timed out")), COMPILER_TIMEOUT_MS);
+    const cleanup = (): void => {
+      clearTimeout(timer);
+      if (forceKill !== undefined) clearTimeout(forceKill);
+      signal?.removeEventListener("abort", onAbort);
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+    if (signal?.aborted) onAbort();
     child.stdout.on("data", (chunk: Buffer) => {
       outBytes += chunk.length;
-      if (outBytes > MAX_STDOUT_BYTES) {
-        failed = new Error("compiler output exceeded limit");
-        child.kill();
-      } else out.push(chunk);
+      if (outBytes > MAX_STDOUT_BYTES) terminate(new Error("compiler output exceeded limit"));
+      else out.push(chunk);
     });
     child.stderr.on("data", (chunk: Buffer) => {
       errBytes += chunk.length;
-      if (errBytes > MAX_STDERR_BYTES) {
-        failed = new Error("compiler stderr exceeded limit");
-        child.kill();
-      } else err.push(chunk);
+      if (errBytes > MAX_STDERR_BYTES) terminate(new Error("compiler stderr exceeded limit"));
+      else err.push(chunk);
     });
     child.once("error", error => {
-      clearTimeout(timer);
-      reject(error);
+      if (child.pid === undefined) { cleanup(); reject(error); }
+      else terminate(error);
     });
     child.once("close", code => {
-      clearTimeout(timer);
-      if (failed !== null) reject(failed);
+      cleanup();
+      if (failed) reject(failure);
       else {
         const stdoutBytes = Buffer.concat(out);
         resolve({ code, stdout: stdoutBytes.toString("utf8"), stdoutBytes,
@@ -119,7 +138,8 @@ function runStagedCompiler(executable: string, catalog: string, capture: SingleF
  * compiler's consumed one-file source identity before returning any result.
  * The caller still owns one-file profile admission and preview bundle inputs.
  */
-export async function compileCapturedSingleFile(capture: SingleFileCapture): Promise<CapturedCompileResult> {
+export async function compileCapturedSingleFile(capture: SingleFileCapture, signal?: AbortSignal): Promise<CapturedCompileResult> {
+  signal?.throwIfAborted();
   const profile = admitSingleAppProfile(capture.sourceText);
   if (!profile.ok) return { kind: "profile_unsupported", reason: profile.reason, capture };
   if (basename(capture.compilerOperand).startsWith("-")) {
@@ -129,23 +149,31 @@ export async function compileCapturedSingleFile(capture: SingleFileCapture): Pro
   let catalogBytes: Buffer;
   try {
     compilerBytes = await verifiedBytes(input(capture, "compiler"));
+    signal?.throwIfAborted();
     catalogBytes = await verifiedBytes(input(capture, "catalog"));
+    signal?.throwIfAborted();
   } catch (error) {
+    if (signal?.aborted && error === signal.reason) throw error;
     return { kind: "capture_incomplete", reason: error instanceof Error ? error.message : String(error), capture };
   }
   const staging = await mkdtemp(join(tmpdir(), "can-dev-compiler-"));
   try {
+    signal?.throwIfAborted();
     const executable = join(staging, "can");
     const catalog = join(staging, "catalog.json");
     await writeFile(executable, compilerBytes, { mode: 0o700 });
     await writeFile(catalog, catalogBytes, { mode: 0o600 });
     let run: Awaited<ReturnType<typeof runStagedCompiler>>;
     try {
-      run = await runStagedCompiler(executable, catalog, capture);
+      run = await runStagedCompiler(executable, catalog, capture, signal);
     } catch (error) {
+      if (signal?.aborted && error === signal.reason) throw error;
       return { kind: "tool_failure", reason: error instanceof Error ? error.message : String(error), capture };
     }
-    if (!(await captureIsCurrent(capture))) {
+    signal?.throwIfAborted();
+    const current = await captureIsCurrent(capture);
+    signal?.throwIfAborted();
+    if (!current) {
       return { kind: "capture_incomplete", reason: "inputs changed during compiler execution", capture };
     }
     if (run.code !== 0 && run.code !== 10) {
