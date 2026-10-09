@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { createReport, fixtureValuesOf, loadExampleSuite, runTable } from "../../testkit/src/index.js";
-import { runCompiledExamples } from "../src/dev/example-runner.js";
+import { runCompiledExamples, type ExampleRowScope } from "../src/dev/example-runner.js";
 
 const map = (file: string) => ({
   version: 3, file, sources: ["Office.can"], sourcesContent: [null], names: [], mappings: "",
@@ -69,5 +69,48 @@ describe("compiled example row expectations", () => {
       { rowIndex: 1, outcome: "passed", caller: { account: "row-1-outsider" },
         rejection: { error: "forbidden", sideEffectsAbsent: true } },
     ] });
+
+    const controller = new AbortController();
+    let entered: (scope: ExampleRowScope) => void = () => undefined;
+    const active = new Promise<ExampleRowScope>(resolve => { entered = resolve; });
+    const blocked = new Promise<never>(() => undefined);
+    const cancelled = runCompiledExamples({
+      artifactBytes: Buffer.from(JSON.stringify(artifact)), artifactLabel: "Office.artifact.json",
+      sourceRevision: "source-1", workerName: `example-cancel-${randomUUID()}`,
+      worker: { mainModule: "main.mjs", modules: { "main.mjs": "export default {fetch(){return new Response(null,{status:404})}};" } },
+      compatibilityDate: "2026-07-15", d1Binding: "DB", signal: controller.signal,
+      testkit: { loadExampleSuite, runTable, createReport, fixtureValuesOf },
+      hooks: {
+        materializeFixtures: async ({ scope }) => { entered(scope); return blocked; },
+        invoke: async () => ({ ok: true }),
+        observeLive: async () => new Map(),
+      },
+    });
+    const refusal = expect(cancelled).rejects.toMatchObject({ name: "AbortError" });
+    const scope = await active;
+    controller.abort();
+    await refusal;
+    await expect(scope.dev.getD1Database("DB")).rejects.toThrow();
+
+    const invokeController = new AbortController();
+    let invoked: (scope: ExampleRowScope) => void = () => undefined;
+    const invoking = new Promise<ExampleRowScope>(resolve => { invoked = resolve; });
+    const interrupted = runCompiledExamples({
+      artifactBytes: Buffer.from(JSON.stringify(artifact)), artifactLabel: "Office.artifact.json",
+      sourceRevision: "source-1", workerName: `example-cancel-invoke-${randomUUID()}`,
+      worker: { mainModule: "main.mjs", modules: { "main.mjs": "export default {fetch(){return new Response(null,{status:404})}};" } },
+      compatibilityDate: "2026-07-15", d1Binding: "DB", signal: invokeController.signal,
+      testkit: { loadExampleSuite, runTable, createReport, fixtureValuesOf },
+      hooks: {
+        materializeFixtures: async ({ fixtures }) => ({ materialized: [], values: new Map(fixtures) }),
+        invoke: async ({ call }) => { invoked(call.scope); return blocked; },
+        observeLive: async () => new Map(),
+      },
+    });
+    const invokeRefusal = expect(interrupted).rejects.toMatchObject({ name: "AbortError" });
+    const invokeScope = await invoking;
+    invokeController.abort();
+    await invokeRefusal;
+    await expect(invokeScope.dev.getD1Database("DB")).rejects.toThrow();
   }, 120000);
 });
