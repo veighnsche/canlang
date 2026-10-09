@@ -870,9 +870,7 @@ fn explain_round_trips_every_emitted_code() {
     assert_eq!(err.code, "E1002");
     seen.insert("E1002".to_string());
 
-    // The shipped corpus parses with zero diagnostics, except the
-    // KNOWN_CORPUS_DEFECTS pinned by tests/syntax.rs (mirrored here so
-    // the round-trip stays honest while drafts are fixed).
+    // The complete shipped corpus parses with zero diagnostics.
     let mut files = Vec::new();
     collect_can_files("../examples", &mut files);
     collect_can_files("../draft", &mut files);
@@ -892,18 +890,6 @@ fn explain_round_trips_every_emitted_code() {
     for path in &files {
         let text = std::fs::read_to_string(path).unwrap();
         let (_tree, diags) = parse_source(SourceId(0), &text);
-        let rel = path.to_string_lossy().replace('\\', "/");
-        let known = rel.ends_with("draft/CanShift.can") || rel.ends_with("draft/CanVolunteer.can");
-        if known {
-            let codes: Vec<_> = diags.iter().map(|d| d.code).collect();
-            assert_eq!(
-                codes,
-                vec!["E1203", "E1203"],
-                "{rel} defect shape changed: update the known-defects mirror",
-            );
-            seen.insert("E1203".to_string());
-            continue;
-        }
         assert!(
             diags.is_empty(),
             "{} emitted {diags:?}",
