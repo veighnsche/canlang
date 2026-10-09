@@ -3766,7 +3766,8 @@ async function runScenarioSeam(
       return recordView(model, row);
     },
     setRecord: async (record, data) => {
-      const binding = recordBindings.get(record);
+      const binding = recordBindings.get(record) ??
+        ownerNavigation.resolveRecord(record) ?? viewerNavigation.resolveRecord(record);
       if (binding === undefined) return refuseRecordBinding("Set needs a record bound in this operation.");
       const row = await scope.stageWrite({ op: "update", ...binding, data });
       if (row === null) throw new StateError("validation", "Set staged no record.");
@@ -3775,7 +3776,8 @@ async function runScenarioSeam(
       return recordView(binding.model, row);
     },
     deleteRecord: async (record, mode) => {
-      const binding = recordBindings.get(record);
+      const binding = recordBindings.get(record) ??
+        ownerNavigation.resolveRecord(record) ?? viewerNavigation.resolveRecord(record);
       if (binding === undefined) return refuseRecordBinding("Delete needs a record bound in this operation.");
       if (loaded.models.find((model) => model.name === binding.model)?.deleteMode !== mode) {
         refuseRecordBinding("Delete mode must match the model declaration.");

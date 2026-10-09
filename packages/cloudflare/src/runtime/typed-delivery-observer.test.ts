@@ -131,10 +131,12 @@ test('authored delivery association serves current localhost provider results th
     const child = (childCreation.body['records'] as Array<{ id: string }>)[0]!;
     const parentStatus = (bearer = grant.token) =>
       mcp(`${APP}.parentStatus`, { child: { id: child.id } }, bearer);
+    const parentInputs = async (inputs: Record<string, unknown> = {}, id = child.id) => {
+      const current = await storage.state.load(CHILD_MODEL, asId(id)); assert.ok(current);
+      return { operation_id: operationId(), child: { id, version: String(current.version) }, ...inputs };
+    };
     const recordParentStatus = async (bearer = grant.token, op = 'recordParentStatus') => {
-      const current = await storage.state.load(CHILD_MODEL, asId(child.id)); assert.ok(current);
-      return mcp(`${APP}.${op}`, { operation_id: operationId(),
-        child: { id: child.id, version: String(current.version) } }, bearer);
+      return mcp(`${APP}.${op}`, await parentInputs(), bearer);
     };
     const assertParentStatus = async (succeeded: boolean) => {
       const read = await parentStatus();
@@ -244,6 +246,58 @@ test('authored delivery association serves current localhost provider results th
     assert.deepEqual((await readReceipt()).body['projection'], successful);
     await assertParentStatus(true);
     assert.equal(committed(await recordParentStatus(grant.token, 'recordQueriedParentStatus')), 'Observed');
+    // Actual generated parent writes preserve the private link, read staged
+    // values in source order, and reserve only the written parent's version.
+    for (const op of ['renameParent', 'renameQueriedParent']) {
+      const before = await storage.state.load(MODEL, asId(created.id)); assert.ok(before);
+      const childBefore = await storage.state.load(CHILD_MODEL, asId(child.id)); assert.ok(childBefore);
+      const label = `Edited by ${op}`;
+      const inputs = await parentInputs({ label, accept: true });
+      assert.equal(committed(await mcp(`${APP}.${op}`, inputs)), label);
+      const after = await storage.state.load(MODEL, asId(created.id)); assert.ok(after);
+      assert.equal(after.version, before.version + 1);
+      assert.equal(after.data['label'], label);
+      assert.deepEqual(after.data['notification'], before.data['notification']);
+      assert.deepEqual(await storage.state.load(CHILD_MODEL, asId(child.id)), childBefore);
+      const read = await mcp(`${APP}.parentLabel`, { child: { id: child.id } });
+      assert.equal(read.body['result'], label, JSON.stringify(read));
+      const history = await storage.state.historyFor(MODEL, asId(created.id));
+      const replay = await mcp(`${APP}.${op}`, inputs);
+      assert.equal(replay.body['status'], 'replayed', JSON.stringify(replay));
+      assert.equal(replay.body['result'], label);
+      assert.deepEqual(await storage.state.load(MODEL, asId(created.id)), after);
+      assert.deepEqual(await storage.state.historyFor(MODEL, asId(created.id)), history);
+      const rejected = await mcp(`${APP}.${op}`, await parentInputs({ label: 'Rejected parent', accept: false }));
+      assert.equal(rejected.body['code'], 'rule_failed', JSON.stringify(rejected));
+      assert.deepEqual(await storage.state.load(MODEL, asId(created.id)), after);
+      assert.deepEqual(await storage.state.load(CHILD_MODEL, asId(child.id)), childBefore);
+      assert.deepEqual(await storage.state.historyFor(MODEL, asId(created.id)), history);
+    }
+    // Archive isolated parents so all original delivery cases retain their
+    // live owner. Their stored children retain the same protected parent link.
+    for (const op of ['archiveParent', 'archiveQueriedParent']) {
+      const parentCreation = await mutate('Entry.create'); committed(parentCreation);
+      const parent = (parentCreation.body['records'] as Array<{ id: string }>)[0]!;
+      const nestedCreation = await mutate('Child.create', { parent: { id: parent.id } }); committed(nestedCreation);
+      const nested = (nestedCreation.body['records'] as Array<{ id: string }>)[0]!;
+      const before = await storage.state.load(MODEL, asId(parent.id)); assert.ok(before);
+      const nestedBefore = await storage.state.load(CHILD_MODEL, asId(nested.id)); assert.ok(nestedBefore);
+      const rejected = await mcp(`${APP}.${op}`, await parentInputs({ accept: false }, nested.id));
+      assert.equal(rejected.body['code'], 'rule_failed', JSON.stringify(rejected));
+      assert.deepEqual(await storage.state.load(MODEL, asId(parent.id)), before);
+      const inputs = await parentInputs({ accept: true }, nested.id);
+      committed(await mcp(`${APP}.${op}`, inputs));
+      const archived = await storage.state.load(MODEL, asId(parent.id)); assert.ok(archived);
+      assert.equal(archived.archivedAt, now);
+      assert.equal(archived.version, before.version + 1);
+      assert.deepEqual(archived.data, before.data);
+      assert.deepEqual(await storage.state.load(CHILD_MODEL, asId(nested.id)), nestedBefore);
+      const replay = await mcp(`${APP}.${op}`, inputs);
+      assert.equal(replay.body['status'], 'replayed', JSON.stringify(replay));
+      assert.deepEqual(await storage.state.load(MODEL, asId(parent.id)), archived);
+      const missing = await mcp(`${APP}.parentLabel`, { child: { id: nested.id } });
+      assert.equal(missing.body['code'], 'not_found', JSON.stringify(missing));
+    }
     assert.deepEqual((await readReceipt(['status'])).body['projection'], { status: 'succeeded' });
     assert.deepEqual((await readReceipt(['result'])).body['projection'], { result: successful.result });
     assert.equal((await storage.state.outboxPending()).length, 0);
@@ -329,8 +383,10 @@ test('authored delivery association serves current localhost provider results th
     await assertParentStatus(true);
     // Revoke a receipt grant after its initial resolution but before the real
     // receipt is loaded. Final read grants and mutation guards must refuse.
-    for (const mutation of [false, true]) {
+    for (const op of ['parentStatus', 'recordParentStatus', 'renameQueriedParent']) {
       const currentState = storage.state;
+      const parentBeforeRevocation = await currentState.load(MODEL, asId(created.id));
+      const parentHistoryBeforeRevocation = await currentState.historyFor(MODEL, asId(created.id));
       const childBeforeRevocation = await currentState.load(CHILD_MODEL, asId(child.id));
       const historyBeforeRevocation = await currentState.historyFor(CHILD_MODEL, asId(child.id));
       let revokeAtReceipt = true;
@@ -342,13 +398,17 @@ test('authored delivery association serves current localhost provider results th
         return currentState.load(model, id);
       } };
       worker = await assemble();
-      const response = mutation ? await recordParentStatus() : await parentStatus();
+      const response = op === 'parentStatus' ? await parentStatus() : op === 'renameQueriedParent'
+        ? await mcp(`${APP}.${op}`, await parentInputs({ label: 'Revoked parent edit', accept: true }))
+        : await recordParentStatus();
       assert.equal(revokeAtReceipt, false);
       assert.equal(response.body['code'], 'forbidden', JSON.stringify(response));
       assert.equal(JSON.stringify(response).includes(uncertain.intentId), false);
       assert.equal(Object.hasOwn(response.body, 'result'), false);
       assert.deepEqual(await currentState.load(CHILD_MODEL, asId(child.id)), childBeforeRevocation);
       assert.deepEqual(await currentState.historyFor(CHILD_MODEL, asId(child.id)), historyBeforeRevocation);
+      assert.deepEqual(await currentState.load(MODEL, asId(created.id)), parentBeforeRevocation);
+      assert.deepEqual(await currentState.historyFor(MODEL, asId(created.id)), parentHistoryBeforeRevocation);
       storage.state = currentState;
       await storage.identity.setMembershipRoles(membership.membership_id, observerRoles);
       worker = await assemble();
@@ -370,6 +430,11 @@ test('authored delivery association serves current localhost provider results th
     assert.equal(missingParent.body['code'], 'not_found', JSON.stringify(missingParent));
     const missingMutation = await recordParentStatus();
     assert.equal(missingMutation.body['code'], 'not_found', JSON.stringify(missingMutation));
+    for (const op of ['renameParent', 'renameQueriedParent', 'archiveParent', 'archiveQueriedParent']) {
+      const response = await mcp(`${APP}.${op}`, await parentInputs({ accept: true,
+        ...(op.startsWith('rename') ? { label: 'Missing parent edit' } : {}) }));
+      assert.equal(response.body['code'], 'not_found', JSON.stringify(response));
+    }
     assert.deepEqual(await storage.state.load(CHILD_MODEL, asId(child.id)), childBeforeMissing);
     await changeChildParent(created.id);
     await storage.identity.setMembershipRoles(membership.membership_id, []);
@@ -383,6 +448,16 @@ test('authored delivery association serves current localhost provider results th
     assert.equal(Object.hasOwn(hiddenMutation.body, 'result'), false);
     assert.deepEqual(await storage.state.load(CHILD_MODEL, asId(child.id)), childBeforeHidden);
     assert.deepEqual(await storage.state.historyFor(CHILD_MODEL, asId(child.id)), historyBeforeHidden);
+    const parentBeforeHidden = await storage.state.load(MODEL, asId(created.id));
+    const parentHistoryBeforeHidden = await storage.state.historyFor(MODEL, asId(created.id));
+    for (const op of ['renameQueriedParent', 'archiveQueriedParent']) {
+      const response = await mcp(`${APP}.${op}`, await parentInputs({ accept: true,
+        ...(op.startsWith('rename') ? { label: 'Hidden parent edit' } : {}) }));
+      assert.equal(response.body['code'], 'not_found', JSON.stringify(response));
+      assert.equal(Object.hasOwn(response.body, 'result'), false);
+    }
+    assert.deepEqual(await storage.state.load(MODEL, asId(created.id)), parentBeforeHidden);
+    assert.deepEqual(await storage.state.historyFor(MODEL, asId(created.id)), parentHistoryBeforeHidden);
     await storage.identity.setMembershipRoles(membership.membership_id, observerRoles);
     assert.equal((await storage.state.outboxPending()).length, 0);
     const outsider = await storage.identity.createUser({ email: 'delivery-outsider@example.test',
@@ -401,6 +476,12 @@ test('authored delivery association serves current localhost provider results th
     for (const response of [await parentStatus(), await recordParentStatus()]) {
       assert.equal(response.status, 401, JSON.stringify(response));
       assert.equal(JSON.stringify(response).includes(uncertain.intentId), false);
+      assert.equal(Object.hasOwn(response.body, 'result'), false);
+    }
+    for (const op of ['renameParent', 'renameQueriedParent', 'archiveParent', 'archiveQueriedParent']) {
+      const response = await mcp(`${APP}.${op}`, await parentInputs({ accept: true,
+        ...(op.startsWith('rename') ? { label: 'Revoked parent edit' } : {}) }));
+      assert.equal(response.status, 401, JSON.stringify(response));
       assert.equal(Object.hasOwn(response.body, 'result'), false);
     }
   } finally {
