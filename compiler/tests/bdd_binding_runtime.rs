@@ -393,3 +393,127 @@ console.log('BDD bindings: reserved/context recipes, Unicode payloads, suite pat
     );
     eprint!("{}", String::from_utf8_lossy(&executed.stdout));
 }
+
+#[cfg(unix)]
+#[test]
+fn fixture_alias_rewriting_preserves_value_query_lexical_binders() {
+    use std::{path::PathBuf, process::Command};
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let scratch = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(
+        root.join("node_modules"),
+        scratch.path().join("node_modules"),
+    )
+    .unwrap();
+    let input = scratch.path().join("query.can");
+    std::fs::write(&input, r#"app QueryFixture
+Given
+ Task {rank:int}
+ policy Task read=members
+ fixture task=Task {rank=0}
+When
+ scenario inspect(task:Task) read=true -> int by=members
+  do return task.rank
+  examples task=task
+   task -> count([task.rank,2] as task where task>1),([task.rank,2] as task select task+10),task.rank
+   task -> 1,[10,12],0
+Then
+"#).unwrap();
+    let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(input)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&compiled.stdout),
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    let artifact: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
+    let suite = artifact["tests"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|suite| suite["scope"] == "QueryFixture.inspect")
+        .expect("authored inspect suite");
+    assert_eq!(suite["fixtures"], serde_json::json!(["QueryFixture.task"]));
+    std::fs::write(
+        scratch.path().join("suite.mjs"),
+        suite["module"]["js"].as_str().unwrap(),
+    )
+    .unwrap();
+    let runner = scratch.path().join("check.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {loadExampleSuite,stashedRowOf} from '@canlang/testkit';
+const suite=await loadExampleSuite(new URL('./suite.mjs',import.meta.url).href,{self:'self',other:'other',imported:{}});
+assert.equal(suite.rows.length,1);
+const row=suite.rows[0];
+const scope={snapshot:async()=>null,dispose:async()=>{}};
+await row.setup(scope);
+const stash=stashedRowOf(scope);
+assert.equal(stash.inputs.task.rank,0n,'query base and outer expression still read the provisioned fixture');
+assert.deepEqual(stash.expectedValues,[1n,[10n,12n],0n]);
+assert.deepEqual(await row.observe(scope),[1n,[10n,12n],0n],'where/select read the numeric query binder, not the record fixture');
+"#).unwrap();
+    let output = Command::new("node")
+        .arg(runner)
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn fixture_alias_rewriting_preserves_model_query_row_binder() {
+    use std::{path::PathBuf, process::Command};
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let scratch = tempfile::tempdir().unwrap();
+    let input = scratch.path().join("model-query.can");
+    std::fs::write(&input, "app ModelQuery\nGiven\n Task {rank:int}\n policy Task read=members\n fixture row=Task {rank=0}\nWhen\n scenario inspect(row:Task) read=true -> int by=members\n  do return row.rank\n  examples row=row\n   row -> count(Task as row where row.rank>1),row.rank\n   row -> 1,0\nThen\n").unwrap();
+    let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(input)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&compiled.stdout),
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    let artifact: serde_json::Value = serde_json::from_slice(&compiled.stdout).unwrap();
+    let suite = artifact["tests"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|suite| suite["scope"] == "ModelQuery.inspect")
+        .unwrap();
+    let js = suite["module"]["js"].as_str().unwrap();
+    let predicate = js
+        .split_once("where:(")
+        .expect("model predicate")
+        .1
+        .split_once("}")
+        .unwrap()
+        .0;
+    assert!(predicate.contains(".rank > 1n"), "{js}");
+    assert!(
+        !predicate.contains("s.row"),
+        "query binder must shadow the fixture: {js}"
+    );
+    assert!(
+        js.contains("async(c,s)=>s.row.rank"),
+        "outer observation must retain the fixture: {js}"
+    );
+}

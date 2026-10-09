@@ -32,6 +32,7 @@ import {
   checkStagedRowsLimit,
   toReceipt,
   toOutboxIntent,
+  toRetainedOutboxIntent,
   toScheduleEntry,
   toHistoryEntry,
   toInstalledSnapshot,
@@ -41,7 +42,7 @@ import {
   toMigrationFailure,
   mergePublishedColumns,
 } from './sqlite-codecs.js';
-import type { RecordRow, ReceiptRow, OutboxRow, ScheduleRow, HistoryRow, SnapshotRow, StagingRow, ProgressRow, OutcomeRow, FailureRow } from './sqlite-codecs.js';
+import type { RecordRow, ReceiptRow, OutboxRow, RetainedOutboxRow, ScheduleRow, HistoryRow, SnapshotRow, StagingRow, ProgressRow, OutcomeRow, FailureRow } from './sqlite-codecs.js';
 import type { DurableObjectStorage } from '@cloudflare/workers-types';
 import type {
   CommitBatch,
@@ -60,6 +61,7 @@ import type {
   QuerySpec,
   Receipt,
   ReceiptIdentity,
+  RetainedOutboxIntent,
   RecordId,
   RecordMigrationFailure,
   Revision,
@@ -359,11 +361,11 @@ function planCommit(batch: CommitBatch, next: number, at: number, operation: str
   }
   // S6: acks run AFTER the intent inserts in this same atomic transaction,
   // so acking an id staged in this SAME batch marks it dispatched. One
-  // UPDATE per id; unknown or already-dispatched ids match zero rows
+  // UPDATE per id; unknown, dispatched, or skipped ids match zero rows
   // (idempotent no-op — dispatchers retry at-least-once). `undefined` is [].
   for (const intentId of batch.outboxAck ?? []) {
     statements.push({
-      sql: "UPDATE outbox SET status = 'dispatched' WHERE intent_id = ?",
+      sql: "UPDATE outbox SET status = 'dispatched' WHERE intent_id = ? AND status = 'pending'",
       bindings: [intentId],
     });
   }
@@ -605,7 +607,7 @@ function planFlip(input: FlipInstalledSnapshot, next: number, at: number): Plann
     });
   }
   for (const intentId of input.invalidatedIntentIds) {
-    // Pending-only: unknown or already-dispatched ids match zero rows
+    // Pending-only: unknown, dispatched, or skipped ids match zero rows
     // (idempotent no-op), and a dispatched intent is never rewritten.
     statements.push({
       sql: "UPDATE outbox SET status = 'skipped' WHERE intent_id = ? AND status = 'pending'",
@@ -808,6 +810,16 @@ export function createDOStorage(storage: DurableObjectStorage): StoragePort {
         )
         .toArray();
       return rows.map(toOutboxIntent);
+    },
+
+    async outboxGet(intentId: string): Promise<RetainedOutboxIntent | null> {
+      const rows = storage.sql
+        .exec<RetainedOutboxRow>(
+          `SELECT ${OUTBOX_COLUMNS}, status FROM outbox WHERE intent_id = ?`, intentId,
+        )
+        .toArray();
+      const row = rows[0] ?? null;
+      return row === null ? null : toRetainedOutboxIntent(row);
     },
 
     async scheduleGet(key: string): Promise<ScheduleEntry | null> {

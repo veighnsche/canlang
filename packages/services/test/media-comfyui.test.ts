@@ -790,6 +790,12 @@ function originalOptions(durationMs = 5000): InstalledImageOptions {
   return { deliveryId: 'delivery_original', jobId: INSTALLED_JOB, deadlineMs: Date.now() + durationMs };
 }
 
+function observationOptions(durationMs = 500): InstalledImageOptions {
+  const startedAtMs = Date.now();
+  return { deliveryId: 'delivery_original', jobId: INSTALLED_JOB, deadlineMs: startedAtMs - 1000,
+    observation: { startedAtMs, deadlineMs: startedAtMs + durationMs } };
+}
+
 describe('media: installed std Images full requests', () => {
   it('submits the exact frozen installation then reconciles bytes under original identity/deadline', async () => {
     await withServer({
@@ -807,7 +813,7 @@ describe('media: installed std Images full requests', () => {
       graph['6']!.inputs['text'] = 'changed';
       assert.ok(Object.isFrozen(installed.workflow.prompt));
       assert.ok(Object.isFrozen(installed.policy.seed));
-      assert.deepEqual(installed.policy, { seed: { kind: 'fixed', value: 42 }, maxOutputs: 8, maxDurationMs: 5000, maxOutputBytes: 1_000_000 });
+      assert.deepEqual(installed.policy, { seed: { kind: 'fixed', value: 42 }, maxOutputs: 8, maxDurationMs: 5000, maxObservationDurationMs: 5000, maxOutputBytes: 1_000_000 });
       assert.deepEqual(await installed.images.submit(request, original), { delivery_id: original.deliveryId, status: 'succeeded', result: { job: original.jobId }, error: null });
       const wire = JSON.parse(server.requests[0]!.bodyText);
       assert.equal(wire.prompt_id, original.jobId);
@@ -834,6 +840,8 @@ describe('media: installed std Images full requests', () => {
         { ...installationFor(), seed: undefined },
         { ...installationFor(), seed: { kind: 'random', value: 42 } },
         { ...installationFor(), seed: { kind: 'fixed', value: -1 } },
+        ...[0, -1, 1.5, Infinity, 2_147_483_648, null, undefined].map(maxObservationDurationMs =>
+          ({ ...installationFor(), maxObservationDurationMs })),
       ]) {
         assert.throws(() => adapter.installImages(config as ComfyUIImagesInstallation), MappingValidationError);
       }
@@ -858,6 +866,9 @@ describe('media: installed std Images full requests', () => {
       for (const method of ['submit', 'reconcile', 'cancel'] as const) {
         for (const over of invalid) {
           await assert.rejects(async () => installed.images[method]({ ...requestFor(), ...over } as ImageRequest, originalOptions()), MappingValidationError);
+          if (method !== 'submit') {
+            await assert.rejects(async () => installed.images[method]({ ...requestFor(), ...over } as ImageRequest, observationOptions()), MappingValidationError);
+          }
         }
         for (const over of [
           { deliveryId: '' }, { jobId: 'arbitrary-id' }, { jobId: INSTALLED_JOB.toUpperCase() },
@@ -865,6 +876,78 @@ describe('media: installed std Images full requests', () => {
         ]) {
           await assert.rejects(async () => installed.images[method](requestFor(), { ...originalOptions(), ...over }), MappingValidationError);
         }
+      }
+      assert.equal(server.requests.length, 0);
+    });
+  });
+
+  it('observes and cancels an expired generation under a separate retained budget without resubmitting', async () => {
+    await withServer({ kind: 'accept', history: { [INSTALLED_JOB]: successEntry([
+      { filename: 'a.png', subfolder: '', type: 'output' }, { filename: 'b.png', subfolder: '', type: 'output' },
+    ]) }, files: { 'a.png': PNG_A, 'b.png': PNG_B } }, async (server) => {
+      const installed = makeAdapter(server.url).installImages({ ...installationFor(), maxObservationDurationMs: 1000 });
+      assert.equal(installed.policy.maxObservationDurationMs, 1000);
+      const request = requestFor();
+      for (const slot of ['prompt', 'negative', 'width', 'height'] as const) Object.freeze(request.workflow[slot]);
+      Object.freeze(request.workflow); Object.freeze(request);
+      const snapshot = structuredClone(request);
+      const original = Object.freeze(observationOptions(1000));
+      Object.freeze(original.observation);
+      await assert.rejects(async () => installed.images.submit(request, original), MappingValidationError);
+      await assert.rejects(async () => installed.images.submit(request, {
+        deliveryId: original.deliveryId, jobId: original.jobId, deadlineMs: original.deadlineMs,
+      }), MappingValidationError);
+      assert.equal(server.requests.length, 0);
+      for (const method of ['reconcile', 'cancel'] as const) {
+        const observed = await installed.images[method](request, original);
+        assert.equal(observed.delivery_id, original.deliveryId);
+        assert.equal(observed.result?.job, original.jobId);
+        assert.equal(observed.result?.state, 'succeeded');
+        assert.deepEqual(observed.result?.outputs.map(output => output.bytes), [PNG_A, PNG_B]);
+      }
+      assert.deepEqual(request, snapshot);
+      assert.deepEqual(server.requests.map(request => request.path.split('?')[0]), [
+        `/history/${original.jobId}`, '/view', '/view',
+        `/api/jobs/${original.jobId}/cancel`, `/history/${original.jobId}`, '/view', '/view',
+      ]);
+      const limited = await installed.images.reconcile(requestFor({ max_outputs: 1 }), original);
+      assert.equal(limited.result?.state, 'failed');
+      assert.deepEqual(limited.result?.outputs, []);
+      assert.equal(server.requests.at(-1)?.path, `/history/${original.jobId}`);
+      assert.equal(server.requests.some(request => request.path === '/prompt'), false);
+    });
+  });
+
+  it('refuses malformed, expired, future-started and over-cap observation windows before any HTTP', async () => {
+    await withServer({ kind: 'accept' }, async (server) => {
+      const installed = makeAdapter(server.url).installImages({ ...installationFor(), maxObservationDurationMs: 500 });
+      const now = Date.now();
+      const invalid = [
+        undefined, null, {}, { startedAtMs: now }, { startedAtMs: now, deadlineMs: now + 100, extra: true },
+        { startedAtMs: NaN, deadlineMs: now + 100 }, { startedAtMs: -1, deadlineMs: now + 100 },
+        { startedAtMs: now + 10000, deadlineMs: now + 10100 },
+        { startedAtMs: now - 100, deadlineMs: now - 1 },
+        { startedAtMs: now, deadlineMs: Infinity }, { startedAtMs: now, deadlineMs: now + 0.5 },
+        { startedAtMs: now, deadlineMs: now + 501 },
+        // Extending an expired retained window from its original start exceeds the cap.
+        { startedAtMs: now - 1000, deadlineMs: now + 100 },
+        { startedAtMs: now, deadlineMs: now + 100, [Symbol('extra')]: true },
+        Object.defineProperty({ startedAtMs: now, deadlineMs: now + 100 }, 'extra', { value: true }),
+      ];
+      for (const method of ['submit', 'reconcile', 'cancel'] as const) {
+        for (const observation of invalid) {
+          await assert.rejects(async () => installed.images[method](requestFor(), {
+            ...observationOptions(), observation,
+          } as InstalledImageOptions), MappingValidationError);
+        }
+      }
+      await assert.rejects(async () => installed.images.submit(requestFor(), {
+        ...originalOptions(), observation: { startedAtMs: now, deadlineMs: now + 100 },
+      }), MappingValidationError);
+      for (const deadlineMs of [0, -1, Infinity, Number.MAX_SAFE_INTEGER + 1, now + 10000]) {
+        await assert.rejects(async () => installed.images.reconcile(requestFor(), {
+          ...observationOptions(), deadlineMs,
+        }), MappingValidationError);
       }
       assert.equal(server.requests.length, 0);
     });
@@ -890,29 +973,62 @@ describe('media: installed std Images full requests', () => {
       { filename: 'a.png', subfolder: '', type: 'output' }, { filename: 'b.png', subfolder: '', type: 'output' },
     ]) }, files: { 'a.png': PNG_A, 'b.png': PNG_B } }, async (server) => {
       const installed = makeAdapter(server.url, { maxDownloadBytes: PNG_A.length - 1 }).installImages(installationFor());
-      const limited = await installed.images.reconcile(requestFor({ max_outputs: 1 }), originalOptions());
-      assert.equal(limited.result?.state, 'failed');
-      assert.equal(server.requests.length, 1);
-      const byteLimited = await installed.images.reconcile(requestFor(), originalOptions());
-      assert.equal(byteLimited.result?.state, 'unknown');
-      assert.deepEqual(byteLimited.result?.outputs, []);
+      for (const observing of [false, true]) {
+        const original = observing ? observationOptions() : originalOptions();
+        const offset = server.requests.length;
+        const limited = await installed.images.reconcile(requestFor({ max_outputs: 1 }), original);
+        assert.equal(limited.result?.state, 'failed');
+        assert.equal(server.requests.length, offset + 1);
+        const byteLimited = await installed.images.reconcile(requestFor(), original);
+        assert.equal(byteLimited.result?.state, 'unknown');
+        assert.deepEqual(byteLimited.result?.outputs, []);
+      }
       assert.equal(installed.policy.maxOutputBytes, PNG_A.length - 1);
     });
   });
 
-  it('keeps unsupported cancel as an actual original-job observation', async () => {
+  it('keeps unsupported cancel as an actual original-job observation before and after generation expiry', async () => {
     await withServer({ kind: 'accept' }, async (server) => {
       const installed = makeAdapter(server.url).installImages(installationFor());
-      const original = originalOptions();
-      const observed = await installed.images.cancel(requestFor(), original);
-      assert.equal(observed.result?.job, original.jobId);
-      assert.equal(observed.result?.state, 'unknown');
-      assert.match(observed.result?.detail ?? '', /Targeted cancel unsupported/);
-      assert.deepEqual(server.requests.map((request) => request.path), [`/api/jobs/${original.jobId}/cancel`, `/history/${original.jobId}`]);
+      for (const observing of [false, true]) {
+        const original = observing ? observationOptions() : originalOptions();
+        const offset = server.requests.length;
+        const observed = await installed.images.cancel(requestFor(), original);
+        assert.equal(observed.result?.job, original.jobId);
+        assert.equal(observed.result?.state, 'unknown');
+        assert.match(observed.result?.detail ?? '', /Targeted cancel unsupported/);
+        assert.deepEqual(server.requests.slice(offset).map(request => request.path), [`/api/jobs/${original.jobId}/cancel`, `/history/${original.jobId}`]);
+      }
     }, { cancelStatus: 404 });
   });
 
-  it('shares the original deadline across JSON and sequential downloads instead of renewing per file', async () => {
+  it('keeps timed-out late control unknown under its own finite window', async () => {
+    const paths: string[] = [];
+    const server = http.createServer((req) => { paths.push(req.url ?? ''); });
+    await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
+    try {
+      const address = server.address(); assert.ok(address && typeof address !== 'string');
+      const installed = makeAdapter(`http://127.0.0.1:${address.port}`).installImages({ ...installationFor(), maxObservationDurationMs: 100 });
+      for (const method of ['reconcile', 'cancel'] as const) {
+        const original = observationOptions(100);
+        const started = performance.now();
+        const completion = await installed.images[method](requestFor(), original);
+        assert.equal(completion.delivery_id, original.deliveryId);
+        assert.equal(completion.status, 'unknown');
+        assert.equal(completion.error?.code, 'transport_timeout');
+        assert.equal(completion.result, null);
+        assert.ok(performance.now() - started < 300);
+      }
+      assert.deepEqual(paths.slice(0, 2), [`/history/${INSTALLED_JOB}`, `/api/jobs/${INSTALLED_JOB}/cancel`]);
+      assert.ok(paths.length <= 3);
+      assert.ok(paths.slice(2).every(path => path === `/history/${INSTALLED_JOB}`));
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it('shares original generation or observation deadlines across JSON and sequential downloads without renewing per file', async () => {
     const paths: string[] = [];
     const timers: ReturnType<typeof setTimeout>[] = [];
     const server = http.createServer((req, res) => {
@@ -933,23 +1049,31 @@ describe('media: installed std Images full requests', () => {
       const address = server.address();
       assert.ok(address && typeof address !== 'string');
       const installed = makeAdapter(`http://127.0.0.1:${address.port}`).installImages(installationFor());
-      const original = originalOptions(260);
-      const started = performance.now();
-      const observed = await installed.images.reconcile(requestFor({ max_outputs: 3, max_duration: 260n }), original);
-      const elapsed = performance.now() - started;
-      assert.equal(observed.result?.state, 'unknown');
-      assert.equal(observed.result?.outputs.length, 1);
-      assert.deepEqual(observed.result?.outputs[0]?.bytes, PNG_A);
-      assert.equal(paths.length, 3); // history, first output, timed-out second; never third.
-      assert.ok(elapsed < 420, `aggregate deadline elapsed ${elapsed}ms`);
-      assert.equal(original.deadlineMs < Date.now() + 10, true);
-      // Transport rounds its remaining budget down; establish actual expiry
-      // before testing rejection of a later attempt on the original lease.
-      while (Date.now() < original.deadlineMs) {
-        await new Promise<void>((resolve) => setTimeout(resolve, original.deadlineMs - Date.now()));
+
+
+
+      for (const observing of [false, true]) {
+        paths.length = 0;
+        const original = observing ? observationOptions(260) : originalOptions(260);
+        const started = performance.now();
+        const observed = await installed.images.reconcile(requestFor({ max_outputs: 3, max_duration: 260n }), original);
+        const elapsed = performance.now() - started;
+        assert.equal(observed.result?.state, 'unknown');
+        assert.equal(observed.result?.outputs.length, 1);
+        assert.deepEqual(observed.result?.outputs[0]?.bytes, PNG_A);
+        assert.equal(paths.length, 3); // history, first output, timed-out second; never third.
+        assert.ok(elapsed < 420, `aggregate deadline elapsed ${elapsed}ms`);
+        assert.equal(original.deadlineMs < Date.now() + 10, true);
+        // Released Services6ac7e298: transport rounds remaining time down;
+        // establish actual expiry of the original or retained observation lease.
+        const deadlineMs = original.observation?.deadlineMs ?? original.deadlineMs;
+        while (Date.now() < deadlineMs) {
+          await new Promise<void>(resolve => setTimeout(resolve, deadlineMs - Date.now()));
+        }
+        await assert.rejects(async () => installed.images.reconcile(requestFor(), original), MappingValidationError);
+        assert.equal(paths.length, 3);
       }
-      await assert.rejects(async () => installed.images.reconcile(requestFor(), original), MappingValidationError);
-      assert.equal(paths.length, 3);
+
     } finally {
       for (const timer of timers) clearTimeout(timer);
       server.closeAllConnections();

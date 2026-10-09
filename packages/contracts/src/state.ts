@@ -244,6 +244,12 @@ export interface OutboxIntent {
   readonly handlerContract?: string;
 }
 
+/** Retained original carrier and storage status; dispatch acknowledgement is not delivery evidence. */
+export interface RetainedOutboxIntent {
+  readonly intent: OutboxIntent;
+  readonly status: 'pending' | 'dispatched' | 'skipped';
+}
+
 /**
  * S6 storage read shape for one schedule row. Returned by `scheduleGet` and
  * `schedulesDue`; the write path stays `ScheduleOp` (replace/cancel).
@@ -388,6 +394,13 @@ export interface StoragePort {
    * BINARY); realistic ids are ASCII, where the orders agree.
    */
   outboxPending(): Promise<ReadonlyArray<OutboxIntent>>;
+  /**
+   * One retained outbox intent by exact identity, or null when absent.
+   * Includes the original carrier after acknowledgement or migration skip.
+   * Reads committed state only and returns a deep copy; authority stays above
+   * this owner-local storage boundary, as for outboxPending.
+   */
+  outboxGet(intentId: string): Promise<RetainedOutboxIntent | null>;
   /** S6: one schedule row by key, or null when absent. */
   scheduleGet(key: string): Promise<ScheduleEntry | null>;
   /**

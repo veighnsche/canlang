@@ -12,7 +12,7 @@ const oraclePath = path.resolve(packageRoot, "conformance/string-escape.oracle.m
 const fixture = JSON.parse(readFileSync(fixturePath, "utf8")) as {
   contract: string;
   engine: { execPath: string };
-  source: { frozenSha256: string };
+  source: { frozenSha256: string; donorHashes: Record<string, string> };
   strings: { id: string; inputUnits: number[]; quotedUnits: number[]; actualWireUnits: number[]; rustStrAdmitted: boolean; helperParityAdmitted: boolean; actualWireParityAdmitted: boolean; excludedReason: string | null }[];
   callers: { id: string; observation: unknown }[];
   controls: { id: string; rowId: string; expectedQuotedUnits?: number[]; expectedActualWireUnits?: number[]; mutant: number[] }[];
@@ -31,9 +31,11 @@ test("frozen corpus and source-current owning TypeScript caller observations rep
     const regenerated = path.join(tmp, "captured.json");
     execFileSync(process.env.CAN_N04_NODE ?? "node", [oraclePath, path.join(tmp, "staged"), regenerated], { stdio: "pipe" });
     const actual = JSON.parse(readFileSync(regenerated, "utf8")) as typeof fixture & { engine: unknown };
+    assert.deepEqual(actual.source, fixture.source,
+      "capture differs from reviewed source correspondence");
     const semantic = (value: typeof fixture & { engine?: unknown }) => {
       const { engine: _engine, ...observations } = value;
-      return observations;
+      return { ...observations, source: { ...observations.source, donorHashes: fixture.source.donorHashes } };
     };
     assert.deepEqual(semantic(actual), semantic(fixture), "fixture differs from actual original-source capture");
     for (const control of fixture.controls) {

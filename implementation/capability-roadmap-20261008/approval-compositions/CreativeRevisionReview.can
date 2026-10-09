@@ -1,0 +1,491 @@
+# Turn private ideas into bounded image jobs using employee-published workflow revisions. @{nl="Zet privé-ideeën om in begrensde beeldtaken met door medewerkers gepubliceerde workflowversies."}
+app CanCreativeRevisionReview uses=[chat,creative]
+context
+ files types="application/pdf,image/png,image/jpeg,text/plain,application/json"
+
+package creative
+ use chat {Conversation,Branch,Turn,can_use,conversation}
+ use std {WorkflowInput,WorkflowDefinition,WorkflowInspection,WorkflowValidation,ImageRequest,ImageRun,GeneratedImage,DeliveryResult}
+ use std {ImagesV1 as Images} from=deployment.images
+ Given
+  role creative_manager label="Creative administrator"@{nl="Creatief beheerder"}
+  export Template { name:text trim max=200, owner:user server=actor, graph:file, prompt_node:text="6", prompt_key:text="text", negative_node:text="7", negative_key:text="text", width_node:text="5", width_key:text="width", height_node:text="5", height_key:text="height", outputs:int=1 min=1 max=4, duration:duration=120s, active:bool=true, current:Revision?, inspection:delivery(Images.inspect)? } label="Image workflow"@{nl="Beeldworkflow"}
+  export Revision in Template { number:int min=1, definition:WorkflowDefinition, outputs:int min=1 max=4, duration:duration, validation:delivery(Images.validate)?, published:bool=false, digest:text? } label="Immutable workflow revision"@{nl="Onveranderlijke workflowversie"}
+  ## Proposed same-owner named review freezes a validation receipt and immutable Revision.
+  export RevisionReviewRequest in Revision { round:int min=1, subject_version:int min=1, requester:user, primary:user, secondary:user, number:Revision.number, definition:WorkflowDefinition, outputs:Revision.outputs, duration:Revision.duration, validation:delivery(Images.validate)?, digest:text, expires:datetime, state:enum(open,approved,rejected,expired,escalated,superseded)=open, reason:text? }
+  export RevisionReviewVote in RevisionReviewRequest { voter:user server=actor, approved:bool, reason:text, voted_at:datetime server=now }
+  unique RevisionReviewRequest fields=round
+  unique RevisionReviewVote fields=voter
+  lock RevisionReviewRequest fields=round,subject_version,requester,primary,secondary,number,definition,outputs,duration,validation,digest,expires
+  lock RevisionReviewVote fields=voter,approved,reason,voted_at
+  ## Nominees read frozen review evidence; original unpublished Revision grants stay unchanged.
+  policy RevisionReviewRequest read=creative_manager where=row.requester==actor or row.primary==actor or row.secondary==actor
+  policy RevisionReviewVote read=creative_manager where=row.parent.requester==actor or row.parent.primary==actor or row.parent.secondary==actor
+  derive exact_review(review:RevisionReviewRequest):bool = review.requester==review.parent.parent.owner and review.number==review.parent.number and review.definition.graph==review.parent.definition.graph and review.definition.prompt.node==review.parent.definition.prompt.node and review.definition.prompt.key==review.parent.definition.prompt.key and review.definition.negative.node==review.parent.definition.negative.node and review.definition.negative.key==review.parent.definition.negative.key and review.definition.width.node==review.parent.definition.width.node and review.definition.width.key==review.parent.definition.width.key and review.definition.height.node==review.parent.definition.height.node and review.definition.height.key==review.parent.definition.height.key and review.outputs==review.parent.outputs and review.duration==review.parent.duration and review.validation==review.parent.validation and review.validation?.status==succeeded and review.validation?.result?.valid==true and review.validation?.result?.digest==review.digest
+  derive current_review(review:RevisionReviewRequest):bool = first(review.parent.RevisionReviewRequest as candidate order=-candidate.round)==review
+  derive roster_live(review:RevisionReviewRequest):bool = review.primary!=review.secondary and review.primary!=review.requester and review.secondary!=review.requester and creative_manager(review.primary) and creative_manager(review.secondary)
+  derive approved_review(review:RevisionReviewRequest):bool = current_review(review) and exact_review(review) and review.state==approved and now<review.expires and roster_live(review) and count(review.RevisionReviewVote)==2 and any(review.RevisionReviewVote as vote,vote.voter==review.primary and vote.approved) and any(review.RevisionReviewVote as vote,vote.voter==review.secondary and vote.approved)
+  invariant RevisionReviewRequest: row.round>=1 and row.subject_version>=1 and row.primary!=row.secondary and row.primary!=row.requester and row.secondary!=row.requester
+  ## Historical evidence does not lose validity as an immutable record when live roles change.
+  invariant RevisionReviewVote: row.voter!=row.parent.requester and (row.voter==row.parent.primary or row.voter==row.parent.secondary)
+  Budget { account:user unique, cap:int min=1, parallel:int=2 min=1 max=10, spent:int=0 min=0, held:int=0 min=0, running:int=0 min=0 max=10, active:bool=true } label="Image-job allowance"@{nl="Budget voor beeldtaken"}
+  export Run { source:text unique, author:user server=actor, conversation:Conversation?, revision:Revision, budget:Budget, prompt:ImageRequest.prompt, negative:ImageRequest.negative, width:ImageRequest.width, height:ImageRequest.height, request:delivery(Images.submit)?, cancellation:delivery(Images.cancel)?, reconciliation:delivery(Images.reconcile)?, used:int? min=0 max=1, unfinished:bool=true, stop_requested:bool=false } label="Image generation"@{nl="Beeldgeneratie"}
+  export Output in Run { position:int min=0 max=3, image:file } label="Finalized image"@{nl="Afgerond beeldbestand"}
+  derive definition(template:Template):WorkflowDefinition = WorkflowDefinition {graph=template.graph,prompt=WorkflowInput {node=template.prompt_node,key=template.prompt_key},negative=WorkflowInput {node=template.negative_node,key=template.negative_key},width=WorkflowInput {node=template.width_node,key=template.width_key},height=WorkflowInput {node=template.height_node,key=template.height_key}}
+  export derive can_view(person:user?,run:Run):bool = person!=null and active_member(person,team) and run.author==person and (run.conversation==null or can_use(person,run.conversation))
+  derive Run.state:ImageRun.state? = row.request?.progress?.state
+  derive Run.detail:text? = row.request?.progress?.detail
+  derive Run.delivery_state:DeliveryResult.status? = row.request?.status label="Submission receipt"@{nl="Indieningsbewijs"}
+  derive Run.stop_delivery:DeliveryResult.status? = row.cancellation?.status label="Stop receipt"@{nl="Stopbewijs"}
+  derive Run.reconcile_delivery:DeliveryResult.status? = row.reconciliation?.status label="Recovery receipt"@{nl="Herstelbewijs"}
+  policy Template read=members fields=name,active,current
+  policy Template read=creative_manager and row.owner==actor
+  policy Revision read=members where=row.published and row.parent.active fields=parent,number,definition,published,digest,outputs,duration
+  policy Revision read=creative_manager and row.parent.owner==actor
+  policy Budget read=creative_manager or (members and row.account==actor)
+  policy Run read=can_view(actor,row) fields=source,author,conversation,revision,prompt,negative,width,height,state,used,unfinished,stop_requested,detail,request.id,request.status,request.error,request.progress.state,request.progress.detail,cancellation.id,cancellation.status,cancellation.error,reconciliation.id,reconciliation.status,reconciliation.error,delivery_state,stop_delivery,reconcile_delivery,created,updated
+  policy Run read=members and row.author==actor fields=source,author,conversation,state,used,unfinished,stop_requested,detail,request.id,request.status,request.error,request.progress.state,request.progress.detail,cancellation.id,cancellation.status,cancellation.error,reconciliation.id,reconciliation.status,reconciliation.error,delivery_state,stop_delivery,reconcile_delivery,created,updated
+  policy Output read=can_view(actor,row.parent)
+  invariant Template: row.duration>=1s and row.duration<=15m and (row.current==null or (row.current.parent==row and row.current.published))
+  invariant Revision: row.duration>=1s and row.duration<=15m and (not row.published or row.digest!=null)
+  invariant Budget: row.spent+row.held<=row.cap and row.running<=row.parallel
+  invariant Run: row.width%64==0 and row.height%64==0
+  unique Revision fields=number
+  unique Output fields=position
+  lock Template fields=owner
+  lock Revision fields=number,definition,outputs,duration,validation
+  lock Revision fields=published,digest when=row.published
+  lock Budget fields=account
+  lock Run fields=source,author,conversation,revision,budget,prompt,negative,width,height,request
+  lock Output fields=position,image
+  fixture manager=user {roles=[creative_manager]}
+  export fixture graph=file {type="application/json"}
+  fixture workflow=Template {name="Launch visuals",owner=manager,graph}
+  fixture checked=Images.validate {request={value=WorkflowDefinition {graph,prompt=WorkflowInput {node="6",key="text"},negative=WorkflowInput {node="7",key="text"},width=WorkflowInput {node="5",key="width"},height=WorkflowInput {node="5",key="height"}}},status=succeeded,result=WorkflowValidation {valid=true,digest="fixture-validated-graph",detail=null}}
+  fixture revision=Revision {parent=workflow,number=1,definition=WorkflowDefinition {graph,prompt=WorkflowInput {node="6",key="text"},negative=WorkflowInput {node="7",key="text"},width=WorkflowInput {node="5",key="width"},height=WorkflowInput {node="5",key="height"}},outputs=1,duration=120s,validation=checked,published=true,digest="fixture-validated-graph"}
+  fixture unpublished_revision=Revision {parent=workflow,number=2,definition=revision.definition,outputs=1,duration=120s,validation=checked}
+  fixture review_primary=user {roles=[creative_manager]}
+  fixture review_secondary=user {roles=[creative_manager]}
+  fixture revoked_manager=user {}
+  fixture ready_review=RevisionReviewRequest {parent=revision,round=1,subject_version=1,requester=manager,primary=review_primary,secondary=review_secondary,number=1,definition=revision.definition,outputs=1,duration=120s,validation=checked,digest="fixture-validated-graph",expires=now+1d,state=approved}
+  fixture primary_vote=RevisionReviewVote {parent=ready_review,voter=review_primary,approved=true,reason="Inputs and graph checked",voted_at=now}
+  fixture secondary_vote=RevisionReviewVote {parent=ready_review,voter=review_secondary,approved=true,reason="Independent graph review",voted_at=now}
+  ## Current-state revocation control: old immutable votes refer to a currently non-manager.
+  fixture revoked_review=RevisionReviewRequest {parent=revision,round=1,subject_version=1,requester=manager,primary=review_primary,secondary=revoked_manager,number=1,definition=revision.definition,outputs=1,duration=120s,validation=checked,digest="fixture-validated-graph",expires=now+1d,state=approved}
+  fixture revoked_primary_vote=RevisionReviewVote {parent=revoked_review,voter=review_primary,approved=true,reason="Earlier primary vote",voted_at=now}
+  fixture revoked_secondary_vote=RevisionReviewVote {parent=revoked_review,voter=revoked_manager,approved=true,reason="Earlier eligible secondary vote",voted_at=now}
+  fixture budget=Budget {account=self,cap=20}
+  export fixture image=file {type="image/png"}
+  fixture completed_budget=Budget {account=self,cap=20,spent=1}
+  export fixture completed_request=Images.submit {request={value=ImageRequest {source="creative-completed",revision=1,workflow=WorkflowDefinition {graph,prompt=WorkflowInput {node="6",key="text"},negative=WorkflowInput {node="7",key="text"},width=WorkflowInput {node="5",key="width"},height=WorkflowInput {node="5",key="height"}},validation="fixture-validated-graph",prompt="A quiet garden",negative="",width=512,height=512,max_outputs=1,max_duration=120s}},status=succeeded,result=ImageRun {source="creative-completed",revision=1,sequence=2,state=succeeded,outputs=[GeneratedImage {position=0,image}],charged_jobs=1,detail=null}}
+  export fixture completed=Run {source="creative-completed",author=self,conversation=null,revision,budget=completed_budget,prompt="A quiet garden",negative="",width=512,height=512,request=completed_request,used=1,unfinished=false}
+  export fixture output=Output {parent=completed,position=0,image}
+  fixture held_budget=Budget {account=self,cap=20,held=1,running=1}
+  fixture observed_request=Images.submit {request={value=ImageRequest {source="creative-pending",revision=1,workflow=WorkflowDefinition {graph,prompt=WorkflowInput {node="6",key="text"},negative=WorkflowInput {node="7",key="text"},width=WorkflowInput {node="5",key="width"},height=WorkflowInput {node="5",key="height"}},validation="fixture-validated-graph",prompt="A quiet garden",negative="",width=512,height=512,max_outputs=1,max_duration=120s}},status=succeeded,result=ImageRun {source="creative-pending",revision=1,sequence=1,state=queued,outputs=[],charged_jobs=null,detail=null}}
+  fixture pending_run=Run {source="creative-pending",author=self,conversation=null,revision,budget=held_budget,prompt="A quiet garden",negative="",width=512,height=512,request=observed_request}
+  fixture prior_output=Output {parent=pending_run,position=0,image}
+ When
+  # Ask two current managers to review one validated immutable revision; the owner cannot vote.
+  export scenario request_review(revision:Revision,primary:user,secondary:user,expires:datetime) by=creative_manager -> RevisionReviewRequest
+   require revision.parent.owner==actor and revision.parent.active and not revision.published
+   require revision.validation?.status==succeeded and revision.validation?.result?.valid==true and revision.validation?.result?.digest!=null
+   require primary!=actor and secondary!=actor and primary!=secondary and creative_manager(primary) and creative_manager(secondary) and expires>now
+   require count(revision.RevisionReviewRequest)==0
+   do
+    let digest=revision.validation?.result?.digest
+    require digest!=null
+    create RevisionReviewRequest {parent=revision,round=1,subject_version=revision.version,requester=actor,primary,secondary,number=revision.number,definition=revision.definition,outputs=revision.outputs,duration=revision.duration,validation=revision.validation,digest,expires} as review
+    return review
+   examples seed=[revision] revision=revision primary=review_primary secondary=review_secondary expires=now+1d
+    as,revision.published,primary,secondary,expires -> count(revision.RevisionReviewRequest),count(result.RevisionReviewVote)
+    manager,false,review_primary,review_secondary,now+1d -> 1,0
+    manager,false,manager,review_secondary,now+1d -> error(rule_failed)
+    manager,false,review_primary,review_primary,now+1d -> error(rule_failed)
+    manager,false,review_primary,revoked_manager,now+1d -> error(rule_failed)
+    manager,false,review_primary,review_secondary,now -> error(rule_failed)
+    manager,true,review_primary,review_secondary,now+1d -> error(rule_failed)
+    other,false,review_primary,review_secondary,now+1d -> error(forbidden)
+   ## Full same-owner request, concurrency fence, replay and owner-only publication.
+   examples seed=[unpublished_revision]
+    do
+     let deadline=now+1d
+     call request_review {revision=unpublished_revision,primary=review_primary,secondary=review_secondary,expires=deadline} by=manager request={operation_id="019a0000-0000-7000-8000-000000000011"} as review
+     call request_review {revision=unpublished_revision,primary=review_primary,secondary=review_secondary,expires=deadline} by=manager request={operation_id="019a0000-0000-7000-8000-000000000011"} as request_replay
+     request_replay.id==review.id,count(unpublished_revision.RevisionReviewRequest),count(review.RevisionReviewVote),unpublished_revision.published -> true,1,0,false
+     call approve_review {review,reason="Owner cannot approve own revision"} by=manager -> error(rule_failed)
+     let first_review_version=review.version
+     call approve_review {review,reason="Primary checked graph"} by=review_primary request={operation_id="019a0000-0000-7000-8000-000000000012",review={version=first_review_version}}
+     call approve_review {review,reason="Primary checked graph"} by=review_primary request={operation_id="019a0000-0000-7000-8000-000000000012",review={version=first_review_version}}
+     count(review.RevisionReviewVote),unpublished_revision.published -> 1,false
+     call approve_review {review,reason="Concurrent stale second vote"} by=review_secondary request={review={version=first_review_version}} -> error(conflict)
+     let one_vote=first(unpublished_revision.RevisionReviewRequest as row order=-row.round)
+     one_vote!=null -> true
+     call approve_review {review=one_vote,reason="Duplicate actor vote"} by=review_primary -> error(rule_failed)
+     call publish {revision=unpublished_revision} by=manager -> error(rule_failed)
+     call approve_review {review=one_vote,reason="Independent graph check"} by=review_secondary
+     let quorum=first(unpublished_revision.RevisionReviewRequest as row order=-row.round)
+     quorum!=null -> true
+     quorum.state,count(quorum.RevisionReviewVote),unpublished_revision.published -> approved,2,false
+     call publish {revision=unpublished_revision} by=review_primary -> error(rule_failed)
+     let publish_version=unpublished_revision.version
+     call publish {revision=unpublished_revision} by=manager request={operation_id="019a0000-0000-7000-8000-000000000013",revision={version=publish_version}}
+     call publish {revision=unpublished_revision} by=manager request={operation_id="019a0000-0000-7000-8000-000000000013",revision={version=publish_version}}
+     let published_revision=first(Revision as row where row.id==unpublished_revision.id order=row.id)
+     published_revision!=null -> true
+     published_revision.published,published_revision.digest,workflow.current==published_revision,count(quorum.RevisionReviewVote),count(unpublished_revision.RevisionReviewRequest) -> true,"fixture-validated-graph",true,2,1
+   ## A current nominee's rejection vetoes this immutable revision; another vote cannot override it.
+   examples seed=[unpublished_revision]
+    do
+     call request_review {revision=unpublished_revision,primary=review_primary,secondary=review_secondary,expires=now+1d} by=manager as review
+     call reject_review {review,reason="Unsafe input mapping"} by=review_secondary
+     let veto=first(unpublished_revision.RevisionReviewRequest as row order=-row.round)
+     veto!=null -> true
+     call approve_review {review=veto,reason="Cannot override veto"} by=review_primary -> error(rule_failed)
+     call publish {revision=unpublished_revision} by=manager -> error(rule_failed)
+     veto.state,count(veto.RevisionReviewVote),unpublished_revision.published,workflow.current -> rejected,1,false,null
+   ## Explicit escalation and a fresh complete roster reset both votes, keeping the old evidence.
+   examples seed=[unpublished_revision]
+    do
+     call request_review {revision=unpublished_revision,primary=review_primary,secondary=review_secondary,expires=now+1d} by=manager as review
+     call approve_review {review,reason="First-round primary vote"} by=review_primary
+     let first_round=first(unpublished_revision.RevisionReviewRequest as row order=-row.round)
+     first_round!=null -> true
+     call escalate_review {review=first_round,reason="Owner requests another independent round"} by=manager
+     let escalated=first(unpublished_revision.RevisionReviewRequest as row order=-row.round)
+     escalated!=null -> true
+     call supersede_review {review=escalated,primary=review_secondary,secondary=review_primary,expires=now+2d,reason="Explicit refreshed roster and deadline"} by=manager as replacement
+     replacement.round,replacement.state,count(replacement.RevisionReviewVote),count(first_round.RevisionReviewVote),count(unpublished_revision.RevisionReviewRequest),unpublished_revision.published -> 2,open,0,1,2,false
+     call approve_review {review=escalated,reason="Old round cannot contribute"} by=review_secondary -> error(conflict)
+     call approve_review {review=replacement,reason="Fresh first approval"} by=review_secondary
+     let fresh_round=first(unpublished_revision.RevisionReviewRequest as row order=-row.round)
+     fresh_round!=null -> true
+     call approve_review {review=fresh_round,reason="Fresh independent approval"} by=review_primary
+     call publish {revision=unpublished_revision} by=manager
+     unpublished_revision.published,count(replacement.RevisionReviewVote),count(first_round.RevisionReviewVote) -> true,2,1
+  # Touch the request after each immutable vote so concurrent reviewers share its version fence.
+  export scenario approve_review(review:RevisionReviewRequest,reason:text) by=creative_manager -> RevisionReviewRequest
+   require actor==review.primary or actor==review.secondary
+   require review.parent.parent.active and not review.parent.published and current_review(review) and exact_review(review) and review.subject_version==review.parent.version and review.state==open and now<review.expires and roster_live(review)
+   require not any(review.RevisionReviewVote as vote,vote.voter==actor)
+   do
+    create RevisionReviewVote {parent=review,approved=true,reason} as vote
+    if count(review.RevisionReviewVote)==2
+     set review {state=approved}
+    else
+     set review {state=open}
+    return review
+  export scenario reject_review(review:RevisionReviewRequest,reason:text) by=creative_manager
+   require actor==review.primary or actor==review.secondary
+   require review.parent.parent.active and not review.parent.published and current_review(review) and exact_review(review) and review.subject_version==review.parent.version and review.state==open and now<review.expires and trim(reason)!=""
+   require not any(review.RevisionReviewVote as vote,vote.voter==actor)
+   do
+    create RevisionReviewVote {parent=review,approved=false,reason=trim(reason)} as vote
+    set review {state=rejected,reason=trim(reason)}
+  export scenario review_requests(revision:Revision) read=true -> RevisionReviewRequest[] by=creative_manager
+   do return revision.RevisionReviewRequest as review order=-review.round
+  export scenario expire_review(review:RevisionReviewRequest) by=creative_manager
+   require actor==review.requester or actor==review.primary or actor==review.secondary
+   require current_review(review) and exact_review(review) and review.state in [open,approved] and now>=review.expires
+   do set review {state=expired,reason="Review deadline elapsed"}
+   examples seed=[ready_review,primary_vote,secondary_vote] review=ready_review
+    as,revision.published,ready_review.expires -> review.state,count(review.RevisionReviewVote),revision.published,workflow.current
+    manager,false,now -> expired,2,false,null
+    review_primary,false,now -> expired,2,false,null
+    manager,false,now+1d -> error(rule_failed)
+    other,false,now -> error(forbidden)
+  # Escalation closes a round without publishing or granting the replacement managers authority.
+  export scenario escalate_review(review:RevisionReviewRequest,reason:text) by=creative_manager
+   require actor==review.requester and review.parent.parent.owner==actor and review.parent.parent.active and not review.parent.published
+   require current_review(review) and exact_review(review) and review.subject_version==review.parent.version and trim(reason)!=""
+   require review.state==open or (review.state==approved and (now>=review.expires or not roster_live(review)))
+   do set review {state=escalated,reason=trim(reason)}
+  # The owner explicitly nominates a fresh complete roster; all earlier votes remain on the old ID.
+  export scenario supersede_review(review:RevisionReviewRequest,primary:user,secondary:user,expires:datetime,reason:text) by=creative_manager -> RevisionReviewRequest
+   require actor==review.requester and review.parent.parent.owner==actor and review.parent.parent.active and not review.parent.published
+   require current_review(review) and exact_review(review) and review.subject_version==review.parent.version and trim(reason)!="" and expires>now
+   require review.state in [expired,escalated] or (review.state in [open,approved] and (now>=review.expires or not roster_live(review)))
+   require primary!=actor and secondary!=actor and primary!=secondary and creative_manager(primary) and creative_manager(secondary)
+   do
+    set review {state=superseded,reason=trim(reason)}
+    create RevisionReviewRequest {parent=review.parent,round=review.round+1,subject_version=review.subject_version,requester=review.requester,primary,secondary,number=review.number,definition=review.definition,outputs=review.outputs,duration=review.duration,validation=review.validation,digest=review.digest,expires} as replacement
+    return replacement
+   examples seed=[ready_review,primary_vote,secondary_vote] review=ready_review primary=review_primary secondary=review_secondary expires=now+2d reason="Explicit fresh deadline"
+    as,revision.published,ready_review.state,ready_review.expires -> result.round,count(result.RevisionReviewVote),count(ready_review.RevisionReviewVote),ready_review.state,revision.published
+    manager,false,expired,now -> 2,0,2,superseded,false
+    manager,false,approved,now+1d -> error(rule_failed)
+    review_primary,false,expired,now -> error(rule_failed)
+   examples seed=[revoked_review,revoked_primary_vote,revoked_secondary_vote] review=revoked_review primary=review_primary secondary=review_secondary expires=now+2d reason="Current role loss requires fresh roster"
+    as,revision.published -> result.round,count(result.RevisionReviewVote),count(revoked_review.RevisionReviewVote),revision.published
+    manager,false -> 2,0,2,false
+  crud Template by=creative_manager fields=name,graph,prompt_node,prompt_key,negative_node,negative_key,width_node,width_key,height_node,height_key,outputs,duration,active create_fields=name,graph,prompt_node,prompt_key,negative_node,negative_key,width_node,width_key,height_node,height_key,outputs,duration when=row.owner==actor delete=none
+  crud Budget by=creative_manager fields=cap,parallel,active create_fields=account,cap,parallel delete=none
+  scenario template_edited on=Template.update
+   do set event.after {inspection=null}
+  # Inspect allowed input destinations without starting a generation. @{nl="Inspecteer toegestane invoerbestemmingen zonder een generatie te starten."}
+  scenario inspect(template:Template) by=creative_manager label="Inspect workflow inputs"@{nl="Workflowinvoer inspecteren"}
+   require template.owner==actor and template.active
+   do
+    send Images.inspect {graph=template.graph} as inspection
+    set template {inspection}
+  # Freeze this draft graph and mapping into a new revision for safe provider validation. @{nl="Leg deze conceptgraaf en koppelingen vast in een nieuwe versie voor veilige validatie."}
+  scenario validate(template:Template) by=creative_manager -> Revision label="Validate new revision"@{nl="Nieuwe versie valideren"}
+   require template.owner==actor and template.active
+   do
+    let value=definition(template)
+    create Revision {parent=template,number=count(template.Revision)+1,definition=value,outputs=template.outputs,duration=template.duration} as revision
+    send Images.validate {value} as validation
+    set revision {validation}
+    return revision
+  # Publish only the exact successfully validated immutable snapshot; later draft edits cannot change it. @{nl="Publiceer alleen de exact gevalideerde onveranderlijke momentopname; latere conceptwijzigingen veranderen die niet."}
+  scenario publish(revision:Revision) by=creative_manager label="Publish workflow and graph to members"@{nl="Workflow en graaf met leden delen"}
+   require revision.parent.owner==actor and revision.parent.active and not revision.published
+   require revision.validation?.status==succeeded and revision.validation?.result?.valid==true and revision.validation?.result?.digest!=null
+   do
+    let review=first(revision.RevisionReviewRequest as candidate order=-candidate.round)
+    require review!=null and review.subject_version==revision.version and approved_review(review)
+    set revision {published=true,digest=revision.validation.result.digest}
+    set revision.parent {current=revision}
+   examples seed=[ready_review,primary_vote,secondary_vote] revision=revision
+    as,revision.published,checked.result -> revision.published,workflow.current
+    manager,false,WorkflowValidation {valid=true,digest="fixture-validated-graph",detail=null} -> true,revision
+    manager,false,WorkflowValidation {valid=false,digest=null,detail="Mapping rejected"} -> error(rule_failed)
+    manager,true,WorkflowValidation {valid=true,digest="fixture-validated-graph",detail=null} -> error(rule_failed)
+    other,false,WorkflowValidation {valid=true,digest="fixture-validated-graph",detail=null} -> error(forbidden)
+   ## No quorum, expired deadline, changed evidence and stale subject cannot publish.
+   examples seed=[ready_review,primary_vote,secondary_vote] revision=revision
+    as,revision.published,ready_review.expires,ready_review.subject_version,checked.result -> revision.published,workflow.current
+    manager,false,now,1,WorkflowValidation {valid=true,digest="fixture-validated-graph",detail=null} -> error(rule_failed)
+    manager,false,now+1d,2,WorkflowValidation {valid=true,digest="fixture-validated-graph",detail=null} -> error(rule_failed)
+    manager,false,now+1d,1,WorkflowValidation {valid=true,digest="different-validation",detail=null} -> error(rule_failed)
+   examples seed=[ready_review,primary_vote] revision=revision
+    revision.published -> revision.published
+    false -> error(rule_failed)
+   ## Two retained historical approvals cannot replace current manager authority.
+   examples seed=[revoked_review,revoked_primary_vote,revoked_secondary_vote] revision=revision
+    as,revision.published -> revision.published,workflow.current
+    manager,false -> error(rule_failed)
+   examples seed=[ready_review,primary_vote,secondary_vote] revision=revision
+    as,revision.published,request.revision.version -> revision.published
+    manager,false,2 -> error(conflict)
+  # Submit one bounded image job with a frozen published workflow and explicit authorized chat context. @{nl="Dien één begrensde beeldtaak in met een vaste gepubliceerde workflow en expliciet toegestane gesprekscontext."}
+  export scenario generate(template:Template,prompt:ImageRequest.prompt,negative:ImageRequest.negative="",width:ImageRequest.width=512,height:ImageRequest.height=512,conversation:Conversation?=null) by=members -> Run label="Generate images"@{nl="Beelden genereren"}
+   require template.active and template.current!=null and template.current.published and trim(prompt)!=""
+   require width%64==0 and height%64==0 and (conversation==null or can_use(actor,conversation))
+   do
+    let budget=first(Budget as row where row.account==actor order=row.id)
+    require budget!=null and budget.active and budget.running<budget.parallel and budget.spent+budget.held+1<=budget.cap
+    let revision=template.current
+    require revision.digest!=null
+    create Run {source=operation.id,conversation,revision,budget,prompt,negative,width,height} as run
+    set budget {held=budget.held+1,running=budget.running+1}
+    send Images.submit {value=ImageRequest {source=run.source,revision=1,workflow=revision.definition,validation=revision.digest,prompt,negative,width,height,max_outputs=revision.outputs,max_duration=revision.duration}} when=active_member(run.author,team) and template.active and budget.active and not run.stop_requested and (run.conversation==null or can_use(run.author,run.conversation)) as request
+    set run {request}
+    return run
+   examples seed=[budget] template=workflow prompt="A quiet garden" negative="" width=512 height=512 conversation=null
+    as,workflow.current,budget.cap,budget.spent,width -> count(Run as run where run.source==operation.id),budget.held
+    self,revision,20,0,512 -> 1,1
+    self,revision,1,0,512 -> 1,1
+    self,revision,1,1,512 -> error(rule_failed)
+    self,null,20,0,512 -> error(rule_failed)
+    self,revision,20,0,513 -> error(rule_failed)
+   examples seed=[budget,conversation] template=workflow prompt="A private idea" negative="" width=512 height=512 conversation=conversation
+    as,workflow.current,conversation.active,conversation.account -> count(Run as run where run.source==operation.id)
+    self,revision,true,self -> 1
+    self,revision,false,self -> error(rule_failed)
+    self,revision,true,other -> error(rule_failed)
+  # Deliberately copy an owned chat turn into the normal image form's canonical generation operation. @{nl="Kopieer bewust een eigen gespreksbericht naar de canonieke beeldgeneratiebewerking."}
+  scenario from_turn(turn:Turn,template:Template,negative:ImageRequest.negative="",width:ImageRequest.width=512,height:ImageRequest.height=512) by=members -> Run label="Create image from this message"@{nl="Maak een beeld van dit bericht"}
+   require can_use(actor,turn.parent.parent)
+   do
+    call generate {template,prompt=turn.content,negative,width,height,conversation=turn.parent.parent} as run
+    return run
+  # Request a targeted external stop and retain uncertainty until the provider confirms the outcome. @{nl="Vraag een gerichte externe stop en behoud onzekerheid totdat de aanbieder de uitkomst bevestigt."}
+  scenario stop(run:Run) by=members label="Stop image job"@{nl="Beeldtaak stoppen"}
+   require run.author==actor and run.unfinished and run.cancellation?.status!=pending
+   do
+    send Images.cancel {source=run.source,revision=1} as cancellation
+    set run {stop_requested=true,cancellation}
+  # Reconcile the existing image job without submitting a replacement or releasing unconfirmed usage. @{nl="Controleer de bestaande beeldtaak zonder een vervanging in te dienen of onbevestigd gebruik vrij te geven."}
+  scenario reconcile(run:Run) by=members label="Check image outcome"@{nl="Beelduitkomst controleren"}
+   require run.author==actor and (run.unfinished or run.used==null) and run.reconciliation?.status!=pending
+   do
+    send Images.reconcile {source=run.source,revision=1} as reconciliation
+    set run {reconciliation}
+  # Release the reservation only when the authoritative receipt proves the job was never dispatched. @{nl="Geef de reservering alleen vrij wanneer het gezaghebbende bewijs aantoont dat de taak nooit is verzonden."}
+  scenario release_skipped(run:Run) by=members label="Release unsent job"@{nl="Niet-verzonden taak vrijgeven"}
+   require run.author==actor and run.request?.status==skipped and run.request?.progress==null and run.used==null and run.unfinished
+   do
+    set run.budget {held=run.budget.held-1,running=run.budget.running-1}
+    set run {used=0,unfinished=false}
+  scenario conversation_revoked on=Conversation.updated
+   do
+    let conversation=first(Conversation as row where row.id==event.id order=row.id)
+    if conversation!=null and not conversation.active
+     for run in Run as row where row.conversation==conversation and row.unfinished limit=10
+      if run.cancellation?.status!=pending
+       send Images.cancel {source=run.source,revision=1} as cancellation
+       set run {stop_requested=true,cancellation}
+  scenario member_removed on=teams.member_removed
+   do
+    if not active_member(event.user,team)
+     for run in Run as row where row.author==event.user and row.unfinished limit=10
+      if run.cancellation?.status!=pending
+       send Images.cancel {source=run.source,revision=1} as cancellation
+       set run {stop_requested=true,cancellation}
+  scenario image_progressed on=Images.submit.progressed
+   do
+    for run in Run as row where row.request?.id==event.delivery_id limit=1
+     let value=run.request?.progress
+     if value!=null
+      require count(value.outputs)<=run.revision.outputs and (value.state!=succeeded or count(value.outputs)>0)
+      require run.used==null or run.used==value.charged_jobs
+      if run.used==null and value.charged_jobs!=null
+       set run.budget {held=run.budget.held-1,spent=run.budget.spent+value.charged_jobs}
+       set run {used=value.charged_jobs}
+      if run.unfinished and value.state in [succeeded,failed,cancelled]
+       set run.budget {running=run.budget.running-1}
+       set run {unfinished=false}
+      for output in value.outputs limit=4
+       if not any(run.Output as row,row.position==output.position)
+        create Output {parent=run,position=output.position,image=output.image} as saved
+   examples seed=[pending_run,image] event={delivery_id=observed_request.id}
+    observed_request.result -> pending_run.state,pending_run.used,held_budget.held,held_budget.spent,held_budget.running,count(pending_run.Output)
+    ImageRun {source="creative-pending",revision=1,sequence=2,state=succeeded,outputs=[GeneratedImage {position=0,image}],charged_jobs=1,detail=null} -> succeeded,1,0,1,0,1
+    ImageRun {source="creative-pending",revision=1,sequence=1,state=queued,outputs=[],charged_jobs=null,detail=null} -> queued,null,1,0,1,0
+    ImageRun {source="creative-pending",revision=1,sequence=2,state=unknown,outputs=[],charged_jobs=null,detail=null} -> unknown,null,1,0,1,0
+    ImageRun {source="creative-pending",revision=1,sequence=2,state=cancelled,outputs=[],charged_jobs=null,detail=null} -> cancelled,null,1,0,0,0
+    ImageRun {source="creative-pending",revision=1,sequence=2,state=failed,outputs=[GeneratedImage {position=0,image}],charged_jobs=1,detail=null} -> failed,1,0,1,0,1
+   examples seed=[pending_run,prior_output] event={delivery_id=observed_request.id}
+    observed_request.result,pending_run.used,pending_run.unfinished,held_budget.held,held_budget.spent,held_budget.running -> held_budget.held,held_budget.spent,held_budget.running,count(pending_run.Output)
+    ImageRun {source="creative-pending",revision=1,sequence=2,state=succeeded,outputs=[GeneratedImage {position=0,image}],charged_jobs=1,detail=null},1,false,0,1,0 -> 0,1,0,1
+   examples seed=[pending_run] event={delivery_id=observed_request.id}
+    observed_request.result,pending_run.unfinished,held_budget.running -> pending_run.used,held_budget.held,held_budget.spent,held_budget.running
+    ImageRun {source="creative-pending",revision=1,sequence=3,state=cancelled,outputs=[],charged_jobs=1,detail=null},false,0 -> 1,0,1,0
+ Then
+  page /creative title="Image studio"@{nl="Beeldstudio"} poll=1s
+   require members
+   breadcrumbs
+   form generate display=inline
+    fieldset "Image prompt"@{nl="Beeldprompt"}
+     select template
+     textarea prompt
+     textarea negative
+    fieldset "Size and context"@{nl="Formaat en context"}
+     input width
+     input height
+     select conversation
+   list Run as run where can_view(actor,run) order=-created empty="No image jobs yet"@{nl="Nog geen beeldtaken"}
+    pagination
+    title row.prompt
+    status row.delivery_state
+    status row.stop_delivery
+    status row.reconcile_delivery
+    badge row.state
+    text row.stop_requested,row.used,row.detail
+    loading row.unfinished
+    gallery row.Output image=image order=position empty="No images yet"@{nl="Nog geen beelden"}
+     pagination
+    actions stop,reconcile,release_skipped
+   table Budget columns=cap,spent,held,running,active empty="No image-job allowances"@{nl="Geen budgetten voor beeldtaken"}
+    pagination
+  page /creative/from-chat title="Chat to image"@{nl="Van gesprek naar beeld"} poll=1s
+   require members
+   breadcrumbs
+   list Conversation as conversation where conversation.active empty="No conversations"@{nl="Geen gesprekken"}
+    pagination
+    title row.title
+    list row.Branch empty="No branches"@{nl="Geen vertakkingen"}
+     pagination
+     title row.title
+     list row.Turn order=position empty="No messages"@{nl="Geen berichten"}
+      pagination
+      chat_bubble
+       slot header
+        text row.role
+       slot content
+        content row.content
+      form from_turn arguments={turn=row}
+       fieldset "Image prompt"@{nl="Beeldprompt"}
+        select template
+        textarea negative
+       fieldset "Size"@{nl="Formaat"}
+        input width
+        input height
+  page /creative/recovery title="Unresolved image jobs"@{nl="Onopgeloste beeldtaken"} poll=1s
+   require members
+   breadcrumbs
+   table Run as run where run.unfinished or run.used==null columns=state,delivery_state,stop_delivery,reconcile_delivery,used,detail empty="No unresolved image jobs"@{nl="Geen onopgeloste beeldtaken"}
+    pagination
+    status row.delivery_state
+    actions stop,reconcile,release_skipped
+  page /creative/workflows title="Workflow templates"@{nl="Workflowsjablonen"} poll=1s
+   require creative_manager
+   breadcrumbs
+   alert
+    text "Upload an allowed API-format graph. Inspect its inputs, map the four fields, validate a snapshot, then publish it."@{nl="Upload een toegestane API-graaf. Inspecteer de invoer, koppel vier velden, valideer een momentopname en publiceer deze."}
+   form Template.create
+    fieldset "Graph"@{nl="Graaf"}
+     input name
+     file_input graph
+    fieldset "Input mapping"@{nl="Invoerkoppeling"}
+     input prompt_node
+     input prompt_key
+     input negative_node
+     input negative_key
+     input width_node
+     input width_key
+     input height_node
+     input height_key
+    fieldset "Limits"@{nl="Limieten"}
+     range outputs
+     input duration
+   list Template as template where template.owner==actor empty="No workflow templates yet"@{nl="Nog geen workflowsjablonen"}
+    pagination
+    title row.name
+    edit
+    action inspect
+    text row.inspection
+    list (row.inspection?.result?.fields ?? []) empty="No input fields found"@{nl="Geen invoervelden gevonden"}
+     pagination
+     text row.node,row.key,row.kind,row.label
+    action validate
+    list row.Revision order=-number empty="No revisions yet"@{nl="Nog geen versies"}
+     pagination
+     text row.number,row.published,row.validation,row.digest
+     form request_review arguments={revision=row}
+      input primary
+      input secondary
+      input expires
+     action publish
+   form Budget.create
+    ## account keeps its generated entry: user references have no catalog picker.
+    input cap
+    range parallel
+   table Budget columns=account,cap,parallel,spent,held,running,active empty="No image-job allowances"@{nl="Geen budgetten voor beeldtaken"}
+    pagination
+    edit fields=cap,parallel,active
+     input cap
+     range parallel
+     checkbox active
+  ## Nominees see only their admitted frozen review snapshots; unpublished Revision grants are unchanged.
+  page /creative/reviews title="Workflow revision reviews"
+   require creative_manager
+   breadcrumbs
+   list RevisionReviewRequest as review order=-created empty="No readable revision reviews"
+    pagination
+    text row.round,row.state,row.requester,row.primary,row.secondary,row.expires,row.number,row.subject_version,row.definition,row.outputs,row.duration,row.validation,row.digest,row.reason
+    form approve_review arguments={review=row}
+     textarea reason
+    form reject_review arguments={review=row}
+     textarea reason
+    action expire_review
+    form escalate_review arguments={review=row}
+     textarea reason
+    form supersede_review arguments={review=row}
+     input primary
+     input secondary
+     input expires
+     textarea reason
+    list row.RevisionReviewVote order=voted_at
+     pagination
+     text row.voter,row.approved,row.reason,row.voted_at

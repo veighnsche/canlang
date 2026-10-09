@@ -2166,10 +2166,46 @@ impl<'a> Checker<'a> {
         }
     }
 
-    /// Check a sequence `request={...}` envelope: declared inputs
-    /// only, with `version` the one nested override (`E5006`).
+    /// Check a sequence `request={...}` envelope: declared inputs plus
+    /// text operation identity, with `version` the one nested override.
+    /// UUIDv7 shape/freshness stay runtime-owned so validation examples
+    /// can deliberately supply malformed identities (`E5006`).
     fn check_call_request(&mut self, text: &str, op: SymbolId, request: &SyntaxNode) {
         for (key, key_node, value) in object_entries(text, request) {
+            if key == "operation_id" {
+                let mut identity = value;
+                while let Some(group) = identity
+                    && group.kind == SyntaxKind::Group
+                {
+                    identity = kids(group).into_iter().find(|n| is_expression(n.kind));
+                }
+                let nontext = identity.is_none_or(|node| {
+                    match self.types.node_types.get(&NodeKey::of(node)) {
+                        Some(ResolvedType::Scalar(Scalar::Text)) => false,
+                        None
+                        | Some(
+                            ResolvedType::Unknown | ResolvedType::Opaque(_) | ResolvedType::Error,
+                        ) => {
+                            // Sequence expressions remain runner-typed when
+                            // no production type anchors the node.
+                            matches!(node.kind, SyntaxKind::Object | SyntaxKind::Array)
+                                || (node.kind == SyntaxKind::Literal
+                                    && literal_string(text, node).is_none())
+                        }
+                        Some(_) => true,
+                    }
+                });
+                if nontext {
+                    self.diags.push(Diagnostic::error(
+                        "E5006",
+                        "request operation_id must be text".to_string(),
+                        value
+                            .map(|node| tight_span(text, node))
+                            .unwrap_or_else(|| tight_span(text, key_node)),
+                    ));
+                }
+                continue;
+            }
             if !self.call_input_named(op, key) {
                 self.diags.push(Diagnostic::error(
                     "E5006",

@@ -343,7 +343,7 @@ function checkModelValueType(field: InterimFieldDef, name: string, model: string
 }
 
 /** Reuse Values' checked field descriptor for both load-time claims and write-time values. */
-export function modelFieldConstraintSchema(field: InterimFieldDef, schema?: NormalizedSchema): {
+export function modelFieldConstraintSchema(field: Pick<InterimFieldDef, 'valueType' | 'trim' | 'min' | 'max'>, schema?: NormalizedSchema): {
   readonly schema: NormalizedSchema; readonly type: string;
 } | undefined {
   if (!Object.hasOwn(field, 'trim') && !Object.hasOwn(field, 'min') && !Object.hasOwn(field, 'max')) return undefined;
@@ -358,27 +358,28 @@ export function modelFieldConstraintSchema(field: InterimFieldDef, schema?: Norm
   // temporary text[] declaration checks the bound; the original checked
   // nominal type is restored for actual value traversal below.
   const descriptorType = parsed.array && parsed.base.kind === 'nominal' ? 'text[]' : field.valueType;
-  let contractName = '_CanModelConstraint';
+  const name = '_CanModelConstraint';
+  // Only the exact owning alias supplies the receiving field's scalar
+  // profile and declared bounds. Other nominal names retain their refusals.
+  const alias = parsed.base.kind === 'nominal' && schema?.aliases !== undefined &&
+    Object.hasOwn(schema.aliases, parsed.base.path) ? schema.aliases[parsed.base.path] : undefined;
+  const checked = normalizeSchema({
+    ...(alias === undefined || parsed.base.kind !== 'nominal' ? {} : { aliases: {
+      [parsed.base.path]: { type: alias.typeId, min: alias.lengthMin, max: alias.lengthMax, format: alias.format },
+    } }),
+    contracts: { [name]: { fields: { value: {
+    type: descriptorType,
+    ...(Object.hasOwn(field, 'trim') ? { trim: field.trim } : {}),
+    ...(Object.hasOwn(field, 'min') ? { min: field.min } : {}),
+    ...(Object.hasOwn(field, 'max') ? { max: field.max } : {}),
+  } } } } });
+  const normalized = checked.contracts[name]!.fields['value']!;
+  let contractName = name;
   while (schema !== undefined && (
     Object.hasOwn(schema.contracts, contractName) ||
     Object.hasOwn(schema.enums, contractName) ||
     (schema.aliases !== undefined && Object.hasOwn(schema.aliases, contractName))
   )) contractName += '_';
-  const aliases = schema?.aliases === undefined ? undefined : Object.fromEntries(
-    Object.entries(schema.aliases).map(([name, alias]) => [name, {
-      type: 'text', min: alias.lengthMin, max: alias.lengthMax, format: alias.format,
-    }]),
-  );
-  const checked = normalizeSchema({
-    ...(aliases === undefined ? {} : { aliases }),
-    contracts: { [contractName]: { fields: { value: {
-      type: descriptorType,
-      ...(Object.hasOwn(field, 'trim') ? { trim: field.trim } : {}),
-      ...(Object.hasOwn(field, 'min') ? { min: field.min } : {}),
-      ...(Object.hasOwn(field, 'max') ? { max: field.max } : {}),
-    } } } },
-  });
-  const normalized = checked.contracts[contractName]!.fields['value']!;
   const actual = parsed.base.kind === 'nominal' ? {
     ...normalized, type: parsed, typeId: field.valueType,
   } : normalized;

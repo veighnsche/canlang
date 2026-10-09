@@ -65,6 +65,95 @@ export interface AdmittedCall {
   checkpoint?: FenceCheckpoint;
 }
 
+interface AdmittedExecutionProvenance {
+  readonly store: StoragePort;
+  readonly context: InvocationContext;
+  readonly contextSnapshot: InvocationContext;
+  readonly checkpoint: FenceCheckpoint;
+  readonly checkpointSnapshot: FenceCheckpoint;
+  readonly revision: Revision;
+}
+
+// Admission supplies provenance; an object with the same public fields does
+// not. Only invoke's executor lifetime activates it, and no grant flag or
+// manufactured caller context can stand in for that lifetime.
+const admittedExecutions = new WeakMap<AdmittedCall, AdmittedExecutionProvenance>();
+
+function immutableAdmissionSnapshot<T>(value: T): T {
+  const copy = structuredClone(value);
+  const freeze = (part: unknown): void => {
+    if (typeof part !== 'object' || part === null) return;
+    for (const child of Object.values(part)) freeze(child);
+    Object.freeze(part);
+  };
+  freeze(copy);
+  return copy;
+}
+
+function sameAdmissionSnapshot(value: unknown, snapshot: unknown): boolean {
+  if (typeof snapshot !== 'object' || snapshot === null) return Object.is(value, snapshot);
+  if (typeof value !== 'object' || value === null ||
+      Object.getPrototypeOf(value) !== Object.getPrototypeOf(snapshot)) return false;
+  const keys = Reflect.ownKeys(snapshot);
+  if (Reflect.ownKeys(value).length !== keys.length) return false;
+  return keys.every(key => {
+    const member = Object.getOwnPropertyDescriptor(value, key);
+    const expected = Object.getOwnPropertyDescriptor(snapshot, key);
+    return member !== undefined && 'value' in member && expected !== undefined &&
+      'value' in expected && sameAdmissionSnapshot(member.value, expected.value);
+  });
+}
+
+function admittedMember(call: AdmittedCall, key: keyof AdmittedCall): unknown {
+  const member = Object.getOwnPropertyDescriptor(call, key);
+  return member !== undefined && 'value' in member ? member.value : undefined;
+}
+
+function rememberAdmittedExecution(call: AdmittedCall, store: StoragePort): AdmittedCall {
+  if (call.checkpoint === undefined) throw new Error('admission: missing owner checkpoint');
+  admittedExecutions.set(call, {
+    store, context: call.context, contextSnapshot: immutableAdmissionSnapshot(call.context),
+    checkpoint: call.checkpoint, checkpointSnapshot: immutableAdmissionSnapshot(call.checkpoint),
+    revision: call.revision,
+  });
+  return call;
+}
+
+function unchangedAdmittedExecution(call: AdmittedCall): AdmittedExecutionProvenance {
+  const provenance = admittedExecutions.get(call);
+  if (provenance === undefined || admittedMember(call, 'context') !== provenance.context ||
+      admittedMember(call, 'checkpoint') !== provenance.checkpoint ||
+      admittedMember(call, 'revision') !== provenance.revision ||
+      admittedMember(call, 'replay') !== null ||
+      !sameAdmissionSnapshot(provenance.context, provenance.contextSnapshot) ||
+      !sameAdmissionSnapshot(provenance.checkpoint, provenance.checkpointSnapshot)) {
+    throw new StateError('forbidden', 'Owner receipt observation requires an unchanged admitted call.');
+  }
+  return provenance;
+}
+
+/**
+ * Internal receipt admission authority. The host still proves verified source and
+ * native locator/version correspondence; this check grants no authority to
+ * a copied call or another store. Invoke separately requires its private active
+ * execution lifetime; this assertion cannot open or reopen that lifetime.
+ */
+export function assertOwnerReceiptAdmission(
+  call: AdmittedCall, store: StoragePort, fence: FenceScope,
+): void {
+  const provenance = unchangedAdmittedExecution(call);
+  const context = provenance.contextSnapshot, checkpoint = provenance.checkpointSnapshot;
+  if (provenance.store !== store || context.kind !== 'trusted' ||
+      context.actor !== null || typeof context.trustedSource !== 'string' ||
+      context.trustedSource.trim().length === 0 || context.app.length === 0 ||
+      checkpoint.owner.trim().length === 0 ||
+      checkpoint.owner !== (context.team?.teamId ?? context.app) ||
+      checkpoint.revision !== provenance.revision || fence.owner !== checkpoint.owner ||
+      fence.revision !== checkpoint.revision) {
+    throw new StateError('forbidden', 'Owner receipt observation requires the active trusted owner execution and its store checkpoint.');
+  }
+}
+
 /** Derive the receipt identity for a context (single home for the mapping). */
 export function receiptIdentityFor(context: InvocationContext): ReceiptIdentity {
   return {
@@ -398,7 +487,7 @@ export async function admit(input: {
     ...(input.conflictServerOnly !== undefined ? { conflictServerOnly: input.conflictServerOnly } : {}),
   });
 
-  return {
+  return rememberAdmittedExecution({
     context,
     def,
     inputs: admittedInputs,
@@ -407,7 +496,7 @@ export async function admit(input: {
     revision,
     replay: null,
     checkpoint: scope.snapshot(),
-  };
+  }, store);
 }
 
 /** Resolve refs in descriptor order with the shared stale-before-archive rule. */

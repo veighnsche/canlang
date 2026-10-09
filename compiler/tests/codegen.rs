@@ -1016,7 +1016,7 @@ fn golden_expenseflow_structure() {
         "contract label"
     );
     assert!(
-        entry.contains("count:{type:\"int\"},total:{type:\"money\"}"),
+        entry.contains("count:{\"type\":\"int\"},total:{\"type\":\"money\"}"),
         "contract fields"
     );
     assert!(entry.contains("reporting:{fields:{"), "preferences");
@@ -4731,7 +4731,7 @@ fn t15a_model_field_tags() {
         other => panic!("ref tag: {other:?}"),
     }
     match tag("f_contract") {
-        js::JsModelFieldType::Other { type_id } => assert_eq!(type_id, "demo.C"),
+        js::JsModelFieldType::Nominal { name } => assert_eq!(name, "demo.C"),
         other => panic!("contract tag: {other:?}"),
     }
     assert!(matches!(tag("f_date"), js::JsModelFieldType::Date));
@@ -5392,15 +5392,63 @@ fn t15a_model_field_modifiers_reach_artifact() {
 }
 
 #[test]
-fn t15a_unrepresentable_model_field_bound_is_diagnostic() {
-    let src = "app FieldBound\nGiven\n Item { title:text min=1+2 }\n policy Item read=members\nWhen\n crud Item by=members fields=title\nThen\n";
+fn t15a_model_field_bounds_preserve_precision_and_length_kinds() {
+    let src = "app ExactBounds\nGiven\n Item { quantity:int min=-9007199254740993 max=9007199254740993, note:text? trim min=0 max=9007199254740991, tags:text[] min=0 max=3, plain:text }\n policy Item read=members\nWhen\n crud Item by=members fields=quantity,note,tags,plain\nThen\n";
+    let (_program, artifact, diags) = d03_emit(src);
+    assert!(diags.is_empty(), "{diags:?}");
+    let model = t15a_model(&artifact, "ExactBounds.Item");
+    let quantity = t15a_field(model, "quantity");
+    assert_eq!(
+        quantity.min,
+        Some(serde_json::Value::String("-9007199254740993".into()))
+    );
+    assert_eq!(
+        quantity.max,
+        Some(serde_json::Value::String("9007199254740993".into()))
+    );
+    let note = t15a_field(model, "note");
+    assert!(note.nullable);
+    assert_eq!(note.trim, Some(true));
+    assert_eq!(note.min, Some(serde_json::Value::from(0)));
+    assert_eq!(
+        note.max,
+        Some(serde_json::Value::from(9_007_199_254_740_991u64))
+    );
+    let tags = t15a_field(model, "tags");
+    assert_eq!(tags.min, Some(serde_json::Value::from(0)));
+    assert_eq!(tags.max, Some(serde_json::Value::from(3)));
+    let plain = t15a_field(model, "plain");
+    assert_eq!((plain.trim, &plain.min, &plain.max), (None, &None, &None));
+    let json = plain.to_json();
+    assert!(!json.contains("\"trim\"") && !json.contains("\"min\"") && !json.contains("\"max\""));
+}
+
+#[test]
+fn t15a_unsafe_length_bound_is_diagnostic() {
+    let src = "app UnsafeLength\nGiven\n Item { title:text max=9007199254740992 }\n policy Item read=members\nWhen\n crud Item by=members fields=title\nThen\n";
     let (_program, _artifact, diags) = d03_emit(src);
     assert!(
         diags
             .iter()
             .any(|d| d.code == "E6008" && d.message.contains("model field bound")),
-        "unrepresentable checked bound must not disappear from artifact metadata: {diags:?}"
+        "{diags:?}"
     );
+}
+
+#[test]
+fn t15a_unrepresentable_model_field_bound_is_diagnostic() {
+    for field in ["title:text min=1+2", "amount:decimal max=1.20+0.10"] {
+        let src = format!(
+            "app FieldBound\nGiven\n Item {{{field}}}\n policy Item read=members\nWhen\n crud Item by=members\nThen\n"
+        );
+        let (_program, _artifact, diags) = d03_emit(&src);
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code == "E6008" && d.message.contains("model field bound")),
+            "unrepresentable checked bound must not disappear from artifact metadata: {diags:?}"
+        );
+    }
 }
 
 // --- T15b provider-descriptor join -------------------------------------------
