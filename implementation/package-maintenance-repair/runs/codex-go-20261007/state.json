@@ -4392,6 +4392,12 @@
       "upstream": "origin/codex/packages-repair-20261009",
       "sync": "Clean/no divergence; ff-only no-recurse-submodules pull reports already up to date.",
       "held": "Native preparation/release activation and all other recipient-specific human holds preserved; local execution only."
+    },
+    "shared_gate_repairs": {
+      "workspace_chromium": "c9915950 published; all3workflow actionlint passes; Linux run due",
+      "manual_receipts": "Plan2 builds Values catalog before its real tests, and catalog/compiler/Chromium before Cloudflare/workspace consumers. Existing32receipt/runner cases pass with full omission/reorder/failed prerequisite refusals. Direct3profile ordering assertions pass. Native preparation debug prerequisite remains private; activation held.",
+      "completion_engines": "CAN_COMPLETION_REQUIRE_ENGINES explicitly passes strict Turbo environment to existing native compiler test entry; automatic CI direct Cargo already retained it.",
+      "remaining": "Current-head Linux/Codex review and foreign producer fixes remain required."
     }
   }
 }
