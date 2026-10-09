@@ -17038,6 +17038,7 @@ fn loose_equal(a: &ResolvedType, b: &ResolvedType) -> bool {
         ) => ao == bo && (ao.is_some() || ac == bc),
         (ResolvedType::Record { symbol: a, .. }, ResolvedType::Record { symbol: b, .. }) => a == b,
         (ResolvedType::Message(a), ResolvedType::Message(b)) => a == b,
+        (ResolvedType::InlineMessage, ResolvedType::InlineMessage) => true,
         (
             ResolvedType::Action {
                 targets: a,
