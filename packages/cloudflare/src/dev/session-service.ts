@@ -493,7 +493,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
       }
       return { sourceRevision: captured.sourceRevision, inputDigest: captured.epochMaterial };
     },
-    async check(inputs) {
+    async check(inputs, signal) {
       const captured = captures.get(inputs.inputDigest);
       const helpIndexRevision = helpByDigest.get(inputs.inputDigest)?.revision ?? null;
       if (captured === undefined) {
@@ -505,7 +505,8 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
         return { complete: false, passed: false, detail: failureDetail(captured, "profile_unsupported", "selected app does not match source app declaration", helpIndexRevision) };
       }
       try {
-        const result = await compileCapturedSingleFile(captured);
+        const result = await compileCapturedSingleFile(captured, signal);
+        signal.throwIfAborted();
         if (result.kind === "artifact") {
           artifacts.set(inputs.inputDigest, { artifact: result.artifact, bytes: result.artifactBytes });
           return {
@@ -541,6 +542,7 @@ export async function startDevSessionService(options: SessionServiceOptions): Pr
           },
         };
       } catch (error) {
+        if (signal.aborted && error === signal.reason) throw error;
         return { complete: false, passed: false, detail: failureDetail(captured, "tool_failure", error instanceof Error ? error.message : String(error), helpIndexRevision) };
       }
     },

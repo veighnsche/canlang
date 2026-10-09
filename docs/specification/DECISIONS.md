@@ -4579,7 +4579,6 @@ Merge exact reviewed integrated4c063189/Dev4877 compiler-check caller and its ge
 
 Extend the existing genuine compiler/native fixture, preserving31success paths plus ordinary replay, to the released public retained entry at age16minutes with real StoragePort commit and file-access tripwires. Exact saved scalar/array values survive current updates without changing any physical receipt/domain/history/outbox/schedule state. Real generated CRUD archive withholds saved values through ordinary and dedicated public projection; revoked membership refuses recovery, while internal State projection separately returns its documented empty result. Keep private association metadata outside public output. Actual target1/1, changed-fixture strict Clippy and formatting pass; the fixture's explicit archive-default E3009 was corrected by omission rather than a production workaround. Producer0b79 remains unchanged. Dev owns its existing genuine portable D1 witness; consume the released owner result, without a parallel harness or broader hold/task acceptance.
 
-
 ## 2026-10-09 — qualify native scalar receipts through the real portable consumer (unfinished)
 
 Use a small actual .can witness and owning captured native compiler/caller; require its source/module/hash-bound plans and awaited markers before activation. Run real installed public HTTP/canonical mutations and MCP readback against separate Identity and two owner D1 databases. For dedicated aged recovery, a nonce-gated trusted test host calls the existing API with actual resolved Identity/owner routing and selected-store/file tripwires; it never supplies State associations, assembly evidence, a verdict or projection. Preserve physical receipts, original scalars after updates/stale refs, current archive/revocation/owner/Public refusals and full resources/history. Add copied issuer and source/JS/map correspondence controls.
@@ -4603,6 +4602,12 @@ changed source. Transition write provenance and the exact Dev portable release
 remain separate prerequisites; no empty mutation proof or original-reference
 acceptance follows.
 
+## 2026-10-09 — consume released native arrays through portable saved recovery (unfinished parent)
+
+Intake exact reviewed coordinator main85188b3e/Compiler0b79 at the committed scalar-consumer boundary, preserving both decision histories and all precise holds. Rebuild its owning native compiler and extend the existing genuine .can/installed public/workerd/owner-D1 witness. Use owning T[]/T[]? plans, types and awaited observations; no invented adapter, metadata or duplicate array implementation. Eleven stored scalar/int[]?/bool[]/text[] results cover null, empty and populated int64 strings, original ordinary/dedicated aged replay after changed rows/stale refs, exact receipts/all resources, archive/current authority withholding and issuer/source/JS/map refusals. Keep selected.store commit and file tripwires.
+
+The final full portable journey passes1/1 in53.18s; owning CF emit, root noEmit and zero-violation boundaries pass. The first draft wrongly expected the Compiler Node/Memory bad-element rejection receipt through public HTTP. Actual HTTP validates shape and elements before State: require exact zero-write resources and no receipt for both malformed inputs, then rerun the full affected journey. A test-only inferred field type caused an owning emit failure; use the actual exported ArtifactModelField type and emitted integer/nullable/array descriptor, without guessing int array valueType. Reuse unchanged producer closure/catalog and earlier Office/browser checks only at their recorded scopes. Reconcile cumulative path coverage with checkpoint unadvanced. Required/nested/model/nominal arrays and wider source/owner/hook/query/help/G2–G3 joins remain unqualified.
+
 ## 2026-10-09 — retain transition provenance refusal during whole qualification
 
 The source66b whole run completes129targets with1320passed/2failed/0ignored and
@@ -4617,14 +4622,9 @@ fields also need their full influencing-read/control closure, since changed
 rows are projected separately from typed results. No empty void association,
 snapshot substitution, raw replay bypass or gate weakening is authorized.
 
-## 2026-10-09 — qualify native scalar receipts through the real portable consumer (unfinished)
+## 2026-10-09 — preserve control usage exit semantics for help and rank lookup
 
-
-## 2026-10-09 — consume released native arrays through portable saved recovery (unfinished parent)
-
-Intake exact reviewed coordinator main85188b3e/Compiler0b79 at the committed scalar-consumer boundary, preserving both decision histories and all precise holds. Rebuild its owning native compiler and extend the existing genuine .can/installed public/workerd/owner-D1 witness. Use owning T[]/T[]? plans, types and awaited observations; no invented adapter, metadata or duplicate array implementation. Eleven stored scalar/int[]?/bool[]/text[] results cover null, empty and populated int64 strings, original ordinary/dedicated aged replay after changed rows/stale refs, exact receipts/all resources, archive/current authority withholding and issuer/source/JS/map refusals. Keep selected.store commit and file tripwires.
-
-The existing actual Office business probe also passes36security/business observations and2/2authored examples twice on the current3016input capture, with no serving-store changes and successful owned cleanup. SourceRevision b9aa804f6b2f9d15e5446d4435c44e51e8dd017eb8fe2e0127514d7d6658a088, epoch ae0022a3d43bd2babaab31c5fcc226c9efa73b6841f74c7d1cff5311fe1f02a4 and artifact a6981138d5038311cc5ab3c8defab6ef9dfe5b6a8860e7337d13ad0244a372b9 pin this scoped requalification. The frozen Office source remains ba4a6f00a0f53187139a128af725da43fdf437d8a0df72d3671b86d7072362a3; browser19/19 retains its earlier scope and G2–G3 remain open.
+Treat the actual control-client missing construct ID and rank ref codes as usage errors at the installed JSON CLI boundary. Return exit2 for both, keeping help exit0 and unavailable control exit1; no socket, compiler help availability or ranking permission changes. Source-current CF emit and the directly affected installed-entry case1/1 pass with one stdout envelope and no stderr. Consume reviewed coordinator b9ecfd06 via safe fast-forward and rebuild its owning native compiler, retaining unchanged portable-array qualification and all precise holds. Reconcile accumulated file-tree coverage with checkpoint unadvanced. T04/T11 and G2–G3 remain open.
 
 ## 2026-10-09 — consume released genuine portable scalar fixture
 
@@ -4653,3 +4653,25 @@ under current access; source closure12/12, strict all-targetClippy/fmt and finit
 independent review pass. This uses released State/Dev markers without widening
 mutation/query/composite or held profiles. Changed-source whole qualification
 and transition write provenance remain required; no original-reference credit.
+
+## 2026-10-09 — retain the sole current compiler integration dependency
+
+Current d9c50fe1 whole qualification completes129targets1321passed/1failed/
+0ignored with real engines/Node24/exactdraft/currentcatalog and no body skips.
+The only failure remains actual state-machine replay. Preserve its assertion
+until the real State/Dev owner-session intermediate-row/final-write producer
+and consumer are released and qualified. Observation denial must also protect
+dependent changed public fields; authentic intermediate rows alone do not
+establish that projection. Consume exact reviewed d87213ae caller
+cancellation/usage correction and reuse its owning captured5/5; compiler source
+is unchanged. Incoming paths and accumulated owner records remain registered,
+complete file-tree checkpoint unadvanced. No full original reference, mutation
+activation, held-policy or whole passing-suite claim follows.
+
+## 2026-10-09 — cancel the owned captured compiler before endpoint cleanup
+
+Carry a core-owned stop signal through the actual service check and captured compiler child. Aborting termination retains the first error, signals only that owned ChildProcess, escalates SIGTERM to SIGKILL after250ms if it remains live, and waits for actual close before removing staging. Check/prepare publication retains existing currentness barriers, so cancelled late output never becomes current, history, a failure focus or a serving preview. Preserve ordinary compiler flag/source/catalog semantics and owned preview disposal/error propagation.
+
+Source-current CF emit, all3Node service controls, affected core8/private-session3/genuine native compiler5 (16/16), root noEmit and zero-violation boundaries pass. The new component-labelled slow compiler uses real captured spawn/session/socket lifetime and deliberately emits diagnostics while ignoring SIGTERM. Root strengthens the draft to let the actual socket stop trigger cancellation before joining owner cleanup; it meets3seconds, requires owned child/staging/descriptor/socket absence, and verifies no late check or preview. This proves lifecycle behavior, not fabricated native app acceptance. Earlier genuine portable scalar/array and Office/browser results retain their exact scopes; defining State transition provenance, Compiler working help/profile and G2–G3 remain unfinished.
+
+**Pending producer proposal, not Dev acceptance:** Capability is implementing beginScenarioReceiptMutation over the admitted call/exact physical store and one State-owned OwnerMutationSession. Dev's dependent runtime must preserve actual issued raw rows through native view/capture, stage with scenario cause and consume finalize output without independent version rewrites. The current wireSnapshot clone loses the proposed provenance. Exact source/types/tests have not been released; keep provisional refusal and Compiler unclaimed closure until genuine consumer/combined qualification. No host-assigned proof or overlay registration is authorized by this proposed ABI.
