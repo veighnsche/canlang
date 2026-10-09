@@ -7,14 +7,14 @@ import { pathToFileURL } from 'node:url';
 import { compileFunction, constants as vmConstants } from 'node:vm';
 import { Miniflare } from 'miniflare';
 import type { D1Database } from '@cloudflare/workers-types';
-import type { CompileArtifact } from '@canlang/contracts';
+import type { CompileArtifact, PageRecordsQuery } from '@canlang/contracts';
 import { buildSessionCookie, createD1IdentityStore, ensureIdentitySchema,
   resolveIdentity, sha256HexText } from '@canlang/identity';
 import { handlePageRequest } from '@canlang/interfaces';
 import type { PageHttpDeps } from '@canlang/interfaces';
 import { createD1Storage } from '@canlang/state/storage/d1';
 import { createD1OwnerRouter } from '@canlang/state/storage/owner-router';
-import { FIXED_NOW, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
+import { FIXED_NOW, asModel, makeBatch, makeRow, uuidv7 } from '@canlang/state/testing/invocation/fixtures';
 import { assembleModules } from '../src/runtime/modules.js';
 import { resolveProducerFile } from '../src/deploy/producer-files.js';
 
@@ -50,7 +50,7 @@ test('page scopes route verified teams to distinct physical stores and retain ca
       identities.createUser({ email: `${name}@owner-pages.example.test`, password_hash: 'unused', email_verified: true })));
     const memberA = await identities.createMembership({ team_id: teamA.team_id, user_id: users[0]!.user_id,
       is_owner: false, roles: [] });
-    await identities.createMembership({ team_id: teamB.team_id, user_id: users[1]!.user_id, is_owner: false, roles: [] });
+    const memberB = await identities.createMembership({ team_id: teamB.team_id, user_id: users[1]!.user_id, is_owner: false, roles: [] });
     await identities.createMembership({ team_id: unknownTeam.team_id, user_id: users[3]!.user_id, is_owner: false, roles: [] });
     const tokens = ['page-session-a', 'page-session-b', 'page-session-none', 'page-session-unknown'];
     for (const [index, team] of [teamA, teamB, null, unknownTeam].entries()) {
@@ -130,6 +130,25 @@ test('page scopes route verified teams to distinct physical stores and retain ca
       assert.deepEqual(second, first);
       assert.equal(first.totalCount, 1);
       assert.equal(first.rows[0]?.fields['label'], 'Only team A');
+      const readRecords = scope.readRecords;
+      assert.equal(typeof readRecords, 'function');
+      assert.ok(readRecords);
+      const beforeNative = await stateSnapshot();
+      const native = await readRecords(MODEL, {});
+      assert.equal(native.length, 1);
+      assert.equal(native[0]?.['label'], 'Only team A');
+      assert.equal(native[0]?.['count'], 1n);
+      assert.equal(native[0]?.['version'], 1n);
+      assert.equal(native[0]?.['archived_at'], null);
+      assert.deepEqual(native[0]?.['owner'], { kind: 'user', id: users[0]!.user_id });
+      assert.deepEqual(Object.keys(native[0]!).sort(), ['archived_at', 'count', 'created', 'created_by',
+        'id', 'label', 'owner', 'updated', 'updated_by', 'version']);
+      // Extra renderer arguments cannot replace this scope's admitted identity.
+      const nativeAgain = await Reflect.apply(readRecords, undefined, [MODEL, {}, identityB]);
+      assert.deepEqual(nativeAgain, native);
+      assert.equal(JSON.stringify(native, (_key, value) => typeof value === 'bigint' ? String(value) : value)
+        .includes('Only team B'), false);
+      assert.deepEqual(await stateSnapshot(), beforeNative);
       assert.equal(routeCalls, before + 1);
       assert.ok(pageDeps.query);
       const fallbackRead = await pageDeps.query(identityB, MODEL, { includeCount: true });
@@ -181,6 +200,81 @@ test('page scopes route verified teams to distinct physical stores and retain ca
       assert.equal(response.status, 403, await response.clone().text());
       assert.equal((await response.json() as { code: string }).code, 'forbidden');
       assert.deepEqual(await stateSnapshot(), beforeState);
+      assert.equal(fallbackCalls, 0);
+    }
+
+    // Source reads have no collection limit. These are declared-model setup
+    // rows committed to the real owner store, not a compiled create workflow.
+    {
+      assert.ok(pageDeps?.createReadScope);
+      const store = await boundary.forIdentity(identityA);
+      const privateModel = `${APP}.PrivateEntry`;
+      const seeds = Array.from({ length: 130 }, (_, index) => ({ model: asModel(MODEL), row: makeRow({
+        id: `native-page-${String(index).padStart(3, '0')}`, createdBy: users[0]!.user_id,
+        updatedBy: users[0]!.user_id, data: { label: `Native team A ${index}`, count: String(index + 2),
+          owner: { id: users[0]!.user_id } },
+      }) }));
+      seeds.push({ model: asModel(privateModel), row: makeRow({ id: 'native-private',
+        createdBy: users[0]!.user_id, updatedBy: users[0]!.user_id,
+        data: { label: 'PRIVATE_NATIVE_PAGE_ROW', count: '999' },
+      }) });
+      await store.commit(makeBatch(await store.readRevision(), { writes: seeds.map(seed => ({
+        kind: 'insert', model: seed.model, row: seed.row,
+      })) }));
+      try {
+        const scope = await pageDeps.createReadScope(identityA);
+        const readRecords = scope.readRecords;
+        assert.ok(readRecords);
+        const beforeReads = await stateSnapshot();
+        const rows = await readRecords(MODEL, {});
+        assert.equal(rows.length, 131);
+        assert.equal(rows.filter(row => String(row['id']).startsWith('native-page-')).length, 130);
+        assert.equal(rows.find(row => row['id'] === 'native-page-129')?.['count'], 131n);
+        assert.ok(rows.every(row => typeof row['count'] === 'bigint' && row['archived_at'] === null));
+        let predicateCalls = 0;
+        const selected = await readRecords(MODEL, { where: (row: Record<string, unknown>) => {
+          predicateCalls++;
+          return typeof row['count'] === 'bigint' && row['count'] > 127n;
+        }, order: ['-count'], limit: 4 });
+        assert.deepEqual(selected.map(row => row['count']), [131n, 130n, 129n, 128n]);
+        assert.equal(predicateCalls, 131, 'authority revalidation does not evaluate source predicates twice');
+        assert.deepEqual(await readRecords(privateModel, {}), []);
+        assert.equal(rows.some(row => Object.values(row).includes('PRIVATE_NATIVE_PAGE_ROW')), false);
+        const unsupported: readonly PageRecordsQuery[] = [
+          { authority: 'owner' }, { archived: 'include' }, { parent: { id: 'foreign-parent' } },
+          { where: 'unsupported-selector' }, { order: 23 }, { limit: -1 },
+        ];
+        for (const query of unsupported) {
+          await assert.rejects(() => readRecords(MODEL, query), (error: unknown) =>
+            typeof error === 'object' && error !== null && 'code' in error && error.code === 'validation');
+        }
+        assert.deepEqual(await stateSnapshot(), beforeReads);
+        assert.equal(fallbackCalls, 0);
+      } finally {
+        await store.commit(makeBatch(await store.readRevision(), { writes: seeds.map(seed => ({
+          kind: 'remove', model: seed.model, id: seed.row.id, expectedVersion: seed.row.version,
+        })) }));
+      }
+    }
+
+    // Identity changes during an awaited source predicate cannot disclose the
+    // earlier native projection; this revokes the actual other owner's member.
+    {
+      assert.ok(pageDeps?.createReadScope);
+      const scope = await pageDeps.createReadScope(identityB);
+      const readRecords = scope.readRecords;
+      assert.ok(readRecords);
+      const beforeState = await stateSnapshot();
+      let evaluated = false;
+      await assert.rejects(() => readRecords(MODEL, { where: async () => {
+        evaluated = true;
+        await identities.removeMembership(memberB.membership_id);
+        return true;
+      } }), (error: unknown) => typeof error === 'object' && error !== null && 'code' in error && error.code === 'forbidden');
+      assert.equal(evaluated, true);
+      assert.deepEqual(await stateSnapshot(), beforeState);
+      const response = await page.fetch(requestFor(tokens[1]!));
+      assert.equal(response.status, 403, await response.clone().text());
       assert.equal(fallbackCalls, 0);
     }
 
