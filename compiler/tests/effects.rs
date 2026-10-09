@@ -1,20 +1,13 @@
 //! PR5A effects tests: `E4xxx` diagnostics plus the [`EffectTables`]
 //! emission input.
 //!
-//! The pass is included directly until the coordinator wires
-//! `analysis::effects`; the root re-exports below let the included module
-//! use `crate::` paths that keep working after wiring.
+//! Exercise the wired library pass through `analysis::effects` so its
+//! internal helpers retain their owning crate's visibility boundaries.
 
 use canlang_compiler::{analysis, diagnostic, source, syntax};
 
-/// Test-only inclusion: the pass's public emission API is read by
-/// codegen after wiring, so unread-field lints are allowed here. This
-/// does not weaken the library build, where the module will be exported.
-#[allow(dead_code)]
-#[path = "../src/analysis/effects.rs"]
-mod effects;
-
 use analysis::catalog::{Catalog, CatalogRequest, load_catalog};
+use analysis::effects;
 use analysis::resolve::{self, ResolveTables};
 use analysis::types;
 use diagnostic::Diagnostic;
@@ -1240,11 +1233,11 @@ Then
 "#;
 
 #[test]
-fn f6_bare_model_checks_with_only_the_standing_e1203() {
+fn f6_bare_model_checks_cleanly() {
     use effects::CohortKind;
     let catalog = fixture();
     let (tables, effects, diags) = run(F6_BARE, Some(&catalog));
-    assert_eq!(codes(&diags), vec!["E1203"], "all diagnostics: {diags:?}");
+    assert!(diags.is_empty(), "all diagnostics: {diags:?}");
     let sweep = tables.by_canonical["Shop.sweep"];
     let body = effects.scenarios.get(&sweep).expect("sweep body");
     let cohort = body.cohort.as_ref().expect("checked cohort");
@@ -1269,11 +1262,11 @@ Then
 "#;
 
 #[test]
-fn f6_anchored_collection_checks_with_only_the_standing_e1203() {
+fn f6_anchored_collection_checks_cleanly() {
     use effects::CohortKind;
     let catalog = fixture();
     let (tables, effects, diags) = run(F6_ANCHORED, Some(&catalog));
-    assert_eq!(codes(&diags), vec!["E1203"], "all diagnostics: {diags:?}");
+    assert!(diags.is_empty(), "all diagnostics: {diags:?}");
     let cancel = tables.by_canonical["Shop.cancel_each"];
     let body = effects.scenarios.get(&cancel).expect("cancel_each body");
     let cohort = body.cohort.as_ref().expect("checked cohort");
@@ -1301,7 +1294,7 @@ fn f6_committed_trigger_bare_model_checks() {
     use effects::CohortKind;
     let catalog = fixture();
     let (tables, effects, diags) = run(F6_COMMITTED_BARE, Some(&catalog));
-    assert_eq!(codes(&diags), vec!["E1203"], "all diagnostics: {diags:?}");
+    assert!(diags.is_empty(), "all diagnostics: {diags:?}");
     let refresh = tables.by_canonical["Shop.refresh"];
     let body = effects.scenarios.get(&refresh).expect("refresh body");
     let cohort = body.cohort.as_ref().expect("checked cohort");
@@ -1326,7 +1319,7 @@ Then
 fn f6_missing_as_binding_accepted() {
     let catalog = fixture();
     let (tables, effects, diags) = run(F6_NO_BIND, Some(&catalog));
-    assert_eq!(codes(&diags), vec!["E1203"], "all diagnostics: {diags:?}");
+    assert!(diags.is_empty(), "all diagnostics: {diags:?}");
     let sweep = tables.by_canonical["Shop.sweep"];
     let body = effects.scenarios.get(&sweep).expect("sweep body");
     let cohort = body.cohort.as_ref().expect("checked cohort");
@@ -1610,13 +1603,9 @@ Then
 fn f6_bounded_loop_rules_retained() {
     let catalog = fixture();
     let (_, _, diags) = run(F6_BOUNDED_LOOP, Some(&catalog));
-    // The fanout scenario carries only the standing parser marker; the
-    // bad limit still fails under the existing types rule (E3001).
-    assert_eq!(
-        codes(&diags),
-        vec!["E1203", "E3001"],
-        "all diagnostics: {diags:?}"
-    );
+    // The fanout scenario parses cleanly; the bad limit still fails
+    // under the existing types rule (E3001).
+    assert_eq!(codes(&diags), vec!["E3001"], "all diagnostics: {diags:?}");
     assert!(
         diags
             .iter()
@@ -1628,10 +1617,9 @@ fn f6_bounded_loop_rules_retained() {
 #[test]
 fn f6_draft_bodies_accepted_without_trimming() {
     // M9: the four real each= sites (read-only draft reads) carry valid
-    // cohorts and draw zero E4055 — valid bodies stay clean of new
-    // findings. Pre-existing cascades (E1203 + the resolve join's
-    // unbound-binding E2001/E2013/E3001s) are untouched; exact corpus
-    // totals stay pinned by the read-only draft_outcome_table test.
+    // cohorts and draw zero E4055. The declared-event producer now parses
+    // each= and resolves its child binding; remaining independent findings
+    // stay pinned by the draft_outcome_table test.
     use effects::CohortKind;
     let catalog = fixture();
     for (file, scenarios) in [
