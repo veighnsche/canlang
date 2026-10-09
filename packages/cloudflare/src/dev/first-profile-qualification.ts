@@ -171,7 +171,16 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
     assert.ok(Array.isArray(created.body.records));
     const createdProjection = created.body.records.map(object).find(value => object(value.data).name==='Paper'); assert.ok(createdProjection);
     const row = await stored(string(createdProjection.id)); assert.ok(row);
-    assert.equal(row.owner,ava.owner); assert.equal(row.version,1); assert.equal(row.archived_at,null);
+    // State's D1 adapter leaves this legacy row column empty; the actual
+    // owner boundary is its persisted physical database pin and route.
+    assert.equal(row.owner,'');
+    for (const owner of [ava.owner,cal.owner]) {
+      const handle = owners.get(owner)!; assert.ok(handle);
+      assert.deepEqual(await handle.prepare('SELECT app,owner FROM state_owner_pin WHERE id=1').first(),{app,owner});
+    }
+    assert.equal(await owners.get(cal.owner)!.prepare('SELECT id FROM records WHERE model=? AND id=?').bind(model,row.id).first(),null,
+      'the created row belongs only to its actual pinned owner database');
+    assert.equal(row.version,1); assert.equal(row.archived_at,null);
     assert.deepEqual(JSON.parse(row.data),{name:'Paper',quantity:'4',available:true,stock:'0',locked:false});
     const beforeReplay = await snapshot(), replay = await invoke(ava,`${model}.create`,created.inputs,created.id);
     assert.equal(replay.status,200); assert.equal(replay.body.status,'replayed'); assert.deepEqual(replay.body.result,created.body.result);
@@ -224,8 +233,9 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
     assert.notEqual(object(foreignRead.body.result).isError,true);
     assert.deepEqual(object(object(foreignRead.body.result).structuredContent).records,[]);
     const outsiderGrant = await request(dee,'/mcp/grants',{client_id:'first-profile-qualification'});
-    assert.ok(outsiderGrant.status===401 || outsiderGrant.status===403,'nonmember read grant must refuse');
-    assert.equal(object(await outsiderGrant.json()).code,'forbidden');
+    assert.equal(outsiderGrant.status,403,'authenticated nonmember read grant must refuse');
+    assert.deepEqual(object(await outsiderGrant.json()),{error:'mcp-grant needs an active team membership'},
+      'consume the actual grant-admission envelope, not the operation business-error shape');
     // No bearer is sent for the actual anonymous read; session cookies do not substitute MCP authority.
     const publicRead = await read(`${model}.read`,null,'');
     assert.ok(publicRead.status===401 || publicRead.status===403);
@@ -254,7 +264,10 @@ export async function qualifyInstalledFirstProfile(capture: SingleFileCapture, s
         check(); const result = await runCompiledExamples({...preview.exampleInput(),testkit,...(signal===undefined?{}:{signal}),runId:callId(),
           selectedRow:{operation:`${model}.update`,rowIndex}});
         assert.deepEqual(await snapshot(),before,'actual isolated authored rows preserve all serving resources');
-        assert.equal(result.ok,true,'selected actual authored CRUD row must pass');
+        const failedRows = result.report.cases.flatMap(entry => entry.kind==='table' ? entry.rows
+          .filter(row=>row.outcome!=='passed').map(({rowIndex,outcome,detail,mismatches})=>
+            ({operation:entry.operation,rowIndex,outcome,detail,mismatches})) : []);
+        assert.equal(result.ok,true,`selected actual authored CRUD row must pass: ${JSON.stringify(failedRows)}`);
         assert.equal(result.executed,1); assert.equal(result.report.summary.total,1); assert.equal(result.report.summary.passed,1);
         assert.equal(result.report.summary.failed,0); assert.equal(result.report.summary.setupFailed,0); assert.equal(result.report.summary.unsupported,0);
         pass(rowIndex===0 ? ['can.v1.examples.table.crud','can.v1.fixture.model'] : ['can.v1.examples.table.error'],
