@@ -10,7 +10,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { invoke } from '../../src/invocation/invoke.js';
+import { invoke, invokeRetainedReceiptOnly } from '../../src/invocation/invoke.js';
 import type { ExecuteHandler, ExecutionEffects } from '../../src/invocation/invoke.js';
 import { admit, receiptIdentityFor } from '../../src/invocation/admission.js';
 import type { AdmittedCall } from '../../src/invocation/admission.js';
@@ -145,15 +145,20 @@ describe('invoke', () => {
       { identity: makeIdentity({ actor: base.identity.actor, teamId: 'foreign-team' }) },
       { envelope: { ...envelope, operation: other.name } },
     ]) {
-      const error = await captureStateError(invoke({ ...recovery, ...override }));
+      const error = await captureStateError(invokeRetainedReceiptOnly({ ...recovery, ...override }));
       assert.equal(error.code, 'not_found');
     }
-    const conflict = await captureStateError(invoke({ ...recovery,
+    const conflict = await captureStateError(invokeRetainedReceiptOnly({ ...recovery,
       envelope: { ...envelope, inputs: { marker: 'changed' } },
     }));
     assert.equal(conflict.code, 'conflict');
     const invalid = await captureStateError(invoke({ ...recovery, admissionMode: 'unknown' as never }));
     assert.equal(invalid.code, 'validation');
+    const forced = await captureStateError(invokeRetainedReceiptOnly({ ...recovery,
+      admissionMode: 'execute-or-replay',
+      envelope: { ...envelope, operation_id: uuidv7(FIXED_NOW, 806) },
+    } as Parameters<typeof invokeRetainedReceiptOnly>[0]));
+    assert.equal(forced.code, 'not_found');
     assert.equal(executed, 0);
     assert.equal(committed, 0);
     assert.equal(await store.readRevision(), revision);
@@ -179,17 +184,17 @@ describe('invoke', () => {
       } }, execute: async () => { executed += 1; return bareEffects(); },
     };
     for (const elapsed of [16 * 60 * 1000, 24 * 60 * 60 * 1000]) {
-      const replay = await invoke({ ...recovery, clock: { nowMs: () => FIXED_NOW + elapsed } });
+      const replay = await invokeRetainedReceiptOnly({ ...recovery, clock: { nowMs: () => FIXED_NOW + elapsed } });
       assert.equal(replay.status, 'replayed');
       assert.deepEqual(replay.result, first.result);
     }
-    const rejected = await captureStateError(invoke({ ...recovery, envelope: rejectionEnvelope }));
+    const rejected = await captureStateError(invokeRetainedReceiptOnly({ ...recovery, envelope: rejectionEnvelope }));
     assert.equal(rejected.code, rejection.code);
     assert.equal(rejected.message, rejection.message);
     const denied = registryFor(makeDef({ by: 'owner' }));
-    assert.equal((await captureStateError(invoke({ ...recovery, registry: denied }))).code, 'forbidden');
+    assert.equal((await captureStateError(invokeRetainedReceiptOnly({ ...recovery, registry: denied }))).code, 'forbidden');
     await memberships.removeMembership(alice.membership.membership_id);
-    assert.equal((await captureStateError(invoke(recovery))).code, 'forbidden');
+    assert.equal((await captureStateError(invokeRetainedReceiptOnly(recovery))).code, 'forbidden');
     assert.equal(executed, 0);
     assert.equal(committed, 0);
     assert.equal(await store.readRevision(), revision);
