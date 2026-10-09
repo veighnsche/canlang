@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import type { BusinessError, CompileArtifact, ExampleReport, ObservationMismatch, OperationId, TableRowResult } from "@canlang/contracts";
 import type { CompiledExampleInput } from "../src/dev/example-runner.js";
+import type { PreviewRefusal } from "../src/dev/preview-bridge.js";
 import { attachDevSessionService, startDevSessionService } from "../src/dev/session-service.js";
 import { runDevControlArgv, type DevControlEnvelope } from "../src/dev/control-client.js";
 
@@ -93,7 +94,7 @@ async function ownerFixture() {
   for (const name of ["compiler", "catalog.json", "help.md"]) writeFileSync(join(root, name), name);
   writeFileSync(runtime, "runtime v1");
   let admittedBytes: Uint8Array | null = null;
-  const refusalObservers = new Set<(event: { requestId: string; status: number; error: BusinessError }) => void>();
+  const refusalObservers = new Set<(event: PreviewRefusal) => void>();
   let unobserves = 0;
   const owner = await startDevSessionService({
     selectedApp: "Office", runtimeDir,
@@ -103,7 +104,7 @@ async function ownerFixture() {
     previewBuilder: async (_artifact: CompileArtifact, capture, artifactBytes) => {
       admittedBytes = artifactBytes;
       return { id: `build-${capture.sourceSha256.slice(0, 12)}`, dispose: async () => undefined,
-      observeRefusals: (handler: (event: { requestId: string; status: number; error: BusinessError }) => void) => {
+      observeRefusals: (handler: (event: PreviewRefusal) => void) => {
         refusalObservers.add(handler);
         return () => { refusalObservers.delete(handler); unobserves += 1; };
       },
@@ -119,7 +120,7 @@ async function ownerFixture() {
     profile: "local-d1-identity", runtimeDir });
   return { owner, client, root, app, runtime,
     mutateAdmittedBytes: () => { admittedBytes?.fill(88); },
-    emitRefusal: (event: { requestId: string; status: number; error: BusinessError }) => {
+    emitRefusal: (event: PreviewRefusal) => {
       for (const observer of refusalObservers) observer(event);
     },
     subscriberCount: () => refusalObservers.size,
@@ -227,6 +228,16 @@ it("projects observed business refusals through the owner and releases the obser
     expect(detail).toMatchObject({ ok: true, result: { detail: { status: 403, retryable: false } } });
     expect(JSON.stringify([preview, listed, lookup, detail])).not.toMatch(/PRIVATE_(?:HTTP_MESSAGE_AND_VALUES|FIELD|CODE)/);
     expect(JSON.stringify([preview, listed, lookup, detail])).not.toContain(privateOperation);
+
+    fixture.emitRefusal({ requestId: "mcp1", status: 200, transport: "mcp",
+      error: { code: "busy", message: secret, retryable: true } });
+    const mcpRef = `${fixture.client.identity.sessionId}/${first.revision}/mcp1/f0`;
+    expect(await control(["failure.lookup", "--ref", mcpRef])).toMatchObject({ ok: true, result: {
+      code: "busy", owner_ref: { status: 200, transport: "mcp" } } });
+    const mcpDetail = await control(["failure.detail", "--ref", mcpRef]);
+    expect(mcpDetail).toMatchObject({ ok: true, result: { detail: {
+      status: 200, transport: "mcp", retryable: true } } });
+    expect(JSON.stringify(mcpDetail)).not.toContain(secret);
 
     writeFileSync(fixture.app, "app Office\nGiven\nWhen\nThen\n## next revision\n");
     const second = await fixture.client.request({ command: "check" }) as { revision: string };

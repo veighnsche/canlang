@@ -3715,3 +3715,7 @@ Keep directory identity polling at two seconds, while fallback full producer-byt
 ### Implementation: model-free local preview resource admission
 
 Model-free artifacts now use the global serving D1 binding and must pass its actual activation verdict; model-backed artifacts retain distinct owner bindings and both owner activation gates. Missing optional Testkit no longer blocks preview capture. Only the exact absent-package resolution is admitted; broken exports/entries still refuse, and a later install changes the captured closure. Focused orchestration/inventory checks pass 8/8 and Cloudflare source typecheck passes. Worker startup is mocked in these checks; live local D1/browser qualification remains due.
+
+### Implementation: canonical MCP refusal observation
+
+The protected bridge now observes matched JSON-RPC tools/call results with isError and the owning structured business envelope. Match the request ID and endpoint, retain the actual HTTP200 plus MCP transport, and project only closed code and retryability with generic safe text. Protocol errors, success values, unmatched IDs and oversized bodies do not become business failures; response bytes and headers remain unchanged. The session retains the bounded occurrence and detail under the serving revision. Bridge7/7, failure projection4/4 and private-session7/7 checks pass; macOS Unix tests use a short temporary path. Actual Office MCP consumption remains due. Form HTML refusal metadata is still an Interfaces-owned prerequisite routed through the coordinator.
