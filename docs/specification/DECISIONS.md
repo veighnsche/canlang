@@ -3735,3 +3735,9 @@ Accepted finite checked-field correction: reuse the State constraint factory wit
 ## 2026-10-09 — validate only actual update-hook field changes
 
 Accepted finite State correction for Codex4232157232: compare update-hook field wire contents after clone handoff, retaining every explicit patch key for validation. No-op or cloned arrays/objects retain unchanged legacy data under tightened constraints; actual hook mutations still validate and fail atomically. Full create/update codec traversal remains intact. State emit and20existing modifier/typed-staging controls pass without skips, covering all-field encoding, explicit patch refusal, in-place array/object mutation and complete batch/revision/history rollback. Current-head review and complete parent qualification remain separate.
+
+## 2026-10-09 — Keep affected Cloudflare CI fixtures on current contracts
+
+Accepted typed test-host/fixture corrections for current Undici fetch values, JSON import attributes, immutable runtime mocks and exact optional control/business-error fields. Runtime staging fixtures retain real entry bytes/hash, app policy and selector provenance. Browser cases use Playwright’s installed Chromium, including the unchanged native CDP visibility path. Root noEmit passes; bridge/control 13/13 and runtime stdlib 20/20 pass, MCP/module-import checks pass, and the three previously failed browser launches now pass their actual assertions. No checks are disabled and no production admission is widened.
+
+Local roadmap intake retains the installed-browser executable override and consumes only fixtures whose production APIs exist here. The incoming session-example-control test depends on Dev example.run/rerun producers absent on this branch; it remains with that owner pending an exact coherent release, rather than activating a fixture against an unavailable API.

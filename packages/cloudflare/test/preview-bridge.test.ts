@@ -124,7 +124,7 @@ describe("protected local preview", () => {
     async stage => {
       let entered!: () => void;
       const inWorker = new Promise<void>(resolve => { entered = resolve; });
-      let signal: AbortSignal | undefined;
+      let signal: AbortSignal | null | undefined;
       const dev: Pick<LocalDev, "dispatchUrl"> = {
         dispatchUrl: async (_url, init) => {
           signal = init?.signal;
@@ -133,10 +133,10 @@ describe("protected local preview", () => {
             return new Promise<Awaited<ReturnType<LocalDev["dispatchUrl"]>>>(() => {});
           }
           const response = new Response("unused");
-          response.arrayBuffer = () => {
+          Object.defineProperty(response, "arrayBuffer", { value: () => {
             entered();
             return new Promise<ArrayBuffer>(() => {});
-          };
+          } });
           return response as Awaited<ReturnType<LocalDev["dispatchUrl"]>>;
         },
       };

@@ -1,5 +1,5 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { randomBytes } from "node:crypto";
+import { mkdtempSync, rmSync } from "node:fs";
+import { createHash, randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -21,6 +21,7 @@ import type {
 import { resolveIdentity, sha256HexText } from "@canlang/identity";
 import { createFrozenClock, createMemoryIdentityStore } from "@canlang/identity/testing";
 import { createTestMemoryStorage } from "@canlang/state/storage/memory";
+import { makeDatetime } from "@canlang/values";
 import { createContext, type HandlerContext } from "../src/runtime/context.js";
 import {
   cancel,
@@ -114,12 +115,9 @@ function contextFor(fake: Fake): HandlerContext {
 /* behaviors through scenario handlers over a memory store: each       */
 /* scenario exercises one stdlib path, the pipeline stages it, and     */
 /* the ONE fenced commit carries the scenario receipt. Fixture         */
-/* handlers import the COMPILED stdlib via an absolute dist file URL   */
-/* (the T17b flip-test precedent stages fixtures under the compiled   */
-/* test dir with a relative `../stdlib.js`; vitest stages these in    */
-/* the OS temp dir, so the URL is absolute). The compiled stdlib       */
-/* carries no runtime imports, so the fixture graph resolves with      */
-/* zero vendor surface.                                                */
+/* handlers import the COMPILED stdlib via an absolute dist file URL.  */
+/* The fixture uses a native data URL so the module namespace retains  */
+/* own export descriptors across Vitest's module loader.               */
 /* ------------------------------------------------------------------ */
 
 const STDLIB_URL = pathToFileURL(
@@ -139,12 +137,6 @@ function tempDir(): string {
   return dir;
 }
 
-function writeModule(dir: string, name: string, source: string): string {
-  const path = join(dir, name);
-  writeFileSync(path, source);
-  return pathToFileURL(path).href;
-}
-
 /** Fresh canonical UUIDv7 operation_id with the time field at `atMs`. */
 function freshOperationId(atMs: number): string {
   const timeHex = atMs.toString(16).padStart(12, "0");
@@ -153,8 +145,10 @@ function freshOperationId(atMs: number): string {
 }
 
 const OPS_SOURCE = `import { create, set, deleteRecord, records } from ${JSON.stringify(STDLIB_URL)};
-export function canApp() {
-  return {
+export const appDefinition = { id: "acme",
+    models: {
+      "acme.Todo": { fields: { title: { type: "text" }, done: { type: "bool" } }, readGrants: [{ rule: "Todo.read.1" }] },
+    },
     // B7: every scenario declares its admission gate (absent
     // entries deny) and Todo carries explicit-public read
     // provenance (absent reads serve zero grants) so the stdlib
@@ -174,6 +168,11 @@ export function canApp() {
         "acme.Todo": { read: ["Todo.read.1"], public: ["Todo.read.1"] },
       },
     },
+};
+export function canApp() {
+  return {
+    policy: appDefinition.policy,
+    read: { "Todo.read.1": () => true },
     Shop: {
       mkCreate: async (c, input) => {
         return create(c, "acme.Todo", { id: input.inputs.key, data: { title: input.inputs.title } });
@@ -261,8 +260,8 @@ function shopArtifact(module: string): CompileArtifact {
     artifact_version: 1,
     language_version: "t17c-fixture/0 (hand-written T15a shape; NOT compiler output)",
     tool_version: "t17c-fixture/0",
-    sources: [{ path: "examples/TeamTasks.can", sha256: "fixture-not-a-digest" }],
-    modules: [],
+    sources: [{ path: "fixtures/stdlib.can", sha256: createHash("sha256").update(OPS_SOURCE).digest("hex") }],
+    modules: [{ path: module, js: OPS_SOURCE, map: { version: 3, file: module, sources: [], sourcesContent: [], names: [], mappings: "" } }],
     callables: SCENARIOS.map((s) => ({
       id: s.op,
       kind: "operation",
@@ -302,8 +301,8 @@ interface CanonicalSetup {
 
 async function canonicalSetup(): Promise<CanonicalSetup> {
   const dir = tempDir();
-  const url = writeModule(dir, "ops.mjs", OPS_SOURCE);
-  const asm: AssembledModules = { dir, entryUrl: "fixture-entry", moduleUrls: { "ops.mjs": url } };
+  const url = `data:text/javascript,${encodeURIComponent(OPS_SOURCE)}`;
+  const asm: AssembledModules = { dir, entryUrl: url, moduleUrls: { "ops.mjs": url } };
   const artifact = shopArtifact("ops.mjs");
   const { store } = createTestMemoryStorage();
   const now = Date.now();
@@ -585,12 +584,8 @@ describe("records", () => {
 describe("stubs", () => {
   const c = contextFor(fakeStore());
   const cases: Array<[string, (ctx: HandlerContext) => unknown]> = [
-    ["send", (ctx) => send(ctx)],
     ["emit", (ctx) => emit(ctx)],
-    ["schedule", (ctx) => schedule(ctx)],
-    ["cancel", (ctx) => cancel(ctx)],
     ["check", (ctx) => check(ctx)],
-    ["delivery", (ctx) => delivery(ctx)],
     ["secretEqual", (ctx) => secretEqual(ctx)],
   ];
   for (const [name, call] of cases) {
@@ -598,6 +593,21 @@ describe("stubs", () => {
       expect(() => call(c)).toThrow(new RegExp(`unsupported\\(${name}\\)`));
     });
   }
+  const asyncCases: Array<[string, (ctx: HandlerContext) => Promise<unknown>]> = [
+    ["send", (ctx) => send(ctx, "Example.send", {}, { binding: "Example.capability" })],
+    ["schedule", (ctx) => schedule(ctx, "example-key", makeDatetime(0n), "Example.event", {}, { ownerPackage: "Example" })],
+    ["cancel", (ctx) => cancel(ctx, "example-key", { ownerPackage: "Example" })],
+  ];
+  for (const [name, call] of asyncCases) {
+    it(`${name} rejects without canonical execution`, async () => {
+      await expect(call(c)).rejects.toThrow(new RegExp(`unsupported\\(${name}\\)`));
+    });
+  }
+  it("delivery rejects without canonical receipt observation", async () => {
+    await expect(delivery(c, { record: { id: "r1" }, field: "receipt" }, ["status"])).rejects.toThrow(
+      "delivery requires canonical receipt observation scope.",
+    );
+  });
 });
 
 describe("guards", () => {
@@ -642,16 +652,17 @@ describe("count", () => {
 
 describe('canonical builtin admission predicates', () => {
   it('uses only the live canonical predicate snapshot while preserving declared grants', () => {
-    const c = createContext({ caller: { userId: 'user', roles: ['Images.operator'] }, store: fakeStore().port, memberships: ['Images.operator'] });
-    c.canonical = { operation: 'Images.generate', operationId: 'request', builtinRoles: ['public', 'authenticated', 'members'], stageWrite: async () => null, readModel: async () => [] };
+    const deps = { caller: { userId: 'user', roles: ['Images.operator'] }, store: fakeStore().port, memberships: ['Images.operator'] };
+    const canonical = { operation: 'Images.generate', operationId: 'request', builtinRoles: ['public', 'authenticated', 'members'], stageWrite: async () => null, readModel: async () => [] };
+    const c = createContext({ ...deps, canonical });
     expect(hasRole(c, 'public')).toBe(true);
     expect(hasRole(c, 'authenticated')).toBe(true);
     expect(hasRole(c, 'members')).toBe(true);
     expect(hasRole(c, 'owner')).toBe(false);
     expect(hasRole(c, 'Images.operator')).toBe(true);
-    c.canonical = { ...c.canonical, builtinRoles: ['public'] };
-    expect(hasRole(c, 'public')).toBe(true);
-    expect(hasRole(c, 'authenticated')).toBe(false);
-    expect(hasRole(c, 'members')).toBe(false);
+    const narrowed = createContext({ ...deps, canonical: { ...canonical, builtinRoles: ['public'] } });
+    expect(hasRole(narrowed, 'public')).toBe(true);
+    expect(hasRole(narrowed, 'authenticated')).toBe(false);
+    expect(hasRole(narrowed, 'members')).toBe(false);
   });
 });
