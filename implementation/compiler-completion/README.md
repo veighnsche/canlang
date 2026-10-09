@@ -1759,3 +1759,17 @@ Exact reviewed portable scalar/array **b9ecfd06/Dev d8bc2a5a** is consumed;
 its owning genuine D1 journey **1/1** (53.18s) is reused at the unchanged direct
 scalar/array scope. Source-current whole qualification is next; transition
 write provenance and original **58/67** owner/held duties remain open.
+
+**Current source qualification and final caller intake, 2026-10-09.** Exact
+compiler **d9c50fe1** completes all **129 targets: 1,321 passed, 1 failed,
+0 ignored**, with required real completion engines, Node24, exact draft,
+rebuilt installed outputs **26/26** (zero cached), current catalog and no body
+skips. The sole failure is the preserved state-machine replay association.
+State/Dev's genuine mutation-session intermediate-row/final-write join and
+dependency projection for changed public fields are pending, not released or
+positively qualified. Exact reviewed **d87213ae** caller cancellation/usage
+correction is consumed; its owning actual captured **5/5** is reused, with
+compiler source unchanged. All incoming paths are registered in the existing
+file-tree ledger; its complete checkpoint remains unadvanced. Ready compiler
+derive/default/array/public recovery units are implemented and qualified at
+their stated scope; original owner dependencies and human holds remain.

@@ -22,7 +22,7 @@ export interface DevPreview {
 
 export interface DevSessionHooks<T, P extends DevPreview> {
   capture(): Promise<DevInputs>;
-  check(inputs: DevInputs): Promise<DevCheck<T>>;
+  check(inputs: DevInputs, signal: AbortSignal): Promise<DevCheck<T>>;
   /** Prepare a new isolated worker/data scope without changing the serving one. */
   preparePreview(inputs: DevInputs, check: DevCheck<T>): Promise<P>;
 }
@@ -92,6 +92,7 @@ export class DevSessionCore<T, P extends DevPreview> {
   private captureQueue: Promise<unknown> = Promise.resolve();
   private checkQueue: Promise<unknown> = Promise.resolve();
   private stopped = false;
+  private readonly stopChecks = new AbortController();
 
   constructor(hooks: DevSessionHooks<T, P>, options: { historyLimit?: number; debounceMs?: number; reconcileMs?: number; auditMs?: number } = {}) {
     this.hooks = hooks;
@@ -274,11 +275,19 @@ export class DevSessionCore<T, P extends DevPreview> {
       return { kind: "capture_incomplete", revision: this.revision() ?? "r0", error: errorText(error) };
     }
     const revision = this.revision() as string;
+    if (this.stopChecks.signal.aborted) return { kind: "superseded", revision, sourceRevision: inputs.sourceRevision };
     if (expectedRevision !== undefined && revision !== expectedRevision) {
       throw new DevRevisionConflictError();
     }
     const startedSerial = this.changeSerial;
-    const check = await this.hooks.check(inputs);
+    let check: DevCheck<T>;
+    try { check = await this.hooks.check(inputs, this.stopChecks.signal); }
+    catch (error) {
+      if (this.stopChecks.signal.aborted && error === this.stopChecks.signal.reason) {
+        return { kind: "superseded", revision, sourceRevision: inputs.sourceRevision };
+      }
+      throw error;
+    }
     if (!(await this.stillCurrent(inputs, revision, startedSerial))) {
       return { kind: "superseded", revision, sourceRevision: inputs.sourceRevision };
     }
@@ -343,6 +352,7 @@ export class DevSessionCore<T, P extends DevPreview> {
     if (this.stopped) return;
     this.stopped = true;
     this.changeSerial += 1;
+    this.stopChecks.abort(new Error("session stopped"));
     if (this.timer !== null) clearTimeout(this.timer);
     if (this.pollTimer !== null) clearInterval(this.pollTimer);
     for (const entry of this.watchers.values()) entry.watcher?.close();
