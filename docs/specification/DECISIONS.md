@@ -3691,3 +3691,7 @@ Decode authored field-label parts with optional text and an independent case map
 ## 2026-10-09 — Validate joined native corpus and consumers
 
 Consume the published Compiler test hunks through `0f17f6f8` with three-way joins, retaining authored field modifier checks and exact optional diagnostic/artifact shapes. Real CRUD test consumers observe authorized records separately from nullable declared results; the exact pinned draft corpus has no authoring-parser exemptions. All 1,277 native tests pass with required completion engines, zero ignored/skipped cases, current rustfmt and strict all-target Clippy. This validates the joined producer/consumer unit, not Office G2 or profile help proofs.
+
+## 2026-10-09 — Consume reviewed TeamTasks source and runtime correspondence
+
+Apply Packages’ `67aef2a8` witness correspondence and `b11cc7c8` public Identity/UI bundle closure together. The retained handbuilt witness keeps its explicit fixture limits and unchanged preferences moved from Given to Then; it remains distinct from compiled app qualification. Real public producer bundling resolves installed dependencies without handwritten substitutes. All 14 affected Chromium cases pass (TeamTasks 8, MCP 4, compiled journey 2), with e2e noEmit; full CRUD/replay/receipt/history assertions remain intact. The separate genuine/patched pilot failures remain open in their owning Packages work.
