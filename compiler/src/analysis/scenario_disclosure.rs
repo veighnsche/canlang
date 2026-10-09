@@ -4,7 +4,7 @@
 //! A failed closure declines the whole scenario, including earlier returns.
 use std::collections::{HashMap, HashSet};
 
-use super::effects::{Effect, EffectTables, EffectVerb};
+use super::effects::{Effect, EffectTables, EffectTarget, EffectVerb};
 use super::resolve::{Binding, ContextVar, ResolveTables, SymbolKind};
 use super::types::SelectedCallTarget;
 use super::{ModuleId, NodeKey, ResolvedType, Scalar, SymbolId, TypeTable};
@@ -277,6 +277,9 @@ impl ValuePath {
 struct Flow {
     env: Env,
     controls: ValuePath,
+    /// Dependencies of writes already executed on this path survive a common
+    /// postdominator even when its scalar return no longer depends on a branch.
+    writes: ValuePath,
     evaluated: Vec<DisclosureDecision>,
     observed: Vec<(NodeKey, Vec<NodeKey>)>,
 }
@@ -1082,6 +1085,155 @@ impl Closure<'_> {
         }
     }
 
+    fn transition(
+        &mut self,
+        effect: &Effect,
+        module: ModuleId,
+        env: &Env,
+        calls: &[NodeKey],
+    ) -> Result<Vec<ValuePath>, DisclosureDecline> {
+        let node = *self
+            .nodes
+            .get(&effect.node)
+            .ok_or_else(|| self.fail(effect.node, "missing transition anchor"))?;
+        if node.kind != SyntaxKind::Transition || !effect.args.is_empty() {
+            return Err(self.fail(effect.node, "unsupported transition shape"));
+        }
+        let mut receivers = node
+            .children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::Path);
+        let receiver = receivers
+            .next()
+            .ok_or_else(|| self.fail(effect.node, "missing transition receiver"))?;
+        if receivers.next().is_some()
+            || receiver
+                .children
+                .iter()
+                .filter(|child| child.kind == SyntaxKind::Name)
+                .count()
+                != 1
+        {
+            return Err(self.fail(effect.node, "transition needs immutable direct receiver"));
+        }
+        let receiver_key = NodeKey::of(receiver);
+        let model = match self.types.node_types.get(&receiver_key) {
+            Some(ResolvedType::Record {
+                symbol,
+                stored: true,
+            }) => *symbol,
+            Some(ResolvedType::Nullable(_)) => {
+                return Err(self.influence(
+                    effect.node,
+                    module,
+                    &[InfluenceKind::AbsentReference],
+                    "nullable transition receiver",
+                ));
+            }
+            _ => return Err(self.fail(effect.node, "unestablished transition receiver type")),
+        };
+        if !matches!(effect.target, Some(EffectTarget::Record { model: Some(target) }) if target == model)
+        {
+            return Err(self.fail(effect.node, "transition checked target mismatch"));
+        }
+        let names: Vec<_> = node
+            .children
+            .iter()
+            .filter(|child| child.kind == SyntaxKind::Name)
+            .collect();
+        if names.len() != 4 {
+            return Err(self.fail(effect.node, "missing transition literal endpoints"));
+        }
+        let word = |node: &SyntaxNode| {
+            self.db.get(node.span.file).and_then(|source| {
+                source
+                    .text
+                    .get(node.span.start as usize..node.span.end as usize)
+            })
+        };
+        let field_name = word(names[1])
+            .ok_or_else(|| self.fail(effect.node, "missing transition field spelling"))?;
+        let from =
+            word(names[2]).ok_or_else(|| self.fail(effect.node, "missing transition from case"))?;
+        let to =
+            word(names[3]).ok_or_else(|| self.fail(effect.node, "missing transition to case"))?;
+        let owner = self
+            .resolve
+            .symbols
+            .get(model.0 as usize)
+            .ok_or_else(|| self.fail(effect.node, "missing transition model"))?;
+        let SymbolKind::Model { fields, .. } = &owner.kind else {
+            return Err(self.fail(effect.node, "non-model transition owner"));
+        };
+        let field = fields
+            .iter()
+            .filter_map(|id| self.resolve.symbols.get(id.0 as usize))
+            .find(|field| field.name == field_name)
+            .ok_or_else(|| self.fail(effect.node, "missing transition field"))?;
+        if !matches!(field.kind, SymbolKind::Field { owner, .. } if owner == model) {
+            return Err(self.fail(effect.node, "nonstored transition field"));
+        }
+        let declaration = self
+            .effects
+            .models
+            .get(&model)
+            .and_then(|owner| owner.fields.iter().find(|decl| decl.field == field.id))
+            .ok_or_else(|| self.fail(effect.node, "missing checked machine declaration"))?;
+        if declaration.default.is_none()
+            || !declaration
+                .modifiers
+                .iter()
+                .any(|modifier| modifier.name == "machine" && modifier.value.is_none())
+        {
+            return Err(self.fail(effect.node, "unestablished checked machine"));
+        }
+        let ty = self
+            .types
+            .symbol_types
+            .get(&field.id)
+            .ok_or_else(|| self.fail(effect.node, "missing checked machine type"))?;
+        let ResolvedType::Enum { cases, .. } = ty else {
+            return Err(self.fail(effect.node, "machine needs scalar enum"));
+        };
+        if !cases.iter().any(|case| case == from) || !cases.iter().any(|case| case == to) {
+            return Err(self.fail(effect.node, "unestablished machine endpoints"));
+        }
+        let read = DisclosureDependency {
+            id: self.opaque(
+                "transition-control",
+                effect.node,
+                &format!(
+                    "{}:{}:{}:{}",
+                    field.canonical,
+                    from,
+                    to,
+                    self.call_stamp(calls)?
+                ),
+            )?,
+            source: self.source(module, effect.node)?,
+            node: effect.node,
+            calls: calls.to_vec(),
+            role: DependencyRole::Control,
+            model,
+            field: field.id,
+            model_name: owner.canonical.clone(),
+            field_name: field.name.clone(),
+            ty: ty.clone(),
+            type_id: self.field_type_id(effect.node, field.id, ty)?,
+        };
+        let mut paths = self.expr(receiver_key, module, env, calls)?;
+        for value in &mut paths {
+            if value.record != Some(model) {
+                return Err(self.fail(effect.node, "transition receiver closure mismatch"));
+            }
+            *value = self.control(value.clone())?;
+            value.reads.push(read.clone());
+            value.observed.push((effect.node, calls.to_vec()));
+            value.record = None;
+        }
+        Ok(paths)
+    }
+
     fn return_path(
         &self,
         node: NodeKey,
@@ -1090,6 +1242,7 @@ impl Closure<'_> {
         value: ValuePath,
     ) -> Result<DisclosureReturn, DisclosureDecline> {
         let mut merged = flow.controls;
+        merged.join(&flow.writes);
         merged.join(&value);
         let mut observed = flow.observed;
         for read in &value.observed {
@@ -1213,6 +1366,35 @@ impl Closure<'_> {
                             }
                         }
                     }
+                    EffectVerb::Transition => {
+                        for write in self.transition(effect, module, &flow.env, calls)? {
+                            if !compatible(&flow.evaluated, &write.decisions) {
+                                continue;
+                            }
+                            let mut path = flow.clone();
+                            path.writes.join(&flow.controls);
+                            path.writes.join(&write);
+                            if path.writes.reads.len() > 200 {
+                                return Err(
+                                    self.fail(effect.node, "transition write dependency bound")
+                                );
+                            }
+                            for observed in &write.observed {
+                                if !path.observed.contains(observed) {
+                                    path.observed.push(observed.clone());
+                                }
+                            }
+                            for decision in &write.decisions {
+                                if !path.evaluated.contains(decision) {
+                                    path.evaluated.push(decision.clone());
+                                }
+                            }
+                            next.push(path);
+                            if next.len() > 1024 {
+                                return Err(self.fail(effect.node, "transition path bound"));
+                            }
+                        }
+                    }
                     EffectVerb::Return => {
                         let values = match effect.value {
                             Some(key) => self.expr(key, module, &flow.env, calls)?,
@@ -1299,12 +1481,28 @@ impl Closure<'_> {
                                     return Err(self.fail(effect.node, "branch path bound"));
                                 }
                             }
+                            // A branch can select whether a changed record
+                            // exists, even on its no-transition outcome. Keep
+                            // that selector for every continuing outcome when
+                            // any sibling accumulated new write dependencies.
+                            let selects_writes = continuing.iter().any(|path| {
+                                path.writes.reads.iter().any(|read| {
+                                    !flow.writes.reads.iter().any(|prior| prior.id == read.id)
+                                })
+                            });
                             for mut path in continuing {
-                                // Branch-local immutable declarations cannot
-                                // escape. At a common postdominator the branch
-                                // no longer chooses a return, so remove its reads.
+                                // Only an entirely read-only branch loses its
+                                // local controls at the common postdominator.
                                 path.env = flow.env.clone();
-                                if all_continue {
+                                if selects_writes {
+                                    path.writes.join(&path.controls);
+                                    if path.writes.reads.len() > 200 {
+                                        return Err(self.fail(
+                                            effect.node,
+                                            "transition write dependency bound",
+                                        ));
+                                    }
+                                } else if all_continue {
                                     path.controls = flow.controls.clone();
                                 }
                                 next.push(path);

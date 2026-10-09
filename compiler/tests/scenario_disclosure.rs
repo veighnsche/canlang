@@ -618,3 +618,216 @@ Then
         );
     }
 }
+
+#[test]
+fn transitions_keep_original_state_and_write_selecting_controls_in_void_returns() {
+    let source = r#"app MachineClosure
+Given
+ Job {state:enum(idle,queued,ready,failed)=idle machine,private_choice:bool}
+ policy Job read=members fields=state
+When
+ scenario branch(job:Job) by=members
+  do
+   if job.private_choice
+    transition job.state idle -> ready
+   else
+    transition job.state idle -> failed
+ scenario ordered(job:Job) by=members
+  do
+   let target=job
+   transition target.state idle -> queued
+   transition target.state queued -> ready
+ scenario input(job:Job,ready:bool) -> int by=members
+  do
+   if ready
+    transition job.state idle -> ready
+   else
+    transition job.state idle -> failed
+   return 1
+ scenario early(job:Job,skip:bool) -> int by=members
+  do
+   if skip
+    return 0
+   transition job.state idle -> ready
+   return 1
+ scenario returned(job:Job) -> int[] by=members
+  do
+   transition job.state idle -> ready
+   return [1,2]
+Then
+"#;
+    let (db, program) = checked(&[("machine-closure.can", source)]);
+    for name in ["branch", "ordered", "input", "early", "returned"] {
+        origins(&db, complete(&program, &format!("MachineClosure.{name}")));
+    }
+    let branch = complete(&program, "MachineClosure.branch");
+    assert_eq!(branch.returns.len(), 2);
+    for path in &branch.returns {
+        assert!(
+            path.dependencies.iter().any(
+                |dep| dep.field_name == "private_choice" && dep.role == DependencyRole::Control
+            )
+        );
+        let old = path
+            .dependencies
+            .iter()
+            .find(|dep| dep.node.kind == canlang_compiler::syntax::SyntaxKind::Transition as u8)
+            .unwrap();
+        assert_eq!(old.role, DependencyRole::Control);
+        assert_eq!(old.model_name, "MachineClosure.Job");
+        assert_eq!(old.field_name, "state");
+        assert_eq!(old.type_id, "MachineClosure.Job.state");
+        assert_eq!(path.decisions.len(), 1);
+    }
+    let ordered = &complete(&program, "MachineClosure.ordered").returns[0].dependencies;
+    assert_eq!(ordered.len(), 2);
+    assert_ne!(ordered[0].id, ordered[1].id);
+    assert!(ordered[0].node.start < ordered[1].node.start);
+    let text = &db.get(ordered[0].node.file).unwrap().text;
+    assert!(
+        text[ordered[0].node.start as usize..ordered[0].node.end as usize]
+            .contains("idle -> queued")
+    );
+    assert!(
+        text[ordered[1].node.start as usize..ordered[1].node.end as usize]
+            .contains("queued -> ready")
+    );
+    let input = complete(&program, "MachineClosure.input");
+    assert_eq!(input.returns.len(), 2);
+    assert!(
+        input
+            .returns
+            .iter()
+            .all(|path| path.dependencies.len() == 1 && path.decisions.len() == 1)
+    );
+    let early = complete(&program, "MachineClosure.early");
+    assert_eq!(early.returns.len(), 2);
+    assert_eq!(
+        early
+            .returns
+            .iter()
+            .filter(|path| path.dependencies.is_empty())
+            .count(),
+        1
+    );
+    assert_eq!(
+        complete(&program, "MachineClosure.returned").returns[0]
+            .dependencies
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn transition_support_does_not_admit_other_mutations_or_query_receivers() {
+    let source = r#"app MachineRefusals
+Given
+ Job {state:enum(idle,ready)=idle machine,value:int}
+ policy Job read=members
+When
+ scenario written(job:Job) by=members
+  do
+   transition job.state idle -> ready
+   set job {value=1}
+ scenario queried() by=members
+  do
+   let job=first(Job)
+   require job!=null
+   transition job.state idle -> ready
+ scenario deleted(job:Job) by=members
+  do
+   transition job.state idle -> ready
+   delete job
+Then
+"#;
+    let (_, program) = checked(&[("machine-refusals.can", source)]);
+    for name in ["written", "queried", "deleted"] {
+        assert!(
+            matches!(
+                fact(&program, &format!("MachineRefusals.{name}")),
+                ScenarioDisclosure::Declined(_)
+            ),
+            "{name}"
+        );
+    }
+    let source = "app MissingMachine\nGiven\n Job {state:enum(idle,ready)=idle}\nWhen\n scenario bad(job:Job) by=members\n  do transition job.state idle -> ready\nThen\n";
+    let mut db = SourceDb::new();
+    let file = db.add("missing-machine.can".into(), source.into());
+    let (program, diagnostics) = check_program(&db, &[file], None);
+    assert!(!diagnostics.is_empty());
+    assert!(program.scenario_disclosures().is_empty());
+}
+
+#[test]
+fn optional_transitions_keep_write_existence_controls_on_no_write_paths() {
+    let source = r#"app OptionalWrites
+Given
+ Job {state:enum(idle,ready)=idle machine,private_choice:bool,choice:enum(write,skip)=skip}
+ policy Job read=members fields=state
+When
+ scenario finish(job:Job) by=members
+  do
+   if job.private_choice
+    transition job.state idle -> ready
+ scenario scalar(job:Job) -> int by=members
+  do
+   if job.private_choice
+    transition job.state idle -> ready
+   return 7
+ scenario explicit_else(job:Job) by=members
+  do
+   if job.private_choice
+    transition job.state idle -> ready
+   else
+    require true
+ scenario matched(job:Job) by=members
+  do
+   match job.choice
+    case write
+     transition job.state idle -> ready
+    case skip
+     require true
+ scenario readonly(job:Job) -> int by=members
+  do
+   if job.private_choice
+    require true
+   else
+    require true
+   return 7
+Then
+"#;
+    let (db, program) = checked(&[("optional-writes.can", source)]);
+    for (name, selector) in [
+        ("finish", "private_choice"),
+        ("scalar", "private_choice"),
+        ("explicit_else", "private_choice"),
+        ("matched", "choice"),
+    ] {
+        let value = complete(&program, &format!("OptionalWrites.{name}"));
+        origins(&db, value);
+        assert_eq!(value.returns.len(), 2);
+        for path in &value.returns {
+            assert_eq!(path.decisions.len(), 1);
+            assert!(path.dependencies.iter().any(|read| read.field_name == selector && read.role == DependencyRole::Control));
+            let writes = path
+                .dependencies
+                .iter()
+                .filter(|read| {
+                    read.node.kind == canlang_compiler::syntax::SyntaxKind::Transition as u8
+                })
+                .count();
+            let selected = matches!(path.decisions[0].choice, DisclosureChoice::Then)
+                || matches!(&path.decisions[0].choice, DisclosureChoice::Match(case) if case == "write");
+            assert_eq!(writes, usize::from(selected));
+            assert_eq!(path.dependencies.len(), if selected { 2 } else { 1 });
+        }
+    }
+    let readonly = complete(&program, "OptionalWrites.readonly");
+    assert_eq!(readonly.returns.len(), 2);
+    assert!(
+        readonly
+            .returns
+            .iter()
+            .all(|path| path.dependencies.is_empty())
+    );
+}

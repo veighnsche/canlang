@@ -4698,6 +4698,66 @@ Owning build6/6 passes.32affected State cases qualify across23initial passes,6ne
 
 Defining prerequisite: Dev consumes the positive root/invocation export in the actual receipt-aware scenario path, stages/reads through one session, preserves issued raw-row identity through its private native `current()`/frame capture, and uses actual finalization without separate overlay/version normalization. Its present wire copy loses that identity. Compiler preserves refusal until complete source influencing closure and real Dev consumption qualify together. Public retained transport, composite/File/Delivery/query/absence/model retention and coherent multi-subject authority remain recorded owner prerequisites. Local unit is unfinished at workflow scope; no remote push, main integration, shared CI repair or feature acceptance is authorized by this checkpoint.
 
+## 2026-10-09 — retain transition write controls before native activation
+
+Admit checked private facts only for exact stored nonnullable model receivers
+and literal transitions of their owning machine enum field. Record the genuine
+old-state read at the Transition anchor as CONTROL and preserve accumulated
+write-selecting controls through branch postdominators and void/early returns.
+Keep the field's canonical enum identity and actual call/source chronology;
+do not widen unrelated mutations or nullable/query receivers. Source14/14,
+strict all-target Clippy, formatting and finite review qualify this bounded
+producer. Consume reviewed bde01621/b94917a2 State provenance/disclosure source
+with incoming existing file-tree reconciliation; complete checkpoint remains
+unadvanced. Native publication remains unfinished until Dev's genuine session
+stage/read/finalize and issued-row identity consumer is released and combined
+original-source replay passes. Earlier whole results do not qualify these edits.
+
+## 2026-10-09 — prepare native transition capture under its release gate
+
+Join exact Transition IR sites and own canonical machine-enum identities to
+actual emitted fields/edges, and evaluate one receiver before awaited old-state
+markers and canonical transition. Keep all transition publication gated until
+the genuine Dev session consumer is released. Native fixture compilation/
+refusal controls execute, but Node24 runtime fails the actual fileAssignments
+effect-envelope owner contract; strict Clippy passes. Coordinator's no-write
+branch-control finding against the earlier private source is a required
+correction, not accepted behavior. No workflow/state contract bypass follows.
+
+## 2026-10-09 — retain optional-write selectors on no-write outcomes
+
+When any continuing branch adds a transition dependency, retain branch controls
+on every sibling, including the outcome without a write. This prevents private
+selectors from changing public changed-record existence or result withholding
+under an empty proof. Preserve read-only postdominator pruning and existing
+bounds. Source15/15, strict Clippy/formatting and finite review pass. Restrict
+prepared own-machine enum adaptation to recipes with actual Transition sites;
+actual CLI refusal/unchanged-plan controls pass. Native activation and full
+qualification remain unfinished on the recorded State/Dev release contracts.
+
+## 2026-10-09 — consume the actual scenario owner session (unfinished qualification)
+
+Accepted implementation choice: consume exact coordinator-released bde01621/Stateb949 in this local worker after safe fast-forward, preserving the previous portable derive and lifecycle source. Eligible claimed scenarios start the positive installed session with their actual admitted call and physical receipt store, checked owning policies and bounded200rows/10000work. Read and stage through that session, refresh every cached current-stage row after each stage and return its exact finalized writes/history/uniques/model defaults/schedules. Validate finite accessor-free wire data and retain the recursively immutable issued raw identity privately; State alone checks its brand/lifetime. No host proof tag, copied owner authority or independent reservation/history rewrite is added.
+
+The defining descriptor has no read-only/mutation classification. Calls with actual omitted input default requirements retain their existing read-only capture and reports; stage writes and nonempty deferred effects refuse until State owns admitted input/default contributions to the exact finalized tuple. Query/partial projection and deferred domain/history/unique joins remain refused. Legacy unclaimed/private execution keeps its existing behavior. The coordinator has assigned the input/default contract to State; this consumer choice is bounded implementation, not acceptance of compiled mutation source closure or G2–G3.
+
+State's new closed effects snapshot also excludes the actual canonical fileAssignments:[] metadata. The coordinator assigns the empty-carrier compatibility correction to Capability, so Dev restores the unchanged carrier rather than independently consume/remove it. An uncommitted temporary strip allowed direct joined intermediate/default controls to run, but those observations do not qualify the final current tuple. Fixture corrections retain required second references, unique row IDs, actual secret-grant rejection and void return semantics. The affected compiled native journey first refuses a stale generated Values catalog after the owning emit; actual catalog regeneration59entries/15features is complete. Full current direct/native qualification waits for the exact State carrier correction; the prior private frame3/3 remains valid at its unchanged source scope.
+
+Reconcile accumulated source/target paths from the existing checkpoint without advancing it. Local commits and coordinator manual integration remain the publication path; precise recipient holds and all Office/G1–G3 parent qualification gaps remain preserved.
+
+## 2026-10-09 — preserve caught receipt-aware runtime failures until finalization
+
+Receipt-aware owner attempts retain the first engine failure in the existing private runtime attempt. State poisons failed owner operations, but runtime-only query/deferred/association refusals can occur after successful domain staging and outside that producer. Attribution alone lets source catch a refusal and finalize partial effects. Check the retained error before successful completion/finalization, preserving its original identity and the existing rejected-receipt/zero-domain semantics. This covers the create/set delivery tail and deferred append/send paths through their existing error recording; no fabricated State poison call or invalid stage is added. Unclaimed legacy behavior remains unchanged.
+
+Owning CF emit and focused actual installed consumer3/3 pass: caught unsupported query after a successful owner stage, caught copied intermediate marker and unchanged-source business rejection. The query case checks the first validation refusal, unchanged domain/history/uniques/outbox/schedules and exactly one real rejected receipt/fence. This is declaration-labelled API/runtime evidence; State's closed empty-file carrier correction and genuine compiled mutation/source qualification remain unfinished. Root noEmit and package boundaries pass; unchanged source results are reused.
+
+## 2026-10-09 — qualify the released State/Dev saved-scenario tuple (unfinished parent)
+
+Consume exact reviewed local maind194f63b by safe fast-forward, preserving Dev22a/5b and gated Compiler87f. Statea634 owns the strict empty enumerable fileAssignments compatibility correction; Dev retains that actual canonical carrier without stripping it or duplicating State. Rebuild this worktree's actual13-package producer closure26/26 and native compiler, regenerate Values59entries/15features, and verify root noEmit/boundaries889files/1189expressions/zero violations. Reuse the coordinator's unchanged whole native_scenario_receipts1/1 on d194/Node24.21.0, without duplicating its required compiler run.
+
+The unchanged full direct State/Identity/public consumer18/18 passes real stage/read/finalize, current-stage raw identity and unrelated-row refresh, one net version/history/effect tuple, original/intermediate results with ordinary/aged recovery, required private dependency→void changed-record withholding, caught-error rollback, missing producer, actual default report/read-only refusals and explicit override. Fixture corrections preserve required ref seeds, unique row identity, secret-grant refusal and undefined void returns; no production security assertion is weakened. These are declaration-labelled API/runtime results, not compiled mutation acceptance.
+
+The unchanged genuine single-file captured/native/public/portable owner-D1 journey1/1 passes37.11s across19scalar/array/local-derive results, retaining exact checked source/plans/observations, original replay/recovery after updates/stale refs, receipts/history/all resources, authorization/archive/current-lifetime and copied issuer/source/JS/map refusals with owned cleanup. This clears the changed-tuple compiled read-only regression. Compiler transition publication/complete influencing source closure and original mutation/replay qualification remain required; Capability's admitted input/default contribution contract remains unreleased, so omitted-default writes retain refusal. File/lifetime/query/hook/composite/coherent-authority and T04/T11/Office/G2–G3 remain distinct open dependencies. Accumulated living coverage is reconciled with complete checkpoint unadvanced; no push or broader acceptance follows.
 
 ## 2026-10-09 — preserve the unfinished admitted-default contribution assessment
 
@@ -4705,16 +4765,13 @@ Proposal only: the actual Dev bde01621 source supplies omitted literal/nullable 
 
 Checkpoint this read-only assessment as unfinished before the coordinator-prioritized real-envelope regression. No default source/test implementation or validation exists yet. The actual Cloudflare scalar producer always includes an empty own `fileAssignments`; b949 snapshot's closed inventory accidentally excludes it. Fix and qualify that finite State envelope compatibility first, preserving accessor/nonempty unsupported lifetime refusal and complete native scalar/derive assertions, then resume the separate default-contribution contract. Existing Dev holds only the specific mutating-default profiles; transition/no-default work remains independent.
 
-
 ## 2026-10-09 — checkpoint actual empty native file carrier compatibility (unfinished)
 
 The real canonical Cloudflare scalar producer owns an enumerable `fileAssignments: []`; State's claimed-effects snapshot now recognizes and preserves that actual empty immutable carrier. Nonempty assignments remain unsupported until the defining File/lifetime join, and malformed/undefined/hidden/accessor carriers refuse without invoking getters. Keep the complete exact owner tuple and all other authority/source assertions. Two owning cases cover successful scalar snapshot/receipt/replay/projection and eight negative carrier variants; unexecuted at this checkpoint. Coordinator explicitly releases exact reviewed LOCAL bde01621db214c7d70a833542660f3797f928dfd containing genuine Compiler/Dev scalar/derive producer/fixture, excluding private transition activation. Preserve local ea3e assessment and this source/test checkpoint during intake; no reset, replacement fixture, common CI repair or acceptance claim. Qualify the joined actual outputs before release, then resume the separate default-contribution contract.
 
-
 ## 2026-10-09 — reconcile reviewed local native producer intake
 
 Intake exact coordinator-reviewed LOCAL `bde01621db214c7d70a833542660f3797f928dfd` onto preserved unfinished worker `c2a8bad21ed7b7489a7699fee98f6d0d85e916a0`. Its actual staged tree and both parent histories since complete `8249342707d3280e88e39e8c911b7e457828f31f` register 1430 commits, 10772 net deltas, 11316 historical paths and 513 history-only paths, excluding both rename endpoints. All prior owners/scopes/allocations and retirement/task gates remain; 9270 inherited deltas still need target allocation. No source/target acceptance or complete checkpoint advance follows. Source correspondence and actual Compiler/Dev scalar/derive fixture are preserved; private transition activation is absent. Joined empty-carrier and whole native fixture qualification remains required, followed by the separately checkpointed input/default contribution contract. Local-only/push holds and Packages shared-gate ownership remain unchanged.
-
 
 ## 2026-10-09 — qualify actual empty native carrier compatibility
 
@@ -4735,3 +4792,28 @@ Owning dependency build6/6 and affected actual owner-session9/9 memory plus2/2 D
 Installed State dependency build6/6 passes.11new defining cases qualify:10initial passes, then2focused passes after extending success with raw omitted/supplied/null conflict assertions and adding actual input/model default key collision; nine unchanged cases reused. Actual canonical model literal/server defaults keep prefixed identities alongside scalar/nullable-array/enum/nominal/earlier-ref input defaults in one frozen final carrier. Supplied/null/ordinary-filled-array exclusion, complete ordered reporting, type/schema/shape/copy/foreign/closed/caught/accessor refusal, raw-hash success/rejected execute0 replay, collision and exact executor-map correspondence pass. New own/inherited callable-style and callable-array find accessors never execute; legitimate null-prototype admitted nominal/ref objects retain unchanged provenance. Corrected fixture uses actual loader refs/server-init/schema channels and refuses secret token grant. Existing9owner memory and2D1/SQLiteDO intermediate outcomes retain their unchanged frozen-owner scope. These are checked handbuilt metadata plus actual State/Values producers, not Compiler arithmetic/native-reference or original native-default workflow acceptance.
 
 Release this exact positive API through the coordinator. Dev must require its root/invocation export, open the same genuine session for supported omitted-default scenarios, forward individual wire contributions after its real generated/native binding checks, remove precise held default-path refusals only with the actual consumer, and return actual finalized resolvedDefaults without merging a host map; preserve the first caught-engine-failure latch. Coordinator-reviewed LOCAL `eec2a044` now supplies actual generated transition/default consumer and the Services56008fac Task44 ceiling verdict. Preserve this coherent unit before intake/reconciliation; complete checkpoint and original workflow acceptance remain open, local-only/push holds unchanged.
+## 2026-10-09 — reuse the installed Text ceiling for distinct control observation
+
+Choose the existing InstalledTextGeneration.profile.maxDurationMs as the upper bound for one distinct persisted control-observation window, anchored once at control creation. Work/Cloudflare owns its original deadline, retry nonrenewal and complete await including durable progress; the Services generation deadline/model/transcript/token accounting stays unchanged. Add no observation ABI or separately configured value when no defining requirement needs one. Expired observation means uncertainty, never provider cessation or a rewritten saved success; restart reconciliation remains unknown/no_run_resume.
+
+After the human explicitly approved the exact payload/destination, three equivalent JEV choices advise this boundary with probabilities .97/.99/.97 and confidence .94/.98/.94. Requests, exact responses and prior automatic-review rejection are saved once in the existing TECH-SV02 record; no rationale was returned and advice is not consumer acceptance. Services emit and3changed existing actual localhost controls pass on Node24: immutable installed identity/finite ceiling, original short final/stream deadlines, honest reconstructed reconciliation with no extra POST, and unchanged settled success after late cancellation. Reuse unchanged checks. This releases the finite Services producer verdict for coordinator review; actual compiled Work/Cloudflare lifecycle qualification and all precise holds remain with their existing owners.
+
+## 2026-10-09 — activate exact native machine receipts on the released session
+
+Consume reviewed8b6e8d40 genuine Dev session and State empty-carrier sources/
+scoped qualifications. Activate only checked literal transitions through exact
+own field/enum/edge inventory, retaining original canonical private identities
+and genuine old-state markers before each stage. Original compiled lifecycle
+and replay1/1 now pass with preserved rollback/UI and extended ordinary/aged
+read-only recovery plus private-selector write/no-write withholding. Explicit
+slots work; omitted-default mutations remain refused pending the defining State
+contribution contract. Standalone machine reads and unsupported mutations do
+not widen. Reuse unchanged source15/15 and distinct owner results; strict lint/
+format and finite review pass. Current whole and distinct portable mutation
+qualification remain due. Existing incoming living registry/checkpoint coverage
+is retained; no checkpoint advancement or broader reference acceptance.
+
+
+## 2026-10-09 — reconcile current local producer intake for defaults and Text controls
+
+Preserve unfinished State-default unit `146990c9ba16c442f0f485cd56d27207862a06e8` and intake only coordinator-reviewed LOCAL `eec2a0445172636dcd4a97805aed69571c706d7a`. Actual staged tree and both histories since complete `8249342707d3280e88e39e8c911b7e457828f31f` register 1447 commits, 10779 net deltas, 11323 historical paths, 513 history-only (both rename endpoints excluded), and 9277 pending target allocations. Seven new State default consultation/test paths have their actual defining owners and inherited-unallocated scope; previous owner/target/scoped evidence and retirement/task gates remain. Complete semantic/target checkpoint is unadvanced. This intake supplies actual Dev session/Compiler transition and Services56008fac existing immutable Text generation-ceiling verdict. Input-default API still requires genuine Dev/default native adoption; Task44 actual persisted control window consumer is now ready, with no new Services timer/config or acceptance. Both local/recipient holds and Packages common-gate ownership remain.
