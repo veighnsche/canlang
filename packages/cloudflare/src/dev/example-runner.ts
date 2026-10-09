@@ -14,11 +14,12 @@ import { pathToFileURL } from "node:url";
 import type { ArtifactModelField, ClosedInputs, CompileArtifact, ExampleCaseResult, ExampleReport, FqOperationName, ModelName, OperationId, RecordId, RecordVersion, ReportValue, ResolvedCaller, ResolvedIdentity, StoragePort, StoredRow, TableCaseResult } from "@canlang/contracts";
 import { createD1IdentityStore, ensureIdentitySchema, resolveIdentity, sha256HexText, toInstant, type IdentityStore } from "@canlang/identity";
 import { createD1Storage, ensureSchema } from "@canlang/state/storage/d1";
+import { createD1OwnerRouter } from "@canlang/state/storage/owner-router";
 import { decodeValue, encodeValue } from "@canlang/values";
 import { createLocalRowScope, type LocalRowScope } from "./row-scope.js";
 import { parseArtifactText } from "../runtime/artifact.js";
 import { assembleModules, type AssembledModules } from "../runtime/modules.js";
-import { buildInvoker } from "../worker/assembly.js";
+import { buildInvoker, createTeamOwnerStorageBoundary, type TeamOwnerStorageBoundary } from "../worker/assembly.js";
 
 /** Structural port to the real @canlang/testkit exports; no runtime edge. */
 export interface ExampleTestkitPort {
@@ -190,6 +191,7 @@ interface RunnerHooks {
 /** A real D1 + Identity scope for exactly one row. */
 export interface ExampleRowScope extends LocalRowScope {
   readonly store: StoragePort;
+  readonly ownerStorage: TeamOwnerStorageBoundary | undefined;
   readonly identities: IdentityStore;
   readonly d1Id: string;
   readonly currentTeamId: string | null;
@@ -232,8 +234,19 @@ function checkedFixtureValues(value: unknown, scope: string): ReadonlyMap<string
   return value;
 }
 
-async function createRowScope(input: CompiledExampleInput, moduleIndex: number, rowIndex: number): Promise<ExampleRowScope> {
+interface ExampleOwnerProfile {
+  readonly artifact: CompileArtifact;
+  readonly asm: AssembledModules;
+  readonly app: string;
+}
+
+async function createRowScope(input: CompiledExampleInput, moduleIndex: number, rowIndex: number,
+  ownerProfile?: ExampleOwnerProfile): Promise<ExampleRowScope> {
   const d1Id = randomUUID();
+  const currentStateId = randomUUID();
+  const otherStateId = randomUUID();
+  const currentBinding = "CAN_EXAMPLE_STATE_CURRENT";
+  const otherBinding = "CAN_EXAMPLE_STATE_OTHER";
   const attempt = input.runId === undefined ? "" : `-${input.runId.slice(0, 8)}`;
   const workerName = `${input.workerName.slice(0, 32)}${attempt}-${moduleIndex}-${rowIndex}-${d1Id.slice(0, 8)}`;
   const base = await createLocalRowScope(d1Id, {
@@ -243,12 +256,17 @@ async function createRowScope(input: CompiledExampleInput, moduleIndex: number, 
     modules: input.worker.modules,
     ...(input.worker.binaryModules === undefined ? {} : { binaryModules: input.worker.binaryModules }),
     d1Binding: input.d1Binding,
+    ...(ownerProfile === undefined ? {} : { additionalD1Databases: [
+      { binding: currentBinding, id: currentStateId },
+      { binding: otherBinding, id: otherStateId },
+    ] }),
   });
   try {
     const db = await base.dev.getD1Database(input.d1Binding);
-    await ensureSchema(db);
+    if (ownerProfile === undefined) await ensureSchema(db);
     await ensureIdentitySchema(db);
-    const store = createD1Storage(db);
+    let store: StoragePort | null = ownerProfile === undefined ? createD1Storage(db) : null;
+    let ownerStorage: TeamOwnerStorageBoundary | undefined;
     const identities = createD1IdentityStore(db);
     const tokens = new Map<string, string>();
     let currentTeamId: string | null = null;
@@ -285,7 +303,11 @@ async function createRowScope(input: CompiledExampleInput, moduleIndex: number, 
 
     const scope: ExampleRowScope = {
       ...base,
-      store,
+      get store() {
+        if (store === null) throw new Error("example runner: current owner store is not provisioned");
+        return store;
+      },
+      get ownerStorage() { return ownerStorage; },
       identities,
       d1Id,
       get currentTeamId() { return currentTeamId; },
@@ -305,6 +327,27 @@ async function createRowScope(input: CompiledExampleInput, moduleIndex: number, 
           const account = accounts.users[user.name]?.account;
           if (account === undefined) throw new Error(`example runner: missing account for user fixture ${user.name}`);
           await addActor(account, current.team_id, user.roles);
+        }
+        if (ownerProfile !== undefined) {
+          const currentDb = await base.dev.getD1Database(currentBinding);
+          const otherDb = await base.dev.getD1Database(otherBinding);
+          const routes = new Map([
+            [current.team_id, currentDb],
+            [other.team_id, otherDb],
+          ]);
+          const router = createD1OwnerRouter({ resolveBinding: requested => {
+            if (requested.app !== ownerProfile.app) return null;
+            const routedDb = routes.get(requested.owner);
+            return routedDb === undefined ? null : {
+              app: ownerProfile.app, owner: requested.owner, db: routedDb, initializeFresh: true,
+            };
+          } });
+          ownerStorage = await createTeamOwnerStorageBoundary({ artifact: ownerProfile.artifact,
+            asm: ownerProfile.asm, app: ownerProfile.app, identities, router });
+          const selfToken = tokens.get(accounts.self);
+          if (selfToken === undefined) throw new Error("example runner: fixture owner has no verified session");
+          const self = await resolveIdentity(identities, { session_token: selfToken, team_id: current.team_id });
+          store = await ownerStorage.forIdentity(self);
         }
       },
       async identityFor(by, rowCaller, fixtures) {
@@ -581,9 +624,12 @@ function canonicalExampleHooks(artifact: CompileArtifact, asm: AssembledModules)
       if (!isRecord(encoded)) throw new Error("example runner: operation inputs are not an object");
       const request = applyRequestOverrides(closedOperationInputs(operation.kind, encoded),
         wireInputs(call.request, new Map()));
+      const ownerStorage = call.scope.ownerStorage;
+      if (ownerStorage === undefined) throw new Error("example runner: canonical row has no owner storage boundary");
       const invoker = buildInvoker(artifact, asm, call.scope.store, {
         memberships: call.scope.identities,
         source: "example",
+        ownerStorage,
       });
       const outcome = operation.kind === "read"
         ? await invoker.invokeRead({ operation: call.operation as FqOperationName, inputs: request.inputs as ClosedInputs }, identity)
@@ -655,6 +701,18 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
       { artifact: moduleArtifact, sourcePath: input.artifactLabel },
       { workDir, stdlibUrl: new URL("../runtime/stdlib.js", import.meta.url).href },
     );
+    let ownerProfile: ExampleOwnerProfile | undefined;
+    if (input.hooks === undefined || (artifact.models?.length ?? 0) > 0) {
+      const first = artifact.modules[0];
+      const url = first === undefined ? undefined : asm.moduleUrls[first.path];
+      if (url === undefined) throw new Error("example runner: canonical app entry is missing");
+      const module: unknown = await import(url);
+      const definition = isRecord(module) ? module["appDefinition"] : undefined;
+      if (!isRecord(definition) || typeof definition["id"] !== "string" || definition["id"] === "") {
+        throw new Error("example runner: canonical app definition is missing");
+      }
+      ownerProfile = { artifact, asm, app: definition["id"] };
+    }
     const runtimeHooks = input.hooks ?? canonicalExampleHooks(artifact, asm);
     const loadSuite = input.testkit.loadExampleSuite as (
       moduleUrl: string,
@@ -740,7 +798,7 @@ export async function runCompiledExamples(input: CompiledExampleInput): Promise<
         operation: test.scope,
         userFixtures: suite.userFixtures,
         rows,
-        createScope: (rowIndex: number) => createRowScope(input, moduleIndex, rowIndex),
+        createScope: (rowIndex: number) => createRowScope(input, moduleIndex, rowIndex, ownerProfile),
       });
       if (result.kind !== "table" || result.rows.length !== selectedRows.length) {
         throw new Error(`example runner: testkit returned incomplete rows for ${test.scope}`);
