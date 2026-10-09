@@ -35,6 +35,8 @@ export interface SingleFileCaptureRequest {
   extraInputPaths?: readonly NamedInputPath[];
   /** Semantic flags that change analysis or emission. */
   semanticOptions?: Readonly<Record<string, string>>;
+  /** Re-discover the installed local producer inventory on every currency check. */
+  inputInventory?: "installed-local-preview";
 }
 
 export interface CapturedFileIdentity {
@@ -64,6 +66,7 @@ export interface SingleFileCapture {
   profile: string;
   semanticOptions: Readonly<Record<string, string>>;
   inputs: readonly CapturedFileIdentity[];
+  inputInventory?: "installed-local-preview";
 }
 
 export interface CompilerSourceEntry {
@@ -110,11 +113,19 @@ async function readStableFile(requestedPath: string): Promise<{ canonicalPath: s
     const before = await handle.stat();
     if (!before.isFile()) throw new Error(`input is not a regular file: ${requestedPath}`);
     const bytes = await handle.readFile();
+    const afterHandle = await handle.stat();
     const after = await stat(canonicalPath);
     if (
+      before.dev !== afterHandle.dev ||
+      before.ino !== afterHandle.ino ||
+      before.size !== afterHandle.size ||
+      before.mtimeMs !== afterHandle.mtimeMs ||
+      before.ctimeMs !== afterHandle.ctimeMs ||
       before.dev !== after.dev ||
       before.ino !== after.ino ||
       bytes.length !== after.size ||
+      afterHandle.mtimeMs !== after.mtimeMs ||
+      afterHandle.ctimeMs !== after.ctimeMs ||
       (await realpath(requestedPath)) !== canonicalPath
     ) {
       throw new Error(`input changed during capture: ${requestedPath}`);
@@ -209,7 +220,11 @@ export async function captureSingleFileSource(request: SingleFileCaptureRequest)
   const sourceSha256 = createHash("sha256").update(bytes).digest("hex");
   const sourceRevision = digest(["can.dev.source-set.v1", compilerOperand, sourceSha256]);
   const semanticOptions = normalizedOptions(request.semanticOptions);
-  const inputs = await captureInputs(root, namedPaths(request));
+  const declaredPaths = namedPaths(request);
+  if (!(await inventoryMatches(request.inputInventory, root, declaredPaths, request.compilerPath))) {
+    throw new Error("installed preview input membership changed before capture");
+  }
+  const inputs = await captureInputs(root, declaredPaths);
   if ((await realpath(request.checkoutRoot)) !== root || (await realpath(requestedAppPath)) !== appPath) {
     throw new Error("selected checkout or app path changed during capture");
   }
@@ -227,9 +242,40 @@ export async function captureSingleFileSource(request: SingleFileCaptureRequest)
     profile: request.profile,
     semanticOptions,
     inputs,
+    ...(request.inputInventory === undefined ? {} : { inputInventory: request.inputInventory }),
   };
+  if (!(await inventoryMatches(request.inputInventory, root, declaredPaths, request.compilerPath))) {
+    throw new Error("installed preview input membership changed during capture");
+  }
   capture.epochMaterial = epochMaterial(capture);
   return Object.freeze(capture);
+}
+
+async function inventoryMatches(
+  kind: SingleFileCaptureRequest["inputInventory"], root: string,
+  selected: readonly { name: string; path: string | null }[], compilerPath: string,
+): Promise<boolean> {
+  if (kind === undefined) return true;
+  if (kind !== "installed-local-preview") return false;
+  try {
+    const { installedLocalPreviewInputInventory } = await import("./preview-inputs.js");
+    const current = installedLocalPreviewInputInventory(root, compilerPath);
+    const expected = [
+      ...current.packageInputPaths.map(item => ({ name: `package:${item.name}`, path: item.path })),
+      ...current.extraInputPaths.map(item => ({ name: `extra:${item.name}`, path: item.path })),
+    ];
+    const actual = selected.filter(item => item.name.startsWith("package:") || item.name.startsWith("extra:"));
+    if (actual.length !== expected.length) return false;
+    const byName = new Map(actual.map(item => [item.name, item.path]));
+    for (const item of expected) {
+      const path = byName.get(item.name);
+      if (path === undefined || path === null ||
+          (await realpath(resolve(root, path))) !== (await realpath(item.path))) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -253,6 +299,9 @@ export function verifyCompilerSources(capture: SingleFileCapture, report: Compil
 /** Recheck source, symlink targets and all declared inputs before publication. */
 export async function captureIsCurrent(capture: SingleFileCapture): Promise<boolean> {
   try {
+    if (!(await inventoryMatches(capture.inputInventory, capture.root,
+      capture.inputs.map(input => ({ name: input.name, path: input.requestedPath })),
+      capture.inputs.find(input => input.name === "compiler")?.requestedPath ?? ""))) return false;
     if ((await realpath(capture.requestedRoot)) !== capture.root) return false;
     const { canonicalPath, bytes } = await readStableFile(capture.requestedAppPath);
     if (canonicalPath !== capture.appPath || bytes.length !== capture.sourceBytes) return false;
