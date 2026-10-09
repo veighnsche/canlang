@@ -150,7 +150,7 @@ describe("authored operation forms through defining default Worker", () => {
     // Drive the emitted bootstrap in installed Chrome over the real Worker
     // HTTP origin. Direct submission above remains a separate admitted path.
     const origin = (await worker.ready).origin;
-    const browser = await chromium.launch({ channel: "chrome", headless: true });
+    const browser = await chromium.launch({ headless: true });
     try {
       const context = await browser.newContext();
       try {
@@ -437,9 +437,10 @@ describe("authored readonly state page through native Worker polling", () => {
     };
     const origin = (await worker.ready).origin;
     // Attach without Playwright's main-session focus/active emulation. The
-    // public noDefaults option applies only to this real default Chrome context.
+    // public noDefaults option applies only to this real default Chromium context.
     const profile = join(dir, "chrome-profile");
-    const chrome = spawn("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", [
+    const chrome = spawn(chromium.executablePath(), [
+      "--headless=new", "--no-sandbox",
       `--user-data-dir=${profile}`, "--remote-debugging-port=0", "--remote-debugging-address=127.0.0.1",
       "--no-first-run", "--no-default-browser-check", "about:blank",
     ], { stdio: "ignore" });
@@ -624,7 +625,7 @@ describe("configured authored protected forms through native Worker", () => {
     const target = creation.records[0]!;
     expect(target.version).toBe(1);
     const origin = (await worker.ready).origin;
-    const browser = await chromium.launch({ channel: "chrome", headless: true });
+    const browser = await chromium.launch({ headless: true });
     try {
       const context = await browser.newContext();
       try {
