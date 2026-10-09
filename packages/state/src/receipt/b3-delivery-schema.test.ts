@@ -103,7 +103,8 @@ describe('B3 loader: deliveryFields channel', () => {
         ),
       (error: unknown) =>
         error instanceof IncompatibleArtifactError &&
-        /delivery descriptors carry a non-empty capability/.test(error.message),
+        error.reason === 'malformed_descriptor' &&
+        /delivery identity\/version must match its standard or source Judgment profile\./.test(error.message),
     );
     assert.throws(
       () =>

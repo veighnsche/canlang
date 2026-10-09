@@ -3573,3 +3573,7 @@ Interfaces form preparation permits the generated optional explicit-null compani
 ## 2026-10-09 — encode delete identity at the owning UI boundary
 
 Preserve native BigInt list-row versions and adapt only the generated delete control's record to the public MutationRef decimal-string contract. A local capture evaluates the authored record expression once in prop order and forwards only id/version; existing gates and canonical permissions remain. Actual UI hidden fields and canonical Memory archive/stale/revoked controls pass1/1, with separate exact presentation/native arithmetic above2^53 and no widened State version claim. The affected factory golden1/1 and focused strict Clippy pass; independent HIGH review accepts the finite correction. Dev's populated Office Supplies consumer can use this producer revision; full application acceptance is unestablished.
+
+### 2026-10-09 — Align affected CI assertions with owning wire and rejection contracts
+
+Keep the File MCP field as the actual closed object with one required nonempty id; no extra fields are admitted. The malformed delivery version test checks both malformed_descriptor and the owning standard/Source Judgment identity/version refusal. These repair stale test expectations while preserving the existing production validators and their negative cases; focused checks pass 8/8 and 5/5.
