@@ -167,6 +167,20 @@ skips. All five failures are the unchanged draft-dependent corpus checks above;
 no current whole-suite acceptance follows. Codex review of the newly published
 revision remains external and pending; earlier reviews do not qualify it.
 
+GitHub CI inspection at **c3c12531** distinguishes three external failures:
+recursive checkout rejects draft5a12eb9e; the Contracts workflow's TypeScript
+invocation lacks ES2022 support for its current `Object.hasOwn`; and clean
+Cloudflare builds cannot resolve the optional Testkit declaration import in
+`src/dev/example-runner.ts`. The draft publisher, Contracts workflow owner and
+Cloudflare/package-boundary owner respectively own these prerequisites.
+The ready Compiler CI repair reconciles B1's stale three-diagnostic pin to the
+seven exact current tooltip/collapse/breadcrumb/edit/filter refusals, retaining
+exit10, complete diagnostics, zero other codes and no published artifact.
+Its actual CLI/catalog gate passes; unchanged STRICT joins **2/2** and build
+results are reused. Compiler-wide `cargo fmt --check` also passes after layout-only
+corrections to existing upstream lines; source behavior and the integrated
+results are reused. No passing hosted CI or full-plan acceptance follows.
+
 Current remaining prerequisites are recorded here without reopening accepted
 compiler leaves:
 
