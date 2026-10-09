@@ -48,6 +48,7 @@
 //! co-occurrence checks, left to later phases): page `refresh` without
 //! `poll`, and `review` without `import=csv`.
 
+mod construct_help;
 pub mod cst;
 pub mod layout;
 pub mod lexer;
@@ -107,6 +108,7 @@ pub fn parse_source(file: SourceId, text: &str) -> (SyntaxNode, Vec<Diagnostic>)
     let mut diagnostics = lexed.diagnostics;
     diagnostics.extend(laid_out.diagnostics);
     diagnostics.extend(parse_diags);
+    construct_help::qualify(text, &laid_out.roots, &tree, &mut diagnostics);
     diagnostics.sort_by(|a, b| {
         (a.primary.file, a.primary.start, a.code).cmp(&(b.primary.file, b.primary.start, b.code))
     });

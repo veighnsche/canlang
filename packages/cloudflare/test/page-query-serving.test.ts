@@ -147,7 +147,7 @@ describe("authored operation forms through defining default Worker", () => {
     const nextId = attributes(afterHtml.match(/<input\b[^>]*name="operation_id"[^>]*>/)![0])["value"];
     expect(nextId).not.toBe(flat["operation_id"]);
 
-    // Drive the emitted bootstrap in installed Chrome over the real Worker
+    // Drive the emitted bootstrap in installed Chromium over the real Worker
     // HTTP origin. Direct submission above remains a separate admitted path.
     const origin = (await worker.ready).origin;
     const browser = await chromium.launch({ headless: true });

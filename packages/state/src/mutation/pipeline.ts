@@ -15,12 +15,14 @@ import { deepFreeze, getDataPath } from '../internal/own-data.js';
 import { encodeValue, validateValue } from '@canlang/values';
 import type {
   CanTypeId,
+  CanonicalFieldDef,
   DomainWrite,
   HistoryEntry,
   InvocationContext,
   ModelName,
   OperationName,
   QueryPredicate,
+  QuerySpec,
   RecordId,
   RecordParent,
   RecordVersion,
@@ -32,10 +34,12 @@ import type {
 } from '@canlang/contracts';
 import type { StoragePort } from '../storage/port.js';
 import { StateError } from '../errors.js';
+import { assertCheckedOwnerModelPolicies, type CheckedOwnerModelPolicies, type OwnerModelChange, type OwnerModelReadView, type OwnerModelPolicyViews } from './model-policies.js';
 import { openTransitiveScope, type FenceScope } from '../invocation/admission.js';
 import { STAGING_MAX_ID_LENGTH } from '../effects/staging.js';
 import { checkJsonSafe as checkJsonEncoding, jsonClone } from '../internal/json.js';
 import { evalPredicateForRow, resolveRowPath } from '../policy/grants.js';
+import { queryRecords } from '../query/engine.js';
 import {
   isParentPathDefault,
   getModelFieldConstraint,
@@ -104,16 +108,16 @@ export interface MutationWritesInput {
 /**
  * Pipeline output: fenced-commit inputs plus receipt defaults.
  *
- * B1: `resolvedDefaults` is flat per batch. Same-named defaulted fields
+ * Legacy B1: `resolvedDefaults` is flat per batch. Same-named defaulted fields
  * across writes in one batch are REJECTED LOUD (`validation`, before
  * anything commits) instead of last-wins: a flat receipt cannot
  * attribute two resolutions of one name, so colliding batches never
  * persist silently. Single-write callers (both CRUD executors, the
  * scenario seam's one-write calls, fanout children) cannot collide;
  * the seam keys its per-call maps itself (`<callIndex>:<model>.<field>`).
- * If a live caller ever needs two resolutions of one name in one batch,
- * per-write receipt keying is a contract item (T04b/I00), not a silent
- * pipeline change.
+ * Canonical owner sessions reuse the source runtime's established attribution
+ * `<orderedWriteIndex>:<canonicalModel>.<field>`, including hook secondaries.
+ * The legacy batch keeps its original flat map and collision refusal.
  */
 export interface MutationWritesResult {
   readonly writes: DomainWrite[];
@@ -126,6 +130,63 @@ export interface MutationWritesResult {
    * fenced batch. Empty when no hook staged timers.
    */
   readonly schedules: ScheduleOp[];
+}
+
+/** Checked policy and session execution share the same owner read vocabulary. */
+export type OwnerMutationChange = OwnerModelChange;
+export type OwnerMutationReadView = OwnerModelReadView;
+export type OwnerMutationViews = OwnerModelPolicyViews;
+export type OwnerMutationQuery = QuerySpec & { readonly limit: number; readonly authority: 'owner' };
+
+export interface OwnerMutationInput extends Omit<MutationWritesInput, 'writes'> {
+  readonly bounds: { readonly maxWork: number; readonly maxRows: number };
+  readonly policies?: CheckedOwnerModelPolicies;
+}
+
+export interface OwnerMutationStageOptions {
+  readonly cause: 'crud' | 'scenario';
+  /** Verified admitted CRUD inputs, not the defaults/hooks-adjusted candidate. */
+  readonly input?: Readonly<Record<string, unknown>>;
+}
+
+/** Canonical hook carriers; native hydration belongs to the checked adapter. */
+export interface OwnerMutationHookContext extends InterimHookContext {
+  readonly context: InvocationContext;
+  readonly input: Readonly<Record<string, unknown>>;
+  readonly after: StoredRow | null;
+}
+const ownerHookContexts = new WeakSet<object>();
+
+/** Native adapters accept only a live carrier created by this owner session. */
+export function assertOwnerMutationHookContext(value: InterimHookContext): asserts value is OwnerMutationHookContext {
+  if (!ownerHookContexts.has(value)) throw new StateError('validation', 'Unverified or closed owner mutation hook context.');
+}
+
+export interface OwnerMutationSession {
+  readonly views: OwnerMutationViews;
+  stage(writes: MutationWrite | readonly MutationWrite[], options: OwnerMutationStageOptions): Promise<void>;
+  read(model: ModelName, id: RecordId): Promise<StoredRow | null>;
+  finalize(): Promise<MutationWritesResult>;
+}
+
+/** A single owner-local execution; its caller still owns admission and commit. */
+export async function beginOwnerMutation(input: OwnerMutationInput): Promise<OwnerMutationSession> {
+  for (const bound of [input.bounds.maxWork, input.bounds.maxRows]) {
+    if (!Number.isSafeInteger(bound) || bound < 1 || bound >= Number.MAX_SAFE_INTEGER) {
+      throw new StateError('validation', 'Owner mutation bounds must be positive safe integers.');
+    }
+  }
+  if (input.policies !== undefined) assertCheckedOwnerModelPolicies(input.policies);
+  const frozen = { ...input, context: deepFreeze(structuredClone(input.context)),
+    bounds: Object.freeze({ ...input.bounds }) };
+  return createMutationPipeline(frozen, frozen, await input.store.readRevision());
+}
+
+/** Legacy batch behavior stays on the same machinery with its original checks. */
+export async function runMutationWrites(input: MutationWritesInput): Promise<MutationWritesResult> {
+  const pipeline = createMutationPipeline(input);
+  await pipeline.stage(input.writes, { cause: 'crud' });
+  return pipeline.finalize();
 }
 
 /** Provisional entry: a staged row, or a removal masking the store. */
@@ -265,10 +326,11 @@ function refValuesEqual(oldValue: unknown, newValue: unknown): boolean {
  * staged update to a staged create — still fails at commit: adapters
  * pre-check every expectedVersion against stored state, so chained
  * provisional versions conflict. Staged writes inherit exactly the
- * caller multi-write rule.)
+ * caller multi-write rule.) Owner sessions reserve and net one final write
+ * and history record per identity instead, while sharing this same machinery.
  */
-export async function runMutationWrites(input: MutationWritesInput): Promise<MutationWritesResult> {
-  const { table, writes, context, store } = input;
+function createMutationPipeline(input: Omit<MutationWritesInput, 'writes'>, owner?: OwnerMutationInput, revision?: Revision): OwnerMutationSession {
+  const { table, context, store } = input;
   const now = context.now;
   const actor = actorFor(context);
   // T32b-wire: the transitive facility's trigger point. Revision + owner
@@ -300,42 +362,174 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
    * resolutions of one name.
    */
   const defaultWriters = new Map<string, string>();
+  const defaultKey = (field: string, tag: string) => owner === undefined ? field : `${tag}.${field}`;
   /** B1: monotonic per-write tag counter (queue indices shift on splice). */
   let processedWrites = 0;
+
+  const entryRows = new Map<string, StoredRow | null>();
+  let work = 0;
+  let busy = false;
+  let finalized = false;
+  let poisoned = false;
+  const healthy = (): void => {
+    if (poisoned) throw new StateError('validation', 'Owner mutation session is poisoned.');
+    if (finalized) throw new StateError('validation', 'Owner mutation session is finalized.');
+  };
+  const consumeWork = (amount = 1): void => {
+    healthy();
+    if (!Number.isSafeInteger(amount) || amount < 0) {
+      poisoned = owner !== undefined;
+      throw new StateError('validation', 'Invalid owner mutation work charge.');
+    }
+    work += amount;
+    if (owner !== undefined && work > owner.bounds.maxWork) {
+      poisoned = true;
+      throw new StateError('validation', 'Owner mutation work budget exceeded.');
+    }
+  };
+  const checkRevision = async (): Promise<void> => {
+    if (owner !== undefined && await store.readRevision() !== revision) {
+      poisoned = true;
+      throw new StateError('conflict', 'State changed during owner mutation.');
+    }
+  };
+  const getEntry = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
+    if (owner === undefined) return store.load(model, id);
+    consumeWork();
+    if (!table.has(model) || typeof id !== 'string' || id === '') {
+      throw new StateError('validation', 'Owner mutation reads require a known model and record identity.');
+    }
+    await checkRevision();
+    const key = keyOf(model, id);
+    if (!entryRows.has(key)) {
+      const row = await store.load(model, id);
+      entryRows.set(key, row === null ? null : deepFreeze(structuredClone(row)));
+    }
+    await checkRevision();
+    return entryRows.get(key) ?? null;
+  };
+  const nextVersion = (model: ModelName, id: RecordId, before: StoredRow): RecordVersion => {
+    const basis = owner === undefined ? before : firstBefore.get(keyOf(model, id));
+    const version = basis == null ? 1 : basis.version + 1;
+    if (!Number.isSafeInteger(version) || version < 1) throw new StateError('validation', 'Record version is exhausted.');
+    return version as RecordVersion;
+  };
+  const serial = async <T>(execute: () => Promise<T>, close = false): Promise<T> => {
+    healthy();
+    if (busy) {
+      poisoned = true;
+      throw new StateError('validation', 'Concurrent owner mutation operations are forbidden.');
+    }
+    busy = true;
+    try {
+      const result = await execute();
+      await checkRevision();
+      healthy();
+      if (close) finalized = true;
+      return result;
+    } catch (error) { poisoned = true; throw error; }
+    finally { busy = false; }
+  };
 
   /** Provisional-aware load: staged rows win, removals mask, else the store. */
   const getRow = async (model: ModelName, id: RecordId): Promise<StoredRow | null> => {
     const entry = provisional.get(keyOf(model, id));
     if (entry !== undefined) {
-      return entry.status === 'row' ? entry.row : null;
+      consumeWork();
+      await checkRevision();
+      return entry.status === 'row' ? owner === undefined ? entry.row : deepFreeze(structuredClone(entry.row)) : null;
     }
-    return store.load(model, id);
+    return getEntry(model, id);
   };
 
-  /** Full-model scan (archived included) with provisional merged over it. */
-  const scanModel = async (model: ModelName): Promise<StoredRow[]> => {
-    const base = await store.query({ model, authority: 'owner', archived: 'include' });
+  const ownerQuery = async (spec: OwnerMutationQuery, side: 'entry' | 'final'): Promise<readonly StoredRow[]> => {
+    consumeWork();
+    if (spec.authority !== 'owner' || !table.has(spec.model) || !Number.isSafeInteger(spec.limit) ||
+        spec.limit < 0 || spec.limit > (owner?.bounds.maxRows ?? Number.MAX_SAFE_INTEGER - 1) ||
+        Object.keys(spec).some(key => !['model', 'authority', 'limit', 'where', 'parent', 'archived', 'order'].includes(key))) {
+      throw new StateError('validation', 'Owner mutation queries require checked finite owner selections.');
+    }
+    await checkRevision();
+    const cap = owner?.bounds.maxRows ?? spec.limit;
+    const base = await store.query({ ...spec, archived: 'include', limit: cap + 1 });
+    consumeWork(base.length);
+    if (base.length > cap) throw new StateError('validation', 'Owner mutation query exceeds its row bound.');
     const merged = new Map<string, StoredRow>();
     for (const row of base) {
-      merged.set(keyOf(model, row.id), row);
+      const key = keyOf(spec.model, row.id);
+      if (!entryRows.has(key)) entryRows.set(key, deepFreeze(structuredClone(row)));
+      const entry = entryRows.get(key);
+      if (entry != null) merged.set(key, entry);
     }
-    const prefix = `${model as string}\0`;
+    if (side === 'final') {
+      for (const [key, entry] of provisional) {
+        consumeWork();
+        if (!key.startsWith(`${spec.model as string}\0`)) continue;
+        if (entry.status === 'row') merged.set(key, entry.row);
+        else merged.delete(key);
+      }
+    }
+    const rows = [...merged.values()].filter(row =>
+      (spec.archived === 'include' || row.archivedAt === null) &&
+      (spec.parent === undefined || row.parent?.model === spec.parent.model && row.parent.id === spec.parent.id) &&
+      (spec.where === undefined || evalPredicateForRow(spec.where, row)));
+    if (rows.length > spec.limit) throw new StateError('validation', 'Owner mutation query exceeds its completeness limit.');
+    consumeWork(rows.length * (spec.order?.length ?? 1));
+    // The existing State query producer owns ordering, including native
+    // numeric comparison. It receives only this bounded merged snapshot.
+    const fields: Record<string, CanonicalFieldDef> = Object.create(null);
+    for (const [name, field] of Object.entries(table.get(spec.model)!.fields)) {
+      fields[name] = { required: field.required, serverOnly: field.serverOnly,
+        ...(field.valueType === undefined ? {} : { valueType: field.valueType }),
+        ...(field.array === undefined ? {} : { array: field.array }) };
+    }
+    const ordered = await queryRecords({ model: spec.model, authority: 'owner', policy: new Map(),
+      modelDescriptor: { name: spec.model, fields, deleteMode: table.get(spec.model)!.deleteMode },
+      context: { actorUserId: context.actor?.userId ?? null, teamId: context.team?.teamId ?? null },
+      memberships: { findMembership: async () => { throw new StateError('validation', 'Owner decision reads do not resolve viewer authority.'); } },
+      store: { ...store, query: async () => rows }, limit: spec.limit, archived: spec.archived ?? 'exclude',
+      ...(spec.order === undefined ? {} : { order: spec.order }),
+    });
+    await checkRevision();
+    return deepFreeze(structuredClone(ordered.rows));
+  };
+  /** Legacy scans retain their original semantics; owner scans never truncate. */
+  const scanModel = async (model: ModelName): Promise<StoredRow[]> => {
+    if (owner !== undefined) return [...await ownerQuery({ model, authority: 'owner', archived: 'include',
+      limit: owner.bounds.maxRows }, 'final')];
+    const base = await store.query({ model, authority: 'owner', archived: 'include' });
+    const merged = new Map<string, StoredRow>();
+    for (const row of base) merged.set(keyOf(model, row.id), row);
     for (const [key, entry] of provisional) {
-      if (!key.startsWith(prefix)) {
-        continue;
-      }
-      if (entry.status === 'row') {
-        merged.set(key, entry.row);
-      } else {
-        merged.delete(key);
-      }
+      if (!key.startsWith(`${model as string}\0`)) continue;
+      if (entry.status === 'row') merged.set(key, entry.row);
+      else merged.delete(key);
     }
     return [...merged.values()];
+  };
+  const guardedRead = async <T>(execute: () => Promise<T>): Promise<T> => {
+    try { return await execute(); }
+    catch (error) { if (owner !== undefined) poisoned = true; throw error; }
+  };
+  const checkedHooks = owner?.policies?.hooks;
+  const policyViews: OwnerMutationViews = Object.freeze({
+    context, maxRows: owner?.bounds.maxRows ?? Number.MAX_SAFE_INTEGER - 1, consumeWork,
+    entry: Object.freeze({ get: (model: ModelName, id: RecordId) => guardedRead(() => getEntry(model, id)),
+      query: (spec: OwnerMutationQuery) => guardedRead(() => ownerQuery(spec, 'entry')) }),
+    final: Object.freeze({ get: (model: ModelName, id: RecordId) => guardedRead(() => getRow(model, id)),
+      query: (spec: OwnerMutationQuery) => guardedRead(() => ownerQuery(spec, 'final')) }),
+  });
+  const beforeStage = async (model: ModelName, id: RecordId, after: StoredRow | null): Promise<void> => {
+    if (owner?.policies === undefined) return;
+    consumeWork();
+    await owner.policies.beforeStage(deepFreeze(structuredClone({ model, id,
+      before: firstBefore.get(keyOf(model, id)) ?? null, after })), policyViews);
   };
 
   /** Required check: missing keys, nulls, and hook-set undefined all fail. */
   const checkRequired = (candidate: Readonly<Record<string, unknown>>, def: InterimModelDef): void => {
     for (const [field, fieldDef] of Object.entries(def.fields)) {
+      consumeWork();
       if (!fieldDef.required) {
         continue;
       }
@@ -365,6 +559,7 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     appliedFields?: Set<string>,
   ): void => {
     for (const [field, value] of Object.entries(data)) {
+      consumeWork();
       const fieldDef = def.fields[field];
       if (fieldDef === undefined) {
         throw new StateError(
@@ -401,6 +596,7 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     def: InterimModelDef,
   ): void => {
     for (const field of Object.keys(candidate)) {
+      consumeWork();
       if (!Object.hasOwn(def.fields, field)) {
         throw new StateError(
           'validation',
@@ -444,14 +640,48 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
       // Receipts retain the original resolved default, which may differ
       // from the post-hook field. Reuse its existing write attribution.
       for (const [field, fieldDef] of Object.entries(def.fields)) {
-        if (defaultWriters.get(field) !== defaultWriter) continue;
-        const value = resolvedDefaults[field];
+        const key = defaultKey(field, defaultWriter);
+        if (defaultWriters.get(key) !== defaultWriter) continue;
+        const value = resolvedDefaults[key];
         if (fieldDef.valueType !== undefined && value !== undefined) {
-          safeSet(resolvedDefaults, field, jsonClone(
+          safeSet(resolvedDefaults, key, jsonClone(
             input.encodeField(fieldDef.valueType, value), `Resolved default ${JSON.stringify(field)}`,
           ));
         }
-        checkJsonEncoding(resolvedDefaults[field], `Resolved default ${JSON.stringify(field)}`);
+        checkJsonEncoding(resolvedDefaults[key], `Resolved default ${JSON.stringify(field)}`);
+      }
+    }
+  };
+
+  /** Values owns wire decoding, Unicode trim, and inclusive field bounds. */
+  const normalizeConstraints = (
+    candidate: Record<string, unknown>, def: InterimModelDef,
+    selected: ReadonlySet<string>, defaultWriter?: string,
+  ): void => {
+    for (const field of selected) {
+      consumeWork();
+      if (!Object.hasOwn(candidate, field)) continue;
+      const fieldDef = def.fields[field];
+      if (fieldDef === undefined) continue;
+      const constraint = getModelFieldConstraint(fieldDef);
+      if (constraint === undefined || fieldDef.valueType === undefined) continue;
+      const value = candidate[field];
+      if (value === undefined || value === null) continue;
+      try {
+        const wire = input.encodeField?.(fieldDef.valueType, value) ?? value;
+        const normalized = validateValue(constraint.schema, constraint.type, { value: wire }, 'create') as Readonly<Record<string, unknown>>;
+        // Bounds validate through Values' wire view without replacing native
+        // hook inputs. Only trim changes the value here; encoding still belongs
+        // to the existing post-hook checkpoint (including resolved defaults).
+        const constrained = fieldDef.trim === true
+          ? encodeValue(fieldDef.valueType, normalized['value'] as Parameters<typeof encodeValue>[1])
+          : value;
+        safeSet(candidate, field, jsonClone(constrained, `Field ${JSON.stringify(field)}`));
+        if (defaultWriter !== undefined && defaultWriters.get(defaultKey(field, defaultWriter)) === defaultWriter) {
+          safeSet(resolvedDefaults, defaultKey(field, defaultWriter), jsonClone(constrained, `Resolved default ${JSON.stringify(field)}`));
+        }
+      } catch (error) {
+        throw new StateError('validation', `Invalid field ${JSON.stringify(field)} on model ${JSON.stringify(def.model as string)}: ${String(error)}`);
       }
     }
   };
@@ -693,16 +923,25 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     before: StoredRow | null,
     triggerId: RecordId,
     sink: StagingSink,
+    options: OwnerMutationStageOptions,
+    pendingParent: RecordParent | null = null,
   ): Promise<Record<string, unknown>> => {
     let current = candidate;
     // Frozen once per op and shared across hooks in written order: no hook
     // can mutate the snapshot a later hook (or the pipeline's own
     // lock/ref/unique/history reads) observes.
-    const frozenBefore = before === null ? null : deepFreeze(jsonClone(before, 'Hook before'));
-    for (const hook of def.hooks) {
+    const beforeCarrier = before === null || owner === undefined ? before : { ...before,
+      version: firstBefore.get(keyOf(def.model, triggerId))?.version ?? before.version };
+    const frozenBefore = beforeCarrier === null ? null : deepFreeze(jsonClone(beforeCarrier, 'Hook before'));
+    const hooks = owner === undefined ? def.hooks : [...def.hooks, ...(checkedHooks?.get(def.model) ?? [])];
+    if (owner !== undefined && new Set(hooks.map(hook => hook.name)).size !== hooks.length) {
+      throw new StateError('validation', 'Duplicate owner mutation hook identity.');
+    }
+    for (const hook of hooks) {
       if (!hook.ops.includes(op)) {
         continue;
       }
+      consumeWork();
       const hookTag =
         `Hook ${JSON.stringify(hook.name)} on model ${JSON.stringify(def.model as string)}`;
       const forbidStagingOnRemove = (what: string): void => {
@@ -713,6 +952,15 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
           );
         }
       };
+      let hookActive = true;
+      const effect = <T>(execute: () => T): T => {
+        try {
+          if (owner !== undefined && !hookActive) throw new StateError('validation', 'Owner hook scope is closed.');
+          healthy();
+          return execute();
+        }
+        catch (error) { if (owner !== undefined) poisoned = true; throw error; }
+      };
       const ctx: InterimHookContext = {
         before: frozenBefore,
         op,
@@ -720,18 +968,21 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
         now,
         triggerModel: def.model,
         triggerId,
-        stage: (staged) => {
+        stage: (staged) => effect(() => {
           forbidStagingOnRemove('secondary writes');
+          consumeWork();
           sink.writes.push(checkStagedWrite(def, hook.name, staged));
-        },
-        schedule: (replacement) => {
+        }),
+        schedule: (replacement) => effect(() => {
           forbidStagingOnRemove('timers');
+          consumeWork();
           sink.schedules.push(checkStagedSchedule(def, hook.name, replacement));
-        },
-        cancel: (key) => {
+        }),
+        cancel: (key) => effect(() => {
           forbidStagingOnRemove('timers');
+          consumeWork();
           sink.schedules.push(checkStagedCancel(def, hook.name, key));
-        },
+        }),
         // T32b-wire: hook bodies are transitive effects — fresh scopes at
         // the CURRENT revision (zero inherited deps) plus re-reads of
         // CURRENT committed rows at those scopes. `load` deliberately
@@ -741,24 +992,40 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
         transitive: {
           triggerRevision: transitiveTriggerRevision,
           owner: transitiveOwner,
-          openScope: () => openTransitiveScope(store, transitiveOwner),
+          openScope: () => guardedRead(() => effect(() => { consumeWork(); return openTransitiveScope(store, transitiveOwner); })),
           load: async (
             scope: FenceScope,
             model: ModelName,
             id: RecordId,
-          ): Promise<StoredRow | null> => {
+          ): Promise<StoredRow | null> => guardedRead(async () => {
+            effect(() => consumeWork());
+            await checkRevision();
             const row = await store.load(model, id);
+            await checkRevision();
             if (row !== null) {
               scope.enroll({ kind: 'record', model, id, version: row.version });
             }
             return row;
-          },
+          }),
         },
       };
       // Each hook gets a clone and its return is re-cloned: hooks can neither
       // mutate the pipeline candidate nor smuggle uncloneable values forward
       // (or retain an alias and mutate it after returning).
-      const next = await hook.run(jsonClone(current, 'Hook candidate'), ctx);
+      const carrier: InterimHookContext | OwnerMutationHookContext = owner === undefined ? ctx : Object.freeze({
+        ...ctx, context, input: options.input!,
+        after: op === 'remove' ? null : deepFreeze({
+          id: triggerId, version: before === null ? 1 as RecordVersion : nextVersion(def.model, triggerId, before),
+          created: before?.created ?? now, updated: now, createdBy: before?.createdBy ?? actor,
+          updatedBy: actor, archivedAt: before?.archivedAt ?? null, parent: before?.parent ?? pendingParent,
+          data: jsonClone(current, 'Hook after'),
+        }),
+      });
+      if (owner !== undefined) ownerHookContexts.add(carrier);
+      let next: Record<string, unknown>;
+      try { next = await hook.run(jsonClone(current, 'Hook candidate'), carrier); }
+      finally { hookActive = false; ownerHookContexts.delete(carrier); }
+      healthy();
       if (typeof next !== 'object' || next === null || Array.isArray(next)) {
         throw new Error(`${hookTag} must return a candidate object.`);
       }
@@ -801,6 +1068,7 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
     before: StoredRow | null,
   ): Promise<void> => {
     for (const ref of def.refs) {
+      consumeWork();
       const value = getDataPath(candidate, ref.field);
       if (value === undefined) {
         continue;
@@ -862,12 +1130,18 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
    */
   const checkDisposal = async (targetModel: ModelName, targetId: RecordId): Promise<void> => {
     for (const [model, modelDef] of table) {
-      if (modelDef.refs.length === 0) {
+      if (modelDef.refs.length === 0 && (owner === undefined || modelDef.containment?.parent !== targetModel)) {
         continue;
       }
+      consumeWork();
       const rows = await scanModel(model);
       for (const row of rows) {
+        consumeWork();
+        if (owner !== undefined && row.parent?.model === targetModel && row.parent.id === targetId) {
+          throw new StateError('rule_failed', 'Cannot remove: contained records exist.');
+        }
         for (const ref of modelDef.refs) {
+          consumeWork();
           if ((ref.model as string) !== (targetModel as string)) {
             continue;
           }
@@ -915,7 +1189,8 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
    * collision — last-wins would persist silently without this throw.
    */
   const recordDefault = (field: string, value: unknown, tag: string): void => {
-    const first = defaultWriters.get(field);
+    const key = defaultKey(field, tag);
+    const first = defaultWriters.get(key);
     if (first !== undefined && first !== tag) {
       throw new StateError(
         'validation',
@@ -924,8 +1199,8 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
           'per batch, so split the batch or rename the field.',
       );
     }
-    defaultWriters.set(field, tag);
-    safeSet(resolvedDefaults, field, value);
+    defaultWriters.set(key, tag);
+    safeSet(resolvedDefaults, key, value);
   };
 
   /**
@@ -946,319 +1221,330 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
   // staging order, so staged writes observe the trigger's provisional row
   // (pending parents resolve) plus earlier staged rows. Staged entries skip
   // hooks (flat, no cascade) and stage nothing further.
-  const queue: MutationQueueEntry[] = writes.map((write) => ({ write, stagedBy: null }));
-  for (let index = 0; index < queue.length; index += 1) {
-    const entry = queue[index];
-    if (entry === undefined) {
-      throw new Error('Mutation queue misaligned.');
-    }
-    const write = entry.write;
-    // Null for caller writes (hooks run into `sink`); the staging hook's
-    // name for staged writes (hooks skipped, sink stays empty).
-    const stagedBy = entry.stagedBy;
-    const sink: StagingSink = { writes: [], schedules: [] };
-    /** Drain this write's staged secondaries into the queue + schedules. */
-    const drainSink = (): void => {
-      if (sink.writes.length === 0 && sink.schedules.length === 0) {
-        return;
+  const processWrites = async (writes: readonly MutationWrite[], options: OwnerMutationStageOptions): Promise<void> => {
+    const queue: MutationQueueEntry[] = writes.map((write) => ({ write, stagedBy: null }));
+    for (let index = 0; index < queue.length; index += 1) {
+      const entry = queue[index];
+      if (entry === undefined) {
+        throw new Error('Mutation queue misaligned.');
       }
-      queue.splice(
-        index + 1,
-        0,
-        ...sink.writes.map(
-          (staged): MutationQueueEntry => ({ write: staged.write, stagedBy: staged.hook }),
-        ),
-      );
-      outSchedules.push(...sink.schedules);
-    };
-    if (write.transition !== undefined && (write.op !== 'update' || stagedBy !== null)) {
-      throw new StateError('validation', 'Transition is available only on explicit scenario updates.');
-    }
-    const def = table.get(write.model);
-    if (def === undefined) {
-      // Unknown models are programmer bugs: models come from program defs,
-      // never from caller input.
-      throw new Error(
-        `Unknown model in mutation write: ${JSON.stringify(write.model as string)}.`,
-      );
-    }
-    touchedDefs.push(def);
-    const id = write.id;
-    if (typeof id !== 'string' || id === '') {
-      throw new StateError('validation', 'Mutation writes need a non-empty string record id.');
-    }
-    // Admission pre-loads update/remove targets, but the pipeline re-loads
-    // via the provisional map for uniformity (batch-earlier writes visible).
-    const before = await getRow(write.model, id);
-    if (before !== null) {
-      for (const [field, fieldDef] of Object.entries(def.fields)) {
-        if (fieldDef.machine !== undefined && !fieldDef.machine.states.includes(before.data[field] as string)) {
-          throw new StateError('validation', `Stored machine state for ${JSON.stringify(field)} is incompatible; migration is required.`);
+      consumeWork();
+      const write = entry.write;
+      // Null for caller writes (hooks run into `sink`); the staging hook's
+      // name for staged writes (hooks skipped, sink stays empty).
+      const stagedBy = entry.stagedBy;
+      const sink: StagingSink = { writes: [], schedules: [] };
+      /** Drain this write's staged secondaries into the queue + schedules. */
+      const drainSink = (): void => {
+        if (sink.writes.length === 0 && sink.schedules.length === 0) {
+          return;
         }
-      }
-    }
-    // B1: first-touch before-row (committed state at batch start; null for
-    // batch-created rows). Captured once per record: later touches see
-    // provisional state, but unique-netting needs the committed keys.
-    const rowKey = keyOf(write.model, id);
-    if (!firstBefore.has(rowKey)) {
-      firstBefore.set(rowKey, before);
-    }
-    // B1: collision-guard tag for this write (monotonic sequence — queue
-    // indices shift when staged writes splice in).
-    processedWrites += 1;
-    const writeTag =
-      `${write.op} ${write.model as string} ${id as string} (batch write #${processedWrites})`;
-
-    // T18/R27 ADOPTED RULE (one rule over creation defaults, server
-    // initialization, updates, and hooks): server-owned fields resolve
-    // in the engine at creation (closed init set, omitted-only, before
-    // hooks) and are excluded from every caller input; the ordinary
-    // update path rejects them (checker E3001 at authoring, `serverOnly`
-    // at admission/execution); ONLY hook adjustment of the pending
-    // record (`set event.after`, DESIGN §518) may rewrite them; replay
-    // never re-evaluates (the committed row is returned). Re-anchoring a
-    // COMMITTED server-owned field from an operation body stays rejected
-    // (checker-pinned); a supported re-anchor mechanism is future work.
-    if (write.op === 'create') {
-      if (before !== null) {
-        throw new StateError('validation', 'Record already exists.');
-      }
-      if (write.parent !== undefined) {
-        if (
-          typeof write.parent.model !== 'string' ||
-          write.parent.model === '' ||
-          typeof write.parent.id !== 'string' ||
-          write.parent.id === ''
-        ) {
-          throw new StateError('validation', 'Invalid parent reference.');
-        }
-      }
-      // B5 declared ownership (adopted T28-A): a declared child REQUIRES
-      // its declared parent model; a declared root rejects any supplied
-      // parent. Undeclared (legacy interim) defs skip this entirely —
-      // exact prior behavior. Local and plain-imported parents enforce
-      // identically (flat linkage); every caller path (CRUD, scenario
-      // staging, hook-staged writes) shares this block, so they agree.
-      const declared = def.containment;
-      if (declared !== undefined) {
-        if (declared.parent !== undefined) {
-          if (write.parent === undefined) {
-            throw new StateError(
-              'validation',
-              `Missing required parent for model ${JSON.stringify(write.model as string)}.`,
-            );
-          }
-          if ((write.parent.model as string) !== (declared.parent as string)) {
-            throw new StateError(
-              'validation',
-              `Invalid parent for model ${JSON.stringify(write.model as string)}: ` +
-                `expected parent model ${JSON.stringify(declared.parent as string)}.`,
-            );
-          }
-        } else if (write.parent !== undefined) {
-          throw new StateError(
-            'validation',
-            `Parent linkage is not allowed for model ${JSON.stringify(write.model as string)}.`,
-          );
-        }
-      }
-      const candidate: Record<string, unknown> = {};
-      applyCallerData(candidate, asDataObject(write.data, 'Create data'), def);
-      // Supplied parents must exist and be unarchived; resolved once here and
-      // reused for parent-path defaults below.
-      let parent: RecordParent | null = null;
-      let parentRow: StoredRow | null = null;
-      if (write.parent !== undefined) {
-        parentRow = await getRow(write.parent.model, write.parent.id);
-        if (parentRow === null) {
-          throw new StateError('validation', 'Parent record not found.');
-        }
-        if (parentRow.archivedAt !== null) {
-          throw new StateError('validation', 'Parent record is archived.');
-        }
-        parent = { model: write.parent.model, id: write.parent.id };
-      }
-      // T18 creation evaluation order per omitted field: caller data
-      // (above) wins over everything; then literal defaults, parent-path
-      // defaults, required-array rejection, known-nullable null-fill
-      // (L2 parity: nullable arrays yield null, so this precedes the
-      // array-empty fill), ordinary-array omit-to-empty, and finally
-      // closed-set server initializers — hooks observe all of it.
-      for (const [field, fieldDef] of Object.entries(def.fields)) {
-        if (Object.hasOwn(candidate, field)) {
-          continue;
-        }
-        const fallback = fieldDef.default;
-        if (fallback !== undefined) {
-          if (isParentPathDefault(fallback)) {
-            // No parent, or an unresolvable path, reads as missing — the
-            // required check below decides, so optional parent-bound fields
-            // never block parentless creates.
-            if (parentRow === null) {
-              continue;
-            }
-            const resolved = resolveRowPath(parentRow, fallback.parentPath);
-            // An unresolvable parent path reads as missing (the required check
-            // below decides); only recorded when it actually defaults.
-            if (resolved === undefined) {
-              continue;
-            }
-            safeSet(candidate, field, structuredClone(resolved));
-            recordDefault(field, structuredClone(resolved), writeTag);
-          } else {
-            safeSet(candidate, field, structuredClone(fallback));
-            recordDefault(field, structuredClone(fallback), writeTag);
-          }
-          continue;
-        }
-        // No default: required-array omission rejects (L2 required-first
-        // agreement — emission marks these required, so the verdict below
-        // would match; failing here keeps the T16a message stable).
-        const marker = fieldDef.array;
-        if (marker?.required === true) {
-          throw new StateError('validation', `Missing required field ${JSON.stringify(field)}.`);
-        }
-        // T18: known-nullable fills null (L2 parity); unknown nullability
-        // (hand-built defs, fixtures) skips with prior behavior intact.
-        if (fieldDef.nullable === true) {
-          safeSet(candidate, field, null);
-          recordDefault(field, null, writeTag);
-          continue;
-        }
-        // T16a: the T09 array marker decides. Ordinary arrays omit to `[]`
-        // (recorded like any resolved omission-fill). Explicit defaults
-        // (handled above) always win over omit-to-empty.
-        if (marker !== undefined) {
-          safeSet(candidate, field, []);
-          recordDefault(field, [], writeTag);
-          continue;
-        }
-        // T18: closed-set server init, the last prep step before hooks.
-        // Unspecified inits (pre-T18 artifacts, intake-direct tables)
-        // resolve nothing — the field stays missing, never invented.
-        const init = fieldDef.server;
-        if (init !== undefined) {
-          const resolved = evalServerInit(init, now, actor);
-          safeSet(candidate, field, resolved);
-          recordDefault(field, resolved, writeTag);
-        }
-      }
-      checkRequired(candidate, def);
-      normalizeConstraints(candidate, def, new Set(Object.keys(candidate)), writeTag);
-      // T31 (Rule A): staged writes skip hooks (flat, no cascade); every
-      // check below plus locks and end-of-batch invariants still runs.
-      const hooked =
-        stagedBy !== null
-          ? candidate
-          : await runHooks(def, 'create', candidate, null, id, sink);
-      // Hooks are trusted otherwise (adopted R27 rule: hooks adjusting
-      // the pending record are the ONLY writers that may set server-only
-      // fields), but the contract checks re-run: no undeclared fields,
-      // required present, JSON-safe values.
-      checkKnownFields(hooked, def);
-      checkRequired(hooked, def);
-      checkJsonSafe(hooked, def, writeTag);
-      checkWhen(write.when, {
-        id,
-        version: 1 as RecordVersion,
-        created: now,
-        updated: now,
-        createdBy: actor,
-        updatedBy: actor,
-        archivedAt: null,
-        parent,
-        data: hooked,
-      });
-      // Creates skip locks: there is no pre-state to match against.
-      await checkRefs(def, hooked, null);
-      for (const key of def.uniqueKeys) {
-        const canonical = canonicalUnique(hooked[key], key, def);
-        if (canonical === null) {
-          continue;
-        }
-        outClaims.push({ model: write.model, keyName: key, keyValue: canonical, recordId: id });
-      }
-      const row: StoredRow = {
-        id,
-        version: 1 as RecordVersion,
-        created: now,
-        updated: now,
-        createdBy: actor,
-        updatedBy: actor,
-        archivedAt: null,
-        parent,
-        data: deepFreeze(hooked),
+        queue.splice(
+          index + 1,
+          0,
+          ...sink.writes.map(
+            (staged): MutationQueueEntry => ({ write: staged.write, stagedBy: staged.hook }),
+          ),
+        );
+        outSchedules.push(...sink.schedules);
       };
-      provisional.set(keyOf(write.model, id), { status: 'row', row });
-      outWrites.push({ kind: 'insert', model: write.model, row });
-      recordHistory({
-        model: write.model,
-        recordId: id,
-        version: 1 as RecordVersion,
-        change: 'create',
-        before: null,
-        after: hooked,
-      });
-      drainSink();
-      continue;
-    }
+      if (write.transition !== undefined && (write.op !== 'update' || stagedBy !== null)) {
+        throw new StateError('validation', 'Transition is available only on explicit scenario updates.');
+      }
+      const def = table.get(write.model);
+      if (def === undefined) {
+        // Unknown models are programmer bugs: models come from program defs,
+        // never from caller input.
+        throw new Error(
+          `Unknown model in mutation write: ${JSON.stringify(write.model as string)}.`,
+        );
+      }
+      touchedDefs.push(def);
+      const id = write.id;
+      if (typeof id !== 'string' || id === '') {
+        throw new StateError('validation', 'Mutation writes need a non-empty string record id.');
+      }
+      // Admission pre-loads update/remove targets, but the pipeline re-loads
+      // via the provisional map for uniformity (batch-earlier writes visible).
+      const before = await getRow(write.model, id);
+      if (before !== null) {
+        for (const [field, fieldDef] of Object.entries(def.fields)) {
+          if (fieldDef.machine !== undefined && !fieldDef.machine.states.includes(before.data[field] as string)) {
+            throw new StateError('validation', `Stored machine state for ${JSON.stringify(field)} is incompatible; migration is required.`);
+          }
+        }
+      }
+      // B1: first-touch before-row (committed state at batch start; null for
+      // batch-created rows). Captured once per record: later touches see
+      // provisional state, but unique-netting needs the committed keys.
+      const rowKey = keyOf(write.model, id);
+      if (!firstBefore.has(rowKey)) {
+        firstBefore.set(rowKey, before);
+        // Removal also reserves its one history version, even without an
+        // after row to carry it. Refuse exhausted metadata before staging.
+        if (owner !== undefined && before !== null) nextVersion(write.model, id, before);
+      }
+      // B1: collision-guard tag for this write (monotonic sequence — queue
+      // indices shift when staged writes splice in).
+      processedWrites += 1;
+      const writeTag = owner === undefined
+        ? `${write.op} ${write.model as string} ${id as string} (batch write #${processedWrites})`
+        : `${processedWrites - 1}:${write.model as string}`;
 
-    if (write.op === 'update') {
-      if (before === null) {
-        throw new StateError('not_found', 'Record not found.');
+      // T18/R27 ADOPTED RULE (one rule over creation defaults, server
+      // initialization, updates, and hooks): server-owned fields resolve
+      // in the engine at creation (closed init set, omitted-only, before
+      // hooks) and are excluded from every caller input; the ordinary
+      // update path rejects them (checker E3001 at authoring, `serverOnly`
+      // at admission/execution); ONLY hook adjustment of the pending
+      // record (`set event.after`, DESIGN §518) may rewrite them; replay
+      // never re-evaluates (the committed row is returned). Re-anchoring a
+      // COMMITTED server-owned field from an operation body stays rejected
+      // (checker-pinned); a supported re-anchor mechanism is future work.
+      if (write.op === 'create') {
+        if (owner !== undefined && provisional.has(rowKey)) {
+          throw new StateError('validation', 'Record identities cannot be recreated during owner mutation.');
+        }
+        if (before !== null) {
+          throw new StateError('validation', 'Record already exists.');
+        }
+        if (write.parent !== undefined) {
+          if (
+            typeof write.parent.model !== 'string' ||
+            write.parent.model === '' ||
+            typeof write.parent.id !== 'string' ||
+            write.parent.id === ''
+          ) {
+            throw new StateError('validation', 'Invalid parent reference.');
+          }
+        }
+        // B5 declared ownership (adopted T28-A): a declared child REQUIRES
+        // its declared parent model; a declared root rejects any supplied
+        // parent. Undeclared (legacy interim) defs skip this entirely —
+        // exact prior behavior. Local and plain-imported parents enforce
+        // identically (flat linkage); every caller path (CRUD, scenario
+        // staging, hook-staged writes) shares this block, so they agree.
+        const declared = def.containment;
+        if (declared !== undefined) {
+          if (declared.parent !== undefined) {
+            if (write.parent === undefined) {
+              throw new StateError(
+                'validation',
+                `Missing required parent for model ${JSON.stringify(write.model as string)}.`,
+              );
+            }
+            if ((write.parent.model as string) !== (declared.parent as string)) {
+              throw new StateError(
+                'validation',
+                `Invalid parent for model ${JSON.stringify(write.model as string)}: ` +
+                  `expected parent model ${JSON.stringify(declared.parent as string)}.`,
+              );
+            }
+          } else if (write.parent !== undefined) {
+            throw new StateError(
+              'validation',
+              `Parent linkage is not allowed for model ${JSON.stringify(write.model as string)}.`,
+            );
+          }
+        }
+        const candidate: Record<string, unknown> = {};
+        applyCallerData(candidate, asDataObject(write.data, 'Create data'), def);
+        // Supplied parents must exist and be unarchived; resolved once here and
+        // reused for parent-path defaults below.
+        let parent: RecordParent | null = null;
+        let parentRow: StoredRow | null = null;
+        if (write.parent !== undefined) {
+          parentRow = await getRow(write.parent.model, write.parent.id);
+          if (parentRow === null) {
+            throw new StateError('validation', 'Parent record not found.');
+          }
+          if (parentRow.archivedAt !== null) {
+            throw new StateError('validation', 'Parent record is archived.');
+          }
+          parent = { model: write.parent.model, id: write.parent.id };
+        }
+        // T18 creation evaluation order per omitted field: caller data
+        // (above) wins over everything; then literal defaults, parent-path
+        // defaults, required-array rejection, known-nullable null-fill
+        // (L2 parity: nullable arrays yield null, so this precedes the
+        // array-empty fill), ordinary-array omit-to-empty, and finally
+        // closed-set server initializers — hooks observe all of it.
+        for (const [field, fieldDef] of Object.entries(def.fields)) {
+          consumeWork();
+          if (Object.hasOwn(candidate, field)) {
+            continue;
+          }
+          const fallback = fieldDef.default;
+          if (fallback !== undefined) {
+            if (isParentPathDefault(fallback)) {
+              // No parent, or an unresolvable path, reads as missing — the
+              // required check below decides, so optional parent-bound fields
+              // never block parentless creates.
+              if (parentRow === null) {
+                continue;
+              }
+              const resolved = resolveRowPath(parentRow, fallback.parentPath);
+              // An unresolvable parent path reads as missing (the required check
+              // below decides); only recorded when it actually defaults.
+              if (resolved === undefined) {
+                continue;
+              }
+              safeSet(candidate, field, structuredClone(resolved));
+              recordDefault(field, structuredClone(resolved), writeTag);
+            } else {
+              safeSet(candidate, field, structuredClone(fallback));
+              recordDefault(field, structuredClone(fallback), writeTag);
+            }
+            continue;
+          }
+          // No default: required-array omission rejects (L2 required-first
+          // agreement — emission marks these required, so the verdict below
+          // would match; failing here keeps the T16a message stable).
+          const marker = fieldDef.array;
+          if (marker?.required === true) {
+            throw new StateError('validation', `Missing required field ${JSON.stringify(field)}.`);
+          }
+          // T18: known-nullable fills null (L2 parity); unknown nullability
+          // (hand-built defs, fixtures) skips with prior behavior intact.
+          if (fieldDef.nullable === true) {
+            safeSet(candidate, field, null);
+            recordDefault(field, null, writeTag);
+            continue;
+          }
+          // T16a: the T09 array marker decides. Ordinary arrays omit to `[]`
+          // (recorded like any resolved omission-fill). Explicit defaults
+          // (handled above) always win over omit-to-empty.
+          if (marker !== undefined) {
+            safeSet(candidate, field, []);
+            recordDefault(field, [], writeTag);
+            continue;
+          }
+          // T18: closed-set server init, the last prep step before hooks.
+          // Unspecified inits (pre-T18 artifacts, intake-direct tables)
+          // resolve nothing — the field stays missing, never invented.
+          const init = fieldDef.server;
+          if (init !== undefined) {
+            const resolved = evalServerInit(init, now, actor);
+            safeSet(candidate, field, resolved);
+            recordDefault(field, resolved, writeTag);
+          }
+        }
+        checkRequired(candidate, def);
+        normalizeConstraints(candidate, def, new Set(Object.keys(candidate)), writeTag);
+        // T31 (Rule A): staged writes skip hooks (flat, no cascade); every
+        // check below plus locks and end-of-batch invariants still runs.
+        const hooked =
+          stagedBy !== null || (owner !== undefined && options.cause !== 'crud')
+            ? candidate
+            : await runHooks(def, 'create', candidate, null, id, sink, options, parent);
+        // Hooks are trusted otherwise (adopted R27 rule: hooks adjusting
+        // the pending record are the ONLY writers that may set server-only
+        // fields), but the contract checks re-run: no undeclared fields,
+        // required present, JSON-safe values.
+        checkKnownFields(hooked, def);
+        checkRequired(hooked, def);
+        checkJsonSafe(hooked, def, writeTag);
+        checkWhen(write.when, {
+          id,
+          version: 1 as RecordVersion,
+          created: now,
+          updated: now,
+          createdBy: actor,
+          updatedBy: actor,
+          archivedAt: null,
+          parent,
+          data: hooked,
+        });
+        // Creates skip locks: there is no pre-state to match against.
+        if (owner === undefined) await checkRefs(def, hooked, null);
+        for (const key of def.uniqueKeys) {
+          const canonical = canonicalUnique(hooked[key], key, def);
+          if (canonical === null) {
+            continue;
+          }
+          outClaims.push({ model: write.model, keyName: key, keyValue: canonical, recordId: id });
+        }
+        const row: StoredRow = {
+          id,
+          version: 1 as RecordVersion,
+          created: now,
+          updated: now,
+          createdBy: actor,
+          updatedBy: actor,
+          archivedAt: null,
+          parent,
+          data: deepFreeze(hooked),
+        };
+        await beforeStage(write.model, id, row);
+        provisional.set(keyOf(write.model, id), { status: 'row', row });
+        outWrites.push({ kind: 'insert', model: write.model, row });
+        recordHistory({
+          model: write.model,
+          recordId: id,
+          version: 1 as RecordVersion,
+          change: 'create',
+          before: null,
+          after: hooked,
+        });
+        drainSink();
+        continue;
       }
-      // B1: archived rows stay updatable here BY DESIGN unless the caller
-      // opts into the admission-parity gate: canonical admission gates
-      // archived targets for every invoke-path write (CRUD via admission,
-      // scenarios via `gateArchivedTargets`), while privileged direct
-      // callers (migrations/backfill) may legitimately touch archived rows.
-      checkGatedArchivedTarget(before, input.gateArchivedTargets === true);
-      if (write.parent !== undefined) {
-        throw new StateError('validation', 'Parent linkage is immutable.');
-      }
-      const candidate: Record<string, unknown> = {};
-      for (const [field, value] of Object.entries(before.data)) {
-        safeSet(candidate, field, structuredClone(value));
-      }
-      // Updates apply NO defaults: only the patch lands on before.data.
-      const changedFields = new Set<string>();
-      applyCallerData(candidate, asDataObject(write.data, 'Update patch'), def, changedFields);
-      if (write.transition !== undefined) {
-        const edge = write.transition;
-        if (typeof edge !== 'object' || edge === null || Array.isArray(edge) ||
-            typeof edge.field !== 'string' || typeof edge.from !== 'string' || typeof edge.to !== 'string') {
-          throw new StateError('validation', 'Malformed transition.');
+
+      if (write.op === 'update') {
+        if (before === null) {
+          throw new StateError('not_found', 'Record not found.');
         }
-        if (write.data !== undefined && Object.hasOwn(write.data, edge.field)) {
-          throw new StateError('validation', 'Transition cannot carry a patch for its machine field.');
+        // B1: archived rows stay updatable here BY DESIGN unless the caller
+        // opts into the admission-parity gate: canonical admission gates
+        // archived targets for every invoke-path write (CRUD via admission,
+        // scenarios via `gateArchivedTargets`), while privileged direct
+        // callers (migrations/backfill) may legitimately touch archived rows.
+        checkGatedArchivedTarget(before, input.gateArchivedTargets === true);
+        if (write.parent !== undefined) {
+          throw new StateError('validation', 'Parent linkage is immutable.');
         }
-        const machine = def.fields[edge.field]?.machine;
-        if (machine === undefined || !machine.transitions.some((site) =>
-            site.from === edge.from && site.to === edge.to && site.operation === context.operation)) {
-          throw new StateError('validation', 'Transition is not declared for the current operation.');
+        const candidate: Record<string, unknown> = {};
+        for (const [field, value] of Object.entries(before.data)) {
+          safeSet(candidate, field, structuredClone(value));
         }
-        if (!machine.states.includes(before.data[edge.field] as string)) {
-          throw new StateError('validation', 'Stored machine state is incompatible with its declaration.');
+        // Updates apply NO defaults: only the patch lands on before.data.
+        const changedFields = new Set<string>();
+        applyCallerData(candidate, asDataObject(write.data, 'Update patch'), def, changedFields);
+        if (write.transition !== undefined) {
+          const edge = write.transition;
+          if (typeof edge !== 'object' || edge === null || Array.isArray(edge) ||
+              typeof edge.field !== 'string' || typeof edge.from !== 'string' || typeof edge.to !== 'string') {
+            throw new StateError('validation', 'Malformed transition.');
+          }
+          if (write.data !== undefined && Object.hasOwn(write.data, edge.field)) {
+            throw new StateError('validation', 'Transition cannot carry a patch for its machine field.');
+          }
+          const machine = def.fields[edge.field]?.machine;
+          if (machine === undefined || !machine.transitions.some((site) =>
+              site.from === edge.from && site.to === edge.to && site.operation === context.operation)) {
+            throw new StateError('validation', 'Transition is not declared for the current operation.');
+          }
+          if (!machine.states.includes(before.data[edge.field] as string)) {
+            throw new StateError('validation', 'Stored machine state is incompatible with its declaration.');
+          }
+          if (before.data[edge.field] !== edge.from) {
+            throw new StateError('rule_failed', 'Transition source state does not match.');
+          }
+          safeSet(candidate, edge.field, edge.to);
         }
-        if (before.data[edge.field] !== edge.from) {
-          throw new StateError('rule_failed', 'Transition source state does not match.');
-        }
-        safeSet(candidate, edge.field, edge.to);
-      }
-      checkRequired(candidate, def);
-      normalizeConstraints(candidate, def, changedFields);
-      const beforeHook = jsonClone(candidate, 'Update before hooks');
-      // T31 (Rule A): staged writes skip hooks (flat, no cascade); every
-      // check below plus locks and end-of-batch invariants still runs.
-      const hooked =
-        stagedBy !== null
-          ? candidate
-          : await runHooks(def, 'update', candidate, before, id, sink);
-      checkKnownFields(hooked, def);
-      checkRequired(hooked, def);
-      for (const [field, value] of Object.entries(hooked)) {
-        if (value === beforeHook[field]) continue;
+        checkRequired(candidate, def);
+        normalizeConstraints(candidate, def, changedFields);
+        const beforeHook = jsonClone(candidate, 'Update before hooks');
+        // T31 (Rule A): staged writes skip hooks (flat, no cascade); every
+        // check below plus locks and end-of-batch invariants still runs.
+        const hooked =
+          stagedBy !== null || (owner !== undefined && options.cause !== 'crud')
+            ? candidate
+            : await runHooks(def, 'update', candidate, before, id, sink, options);
+        checkKnownFields(hooked, def);
+        checkRequired(hooked, def);
+        for (const [field, value] of Object.entries(hooked)) {
+          if (value === beforeHook[field]) continue;
         // Hook inputs/results are clones: unchanged arrays and objects keep
         // their wire contents, even though their identities differ.
         try {
@@ -1266,266 +1552,359 @@ export async function runMutationWrites(input: MutationWritesInput): Promise<Mut
         } catch {
           changedFields.add(field);
         }
-      }
-      checkJsonSafe(hooked, def, undefined, changedFields);
-      checkWhen(write.when, {
-        id,
-        version: (before.version + 1) as RecordVersion,
-        created: before.created,
-        updated: now,
-        createdBy: before.createdBy,
-        updatedBy: actor,
-        archivedAt: before.archivedAt,
-        parent: before.parent ?? null,
-        data: hooked,
-      });
-      checkLocks(def, before);
-      await checkRefs(def, hooked, before);
-      for (const key of def.uniqueKeys) {
-        const oldCanonical = canonicalUnique(before.data[key], key, def);
-        const newCanonical = canonicalUnique(hooked[key], key, def);
-        if (oldCanonical === newCanonical) {
-          continue;
         }
-        if (oldCanonical !== null) {
-          outReleases.push({ model: write.model, keyName: key, keyValue: oldCanonical });
-        }
-        if (newCanonical !== null) {
-          outClaims.push({
-            model: write.model,
-            keyName: key,
-            keyValue: newCanonical,
-            recordId: id,
-          });
-        }
-      }
-      const row: StoredRow = {
-        id,
-        version: (before.version + 1) as RecordVersion,
-        created: before.created,
-        updated: now,
-        createdBy: before.createdBy,
-        updatedBy: actor,
-        archivedAt: before.archivedAt,
-        parent: before.parent ?? null,
-        data: deepFreeze(hooked),
-      };
-      provisional.set(keyOf(write.model, id), { status: 'row', row });
-      outWrites.push({
-        kind: 'update',
-        model: write.model,
-        id,
-        expectedVersion: before.version,
-        row,
-      });
-      recordHistory({
-        model: write.model,
-        recordId: id,
-        version: row.version,
-        change: 'update',
-        before,
-        after: hooked,
-      });
-      drainSink();
-      continue;
-    }
-
-    if (write.op !== 'remove') {
-      throw new Error(`Unknown mutation op: ${JSON.stringify(write.op)}.`);
-    }
-    if (before === null) {
-      throw new StateError('not_found', 'Record not found.');
-    }
-    // B1: gated callers agree with admission verdict-for-verdict: an
-    // archived target reports `Archived records cannot be used here.`
-    // (admission's verdict, which the CRUD path inherits) rather than
-    // the archive-mode `already archived` verdict below.
-    checkGatedArchivedTarget(before, input.gateArchivedTargets === true);
-    if (write.parent !== undefined) {
-      throw new StateError('validation', 'Parent linkage is immutable.');
-    }
-    const mode = def.deleteMode;
-    if (mode === 'none') {
-      throw new StateError('validation', 'Deletes are not allowed for this model.');
-    }
-    if (mode === 'archive' && before.archivedAt !== null) {
-      throw new StateError('validation', 'Record is already archived.');
-    }
-    // Archive AND hard remove both run hooks filtered to op 'remove' (caller
-    // intent); the hard-remove candidate is discarded, but hook rejections
-    // still block the delete.
-    // T31 (Rule A): staged writes skip hooks (flat, no cascade); staged
-    // removes are unreachable (stage-time barred) but the guard is total.
-    const hooked =
-      stagedBy !== null
-        ? jsonClone(before.data, 'Remove hook input')
-        : await runHooks(
-            def,
-            'remove',
-            jsonClone(before.data, 'Remove hook input'),
-            before,
-            id,
-            sink,
-          );
-    if (mode === 'archive') {
-      checkKnownFields(hooked, def);
-      checkRequired(hooked, def);
-      // Archiving keeps unchanged legacy data intact. Hook candidates are
-      // cloned, so compare their wire contents rather than object identity;
-      // newly native or non-JSON values must still pass the changed-field gate.
-      const changedFields = new Set(Object.keys(hooked).filter(field => {
-        try { return JSON.stringify(hooked[field]) !== JSON.stringify(before.data[field]); }
-        catch { return true; }
-      }));
-      checkJsonSafe(hooked, def, undefined, changedFields, changedFields);
-      checkWhen(write.when, {
-        id,
-        version: (before.version + 1) as RecordVersion,
-        created: before.created,
-        updated: now,
-        createdBy: before.createdBy,
-        updatedBy: actor,
-        archivedAt: now,
-        parent: before.parent ?? null,
-        data: hooked,
-      });
-    } else {
-      // Hard removes have no candidate: `when` reads as a precondition over
-      // the before row (`may delete when <before matches>`).
-      checkWhen(write.when, before);
-    }
-    checkLocks(def, before);
-    if (mode === 'archive') {
-      // Archive keeps uniques reserved and skips the disposal scan (the row
-      // stays, so incoming refs stay valid). Refs re-validate like
-      // create/update (a hook-set ref to a missing/archived target must not
-      // persist; unchanged refs still pass). Uniques diff like an update: a
-      // hook-adjusted unique value must move its claim, or the stored row
-      // and the unique index diverge.
-      await checkRefs(def, hooked, before);
-      for (const key of def.uniqueKeys) {
-        const oldCanonical = canonicalUnique(before.data[key], key, def);
-        const newCanonical = canonicalUnique(hooked[key], key, def);
-        if (oldCanonical === newCanonical) {
-          continue;
-        }
-        if (oldCanonical !== null) {
-          outReleases.push({ model: write.model, keyName: key, keyValue: oldCanonical });
-        }
-        if (newCanonical !== null) {
-          outClaims.push({
-            model: write.model,
-            keyName: key,
-            keyValue: newCanonical,
-            recordId: id,
-          });
-        }
-      }
-      const row: StoredRow = {
-        id,
-        version: (before.version + 1) as RecordVersion,
-        created: before.created,
-        updated: now,
-        createdBy: before.createdBy,
-        updatedBy: actor,
-        archivedAt: now,
-        parent: before.parent ?? null,
-        data: deepFreeze(hooked),
-      };
-      provisional.set(keyOf(write.model, id), { status: 'row', row });
-      outWrites.push({
-        kind: 'update',
-        model: write.model,
-        id,
-        expectedVersion: before.version,
-        row,
-      });
-      recordHistory({
-        model: write.model,
-        recordId: id,
-        version: row.version,
-        change: 'archive',
-        before,
-        after: hooked,
-      });
-      drainSink();
-    } else {
-      await checkDisposal(write.model, id);
-      // B1: net uniques against the batch. The removed row's final keys
-      // are nothing, so every claim this batch staged for it is dropped
-      // (single-touch removes staged none — this only bites multi-touch
-      // batches, where a surviving claim would dangle on a removed row).
-      // Releases free the FIRST-touch (committed) keys: a batch-earlier
-      // touch may have moved the provisional keys, and freeing those
-      // would strand the committed claim. Batch-created rows (first
-      // touch null) release nothing — their keys never committed.
-      for (let claimIndex = outClaims.length - 1; claimIndex >= 0; claimIndex -= 1) {
-        const staged = outClaims[claimIndex];
-        if (
-          staged !== undefined &&
-          (staged.model as string) === (write.model as string) &&
-          (staged.recordId as string) === (id as string)
-        ) {
-          outClaims.splice(claimIndex, 1);
-        }
-      }
-      const committedBefore = firstBefore.get(rowKey) ?? null;
-      const releaseSource = committedBefore === null ? null : committedBefore.data;
-      if (releaseSource !== null) {
+        checkJsonSafe(hooked, def, undefined, changedFields);
+        checkWhen(write.when, {
+          id,
+          version: nextVersion(write.model, id, before),
+          created: before.created,
+          updated: now,
+          createdBy: before.createdBy,
+          updatedBy: actor,
+          archivedAt: before.archivedAt,
+          parent: before.parent ?? null,
+          data: hooked,
+        });
+        const lockBefore = owner === undefined ? before : firstBefore.get(rowKey);
+        if (lockBefore != null) checkLocks(def, lockBefore);
+        if (owner === undefined) await checkRefs(def, hooked, before);
         for (const key of def.uniqueKeys) {
-          const canonical = canonicalUnique(releaseSource[key], key, def);
-          if (canonical === null) {
+          const oldCanonical = canonicalUnique(before.data[key], key, def);
+          const newCanonical = canonicalUnique(hooked[key], key, def);
+          if (oldCanonical === newCanonical) {
             continue;
           }
-          outReleases.push({ model: write.model, keyName: key, keyValue: canonical });
+          if (oldCanonical !== null) {
+            outReleases.push({ model: write.model, keyName: key, keyValue: oldCanonical });
+          }
+          if (newCanonical !== null) {
+            outClaims.push({
+              model: write.model,
+              keyName: key,
+              keyValue: newCanonical,
+              recordId: id,
+            });
+          }
+        }
+        const row: StoredRow = {
+          id,
+          version: nextVersion(write.model, id, before),
+          created: before.created,
+          updated: now,
+          createdBy: before.createdBy,
+          updatedBy: actor,
+          archivedAt: before.archivedAt,
+          parent: before.parent ?? null,
+          data: deepFreeze(hooked),
+        };
+        await beforeStage(write.model, id, row);
+        provisional.set(keyOf(write.model, id), { status: 'row', row });
+        outWrites.push({
+          kind: 'update',
+          model: write.model,
+          id,
+          expectedVersion: before.version,
+          row,
+        });
+        recordHistory({
+          model: write.model,
+          recordId: id,
+          version: row.version,
+          change: 'update',
+          before,
+          after: hooked,
+        });
+        drainSink();
+        continue;
+      }
+
+      if (write.op !== 'remove') {
+        throw new Error(`Unknown mutation op: ${JSON.stringify(write.op)}.`);
+      }
+      if (before === null) {
+        throw new StateError('not_found', 'Record not found.');
+      }
+      // B1: gated callers agree with admission verdict-for-verdict: an
+      // archived target reports `Archived records cannot be used here.`
+      // (admission's verdict, which the CRUD path inherits) rather than
+      // the archive-mode `already archived` verdict below.
+      checkGatedArchivedTarget(before, input.gateArchivedTargets === true);
+      if (write.parent !== undefined) {
+        throw new StateError('validation', 'Parent linkage is immutable.');
+      }
+      const mode = def.deleteMode;
+      if (mode === 'none') {
+        throw new StateError('validation', 'Deletes are not allowed for this model.');
+      }
+      if (mode === 'archive' && before.archivedAt !== null) {
+        throw new StateError('validation', 'Record is already archived.');
+      }
+      // Archive AND hard remove both run hooks filtered to op 'remove' (caller
+      // intent); the hard-remove candidate is discarded, but hook rejections
+      // still block the delete.
+      // T31 (Rule A): staged writes skip hooks (flat, no cascade); staged
+      // removes are unreachable (stage-time barred) but the guard is total.
+      const hooked =
+        stagedBy !== null || (owner !== undefined && options.cause !== 'crud')
+          ? jsonClone(before.data, 'Remove hook input')
+          : await runHooks(
+              def,
+              'remove',
+              jsonClone(before.data, 'Remove hook input'),
+              before,
+              id,
+              sink,
+              options,
+            );
+      if (owner !== undefined && JSON.stringify(hooked) !== JSON.stringify(before.data)) {
+        throw new StateError('validation', 'Owner removal hooks cannot adjust the removed record.');
+      }
+      if (mode === 'archive') {
+        checkKnownFields(hooked, def);
+        checkRequired(hooked, def);
+        // Archiving keeps unchanged legacy data intact. Hook candidates are
+        // cloned, so compare their wire contents rather than object identity;
+        // newly native or non-JSON values must still pass the changed-field gate.
+        const changedFields = new Set(Object.keys(hooked).filter(field => {
+          try { return JSON.stringify(hooked[field]) !== JSON.stringify(before.data[field]); }
+          catch { return true; }
+        }));
+        checkJsonSafe(hooked, def, undefined, changedFields, changedFields);
+        checkWhen(write.when, {
+          id,
+          version: nextVersion(write.model, id, before),
+          created: before.created,
+          updated: now,
+          createdBy: before.createdBy,
+          updatedBy: actor,
+          archivedAt: now,
+          parent: before.parent ?? null,
+          data: hooked,
+        });
+      } else {
+        // Hard removes have no candidate: `when` reads as a precondition over
+        // the before row (`may delete when <before matches>`).
+        checkWhen(write.when, before);
+      }
+      const lockBefore = owner === undefined ? before : firstBefore.get(rowKey);
+      if (lockBefore != null) checkLocks(def, lockBefore);
+      if (mode === 'archive') {
+        // Archive keeps uniques reserved and skips the disposal scan (the row
+        // stays, so incoming refs stay valid). Refs re-validate like
+        // create/update (a hook-set ref to a missing/archived target must not
+        // persist; unchanged refs still pass). Uniques diff like an update: a
+        // hook-adjusted unique value must move its claim, or the stored row
+        // and the unique index diverge.
+        if (owner === undefined) await checkRefs(def, hooked, before);
+        for (const key of def.uniqueKeys) {
+          const oldCanonical = canonicalUnique(before.data[key], key, def);
+          const newCanonical = canonicalUnique(hooked[key], key, def);
+          if (oldCanonical === newCanonical) {
+            continue;
+          }
+          if (oldCanonical !== null) {
+            outReleases.push({ model: write.model, keyName: key, keyValue: oldCanonical });
+          }
+          if (newCanonical !== null) {
+            outClaims.push({
+              model: write.model,
+              keyName: key,
+              keyValue: newCanonical,
+              recordId: id,
+            });
+          }
+        }
+        const row: StoredRow = {
+          id,
+          version: nextVersion(write.model, id, before),
+          created: before.created,
+          updated: now,
+          createdBy: before.createdBy,
+          updatedBy: actor,
+          archivedAt: now,
+          parent: before.parent ?? null,
+          data: deepFreeze(hooked),
+        };
+        await beforeStage(write.model, id, row);
+        provisional.set(keyOf(write.model, id), { status: 'row', row });
+        outWrites.push({
+          kind: 'update',
+          model: write.model,
+          id,
+          expectedVersion: before.version,
+          row,
+        });
+        recordHistory({
+          model: write.model,
+          recordId: id,
+          version: row.version,
+          change: 'archive',
+          before,
+          after: hooked,
+        });
+        drainSink();
+      } else {
+        if (owner === undefined) await checkDisposal(write.model, id);
+        // B1: net uniques against the batch. The removed row's final keys
+        // are nothing, so every claim this batch staged for it is dropped
+        // (single-touch removes staged none — this only bites multi-touch
+        // batches, where a surviving claim would dangle on a removed row).
+        // Releases free the FIRST-touch (committed) keys: a batch-earlier
+        // touch may have moved the provisional keys, and freeing those
+        // would strand the committed claim. Batch-created rows (first
+        // touch null) release nothing — their keys never committed.
+        for (let claimIndex = outClaims.length - 1; claimIndex >= 0; claimIndex -= 1) {
+          const staged = outClaims[claimIndex];
+          if (
+            staged !== undefined &&
+            (staged.model as string) === (write.model as string) &&
+            (staged.recordId as string) === (id as string)
+          ) {
+            outClaims.splice(claimIndex, 1);
+          }
+        }
+        const committedBefore = firstBefore.get(rowKey) ?? null;
+        const releaseSource = committedBefore === null ? null : committedBefore.data;
+        if (releaseSource !== null) {
+          for (const key of def.uniqueKeys) {
+            const canonical = canonicalUnique(releaseSource[key], key, def);
+            if (canonical === null) {
+              continue;
+            }
+            outReleases.push({ model: write.model, keyName: key, keyValue: canonical });
+          }
+        }
+        await beforeStage(write.model, id, null);
+        provisional.set(keyOf(write.model, id), { status: 'removed' });
+        outWrites.push({ kind: 'remove', model: write.model, id, expectedVersion: before.version });
+        recordHistory({
+          model: write.model,
+          recordId: id,
+          version: before.version,
+          change: 'remove',
+          before,
+          after: null,
+        });
+        drainSink();
+      }
+    }
+
+  };
+
+  const finish = async (): Promise<MutationWritesResult> => {
+    const changes: OwnerMutationChange[] = [...firstBefore].map(([key, before]) => {
+      const split = key.indexOf('\0');
+      const entry = provisional.get(key);
+      return deepFreeze(structuredClone({ model: key.slice(0, split) as ModelName,
+        id: key.slice(split + 1) as RecordId, before, after: entry?.status === 'row' ? entry.row : null }));
+    }).sort((left, right) => left.model < right.model ? -1 : left.model > right.model ? 1 :
+      left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
+    if (owner !== undefined) {
+      for (const change of changes) {
+        consumeWork();
+        const def = table.get(change.model)!;
+        if (change.after !== null) {
+          await checkRefs(def, change.after.data, change.before);
+          if (change.before === null && change.after.parent != null) {
+            const parent = await getRow(change.after.parent.model, change.after.parent.id);
+            if (parent === null || parent.archivedAt !== null) {
+              throw new StateError('validation', 'Final parent record is missing or archived.');
+            }
+          }
+        } else if (change.before !== null) await checkDisposal(change.model, change.id);
+      }
+    }
+    // Invariants see the final provisional state through a SYNC view, so every
+    // table model is pre-materialized (archived included, provisional merged,
+    // frozen). The full-table scan is interim-correct over unbounded stores;
+    // L1/L2 narrow it.
+    const cache = new Map<string, StoredRow>();
+    for (const [model] of owner === undefined || touchedDefs.some(def => def.invariants.length !== 0) ? table : []) {
+      const rows = await scanModel(model);
+      for (const row of rows) {
+        cache.set(keyOf(model, row.id), deepFreeze(row));
+      }
+    }
+    for (const def of owner === undefined ? touchedDefs : [...new Set(touchedDefs)]) {
+      for (const invariant of def.invariants) {
+        await invariant.check({
+          get(model: ModelName, id: RecordId): StoredRow | null {
+            if (!table.has(model)) {
+              throw new Error(`Invariant queried unknown model ${JSON.stringify(model as string)}.`);
+            }
+            return cache.get(keyOf(model, id)) ?? null;
+          },
+        });
+      }
+    }
+
+    if (owner !== undefined) {
+      if (owner.policies !== undefined) {
+        consumeWork();
+        await owner.policies.finalize(deepFreeze(changes), policyViews);
+      }
+      outWrites.length = 0; outHistory.length = 0; outClaims.length = 0; outReleases.length = 0;
+      for (const change of changes) {
+        consumeWork();
+        const { model, id, before, after } = change;
+        const def = table.get(model)!;
+        if (before === null && after === null) continue;
+        if (before === null) outWrites.push({ kind: 'insert', model, row: after! });
+        else if (after === null) outWrites.push({ kind: 'remove', model, id, expectedVersion: before.version });
+        else outWrites.push({ kind: 'update', model, id, expectedVersion: before.version, row: after });
+        recordHistory({ model, recordId: id, before, after: after?.data ?? null,
+          version: after?.version ?? (before!.version + 1) as RecordVersion,
+          change: before === null ? 'create' : after === null ? 'remove' :
+            before.archivedAt === null && after.archivedAt !== null ? 'archive' : 'update' });
+        for (const key of def.uniqueKeys) {
+          consumeWork();
+          const previous = before === null ? null : canonicalUnique(before.data[key], key, def);
+          const final = after === null ? null : canonicalUnique(after.data[key], key, def);
+          if (previous === final) continue;
+          if (previous !== null) outReleases.push({ model, keyName: key, keyValue: previous });
+          if (final !== null) outClaims.push({ model, keyName: key, keyValue: final, recordId: id });
         }
       }
-      provisional.set(keyOf(write.model, id), { status: 'removed' });
-      outWrites.push({ kind: 'remove', model: write.model, id, expectedVersion: before.version });
-      recordHistory({
-        model: write.model,
-        recordId: id,
-        version: before.version,
-        change: 'remove',
-        before,
-        after: null,
-      });
-      drainSink();
     }
-  }
-
-  // Invariants see the final provisional state through a SYNC view, so every
-  // table model is pre-materialized (archived included, provisional merged,
-  // frozen). The full-table scan is interim-correct over unbounded stores;
-  // L1/L2 narrow it.
-  const cache = new Map<string, StoredRow>();
-  for (const [model] of table) {
-    const rows = await scanModel(model);
-    for (const row of rows) {
-      cache.set(keyOf(model, row.id), deepFreeze(row));
-    }
-  }
-  for (const def of touchedDefs) {
-    for (const invariant of def.invariants) {
-      await invariant.check({
-        get(model: ModelName, id: RecordId): StoredRow | null {
-          if (!table.has(model)) {
-            throw new Error(`Invariant queried unknown model ${JSON.stringify(model as string)}.`);
-          }
-          return cache.get(keyOf(model, id)) ?? null;
-        },
-      });
-    }
-  }
-
-  return {
-    writes: outWrites,
-    history: outHistory,
-    uniqueClaims: outClaims,
-    uniqueReleases: outReleases,
-    resolvedDefaults,
-    schedules: outSchedules,
+    return {
+      writes: outWrites,
+      history: outHistory,
+      uniqueClaims: outClaims,
+      uniqueReleases: outReleases,
+      resolvedDefaults,
+      schedules: outSchedules,
+    };
   };
+
+  const publicView = (side: OwnerMutationReadView): OwnerMutationReadView => Object.freeze({
+    get: (model: ModelName, id: RecordId) => serial(() => side.get(model, id)).then(row =>
+      row === null ? null : deepFreeze(structuredClone(row))),
+    query: (spec: OwnerMutationQuery) => serial(() => side.query(deepFreeze(structuredClone(spec)))),
+  });
+  const views: OwnerMutationViews = Object.freeze({ context, maxRows: policyViews.maxRows,
+    entry: publicView(policyViews.entry), final: publicView(policyViews.final),
+    consumeWork: (amount?: number) => { healthy();
+      if (busy) { poisoned = true; throw new StateError('validation', 'Concurrent owner mutation operations are forbidden.'); }
+      try { consumeWork(amount); } catch (error) { poisoned = true; throw error; }
+    },
+  });
+  return Object.freeze({
+    views,
+    read: views.final.get,
+    stage: (writes: MutationWrite | readonly MutationWrite[], options: OwnerMutationStageOptions) => serial(async () => {
+      if (owner !== undefined && (options?.cause !== 'crud' && options?.cause !== 'scenario' ||
+          options.cause === 'crud' && (typeof options.input !== 'object' || options.input === null || Array.isArray(options.input)))) {
+        throw new StateError('validation', 'Owner mutation staging needs an explicit cause and admitted CRUD inputs.');
+      }
+      const frozenWrites = deepFreeze(jsonClone(Array.isArray(writes) ? writes : [writes], 'Owner mutation writes'));
+      const frozenOptions = deepFreeze(jsonClone(options, 'Owner mutation cause'));
+      await processWrites(frozenWrites as readonly MutationWrite[], frozenOptions);
+    }),
+    finalize: () => serial(async () => {
+      const result = await finish();
+      return owner === undefined ? result : deepFreeze(result);
+    }, true),
+  });
 }
 
 /* -- T34-F5 fanout child writes (ADDITIVE; `runMutationWrites` untouched). -- */
