@@ -1848,3 +1848,20 @@ finite review pass. Required current-source whole qualification follows this
 unit. State's separate omitted-default contribution contract, Dev's distinct
 portable mutation qualification, original **58/67** and precise holds remain.
 Incoming living registry reconciliations retain the complete checkpoint unadvanced.
+
+**Current whole and original changed-row recovery, 2026-10-09.** Exact source
+**83f4f137** passes all **129 targets: 1,325 passed, 0 failed, 0 ignored,
+0 filtered**, required real engines/Node24 and actual permission bodies with
+zero skips. The historical state-machine replay failure is cleared. Production
+source is unchanged by the related consumer extension: actual original machine
+**1/1** additionally proves both ordinary and aged replay retain original
+generating/title/version snapshots after later ready/renamed writes, then
+withhold them after real generated archive. Physical rows/history/receipts,
+revision/outbox/schedules remain unchanged by recovery; commit/file tripwires
+remain zero. Strict lint/format and unchanged editor/LSP outcomes are reused.
+State omitted-default API146 and Dev's distinct portable mutation release remain
+exact reviewed intakes to consume; no current-source default-mutation acceptance
+is inferred. T04's compiler half is the next ready finite unit; Dev owns exact
+profile classification, trusted live qualification and distinguishing ranking
+evidence. Full grammar inventories and parser evidence=false remain intact.
+Original **58/67**, owner dependencies and precise human holds remain.

@@ -140,6 +140,33 @@ assert.ok('result' in finished,JSON.stringify(finished));
 const ready=await html();
 assert.match(ready,/Image ready/);
 assert.doesNotMatch(ready,/Generating/);
+// Replay projects the original changed row after later writes, then withholds
+// it when the actual generated archive removes current disclosure authority.
+const renamed=await invoke('Images.Job.update',{record:{id:row.id,version:'3'},title:'changed'});
+assert.ok('result' in renamed,JSON.stringify(renamed));
+assert.equal((await store.load('Images.Job',row.id)).data.title,'changed');
+const savedAfterChange=async()=>({revision:await store.readRevision(),row:await store.load('Images.Job',row.id),
+ history:await store.historyFor('Images.Job',row.id),receipt:await store.readReceipt(receiptIdentity),
+ outbox:await store.outboxPending(),schedules:await store.schedulesDue(now+86400000,100)});
+let preserved=await savedAfterChange();
+const advanceRequest={operation:'Images.advance',operation_id:envelopeId,inputs:input};
+for(const dedicated of [false,true]){
+ const recovered=await (dedicated?retainedInvoker.invokeRetainedMutation(advanceRequest,identity):invoker.invokeMutation(advanceRequest,identity));
+ assert.ok('result' in recovered,JSON.stringify(recovered));assert.equal(recovered.result.status,'replayed');
+ assert.deepEqual(recovered.result.records,advanced.result.records,'the original generating/title/version snapshot survives later ready/renamed rows');
+ assert.deepEqual(await savedAfterChange(),preserved);
+}
+const live=await store.load('Images.Job',row.id);
+const archived=await invoke('Images.Job.delete',{record:{id:row.id,version:String(live.version)}});
+assert.ok('result' in archived,JSON.stringify(archived));
+assert.notEqual((await store.load('Images.Job',row.id)).archivedAt,null);
+preserved=await savedAfterChange();
+for(const dedicated of [false,true]){
+ const recovered=await (dedicated?retainedInvoker.invokeRetainedMutation(advanceRequest,identity):invoker.invokeMutation(advanceRequest,identity));
+ assert.ok('result' in recovered,JSON.stringify(recovered));assert.equal(recovered.result.status,'replayed');
+ assert.equal(recovered.result.result,null);assert.deepEqual(recovered.result.records,[],'current archive withholds the saved changed row');
+ assert.deepEqual(await savedAfterChange(),preserved);
+}
 // Explicit slots use the real session; omitted-default mutation stays refused
 // until State releases the defining frozen input-default contribution contract.
 const explicit=createdRecord(await invoke('Images.Job.create',{}));
