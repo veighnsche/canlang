@@ -2,7 +2,7 @@
 
 Current completion is **58 of 67 references**, with **9 remaining including partial work**. [SYN-R08 maintenance](../../docs/research/compiler-library-audit-20261006/responsibility-map/syntax.md) reconciles current Rust support, permanent execution witnesses and Python prototype limits. [Native scalar presentation](native-scalar-presentation/README.md) resolves the original SEM-R06 defects; [checked operation results](operation-result-producer/facts.md) supply the bounded metadata producer for ongoing runtime work. The 1,162-test suite result remains historical at 83d40be0.
 
-The fresh cloud compiler validation repair uses the public `analysis::effects`
+The cloud compiler validation repair at the **1527a249 source snapshot** uses the public `analysis::effects`
 pass in its integration harness, preserving crate-private helper ownership.
 Its unchanged 43 cases and five corrected cohort cases pass; the two failed
 analysis checks and one authoring check also pass after reconciling current
@@ -10,6 +10,22 @@ declared-event grammar, descriptive E2019 capacity examples and seven observed
 draft diagnostic counts. The prior setup failures remain in the environment
 logs. These are validation corrections; no broader reference or current whole
 suite acceptance follows.
+
+After synchronization to upstream **9ecb2759**, the compiler failed E0583:
+the unfinished construct-candidate annotation hook referenced an absent source
+module. Removing only that declaration and its two calls restores the existing
+checking pipeline; the optional diagnostic carrier remains. Library/binary
+`cargo check --locked --offline` passes, and independent review accepts this
+bounded repair. Can Dev **T04's compiler inventory/help-data owner** must release
+the real producer and selected-profile proofs before enabling the hook.
+
+Current corpus qualification is blocked on the upstream draft gitlink
+**5a12eb9e**: its remote rejects that exact commit as unavailable. The existing
+clean draft checkout at **a55a0f7** is preserved; its counts cannot qualify the
+new gitlink. The coordinator/draft publisher owns this prerequisite. Upstream's
+anonymous-message, query and helper releases supersede the pre-sync leads;
+the duplicate unvalidated anonymous producer is retained only in local branch
+`codex/compiler-anonymous-unfinished-checkpoint`, without acceptance credit.
 
 The user has authorized finishing the remaining compiler tasks. Use the [recorded work/review settings](../../docs/research/compiler-library-audit-20261006/resumption/model-allocation.md); overlapping references share work and completed receipts are reused at matching scope. Current completion joins append to the canonical coverage ledger; historical source pins remain unchanged.
 
