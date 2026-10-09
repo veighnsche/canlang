@@ -2970,6 +2970,65 @@ impl<'a> Emitter<'a> {
         {
             return self.formatted_refusal("formatted formatting argument", span);
         }
+        if let IrExpr::Name(name) = &expr.expr
+            && let Some(intrinsics) = self
+                .receipt_capture
+                .as_ref()
+                .and_then(|recipe| recipe.intrinsics.get(&self.receipt_site(span)))
+                .cloned()
+        {
+            self.stdlib
+                .insert("observeScenarioReceiptIntrinsic".to_string());
+            let value = self.reference(name);
+            let observations = intrinsics
+                .iter()
+                .map(|intrinsic| {
+                    format!(
+                        "await observeScenarioReceiptIntrinsic(c,{},\"admitted-input\",$receiptValue);",
+                        js_string(&intrinsic.id),
+                    )
+                })
+                .collect::<String>();
+            return format!(
+                "(await (async($receiptValue)=>{{{observations}return $receiptValue;}})({value}))"
+            );
+        }
+        if let IrExpr::Member { base, field } = &expr.expr
+            && let Some(intrinsics) = self
+                .receipt_capture
+                .as_ref()
+                .and_then(|recipe| recipe.intrinsics.get(&self.receipt_site(span)))
+                .cloned()
+        {
+            self.stdlib
+                .insert("observeScenarioReceiptIntrinsic".to_string());
+            let receiver = self.lower_expr(base);
+            let field_key = js_string(field);
+            let observations = intrinsics
+                .iter()
+                .map(|intrinsic| {
+                    let (kind, reference) = match &intrinsic.kind {
+                        super::scenario_receipts::NativeIntrinsicKind::OperationId => {
+                            ("operation-id", "")
+                        }
+                        super::scenario_receipts::NativeIntrinsicKind::AdmittedInput { .. } => {
+                            ("admitted-input", "")
+                        }
+                        super::scenario_receipts::NativeIntrinsicKind::AdmittedReferenceVersion {
+                            ..
+                        } => ("admitted-reference-version", ",$receiptIntrinsic"),
+                    };
+                    format!(
+                        "await observeScenarioReceiptIntrinsic(c,{},{},$receiptValue{reference});",
+                        js_string(&intrinsic.id),
+                        js_string(kind),
+                    )
+                })
+                .collect::<String>();
+            return format!(
+                "(await (async($receiptIntrinsic)=>{{const $receiptValue=$receiptIntrinsic[{field_key}];{observations}return $receiptValue;}})({receiver}))"
+            );
+        }
         if let IrExpr::Member { base, field } = &expr.expr
             && let Some(dependencies) = self
                 .receipt_capture
@@ -8050,7 +8109,28 @@ impl<'a> Emitter<'a> {
                                     IrType::Known(resolved) if alias.is_some() => Some(
                                         self.symbol_value_type_id(*param_id, resolved, param.span),
                                     ),
-                                    _ => self.operation_input_value_type(ty),
+                                    _ => self.operation_input_value_type(ty).or_else(|| {
+                                        // New intrinsic claims require the exact
+                                        // checked primitive type, even when its
+                                        // legacy MCP tag was unambiguous.
+                                        self.native_receipts.get(&item.id)?;
+                                        let IrType::Known(ResolvedType::Scalar(scalar)) = ty else {
+                                            return None;
+                                        };
+                                        matches!(
+                                            scalar,
+                                            Scalar::Text
+                                                | Scalar::Bool
+                                                | Scalar::Int
+                                                | Scalar::Date
+                                                | Scalar::Datetime
+                                                | Scalar::Decimal
+                                                | Scalar::Money
+                                                | Scalar::Duration
+                                                | Scalar::User
+                                        )
+                                        .then(|| scalar.as_str().to_string())
+                                    }),
                                 },
                                 required: default.is_none() && !nullable && !is_array,
                                 nullable,
