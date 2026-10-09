@@ -185,6 +185,28 @@ export interface PageHttpDeps {
   readonly catalog?: SchemaCatalog;
   /** Explicit stable host-private protection; absent leaves bound forms unavailable. */
   readonly formBindings?: SourceFormBindings;
+  /** Durable actor/team scoped enum preference store; required by bound page selectors. */
+  readonly preferences?: PagePreferenceStore;
+}
+
+export interface PagePreferenceKey {
+  readonly appId: string;
+  readonly actorUserId: string;
+  readonly teamId: string;
+  readonly owner: string;
+  readonly field: string;
+}
+
+export interface PagePreferenceRecord {
+  readonly value: string;
+  /** Decimal nonnegative revision, `0` before the first save. */
+  readonly version: string;
+}
+
+export interface PagePreferenceStore {
+  read(key: PagePreferenceKey): Promise<PagePreferenceRecord | null>;
+  /** Atomic compare-and-set; returns false when the observed version changed. */
+  save(key: PagePreferenceKey & { readonly value: string; readonly expectedVersion: string }): Promise<boolean>;
 }
 
 /** Defining auth dependencies; absent mail refuses mail-producing flows before effects. */

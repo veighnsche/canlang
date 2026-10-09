@@ -80,6 +80,28 @@ async function rejectsWith(fn: () => Promise<unknown>, ...needles: string[]): Pr
 }
 
 describe("list", () => {
+  it("renders source search and the authorized visible count outside rows", async () => {
+    const seen: SeenCall[] = [];
+    const context = makeContext({
+      path: "/supplies", pollUrl: "/supplies?team=team-1", searchQuery: 'pen"',
+      query: stubRunner(seen, { rows: [], columns: [], totalCount: 0 }),
+    });
+    const html = await list({ context, model: "Office.Supply", order: ["name"], search: ["name"],
+      count: { label: "Supplies in this view" }, renderRow: () => ["unused"] });
+    assert.deepEqual(seen[0]?.args, {
+      order: ["name"], search: { fields: ["name"], query: 'pen"' }, includeCount: true,
+    });
+    assert.match(html, /<form method="get" action="\/supplies" role="search">/);
+    assert.match(html, /name="q" value="pen&quot;"/);
+    assert.match(html, /name="team" value="team-1"/);
+    assert.match(html, /data-can-list-count>Supplies in this view: 0<\/p>/);
+    await rejectsWith(() => list({
+      context: makeContext({ query: stubRunner([], { rows: [], columns: [] }) }),
+      model: "Office.Supply", count: { label: "Supplies in this view" }, renderRow: () => [],
+    }),
+    "authorized pre-pagination count is unavailable");
+  });
+
   it("renders one item per row inside ul.list", async () => {
     const seen: SeenCall[] = [];
     const context = makeContext({

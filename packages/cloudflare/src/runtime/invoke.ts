@@ -101,7 +101,7 @@ import type {
   UniqueClaim,
   UniqueRelease,
 } from "@canlang/contracts";
-import { COLLECTION_DEFAULT_LIMIT, COLLECTION_MAX_LIMIT, DELIVERY_RESULT_LEAVES } from "@canlang/contracts";
+import { DELIVERY_RESULT_LEAVES } from "@canlang/contracts";
 import { decodeValue, encodeValue, isRecordRef, makeRecordRef, normalizeSchema, parseTypeId, printTypeId, validateOperationInput, validateValue } from "@canlang/values";
 import type { FieldDescriptor, NormalizedSchema, SchemaDescriptor } from "@canlang/values";
 import type { SystemCommandContext, SystemStaging } from "@canlang/state";
@@ -5836,7 +5836,34 @@ export async function queryPageRowsCanonical(
   if (opts.args.page !== undefined && opts.args.page !== true) {
     throw new StateError('validation', 'Collection page mode must be explicitly enabled.');
   }
+  const order: OrderTerm[] | undefined = opts.args.order?.map((term): OrderTerm => {
+    if (typeof term !== 'string' || term === '' || term === '-') {
+      throw new StateError('validation', 'Collection order requires source field spellings.');
+    }
+    return { field: term.startsWith('-') ? term.slice(1) : term,
+      direction: term.startsWith('-') ? 'desc' : 'asc' };
+  });
+  const sourceWhere = opts.args.where;
+  const sourceFilter = typeof sourceWhere === 'function'
+    ? async (record: Readonly<ProjectedRecord>): Promise<boolean> => {
+      const matched: unknown = await sourceWhere(nativeProjectedRecord(loaded, opts.model, record));
+      if (typeof matched !== 'boolean') {
+        throw new StateError('validation', 'Collection source filter must return bool.');
+      }
+      return matched;
+    }
+    : undefined;
+  const selection = {
+    ...(sourceFilter !== undefined || opts.args.where === undefined ? {} : { where: opts.args.where as QueryPredicate }),
+    ...(order === undefined ? {} : { order }),
+    ...(opts.args.search === undefined ? {} : { search: opts.args.search }),
+    ...(opts.args.includeCount === undefined ? {} : { includeCount: opts.args.includeCount }),
+    ...(opts.args.limit === undefined ? {} : { limit: opts.args.limit }),
+  };
   if (opts.args.page === true) {
+    if (sourceFilter !== undefined) {
+      throw new StateError('validation', 'Cursor pages require a stable data-only filter identity.');
+    }
     assertCanonicalStore(opts.store, `${opts.model}.read`);
     assertCanonicalMemberships(opts.memberships, `${opts.model}.read`);
     if (loaded.ruledModels.has(opts.model)) throw ruledReadRefusal(StateError, opts.model);
@@ -5866,8 +5893,7 @@ export async function queryPageRowsCanonical(
     const parentModel = opts.artifact.models?.find(model => model.name === opts.model)?.parent;
     return reader({ envelope: { operation: `${opts.model}.read`, inputs: {} }, identity: opts.identity,
       selection: {
-        ...(opts.args.where === undefined ? {} : { where: opts.args.where as QueryPredicate }),
-        ...(opts.args.limit === undefined ? {} : { limit: opts.args.limit }),
+        ...selection,
         ...(opts.args.parent === undefined ? {} : { parent: {
           model: (parentModel ?? '') as ModelName, id: opts.args.parent.id as RecordId,
         } }),
@@ -5895,35 +5921,36 @@ export async function queryPageRowsCanonical(
         rows: page.records.map(record => ({ id: record.id, version: String(record.version), fields: record.data })),
         columns: (loaded.collectionColumns.get(opts.model) ?? []).filter(column => visible.has(column.field)),
         ...(nextCursor === undefined ? {} : { nextCursor }),
+        ...(page.totalCount === undefined ? {} : { totalCount: page.totalCount }),
       };
     });
   }
-  // The outer selection is a plain stable value. State reads these two fields
-  // only after generated read admission, live membership and closed inputs.
-  const selection: CanonicalReadSelection = {
-    get where() {
-      if (opts.args.parent !== undefined || opts.args.cursor !== undefined || typeof opts.args.where === "function") {
-        throw new StateError("validation", "Page queries do not support parent, cursor or function predicates.");
-      }
-      return opts.args.where as QueryPredicate;
-    },
-    get limit() {
-      const limit = opts.args.limit ?? COLLECTION_DEFAULT_LIMIT;
-      if (!Number.isInteger(limit) || limit < 1 || limit > COLLECTION_MAX_LIMIT) {
-        throw new StateError("validation", "Invalid collection limit.");
-      }
-      return limit;
-    },
-  };
-  const served = await invokeReadCanonical({ ...opts, operation: `${opts.model}.read`, inputs: {}, selection });
-  if (!("records" in served)) throw new Error("page query: canonical model read returned no records");
+  if (opts.args.parent !== undefined || opts.args.cursor !== undefined) {
+    throw new StateError('validation', 'Ordinary collection reads do not accept a parent or cursor.');
+  }
+  assertCanonicalStore(opts.store, `${opts.model}.read`);
+  assertCanonicalMemberships(opts.memberships, `${opts.model}.read`);
+  if (loaded.ruledModels.has(opts.model)) throw ruledReadRefusal(StateError, opts.model);
+  const createReader = loaded.producers.transact.createReadPageInvoker;
+  if (createReader === undefined) throw new Error('State producer has no finite viewer page invoker.');
+  const reader = createReader({ registry: loaded.registry, models: loaded.models, containment: loaded.containment,
+    policy: loaded.policy, store: opts.store, memberships: opts.memberships });
+  return reader({ envelope: { operation: `${opts.model}.read`, inputs: {} }, identity: opts.identity,
+    selection, ...(sourceFilter === undefined ? {} : { generatedPredicate: sourceFilter }),
+  }, page => {
+    if (page.continuation !== null) {
+      throw new StateError('validation',
+        `Collection matched more than ${selection.limit ?? 25} rows. Narrow the query instead of truncating.`);
+    }
   // Only authorized projected field names can make a declared column visible.
   // Empty collections expose no field schema; private stored values are never read.
-  const visible = new Set(served.records.flatMap(record => Object.keys(record.data)));
-  return {
-    rows: served.records.map(record => ({ id: record.id, version: String(record.version), fields: record.data })),
-    columns: (loaded.collectionColumns.get(opts.model) ?? []).filter(column => visible.has(column.field)),
-  };
+    const visible = new Set(page.records.flatMap(record => Object.keys(record.data)));
+    return {
+      rows: page.records.map(record => ({ id: record.id, version: String(record.version), fields: record.data })),
+      columns: (loaded.collectionColumns.get(opts.model) ?? []).filter(column => visible.has(column.field)),
+      ...(page.totalCount === undefined ? {} : { totalCount: page.totalCount }),
+    };
+  });
 }
 
 /** Decode only the selected, authorized receipt values for generated Can expressions. */

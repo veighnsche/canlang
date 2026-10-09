@@ -172,7 +172,7 @@ export interface ReadPageInvokerInput extends ReadInvokerInput {
   readonly containment: ReadonlyMap<import('@canlang/contracts').ModelName, InterimContainment>;
 }
 
-export type ReadPageInvokeArgs = Pick<InvokeReadPageInput, 'envelope' | 'identity' | 'selection'>;
+export type ReadPageInvokeArgs = Pick<InvokeReadPageInput, 'envelope' | 'identity' | 'selection' | 'generatedPredicate'>;
 
 export interface BoundReadPageInvoker {
   (args: ReadPageInvokeArgs): Promise<ViewerPageResult>;
@@ -191,6 +191,7 @@ export function createReadPageInvoker(input: ReadPageInvokerInput): BoundReadPag
       ...(models === undefined ? {} : { models }), containment,
       envelope: args.envelope, identity: args.identity,
       ...(args.selection === undefined ? {} : { selection: args.selection }),
+      ...(args.generatedPredicate === undefined ? {} : { generatedPredicate: args.generatedPredicate }),
     };
     return transform === undefined ? invokeReadPage(call) : invokeReadPage(call, transform);
   }

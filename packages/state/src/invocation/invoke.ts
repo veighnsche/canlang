@@ -61,7 +61,7 @@ import {
 import { queryRecords, type ViewerRecordsInput } from '../query/index.js';
 import {
   projectSavedRecordForViewer, projectCurrentRecordForViewer, queryRecordsPage,
-  viewerPageOrder, viewerPagePredicateTuple,
+  viewerPageOrder, viewerPagePredicateTuple, viewerPageSearchTuple,
   VIEWER_PAGE_DEFAULT_LIMIT, VIEWER_PAGE_MAX_CANDIDATES,
   type ViewerPageRecordsResult, type ViewerPageSelection, type ViewerPageTuple,
 } from '../query/engine.js';
@@ -828,6 +828,8 @@ export interface InvokeReadPageInput extends Omit<InvokeReadInput, 'selection' |
   /** Checked declaration linkage, supplied with the registry by its producer. */
   readonly containment: ReadonlyMap<ModelName, InterimContainment>;
   readonly selection?: ViewerPageSelection;
+  /** Trusted generated-source filter over already projected rows. */
+  readonly generatedPredicate?: (record: Readonly<ProjectedRecord>) => boolean | Promise<boolean>;
 }
 
 export type ViewerPageTransform<Result> = (page: Readonly<ViewerPageResult>) => Result | Promise<Result>;
@@ -870,11 +872,17 @@ export async function invokeReadPage(input: InvokeReadPageInput,
       if (typeof selection !== 'object' || selection === null || Array.isArray(selection)) {
         throw new StateError('validation', 'Invalid page selection.');
       }
-      if (Object.keys(selection).some(key => !['where', 'order', 'limit', 'parent', 'continuation'].includes(key))) {
+      if (Object.keys(selection).some(key => !['where', 'order', 'search', 'includeCount', 'limit', 'parent', 'continuation'].includes(key))) {
         throw new StateError('validation', 'Unknown page selection field.');
       }
+      if (input.generatedPredicate !== undefined &&
+          (typeof input.generatedPredicate !== 'function' || selection.continuation !== undefined)) {
+        throw new StateError('validation', 'Generated page filters do not support cursor continuation.');
+      }
       const order = viewerPageOrder(selection.order);
-      const where = selection.where === undefined ? null : viewerPagePredicateTuple(selection.where);
+      const whereBase = selection.where === undefined ? null : viewerPagePredicateTuple(selection.where);
+      const search = viewerPageSearchTuple(selection.search, descriptor);
+      const where: ViewerPageTuple | null = search === null ? whereBase : ['and-search', whereBase, search];
       const context = { actorUserId: call.actorUserId, teamId: call.teamId };
       const byContext = { ...context, membership: call.membership, memberships: input.memberships };
       const readDef = (name: ModelName): GeneratedOperationDef => {
@@ -940,6 +948,7 @@ export async function invokeReadPage(input: InvokeReadPageInput,
       return queryRecordsPage({
         policy: input.policy, model, modelDescriptor: descriptor, authority: 'viewer', context,
         memberships: input.memberships, store: input.store, fence: openFenceScope(call.revision, call.teamId ?? 'app'), selection,
+        ...(input.generatedPredicate === undefined ? {} : { generatedPredicate: input.generatedPredicate }),
       }, async (page, childGrants) => {
         const queryDefinition: CheckedViewerPageDefinition = [
           ...definitionPrefix, [true, [...childGrants], parents.map(item => [item.model, true, [...item.allowed]] as const)],

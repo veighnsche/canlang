@@ -35,6 +35,8 @@ export interface BuildPresentationContextInput {
   readonly request: Request;
   /** Already-normalized pathname. */
   readonly pathname: string;
+  /** Already validated request-local collection search text. */
+  readonly searchQuery?: string;
   /** From `isPartialRequest` (HTMX header). */
   readonly isPartial: boolean;
   /** Owning app default locale ("en" unless declared). */
@@ -120,6 +122,7 @@ export function buildPresentationContext(
     theme: DEFAULT_THEME,
     path: input.pathname,
     pollUrl: input.pathname + url.search,
+    ...(input.searchQuery === undefined ? {} : { searchQuery: input.searchQuery }),
     collectionSelections,
     isPartial: input.isPartial,
     csrfToken: input.csrfToken,

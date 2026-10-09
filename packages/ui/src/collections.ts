@@ -121,7 +121,7 @@ const MAX_LIMIT = 100;
 
 /** Pass S3 query args through, including only defined optionals. */
 function queryArgs(
-  props: Pick<ListProps, "parent" | "where" | "limit" | "cursor" | "page" | "occurrence">,
+  props: Pick<ListProps, "context" | "parent" | "where" | "order" | "search" | "count" | "limit" | "cursor" | "page" | "occurrence">,
   factory: string,
 ): ListQueryArgs {
   if (
@@ -133,11 +133,38 @@ function queryArgs(
   return {
     ...(props.parent === undefined ? {} : { parent: props.parent }),
     ...(props.where === undefined ? {} : { where: props.where }),
+    ...(props.order === undefined ? {} : { order: props.order }),
+    ...(props.search === undefined ? {} : {
+      search: { fields: props.search, query: props.context.searchQuery ?? "" },
+    }),
+    ...(props.count === undefined ? {} : { includeCount: true as const }),
     ...(props.limit === undefined ? {} : { limit: props.limit }),
     ...(props.cursor === undefined ? {} : { cursor: props.cursor }),
     ...(props.page === undefined ? {} : { page: props.page }),
     ...(props.occurrence === undefined ? {} : { occurrence: props.occurrence }),
   };
+}
+
+/** Ordinary GET fallback for a source-declared collection search. */
+function sourceSearchForm(context: PresentationContext): string {
+  const label = escapeHtml(resolveCaption(SEARCH_LABEL, context));
+  const selectedTeam = context.pollUrl === undefined ? null :
+    new URL(context.pollUrl, "https://can.invalid").searchParams.get("team");
+  const team = selectedTeam === null ? "" :
+    `<input type="hidden" name="team" value="${escapeAttr(selectedTeam)}">`;
+  return `<form method="get" action="${escapeAttr(context.path)}" role="search">` +
+    `<label>${label}<input type="search" name="q" value="${escapeAttr(context.searchQuery ?? "")}"></label>` +
+    `${team}<button type="submit">${label}</button></form>`;
+}
+
+/** Refuse a silently truncated/missing summary from the query owner. */
+function sourceCount(props: ListProps, totalCount: number | undefined): string {
+  if (props.count === undefined) return "";
+  if (totalCount === undefined || !Number.isSafeInteger(totalCount) || totalCount < 0) {
+    throw new Error("list: authorized pre-pagination count is unavailable");
+  }
+  const label = escapeHtml(resolveCaption(props.count.label, props.context));
+  return `<p role="status" data-can-list-count>${label}: ${String(totalCount)}</p>`;
 }
 
 /** Resolve page children (array or thunk of string/promise parts) to HTML. */
@@ -180,11 +207,13 @@ export async function list(props: ListProps): Promise<string> {
     props.model,
     queryArgs(props, "list"),
   );
+  const heading = `${props.search === undefined ? "" : sourceSearchForm(props.context)}` +
+    sourceCount(props, result.totalCount);
   if (result.rows.length === 0) {
     if (props.controls === undefined) {
-      return renderState({ context: props.context, kind: "empty", message: props.empty ?? EMPTY_COLLECTION });
+      return heading + await renderState({ context: props.context, kind: "empty", message: props.empty ?? EMPTY_COLLECTION });
     }
-    return wrapWithControls(props.controls, await emptyBody(props.controls, props), props);
+    return wrapWithControls(props.controls, heading + await emptyBody(props.controls, props), props);
   }
   const items: string[] = [];
   for (const row of result.rows) {
@@ -197,9 +226,9 @@ export async function list(props: ListProps): Promise<string> {
   const rowsHtml = occurrence === undefined ? summaries
     : await splitBody(props, occurrence, summaries, result.rows, props.renderRow);
   if (props.controls === undefined) {
-    return `${rowsHtml}${moreNote(props.context, result.nextCursor)}`;
+    return `${heading}${rowsHtml}${moreNote(props.context, result.nextCursor)}`;
   }
-  return wrapWithControls(props.controls, rowsHtml, props);
+  return wrapWithControls(props.controls, heading + rowsHtml, props);
 }
 
 /** Render one model table over the requested column subset. */

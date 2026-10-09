@@ -6,7 +6,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { OrderTerm, RecordId } from '@canlang/contracts';
+import type { CanonicalModelDescriptor, OrderTerm, RecordId } from '@canlang/contracts';
 import { queryRecords, queryRecordsPage } from '../../src/query/index.js';
 import { createMemoryStorage } from '../../src/storage/memory.js';
 import { captureStateError } from '../invocation/fixtures.js';
@@ -41,6 +41,44 @@ async function setup() {
 type Setup = Awaited<ReturnType<typeof setup>>;
 
 describe('scope', () => {
+  it('filters projected rows, orders them, and counts visible matches before paging', async () => {
+    const s = await setup();
+    await seedRows(s.store, MODEL, [
+      { id: 'a', data: { title: 'Need Zebra', secret: 'hidden-a' } },
+      { id: 'b', data: { title: 'Need Beta', secret: 'hidden-b' } },
+      { id: 'c', data: { title: 'Need Apple', secret: 'hidden-c' } },
+      { id: 'd', data: { title: 'Other', secret: 'need hidden' } },
+    ]);
+    const modelDescriptor: CanonicalModelDescriptor = {
+      name: MODEL, deleteMode: 'archive',
+      fields: {
+        title: { valueType: 'text', required: true, serverOnly: false },
+        secret: { valueType: 'text', required: true, serverOnly: false },
+      },
+    };
+    const input = {
+      ...viewerInput({ ...s.call, caller: s.std.alice }), modelDescriptor,
+      generatedPredicate: (record: { readonly id: string; readonly data: Readonly<Record<string, unknown>> }) => {
+        assert.equal(record.data.secret, undefined);
+        return record.id !== 'b';
+      },
+    };
+    const page = await queryRecordsPage({ ...input, selection: {
+      search: { fields: ['title'], query: 'nEeD' },
+      order: [{ field: 'title', direction: 'asc' }],
+      includeCount: true, limit: 1,
+    } });
+    assert.deepEqual(page.records.map(record => record.id), ['c']);
+    assert.equal(page.totalCount, 2);
+    assert.deepEqual(page.continuation, { revision: page.revision, after: 'c' });
+    assert.equal((await captureStateError(queryRecordsPage({ ...input, selection: {
+      search: { fields: ['secret'], query: 'hidden' }, includeCount: true,
+    } }))).code, 'validation');
+    assert.equal((await captureStateError(queryRecordsPage({ ...input, selection: {
+      search: { fields: ['title'], query: 'bad\u0000query' },
+    } }))).code, 'validation');
+  });
+
   it('pages the projected visible set with a terminal step and preserves ordinary overflow', async () => {
     const s = await setup();
     await seedRows(s.store, MODEL, [
