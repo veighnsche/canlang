@@ -77,7 +77,7 @@ async function verifyConsumer(checkout) {
   const artifact = {
     artifact_version: 1, language_version: '1.0.0', tool_version: '0.1.0',
     sources: [{ path: 'app.can', sha256: '0'.repeat(64) }],
-    modules: [{ path: 'app/main.js', js: 'import { renderPage } from "@canlang/ui";\nimport { abs } from "@canlang/stdlib";\nexport const descriptor = { owner: "installed", path: "/main", admit: async () => ({ ok: true }), render: async () => ({ status: 200 }), renderPage, abs };\n', map: { version: 3, file: 'app.can', sources: [], sourcesContent: [], names: [], mappings: '' } }],
+    modules: [{ path: 'app/main.js', js: 'import { renderPage } from "@canlang/ui";\nimport { abs } from "@canlang/stdlib";\nif (abs(-2n) !== 2n) throw new Error("installed Worker abs producer returned an incorrect result");\nexport const appDefinition = { id: "installed" };\nexport const descriptor = { owner: "installed", path: "/main", admit: async () => ({ ok: true }), render: async () => ({ status: 200 }), renderPage, abs };\n', map: { version: 3, file: 'app.can', sources: [], sourcesContent: [], names: [], mappings: '' } }],
     callables: [], operations: [], pages: [{ owner: 'installed', path: '/main', module: 'app/main.js', export: 'descriptor' }], requires: [], tests: [],
   };
   const options = { verdict: { active: true }, assets: { valuesWasm: true, browser: true } };
