@@ -750,6 +750,8 @@ pub struct JsOperation {
     /// Checked scenario result type in the bounded publication profile.
     /// Absent means unknown; generated reads and CRUD do not claim void.
     pub result: Option<Cow<'static, str>>,
+    /// Native evaluated-return provenance; published only with its capture recipe.
+    pub disclosure: Option<serde_json::Value>,
 }
 
 impl JsOperation {
@@ -1172,6 +1174,8 @@ impl Serialize for JsOperation {
         #[derive(Serialize)]
         struct ResultType<'a> {
             r#type: &'a str,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            disclosure: Option<&'a serde_json::Value>,
         }
         let mut state =
             serializer.serialize_struct("Operation", 4 + usize::from(self.result.is_some()))?;
@@ -1185,7 +1189,13 @@ impl Serialize for JsOperation {
             },
         )?;
         if let Some(result) = &self.result {
-            state.serialize_field("result", &ResultType { r#type: result })?;
+            state.serialize_field(
+                "result",
+                &ResultType {
+                    r#type: result,
+                    disclosure: self.disclosure.as_ref(),
+                },
+            )?;
         }
         state.end()
     }
@@ -1338,6 +1348,10 @@ impl JsWriter {
 /// Returns the entrypoint module, one module per non-entrypoint package,
 /// Lowering diagnostics and the link metadata the artifact assembly needs.
 pub fn emit_program(ir: &IrProgram) -> JsOutput {
+    emit_program_with_native_receipts(ir, false)
+}
+
+pub fn emit_program_with_native_receipts(ir: &IrProgram, native_receipts: bool) -> JsOutput {
     let mut emitter = Emitter::new(ir);
     emitter.validate_model_field_bounds();
     let entry_id = pick_entrypoint(ir);
@@ -1350,6 +1364,19 @@ pub fn emit_program(ir: &IrProgram) -> JsOutput {
         0,
     ));
     let local_policies = collect_local_policies(ir, &module_path(&entry_name));
+    if native_receipts {
+        let models = emitter.collect_models();
+        for item in &ir.items {
+            if let Some(recipe) = super::scenario_receipts::collect_native_scenario_receipt(
+                ir,
+                item,
+                &models,
+                &module_path(&entry_name),
+            ) {
+                emitter.native_receipts.insert(item.id, recipe);
+            }
+        }
+    }
     let mut body = JsWriter::new();
     // Operation descriptors derive once, up front: the `canApp()`
     // registry and the artifact envelope share them verbatim.
@@ -1428,7 +1455,7 @@ fn pick_entrypoint(ir: &IrProgram) -> Option<crate::analysis::resolve::ModuleId>
 }
 
 /// Portable, injective owning-module path; consumers use artifact paths.
-fn module_path(name: &str) -> String {
+pub(super) fn module_path(name: &str) -> String {
     format!("{}.mjs", binding_ident("m", name))
 }
 
@@ -1801,6 +1828,8 @@ pub struct Emitter<'a> {
     checked_message: bool,
     formatted_bindings: Vec<HashMap<String, bool>>,
     formatted_derives: BTreeSet<String>,
+    native_receipts: HashMap<SymbolId, super::scenario_receipts::NativeScenarioReceipt>,
+    receipt_capture: Option<super::scenario_receipts::NativeScenarioReceipt>,
 }
 
 /// Hook lowering state: the trigger model. (The staged-id counter lives
@@ -1847,6 +1876,8 @@ impl<'a> Emitter<'a> {
             checked_message: false,
             formatted_bindings: vec![HashMap::new()],
             formatted_derives: BTreeSet::new(),
+            native_receipts: HashMap::new(),
+            receipt_capture: None,
         };
         // Derive outputs retain presentation provenance across shared calls,
         // including wrappers declared before the formatting owner.
@@ -2807,6 +2838,86 @@ impl<'a> Emitter<'a> {
     /// identity and `equalValue(canonicalTypeId, a, b)` structural
     /// equality. Unlowerable combinations are `E6008` plus a throwing
     /// placeholder.
+    fn receipt_decision(&self, span: Span) -> bool {
+        self.receipt_capture
+            .as_ref()
+            .is_some_and(|recipe| recipe.decisions.contains_key(&span))
+    }
+
+    fn receipt_choice(&self, span: Span, choice: &str) -> String {
+        if !self.receipt_decision(span) {
+            return String::new();
+        }
+        format!(
+            "$receiptChoices.set({},{});",
+            js_string(&format!("{}:{}", span.start, span.end)),
+            js_string(choice),
+        )
+    }
+
+    fn receipt_binary_template(&self, op: IrBinOp, span: Span, original: String) -> String {
+        let test = match op {
+            IrBinOp::And => "$receiptLeft".to_string(),
+            IrBinOp::Or => "!$receiptLeft".to_string(),
+            IrBinOp::Coalesce => "$receiptLeft===null||$receiptLeft===undefined".to_string(),
+            _ => return original,
+        };
+        let selected = self.receipt_choice(span, "rhs-evaluated");
+        let skipped = self.receipt_choice(span, "rhs-skipped");
+        format!(
+            "(await (async()=>{{const $receiptLeft={BINARY_LEFT};if({test}){{{selected}return {BINARY_RIGHT};}}{skipped}return $receiptLeft;}})())"
+        )
+    }
+
+    fn receipt_return_selection(&mut self, span: Span, implicit: bool) -> Option<String> {
+        use crate::analysis::scenario_disclosure::DisclosureChoice;
+        let returns: Vec<_> = self
+            .receipt_capture
+            .as_ref()?
+            .returns
+            .iter()
+            .filter(|returned| returned.implicit == implicit && (implicit || returned.span == span))
+            .cloned()
+            .collect();
+        if returns.is_empty() {
+            return None;
+        }
+        self.stdlib
+            .insert("selectScenarioReceiptReturn".to_string());
+        let mut selection = "const $receiptReturns=[];".to_string();
+        for returned in returns {
+            let tests = returned
+                .decisions
+                .iter()
+                .map(|(anchor, choice)| {
+                    let choice = match choice {
+                        DisclosureChoice::Then => "then",
+                        DisclosureChoice::Else => "else",
+                        DisclosureChoice::RhsEvaluated => "rhs-evaluated",
+                        DisclosureChoice::RhsSkipped => "rhs-skipped",
+                        DisclosureChoice::Match(case) => case,
+                    };
+                    format!(
+                        "$receiptChoices.get({})==={}",
+                        js_string(&format!("{}:{}", anchor.start, anchor.end)),
+                        js_string(choice),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let condition = if tests.is_empty() {
+                "true".to_string()
+            } else {
+                tests.join("&&")
+            };
+            selection.push_str(&format!(
+                "if({condition}){{$receiptReturns.push({});}}",
+                js_string(&returned.id),
+            ));
+        }
+        selection.push_str("if($receiptReturns.length!==1){throw new Error('Scenario return capture is incomplete or ambiguous');}selectScenarioReceiptReturn(c,$receiptReturns[0]);");
+        Some(selection)
+    }
+
     pub fn lower_expr(&mut self, expr: &TypedExpr) -> String {
         let span = expr.span;
         let forbidden = match &expr.expr {
@@ -2827,6 +2938,37 @@ impl<'a> Emitter<'a> {
             && args.iter().any(|arg| self.expr_formatted(arg))
         {
             return self.formatted_refusal("formatted formatting argument", span);
+        }
+        if let IrExpr::Member { base, field } = &expr.expr
+            && let Some(dependencies) = self
+                .receipt_capture
+                .as_ref()
+                .and_then(|recipe| recipe.dependencies.get(&span))
+                .cloned()
+        {
+            self.stdlib
+                .insert("observeScenarioReceiptDependency".to_string());
+            let receiver = self.lower_expr(base);
+            let field_key = js_string(field);
+            let value = if expr.ty.nullable_inner().is_some() {
+                format!("($receiptRow[{field_key}]??null)")
+            } else {
+                format!("$receiptRow[{field_key}]")
+            };
+            let observations = dependencies
+                .iter()
+                .map(|dependency| {
+                    format!(
+                        "await observeScenarioReceiptDependency(c,{},$receiptRow,{},{});",
+                        js_string(&dependency.model),
+                        js_string(&dependency.field),
+                        js_string(&dependency.id),
+                    )
+                })
+                .collect::<String>();
+            return format!(
+                "(await (async($receiptRow)=>{{const $receiptValue={value};{observations}return $receiptValue;}})({receiver}))"
+            );
         }
         match &expr.expr {
             IrExpr::Int(value) if scalar_family(&expr.ty) == Some(ScalarFamily::Decimal) => {
@@ -3266,6 +3408,11 @@ impl<'a> Emitter<'a> {
                             BINARY_LEFT,
                             BINARY_RIGHT,
                         );
+                        let template = if self.receipt_decision(current.span) {
+                            self.receipt_binary_template(*op, current.span, template)
+                        } else {
+                            template
+                        };
                         if template.contains(BINARY_LEFT) || template.contains(BINARY_RIGHT) {
                             work.push(Work::Finish(template));
                             work.push(Work::Eval(right));
@@ -4430,6 +4577,20 @@ impl<'a> Emitter<'a> {
                         *span,
                     )];
                 }
+                if self.receipt_capture.is_some()
+                    && let Some(selection) = self.receipt_return_selection(*span, false)
+                {
+                    let value = value.as_ref().map(|value| self.lower_expr(value));
+                    return vec![(
+                        match value {
+                            Some(value) => format!(
+                                "{pad}{{const $receiptValue={value};{selection}return $receiptValue;}}"
+                            ),
+                            None => format!("{pad}{{{selection}return;}}"),
+                        },
+                        *span,
+                    )];
+                }
                 vec![(
                     match value {
                         Some(v) => format!("{pad}return {};", self.lower_expr(v)),
@@ -4451,15 +4612,23 @@ impl<'a> Emitter<'a> {
             } => {
                 let cond_text = self.lower_expr(cond);
                 let mut lines = vec![(format!("{pad}if ({cond_text}) {{"), *span)];
+                let then_choice = self.receipt_choice(*span, "then");
+                if !then_choice.is_empty() {
+                    lines.push((format!("{pad}  {then_choice}"), *span));
+                }
                 self.enter_scope();
                 for stmt in then_branch {
                     lines.extend(self.lower_stmt(stmt, indent + 1));
                 }
                 self.exit_scope();
-                if else_branch.is_empty() {
+                let else_choice = self.receipt_choice(*span, "else");
+                if else_branch.is_empty() && else_choice.is_empty() {
                     lines.push((format!("{pad}}}"), *span));
                 } else {
                     lines.push((format!("{pad}}} else {{"), *span));
+                    if !else_choice.is_empty() {
+                        lines.push((format!("{pad}  {else_choice}"), *span));
+                    }
                     self.enter_scope();
                     for stmt in else_branch {
                         lines.extend(self.lower_stmt(stmt, indent + 1));
@@ -4484,6 +4653,10 @@ impl<'a> Emitter<'a> {
                         arm.span,
                     ));
                     self.enter_scope();
+                    let choice = self.receipt_choice(*span, &arm.case);
+                    if !choice.is_empty() {
+                        lines.push((format!("{pad}    {choice}"), arm.span));
+                    }
                     for statement in &arm.body {
                         lines.extend(self.lower_stmt(statement, indent + 2));
                     }
@@ -7403,6 +7576,7 @@ impl<'a> Emitter<'a> {
                         choices: None,
                     }],
                     result: checked_scenario_result(result.as_ref()),
+                    disclosure: None,
                 });
             }
         };
@@ -7489,6 +7663,7 @@ impl<'a> Emitter<'a> {
                 .unwrap_or_default(),
             inputs,
             result: checked_scenario_result(result.as_ref()),
+            disclosure: None,
         })
     }
 
@@ -7548,6 +7723,7 @@ impl<'a> Emitter<'a> {
                 })
                 .collect(),
             result: None,
+            disclosure: None,
         }
     }
 
@@ -7663,6 +7839,7 @@ impl<'a> Emitter<'a> {
                         description: String::new(),
                         inputs: Vec::new(),
                         result: None,
+                        disclosure: None,
                     });
                 }
                 IrItemKind::Scenario {
@@ -7760,8 +7937,19 @@ impl<'a> Emitter<'a> {
                         }
                     }
                     if !mappable || has_duplicate_names(&inputs) {
+                        self.native_receipts.remove(&item.id);
                         continue;
                     }
+                    let published_result = self.checked_operation_result(result.as_ref(), *read);
+                    let disclosure = if published_result.is_some() {
+                        self.native_receipts.get(&item.id).map(|recipe| {
+                            serde_json::to_value(&recipe.plan)
+                                .expect("native disclosure JSON invariant")
+                        })
+                    } else {
+                        self.native_receipts.remove(&item.id);
+                        None
+                    };
                     operations.push(JsOperation {
                         name: item.canonical.clone(),
                         kind: if *read {
@@ -7774,7 +7962,8 @@ impl<'a> Emitter<'a> {
                             .map(|message| message.source.clone())
                             .unwrap_or_default(),
                         inputs,
-                        result: self.checked_operation_result(result.as_ref(), *read),
+                        result: published_result,
+                        disclosure,
                     });
                 }
                 IrItemKind::CrudOp {
@@ -7978,6 +8167,7 @@ impl<'a> Emitter<'a> {
                             .unwrap_or_default(),
                         inputs,
                         result: None,
+                        disclosure: None,
                     });
                 }
                 _ => {}
@@ -8999,11 +9189,19 @@ impl<'a> Emitter<'a> {
                         self.exit_scope();
                         continue;
                     }
+                    self.receipt_capture = self.native_receipts.get(&item.id).cloned();
                     out.push(
                         item.span,
                         Some(item.canonical.clone()),
                         &format!("async {handler}({signature}){{"),
                     );
+                    if self.receipt_capture.is_some() {
+                        out.push(
+                            item.span,
+                            Some(item.canonical.clone()),
+                            "const $receiptChoices=new Map();",
+                        );
+                    }
                     self.emit_admission_check(out, by, item.span);
                     if !*trusted {
                         for id in params {
@@ -9052,6 +9250,14 @@ impl<'a> Emitter<'a> {
                             out.push(span, Some(item.canonical.clone()), &line);
                         }
                     }
+                    if let Some(selection) = self.receipt_return_selection(item.span, true) {
+                        out.push(
+                            item.span,
+                            Some(item.canonical.clone()),
+                            &format!("{{{selection}}}"),
+                        );
+                    }
+                    self.receipt_capture = None;
                     out.push(item.span, Some(item.canonical.clone()), "},");
                     self.exit_scope();
                 }
