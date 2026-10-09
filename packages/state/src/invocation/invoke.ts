@@ -250,6 +250,9 @@ export interface ExecutionEffects {
   uniqueReleases: UniqueRelease[];
   resolvedDefaults: Record<string, unknown>;
   result: unknown;
+  /** Canonical native host carrier. Claimed scalar scenario receipts support
+   * only the actual empty array until the defining File/lifetime join exists. */
+  fileAssignments?: readonly unknown[];
   generatedCrud?: GeneratedCrudReceiptAssociation;
   /**
    * T32b-wire: guard predicates the fenced commit re-evaluates live against
