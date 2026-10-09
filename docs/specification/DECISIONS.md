@@ -3635,3 +3635,7 @@ Accepted typed test-host/fixture corrections for current Undici fetch values, JS
 ## 2026-10-09 — unfinished stored-field modifier producer join
 
 Checkpoint the T02 native artifact join for authored stored-field trim and literal bounds, using the current Contracts wire claims and exact numeric representation. Unrepresentable static claims refuse explicitly instead of disappearing. Required/null/default/server ownership remains separate; derived and unconstrained fields omit claims. The first affected build found an i128-to-JSON conversion error, now corrected through checked u64 conversion for bounded lengths; focused tests are running. This checkpoint is not validation or Office O01 acceptance.
+
+## 2026-10-09 — Validate the native modifier and released compiler consumer join
+
+The stored-field producer checkpoint now passes its actual text/decimal metadata and unsupported-bound cases. Consume the published codegen test corrections from `2db9200b` as a three-way hunk join, retaining the new modifier tests and exact descriptor closure/refusals. All 126 joined native checks pass (119 codegen, 2 strict real-catalog B1, 3 message aliases, and the actual delete/preference consumers). Formatting is applied to the owning changed files; the remaining compiler-wide formatter prerequisite and actual Office consumer are separate. This does not close G2 or qualify help cards.
