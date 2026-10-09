@@ -18,7 +18,7 @@ import { asId, asModel, asOperationId, uuidv7 } from '@canlang/state/testing/inv
 import { readReceiptRow, RECEIPT_MODEL } from '@canlang/state/receipt/tables';
 import { WORK_SYSTEM_COMMANDS, WORK_DISPATCH_STAGE_COMMANDS, createWorkDispatchClaimCommand } from '@canlang/work/kernel/commands';
 import { WORK_DISPATCH_MODEL, WORK_SCHEDULE_MODEL, readScheduleRow, readDispatchRow,
-  readDispatchImageCorrelation } from '@canlang/work/kernel/tables';
+  readDispatchImageCorrelation, readDispatchImageControlPin } from '@canlang/work/kernel/tables';
 import { attemptDispatch } from '@canlang/work/dispatch';
 import { classifyFailure } from '@canlang/work/receipt';
 import { planRecoveryScan } from '@canlang/work/recovery';
@@ -50,11 +50,11 @@ function committed(outcome: MutationOutcome) {
   assert.equal(outcome.result.status, 'committed'); return outcome.result;
 }
 
-test('compiled Images requests finalize real provider bytes in receiving SQLite and retain native D1 progress on reopen', async () => {
+test('compiled Images requests finalize real provider bytes in receiving SQLite and retain native D1 progress on reopen', async t => {
   // Identity/session/membership and domain/Work/receipts share persistent
   // native D1; finalized metadata and bytes share real SQLite transactions.
   // The installed local HTTP protocol is controlled, not a remote Comfy deployment.
-  const now = Date.now(); const clock = { nowMs: () => now };
+  let now = Date.now(); const clock = { nowMs: () => now };
   let sequence = 0;
   const nextId = () => asOperationId(uuidv7(now, ++sequence));
   let identities!: ReturnType<typeof createD1IdentityStore>;
@@ -84,6 +84,7 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
   const prompts: string[] = [];
   let observations = 0;
   let queuedBeforeSubmit = 0;
+  const cancellations: string[] = [];
   const provider = createServer(async (request, response) => {
     try {
       const url = new URL(request.url!, 'http://local');
@@ -103,13 +104,18 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
       }
       if (request.method === 'GET' && url.pathname.startsWith('/history/')) {
         const job = decodeURIComponent(url.pathname.slice('/history/'.length));
-        assert.equal(job, prompts[prompts.length - 1]);
+        assert.ok(prompts.includes(job));
         observations++;
         if (mode === 'unknown') return json({});
         if (mode === 'running') return json({ [job]: { status: { status_str: 'executing', completed: false }, outputs: {} } });
         const images = [{ filename: 'image.png', subfolder: '', type: 'output' },
           ...(mode === 'aggregate' ? [{ filename: 'second.png', subfolder: '', type: 'output' }] : [])];
         return json({ [job]: { status: { status_str: 'success', completed: true }, outputs: { '9': { images } } } });
+      }
+      if (request.method === 'POST' && url.pathname.startsWith('/api/jobs/') && url.pathname.endsWith('/cancel')) {
+        const job = decodeURIComponent(url.pathname.slice('/api/jobs/'.length, -'/cancel'.length));
+        assert.ok(prompts.includes(job)); cancellations.push(job);
+        response.writeHead(404); return void response.end();
       }
       if (request.method === 'GET' && url.pathname === '/view') {
         response.writeHead(200, { 'content-type': 'image/png' });
@@ -166,20 +172,23 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
       inputs: { prompt: { node: '6', key: 'text' }, negative: { node: '7', key: 'text' }, width: { node: '5', key: 'width' },
         height: { node: '5', key: 'height' }, seed: { node: '3', key: 'seed' } }, outputs: ['9'] };
     let maxBytes = 128;
+    let maxObservationDurationMs = 20_000;
     let revokeAfterFinalize: string | null = null;
     const adapterFor = () => {
       const { prompt, negative, width, height } = mapping.inputs;
       assert.ok(prompt && negative && width && height);
       const installed = new ComfyUINativeAdapter({ baseUrl: `http://127.0.0.1:${address.port}`, timeoutMs: 30_000,
         maxBodyBytes: 16_384, graph: GRAPH, mapping, clientId: 'owned-images', maxDownloadBytes: maxBytes, maxOutputs: 2 })
-        .installImages({ binding, workflow: { graph: graphRef, prompt, negative, width, height }, seed: { kind: 'fixed', value: 42 } });
+        .installImages({ binding, workflow: { graph: graphRef, prompt, negative, width, height }, seed: { kind: 'fixed', value: 42 }, maxObservationDurationMs });
       return createBoundImagesAdapter({ appDefinition: definition, binding,
         resolveInstalledImages: deployment => deployment === binding.deployment ? installed : null,
-        finalizeOutput: async ({ intent, output, resultPath }) => {
+        finalizeOutput: async ({ intent, output, resultPath, originalScope }) => {
           // The receiver is the actual admitted principal/team, and authority is
           // checked again inside the live original dispatch fence before bytes.
           const current = await resolveIdentity(identities, { session_token: token, team_id: team.team_id }, { clock });
           assert.deepEqual(receiverFromIdentity(APP, current), receiver);
+          if (originalScope !== undefined) assert.deepEqual(originalScope,
+            { app: receiver.app, owner: receiver.owner, principal: receiver.principal });
           assert.equal((await identities.findMembership(team.team_id, user.user_id))?.status, 'active');
           const finalizedOutput = bindings.finalizeProviderOutput({ receiver, binding: { adapter: binding.deployment, deliveryId: intent.intentId, resultPath },
             operation: intent.target, field: `/${resultPath}`, args: {}, name: `image-${output.position}.png`, claimedType: output.contentType, bytes: output.bytes });
@@ -193,9 +202,14 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
     let adapter = adapterFor();
     let terminalFaultIntent: OutboxIntent | null = null;
     let terminalResponseLost = false;
+    let afterControlPin: (() => Promise<void>) | undefined;
     const dispatcherFor = () => createBoundImagesDispatcher({ store: { ...store,
       async commit(batch) {
         const result = await store.commit(batch);
+        if (afterControlPin !== undefined && batch.writes.some(write => write.model === WORK_DISPATCH_MODEL &&
+            write.kind !== 'remove' && write.row.data['originalIntentId'] !== undefined)) {
+          const race = afterControlPin; afterControlPin = undefined; await race();
+        }
         if (terminalFaultIntent !== null && batch.writes.some(write => write.model === RECEIPT_MODEL &&
             (write.kind === 'insert' ? write.row.id : write.id) === terminalFaultIntent!.intentId)) {
           const row = await store.load(asModel(RECEIPT_MODEL), asId(terminalFaultIntent.intentId)); assert.ok(row);
@@ -229,9 +243,9 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
       assert.equal((await identities.findMembership(team.team_id, user.user_id))?.status, 'active');
       invoker = invokerFor(); adapter = adapterFor(); dispatcher = await dispatcherFor();
     };
-    const drive = (intent: OutboxIntent) => {
+    const drive = (intent: OutboxIntent, actor = user.user_id) => {
       currentIntent = intent; currentContext = adapter.resultContext(intent); assert.ok(currentContext);
-      return dispatcher.drive({ intentId: intent.intentId, actor: user.user_id, operation: 'test.images.drive', nowMs: () => now,
+      return dispatcher.drive({ intentId: intent.intentId, actor, operation: 'test.images.drive', nowMs: () => now,
         nextClaimId: () => `images-claim-${++sequence}`, maxClaimAgeMs: 60_000, claimOperationId: nextId(), recordOperationId: nextId(),
         classifyFailure, evaluateGuard: () => true, readStateSnapshot: () => null,
         fence: { owner: team.team_id, attemptDispatch: attemptDispatch as FenceAttemptDispatchFn,
@@ -404,6 +418,228 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
     assert.deepEqual(await store.historyFor(MODEL, asId(created.id)), originalHistory);
     assert.deepEqual(bindings.readBytes(recoveredImage, receiver), PNG);
 
+    const enqueueControl = async (operation: 'stop' | 'reconcile') => {
+      const row = await store.load(MODEL, asId(created.id)); assert.ok(row);
+      const request = envelope(operation, { job: { id: created.id, version: String(row.version) } });
+      committed(await invoker.invokeMutation(request, identity)); jobVersion = Number(row.version) + 1;
+      const intent = (await store.outboxPending()).find(value => value.operationId === request.operation_id); assert.ok(intent);
+      assert.deepEqual(intent.arguments['arguments'], { source: created.id, revision: row.data['revision'] });
+      const staged = await store.load(WORK_DISPATCH_MODEL, asId(intent.intentId)); assert.ok(staged);
+      assert.deepEqual(readDispatchImageCorrelation(staged.data), { ...originalCorrelation, requestRevision: row.data['revision'] });
+      return intent;
+    };
+    const checkedReceipt = async (intent: OutboxIntent) => {
+      const row = await store.load(asModel(RECEIPT_MODEL), asId(intent.intentId)); assert.ok(row);
+      const context = adapter.resultContext(intent); assert.ok(context);
+      return readReceiptRow(row, context).receipt;
+    };
+
+    // A real compiled control stops the still-null pending original, in one
+    // join with its control receipt. No provider claim or transport is invented.
+    const beforePendingPrompts = prompts.length; const beforePendingCancels = cancellations.length;
+    const notSubmitted = await enqueue(); const pendingStop = await enqueueControl('stop');
+    assert.equal(adapter.available(pendingStop), true);
+    const stopped = await drive(pendingStop); assert.equal(stopped.status, 'recorded');
+    assert.ok('state' in stopped); assert.equal(stopped.state, 'delivered');
+    assert.equal((await checkedReceipt(notSubmitted)).status, 'skipped');
+    assert.equal((await checkedReceipt(notSubmitted)).result, null);
+    assert.equal((await checkedReceipt(pendingStop)).status, 'succeeded');
+    assert.equal((await checkedReceipt(pendingStop)).result && ((await checkedReceipt(pendingStop)).result as { state: string }).state, 'cancelled');
+    assert.equal(prompts.length, beforePendingPrompts); assert.equal(cancellations.length, beforePendingCancels);
+    const stoppedRow = await store.load(WORK_DISPATCH_MODEL, asId(notSubmitted.intentId)); assert.ok(stoppedRow);
+    assert.equal(readDispatchRow(stoppedRow).guardVerdict, false);
+    const pendingPinRow = await store.load(WORK_DISPATCH_MODEL, asId(pendingStop.intentId)); assert.ok(pendingPinRow);
+    assert.equal(readDispatchImageControlPin(pendingPinRow.data)?.originalIntentId, notSubmitted.intentId);
+    await reopen(); assert.equal((await drive(notSubmitted)).status, 'not-pending');
+    assert.equal((await drive(pendingStop)).status, 'not-pending');
+    assert.equal(prompts.length, beforePendingPrompts);
+
+    // The original may hold a genuine claim but still have no queued receipt.
+    // Cleanup revokes that claim; its later provider path cannot start a job.
+    const claimedOriginal = await enqueue();
+    await identities.removeMembership(member.membership_id);
+    assert.equal((await drive(claimedOriginal)).status, 'refused-revoked');
+    await identities.reactivateMembership(member.membership_id, { is_owner: false, roles: [] });
+    assert.equal((await store.load(WORK_DISPATCH_MODEL, asId(claimedOriginal.intentId)))?.data['state'], 'claimed');
+    const heldStop = await enqueueControl('stop'); await drive(heldStop);
+    assert.equal((await checkedReceipt(claimedOriginal)).status, 'skipped');
+    assert.equal((await store.load(WORK_DISPATCH_MODEL, asId(claimedOriginal.intentId)))?.data['claimId'], null);
+    assert.equal(prompts.length, beforePendingPrompts);
+
+    // Queue admission is not proof that cancellation prevented acceptance.
+    // An unsupported targeted cancel reports the actual running observation.
+    mode = 'unknown'; const acceptedOriginal = await enqueue(); await drive(acceptedOriginal);
+    const acceptedPrompts = prompts.length; const acceptedFiles = files!.files.listAll().length;
+    const acceptedStop = await enqueueControl('stop'); mode = 'running';
+    await drive(acceptedStop);
+    assert.equal(cancellations.length, beforePendingCancels + 1);
+    const originalRunning = await checkedReceipt(acceptedOriginal);
+    const controlRunning = await checkedReceipt(acceptedStop);
+    assert.equal(originalRunning.status, 'pending'); assert.equal(controlRunning.status, 'pending');
+    assert.equal((originalRunning.result as { state: string }).state, 'running');
+    assert.equal((controlRunning.result as { charged_jobs: string | null }).charged_jobs, null);
+    assert.match((controlRunning.result as { detail: string }).detail, /unsupported/);
+    const controlRow = await store.load(WORK_DISPATCH_MODEL, asId(acceptedStop.intentId)); assert.ok(controlRow);
+    const controlPin = readDispatchImageControlPin(controlRow.data); assert.ok(controlPin);
+    assert.equal(controlPin.originalIntentId, acceptedOriginal.intentId);
+    assert.equal(controlPin.observationStartedAtMs, controlRow.created);
+    assert.equal(controlPin.observationDeadlineMs - controlPin.observationStartedAtMs, 20_000);
+    maxObservationDurationMs = 30_000; await reopen();
+    assert.deepEqual(readDispatchImageControlPin((await store.load(WORK_DISPATCH_MODEL, asId(acceptedStop.intentId)))!.data), controlPin);
+    mode = 'success';
+    const controlsRecovered = await recover();
+    assert.ok(controlsRecovered.reconciled.some(item => item.intentId === acceptedStop.intentId));
+    assert.equal(prompts.length, acceptedPrompts); assert.equal(cancellations.length, beforePendingCancels + 1);
+    assert.equal(files!.files.listAll().length, acceptedFiles + 1);
+    const observedOriginal = await checkedReceipt(acceptedOriginal);
+    const observedControl = await checkedReceipt(acceptedStop);
+    assert.equal(observedOriginal.status, 'succeeded'); assert.deepEqual(observedControl.result, observedOriginal.result);
+    const controlImage = (observedOriginal.result as { outputs: Array<{ image: { id: string } }> }).outputs[0]!.image.id;
+    const controlProvenance = bindings.readProvenance(controlImage, receiver)?.provenance;
+    assert.ok(controlProvenance?.kind === 'request');
+    assert.equal(controlProvenance.deliveryId, acceptedOriginal.intentId);
+    const afterControlSchedules = await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' });
+    await recover(); await reopen(); await recover();
+    assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), afterControlSchedules);
+    assert.equal(prompts.length, acceptedPrompts); assert.equal(cancellations.length, beforePendingCancels + 1);
+    assert.equal(files!.files.listAll().length, acceptedFiles + 1);
+
+    // Reconciliation of an acknowledged current terminal original reuses its
+    // exact retained evidence; it does not finalize or announce another image.
+    const terminalReconcile = await enqueueControl('reconcile');
+    const beforeTerminalObservation = observations; await drive(terminalReconcile);
+    assert.equal(observations, beforeTerminalObservation);
+    assert.deepEqual((await checkedReceipt(terminalReconcile)).result, observedOriginal.result);
+    assert.deepEqual(await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' }), afterControlSchedules);
+    assert.equal(files!.files.listAll().length, acceptedFiles + 1);
+
+    // The original can cross its queued admission boundary after the control
+    // pin commits. A fresh checked read selects targeted observation instead
+    // of applying the earlier null-receipt pending-stop premise.
+    const racingOriginal = await enqueue(); const racingControl = await enqueueControl('stop');
+    const beforeRacePrompts = prompts.length; const beforeRaceCancels = cancellations.length;
+    afterControlPin = async () => { mode = 'unknown'; await drive(racingOriginal); };
+    await drive(racingControl);
+    assert.equal(afterControlPin, undefined);
+    assert.equal(prompts.length, beforeRacePrompts + 1); assert.equal(cancellations.length, beforeRaceCancels + 1);
+    assert.equal((await checkedReceipt(racingOriginal)).status, 'unknown');
+    assert.equal((await checkedReceipt(racingControl)).status, 'unknown');
+    assert.equal((await checkedReceipt(racingControl)).result && ((await checkedReceipt(racingControl)).result as { charged_jobs: string | null }).charged_jobs, null);
+    mode = 'success'; await recover(); await recover();
+    assert.equal(prompts.length, beforeRacePrompts + 1); assert.equal(cancellations.length, beforeRaceCancels + 1);
+
+    // A control issued after the original generation deadline can observe late
+    // success under its own new finite window, preserving the accepted job.
+    const liveNow = Date.now;
+    now = liveNow(); t.mock.method(Date, 'now', () => now);
+    mode = 'unknown'; const lateOriginal = await enqueue(); await drive(lateOriginal);
+    const lateOriginalRow = await store.load(WORK_DISPATCH_MODEL, asId(lateOriginal.intentId)); assert.ok(lateOriginalRow);
+    const beforeLateFiles = files!.files.listAll().length; const beforeLatePrompts = prompts.length;
+    now += 31_000;
+    const lateControl = await enqueueControl('reconcile'); mode = 'success'; await drive(lateControl);
+    const latePin = readDispatchImageControlPin((await store.load(WORK_DISPATCH_MODEL, asId(lateControl.intentId)))!.data); assert.ok(latePin);
+    assert.equal(latePin.observationStartedAtMs, now);
+    assert.ok(latePin.observationStartedAtMs > lateOriginalRow.created + 30_000);
+    assert.equal((await checkedReceipt(lateOriginal)).status, 'succeeded');
+    assert.deepEqual((await checkedReceipt(lateControl)).result, (await checkedReceipt(lateOriginal)).result);
+    assert.equal((await store.load(WORK_DISPATCH_MODEL, asId(lateOriginal.intentId)))?.created, lateOriginalRow.created);
+    assert.equal(prompts.length, beforeLatePrompts); assert.equal(files!.files.listAll().length, beforeLateFiles + 1);
+    await recover(); t.mock.restoreAll(); now = liveNow();
+
+    // The installed compiled private progress handler has a null user actor
+    // and an explicit owner read grant. Its real control still cleans up the
+    // original member's attempt, without requiring actor==original principal.
+    const rename = await store.load(MODEL, asId(created.id)); assert.ok(rename);
+    committed(await invoker.invokeMutation(envelope('Job.update', { record: { id: created.id, version: String(rename.version) }, label: 'Cleanup' }), identity));
+    jobVersion = Number(rename.version) + 1;
+    mode = 'unknown'; const cleanupOriginal = await enqueue(); await drive(cleanupOriginal);
+    // Schedule payload is retained on its original occurrence row.
+    const cleanupRows = await store.query({ model: WORK_SCHEDULE_MODEL, authority: 'owner' });
+    const occurrenceRow = cleanupRows.find(row =>
+      (row.data['payload'] as { delivery_id?: string } | undefined)?.delivery_id === cleanupOriginal.intentId);
+    assert.ok(occurrenceRow); const cleanupOccurrence = readScheduleRow(occurrenceRow);
+    const cleanupInvoked = await invokeDueScheduleCanonical({ asm, artifact, app: APP,
+      handler: `${APP}.progressed`, store, identities, now: () => now,
+      due: { key: cleanupOccurrence.key, scope: { app: APP, owner: team.team_id, ownerPackage: APP },
+        occurrenceId: cleanupOccurrence.occurrenceId, event: cleanupOccurrence.event, at: cleanupOccurrence.at } });
+    assert.ok(typeof cleanupInvoked === 'object' && cleanupInvoked !== null && 'status' in cleanupInvoked);
+    assert.equal(cleanupInvoked.status, 'completed');
+    const cleanupDispatchRows = await store.query({ model: WORK_DISPATCH_MODEL, authority: 'owner' });
+    const cleanupControlRow = cleanupDispatchRows.find(row => row.data['originOccurrence'] === cleanupOccurrence.occurrenceId && row.data['source'] === 'std.ImagesV1.cancel');
+    assert.ok(cleanupControlRow); assert.notEqual(cleanupControlRow.createdBy, user.user_id);
+    const cleanupRetained = await store.outboxGet(String(cleanupControlRow.id)); assert.ok(cleanupRetained);
+    const beforeCleanupCancel = cancellations.length; const beforeCleanupPrompts = prompts.length;
+    mode = 'success'; await drive(cleanupRetained.intent, cleanupControlRow.createdBy!);
+    assert.equal(cancellations.length, beforeCleanupCancel + 1); assert.equal(prompts.length, beforeCleanupPrompts);
+    assert.equal((await checkedReceipt(cleanupOriginal)).status, 'succeeded');
+    assert.deepEqual((await checkedReceipt(cleanupRetained.intent)).result, (await checkedReceipt(cleanupOriginal)).result);
+    const cleanupFile = ((await checkedReceipt(cleanupOriginal)).result as { outputs: Array<{ image: { id: string } }> }).outputs[0]!.image.id;
+    const cleanupProvenance = bindings.readProvenance(cleanupFile, receiver)?.provenance;
+    assert.ok(cleanupProvenance?.kind === 'request');
+    assert.equal(cleanupProvenance.deliveryId, cleanupOriginal.intentId);
+    await recover();
+    const restoreLabel = await store.load(MODEL, asId(created.id)); assert.ok(restoreLabel);
+    committed(await invoker.invokeMutation(envelope('Job.update', { record: { id: created.id, version: String(restoreLabel.version) }, label: 'Images' }), identity));
+    jobVersion = Number(restoreLabel.version) + 1;
+
+    // A retained window is never renewed after expiry, even if installation
+    // policy grew on reopen. The original generation deadline remains intact.
+    mode = 'unknown'; const expiredOriginal = await enqueue(); await drive(expiredOriginal);
+    const expiredControl = await enqueueControl('reconcile'); await drive(expiredControl);
+    const expiryPin = readDispatchImageControlPin((await store.load(WORK_DISPATCH_MODEL, asId(expiredControl.intentId)))!.data); assert.ok(expiryPin);
+    const expiryReceipts = [await checkedReceipt(expiredOriginal), await checkedReceipt(expiredControl)];
+    const beforeExpiredObservation = observations; const expiredPrompts = prompts.length;
+    const actualNow = Date.now;
+    t.mock.method(Date, 'now', () => expiryPin.observationDeadlineMs + 1);
+    now = expiryPin.observationDeadlineMs + 1;
+    await reopen(); mode = 'success'; await recover();
+    assert.equal(observations, beforeExpiredObservation); assert.equal(prompts.length, expiredPrompts);
+    assert.deepEqual([await checkedReceipt(expiredOriginal), await checkedReceipt(expiredControl)], expiryReceipts);
+    assert.deepEqual(readDispatchImageControlPin((await store.load(WORK_DISPATCH_MODEL, asId(expiredControl.intentId)))!.data), expiryPin);
+    t.mock.restoreAll(); now = actualNow();
+
+    // A compiled control cannot follow an obsolete locator after a new attempt
+    // takes over the business field, nor can revoked current authority run it.
+    mode = 'unknown'; const obsoleteOriginal = await enqueue(); await drive(obsoleteOriginal);
+    const staleControl = await enqueueControl('stop');
+    const replacement = await enqueue();
+    const beforeStaleCancel = cancellations.length; const beforeStaleObservation = observations;
+    const staleReceipt = await checkedReceipt(obsoleteOriginal);
+    await drive(staleControl);
+    assert.equal(cancellations.length, beforeStaleCancel); assert.equal(observations, beforeStaleObservation);
+    assert.deepEqual(await checkedReceipt(obsoleteOriginal), staleReceipt);
+    assert.equal(readDispatchImageControlPin((await store.load(WORK_DISPATCH_MODEL, asId(staleControl.intentId)))!.data), null);
+    const revokedControl = await enqueueControl('stop');
+    await identities.removeMembership(member.membership_id);
+    assert.equal((await drive(revokedControl)).status, 'refused-revoked');
+    assert.equal(cancellations.length, beforeStaleCancel); assert.equal(observations, beforeStaleObservation);
+    assert.equal((await checkedReceipt(replacement)).result, null);
+    const heldCleanup = await store.load(WORK_DISPATCH_MODEL, asId(revokedControl.intentId)); assert.ok(heldCleanup);
+    const heldCleanupData = readDispatchRow(heldCleanup);
+    assert.equal(heldCleanupData.state, 'claimed'); assert.equal(heldCleanupData.attempts, 0);
+    assert.ok(heldCleanupData.claimId); assert.equal(heldCleanupData.claimedAtMs, now);
+    assert.equal(readDispatchImageControlPin(heldCleanup.data), null);
+    await identities.reactivateMembership(member.membership_id, { is_owner: false, roles: [] });
+    // Restored authority does not replace a current claim. The test clock has
+    // not advanced through Work's 60-second stale-claim horizon.
+    const stillHeldCleanup = await drive(revokedControl);
+    assert.equal(stillHeldCleanup.status, 'not-claimed');
+    assert.ok(stillHeldCleanup.status === 'not-claimed'); assert.equal(stillHeldCleanup.reason, 'claimed');
+    assert.deepEqual(await store.load(WORK_DISPATCH_MODEL, asId(revokedControl.intentId)), heldCleanup);
+    assert.equal((await checkedReceipt(replacement)).status, 'pending');
+    assert.equal(cancellations.length, beforeStaleCancel); assert.equal(observations, beforeStaleObservation);
+    // A new, genuinely admitted source control can stop the same null-receipt
+    // original while leaving the refused control's held claim untouched.
+    const restoredControl = await enqueueControl('stop');
+    assert.notEqual(restoredControl.intentId, revokedControl.intentId);
+    assert.deepEqual(restoredControl.arguments, revokedControl.arguments);
+    const restoredCleanup = await drive(restoredControl);
+    assert.equal(restoredCleanup.status, 'recorded'); assert.ok('state' in restoredCleanup);
+    assert.equal(restoredCleanup.state, 'delivered');
+    assert.equal((await checkedReceipt(replacement)).status, 'skipped');
+    assert.deepEqual(await store.load(WORK_DISPATCH_MODEL, asId(revokedControl.intentId)), heldCleanup);
+    assert.equal(cancellations.length, beforeStaleCancel); assert.equal(observations, beforeStaleObservation);
+
     // Two genuine generated submits may share a business key. Resolving the
     // first row would guess an attempt; the finite lookup must refuse both.
     const duplicateA = await enqueue(99); const duplicateB = await enqueue(99);
@@ -413,6 +649,17 @@ test('compiled Images requests finalize real provider bytes in receiving SQLite 
     assert.deepEqual(await lookupRetainedImagesDispatch({ store, correlation: duplicateCorrelation }), { status: 'ambiguous' });
     assert.deepEqual(await lookupRetainedImagesDispatch({ store,
       correlation: { ...duplicateCorrelation, requestOwner: 'another-owner' } }), { status: 'absent' });
+    const ambiguousControl = await enqueueControl('stop');
+    const beforeAmbiguousTransport = [prompts.length, cancellations.length, observations];
+    await drive(ambiguousControl);
+    assert.deepEqual([prompts.length, cancellations.length, observations], beforeAmbiguousTransport);
+    assert.equal(readDispatchImageControlPin((await store.load(WORK_DISPATCH_MODEL, asId(ambiguousControl.intentId)))!.data), null);
+    const exactDuplicate = await lookupRetainedImagesDispatch({ store, correlation: duplicateCorrelation,
+      originalIntentId: duplicateA.intentId });
+    assert.equal(exactDuplicate.status, 'resolved');
+    if (exactDuplicate.status === 'resolved') assert.deepEqual(exactDuplicate.retained.intent, duplicateA);
+    assert.deepEqual(await lookupRetainedImagesDispatch({ store, correlation: originalCorrelation,
+      originalIntentId: duplicateA.intentId }), { status: 'invalid' });
 
     mode = 'invalid'; const invalid = await enqueue(); const beforeInvalid = files!.files.listAll().length;
     await drive(invalid); assert.equal(files!.files.listAll().length, beforeInvalid);
