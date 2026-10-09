@@ -173,6 +173,8 @@ export interface PageSourceContext {
   readonly preferenceVersions?: Readonly<Record<string, Readonly<Record<string, string>>>>;
   readonly canonical: {
     readonly builtinRoles: readonly string[];
+    /** Render-only native records from this request's authorized viewer scope. */
+    readonly readRecords?: PageRecordsReader;
     readonly observeDelivery?: PageDeliveryObserver;
   };
 }
@@ -460,6 +462,32 @@ export type RowQueryRunner = (
   args: ListQueryArgs,
 ) => Promise<ListQueryResult>;
 
+/**
+ * Authored source-expression selectors. Opaque predicates/parent/order stay
+ * intact for the canonical owner to serve or explicitly refuse. `owner`
+ * authority is retained for refusal; a page reader can grant only viewer access.
+ */
+export interface PageRecordsQuery {
+  readonly parent?: unknown;
+  readonly where?: unknown;
+  readonly order?: unknown;
+  readonly limit?: number;
+  readonly archived?: 'exclude' | 'include';
+  readonly authority?: 'owner' | 'viewer';
+}
+
+/**
+ * Native source-expression records, bound to the admitted viewer and checked
+ * source/physical owner by the scope producer. Only projected readable fields
+ * may appear. This is not a paginated RowView query: no collection defaults,
+ * cursors or implicit truncation apply. Unsupported selectors refuse instead
+ * of being dropped. The same scope owns current authority/revision checks.
+ */
+export type PageRecordsReader = (
+  model: string,
+  query: PageRecordsQuery,
+) => Promise<ReadonlyArray<Record<string, unknown>>>;
+
 /** Readonly selected delivery observation; the implementing owner enforces current grants. */
 export type PageDeliveryObserver = (
   locator: { readonly record: unknown; readonly field: string },
@@ -469,6 +497,7 @@ export type PageDeliveryObserver = (
 /** One request's authorized readers; this scope itself grants no authority. */
 export interface PageReadScope {
   readonly query: RowQueryRunner;
+  readonly readRecords?: PageRecordsReader;
   readonly observeDelivery?: PageDeliveryObserver;
 }
 
