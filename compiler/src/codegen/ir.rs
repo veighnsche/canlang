@@ -3391,6 +3391,29 @@ impl<'a> Cx<'a> {
     /// Consume the checker-selected target and slots. CST supplies content,
     /// never a second overload choice or argument-name binding.
     fn decode_call(&mut self, scope: &Scope, node: &SyntaxNode, _ty: &ResolvedType) -> IrExpr {
+        if let Some(binding) = self
+            .program
+            .types
+            .anonymous_messages
+            .get(&NodeKey::of(node))
+            .cloned()
+        {
+            let Some(mut descriptor) = self.decode_message_value(scope.module, &binding.descriptor)
+            else {
+                return IrExpr::Unsupported {
+                    what: "anonymous message".to_string(),
+                    why: "checked descriptor anchor is unavailable".to_string(),
+                };
+            };
+            for (name, argument, ty) in binding.arguments {
+                descriptor.params.push(IrMessageParam {
+                    name,
+                    type_id: self.type_id(&ty),
+                    value: self.decode_anchored(scope, &argument, "anonymous message argument"),
+                });
+            }
+            return IrExpr::Message(descriptor);
+        }
         let Some(selected) = self
             .program
             .types
@@ -3717,6 +3740,12 @@ impl<'a> Cx<'a> {
         // Inline descriptors have no declared parameters. Their syntax supplies
         // text only; the owning checked module supplies source language.
         let inline = descriptor_node.kind == SyntaxKind::MessageValue;
+        let anonymous = self
+            .program
+            .types
+            .anonymous_messages
+            .get(&NodeKey::of(&descriptor_node))
+            .cloned();
         let args: Vec<_> = arguments
             .iter()
             .enumerate()
@@ -3755,11 +3784,23 @@ impl<'a> Cx<'a> {
                 }
                 (data.source_lang.clone(), params)
             }
-            ResolvedType::Scalar(Scalar::Text) if inline => {
+            ResolvedType::Scalar(Scalar::Text) if inline || anonymous.is_some() => {
                 let Some(module) = self.program.effects.modules.get(&scope.module) else {
                     return unsupported("checked inline descriptor module is unavailable");
                 };
-                (module.source_lang.clone(), Vec::new())
+                let source_lang = module.source_lang.clone();
+                let mut params = Vec::new();
+                if let Some(binding) = anonymous {
+                    for (name, _, ty) in binding.arguments {
+                        let Some(tag) = Self::format_param_tag(&ty) else {
+                            return unsupported(
+                                "checked anonymous argument has no Values presentation tag",
+                            );
+                        };
+                        params.push((name, self.type_id(&ty), tag.to_string()));
+                    }
+                }
+                (source_lang, params)
             }
             _ => return unsupported("descriptor has no checked message owner or inline schema"),
         };
@@ -6882,15 +6923,7 @@ impl<'a> Cx<'a> {
                     span: node.span,
                 })
             }
-            SyntaxKind::Edit => {
-                self.diags.push(Diagnostic::error(
-                    "E6008",
-                    "cannot lower edit: the bound edit profile has no complete owning form props"
-                        .to_string(),
-                    node.span,
-                ));
-                None
-            }
+            SyntaxKind::Edit => self.decode_bound_edit(scope, node, row_ctx),
             SyntaxKind::UiLeaf => self.decode_leaf(scope, node, &word, row_ctx),
             SyntaxKind::Slot => Some(self.decode_slot(scope, node, row_ctx)),
             SyntaxKind::CatalogItem => self.decode_catalog(scope, node, &word, row_ctx),
@@ -8111,7 +8144,8 @@ impl<'a> Cx<'a> {
     ) -> IrUi {
         self.diags.push(Diagnostic::error(
             "E6008",
-            "cannot lower pagination: cursor and label carriers are not implemented".to_string(),
+            "cannot lower pagination: the bare marker must belong directly to a list or table"
+                .to_string(),
             node.span,
         ));
         let props = Vec::new();
@@ -8290,6 +8324,141 @@ impl<'a> Cx<'a> {
     }
 
     /// Decode a `form` node: operation plus display/arguments/fields/submit.
+    /// Bound row edits reuse the protected operation form and its native defaults.
+    fn decode_bound_edit(
+        &mut self,
+        _scope: &Scope,
+        node: &SyntaxNode,
+        row_ctx: Option<(SymbolId, String)>,
+    ) -> Option<IrUi> {
+        self.check_ui_attributes(node, "edit", &["fields"]);
+        let attributes = ui_attributes(self.db, node);
+        if attributes.len() != 1
+            || attributes[0].0 != "fields"
+            || attributes[0].1.is_none()
+            || kids(node).iter().any(|child| {
+                is_expression(child.kind)
+                    || matches!(child.kind, SyntaxKind::Path | SyntaxKind::MessageValue)
+                    || is_ui_node(child.kind)
+            })
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower edit: only bound row edits with fields and no header or body are supported"
+                    .to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        let Some((model, row)) = row_ctx.filter(|(model, _)| {
+            matches!(
+                self.program
+                    .symbols
+                    .get(model.0 as usize)
+                    .map(|symbol| &symbol.kind),
+                Some(SymbolKind::Model { .. })
+            )
+        }) else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower edit: a checked stored model row is required".to_string(),
+                node.span,
+            ));
+            return None;
+        };
+        let operation = self
+            .crud_for_model(model)
+            .and_then(|crud| self.program.effects.cruds.get(&crud))
+            .filter(|crud| crud.update && crud.model == model)
+            .and_then(|crud| {
+                crud.ops.iter().find_map(|op| {
+                    self.program.effects.crud_ops.get(op).filter(|data| {
+                        data.crud_decl == crud.crud
+                            && data.model == model
+                            && data.operation == CrudOp::Update
+                    })
+                })
+            })
+            .cloned();
+        let Some(operation) = operation else {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower edit: the row model has no checked enabled update operation"
+                    .to_string(),
+                node.span,
+            ));
+            return None;
+        };
+        let fields = attributes[0]
+            .1
+            .map(|value| selector_strings(self.db, value))
+            .unwrap_or_default();
+        let allowed = self.default_form_fields(operation.op).unwrap_or_default();
+        let mut seen = HashSet::new();
+        if fields.is_empty()
+            || fields.iter().any(|field| {
+                field.contains('.')
+                    || !seen.insert(field.clone())
+                    || !allowed.contains(field)
+                    || (!operation.fields.is_empty() && !operation.fields.contains(field))
+            })
+        {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower edit: fields must be unique simple checked writable update inputs"
+                    .to_string(),
+                node.span,
+            ));
+            return None;
+        }
+        let record = TypedExpr::new(
+            IrExpr::Name(row),
+            ResolvedType::Record {
+                symbol: model,
+                stored: true,
+            },
+            node.span,
+        );
+        let arguments = TypedExpr::new(
+            IrExpr::Object(vec![("record".to_string(), record)]),
+            ResolvedType::Unknown,
+            node.span,
+        );
+        let mut form = self.protected_action_form(operation.op, arguments, node.span);
+        form.props.push((
+            "fields".to_string(),
+            TypedExpr::new(
+                IrExpr::Array(
+                    fields
+                        .into_iter()
+                        .map(|field| {
+                            TypedExpr::new(
+                                IrExpr::Text(field),
+                                ResolvedType::Scalar(Scalar::Text),
+                                node.span,
+                            )
+                        })
+                        .collect(),
+                ),
+                ResolvedType::Unknown,
+                node.span,
+            ),
+        ));
+        if let Some(label) = operation.label
+            && let Some(message) = self.decode_message_value(operation.module, &label)
+        {
+            form.props.push((
+                "submit".to_string(),
+                TypedExpr::new(
+                    IrExpr::Message(message),
+                    ResolvedType::Scalar(Scalar::Text),
+                    node.span,
+                ),
+            ));
+        }
+        Some(form)
+    }
+
     fn decode_form(
         &mut self,
         scope: &Scope,
@@ -8817,11 +8986,48 @@ impl<'a> Cx<'a> {
         }
         // Row scope: the name the row children actually use (the `as`
         // name when referenced, else `row`); mixed scopes stay loud.
-        let child_nodes: Vec<&SyntaxNode> = kids(node)
+        let mut child_nodes: Vec<&SyntaxNode> = kids(node)
             .iter()
             .filter(|n| is_ui_node(n.kind))
             .copied()
             .collect();
+        let pagination: Vec<_> = child_nodes
+            .iter()
+            .copied()
+            .filter(|child| ui_word(self.db, child) == "pagination")
+            .collect();
+        for marker in &pagination {
+            self.check_ui_attributes(marker, "pagination", &[]);
+            if kids(marker)
+                .iter()
+                .any(|child| is_expression(child.kind) || is_ui_node(child.kind))
+            {
+                self.diags.push(Diagnostic::error(
+                    "E6008",
+                    "cannot lower pagination: the collection marker takes no header or content suite"
+                        .to_string(),
+                    marker.span,
+                ));
+            }
+        }
+        if let Some(marker) = pagination.first() {
+            props.push((
+                "page".to_string(),
+                TypedExpr::new(
+                    IrExpr::Bool(true),
+                    ResolvedType::Scalar(Scalar::Bool),
+                    marker.span,
+                ),
+            ));
+        }
+        if pagination.len() > 1 {
+            self.diags.push(Diagnostic::error(
+                "E6008",
+                "cannot lower pagination: a collection takes one page marker".to_string(),
+                pagination[1].span,
+            ));
+        }
+        child_nodes.retain(|child| ui_word(self.db, child) != "pagination");
         let split = props.iter().any(|(name, value)| {
             name == "display" && matches!(&value.expr, IrExpr::Text(display) if display == "split")
         });

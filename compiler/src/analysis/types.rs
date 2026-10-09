@@ -397,6 +397,12 @@ pub struct SelectedCall {
 }
 
 #[derive(Debug, Clone)]
+pub(crate) struct CheckedAnonymousMessage {
+    pub descriptor: NodeKey,
+    pub arguments: Vec<(String, NodeKey, ResolvedType)>,
+}
+
+#[derive(Debug, Clone)]
 pub struct CheckedJudgmentSpecificationCall {
     pub judgment: SymbolId,
     pub options: NodeKey,
@@ -479,6 +485,8 @@ pub struct TypeTable {
     pub delivery_progress_handlers: HashMap<NodeKey, String>,
     /// Selected call authority consumed by IR without rebinding arguments.
     pub selected_calls: HashMap<NodeKey, SelectedCall>,
+    /// Explicit anonymous descriptor bindings, in authored evaluation order.
+    pub(crate) anonymous_messages: HashMap<NodeKey, CheckedAnonymousMessage>,
     /// Subject-domain labels checked for individual finite-enum match arms.
     pub enum_match_cases: HashMap<NodeKey, String>,
     /// Match statements with complete, unique checked subject-domain coverage.
@@ -9218,18 +9226,20 @@ fn push_slot(slots: &mut Vec<String>, name: String) {
 /// descriptor, not ordinary text — even though `expr` types it
 /// `text` (inline descriptors declare no `Message` symbol).
 fn is_message_descriptor(node: &SyntaxNode) -> bool {
+    message_descriptor_node(node).is_some()
+}
+
+fn message_descriptor_node(node: &SyntaxNode) -> Option<&SyntaxNode> {
     let mut current = node;
     loop {
         match current.kind {
-            SyntaxKind::MessageValue => return true,
+            SyntaxKind::MessageValue => return Some(current),
             SyntaxKind::Group => {
                 let parts = kids(current);
-                let Some(inner) = parts.iter().find(|n| is_expression(n.kind)) else {
-                    return false;
-                };
+                let inner = parts.iter().find(|n| is_expression(n.kind))?;
                 current = inner;
             }
-            _ => return false,
+            _ => return None,
         }
     }
 }
@@ -11258,9 +11268,12 @@ impl<'a> Typer<'a> {
             (ResolvedType::Union(a), ResolvedType::Union(b)) => a.iter().all(|t| b.contains(t)),
             (ResolvedType::Record { symbol: a, .. }, ResolvedType::Union(b)) => b.contains(a),
             (ResolvedType::Object(a), ResolvedType::Object(b)) => b.iter().all(|(k, t)| {
-                a.iter()
-                    .find(|(ak, _)| ak == k)
-                    .is_some_and(|(_, at)| self.types_compatible(at, t))
+                match a.iter().find(|(ak, _)| ak == k) {
+                    Some((_, at)) => self.types_compatible(at, t),
+                    // Published std object schemas use nullable fields
+                    // for omissible entries, like contract/event fields.
+                    None => matches!(t, ResolvedType::Nullable(_)),
+                }
             }),
             (ResolvedType::Operation(a), ResolvedType::Operation(b)) => a == b,
             _ => false,
@@ -14881,6 +14894,9 @@ impl<'a> Typer<'a> {
             .filter(|n| n.kind == SyntaxKind::Argument)
             .filter_map(|arg| self.read_argument(cx, arg))
             .collect();
+        if let Some(descriptor) = message_descriptor_node(callee) {
+            return self.call_anonymous_message(cx, node, descriptor, &args);
+        }
         // Positional fill first, then named (the parser owns order).
         match self.callee_kind(cx, callee) {
             CalleeKind::Error => ResolvedType::Error,
@@ -15337,7 +15353,7 @@ impl<'a> Typer<'a> {
         // `expr` types `text`).
         let first_is_message = matches!(typed.first(), Some(ResolvedType::Message(_)))
             || (matches!(typed.first(), Some(ResolvedType::Scalar(Scalar::Text)))
-                && is_message_descriptor(args[0].value));
+                && self.is_checked_message_descriptor(args[0].value));
         if first_is_message {
             return;
         }
@@ -15459,6 +15475,96 @@ impl<'a> Typer<'a> {
     }
 
     /// Call a message: like a user function, rendering `text`.
+    fn is_checked_message_descriptor(&self, node: &SyntaxNode) -> bool {
+        if is_message_descriptor(node) {
+            return true;
+        }
+        let mut current = node;
+        while current.kind == SyntaxKind::Group {
+            let Some(inner) = kids(current).into_iter().find(|n| is_expression(n.kind)) else {
+                return false;
+            };
+            current = inner;
+        }
+        self.types
+            .anonymous_messages
+            .contains_key(&NodeKey::of(current))
+    }
+
+    fn call_anonymous_message(
+        &mut self,
+        cx: &Ctx<'_, '_>,
+        node: &SyntaxNode,
+        descriptor: &SyntaxNode,
+        args: &[CallArg],
+    ) -> ResolvedType {
+        let before = self.diags.len();
+        let mut slots = Vec::new();
+        for literal in descriptor
+            .descendants()
+            .filter(|n| n.kind == SyntaxKind::Literal)
+        {
+            if let Some(template) = string_literal_value(literal) {
+                for slot in message_slots(&template) {
+                    push_slot(&mut slots, slot);
+                }
+            }
+        }
+        let mut names = Vec::new();
+        let mut arguments = Vec::new();
+        let mut valid = true;
+        for arg in args {
+            let ty = self.expr(cx, arg.value, None);
+            let Some(name) = &arg.name else {
+                self.diags.push(Diagnostic::error(
+                    "E3005",
+                    "anonymous messages require explicit named arguments".to_string(),
+                    tight_span(cx.text, arg.node),
+                ));
+                valid = false;
+                continue;
+            };
+            if names.contains(name) || !slots.contains(name) {
+                self.diags.push(Diagnostic::error(
+                    "E3005",
+                    format!(
+                        "anonymous message argument '{name}' is duplicate or names no placeholder"
+                    ),
+                    tight_span(cx.text, arg.node),
+                ));
+                valid = false;
+            }
+            names.push(name.clone());
+            if !super::examples::message_param_ok(&ty) {
+                if !ty.is_error() {
+                    self.diags.push(Diagnostic::error(
+                        "E5009",
+                        format!("message argument '{name}' must be a nonnullable display value"),
+                        tight_span(cx.text, arg.value),
+                    ));
+                }
+                valid = false;
+            }
+            arguments.push((name.clone(), NodeKey::of(arg.value), ty));
+        }
+        self.check_message_value(cx, descriptor, "anonymous message", Some(&names));
+        if slots.iter().any(|slot| !names.contains(slot)) {
+            valid = false;
+        }
+        if !valid || self.diags.len() != before {
+            return ResolvedType::Error;
+        }
+        self.types.anonymous_messages.insert(
+            NodeKey::of(node),
+            CheckedAnonymousMessage {
+                descriptor: NodeKey::of(descriptor),
+                arguments,
+            },
+        );
+        ResolvedType::Scalar(Scalar::Text)
+    }
+
+    /// Call a named message, preserving its declared signature.
     fn call_message(
         &mut self,
         cx: &Ctx<'_, '_>,
@@ -15958,7 +16064,7 @@ impl<'a> Typer<'a> {
                     actual,
                     ResolvedType::Message(_) | ResolvedType::Unknown | ResolvedType::Opaque(_)
                 ) || (matches!(actual, ResolvedType::Scalar(Scalar::Text))
-                    && is_message_descriptor(arg.value))
+                    && self.is_checked_message_descriptor(arg.value))
             }
             SigType::ActionTarget => self.match_action_target(cx, arg, actual, trial),
             SigType::ActionBindings => self.match_action_bindings(cx, arg, actual, trial),
