@@ -161,8 +161,11 @@ captions pass. UI adapter **7/7** and strict all-target Clippy pass, and
 independent HIGH source review accepts the corrected sinks. Human captions
 admit checked named/anonymous descriptors; machine IDs remain scalar text.
 This introduces a public Rust enum variant, without a public anonymous business
-schema or canonical ownerless-enum UI admission. A fresh integrated run and
-Codex review of the correction's published revision remain due.
+schema or canonical ownerless-enum UI admission. The **c3c12531** integrated
+run now reports **1,267 passed, 5 failed, 0 ignored**, with no reported body
+skips. All five failures are the unchanged draft-dependent corpus checks above;
+no current whole-suite acceptance follows. Codex review of the newly published
+revision remains external and pending; earlier reviews do not qualify it.
 
 Current remaining prerequisites are recorded here without reopening accepted
 compiler leaves:
