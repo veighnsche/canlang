@@ -334,7 +334,7 @@ export function verifyCompilerSources(capture: SingleFileCapture, report: Compil
 /** Recheck source, symlink targets and all declared inputs before publication. */
 export async function captureIsCurrent(capture: SingleFileCapture): Promise<boolean> {
   try {
-    if (!(await capturedInputsAreCurrent(capture, capture.inputs))) return false;
+    if (!(await capturedProducerInputsAreCurrent(capture))) return false;
     const { canonicalPath, bytes } = await readStableFile(capture.requestedAppPath);
     if (canonicalPath !== capture.appPath || bytes.length !== capture.sourceBytes) return false;
     if (createHash("sha256").update(bytes).digest("hex") !== capture.sourceSha256) return false;
@@ -342,6 +342,11 @@ export async function captureIsCurrent(capture: SingleFileCapture): Promise<bool
   } catch {
     return false;
   }
+}
+
+/** Compiler/help/qualification and runtime inputs, independent of app edits. */
+export async function capturedProducerInputsAreCurrent(capture: SingleFileCapture): Promise<boolean> {
+  return capturedInputsAreCurrent(capture,capture.inputs);
 }
 
 /** An old artifact may rerun after a source edit, but never through changed producers. */
