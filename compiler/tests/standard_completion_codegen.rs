@@ -2,7 +2,7 @@
 use canlang_compiler::analysis::catalog::{Catalog, CatalogRequest, load_catalog};
 use canlang_compiler::analysis::check_program;
 use canlang_compiler::codegen::ir::{self, IrEventSource, IrItemKind, IrProgram};
-use canlang_compiler::codegen::js;
+use canlang_compiler::codegen::{artifact, bdd, js};
 use canlang_compiler::source::{SourceDb, Span};
 use std::path::Path;
 
@@ -32,7 +32,7 @@ When
 Then
 "#;
 
-fn build(source: &str) -> (SourceDb, IrProgram) {
+fn build(source: &str) -> (SourceDb, IrProgram, Catalog) {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let mut db = SourceDb::new();
     let id = db.add("completion-projection.can".into(), source.into());
@@ -60,16 +60,45 @@ fn build(source: &str) -> (SourceDb, IrProgram) {
                 && diagnostic.message.contains("handler triggers")),
         "{diagnostics:?}"
     );
-    (db, ir)
+    (db, ir, catalog.expect("owning installed catalog"))
 }
 
 #[cfg(unix)]
 #[test]
 fn standard_completion_projection_keeps_routes_census_and_complete_native_value_schemas() {
     use std::process::Command;
-    let (db, ir) = build(SOURCE);
+    let (db, ir, catalog) = build(SOURCE);
     let output = js::emit_program_with_native_source_receipts(&ir, false, &db);
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(
+        ir.suites.is_empty(),
+        "this private fixture has no authored examples"
+    );
+    assert!(
+        !ir.items
+            .iter()
+            .any(|item| matches!(item.kind, IrItemKind::Fixture { .. })),
+        "this private fixture has no orphan recipes"
+    );
+    let mut test_modules = Vec::new();
+    let mut test_builtins = Vec::new();
+    for suite in &ir.suites {
+        let (module, diagnostics, builtins) = bdd::emit_suite(&ir, suite);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        test_modules.push(module);
+        test_builtins.extend(builtins);
+    }
+    let (compiled, diagnostics) = artifact::assemble(
+        &ir,
+        &output,
+        &test_modules,
+        &test_builtins,
+        &db,
+        Some(&catalog),
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert!(compiled.tests.is_empty());
+    let original_artifact = artifact::to_json(&compiled);
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let scratch = tempfile::tempdir().unwrap();
     // Original emitted modules and the genuine installed stdlib, without patches.
@@ -78,32 +107,12 @@ fn standard_completion_projection_keeps_routes_census_and_complete_native_value_
         scratch.path().join("node_modules"),
     )
     .unwrap();
-    for module in std::iter::once(&output.entry).chain(&output.packages) {
+    for module in &compiled.modules {
         let path = scratch.path().join(&module.path);
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(path, &module.js).unwrap();
     }
-    std::fs::write(
-        scratch.path().join("value-types.json"),
-        serde_json::to_vec(output.value_types.as_ref().unwrap()).unwrap(),
-    )
-    .unwrap();
-    std::fs::write(
-        scratch.path().join("callables.json"),
-        serde_json::to_vec(
-            &output
-                .callables
-                .iter()
-                .map(|callable| {
-                    serde_json::json!({
-                        "id":callable.id,"kind":callable.kind.as_str(),"member":callable.member,
-                    })
-                })
-                .collect::<Vec<_>>(),
-        )
-        .unwrap(),
-    )
-    .unwrap();
+    std::fs::write(scratch.path().join("artifact.json"), &original_artifact).unwrap();
     let runner = scratch.path().join("projection.mjs");
     std::fs::write(&runner, r#"
 import assert from 'node:assert/strict';
@@ -120,8 +129,10 @@ assert.deepEqual(definition.standardCompletions,[
  {source:'std.TextGenerationV1.generate',event:'CompletionProjection.LLM.generate.completed',binding:'CompletionProjection.LLM',from:'deployment.llm',resultType:'TextRun',handlers:['CompletionProjection.text_result']},
  {source:'std.ImagesV1.submit',event:'CompletionProjection.Images.submit.completed',binding:'CompletionProjection.Images',from:'deployment.images',resultType:'ImageRun',handlers:['CompletionProjection.image_result']},
 ]);
-const valueTypes=JSON.parse(readFileSync(new URL('./value-types.json',import.meta.url),'utf8'));
-const callables=JSON.parse(readFileSync(new URL('./callables.json',import.meta.url),'utf8'));
+const artifact=JSON.parse(readFileSync(new URL('./artifact.json',import.meta.url),'utf8'));
+const valueTypes=artifact.valueTypes;
+const callables=artifact.callables;
+assert.deepEqual(artifact.tests,[]);
 const {normalizeValueTypes,normalizeSchema}=await import('@canlang/values');
 const {valueSchema}=normalizeValueTypes(valueTypes,['CompletionProjection.Entry']);
 const declarations={contracts:definition.contracts,enums:definition.enums,...(definition.aliases===undefined?{}:{aliases:definition.aliases})};
@@ -185,12 +196,26 @@ console.log('Unchanged emitted private completion census, original registry refe
         String::from_utf8_lossy(&run.stdout),
         String::from_utf8_lossy(&run.stderr)
     );
+    // One private executable fixture for the retained native consumer. This
+    // projection does not remove the public compiler's terminal E6008 gate.
+    let qualification = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("target/standard-completion-private-qualification");
+    std::fs::create_dir_all(&qualification).unwrap();
+    std::fs::write(qualification.join("artifact.json"), original_artifact).unwrap();
+    std::fs::write(qualification.join("completion-projection.can"), SOURCE).unwrap();
+    let catalog_bytes = std::fs::read(root.join("packages/values/dist/catalog.json")).unwrap();
+    let catalog_wire: serde_json::Value = serde_json::from_slice(&catalog_bytes).unwrap();
+    assert_eq!(
+        catalog_wire["catalog_version"].as_str(),
+        Some(catalog.version())
+    );
+    std::fs::write(qualification.join("catalog.json"), catalog_bytes).unwrap();
     eprint!("{}", String::from_utf8_lossy(&run.stdout));
 }
 
 #[test]
 fn standard_completion_projection_refuses_partial_skewed_raw_or_unknown_sources() {
-    let (db, original) = build(SOURCE);
+    let (db, original, _catalog) = build(SOURCE);
     for change in 0..5 {
         let mut ir = original.clone();
         let handler = ir
@@ -243,7 +268,7 @@ fn standard_completion_projection_refuses_partial_skewed_raw_or_unknown_sources(
                 && diagnostic.message.contains("standardCompletions"))
     );
     assert!(!raw.entry.js.contains("standardCompletions:"));
-    let (db, ir) = build(
+    let (db, ir, _catalog) = build(
         "app MissingClosure\nuse std {ImagesV1 as Images} from=deployment.images\nGiven\nWhen\n scenario inspected on=Images.inspect.completed\n  do let result=event.result\nThen\n",
     );
     let output = js::emit_program_with_native_source_receipts(&ir, false, &db);
@@ -257,7 +282,7 @@ fn standard_completion_projection_refuses_partial_skewed_raw_or_unknown_sources(
         output.diagnostics
     );
     assert!(!output.entry.js.contains("standardCompletions:"));
-    let (db, ir) =
+    let (db, ir, _catalog) =
         build("app Ordinary\nGiven\nWhen\n scenario ready() by=members\n  do let value=1\nThen\n");
     let output = js::emit_program_with_native_source_receipts(&ir, false, &db);
     assert!(!output.entry.js.contains("standardCompletions"));
