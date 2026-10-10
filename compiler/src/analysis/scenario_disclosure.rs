@@ -150,6 +150,63 @@ pub struct CheckedScenarioSource {
     pub parameters: Vec<CheckedScenarioParameter>,
     pub result: Option<ResolvedType>,
     pub calls: Vec<CheckedScenarioSourceCall>,
+    /// Optional bounded source inventory, never permission or effect admission.
+    pub decision_sites: Option<Vec<CheckedDecisionSite>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CheckedDecisionStage {
+    LeadingRequire,
+    BodyRequire,
+    SendDispatch,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CheckedDecisionPosition {
+    Guard(usize),
+    Body(usize),
+    Then(usize),
+    Else(usize),
+    Match { arm: usize, statement: usize },
+    Loop(usize),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CheckedDecisionSite {
+    pub owner: SymbolId,
+    pub source: DisclosureSource,
+    pub node: NodeKey,
+    pub statement: NodeKey,
+    pub stage: CheckedDecisionStage,
+    pub position: Vec<CheckedDecisionPosition>,
+    pub calls: Vec<CheckedDecisionCall>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CheckedDecisionCallTarget {
+    Builtin { id: String, overload: usize },
+    DeriveFn(SymbolId),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CheckedDecisionCallFrame {
+    pub node: NodeKey,
+    pub module: ModuleId,
+    pub source: DisclosureSource,
+    pub derive: SymbolId,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CheckedDecisionCall {
+    pub node: NodeKey,
+    pub module: ModuleId,
+    pub source: DisclosureSource,
+    pub target: CheckedDecisionCallTarget,
+    pub arguments: Vec<(NodeKey, ResolvedType)>,
+    pub slots: Vec<Option<usize>>,
+    /// Only omitted defaults; supplied arguments do not visit these bodies.
+    pub defaults: Vec<(SymbolId, NodeKey)>,
+    pub chain: Vec<CheckedDecisionCallFrame>,
 }
 
 #[derive(Debug, Clone)]
@@ -902,7 +959,249 @@ impl<'a> Closure<'a> {
             parameters,
             result,
             calls,
+            decision_sites: self.checked_decision_sites(scenario),
         })
+    }
+
+    fn checked_decision_sites(
+        &self,
+        scenario: &super::effects::ScenarioData,
+    ) -> Option<Vec<CheckedDecisionSite>> {
+        let mut sites = Vec::new();
+        let mut steps = 0usize;
+        let mut calls = 0usize;
+        let mut pending = Vec::new();
+        for (index, effect) in scenario.effects.iter().enumerate().rev() {
+            pending.push((effect, vec![CheckedDecisionPosition::Body(index)], false));
+        }
+        for (index, effect) in scenario.guards.iter().enumerate().rev() {
+            pending.push((effect, vec![CheckedDecisionPosition::Guard(index)], true));
+        }
+        while let Some((effect, position, leading)) = pending.pop() {
+            steps += 1;
+            if steps > 16384 || position.len() > 64 || !self.nodes.contains_key(&effect.node) {
+                return None;
+            }
+            let decision = match effect.verb {
+                EffectVerb::Require => Some((
+                    effect.cond?,
+                    if leading {
+                        CheckedDecisionStage::LeadingRequire
+                    } else {
+                        CheckedDecisionStage::BodyRequire
+                    },
+                )),
+                EffectVerb::Send => effect
+                    .when
+                    .map(|node| (node, CheckedDecisionStage::SendDispatch)),
+                _ => None,
+            };
+            if let Some((node, stage)) = decision {
+                if sites.len() >= 200
+                    || self.types.node_types.get(&node) != Some(&ResolvedType::Scalar(Scalar::Bool))
+                {
+                    return None;
+                }
+                let mut selected = Vec::new();
+                self.checked_decision_expression(
+                    node,
+                    scenario.module,
+                    &[],
+                    &mut HashSet::new(),
+                    &mut selected,
+                    &mut steps,
+                    &mut calls,
+                    0,
+                )?;
+                sites.push(CheckedDecisionSite {
+                    owner: scenario.scenario,
+                    source: self.source(scenario.module, node).ok()?,
+                    node,
+                    statement: effect.node,
+                    stage,
+                    position: position.clone(),
+                    calls: selected,
+                });
+            }
+            for (arm_index, arm) in effect.match_arms.iter().enumerate().rev() {
+                for (index, child) in arm.effects.iter().enumerate().rev() {
+                    let mut nested = position.clone();
+                    nested.push(CheckedDecisionPosition::Match {
+                        arm: arm_index,
+                        statement: index,
+                    });
+                    pending.push((child, nested, false));
+                }
+            }
+            for (index, child) in effect.else_effects.iter().enumerate().rev() {
+                let mut nested = position.clone();
+                nested.push(CheckedDecisionPosition::Else(index));
+                pending.push((child, nested, false));
+            }
+            for (index, child) in effect.then_effects.iter().enumerate().rev() {
+                let mut nested = position.clone();
+                nested.push(if effect.verb == EffectVerb::For {
+                    CheckedDecisionPosition::Loop(index)
+                } else {
+                    CheckedDecisionPosition::Then(index)
+                });
+                pending.push((child, nested, false));
+            }
+            if pending.len() > 16384 {
+                return None;
+            }
+        }
+        Some(sites)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn checked_decision_expression(
+        &self,
+        key: NodeKey,
+        module: ModuleId,
+        chain: &[CheckedDecisionCallFrame],
+        stack: &mut HashSet<SymbolId>,
+        out: &mut Vec<CheckedDecisionCall>,
+        steps: &mut usize,
+        calls: &mut usize,
+        depth: usize,
+    ) -> Option<()> {
+        *steps += 1;
+        if *steps > 16384 || depth > 64 || chain.len() > 16 {
+            return None;
+        }
+        let node = self.nodes.get(&key)?;
+        let source = self.source(module, key).ok()?;
+        if matches!(node.kind, SyntaxKind::Error | SyntaxKind::BadToken) {
+            return None;
+        }
+        // Structural traversal preserves every lazy operand's source. It does
+        // not assert which operands execute, or evaluate any expression.
+        for child in &node.children {
+            self.checked_decision_expression(
+                NodeKey::of(child),
+                module,
+                chain,
+                stack,
+                out,
+                steps,
+                calls,
+                depth + 1,
+            )?;
+        }
+        if node.kind != SyntaxKind::Call {
+            return Some(());
+        }
+        *calls += 1;
+        if *calls > 200 {
+            return None;
+        }
+        if !checked_source_type(self.types.node_types.get(&key)?) {
+            return None;
+        }
+        let selected = self.types.selected_calls.get(&key)?;
+        let mut arguments = Vec::new();
+        for argument in &selected.arguments {
+            self.nodes.get(argument)?;
+            self.source(module, *argument).ok()?;
+            let ty = self.types.node_types.get(argument)?;
+            if !checked_source_type(ty) {
+                return None;
+            }
+            arguments.push((*argument, ty.clone()));
+        }
+        let mut seen = HashSet::new();
+        for index in selected.slots.iter().flatten() {
+            if *index >= arguments.len() || !seen.insert(*index) {
+                return None;
+            }
+        }
+        if seen.len() != arguments.len() {
+            return None;
+        }
+        let mut defaults = Vec::new();
+        let target = match &selected.target {
+            SelectedCallTarget::Builtin { id, overload } => {
+                if selected.slots.iter().any(Option::is_none) {
+                    return None;
+                }
+                CheckedDecisionCallTarget::Builtin {
+                    id: id.clone(),
+                    overload: *overload,
+                }
+            }
+            SelectedCallTarget::DeriveFn(id) => {
+                let data = self.effects.derives.get(id)?;
+                let declaration = self.resolve.symbols.get(id.0 as usize)?;
+                if !matches!(declaration.kind, SymbolKind::DeriveFn { .. })
+                    || declaration.module != data.module
+                    || data.derive != *id
+                    || data.params.len() != selected.slots.len()
+                    || chain.len() >= 16
+                    || stack.contains(id)
+                {
+                    return None;
+                }
+                for (param, slot) in data.params.iter().zip(&selected.slots) {
+                    if slot.is_none() {
+                        let default = param.default?;
+                        self.nodes.get(&default)?;
+                        self.source(data.module, default).ok()?;
+                        if !checked_source_type(self.types.node_types.get(&default)?) {
+                            return None;
+                        }
+                        defaults.push((param.param, default));
+                    }
+                }
+                CheckedDecisionCallTarget::DeriveFn(*id)
+            }
+            _ => return None,
+        };
+        out.push(CheckedDecisionCall {
+            node: key,
+            module,
+            source: source.clone(),
+            target: target.clone(),
+            arguments,
+            slots: selected.slots.clone(),
+            defaults: defaults.clone(),
+            chain: chain.to_vec(),
+        });
+        if let CheckedDecisionCallTarget::DeriveFn(id) = target {
+            let data = self.effects.derives.get(&id)?;
+            let mut nested = chain.to_vec();
+            nested.push(CheckedDecisionCallFrame {
+                node: key,
+                module,
+                source,
+                derive: id,
+            });
+            stack.insert(id);
+            for (_, default) in defaults {
+                self.checked_decision_expression(
+                    default,
+                    data.module,
+                    &nested,
+                    stack,
+                    out,
+                    steps,
+                    calls,
+                    0,
+                )?;
+            }
+            self.checked_decision_expression(
+                data.expr?,
+                data.module,
+                &nested,
+                stack,
+                out,
+                steps,
+                calls,
+                0,
+            )?;
+            stack.remove(&id);
+        }
+        Some(())
     }
 
     fn source(
