@@ -171,7 +171,126 @@ export type DispatchOutcome =
  * cached snapshot authorizes a spend — the claim-time revalidation is
  * the authorization).
  */
-export function attemptDispatch(deps: DispatchDeps, attempt: DispatchAttempt): DispatchOutcome {
+/** The async path preserves the synchronous admission and claim ordering. */
+export type AsyncGuardEvaluator = (
+  predicate: string,
+  frozenInputs: unknown,
+  stateSnapshot: unknown,
+  execution: DispatchGuardExecution,
+) => boolean | Promise<boolean>;
+
+export interface AsyncDispatchFence extends Omit<DispatchFence, 'revalidateAuthority'> {
+  readonly revalidateAuthority?: () => boolean | Promise<boolean>;
+}
+export interface AsyncDispatchAttempt extends Omit<DispatchAttempt, 'fence'> {
+  fence?: AsyncDispatchFence;
+}
+export interface AsyncDispatchDeps extends Omit<DispatchDeps, 'evaluateGuard'> {
+  evaluateGuard: AsyncGuardEvaluator;
+}
+
+declare const dispatchGuardExecutionBrand: unique symbol;
+/** Opaque, privately issued only while an actual async guard is executing. */
+export interface DispatchGuardExecution {
+  readonly [dispatchGuardExecutionBrand]: true;
+}
+
+type Snapshot<T> = T extends object ? { readonly [K in keyof T]: Snapshot<T[K]> } : T;
+export interface DispatchGuardExecutionContext {
+  readonly predicate: string;
+  readonly frozenInputs: unknown;
+  readonly stateSnapshot: unknown;
+  readonly checkpoint: Snapshot<DispatchFence['checkpoint']> | undefined;
+  readonly intent: Snapshot<AnyOutboxIntent>;
+}
+export type DispatchGuardRevalidation = () => boolean | Promise<boolean>;
+interface DispatchGuardExecutionLedger {
+  readonly context: DispatchGuardExecutionContext;
+  readonly revalidations: DispatchGuardRevalidation[];
+}
+const guardExecutions = new WeakMap<object, DispatchGuardExecutionLedger>();
+
+/** Internal observer-binding port: copies, fabrications and completed guards refuse. */
+export function assertDispatchGuardExecution(value: unknown): asserts value is DispatchGuardExecution {
+  if (value === null || typeof value !== 'object' || !guardExecutions.has(value)) {
+    throw new TypeError('dispatch guard execution is not live');
+  }
+}
+/** Reads privately retained context; it cannot mint or extend an execution. */
+export function readDispatchGuardExecution(value: DispatchGuardExecution): DispatchGuardExecutionContext {
+  assertDispatchGuardExecution(value);
+  return guardExecutions.get(value)!.context;
+}
+
+/** Internal observer enrollment: only the current guard can retain a bounded check. */
+export function registerDispatchGuardRevalidation(
+  execution: DispatchGuardExecution,
+  revalidate: DispatchGuardRevalidation,
+): void {
+  assertDispatchGuardExecution(execution);
+  if (typeof revalidate !== 'function') throw new TypeError('dispatch guard revalidation must be a function');
+  const ledger = guardExecutions.get(execution)!;
+  if (ledger.revalidations.length >= 200) throw new RangeError('dispatch guard revalidations exceed bounds');
+  ledger.revalidations.push(revalidate);
+}
+
+/**
+ * Own bounded closed plain data. Decoded Can integers retain bigint; JSON
+ * numbers must be finite. Undefined, holes and hidden/accessor fields refuse.
+ */
+function snapshotGuardData<T>(value: T): Snapshot<T> {
+  let remaining = 10_000;
+  let stringBudget = 1_000_000;
+  const active = new Set<object>();
+  function copy(input: unknown, depth: number): unknown {
+    if (--remaining < 0 || depth > 64) throw new RangeError('dispatch guard snapshot exceeds bounds');
+    if (input === null || typeof input !== 'object') {
+      if (typeof input === 'function' || typeof input === 'symbol' || typeof input === 'undefined' || (typeof input === 'number' && !Number.isFinite(input))) {
+        throw new TypeError('dispatch guard snapshot requires plain data');
+      }
+      if (typeof input === 'string' && (stringBudget -= input.length) < 0) {
+        throw new RangeError('dispatch guard snapshot exceeds bounds');
+      }
+      if (typeof input === 'bigint' && (stringBudget -= input.toString().length) < 0) {
+        throw new RangeError('dispatch guard snapshot exceeds bounds');
+      }
+      return input;
+    }
+    if (Array.isArray(input) && input.length > 10_000) throw new RangeError('dispatch guard snapshot exceeds bounds');
+    if (active.has(input)) throw new TypeError('dispatch guard snapshot cannot contain cycles');
+    if (!Array.isArray(input) && Object.getPrototypeOf(input) !== Object.prototype && Object.getPrototypeOf(input) !== null) {
+      throw new TypeError('dispatch guard snapshot requires plain data');
+    }
+    if (Array.isArray(input)) {
+      if (Object.getPrototypeOf(input) !== Array.prototype) throw new TypeError('dispatch guard snapshot requires plain arrays');
+      for (let index = 0; index < input.length; index++) {
+        if (!Object.hasOwn(input, index)) throw new TypeError('dispatch guard snapshot cannot contain sparse arrays');
+      }
+    }
+    active.add(input);
+    const result: Record<string, unknown> | unknown[] = Array.isArray(input) ? new Array(input.length) : Object.create(Object.getPrototypeOf(input));
+    for (const key of Reflect.ownKeys(input)) {
+      if (Array.isArray(input) && key === 'length') continue;
+      if (typeof key !== 'string') throw new TypeError('dispatch guard snapshot requires string keys');
+      if ((stringBudget -= key.length) < 0) throw new RangeError('dispatch guard snapshot exceeds bounds');
+      if (Array.isArray(input) && (!/^(0|[1-9][0-9]*)$/.test(key) || Number(key) >= input.length)) {
+        throw new TypeError('dispatch guard snapshot requires plain arrays');
+      }
+      const descriptor = Object.getOwnPropertyDescriptor(input, key)!;
+      if (!descriptor.enumerable) throw new TypeError('dispatch guard snapshot cannot contain hidden fields');
+      if (!('value' in descriptor)) throw new TypeError('dispatch guard snapshot cannot contain accessors');
+      Object.defineProperty(result, key, { value: copy(descriptor.value, depth + 1), enumerable: descriptor.enumerable });
+    }
+    active.delete(input);
+    return Object.freeze(result);
+  }
+  return copy(value, 0) as Snapshot<T>;
+}
+
+function dispatchPreflight(
+  deps: Pick<DispatchDeps, 'supersessions' | 'availability'>,
+  attempt: DispatchAttempt | AsyncDispatchAttempt,
+): DispatchOutcome | undefined {
   const item = attempt.intent.item;
   if (attempt.intent.commit === null) {
     return { status: 'refused-uncommitted', outboxId: item.id };
@@ -200,27 +319,71 @@ export function attemptDispatch(deps: DispatchDeps, attempt: DispatchAttempt): D
   if (deps.availability !== undefined && !deps.availability.isTargetAvailable(item.source)) {
     return { status: 'unavailable', outboxId: item.id, target: item.source };
   }
+  return undefined;
+}
+
+function issueDispatchClaim(deps: Pick<DispatchDeps, 'claimIds' | 'clock'>, outboxId: OutboxId): DispatchOutcome {
+  return {
+    status: 'claimed',
+    claim: { outboxId, claimId: deps.claimIds.nextClaimId(), claimedAt: deps.clock.nowMs() },
+  };
+}
+
+export function attemptDispatch(deps: DispatchDeps, attempt: DispatchAttempt): DispatchOutcome {
+  const item = attempt.intent.item;
+  const refusal = dispatchPreflight(deps, attempt);
+  if (refusal !== undefined) return refusal;
+  const fence = attempt.fence;
   const predicate = attempt.guard.predicate;
-  if (predicate !== null) {
-    const result = deps.evaluateGuard(predicate, attempt.frozenInputs, attempt.stateSnapshot);
-    if (result !== true) {
-      return { status: 'skipped', verdict: { outboxId: item.id, result: false } };
-    }
+  if (predicate !== null && deps.evaluateGuard(predicate, attempt.frozenInputs, attempt.stateSnapshot) !== true) {
+    return { status: 'skipped', verdict: { outboxId: item.id, result: false } };
   }
-  // T32b: claim-time authority revalidation — revocation landing between
-  // trigger and handler denies the transitive effect. The guard verdict
-  // above never authorizes the claim on its own.
   if (fence?.revalidateAuthority !== undefined && fence.revalidateAuthority() !== true) {
     return { status: 'refused-revoked', outboxId: item.id };
   }
-  return {
-    status: 'claimed',
-    claim: {
-      outboxId: item.id,
-      claimId: deps.claimIds.nextClaimId(),
-      claimedAt: deps.clock.nowMs(),
-    },
-  };
+  return issueDispatchClaim(deps, item.id);
+}
+
+/** Await guard and then current authority. This decision still requires fenced persistence. */
+export async function attemptDispatchAsync(deps: AsyncDispatchDeps, attempt: AsyncDispatchAttempt): Promise<DispatchOutcome> {
+  const refusal = dispatchPreflight(deps, attempt);
+  if (refusal !== undefined) return refusal;
+  const outboxId = attempt.intent.item.id;
+  const predicate = attempt.guard.predicate;
+  // Capture the admitted fence and callback before any user callback can await.
+  const fence = attempt.fence;
+  const authority = fence?.revalidateAuthority;
+  if (predicate !== null) {
+    const context: DispatchGuardExecutionContext = Object.freeze({
+      predicate,
+      frozenInputs: snapshotGuardData(attempt.frozenInputs),
+      stateSnapshot: snapshotGuardData(attempt.stateSnapshot),
+      checkpoint: fence === undefined ? undefined : snapshotGuardData(fence.checkpoint),
+      intent: snapshotGuardData(attempt.intent),
+    });
+    const execution = Object.freeze({}) as DispatchGuardExecution;
+    const ledger: DispatchGuardExecutionLedger = { context, revalidations: [] };
+    guardExecutions.set(execution, ledger);
+    let result: boolean;
+    try {
+      const verdict = deps.evaluateGuard(predicate, context.frozenInputs, context.stateSnapshot, execution);
+      result = typeof verdict === 'boolean' ? verdict : await verdict;
+    } finally {
+      guardExecutions.delete(execution);
+    }
+    if (typeof result !== 'boolean') throw new TypeError('dispatch guard must return a boolean');
+    // Re-read observations even for a false guard before recording its skip.
+    for (const revalidate of ledger.revalidations) {
+      const current = await revalidate();
+      if (typeof current !== 'boolean') throw new TypeError('dispatch guard revalidation must return a boolean');
+      if (!current) return { status: 'refused-revoked', outboxId };
+    }
+    if (result !== true) return { status: 'skipped', verdict: { outboxId, result: false } };
+  }
+  if (authority !== undefined && await authority.call(fence) !== true) {
+    return { status: 'refused-revoked', outboxId };
+  }
+  return issueDispatchClaim(deps, outboxId);
 }
 
 /* -- T24a claim identity: exactly-once claim per intent. -- */

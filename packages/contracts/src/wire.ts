@@ -466,6 +466,9 @@ export interface DerivedWritableInput {
   readonly required: boolean;
   readonly nullable?: boolean;
   readonly array?: { readonly required: boolean };
+  /** Checked authored array-length bounds, present only on array inputs. */
+  readonly min?: number;
+  readonly max?: number;
   readonly default?: DerivedInputDefault;
   readonly model?: string;
   readonly versioned?: boolean;

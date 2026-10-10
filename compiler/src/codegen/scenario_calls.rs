@@ -179,7 +179,7 @@ pub fn collect_scenario_source_calls(
     Some(sites)
 }
 
-fn checked_source<'a>(
+pub(crate) fn checked_source<'a>(
     ir: &'a IrProgram,
     owner: &IrItem,
     db: &SourceDb,
