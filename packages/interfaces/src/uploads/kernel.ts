@@ -115,6 +115,11 @@ export interface FileJourneyBindings extends FilesKernelBindings {
     ref: string,
     caller: UploadReceiver,
   ) => Uint8Array | null | Promise<Uint8Array | null>;
+  readonly readCurrentBytes: (
+    ref: string,
+    physicalReceiver: UploadReceiver,
+    retention: FileRetentionPolicy,
+  ) => Uint8Array | null | Promise<Uint8Array | null>;
   readonly observeFile: (
     ref: string,
     caller: UploadReceiver,
@@ -141,6 +146,8 @@ export interface FileJourneyKernel extends FileKernel {
   ): Promise<KernelRecordAttachmentOutcome>;
   /** Finalized bytes, or null for every denial (fail closed). */
   readBytes(ref: string, caller: UploadReceiver): Promise<Uint8Array | null>;
+  /** Same physical snapshot validated under current File policy/lifetime; no row grant. */
+  readCurrentBytes(ref: string, physicalReceiver: UploadReceiver, retention: FileRetentionPolicy): Promise<Uint8Array | null>;
   /** Owning live observation identity, or null; facts grant no row authority. */
   observeFile(ref: string, caller: UploadReceiver, retention: FileRetentionPolicy): Promise<FinalizedFileObservation | null>;
   /** Owning physical-file check with the current receiver and receiving policy. */
@@ -153,6 +160,7 @@ const JOURNEY_SEAMS = [
   'authorizeAttach',
   'recordAttachment',
   'readBytes',
+  'readCurrentBytes',
   'observeFile',
   'revalidateFile',
 ] as const;
@@ -235,6 +243,7 @@ export function createFileJourneyKernel(bindings: unknown): FileJourneyKernel {
     recordAttachment: async (ref, recordRef, caller) =>
       bindings.recordAttachment(ref, recordRef, caller),
     readBytes: async (ref, caller) => bindings.readBytes(ref, caller),
+    readCurrentBytes: async (ref, physicalReceiver, retention) => bindings.readCurrentBytes(ref, physicalReceiver, retention),
     observeFile: async (ref, caller, retention) => bindings.observeFile(ref, caller, retention),
     revalidateFile: async (saved, caller, retention) => bindings.revalidateFile(saved, caller, retention),
   };
