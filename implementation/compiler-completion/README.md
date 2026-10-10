@@ -2615,3 +2615,52 @@ and qualifies that consumer after the released resolution. The compiler whole
 scope and do not certify three history rows or D1 replay. No compiler bypass,
 shared mutation repair, weakened assertion or new human hold is authorized here.
 Other ready Compiler work is exhausted until the recorded defining releases.
+
+
+**Ordered-history changed-consumer qualification, 2026-10-10.** Exact
+reviewed LOCAL61240891/State72a4ce23 corrects the defining ordered-stage history
+producer; its owning94 checks are manually qualified. Safe FF leaves Compiler14b
+and the actual NativeRefArrays source unchanged. Actual changed graph22/22
+builds uncached on Node24.19; only affected native_scenario_receipts **4/4**
+passes once (1.32s), preserving public invoker/receipt/current/order/replay
+assertions. Historical whole1386 belongs to its original installed5fa tuple;
+unchanged compiler/full/focused301/lint/format results are reused with this
+changed-consumer delta. The earlier State history prerequisite is resolved;
+Dev alone qualifies its actual existing D1 consumer. No D1 acceptance, new full
+run, competing repair/test or broader reference/hold release is claimed here.
+
+
+**Checked query source/read-site producer (unfinished original workflow),
+2026-10-10.** Reviewed LOCAL044b961a is intaken in this worktree preserving
+prior local commits and released living-plan allocations. The genuine checked
+model scan, selected-target/location predicate, count guard and nominal Fact
+select now produce the existing State query DTO: six actual potential field
+dependencies, seven reference/original-version/data mappings, all four domain
+influences and exact empty-order/null-limit/exclude-archive defaults. Checked
+input/alias/owner/type/source and fresh executable guard/body correspondence
+refuse skew. Native opt-in emits a fresh nongrant `canScenarioQuerySources()` map
+and Dev's exact query/read/result/select façade sites; lazy source reads stay
+once-only and unhoisted. Operations remain without disclosure while Complete
+is declined. Ordinary emission is unchanged.
+
+Affected library159, codegen121, query8, decision7, invocation7, disclosure19,
+actual native4 and new source-skew1 pass, total326; strict all-target Clippy and
+format0 pass. Finite source review finds no source-lineage/order defect; runtime
+unbound behavior is a Dev prerequisite. The new actual installed consumer is
+**1 failed**: State accepts the emitted DTO but its query inventory rejects the
+correct canonical nominal `Task.priority` field before the owning enum-schema
+join. Capability/State owns the exact repair; preserve the named enum and the
+positive assertion. It also owns lazy false-candidate/path capture: original
+`task in targets and task.location==location` must not fabricate a skipped read.
+Dev owns genuine verified module/frame/slot/result binding and generic behavior.
+The existing pure-membership/clean original-cohort contract remains; the actual
+CLI retains external `active_member` E6007. The isolated source-producer test
+retains the three original body lines and a genuine membership guard; it grants
+no original application or native execution acceptance. Current-source whole
+qualification awaits these exact inputs; whole1386 remains historical14b.
+
+The earlier bounded-loop D1 history/replay prerequisite is now **resolved**:
+Dev's exact eb8aad65 preserved consumer passes1/1 with three ordered histories,
+one commit/receipt and populated/empty/omitted no-effect replay. Reuse that
+unchanged owning result; broader query/general-loop/application dependencies
+and precise BDD3/Task22 holds remain. Original completion stays58/67.

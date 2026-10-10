@@ -502,6 +502,162 @@ impl Consumer<'_> {
     }
 }
 
+/// Join the executable scenario to a fresh lowering of its original checker.
+/// Shared by independent nongrant source producers; it does not require a
+/// supported native decision capture profile.
+pub(super) fn same_scenario_semantics(
+    program: &CheckedProgram,
+    actual: &IrProgram,
+    expected: &IrProgram,
+    owner: &IrItem,
+) -> Option<()> {
+    let original = expected.items.get(owner.id.0 as usize)?;
+    if owner.id != original.id
+        || owner.module != original.module
+        || owner.canonical != original.canonical
+        || owner.span != original.span
+    {
+        return None;
+    }
+    let (
+        IrItemKind::Scenario {
+            params: a,
+            trusted: at,
+            result: ar,
+            read: ad,
+            expose_excluded: ax,
+            by: ab,
+            guards: ag,
+            effects: ae,
+            event_source: av,
+            hook: ah,
+            cohort: ac,
+            ..
+        },
+        IrItemKind::Scenario {
+            params: b,
+            trusted: bt,
+            result: br,
+            read: bd,
+            expose_excluded: bx,
+            by: bb,
+            guards: bg,
+            effects: be,
+            event_source: bv,
+            hook: bh,
+            cohort: bc,
+            ..
+        },
+    ) = (&owner.kind, &original.kind)
+    else {
+        return None;
+    };
+    // Query source transport has no handler/cohort execution authority.
+    if a != b
+        || at != bt
+        || ar != br
+        || ad != bd
+        || ax != bx
+        || av.is_some()
+        || bv.is_some()
+        || ah.is_some()
+        || bh.is_some()
+        || ac.is_some()
+        || bc.is_some()
+    {
+        return None;
+    }
+    let mut join = SemanticJoin {
+        program,
+        actual,
+        expected,
+        nodes: 0,
+        stack: HashSet::new(),
+    };
+    for id in a {
+        let (x, y) = (
+            actual.items.get(id.0 as usize)?,
+            expected.items.get(id.0 as usize)?,
+        );
+        let (
+            IrItemKind::Param {
+                owner: xo,
+                index: xi,
+                ty: xt,
+                default: xd,
+                default_node: xn,
+                ..
+            },
+            IrItemKind::Param {
+                owner: yo,
+                index: yi,
+                ty: yt,
+                default: yd,
+                default_node: yn,
+                ..
+            },
+        ) = (&x.kind, &y.kind)
+        else {
+            return None;
+        };
+        if x.id != *id
+            || y.id != *id
+            || x.canonical != y.canonical
+            || x.name != y.name
+            || x.module != y.module
+            || x.span != y.span
+            || xo != yo
+            || *xo != owner.id
+            || xi != yi
+            || xn != yn
+            || !known_type_equal(xt, yt)
+        {
+            return None;
+        }
+        match (xd, yd) {
+            (None, None) => {}
+            (Some(IrDefault::Literal(x)), Some(IrDefault::Literal(y))) => {
+                join.expression(x, y, 0)?
+            }
+            (
+                Some(IrDefault::Computed { expr: x, .. }),
+                Some(IrDefault::Computed { expr: y, .. }),
+            ) => join.expression(x, y, 0)?,
+            _ => return None,
+        }
+    }
+    fn guard(join: &mut SemanticJoin<'_>, a: &IrGuard, b: &IrGuard, depth: usize) -> Option<()> {
+        join.budget(depth)?;
+        match (a, b) {
+            (IrGuard::Role(a), IrGuard::Role(b)) if a == b => {}
+            (IrGuard::Subject { role: a, person: x }, IrGuard::Subject { role: b, person: y })
+                if a == b =>
+            {
+                join.expression(x, y, depth + 1)?
+            }
+            (IrGuard::Expr(a), IrGuard::Expr(b)) => join.expression(a, b, depth + 1)?,
+            (IrGuard::And(a), IrGuard::And(b)) | (IrGuard::Or(a), IrGuard::Or(b))
+                if a.len() == b.len() =>
+            {
+                for (a, b) in a.iter().zip(b) {
+                    guard(join, a, b, depth + 1)?;
+                }
+            }
+            (IrGuard::Not(a), IrGuard::Not(b)) => guard(join, a, b, depth + 1)?,
+            _ => return None,
+        }
+        Some(())
+    }
+    if ab.len() != bb.len() {
+        return None;
+    }
+    for (a, b) in ab.iter().zip(bb) {
+        guard(&mut join, a, b, 0)?;
+    }
+    join.statements(ag, bg, 0)?;
+    join.statements(ae, be, 0)
+}
+
 // Compare typed semantic structure against the original lowering, never text/debug output.
 struct SemanticJoin<'a> {
     program: &'a CheckedProgram,
@@ -1159,7 +1315,7 @@ fn serial_source(
         module: source.module,
     }
 }
-fn serial_type(
+pub(super) fn serial_type(
     ty: &ResolvedType,
     program: &CheckedProgram,
     ir: &IrProgram,

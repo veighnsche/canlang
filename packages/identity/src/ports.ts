@@ -2,10 +2,9 @@
  * Identity store/mail/clock ports.
  *
  * The identity package commits all account/session/membership facts through
- * `IdentityStore`. Production binds it to fenced D1 tables owned by lane 03
- * (join J2): membership/session mutations participate in the owner revision
- * fence, never in a side database. `testing.ts` holds the test-only
- * in-memory implementation; it is never a production binding.
+ * `IdentityStore`. Production uses global Identity D1 tables; team State may
+ * use a separate database. The broader mutation fence join J2 is proposed,
+ * not implemented by this port. `testing.ts` holds the test-only memory store.
  */
 import type {
   AuthCode,
@@ -16,6 +15,7 @@ import type {
   McpGrantId,
   Membership,
   MembershipId,
+  MembershipSnapshot,
   OAuthClient,
   OAuthClientId,
   PreSessionToken,
@@ -87,11 +87,10 @@ export interface MailPort {
 /**
  * Constrained system-command surface for identity facts. No raw SQL, no
  * second role store, no account enumeration beyond the exact lookups below.
- * Feature code is check-then-act across these calls; production atomicity
- * (last-owner guards, recovery cascades, re-admission) comes from the
- * lane-03 revision fence executing each feature operation's steps as one
- * batch (join J2). The memory double is single-threaded and proves no
- * concurrency semantics.
+ * Feature code is check-then-act across mutation calls; last-owner guards,
+ * recovery cascades and re-admission do not have a shared transaction fence.
+ * The bounded membership snapshot supplies one read observation only. The
+ * memory double is single-threaded and proves no native concurrency semantics.
  */
 export interface IdentityStore {
   // -- users --
@@ -118,6 +117,12 @@ export interface IdentityStore {
     roles: Membership['roles'];
   }): Promise<Membership>;
   findMembership(team_id: TeamId, user_id: UserId): Promise<Membership | null>;
+  /** One coherent same-team read, never composed from singular reads. Rejects
+   * empty/over-bound/sparse/accessor requests or corrupt/skewed results;
+   * preserves every requested position, including duplicates and absence.
+   * See MembershipSnapshot for the downstream authority obligations. */
+  findMembershipsSnapshot(team_id: TeamId, user_ids: readonly UserId[]):
+    Promise<MembershipSnapshot>;
   findMembershipById(membership_id: MembershipId): Promise<Membership | null>;
   /** All memberships (any status) for one user; includes removed history. */
   listUserMemberships(user_id: UserId): Promise<readonly Membership[]>;

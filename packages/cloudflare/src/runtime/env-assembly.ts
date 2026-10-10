@@ -45,6 +45,7 @@ import type {
   McpGrantId,
   Membership,
   MembershipId,
+  MembershipSnapshot,
   OAuthClient,
   OAuthClientId,
   PreSessionToken,
@@ -141,6 +142,7 @@ export interface IdentityStore {
     roles: Membership["roles"];
   }): Promise<Membership>;
   findMembership(team_id: TeamId, user_id: UserId): Promise<Membership | null>;
+  findMembershipsSnapshot(team_id: TeamId, user_ids: readonly UserId[]): Promise<MembershipSnapshot>;
   findMembershipById(membership_id: MembershipId): Promise<Membership | null>;
   listUserMemberships(user_id: UserId): Promise<readonly Membership[]>;
   listActiveUserTeamsPage(user_id: UserId, after: TeamId | null):
