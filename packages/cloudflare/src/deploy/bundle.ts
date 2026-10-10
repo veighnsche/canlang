@@ -224,6 +224,10 @@ const NODE_HOST_VENDOR_KEYS: ReadonlySet<string> = new Set([
 
 /** Exact pinned browser entries resolved from the packages that own them. */
 const BROWSER_DEPENDENCIES = [
+  // Resolve the public import condition via its exported manifest; require's
+  // root entry selects CJS, and source test transforms lack import.meta.resolve.
+  { owner: import.meta.url, specifier: "acorn", manifestSpecifier: "acorn/package.json", name: "acorn", version: "8.18.0",
+    entry: "dist/acorn.mjs", key: "vendor/acorn/acorn.js" },
   { owner: identityDistribution.modules, specifier: "cookie", name: "cookie", version: "2.0.1", entry: "dist/index.js", key: "vendor/cookie/index.js" },
   { owner: identityDistribution.modules, specifier: "@scure/base", name: "@scure/base", version: "2.4.0", entry: "index.js", key: "vendor/scure-base/index.js" },
   { owner: uiDistribution.modules, specifier: "csv-parse/browser/esm/sync", name: "csv-parse", version: "7.0.3", entry: "dist/esm/sync.js", key: "vendor/csv-parse/sync.js" },
@@ -235,11 +239,18 @@ const BROWSER_DEPENDENCIES = [
 function stageBrowserDependencies(): Record<string, string> {
   const modules: Record<string, string> = {};
   for (const dependency of BROWSER_DEPENDENCIES) {
-    const entry = createRequire(dependency.owner).resolve(dependency.specifier);
+    const owner = createRequire(dependency.owner);
+    const entry = "manifestSpecifier" in dependency
+      ? join(dirname(owner.resolve(dependency.manifestSpecifier)), dependency.entry)
+      : owner.resolve(dependency.specifier);
     const packageRoot = resolve(entry, ...dependency.entry.split("/").map(() => ".."));
-    const manifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")) as { name?: string; version?: string };
+    const manifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")) as {
+      name?: string; version?: string; module?: string; exports?: { "."?: readonly { import?: string }[] };
+    };
     if (manifest.name !== dependency.name || manifest.version !== dependency.version ||
-        relative(packageRoot, entry).split(sep).join("/") !== dependency.entry) {
+        relative(packageRoot, entry).split(sep).join("/") !== dependency.entry ||
+        ("manifestSpecifier" in dependency && (manifest.module !== dependency.entry ||
+          manifest.exports?.["."]?.[0]?.import !== `./${dependency.entry}`))) {
       throw new Error(`deploy bundle: unexpected pinned browser entry for ${dependency.name}`);
     }
     modules[dependency.key] = readFileSync(entry, "utf8");
@@ -278,6 +289,10 @@ const WORK_ASSOCIATION_VENDOR_ENTRY = "vendor/work/observation/association.js";
 /** One defining module preserves Files' private observation identity. */
 const FILES_FINALIZE_SOURCE_SPECIFIER = "@canlang/files/finalize";
 const FILES_FINALIZE_VENDOR_ENTRY = "vendor/files/finalize/index.js";
+const FILES_PORTS_SOURCE_SPECIFIER = "@canlang/files/ports";
+const FILES_PORTS_VENDOR_ENTRY = "vendor/files/ports.js";
+const ACORN_SOURCE_SPECIFIER = "acorn";
+const ACORN_VENDOR_ENTRY = "vendor/acorn/acorn.js";
 /** The runtime mapper's only external dependency; host import tooling stays out. */
 const SOURCEMAP_CODEC_SPECIFIER = "@jridgewell/sourcemap-codec";
 const SOURCEMAP_CODEC_VENDOR_ENTRY = "vendor/sourcemap-codec/sourcemap-codec.js";
@@ -569,6 +584,8 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     if (spec === WORK_RECEIPT_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_RECEIPT_VENDOR_ENTRY);
     if (spec === WORK_ASSOCIATION_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, WORK_ASSOCIATION_VENDOR_ENTRY);
     if (spec === FILES_FINALIZE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_FINALIZE_VENDOR_ENTRY);
+    if (spec === FILES_PORTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_PORTS_VENDOR_ENTRY);
+    if (spec === ACORN_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, ACORN_VENDOR_ENTRY);
     if (spec === "@canlang/interfaces" || spec === "@canlang/interfaces/http/operations") {
       return relativeSpecifier(moduleKey, HTTP_OPERATIONS_MODULE);
     }
@@ -594,6 +611,8 @@ function rewriteRuntimeImports(js: string, moduleKey: string): string {
     [WORK_RECEIPT_SOURCE_SPECIFIER, WORK_RECEIPT_VENDOR_ENTRY],
     [WORK_ASSOCIATION_SOURCE_SPECIFIER, WORK_ASSOCIATION_VENDOR_ENTRY],
     [FILES_FINALIZE_SOURCE_SPECIFIER, FILES_FINALIZE_VENDOR_ENTRY],
+    [FILES_PORTS_SOURCE_SPECIFIER, FILES_PORTS_VENDOR_ENTRY],
+    [ACORN_SOURCE_SPECIFIER, ACORN_VENDOR_ENTRY],
     ["@canlang/ui", UI_VENDOR_ENTRY],
   ] as const) {
     // Match a complete literal: mutation/crud and other exported subpaths
@@ -682,6 +701,8 @@ function rewriteVendorImports(js: string, moduleKey: string): string {
     if (spec === VALUES_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, VALUES_VENDOR_ENTRY);
     if (spec === CONTRACTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, CONTRACTS_VENDOR_ENTRY);
     if (spec === FILES_FINALIZE_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_FINALIZE_VENDOR_ENTRY);
+    if (spec === FILES_PORTS_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, FILES_PORTS_VENDOR_ENTRY);
+    if (spec === ACORN_SOURCE_SPECIFIER) return relativeSpecifier(moduleKey, ACORN_VENDOR_ENTRY);
     if (spec === "@noble/hashes/sha2.js" || spec === "@noble/hashes/utils.js") {
       return relativeSpecifier(moduleKey, `vendor/noble-hashes/${spec.slice("@noble/hashes/".length)}`);
     }

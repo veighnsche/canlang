@@ -918,14 +918,16 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
       ]);
       expect(scanModuleImports(bundle.modules["vendor/files/upload/index.js"]!, "vendor/files/upload/index.js").map(record => record.specifier))
         .toContain("../../noble-hashes/sha2.js");
-      // Assert the genuine State edge when its released consumer is emitted;
-      // never insert a substitute State import to manufacture that join.
+      // The released State consumer supplies both actual Files edges.
       const stateBase = dirname(dirname(resolveProducerFile("@canlang/state/mutation", "bun run --filter @canlang/state build")));
-      const stateSource = readFileSync(join(stateBase, "invocation/scenario-receipt.js"), "utf8");
-      if (stateSource.includes("@canlang/files/finalize")) {
-        expect(bundle.modules["vendor/state/invocation/scenario-receipt.js"]).toContain("../../files/finalize/index.js");
-        expect(bundle.modules["vendor/state/invocation/scenario-receipt.js"]).not.toContain("@canlang/files/finalize");
-      }
+      const stateSource = readFileSync(join(stateBase, "invocation/scenario-file-assignment.js"), "utf8");
+      expect(stateSource).toContain("@canlang/files/finalize");
+      expect(stateSource).toContain("@canlang/files/ports");
+      const state = bundle.modules["vendor/state/invocation/scenario-file-assignment.js"]!;
+      expect(state).toContain("../../files/finalize/index.js");
+      expect(state).toContain("../../files/ports.js");
+      expect(state).not.toContain("@canlang/files/finalize");
+      expect(state).not.toContain("@canlang/files/ports");
       expect(Object.keys(bundle.modules).some(key => /^vendor\/files\/.*(?:host\/|fs-blob-store|\.test\.js$)/.test(key))).toBe(false);
       expect(() => assertLinksResolve(bundle.modules)).not.toThrow();
       expect(() => assertWorkerdLoadable(bundle.modules)).not.toThrow();
@@ -944,6 +946,43 @@ describe("producer import rewrite + link check (P-C/P-B skew class)", () => {
         delete missing[key];
         expect(() => assertLinksResolve(missing)).toThrow(/no such staged module/);
       }
+    } finally { rmSync(fixture, { recursive: true, force: true }); }
+  });
+
+  it("stages the exact public Acorn ESM producer and rewrites its runtime edge", () => {
+    const manifestFile = resolveProducerFile("acorn/package.json", "bun install --frozen-lockfile");
+    const manifest = JSON.parse(readFileSync(manifestFile, "utf8"));
+    expect(manifest.name).toBe("acorn");
+    expect(manifest.version).toBe("8.18.0");
+    expect(manifest.exports["."][0].import).toBe("./dist/acorn.mjs");
+    const esm = readFileSync(join(dirname(manifestFile), manifest.exports["."][0].import), "utf8");
+    const runtime = dirname(resolveProducerFile("@canlang/cloudflare/runtime/invoke", "bun run --filter @canlang/cloudflare build"));
+    const fixture = mkdtempSync(join(tmpdir(), "can-acorn-runtime-map-"));
+    let insertedMapperEdge = false;
+    try {
+      for (const entry of readdirSync(runtime).filter(name => name.endsWith(".js"))) {
+        let js = readFileSync(join(runtime, entry), "utf8");
+        if (entry === "invoke.js" && !scanModuleImports(js, entry).some(record => record.specifier === "acorn")) {
+          // Mapper-only fixture, not Dev's security implementation. All Acorn
+          // bytes below always come from the genuine pinned public ESM export.
+          js += '\nimport { parse as acornMapperParse } from "acorn";\nexport { acornMapperParse };\nconst ACORN_MAP_FIXTURE = "acorn";\n';
+          insertedMapperEdge = true;
+        }
+        writeFileSync(join(fixture, entry), js);
+      }
+      const bundle = buildDeployBundle(testArtifact(), { repoRoot, runtimeDistDir: fixture, verdict: ACTIVE_VERDICT });
+      const key = "vendor/acorn/acorn.js";
+      expect(Object.keys(bundle.modules).filter(name => name.startsWith("vendor/acorn/"))).toEqual([key]);
+      expect(bundle.modules[key]).toBe(esm);
+      const invoke = bundle.modules["runtime/invoke.js"]!;
+      expect(scanModuleImports(invoke, "runtime/invoke.js").map(record => record.specifier)).toContain("../vendor/acorn/acorn.js");
+      expect(scanModuleImports(invoke, "runtime/invoke.js").some(record => record.specifier === "acorn")).toBe(false);
+      if (insertedMapperEdge) expect(invoke).toContain('const ACORN_MAP_FIXTURE = "../vendor/acorn/acorn.js"');
+      expect(() => assertLinksResolve(bundle.modules)).not.toThrow();
+      expect(() => assertWorkerdLoadable(bundle.modules)).not.toThrow();
+      const missing = { ...bundle.modules };
+      delete missing[key];
+      expect(() => assertLinksResolve(missing)).toThrow(/vendor\/acorn\/acorn\.js.*no such staged module/);
     } finally { rmSync(fixture, { recursive: true, force: true }); }
   });
 });
