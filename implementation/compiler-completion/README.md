@@ -3081,9 +3081,13 @@ no external actual operation consumers were found. Exact same Dev ordered25
 ordinary compile/catalog check2.244s clears all9 findings: Desk/Event/Member each0,
 complete=true/omitted0 and every current path/hash matches. Other118 findings
 still prevent artifact/modules/committedChanges; Volunteer source stays exact.
-The affected corpus table now fails only these three new source pins:
-Desk74→72,Event202→198,Member322→319;49 rows unchanged. Counts remain untouched
-pending coordinator finite review/disposition. Prior23cfd269 table1/1 and
-unchanged compiler/strict/editor outcomes retain their scoped qualification.
+Coordinator finite source review is CLEAR. Only the explicitly authorized new
+Desk74→72,Event202→198,Member322→319 snapshots are reconciled, preserving all52
+rows/full diagnostic assertions and49 unchanged rows. Final affected table
+passes1/1 in3.32s,36 unrelated tests unselected, superseding stale-pin failure.
+Prior23cfd269 and unchanged compiler/strict/editor scopes are reused. Released
+LOCALa9f87793 diverges from own source checkpoint (1 local/11 carrier); the
+coordinator must release its containing integration carrier before safe intake.
+No local reset/merge or unrelated branch intake follows.
 Employees pure authority claims and Volunteer tab bindings are outside this
 lease; Dev owns original native qualification.58/67 and precise holds persist.
