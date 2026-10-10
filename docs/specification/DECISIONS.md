@@ -5763,3 +5763,11 @@ No public array/index authority carrier is needed for this finite source. Owning
 with zero failed/ignored/filtered/skipped bodies and strictalltarget lint/format0;
 coordinator source review integrates LOCAL64. Dev owning D1 qualification remains
 before final native acceptance. Broader loop workflows stay open.
+
+
+The actual D1 consumer subsequently exposes a defining history-contract mismatch:
+receipt-aware owner finalization records A0→2/B0→1 while its existing fixture
+asserts three stage entries A0→1/A1→2/B0→1. Final values and Compiler/native
+Memory ordered observations are qualified; D1 replay is not reached. State owns
+history resolution and Dev preserves its consumer assertion. This observation
+is a dependency, not a decision to change history or evidence of D1 acceptance.

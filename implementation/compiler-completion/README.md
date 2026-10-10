@@ -2601,3 +2601,17 @@ records, so exact production results are reused. Dev alone qualifies the existin
 changed D1 consumer. Original Workbench/current-membership/query/schema/context
 joins, T11/application/browser contracts and precise BDD3/Task22 holds remain;
 completion stays58/67. No general loop/read/native policy acceptance is inferred.
+
+
+**SKIP D1 history/replay acceptance — defining history prerequisite, 2026-10-10.**
+Dev's actual14b D1 consumer reaches correct final A2/B1 but reports two net
+history entries A0→2/B0→1 instead of the retained three-stage assertion
+A0→1/A1→2/B0→1; execution stops before replay assertions. Compiler disclosure
+selects Cloudflare runScenarioExecution receiptAware/useOwnerSession, which uses
+State beginScenarioReceiptMutation→beginOwnerMutation.finalize. State owns the
+exact history contract/producer resolution; Dev preserves its existing assertion
+and qualifies that consumer after the released resolution. The compiler whole
+1386/native Memory current-row/order/replay results remain qualified at their
+scope and do not certify three history rows or D1 replay. No compiler bypass,
+shared mutation repair, weakened assertion or new human hold is authorized here.
+Other ready Compiler work is exhausted until the recorded defining releases.
