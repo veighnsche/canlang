@@ -2910,3 +2910,48 @@ current withholding pass. Stale Declined and unmangled-binding test expectations
 were corrected. Unchanged whole/editor/runtime results reused. Original approve
 member inputs, stored contract-array count, any/all reference/version predicates,
 pure/dynamic closure and exact external/held joins remain;58/67 unchanged.
+
+**Bound child predicates (unfinished original approve), 2026-10-10.**
+Separate checked contract-array `any`/`all` proofs bind the exact Complete
+CallAs occurrence, owning returned projection, alias, selected slots and typed
+synchronous predicate. Direct projected scalar/reference/version leaves and
+literals use ordinary Values ordering and short-circuiting; their local choices
+create no once-per-parent observations or row grants. Fresh source/IR comparison
+also joins static child calls and refuses altered call/proof metadata. Checked
+query source is boxed to keep IR layout bounded, without changing its semantics.
+The actual native consumer passes ordering, skipped reference RHS, version/ref
+comparison, genuine CRUD predicate failure/rollback, unchanged saved receipt,
+effect-free replay and current role revocation. Restoring title leaves newer
+versions but current authority still permits the saved count; withholding is
+qualified by actual role revocation. Affected619 pass (library161/B4284/query8/codegen121/decision7/invocation7/
+disclosure26/sourceproducer4/actualnative1); relevant boxed-query consumers167
+rerun, unchanged outcomes reused. Strict all-targetClippy/format0 and finite
+source/static-call review CLEAR. No whole-suite/application acceptance claimed.
+
+**Next original prerequisites.** State owns canonical stored Step.input/type
+workbench.Input wire/current-authority observation for count(step.input.facts);
+subsequent contract members remain local values. Dev owns same-private-owner
+current-stage stored singular/array reference hydration for step.parent operands.
+Compiler retains these exact source/provenance joins and the nested old/fresh
+predicate. State File lifetime is released at reviewed LOCALa8de5109; assignment-
+only Compiler File input/Set source and actual Dev staging/replay remain. Continue
+that ready unit after this coherent commit. Full58/67 and precise BDD3/Task22
+holds remain unchanged.
+
+**Assignment-only File source (unfinished native host join), 2026-10-10.**
+The unchanged TypedFileJourney attachment scenario now has Complete disclosure
+and actual native void publication: the original awaited owning Set precedes
+the accept guard. A dedicated proof permits only an explicit direct required,
+defaultless root File input into its owning singular File/file? field. Files/
+State supply the genuine finalized observation and lifetime; the compiler adds
+no scalar File observation, read/result/child/copy/loop authority. Emission joins
+actual input/field types and schema with verified original value and parameter
+declaration bytes, refusing paired substitution with another valid File input.
+Missing or changed source, ten other IR/proof corruptions and eight unsupported
+File profiles refuse. Review identified the paired-substitution gap, now fixed.
+Affected316 pass (library161,codegen121,disclosure29,native receipts4,actual query
+native1); strict all-target Clippy/format0 and finite source review CLEAR. The
+released State/Files/Interfaces dependencies build16/16 after frozen local
+installation; unchanged whole/editor results are reused. Dev owns actual native
+File binding/staging/retained replay and the unchanged real D1 journey. This
+source unit does not close that workflow or58/67; precise holds remain.

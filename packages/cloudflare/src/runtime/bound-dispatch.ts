@@ -1,5 +1,6 @@
 /** Installed provider dispatch over the existing Work lifecycle and State join. */
-import type { OutboxId, OutboxIntent, ReceiptResultContext, StoragePort, RecordId, ModelName, AssociatedReceipt, StoredRow, RetainedOutboxIntent } from '@canlang/contracts';
+import type { ClaimId, OutboxId, OutboxIntent, ReceiptResultContext, StoragePort, RecordId, ModelName, AssociatedReceipt, StoredRow, RetainedOutboxIntent } from '@canlang/contracts';
+import type { DispatchClaimGuard } from '@canlang/work/kernel/commands';
 import { createReceiptJoinPort, RECEIPT_ASSOCIATION_MODEL, readAssociationRow, withAssociationRowData } from '@canlang/state/receipt/tables';
 import { decodeValue, equalValue, isDeliveryRef } from '@canlang/values';
 import type { SystemCommandContext, SystemStaging } from '@canlang/state';
@@ -18,7 +19,7 @@ import { readRetainedTextGenerationEvidence, readRetainedTextGenerationReceipt,
   readRetainedImageGenerationEvidence, readRetainedImageGenerationReceipt,
   stageTextGenerationProgress, stageImageGenerationProgress } from './text-generation-progress.js';
 import {
-  driveDispatchIntent, stageCheckedDeliveryProgress,
+  driveDispatchIntent, driveDispatchIntentWithPreclaim, stageCheckedDeliveryProgress,
   loadDispatchSystemProducers,
   loadFenceAdmissionProducer,
   readDispatchExecutionRow,
@@ -30,6 +31,7 @@ import type {
   DispatchReconcileEvidence,
   DispatchProviderOutcome,
   DispatchWorkerCommand,
+  DispatchSystemRegistry,
   DriveDispatchFenceInput,
   DriveDispatchIntentOpts,
   DriveDispatchOutcome,
@@ -115,6 +117,8 @@ export interface BoundMailDispatcherOptions {
   /** The defining Work factory; availability must precede claim writes. */
   readonly createClaimCommand: (
     available: (intentId: OutboxId, target: string) => boolean,
+    guard?: DispatchClaimGuard,
+    claimIdAllocator?: () => ClaimId,
   ) => DispatchWorkerCommand;
 }
 
@@ -383,13 +387,16 @@ async function createInstalledDispatcher(
     await qualifyGenerationControl(admitted.intent, admitted.admission, ctx, String(args['originalIntentId']));
     return pinOriginal!.stage(args, ctx);
   } };
-  const registry = producers.createSystemRegistry(assembleDispatchCommands({
+  const composedCommands = assembleDispatchCommands({
     l3Commands: producers.l3Commands,
     workCommands: [...options.workCommands.map(command => command.name === claim.name ? claim
       : command.name === record.name ? record
       : controlAdapter !== null && command.name === pinCommand.name ? pinCommand : command), ...(!rich ? [] : [progressCommand])],
     stageCommands: options.stageCommands,
-  }));
+  });
+  const registryForClaim = (selectedClaim: DispatchWorkerCommand): DispatchSystemRegistry =>
+    producers.createSystemRegistry(composedCommands.map(command => command.name === claim.name ? selectedClaim : command));
+  const registry = registryForClaim(claim);
   const receiptStore = withDispatchJoinPort(options.store, createReceiptJoinPort({ store: options.store,
     ...(!typed ? {} : { resultContexts: () => resultContexts }) }));
   const joinPort = producers.createDispatchJoinPort({ store: receiptStore });
@@ -576,7 +583,15 @@ async function createInstalledDispatcher(
     return { observation: { ...observed, ...(progress === undefined ? {} : { progress }) }, answer };
   };
   return {
-    async drive(input) {
+    async drive(supplied) {
+      // Pin host functions and the fence container for this drive. These ports
+      // do not establish native source/lexical authority.
+      const suppliedFence = supplied.fence;
+      const input = { ...supplied, fence: suppliedFence.asyncGuard === undefined
+        ? Object.freeze({ ...suppliedFence })
+        : Object.freeze({ ...suppliedFence, asyncGuard: Object.freeze({ ...suppliedFence.asyncGuard }) }) };
+      const createClaimCommand = options.createClaimCommand;
+      const available = options.adapter.available.bind(options.adapter);
       await refreshPending();
       const intent = pending.get(input.intentId);
       if (intent === undefined) return { status: 'not-pending', intentId: input.intentId };
@@ -601,7 +616,7 @@ async function createInstalledDispatcher(
       const heldKeys: string[] = [];
       const originalContexts: string[] = [];
       try {
-        const outcome = await driveDispatchIntent({ ...input, registry, store, intent,
+        const driveOptions: Omit<DriveDispatchIntentOpts, 'registry'> = { ...input, store, intent,
           callProvider: async (selected, held) => {
             const heldKey = `${selected.intentId}\0${held.claimId}`;
             progressOwners.set(heldKey, input.fence.owner);
@@ -674,7 +689,16 @@ async function createInstalledDispatcher(
               progressCommitted: retainedCommitted || answer.kind === 'delivered' &&
                 committedProgress !== undefined && answer.result === committedProgress });
             return answer;
-          } });
+          } };
+        const outcome = input.fence.asyncGuard !== undefined && intent.dispatchGuard != null
+          ? await driveDispatchIntentWithPreclaim(driveOptions, (guard, allocator) => {
+            const guardedClaim = createClaimCommand((id, target) => id === intent.intentId &&
+              target === intent.target && available(intent) && (!isGenerationControl(intent) || controlAdapter !== null),
+            guard, allocator);
+            if (guardedClaim.name !== claim.name) throw new Error('Preclaim needs the defining Work claim command.');
+            return registryForClaim(guardedClaim);
+          })
+          : await driveDispatchIntent({ ...driveOptions, registry });
         await refreshPending();
         return outcome.status === 'not-claimed' && outcome.reason === 'unavailable'
           ? { status: 'unavailable', intentId: intent.intentId, target: intent.target }
