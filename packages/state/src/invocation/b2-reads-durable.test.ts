@@ -70,7 +70,7 @@ let d1mf: Miniflare | undefined;
 let d1db: D1Database;
 
 const doWorkerPath = fileURLToPath(
-  new URL('../../../test/storage/do-test-worker.js', import.meta.url),
+  new URL('../../test/storage/do-test-worker.js', import.meta.url),
 );
 
 let doMf: Miniflare | undefined;
