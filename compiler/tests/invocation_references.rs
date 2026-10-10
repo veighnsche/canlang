@@ -43,6 +43,182 @@ Then
 fn root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..")
 }
+
+#[test]
+fn checked_read_query_and_bound_composite_call_join_without_native_admission() {
+    use canlang_compiler::analysis::scenario_disclosure::ScenarioDisclosure;
+    use canlang_compiler::codegen::{js, scenario_calls::collect_scenario_source_calls};
+    let source = r#"app SourceCalls
+Given
+ Location {name:text}
+ Task {location:Location,title:text,done:bool=false}
+ policy Location read=members
+ policy Task read=members
+ contract Scope {targets:Task[]! min=1 max=10}
+ contract Fact {task:Task,version:int,title:Task.title,done:bool}
+When
+ scenario context(location:Location,targets:Scope.targets) read=true -> Fact[] by=members
+  do
+   let visible=Task as task where task in targets and task.location==location
+   require count(visible)==count(targets)
+   return visible as task select Fact {task,version=task.version,title=task.title,done=task.done}
+ scenario caller(location:Location,targets:Scope.targets) -> int by=members
+  do
+   call context {location,targets} as facts
+   call context {location,targets} as fresh
+   return count(facts)
+Then
+"#;
+    let mut db = SourceDb::new();
+    let file = db.add("source-calls.can".into(), source.into());
+    let catalog_path = root().join("packages/values/dist/catalog.json");
+    let (catalog, diagnostics) = load_catalog(&CatalogRequest {
+        flag: Some(&catalog_path),
+        env: None,
+        cwd: &root(),
+        primary: Span::new(file, 0, 0),
+    });
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (checked, diagnostics) = check_program(&db, &[file], catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (lowered, diagnostics) = ir::build(&checked, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let context = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "SourceCalls.context")
+        .unwrap();
+    let parent = lowered
+        .items
+        .iter()
+        .find(|item| item.canonical == "SourceCalls.caller")
+        .unwrap();
+    for item in [context, parent] {
+        let fact = &lowered.scenario_disclosures[&item.id];
+        assert!(matches!(fact, ScenarioDisclosure::Declined(_)));
+        let origin = fact
+            .source_facts()
+            .expect("checked source survives unsupported native closure");
+        assert_eq!(origin.source.path, "source-calls.can");
+        assert_eq!(origin.scenario, item.id);
+    }
+    let IrItemKind::Scenario { effects, .. } = &context.kind else {
+        panic!()
+    };
+    let IrStmt::Let { value, .. } = &effects[0] else {
+        panic!()
+    };
+    let IrExpr::Query(query) = &value.expr else {
+        panic!()
+    };
+    let fact = query.source.as_ref().expect("real checked model query");
+    assert_eq!(
+        (fact.node.file, fact.node.start, fact.node.end),
+        (value.span.file, value.span.start, value.span.end)
+    );
+    assert_eq!(fact.domain_type, checked.types.node_types[&fact.domain]);
+    assert!(query.where_pred.is_some());
+    let IrStmt::Return {
+        value: Some(value), ..
+    } = &effects[2]
+    else {
+        panic!()
+    };
+    let IrExpr::Query(projection) = &value.expr else {
+        panic!()
+    };
+    assert!(projection.source.is_some());
+    let projected = projection.select.as_ref().unwrap();
+    let IrExpr::Object(fields) = &projected.expr else {
+        panic!("{projected:?}")
+    };
+    assert!(matches!(
+        &fields[0].1.ty,
+        ResolvedType::Record { stored: true, .. }
+    ));
+    assert!(matches!(&fields[1].1.expr, IrExpr::Member {field,..} if field=="version"));
+    let emitted = js::emit_program_with_native_source_receipts(&lowered, true, &db);
+    assert!(
+        emitted
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "E6008")
+    );
+    assert!(
+        emitted
+            .operations
+            .iter()
+            .filter(|operation| operation.name == context.canonical
+                || operation.name == parent.canonical)
+            .all(|operation| operation.disclosure.is_none())
+    );
+    let sites = collect_scenario_source_calls(&lowered, parent, &db).unwrap();
+    assert_eq!(sites.len(), 2);
+    assert_eq!(sites[0].target, "SourceCalls.context");
+    assert!(sites[0].read);
+    assert_eq!(sites[0].binding.as_deref(), Some("facts"));
+    assert_eq!(
+        sites[0].result,
+        lowered.scenario_disclosures[&context.id]
+            .source_facts()
+            .unwrap()
+            .result
+    );
+    assert_eq!(
+        sites[0]
+            .inputs
+            .iter()
+            .map(|input| input.name.as_str())
+            .collect::<Vec<_>>(),
+        ["location", "targets"]
+    );
+    for tamper in 0..4 {
+        let mut altered = lowered.clone();
+        let ScenarioDisclosure::Declined(fact) =
+            altered.scenario_disclosures.get_mut(&parent.id).unwrap()
+        else {
+            panic!()
+        };
+        let proof = fact.source_facts.as_mut().unwrap();
+        match tamper {
+            0 => proof.calls[0].binding = Some("fresh".into()),
+            1 => proof.calls[0].inputs.reverse(),
+            2 => proof.source.sha256 = "0".repeat(64),
+            _ => proof.calls.push(proof.calls[0].clone()),
+        }
+        assert!(
+            collect_scenario_source_calls(&altered, &altered.items[parent.id.0 as usize], &db)
+                .is_none()
+        );
+    }
+    let mut reordered = lowered.clone();
+    let IrItemKind::Scenario { effects, .. } = &mut reordered.items[parent.id.0 as usize].kind
+    else {
+        panic!()
+    };
+    effects.swap(0, 1);
+    assert!(
+        collect_scenario_source_calls(&reordered, &reordered.items[parent.id.0 as usize], &db)
+            .is_none()
+    );
+    let mut altered = checked;
+    altered
+        .types
+        .checked_queries
+        .get_mut(&fact.node)
+        .unwrap()
+        .clauses
+        .reverse();
+    let (altered, diagnostics) = ir::build(&altered, &db, catalog.as_ref());
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let IrItemKind::Scenario { effects, .. } = &altered.items[context.id.0 as usize].kind else {
+        panic!()
+    };
+    let IrStmt::Let { value, .. } = &effects[0] else {
+        panic!()
+    };
+    assert!(matches!(value.expr, IrExpr::Unsupported { .. }));
+}
 fn compile(dir: &Path, name: &str, source: &str) -> std::process::Output {
     compile_with_receipts(dir, name, source, false)
 }
