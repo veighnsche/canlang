@@ -7355,3 +7355,29 @@ exported Rent remains excluded.58/67/nine open and precise holds unchanged.
 ### 2026-10-10 — manual local integration of 22dbd12b
 
 Finite independent and manual review CLEAR for exact draft8a2f83f six private name/reference edits: receipt to generate_receipt plus all3 action lists and void to void_invoice plus its sole form. Preserve providers/receipt_result, modal and enum identities, complete bodies/grants/effects/order/examples. Reuse owning isolated212 to203 source correspondence,10 removed/1 exposed E2001 void in incomplete isolated state; complete composition resolves it. Owning original25 measured46 to35 removes11Invoice only, but baseline46 includes unfinished Leave producer changes and is not this local-main current count. Complete original25/all52/current whole/lint recomputation remains pending at the related source unit. No original/native application or whole-plan acceptance, source export, generated output or hold change. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.
+
+
+### 2026-10-10 — preserve checked selector channels (unfinished native join)
+
+Checked lexical fixture-backed request model observations retain the same
+fixture identity as neutral names. Private table evidence binds exact node,
+module, operation and full selector correspondence; IR rechecks source headers.
+Generated tables emit dense optional selectorChannels input/request/caller;
+legacy handbuilt None omits it. Input retains the full path, wire request strips
+its prefix in the owning consumer, and as remains caller. Malformed alignment
+refuses E6008 before table closure lowering. Wire/scalar/row-only observations
+still refuse E5002. No authority/disclosure/input-policy change.
+
+Owning150 distinct outcomes pass (codegen121/B4 examples29); corrected mechanical
+emitter API/diagnostic-code failures are superseded. Finite independent review
+is CLEAR. Real CLI→installed Testkit→invocation-port witness is added but UNTESTED
+pending exact ecc consumer intake/build; it explicitly claims no State execution.
+Dev94e materializer and actual generated native joint qualification remain.
+Source-only original25 drops56→46 by10 Leave/Purchase E5002, then assigned Invoice
+46→35; no artifact. Observed corpus Leave79→74/Purchase143→138, retaining all52
+full assertions; joined full-table and changed whole/lint remain pending.
+Original58/67/nine references and precise BDD3/S9-Q07/Task22 holds remain.
+
+### 2026-10-10 — manual local integration of 6870dcef
+
+Finite independent and manual review CLEAR for checked lexical input/request/caller producer tied to exact owner/node/module/operation/selectors, dense source IR channels and BDD malformed E6008 refusal. Actual stored-model fixture request observations admitted; unbound wire/scalar/row-only E5002 retained. Reuse150 owning codegen/B4 passing outcomes. Exact integrated Testkitecc and Dev94 are consumer prerequisites; actual generated CLI-to-installed-Testkit/native witness, joined all52 and current whole/strict lint remain unfinished. The source-only complete original25 tuple35 has no artifact and is not native/full-plan acceptance. Preserve all source witnesses, existing opaque/ingress refusals and precise BDD3/S9Q07/other human holds. Preserve existing physical owners and allocation scopes; reconcile actual merged tree and history without advancing the complete checkpoint. No remote push or publication.

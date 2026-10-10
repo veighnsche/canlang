@@ -4,6 +4,158 @@
 
 #[cfg(unix)]
 #[test]
+fn lexical_request_tables_keep_business_inputs_separate_from_wire_overrides() {
+    use std::{path::PathBuf, process::Command};
+
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let scratch = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(
+        root.join("node_modules"),
+        scratch.path().join("node_modules"),
+    )
+    .unwrap();
+    let source = scratch.path().join("request-binding.can");
+    std::fs::write(
+        &source,
+        r#"app RequestBinding
+Given
+ Task {title:text}
+ policy Task read=members
+ fixture one=Task {title="fixture"}
+When
+ scenario apply(request:Task,note:text) by=members
+  do set request {title=note}
+  examples request=one note="changed"
+   as,request.title -> request.title
+   members,"row" -> "changed"
+  examples seed=[one] note="changed"
+   as,request -> one.title
+   members,one -> "changed"
+ scenario wire(task:Task,note:text) by=members
+  do set task {title=note}
+  examples task=one note="changed"
+   as,request.operation_id -> one.title
+   members,"wire-id" -> "changed"
+Then
+"#,
+    )
+    .unwrap();
+    let compiled = Command::new(env!("CARGO_BIN_EXE_can"))
+        .args(["compile", "--format=json", "--catalog"])
+        .arg(root.join("packages/values/dist/catalog.json"))
+        .arg(&source)
+        .env_remove("CAN_CATALOG")
+        .output()
+        .unwrap();
+    assert!(
+        compiled.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&compiled.stdout),
+        String::from_utf8_lossy(&compiled.stderr)
+    );
+    std::fs::write(scratch.path().join("artifact.json"), compiled.stdout).unwrap();
+    let runner = scratch.path().join("request-binding.mjs");
+    std::fs::write(&runner, r#"
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+import {resolve,dirname} from 'node:path';
+import {pathToFileURL} from 'node:url';
+const testkit = process.env.CAN_TESTKIT_DIST
+ ? pathToFileURL(resolve(process.env.CAN_TESTKIT_DIST,'index.js')).href
+ : '@canlang/testkit';
+const {loadExampleSuite,stashedRowOf,createExampleHooks} = await import(testkit);
+const base=dirname(new URL(import.meta.url).pathname);
+const artifact=JSON.parse(readFileSync(resolve(base,'artifact.json'),'utf8'));
+const bindings={self:'self-context',other:'other-context',imported:null};
+let activeFixture, expectedInitial, expectedCaller, dispatched=0;
+const hooks={...createExampleHooks({
+ dispatch:async call=>{
+  dispatched++;
+  const business=call.inputs.request ?? call.inputs.task;
+  assert.equal(business,activeFixture,'dispatch retains the exact row-materialized fixture identity');
+  assert.equal(business.title,expectedInitial);
+  assert.equal(call.inputs.note,'changed');
+  assert.equal(call.caller,expectedCaller,'caller cell identity reaches the dispatch port');
+  if(call.operation==='RequestBinding.apply') {
+   assert.equal(Object.hasOwn(call,'request'),false,'lexical business request creates no wire envelope');
+   assert.equal(Object.hasOwn(call.inputs,'request'),true);
+   assert.equal(Object.hasOwn(call.inputs,'title'),false,'full business selector root is retained');
+  } else {
+   assert.equal(call.operation,'RequestBinding.wire');
+   assert.deepEqual(call.request,{operation_id:'wire-id'},'only wire request prefix is stripped');
+   assert.equal(Object.hasOwn(call.inputs,'request'),false);
+  }
+  // This injected invocation port exercises routing, not native State execution.
+  business.title=call.inputs.note;
+  return {ok:true};
+ },
+ readLive:name=>name==='one'?activeFixture:undefined,
+}),prepareRowCells:async input=>{
+ const original=input.fixtures.get('one');
+ const business=input.inputs.request ?? input.inputs.task;
+ assert.equal(original.title,'fixture');
+ assert.equal(business.id,original.id);
+ if(input.selectors.includes('request.title')) {
+  assert.notEqual(business,original,'dotted initial-state cell is an immutable input clone');
+  assert.equal(business.title,'row');
+  assert.equal(input.baselineInputs.request,original);
+ } else {
+  assert.equal(business,original,'whole fixture cell retains its provisioned identity');
+ }
+ const fixtures=new Map(input.fixtures);fixtures.set('one',business);
+ return {fixtures,inputs:input.inputs};
+}};
+let tableIndex=0;
+for(const test of artifact.tests) {
+ const path=resolve(base,test.module.path);
+ mkdirSync(dirname(path),{recursive:true});writeFileSync(path,test.module.js);
+ const url=pathToFileURL(path).href;
+ const emitted=await import(url), produced=emitted.exampleFixtures(bindings);
+ for(const table of produced.examples) {
+  const channels=table.selectorChannels;
+  assert.equal(Array.isArray(channels),true);
+  assert.equal(channels.length,table.selectors.length);
+  for(let index=0;index<channels.length;index++) assert.equal(Object.hasOwn(channels,index),true);
+  assert.deepEqual(channels,['caller',table.operation==='RequestBinding.wire'?'request':'input']);
+ }
+ const suite=await loadExampleSuite(url,bindings,hooks);
+ for(const row of suite.rows) {
+  const scope={snapshot:async()=>null,dispose:async()=>{}};
+  await row.setup(scope);
+  const stash=stashedRowOf(scope);
+  activeFixture=stash.fixtures.get('one');
+  expectedCaller=stash.cells[0];
+  expectedInitial=tableIndex===0?'row':'fixture';
+  assert.equal(activeFixture.title,expectedInitial);
+  assert.equal(stash.inputs.request ?? stash.inputs.task,activeFixture);
+  if(tableIndex===1) assert.equal(stash.cells[1],activeFixture,'whole business cell is the genuine fixture');
+  assert.deepEqual(stash.expectedValues,['changed']);
+  if(tableIndex<2) assert.equal(Object.hasOwn(stash,'request'),false);
+  else assert.deepEqual(stash.request,{operation_id:'wire-id'});
+  assert.deepEqual(await row.observe(scope),[expectedInitial],'unchanged emitted fixture observation sees initial row');
+  assert.deepEqual(await row.invoke(scope),{ok:true});
+  assert.deepEqual(await row.observe(scope),['changed'],'unchanged emitted observation reads the port fixture');
+  tableIndex++;
+ }
+}
+assert.equal(tableIndex,3);assert.equal(dispatched,3);
+console.log('CLI emitted selector channels → installed Testkit loader/stash → invocation port; no State execution');
+"#).unwrap();
+    let executed = Command::new("node")
+        .arg(runner)
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    assert!(
+        executed.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&executed.stdout),
+        String::from_utf8_lossy(&executed.stderr)
+    );
+}
+
+#[cfg(unix)]
+#[test]
 fn generation_table_binds_same_named_fixture_before_row_evaluation() {
     use std::path::PathBuf;
     use std::process::Command;

@@ -1,18 +1,18 @@
 {
   "date": "2026-10-10",
-  "integrated_source_pin": "22dbd12bc140d102647fffa4ba7c802ed3255625",
+  "integrated_source_pin": "6870dcef5038da747ce16cda48231c3da855eba0",
   "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 2005,
+    "commit_count_since_checkpoint": 2007,
     "net_path_deltas": 10881,
     "history_touched_paths": 11425,
     "history_only_paths": 513,
     "released_feature_paths": 79,
     "new_target_leaves": 30,
     "inherited_paths_without_prior_target_allocation": 9378,
-    "scope": "Local main integration of committed source 22dbd12bc140d102647fffa4ba7c802ed3255625 onto 8f26255b5b174b5ff119c60fbfebae47cf422ce0, including reviewed merge parents 22dbd12bc140d102647fffa4ba7c802ed3255625; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced."
+    "scope": "Local main integration of committed source 6870dcef5038da747ce16cda48231c3da855eba0 onto bff3b89ee6991d966db7c22e580aa06a3cd3b2a9, including reviewed merge parents 6870dcef5038da747ce16cda48231c3da855eba0; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced."
   },
   "methods": [
     "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z checkpoint (actual staged local merge tree; incoming integrated_source_pin onto current main parent)",
@@ -67936,5 +67936,5 @@
   "lanes": "Existing four local worktrees continue their assigned plans; only committed snapshots are integrated here. Open edits and recipient-specific holds are preserved. Coordinator alone serializes local main merges/manual review; no remote publication or PR review gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Local main integration of committed source 22dbd12bc140d102647fffa4ba7c802ed3255625 onto 8f26255b5b174b5ff119c60fbfebae47cf422ce0, including reviewed merge parents 22dbd12bc140d102647fffa4ba7c802ed3255625; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced."
+  "current_maintenance_summary": "Local main integration of committed source 6870dcef5038da747ce16cda48231c3da855eba0 onto bff3b89ee6991d966db7c22e580aa06a3cd3b2a9, including reviewed merge parents 6870dcef5038da747ce16cda48231c3da855eba0; accumulated path registration since complete checkpoint 8249342707d3280e88e39e8c911b7e457828f31f. Existing per-path allocations and accepted scopes retained; new paths remain inherited-unallocated. Manual source review and recorded affected results do not establish complete workflows or full source/target closure. Native preparation holds, policy activation/hook adaptation, generic receipt projection and pilot qualification remain owner work. Complete checkpoint is unadvanced."
 }
