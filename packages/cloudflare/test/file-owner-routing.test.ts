@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createHash, randomBytes } from 'node:crypto';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,6 +55,7 @@ test('native typed File downloads select the current D1 owner without fallback a
     const dir=await mkdtemp(join(tmpdir(),'can-file-owner-routing-'));
     let worker:Miniflare|undefined, physical:SqliteFileStore|undefined, sequence=0;
     let gate: {started:ReturnType<typeof deferred>;release:ReturnType<typeof deferred>}|undefined;
+    let finalReadGate: {started:ReturnType<typeof deferred>;release:ReturnType<typeof deferred>;ready:boolean}|undefined;
     let now=FIXED_NOW;
     const clock={nowMs:()=>now}, nextId=()=>asOperationId(uuidv7(FIXED_NOW,++sequence));
     try {
@@ -103,7 +104,14 @@ test('native typed File downloads select the current D1 owner without fallback a
       let postByteRace=false,bRoutesDuringRace=0;
       const boundary={...genuineBoundary,async forIdentity(identity:Parameters<typeof genuineBoundary.forIdentity>[0]) {
         if(postByteRace&&identity.team?.team_id===teamB.team_id)bRoutesDuringRace++;
-        return genuineBoundary.forIdentity(identity);
+        const store=await genuineBoundary.forIdentity(identity);
+        if(finalReadGate?.ready!==true)return store;
+        const held=finalReadGate;
+        return {...store,async query(...args:Parameters<StoragePort['query']>) {
+          const rows=await store.query(...args);
+          held.started.resolve();await held.release.promise;
+          return rows;
+        }};
       }};
       const storeA=await boundary.forIdentity(identityA),storeB=await boundary.forIdentity(identityB);
       let fallbackReads=0,fallbackCommits=0;
@@ -112,14 +120,16 @@ test('native typed File downloads select the current D1 owner without fallback a
       physical=createSqliteFileStore(join(dir,'files.sqlite'));
       const nativeKernel=createFileJourneyKernel(createSqliteFileBindings(physical,{clock,intentTtlMs:60000,urlBase:'https://test.invalid'}));
       const byteReads: {ref:string;owner:string;principal:string}[]=[];
-      let legacyReadCalls=0;
+      let legacyReadCalls=0,provenanceReadCalls=0;
       const kernel={...nativeKernel,
         async readBytes():Promise<Uint8Array|null> {legacyReadCalls++;throw new Error('Protected download used legacy readBytes');},
-        async readCurrentBytes(ref:string,receiver:Parameters<typeof nativeKernel.readCurrentBytes>[1],retention:Parameters<typeof nativeKernel.readCurrentBytes>[2]) {
+        async readProvenance():Promise<never> {provenanceReadCalls++;throw new Error('Protected download used separate readProvenance');},
+        async readCurrentSnapshot(ref:string,receiver:Parameters<typeof nativeKernel.readCurrentSnapshot>[1],retention:Parameters<typeof nativeKernel.readCurrentSnapshot>[2]) {
           byteReads.push({ref,owner:receiver.owner,principal:receiver.principal});
-          const bytes=await nativeKernel.readCurrentBytes(ref,receiver,retention);
+          const snapshot=await nativeKernel.readCurrentSnapshot(ref,receiver,retention);
           if(gate!==undefined) {const held=gate;held.started.resolve();await held.release.promise;}
-          return bytes;
+          if(finalReadGate!==undefined)finalReadGate.ready=true;
+          return snapshot;
         }};
       const upload:UploadDeps&{kernel:typeof kernel}={app:{appId:APP,brand:APP,appDefaultLocale:'en',ownerLabels:new Map()},
         files:{usesFiles:()=>true},kernel,clock,logger:{log:()=>{}},
@@ -177,7 +187,7 @@ test('native typed File downloads select the current D1 owner without fallback a
         const response=await handler(request(downloadPath,'GET',undefined,grant.token));
         assert.equal(response.status,200,await response.clone().text());assert.deepEqual(new Uint8Array(await response.arrayBuffer()),bytes);
         assert.equal(byteReads.length,count+1);assert.equal(byteReads.at(-1)!.owner,owner);assert.equal(byteReads.at(-1)!.principal,user.user_id, 'physical uploader remains distinct from current shared reader');
-        assert.deepEqual(await all(),before);assert.equal(legacyReadCalls,0);
+        assert.deepEqual(await all(),before);assert.equal(legacyReadCalls,0);assert.equal(provenanceReadCalls,0);
       }
       // A-only locator must not fall back to store A for the selected B owner.
       const uploadedAOnly=await uploadFile('routing-a-only',A_BYTES,grants[0]!.token);
@@ -201,7 +211,7 @@ test('native typed File downloads select the current D1 owner without fallback a
       await refusal(request(downloadPath,'GET',undefined,undefined,noTeamCookie));
       await refusal(request(downloadPath,'GET',undefined,grants[2]!.token));
       await refusal(request(downloadPath,'GET',undefined,limitedGrant.token)); // Current member lacks whole attachment field grant.
-      assert.equal(legacyReadCalls,0);
+      assert.equal(legacyReadCalls,0);assert.equal(provenanceReadCalls,0);
       // Corrupt only physical receiving metadata through the actual SQLite
       // store, using other genuine finalized receivers. No new authority is minted.
       const originalPhysical=physical!.files.get(uploadedA.ref);assert.ok(originalPhysical);
@@ -233,7 +243,7 @@ test('native typed File downloads select the current D1 owner without fallback a
       assert.ok(metadataRefusal.status>=400&&metadataRefusal.status<500,String(metadataRefusal.status));
       assert.notDeepEqual(new Uint8Array(await metadataRefusal.arrayBuffer()),A_BYTES);
       assert.equal(byteReads.length,beforeMetadataReads+1);assert.deepEqual(await all(),afterMetadataChange);
-      assert.equal(legacyReadCalls,0);assert.equal(fallbackReads,0);assert.equal(fallbackCommits,0);
+      assert.equal(legacyReadCalls,0);assert.equal(provenanceReadCalls,0);assert.equal(fallbackReads,0);assert.equal(fallbackCommits,0);
       physical!.files.put(originalPhysical);
       const heldDownload=async(action:()=>Promise<void>,changesDomain=false)=>{
         const beforeHeld=await all();
@@ -246,7 +256,7 @@ test('native typed File downloads select the current D1 owner without fallback a
         const held=gate;gate=undefined;held.release.resolve();
         const response=await pending;assert.ok(response.status>=400&&response.status<500,String(response.status));
         assert.notDeepEqual(new Uint8Array(await response.arrayBuffer()),A_BYTES);assert.deepEqual(await all(),afterAction);
-        assert.equal(legacyReadCalls,0);assert.equal(fallbackReads,0);assert.equal(fallbackCommits,0);
+        assert.equal(legacyReadCalls,0);assert.equal(provenanceReadCalls,0);assert.equal(fallbackReads,0);assert.equal(fallbackCommits,0);
       };
       await heldDownload(()=>identities.removeMembership(otherMembership.membership_id));
       await identities.reactivateMembership(otherMembership.membership_id,{is_owner:true,roles:[]});
@@ -274,7 +284,67 @@ test('native typed File downloads select the current D1 owner without fallback a
       const deniedBytes=new Uint8Array(await refused.arrayBuffer());assert.notDeepEqual(deniedBytes,A_BYTES);assert.notDeepEqual(deniedBytes,B_BYTES);
       assert.equal(byteReads.length,beforeRaceReads+1);assert.equal(byteReads.at(-1)!.ref,uploadedA.ref);
       assert.deepEqual(await snapshot(a),beforeRace.a);assert.deepEqual(await snapshot(b),beforeRace.b);assert.deepEqual(fileState(),beforeRace.files);
-      assert.deepEqual(await snapshot(idDb),afterSelection);assert.equal(fallbackReads,0);assert.equal(fallbackCommits,0);assert.equal(legacyReadCalls,0);
+      assert.deepEqual(await snapshot(idDb),afterSelection);assert.equal(fallbackReads,0);assert.equal(fallbackCommits,0);assert.equal(legacyReadCalls,0);assert.equal(provenanceReadCalls,0);
+      // Replace the actual selected File via canonical attachment after the
+      // original download has obtained its genuine snapshot. The request may
+      // add no effects beyond this deliberate business mutation.
+      const alternate=await uploadFile('routing-a-replacement',B_BYTES,grants[0]!.token);
+      const beforeReplacement=await all(),replacementReads=byteReads.length;
+      gate={started:deferred(),release:deferred()};
+      const replacementPending=handler(request(downloadPath,'GET',undefined,otherGrant.token));
+      await Promise.race([gate.started.promise,replacementPending.then(response=>{throw new Error(`Expected held current snapshot; received HTTP ${response.status}`);})]);
+      const replacementRow=await storeA.load(MODEL,asId(sharedId));assert.ok(replacementRow);
+      await mutate('attach',{entry:{id:sharedId,version:String(replacementRow.version)},attachment:{id:alternate.ref},accept:true},identityA);
+      const afterReplacement=await all();
+      assert.deepEqual(afterReplacement.b,beforeReplacement.b);assert.deepEqual(afterReplacement.identity,beforeReplacement.identity);
+      const replaced=await storeA.load(MODEL,asId(sharedId));assert.ok(replaced);
+      assert.equal(replaced.version,replacementRow.version+1);assert.deepEqual(replaced.data['attachment'],{id:alternate.ref});
+      const replacementHeld=gate;gate=undefined;replacementHeld.release.resolve();
+      const replacementRefusal=await replacementPending;
+      assert.ok(replacementRefusal.status>=400&&replacementRefusal.status<500,String(replacementRefusal.status));
+      const replacementBody=new Uint8Array(await replacementRefusal.arrayBuffer());
+      assert.notDeepEqual(replacementBody,A_BYTES);assert.notDeepEqual(replacementBody,B_BYTES);
+      assert.equal(byteReads.length,replacementReads+1);assert.equal(byteReads.at(-1)!.ref,uploadedA.ref);
+      assert.deepEqual(await all(),afterReplacement);
+      // A copied assembly has no genuine issuer capability, even when all
+      // public artifact and URL fields are identical.
+      const beforeCopied=await all(),copiedReads=byteReads.length;
+      let copiedResponse:Response|undefined;
+      try {
+        const copiedHandler=createBoundFileHandler({...opts,asm:{...asm}});
+        copiedResponse=await copiedHandler(request(downloadPath,'GET',undefined,otherGrant.token));
+      } catch(error) {
+        assert.ok(error instanceof Error,'copied assembly must explicitly refuse');
+      }
+      if(copiedResponse!==undefined) {
+        assert.ok(copiedResponse.status>=400&&copiedResponse.status<600,String(copiedResponse.status));
+        const copiedBody=new Uint8Array(await copiedResponse.arrayBuffer());
+        assert.notDeepEqual(copiedBody,A_BYTES);assert.notDeepEqual(copiedBody,B_BYTES);
+      }
+      assert.equal(byteReads.length,copiedReads);assert.deepEqual(await all(),beforeCopied);
+      assert.equal(fallbackReads,0);assert.equal(fallbackCommits,0);assert.equal(legacyReadCalls,0);assert.equal(provenanceReadCalls,0);
+      // Hold the final canonical query after its genuine owner-store result;
+      // source drift in that await must not release already selected bytes.
+      const stagedModule=fileURLToPath(asm.entryUrl),originalModule=await readFile(stagedModule);
+      const beforeSourceDrift=await all(),sourceDriftReads=byteReads.length;
+      finalReadGate={started:deferred(),release:deferred(),ready:false};
+      const sourceDriftPending=handler(request(downloadPath,'GET',undefined,otherGrant.token));
+      try {
+        await Promise.race([finalReadGate.started.promise,sourceDriftPending.then(response=>{throw new Error(`Expected held final canonical read; received HTTP ${response.status}`);})]);
+        await writeFile(stagedModule,Buffer.concat([originalModule,Buffer.from('\n// changed during final canonical read\n')]));
+        finalReadGate.release.resolve();
+        const sourceRefusal=await sourceDriftPending;
+        assert.ok(sourceRefusal.status>=400&&sourceRefusal.status<600,String(sourceRefusal.status));
+        const sourceBody=new Uint8Array(await sourceRefusal.arrayBuffer());
+        assert.notDeepEqual(sourceBody,A_BYTES);assert.notDeepEqual(sourceBody,B_BYTES);
+        assert.equal(byteReads.length,sourceDriftReads+1);assert.equal(byteReads.at(-1)!.ref,alternate.ref);
+        assert.deepEqual(await all(),beforeSourceDrift);
+        assert.equal(fallbackReads,0);assert.equal(fallbackCommits,0);assert.equal(legacyReadCalls,0);assert.equal(provenanceReadCalls,0);
+      } finally {
+        finalReadGate?.release.resolve();finalReadGate=undefined;
+        await writeFile(stagedModule,originalModule);
+      }
+      assert.deepEqual(await readFile(stagedModule),originalModule);
       assert.deepEqual(await Promise.all(paths.map(async path=>digest(await readFile(path)))),hashes);
-    } finally {gate?.release.resolve();physical?.close();await worker?.dispose();await rm(dir,{recursive:true,force:true});}
+    } finally {gate?.release.resolve();finalReadGate?.release.resolve();physical?.close();await worker?.dispose();await rm(dir,{recursive:true,force:true});}
   });

@@ -452,14 +452,14 @@ test('compiled attachment workflow uses authenticated uploads, SQLite bytes and 
     assert.equal((await handler(authRequest(downloadPath, 'GET'))).status, 401);
     const nativeKernel = kernel;
     let removedDuringRead = false;
-    kernel = { ...nativeKernel, async readCurrentBytes(fileRef, receiver, retention) {
+    kernel = { ...nativeKernel, async readCurrentSnapshot(fileRef, receiver, retention) {
       assert.equal(fileRef, browserRef);
-      const bytes = await nativeKernel.readCurrentBytes(fileRef, receiver, retention);
-      assert.ok(bytes);
-      assert.deepEqual(bytes, BYTES);
+      const snapshot = await nativeKernel.readCurrentSnapshot(fileRef, receiver, retention);
+      assert.ok(snapshot);
+      assert.deepEqual(snapshot.bytes, BYTES);
       await identities.removeMembership(ownerMembership.membership_id);
       removedDuringRead = true;
-      return bytes;
+      return snapshot;
     } };
     handler = handlerFor();
     const removed = await handler(authRequest(downloadPath, 'GET', undefined, ownerGrant.token, true));
