@@ -1,5 +1,5 @@
-import { expect, it } from "vitest";
-import { JevHttpTransport } from "../src/dev/jev-transport.js";
+import { expect, it, vi } from "vitest";
+import { JevHttpTransport, JevProviderRejected } from "../src/dev/jev-transport.js";
 import type { JevChoiceRequest } from "../src/dev/jev-ranker.js";
 
 const request: JevChoiceRequest = {
@@ -23,11 +23,41 @@ it("posts only the constructed packet with the configured key and returns bounde
   expect(seen).toBe(true);
 });
 
-it("classifies provider rejection without reading or forwarding its body", async () => {
-  const transport = new JevHttpTransport(() => "test-key", async () => new Response("private provider body", { status: 429 }));
-  await expect(transport.choose(request, new AbortController().signal)).rejects.toMatchObject({
-    code: "PROVIDER_REJECTED", status: 429,
-  });
+it("cancels rejected response streams without reading them or replacing the safe HTTP failure", async () => {
+  for (const { status, cancellation } of [
+    { status: 429, cancellation: "complete" },
+    { status: 503, cancellation: "complete" },
+    { status: 429, cancellation: "failed" },
+    { status: 503, cancellation: "pending" },
+  ] as const) {
+    let reads = 0, cancellations = 0;
+    const body = new ReadableStream<Uint8Array>({
+      pull() { reads++; throw new Error("private provider body must not be read"); },
+      cancel() {
+        cancellations++;
+        if (cancellation === "failed") throw new Error("private cancellation failure");
+        if (cancellation === "pending") return new Promise<void>(() => {});
+      },
+    }, { highWaterMark: 0 });
+    const response = new Response(body, { status });
+    const getReader = vi.spyOn(body, "getReader");
+    const transport = new JevHttpTransport(() => "test-key", async () => response);
+    const result = transport.choose(request, new AbortController().signal);
+    await expect(result).rejects.toMatchObject(status === 429
+      ? { code: "PROVIDER_REJECTED", status, message: "Jev rejected the request with HTTP 429" }
+      : { message: "Jev HTTP 503" });
+    if (status === 503) await expect(result).rejects.not.toBeInstanceOf(JevProviderRejected);
+    expect(cancellations).toBe(1);
+    expect(reads).toBe(0);
+    expect(getReader).not.toHaveBeenCalled();
+    expect(body.locked).toBe(false);
+  }
+  for (const status of [429, 503]) {
+    const transport = new JevHttpTransport(() => "test-key", async () => new Response(null, { status }));
+    await expect(transport.choose(request, new AbortController().signal)).rejects.toMatchObject(status === 429
+      ? { code: "PROVIDER_REJECTED", status, message: "Jev rejected the request with HTTP 429" }
+      : { message: "Jev HTTP 503" });
+  }
   const missingKey = new JevHttpTransport(() => undefined, async () => { throw new Error("must not fetch"); });
   await expect(missingKey.choose(request, new AbortController().signal)).rejects.toThrow(/key is unavailable/);
 });
