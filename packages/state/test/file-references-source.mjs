@@ -15,7 +15,7 @@ import { DEFAULT_FILE_POLICY, ingestVerifiedEventBytes, readCurrentFinalizedByte
 import { createSqliteFileStore } from '@canlang/files/host/sqlite';
 import { createFileReferenceConsumer } from '../dist/src/index.js';
 import { createMemoryStorage } from '../dist/src/storage/memory.js';
-import { loadArtifactDescriptors } from '../dist/src/invocation/registry.js';
+import { IncompatibleArtifactError, loadArtifactDescriptors } from '../dist/src/invocation/registry.js';
 import { invoke } from '../dist/src/invocation/invoke.js';
 import { generatedCrudExecute } from '../dist/src/mutation/crud.js';
 import { buildModelTableFromCanonical } from '../dist/src/mutation/models.js';
@@ -69,7 +69,8 @@ test('real required File array source reaches winning State CRUD and current SQL
         .inputs.fields.find(field => field.name === 'attachments').valueType = 'file[]'; }]) {
       const malformed = structuredClone(artifact); mutate(malformed);
       assert.throws(() => loadArtifactDescriptors(malformed, { by: 'members' }),
-        error => error instanceof StateError && error.message.includes('valueType disagrees'));
+        error => error instanceof IncompatibleArtifactError && error.reason === 'malformed_descriptor' &&
+          error.message.includes('valueType disagrees'));
     }
     const table = buildModelTableFromCanonical(loaded.models, { refs: loaded.refs,
       serverInits: loaded.serverInits, nullableFields: loaded.nullableFields, containment: loaded.containment,
@@ -143,10 +144,15 @@ test('real required File array source reaches winning State CRUD and current SQL
       attachments: [wire(refs[1])] };
     await assert.rejects(call('update', { ...replacementInput, attachments: [] }),
       error => error instanceof StateError);
-    assert.deepEqual(await store.load(MODEL, row.id), row); await observation.revalidate();
+    assert.deepEqual(await store.load(MODEL, row.id), row);
+    // The rejected receipt advances the global fence while preserving the row
+    // and every duplicate slot. A fresh complete observation captures that fence.
+    await assert.rejects(observation.revalidate(), error => error instanceof StateError && error.code === 'conflict');
+    const beforeReplacement = await consumer.observeReferences(refs[0]);
+    assert.deepEqual(beforeReplacement.references, observation.references); await beforeReplacement.revalidate();
     const replaced = await call('update', replacementInput);
     assert.equal(replaced.status, 'committed');
-    await assert.rejects(observation.revalidate(), error => error instanceof StateError);
+    await assert.rejects(beforeReplacement.revalidate(), error => error instanceof StateError && error.code === 'conflict');
     assert.deepEqual((await consumer.observeReferences(refs[0])).references, []);
     await withheld(() => consumer.read(locator, caller, consume));
     assert.equal(physicalReads, 1, 'removed reference must not reach physical bytes');
