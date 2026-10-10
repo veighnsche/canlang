@@ -926,12 +926,19 @@
           "jev": "A .69/.92/.94, confidence .53/.88/.91; first uncertain, advice only"
         },
         "original_source_gate": {
-          "state": "blocked_shared_helper_producer_separate_nullable_fix_ready",
+          "state": "blocked_shared_helper_producer_nullable_source_correction_tested",
           "evidence": "Reuse actual original29 complete=true exit10 150 diagnostics, Workbench zero at e5c8/draft337. Forty-one-file helper inventory includes policies, presentation and dispatch guards; state-reading active_member cannot be Pure or hoisted earlier without changing current authority.",
-          "prerequisite": "Compiler checked decision-context/source correspondence plus genuine State/Dev current-membership observer; coordinator checks existing qualified hooks. Skip shared helper surgery. CanDo116 nullable actor correction remains separate ready work preserving row.location==null shortcut.",
+          "prerequisite": "Compiler checked decision-context/source correspondence plus genuine State/Dev current-membership observer; coordinator checks existing qualified hooks. Skip shared helper surgery. CanDo116 nullable correction is now implemented and source-checked; original source/native policy qualification remains open.",
           "owner": "Compiler producer; State/Dev actual membership observer; Capability only finite nullable source correction; broader diagnostics remain owning plans"
         },
-        "reference_array_prerequisite": "Original targets:Task[] max10: canonical input metadata retains array marker but lacks owning length bounds, and State owner-stage admission explicitly refuses ref arrays. Compiler must release exact checked bounds/versionedness/distinctness/parameter correspondence; Dev must bind each actual native element privately. State then extends genuine same-owner admission. Empty/null/nonmember/out-of-owner/version mismatches remain required; no caller width or model schema substitutes."
+        "reference_array_prerequisite": "Original targets:Task[] max10: canonical input metadata retains array marker but lacks owning length bounds, and State owner-stage admission explicitly refuses ref arrays. Compiler must release exact checked bounds/versionedness/distinctness/parameter correspondence; Dev must bind each actual native element privately. State then extends genuine same-owner admission. Empty/null/nonmember/out-of-owner/version mismatches remain required; no caller width or model schema substitutes.",
+        "nullable_source_correction": {
+          "state": "implemented_source_tested_unfinished_original_workflow",
+          "draft_commit": "d7d0dc686a24e9882d132f8ddb88e7e40d48d31f",
+          "behavior": "CanDo116 preserves null-location first shortcut; only the existing selected-location branch requires actor!=null before unchanged current can_work.",
+          "validation": "Fresh exact released local Compiler bin build9.48s; actual20-file CanDo transitive import check once1.29s complete=true omitted=0 exit10 132diagnostics, zeroCanDo. Preferences E3001 removed; held Employees8/9 E3010 persist.",
+          "remaining": "Compiler current decision-context/source correspondence, State/Dev genuine membership observer and original full runtime acceptance; no wider source migration or publication."
+        }
       }
     },
     {
