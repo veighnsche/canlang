@@ -560,6 +560,15 @@ pub struct CheckedStdDeliveryCompletion {
     pub capability: String,
     pub op: String,
     pub source: String,
+    /// Selected provider operation and its declared result, before envelope nullability.
+    pub canonical_operation: String,
+    pub result_type: String,
+    /// Exact source-owned import provenance; absent routes grant no deployment binding.
+    pub module: ModuleId,
+    pub alias: String,
+    pub import_span: Span,
+    pub binding: Option<String>,
+    pub from: Option<String>,
     pub payload: ResolvedType,
 }
 
@@ -5036,13 +5045,39 @@ impl<'a> Typer<'a> {
             && let Some(cap) = std_capability(name)
             && let Some(op) = cap.operations.iter().find(|op| op.name == segments[1])
         {
-            let owner = &self.tables.modules[cx.module.0 as usize].name;
+            let module = &self.tables.modules[cx.module.0 as usize];
+            let mut imports = module.imports.iter().flat_map(|import| {
+                import
+                    .members
+                    .iter()
+                    .filter(move |member| member.alias == segments[0])
+                    .map(move |member| (import, member))
+            });
+            let Some((import, member)) = imports.next() else {
+                return None;
+            };
+            // Resolver rejects duplicate aliases. Do not attach an arbitrary route
+            // to their otherwise recoverable external binding in an invalid program.
+            if imports.next().is_some() || import.provider != "std" || member.name != *name {
+                return None;
+            }
+            let owner = &module.name;
             self.types.std_delivery_completion_handlers.insert(
                 NodeKey::of(on),
                 CheckedStdDeliveryCompletion {
                     capability: cap.name.to_string(),
                     op: op.name.to_string(),
                     source: format!("{owner}.{}", segments.join(".")),
+                    canonical_operation: format!("{}.{}", cap.name, op.name),
+                    result_type: op.result.to_string(),
+                    module: cx.module,
+                    alias: member.alias.clone(),
+                    import_span: import.span,
+                    binding: import
+                        .from
+                        .as_ref()
+                        .map(|_| format!("{owner}.{}", member.alias)),
+                    from: import.from.clone(),
                     payload: completion_envelope(Some(std_delivery_result_type(op))),
                 },
             );

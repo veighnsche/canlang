@@ -3345,3 +3345,78 @@ Source-only original25 drops56→46 by10 Leave/Purchase E5002, then assigned Inv
 46→35; no artifact. Observed corpus Leave79→74/Purchase143→138, retaining all52
 full assertions; joined full-table and changed whole/lint remain pending.
 Original58/67/nine references and precise BDD3/S9-Q07/Task22 holds remain.
+
+
+### 2026-10-10 — retain initiating actor proof in precommit hooks (unfinished context)
+
+An exact own enabled Model.create/update/delete hook receives authenticated
+actor scope only through its actual owning checked CRUD grant. Resolve grants
+once before bodies, supporting forward declarations; resolved bare-role proof
+stays hook-specific and ordinary auth proof is unchanged. Public/omitted/unknown/
+public-OR/disabled/imported sources confer no proof; committed lifecycle and
+other trusted events keep null actor. Owning2 distinct tests pass, including
+final expanded grant/delete/import/one-diagnostic control1/1 in0.78s and preserved
+real CLI contextual E6008. Finite independent review is CLEAR.
+
+Exact original25/catalog35→33 removes ONLY original Maintain100/109 author-
+initializer findings, no additions, complete/omitted0/all25 hashes/no artifact.
+Source bytes, author/time/business guards/order/examples remain. Corpus actual
+Maintain112→110 is recorded; joined all52 and changed whole/lint follow. State
+already owns genuine branded InvocationContext/clock; checked native staged
+actor/now/default lowering and Dev canonical hook adapter remain prerequisites,
+with current invoke.ts4342 hook rejection and contextual E6008 retained. No
+arbitrary/null author substitution or new DTO.58/67 and precise holds unchanged.
+
+
+### 2026-10-10 — qualify the current compiler and native selectors (unfinished plan)
+
+Original CLI stdout bytes now pass the installed Testkit and default Cloudflare
+D1/Identity adapter: both authored dotted and whole request input rows execute,
+with no patched modules, metadata, hooks or dispatch port. The separate port
+witness uses the actual declared request.task.version wire input and retains
+full business paths/caller separation. Focused2/2 pass3.35s; finite read-only
+review is CLEAR. Consumed reviewed ecc/94 via5b; genuine owner graph26/26 emits
+uncached in1m58.98s.
+
+Frozen a761 plus this related witness/draft8a2 whole passes1429 across138 targets,
+zero failed/ignored/filtered/bodySKIP, required completion engines and genuine
+native/permission bodies. Strict all-target Clippy0 in57.26s and fmt/diff0. All52
+full corpus assertions pass, including Inbox41/Invoice203/Leave74/Purchase138/
+Maintain110. Reuse unchanged outcomes; prior1422 is historical for these edits.
+Actual original25 remains33/no artifact. This fixture does not grant original
+application or full S9Q07 acceptance.58/67/nine and precise BDD3/Task22/T11 holds
+remain; Work issuer/private nested completion and genuine typed hook context
+joins retain their owners. Coordinator assigns only the five private Purchase
+parameter/reference sites next; exported Rent remains excluded. Local only.
+
+
+### 2026-10-10 — preserve Purchase received state (unfinished composition)
+
+Assigned draft265b837 renames only private receive date parameter to received_on,
+its replay RHS, explicit Receipt received=received_on assignment, actual example
+binding and calendar input. Stored received cases/fields/table/order/labels and
+complete guards/locks/evaluation order/authority remain. Finite review CLEAR.
+Actual same CLI original25/catalog33→32 removes only one Purchase E3001 state/date
+capture, adds none, complete/omitted0/all25 current hashes/no artifact in1.564s.
+Isolated138→137 in0.071s; only Purchase corpus pin/comment changes. All52/full
+assertions and51 other expectations retained; owning table1/1 passes39.32s with36
+unrelated tests unselected. fmt/diff0; reuse unchanged production whole1429/138
+and strict57.26s. Safe FF481→reviewed containing4a6 consumes Workdc7/File679/
+selected Devb31 without source overlap or discarded edits. Private completion
+carrier and original typed hook context remain unfinished executable joins.
+58/67/nine and precise holds remain; exported Rent excluded. Local only.
+
+
+### 2026-10-10 — retain standard completion provenance (unfinished executable join)
+
+Keep selected canonical std operation and original result spelling before
+envelope nullability, plus exact own module/alias/import span and existing
+qualified binding/from, in the internal checked fact. Unique own correspondence
+is required; ambiguous aliases acquire no fact and unbound routes remain absent.
+This supplies actual producer inputs for the pinned private Dev/Work join without
+reconstructing declaration identity from nullable payloads. Payload/effects and
+existing publication E6008 remain unchanged. Owning delivery_error_shapes9/9
+pass1.14s, including distinct aliases/routes, unbound/duplicate/unknown controls
+and existing actual native observer/nullable set. fmt/diff0. Source32 witness
+reused; whole1429/138/strict retains frozen pre-provenance scope until the related
+join qualification.58/67/nine and precise holds unchanged. Local only.

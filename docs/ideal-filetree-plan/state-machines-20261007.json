@@ -1,18 +1,18 @@
 {
   "date": "2026-10-10",
-  "integrated_source_pin": "8b0768ee6502f8e3eacd6540d9709027fc2e5c68",
+  "integrated_source_pin": "7a582651024ad740b744424ebcb46749814365ef",
   "base": "bd182142f2a6605deb4fa9f0c447b561a36bdce6",
   "last_complete_checkpoint": "8249342707d3280e88e39e8c911b7e457828f31f",
   "checkpoint_advanced": false,
   "coverage": {
-    "commit_count_since_checkpoint": 2013,
-    "net_path_deltas": 10883,
-    "history_touched_paths": 11427,
+    "commit_count_since_checkpoint": 2027,
+    "net_path_deltas": 10887,
+    "history_touched_paths": 11431,
     "history_only_paths": 513,
     "released_feature_paths": 79,
     "new_target_leaves": 30,
-    "inherited_paths_without_prior_target_allocation": 9380,
-    "scope": "Worker local intake of exact coordinator-reviewed 8b0768ee6502f8e3eacd6540d9709027fc2e5c68 onto f2fc9dd329251af87b4afa8832b31bbd109ed683, preserving unfinished Work issuer dc7e6ce1 and reviewed679cb253 common retirement contract. Actual staged tree and both complete parent histories since 8249342707d3280e88e39e8c911b7e457828f31f: 2013 commits, 10883 net deltas, 11427 historical paths, 513 history-only and 9380 pending allocations. Every prior allocation tuple, owner/strongest scope/retirement/task,79 feature paths/30 target leaves and precise holds retained; complete checkpoint unadvanced. Types and finite Work acceptance do not establish State retirement/native/provider workflow acceptance."
+    "inherited_paths_without_prior_target_allocation": 9384,
+    "scope": "Worker exact reviewed7a582651 framework prerequisite intake onto unfinished State485217b9. Actual staged tree and both complete histories since824934: 2027 commits/10887 net deltas/11431 historical paths/513 history-only/9384 pending allocations. Register owning State retirement source/test and Work framework producer/test while retaining every prior allocation tuple, owner/strongest scope/retirement/task,79 feature paths/30 target leaves and all precise holds. Complete checkpoint unadvanced; Memory/D1 finite results are not DO/framework/physical deletion acceptance."
   },
   "methods": [
     "git -c diff.renameLimit=20000 diff --cached --name-status --find-renames -z checkpoint (actual staged local merge tree; incoming integrated_source_pin onto current main parent)",
@@ -65364,6 +65364,30 @@
       "turbo.json",
       "build",
       "inherited-unallocated"
+    ],
+    [
+      "A",
+      "packages/work/src/kernel/file-reference-inventory.ts",
+      "packages/work",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "packages/work/test/file-reference-inventory.test.ts",
+      "packages/work",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "packages/state/src/storage/file-retirement.ts",
+      "state",
+      "inherited-unallocated"
+    ],
+    [
+      "A",
+      "packages/state/test/file-retirement-storage.test.ts",
+      "state",
+      "inherited-unallocated"
     ]
   ],
   "history_only": [
@@ -67934,7 +67958,7 @@
     ]
   ],
   "pending_target_allocation": {
-    "count": 9380,
+    "count": 9384,
     "selection": "All net_deltas rows with scope=inherited-unallocated; source path is the single path or rename successor. No duplicate path listing."
   },
   "remaining_review": "FP.SOURCE-CLOSURE must reconcile every registered inherited delta and unmapped input against exact defining duties/targets, retirement and original task acceptance before checkpoint advance. Counts, file ancestry and existing notes alone cannot close it.",
@@ -67948,5 +67972,5 @@
   "lanes": "Existing four local worktrees continue their assigned plans; only committed snapshots are integrated here. Open edits and recipient-specific holds are preserved. Coordinator alone serializes local main merges/manual review; no remote publication or PR review gates.",
   "decisions": "../specification/DECISIONS.md; accepted feature and scoped post-merge review separate from historical proposal",
   "self_update": "This bookkeeping commit requires no recursive registration of its own plan/evidence changes.",
-  "current_maintenance_summary": "Worker local intake of exact coordinator-reviewed 8b0768ee6502f8e3eacd6540d9709027fc2e5c68 onto f2fc9dd329251af87b4afa8832b31bbd109ed683, preserving unfinished Work issuer dc7e6ce1 and reviewed679cb253 common retirement contract. Actual staged tree and both complete parent histories since 8249342707d3280e88e39e8c911b7e457828f31f: 2013 commits, 10883 net deltas, 11427 historical paths, 513 history-only and 9380 pending allocations. Every prior allocation tuple, owner/strongest scope/retirement/task,79 feature paths/30 target leaves and precise holds retained; complete checkpoint unadvanced. Types and finite Work acceptance do not establish State retirement/native/provider workflow acceptance."
+  "current_maintenance_summary": "Worker exact reviewed7a582651 framework prerequisite intake onto unfinished State485217b9. Actual staged tree and both complete histories since824934: 2027 commits/10887 net deltas/11431 historical paths/513 history-only/9384 pending allocations. Register owning State retirement source/test and Work framework producer/test while retaining every prior allocation tuple, owner/strongest scope/retirement/task,79 feature paths/30 target leaves and all precise holds. Complete checkpoint unadvanced; Memory/D1 finite results are not DO/framework/physical deletion acceptance."
 }
