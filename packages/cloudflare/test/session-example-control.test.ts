@@ -404,10 +404,19 @@ async function rankingFixture(config?: SessionConstructRankingOptions) {
   producer.routing = rankRouting();
   const checked = await settledRankingCheck(fixture);
   const control = (args: string[]) => runDevControlArgv(args, { cwd: fixture.root, discover: async () => fixture.client });
-  const rank = async (revision = checked.revision) => controlResult<{ result: RankResult }>(await control([
+  const rankPending = async (revision = checked.revision) => controlResult<{ result: RankResult }>(await control([
     "construct.rank", "--revision", revision, "--index", "0",
   ])).result;
-  return { ...fixture, original, checked, control, rank };
+  const rank = async (revision = checked.revision) => {
+    let result = await rankPending(revision);
+    // Existing synchronous component controls now consume a completed daemon
+    // job. Controlled lifetime cases below deliberately use rankPending.
+    for (let attempt=0;config?.qualify && result.state==='candidate_coverage_unknown' && attempt<5;attempt++) {
+      await new Promise(resolve=>setTimeout(resolve,10)); result=await rankPending(revision);
+    }
+    return result;
+  };
+  return { ...fixture, original, checked, control, rank, rankPending };
 }
 
 it("ranks only captured qualified cards through private CLI/socket control and preserves diagnostics/preview", async () => {
@@ -495,93 +504,109 @@ it("keeps structural/none/unknown local and refuses omitted or malformed context
   } finally { await fixture.owner.stop(); }
 });
 
-it("awaits card qualification without granting a ranking branch and refuses an edited source before disclosure", async () => {
-  let calls=0, release: (() => void) | undefined, entered: (() => void) | undefined;
-  let gate: Promise<void> | undefined;
-  const fixture=await rankingFixture({ allowExternal: () => true,
-    qualify: async request => {
-      if (gate) { entered?.(); await gate; }
-      return Object.freeze({...syntheticQualification(request),messageKinds:Object.freeze([])});
-    }, transport:{choose:async request=>{calls++;return rankAnswer(request,rankIds[0]!);}} });
+it("owns pending qualification outside requests, dedupes it and reuses only its completed immutable bundle", async () => {
+  let calls=0, qualifications=0, release!:()=>void, entered!:()=>void;
+  const gate=new Promise<void>(resolve=>{release=resolve;});
+  const started=new Promise<void>(resolve=>{entered=resolve;});
+  const fixture=await rankingFixture({allowExternal:()=>true,qualify:async request=>{
+    qualifications++;entered();await gate;
+    return Object.freeze({...syntheticQualification(request),messageKinds:Object.freeze([])});
+  },transport:{choose:async request=>{calls++;return rankAnswer(request,rankIds[0]!);}}});
+  const payload={revision:fixture.checked.revision,index:0};
   try {
-    const detail=await fixture.client.request({command:"diagnostic.detail",payload:{revision:fixture.checked.revision,index:0}});
-    expect(detail).toMatchObject({construct_help:{candidateCoverage:"complete",
-      classification:rankIds.map(id=>({id,profile:"included",working:"qualified"}))}});
-    expect(await fixture.rank()).toMatchObject({state:"candidate_coverage_unknown"});
-    let started!: () => void;
-    const starting=new Promise<void>(resolve=>{started=resolve;}); entered=started;
-    gate=new Promise<void>(resolve=>{release=resolve;});
-    const pending=fixture.rank(); await starting;
-    writeFileSync(fixture.app,`${rankSource}## Changed while actual qualification was pending.\n`);
-    release!();
-    expect(await pending).toMatchObject({state:"stale"});
-    expect(calls).toBe(0);
-  } finally {release?.();await fixture.owner.stop();}
+    const first=await fixture.client.request({command:"diagnostic.detail",payload});
+    expect(first).toMatchObject({current:true,construct_help:{candidateCoverage:"unknown"}});
+    await started;
+    expect(await fixture.rankPending()).toMatchObject({state:"candidate_coverage_unknown"});
+    expect(await fixture.client.request({command:"diagnostic.detail",payload})).toMatchObject({construct_help:{candidateCoverage:"unknown"}});
+    expect(qualifications).toBe(1);release();
+    await vi.waitFor(async()=>expect(await fixture.client.request({command:"diagnostic.detail",payload}))
+      .toMatchObject({current:true,construct_help:{candidateCoverage:"complete",
+        classification:rankIds.map(id=>({id,profile:"included",working:"qualified"}))}}));
+    expect(await fixture.rankPending()).toMatchObject({state:"candidate_coverage_unknown"});
+    expect(qualifications).toBe(1);expect(calls).toBe(0);
+  } finally {release();await fixture.owner.stop();}
 });
 
 it("refreshes diagnostic detail after pending qualification when source changes before watcher delivery", async () => {
-  let release: (() => void) | undefined;
-  let entered: (() => void) | undefined;
-  let gate: Promise<void> | undefined;
-  const fixture = await rankingFixture({ qualify: async request => {
-    if (gate !== undefined) { entered!(); await gate; }
-    return Object.freeze({ ...syntheticQualification(request), messageKinds: Object.freeze([]) });
-  } });
-  let restoreWatcher: (() => void) | undefined;
+  let release!:()=>void,entered!:()=>void,aborted!:()=>void;
+  const gate=new Promise<void>(resolve=>{release=resolve;});
+  const started=new Promise<void>(resolve=>{entered=resolve;});
+  const cancelled=new Promise<void>(resolve=>{aborted=resolve;});
+  const fixture=await rankingFixture({qualify:async(request,signal)=>{
+    signal!.addEventListener("abort",aborted,{once:true});entered();await gate;
+    return Object.freeze({...syntheticQualification(request),messageKinds:Object.freeze([])});
+  }});
+  let restoreWatcher:(()=>void)|undefined;
   try {
-    const payload = { revision: fixture.checked.revision, index: 0 };
-    expect(await fixture.client.request({ command: "diagnostic.detail", payload })).toMatchObject({
-      current: true, construct_help: { candidateCoverage: "complete" },
-    });
-    const started = new Promise<void>(resolve => { entered = resolve; });
-    gate = new Promise<void>(resolve => { release = resolve; });
-    const pending = fixture.client.request({ command: "diagnostic.detail", payload });
+    const payload={revision:fixture.checked.revision,index:0};
+    expect(await fixture.client.request({command:"diagnostic.detail",payload})).toMatchObject({current:true,construct_help:{candidateCoverage:"unknown"}});
     await started;
-    // Hold only the watcher hint; the actual source capture and explicit
-    // refresh remain real, so this check cannot pass through watcher timing.
-    const delayedWatcher = vi.spyOn(DevSessionCore.prototype, "markDirty").mockImplementation(() => undefined);
-    restoreWatcher = () => { delayedWatcher.mockRestore(); };
-    writeFileSync(fixture.app, `${rankSource}## Edited while diagnostic qualification was pending.\n`);
-    expect(await fixture.client.request({ command: "status" })).toMatchObject({
-      revision: fixture.checked.revision, dirty: false,
-    });
-    release!();
-    const detail = await pending as { construct_help: { cards: { status: string }[];
-      classification: { working: string }[] } };
-    expect(detail).toMatchObject({ revision: fixture.checked.revision, current: false,
-      source: { sha256: createHash("sha256").update(rankSource).digest("hex") },
-      diagnostic: { message: "source error" }, construct_help: { candidateCoverage: "unknown" },
-    });
-    expect(detail.construct_help.cards.every(card => card.status !== "working")).toBe(true);
-    expect(detail.construct_help.classification.every(card => card.working === "unqualified")).toBe(true);
-  } finally {
-    release?.();
-    restoreWatcher?.();
-    await fixture.owner.stop();
-  }
+    const delayedWatcher=vi.spyOn(DevSessionCore.prototype,"markDirty").mockImplementation(()=>undefined);
+    restoreWatcher=()=>delayedWatcher.mockRestore();
+    writeFileSync(fixture.app,`${rankSource}## Edited while diagnostic qualification was pending.\n`);
+    expect(await fixture.client.request({command:"status"})).toMatchObject({revision:fixture.checked.revision,dirty:false});
+    const detail=await fixture.client.request({command:"diagnostic.detail",payload}) as {
+      construct_help:{cards:{status:string}[];classification:{working:string}[]}};
+    await cancelled;release();
+    expect(detail).toMatchObject({revision:fixture.checked.revision,current:false,
+      source:{sha256:createHash("sha256").update(rankSource).digest("hex")},diagnostic:{message:"source error"},
+      construct_help:{candidateCoverage:"unknown"}});
+    expect(detail.construct_help.cards.every(card=>card.status!=="working")).toBe(true);
+    expect(detail.construct_help.classification.every(card=>card.working==="unqualified")).toBe(true);
+    expect(await fixture.client.request({command:"diagnostic.detail",payload})).toMatchObject({current:false,construct_help:{candidateCoverage:"unknown"}});
+  } finally {release();restoreWatcher?.();await fixture.owner.stop();}
 });
 
 it("stop aborts and waits for private qualification cleanup without retaining its late bundle", async () => {
-  let entered!: () => void, aborted!: () => void, cleanup!: () => void;
+  let entered!:()=>void,aborted!:()=>void,cleanup!:()=>void;
   const started=new Promise<void>(resolve=>{entered=resolve;});
   const cancelled=new Promise<void>(resolve=>{aborted=resolve;});
   const disposal=new Promise<void>(resolve=>{cleanup=resolve;});
-  let disposed=false, calls=0;
-  const fixture=await rankingFixture({allowExternal:()=>true,
-    qualify:async(request,signal)=>{
-      expect(signal).toBeDefined(); entered();
-      await new Promise<void>(resolve=>signal!.addEventListener("abort",()=>{aborted();resolve();},{once:true}));
-      await disposal; disposed=true;
-      return syntheticQualification(request);
-    },transport:{choose:async request=>{calls++;return rankAnswer(request,rankIds[0]!);}}});
+  let disposed=false,calls=0;
+  const fixture=await rankingFixture({allowExternal:()=>true,qualify:async(request,signal)=>{
+    entered();await new Promise<void>(resolve=>signal!.addEventListener("abort",()=>{aborted();resolve();},{once:true}));
+    await disposal;disposed=true;return syntheticQualification(request);
+  },transport:{choose:async request=>{calls++;return rankAnswer(request,rankIds[0]!);}}});
   try {
-    const pending=fixture.rank().then(()=>"completed",()=>"cancelled"); await started;
-    let stopped=false;
-    const stopping=fixture.owner.stop().then(()=>{stopped=true;});
-    await cancelled; expect(stopped).toBe(false); expect(disposed).toBe(false);
-    cleanup(); await stopping;
-    expect(disposed).toBe(true); expect(await pending).toBe("cancelled"); expect(calls).toBe(0);
+    expect(await fixture.rankPending()).toMatchObject({state:"candidate_coverage_unknown"});await started;
+    let stopped=false;const stopping=fixture.owner.stop().then(()=>{stopped=true;});
+    await cancelled;expect(stopped).toBe(false);expect(disposed).toBe(false);
+    cleanup();await stopping;expect(disposed).toBe(true);expect(stopped).toBe(true);expect(calls).toBe(0);
   } finally {cleanup();await fixture.owner.stop();}
+});
+
+it("withholds completed malformed qualification and aborts changed captured producers", async () => {
+  for(const mode of ["mutable","wrong-tuple","accessor","proof-id-accessor","producer-change"] as const) {
+    let entered!:()=>void,release!:()=>void,aborted!:()=>void,qualifications=0,getters=0;
+    const started=new Promise<void>(resolve=>{entered=resolve;});
+    const gate=new Promise<void>(resolve=>{release=resolve;});
+    const cancelled=new Promise<void>(resolve=>{aborted=resolve;});
+    const fixture=await rankingFixture({qualify:async(request,signal)=>{
+      qualifications++;signal!.addEventListener("abort",aborted,{once:true});entered();await gate;
+      const bundle=syntheticQualification(request);
+      if(mode==="mutable")return {...bundle};
+      if(mode==="wrong-tuple")return Object.freeze({...bundle,producerInputsDigest:"0".repeat(64)});
+      if(mode==="accessor")return Object.freeze({...bundle,get proofs(){getters++;return bundle.proofs;}});
+      if(mode==="proof-id-accessor")return Object.freeze({...bundle,proofs:Object.freeze([
+        Object.freeze({...bundle.proofs[0]!,get id(){getters++;return bundle.proofs[0]!.id;}}),...bundle.proofs.slice(1),
+      ])});
+      return bundle;
+    }});
+    try {
+      const payload={revision:fixture.checked.revision,index:0};
+      expect(await fixture.client.request({command:"diagnostic.detail",payload})).toMatchObject({construct_help:{candidateCoverage:"unknown"}});
+      await started;
+      if(mode==="producer-change") {
+        writeFileSync(fixture.runtime,"changed captured runtime producer");
+        expect(await fixture.client.request({command:"check"})).toMatchObject({state:"incomplete"});await cancelled;
+      }
+      release();await new Promise(resolve=>setTimeout(resolve,30));
+      for(let i=0;i<2;i++)expect(await fixture.client.request({command:"diagnostic.detail",payload}))
+        .toMatchObject({current:mode!=="producer-change",construct_help:{candidateCoverage:"unknown"}});
+      expect(qualifications).toBe(1);expect(getters).toBe(0);
+    } finally {release();await fixture.owner.stop();}
+  }
 });
 
 it("defaults to no disclosure, permits a deterministic single card, and reports absent provider", async () => {
