@@ -1,0 +1,42 @@
+## Authored finite stored-reference consumer; not complete Workbench acceptance.
+app StoredReferenceSource uses=[workbench]
+package rent_catalog
+ Given
+  export Location {name:text}
+  policy Location read=members
+ When
+  crud Location by=members fields=name
+ Then
+package todo
+ use rent_catalog {Location}
+ Given
+  export Task {location:Location?,title:text,description:text?,due:datetime?,priority:enum(low,normal,high)=normal,done:bool=false}
+  policy Task read=members
+ When
+  crud Task by=members fields=location,title,description,due,priority,done
+ Then
+package workbench
+ use rent_catalog {Location}
+ use todo {Task}
+ Given
+  contract Scope {targets:Task[]! min=1 max=10}
+  contract Fact {task:Task,version:int min=1,title:Task.title max=2000,description:Task.description max=8000,due:Task.due,priority:Task.priority,done:bool}
+  Run {location:Location,targets:Scope.targets}
+  Step in Run {ordinal:int min=1 max=8}
+  policy Run read=members
+  policy Step read=members
+ When
+  crud Run by=members fields=location,targets
+  crud Step by=members fields=ordinal
+  scenario context(location:Location,targets:Scope.targets) read=true -> Fact[] by=members
+   require count(targets)>0
+   do
+    let visible=Task as task where task in targets and task.location==location
+    require count(visible)==count(targets)
+    return visible as task select Fact {task,version=task.version,title=task.title,description=task.description,due=task.due,priority=task.priority,done=task.done}
+  scenario parent(step:Step) -> int by=members
+   do
+    call context {location=step.parent.location,targets=step.parent.targets} as fresh
+    require count(fresh)==count(step.parent.targets)
+    return 1
+ Then

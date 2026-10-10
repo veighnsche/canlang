@@ -51,6 +51,8 @@ interface Frame extends QueryFrame {
   readonly store: StoragePort;
   readonly owner: object;
   readonly intrinsics: ReadonlyMap<string, ScenarioReceiptIntrinsicDependency>;
+  readonly sourceViews: WeakMap<object, object>;
+  readonly observedFields: WeakMap<object, Map<string, { readonly model: string; readonly wire: unknown }>>;
   readonly invokeCall?: (site: string, target: string | InvocationRef, inputs: Readonly<Record<string, unknown>>) => Promise<unknown>;
 }
 interface PublicReadFrame extends QueryFrame {
@@ -134,8 +136,10 @@ function checked(c: HandlerContext): Frame {
 }
 export interface ScenarioReceiptFrame {
   bind(view: object, model: string, current: () => StoredRow | null | undefined): void;
+  bindNavigationReference(reference: object, view: object, model: string): void;
   bindAdmittedReference(view: object, reference: object): void;
   prepareReference(view: unknown, model: string): { readonly id: string; readonly version: string };
+  assertObservedReference(view: object, model: string, field: string, wire: unknown): void;
   queryResult(value: unknown): { readonly wire: unknown } | undefined;
   assertCompleted(): void;
   close(): void;
@@ -154,10 +158,17 @@ export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
       (entry.intrinsics ?? []).map(dependency => [dependency.id, dependency] as const)) : []);
   const frame: Frame = { kind: 'receipt', call, store, failure, intrinsics, ...(invokeCall === undefined ? {} : { invokeCall }),
     ...(queryProducer === undefined ? {} : { queryProducer }), queryViews: new WeakMap(), queryArrays: new WeakMap(), queryResults: new WeakMap(),
-    owner: Object.freeze({}), active: true, pending: 0, failed: false, error: undefined };
+    owner: Object.freeze({}), sourceViews: new WeakMap(), observedFields: new WeakMap(), active: true, pending: 0, failed: false, error: undefined };
   frames.set(c, frame);
   framedCalls.add(call);
   return Object.freeze({
+    assertObservedReference(view: object, model: string, field: string, wire: unknown) {
+      checked(c);
+      const observed = frame.observedFields.get(frame.sourceViews.get(view) ?? view)?.get(field);
+      if (observed?.model !== model || stableStringify(observed.wire) !== stableStringify(wire)) {
+        return fail(frame, new StateError('validation', 'Stored reference requires its successful original source-field observation.'));
+      }
+    },
     prepareReference(view: unknown, model: string) {
       // Trusted host preparation runs after State suspends this parent and
       // before child admission. This private frame pointer, never source c,
@@ -173,6 +184,21 @@ export function openScenarioReceiptFrame(c: HandlerContext, call: AdmittedCall,
       checked(c);
       try { bindNativeScenarioReceiptRow(view, frame.owner, model, current); }
       catch (error) { fail(frame, error); }
+    },
+    bindNavigationReference(reference: object, view: object, model: string) {
+      checked(c);
+      try {
+        // Only successful lazy navigation supplies its genuine underlying
+        // receipt-bound view. A public identity alone cannot issue this alias.
+        const original = captureNativeScenarioReceiptRow(view, frame.owner, model);
+        const identity = nativeRecordReference(reference);
+        if (identity?.model !== model || identity.id !== original.id || frame.sourceViews.has(reference)) {
+          return refuse('Scenario navigation requires its exact resolved owner view.');
+        }
+        bindNativeScenarioReceiptRow(reference, frame.owner, model,
+          () => captureNativeScenarioReceiptRow(view, frame.owner, model));
+        frame.sourceViews.set(reference, view);
+      } catch (error) { fail(frame, error); }
     },
     bindAdmittedReference(view: object, reference: object) {
       checked(c);
@@ -232,6 +258,15 @@ export function observeScenarioReceiptDependency(c: HandlerContext, model: strin
       await observeStateDependency(frame.call, frame.store,
         { dependencyId, model: model as ModelName, row, field });
       checked(c);
+      // This private cache records only actual successful State observation.
+      // Native hydration must match the exact evaluated field's canonical wire;
+      // owning grants, Identity, source lifetime and final guards stay in State.
+      const sourceView = frame.sourceViews.get(nativeRow as object) ?? nativeRow as object;
+      let fields = frame.observedFields.get(sourceView);
+      if (fields === undefined) { fields = new Map(); frame.observedFields.set(sourceView, fields); }
+      fields.set(field, Object.freeze({ model, wire: field === 'parent'
+        ? row.parent === null || row.parent === undefined ? null : { id: row.parent.id }
+        : row.data[field] }));
     } catch (error) { fail(frame, error); }
     finally { frame.pending -= 1; }
   })();
