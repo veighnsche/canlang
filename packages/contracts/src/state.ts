@@ -691,6 +691,16 @@ export type FrameworkFileReferenceField =
       readonly nullable?: true;
       readonly optional?: true;
     }
+  | {
+      readonly kind: 'control';
+      readonly value: 'object';
+      /** Closed flat string fields, e.g. owning ReceiptError code/message.
+       * Every declared field is required; no extra/nested/opaque JSON fields.
+       * The owning producer derives keys from its actual declaration. */
+      readonly fields: Readonly<Record<string, { readonly kind: 'control'; readonly value: 'string' }>>;
+      readonly nullable?: true;
+      readonly optional?: true;
+    }
   | { readonly kind: 'opaque'; readonly role: 'retained-result' | 'deferred-input' };
 
 /** Exact closed data fields from the actual owning row definition. Source tags
