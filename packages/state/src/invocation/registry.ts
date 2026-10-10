@@ -391,7 +391,7 @@ function checkResult(
   }
   const claim = Object.getOwnPropertyDescriptor(result, 'disclosure');
   if (claim !== undefined) {
-    if (!('value' in claim) || kind !== 'scenario' || Object.keys(result).some(key => !['type', 'disclosure'].includes(key))) {
+    if (!('value' in claim) || !['scenario', 'read'].includes(kind) || Object.keys(result).some(key => !['type', 'disclosure'].includes(key))) {
       fail('malformed_descriptor', `Invalid ${what}: scenario disclosure requires closed source data.`);
     }
     try { return Object.freeze({ type: type as CanTypeId, disclosure: checkScenarioResultDisclosurePlan(claim.value) }); }
@@ -1622,7 +1622,9 @@ export function artifactToDescriptorSet(
       }
       const origins = [source, ...result.disclosure.returns.flatMap(returned =>
         [returned.source, ...returned.dependencies.map(dependency => dependency.source),
-          ...(returned.intrinsics ?? []).map(dependency => dependency.source)])];
+          ...(returned.intrinsics ?? []).map(dependency => dependency.source),
+          ...(returned.projection === undefined ? [] : [returned.projection.source])]),
+        ...(result.disclosure.queries ?? []).flatMap(query => [query.source, ...query.dependencies.map(dependency => dependency.source)])];
       if (origins.some(origin => !sources?.some(entry => entry.path === origin.path && entry.sha256 === origin.sha256) ||
             !modulePaths.includes(origin.module)) || matches !== 1) {
         fail('malformed_descriptor', 'Scenario dependency plan disagrees with its exact artifact source/callable module.');

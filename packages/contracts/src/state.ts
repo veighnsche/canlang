@@ -121,9 +121,44 @@ export type ScenarioReceiptIntrinsicDependency = {
 } | {
   readonly kind: 'admitted-reference-version'; readonly parameter: string; readonly model: ModelName;
 });
+/** Checked query occurrence; declarations and source correspondence grant no authority. */
+export interface ScenarioReceiptQueryPlan {
+  readonly id: string;
+  readonly source: ScenarioReceiptSourceOrigin;
+  readonly model: ModelName;
+  readonly order: ReadonlyArray<OrderTerm>;
+  readonly limit: number | null;
+  readonly archived: 'exclude' | 'include';
+  readonly dependencies: ReadonlyArray<{
+    readonly id: string; readonly source: ScenarioReceiptSourceOrigin;
+    readonly role: 'data' | 'control'; readonly field: string; readonly type: CanTypeId;
+  }>;
+}
+export interface ScenarioReceiptQueryProjection {
+  readonly kind: 'query-contract-array';
+  readonly queryId: string;
+  /** The actual local query/select occurrence, distinct from the model scan. */
+  readonly source: ScenarioReceiptSourceOrigin;
+  readonly fields: ReadonlyArray<{
+    readonly name: string; readonly kind: 'reference' | 'version' | 'field'; readonly field?: string;
+  }>;
+}
+export interface ScenarioReceiptQueryObservation {
+  readonly queryId: string;
+  readonly revision: Revision;
+  /** Full original viewer domain, including false matches. Empty is meaningful. */
+  readonly candidates: ReadonlyArray<{
+    readonly row: StoredRow; readonly record: ProjectedRecord;
+    readonly secretFields: readonly string[]; readonly matched: boolean;
+    readonly dependencies: readonly string[];
+  }>;
+  readonly selectedIndices: readonly number[];
+}
+
 export interface ScenarioResultDisclosurePlan {
   readonly version: 1;
   readonly source: ScenarioReceiptSourceOrigin;
+  readonly queries?: readonly ScenarioReceiptQueryPlan[];
   readonly returns: ReadonlyArray<{
     readonly id: string;
     readonly source: ScenarioReceiptSourceOrigin;
@@ -134,6 +169,7 @@ export interface ScenarioResultDisclosurePlan {
     readonly influences: ReadonlyArray<{
       readonly id: string;
       readonly kind: 'query-existence' | 'query-cardinality' | 'query-membership' | 'query-order' | 'absent-reference';
+      readonly queryId?: string;
     }>;
     readonly dependencies: ReadonlyArray<{
       readonly id: string;
@@ -145,6 +181,7 @@ export interface ScenarioResultDisclosurePlan {
     }>;
     /** Optional additive profile; absence preserves existing field-only plans. */
     readonly intrinsics?: ReadonlyArray<ScenarioReceiptIntrinsicDependency>;
+    readonly projection?: ScenarioReceiptQueryProjection;
   }>;
 }
 
@@ -154,6 +191,7 @@ export interface ScenarioReceiptAssociation {
   readonly plan: ScenarioResultDisclosurePlan;
   readonly resultType: CanTypeId;
   readonly returnId: string;
+  readonly queries?: readonly ScenarioReceiptQueryObservation[];
   /** Actual same-owner calls, retained privately with the parent receipt.
    * Target metadata identifies the checked interface; it grants no authority.
    * Current projection rechecks target authority and every saved dependency. */
